@@ -1,0 +1,80 @@
+
+# Definitions of components/services used (using charm syntax)
+components:
+  wordpress: &wordpress
+    revision: 3
+    summary: "A pretty popular blog engine"
+    provides:
+      url:
+        interface: http
+    requires:
+      db:
+       interface: mysql
+    options:
+      url:
+        type: String
+        default: wp.test.local
+        description: the url to use to host your blog on
+
+  mysql: &mysql
+    revision: 1
+    summary: "A pretty popular database"
+    provides:
+      db: mysql
+
+# An architect template
+blueprint: &wp
+  name: Simple Wordpress
+  wordpress:
+    exposed: true
+    open-ports: [80/tcp]
+    config: *wordpress
+    relations: {db: mysql}
+  mysql:
+    config: *mysql
+
+# Environment
+environment: &env1
+  name: rackcloudtech-test
+  providers:
+  - compute: &rax-cloud-servers
+    endpoint: https://servers.api.rakcpsacecloud.com/servers/{tenantId}
+  - loadbalancer: &rax-lbaas
+    endpoint: https://lbaas.api.rakcpsacecloud.com/servers/{tenantId}
+  - database: &rax-dbaas
+    endpoint: https://database.api.rakcpsacecloud.com/servers/{tenantId}
+  - common:
+    vendor: rackspace
+    credentials:
+    - token: {token}
+
+# Actual deployment instance
+deployment:
+  blueprint: *wp
+  environment: *env1
+  inputs:
+    domain: rackcloudtech.com
+    ssl: false
+  machines:
+    0: {dns-name: srv1.rackcloudtech.com, instance-id: 12567}
+    1: {dns-name: srv2.rackcloudtech.com, instance-id: 12571}
+  wordpress:
+    exposed: true
+    config: *wordpress
+    relations: {db: mysql}
+    units:
+      wordpress/1:
+        machine: 1
+        open-ports: [80/tcp]
+        relations:
+          db: {state: up}
+        state: started
+  mysql:
+    config: *mysql
+    relations: {db: wordpress}
+    units:
+      mysql/1:
+        machine: 0
+        relations:
+          db: {state: up}
+        state: started

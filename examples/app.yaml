@@ -1,0 +1,73 @@
+
+# Definitions of components/services used (using charm syntax)
+components:
+  wordpress: &wordpress
+    revision: 3
+    summary: "A pretty popular blog engine"
+    provides:
+      url:
+        interface: http
+    requires:
+      db:
+       interface: mysql
+    options:
+      url:
+        type: String
+        default: wp.test.local
+        description: the url to use to host your blog on
+
+  mysql: &mysql
+    revision: 1
+    summary: "A pretty popular database"
+    provides:
+      db: mysql
+
+# An architect template
+blueprint: &wp
+  name: Simple Wordpress
+  wordpress:
+    exposed: true
+    open-ports: [80/tcp]
+    config: *wordpress
+    relations: {db: mysql}
+  mysql:
+    config: *mysql
+
+# Environment
+environment: &env1
+  name: rackcloudtech-test
+  providers:
+  - compute: &rax-cloud-servers
+    vendor: rackspace
+    constraints:
+    - region: ORD # TODO: this is still read from os.environ
+  - loadbalancer: &rax-lbaas
+    endpoint: https://lbaas.api.rakcpsacecloud.com/servers/{tenantId}
+  - database: &rax-dbaas
+    endpoint: https://database.api.rakcpsacecloud.com/servers/{tenantId}
+  - common:
+    vendor: rackspace
+    credentials:
+    - rackspace:
+      username: ignored # TODO: this is still read from os.environ
+
+environment: &dfw
+  name: rackcloudtech-test
+  region: dfw # TODO: this is still read from os.environ
+  providers:
+  - common:
+    vendor: rackspace
+    credentials:
+    - rackspace:
+      username: rackcloudtech # TODO: this is still read from os.environ
+
+
+# Actual deployment instance
+deployment:
+  blueprint: *wp
+  environment: *env1
+  inputs:
+    domain: rackcloudtech.com
+    ssl: false
+    region: chicago # TODO: this is still read from os.environ
+
