@@ -34,6 +34,7 @@ blueprint: &wp
   mysql:
     config: *mysql
 
+
 # Environment
 environment: &env1
   name: rackcloudtech-test
@@ -43,9 +44,9 @@ environment: &env1
     constraints:
     - region: ORD # TODO: this is still read from os.environ
   - loadbalancer: &rax-lbaas
-    endpoint: https://lbaas.api.rakcpsacecloud.com/servers/{tenantId}
+    endpoint: https://lbaas.api.rackpsacecloud.com/servers/{tenantId}
   - database: &rax-dbaas
-    endpoint: https://database.api.rakcpsacecloud.com/servers/{tenantId}
+    endpoint: https://database.api.rackpsacecloud.com/servers/{tenantId}
   - common:
     vendor: rackspace
     credentials:
@@ -72,4 +73,6 @@ deployment:
     domain: rackcloudtech.com
     ssl: false
     region: chicago # TODO: this is still read from os.environ
+    high-availability: false
+    requests-per-second: 60
 

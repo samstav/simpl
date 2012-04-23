@@ -27,7 +27,7 @@ These are stored in:
 import json
 # pylint: disable=E0611
 from bottle import route, get, post, run, request, response, abort, \
-        HTTPError, static_file 
+        HTTPError, static_file
 import os
 import uuid
 import yaml
@@ -194,6 +194,7 @@ def get_deployments():
 
 @post('/deployments')
 def post_deployment():
+    # Load content from body (and resolve external references)
     data = request.body
     if not data:
         abort(400, 'No data received')
@@ -207,18 +208,21 @@ def post_deployment():
     else:
         return HTTPError(status=415, output="Unsupported Media Type")
 
+    # Store deployment and validate and assign identifier
     if not entity.has_key('id'):
         entity['id'] = uuid.uuid4().hex
     if any_id_problems(entity['id']):
         return HTTPError(code=406, output=any_id_problems(entity['id']))
+    entity['id'] = entity['id'] # make sure it is a string
+    db['deployments'][entity['id']] = entity
 
-    db['deployments'][str(entity['id'])] = entity
-    #TODO: testing
-    entity['feedback'] = execute(str(entity['id']))
-    entity['feedback']['Note'] = "A copy of what was sent to stockton FYI"
-    entity['async_task_id'] = entity['feedback']['async_task_id']
+    #Assess work to be done & resources to be created
+    results = plan(entity['id'])
+    
+    #Trigger creation of resources
+    results = execute(entity['id'])
 
-    # Write files out to disk so we have them as simple text files
+    # Write files out to disk (our only persistence method for now)
     jfile = open(os.path.join(ACTUAL_DATA_PATH, 'deployments', '%s.%s' %
                          (entity['id'], 'json')), 'w')
     json.dump(entity, jfile, indent=4)
@@ -228,7 +232,7 @@ def post_deployment():
     yaml.dump(entity, yfile, default_flow_style=False)
     yfile.close()
 
-
+    # Return response and new resource location
     response.add_header('Location', "/deployments/%s" % entity['id'])
     return output_content(entity, request, response, wrapper='deployment')
 
@@ -243,22 +247,30 @@ def get_deployment(id):
 
 @get('/deployments/:id/status')
 def get_deployment_status(id):
-    entity = db['deployments'].get(str(id))
-    if not entity:
+    deployment = db['deployments'].get(id)
+    if not deployment:
         abort(404, 'No deployment with id %s' % id)
 
-    results = 'Unknown status'
-    if 'async_task_id' in entity:
-        async_call = app_or_default().AsyncResult(entity['async_task_id'])
-        async_call.state   # refresh state
-        if async_call.ready():
-            results = async_call.info
-        elif isinstance(async_call.info, BaseException):
-            results = "Error: %s" % async_call.info
-        elif async_call.info and len(async_call.info):
-            results = async_call.info
+    resources = deployment.get('resources', [])
+    results = {}
+    for key in resources:
+        resource = resources[key]
+        if 'async_task_id' in resource:
+            async_call = app_or_default().AsyncResult(
+                    resource['async_task_id'])
+            async_call.state   # refresh state
+            if async_call.ready():
+                result = async_call.info
+            elif isinstance(async_call.info, BaseException):
+                result = "Error: %s" % async_call.info
+            elif async_call.info and len(async_call.info):
+                result = async_call.info
+            else:
+                result = 'Error: No celery data available on %s' %\
+                        resource['async_task_id']
+            results[key] = result
 
-    return output_content(results, request, response, wrapper='result')
+    return output_content(results, request, response, wrapper='results')
 
 
 @get('/favicon.ico')
@@ -266,6 +278,63 @@ def favicon():
     """Without this, browsers keep getting a 404 and perceive slow response"""
     return static_file('favicon.ico', root=os.path.dirname(__file__))
 
+def plan(id):
+    """Process a new checkmate deployment and plan for execution.
+
+    This creates placeholder tags that will be used for the actual creation
+    of resources.
+
+    :param id: checkmate deployment id
+    """
+    deployment = db['deployments'].get(id)
+    if not deployment:
+        abort(404, 'No deployment with id %s' % id)
+    inputs = deployment.get('inputs', [])
+    
+    #TODO: now hard-coded to this logic:
+    # <20 requests => 1 server, running mysql & web
+    # 21-200 requests => 1 mysql, mod 50 web servers
+    # if ha selected, use min 1 sql, 2 web, and 1 lb
+    # More than 4 web heads not supported
+    high_availability = False
+    if 'high-availability' in inputs:
+        if inputs['high-availability'] in [True, 'true', 'True', '1', 'TRUE']:
+            high_availability = True
+    rps = 1 # requests per second
+    if 'requests-per-second' in inputs:
+        rps = int(inputs['requests-per-second'])
+    
+    dedicated_mysql = high_availability or rps > 20
+    web_heads = int((rps+49)/50.)
+    load_balancer = high_availability or web_heads > 1 or rps > 20
+
+    if web_heads > 4:
+        raise HTTPError(406, output="Blueprint does not support the "
+                        "required number of web-heads: %s" % web_heads)
+    deployment['resources'] = {}
+    domain = inputs.get('domain', os.environ.get('STOCKTON_TEST_DOMAIN',
+                                                       'mydomain.local'))
+    resource_index = 0
+    if web_heads > 0:
+        for index in range(web_heads):
+            name = 'CMDEP-%s-web%s.%s' % (deployment['id'], index + 1, domain)
+            deployment['resources'][resource_index] = {'type': 'server',
+                                                       'dns-name': name,
+                                                       'instance-id': None}
+            resource_index += 1
+    if dedicated_mysql == True:
+            name = 'CMDEP-%s-db1.%s' % (deployment['id'], domain)
+            deployment['resources'][resource_index] = {'type': 'server',
+                                                       'dns-name': name,
+                                                       'instance-id': None}
+            resource_index += 1
+    if load_balancer == True:
+            name = 'CMDEP-%s-lb1.%s' % (deployment['id'], domain)
+            deployment['resources'][resource_index] = {'type': 'load-balancer',
+                                                       'dns-name': name,
+                                                       'instance-id': None}
+            resource_index += 1
+    return deployment
 
 
 import copy
@@ -280,9 +349,11 @@ def execute(id):
     and execute it
     :param id: checkmate deployment id
     """
-    deployment = db['deployments'].get(str(id))
+    deployment = db['deployments'].get(id)
     if not deployment:
         abort(404, 'No deployment with id %s' % id)
+    if 'resources' not in deployment:
+        return {} # Nothing to do
     inputs = deployment.get('inputs', [])
 
     stockton_deployment = {
@@ -292,8 +363,7 @@ def execute(id):
         'region': os.environ['STOCKTON_REGION'],
         'files': {}
     }
-    print "Deployment ID: %s" % deployment['id']
-    
+
     # Read in the public key, this can be passed to newly created servers.
     if 'public_key' in inputs:
         stockton_deployment['files']['/root/.ssh/authorized_keys'] = \
@@ -313,7 +383,10 @@ def execute(id):
                                                                     strerror))
             except:
                 sys.exit('Cannot read public key.')
-    
+
+    print "Deployment ID: %s" % deployment['id']
+
+
     import stockton  # init and ensure we end up using the same celery instance
     import checkmate.orchestrator
 
@@ -323,19 +396,17 @@ def execute(id):
     assert current_app.backend.__class__.__name__ == 'DatabaseBackend'
     assert 'python-stockton' in current_app.backend.dburi.split('/')
     
-    # Make the async call!
-    hostname = 'orchestrator-test-%s.%s' % (stockton_deployment['id'],
-                             inputs.get('domain',
-                                        os.environ.get('STOCKTON_TEST_DOMAIN',
-                                                       'mydomain.com')))
-    if 'resources' not in deployment:
-        deployment['resources'] = {}
-    deployment['resources'][0] = {'dns-name': hostname, 'instance-id': None}
- 
-    async_call = checkmate.orchestrator.distribute_create_simple_server.delay(
-            stockton_deployment, hostname, files=stockton_deployment['files'])
-    stockton_deployment['async_task_id'] = async_call.task_id
-    return stockton_deployment
+    # Make the async calls
+    for key in deployment['resources']:
+        resource = deployment['resources'][key]
+        if resource.get('type') == 'server':
+            hostname = resource['dns-name']
+            async_call = checkmate.orchestrator.\
+                         distribute_create_simple_server.delay(
+                                stockton_deployment, hostname,
+                                files=stockton_deployment['files'])
+            resource['async_task_id'] = async_call.task_id
+    return deployment
 
 
 @post('/parse')
