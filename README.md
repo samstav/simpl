@@ -1,3 +1,6 @@
+
+![CheckMate](https://github.com/ziadsawalha/checkmate/raw/master/checkmate/checkmate.png)
+
 # CheckMate
 
 CheckMate stores and controls your cloud configurations. It exposes a REST API
