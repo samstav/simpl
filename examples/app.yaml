@@ -21,6 +21,7 @@ components:
     summary: "A pretty popular database"
     provides:
       db: mysql
+  test: *nosql
 
 # An architect template
 blueprint: &wp
@@ -66,6 +67,7 @@ environment: &dfw
 deployment:
   blueprint: *wp
   environment: *env1
+  component: *apache
   inputs:
     domain: rackcloudtech.com
     ssl: false

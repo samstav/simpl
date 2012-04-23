@@ -199,7 +199,7 @@ def post_deployment():
         abort(400, 'No data received')
     content_type = request.get_header('Content-type', 'application/json')
     if content_type == 'application/x-yaml':
-        entity = yaml.safe_load(data)
+        entity = yaml.safe_load(yaml.emit(resolve_yaml_external_refs(data)))
         if 'deployment' in entity:
             entity = entity['deployment']
     elif content_type == 'application/json':
@@ -336,6 +336,39 @@ def execute(id):
             stockton_deployment, hostname, files=stockton_deployment['files'])
     stockton_deployment['async_task_id'] = async_call.task_id
     return stockton_deployment
+
+
+@post('/parse')
+def parse():
+    """ For debugging only """
+    data = request.body
+    if not data:
+        abort(400, 'No data received')
+    content_type = request.get_header('Content-type', 'application/json')
+    if content_type == 'application/x-yaml':
+        return yaml.emit(resolve_yaml_external_refs(data))
+    elif content_type == 'application/json':
+        entity = json.loads(data)
+    else:
+        return HTTPError(status=415, output="Unsupported Media Type")
+
+
+from yaml.events import AliasEvent, MappingStartEvent, ScalarEvent
+from yaml.tokens import AliasToken, AnchorToken
+def resolve_yaml_external_refs(document):
+    """Parses YAML and resolves any external references"""
+    anchors = []
+    for event in yaml.parse(document):
+        if isinstance(event, AliasEvent):
+            if event.anchor not in anchors:
+                # Swap out local reference for external reference
+                new_ref = u'checkmate-reference://%s' % event.anchor
+                event = ScalarEvent(anchor=None, tag=None,
+                                    implicit=(True, False), value=new_ref)
+        if hasattr(event, 'anchor') and event.anchor:
+            anchors.append(event.anchor)
+
+        yield event
 
 
 if __name__ == '__main__':
