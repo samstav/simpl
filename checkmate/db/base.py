@@ -22,3 +22,23 @@ class DbBase(object):
 
     def save_deployment(self, id, body):
         raise NotImplementedError()
+
+    # BLUEPRINTS
+    def get_blueprint(self, id):
+        raise NotImplementedError()
+
+    def get_blueprints(self):
+        raise NotImplementedError()
+
+    def save_blueprint(self, id, body):
+        raise NotImplementedError()
+
+    # COMPONENTS
+    def get_component(self, id):
+        raise NotImplementedError()
+
+    def get_components(self):
+        raise NotImplementedError()
+
+    def save_component(self, id, body):
+        raise NotImplementedError()

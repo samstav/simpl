@@ -114,6 +114,101 @@ def get_environment(id):
 
 
 #
+# Components
+#
+@get('/components')
+def get_components():
+    return write_body(db.get_components(), request, response)
+
+
+@post('/components')
+def post_component():
+    entity = read_body(request)
+    if 'component' in entity:
+        entity = entity['component']
+
+    if not entity.has_key('id'):
+        entity['id'] = uuid.uuid4().hex
+    if any_id_problems(entity['id']):
+        return HTTPError(code=406, output=any_id_problems(entity['id']))
+
+    results = db.save_component(entity['id'], entity)
+
+    return write_body(results, request, response, wrapper='component')
+
+
+@put('/components/{id}')
+def put_component(id):
+    entity = read_body(request)
+    if 'component' in entity:
+        entity = entity['component']
+
+    if any_id_problems(id):
+        return HTTPError(code=406, output=any_id_problems(entity['id']))
+    if not entity.has_key('id'):
+        entity['id'] = str(id)
+
+    results = db.save_component(entity['id'], entity)
+
+    return write_body(results, request, response, wrapper='component')
+
+
+@get('/components/:id')
+def get_component(id):
+    entity = db.get_component(id)
+    if not entity:
+        abort(404, 'No component with id %s' % id)
+    return write_body(entity, request, response, wrapper='component')
+
+
+#
+# Blueprints
+#
+@get('/blueprints')
+def get_blueprints():
+    return write_body(db.get_blueprints(), request, response)
+
+
+@post('/blueprints')
+def post_blueprint():
+    entity = read_body(request)
+    if 'blueprint' in entity:
+        entity = entity['blueprint']
+
+    if not entity.has_key('id'):
+        entity['id'] = uuid.uuid4().hex
+    if any_id_problems(entity['id']):
+        return HTTPError(code=406, output=any_id_problems(entity['id']))
+
+    results = db.save_blueprint(entity['id'], entity)
+
+    return write_body(results, request, response, wrapper='blueprint')
+
+
+@put('/blueprints/{id}')
+def put_blueprint(id):
+    entity = read_body(request)
+    if 'blueprint' in entity:
+        entity = entity['blueprint']
+
+    if any_id_problems(id):
+        return HTTPError(code=406, output=any_id_problems(entity['id']))
+    if not entity.has_key('id'):
+        entity['id'] = str(id)
+
+    results = db.save_blueprint(entity['id'], entity)
+
+    return write_body(results, request, response, wrapper='blueprint')
+
+
+@get('/blueprints/:id')
+def get_blueprint(id):
+    entity = db.get_blueprint(id)
+    if not entity:
+        abort(404, 'No blueprint with id %s' % id)
+    return write_body(entity, request, response, wrapper='blueprint')
+
+#
 # Deployments
 #
 @route('/deployments', method='GET')

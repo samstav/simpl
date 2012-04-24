@@ -9,22 +9,23 @@ from sqlalchemy.orm import sessionmaker, scoped_session
 
 from checkmate.db.common import *
 
-#__all__ = ['Base', 'Environment']
+__all__ = ['Base', 'Environment', 'Deployment', 'Component', '']
  
 CONNECTION_STRING = os.environ.get('CHECKMATE_CONNECTION_STRING', 'sqlite://')
 if CONNECTION_STRING == 'sqlite://':
-    engine = create_engine(CONNECTION_STRING, echo=True,
+    engine = create_engine(CONNECTION_STRING,
                 connect_args={'check_same_thread': False},
                 poolclass=StaticPool)
 else:
-    engine = create_engine(CONNECTION_STRING, echo=True)
+    engine = create_engine(CONNECTION_STRING)
 
 Base = declarative_base(bind=engine)
 Session = scoped_session(sessionmaker(engine))
 
 
 class TextPickleType(PickleType):
-    """Type that can be set to dict and stored as Text"""
+    """Type that can be set to dict and stored in the database as Text.
+    This allows us to read and write the 'body' attribute as dicts"""
     impl = Text
 
 
@@ -37,6 +38,20 @@ class Environment(Base):
 
 class Deployment(Base):
     __tablename__ = 'deployments'
+    dbid = Column(Integer, primary_key=True, autoincrement=True)
+    id = Column(String(32), index=True, unique=True)
+    body = Column(TextPickleType(pickler=json))
+
+
+class Blueprint(Base):
+    __tablename__ = 'blueprints'
+    dbid = Column(Integer, primary_key=True, autoincrement=True)
+    id = Column(String(32), index=True, unique=True)
+    body = Column(TextPickleType(pickler=json))
+
+
+class Component(Base):
+    __tablename__ = 'components'
     dbid = Column(Integer, primary_key=True, autoincrement=True)
     id = Column(String(32), index=True, unique=True)
     body = Column(TextPickleType(pickler=json))
@@ -80,7 +95,6 @@ class Driver(DbBase):
 
     def get_deployment(self, id):
         results = Session.query(Deployment).filter_by(id=id)
-        print dir(results)
         if results and results.count() > 0:
             return results.first().body
 
@@ -101,6 +115,60 @@ class Driver(DbBase):
             e.body = body
         else:
             e = Deployment(id=id, body=body)
+        Session.add(e)
+        Session.commit()
+        return body
+
+
+    def get_blueprint(self, id):
+        results = Session.query(Blueprint).filter_by(id=id)
+        if results and results.count() > 0:
+            return results.first().body
+
+    def get_blueprints(self):
+        results = Session.query(Blueprint)
+        if results and results.count() > 0:
+            response = {}
+            for e in results:
+                response[e.id] = e.body
+            return response
+        else:
+            return {}
+
+    def save_blueprint(self, id, body):
+        results = Session.query(Blueprint).filter_by(id=id)
+        if results and results.count() > 0:
+            e = results.first()
+            e.body = body
+        else:
+            e = Blueprint(id=id, body=body)
+        Session.add(e)
+        Session.commit()
+        return body
+
+
+    def get_component(self, id):
+        results = Session.query(Component).filter_by(id=id)
+        if results and results.count() > 0:
+            return results.first().body
+
+    def get_components(self):
+        results = Session.query(Component)
+        if results and results.count() > 0:
+            response = {}
+            for e in results:
+                response[e.id] = e.body
+            return response
+        else:
+            return {}
+
+    def save_component(self, id, body):
+        results = Session.query(Component).filter_by(id=id)
+        if results and results.count() > 0:
+            e = results.first()
+            e.body = body
+        else:
+            e = Component(id=id, body=body)
         Session.add(e)
         Session.commit()
         return body

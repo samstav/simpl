@@ -8,6 +8,8 @@ ACTUAL_DATA_PATH = os.path.join(os.environ.get('CHECKMATE_DATA_PATH',
 from checkmate.db.base import DbBase as dbBaseClass
 DbBase = dbBaseClass
 
+DB = None
+
 def any_id_problems(id):
     """Validate the ID provided is safe and returns problems as a string.
     
@@ -34,5 +36,8 @@ def any_id_problems(id):
     return None
 
 def get_driver(name):
-    driver = utils.import_class(name)
-    return driver()
+    global DB
+    if DB is None:
+        driver = utils.import_class(name)
+        DB = driver()
+    return DB

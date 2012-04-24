@@ -41,12 +41,44 @@ class test_server(unittest.TestCase):
         self.assertEqual(res.status, '200 OK')
         self.assertEqual(res.content_type, 'application/json')
         data = json.loads(res.body)
-        path =  os.path.join(os.environ['CHECKMATE_DATA_PATH'], 'environments')
-        self.assertTrue(os.path.exists(os.path.join(path, '%s.%s' %
-                                                    (data['id'], 'yaml'))))
-        self.assertTrue(os.path.exists(os.path.join(path, '%s.%s' %
-                                                    (data['id'], 'json'))))
 
+
+    def test_REST_deployment(self):
+        #TODO: POST does stuff...
+        self.rest_exercise('deployment')
+
+    def test_REST_environment(self):
+        self.rest_exercise('environment')
+
+    def test_REST_component(self):
+        self.rest_exercise('component')
+
+    def test_REST_blueprint(self):
+        self.rest_exercise('blueprint')
+
+    def rest_exercise(self, model_name):
+        #POST
+        entity = "%s: &e1\n    id: 1" % model_name
+        res = self.app.post('/%ss' % model_name, entity,
+                            content_type='application/x-yaml')
+        self.assertEqual(res.status, '200 OK')
+        self.assertEqual(res.content_type, 'application/json')
+
+        #GET (json)
+        res = self.app.get('/%ss/1' % model_name)
+        self.assertEqual(res.status, '200 OK')
+        self.assertEqual(res.content_type, 'application/json')
+
+        #GET (yaml)
+        res = self.app.get('/%ss/1' % model_name,
+                           headers={'Accept': 'application/x-yaml'})
+        self.assertEqual(res.status, '200 OK')
+        self.assertEqual(res.content_type, 'application/x-yaml')
+
+        #LIST
+        res = self.app.get('/%ss' % model_name)
+        self.assertEqual(res.status, '200 OK')
+        self.assertEqual(res.content_type, 'application/json')
 
 if __name__ == '__main__':
-    unittest.main()
+    unittest.main(verbosity=2)
