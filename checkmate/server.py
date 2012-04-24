@@ -24,36 +24,25 @@ These are stored in:
         The data is loaded from ./data unless the environment variable
             CHECKMATE_DATA_PATH is set.
 """
+import copy
 import json
 # pylint: disable=E0611
 from bottle import route, get, post, put, delete, run, request, response, \
         abort, HTTPError, static_file
 import os
+import random
+import sys
+import time
 import uuid
 import yaml
-
+from yaml.events import AliasEvent, MappingStartEvent, ScalarEvent
+from yaml.tokens import AliasToken, AnchorToken
 from celery.app import app_or_default
-from checkmate import orchestrator
 
+from checkmate import orchestrator
 from checkmate.db import get_driver, any_id_problems
 
 db = get_driver('checkmate.db.sql.Driver')
-
-def output_content(data, request, response, wrapper=None):
-    """Write output with format based on accept header. json is default"""
-    accept = request.get_header('Accept', ['application/json'])
-    
-    # YAML
-    if 'application/x-yaml' in accept:
-        response.add_header('content-type', 'application/x-yaml')
-        if wrapper:
-            return yaml.safe_dump({wrapper: data}, default_flow_style=False)
-        else:
-            return yaml.safe_dump(data, default_flow_style=False)
-    
-    #JSON (default)
-    response.add_header('content-type', 'application/json')
-    return json.dumps(data, indent=4)
 
 
 #
@@ -61,7 +50,19 @@ def output_content(data, request, response, wrapper=None):
 #
 @get('/')
 def get_everything():
-    return output_content(db.dump(), request, response)
+    return write_body(db.dump(), request, response)
+
+
+@post('/parse')
+def parse():
+    """ For debugging only """
+    return read_body(request)
+
+
+@get('/favicon.ico')
+def favicon():
+    """Without this, browsers keep getting a 404 and perceive slow response"""
+    return static_file('favicon.ico', root=os.path.dirname(__file__))
 
 
 #
@@ -69,12 +70,12 @@ def get_everything():
 #
 @get('/environments')
 def get_environments():
-    return output_content(db.get_environments(), request, response)
+    return write_body(db.get_environments(), request, response)
 
 
 @post('/environments')
 def post_environment():
-    entity = get_body(request)
+    entity = read_body(request)
     if 'environment' in entity:
         entity = entity['environment']
 
@@ -85,12 +86,12 @@ def post_environment():
 
     results = db.save_environment(entity['id'], entity)
 
-    return output_content(results, request, response, wrapper='environment')
+    return write_body(results, request, response, wrapper='environment')
 
 
 @put('/environments/{id}')
 def put_environment(id):
-    entity = get_body(request)
+    entity = read_body(request)
     if 'environment' in entity:
         entity = entity['environment']
 
@@ -101,7 +102,7 @@ def put_environment(id):
 
     results = db.save_environment(entity['id'], entity)
 
-    return output_content(results, request, response, wrapper='environment')
+    return write_body(results, request, response, wrapper='environment')
 
 
 @get('/environments/:id')
@@ -109,7 +110,8 @@ def get_environment(id):
     entity = db.get_environment(id)
     if not entity:
         abort(404, 'No environment with id %s' % id)
-    return output_content(entity, request, response, wrapper='environment')
+    return write_body(entity, request, response, wrapper='environment')
+
 
 #
 # Deployments
@@ -121,7 +123,7 @@ def get_deployments():
 
 @post('/deployments')
 def post_deployment():
-    entity = get_body(request)
+    entity = read_body(request)
     if 'deployment' in entity:
         entity = entity['deployment']
 
@@ -142,12 +144,12 @@ def post_deployment():
 
     # Return response and new resource location
     response.add_header('Location', "/deployments/%s" % id)
-    return output_content(results, request, response, wrapper='deployment')
+    return write_body(results, request, response, wrapper='deployment')
 
 
 @put('/deployments/{id}')
 def put_deployment(id):
-    entity = get_body(request)
+    entity = read_body(request)
     if 'deployment' in entity:
         entity = entity['deployment']
 
@@ -158,7 +160,7 @@ def put_deployment(id):
 
     results = db.save_deployment(entity['id'], entity)
 
-    return output_content(results, request, response, wrapper='deployment')
+    return write_body(results, request, response, wrapper='deployment')
 
 
 @get('/deployments/:id')
@@ -166,7 +168,7 @@ def get_deployment(id):
     entity = db.get_deployment(id)
     if not entity:
         abort(404, 'No deployment with id %s' % id)
-    return output_content(entity, request, response, wrapper='deployment')
+    return write_body(entity, request, response, wrapper='deployment')
 
 
 @get('/deployments/:id/status')
@@ -194,13 +196,8 @@ def get_deployment_status(id):
                         resource['async_task_id']
             results[key] = result
 
-    return output_content(results, request, response, wrapper='results')
+    return write_body(results, request, response, wrapper='results')
 
-
-@get('/favicon.ico')
-def favicon():
-    """Without this, browsers keep getting a 404 and perceive slow response"""
-    return static_file('favicon.ico', root=os.path.dirname(__file__))
 
 def plan(id):
     """Process a new checkmate deployment and plan for execution.
@@ -259,13 +256,6 @@ def plan(id):
                                                        'instance-id': None}
             resource_index += 1
     return deployment
-
-
-import copy
-import os
-import random
-import sys
-import time
 
 
 def execute(id):
@@ -332,7 +322,7 @@ def execute(id):
     return deployment
 
 
-def get_body(request):
+def read_body(request):
     data = request.body
     if not data:
         abort(400, 'No data received')
@@ -346,14 +336,23 @@ def get_body(request):
         return HTTPError(status=415, output="Unsupported Media Type")
 
 
-@post('/parse')
-def parse():
-    """ For debugging only """
-    return get_body(request)
+def write_body(data, request, response, wrapper=None):
+    """Write output with format based on accept header. json is default"""
+    accept = request.get_header('Accept', ['application/json'])
+    
+    # YAML
+    if 'application/x-yaml' in accept:
+        response.add_header('content-type', 'application/x-yaml')
+        if wrapper:
+            return yaml.safe_dump({wrapper: data}, default_flow_style=False)
+        else:
+            return yaml.safe_dump(data, default_flow_style=False)
+    
+    #JSON (default)
+    response.add_header('content-type', 'application/json')
+    return json.dumps(data, indent=4)
 
 
-from yaml.events import AliasEvent, MappingStartEvent, ScalarEvent
-from yaml.tokens import AliasToken, AnchorToken
 def resolve_yaml_external_refs(document):
     """Parses YAML and resolves any external references"""
     anchors = []
