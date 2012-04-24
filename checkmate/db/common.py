@@ -1,0 +1,38 @@
+import os
+
+from checkmate import utils
+
+DEFAULT_DATA_PATH = os.path.join(os.path.dirname(__file__), '..', 'data')
+ACTUAL_DATA_PATH = os.path.join(os.environ.get('CHECKMATE_DATA_PATH',
+                                          DEFAULT_DATA_PATH))
+from checkmate.db.base import DbBase as dbBaseClass
+DbBase = dbBaseClass
+
+def any_id_problems(id):
+    """Validate the ID provided is safe and returns problems as a string.
+    
+    To use this, call it with an ID you want to validate. If the response is
+    None, then the ID is good. Otherwise, the response is a string explaining
+    the problem with the ID that you can use to return to the client"""
+    allowed_start_chars = "abcdefghijklmnopqrstuvwxyz"\
+                          "ABCDEFGHIJKLMNOPQRSTUVWXYZ"\
+                          "0123456789"
+    allowed_chars = allowed_start_chars + "-_.+~@"
+    if id is None:
+        return 'ID cannot be blank'
+    if not isinstance(id, basestring):
+        id = str(id)
+    if 1 > len(id) > 32:
+        return "ID cannot be 1 to 32 characters"
+    if id[0] not in allowed_start_chars:
+        return "Invalid start character '%s'. ID can start with any of '%s'" \
+                % (id[0], allowed_start_chars)
+    for c in id:
+        if c not in allowed_chars:
+            return "Invalid character '%s'. Allowed charaters are '%s'" % (c,
+                                                                allowed_chars)
+    return None
+
+def get_driver(name):
+    driver = utils.import_class(name)
+    return driver()

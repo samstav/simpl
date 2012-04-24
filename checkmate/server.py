@@ -26,8 +26,8 @@ These are stored in:
 """
 import json
 # pylint: disable=E0611
-from bottle import route, get, post, run, request, response, abort, \
-        HTTPError, static_file
+from bottle import route, get, post, put, delete, run, request, response, \
+        abort, HTTPError, static_file
 import os
 import uuid
 import yaml
@@ -35,37 +35,9 @@ import yaml
 from celery.app import app_or_default
 from checkmate import orchestrator
 
-DEFAULT_DATA_PATH = os.path.join(os.path.dirname(__file__), '..', 'data')
-ACTUAL_DATA_PATH = os.path.join(os.environ.get('CHECKMATE_DATA_PATH',
-                                          DEFAULT_DATA_PATH))
+from checkmate.db import get_driver, any_id_problems
 
-# Set up database and load seed.yamnl file if it exists
-db = {
-        'components': {},
-        'environments': {},
-        'blueprints': {},
-        'deployments': {},
-    }
-
-seed_file = os.path.join(ACTUAL_DATA_PATH, 'seed.yaml')
-if os.path.exists(seed_file):
-    stream = file(seed_file, 'r')
-    seed = yaml.safe_load(stream)
-    components = seed.pop('components', None)
-    if components:
-        db['components'] = components
-    environment = seed.pop('environment', None)
-    if environment:
-        db['environments'][environment.get('id', '1')]= environment
-    blueprint = seed.pop('blueprint', None)
-    if blueprint:
-        db['blueprints'][blueprint.get('id', '1')]= blueprint
-    deployment = seed.pop('deployment', None)
-    if deployment:
-        db['deployments'][deployment.get('id', '1')] = deployment
-    if seed:
-        print "Unprocessed seed data: %s" % seed
-
+db = get_driver('checkmate.db.sql.Driver')
 
 def output_content(data, request, response, wrapper=None):
     """Write output with format based on accept header. json is default"""
@@ -75,65 +47,21 @@ def output_content(data, request, response, wrapper=None):
     if 'application/x-yaml' in accept:
         response.add_header('content-type', 'application/x-yaml')
         if wrapper:
-            return yaml.dump({wrapper: data}, default_flow_style=False)
+            return yaml.safe_dump({wrapper: data}, default_flow_style=False)
         else:
-            return yaml.dump(data, default_flow_style=False)
+            return yaml.safe_dump(data, default_flow_style=False)
     
     #JSON (default)
     response.add_header('content-type', 'application/json')
     return json.dumps(data, indent=4)
 
 
-def ensure_dirs(path):
-    """ Make sure a directory exists (create if not there) """
-    try:
-        os.makedirs(path)
-    except OSError:
-        if os.path.isdir(path):
-            # Looking good?
-            pass
-        else:
-            # There was an error on creation, so make sure we know about it
-            raise
-
-
-ensure_dirs(os.path.join(ACTUAL_DATA_PATH, 'environments'))
-ensure_dirs(os.path.join(ACTUAL_DATA_PATH, 'components'))
-ensure_dirs(os.path.join(ACTUAL_DATA_PATH, 'blueprints'))
-ensure_dirs(os.path.join(ACTUAL_DATA_PATH, 'deployments'))
-
-
-def any_id_problems(id):
-    """Validate the ID provided is safe and returns problems as a string.
-    
-    To use this, call it with an ID you want to validate. If the response is
-    None, then the ID is good. Otherwise, the response is a string explaining
-    the problem with the ID that you can use to return to the client"""
-    allowed_start_chars = "abcdefghijklmnopqrstuvwxyz"\
-                          "ABCDEFGHIJKLMNOPQRSTUVWXYZ"\
-                          "0123456789"
-    allowed_chars = allowed_start_chars + "-_.+~@"
-    if id is None:
-        return 'ID cannot be blank'
-    if not isinstance(id, basestring):
-        id = str(id)
-    if 1 > len(id) > 128:
-        return "ID cannot be 1 to 128 characters"
-    if id[0] not in allowed_start_chars:
-        return "Invalid start character '%s'. ID can start with any of '%s'" \
-                % (id[0], allowed_start_chars)
-    for c in id:
-        if c not in allowed_chars:
-            return "Invalid character '%s'. Allowed charaters are '%s'" % (c,
-                                                                allowed_chars)
-    return None
-
 #
 # Making life easy - calls that are handy but might not be in final API
 #
 @get('/')
 def get_everything():
-    return output_content(db, request, response)
+    return output_content(db.dump(), request, response)
 
 
 #
@@ -141,45 +69,44 @@ def get_everything():
 #
 @get('/environments')
 def get_environments():
-    return output_content(db['environments'], request, response)
+    return output_content(db.get_environments(), request, response)
 
 
 @post('/environments')
 def post_environment():
-    data = request.body
-    if not data:
-        abort(400, 'No data received')
-    content_type = request.get_header('Content-type', 'application/json')
-    if content_type == 'application/x-yaml':
-        entity = yaml.load(data)
-        if 'environment' in entity:
-            entity = entity['environment']
-    elif content_type == 'application/json':
-        entity = json.loads(data)
-    else:
-        return HTTPError(status=415, output="Unsupported Media Type")
+    entity = get_body(request)
+    if 'environment' in entity:
+        entity = entity['environment']
 
     if not entity.has_key('id'):
         entity['id'] = uuid.uuid4().hex
     if any_id_problems(entity['id']):
         return HTTPError(code=406, output=any_id_problems(entity['id']))
 
-    db['environments'][str(entity['id'])] = entity
-    jfile = open(os.path.join(ACTUAL_DATA_PATH, 'environments', '%s.%s' %
-                         (entity['id'], 'json')), 'w')
-    json.dump(entity, jfile, indent=4)
-    jfile.close()
-    yfile = open(os.path.join(ACTUAL_DATA_PATH, 'environments', '%s.%s' %
-                         (entity['id'], 'yaml')), 'w')
-    yaml.dump(entity, yfile, default_flow_style=False)
-    yfile.close()
+    results = db.save_environment(entity['id'], entity)
 
-    return output_content(entity, request, response, wrapper='environment')
+    return output_content(results, request, response, wrapper='environment')
+
+
+@put('/environments/{id}')
+def put_environment(id):
+    entity = get_body(request)
+    if 'environment' in entity:
+        entity = entity['environment']
+
+    if any_id_problems(id):
+        return HTTPError(code=406, output=any_id_problems(entity['id']))
+    if not entity.has_key('id'):
+        entity['id'] = str(id)
+
+    results = db.save_environment(entity['id'], entity)
+
+    return output_content(results, request, response, wrapper='environment')
 
 
 @get('/environments/:id')
 def get_environment(id):
-    entity = db['environments'].get(str(id))
+    entity = db.get_environment(id)
     if not entity:
         abort(404, 'No environment with id %s' % id)
     return output_content(entity, request, response, wrapper='environment')
@@ -189,57 +116,54 @@ def get_environment(id):
 #
 @route('/deployments', method='GET')
 def get_deployments():
-    return db['deployments']
+    return db.getdeployments()
 
 
 @post('/deployments')
 def post_deployment():
-    # Load content from body (and resolve external references)
-    data = request.body
-    if not data:
-        abort(400, 'No data received')
-    content_type = request.get_header('Content-type', 'application/json')
-    if content_type == 'application/x-yaml':
-        entity = yaml.safe_load(yaml.emit(resolve_yaml_external_refs(data)))
-        if 'deployment' in entity:
-            entity = entity['deployment']
-    elif content_type == 'application/json':
-        entity = json.loads(data)
-    else:
-        return HTTPError(status=415, output="Unsupported Media Type")
+    entity = get_body(request)
+    if 'deployment' in entity:
+        entity = entity['deployment']
 
-    # Store deployment and validate and assign identifier
     if not entity.has_key('id'):
         entity['id'] = uuid.uuid4().hex
     if any_id_problems(entity['id']):
         return HTTPError(code=406, output=any_id_problems(entity['id']))
-    entity['id'] = entity['id'] # make sure it is a string
-    db['deployments'][entity['id']] = entity
+    id = str(entity['id'])
+    results = db.save_deployment(id, entity)
 
     #Assess work to be done & resources to be created
-    results = plan(entity['id'])
-    
-    #Trigger creation of resources
-    results = execute(entity['id'])
+    results = plan(id)
+    results = db.save_deployment(id, results)
 
-    # Write files out to disk (our only persistence method for now)
-    jfile = open(os.path.join(ACTUAL_DATA_PATH, 'deployments', '%s.%s' %
-                         (entity['id'], 'json')), 'w')
-    json.dump(entity, jfile, indent=4)
-    jfile.close()
-    yfile = open(os.path.join(ACTUAL_DATA_PATH, 'deployments', '%s.%s' %
-                         (entity['id'], 'yaml')), 'w')
-    yaml.dump(entity, yfile, default_flow_style=False)
-    yfile.close()
+    #Trigger creation of resources
+    results = execute(id)
+    results = db.save_deployment(id, results)
 
     # Return response and new resource location
-    response.add_header('Location', "/deployments/%s" % entity['id'])
-    return output_content(entity, request, response, wrapper='deployment')
+    response.add_header('Location', "/deployments/%s" % id)
+    return output_content(results, request, response, wrapper='deployment')
+
+
+@put('/deployments/{id}')
+def put_deployment(id):
+    entity = get_body(request)
+    if 'deployment' in entity:
+        entity = entity['deployment']
+
+    if any_id_problems(id):
+        return HTTPError(code=406, output=any_id_problems(entity['id']))
+    if not entity.has_key('id'):
+        entity['id'] = str(id)
+
+    results = db.save_deployment(entity['id'], entity)
+
+    return output_content(results, request, response, wrapper='deployment')
 
 
 @get('/deployments/:id')
 def get_deployment(id):
-    entity = db['deployments'].get(str(id))
+    entity = db.get_deployment(id)
     if not entity:
         abort(404, 'No deployment with id %s' % id)
     return output_content(entity, request, response, wrapper='deployment')
@@ -247,7 +171,7 @@ def get_deployment(id):
 
 @get('/deployments/:id/status')
 def get_deployment_status(id):
-    deployment = db['deployments'].get(id)
+    deployment = db.get_deployment(id)
     if not deployment:
         abort(404, 'No deployment with id %s' % id)
 
@@ -286,7 +210,7 @@ def plan(id):
 
     :param id: checkmate deployment id
     """
-    deployment = db['deployments'].get(id)
+    deployment = db.get_deployment(id)
     if not deployment:
         abort(404, 'No deployment with id %s' % id)
     inputs = deployment.get('inputs', [])
@@ -349,7 +273,7 @@ def execute(id):
     and execute it
     :param id: checkmate deployment id
     """
-    deployment = db['deployments'].get(id)
+    deployment = db.get_deployment(id)
     if not deployment:
         abort(404, 'No deployment with id %s' % id)
     if 'resources' not in deployment:
@@ -386,7 +310,6 @@ def execute(id):
 
     print "Deployment ID: %s" % deployment['id']
 
-
     import stockton  # init and ensure we end up using the same celery instance
     import checkmate.orchestrator
 
@@ -409,19 +332,24 @@ def execute(id):
     return deployment
 
 
-@post('/parse')
-def parse():
-    """ For debugging only """
+def get_body(request):
     data = request.body
     if not data:
         abort(400, 'No data received')
     content_type = request.get_header('Content-type', 'application/json')
     if content_type == 'application/x-yaml':
-        return yaml.emit(resolve_yaml_external_refs(data))
+        return yaml.safe_load(yaml.emit(resolve_yaml_external_refs(data),
+                         Dumper=yaml.SafeDumper))
     elif content_type == 'application/json':
-        entity = json.loads(data)
+        return json.loads(data)
     else:
         return HTTPError(status=415, output="Unsupported Media Type")
+
+
+@post('/parse')
+def parse():
+    """ For debugging only """
+    return get_body(request)
 
 
 from yaml.events import AliasEvent, MappingStartEvent, ScalarEvent
@@ -429,7 +357,7 @@ from yaml.tokens import AliasToken, AnchorToken
 def resolve_yaml_external_refs(document):
     """Parses YAML and resolves any external references"""
     anchors = []
-    for event in yaml.parse(document):
+    for event in yaml.parse(document, Loader=yaml.SafeLoader):
         if isinstance(event, AliasEvent):
             if event.anchor not in anchors:
                 # Swap out local reference for external reference
