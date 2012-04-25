@@ -465,4 +465,4 @@ def resolve_yaml_external_refs(document):
 
 
 if __name__ == '__main__':
-    run(host='localhost', port=8080, reloader=True)
+    run(host='127.0.0.1', port=8080, reloader=True)
