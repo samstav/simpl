@@ -399,6 +399,9 @@ def execute(id):
     import stockton  # init and ensure we end up using the same celery instance
     import checkmate.orchestrator
 
+    print stockton_deployment
+    return deployment
+
     # Let's make sure we are talking to the stockton celery
     #TODO: fix this when we have better celery/stockton configuration
     from celery import current_app

@@ -96,7 +96,7 @@ environment: &env1
   - compute: &rax-cloud-servers
     vendor: rackspace
     constraints:
-    - region: %(STOCKTON_REGION)s                                               #IMPLEMENTED at root of env, but not under constraints
+    - region: %(CHECKMATE_REGION)s                                               #IMPLEMENTED at root of env, but not under constraints
   - loadbalancer: &rax-lbaas
     endpoint: https://lbaas.api.rackpsacecloud.com/servers/{tenantId}
   - database: &rax-dbaas
@@ -105,8 +105,8 @@ environment: &env1
     vendor: rackspace
     credentials:
     - rackspace:
-      username: %(STOCKTON_USERNAME)s
-      apikey: %(STOCKTON_APIKEY)s
+      username: %(CHECKMATE_USERNAME)s
+      apikey: %(CHECKMATE_APIKEY)s
 
 # Another environment referenced with the anchor &dfw and named rackcloud-prod
 environment: &dfw
@@ -117,8 +117,8 @@ environment: &dfw
     vendor: rackspace
     credentials:
     - rackspace:
-      username: %(STOCKTON_USERNAME)s
-      apikey: %(STOCKTON_APIKEY)s
+      username: %(CHECKMATE_USERNAME)s
+      apikey: %(CHECKMATE_APIKEY)s
     - ssh:
       public_key: %(STOCKTON_PUBLIC_KEY)s
       private_key: %(STOCKTON_PRIVATE_KEY)s
@@ -131,7 +131,7 @@ deployment:                                                                     
   environment: *env1
   component: *apache
   inputs:
-    domain: %(STOCKTON_TEST_DOMAIN)s
+    domain: %(CHECKMATE_DOMAIN)s
     ssl: false
     region: chicago # TODO: this is still read from os.environ
     high-availability: false
