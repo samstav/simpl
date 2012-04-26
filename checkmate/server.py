@@ -365,11 +365,14 @@ def execute(id):
         return {} # Nothing to do
     inputs = deployment.get('inputs', [])
 
+    #TODO: make this smarter
+    creds = [p['credentials'][0] for p in deployment['environment']['providers'] if p.has_key('common')][0]
+
     stockton_deployment = {
-        'id': str(random.randint(1000, 10000)),
-        'username': os.environ['STOCKTON_USERNAME'],
-        'apikey': os.environ['STOCKTON_APIKEY'],
-        'region': os.environ['STOCKTON_REGION'],
+        'id': deployment['id'],
+        'username': creds['username'],
+        'apikey': creds['apikey'],
+        'region': inputs['region'],
         'files': {}
     }
 
@@ -392,8 +395,6 @@ def execute(id):
                                                                     strerror))
             except:
                 sys.exit('Cannot read public key.')
-
-    print "Deployment ID: %s" % deployment['id']
 
     import stockton  # init and ensure we end up using the same celery instance
     import checkmate.orchestrator

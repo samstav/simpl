@@ -1,9 +1,53 @@
+# **CheckMate** is a configuration management REST service written in python.
+# The source can be found [here](http://github.com/ziadsawalha/checkmate)
+#
+# This sample configuration file can be used to deploy a wordpress application
+# to the cloud. It also currently serves as the main reference for the
+# CheckMate configuration syntax.
+#
+# %(VARIABLE)s can be replaced by with your local variables
+# before posting it to checkmate like this:
+#
+#     awk '{while(match($0,"[%][\\(][^\\)]*\\)[s]")) {var=substr($0,RSTART+2,RLENGTH -4);gsub("[%][(]"var"[)][s]",ENVIRON[var])}}1' < app.yaml
+#
+# To transform and send the output to checkmate:
+#
+#     awk '{while(match($0,"[%][\\(][^\\)]*\\)[s]")) {var=substr($0,RSTART+2,RLENGTH -4);gsub("[%][(]"var"[)][s]",ENVIRON[var])}}1' < app.yaml | curl -H 'content-type: application/x-yaml' http://localhost:8080/deployments --data-binary @-
 
-# Definitions of components/services used (using charm syntax)
+
+#### ALPHA STATUS
+#
+# This syntax is under development (and open for discussion). So, in order to
+# distinguish what has been implemnted in the code, versus what is only being
+# discussed in this document, any piece that is actually used in the code is
+# marked with the comment #IMPLEMENTED at the end of the document which shows
+# a sample deployment after checkmate has processed it
+
+
+#### Application
+# This file defines all the aspects of a number of possible wordpress
+# deployments. The pieces it brings together are
+# [components](#components),
+# environments,
+# blueprints,
+# and deployments.
+
+# <a id="components" />
+#### Components
+# Components define the basic building blocks for checkmate. We use a syntax
+# similar to Juju Charm syntax
+
+#Definitions of components/services used in this file
 components:
+  # the name of the component and an option *&anchor* which
+  # can be used to reference it from elsewhere in the file
   wordpress: &wordpress
+    # revisions track multiple versions of a component definition
     revision: 3
+    # a short description of the component
     summary: "A pretty popular blog engine"
+    # the interfaces it provides (a web service on prt 80, a database host,
+    # etc...)
     provides:
       url:
         interface: http
@@ -23,7 +67,11 @@ components:
       db: mysql
   test: *nosql
 
-# An architect template
+#### Blueprints
+
+# An architecture template
+# This would be where we define the architecture of an application which would include
+# all the components, tiers, connections, and scaling rules for that application
 blueprint: &wp
   name: Simple Wordpress
   wordpress:
@@ -35,14 +83,20 @@ blueprint: &wp
     config: *mysql
 
 
-# Environment
+#### Environments
+
+# A test environment
 environment: &env1
-  name: rackcloudtech-test
+  name: rackcloud-test
+  # The idea behind providers is that the environment can be configured to use different providers for different types of resources
+  # For example, we could use Cloud Servers or Dedicated Servers as a compute provider.
+  # The intent is that these providers can be extracted automatically from the service catalog when authenticating, but including providers here
+  # means we can pre-determine or hard-code them if we want to.
   providers:
   - compute: &rax-cloud-servers
     vendor: rackspace
     constraints:
-    - region: ORD # TODO: this is still read from os.environ
+    - region: %(STOCKTON_REGION)s                                               #IMPLEMENTED at root of env, but not under constraints
   - loadbalancer: &rax-lbaas
     endpoint: https://lbaas.api.rackpsacecloud.com/servers/{tenantId}
   - database: &rax-dbaas
@@ -51,28 +105,123 @@ environment: &env1
     vendor: rackspace
     credentials:
     - rackspace:
-      username: ignored # TODO: this is still read from os.environ
+      username: %(STOCKTON_USERNAME)s
+      apikey: %(STOCKTON_APIKEY)s
 
+# Another environment referenced with the anchor &dfw and named rackcloud-prod
 environment: &dfw
-  name: rackcloudtech-test
-  region: dfw # TODO: this is still read from os.environ
+  name: rackcloud-prod
+  region: dfw
   providers:
   - common:
     vendor: rackspace
     credentials:
     - rackspace:
-      username: rackcloudtech # TODO: this is still read from os.environ
+      username: %(STOCKTON_USERNAME)s
+      apikey: %(STOCKTON_APIKEY)s
+    - ssh:
+      public_key: %(STOCKTON_PUBLIC_KEY)s
+      private_key: %(STOCKTON_PRIVATE_KEY)s
 
+#### Deployments
 
-# Actual deployment instance
-deployment:
+# Actual deployment instances. These are our live, running systems
+deployment:                                                                     #IMPLEMENTED - checkmate looks for this
   blueprint: *wp
   environment: *env1
   component: *apache
   inputs:
-    domain: rackcloudtech.com
+    domain: %(STOCKTON_TEST_DOMAIN)s
     ssl: false
     region: chicago # TODO: this is still read from os.environ
     high-availability: false
     requests-per-second: 60
+    database-size: 1
+    webhead-size: 2
+    webhead-count: 2
 
+#### Sample Output
+#-POSTed added to prevent checkmate from looking at this when we post this doc for testing
+deployment-POSTed:
+  id: db629b561da7418aaa324c6b741b5b22                                          #IMPLEMENTED - generated if not provided
+  blueprint:                                                                    #IMPLEMENTED - the references are resolved into copies if available
+    mysql:
+      config:
+        provides:
+          db: mysql
+        revision: 1
+        summary: A pretty popular database
+    name: Simple Wordpress
+    wordpress:
+      config:
+        options:
+          url:
+            default: wp.test.local
+            description: the url to use to host your blog on
+            type: String
+        provides:
+          url:
+            interface: http
+        requires:
+          db:
+            interface: mysql
+        revision: 3
+        summary: A pretty popular blog engine
+      exposed: true
+      open-ports:
+      - 80/tcp
+      relations:
+        db: mysql
+  component: checkmate-reference://apache                                       #IMPLEMENTED - references not available in doc are converted to URIs
+  environment:
+    name: rackcloud-test
+    providers:
+    - compute: null
+      constraints:
+      - region: chicago
+      vendor: rackspace
+    - endpoint: https://lbaas.api.rackpsacecloud.com/servers/{tenantId}
+      loadbalancer: null
+    - database: null
+      endpoint: https://database.api.rackpsacecloud.com/servers/{tenantId}
+    - common: null
+      credentials:
+      - apikey: a1207b3b4eb8638d02cdb1c4f3f36644                                #IMPLEMENTED & hard-coded for this exact position
+        rackspace: null
+        username: rackcloudtech                                                 #IMPLEMENTED & hard-coded for this exact position
+      vendor: rackspace
+  inputs:                                                                       #IMPLEMENTED - checkmate expects this
+    database-size: 1
+    domain: highbridgellc.com                                                   #IMPLEMENTED - used for resource naming
+    high-availability: false                                                    #IMPLEMENTED - used to calculate how many resources to create
+    region: chicago                                                             #IMPLEMENTED - checkmate uses this to fille the stockton deployment dict
+    requests-per-second: 60                                                     #IMPLEMENTED - used to calculate how many resources to create
+    ssl: false
+    webhead-count: 2
+    webhead-size: 2
+  resources:                                                                    #IMPLEMENTED - checkmate creates this to store all resources it creates
+    '0':
+      async_task_id: 2a88e3a0-080a-4879-a269-0b4b029001d6                       #IMPLEMENTED - this is how checkmate tracks async, celery tasks
+      dns-name: CMDEP-db629b561da7418aaa324c6b741b5b22-web1.highbridgellc.com   #IMPLEMENTED - this is generated
+      instance-id: null
+      type: server
+    '1':
+      async_task_id: 538f777a-0e44-42ae-8123-4819de4e743b
+      dns-name: CMDEP-db629b561da7418aaa324c6b741b5b22-web2.highbridgellc.com
+      instance-id: null
+      type: server
+    '2':
+      async_task_id: afb208ba-8095-40a9-af41-e0f8cb34751c
+      dns-name: CMDEP-db629b561da7418aaa324c6b741b5b22-db1.highbridgellc.com
+      instance-id: null
+      type: server
+    '3':
+      dns-name: CMDEP-db629b561da7418aaa324c6b741b5b22-lb1.highbridgellc.com
+      instance-id: null
+      type: load-balancer
+
+#
+# This documentation written to generate HTML by Docco.
+# To regenerate and preview:
+# 
+#     docco app.yaml && open docs/app.html
