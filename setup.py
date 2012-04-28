@@ -4,7 +4,7 @@ from setuptools import setup, find_packages
 # Provide URLs to Github projects if they're not pip-aware
 gh = 'https://github.com'
 github_projects = [{'project': 'SpiffWorkflow', 'user': 'ziadsawalha',
-                        'branch': 'celery'},]
+                        'branch': 'celery'}]
 github_urls = []
 for p in github_projects:
     github_urls.append('https://github.com/%s/%s/tarball/%s#egg=%s' % (

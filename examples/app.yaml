@@ -39,33 +39,63 @@
 
 #Definitions of components/services used in this file
 components:
-  # the name of the component and an option *&anchor* which
+  # the name of the component and an optional anchor (any unique name preceded by &) which
   # can be used to reference it from elsewhere in the file
-  wordpress: &wordpress
+  wordpress: &wordpress1
+    id: wordpress1
     # revisions track multiple versions of a component definition
     revision: 3
     # a short description of the component
     summary: "A pretty popular blog engine"
-    # the interfaces it provides (a web service on prt 80, a database host,
-    # etc...)
+    # the interfaces it provides (a web service on port 80, a database host,
+    # etc...). Accepted list is:
+    #    - url: an internet resource accessible over a URL (http[s], ftp, etc)
+    #    - db: a database
     provides:
       url:
         interface: http
     requires:
       db:
        interface: mysql
+    # User/consumer options - these are less technical and can change settings
     options:
       url:
         type: String
-        default: wp.test.local
+        default: localhost
         description: the url to use to host your blog on
+      high-availability:
+        type: Boolean
+        default: false
+        description: build in redundancy? If not, build one server.
+    # Advanced settings - technical
+    settings:
+      machine/flavor:
+        default: 1  # flavor=256mb. TODO: or maybe something more generic
+        description: the type (and size) of machine to use
+        type: {1: "256Mb", 2: "512Mb"} # TODO: How do we link this to a list of images?
+      machine/os:
+        default: Ubuntu 11.10  # Translated to image 119 by Rax provider.
+        description: the operating system and version to use
+      machine/count:
+        default: 1
+        description: the number of machines to spin up
 
   mysql: &mysql
+    id: mysql
     revision: 1
     summary: "A pretty popular database"
     provides:
       db: mysql
-  test: *nosql
+    # Advanced settings - technical
+    settings:
+      password:
+        type: String
+        default: =generate()  # TODO: think about how best to represent this.
+        description: the password for the database
+      machine/flavor:
+        default: 1  # flavor=512mb.
+        description: the type (and size) of machine to use
+  test: *nosql  # Just to test an unknown reference. Should translate to a local URI.
 
 #### Blueprints
 
@@ -74,13 +104,14 @@ components:
 # all the components, tiers, connections, and scaling rules for that application
 blueprint: &wp
   name: Simple Wordpress
-  wordpress:
-    exposed: true
-    open-ports: [80/tcp]
-    config: *wordpress
-    relations: {db: mysql}
-  mysql:
-    config: *mysql
+  services:
+    wordpress:
+      config: *wordpress1 #Reference in local file
+      exposed: true
+      open-ports: [80/tcp]
+      relations: {db: database}  # resource-type: service
+    database: #TODO: remove hard coding against this name. Thinak about what these names mean. These are basically tiers...
+      config: *mysql  #TODO: support local (same server) and remote links like local://components/mysql
 
 
 #### Environments
@@ -129,50 +160,83 @@ environment: &dfw
 deployment:                                                                     #IMPLEMENTED - checkmate looks for this
   blueprint: *wp
   environment: *env1
-  component: *apache
   inputs:
     domain: %(CHECKMATE_DOMAIN)s
     ssl: false
     region: chicago # TODO: this is still read from os.environ
     high-availability: false
     requests-per-second: 60
-    database-size: 1
-    webhead-size: 2
-    webhead-count: 2
+    database:machine/flavor: 2
+    wordpress:machine/flavor: 2  # Is this how we want to do this? THat would mnean no colons in settings names...
+    wordpress:machine/count: 2
 
 #### Sample Output
 #-POSTed added to prevent checkmate from looking at this when we post this doc for testing
+# Note that when the deployment is sent to checkmate, it resolves all references and discards ones that are not used or needed (like th &dfw environment)
 deployment-POSTed:
   id: db629b561da7418aaa324c6b741b5b22                                          #IMPLEMENTED - generated if not provided
   blueprint:                                                                    #IMPLEMENTED - the references are resolved into copies if available
-    mysql:
-      config:
-        provides:
+    services:
+      database:
+        config::
+          id: mysql
+          provides:
+            db: mysql
+          revision: 1
+          settings:
+            machine/flavor:
+              default: 1
+              description: the type (and size) of machine to use
+            password:
+              default: =generate()
+              description: the password for the database
+              type: String
+          summary: A pretty popular database
+        machines:
+        - 3
+      name: Simple Wordpress
+      wordpress:
+        config:
+          id: wordpress1
+          options:
+            high-availability:
+              default: false
+              description: build in redundancy? If not, build one server.
+              type: Boolean
+            url:
+              default: localhost
+              description: the url to use to host your blog on
+              type: String
+          provides:
+            url:
+              interface: http
+          requires:
+            db:
+              interface: mysql
+          revision: 3
+          settings:
+            machine/count:
+              default: 1
+              description: the number of machines to spin up
+            machine/flavor:
+              default: 1
+              description: the type (and size) of machine to use
+              type:
+                '1': 256Mb
+                '2': 512Mb
+            machine/os:
+              default: Ubuntu 11.10
+              description: the operating system and version to use
+          summary: A pretty popular blog engine
+        exposed: true
+        machines:
+        - 0
+        - 1
+        open-ports:
+        - 80/tcp
+        relations:
           db: mysql
-        revision: 1
-        summary: A pretty popular database
-    name: Simple Wordpress
-    wordpress:
-      config:
-        options:
-          url:
-            default: wp.test.local
-            description: the url to use to host your blog on
-            type: String
-        provides:
-          url:
-            interface: http
-        requires:
-          db:
-            interface: mysql
-        revision: 3
-        summary: A pretty popular blog engine
-      exposed: true
-      open-ports:
-      - 80/tcp
-      relations:
-        db: mysql
-  component: checkmate-reference://apache                                       #IMPLEMENTED - references not available in doc are converted to URIs
+    component: checkmate-reference://apache                                       #IMPLEMENTED - references not available in doc are converted to URIs
   environment:
     name: rackcloud-test
     providers:
@@ -186,39 +250,42 @@ deployment-POSTed:
       endpoint: https://database.api.rackpsacecloud.com/servers/{tenantId}
     - common: null
       credentials:
-      - apikey: a1207b3b4eb8638d02cdb1c4f3f36644                                #IMPLEMENTED & hard-coded for this exact position
+      - apikey: ababbbad29239481273469ab1f8234ff                                #IMPLEMENTED & hard-coded for this exact position
         rackspace: null
-        username: rackcloudtech                                                 #IMPLEMENTED & hard-coded for this exact position
+        username: username                                                      #IMPLEMENTED & hard-coded for this exact position
       vendor: rackspace
   inputs:                                                                       #IMPLEMENTED - checkmate expects this
-    database-size: 1
+    database:machine/flavor: 2
     domain: highbridgellc.com                                                   #IMPLEMENTED - used for resource naming
     high-availability: false                                                    #IMPLEMENTED - used to calculate how many resources to create
     region: chicago                                                             #IMPLEMENTED - checkmate uses this to fille the stockton deployment dict
     requests-per-second: 60                                                     #IMPLEMENTED - used to calculate how many resources to create
     ssl: false
-    webhead-count: 2
-    webhead-size: 2
+    wordpress:machine/count: 2
+    wordpress:machine/flavor: 2
   resources:                                                                    #IMPLEMENTED - checkmate creates this to store all resources it creates
-    '0':
+    0:
       async_task_id: 2a88e3a0-080a-4879-a269-0b4b029001d6                       #IMPLEMENTED - this is how checkmate tracks async, celery tasks
       dns-name: CMDEP-db629b561da7418aaa324c6b741b5b22-web1.highbridgellc.com   #IMPLEMENTED - this is generated
+      flavor: 2
+      image: 119
       instance-id: null
       type: server
-    '1':
-      async_task_id: 538f777a-0e44-42ae-8123-4819de4e743b
-      dns-name: CMDEP-db629b561da7418aaa324c6b741b5b22-web2.highbridgellc.com
+    1:
+      dns-name: CMDEP-bf86f43d55aa4088bd94e68af61d5c9c-web2.rackcloudtech.com
+      flavor: 2
+      image: 119
       instance-id: null
       type: server
-    '2':
-      async_task_id: afb208ba-8095-40a9-af41-e0f8cb34751c
-      dns-name: CMDEP-db629b561da7418aaa324c6b741b5b22-db1.highbridgellc.com
-      instance-id: null
-      type: server
-    '3':
-      dns-name: CMDEP-db629b561da7418aaa324c6b741b5b22-lb1.highbridgellc.com
+    2:
+      dns-name: CMDEP-bf86f43d55aa4088bd94e68af61d5c9c-lb1.rackcloudtech.com
       instance-id: null
       type: load-balancer
+    3:
+      dns-name: CMDEP-bf86f43d55aa4088bd94e68af61d5c9c-db1.rackcloudtech.com
+      flavor: 2
+      instance-id: null
+      type: database
 
 #
 # This documentation written to generate HTML by Docco.

@@ -42,3 +42,13 @@ class DbBase(object):
 
     def save_component(self, id, body):
         raise NotImplementedError()
+
+    # WORKFLOWS
+    def get_workflow(self, id):
+        raise NotImplementedError()
+
+    def get_workflows(self):
+        raise NotImplementedError()
+
+    def save_workflow(self, id, body):
+        raise NotImplementedError()

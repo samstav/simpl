@@ -18,6 +18,7 @@ except ImportError:
     raise
 from SpiffWorkflow import Workflow, Task
 from SpiffWorkflow.operators import Attrib
+from SpiffWorkflow.storage import DictionarySerializer
 
 
 @task
@@ -71,6 +72,14 @@ def distribute_create_simple_server(deployment, name, image=214, flavor=1,
     #Pass in the initial deployemnt dict (task 3 is the Auth task)
     wf.get_task(3).set_attribute(deployment=deployment)
 
+
+    from checkmate.db import get_driver, any_id_problems
+    
+    db = get_driver('checkmate.db.sql.Driver')
+    serializer = DictionarySerializer()
+    db.save_workflow(distribute_create_simple_server.request.id,
+                     wf.serialize(serializer))
+
     # Loop through trying to complete the workflow and periodically send
     # status updates
     i = 0
@@ -84,13 +93,18 @@ def distribute_create_simple_server(deployment, name, image=214, flavor=1,
                                       meta={'complete': count, 'total': total})
         wf.complete_all()
         i += 1
+        db.save_workflow(distribute_create_simple_server.request.id,
+                     wf.serialize(serializer))
         time.sleep(1)
+
+    db.save_workflow(distribute_create_simple_server.request.id,
+                     wf.serialize(serializer))
 
     return wf.get_task(5).attributes
 
 
 @task
-def get_workflow_status(id):
+def distribute_get_workflow_status(id):
     """ Returns information about a task.
     :param id: the ID of the task to check
 
@@ -121,7 +135,7 @@ def get_workflow_status(id):
 
 @task
 def distribute_deploy_plan(deployment, plan):
-    """Taskes a YAML plan from CheckMate and executes it.
+    """Takes a YAML plan from CheckMate and executes it.
 
     :param deployment: contains the deployment parameters
     :type deployment: dict
@@ -132,13 +146,13 @@ def distribute_deploy_plan(deployment, plan):
 
 
 @task
-def count_seconds(seconds):
+def distribute_count_seconds(seconds):
     """ just for debugging ansd testing long-running tasks and updates """
     elapsed = 0
     while elapsed < seconds:
         time.sleep(1)
         elapsed += 1
-        count_seconds.update_state(state="PROGRESS",
+        distribute_count_seconds.update_state(state="PROGRESS",
                                    meta={'complete': elapsed,
                                          'total': seconds})
     return seconds

@@ -30,7 +30,7 @@ deployment = {
 print "Deployment ID: %s" % deployment['id']
 
 # Read in the public key, this can be passed to newly created servers.
-if (os.environ.has_key('STOCKTON_PUBLIC_KEY') and  
+if ('STOCKTON_PUBLIC_KEY' in os.environ and
         os.path.exists(os.path.expanduser(os.environ['STOCKTON_PUBLIC_KEY']))):
     try:
         f = open(os.path.expanduser(os.environ['STOCKTON_PUBLIC_KEY']))
@@ -57,7 +57,7 @@ def wait_on_task(task, timeout=60, output=None):
     msg = ""
     while not task.ready() and elapsed < timeout:
         if last_state != task.state:
-            msg +=  "\nStatus is now: %s" % task.state
+            msg += "\nStatus is now: %s" % task.state
             last_state = task.state
         if isinstance(task.info, BaseException):
             msg += "\nTask Error received: %s" % task.info
@@ -105,7 +105,7 @@ server_id = results['stockton.server.distribute_create']['id']
 server_ip = results['stockton.server.distribute_create']['ip']
 
 print "Server Created: ID=%s, IP=%s" % (server_id, server_ip)
-if (os.environ.has_key('STOCKTON_PUBLIC_KEY') and  
+if ('STOCKTON_PUBLIC_KEY' in os.environ and
         os.path.exists(os.path.expanduser(os.environ['STOCKTON_PUBLIC_KEY']))):
     print "When the server is ready, connect using:"
     print "  ssh -i %s root@%s" % (os.environ['STOCKTON_PRIVATE_KEY'],

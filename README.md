@@ -1,5 +1,5 @@
 # CheckMate
-![CheckMate](https://github.com/ziadsawalha/checkmate/raw/master/checkmate/checkmate.png)
+![CheckMate](https://github.com/ziadsawalha/checkmate/raw/master/checkmate/static/checkmate.png)
 
 CheckMate stores and controls your cloud configurations. It exposes a REST API
 for manipulating configurations. It uses python-stockton and SpiffWorkflow to
@@ -19,7 +19,7 @@ Objects are returned as JSON by default, but YAML is also supported (application
 Special cases::
 
     POST /deployment
-    
+
         Create a new deployment passing in all the necessary components (or
         references to them).
 
@@ -44,7 +44,7 @@ blocks of a deployment.
             type: String
             default: wp.test.local
             description: the url to use to host your blog on
-    
+
       mysql: &mysql
         revision: 1
         summary: "A pretty popular database"
@@ -172,7 +172,7 @@ In the third window, run these scripts::
     $ curl --data-binary @checkmate/examples/app.yaml -H 'content-type: application/x-yaml' http://localhost:8080/deployments -v
 
     # this starts a deployment. Get the ID or Location header from the response, and watch the status here:
-    
+
     $ curl http://localhost:8080/deployments/enter-your-deployment-id-here/status
 
 

@@ -44,7 +44,6 @@ class test_server(unittest.TestCase):
 
 
     def test_REST_deployment(self):
-        #TODO: POST does stuff...
         self.rest_exercise('deployment')
 
     def test_REST_environment(self):
@@ -57,9 +56,9 @@ class test_server(unittest.TestCase):
         self.rest_exercise('blueprint')
 
     def rest_exercise(self, model_name):
-        #POST
+        #PUT
         entity = "%s: &e1\n    id: 1" % model_name
-        res = self.app.post('/%ss' % model_name, entity,
+        res = self.app.put('/%ss/1' % model_name, entity,
                             content_type='application/x-yaml')
         self.assertEqual(res.status, '200 OK')
         self.assertEqual(res.content_type, 'application/json')

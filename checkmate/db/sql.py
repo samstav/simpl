@@ -1,4 +1,5 @@
 import json
+import logging
 import os
 
 from sqlalchemy import Column, Integer, String, Text, PickleType
@@ -9,15 +10,25 @@ from sqlalchemy.orm import sessionmaker, scoped_session
 
 from checkmate.db.common import *
 
-__all__ = ['Base', 'Environment', 'Deployment', 'Component', '']
- 
+__all__ = ['Base', 'Environment', 'Blueprint', 'Deployment', 'Component',
+           'Workflow']
+
+LOG = logging.getLogger(__name__)
+
 CONNECTION_STRING = os.environ.get('CHECKMATE_CONNECTION_STRING', 'sqlite://')
 if CONNECTION_STRING == 'sqlite://':
     engine = create_engine(CONNECTION_STRING,
                 connect_args={'check_same_thread': False},
                 poolclass=StaticPool)
+    message = "Checkmate is connected to an in-memory sqlite database. No " \
+              "data will be persisted. To store your data, set the "\
+              "CHECKMATE_CONNECTION_STRING environment variable to a valid "\
+              "sqlalchemy connection string"
+    LOG.warning(message)
+    print message
 else:
     engine = create_engine(CONNECTION_STRING)
+    LOG.info("Connected to '%s'" % CONNECTION_STRING)
 
 Base = declarative_base(bind=engine)
 Session = scoped_session(sessionmaker(engine))
@@ -57,6 +68,13 @@ class Component(Base):
     body = Column(TextPickleType(pickler=json))
 
 
+class Workflow(Base):
+    __tablename__ = 'workflows'
+    dbid = Column(Integer, primary_key=True, autoincrement=True)
+    id = Column(String(32), index=True, unique=True)
+    body = Column(TextPickleType(pickler=json))
+
+
 Base.metadata.create_all(engine)
 
 class Driver(DbBase):
@@ -64,6 +82,9 @@ class Driver(DbBase):
         response = {}
         response['environments'] = self.get_environments()
         response['deployments'] = self.get_deployments()
+        response['blueprints'] = self.get_blueprints()
+        response['workflows'] = self.get_workflows()
+        response['components'] = self.get_components()
         return response
 
     def get_environment(self, id):
@@ -169,6 +190,32 @@ class Driver(DbBase):
             e.body = body
         else:
             e = Component(id=id, body=body)
+        Session.add(e)
+        Session.commit()
+        return body
+
+    def get_workflow(self, id):
+        results = Session.query(Workflow).filter_by(id=id)
+        if results and results.count() > 0:
+            return results.first().body
+
+    def get_workflows(self):
+        results = Session.query(Workflow)
+        if results and results.count() > 0:
+            response = {}
+            for e in results:
+                response[e.id] = e.body
+            return response
+        else:
+            return {}
+
+    def save_workflow(self, id, body):
+        results = Session.query(Workflow).filter_by(id=id)
+        if results and results.count() > 0:
+            e = results.first()
+            e.body = body
+        else:
+            e = Workflow(id=id, body=body)
         Session.add(e)
         Session.commit()
         return body
