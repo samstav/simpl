@@ -32,44 +32,69 @@ and deployments.</p>             </td>             <td class="code">            
 <h3>Components</h3>
 
 <p>Components define the basic building blocks for checkmate. We use a syntax
-similar to Juju Charm syntax</p>             </td>             <td class="code">               <div class="highlight"><pre></pre></div>             </td>           </tr>                               <tr id="section-5">             <td class="docs">               <div class="pilwrap">                 <a class="pilcrow" href="#section-5">&#182;</a>               </div>               <p>Definitions of components/services used in this file</p>             </td>             <td class="code">               <div class="highlight"><pre><span class="l-Scalar-Plain">components</span><span class="p-Indicator">:</span></pre></div>             </td>           </tr>                               <tr id="section-6">             <td class="docs">               <div class="pilwrap">                 <a class="pilcrow" href="#section-6">&#182;</a>               </div>               <p>the name of the component and an option <em>&amp;anchor</em> which
-can be used to reference it from elsewhere in the file</p>             </td>             <td class="code">               <div class="highlight"><pre>  <span class="l-Scalar-Plain">wordpress</span><span class="p-Indicator">:</span> <span class="nl">&amp;wordpress</span></pre></div>             </td>           </tr>                               <tr id="section-7">             <td class="docs">               <div class="pilwrap">                 <a class="pilcrow" href="#section-7">&#182;</a>               </div>               <p>revisions track multiple versions of a component definition</p>             </td>             <td class="code">               <div class="highlight"><pre>    <span class="l-Scalar-Plain">revision</span><span class="p-Indicator">:</span> <span class="l-Scalar-Plain">3</span></pre></div>             </td>           </tr>                               <tr id="section-8">             <td class="docs">               <div class="pilwrap">                 <a class="pilcrow" href="#section-8">&#182;</a>               </div>               <p>a short description of the component</p>             </td>             <td class="code">               <div class="highlight"><pre>    <span class="l-Scalar-Plain">summary</span><span class="p-Indicator">:</span> <span class="s">&quot;A</span><span class="nv"> </span><span class="s">pretty</span><span class="nv"> </span><span class="s">popular</span><span class="nv"> </span><span class="s">blog</span><span class="nv"> </span><span class="s">engine&quot;</span></pre></div>             </td>           </tr>                               <tr id="section-9">             <td class="docs">               <div class="pilwrap">                 <a class="pilcrow" href="#section-9">&#182;</a>               </div>               <p>the interfaces it provides (a web service on prt 80, a database host,
-etc...)</p>             </td>             <td class="code">               <div class="highlight"><pre>    <span class="l-Scalar-Plain">provides</span><span class="p-Indicator">:</span>
+similar to Juju Charm syntax</p>             </td>             <td class="code">               <div class="highlight"><pre></pre></div>             </td>           </tr>                               <tr id="section-5">             <td class="docs">               <div class="pilwrap">                 <a class="pilcrow" href="#section-5">&#182;</a>               </div>               <p>Definitions of components/services used in this file</p>             </td>             <td class="code">               <div class="highlight"><pre><span class="l-Scalar-Plain">components</span><span class="p-Indicator">:</span></pre></div>             </td>           </tr>                               <tr id="section-6">             <td class="docs">               <div class="pilwrap">                 <a class="pilcrow" href="#section-6">&#182;</a>               </div>               <p>the name of the component and an optional anchor (any unique name preceded by &amp;) which
+can be used to reference it from elsewhere in the file</p>             </td>             <td class="code">               <div class="highlight"><pre>  <span class="l-Scalar-Plain">wordpress</span><span class="p-Indicator">:</span> <span class="nl">&amp;wordpress1</span>
+    <span class="l-Scalar-Plain">id</span><span class="p-Indicator">:</span> <span class="l-Scalar-Plain">wordpress1</span></pre></div>             </td>           </tr>                               <tr id="section-7">             <td class="docs">               <div class="pilwrap">                 <a class="pilcrow" href="#section-7">&#182;</a>               </div>               <p>revisions track multiple versions of a component definition</p>             </td>             <td class="code">               <div class="highlight"><pre>    <span class="l-Scalar-Plain">revision</span><span class="p-Indicator">:</span> <span class="l-Scalar-Plain">3</span></pre></div>             </td>           </tr>                               <tr id="section-8">             <td class="docs">               <div class="pilwrap">                 <a class="pilcrow" href="#section-8">&#182;</a>               </div>               <p>a short description of the component</p>             </td>             <td class="code">               <div class="highlight"><pre>    <span class="l-Scalar-Plain">summary</span><span class="p-Indicator">:</span> <span class="s">&quot;A</span><span class="nv"> </span><span class="s">pretty</span><span class="nv"> </span><span class="s">popular</span><span class="nv"> </span><span class="s">blog</span><span class="nv"> </span><span class="s">engine&quot;</span></pre></div>             </td>           </tr>                               <tr id="section-9">             <td class="docs">               <div class="pilwrap">                 <a class="pilcrow" href="#section-9">&#182;</a>               </div>               <p>the interfaces it provides (a web service on port 80, a database host,
+etc...). Accepted list is:
+   - url: an internet resource accessible over a URL (http[s], ftp, etc)
+   - db: a database</p>             </td>             <td class="code">               <div class="highlight"><pre>    <span class="l-Scalar-Plain">provides</span><span class="p-Indicator">:</span>
       <span class="l-Scalar-Plain">url</span><span class="p-Indicator">:</span>
         <span class="l-Scalar-Plain">interface</span><span class="p-Indicator">:</span> <span class="l-Scalar-Plain">http</span>
     <span class="l-Scalar-Plain">requires</span><span class="p-Indicator">:</span>
       <span class="l-Scalar-Plain">db</span><span class="p-Indicator">:</span>
-       <span class="l-Scalar-Plain">interface</span><span class="p-Indicator">:</span> <span class="l-Scalar-Plain">mysql</span>
-    <span class="l-Scalar-Plain">options</span><span class="p-Indicator">:</span>
+       <span class="l-Scalar-Plain">interface</span><span class="p-Indicator">:</span> <span class="l-Scalar-Plain">mysql</span></pre></div>             </td>           </tr>                               <tr id="section-10">             <td class="docs">               <div class="pilwrap">                 <a class="pilcrow" href="#section-10">&#182;</a>               </div>               <p>User/consumer options - these are less technical and can change settings</p>             </td>             <td class="code">               <div class="highlight"><pre>    <span class="l-Scalar-Plain">options</span><span class="p-Indicator">:</span>
       <span class="l-Scalar-Plain">url</span><span class="p-Indicator">:</span>
         <span class="l-Scalar-Plain">type</span><span class="p-Indicator">:</span> <span class="l-Scalar-Plain">String</span>
-        <span class="l-Scalar-Plain">default</span><span class="p-Indicator">:</span> <span class="l-Scalar-Plain">wp.test.local</span>
+        <span class="l-Scalar-Plain">default</span><span class="p-Indicator">:</span> <span class="l-Scalar-Plain">localhost</span>
         <span class="l-Scalar-Plain">description</span><span class="p-Indicator">:</span> <span class="l-Scalar-Plain">the url to use to host your blog on</span>
+      <span class="l-Scalar-Plain">high-availability</span><span class="p-Indicator">:</span>
+        <span class="l-Scalar-Plain">type</span><span class="p-Indicator">:</span> <span class="l-Scalar-Plain">Boolean</span>
+        <span class="l-Scalar-Plain">default</span><span class="p-Indicator">:</span> <span class="l-Scalar-Plain">false</span>
+        <span class="l-Scalar-Plain">description</span><span class="p-Indicator">:</span> <span class="l-Scalar-Plain">build in redundancy? If not, build one server.</span></pre></div>             </td>           </tr>                               <tr id="section-11">             <td class="docs">               <div class="pilwrap">                 <a class="pilcrow" href="#section-11">&#182;</a>               </div>               <p>Advanced settings - technical</p>             </td>             <td class="code">               <div class="highlight"><pre>    <span class="l-Scalar-Plain">settings</span><span class="p-Indicator">:</span>
+      <span class="l-Scalar-Plain">machine/flavor</span><span class="p-Indicator">:</span>
+        <span class="l-Scalar-Plain">default</span><span class="p-Indicator">:</span> <span class="l-Scalar-Plain">1</span>  <span class="c1"># flavor=256mb. TODO: or maybe something more generic</span>
+        <span class="l-Scalar-Plain">description</span><span class="p-Indicator">:</span> <span class="l-Scalar-Plain">the type (and size) of machine to use</span>
+        <span class="l-Scalar-Plain">type</span><span class="p-Indicator">:</span> <span class="p-Indicator">{</span><span class="nv">1</span><span class="p-Indicator">:</span> <span class="s">&quot;256Mb&quot;</span><span class="p-Indicator">,</span> <span class="nv">2</span><span class="p-Indicator">:</span> <span class="s">&quot;512Mb&quot;</span><span class="p-Indicator">}</span> <span class="c1"># TODO: How do we link this to a list of images?</span>
+      <span class="l-Scalar-Plain">machine/os</span><span class="p-Indicator">:</span>
+        <span class="l-Scalar-Plain">default</span><span class="p-Indicator">:</span> <span class="l-Scalar-Plain">Ubuntu 11.10</span>  <span class="c1"># Translated to image 119 by Rax provider.</span>
+        <span class="l-Scalar-Plain">description</span><span class="p-Indicator">:</span> <span class="l-Scalar-Plain">the operating system and version to use</span>
+      <span class="l-Scalar-Plain">machine/count</span><span class="p-Indicator">:</span>
+        <span class="l-Scalar-Plain">default</span><span class="p-Indicator">:</span> <span class="l-Scalar-Plain">1</span>
+        <span class="l-Scalar-Plain">description</span><span class="p-Indicator">:</span> <span class="l-Scalar-Plain">the number of machines to spin up</span>
 
   <span class="l-Scalar-Plain">mysql</span><span class="p-Indicator">:</span> <span class="nl">&amp;mysql</span>
+    <span class="l-Scalar-Plain">id</span><span class="p-Indicator">:</span> <span class="l-Scalar-Plain">mysql</span>
     <span class="l-Scalar-Plain">revision</span><span class="p-Indicator">:</span> <span class="l-Scalar-Plain">1</span>
     <span class="l-Scalar-Plain">summary</span><span class="p-Indicator">:</span> <span class="s">&quot;A</span><span class="nv"> </span><span class="s">pretty</span><span class="nv"> </span><span class="s">popular</span><span class="nv"> </span><span class="s">database&quot;</span>
     <span class="l-Scalar-Plain">provides</span><span class="p-Indicator">:</span>
-      <span class="l-Scalar-Plain">db</span><span class="p-Indicator">:</span> <span class="l-Scalar-Plain">mysql</span>
-  <span class="l-Scalar-Plain">test</span><span class="p-Indicator">:</span> <span class="nv">*nosql</span></pre></div>             </td>           </tr>                               <tr id="section-10">             <td class="docs">               <div class="pilwrap">                 <a class="pilcrow" href="#section-10">&#182;</a>               </div>               <h3>Blueprints</h3>             </td>             <td class="code">               <div class="highlight"><pre></pre></div>             </td>           </tr>                               <tr id="section-11">             <td class="docs">               <div class="pilwrap">                 <a class="pilcrow" href="#section-11">&#182;</a>               </div>               <p>An architecture template
+      <span class="l-Scalar-Plain">db</span><span class="p-Indicator">:</span> <span class="l-Scalar-Plain">mysql</span></pre></div>             </td>           </tr>                               <tr id="section-12">             <td class="docs">               <div class="pilwrap">                 <a class="pilcrow" href="#section-12">&#182;</a>               </div>               <p>Advanced settings - technical</p>             </td>             <td class="code">               <div class="highlight"><pre>    <span class="l-Scalar-Plain">settings</span><span class="p-Indicator">:</span>
+      <span class="l-Scalar-Plain">password</span><span class="p-Indicator">:</span>
+        <span class="l-Scalar-Plain">type</span><span class="p-Indicator">:</span> <span class="l-Scalar-Plain">String</span>
+        <span class="l-Scalar-Plain">default</span><span class="p-Indicator">:</span> <span class="l-Scalar-Plain">=generate()</span>  <span class="c1"># TODO: think about how best to represent this.</span>
+        <span class="l-Scalar-Plain">description</span><span class="p-Indicator">:</span> <span class="l-Scalar-Plain">the password for the database</span>
+      <span class="l-Scalar-Plain">machine/flavor</span><span class="p-Indicator">:</span>
+        <span class="l-Scalar-Plain">default</span><span class="p-Indicator">:</span> <span class="l-Scalar-Plain">1</span>  <span class="c1"># flavor=512mb.</span>
+        <span class="l-Scalar-Plain">description</span><span class="p-Indicator">:</span> <span class="l-Scalar-Plain">the type (and size) of machine to use</span>
+  <span class="l-Scalar-Plain">test</span><span class="p-Indicator">:</span> <span class="nv">*nosql</span>  <span class="c1"># Just to test an unknown reference. Should translate to a local URI.</span></pre></div>             </td>           </tr>                               <tr id="section-13">             <td class="docs">               <div class="pilwrap">                 <a class="pilcrow" href="#section-13">&#182;</a>               </div>               <h3>Blueprints</h3>             </td>             <td class="code">               <div class="highlight"><pre></pre></div>             </td>           </tr>                               <tr id="section-14">             <td class="docs">               <div class="pilwrap">                 <a class="pilcrow" href="#section-14">&#182;</a>               </div>               <p>An architecture template
 This would be where we define the architecture of an application which would include
 all the components, tiers, connections, and scaling rules for that application</p>             </td>             <td class="code">               <div class="highlight"><pre><span class="l-Scalar-Plain">blueprint</span><span class="p-Indicator">:</span> <span class="nl">&amp;wp</span>
   <span class="l-Scalar-Plain">name</span><span class="p-Indicator">:</span> <span class="l-Scalar-Plain">Simple Wordpress</span>
-  <span class="l-Scalar-Plain">wordpress</span><span class="p-Indicator">:</span>
-    <span class="l-Scalar-Plain">exposed</span><span class="p-Indicator">:</span> <span class="l-Scalar-Plain">true</span>
-    <span class="l-Scalar-Plain">open-ports</span><span class="p-Indicator">:</span> <span class="p-Indicator">[</span><span class="nv">80/tcp</span><span class="p-Indicator">]</span>
-    <span class="l-Scalar-Plain">config</span><span class="p-Indicator">:</span> <span class="nv">*wordpress</span>
-    <span class="l-Scalar-Plain">relations</span><span class="p-Indicator">:</span> <span class="p-Indicator">{</span><span class="nv">db</span><span class="p-Indicator">:</span> <span class="nv">mysql</span><span class="p-Indicator">}</span>
-  <span class="l-Scalar-Plain">mysql</span><span class="p-Indicator">:</span>
-    <span class="l-Scalar-Plain">config</span><span class="p-Indicator">:</span> <span class="nv">*mysql</span></pre></div>             </td>           </tr>                               <tr id="section-12">             <td class="docs">               <div class="pilwrap">                 <a class="pilcrow" href="#section-12">&#182;</a>               </div>               <h3>Environments</h3>             </td>             <td class="code">               <div class="highlight"><pre></pre></div>             </td>           </tr>                               <tr id="section-13">             <td class="docs">               <div class="pilwrap">                 <a class="pilcrow" href="#section-13">&#182;</a>               </div>               <p>A test environment</p>             </td>             <td class="code">               <div class="highlight"><pre><span class="l-Scalar-Plain">environment</span><span class="p-Indicator">:</span> <span class="nl">&amp;env1</span>
-  <span class="l-Scalar-Plain">name</span><span class="p-Indicator">:</span> <span class="l-Scalar-Plain">rackcloud-test</span></pre></div>             </td>           </tr>                               <tr id="section-14">             <td class="docs">               <div class="pilwrap">                 <a class="pilcrow" href="#section-14">&#182;</a>               </div>               <p>The idea behind providers is that the environment can be configured to use different providers for different types of resources
+  <span class="l-Scalar-Plain">services</span><span class="p-Indicator">:</span>
+    <span class="l-Scalar-Plain">wordpress</span><span class="p-Indicator">:</span>
+      <span class="l-Scalar-Plain">config</span><span class="p-Indicator">:</span> <span class="nv">*wordpress1</span> <span class="c1">#Reference in local file</span>
+      <span class="l-Scalar-Plain">exposed</span><span class="p-Indicator">:</span> <span class="l-Scalar-Plain">true</span>
+      <span class="l-Scalar-Plain">open-ports</span><span class="p-Indicator">:</span> <span class="p-Indicator">[</span><span class="nv">80/tcp</span><span class="p-Indicator">]</span>
+      <span class="l-Scalar-Plain">relations</span><span class="p-Indicator">:</span> <span class="p-Indicator">{</span><span class="nv">db</span><span class="p-Indicator">:</span> <span class="nv">database</span><span class="p-Indicator">}</span>  <span class="c1"># resource-type: service</span>
+    <span class="l-Scalar-Plain">database</span><span class="p-Indicator">:</span> <span class="c1">#TODO: remove hard coding against this name. Thinak about what these names mean. These are basically tiers...</span>
+      <span class="l-Scalar-Plain">config</span><span class="p-Indicator">:</span> <span class="nv">*mysql</span>  <span class="c1">#TODO: support local (same server) and remote links like local://components/mysql</span></pre></div>             </td>           </tr>                               <tr id="section-15">             <td class="docs">               <div class="pilwrap">                 <a class="pilcrow" href="#section-15">&#182;</a>               </div>               <h3>Environments</h3>             </td>             <td class="code">               <div class="highlight"><pre></pre></div>             </td>           </tr>                               <tr id="section-16">             <td class="docs">               <div class="pilwrap">                 <a class="pilcrow" href="#section-16">&#182;</a>               </div>               <p>A test environment</p>             </td>             <td class="code">               <div class="highlight"><pre><span class="l-Scalar-Plain">environment</span><span class="p-Indicator">:</span> <span class="nl">&amp;env1</span>
+  <span class="l-Scalar-Plain">name</span><span class="p-Indicator">:</span> <span class="l-Scalar-Plain">rackcloud-test</span></pre></div>             </td>           </tr>                               <tr id="section-17">             <td class="docs">               <div class="pilwrap">                 <a class="pilcrow" href="#section-17">&#182;</a>               </div>               <p>The idea behind providers is that the environment can be configured to use different providers for different types of resources
 For example, we could use Cloud Servers or Dedicated Servers as a compute provider.
 The intent is that these providers can be extracted automatically from the service catalog when authenticating, but including providers here
 means we can pre-determine or hard-code them if we want to.</p>             </td>             <td class="code">               <div class="highlight"><pre>  <span class="l-Scalar-Plain">providers</span><span class="p-Indicator">:</span>
   <span class="p-Indicator">-</span> <span class="l-Scalar-Plain">compute</span><span class="p-Indicator">:</span> <span class="nl">&amp;rax-cloud-servers</span>
     <span class="l-Scalar-Plain">vendor</span><span class="p-Indicator">:</span> <span class="l-Scalar-Plain">rackspace</span>
     <span class="l-Scalar-Plain">constraints</span><span class="p-Indicator">:</span>
-    <span class="p-Indicator">-</span> <span class="l-Scalar-Plain">region</span><span class="p-Indicator">:</span> <span class="err">%</span><span class="l-Scalar-Plain">(STOCKTON_REGION)s</span>                                               <span class="c1">#IMPLEMENTED at root of env, but not under constraints</span>
+    <span class="p-Indicator">-</span> <span class="l-Scalar-Plain">region</span><span class="p-Indicator">:</span> <span class="err">%</span><span class="l-Scalar-Plain">(CHECKMATE_REGION)s</span>                                               <span class="c1">#IMPLEMENTED at root of env, but not under constraints</span>
   <span class="p-Indicator">-</span> <span class="l-Scalar-Plain">loadbalancer</span><span class="p-Indicator">:</span> <span class="nl">&amp;rax-lbaas</span>
     <span class="l-Scalar-Plain">endpoint</span><span class="p-Indicator">:</span> <span class="l-Scalar-Plain">https://lbaas.api.rackpsacecloud.com/servers/{tenantId}</span>
   <span class="p-Indicator">-</span> <span class="l-Scalar-Plain">database</span><span class="p-Indicator">:</span> <span class="nl">&amp;rax-dbaas</span>
@@ -78,8 +103,8 @@ means we can pre-determine or hard-code them if we want to.</p>             </td
     <span class="l-Scalar-Plain">vendor</span><span class="p-Indicator">:</span> <span class="l-Scalar-Plain">rackspace</span>
     <span class="l-Scalar-Plain">credentials</span><span class="p-Indicator">:</span>
     <span class="p-Indicator">-</span> <span class="l-Scalar-Plain">rackspace</span><span class="p-Indicator">:</span>
-      <span class="l-Scalar-Plain">username</span><span class="p-Indicator">:</span> <span class="err">%</span><span class="l-Scalar-Plain">(STOCKTON_USERNAME)s</span>
-      <span class="l-Scalar-Plain">apikey</span><span class="p-Indicator">:</span> <span class="err">%</span><span class="l-Scalar-Plain">(STOCKTON_APIKEY)s</span></pre></div>             </td>           </tr>                               <tr id="section-15">             <td class="docs">               <div class="pilwrap">                 <a class="pilcrow" href="#section-15">&#182;</a>               </div>               <p>Another environment referenced with the anchor &amp;dfw and named rackcloud-prod</p>             </td>             <td class="code">               <div class="highlight"><pre><span class="l-Scalar-Plain">environment</span><span class="p-Indicator">:</span> <span class="nl">&amp;dfw</span>
+      <span class="l-Scalar-Plain">username</span><span class="p-Indicator">:</span> <span class="err">%</span><span class="l-Scalar-Plain">(CHECKMATE_USERNAME)s</span>
+      <span class="l-Scalar-Plain">apikey</span><span class="p-Indicator">:</span> <span class="err">%</span><span class="l-Scalar-Plain">(CHECKMATE_APIKEY)s</span></pre></div>             </td>           </tr>                               <tr id="section-18">             <td class="docs">               <div class="pilwrap">                 <a class="pilcrow" href="#section-18">&#182;</a>               </div>               <p>Another environment referenced with the anchor &amp;dfw and named rackcloud-prod</p>             </td>             <td class="code">               <div class="highlight"><pre><span class="l-Scalar-Plain">environment</span><span class="p-Indicator">:</span> <span class="nl">&amp;dfw</span>
   <span class="l-Scalar-Plain">name</span><span class="p-Indicator">:</span> <span class="l-Scalar-Plain">rackcloud-prod</span>
   <span class="l-Scalar-Plain">region</span><span class="p-Indicator">:</span> <span class="l-Scalar-Plain">dfw</span>
   <span class="l-Scalar-Plain">providers</span><span class="p-Indicator">:</span>
@@ -87,55 +112,88 @@ means we can pre-determine or hard-code them if we want to.</p>             </td
     <span class="l-Scalar-Plain">vendor</span><span class="p-Indicator">:</span> <span class="l-Scalar-Plain">rackspace</span>
     <span class="l-Scalar-Plain">credentials</span><span class="p-Indicator">:</span>
     <span class="p-Indicator">-</span> <span class="l-Scalar-Plain">rackspace</span><span class="p-Indicator">:</span>
-      <span class="l-Scalar-Plain">username</span><span class="p-Indicator">:</span> <span class="err">%</span><span class="l-Scalar-Plain">(STOCKTON_USERNAME)s</span>
-      <span class="l-Scalar-Plain">apikey</span><span class="p-Indicator">:</span> <span class="err">%</span><span class="l-Scalar-Plain">(STOCKTON_APIKEY)s</span>
+      <span class="l-Scalar-Plain">username</span><span class="p-Indicator">:</span> <span class="err">%</span><span class="l-Scalar-Plain">(CHECKMATE_USERNAME)s</span>
+      <span class="l-Scalar-Plain">apikey</span><span class="p-Indicator">:</span> <span class="err">%</span><span class="l-Scalar-Plain">(CHECKMATE_APIKEY)s</span>
     <span class="p-Indicator">-</span> <span class="l-Scalar-Plain">ssh</span><span class="p-Indicator">:</span>
       <span class="l-Scalar-Plain">public_key</span><span class="p-Indicator">:</span> <span class="err">%</span><span class="l-Scalar-Plain">(STOCKTON_PUBLIC_KEY)s</span>
-      <span class="l-Scalar-Plain">private_key</span><span class="p-Indicator">:</span> <span class="err">%</span><span class="l-Scalar-Plain">(STOCKTON_PRIVATE_KEY)s</span></pre></div>             </td>           </tr>                               <tr id="section-16">             <td class="docs">               <div class="pilwrap">                 <a class="pilcrow" href="#section-16">&#182;</a>               </div>               <h3>Deployments</h3>             </td>             <td class="code">               <div class="highlight"><pre></pre></div>             </td>           </tr>                               <tr id="section-17">             <td class="docs">               <div class="pilwrap">                 <a class="pilcrow" href="#section-17">&#182;</a>               </div>               <p>Actual deployment instances. These are our live, running systems</p>             </td>             <td class="code">               <div class="highlight"><pre><span class="l-Scalar-Plain">deployment</span><span class="p-Indicator">:</span>                                                                     <span class="c1">#IMPLEMENTED - checkmate looks for this</span>
+      <span class="l-Scalar-Plain">private_key</span><span class="p-Indicator">:</span> <span class="err">%</span><span class="l-Scalar-Plain">(STOCKTON_PRIVATE_KEY)s</span></pre></div>             </td>           </tr>                               <tr id="section-19">             <td class="docs">               <div class="pilwrap">                 <a class="pilcrow" href="#section-19">&#182;</a>               </div>               <h3>Deployments</h3>             </td>             <td class="code">               <div class="highlight"><pre></pre></div>             </td>           </tr>                               <tr id="section-20">             <td class="docs">               <div class="pilwrap">                 <a class="pilcrow" href="#section-20">&#182;</a>               </div>               <p>Actual deployment instances. These are our live, running systems</p>             </td>             <td class="code">               <div class="highlight"><pre><span class="l-Scalar-Plain">deployment</span><span class="p-Indicator">:</span>                                                                     <span class="c1">#IMPLEMENTED - checkmate looks for this</span>
   <span class="l-Scalar-Plain">blueprint</span><span class="p-Indicator">:</span> <span class="nv">*wp</span>
   <span class="l-Scalar-Plain">environment</span><span class="p-Indicator">:</span> <span class="nv">*env1</span>
-  <span class="l-Scalar-Plain">component</span><span class="p-Indicator">:</span> <span class="nv">*apache</span>
   <span class="l-Scalar-Plain">inputs</span><span class="p-Indicator">:</span>
-    <span class="l-Scalar-Plain">domain</span><span class="p-Indicator">:</span> <span class="err">%</span><span class="l-Scalar-Plain">(STOCKTON_TEST_DOMAIN)s</span>
+    <span class="l-Scalar-Plain">domain</span><span class="p-Indicator">:</span> <span class="err">%</span><span class="l-Scalar-Plain">(CHECKMATE_DOMAIN)s</span>
     <span class="l-Scalar-Plain">ssl</span><span class="p-Indicator">:</span> <span class="l-Scalar-Plain">false</span>
     <span class="l-Scalar-Plain">region</span><span class="p-Indicator">:</span> <span class="l-Scalar-Plain">chicago</span> <span class="c1"># TODO: this is still read from os.environ</span>
     <span class="l-Scalar-Plain">high-availability</span><span class="p-Indicator">:</span> <span class="l-Scalar-Plain">false</span>
     <span class="l-Scalar-Plain">requests-per-second</span><span class="p-Indicator">:</span> <span class="l-Scalar-Plain">60</span>
-    <span class="l-Scalar-Plain">database-size</span><span class="p-Indicator">:</span> <span class="l-Scalar-Plain">1</span>
-    <span class="l-Scalar-Plain">webhead-size</span><span class="p-Indicator">:</span> <span class="l-Scalar-Plain">2</span>
-    <span class="l-Scalar-Plain">webhead-count</span><span class="p-Indicator">:</span> <span class="l-Scalar-Plain">2</span></pre></div>             </td>           </tr>                               <tr id="section-18">             <td class="docs">               <div class="pilwrap">                 <a class="pilcrow" href="#section-18">&#182;</a>               </div>               <h3>Sample Output</h3>
+    <span class="l-Scalar-Plain">database:machine/flavor</span><span class="p-Indicator">:</span> <span class="l-Scalar-Plain">2</span>
+    <span class="l-Scalar-Plain">wordpress:machine/flavor</span><span class="p-Indicator">:</span> <span class="l-Scalar-Plain">2</span>  <span class="c1"># Is this how we want to do this? THat would mnean no colons in settings names...</span>
+    <span class="l-Scalar-Plain">wordpress:machine/count</span><span class="p-Indicator">:</span> <span class="l-Scalar-Plain">2</span></pre></div>             </td>           </tr>                               <tr id="section-21">             <td class="docs">               <div class="pilwrap">                 <a class="pilcrow" href="#section-21">&#182;</a>               </div>               <h3>Sample Output</h3>
 
-<p>-POSTed added to prevent checkmate from looking at this when we post this doc for testing</p>             </td>             <td class="code">               <div class="highlight"><pre><span class="l-Scalar-Plain">deployment-POSTed</span><span class="p-Indicator">:</span>
+<p>-POSTed added to prevent checkmate from looking at this when we post this doc for testing
+Note that when the deployment is sent to checkmate, it resolves all references and discards ones that are not used or needed (like th &amp;dfw environment)</p>             </td>             <td class="code">               <div class="highlight"><pre><span class="l-Scalar-Plain">deployment-POSTed</span><span class="p-Indicator">:</span>
   <span class="l-Scalar-Plain">id</span><span class="p-Indicator">:</span> <span class="l-Scalar-Plain">db629b561da7418aaa324c6b741b5b22</span>                                          <span class="c1">#IMPLEMENTED - generated if not provided</span>
   <span class="l-Scalar-Plain">blueprint</span><span class="p-Indicator">:</span>                                                                    <span class="c1">#IMPLEMENTED - the references are resolved into copies if available</span>
-    <span class="l-Scalar-Plain">mysql</span><span class="p-Indicator">:</span>
-      <span class="l-Scalar-Plain">config</span><span class="p-Indicator">:</span>
-        <span class="l-Scalar-Plain">provides</span><span class="p-Indicator">:</span>
+    <span class="l-Scalar-Plain">services</span><span class="p-Indicator">:</span>
+      <span class="l-Scalar-Plain">database</span><span class="p-Indicator">:</span>
+        <span class="l-Scalar-Plain">config:</span><span class="p-Indicator">:</span>
+          <span class="l-Scalar-Plain">id</span><span class="p-Indicator">:</span> <span class="l-Scalar-Plain">mysql</span>
+          <span class="l-Scalar-Plain">provides</span><span class="p-Indicator">:</span>
+            <span class="l-Scalar-Plain">db</span><span class="p-Indicator">:</span> <span class="l-Scalar-Plain">mysql</span>
+          <span class="l-Scalar-Plain">revision</span><span class="p-Indicator">:</span> <span class="l-Scalar-Plain">1</span>
+          <span class="l-Scalar-Plain">settings</span><span class="p-Indicator">:</span>
+            <span class="l-Scalar-Plain">machine/flavor</span><span class="p-Indicator">:</span>
+              <span class="l-Scalar-Plain">default</span><span class="p-Indicator">:</span> <span class="l-Scalar-Plain">1</span>
+              <span class="l-Scalar-Plain">description</span><span class="p-Indicator">:</span> <span class="l-Scalar-Plain">the type (and size) of machine to use</span>
+            <span class="l-Scalar-Plain">password</span><span class="p-Indicator">:</span>
+              <span class="l-Scalar-Plain">default</span><span class="p-Indicator">:</span> <span class="l-Scalar-Plain">=generate()</span>
+              <span class="l-Scalar-Plain">description</span><span class="p-Indicator">:</span> <span class="l-Scalar-Plain">the password for the database</span>
+              <span class="l-Scalar-Plain">type</span><span class="p-Indicator">:</span> <span class="l-Scalar-Plain">String</span>
+          <span class="l-Scalar-Plain">summary</span><span class="p-Indicator">:</span> <span class="l-Scalar-Plain">A pretty popular database</span>
+        <span class="l-Scalar-Plain">machines</span><span class="p-Indicator">:</span>
+        <span class="p-Indicator">-</span> <span class="l-Scalar-Plain">3</span>
+      <span class="l-Scalar-Plain">name</span><span class="p-Indicator">:</span> <span class="l-Scalar-Plain">Simple Wordpress</span>
+      <span class="l-Scalar-Plain">wordpress</span><span class="p-Indicator">:</span>
+        <span class="l-Scalar-Plain">config</span><span class="p-Indicator">:</span>
+          <span class="l-Scalar-Plain">id</span><span class="p-Indicator">:</span> <span class="l-Scalar-Plain">wordpress1</span>
+          <span class="l-Scalar-Plain">options</span><span class="p-Indicator">:</span>
+            <span class="l-Scalar-Plain">high-availability</span><span class="p-Indicator">:</span>
+              <span class="l-Scalar-Plain">default</span><span class="p-Indicator">:</span> <span class="l-Scalar-Plain">false</span>
+              <span class="l-Scalar-Plain">description</span><span class="p-Indicator">:</span> <span class="l-Scalar-Plain">build in redundancy? If not, build one server.</span>
+              <span class="l-Scalar-Plain">type</span><span class="p-Indicator">:</span> <span class="l-Scalar-Plain">Boolean</span>
+            <span class="l-Scalar-Plain">url</span><span class="p-Indicator">:</span>
+              <span class="l-Scalar-Plain">default</span><span class="p-Indicator">:</span> <span class="l-Scalar-Plain">localhost</span>
+              <span class="l-Scalar-Plain">description</span><span class="p-Indicator">:</span> <span class="l-Scalar-Plain">the url to use to host your blog on</span>
+              <span class="l-Scalar-Plain">type</span><span class="p-Indicator">:</span> <span class="l-Scalar-Plain">String</span>
+          <span class="l-Scalar-Plain">provides</span><span class="p-Indicator">:</span>
+            <span class="l-Scalar-Plain">url</span><span class="p-Indicator">:</span>
+              <span class="l-Scalar-Plain">interface</span><span class="p-Indicator">:</span> <span class="l-Scalar-Plain">http</span>
+          <span class="l-Scalar-Plain">requires</span><span class="p-Indicator">:</span>
+            <span class="l-Scalar-Plain">db</span><span class="p-Indicator">:</span>
+              <span class="l-Scalar-Plain">interface</span><span class="p-Indicator">:</span> <span class="l-Scalar-Plain">mysql</span>
+          <span class="l-Scalar-Plain">revision</span><span class="p-Indicator">:</span> <span class="l-Scalar-Plain">3</span>
+          <span class="l-Scalar-Plain">settings</span><span class="p-Indicator">:</span>
+            <span class="l-Scalar-Plain">machine/count</span><span class="p-Indicator">:</span>
+              <span class="l-Scalar-Plain">default</span><span class="p-Indicator">:</span> <span class="l-Scalar-Plain">1</span>
+              <span class="l-Scalar-Plain">description</span><span class="p-Indicator">:</span> <span class="l-Scalar-Plain">the number of machines to spin up</span>
+            <span class="l-Scalar-Plain">machine/flavor</span><span class="p-Indicator">:</span>
+              <span class="l-Scalar-Plain">default</span><span class="p-Indicator">:</span> <span class="l-Scalar-Plain">1</span>
+              <span class="l-Scalar-Plain">description</span><span class="p-Indicator">:</span> <span class="l-Scalar-Plain">the type (and size) of machine to use</span>
+              <span class="l-Scalar-Plain">type</span><span class="p-Indicator">:</span>
+                <span class="s">&#39;1&#39;</span><span class="p-Indicator">:</span> <span class="l-Scalar-Plain">256Mb</span>
+                <span class="s">&#39;2&#39;</span><span class="p-Indicator">:</span> <span class="l-Scalar-Plain">512Mb</span>
+            <span class="l-Scalar-Plain">machine/os</span><span class="p-Indicator">:</span>
+              <span class="l-Scalar-Plain">default</span><span class="p-Indicator">:</span> <span class="l-Scalar-Plain">Ubuntu 11.10</span>
+              <span class="l-Scalar-Plain">description</span><span class="p-Indicator">:</span> <span class="l-Scalar-Plain">the operating system and version to use</span>
+          <span class="l-Scalar-Plain">summary</span><span class="p-Indicator">:</span> <span class="l-Scalar-Plain">A pretty popular blog engine</span>
+        <span class="l-Scalar-Plain">exposed</span><span class="p-Indicator">:</span> <span class="l-Scalar-Plain">true</span>
+        <span class="l-Scalar-Plain">machines</span><span class="p-Indicator">:</span>
+        <span class="p-Indicator">-</span> <span class="l-Scalar-Plain">0</span>
+        <span class="p-Indicator">-</span> <span class="l-Scalar-Plain">1</span>
+        <span class="l-Scalar-Plain">open-ports</span><span class="p-Indicator">:</span>
+        <span class="p-Indicator">-</span> <span class="l-Scalar-Plain">80/tcp</span>
+        <span class="l-Scalar-Plain">relations</span><span class="p-Indicator">:</span>
           <span class="l-Scalar-Plain">db</span><span class="p-Indicator">:</span> <span class="l-Scalar-Plain">mysql</span>
-        <span class="l-Scalar-Plain">revision</span><span class="p-Indicator">:</span> <span class="l-Scalar-Plain">1</span>
-        <span class="l-Scalar-Plain">summary</span><span class="p-Indicator">:</span> <span class="l-Scalar-Plain">A pretty popular database</span>
-    <span class="l-Scalar-Plain">name</span><span class="p-Indicator">:</span> <span class="l-Scalar-Plain">Simple Wordpress</span>
-    <span class="l-Scalar-Plain">wordpress</span><span class="p-Indicator">:</span>
-      <span class="l-Scalar-Plain">config</span><span class="p-Indicator">:</span>
-        <span class="l-Scalar-Plain">options</span><span class="p-Indicator">:</span>
-          <span class="l-Scalar-Plain">url</span><span class="p-Indicator">:</span>
-            <span class="l-Scalar-Plain">default</span><span class="p-Indicator">:</span> <span class="l-Scalar-Plain">wp.test.local</span>
-            <span class="l-Scalar-Plain">description</span><span class="p-Indicator">:</span> <span class="l-Scalar-Plain">the url to use to host your blog on</span>
-            <span class="l-Scalar-Plain">type</span><span class="p-Indicator">:</span> <span class="l-Scalar-Plain">String</span>
-        <span class="l-Scalar-Plain">provides</span><span class="p-Indicator">:</span>
-          <span class="l-Scalar-Plain">url</span><span class="p-Indicator">:</span>
-            <span class="l-Scalar-Plain">interface</span><span class="p-Indicator">:</span> <span class="l-Scalar-Plain">http</span>
-        <span class="l-Scalar-Plain">requires</span><span class="p-Indicator">:</span>
-          <span class="l-Scalar-Plain">db</span><span class="p-Indicator">:</span>
-            <span class="l-Scalar-Plain">interface</span><span class="p-Indicator">:</span> <span class="l-Scalar-Plain">mysql</span>
-        <span class="l-Scalar-Plain">revision</span><span class="p-Indicator">:</span> <span class="l-Scalar-Plain">3</span>
-        <span class="l-Scalar-Plain">summary</span><span class="p-Indicator">:</span> <span class="l-Scalar-Plain">A pretty popular blog engine</span>
-      <span class="l-Scalar-Plain">exposed</span><span class="p-Indicator">:</span> <span class="l-Scalar-Plain">true</span>
-      <span class="l-Scalar-Plain">open-ports</span><span class="p-Indicator">:</span>
-      <span class="p-Indicator">-</span> <span class="l-Scalar-Plain">80/tcp</span>
-      <span class="l-Scalar-Plain">relations</span><span class="p-Indicator">:</span>
-        <span class="l-Scalar-Plain">db</span><span class="p-Indicator">:</span> <span class="l-Scalar-Plain">mysql</span>
-  <span class="l-Scalar-Plain">component</span><span class="p-Indicator">:</span> <span class="l-Scalar-Plain">checkmate-reference://apache</span>                                       <span class="c1">#IMPLEMENTED - references not available in doc are converted to URIs</span>
+    <span class="l-Scalar-Plain">component</span><span class="p-Indicator">:</span> <span class="l-Scalar-Plain">checkmate-reference://apache</span>                                       <span class="c1">#IMPLEMENTED - references not available in doc are converted to URIs</span>
   <span class="l-Scalar-Plain">environment</span><span class="p-Indicator">:</span>
     <span class="l-Scalar-Plain">name</span><span class="p-Indicator">:</span> <span class="l-Scalar-Plain">rackcloud-test</span>
     <span class="l-Scalar-Plain">providers</span><span class="p-Indicator">:</span>
@@ -149,39 +207,42 @@ means we can pre-determine or hard-code them if we want to.</p>             </td
       <span class="l-Scalar-Plain">endpoint</span><span class="p-Indicator">:</span> <span class="l-Scalar-Plain">https://database.api.rackpsacecloud.com/servers/{tenantId}</span>
     <span class="p-Indicator">-</span> <span class="l-Scalar-Plain">common</span><span class="p-Indicator">:</span> <span class="l-Scalar-Plain">null</span>
       <span class="l-Scalar-Plain">credentials</span><span class="p-Indicator">:</span>
-      <span class="p-Indicator">-</span> <span class="l-Scalar-Plain">apikey</span><span class="p-Indicator">:</span> <span class="l-Scalar-Plain">a1207b3b4eb8638d02cdb1c4f3f36644</span>                                <span class="c1">#IMPLEMENTED &amp; hard-coded for this exact position</span>
+      <span class="p-Indicator">-</span> <span class="l-Scalar-Plain">apikey</span><span class="p-Indicator">:</span> <span class="l-Scalar-Plain">ababbbad29239481273469ab1f8234ff</span>                                <span class="c1">#IMPLEMENTED &amp; hard-coded for this exact position</span>
         <span class="l-Scalar-Plain">rackspace</span><span class="p-Indicator">:</span> <span class="l-Scalar-Plain">null</span>
-        <span class="l-Scalar-Plain">username</span><span class="p-Indicator">:</span> <span class="l-Scalar-Plain">rackcloudtech</span>                                                 <span class="c1">#IMPLEMENTED &amp; hard-coded for this exact position</span>
+        <span class="l-Scalar-Plain">username</span><span class="p-Indicator">:</span> <span class="l-Scalar-Plain">username</span>                                                      <span class="c1">#IMPLEMENTED &amp; hard-coded for this exact position</span>
       <span class="l-Scalar-Plain">vendor</span><span class="p-Indicator">:</span> <span class="l-Scalar-Plain">rackspace</span>
   <span class="l-Scalar-Plain">inputs</span><span class="p-Indicator">:</span>                                                                       <span class="c1">#IMPLEMENTED - checkmate expects this</span>
-    <span class="l-Scalar-Plain">database-size</span><span class="p-Indicator">:</span> <span class="l-Scalar-Plain">1</span>
+    <span class="l-Scalar-Plain">database:machine/flavor</span><span class="p-Indicator">:</span> <span class="l-Scalar-Plain">2</span>
     <span class="l-Scalar-Plain">domain</span><span class="p-Indicator">:</span> <span class="l-Scalar-Plain">highbridgellc.com</span>                                                   <span class="c1">#IMPLEMENTED - used for resource naming</span>
     <span class="l-Scalar-Plain">high-availability</span><span class="p-Indicator">:</span> <span class="l-Scalar-Plain">false</span>                                                    <span class="c1">#IMPLEMENTED - used to calculate how many resources to create</span>
     <span class="l-Scalar-Plain">region</span><span class="p-Indicator">:</span> <span class="l-Scalar-Plain">chicago</span>                                                             <span class="c1">#IMPLEMENTED - checkmate uses this to fille the stockton deployment dict</span>
     <span class="l-Scalar-Plain">requests-per-second</span><span class="p-Indicator">:</span> <span class="l-Scalar-Plain">60</span>                                                     <span class="c1">#IMPLEMENTED - used to calculate how many resources to create</span>
     <span class="l-Scalar-Plain">ssl</span><span class="p-Indicator">:</span> <span class="l-Scalar-Plain">false</span>
-    <span class="l-Scalar-Plain">webhead-count</span><span class="p-Indicator">:</span> <span class="l-Scalar-Plain">2</span>
-    <span class="l-Scalar-Plain">webhead-size</span><span class="p-Indicator">:</span> <span class="l-Scalar-Plain">2</span>
+    <span class="l-Scalar-Plain">wordpress:machine/count</span><span class="p-Indicator">:</span> <span class="l-Scalar-Plain">2</span>
+    <span class="l-Scalar-Plain">wordpress:machine/flavor</span><span class="p-Indicator">:</span> <span class="l-Scalar-Plain">2</span>
   <span class="l-Scalar-Plain">resources</span><span class="p-Indicator">:</span>                                                                    <span class="c1">#IMPLEMENTED - checkmate creates this to store all resources it creates</span>
-    <span class="s">&#39;0&#39;</span><span class="p-Indicator">:</span>
+    <span class="l-Scalar-Plain">0</span><span class="p-Indicator">:</span>
       <span class="l-Scalar-Plain">async_task_id</span><span class="p-Indicator">:</span> <span class="l-Scalar-Plain">2a88e3a0-080a-4879-a269-0b4b029001d6</span>                       <span class="c1">#IMPLEMENTED - this is how checkmate tracks async, celery tasks</span>
       <span class="l-Scalar-Plain">dns-name</span><span class="p-Indicator">:</span> <span class="l-Scalar-Plain">CMDEP-db629b561da7418aaa324c6b741b5b22-web1.highbridgellc.com</span>   <span class="c1">#IMPLEMENTED - this is generated</span>
+      <span class="l-Scalar-Plain">flavor</span><span class="p-Indicator">:</span> <span class="l-Scalar-Plain">2</span>
+      <span class="l-Scalar-Plain">image</span><span class="p-Indicator">:</span> <span class="l-Scalar-Plain">119</span>
       <span class="l-Scalar-Plain">instance-id</span><span class="p-Indicator">:</span> <span class="l-Scalar-Plain">null</span>
       <span class="l-Scalar-Plain">type</span><span class="p-Indicator">:</span> <span class="l-Scalar-Plain">server</span>
-    <span class="s">&#39;1&#39;</span><span class="p-Indicator">:</span>
-      <span class="l-Scalar-Plain">async_task_id</span><span class="p-Indicator">:</span> <span class="l-Scalar-Plain">538f777a-0e44-42ae-8123-4819de4e743b</span>
-      <span class="l-Scalar-Plain">dns-name</span><span class="p-Indicator">:</span> <span class="l-Scalar-Plain">CMDEP-db629b561da7418aaa324c6b741b5b22-web2.highbridgellc.com</span>
+    <span class="l-Scalar-Plain">1</span><span class="p-Indicator">:</span>
+      <span class="l-Scalar-Plain">dns-name</span><span class="p-Indicator">:</span> <span class="l-Scalar-Plain">CMDEP-bf86f43d55aa4088bd94e68af61d5c9c-web2.rackcloudtech.com</span>
+      <span class="l-Scalar-Plain">flavor</span><span class="p-Indicator">:</span> <span class="l-Scalar-Plain">2</span>
+      <span class="l-Scalar-Plain">image</span><span class="p-Indicator">:</span> <span class="l-Scalar-Plain">119</span>
       <span class="l-Scalar-Plain">instance-id</span><span class="p-Indicator">:</span> <span class="l-Scalar-Plain">null</span>
       <span class="l-Scalar-Plain">type</span><span class="p-Indicator">:</span> <span class="l-Scalar-Plain">server</span>
-    <span class="s">&#39;2&#39;</span><span class="p-Indicator">:</span>
-      <span class="l-Scalar-Plain">async_task_id</span><span class="p-Indicator">:</span> <span class="l-Scalar-Plain">afb208ba-8095-40a9-af41-e0f8cb34751c</span>
-      <span class="l-Scalar-Plain">dns-name</span><span class="p-Indicator">:</span> <span class="l-Scalar-Plain">CMDEP-db629b561da7418aaa324c6b741b5b22-db1.highbridgellc.com</span>
+    <span class="l-Scalar-Plain">2</span><span class="p-Indicator">:</span>
+      <span class="l-Scalar-Plain">dns-name</span><span class="p-Indicator">:</span> <span class="l-Scalar-Plain">CMDEP-bf86f43d55aa4088bd94e68af61d5c9c-lb1.rackcloudtech.com</span>
       <span class="l-Scalar-Plain">instance-id</span><span class="p-Indicator">:</span> <span class="l-Scalar-Plain">null</span>
-      <span class="l-Scalar-Plain">type</span><span class="p-Indicator">:</span> <span class="l-Scalar-Plain">server</span>
-    <span class="s">&#39;3&#39;</span><span class="p-Indicator">:</span>
-      <span class="l-Scalar-Plain">dns-name</span><span class="p-Indicator">:</span> <span class="l-Scalar-Plain">CMDEP-db629b561da7418aaa324c6b741b5b22-lb1.highbridgellc.com</span>
+      <span class="l-Scalar-Plain">type</span><span class="p-Indicator">:</span> <span class="l-Scalar-Plain">load-balancer</span>
+    <span class="l-Scalar-Plain">3</span><span class="p-Indicator">:</span>
+      <span class="l-Scalar-Plain">dns-name</span><span class="p-Indicator">:</span> <span class="l-Scalar-Plain">CMDEP-bf86f43d55aa4088bd94e68af61d5c9c-db1.rackcloudtech.com</span>
+      <span class="l-Scalar-Plain">flavor</span><span class="p-Indicator">:</span> <span class="l-Scalar-Plain">2</span>
       <span class="l-Scalar-Plain">instance-id</span><span class="p-Indicator">:</span> <span class="l-Scalar-Plain">null</span>
-      <span class="l-Scalar-Plain">type</span><span class="p-Indicator">:</span> <span class="l-Scalar-Plain">load-balancer</span></pre></div>             </td>           </tr>                               <tr id="section-19">             <td class="docs">               <div class="pilwrap">                 <a class="pilcrow" href="#section-19">&#182;</a>               </div>               <p>This documentation written to generate HTML by Docco.
+      <span class="l-Scalar-Plain">type</span><span class="p-Indicator">:</span> <span class="l-Scalar-Plain">database</span></pre></div>             </td>           </tr>                               <tr id="section-22">             <td class="docs">               <div class="pilwrap">                 <a class="pilcrow" href="#section-22">&#182;</a>               </div>               <p>This documentation written to generate HTML by Docco.
 To regenerate and preview:</p>
 
 <pre><code>docco app.yaml &amp;&amp; open docs/app.html

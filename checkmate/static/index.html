@@ -1,0 +1,120 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+        "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" style="text/css" href="bootstrap/css/bootstrap.min.css" />
+    <style>
+      body {
+        padding-top: 60px; /* 60px to make the container go all the way to the bottom of the topbar */
+      }
+    </style>
+    <link rel="stylesheet" style="text/css" href="bootstrap/css/bootstrap-responsive.min.css" />
+    <!-- Le HTML5 shim, for IE6-8 support of HTML5 elements -->
+    <!--[if lt IE 9]>
+      <script src="http://html5shim.googlecode.com/svn/trunk/html5.js"></script>
+    <![endif]-->
+
+    <link href="google-code-prettify/prettify.css" type="text/css" rel="stylesheet" />
+    <script type="text/javascript" src="google-code-prettify/prettify.js"></script>
+
+    <link rel="stylesheet" href="site/src/css/codemirror.css"/>
+    <link rel="stylesheet" href="site/src/css/codemirror-theme.css"/>
+
+    <script src="site/src/js/ender.js"></script>
+    <script src="site/src/js/codemirror.js"></script>
+    <script src="site/src/js/javascript.js"></script>
+    <script src="site/src/js/jshint.js"></script>
+    <script src="site/src/js/xoxo.js"></script>
+
+    <script src="jquery-1.7.2.min.js" type="text/javascript" charset="utf-8"></script>
+    <script src="sammy/lib/sammy.js" type="text/javascript" charset="utf-8"></script>
+    <script src="sammy/lib/plugins/sammy.template.js" type="text/javascript" charset="utf-8"></script>
+
+    <title>CheckMate</title>
+  </head>
+  <body onload="prettyPrint()" >
+    <div class="navbar navbar-fixed-top">
+      <div class="navbar-inner">
+        <div class="container">
+          <div class="nav-collapse">
+            <ul class="nav">
+              <li><a href="test.html">Home</a></li>
+              <li><a href="#/environments/">Environments</a></li>
+              <li><a href="#/deployments/">Deployments</a></li>
+              <li><a href="#/blueprints/">Blueprints</a></li>
+              <li><a href="#/components/">Components</a></li>
+              <li><a href="#/workflows/">Workflows</a></li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="container">
+      <div id="main">
+        <table class="table">
+    <script type="text/javascript" charset="utf-8">
+
+    (function($) {
+        var app = $.sammy('#main', function() {
+        this.use('Template');
+        this.use('Session');
+        this.around(function(callback) {
+          var context = this;
+          this.load('/workflows/.json')
+              .then(function(items) {
+                context.items = items;
+            })
+            .then(callback);
+        });
+
+        this.get('#/', function(context) {
+          context.app.swap('');
+          this.load('/workflows/.json')
+          .then(function(items) {
+              $.each(items, function(i, item) {
+                context.log(i, '-', item.wf_spec.name);
+          context.render('workflows.template', {id: i, item: item})
+                 .appendTo(context.$element());
+              });
+          });
+      });
+
+      this.get('#/workflows/:id', function(context) {
+      this.item = this.items[this.params['id']];
+      this.id = this.params['id'];
+        if (!this.item) { return this.notFound(); }
+        this.partial('workflow.template');
+      });
+
+        });
+
+        $(function() {
+          app.run('#/');
+        });
+    })(jQuery);
+    </script>
+        </table>
+      </div>
+    </div>
+
+    <!-- Le javascript
+    ================================================== -->
+    <!-- Placed at the end of the document so the pages load faster -->
+    <script src="bootstrap/js/jquery.js"></script>
+    <script src="bootstrap/js/bootstrap-transition.js"></script>
+    <script src="bootstrap/js/bootstrap-alert.js"></script>
+    <script src="bootstrap/js/bootstrap-modal.js"></script>
+    <script src="bootstrap/js/bootstrap-dropdown.js"></script>
+    <script src="bootstrap/js/bootstrap-scrollspy.js"></script>
+    <script src="bootstrap/js/bootstrap-tab.js"></script>
+    <script src="bootstrap/js/bootstrap-tooltip.js"></script>
+    <script src="bootstrap/js/bootstrap-popover.js"></script>
+    <script src="bootstrap/js/bootstrap-button.js"></script>
+    <script src="bootstrap/js/bootstrap-collapse.js"></script>
+    <script src="bootstrap/js/bootstrap-carousel.js"></script>
+    <script src="bootstrap/js/bootstrap-typeahead.js"></script>
+
+  </body>
+</html>
