@@ -1,5 +1,5 @@
 # CheckMate
-![CheckMate](https://github.com/ziadsawalha/checkmate/raw/master/checkmate/checkmate.png)
+![CheckMate](https://github.rackspace.com/ManagedCloud/checkmate/blob/master/checkmate/checkmate.png)
 
 CheckMate stores and controls your cloud configurations. It exposes a REST API
 for manipulating configurations. It uses python-stockton and SpiffWorkflow to
