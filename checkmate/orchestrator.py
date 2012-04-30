@@ -1,16 +1,14 @@
 """
   Celery tasks to orchestrate a sohpisticated deployment
 """
-import syslog
 import time
-import yaml
 
 from celery.app import app_or_default
 from celery.result import AsyncResult
 from celery.task import task
 
 try:
-    from SpiffWorkflow.specs import Simple, WorkflowSpec, Celery, Transform
+    from SpiffWorkflow.specs import WorkflowSpec, Celery, Transform
 except ImportError:
     #TODO(zns): remove this when Spiff incorporates the code in it
     print "Get SpiffWorkflow with the Celery spec in it from here: "\
@@ -66,7 +64,6 @@ def distribute_create_simple_server(deployment, name, image=214, flavor=1,
                        ip_address_type='public')
     write_token.connect(create_server_task)
 
-    
     # Create an instance of the workflow spec
     wf = Workflow(wfspec)
     #Pass in the initial deployemnt dict (task 3 is the Auth task)
@@ -74,7 +71,7 @@ def distribute_create_simple_server(deployment, name, image=214, flavor=1,
 
 
     from checkmate.db import get_driver, any_id_problems
-    
+
     db = get_driver('checkmate.db.sql.Driver')
     serializer = DictionarySerializer()
     db.save_workflow(distribute_create_simple_server.request.id,
@@ -156,6 +153,37 @@ def distribute_count_seconds(seconds):
                                    meta={'complete': elapsed,
                                          'total': seconds})
     return seconds
+
+
+def run_workflow(id, timeout=60):
+    # Loop through trying to complete the workflow and periodically send
+    # status updates
+
+    from checkmate.db import get_driver
+
+    db = get_driver('checkmate.db.sql.Driver')
+    serializer = DictionarySerializer()
+    wf = Workflow.deserialize(serializer, db.get_workflow(id))
+
+    i = 0
+    complete = 0
+    total = len(wf.get_tasks(state=Task.ANY_MASK))
+    while not wf.is_completed() and i < timeout:
+        count = len(wf.get_tasks(state=Task.COMPLETED))
+        if count != complete:
+            complete = count
+            print {'state': "PROGRESS", 'meta': {'complete': count,
+                    'total': total}}
+        wf.complete_all()
+        i += 1
+        db.save_workflow(distribute_create_simple_server.request.id,
+                     wf.serialize(serializer))
+        time.sleep(1)
+
+    db.save_workflow(distribute_create_simple_server.request.id,
+                     wf.serialize(serializer))
+
+    return wf
 
 
 class Orchestrator(object):

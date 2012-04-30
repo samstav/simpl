@@ -310,6 +310,27 @@ def get_workflow_status(id):
             wrapper='workflow')
 
 
+@post('/workflows/<id>/+execute')
+def execute_workflow(id):
+    """Process a checkmate deployment workflow
+
+    Executes and moves the workflow forward.
+    Retrieves results (final or intermediate) and updates them into
+    deployment.
+
+    :param id: checkmate workflow id
+    """
+    entity = db.get_workflow(id)
+    if not entity:
+        abort(404, 'No workflow with id %s' % id)
+    serializer = DictionarySerializer()
+    wf = Workflow.deserialize(serializer, entity)
+
+    from checkmate.orchestrator import run_workflow
+    wf = run_workflow(id)
+    return write_body({'dump': wf.get_dump()}, request, response)
+
+
 #
 # Deployments
 #
@@ -373,6 +394,11 @@ def get_deployment_status(id):
     deployment = db.get_deployment(id)
     if not deployment:
         abort(404, 'No deployment with id %s' % id)
+
+    workflow_id = deployment.get('workflow')
+    if workflow_id:
+        workflow = db.get_workflow(workflow_id)
+
 
     resources = deployment.get('resources', [])
     results = {}
@@ -788,13 +814,13 @@ class ExtensionsMiddleware(object):
 
     def __call__(self, e, h):
         if e['PATH_INFO'].startswith('/static/'):
-            pass
+            pass  # staic files have fixed extensions
         elif e['PATH_INFO'].endswith('.json'):
             webob.Request(e).accept = 'application/json'
-            e['PATH_INFO'] = e['PATH_INFO'].rstrip('.json')
+            e['PATH_INFO'] = e['PATH_INFO'][0:-5]
         elif e['PATH_INFO'].endswith('.yaml'):
             webob.Request(e).accept = 'application/x-yaml'
-            e['PATH_INFO'] = e['PATH_INFO'].rstrip('.yaml')
+            e['PATH_INFO'] = e['PATH_INFO'][0:-5]
         return self.app(e, h)
 
 
