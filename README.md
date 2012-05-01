@@ -138,9 +138,6 @@ API key). In the first terminal window, start Stockton::
     export CHECKMATE_CONNECTION_CONNECTION=sqlite:///~/checkmate.sqlite
 
     export STOCKTON_CHEF_PATH=/var/chef
-    export STOCKTON_APIKEY="abcedf...."
-    export STOCKTON_REGION="chicago"
-    export STOCKTON_USERNAME="me"
     export STOCKTON_PUBLIC_KEY=~/.ssh/id_rsa.pub  # on a mac
     export STOCKTON_PRIVATE_KEY=~/.ssh/id_rsa     # on a mac
     export STOCKTON_TEST_DOMAIN=validInRaxDNS.local
@@ -157,21 +154,23 @@ In the second window, start checkmate::
 
     export CHECKMATE_CONNECTION_CONNECTION=sqlite:///~/checkmate.sqlite
 
-    export STOCKTON_CHEF_PATH=/var/chef
-    export STOCKTON_APIKEY="abcedf...."
-    export STOCKTON_REGION="chicago"
-    export STOCKTON_USERNAME="me"
-    export STOCKTON_PUBLIC_KEY=~/.ssh/id_rsa.pub  # on a mac
-    export STOCKTON_PRIVATE_KEY=~/.ssh/id_rsa     # on a mac
-    export STOCKTON_TEST_DOMAIN=validInRaxDNS.local
+    export CHECKMATE_APIKEY="abcedf...."
+    export CHECKMATE_REGION="chicago"
+    export CHECKMATE_USERNAME="me"
+    export CHECKMATE_PUBLIC_KEY=~/.ssh/id_rsa.pub  # on a mac
+    export CHECKMATE_PRIVATE_KEY=~/.ssh/id_rsa     # on a mac
+    export CHECKMATE_TEST_DOMAIN=validInRaxDNS.local
 
     python checkmate/server.py
 
 In the third window, run these scripts::
 
-    $ curl --data-binary @checkmate/examples/app.yaml -H 'content-type: application/x-yaml' http://localhost:8080/deployments -v
+    $ awk '{while(match($0,"[%][\\(][^\\)]*\\)[s]")) {var=substr($0,RSTART+2,RLENGTH -4);gsub("[%][(]"var"[)][s]",ENVIRON[var])}}1' < examples/app.yaml | curl -H 'content-type: application/x-yaml' http://localhost:8080/deployments -v --data-binary @-
 
-    # this starts a deployment. Get the ID or Location header from the response, and watch the status here:
+
+    # this starts a deploymentby picking up app.yaml as a template and replacing in a bunch
+    # of environment variables. Get the ID or Location header from the response, and watch the
+    # status here:
 
     $ curl http://localhost:8080/deployments/enter-your-deployment-id-here/status
 

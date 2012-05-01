@@ -44,7 +44,7 @@ except ImportError:
     print "Get SpiffWorkflow with the Celery spec in it from here: "\
             "https://github.com/ziadsawalha/SpiffWorkflow/tree/celery"
     raise
-from SpiffWorkflow import Workflow #, Task
+from SpiffWorkflow import Workflow, Task
 from SpiffWorkflow.operators import Attrib
 from SpiffWorkflow.storage import DictionarySerializer
 
@@ -262,7 +262,7 @@ def get_workflows():
 @post('/workflows')
 def post_workflow():
     entity = read_body(request)
-    if 'workflow' in entity:
+    if 'workflow' in entity and isinstance(entity['workflow'], dict):
         entity = entity['workflow']
 
     if 'id' not in entity:
@@ -278,7 +278,8 @@ def post_workflow():
 @put('/workflows/<id>')
 def put_workflow(id):
     entity = read_body(request)
-    if 'workflow' in entity:
+
+    if 'workflow' in entity and isinstance(entity['workflow'], dict):
         entity = entity['workflow']
 
     if any_id_problems(id):
@@ -306,11 +307,11 @@ def get_workflow_status(id):
         abort(404, 'No workflow with id %s' % id)
     serializer = DictionarySerializer()
     wf = Workflow.deserialize(serializer, entity)
-    return write_body({'dump': wf.get_dump()}, request, response,
+    return write_body(get_SpiffWorkflow_status(wf), request, response,
             wrapper='workflow')
 
 
-@post('/workflows/<id>/+execute')
+@get('/workflows/<id>/+execute')
 def execute_workflow(id):
     """Process a checkmate deployment workflow
 
@@ -323,12 +324,38 @@ def execute_workflow(id):
     entity = db.get_workflow(id)
     if not entity:
         abort(404, 'No workflow with id %s' % id)
-    serializer = DictionarySerializer()
-    wf = Workflow.deserialize(serializer, entity)
 
+    # TODO: there is a bug in Spiff deserialization where the tree is not
+    # built correctly, resulting in WAITING tasks getting set back to future
+    # need to check deserialization code vs. init in workflow which creates
+    # start and root tasks which I think conflict with the deserialized tasks
+    # later
     from checkmate.orchestrator import run_workflow
     wf = run_workflow(id)
-    return write_body({'dump': wf.get_dump()}, request, response)
+    return write_body(get_SpiffWorkflow_status(wf), request, response)
+
+
+def get_SpiffWorkflow_status(workflow):
+    """
+    Returns the subtree as a string for debugging.
+
+    @rtype:  str
+    @return: The debug information.
+    """
+    def get_task_status(task, output):
+        """Recursively fills task data into dict"""
+        my_dict = {}
+        my_dict['id'] = task.id
+        my_dict['threadId'] = task.thread_id
+        my_dict['state'] = task.get_state_name()
+        output[task.get_name()] = my_dict
+        for child in task.children:
+            get_task_status(child, my_dict)
+
+    result = {}
+    task = workflow.task_tree
+    get_task_status(task, result)
+    return result
 
 
 #
@@ -398,7 +425,6 @@ def get_deployment_status(id):
     workflow_id = deployment.get('workflow')
     if workflow_id:
         workflow = db.get_workflow(workflow_id)
-
 
     resources = deployment.get('resources', [])
     results = {}
@@ -583,7 +609,6 @@ def plan(id):
             return abort(406, "Unrecognized service type '%s'" % service_name)
     deployment['resources'] = resources
 
-
     from celery.app import app_or_default
     from celery.result import AsyncResult
     from celery.task import task
@@ -605,11 +630,43 @@ def plan(id):
             "=my_task.attributes['token']"])
     auth_task.connect(write_token)
 
-    stockton_deployment = {'files': {}}
+    #TODO: make this smarter
+    creds = [p['credentials'][0] for p in
+            deployment['environment']['providers'] if 'common' in p][0]
+
+    stockton_deployment = {
+        'id': deployment['id'],
+        'username': creds['username'],
+        'apikey': creds['apikey'],
+        'region': inputs['region'],
+        'files': {}
+    }
+
+    # Read in the public key, this can be passed to newly created servers.
+    if 'public_key' in inputs:
+        stockton_deployment['files']['/root/.ssh/authorized_keys'] = \
+                        inputs['public_key']
+    else:
+        if ('CHECKMATE_PUBLIC_KEY' in os.environ and
+                os.path.exists(os.path.expanduser(
+                    os.environ['CHECKMATE_PUBLIC_KEY']))):
+            try:
+                f = open(os.path.expanduser(
+                        os.environ['CHECKMATE_PUBLIC_KEY']))
+                stockton_deployment['public_key'] = f.read()
+                stockton_deployment['files']['/root/.ssh/authorized_keys'] = \
+                        stockton_deployment['public_key']
+                f.close()
+            except IOError as (errno, strerror):
+                sys.exit("I/O error reading public key (%s): %s" % (errno,
+                                                                    strerror))
+            except:
+                sys.exit('Cannot read public key.')
+
     # Create an instance of the workflow spec
     wf = Workflow(wfspec)
     #Pass in the initial deployemnt dict (task 3 is the Auth task)
-    wf.get_task(3).set_attribute(deployment=deployment)
+    wf.get_task(3).set_attribute(deployment=stockton_deployment)
 
     # Make the async calls
     for key in deployment['resources']:
@@ -637,7 +694,7 @@ def plan(id):
         elif resource.get('type') == 'database':
             # Third task takes the 'deployment' attribute and creates a server
             create_db_task = Celery(wfspec, 'Create DB:%s' % key,
-                               'stockton.db.distribute_create',
+                               'stockton.db.distribute_create_instance',
                                call_args=[hostname, 1,
                                         resource.get('flavor', 1),
                                         'dbs?',
@@ -648,7 +705,26 @@ def plan(id):
         else:
             pass
 
+    #TODO: there is a bug in SPiff deserialization. So must execute all at once
+    print wf.get_dump()
     serializer = DictionarySerializer()
+    i = 0
+    complete = 0
+    timeout = 20
+    total = len(wf.get_tasks(state=Task.ANY_MASK))
+    while not wf.is_completed() and i < timeout:
+        count = len(wf.get_tasks(state=Task.COMPLETED))
+        if count != complete:
+            complete = count
+            print {'state': "PROGRESS", 'meta': {'complete': count,
+                    'total': total}}
+        wf.complete_all()
+        i += 1
+        print "Saving: %s" % wf.get_dump()
+        db.save_workflow(id, wf.serialize(serializer))
+        time.sleep(1)
+        print i
+
     db.save_workflow(deployment['id'], wf.serialize(serializer))
 
     deployment['workflow'] = deployment['id']
@@ -675,6 +751,8 @@ def execute(id):
     #TODO: make this smarter
     creds = [p['credentials'][0] for p in
             deployment['environment']['providers'] if 'common' in p][0]
+
+    return deployment
 
 
 def execute_old(id):
@@ -752,7 +830,7 @@ def read_body(request):
         return yaml.safe_load(yaml.emit(resolve_yaml_external_refs(data),
                          Dumper=yaml.SafeDumper))
     elif content_type == 'application/json':
-        return json.loads(data)
+        return json.load(data)
     else:
         return abort(415, "Unsupported Media Type: %s" % content_type)
 

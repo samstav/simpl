@@ -1,6 +1,7 @@
 """
   Celery tasks to orchestrate a sohpisticated deployment
 """
+import logging
 import time
 
 from celery.app import app_or_default
@@ -17,6 +18,10 @@ except ImportError:
 from SpiffWorkflow import Workflow, Task
 from SpiffWorkflow.operators import Attrib
 from SpiffWorkflow.storage import DictionarySerializer
+
+from checkmate.db import get_driver
+
+LOG = logging.getLogger(__name__)
 
 
 @task
@@ -68,9 +73,6 @@ def distribute_create_simple_server(deployment, name, image=214, flavor=1,
     wf = Workflow(wfspec)
     #Pass in the initial deployemnt dict (task 3 is the Auth task)
     wf.get_task(3).set_attribute(deployment=deployment)
-
-
-    from checkmate.db import get_driver, any_id_problems
 
     db = get_driver('checkmate.db.sql.Driver')
     serializer = DictionarySerializer()
@@ -163,8 +165,10 @@ def run_workflow(id, timeout=60):
 
     db = get_driver('checkmate.db.sql.Driver')
     serializer = DictionarySerializer()
+    LOG.debug("Deserializing workflow %s" % id)
     wf = Workflow.deserialize(serializer, db.get_workflow(id))
 
+    LOG.debug("Deserialized workflow %s: %s" % (id, wf.get_dump()))
     i = 0
     complete = 0
     total = len(wf.get_tasks(state=Task.ANY_MASK))
@@ -172,17 +176,13 @@ def run_workflow(id, timeout=60):
         count = len(wf.get_tasks(state=Task.COMPLETED))
         if count != complete:
             complete = count
-            print {'state': "PROGRESS", 'meta': {'complete': count,
-                    'total': total}}
+            LOG.debug("Workflow status: %s/%s (state=%s)" % (count, total,
+                    "PROGRESS"))
         wf.complete_all()
         i += 1
-        db.save_workflow(distribute_create_simple_server.request.id,
-                     wf.serialize(serializer))
+        db.save_workflow(id, wf.serialize(serializer))
         time.sleep(1)
-
-    db.save_workflow(distribute_create_simple_server.request.id,
-                     wf.serialize(serializer))
-
+        LOG.debug("Finished loop #%s for workflow %s" % (i, id))
     return wf
 
 

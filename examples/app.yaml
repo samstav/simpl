@@ -12,7 +12,7 @@
 #
 # To transform and send the output to checkmate:
 #
-#     awk '{while(match($0,"[%][\\(][^\\)]*\\)[s]")) {var=substr($0,RSTART+2,RLENGTH -4);gsub("[%][(]"var"[)][s]",ENVIRON[var])}}1' < app.yaml | curl -H 'content-type: application/x-yaml' http://localhost:8080/deployments --data-binary @-
+#     awk '{while(match($0,"[%][\\(][^\\)]*\\)[s]")) {var=substr($0,RSTART+2,RLENGTH -4);gsub("[%][(]"var"[)][s]",ENVIRON[var])}}1' < app.yaml | curl -H 'content-type: application/x-yaml' http://localhost:8080/deployments -v --data-binary @-
 
 
 #### ALPHA STATUS
@@ -150,8 +150,8 @@ environment: &dfw
       username: %(CHECKMATE_USERNAME)s
       apikey: %(CHECKMATE_APIKEY)s
     - ssh:
-      public_key: %(STOCKTON_PUBLIC_KEY)s
-      private_key: %(STOCKTON_PRIVATE_KEY)s
+      public_key: %(CHECKMATE_PUBLIC_KEY)s
+      private_key: %(CHECKMATE_PRIVATE_KEY)s
 
 #### Deployments
 
