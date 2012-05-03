@@ -17,7 +17,7 @@ setup(
     version='0.0.1',
     author='Ziad Sawalha',
     author_email='ziad.sawalha@rackspace.com',
-    install_requires=['celery', 'sqlalchemy', 'bottle', 'SpiffWorkflow'
+    install_requires=['celery', 'sqlalchemy', 'bottle', 'SpiffWorkflow',
             'pystache', 'webob', 'pyyaml'],
     tests_require=['nose', 'unittest2'],
     dependency_links=github_urls,
