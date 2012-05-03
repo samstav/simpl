@@ -124,7 +124,7 @@ orchestrator::
 This will add additional calls to celery.
 
 
-### Sample Call
+### Execute a Test Call
 
 You'll need three terminal windows and Rackspace cloud credentials (username &
 API key). In the first terminal window, start Stockton::
@@ -161,6 +161,13 @@ In the second window, start checkmate::
 
 In the third window, run these scripts::
 
+    $ export CHECKMATE_APIKEY="*your_rax_API_key*"
+    $ export CHECKMATE_REGION="chicago"
+    $ export CHECKMATE_USERNAME="*your_rax_user*"
+    $ export CHECKMATE_DOMAIN=*aworkingRAXdomain.com*
+    $ export CHECKMATE_PUBLIC_KEY=~/.ssh/id_rsa.pub
+
+
     $ awk '{while(match($0,"[%][\\(][^\\)]*\\)[s]")) {var=substr($0,RSTART+2,RLENGTH -4);gsub("[%][(]"var"[)][s]",ENVIRON[var])}}1' < examples/app.yaml | curl -H 'content-type: application/x-yaml' http://localhost:8080/deployments -v --data-binary @-
 
 
@@ -168,13 +175,13 @@ In the third window, run these scripts::
     # of environment variables. Get the ID or Location header from the response, and watch the
     # status here:
 
-    $ curl http://localhost:8080/deployments/enter-your-deployment-id-here/status
+    $ curl http://localhost:8080/deployments/*enter-your-deployment-id-here*/status
 
 
 
 ### Dependencies
 
-Some of checkmate more significant dependencies are::
+Some of checkmate's more significant dependencies are::
 
 - python-stockton: for managing Rackspace cloud services
 - celeryd: used by Stockton and integrates with a message queue (ex. RabbitMQ)
