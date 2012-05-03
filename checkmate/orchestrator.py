@@ -5,8 +5,10 @@ import logging
 import time
 
 from celery.app import app_or_default
-from celery.result import AsyncResult
 from celery.task import task
+from celery import current_app
+assert current_app.backend.__class__.__name__ == 'DatabaseBackend'
+assert 'python-stockton' in current_app.backend.dburi.split('/')
 
 try:
     from SpiffWorkflow.specs import WorkflowSpec, Celery, Transform
@@ -103,50 +105,8 @@ def distribute_create_simple_server(deployment, name, image=214, flavor=1,
 
 
 @task
-def distribute_get_workflow_status(id):
-    """ Returns information about a task.
-    :param id: the ID of the task to check
-
-    :rtype: dict
-    :returns:
-        {
-           'id': task_id,
-           'status': one of PENDING, STARTED, RETRY, FAILURE, SUCCESS or a
-                custom state,
-            'info': any additional info for an incomplete task,
-            'result': returned data from a SUCCESSFUL task,
-            'error': returned exception from a FAILURE task,
-            'data' : any addiitonal data we decide to add
-        }
-    """
-    task_id = id  # We should decouple this
-    async_call = app_or_default().AsyncResult(task_id)
-    response = {'id': id, 'status': async_call.state}
-    if async_call.ready():
-        response['result'] = async_call.result
-    else:
-        if isinstance(async_call.info, BaseException):
-            response['error'] = async_call.info.__str__()
-        elif async_call.info and len(async_call.info):
-            response['info'] = async_call.info.__str__()
-    return response
-
-
-@task
-def distribute_deploy_plan(deployment, plan):
-    """Takes a YAML plan from CheckMate and executes it.
-
-    :param deployment: contains the deployment parameters
-    :type deployment: dict
-    :param plan: the CheckMate plan
-    :type plan: yaml
-    """
-    pass
-
-
-@task
 def distribute_count_seconds(seconds):
-    """ just for debugging ansd testing long-running tasks and updates """
+    """ just for debugging and testing long-running tasks and updates """
     elapsed = 0
     while elapsed < seconds:
         time.sleep(1)
@@ -157,7 +117,8 @@ def distribute_count_seconds(seconds):
     return seconds
 
 
-def run_workflow(id, timeout=60):
+@task
+def distribute_run_workflow(id, timeout=60):
     # Loop through trying to complete the workflow and periodically send
     # status updates
 
@@ -166,24 +127,31 @@ def run_workflow(id, timeout=60):
     db = get_driver('checkmate.db.sql.Driver')
     serializer = DictionarySerializer()
     LOG.debug("Deserializing workflow %s" % id)
-    wf = Workflow.deserialize(serializer, db.get_workflow(id))
+    workflow = db.get_workflow(id)
+    wf = Workflow.deserialize(serializer, workflow)
 
     LOG.debug("Deserialized workflow %s: %s" % (id, wf.get_dump()))
+
     i = 0
-    complete = 0
-    total = len(wf.get_tasks(state=Task.ANY_MASK))
+    last_reported_complete = 0
     while not wf.is_completed() and i < timeout:
+        total = len(wf.get_tasks(state=Task.ANY_MASK))  # Changes
         count = len(wf.get_tasks(state=Task.COMPLETED))
-        if count != complete:
-            complete = count
+        if count != last_reported_complete:
+            last_reported_complete = count
             LOG.debug("Workflow status: %s/%s (state=%s)" % (count, total,
                     "PROGRESS"))
         wf.complete_all()
         i += 1
-        db.save_workflow(id, wf.serialize(serializer))
+        msg = "Saving: %s" % wf.get_dump()
+        LOG.debug(msg)
+        workflow = wf.serialize(serializer)
+        db.save_workflow(id, workflow)
         time.sleep(1)
-        LOG.debug("Finished loop #%s for workflow %s" % (i, id))
-    return wf
+        LOG.debug("Finished loop #%s for workflow %s (timeout in %is)" %
+                (i, id, timeout - i))
+
+    return workflow
 
 
 class Orchestrator(object):

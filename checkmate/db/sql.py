@@ -77,6 +77,7 @@ class Workflow(Base):
 
 Base.metadata.create_all(engine)
 
+
 class Driver(DbBase):
     def dump(self):
         response = {}
@@ -87,6 +88,7 @@ class Driver(DbBase):
         response['components'] = self.get_components()
         return response
 
+    # ENVIRONMENTS
     def get_environment(self, id):
         results = Session.query(Environment).filter_by(id=id)
         if results and results.count() > 0:
@@ -113,7 +115,7 @@ class Driver(DbBase):
         Session.commit()
         return body
 
-
+    # DEPLOYMENTS
     def get_deployment(self, id):
         results = Session.query(Deployment).filter_by(id=id)
         if results and results.count() > 0:
@@ -140,7 +142,7 @@ class Driver(DbBase):
         Session.commit()
         return body
 
-
+    #BLUEPRINTS
     def get_blueprint(self, id):
         results = Session.query(Blueprint).filter_by(id=id)
         if results and results.count() > 0:
@@ -167,7 +169,7 @@ class Driver(DbBase):
         Session.commit()
         return body
 
-
+    # COMPONENTS
     def get_component(self, id):
         results = Session.query(Component).filter_by(id=id)
         if results and results.count() > 0:
@@ -194,6 +196,7 @@ class Driver(DbBase):
         Session.commit()
         return body
 
+    # WORKFLOWS
     def get_workflow(self, id):
         results = Session.query(Workflow).filter_by(id=id)
         if results and results.count() > 0:
@@ -210,6 +213,7 @@ class Driver(DbBase):
             return {}
 
     def save_workflow(self, id, body):
+        assert isinstance(body, dict)  # Make sure we didn't pass in a workflow
         results = Session.query(Workflow).filter_by(id=id)
         if results and results.count() > 0:
             e = results.first()

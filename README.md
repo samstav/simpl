@@ -154,12 +154,8 @@ In the second window, start checkmate::
 
     export CHECKMATE_CONNECTION_CONNECTION=sqlite:///~/checkmate.sqlite
 
-    export CHECKMATE_APIKEY="abcedf...."
-    export CHECKMATE_REGION="chicago"
-    export CHECKMATE_USERNAME="me"
     export CHECKMATE_PUBLIC_KEY=~/.ssh/id_rsa.pub  # on a mac
     export CHECKMATE_PRIVATE_KEY=~/.ssh/id_rsa     # on a mac
-    export CHECKMATE_TEST_DOMAIN=validInRaxDNS.local
 
     python checkmate/server.py
 

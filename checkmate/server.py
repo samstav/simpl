@@ -12,25 +12,44 @@ Implements these resources:
     /blueprints:   *architect* definitions defining applications or solutions
     /deployments:  deployed resources (an instance of a blueprint deployed to
                    an environment)
+    /workflows:    SpiffWorkflow workflows (persisted in database)
 
-These are stored in:
-    ./data/components/
-    ./data/environments/
-    ./data/blueprints
-    ./data/deployments
-    Note::
-        Master is a .shelve file, but .yaml and .json copies also exist.
-        seed.yaml is the default start-up file and is loaded if present.
-        The data is loaded from ./data unless the environment variable
-            CHECKMATE_DATA_PATH is set.
+Special calls:
+    POST /deployments/              This is where the meat of things gets done
+                                    Triggers a celery task which can then be
+                                    followed up on using deployments/:id/status
+    GET  /deployments/:id/status    Check status of a deployment
+    GET  /workflows/:id/status      Check status of a workflow
+    GET  /workflows/:id/tasks/:id   Read a SpiffWorkflow Task
+    POST /workflows/:id/tasks/:id   Partial update of a SpiffWorkflow Task
+                                    Supports the following attributes: state,
+                                    attributes, and internal_attributes
+    GET  /workflows/:id/+execute    A browser-friendly way to run a workflow
+    GET  /static/*                  Return files in /static folder
+    PUT  /*/:id                     So you can edit/save objects without
+                                    triggering actions (like a deployment).
+                                    CAUTION: No locking or guarantees of
+                                    atomicity across calls
+Tools:
+    GET  /test/dump      Dumps the database
+    POST /test/parse     Parses the body (use to test your yaml or json)
+    POST /test/hack      Testing random stuff....
+    GET  /test/async     Returns a streamed response (3 x 1 second intervals)
+    GET  /workflows/:id/tasks/:id/+reset   Reset a SpiffWorkflow Celery Task
+
+Notes:
+    .yaml/.json extensions override Accept headers (except in /static/)
+    Trailing slashes are ignored (ex. /blueprints/ == /blueprints)
 """
 import json
 # pylint: disable=E0611
 from bottle import app, get, post, put, delete, run, request, \
         response, abort, static_file
 import os
+import logging
+import pystache
 import sys
-import time
+from time import sleep
 import uuid
 import webob
 import yaml
@@ -51,32 +70,39 @@ from SpiffWorkflow.storage import DictionarySerializer
 from checkmate import orchestrator
 from checkmate.db import get_driver, any_id_problems
 
+
 db = get_driver('checkmate.db.sql.Driver')
 
+# define a Handler which writes INFO messages or higher to the sys.stderr
+console = logging.StreamHandler()
+console.setLevel(logging.DEBUG)
+# set a format which is simpler for console use
+formatter = logging.Formatter('%(name)-12s: %(levelname)-8s %(message)s')
+# tell the handler to use this format
+console.setFormatter(formatter)
+# add the handler to the root logger
+logging.getLogger().addHandler(console)
+logging.getLogger().setLevel(logging.DEBUG)
+LOG = logging.getLogger(__name__)
+
 
 #
-# Making life easy - calls that are handy but might not be in final API
+# Making life easy - calls that are handy but will not be in final API
 #
-@get('/')
+@get('/test/dump')
 def get_everything():
     return write_body(db.dump(), request, response)
 
 
-@post('/parse')
+@post('/test/parse')
 def parse():
     """ For debugging only """
     return read_body(request)
 
 
-@get('/favicon.ico')
-def favicon():
-    """Without this, browsers keep getting a 404 and perceive slow response more than 80"""
-    return static_file('favicon.ico',
-            root=os.path.join(os.path.dirname(__file__), 'static'))
-
-
-@post('/hack')
+@post('/test/hack')
 def hack():
+    """ Use it to test random stuff """
     entity = read_body(request)
     if 'deployment' in entity:
         entity = entity['deployment']
@@ -84,12 +110,87 @@ def hack():
     if 'id' not in entity:
         entity['id'] = uuid.uuid4().hex
     if any_id_problems(entity['id']):
-        return abort(406, any_id_problems(entity['id']))
+        abort(406, any_id_problems(entity['id']))
 
-    results = db.save_deployment(entity['id'], entity)
+    db.save_deployment(entity['id'], entity)
     results = plan(entity['id'])
 
+    serializer = DictionarySerializer()
+    workflow = results['workflow'].serialize(serializer)
+    results['workflow'] = workflow
+
     return write_body(results, request, response, wrapper='deployment')
+
+
+@get('/test/async')
+def async():
+    """Test async responses"""
+    response.set_header('content-type', "application/json")
+    response.set_header('Location', "uri://something")
+    return afunc()
+
+
+def afunc():
+    yield '{'
+    sleep(1)
+    for i in range(3):
+        yield '"%i": "Counting",' % i
+        sleep(1)
+    yield '"Done": 3}'
+
+
+@get('/workflows/<id>/tasks/<task_id:int>/+reset')
+def reset_workflow_task(id, task_id):
+    """Reset a Celery workflow task and retry it
+
+    Checks if task is a celery task in waiting state.
+    Resets parent to READY and task to FUTURE.
+    Removes existing celery task ID.
+
+    :param id: checkmate workflow id
+    :param task_id: checkmate workflow task id
+    """
+
+    workflow = db.get_workflow(id)
+    if not workflow:
+        abort(404, 'No workflow with id %s' % id)
+
+    serializer = DictionarySerializer()
+    wf = Workflow.deserialize(serializer, workflow)
+
+    task = wf.get_task(task_id)
+    if not task:
+        abort(404, 'No task with id %s' % task_id)
+
+    if task.task_spec.__class__.__name__ != 'Celery':
+        abort(406, "You can only reset Celery tasks. This is a '%s' task" %
+            task.task_spec.__class__.__name__)
+
+    if task.state != Task.WAITING:
+        abort(406, "You can only reset WAITING tasks. This task is in '%s'" %
+            task.get_state_name())
+
+    if 'task_id' in task.internal_attributes:
+        del task.internal_attributes['task_id']
+    if 'error' in task.attributes:
+        del task.attributes['error']
+    task._state = Task.FUTURE
+    task.parent._state = Task.READY
+
+    serializer = DictionarySerializer()
+    results = db.save_workflow(id, wf.serialize(serializer))
+
+    return write_body(results, request, response, wrapper='workflow')
+
+
+#
+# Static files & browser support
+#
+@get('/favicon.ico')
+def favicon():
+    """Without this, browsers keep getting a 404 and perceive slow response more than 80"""
+    return static_file('favicon.ico',
+            root=os.path.join(os.path.dirname(__file__), 'static'))
 
 
 @get('/static/<path:path>')
@@ -116,7 +217,7 @@ def post_environment():
     if 'id' not in entity:
         entity['id'] = uuid.uuid4().hex
     if any_id_problems(entity['id']):
-        return abort(406, any_id_problems(entity['id']))
+        abort(406, any_id_problems(entity['id']))
 
     results = db.save_environment(entity['id'], entity)
 
@@ -130,7 +231,7 @@ def put_environment(id):
         entity = entity['environment']
 
     if any_id_problems(id):
-        return abort(406, any_id_problems(id))
+        abort(406, any_id_problems(id))
     if 'id' not in entity:
         entity['id'] = str(id)
 
@@ -172,7 +273,7 @@ def post_component():
     if 'id' not in entity:
         entity['id'] = uuid.uuid4().hex
     if any_id_problems(entity['id']):
-        return abort(406, any_id_problems(entity['id']))
+        abort(406, any_id_problems(entity['id']))
 
     results = db.save_component(entity['id'], entity)
 
@@ -186,7 +287,7 @@ def put_component(id):
         entity = entity['component']
 
     if any_id_problems(id):
-        return abort(406, any_id_problems(id))
+        abort(406, any_id_problems(id))
     if 'id' not in entity:
         entity['id'] = str(id)
 
@@ -220,7 +321,7 @@ def post_blueprint():
     if 'id' not in entity:
         entity['id'] = uuid.uuid4().hex
     if any_id_problems(entity['id']):
-        return abort(406, any_id_problems(entity['id']))
+        abort(406, any_id_problems(entity['id']))
 
     results = db.save_blueprint(entity['id'], entity)
 
@@ -234,7 +335,7 @@ def put_blueprint(id):
         entity = entity['blueprint']
 
     if any_id_problems(id):
-        return abort(406, any_id_problems(id))
+        abort(406, any_id_problems(id))
     if 'id' not in entity:
         entity['id'] = str(id)
 
@@ -268,7 +369,7 @@ def post_workflow():
     if 'id' not in entity:
         entity['id'] = uuid.uuid4().hex
     if any_id_problems(entity['id']):
-        return abort(406, any_id_problems(entity['id']))
+        abort(406, any_id_problems(entity['id']))
 
     results = db.save_workflow(entity['id'], entity)
 
@@ -283,7 +384,7 @@ def put_workflow(id):
         entity = entity['workflow']
 
     if any_id_problems(id):
-        return abort(406, any_id_problems(id))
+        abort(406, any_id_problems(id))
     if 'id' not in entity:
         entity['id'] = str(id)
 
@@ -325,21 +426,18 @@ def execute_workflow(id):
     if not entity:
         abort(404, 'No workflow with id %s' % id)
 
-    # TODO: there is a bug in Spiff deserialization where the tree is not
-    # built correctly, resulting in WAITING tasks getting set back to future
-    # need to check deserialization code vs. init in workflow which creates
-    # start and root tasks which I think conflict with the deserialized tasks
-    # later
-    from checkmate.orchestrator import run_workflow
-    wf = run_workflow(id)
-    return write_body(get_SpiffWorkflow_status(wf), request, response)
+    #Synchronous call
+    orchestrator.distribute_run_workflow(id, timeout=10)
+    entity = db.get_workflow(id)
+    return write_body(entity, request, response)
 
 
 def get_SpiffWorkflow_status(workflow):
     """
     Returns the subtree as a string for debugging.
 
-    @rtype:  str
+    :param workflow: a SpiffWorkflow Workflow
+    @rtype:  dict
     @return: The debug information.
     """
     def get_task_status(task, output):
@@ -356,6 +454,73 @@ def get_SpiffWorkflow_status(workflow):
     task = workflow.task_tree
     get_task_status(task, result)
     return result
+
+
+@get('/workflows/<id>/tasks/<task_id:int>')
+def get_workflow_task(id, task_id):
+    """Get a workflow task
+
+    :param id: checkmate workflow id
+    :param task_id: checkmate workflow task id
+    """
+    entity = db.get_workflow(id)
+    if not entity:
+        abort(404, 'No workflow with id %s' % id)
+
+    serializer = DictionarySerializer()
+    wf = Workflow.deserialize(serializer, entity)
+
+    task = wf.get_task(task_id)
+    if not task:
+        abort(404, 'No task with id %s' % task_id)
+    data = serializer._serialize_task(task, skip_children=True)
+    return write_body(data, request, response)
+
+
+@post('/workflows/<id>/tasks/<task_id:int>')
+def post_workflow_task(id, task_id):
+    """Update a workflow task
+
+    Attributes that can be updated are:
+    - attributes
+    - state
+    - internal_attributes
+
+    :param id: checkmate workflow id
+    :param task_id: checkmate workflow task id
+    """
+    entity = read_body(request)
+
+    workflow = db.get_workflow(id)
+    if not workflow:
+        abort(404, 'No workflow with id %s' % id)
+
+    serializer = DictionarySerializer()
+    wf = Workflow.deserialize(serializer, workflow)
+
+    task = wf.get_task(task_id)
+    if not task:
+        abort(404, 'No task with id %s' % task_id)
+
+    if 'attributes' in entity:
+        if not isinstance(entity['attributes'], dict):
+            abort(406, "'attribues' must be a dict")
+        task.attributes = entity['attributes']
+
+    if 'internal_attributes' in entity:
+        if not isinstance(entity['internal_attributes'], dict):
+            abort(406, "'internal_attribues' must be a dict")
+        task.internal_attributes = entity['internal_attributes']
+
+    if 'state' in entity:
+        if not isinstance(entity['state'], (int, long)):
+            abort(406, "'state' must be an int")
+        task._state = entity['state']
+
+    serializer = DictionarySerializer()
+    results = db.save_workflow(id, wf.serialize(serializer))
+
+    return write_body(results, request, response, wrapper='workflow')
 
 
 #
@@ -375,21 +540,29 @@ def post_deployment():
     if 'id' not in entity:
         entity['id'] = uuid.uuid4().hex
     if any_id_problems(entity['id']):
-        return abort(406, any_id_problems(entity['id']))
+        abort(406, any_id_problems(entity['id']))
     id = str(entity['id'])
     results = db.save_deployment(id, entity)
 
+    response.add_header('Location', "/deployments/%s" % id)
+
     #Assess work to be done & resources to be created
     results = plan(id)
-    results = db.save_deployment(id, results)
 
-    #Trigger creation of resources
-    results = execute(id)
-    results = db.save_deployment(id, results)
+    serializer = DictionarySerializer()
+    workflow = results['workflow'].serialize(serializer)
+    workflow['id'] = id
+    deployment = results['deployment']
+    deployment['workflow'] = id
 
-    # Return response and new resource location
-    response.add_header('Location', "/deployments/%s" % id)
-    return write_body(results, request, response, wrapper='deployment')
+    deployment = db.save_deployment(id, deployment)  # updated by plan()
+    db.save_workflow(id, workflow)
+
+    #Trigger the workflow
+    async_task = execute(id)
+
+    # Return response (with new resource location in header)
+    return write_body(deployment, request, response, wrapper='deployment')
 
 
 @put('/deployments/<id>')
@@ -399,7 +572,7 @@ def put_deployment(id):
         entity = entity['deployment']
 
     if any_id_problems(id):
-        return abort(406, any_id_problems(id))
+        abort(406, any_id_problems(id))
     if 'id' not in entity:
         entity['id'] = str(id)
 
@@ -422,28 +595,40 @@ def get_deployment_status(id):
     if not deployment:
         abort(404, 'No deployment with id %s' % id)
 
+    resources = deployment.get('resources', {})
+    results = {}
     workflow_id = deployment.get('workflow')
     if workflow_id:
         workflow = db.get_workflow(workflow_id)
-
-    resources = deployment.get('resources', [])
-    results = {}
-    for key in resources:
-        resource = resources[key]
-        if 'async_task_id' in resource:
-            async_call = app_or_default().AsyncResult(
-                    resource['async_task_id'])
-            async_call.state   # refresh state
-            if async_call.ready():
-                result = async_call.info
-            elif isinstance(async_call.info, BaseException):
-                result = "Error: %s" % async_call.info
-            elif async_call.info and len(async_call.info):
-                result = async_call.info
+        serializer = DictionarySerializer()
+        wf = Workflow.deserialize(serializer, workflow)
+        for task in wf.get_tasks(state=Task.ANY_MASK):
+            if 'Resource' in task.task_spec.defines:
+                resource_id = str(task.task_spec.defines['Resource'])
+                resource = resources.get(resource_id, None)
+                if resource:
+                    result = {}
+                    result['state'] = task.get_state_name()
+                    error = task.get_attribute('error', None)
+                    if error is not None:  # Show empty strings too
+                        result['error'] = error
+                    result['output'] = {key: task.attributes[key] for key
+                            in task.attributes if key not in['deployment',
+                            'token', 'error']}
+                    if 'tasks' not in resource:
+                        resource['tasks'] = {}
+                    resource['tasks'][task.get_name()] = result
             else:
-                result = 'Error: No celery data available on %s' %\
-                        resource['async_task_id']
-            results[key] = result
+                result = {}
+                result['state'] = task.get_state_name()
+                error = task.get_attribute('error', None)
+                if error is not None:  # Show empty strings too
+                    result['error'] = error
+                if 'tasks' not in results:
+                    results['tasks'] = {}
+                results['tasks'][task.get_name()] = result
+
+    results['resources'] = resources
 
     return write_body(results, request, response, wrapper='results')
 
@@ -460,33 +645,36 @@ def plan(id):
     - identify dependencies (inputs/options and connections/relations)
     - build a list of resources to create
     - build a workflow based on resources and dependencies
+    - return the workflow
 
     :param id: checkmate deployment id
     """
     deployment = db.get_deployment(id)
-    print "D http://localhost:8080/deployments/%s" % id
     if not deployment:
-        abort(404, 'No deployment with id %s' % id)
+        abort(404, "No deployment with id %s" % id)
     inputs = deployment.get('inputs', [])
     blueprint = deployment.get('blueprint')
     if not blueprint:
-        return abort(406, 'Blueprint not found. Nothing to do.')
+        abort(406, "Blueprint not found. Nothing to do.")
     environment = deployment.get('environment')
     if not environment:
-        return abort(406, 'Environment not found. Nowhere to deploy to.')
-    print json.dumps(blueprint, sort_keys=True, indent=4)
+        abort(406, "Environment not found. Nowhere to deploy to.")
+
+    #
+    # Analyze Dependencies
+    #
     relations = {}
     requirements = {}
     provided = {}
     options = {}
     for service_name, service in blueprint['services'].iteritems():
-        print "Analyzing service", service_name
+        LOG.debug("Analyzing service %s" % service_name)
         if 'relations' in service:
             relations[service_name] = service['relations']
         config = service.get('config')
         if config:
             klass = config['id']
-            print "  Config for", klass
+            LOG.debug("  Config for %s", klass)
             if 'provides' in config:
                 for key in config['provides']:
                     if key in provided:
@@ -503,33 +691,36 @@ def plan(id):
                 for key, option in config['options'].iteritems():
                     if not 'default' in option:
                         if key not in inputs:
-                            return abort(406, "Input required: %s" % key)
+                            abort(406, "Input required: %s" % key)
                     if key in options:
                         options[key].append(service_name)
                     else:
                         options[key] = [service_name]
             if service_name == 'wordpress':
-                print "    This is wordpress!"
+                LOG.debug("    This is wordpress!")
             elif service_name == 'database':
-                print "    This is the DB!"
+                LOG.debug("    This is the DB!")
             else:
-                return abort(406, "Unrecognized component type '%s'" % klass)
+                abort(406, "Unrecognized component type '%s'" % klass)
     # Check we have what we need (requirements are met)
     for requirement in requirements.keys():
         if requirement not in provided:
-            return abort(406, "Cannot satisfy requirement '%s'" % requirement)
+            abort(406, "Cannot satisfy requirement '%s'" % requirement)
         # TODO: check that interfaces match between requirement and provider
     # Check we have what we need (we can resolve relations)
     for service_name in relations:
         for relation in relations[service_name]:
             if relations[service_name][relation] not in blueprint['services']:
-                return abort(406, "Cannot find '%s' for '%s' to connect to" %
+                abort(406, "Cannot find '%s' for '%s' to connect to" %
                         (relations[service_name][relation], service_name))
-    # Expand resource list
+
+    #
+    # Build needed resource list
+    #
     resources = {}
     resource_index = 0
     for service_name, service in blueprint['services'].iteritems():
-        print "Expanding service", service_name
+        LOG.debug("Expanding service %s" % service_name)
         if service_name == 'wordpress':
             #TODO: now hard-coded to this logic:
             # <20 requests => 1 server, running mysql & web
@@ -549,8 +740,8 @@ def plan(id):
                             'wordpress:machine/count', int((rps + 49) / 50.)))
 
             if web_heads > 6:
-                raise abort(406, "Blueprint does not support the required "
-                            "number of web-heads: %s" % web_heads)
+                abort(406, "Blueprint does not support the required number of "
+                        "web-heads: %s" % web_heads)
             domain = inputs.get('domain', os.environ.get('CHECKMATE_DOMAIN',
                                                            'mydomain.local'))
             if web_heads > 0:
@@ -579,7 +770,7 @@ def plan(id):
                     machines = service['machines']
                     machines.append(resource_index)
                     resource_index += 1
-            # More HACKs! Hard coding instead of using resources...
+            # TODO: unHACK! Hard coding instead of using resources...
             load_balancer = high_availability or web_heads > 1 or rps > 20
             if load_balancer == True:
                     name = 'CMDEP-%s-lb1.%s' % (deployment['id'], domain)
@@ -606,13 +797,12 @@ def plan(id):
             machines.append(resource_index)
             resource_index += 1
         else:
-            return abort(406, "Unrecognized service type '%s'" % service_name)
+            abort(406, "Unrecognized service type '%s'" % service_name)
     deployment['resources'] = resources
 
-    from celery.app import app_or_default
-    from celery.result import AsyncResult
-    from celery.task import task
-    from checkmate import orchestrator
+    #
+    # Create Workflow
+    #
 
     # Build a workflow spec (the spec is the design of the workflow)
     wfspec = WorkflowSpec(name="%s Workflow" % blueprint['name'])
@@ -642,37 +832,54 @@ def plan(id):
         'files': {}
     }
 
-    # Read in the public key, this can be passed to newly created servers.
+    keys = []
+    # Read in the public keys to be passed to newly created servers.
     if 'public_key' in inputs:
+        key.append(inputs['public_key'])
+    if ('CHECKMATE_PUBLIC_KEY' in os.environ and
+            os.path.exists(os.path.expanduser(
+                os.environ['CHECKMATE_PUBLIC_KEY']))):
+        try:
+            f = open(os.path.expanduser(os.environ['CHECKMATE_PUBLIC_KEY']))
+            keys.append(f.read())
+            f.close()
+        except IOError as (errno, strerror):
+            LOG.error("I/O error reading public key from CHECKMATE_PUBLIC_KEY="
+                    "'%s' environment variable (%s): %s" % (
+                            os.environ['CHECKMATE_PUBLIC_KEY'], errno,
+                                                                strerror))
+        except StandardException as exc:
+            LOG.error("Error reading public key from CHECKMATE_PUBLIC_KEY="
+                    "'%s' environment variable: %s" % (
+                            os.environ['CHECKMATE_PUBLIC_KEY'], exc))
+    if ('STOCKTON_PUBLIC_KEY' in os.environ and
+            os.path.exists(os.path.expanduser(
+                os.environ['STOCKTON_PUBLIC_KEY']))):
+        try:
+            f = open(os.path.expanduser(os.environ['STOCKTON_PUBLIC_KEY']))
+            keys.append(f.read())
+            f.close()
+        except IOError as (errno, strerror):
+            LOG.error("I/O error reading public key from STOCKTON_PUBLIC_KEY="
+                    "'%s' environment variable (%s): %s" % (
+                            os.environ['STOCKTON_PUBLIC_KEY'], errno,
+                                                                strerror))
+        except StandardException as exc:
+            LOG.error("Error reading public key from STOCKTON_PUBLIC_KEY="
+                    "'%s' environment variable: %s" % (
+                            os.environ['STOCKTON_PUBLIC_KEY'], exc))
+    if keys:
         stockton_deployment['files']['/root/.ssh/authorized_keys'] = \
-                        inputs['public_key']
+                "\n".join(keys)
     else:
-        if ('CHECKMATE_PUBLIC_KEY' in os.environ and
-                os.path.exists(os.path.expanduser(
-                    os.environ['CHECKMATE_PUBLIC_KEY']))):
-            try:
-                f = open(os.path.expanduser(
-                        os.environ['CHECKMATE_PUBLIC_KEY']))
-                stockton_deployment['public_key'] = f.read()
-                stockton_deployment['files']['/root/.ssh/authorized_keys'] = \
-                        stockton_deployment['public_key']
-                f.close()
-            except IOError as (errno, strerror):
-                sys.exit("I/O error reading public key (%s): %s" % (errno,
-                                                                    strerror))
-            except:
-                sys.exit('Cannot read public key.')
+        LOG.warn("No public keys detected. Less secure password auth will be "
+                "used.")
 
-    # Create an instance of the workflow spec
-    wf = Workflow(wfspec)
-    #Pass in the initial deployemnt dict (task 3 is the Auth task)
-    wf.get_task(3).set_attribute(deployment=stockton_deployment)
-
-    # Make the async calls
+    # Create the tasks that make the async calls
     for key in deployment['resources']:
         resource = deployment['resources'][key]
+        hostname = resource.get('dns-name')
         if resource.get('type') == 'server':
-            hostname = resource['dns-name']
             # Third task takes the 'deployment' attribute and creates a server
             create_server_task = Celery(wfspec, 'Create Server:%s' % key,
                                'stockton.server.distribute_create',
@@ -681,58 +888,80 @@ def plan(id):
                                image=resource.get('image', 119),
                                flavor=resource.get('flavor', 1),
                                files=stockton_deployment['files'],
-                               ip_address_type='public')
+                               ip_address_type='public',
+                               defines={"Resource": key})
             write_token.connect(create_server_task)
-        elif resource.get('type') == 'loadbalancer':
 
+            # Then register in Chef
+            register_node_task = Celery(wfspec, 'Register Server:%s' % key,
+                               'stockton.chefserver.distribute_register_node',
+                               call_args=[Attrib('deployment'), hostname,
+                                    ['wordpress-web']],
+                               defines={"Resource": key})
+            write_token.connect(register_node_task)
+
+            ssh_wait_task = Celery(wfspec, 'Wait for Server:%s' % key,
+                               'stockton.ssh.ssh_up',
+                                call_args=[Attrib('deployment'), Attrib('ip'),
+                                    'root'],
+                                password=Attrib('password'),
+                                identity_file=os.environ.get(
+                                    'CHECKMATE_PRIVATE_KEY', '~/.ssh/id_rsa'),
+                               defines={"Resource": key})
+            create_server_task.connect(ssh_wait_task)
+
+            bootstrap_task = Celery(wfspec, 'Bootstrap Server:%s' % key,
+                               'stockton.chefserver.distribute_bootstrap',
+                                call_args=[Attrib('deployment'), hostname,
+                                Attrib('ip')],
+                                password=Attrib('password'),
+                                identity_file=os.environ.get(
+                                    'CHECKMATE_PRIVATE_KEY', '~/.ssh/id_rsa'),
+                                roles=['wordpress-web'],
+                                run_roles=['build'])
+            ssh_wait_task.connect(bootstrap_task)
+
+        elif resource.get('type') == 'load-balancer':
             # Third task takes the 'deployment' attribute and creates a lb
             create_lb_task = Celery(wfspec, 'Create LB:%s' % key,
-                               'stockton.lb.distribute_create',
-                               call_args=[hostname, 'PUBLIC', 'HTTP', 80],
-                               dns=True)
+                               'stockton.lb.distribute_create_loadbalancer',
+                               call_args=[Attrib('deployment'), hostname,
+                                    'PUBLIC', 'HTTP', 80],
+                               dns=True,
+                               defines={"Resource": key})
             write_token.connect(create_lb_task)
         elif resource.get('type') == 'database':
             # Third task takes the 'deployment' attribute and creates a server
             create_db_task = Celery(wfspec, 'Create DB:%s' % key,
                                'stockton.db.distribute_create_instance',
-                               call_args=[hostname, 1,
+                               call_args=[Attrib('deployment'), hostname, 1,
                                         resource.get('flavor', 1),
-                                        'dbs?',
-                                        'username',
+                                        [{'name': 'db1'}],
+                                        'MyDBUser',
                                         'password'],
-                               update_chef=False)
+                               update_chef=False,
+                               defines={"Resource": key})
             write_token.connect(create_db_task)
+        elif resource.get('type') == 'dns':
+            # TODO: NOT TESTED YET
+            create_dns_task = Celery(wfspec, 'Create DNS Record' % key,
+                               'stockton.dns.distribute_create_record',
+                               call_args=[Attrib('deployment'),
+                               inputs.get('domain', 'localhost'), hostname,
+                               'A', Attrib('vip')],
+                               defines={"Resource": key})
         else:
             pass
 
-    #TODO: there is a bug in SPiff deserialization. So must execute all at once
-    print wf.get_dump()
-    serializer = DictionarySerializer()
-    i = 0
-    complete = 0
-    timeout = 20
-    total = len(wf.get_tasks(state=Task.ANY_MASK))
-    while not wf.is_completed() and i < timeout:
-        count = len(wf.get_tasks(state=Task.COMPLETED))
-        if count != complete:
-            complete = count
-            print {'state': "PROGRESS", 'meta': {'complete': count,
-                    'total': total}}
-        wf.complete_all()
-        i += 1
-        print "Saving: %s" % wf.get_dump()
-        db.save_workflow(id, wf.serialize(serializer))
-        time.sleep(1)
-        print i
+    # Create an instance of the workflow spec
+    wf = Workflow(wfspec)
+    #Pass in the initial deployemnt dict (task 3 is the Auth task)
+    wf.get_task(3).set_attribute(deployment=stockton_deployment)
 
-    db.save_workflow(deployment['id'], wf.serialize(serializer))
-
-    deployment['workflow'] = deployment['id']
-
-    return deployment
+    return {'deployment': deployment, 'workflow': wf}
 
 
-def execute(id):
+def execute(id, timeout=180):
     """Process a checkmate deployment workflow
 
     Executes and moves the workflow forward.
@@ -740,88 +969,22 @@ def execute(id):
     deployment.
 
     :param id: checkmate deployment id
+    :returns: the async task
     """
+    if any_id_problems(id):
+        abort(406, any_id_problems(id))
+
     deployment = db.get_deployment(id)
     if not deployment:
         abort(404, 'No deployment with id %s' % id)
-    if 'resources' not in deployment:
-        return {}  # Nothing to do
-    inputs = deployment.get('inputs', [])
 
-    #TODO: make this smarter
-    creds = [p['credentials'][0] for p in
-            deployment['environment']['providers'] if 'common' in p][0]
-
-    return deployment
-
-
-def execute_old(id):
-    """Process a checkmate deployment, translate it into a stockton deployment,
-    and execute it
-    :param id: checkmate deployment id
-    """
-    deployment = db.get_deployment(id)
-    if not deployment:
-        abort(404, 'No deployment with id %s' % id)
-    if 'resources' not in deployment:
-        return {}  # Nothing to do
-    inputs = deployment.get('inputs', [])
-
-    #TODO: make this smarter
-    creds = [p['credentials'][0] for p in
-            deployment['environment']['providers'] if 'common' in p][0]
-
-    stockton_deployment = {
-        'id': deployment['id'],
-        'username': creds['username'],
-        'apikey': creds['apikey'],
-        'region': inputs['region'],
-        'files': {}
-    }
-
-    # Read in the public key, this can be passed to newly created servers.
-    if 'public_key' in inputs:
-        stockton_deployment['files']['/root/.ssh/authorized_keys'] = \
-                        inputs['public_key']
-    else:
-        if ('STOCKTON_PUBLIC_KEY' in os.environ and
-                os.path.exists(os.path.expanduser(
-                    os.environ['STOCKTON_PUBLIC_KEY']))):
-            try:
-                f = open(os.path.expanduser(os.environ['STOCKTON_PUBLIC_KEY']))
-                stockton_deployment['public_key'] = f.read()
-                stockton_deployment['files']['/root/.ssh/authorized_keys'] = \
-                        stockton_deployment['public_key']
-                f.close()
-            except IOError as (errno, strerror):
-                sys.exit("I/O error reading public key (%s): %s" % (errno,
-                                                                    strerror))
-            except:
-                sys.exit('Cannot read public key.')
-
-    import stockton  # init and ensure we end up using the same celery instance
-    import checkmate.orchestrator
-
-    # Let's make sure we are talking to the stockton celery
-    #TODO: fix this when we have better celery/stockton configuration
-    from celery import current_app
-    assert current_app.backend.__class__.__name__ == 'DatabaseBackend'
-    assert 'python-stockton' in current_app.backend.dburi.split('/')
-
-    # Make the async calls
-    for key in deployment['resources']:
-        resource = deployment['resources'][key]
-        if resource.get('type') == 'server':
-            hostname = resource['dns-name']
-            async_call = checkmate.orchestrator.\
-                         distribute_create_simple_server.delay(
-                                stockton_deployment, hostname,
-                                files=stockton_deployment['files'])
-            resource['async_task_id'] = async_call.task_id
-    return deployment
+    result = orchestrator.distribute_run_workflow.delay(id)
+    return result
 
 
 def read_body(request):
+    """Reads request body, taking into consideration the content-type, and
+    return it as a dict"""
     data = request.body
     if not data:
         abort(400, 'No data received')
@@ -832,7 +995,7 @@ def read_body(request):
     elif content_type == 'application/json':
         return json.load(data)
     else:
-        return abort(415, "Unsupported Media Type: %s" % content_type)
+        abort(415, "Unsupported Media Type: %s" % content_type)
 
 
 def write_body(data, request, response, wrapper=None):
@@ -846,6 +1009,32 @@ def write_body(data, request, response, wrapper=None):
             return yaml.safe_dump({wrapper: data}, default_flow_style=False)
         else:
             return yaml.safe_dump(data, default_flow_style=False)
+
+    # HTML
+    if 'text/html' in accept:
+        response.add_header('content-type', 'text/html')
+        template = """<!DOCTYPE HTML PUBLIC "-//IETF//DTD HTML 2.0//EN">
+<html>
+    <head>
+        <title>CheckMate</title>
+        <style type="text/css">
+          html {background-color: #eee; font-family: sans;}
+          body {background-color: #fff; border: 1px solid #ddd;
+                padding: 15px; margin: 15px;}
+          pre {background-color: #eee; width: 100%%; border:
+                1px solid #ddd; padding: 5px;
+                white-space: pre-wrap; /* css-3 */
+                white-space: -moz-pre-wrap !important; /* Mozilla, since 1999 */
+                white-space: -pre-wrap; /* Opera 4-6 */
+                white-space: -o-pre-wrap; /* Opera 7 */
+                word-wrap: break-word; /* Internet Explorer 5.5+ */}
+        </style>
+    </head>
+    <body>
+        <pre>{{.}}}</pre>
+    </body>
+</html>"""
+        return pystache.render(template, data)
 
     #JSON (default)
     response.add_header('content-type', 'application/json')
@@ -871,12 +1060,13 @@ def resolve_yaml_external_refs(document):
 # Keep this at end
 @get('<path:path>')
 def extensions(path):
-    """Catch-all unmatched paths (so we know we got this)"""
-    return abort(404, "Path '%s' not recognized" % path)
+    """Catch-all unmatched paths (so we know we got teh request, but didn't
+       match it)"""
+    abort(404, "Path '%s' not recognized" % path)
 
 
 class StripPathMiddleware(object):
-    """Strips exta / at end of path"""
+    """Strips extra / at end of path"""
     def __init__(self, app):
         self.app = app
 
@@ -886,7 +1076,7 @@ class StripPathMiddleware(object):
 
 
 class ExtensionsMiddleware(object):
-    """ Converts .json and .yaml extensions to accept headers"""
+    """ Converts extensions to accept headers: yaml, json, html"""
     def __init__(self, app):
         self.app = app
 
@@ -899,11 +1089,16 @@ class ExtensionsMiddleware(object):
         elif e['PATH_INFO'].endswith('.yaml'):
             webob.Request(e).accept = 'application/x-yaml'
             e['PATH_INFO'] = e['PATH_INFO'][0:-5]
+        elif e['PATH_INFO'].endswith('.html'):
+            webob.Request(e).accept = 'text/html'
+            e['PATH_INFO'] = e['PATH_INFO'][0:-5]
         return self.app(e, h)
 
 
 if __name__ == '__main__':
+    LOG.setLevel(logging.DEBUG)
     root_app = app()
     no_path = StripPathMiddleware(root_app)
     no_ext = ExtensionsMiddleware(no_path)
-    run(app=no_ext, host='127.0.0.1', port=8080, reloader=True)
+    run(app=no_ext, host='127.0.0.1', port=8080, reloader=True,
+            server='wsgiref')
