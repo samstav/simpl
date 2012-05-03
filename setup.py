@@ -17,10 +17,11 @@ setup(
     version='0.0.1',
     author='Ziad Sawalha',
     author_email='ziad.sawalha@rackspace.com',
-    install_requires=['celery', 'sqlalchemy', 'bottle', 'SpiffWorkflow'],
-    tests_require=['nose', 'webob', 'unittest2'],
+    install_requires=['celery', 'sqlalchemy', 'bottle', 'SpiffWorkflow'
+            'pystache', 'webob', 'pyyaml'],
+    tests_require=['nose', 'unittest2'],
     dependency_links=github_urls,
     packages=find_packages(exclude=['tests', 'bin', 'data']),
     license='GPLv2',
-    url='https://github.rackspace.com/ziadsawalha/checkmate'
+    url='https://github.com/ziadsawalha/checkmate'
 )

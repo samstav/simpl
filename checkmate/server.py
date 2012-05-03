@@ -1013,28 +1013,32 @@ def write_body(data, request, response, wrapper=None):
     # HTML
     if 'text/html' in accept:
         response.add_header('content-type', 'text/html')
-        template = """<!DOCTYPE HTML PUBLIC "-//IETF//DTD HTML 2.0//EN">
-<html>
-    <head>
-        <title>CheckMate</title>
-        <style type="text/css">
-          html {background-color: #eee; font-family: sans;}
-          body {background-color: #fff; border: 1px solid #ddd;
-                padding: 15px; margin: 15px;}
-          pre {background-color: #eee; width: 100%%; border:
-                1px solid #ddd; padding: 5px;
-                white-space: pre-wrap; /* css-3 */
-                white-space: -moz-pre-wrap !important; /* Mozilla, since 1999 */
-                white-space: -pre-wrap; /* Opera 4-6 */
-                white-space: -o-pre-wrap; /* Opera 7 */
-                word-wrap: break-word; /* Internet Explorer 5.5+ */}
-        </style>
-    </head>
-    <body>
-        <pre>{{.}}}</pre>
-    </body>
-</html>"""
-        return pystache.render(template, data)
+
+        path = request.path.split('/')
+        # IDs are 2nd or 3rd: /[type]/[id]/[type2|action]/[id2]/action
+        if len(path) > 3:
+            name = "%s.%s" % (path[1], path[3])
+        elif len(path) > 1:
+            name = "%s" % path[1]
+        else:
+            name = 'default'
+
+        locator = pystache.locator.Locator(extension='mustache')
+        try:
+            template_path = locator.find_name(name, search_dirs=[os.path.join(
+                os.path.dirname(__file__), 'static')])
+        except IOError:
+            LOG.warn("No HTML template found for '%s'" % name)
+            template_path = locator.find_name('default', search_dirs=[
+                    os.path.join(os.path.dirname(__file__), 'static')])
+        loader = pystache.loader.Loader(search_dirs=[os.path.join(
+                os.path.dirname(__file__), 'static')], extension='mustache')
+        template = loader.read(template_path or
+                'checkmate/static/default.mustache')
+        renderer = pystache.Renderer(search_dirs=[os.path.join(
+                os.path.dirname(__file__), 'static')],
+                file_extension='mustache')
+        return renderer.render(template, data)
 
     #JSON (default)
     response.add_header('content-type', 'application/json')
