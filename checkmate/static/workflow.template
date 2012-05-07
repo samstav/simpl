@@ -1,30 +1,39 @@
-<h2><%= item.wf_spec.name %></h2>
-<form id="save-workflow" method="PUT" action="/workflows/<%=id %>">
-	<textarea id="editor" class="prettyprint"><%=JSON.stringify(item, null, 1)%></textarea>
-</form>
-<div class="row">
-	<a class="btn btn-primary" href="#" onclick="document.forms['save-workflow'].submit(); return false;"><i class="icon-play-circle"/> Save</a>
-	<a class="btn" href="#/">&laquo; Back to Items</a>
-	<a class="btn" href="/workflows/<%=id %>"><i class="icon-eye-open"/> Raw View</a>
-</div>
+{% extends "default.template" %}
+{% block title %}Checkmate - Workflow{% endblock %}
+{% block content %}
+            <h2>{{ data['wf_spec']['name'] }}</h2>
+            <form id="save-workflow" method="PUT" action="/workflows/{{ data['id'] }}">
+              <textarea id="editor" class="prettyprint">{{ source | safe }}</textarea>
+            </form>
+            <div class="row">
+              <a class="btn btn-primary" href="#" onclick="document.forms['save-workflow'].submit(); return false;"><i class="icon-play-circle"></i> Save</a>
+              <a class="btn" href="/workflows/">&laquo; Back to Items</a>
+              <a class="btn" href="/workflows/{{ data['id'] }}.json"><i class="icon-eye-open"></i> Raw View</a>
+            </div>
 
-<form style="display:none;">
-	<textarea name="code"></textarea>
-	<textarea name="data"></textarea>
-</form>
-<script>
-  var Editor = CodeMirror.fromTextArea(document.getElementById('editor'), {
-    theme: 'default',
-    lineNumbers: true,
-    onChange: function () {
-      if (Editor.getValue() == '') {
-        $('div.report > div.alert-message').hide();
-        $('div.buttons div.alert-message').hide();
-        $('div.buttons div.alert-message.info').show();
-      }
-    }
-  });
+            <!--<form style="display:none;">
+              <textarea name="code"></textarea>
+              <textarea name="data"></textarea>
+            </form>-->
+            <script>
+              var foldFunc = CodeMirror.newFoldFunction(CodeMirror.braceRangeFinder);
+              var Editor = CodeMirror.fromTextArea(document.getElementById('editor'), {
+                theme: 'default',
+                mode: {name: "javascript", json: true},
+                lineNumbers: true,
+                lineWrapping: true,
+                onGutterClick: foldFunc,
+                matchBrackets: true,
+                onChange: function () {
+                  if (Editor.getValue() == '') {
+                    //$('div.report > div.alert-message').hide();
+                    //$('div.buttons div.alert-message').hide();
+                    //$('div.buttons div.alert-message.info').show();
+                  }
+                }
+              });
 
-  Editor.focus();
-  Editor.setSelection({ line: 0, ch: 0 }, { line: 0, ch: 23 });
-</script>
+              Editor.focus();
+              Editor.setSelection({ line: 0, ch: 0 }, { line: 0, ch: 23 });
+            </script>
+{% endblock %}

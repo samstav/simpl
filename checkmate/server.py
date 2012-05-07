@@ -1016,13 +1016,43 @@ def write_body(data, request, response, wrapper=None):
 
         path = request.path.split('/')
         # IDs are 2nd or 3rd: /[type]/[id]/[type2|action]/[id2]/action
-        if len(path) > 3:
+        if len(path) >= 4:
             name = "%s.%s" % (path[1], path[3])
-        elif len(path) > 1:
+        elif len(path) == 2:
             name = "%s" % path[1]
+        elif len(path) == 3:
+            name = "%s" % path[1][0:-1]  # strip s
         else:
             name = 'default'
 
+        from jinja2 import Template
+
+        from jinja2 import BaseLoader, TemplateNotFound, Environment
+        from os.path import join, exists, getmtime
+
+        class MyLoader(BaseLoader):
+
+            def __init__(self, path):
+                self.path = path
+
+            def get_source(self, environment, template):
+                path = join(self.path, template)
+                if not exists(path):
+                    raise TemplateNotFound(template)
+                mtime = getmtime(path)
+                with file(path) as f:
+                    source = f.read().decode('utf-8')
+                return source, path, lambda: mtime == getmtime(path)
+        env = Environment(loader=MyLoader(os.path.join(os.path.dirname(
+                __file__), 'static')))
+        env.json = json
+        try:
+            template = env.get_template("%s.template" % name)
+        except:
+            template = env.get_template("default.template")
+        return template.render(data=data, source=json.dumps(data, indent=2))
+
+        """
         locator = pystache.locator.Locator(extension='mustache')
         try:
             template_path = locator.find_name(name, search_dirs=[os.path.join(
@@ -1039,6 +1069,7 @@ def write_body(data, request, response, wrapper=None):
                 os.path.dirname(__file__), 'static')],
                 file_extension='mustache')
         return renderer.render(template, data)
+        """
 
     #JSON (default)
     response.add_header('content-type', 'application/json')
