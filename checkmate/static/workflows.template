@@ -1,0 +1,22 @@
+{% extends "default.template" %}
+{% block title %}Checkmate - Workflow{% endblock %}
+{% block content %}
+            <table class="table table-striped">
+              <thead>
+                <tr>
+                  <th>ID</th>
+                  <th>Name</th>
+                  <th>User</th>
+                </tr>
+              </thead>
+              <tbody>
+              {% for key, value in data.iteritems() %}
+                <tr>
+                  <td><a href="/workflows/{{key}}"><i class="icon-tasks"></i> {{key}}</a></td>
+                  <td>{{value['wf_spec']['name']}}</td>
+                  <td>{{value['task_tree']['children'][0]['children'][0]['attributes']['deployment']['username']}}</td>
+                </tr>
+              {% endfor %}
+              </tbody>
+            </table>
+{% endblock %}

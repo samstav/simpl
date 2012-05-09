@@ -119,8 +119,8 @@ def distribute_count_seconds(seconds):
 
 @task
 def distribute_run_workflow(id, timeout=60):
-    # Loop through trying to complete the workflow and periodically send
-    # status updates
+    """Loop through trying to complete the workflow and periodically send
+    status updates"""
 
     from checkmate.db import get_driver
 
@@ -152,6 +152,47 @@ def distribute_run_workflow(id, timeout=60):
                 (i, id, timeout - i))
 
     return workflow
+
+
+@task
+def distribute_run_one_task(workflow_id, task_id, timeout=60):
+    """Attempt to complete one task.
+
+    returns True/False indicating if task completed"""
+
+    from checkmate.db import get_driver
+
+    db = get_driver('checkmate.db.sql.Driver')
+    serializer = DictionarySerializer()
+    LOG.debug("Deserializing workflow %s" % workflow_id)
+    workflow = db.get_workflow(workflow_id)
+    if not workflow:
+        raise IndexError("Workflow %s not found" % workflow_id)
+    wf = Workflow.deserialize(serializer, workflow)
+    task = wf.get_task(task_id)
+    if not task:
+        raise IndexError("Task %s not found in Workflow %s" % (task_id,
+                workflow_id))
+    if task._is_finished():
+        raise ValueError("Task %s is in state '%s' which cannot be executed" %
+            (task_id, task.get_state_name()))
+
+    if task._is_predicted() or task._has_state(Task.WAITING):
+        result = task.task_spec._update_state(task)
+    elif task._has_state(Task.READY):
+        result = wf.complete_task_from_id(task_id)
+    else:
+        LOG.warn("Task %s in Workflow %s is in state %s and cannot be "
+                "progressed" % (task_id, workflow_id, task.get_state_name()))
+        return False
+    LOG.debug("Task %s in Workflow %s completion result:%s" % (task_id,
+            workflow_id, result))
+    msg = "Saving: %s" % wf.get_dump()
+    LOG.debug(msg)
+    workflow = wf.serialize(serializer)
+    db.save_workflow(workflow_id, workflow)
+
+    return result
 
 
 class Orchestrator(object):

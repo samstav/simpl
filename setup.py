@@ -18,7 +18,7 @@ setup(
     author='Ziad Sawalha',
     author_email='ziad.sawalha@rackspace.com',
     install_requires=['celery', 'sqlalchemy', 'bottle', 'SpiffWorkflow',
-            'pystache', 'webob', 'pyyaml'],
+            'Jinja2', 'webob', 'pyyaml'],
     tests_require=['nose', 'unittest2'],
     dependency_links=github_urls,
     packages=find_packages(exclude=['tests', 'bin', 'data']),

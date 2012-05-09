@@ -194,7 +194,7 @@ class Driver(DbBase):
             e = Component(id=id, body=body)
         Session.add(e)
         Session.commit()
-        return body
+        return e
 
     # WORKFLOWS
     def get_workflow(self, id):

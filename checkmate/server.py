@@ -41,6 +41,9 @@ Notes:
     .yaml/.json extensions override Accept headers (except in /static/)
     Trailing slashes are ignored (ex. /blueprints/ == /blueprints)
 """
+
+from jinja2 import Template
+from jinja2 import BaseLoader, TemplateNotFound, Environment
 import json
 # pylint: disable=E0611
 from bottle import app, get, post, put, delete, run, request, \
@@ -119,7 +122,7 @@ def hack():
     workflow = results['workflow'].serialize(serializer)
     results['workflow'] = workflow
 
-    return write_body(results, request, response, wrapper='deployment')
+    return write_body(results, request, response)
 
 
 @get('/test/async')
@@ -180,7 +183,7 @@ def reset_workflow_task(id, task_id):
     serializer = DictionarySerializer()
     results = db.save_workflow(id, wf.serialize(serializer))
 
-    return write_body(results, request, response, wrapper='workflow')
+    return write_body(results, request, response)
 
 
 #
@@ -221,7 +224,7 @@ def post_environment():
 
     results = db.save_environment(entity['id'], entity)
 
-    return write_body(results, request, response, wrapper='environment')
+    return write_body(results, request, response)
 
 
 @put('/environments/<id>')
@@ -237,7 +240,7 @@ def put_environment(id):
 
     results = db.save_environment(id, entity)
 
-    return write_body(results, request, response, wrapper='environment')
+    return write_body(results, request, response)
 
 
 @get('/environments/<id>')
@@ -245,7 +248,7 @@ def get_environment(id):
     entity = db.get_environment(id)
     if not entity:
         abort(404, 'No environment with id %s' % id)
-    return write_body(entity, request, response, wrapper='environment')
+    return write_body(entity, request, response)
 
 
 @delete('/environments/<id>')
@@ -277,7 +280,7 @@ def post_component():
 
     results = db.save_component(entity['id'], entity)
 
-    return write_body(results, request, response, wrapper='component')
+    return write_body(results, request, response)
 
 
 @put('/components/<id>')
@@ -293,7 +296,7 @@ def put_component(id):
 
     results = db.save_component(id, entity)
 
-    return write_body(results, request, response, wrapper='component')
+    return write_body(results, request, response)
 
 
 @get('/components/<id>')
@@ -301,7 +304,7 @@ def get_component(id):
     entity = db.get_component(id)
     if not entity:
         abort(404, 'No component with id %s' % id)
-    return write_body(entity, request, response, wrapper='component')
+    return write_body(entity, request, response)
 
 
 #
@@ -325,7 +328,7 @@ def post_blueprint():
 
     results = db.save_blueprint(entity['id'], entity)
 
-    return write_body(results, request, response, wrapper='blueprint')
+    return write_body(results, request, response)
 
 
 @put('/blueprints/<id>')
@@ -341,7 +344,7 @@ def put_blueprint(id):
 
     results = db.save_blueprint(id, entity)
 
-    return write_body(results, request, response, wrapper='blueprint')
+    return write_body(results, request, response)
 
 
 @get('/blueprints/<id>')
@@ -349,7 +352,7 @@ def get_blueprint(id):
     entity = db.get_blueprint(id)
     if not entity:
         abort(404, 'No blueprint with id %s' % id)
-    return write_body(entity, request, response, wrapper='blueprint')
+    return write_body(entity, request, response)
 
 
 #
@@ -361,7 +364,7 @@ def get_workflows():
 
 
 @post('/workflows')
-def post_workflow():
+def add_workflow():
     entity = read_body(request)
     if 'workflow' in entity and isinstance(entity['workflow'], dict):
         entity = entity['workflow']
@@ -373,11 +376,12 @@ def post_workflow():
 
     results = db.save_workflow(entity['id'], entity)
 
-    return write_body(results, request, response, wrapper='workflow')
+    return write_body(results, request, response)
 
 
+@post('/workflows/<id>')
 @put('/workflows/<id>')
-def put_workflow(id):
+def save_workflow(id):
     entity = read_body(request)
 
     if 'workflow' in entity and isinstance(entity['workflow'], dict):
@@ -390,7 +394,7 @@ def put_workflow(id):
 
     results = db.save_workflow(id, entity)
 
-    return write_body(results, request, response, wrapper='workflow')
+    return write_body(results, request, response)
 
 
 @get('/workflows/<id>')
@@ -398,7 +402,9 @@ def get_workflow(id):
     entity = db.get_workflow(id)
     if not entity:
         abort(404, 'No workflow with id %s' % id)
-    return write_body(entity, request, response, wrapper='workflow')
+    if 'id' not in entity:
+        entity['id'] = str(id)
+    return write_body(entity, request, response)
 
 
 @get('/workflows/<id>/status')
@@ -408,8 +414,7 @@ def get_workflow_status(id):
         abort(404, 'No workflow with id %s' % id)
     serializer = DictionarySerializer()
     wf = Workflow.deserialize(serializer, entity)
-    return write_body(get_SpiffWorkflow_status(wf), request, response,
-            wrapper='workflow')
+    return write_body(get_SpiffWorkflow_status(wf), request, response)
 
 
 @get('/workflows/<id>/+execute')
@@ -474,6 +479,7 @@ def get_workflow_task(id, task_id):
     if not task:
         abort(404, 'No task with id %s' % task_id)
     data = serializer._serialize_task(task, skip_children=True)
+    data['workflow_id'] = id  # so we know which workflow it came from
     return write_body(data, request, response)
 
 
@@ -518,9 +524,35 @@ def post_workflow_task(id, task_id):
         task._state = entity['state']
 
     serializer = DictionarySerializer()
-    results = db.save_workflow(id, wf.serialize(serializer))
+    db.save_workflow(id, wf.serialize(serializer))
+    task = wf.get_task(task_id)
+    results = serializer._serialize_task(task, skip_children=True)
+    results['workflow_id'] = id
+    return write_body(results, request, response)
 
-    return write_body(results, request, response, wrapper='workflow')
+
+@get('/workflows/<id>/tasks/<task_id:int>/+execute')
+def execute_workflow(id, task_id):
+    """Process a checkmate deployment workflow task
+
+    :param id: checkmate workflow id
+    :param task_id: task id
+    """
+    entity = db.get_workflow(id)
+    if not entity:
+        abort(404, 'No workflow with id %s' % id)
+
+    #Synchronous call
+    orchestrator.distribute_run_one_task(id, task_id, timeout=10)
+    entity = db.get_workflow(id)
+
+    serializer = DictionarySerializer()
+    wf = Workflow.deserialize(serializer, entity)
+
+    task = wf.get_task(task_id)
+    data = serializer._serialize_task(task, skip_children=True)
+    data['workflow_id'] = id  # so we know which workflow it came from
+    return write_body(data, request, response)
 
 
 #
@@ -562,7 +594,7 @@ def post_deployment():
     async_task = execute(id)
 
     # Return response (with new resource location in header)
-    return write_body(deployment, request, response, wrapper='deployment')
+    return write_body(deployment, request, response)
 
 
 @put('/deployments/<id>')
@@ -578,7 +610,7 @@ def put_deployment(id):
 
     results = db.save_deployment(id, entity)
 
-    return write_body(results, request, response, wrapper='deployment')
+    return write_body(results, request, response)
 
 
 @get('/deployments/<id>')
@@ -586,7 +618,7 @@ def get_deployment(id):
     entity = db.get_deployment(id)
     if not entity:
         abort(404, 'No deployment with id %s' % id)
-    return write_body(entity, request, response, wrapper='deployment')
+    return write_body(entity, request, response)
 
 
 @get('/deployments/<id>/status')
@@ -630,7 +662,7 @@ def get_deployment_status(id):
 
     results['resources'] = resources
 
-    return write_body(results, request, response, wrapper='results')
+    return write_body(results, request, response)
 
 
 def plan(id):
@@ -994,86 +1026,80 @@ def read_body(request):
                          Dumper=yaml.SafeDumper))
     elif content_type == 'application/json':
         return json.load(data)
+    elif content_type == 'application/x-www-form-urlencoded':
+        obj = request.forms.object
+        if obj:
+            result = json.loads(obj)
+            if result:
+                return result
+        abort(406, "Unable to parse content. Form POSTs only support objects "
+                "in the 'object' field")
     else:
         abort(415, "Unsupported Media Type: %s" % content_type)
 
 
-def write_body(data, request, response, wrapper=None):
+def write_body(data, request, response):
     """Write output with format based on accept header. json is default"""
     accept = request.get_header('Accept', ['application/json'])
 
     # YAML
     if 'application/x-yaml' in accept:
         response.add_header('content-type', 'application/x-yaml')
-        if wrapper:
-            return yaml.safe_dump({wrapper: data}, default_flow_style=False)
-        else:
-            return yaml.safe_dump(data, default_flow_style=False)
+        return yaml.safe_dump(data, default_flow_style=False)
 
     # HTML
     if 'text/html' in accept:
         response.add_header('content-type', 'text/html')
 
-        path = request.path.split('/')
-        # IDs are 2nd or 3rd: /[type]/[id]/[type2|action]/[id2]/action
-        if len(path) >= 4:
-            name = "%s.%s" % (path[1], path[3])
-        elif len(path) == 2:
-            name = "%s" % path[1]
-        elif len(path) == 3:
-            name = "%s" % path[1][0:-1]  # strip s
-        else:
-            name = 'default'
-
-        from jinja2 import Template
-
-        from jinja2 import BaseLoader, TemplateNotFound, Environment
-        from os.path import join, exists, getmtime
+        name = get_template_name_from_path(request.path)
 
         class MyLoader(BaseLoader):
-
             def __init__(self, path):
                 self.path = path
 
             def get_source(self, environment, template):
-                path = join(self.path, template)
-                if not exists(path):
+                path = os.path.join(self.path, template)
+                if not os.path.exists(path):
                     raise TemplateNotFound(template)
-                mtime = getmtime(path)
+                mtime = os.path.getmtime(path)
                 with file(path) as f:
                     source = f.read().decode('utf-8')
-                return source, path, lambda: mtime == getmtime(path)
+                return source, path, lambda: mtime == os.path.getmtime(path)
         env = Environment(loader=MyLoader(os.path.join(os.path.dirname(
-                __file__), 'static')))
+            __file__), 'static')))
         env.json = json
         try:
             template = env.get_template("%s.template" % name)
-        except:
-            template = env.get_template("default.template")
-        return template.render(data=data, source=json.dumps(data, indent=2))
-
-        """
-        locator = pystache.locator.Locator(extension='mustache')
-        try:
-            template_path = locator.find_name(name, search_dirs=[os.path.join(
-                os.path.dirname(__file__), 'static')])
-        except IOError:
-            LOG.warn("No HTML template found for '%s'" % name)
-            template_path = locator.find_name('default', search_dirs=[
-                    os.path.join(os.path.dirname(__file__), 'static')])
-        loader = pystache.loader.Loader(search_dirs=[os.path.join(
-                os.path.dirname(__file__), 'static')], extension='mustache')
-        template = loader.read(template_path or
-                'checkmate/static/default.mustache')
-        renderer = pystache.Renderer(search_dirs=[os.path.join(
-                os.path.dirname(__file__), 'static')],
-                file_extension='mustache')
-        return renderer.render(template, data)
-        """
+            return template.render(data=data, source=json.dumps(data,
+                    indent=2))
+        except StandardError as exc:
+            LOG.error(exc)
+            try:
+                template = env.get_template("default.template")
+                return template.render(data=data, source=json.dumps(data,
+                        indent=2))
+            except StandardError as exc2:
+                LOG.error(exc2)
+                pass  # fall back to JSON
 
     #JSON (default)
-    response.add_header('content-type', 'application/json')
+    response.set_header('content-type', 'application/json')
     return json.dumps(data, indent=4)
+
+
+def get_template_name_from_path(path):
+    """ Returns template name fro request path"""
+    parts = path.split('/')
+    # IDs are 2nd or 3rd: /[type]/[id]/[type2|action]/[id2]/action
+    if len(parts) >= 4:
+        name = "%s.%s" % (parts[1][0:-1], parts[3][0:-1])
+    elif len(parts) == 2:
+        name = "%s" % parts[1]
+    elif len(parts) == 3:
+        name = "%s" % parts[1][0:-1]  # strip s
+    else:
+        name = 'default'
+    return name
 
 
 def resolve_yaml_external_refs(document):

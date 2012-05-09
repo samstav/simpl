@@ -46,7 +46,7 @@ var CodeMirror = (function() {
     if (ios) input.style.width = "0px";
     if (!webkit) lineSpace.draggable = true;
     lineSpace.style.outline = "none";
-    if (options.tabindex !== null) input.tabIndex = options.tabindex;
+    if (options.tabindex != null) input.tabIndex = options.tabindex;
     if (options.autofocus) focusInput();
     if (!options.gutter && !options.lineNumbers) gutter.style.display = "none";
     // Needed to handle Tab key in KHTML

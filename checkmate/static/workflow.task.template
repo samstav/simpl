@@ -1,5 +1,5 @@
 {% extends "default.template" %}
-{% block title %}Checkmate - Workflow{% endblock %}
+{% block title %}Checkmate - Workflow Task{% endblock %}
 {% block content %}
         <div class="row-fluid">
           <div class="span3">
@@ -8,38 +8,25 @@
                 Commands
               </li>
               <li>
-                <a href="#" onclick="document.forms['workflow'].submit(); return false;"><i class="icon-ok"></i> Save</a>
+                <a href="#" onclick="document.forms['task'].submit(); return false;"><i class="icon-ok"></i> Save</a>
+              </li>
+              <li>
+                <a href="/workflows/{{data.workflow_id}}/tasks/{{data.id}}/+execute"><i class="icon-play"></i> Run Task</a>
               </li>
               <li class="nav-header">
                 Navigation
               </li>
               <li>
-                <a href="./status"><i class="icon-question-sign"></i> Status</a>
-              </li>
-              <li>
                 <a href=".json"><i class="icon-eye-open"></i> Raw View</a>
               </li>
-              <li class="nav-header">
-                Tasks
+              <li>
+                <a href="/workflows/{{data.workflow_id}}/"><i class="icon-tasks"></i> Go To Workflow</a>
               </li>
-              {% set thedata = data %}
-              {% for task in [data['task_tree']] recursive -%}
-                <li><a href="/workflows/{{thedata.id}}/tasks/{{task.id|e}}">
-                  {% if task.state < 8 %}<span class="label"> {{ task.task_spec }}</span>
-                  {% elif task.state == 8 %}<span class="label label-warning"> {{ task.task_spec }}</span>
-                  {% elif task.state == 16 %}<span class="label label-info"> {{ task.task_spec }}</span>
-                  {% elif task.state == 64 %}<span class="label label-success"> {{ task.task_spec }}</span>
-                  {% else %}<span class="label label-inverse"> {{ task.task_spec }}</span>
-                  {% endif %}</a>
-                {%- if task.children -%}
-                    <ul class="nav nav-list">{{ loop(task.children) }}</ul>
-                {%- endif %}</li>
-              {%- endfor %}
             </ul>
           </div><!-- span2 -->
           <div class="span9">
-            <h2>{{ data['wf_spec']['name'] }}</h2>
-            <form id="workflow" method="POST" action="/workflows/{{data['id']}}/">
+            <h2>{{ data['task_spec'] }}</h2>
+            <form id="task" method="POST" action="/workflows/{{data.workflow_id}}/tasks/{{data.id}}">
               <textarea name="object" id="editor">{{ source | safe }}</textarea>
             </form>
 
