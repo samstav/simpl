@@ -790,7 +790,7 @@ def plan(id):
                 if image == 'Ubuntu 11.10':
                     image = 119  # TODO: call provider to make this translation
                 for index in range(web_heads):
-                    name = 'CMDEP-%s-web%s.%s' % (deployment['id'], index + 1,
+                    name = 'CMDEP%s-web%s.%s' % (deployment['id'][0:7], index + 1,
                             domain)
                     resources[resource_index] = {'type': 'server',
                                                  'dns-name': name,
@@ -805,7 +805,7 @@ def plan(id):
             # TODO: unHACK! Hard coding instead of using resources...
             load_balancer = high_availability or web_heads > 1 or rps > 20
             if load_balancer == True:
-                    name = 'CMDEP-%s-lb1.%s' % (deployment['id'], domain)
+                    name = 'CMDEP%s-lb1.%s' % (deployment['id'][0:7], domain)
                     resources[resource_index] = {'type': 'load-balancer',
                                                        'dns-name': name,
                                                        'instance-id': None}
@@ -820,7 +820,7 @@ def plan(id):
             domain = inputs.get('domain', os.environ.get(
                     'CHECKMATE_DOMAIN', 'mydomain.local'))
 
-            name = 'CMDEP-%s-db1.%s' % (deployment['id'], domain)
+            name = 'CMDEP%s-db1.%s' % (deployment['id'][0:7], domain)
             resources[resource_index] = {'type': 'database', 'dns-name': name,
                                          'flavor': flavor, 'instance-id': None}
             if 'machines' not in service:
@@ -971,7 +971,7 @@ def plan(id):
                                         [{'name': 'db1'}],
                                         'MyDBUser',
                                         'password'],
-                               update_chef=False,
+                               update_chef=True,
                                defines={"Resource": key})
             write_token.connect(create_db_task)
         elif resource.get('type') == 'dns':

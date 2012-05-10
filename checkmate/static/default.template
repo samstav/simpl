@@ -41,22 +41,34 @@
         <script type="text/javascript" src="/static/code-mirror/lib/codemirror.js"></script>
         <script type="text/javascript" src="/static/code-mirror/mode/javascript/javascript.js"></script>
         <script type="text/javascript" src="/static/code-mirror/lib/util/foldcode.js"></script>
-<style>
-body {
-    height: 100%;
-    width: 100%;
-    position: absolute;
-}
-.container-fluid, .span9, form, .CodeMirror, .row-fluid { height: inherit; }
-.CodeMirror-scroll { height: 80%; }
-</style>
+        <!-- *** jQuery *** -->
+        <script src="/static/jquery-1.7.2.min.js" type="text/javascript" charset="utf-8"></script>
+
+        <!-- modal plugin -->
+        <link rel="stylesheet" href="/static/jquery-bootstrap-scripting/css/jquery-dialog2/jquery.dialog2.css" />
+        <script type="text/javascript" src="/static/jquery-bootstrap-scripting/lib/jquery.controls.js"></script>
+        <script type="text/javascript" src="/static/jquery-bootstrap-scripting/lib/jquery.form.js"></script>
+        <script type="text/javascript" src="/static/jquery-bootstrap-scripting/lib/jquery.dialog2.js"></script>
+        <script type="text/javascript" src="/static/jquery-bootstrap-scripting/lib/jquery.dialog2.helpers.js"></script>
+
+        <style>
+        body {
+            height: 100%;
+            width: 100%;
+            position: absolute;
+        }
+        .container-fluid, .span9, form, .CodeMirror, .row-fluid { height: inherit; }
+        .CodeMirror-scroll { height: 80%; }
+        </style>
     </head>
     <body onload="prettyPrint()">
         <div class="navbar navbar-fixed-top">
           <div class="navbar-inner">
             <div class="container">
+              <a class="brand" href="/">Checkmate</a>
               <div class="nav-collapse">
                 <ul class="nav">
+                  <li class="divider-vertical"></li>
                   <li><a href="/">Home</a></li>
                   <li><a href="/environments/">Environments</a></li>
                   <li><a href="/deployments/">Deployments</a></li>
@@ -70,6 +82,7 @@ body {
         </div>
         <div class="container-fluid">
         {% block content %}
+            <pre class="prettyprint lang-js"><code>{{ source | safe }}</code></pre>
         {% endblock %}
         </div><!-- container-fluid -->
 
@@ -77,8 +90,6 @@ body {
     <!-- Le javascript
     ================================================== -->
     <!-- Placed at the end of the document so the pages load faster -->
-    <!-- *** jQuery *** -->
-    <script src="/static/jquery-1.7.2.min.js" type="text/javascript" charset="utf-8"></script>
     <script src="/static/bootstrap/js/bootstrap-transition.js"></script>
     <script src="/static/bootstrap/js/bootstrap-alert.js"></script>
     <script src="/static/bootstrap/js/bootstrap-modal.js"></script>

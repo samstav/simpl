@@ -14,23 +14,47 @@
                 Navigation
               </li>
               <li>
-                <a href="./status"><i class="icon-question-sign"></i> Status</a>
+                <a href="/workflows/{{data['id']}}/status"><i class="icon-question-sign"></i> Status</a>
               </li>
               <li>
-                <a href=".json"><i class="icon-eye-open"></i> Raw View</a>
+                <a href="/workflows/{{data['id']}}/.json"><i class="icon-eye-open"></i> Raw View</a>
               </li>
               <li class="nav-header">
                 Tasks
               </li>
               {% set thedata = data %}
               {% for task in [data['task_tree']] recursive -%}
-                <li><a href="/workflows/{{thedata.id}}/tasks/{{task.id|e}}">
-                  {% if task.state < 8 %}<span class="label"> {{ task.task_spec }}</span>
-                  {% elif task.state == 8 %}<span class="label label-warning"> {{ task.task_spec }}</span>
-                  {% elif task.state == 16 %}<span class="label label-info"> {{ task.task_spec }}</span>
-                  {% elif task.state == 64 %}<span class="label label-success"> {{ task.task_spec }}</span>
-                  {% else %}<span class="label label-inverse"> {{ task.task_spec }}</span>
-                  {% endif %}</a>
+                <li>
+                  <span style="white-space: nowrap;"><a href="/workflows/{{thedata.id}}/tasks/{{task.id|e}}">
+                  <span class="label
+                  {% if task.state < 8 %}
+                  {% elif task.state == 8 %} label-warning
+                  {% elif task.state == 16 %} label-info
+                  {% elif task.state == 64 %} label-success
+                  {% else %} label-inverse
+                  {% endif %}"> {{ task.task_spec }}</span></a>
+                  {% if task.state != 64 %}
+                  <a href="#" id="run-task-{{task.id}}"><i class="icon-play"></i></a>
+                  <script type="text/javascript">
+                      $(function() {
+                          $("#run-task-{{task.id}}").click(function(event) {
+                              $('<div/>').dialog2({
+                                  title: "Execute Task {{task.id}}",
+                                  content: "/workflows/{{thedata.id}}/tasks/{{task.id|e}}/+execute.json",
+                                  id: "task-dialog-{{task.id}}"
+                              });
+
+                              event.preventDefault();
+                          });
+                      });
+
+                      $(document).delegate(".modal", "dialog2.ajax-complete", function() {
+                           // Reload when call complete
+                            location.reload();
+                      });
+                    </script>
+                    {% endif %}
+                  </span>
                 {%- if task.children -%}
                     <ul class="nav nav-list">{{ loop(task.children) }}</ul>
                 {%- endif %}</li>
