@@ -152,7 +152,7 @@ In the second window, start checkmate::
     export BROKER_HOST="localhost"
     export CELERY_CONFIG_MODULE=celeryconfig
 
-    export CHECKMATE_CONNECTION_CONNECTION=sqlite:///~/checkmate.sqlite
+    export CHECKMATE_CONNECTION_STRING=sqlite:///~/checkmate.sqlite
 
     export CHECKMATE_PUBLIC_KEY=~/.ssh/id_rsa.pub  # on a mac
     export CHECKMATE_PRIVATE_KEY=~/.ssh/id_rsa     # on a mac
