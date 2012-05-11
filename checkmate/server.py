@@ -92,6 +92,8 @@ LOG = logging.getLogger(__name__)
 #
 # Making life easy - calls that are handy but will not be in final API
 #
+
+
 @get('/test/dump')
 def get_everything():
     return write_body(db.dump(), request, response)
@@ -142,50 +144,6 @@ def afunc():
     yield '"Done": 3}'
 
 
-@get('/workflows/<id>/tasks/<task_id:int>/+reset')
-def reset_workflow_task(id, task_id):
-    """Reset a Celery workflow task and retry it
-
-    Checks if task is a celery task in waiting state.
-    Resets parent to READY and task to FUTURE.
-    Removes existing celery task ID.
-
-    :param id: checkmate workflow id
-    :param task_id: checkmate workflow task id
-    """
-
-    workflow = db.get_workflow(id)
-    if not workflow:
-        abort(404, 'No workflow with id %s' % id)
-
-    serializer = DictionarySerializer()
-    wf = Workflow.deserialize(serializer, workflow)
-
-    task = wf.get_task(task_id)
-    if not task:
-        abort(404, 'No task with id %s' % task_id)
-
-    if task.task_spec.__class__.__name__ != 'Celery':
-        abort(406, "You can only reset Celery tasks. This is a '%s' task" %
-            task.task_spec.__class__.__name__)
-
-    if task.state != Task.WAITING:
-        abort(406, "You can only reset WAITING tasks. This task is in '%s'" %
-            task.get_state_name())
-
-    if 'task_id' in task.internal_attributes:
-        del task.internal_attributes['task_id']
-    if 'error' in task.attributes:
-        del task.attributes['error']
-    task._state = Task.FUTURE
-    task.parent._state = Task.READY
-
-    serializer = DictionarySerializer()
-    results = db.save_workflow(id, wf.serialize(serializer))
-
-    return write_body(results, request, response)
-
-
 #
 # Static files & browser support
 #
@@ -201,6 +159,11 @@ def wire(path):
     """Expose static files"""
     return static_file(path,
             root=os.path.join(os.path.dirname(__file__), 'static'))
+
+
+@get('/')
+def root():
+    return write_body('go to workflows', request, response)
 
 
 #
@@ -459,6 +422,50 @@ def get_SpiffWorkflow_status(workflow):
     task = workflow.task_tree
     get_task_status(task, result)
     return result
+
+
+@get('/workflows/<id>/tasks/<task_id:int>/+reset')
+def reset_workflow_task(id, task_id):
+    """Reset a Celery workflow task and retry it
+
+    Checks if task is a celery task in waiting state.
+    Resets parent to READY and task to FUTURE.
+    Removes existing celery task ID.
+
+    :param id: checkmate workflow id
+    :param task_id: checkmate workflow task id
+    """
+
+    workflow = db.get_workflow(id)
+    if not workflow:
+        abort(404, 'No workflow with id %s' % id)
+
+    serializer = DictionarySerializer()
+    wf = Workflow.deserialize(serializer, workflow)
+
+    task = wf.get_task(task_id)
+    if not task:
+        abort(404, 'No task with id %s' % task_id)
+
+    if task.task_spec.__class__.__name__ != 'Celery':
+        abort(406, "You can only reset Celery tasks. This is a '%s' task" %
+            task.task_spec.__class__.__name__)
+
+    if task.state != Task.WAITING:
+        abort(406, "You can only reset WAITING tasks. This task is in '%s'" %
+            task.get_state_name())
+
+    if 'task_id' in task.internal_attributes:
+        del task.internal_attributes['task_id']
+    if 'error' in task.attributes:
+        del task.attributes['error']
+    task._state = Task.FUTURE
+    task.parent._state = Task.READY
+
+    serializer = DictionarySerializer()
+    results = db.save_workflow(id, wf.serialize(serializer))
+
+    return write_body(results, request, response)
 
 
 @get('/workflows/<id>/tasks/<task_id:int>')
