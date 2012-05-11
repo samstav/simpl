@@ -119,7 +119,7 @@ You should also have Stockton running (see Stockton docs for setting Stockton
 up), but when starting up Stockton, make sure to add the checkmate
 orchestrator::
 
-    $ celeryd -l info --config=celeryconfig -I Stockton,checkmate.orchestrator
+    $ celeryd -l info --config=celeryconfig -I stockton,checkmate.orchestrator
 
 This will add additional calls to celery.
 
@@ -142,7 +142,7 @@ API key). In the first terminal window, start Stockton::
     export STOCKTON_PRIVATE_KEY=~/.ssh/id_rsa     # on a mac
     export STOCKTON_TEST_DOMAIN=validInRaxDNS.local
 
-    celeryd -l info --config=celeryconfig -I Stockton,checkmate.orchestrator
+    celeryd -l info --config=celeryconfig -I stockton,checkmate.orchestrator
 
 In the second window, start checkmate::
 
