@@ -161,21 +161,21 @@ In the second window, start checkmate::
 
 In the third window, run these scripts::
 
-    $ export CHECKMATE_APIKEY="*your_rax_API_key*"
-    $ export CHECKMATE_REGION="chicago"
-    $ export CHECKMATE_USERNAME="*your_rax_user*"
-    $ export CHECKMATE_DOMAIN=*aworkingRAXdomain.com*
-    $ export CHECKMATE_PUBLIC_KEY=~/.ssh/id_rsa.pub
+    export CHECKMATE_APIKEY="*your_rax_API_key*"
+    export CHECKMATE_REGION="chicago"
+    export CHECKMATE_USERNAME="*your_rax_user*"
+    export CHECKMATE_DOMAIN=*aworkingRAXdomain.com*
+    export CHECKMATE_PUBLIC_KEY=~/.ssh/id_rsa.pub
 
 
-    $ awk '{while(match($0,"[%][\\(][^\\)]*\\)[s]")) {var=substr($0,RSTART+2,RLENGTH -4);gsub("[%][(]"var"[)][s]",ENVIRON[var])}}1' < examples/app.yaml | curl -H 'content-type: application/x-yaml' http://localhost:8080/deployments -v --data-binary @-
+    awk '{while(match($0,"[%][\\(][^\\)]*\\)[s]")) {var=substr($0,RSTART+2,RLENGTH -4);gsub("[%][(]"var"[)][s]",ENVIRON[var])}}1' < examples/app.yaml | curl -H 'content-type: application/x-yaml' http://localhost:8080/deployments -v --data-binary @-
 
 
     # this starts a deploymentby picking up app.yaml as a template and replacing in a bunch
     # of environment variables. Get the ID or Location header from the response, and watch the
     # status here:
 
-    $ curl http://localhost:8080/deployments/*enter-your-deployment-id-here*/status
+    curl http://localhost:8080/deployments/*enter-your-deployment-id-here*/status
 
 
 
