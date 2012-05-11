@@ -135,7 +135,7 @@ API key). In the first terminal window, start Stockton::
     export BROKER_HOST="localhost"
     export CELERY_CONFIG_MODULE=celeryconfig
 
-    export CHECKMATE_CONNECTION_CONNECTION=sqlite:///~/checkmate.sqlite
+    export CHECKMATE_CONNECTION_STRING=sqlite:///~/checkmate.sqlite
 
     export STOCKTON_CHEF_PATH=/var/chef
     export STOCKTON_PUBLIC_KEY=~/.ssh/id_rsa.pub  # on a mac
