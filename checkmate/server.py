@@ -58,6 +58,7 @@ from celery.app import app_or_default
 from checkmate import orchestrator
 from checkmate.db import get_driver, any_id_problems, any_tenant_id_problems
 from checkmate.deployments import plan
+from checkmate import environments  # Load routes
 from checkmate.workflows import create_workflow
 from checkmate.utils import write_body, read_body
 
@@ -152,67 +153,6 @@ def wire(path):
 @get('/')
 def root():
     return write_body('go to workflows', request, response)
-
-
-#
-# Environments
-#
-@get('/environments')
-@get('/<tenant_id>/environments')
-def get_environments(tenant_id=None):
-    return write_body(db.get_environments(), request, response)
-
-
-@post('/environments')
-@post('/<tenant_id>/environments')
-def post_environment(tenant_id=None):
-    entity = read_body(request)
-    if 'environment' in entity:
-        entity = entity['environment']
-
-    if 'id' not in entity:
-        entity['id'] = uuid.uuid4().hex
-    if any_id_problems(entity['id']):
-        abort(406, any_id_problems(entity['id']))
-
-    results = db.save_environment(entity['id'], entity)
-
-    return write_body(results, request, response)
-
-
-@put('/environments/<id>')
-@put('/<tenant_id>/environments/<id>')
-def put_environment(id, tenant_id=None):
-    entity = read_body(request)
-    if 'environment' in entity:
-        entity = entity['environment']
-
-    if any_id_problems(id):
-        abort(406, any_id_problems(id))
-    if 'id' not in entity:
-        entity['id'] = str(id)
-
-    results = db.save_environment(id, entity)
-
-    return write_body(results, request, response)
-
-
-@get('/environments/<id>')
-@get('/<tenant_id>/environments/<id>')
-def get_environment(id, tenant_id=None):
-    entity = db.get_environment(id)
-    if not entity:
-        abort(404, 'No environment with id %s' % id)
-    return write_body(entity, request, response)
-
-
-@delete('/environments/<id>')
-@delete('/<tenant_id>/environments/<id>')
-def delete_environments(id, tenant_id=None):
-    entity = db.get_environment(id)
-    if not entity:
-        abort(404, 'No environment with id %s' % id)
-    return write_body(db.get_environments(), request, response)
 
 
 #
