@@ -57,6 +57,7 @@ from celery.app import app_or_default
 
 from checkmate import orchestrator
 from checkmate.db import get_driver, any_id_problems, any_tenant_id_problems
+from checkmate.deployments import plan
 from checkmate.workflows import create_workflow
 from checkmate.utils import write_body, read_body
 
@@ -708,7 +709,7 @@ class TenantMiddleware(object):
     def __call__(self, e, h):
         # Clear headers is supplied
         if 'HTTP_X_TENANT_ID' in e:
-            LOG.warn("Possible spoofing attemt. Got request with tenant "
+            LOG.warn("Possible spoofing attempt. Got request with tenant "
                     "header supplied %s" % e['HTTP_X_TENANT_ID'])
             del e['HTTP_X_TENANT_ID']
         if e['PATH_INFO'] in [None, "", "/"]:
