@@ -25,7 +25,7 @@
               {% set thedata = data %}
               {% for task in [data['task_tree']] recursive -%}
                 <li>
-                  <span style="white-space: nowrap;"><a href="/workflows/{{thedata.id}}/tasks/{{task.id|e}}">
+                  <span style="white-space: nowrap;"><a href="/workflows/{{data['id']}}/tasks/{{task.id|e}}">
                   <span class="label
                   {% if task.state < 8 %}
                   {% elif task.state == 8 %} label-warning
@@ -40,7 +40,7 @@
                           $("#run-task-{{task.id}}").click(function(event) {
                               $('<div/>').dialog2({
                                   title: "Execute Task {{task.id}}",
-                                  content: "/workflows/{{thedata.id}}/tasks/{{task.id|e}}/+execute.json",
+                                  content: "/workflows/{{data['id']}}/tasks/{{task.id|e}}/+execute.json",
                                   id: "task-dialog-{{task.id}}"
                               });
 
@@ -63,7 +63,7 @@
           </div><!-- span2 -->
           <div class="span9">
             <h2>{{ data['wf_spec']['name'] }}</h2>
-            <form id="workflow" method="POST" action="/workflows/{{data['id']}}/">
+            <form id="workflow" method="POST" action=".">
               <textarea name="object" id="editor">{{ source | safe }}</textarea>
             </form>
 

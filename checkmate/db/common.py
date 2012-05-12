@@ -10,9 +10,10 @@ DbBase = dbBaseClass
 
 DB = None
 
+
 def any_id_problems(id):
-    """Validate the ID provided is safe and returns problems as a string.
-    
+    """Validates the ID provided is safe and returns problems as a string.
+
     To use this, call it with an ID you want to validate. If the response is
     None, then the ID is good. Otherwise, the response is a string explaining
     the problem with the ID that you can use to return to the client"""
@@ -25,7 +26,7 @@ def any_id_problems(id):
     if not isinstance(id, basestring):
         id = str(id)
     if 1 > len(id) > 32:
-        return "ID cannot be 1 to 32 characters"
+        return "ID must be 1 to 32 characters"
     if id[0] not in allowed_start_chars:
         return "Invalid start character '%s'. ID can start with any of '%s'" \
                 % (id[0], allowed_start_chars)
@@ -35,9 +36,36 @@ def any_id_problems(id):
                                                                 allowed_chars)
     return None
 
+
 def get_driver(name):
     global DB
     if DB is None:
         driver = utils.import_class(name)
         DB = driver()
     return DB
+
+
+def any_tenant_id_problems(id):
+    """Validates the tenant provided is safe and returns problems as a string.
+
+    To use this, call it with a tenant ID you want to validate. If the response is
+    None, then the ID is good. Otherwise, the response is a string explaining
+    the problem with the ID that you can use to return to the client"""
+    allowed_start_chars = "abcdefghijklmnopqrstuvwxyz"\
+                          "ABCDEFGHIJKLMNOPQRSTUVWXYZ"\
+                          "0123456789"
+    allowed_chars = allowed_start_chars + "-_.+~@()[]*&^=%$#!<>"
+    if id is None:
+        return 'Tenant ID cannot be blank'
+    if not isinstance(id, basestring):
+        id = str(id)
+    if 0 > len(id) > 255:
+        return "Tenant ID must be 1 to 255 characters"
+    if id[0] not in allowed_start_chars:
+        return "Invalid start character '%s'. Tenant ID can start with any "\
+                "of '%s'" % (id[0], allowed_start_chars)
+    for c in id:
+        if c not in allowed_chars:
+            return "Invalid character '%s' in Tenant ID. Allowed charaters "\
+                    "are '%s'" % (c, allowed_chars)
+    return None

@@ -42,37 +42,23 @@ Notes:
     Trailing slashes are ignored (ex. /blueprints/ == /blueprints)
 """
 
-from jinja2 import Template
-from jinja2 import BaseLoader, TemplateNotFound, Environment
 import json
 # pylint: disable=E0611
 from bottle import app, get, post, put, delete, run, request, \
         response, abort, static_file
 import os
 import logging
-import pystache
 import sys
 from time import sleep
 import uuid
 import webob
-import yaml
-from yaml.events import AliasEvent, MappingStartEvent, ScalarEvent
-from yaml.tokens import AliasToken, AnchorToken
+from webob.exc import HTTPNotFound
 from celery.app import app_or_default
-try:
-    from SpiffWorkflow.specs import WorkflowSpec, Celery, Transform
-except ImportError:
-    #TODO(zns): remove this when Spiff incorporates the code in it
-    print "Get SpiffWorkflow with the Celery spec in it from here: "\
-            "https://github.com/ziadsawalha/SpiffWorkflow/tree/celery"
-    raise
-from SpiffWorkflow import Workflow, Task
-from SpiffWorkflow.operators import Attrib
-from SpiffWorkflow.storage import DictionarySerializer
 
 from checkmate import orchestrator
-from checkmate.db import get_driver, any_id_problems
-
+from checkmate.db import get_driver, any_id_problems, any_tenant_id_problems
+from checkmate.workflows import create_workflow
+from checkmate.utils import write_body, read_body
 
 db = get_driver('checkmate.db.sql.Driver')
 
@@ -120,6 +106,7 @@ def hack():
     db.save_deployment(entity['id'], entity)
     results = plan(entity['id'])
 
+    from SpiffWorkflow.storage import DictionarySerializer
     serializer = DictionarySerializer()
     workflow = results['workflow'].serialize(serializer)
     results['workflow'] = workflow
@@ -319,250 +306,6 @@ def get_blueprint(id):
 
 
 #
-# Workflows
-#
-@get('/workflows')
-def get_workflows():
-    return write_body(db.get_workflows(), request, response)
-
-
-@post('/workflows')
-def add_workflow():
-    entity = read_body(request)
-    if 'workflow' in entity and isinstance(entity['workflow'], dict):
-        entity = entity['workflow']
-
-    if 'id' not in entity:
-        entity['id'] = uuid.uuid4().hex
-    if any_id_problems(entity['id']):
-        abort(406, any_id_problems(entity['id']))
-
-    results = db.save_workflow(entity['id'], entity)
-
-    return write_body(results, request, response)
-
-
-@post('/workflows/<id>')
-@put('/workflows/<id>')
-def save_workflow(id):
-    entity = read_body(request)
-
-    if 'workflow' in entity and isinstance(entity['workflow'], dict):
-        entity = entity['workflow']
-
-    if any_id_problems(id):
-        abort(406, any_id_problems(id))
-    if 'id' not in entity:
-        entity['id'] = str(id)
-
-    results = db.save_workflow(id, entity)
-
-    return write_body(results, request, response)
-
-
-@get('/workflows/<id>')
-def get_workflow(id):
-    entity = db.get_workflow(id)
-    if not entity:
-        abort(404, 'No workflow with id %s' % id)
-    if 'id' not in entity:
-        entity['id'] = str(id)
-    return write_body(entity, request, response)
-
-
-@get('/workflows/<id>/status')
-def get_workflow_status(id):
-    entity = db.get_workflow(id)
-    if not entity:
-        abort(404, 'No workflow with id %s' % id)
-    serializer = DictionarySerializer()
-    wf = Workflow.deserialize(serializer, entity)
-    return write_body(get_SpiffWorkflow_status(wf), request, response)
-
-
-@get('/workflows/<id>/+execute')
-def execute_workflow(id):
-    """Process a checkmate deployment workflow
-
-    Executes and moves the workflow forward.
-    Retrieves results (final or intermediate) and updates them into
-    deployment.
-
-    :param id: checkmate workflow id
-    """
-    entity = db.get_workflow(id)
-    if not entity:
-        abort(404, 'No workflow with id %s' % id)
-
-    #Synchronous call
-    orchestrator.distribute_run_workflow(id, timeout=10)
-    entity = db.get_workflow(id)
-    return write_body(entity, request, response)
-
-
-def get_SpiffWorkflow_status(workflow):
-    """
-    Returns the subtree as a string for debugging.
-
-    :param workflow: a SpiffWorkflow Workflow
-    @rtype:  dict
-    @return: The debug information.
-    """
-    def get_task_status(task, output):
-        """Recursively fills task data into dict"""
-        my_dict = {}
-        my_dict['id'] = task.id
-        my_dict['threadId'] = task.thread_id
-        my_dict['state'] = task.get_state_name()
-        output[task.get_name()] = my_dict
-        for child in task.children:
-            get_task_status(child, my_dict)
-
-    result = {}
-    task = workflow.task_tree
-    get_task_status(task, result)
-    return result
-
-
-@get('/workflows/<id>/tasks/<task_id:int>/+reset')
-def reset_workflow_task(id, task_id):
-    """Reset a Celery workflow task and retry it
-
-    Checks if task is a celery task in waiting state.
-    Resets parent to READY and task to FUTURE.
-    Removes existing celery task ID.
-
-    :param id: checkmate workflow id
-    :param task_id: checkmate workflow task id
-    """
-
-    workflow = db.get_workflow(id)
-    if not workflow:
-        abort(404, 'No workflow with id %s' % id)
-
-    serializer = DictionarySerializer()
-    wf = Workflow.deserialize(serializer, workflow)
-
-    task = wf.get_task(task_id)
-    if not task:
-        abort(404, 'No task with id %s' % task_id)
-
-    if task.task_spec.__class__.__name__ != 'Celery':
-        abort(406, "You can only reset Celery tasks. This is a '%s' task" %
-            task.task_spec.__class__.__name__)
-
-    if task.state != Task.WAITING:
-        abort(406, "You can only reset WAITING tasks. This task is in '%s'" %
-            task.get_state_name())
-
-    if 'task_id' in task.internal_attributes:
-        del task.internal_attributes['task_id']
-    if 'error' in task.attributes:
-        del task.attributes['error']
-    task._state = Task.FUTURE
-    task.parent._state = Task.READY
-
-    serializer = DictionarySerializer()
-    results = db.save_workflow(id, wf.serialize(serializer))
-
-    return write_body(results, request, response)
-
-
-@get('/workflows/<id>/tasks/<task_id:int>')
-def get_workflow_task(id, task_id):
-    """Get a workflow task
-
-    :param id: checkmate workflow id
-    :param task_id: checkmate workflow task id
-    """
-    entity = db.get_workflow(id)
-    if not entity:
-        abort(404, 'No workflow with id %s' % id)
-
-    serializer = DictionarySerializer()
-    wf = Workflow.deserialize(serializer, entity)
-
-    task = wf.get_task(task_id)
-    if not task:
-        abort(404, 'No task with id %s' % task_id)
-    data = serializer._serialize_task(task, skip_children=True)
-    data['workflow_id'] = id  # so we know which workflow it came from
-    return write_body(data, request, response)
-
-
-@post('/workflows/<id>/tasks/<task_id:int>')
-def post_workflow_task(id, task_id):
-    """Update a workflow task
-
-    Attributes that can be updated are:
-    - attributes
-    - state
-    - internal_attributes
-
-    :param id: checkmate workflow id
-    :param task_id: checkmate workflow task id
-    """
-    entity = read_body(request)
-
-    workflow = db.get_workflow(id)
-    if not workflow:
-        abort(404, 'No workflow with id %s' % id)
-
-    serializer = DictionarySerializer()
-    wf = Workflow.deserialize(serializer, workflow)
-
-    task = wf.get_task(task_id)
-    if not task:
-        abort(404, 'No task with id %s' % task_id)
-
-    if 'attributes' in entity:
-        if not isinstance(entity['attributes'], dict):
-            abort(406, "'attribues' must be a dict")
-        task.attributes = entity['attributes']
-
-    if 'internal_attributes' in entity:
-        if not isinstance(entity['internal_attributes'], dict):
-            abort(406, "'internal_attribues' must be a dict")
-        task.internal_attributes = entity['internal_attributes']
-
-    if 'state' in entity:
-        if not isinstance(entity['state'], (int, long)):
-            abort(406, "'state' must be an int")
-        task._state = entity['state']
-
-    serializer = DictionarySerializer()
-    db.save_workflow(id, wf.serialize(serializer))
-    task = wf.get_task(task_id)
-    results = serializer._serialize_task(task, skip_children=True)
-    results['workflow_id'] = id
-    return write_body(results, request, response)
-
-
-@get('/workflows/<id>/tasks/<task_id:int>/+execute')
-def execute_workflow(id, task_id):
-    """Process a checkmate deployment workflow task
-
-    :param id: checkmate workflow id
-    :param task_id: task id
-    """
-    entity = db.get_workflow(id)
-    if not entity:
-        abort(404, 'No workflow with id %s' % id)
-
-    #Synchronous call
-    orchestrator.distribute_run_one_task(id, task_id, timeout=10)
-    entity = db.get_workflow(id)
-
-    serializer = DictionarySerializer()
-    wf = Workflow.deserialize(serializer, entity)
-
-    task = wf.get_task(task_id)
-    data = serializer._serialize_task(task, skip_children=True)
-    data['workflow_id'] = id  # so we know which workflow it came from
-    return write_body(data, request, response)
-
-
-#
 # Deployments
 #
 @get('/deployments')
@@ -739,6 +482,8 @@ def plan(id):
                 LOG.debug("    This is wordpress!")
             elif service_name == 'database':
                 LOG.debug("    This is the DB!")
+            elif service_name == 'loadbalancer':
+                LOG.debug("    This is the LB!")
             else:
                 abort(406, "Unrecognized component type '%s'" % klass)
     # Check we have what we need (requirements are met)
@@ -757,9 +502,9 @@ def plan(id):
     # Build needed resource list
     #
     resources = {}
-    resource_index = 0
+    resource_index = 0  # counter we use to increment as we create resources
     for service_name, service in blueprint['services'].iteritems():
-        LOG.debug("Expanding service %s" % service_name)
+        LOG.debug("Gather resources needed for service %s" % service_name)
         if service_name == 'wordpress':
             #TODO: now hard-coded to this logic:
             # <20 requests => 1 server, running mysql & web
@@ -774,9 +519,9 @@ def plan(id):
             rps = 1  # requests per second
             if 'requests-per-second' in inputs:
                 rps = int(inputs['requests-per-second'])
-            web_heads = inputs.get('wordpress:machine/count',
+            web_heads = inputs.get('wordpress:instance/count',
                     service['config']['settings'].get(
-                            'wordpress:machine/count', int((rps + 49) / 50.)))
+                            'wordpress:instance/count', int((rps + 49) / 50.)))
 
             if web_heads > 6:
                 abort(406, "Blueprint does not support the required number of "
@@ -784,218 +529,126 @@ def plan(id):
             domain = inputs.get('domain', os.environ.get('CHECKMATE_DOMAIN',
                                                            'mydomain.local'))
             if web_heads > 0:
-                flavor = inputs.get('wordpress:machine/flavor',
+                flavor = inputs.get('wordpress:instance/flavor',
                         service['config']['settings'].get(
-                                'wordpress:machine/flavor',
+                                'wordpress:instance/flavor',
                                 service['config']['settings']
-                                ['machine/flavor']['default']))
-                image = inputs.get('wordpress:machine/os',
+                                ['instance/flavor']['default']))
+                image = inputs.get('wordpress:instance/os',
                         service['config']['settings'].get(
-                                'wordpress:machine/os',
-                                service['config']['settings']['machine/os']
+                                'wordpress:instance/os',
+                                service['config']['settings']['instance/os']
                                 ['default']))
                 if image == 'Ubuntu 11.10':
                     image = 119  # TODO: call provider to make this translation
                 for index in range(web_heads):
                     name = 'CMDEP%s-web%s.%s' % (deployment['id'][0:7], index + 1,
                             domain)
-                    resources[resource_index] = {'type': 'server',
+                    resources[str(resource_index)] = {'type': 'server',
                                                  'dns-name': name,
                                                  'flavor': flavor,
                                                  'image': image,
                                                  'instance-id': None}
-                    if 'machines' not in service:
-                        service['machines'] = []
-                    machines = service['machines']
-                    machines.append(resource_index)
+                    if 'instances' not in service:
+                        service['instances'] = []
+                    instances = service['instances']
+                    instances.append(str(resource_index))
+                    LOG.debug("  Adding %s with id %s" % (resources[str(
+                            resource_index)]['type'], resource_index))
                     resource_index += 1
-            # TODO: unHACK! Hard coding instead of using resources...
             load_balancer = high_availability or web_heads > 1 or rps > 20
             if load_balancer == True:
-                    name = 'CMDEP%s-lb1.%s' % (deployment['id'][0:7], domain)
-                    resources[resource_index] = {'type': 'load-balancer',
-                                                       'dns-name': name,
-                                                       'instance-id': None}
-                    resource_index += 1
+                lb = [service for key, service in
+                        deployment['blueprint']['services'].iteritems()
+                        if service['config']['id'] == 'loadbalancer']
+                if not lb:
+                    raise Exception("%s tier calls for multiple webheads "
+                            "but no loadbalancer is included in blueprint" %
+                            service_name)
         elif service_name == 'database':
-            flavor = inputs.get('database:machine/flavor',
+            flavor = inputs.get('database:instance/flavor',
                     service['config']['settings'].get(
-                            'database:machine/flavor',
+                            'database:instance/flavor',
                             service['config']['settings']
-                                    ['machine/flavor']['default']))
+                                    ['instance/flavor']['default']))
 
             domain = inputs.get('domain', os.environ.get(
                     'CHECKMATE_DOMAIN', 'mydomain.local'))
 
             name = 'CMDEP%s-db1.%s' % (deployment['id'][0:7], domain)
-            resources[resource_index] = {'type': 'database', 'dns-name': name,
+            resources[str(resource_index)] = {'type': 'database', 'dns-name': name,
                                          'flavor': flavor, 'instance-id': None}
-            if 'machines' not in service:
-                service['machines'] = []
-            machines = service['machines']
-            machines.append(resource_index)
+            if 'instances' not in service:
+                service['instances'] = []
+            instances = service['instances']
+            instances.append(str(resource_index))
+            LOG.debug("  Adding %s with id %s" % (resources[str(
+                    resource_index)]['type'], resource_index))
+            resource_index += 1
+        elif service_name == 'loadbalancer':
+            name = 'CMDEP%s-lb1.%s' % (deployment['id'][0:7], domain)
+            resources[str(resource_index)] = {'type': 'load-balancer',
+                                               'dns-name': name,
+                                               'instance-id': None}
+            if 'instances' not in service:
+                service['instances'] = []
+            instances = service['instances']
+            instances.append(str(resource_index))
+            LOG.debug("  Adding %s with id %s" % (resources[str(
+                    resource_index)]['type'], resource_index))
             resource_index += 1
         else:
             abort(406, "Unrecognized service type '%s'" % service_name)
+
+    # Create connections between components
+    wires = {}
+    LOG.debug("Wiring tiers and resources")
+    for relation in relations:
+        # Find what's needed
+        tier = deployment['blueprint']['services'][relation]
+        resource_type = relations[relation].keys()[0]
+        interface = tier['config']['requires'][resource_type]['interface']
+        LOG.debug("  Looking for a provider for %s:%s for the %s tier" % (
+                resource_type, interface, relation))
+        instances = tier['instances']
+        LOG.debug("    These instances need %s:%s: %s" % (resource_type,
+                interface, instances))
+        # Find who can provide it
+        provider_tier_name = relations[relation].values()[0]
+        provider_tier = deployment['blueprint']['services'][provider_tier_name]
+        if resource_type not in provider_tier['config']['provides']:
+            raise Exception("%s does not provide a %s resource, which is "
+                    "needed by %s" % (provider_tier_name, resource_type,
+                    relation))
+        if provider_tier['config']['provides'][resource_type] != interface:
+            raise Exception("'%s' provides %s:%s, but %s needs %s:%s" % (
+                    provider_tier_name, resource_type,
+                    provider_tier['config']['provides'][resource_type],
+                    relation, resource_type, interface))
+        providers = provider_tier['instances']
+        LOG.debug("    These instances provide %s:%s: %s" % (resource_type,
+                interface, providers))
+
+        # Wire them up
+        name = "%s-%s" % (relation, provider_tier_name)
+        if name in wires:
+            name = "%s-%s" % (name, len(wires))
+        wires[name] = {}
+        for instance in instances:
+            if 'relations' not in resources[instance]:
+                resources[instance]['relations'] = {}
+            for provider in providers:
+                if 'relations' not in resources[provider]:
+                    resources[provider]['relations'] = {}
+                resources[instance]['relations'][name] = {'state': 'new'}
+                resources[provider]['relations'][name] = {'state': 'new'}
+                LOG.debug("    New connection from %s:%s to %s:%s created: %s"
+                        % (relation, instance, provider_tier_name, provider,
+                        name))
+    resources['connections'] = wires
     deployment['resources'] = resources
 
-    #
-    # Create Workflow
-    #
-
-    # Build a workflow spec (the spec is the design of the workflow)
-    wfspec = WorkflowSpec(name="%s Workflow" % blueprint['name'])
-
-    # First task will read 'deployment' attribute and send it to Stockton
-    auth_task = Celery(wfspec, 'Authenticate',
-                       'stockton.auth.distribute_get_token',
-                       call_args=[Attrib('deployment')], result_key='token')
-    wfspec.start.connect(auth_task)
-
-    # Second task will take output from first task (the 'token') and write it
-    # into the 'deployment' dict to be available to future tasks
-    write_token = Transform(wfspec, "Write Token to Deployment", transforms=[
-            "my_task.attributes['deployment']['authtoken']"\
-            "=my_task.attributes['token']"])
-    auth_task.connect(write_token)
-
-    #TODO: make this smarter
-    creds = [p['credentials'][0] for p in
-            deployment['environment']['providers'] if 'common' in p][0]
-
-    stockton_deployment = {
-        'id': deployment['id'],
-        'username': creds['username'],
-        'apikey': creds['apikey'],
-        'region': inputs['region'],
-        'files': {}
-    }
-
-    keys = []
-    # Read in the public keys to be passed to newly created servers.
-    if 'public_key' in inputs:
-        key.append(inputs['public_key'])
-    if ('CHECKMATE_PUBLIC_KEY' in os.environ and
-            os.path.exists(os.path.expanduser(
-                os.environ['CHECKMATE_PUBLIC_KEY']))):
-        try:
-            f = open(os.path.expanduser(os.environ['CHECKMATE_PUBLIC_KEY']))
-            keys.append(f.read())
-            f.close()
-        except IOError as (errno, strerror):
-            LOG.error("I/O error reading public key from CHECKMATE_PUBLIC_KEY="
-                    "'%s' environment variable (%s): %s" % (
-                            os.environ['CHECKMATE_PUBLIC_KEY'], errno,
-                                                                strerror))
-        except StandardException as exc:
-            LOG.error("Error reading public key from CHECKMATE_PUBLIC_KEY="
-                    "'%s' environment variable: %s" % (
-                            os.environ['CHECKMATE_PUBLIC_KEY'], exc))
-    if ('STOCKTON_PUBLIC_KEY' in os.environ and
-            os.path.exists(os.path.expanduser(
-                os.environ['STOCKTON_PUBLIC_KEY']))):
-        try:
-            f = open(os.path.expanduser(os.environ['STOCKTON_PUBLIC_KEY']))
-            keys.append(f.read())
-            f.close()
-        except IOError as (errno, strerror):
-            LOG.error("I/O error reading public key from STOCKTON_PUBLIC_KEY="
-                    "'%s' environment variable (%s): %s" % (
-                            os.environ['STOCKTON_PUBLIC_KEY'], errno,
-                                                                strerror))
-        except StandardException as exc:
-            LOG.error("Error reading public key from STOCKTON_PUBLIC_KEY="
-                    "'%s' environment variable: %s" % (
-                            os.environ['STOCKTON_PUBLIC_KEY'], exc))
-    if keys:
-        stockton_deployment['files']['/root/.ssh/authorized_keys'] = \
-                "\n".join(keys)
-    else:
-        LOG.warn("No public keys detected. Less secure password auth will be "
-                "used.")
-
-    # Create the tasks that make the async calls
-    for key in deployment['resources']:
-        resource = deployment['resources'][key]
-        hostname = resource.get('dns-name')
-        if resource.get('type') == 'server':
-            # Third task takes the 'deployment' attribute and creates a server
-            create_server_task = Celery(wfspec, 'Create Server:%s' % key,
-                               'stockton.server.distribute_create',
-                               call_args=[Attrib('deployment'), hostname],
-                               api_object=None,
-                               image=resource.get('image', 119),
-                               flavor=resource.get('flavor', 1),
-                               files=stockton_deployment['files'],
-                               ip_address_type='public',
-                               defines={"Resource": key})
-            write_token.connect(create_server_task)
-
-            # Then register in Chef
-            register_node_task = Celery(wfspec, 'Register Server:%s' % key,
-                               'stockton.chefserver.distribute_register_node',
-                               call_args=[Attrib('deployment'), hostname,
-                                    ['wordpress-web']],
-                               defines={"Resource": key})
-            write_token.connect(register_node_task)
-
-            ssh_wait_task = Celery(wfspec, 'Wait for Server:%s' % key,
-                               'stockton.ssh.ssh_up',
-                                call_args=[Attrib('deployment'), Attrib('ip'),
-                                    'root'],
-                                password=Attrib('password'),
-                                identity_file=os.environ.get(
-                                    'CHECKMATE_PRIVATE_KEY', '~/.ssh/id_rsa'),
-                               defines={"Resource": key})
-            create_server_task.connect(ssh_wait_task)
-
-            bootstrap_task = Celery(wfspec, 'Bootstrap Server:%s' % key,
-                               'stockton.chefserver.distribute_bootstrap',
-                                call_args=[Attrib('deployment'), hostname,
-                                Attrib('ip')],
-                                password=Attrib('password'),
-                                identity_file=os.environ.get(
-                                    'CHECKMATE_PRIVATE_KEY', '~/.ssh/id_rsa'),
-                                roles=['wordpress-web'],
-                                run_roles=['build'])
-            ssh_wait_task.connect(bootstrap_task)
-
-        elif resource.get('type') == 'load-balancer':
-            # Third task takes the 'deployment' attribute and creates a lb
-            create_lb_task = Celery(wfspec, 'Create LB:%s' % key,
-                               'stockton.lb.distribute_create_loadbalancer',
-                               call_args=[Attrib('deployment'), hostname,
-                                    'PUBLIC', 'HTTP', 80],
-                               dns=True,
-                               defines={"Resource": key})
-            write_token.connect(create_lb_task)
-        elif resource.get('type') == 'database':
-            # Third task takes the 'deployment' attribute and creates a server
-            create_db_task = Celery(wfspec, 'Create DB:%s' % key,
-                               'stockton.db.distribute_create_instance',
-                               call_args=[Attrib('deployment'), hostname, 1,
-                                        resource.get('flavor', 1),
-                                        [{'name': 'db1'}],
-                                        'MyDBUser',
-                                        'password'],
-                               update_chef=True,
-                               defines={"Resource": key})
-            write_token.connect(create_db_task)
-        elif resource.get('type') == 'dns':
-            # TODO: NOT TESTED YET
-            create_dns_task = Celery(wfspec, 'Create DNS Record' % key,
-                               'stockton.dns.distribute_create_record',
-                               call_args=[Attrib('deployment'),
-                               inputs.get('domain', 'localhost'), hostname,
-                               'A', Attrib('vip')],
-                               defines={"Resource": key})
-        else:
-            pass
-
-    # Create an instance of the workflow spec
-    wf = Workflow(wfspec)
-    #Pass in the initial deployemnt dict (task 3 is the Auth task)
-    wf.get_task(3).set_attribute(deployment=stockton_deployment)
+    wf = create_workflow(deployment)
 
     return {'deployment': deployment, 'workflow': wf}
 
@@ -1021,116 +674,44 @@ def execute(id, timeout=180):
     return result
 
 
-def read_body(request):
-    """Reads request body, taking into consideration the content-type, and
-    return it as a dict"""
-    data = request.body
-    if not data:
-        abort(400, 'No data received')
-    content_type = request.get_header('Content-type', 'application/json')
-    if content_type == 'application/x-yaml':
-        return yaml.safe_load(yaml.emit(resolve_yaml_external_refs(data),
-                         Dumper=yaml.SafeDumper))
-    elif content_type == 'application/json':
-        return json.load(data)
-    elif content_type == 'application/x-www-form-urlencoded':
-        obj = request.forms.object
-        if obj:
-            result = json.loads(obj)
-            if result:
-                return result
-        abort(406, "Unable to parse content. Form POSTs only support objects "
-                "in the 'object' field")
-    else:
-        abort(415, "Unsupported Media Type: %s" % content_type)
-
-
-def write_body(data, request, response):
-    """Write output with format based on accept header. json is default"""
-    accept = request.get_header('Accept', ['application/json'])
-
-    # YAML
-    if 'application/x-yaml' in accept:
-        response.add_header('content-type', 'application/x-yaml')
-        return yaml.safe_dump(data, default_flow_style=False)
-
-    # HTML
-    if 'text/html' in accept:
-        response.add_header('content-type', 'text/html')
-
-        name = get_template_name_from_path(request.path)
-
-        class MyLoader(BaseLoader):
-            def __init__(self, path):
-                self.path = path
-
-            def get_source(self, environment, template):
-                path = os.path.join(self.path, template)
-                if not os.path.exists(path):
-                    raise TemplateNotFound(template)
-                mtime = os.path.getmtime(path)
-                with file(path) as f:
-                    source = f.read().decode('utf-8')
-                return source, path, lambda: mtime == os.path.getmtime(path)
-        env = Environment(loader=MyLoader(os.path.join(os.path.dirname(
-            __file__), 'static')))
-        env.json = json
-        try:
-            template = env.get_template("%s.template" % name)
-            return template.render(data=data, source=json.dumps(data,
-                    indent=2))
-        except StandardError as exc:
-            LOG.error(exc)
-            try:
-                template = env.get_template("default.template")
-                return template.render(data=data, source=json.dumps(data,
-                        indent=2))
-            except StandardError as exc2:
-                LOG.error(exc2)
-                pass  # fall back to JSON
-
-    #JSON (default)
-    response.set_header('content-type', 'application/json')
-    return json.dumps(data, indent=4)
-
-
-def get_template_name_from_path(path):
-    """ Returns template name fro request path"""
-    parts = path.split('/')
-    # IDs are 2nd or 3rd: /[type]/[id]/[type2|action]/[id2]/action
-    if len(parts) >= 4:
-        name = "%s.%s" % (parts[1][0:-1], parts[3][0:-1])
-    elif len(parts) == 2:
-        name = "%s" % parts[1]
-    elif len(parts) == 3:
-        name = "%s" % parts[1][0:-1]  # strip s
-    else:
-        name = 'default'
-    return name
-
-
-def resolve_yaml_external_refs(document):
-    """Parses YAML and resolves any external references"""
-    anchors = []
-    for event in yaml.parse(document, Loader=yaml.SafeLoader):
-        if isinstance(event, AliasEvent):
-            if event.anchor not in anchors:
-                # Swap out local reference for external reference
-                new_ref = u'checkmate-reference://%s' % event.anchor
-                event = ScalarEvent(anchor=None, tag=None,
-                                    implicit=(True, False), value=new_ref)
-        if hasattr(event, 'anchor') and event.anchor:
-            anchors.append(event.anchor)
-
-        yield event
-
-
 # Keep this at end
 @get('<path:path>')
 def extensions(path):
     """Catch-all unmatched paths (so we know we got teh request, but didn't
        match it)"""
     abort(404, "Path '%s' not recognized" % path)
+
+
+class TenantMiddleware(object):
+    """Strips /tenant/ from path, puts it in header, does authn+z"""
+    def __init__(self, app):
+        self.app = app
+
+    def __call__(self, e, h):
+        # Clear headers is supplied
+        if 'HTTP_X_TENANT_ID' in e:
+            LOG.warn("Possible spoofing attemt. Got request with tenant "
+                    "header supplied %s" % e['HTTP_X_TENANT_ID'])
+            del e['HTTP_X_TENANT_ID']
+        if e['PATH_INFO'] in [None, "", "/"]:
+            pass  # route with bottle / Admin
+        else:
+            path_parts = e['PATH_INFO'].split('/')
+            tenant = path_parts[1]
+            if tenant in ['deployments', 'workflows', 'static', 'blueprints',
+                    'environments', 'components', 'test']:
+                pass  # route with bottle / Admin
+            else:
+                errors = any_tenant_id_problems(tenant)
+                if errors:
+                    return HTTPNotFound(errors)(e, h)
+                rewrite = "/%s" % '/'.join(path_parts[2:])
+                LOG.debug("Rewriting tenant %s from '%s' to '%s'" % (
+                        tenant, e['PATH_INFO'], rewrite))
+                e['HTTP_X_TENANT_ID'] = tenant
+                e['PATH_INFO'] = rewrite
+
+        return self.app(e, h)
 
 
 class StripPathMiddleware(object):
@@ -1168,5 +749,6 @@ if __name__ == '__main__':
     root_app = app()
     no_path = StripPathMiddleware(root_app)
     no_ext = ExtensionsMiddleware(no_path)
-    run(app=no_ext, host='127.0.0.1', port=8080, reloader=True,
+    tenant = TenantMiddleware(no_ext)
+    run(app=tenant, host='127.0.0.1', port=8080, reloader=True,
             server='wsgiref')

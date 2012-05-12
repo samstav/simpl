@@ -52,8 +52,7 @@ components:
     #    - url: an internet resource accessible over a URL (http[s], ftp, etc)
     #    - db: a database
     provides:
-      url:
-        interface: http
+      url: http
     requires:
       db:
        interface: mysql
@@ -69,16 +68,16 @@ components:
         description: build in redundancy? If not, build one server.
     # Advanced settings - technical
     settings:
-      machine/flavor:
+      instance/flavor:
         default: 1  # flavor=256mb. TODO: or maybe something more generic
-        description: the type (and size) of machine to use
+        description: the type (and size) of instance to use
         type: {1: "256Mb", 2: "512Mb"} # TODO: How do we link this to a list of images?
-      machine/os:
+      instance/os:
         default: Ubuntu 11.10  # Translated to image 119 by Rax provider.
         description: the operating system and version to use
-      machine/count:
+      instance/count:
         default: 1
-        description: the number of machines to spin up
+        description: the number of instances to spin up
 
   mysql: &mysql
     id: mysql
@@ -92,9 +91,19 @@ components:
         type: String
         default: =generate()  # TODO: think about how best to represent this.
         description: the password for the database
-      machine/flavor:
+      instance/flavor:
         default: 1  # flavor=512mb.
-        description: the type (and size) of machine to use
+        description: the type (and size) of instance to use
+
+  loadbalancer: &loadbalancer
+    id: loadbalancer
+    revision: 1
+    summary: Load-balancer as a Service instance
+    provides:
+      url: http
+    requires:
+      url:
+        interface: http
 
 #### Blueprints
 
@@ -108,6 +117,26 @@ blueprint: &wp
       config: *wordpress1 #Reference in local file
       exposed: true
       open-ports: [80/tcp]
+      relations: {db: database}  # resource-type: service
+    database: #TODO: remove hard coding against this name. Thinak about what these names mean. These are basically tiers...
+      config: *mysql  #TODO: support local (same server) and remote links like local://components/mysql
+
+blueprint: &wp1
+  name: OneBox Wordpress
+  inherit: *wp
+  constraint:
+    instance-count: 1
+
+blueprint: &wp-multi
+  name: Scalable Wordpress
+  services:
+    loadbalancer:
+      config: *loadbalancer
+      exposed: true
+      open-ports: [80/tcp]
+      relations: {url: wordpress}
+    wordpress:
+      config: *wordpress1 #Reference in local file
       relations: {db: database}  # resource-type: service
     database: #TODO: remove hard coding against this name. Thinak about what these names mean. These are basically tiers...
       config: *mysql  #TODO: support local (same server) and remote links like local://components/mysql
@@ -157,7 +186,7 @@ environment: &dfw
 
 # Actual deployment instances. These are our live, running systems
 deployment:                                                                     #IMPLEMENTED - checkmate looks for this
-  blueprint: *wp
+  blueprint: *wp-multi
   environment: *env1
   inputs:
     domain: %(CHECKMATE_DOMAIN)s
@@ -165,9 +194,9 @@ deployment:                                                                     
     region: chicago # TODO: this is still read from os.environ
     high-availability: false
     requests-per-second: 60
-    database:machine/flavor: 2
-    wordpress:machine/flavor: 2  # Is this how we want to do this? THat would mnean no colons in settings names...
-    wordpress:machine/count: 2
+    database:instance/flavor: 2
+    wordpress:instance/flavor: 2  # Is this how we want to do this? THat would mnean no colons in settings names...
+    wordpress:instance/count: 2
 
 #### Sample Output
 #-POSTed added to prevent checkmate from looking at this when we post this doc for testing
@@ -183,15 +212,15 @@ deployment-POSTed: &db629b561da7418aaa324c6b741b5b22
             db: mysql
           revision: 1
           settings:
-            machine/flavor:
+            instance/flavor:
               default: 1
-              description: the type (and size) of machine to use
+              description: the type (and size) of instance to use
             password:
               default: =generate()
               description: the password for the database
               type: String
           summary: A pretty popular database
-        machines:
+        instances:
         - 3
       name: Simple Wordpress
       wordpress:
@@ -214,21 +243,21 @@ deployment-POSTed: &db629b561da7418aaa324c6b741b5b22
               interface: mysql
           revision: 3
           settings:
-            machine/count:
+            instance/count:
               default: 1
-              description: the number of machines to spin up
-            machine/flavor:
+              description: the number of instances to spin up
+            instance/flavor:
               default: 1
-              description: the type (and size) of machine to use
+              description: the type (and size) of instance to use
               type:
                 '1': 256Mb
                 '2': 512Mb
-            machine/os:
+            instance/os:
               default: Ubuntu 11.10
               description: the operating system and version to use
           summary: A pretty popular blog engine
         exposed: true
-        machines:
+        instances:
         - 0
         - 1
         open-ports:
@@ -254,14 +283,14 @@ deployment-POSTed: &db629b561da7418aaa324c6b741b5b22
         username: username                                                      #IMPLEMENTED & hard-coded for this exact position
       vendor: rackspace
   inputs:                                                                       #IMPLEMENTED - checkmate expects this
-    database:machine/flavor: 2
+    database:instance/flavor: 2
     domain: highbridgellc.com                                                   #IMPLEMENTED - used for resource naming
     high-availability: false                                                    #IMPLEMENTED - used to calculate how many resources to create
     region: chicago                                                             #IMPLEMENTED - checkmate uses this to fille the stockton deployment dict
     requests-per-second: 60                                                     #IMPLEMENTED - used to calculate how many resources to create
     ssl: false
-    wordpress:machine/count: 2
-    wordpress:machine/flavor: 2
+    wordpress:instance/count: 2
+    wordpress:instance/flavor: 2
   resources:                                                                    #IMPLEMENTED - checkmate creates this to store all resources it creates
     0:
       async_task_id: 2a88e3a0-080a-4879-a269-0b4b029001d6                       #IMPLEMENTED - this is how checkmate tracks async, celery tasks
