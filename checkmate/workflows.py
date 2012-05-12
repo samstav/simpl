@@ -34,12 +34,14 @@ LOG = logging.getLogger(__name__)
 # Workflows
 #
 @get('/workflows')
-def get_workflows():
+@get('/<tenant_id>/workflows')
+def get_workflows(tenant_id=None):
     return write_body(db.get_workflows(), request, response)
 
 
 @post('/workflows')
-def add_workflow():
+@post('/<tenant_id>/workflows')
+def add_workflow(tenant_id=None):
     entity = read_body(request)
     if 'workflow' in entity and isinstance(entity['workflow'], dict):
         entity = entity['workflow']
@@ -56,7 +58,9 @@ def add_workflow():
 
 @post('/workflows/<id>')
 @put('/workflows/<id>')
-def save_workflow(id):
+@post('/<tenant_id>/workflows/<id>')
+@put('/<tenant_id>/workflows/<id>')
+def save_workflow(id, tenant_id=None):
     entity = read_body(request)
 
     if 'workflow' in entity and isinstance(entity['workflow'], dict):
@@ -73,7 +77,8 @@ def save_workflow(id):
 
 
 @get('/workflows/<id>')
-def get_workflow(id):
+@get('/<tenant_id>/workflows/<id>')
+def get_workflow(id, tenant_id=None):
     entity = db.get_workflow(id)
     if not entity:
         abort(404, 'No workflow with id %s' % id)
@@ -83,7 +88,8 @@ def get_workflow(id):
 
 
 @get('/workflows/<id>/status')
-def get_workflow_status(id):
+@get('/<tenant_id>/workflows/<id>/status')
+def get_workflow_status(id, tenant_id=None):
     entity = db.get_workflow(id)
     if not entity:
         abort(404, 'No workflow with id %s' % id)
@@ -93,7 +99,8 @@ def get_workflow_status(id):
 
 
 @get('/workflows/<id>/+execute')
-def execute_workflow(id):
+@get('/<tenant_id>/workflows/<id>/+execute')
+def execute_workflow(id, tenant_id=None):
     """Process a checkmate deployment workflow
 
     Executes and moves the workflow forward.
@@ -112,32 +119,9 @@ def execute_workflow(id):
     return write_body(entity, request, response)
 
 
-def get_SpiffWorkflow_status(workflow):
-    """
-    Returns the subtree as a string for debugging.
-
-    :param workflow: a SpiffWorkflow Workflow
-    @rtype:  dict
-    @return: The debug information.
-    """
-    def get_task_status(task, output):
-        """Recursively fills task data into dict"""
-        my_dict = {}
-        my_dict['id'] = task.id
-        my_dict['threadId'] = task.thread_id
-        my_dict['state'] = task.get_state_name()
-        output[task.get_name()] = my_dict
-        for child in task.children:
-            get_task_status(child, my_dict)
-
-    result = {}
-    task = workflow.task_tree
-    get_task_status(task, result)
-    return result
-
-
 @get('/workflows/<id>/tasks/<task_id:int>/+reset')
-def reset_workflow_task(id, task_id):
+@get('/<tenant_id>/workflows/<id>/tasks/<task_id:int>/+reset')
+def reset_workflow_task(id, task_id, tenant_id=None):
     """Reset a Celery workflow task and retry it
 
     Checks if task is a celery task in waiting state.
@@ -181,7 +165,8 @@ def reset_workflow_task(id, task_id):
 
 
 @get('/workflows/<id>/tasks/<task_id:int>')
-def get_workflow_task(id, task_id):
+@get('/<tenant_id>/workflows/<id>/tasks/<task_id:int>')
+def get_workflow_task(id, task_id, tenant_id=None):
     """Get a workflow task
 
     :param id: checkmate workflow id
@@ -203,7 +188,8 @@ def get_workflow_task(id, task_id):
 
 
 @post('/workflows/<id>/tasks/<task_id:int>')
-def post_workflow_task(id, task_id):
+@post('/<tenant_id>/workflows/<id>/tasks/<task_id:int>')
+def post_workflow_task(id, task_id, tenant_id=None):
     """Update a workflow task
 
     Attributes that can be updated are:
@@ -251,7 +237,8 @@ def post_workflow_task(id, task_id):
 
 
 @get('/workflows/<id>/tasks/<task_id:int>/+execute')
-def execute_workflow_task(id, task_id):
+@get('/<tenant_id>/workflows/<id>/tasks/<task_id:int>/+execute')
+def execute_workflow_task(id, task_id, tenant_id=None):
     """Process a checkmate deployment workflow task
 
     :param id: checkmate workflow id
@@ -272,6 +259,30 @@ def execute_workflow_task(id, task_id):
     data = serializer._serialize_task(task, skip_children=True)
     data['workflow_id'] = id  # so we know which workflow it came from
     return write_body(data, request, response)
+
+
+def get_SpiffWorkflow_status(workflow):
+    """
+    Returns the subtree as a string for debugging.
+
+    :param workflow: a SpiffWorkflow Workflow
+    @rtype:  dict
+    @return: The debug information.
+    """
+    def get_task_status(task, output):
+        """Recursively fills task data into dict"""
+        my_dict = {}
+        my_dict['id'] = task.id
+        my_dict['threadId'] = task.thread_id
+        my_dict['state'] = task.get_state_name()
+        output[task.get_name()] = my_dict
+        for child in task.children:
+            get_task_status(child, my_dict)
+
+    result = {}
+    task = workflow.task_tree
+    get_task_status(task, result)
+    return result
 
 
 def create_workflow(deployment):
@@ -324,7 +335,7 @@ def create_workflow(deployment):
                     "'%s' environment variable (%s): %s" % (
                             os.environ['CHECKMATE_PUBLIC_KEY'], errno,
                                                                 strerror))
-        except StandardException as exc:
+        except StandardError as exc:
             LOG.error("Error reading public key from CHECKMATE_PUBLIC_KEY="
                     "'%s' environment variable: %s" % (
                             os.environ['CHECKMATE_PUBLIC_KEY'], exc))
@@ -340,7 +351,7 @@ def create_workflow(deployment):
                     "'%s' environment variable (%s): %s" % (
                             os.environ['STOCKTON_PUBLIC_KEY'], errno,
                                                                 strerror))
-        except StandardException as exc:
+        except StandardError as exc:
             LOG.error("Error reading public key from STOCKTON_PUBLIC_KEY="
                     "'%s' environment variable: %s" % (
                             os.environ['STOCKTON_PUBLIC_KEY'], exc))

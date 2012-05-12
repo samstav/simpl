@@ -157,12 +157,14 @@ def root():
 # Environments
 #
 @get('/environments')
-def get_environments():
+@get('/<tenant_id>/environments')
+def get_environments(tenant_id=None):
     return write_body(db.get_environments(), request, response)
 
 
 @post('/environments')
-def post_environment():
+@post('/<tenant_id>/environments')
+def post_environment(tenant_id=None):
     entity = read_body(request)
     if 'environment' in entity:
         entity = entity['environment']
@@ -178,7 +180,8 @@ def post_environment():
 
 
 @put('/environments/<id>')
-def put_environment(id):
+@put('/<tenant_id>/environments/<id>')
+def put_environment(id, tenant_id=None):
     entity = read_body(request)
     if 'environment' in entity:
         entity = entity['environment']
@@ -194,7 +197,8 @@ def put_environment(id):
 
 
 @get('/environments/<id>')
-def get_environment(id):
+@get('/<tenant_id>/environments/<id>')
+def get_environment(id, tenant_id=None):
     entity = db.get_environment(id)
     if not entity:
         abort(404, 'No environment with id %s' % id)
@@ -202,7 +206,8 @@ def get_environment(id):
 
 
 @delete('/environments/<id>')
-def delete_environments():
+@delete('/<tenant_id>/environments/<id>')
+def delete_environments(id, tenant_id=None):
     entity = db.get_environment(id)
     if not entity:
         abort(404, 'No environment with id %s' % id)
@@ -213,12 +218,14 @@ def delete_environments():
 # Components
 #
 @get('/components')
-def get_components():
+@get('/<tenant_id>/components')
+def get_components(tenant_id=None):
     return write_body(db.get_components(), request, response)
 
 
 @post('/components')
-def post_component():
+@post('/<tenant_id>/components')
+def post_component(tenant_id=None):
     entity = read_body(request)
     if 'component' in entity:
         entity = entity['component']
@@ -234,7 +241,8 @@ def post_component():
 
 
 @put('/components/<id>')
-def put_component(id):
+@put('/<tenant_id>/components/<id>')
+def put_component(id, tenant_id=None):
     entity = read_body(request)
     if 'component' in entity:
         entity = entity['component']
@@ -250,7 +258,8 @@ def put_component(id):
 
 
 @get('/components/<id>')
-def get_component(id):
+@get('/<tenant_id>/components/<id>')
+def get_component(id, tenant_id=None):
     entity = db.get_component(id)
     if not entity:
         abort(404, 'No component with id %s' % id)
@@ -261,12 +270,14 @@ def get_component(id):
 # Blueprints
 #
 @get('/blueprints')
-def get_blueprints():
+@get('/<tenant_id>/blueprints')
+def get_blueprints(tenant_id=None):
     return write_body(db.get_blueprints(), request, response)
 
 
 @post('/blueprints')
-def post_blueprint():
+@post('/<tenant_id>/blueprints')
+def post_blueprint(tenant_id=None):
     entity = read_body(request)
     if 'blueprint' in entity:
         entity = entity['blueprint']
@@ -282,7 +293,8 @@ def post_blueprint():
 
 
 @put('/blueprints/<id>')
-def put_blueprint(id):
+@put('/<tenant_id>/blueprints/<id>')
+def put_blueprint(id, tenant_id=None):
     entity = read_body(request)
     if 'blueprint' in entity:
         entity = entity['blueprint']
@@ -298,7 +310,8 @@ def put_blueprint(id):
 
 
 @get('/blueprints/<id>')
-def get_blueprint(id):
+@get('/<tenant_id>/blueprints/<id>')
+def get_blueprint(id, tenant_id=None):
     entity = db.get_blueprint(id)
     if not entity:
         abort(404, 'No blueprint with id %s' % id)
@@ -309,12 +322,14 @@ def get_blueprint(id):
 # Deployments
 #
 @get('/deployments')
-def get_deployments():
+@get('/<tenant_id>/deployments')
+def get_deployments(tenant_id=None):
     return write_body(db.get_deployments(), request, response)
 
 
 @post('/deployments')
-def post_deployment():
+@post('/<tenant_id>/deployments')
+def post_deployment(tenant_id=None):
     entity = read_body(request)
     if 'deployment' in entity:
         entity = entity['deployment']
@@ -348,7 +363,8 @@ def post_deployment():
 
 
 @put('/deployments/<id>')
-def put_deployment(id):
+@put('/<tenant_id>/deployments/<id>')
+def put_deployment(id, tenant_id=None):
     entity = read_body(request)
     if 'deployment' in entity:
         entity = entity['deployment']
@@ -364,7 +380,8 @@ def put_deployment(id):
 
 
 @get('/deployments/<id>')
-def get_deployment(id):
+@get('/<tenant_id>/deployments/<id>')
+def get_deployment(id, tenant_id=None):
     entity = db.get_deployment(id)
     if not entity:
         abort(404, 'No deployment with id %s' % id)
@@ -372,7 +389,8 @@ def get_deployment(id):
 
 
 @get('/deployments/<id>/status')
-def get_deployment_status(id):
+@get('/<tenant_id>/deployments/<id>/status')
+def get_deployment_status(id, tenant_id=None):
     deployment = db.get_deployment(id)
     if not deployment:
         abort(404, 'No deployment with id %s' % id)
@@ -749,6 +767,6 @@ if __name__ == '__main__':
     root_app = app()
     no_path = StripPathMiddleware(root_app)
     no_ext = ExtensionsMiddleware(no_path)
-    tenant = TenantMiddleware(no_ext)
+    tenant = no_ext  # TenantMiddleware(no_ext)
     run(app=tenant, host='127.0.0.1', port=8080, reloader=True,
             server='wsgiref')
