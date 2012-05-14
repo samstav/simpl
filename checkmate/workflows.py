@@ -11,7 +11,7 @@ import os
 import uuid
 
 try:
-    from SpiffWorkflow.specs import WorkflowSpec, Celery, Transform
+    from SpiffWorkflow.specs import WorkflowSpec, Celery, Transform, Merge
 except ImportError:
     #TODO(zns): remove this when Spiff incorporates the code in it
     print "Get SpiffWorkflow with the Celery spec in it from here: "\
@@ -161,7 +161,12 @@ def reset_workflow_task(id, task_id, tenant_id=None):
     serializer = DictionarySerializer()
     results = db.save_workflow(id, wf.serialize(serializer))
 
-    return write_body(results, request, response)
+    task = wf.get_task(task_id)
+    if not task:
+        abort(404, 'No task with id %s' % task_id)
+    data = serializer._serialize_task(task, skip_children=True)
+    data['workflow_id'] = id  # so we know which workflow it came from
+    return write_body(data, request, response)
 
 
 @get('/workflows/<id>/tasks/<task_id:int>')
@@ -362,7 +367,25 @@ def create_workflow(deployment):
         LOG.warn("No public keys detected. Less secure password auth will be "
                 "used.")
 
+    #
     # Create the tasks that make the async calls
+    #
+    # TODO: remove this hard-coding to Chef
+    create_environment = Celery(wfspec, 'Create Chef Environment',
+                       'stockton.chefserver.distribute_manage_env',
+                       call_args=[Attrib('deployment'), deployment['id'],
+                            'CheckMate Environment'])
+    wfspec.start.connect(create_environment)
+    create_lb_task = None
+
+    # For resources we create, we store the resource key in the spec's Defines
+    # Hard-coding some logic for now:
+    # we need to remember bootstrap join tasks so we can make them wait for the
+    # database task to complete and populate the chef environment before they
+    # run
+
+    bootstrap_joins = []
+
     for key in deployment['resources']:
         resource = deployment['resources'][key]
         hostname = resource.get('dns-name')
@@ -384,8 +407,9 @@ def create_workflow(deployment):
                                'stockton.chefserver.distribute_register_node',
                                call_args=[Attrib('deployment'), hostname,
                                     ['wordpress-web']],
+                                environment=deployment['id'],
                                defines={"Resource": key})
-            write_token.connect(register_node_task)
+            create_environment.connect(register_node_task)
 
             ssh_wait_task = Celery(wfspec, 'Wait for Server:%s' % key,
                                'stockton.ssh.ssh_up',
@@ -404,9 +428,12 @@ def create_workflow(deployment):
                                 password=Attrib('password'),
                                 identity_file=os.environ.get(
                                     'CHECKMATE_PRIVATE_KEY', '~/.ssh/id_rsa'),
-                                roles=['wordpress-web'],
-                                run_roles=['build'])
-            ssh_wait_task.connect(bootstrap_task)
+                                run_roles=['build', 'wordpress-web'])
+            join = Merge(wfspec, "Join:%s" % key)
+            join.connect(bootstrap_task)
+            ssh_wait_task.connect(join)
+            register_node_task.connect(join)
+            bootstrap_joins.append(join)  # to wire up later
 
         elif resource.get('type') == 'load-balancer':
             # Third task takes the 'deployment' attribute and creates a lb
@@ -419,21 +446,46 @@ def create_workflow(deployment):
             write_token.connect(create_lb_task)
         elif resource.get('type') == 'database':
             # Third task takes the 'deployment' attribute and creates a server
+            username = 'MyDBUser'
+            password = 'password'
+            db_name = 'db1'
             create_db_task = Celery(wfspec, 'Create DB:%s' % key,
                                'stockton.db.distribute_create_instance',
                                call_args=[Attrib('deployment'), hostname, 1,
                                         resource.get('flavor', 1),
-                                        [{'name': 'db1'}]],
+                                        [{'name': db_name}]],
                                update_chef=True,
                                defines={"Resource": key})
             write_token.connect(create_db_task)
 
-            create_db_user = Celery(wfspec, 'Add DB User:%s' % key,
+            create_db_user = Celery(wfspec, "Add DB User:%s" % key,
                                'stockton.db.distribute_add_user',
                                call_args=[Attrib('deployment'),
-                                        Attrib('id'), [{'name': 'db1'}],
-                                        'MyDBUser', 'password'])
+                                        Attrib('id'), [db_name],
+                                        username, password])
             create_db_task.connect(create_db_user)
+
+            # TODO: fix hard-coding DB (this should be triggered by a relation)
+            # Take output from Create DB task and write it into the 'override'
+            # dict to be available to future tasks
+            write_override = Transform(wfspec, "Write Override:%s" % key,
+                    transforms=[
+                    "my_task.attributes['overrides']={'wordpress': {'db': "
+                    "{'host': my_task.attributes['name'], "
+                    "'database': '%s', 'user': '%s', 'password': '%s'}}}" % (
+                        db_name, username, password)])
+            create_db_user.connect(write_override)
+
+            # Set environment databag
+            populate_databag = Celery(wfspec, "Populate Chef Overrides:%s" %
+                        key, 'stockton.chefserver.distribute_manage_env',
+                        call_args=[Attrib('deployment'), deployment['id']],
+                            desc='CheckMate Environment',
+                            override_attributes=Attrib('overrides'))
+            join = Merge(wfspec, "Join:%s" % key)
+            join.connect(populate_databag)
+            create_environment.connect(join)
+            write_override.connect(join)
 
         elif resource.get('type') == 'dns':
             # TODO: NOT TESTED YET
@@ -446,7 +498,29 @@ def create_workflow(deployment):
         else:
             pass
 
+    # Wire connections
+    #TODO: remove this hard-coding and use relations
+    for bootstrap_join in bootstrap_joins:
+        populate_databag.connect(bootstrap_join)
+
+    if create_lb_task:
+        specs = {}
+        for name, task_spec in wfspec.task_specs.iteritems():
+            if name.startswith('Create Server'):
+                specs[name] = task_spec
+        for name, task_spec in specs.iteritems():
+            # Wire to LB
+            add_node = Celery(wfspec,
+                    'Add LB Node:%s' % name.split(':')[1],
+                    'stockton.lb.distribute_add_node',
+                    call_args=[Attrib('deployment'),  Attrib('id'),
+                            Attrib('ip'), 80])
+            join = Merge(wfspec, "Join (Add):%s" % name.split(':')[1])
+            join.connect(add_node)
+            create_lb_task.connect(join)
+            task_spec.connect(join)
+
     wf = Workflow(wfspec)
-    #Pass in the initial deployemnt dict (task 3 is the Auth task)
-    wf.get_task(3).set_attribute(deployment=stockton_deployment)
+    #Pass in the initial deployemnt dict (task 2 is the Start task)
+    wf.get_task(2).set_attribute(deployment=stockton_deployment)
     return wf

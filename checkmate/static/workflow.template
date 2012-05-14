@@ -10,6 +10,9 @@
               <li>
                 <a href="#" onclick="document.forms['workflow'].submit(); return false;"><i class="icon-ok"></i> Save</a>
               </li>
+              <li>
+                <a href="/workflows/{{data['id']}}/+execute"><i class="icon-play"></i> Run</a>
+              </li>
               <li class="nav-header">
                 Navigation
               </li>

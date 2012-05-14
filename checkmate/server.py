@@ -48,6 +48,7 @@ from bottle import app, get, post, put, delete, run, request, \
         response, abort, static_file
 import os
 import logging
+from SpiffWorkflow.storage import DictionarySerializer
 import sys
 from time import sleep
 import uuid
@@ -55,14 +56,6 @@ import webob
 from webob.exc import HTTPNotFound
 from celery.app import app_or_default
 
-from checkmate import orchestrator
-from checkmate.db import get_driver, any_id_problems, any_tenant_id_problems
-from checkmate.deployments import plan
-from checkmate import environments  # Load routes
-from checkmate.workflows import create_workflow
-from checkmate.utils import write_body, read_body
-
-db = get_driver('checkmate.db.sql.Driver')
 
 # define a Handler which writes INFO messages or higher to the sys.stderr
 console = logging.StreamHandler()
@@ -75,6 +68,15 @@ console.setFormatter(formatter)
 logging.getLogger().addHandler(console)
 logging.getLogger().setLevel(logging.DEBUG)
 LOG = logging.getLogger(__name__)
+
+from checkmate import orchestrator
+from checkmate.db import get_driver, any_id_problems, any_tenant_id_problems
+from checkmate.deployments import plan
+from checkmate import environments  # Load routes
+from checkmate.workflows import create_workflow
+from checkmate.utils import write_body, read_body
+
+db = get_driver('checkmate.db.sql.Driver')
 
 
 #
@@ -108,7 +110,6 @@ def hack():
     db.save_deployment(entity['id'], entity)
     results = plan(entity['id'])
 
-    from SpiffWorkflow.storage import DictionarySerializer
     serializer = DictionarySerializer()
     workflow = results['workflow'].serialize(serializer)
     results['workflow'] = workflow

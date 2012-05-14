@@ -7,7 +7,13 @@ from webtest import TestApp
 import yaml
 
 os.environ['CHECKMATE_DATA_PATH'] = os.path.join(os.path.dirname(__file__),
-                                                 'data')
+                                              'data')
+os.environ['BROKER_USERNAME'] = os.environ.get('BROKER_USERNAME', 'checkmate')
+os.environ['BROKER_PASSWORD'] = os.environ.get('BROKER_PASSWORD', 'password')
+os.environ['BROKER_HOST'] = os.environ.get('BROKER_HOST', 'localhost')
+os.environ['BROKER_PORT'] = os.environ.get('BROKER_PORT', '5672')
+
+
 from checkmate import server
 
 

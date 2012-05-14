@@ -1,3 +1,4 @@
+import logging
 import os
 
 from checkmate import utils
@@ -8,6 +9,7 @@ ACTUAL_DATA_PATH = os.path.join(os.environ.get('CHECKMATE_DATA_PATH',
 from checkmate.db.base import DbBase as dbBaseClass
 DbBase = dbBaseClass
 
+LOG = logging.getLogger(__name__)
 DB = None
 
 
@@ -40,6 +42,7 @@ def any_id_problems(id):
 def get_driver(name):
     global DB
     if DB is None:
+        LOG.debug("Initializing database engine: %s" % name)
         driver = utils.import_class(name)
         DB = driver()
     return DB

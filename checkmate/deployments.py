@@ -11,6 +11,13 @@ db = get_driver('checkmate.db.sql.Driver')
 
 
 def plan(id):
+    deployment = db.get_deployment(id)
+    if not deployment:
+        abort(404, "No deployment with id %s" % id)
+    return plan_dict(deployment)
+
+
+def plan_dict(deployment):
     """Process a new checkmate deployment and plan for execution.
 
     This creates placeholder tags that will be used for the actual creation
@@ -26,10 +33,7 @@ def plan(id):
 
     :param id: checkmate deployment id
     """
-    deployment = db.get_deployment(id)
-    if not deployment:
-        abort(404, "No deployment with id %s" % id)
-    inputs = deployment.get('inputs', [])
+    inputs = deployment.get('inputs', {})
     blueprint = deployment.get('blueprint')
     if not blueprint:
         abort(406, "Blueprint not found. Nothing to do.")

@@ -5,14 +5,14 @@
 # to the cloud. It also currently serves as the main reference for the
 # CheckMate configuration syntax.
 #
-# %(VARIABLE)s can be replaced by with your local variables
+# ${VARIABLE} can be replaced by with your local variables
 # before posting it to checkmate like this:
 #
-#     awk '{while(match($0,"[%][\\(][^\\)]*\\)[s]")) {var=substr($0,RSTART+2,RLENGTH -4);gsub("[%][(]"var"[)][s]",ENVIRON[var])}}1' < app.yaml
+#     awk '{while(match($0,"[$][\\{][^\\}]*\\}")) {var=substr($0,RSTART+2,RLENGTH -3);gsub("[$][{]"var"[}]",ENVIRON[var])}}1' < app.yaml
 #
 # To transform and send the output to checkmate:
 #
-#     awk '{while(match($0,"[%][\\(][^\\)]*\\)[s]")) {var=substr($0,RSTART+2,RLENGTH -4);gsub("[%][(]"var"[)][s]",ENVIRON[var])}}1' < app.yaml | curl -H 'content-type: application/x-yaml' http://localhost:8080/deployments -v --data-binary @-
+#     awk '{while(match($0,"[$][\\{][^\\}]*\\}")) {var=substr($0,RSTART+2,RLENGTH -3);gsub("[$][{]"var"[}]",ENVIRON[var])}}1' < app.yaml | curl -H 'content-type: application/x-yaml' http://localhost:8080/deployments -v --data-binary @-
 
 
 #### ALPHA STATUS
@@ -155,7 +155,7 @@ environment: &env1
   - compute: &rax-cloud-servers
     vendor: rackspace
     constraints:
-    - region: %(CHECKMATE_REGION)s                                               #IMPLEMENTED at root of env, but not under constraints
+    - region: ${CHECKMATE_REGION}                                               #IMPLEMENTED at root of env, but not under constraints
   - loadbalancer: &rax-lbaas
     endpoint: https://lbaas.api.rackpsacecloud.com/servers/{tenantId}
   - database: &rax-dbaas
@@ -164,8 +164,8 @@ environment: &env1
     vendor: rackspace
     credentials:
     - rackspace:
-      username: %(CHECKMATE_USERNAME)s
-      apikey: %(CHECKMATE_APIKEY)s
+      username: ${CHECKMATE_USERNAME}
+      apikey: ${CHECKMATE_APIKEY}
 
 # Another environment referenced with the anchor &dfw and named rackcloud-prod
 environment: &dfw
@@ -176,11 +176,11 @@ environment: &dfw
     vendor: rackspace
     credentials:
     - rackspace:
-      username: %(CHECKMATE_USERNAME)s
-      apikey: %(CHECKMATE_APIKEY)s
+      username: ${CHECKMATE_USERNAME}
+      apikey: ${CHECKMATE_APIKEY}
     - ssh:
-      public_key: %(CHECKMATE_PUBLIC_KEY)s
-      private_key: %(CHECKMATE_PRIVATE_KEY)s
+      public_key: ${CHECKMATE_PUBLIC_KEY}
+      private_key: ${CHECKMATE_PRIVATE_KEY}
 
 #### Deployments
 
@@ -189,7 +189,7 @@ deployment:                                                                     
   blueprint: *wp-multi
   environment: *env1
   inputs:
-    domain: %(CHECKMATE_DOMAIN)s
+    domain: ${CHECKMATE_DOMAIN}
     ssl: false
     region: chicago # TODO: this is still read from os.environ
     high-availability: false

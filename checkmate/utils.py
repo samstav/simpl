@@ -38,7 +38,7 @@ def import_object(import_str, *args, **kw):
 
 
 def get_template_name_from_path(path):
-    """ Returns template name fro request path"""
+    """ Returns template name from request path"""
     parts = path.split('/')
     # IDs are 2nd or 3rd: /[type]/[id]/[type2|action]/[id2]/action
     if len(parts) >= 4:
@@ -53,7 +53,11 @@ def get_template_name_from_path(path):
 
 
 def resolve_yaml_external_refs(document):
-    """Parses YAML and resolves any external references"""
+    """Parses YAML and resolves any external references
+
+    :param document: a stream object
+    :returns: an iterable
+    """
     anchors = []
     for event in yaml.parse(document, Loader=yaml.SafeLoader):
         if isinstance(event, AliasEvent):

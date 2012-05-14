@@ -249,7 +249,7 @@ class Driver(DbBase):
                     secrets=secrets)
         Session.add(e)
         Session.commit()
-        return e
+        return body
 
     # WORKFLOWS
     def get_workflow(self, id):

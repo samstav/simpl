@@ -11,6 +11,9 @@
                 <a href="#" onclick="document.forms['task'].submit(); return false;"><i class="icon-ok"></i> Save</a>
               </li>
               <li>
+                <a href="/workflows/{{data.workflow_id}}/tasks/{{data.id}}/+reset"><i class="icon-repeat"></i> Reset</a>
+              </li>
+              <li>
                 <a href="/workflows/{{data.workflow_id}}/tasks/{{data.id}}/+execute"><i class="icon-play"></i> Run Task</a>
               </li>
               <li class="nav-header">
