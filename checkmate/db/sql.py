@@ -257,8 +257,10 @@ class Driver(DbBase):
         if results and results.count() > 0:
             return results.first().body
 
-    def get_workflows(self):
+    def get_workflows(self, tenant_id=None):
         results = Session.query(Workflow)
+        if tenant_id:
+            results = results.filter_by(tenant_id=tenant_id)
         if results and results.count() > 0:
             response = {}
             for e in results:

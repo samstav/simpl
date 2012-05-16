@@ -36,7 +36,7 @@ LOG = logging.getLogger(__name__)
 @get('/workflows')
 @get('/<tenant_id>/workflows')
 def get_workflows(tenant_id=None):
-    return write_body(db.get_workflows(), request, response)
+    return write_body(db.get_workflows(tenant_id), request, response)
 
 
 @post('/workflows')
@@ -375,7 +375,7 @@ def create_workflow(deployment):
                        'stockton.chefserver.distribute_manage_env',
                        call_args=[Attrib('deployment'), deployment['id'],
                             'CheckMate Environment'])
-    wfspec.start.connect(create_environment)
+    auth_task.connect(create_environment)
     create_lb_task = None
 
     # For resources we create, we store the resource key in the spec's Defines
@@ -417,9 +417,17 @@ def create_workflow(deployment):
                                     'root'],
                                 password=Attrib('password'),
                                 identity_file=os.environ.get(
-                                    'CHECKMATE_PRIVATE_KEY', '~/.ssh/id_rsa'),
-                               defines={"Resource": key})
+                                    'CHECKMATE_PRIVATE_KEY', '~/.ssh/id_rsa'))
             create_server_task.connect(ssh_wait_task)
+
+            ssh_apt_get_task = Celery(wfspec, 'Apt-get Fix:%s' % key,
+                               'stockton.ssh.ssh_execute',
+                                call_args=[Attrib('ip'), "sudo apt-get update",
+                                    'root'],
+                                password=Attrib('password'),
+                                identity_file=os.environ.get(
+                                    'CHECKMATE_PRIVATE_KEY', '~/.ssh/id_rsa'))
+            ssh_wait_task.connect(ssh_apt_get_task)
 
             bootstrap_task = Celery(wfspec, 'Bootstrap Server:%s' % key,
                                'stockton.chefserver.distribute_bootstrap',
@@ -428,10 +436,11 @@ def create_workflow(deployment):
                                 password=Attrib('password'),
                                 identity_file=os.environ.get(
                                     'CHECKMATE_PRIVATE_KEY', '~/.ssh/id_rsa'),
-                                run_roles=['build', 'wordpress-web'])
+                                run_roles=['build', 'wordpress-web'],
+                                environment=deployment['id'])
             join = Merge(wfspec, "Join:%s" % key)
             join.connect(bootstrap_task)
-            ssh_wait_task.connect(join)
+            ssh_apt_get_task.connect(join)
             register_node_task.connect(join)
             bootstrap_joins.append(join)  # to wire up later
 
@@ -471,7 +480,7 @@ def create_workflow(deployment):
             write_override = Transform(wfspec, "Write Override:%s" % key,
                     transforms=[
                     "my_task.attributes['overrides']={'wordpress': {'db': "
-                    "{'host': my_task.attributes['name'], "
+                    "{'host': my_task.attributes['hostname'], "
                     "'database': '%s', 'user': '%s', 'password': '%s'}}}" % (
                         db_name, username, password)])
             create_db_user.connect(write_override)
