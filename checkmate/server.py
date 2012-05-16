@@ -71,7 +71,7 @@ LOG = logging.getLogger(__name__)
 
 from checkmate import orchestrator
 from checkmate.db import get_driver, any_id_problems, any_tenant_id_problems
-from checkmate.deployments import plan
+from checkmate.deployments import plan, plan_dict
 from checkmate import environments  # Load routes
 from checkmate.workflows import create_workflow
 from checkmate.utils import write_body, read_body
@@ -107,14 +107,7 @@ def hack():
     if any_id_problems(entity['id']):
         abort(406, any_id_problems(entity['id']))
 
-    db.save_deployment(entity['id'], entity)
-    results = plan(entity['id'])
-
-    serializer = DictionarySerializer()
-    workflow = results['workflow'].serialize(serializer)
-    results['workflow'] = workflow
-
-    return write_body(results, request, response)
+    return write_body(entity, request, response)
 
 
 @get('/test/async')
@@ -302,6 +295,28 @@ def post_deployment(tenant_id=None):
 
     # Return response (with new resource location in header)
     return write_body(deployment, request, response)
+
+
+@post('/deployments/+parse')
+@post('/<tenant_id>/deployments/+parse')
+def parse_deployment():
+    """ Use this to preview a request """
+    entity = read_body(request)
+    if 'deployment' in entity:
+        entity = entity['deployment']
+
+    if 'id' not in entity:
+        entity['id'] = uuid.uuid4().hex
+    if any_id_problems(entity['id']):
+        abort(406, any_id_problems(entity['id']))
+
+    results = plan_dict(entity)
+
+    serializer = DictionarySerializer()
+    workflow = results['workflow'].serialize(serializer)
+    results['workflow'] = workflow
+
+    return write_body(results, request, response)
 
 
 @put('/deployments/<id>')

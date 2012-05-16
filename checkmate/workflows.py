@@ -438,7 +438,7 @@ def create_workflow(deployment):
                                     'CHECKMATE_PRIVATE_KEY', '~/.ssh/id_rsa'),
                                 run_roles=['build', 'wordpress-web'],
                                 environment=deployment['id'])
-            join = Merge(wfspec, "Join:%s" % key)
+            join = Merge(wfspec, "Wait for Server Build:%s" % key)
             join.connect(bootstrap_task)
             ssh_apt_get_task.connect(join)
             register_node_task.connect(join)
@@ -446,7 +446,7 @@ def create_workflow(deployment):
 
         elif resource.get('type') == 'load-balancer':
             # Third task takes the 'deployment' attribute and creates a lb
-            create_lb_task = Celery(wfspec, 'Create LB:%s' % key,
+            create_lb_task = Celery(wfspec, 'Create LB',
                                'stockton.lb.distribute_create_loadbalancer',
                                call_args=[Attrib('deployment'), hostname,
                                     'PUBLIC', 'HTTP', 80],
@@ -458,7 +458,7 @@ def create_workflow(deployment):
             username = 'MyDBUser'
             password = 'password'
             db_name = 'db1'
-            create_db_task = Celery(wfspec, 'Create DB:%s' % key,
+            create_db_task = Celery(wfspec, 'Create DB',
                                'stockton.db.distribute_create_instance',
                                call_args=[Attrib('deployment'), hostname, 1,
                                         resource.get('flavor', 1),
@@ -467,7 +467,7 @@ def create_workflow(deployment):
                                defines={"Resource": key})
             write_token.connect(create_db_task)
 
-            create_db_user = Celery(wfspec, "Add DB User:%s" % key,
+            create_db_user = Celery(wfspec, "Add DB User:%s" % username,
                                'stockton.db.distribute_add_user',
                                call_args=[Attrib('deployment'),
                                         Attrib('id'), [db_name],
@@ -477,7 +477,7 @@ def create_workflow(deployment):
             # TODO: fix hard-coding DB (this should be triggered by a relation)
             # Take output from Create DB task and write it into the 'override'
             # dict to be available to future tasks
-            write_override = Transform(wfspec, "Write Override:%s" % key,
+            write_override = Transform(wfspec, "Prepare Override",
                     transforms=[
                     "my_task.attributes['overrides']={'wordpress': {'db': "
                     "{'host': my_task.attributes['hostname'], "
@@ -486,8 +486,8 @@ def create_workflow(deployment):
             create_db_user.connect(write_override)
 
             # Set environment databag
-            populate_databag = Celery(wfspec, "Populate Chef Overrides:%s" %
-                        key, 'stockton.chefserver.distribute_manage_env',
+            populate_databag = Celery(wfspec, "Populate Chef Overrides",
+                        'stockton.chefserver.distribute_manage_env',
                         call_args=[Attrib('deployment'), deployment['id']],
                             desc='CheckMate Environment',
                             override_attributes=Attrib('overrides'))
@@ -498,7 +498,7 @@ def create_workflow(deployment):
 
         elif resource.get('type') == 'dns':
             # TODO: NOT TESTED YET
-            create_dns_task = Celery(wfspec, 'Create DNS Record:%s' % key,
+            create_dns_task = Celery(wfspec, 'Create DNS Record',
                                'stockton.dns.distribute_create_record',
                                call_args=[Attrib('deployment'),
                                inputs.get('domain', 'localhost'), hostname,
@@ -524,7 +524,7 @@ def create_workflow(deployment):
                     'stockton.lb.distribute_add_node',
                     call_args=[Attrib('deployment'),  Attrib('id'),
                             Attrib('ip'), 80])
-            join = Merge(wfspec, "Join (Add):%s" % name.split(':')[1])
+            join = Merge(wfspec, "Wait for LB:%s" % name.split(':')[1])
             join.connect(add_node)
             create_lb_task.connect(join)
             task_spec.connect(join)
