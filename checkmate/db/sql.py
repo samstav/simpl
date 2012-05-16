@@ -133,132 +133,62 @@ class Driver(DbBase):
 
     # ENVIRONMENTS
     def get_environment(self, id):
-        results = Session.query(Environment).filter_by(id=id)
-        if results and results.count() > 0:
-            return results.first().body
+        return self.get_object(Environment, id)
 
-    def get_environments(self):
-        results = Session.query(Environment)
-        if results and results.count() > 0:
-            response = {}
-            for e in results:
-                response[e.id] = e.body
-            return response
-        else:
-            return {}
+    def get_environments(self, tenant_id=None):
+        return self.get_objects(Environment, tenant_id)
 
     def save_environment(self, id, body, secrets=None, tenant_id=None):
-        results = Session.query(Environment).filter_by(id=id)
-        if results and results.count() > 0:
-            e = results.first()
-            e.body = body
-            e.tenant_id = e.tenant_id
-            e.secrets = secrets
-        else:
-            e = Environment(id=id, body=body, tenant_id=tenant_id,
-                    secrets=secrets)
-        Session.add(e)
-        Session.commit()
-        return body
+        return self.save_object(Environment, id, body, secrets, tenant_id)
 
     # DEPLOYMENTS
     def get_deployment(self, id):
-        results = Session.query(Deployment).filter_by(id=id)
-        if results and results.count() > 0:
-            return results.first().body
+        return self.get_object(Deployment, id)
 
-    def get_deployments(self):
-        results = Session.query(Deployment)
-        if results and results.count() > 0:
-            response = {}
-            for e in results:
-                response[e.id] = e.body
-            return response
-        else:
-            return {}
+    def get_deployments(self, tenant_id=None):
+        return self.get_objects(Deployment, tenant_id)
 
     def save_deployment(self, id, body, secrets=None, tenant_id=None):
-        results = Session.query(Deployment).filter_by(id=id)
-        if results and results.count() > 0:
-            e = results.first()
-            e.body = body
-            e.tenant_id = e.tenant_id
-            e.secrets = secrets
-        else:
-            e = Deployment(id=id, body=body, tenant_id=tenant_id,
-                    secrets=secrets)
-        Session.add(e)
-        Session.commit()
-        return body
+        return self.save_object(Deployment, id, body, secrets, tenant_id)
 
     #BLUEPRINTS
     def get_blueprint(self, id):
-        results = Session.query(Blueprint).filter_by(id=id)
-        if results and results.count() > 0:
-            return results.first().body
+        return self.get_object(Blueprint, id)
 
-    def get_blueprints(self):
-        results = Session.query(Blueprint)
-        if results and results.count() > 0:
-            response = {}
-            for e in results:
-                response[e.id] = e.body
-            return response
-        else:
-            return {}
+    def get_blueprints(self, tenant_id=None):
+        return self.get_objects(Blueprint, tenant_id)
 
     def save_blueprint(self, id, body, secrets=None, tenant_id=None):
-        results = Session.query(Blueprint).filter_by(id=id)
-        if results and results.count() > 0:
-            e = results.first()
-            e.body = body
-            e.tenant_id = e.tenant_id
-            e.secrets = secrets
-        else:
-            e = Blueprint(id=id, body=body, tenant_id=tenant_id,
-                    secrets=secrets)
-        Session.add(e)
-        Session.commit()
-        return body
+        return self.save_object(Blueprint, id, body, secrets, tenant_id)
 
     # COMPONENTS
     def get_component(self, id):
-        results = Session.query(Component).filter_by(id=id)
-        if results and results.count() > 0:
-            return results.first().body
+        return self.get_object(Component, id)
 
-    def get_components(self):
-        results = Session.query(Component)
-        if results and results.count() > 0:
-            response = {}
-            for e in results:
-                response[e.id] = e.body
-            return response
-        else:
-            return {}
+    def get_components(self, tenant_id=None):
+        return self.get_objects(Component, tenant_id)
 
     def save_component(self, id, body, secrets=None, tenant_id=None):
-        results = Session.query(Component).filter_by(id=id)
-        if results and results.count() > 0:
-            e = results.first()
-            e.body = body
-            e.tenant_id = e.tenant_id
-            e.secrets = secrets
-        else:
-            e = Component(id=id, body=body, tenant_id=tenant_id,
-                    secrets=secrets)
-        Session.add(e)
-        Session.commit()
-        return body
+        return self.save_object(Component, id, body, secrets, tenant_id)
 
     # WORKFLOWS
     def get_workflow(self, id):
-        results = Session.query(Workflow).filter_by(id=id)
+        return self.get_object(Workflow, id)
+
+    def get_workflows(self, tenant_id=None):
+        return self.get_objects(Workflow, tenant_id)
+
+    def save_workflow(self, id, body, secrets=None, tenant_id=None):
+        return self.save_object(Workflow, id, body, secrets, tenant_id)
+
+    # GENERIC
+    def get_object(self, klass, id):
+        results = Session.query(klass).filter_by(id=id)
         if results and results.count() > 0:
             return results.first().body
 
-    def get_workflows(self, tenant_id=None):
-        results = Session.query(Workflow)
+    def get_objects(self, klass, tenant_id=None):
+        results = Session.query(klass)
         if tenant_id:
             results = results.filter_by(tenant_id=tenant_id)
         if results and results.count() > 0:
@@ -269,16 +199,16 @@ class Driver(DbBase):
         else:
             return {}
 
-    def save_workflow(self, id, body, secrets=None, tenant_id=None):
-        assert isinstance(body, dict)  # Make sure we didn't pass in a workflow
-        results = Session.query(Workflow).filter_by(id=id)
+    def save_object(self, klass, id, body, secrets=None, tenant_id=None):
+        assert isinstance(body, dict)  # Make sure we passed in a dict
+        results = Session.query(klass).filter_by(id=id)
         if results and results.count() > 0:
             e = results.first()
             e.body = body
-            e.tenant_id = e.tenant_id
+            e.tenant_id = tenant_id
             e.secrets = secrets
         else:
-            e = Workflow(id=id, body=body, tenant_id=tenant_id,
+            e = klass(id=id, body=body, tenant_id=tenant_id,
                     secrets=secrets)
         Session.add(e)
         Session.commit()

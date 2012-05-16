@@ -40,6 +40,11 @@ def import_object(import_str, *args, **kw):
 def get_template_name_from_path(path):
     """ Returns template name from request path"""
     parts = path.split('/')
+    if len(parts) > 1 and parts[1] not in ['workflows', 'deployments', 'environments',
+            'blueprints', 'components', 'test', 'static']:
+        # Assume it is a tenant
+        parts = parts[2:]
+
     # IDs are 2nd or 3rd: /[type]/[id]/[type2|action]/[id2]/action
     if len(parts) >= 4:
         name = "%s.%s" % (parts[1][0:-1], parts[3][0:-1])
@@ -49,6 +54,7 @@ def get_template_name_from_path(path):
         name = "%s" % parts[1][0:-1]  # strip s
     else:
         name = 'default'
+    LOG.debug("Template for '%s' returned as '%s'" % (path, name))
     return name
 
 

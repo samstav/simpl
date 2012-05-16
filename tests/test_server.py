@@ -48,7 +48,6 @@ class test_server(unittest.TestCase):
         self.assertEqual(res.content_type, 'application/json')
         data = json.loads(res.body)
 
-
     def test_REST_deployment(self):
         self.rest_exercise('deployment')
 
@@ -60,6 +59,18 @@ class test_server(unittest.TestCase):
 
     def test_REST_blueprint(self):
         self.rest_exercise('blueprint')
+
+    def test_multitenant_deployment(self):
+        self.rest_tenant_exercise('deployment')
+
+    def test_multitenant_environment(self):
+        self.rest_tenant_exercise('environment')
+
+    def test_multitenant_component(self):
+        self.rest_tenant_exercise('component')
+
+    def test_multitenant_blueprint(self):
+        self.rest_tenant_exercise('blueprint')
 
     def rest_exercise(self, model_name):
         #PUT
@@ -84,6 +95,52 @@ class test_server(unittest.TestCase):
         res = self.app.get('/%ss' % model_name)
         self.assertEqual(res.status, '200 OK')
         self.assertEqual(res.content_type, 'application/json')
+
+    def rest_tenant_exercise(self, model_name):
+        #PUT
+        entity = "%s: &e1\n    id: 1" % model_name
+        res = self.app.put('/T1000/%ss/1' % model_name, entity,
+                            content_type='application/x-yaml')
+        self.assertEqual(res.status, '200 OK')
+        self.assertEqual(res.content_type, 'application/json')
+
+        entity = "%s: &e1\n    id: 2" % model_name
+        res = self.app.put('/T2000/%ss/2' % model_name, entity,
+                            content_type='application/x-yaml')
+
+        #GET (1)
+        res = self.app.get('/%ss/1' % model_name)
+        self.assertEqual(res.status, '200 OK')
+        self.assertEqual(res.content_type, 'application/json')
+
+        #GET (2)
+        res = self.app.get('/%ss/2' % model_name)
+        self.assertEqual(res.status, '200 OK')
+        self.assertEqual(res.content_type, 'application/json')
+
+        #GET (both)
+        res = self.app.get('/%ss' % model_name)
+        self.assertEqual(res.status, '200 OK')
+        self.assertEqual(res.content_type, 'application/json')
+        data = json.loads(res.body)
+        self.assertIn('1', data)
+        self.assertIn('2', data)
+
+        #GET (Tenant 1)
+        res = self.app.get('/T1000/%ss' % model_name)
+        self.assertEqual(res.status, '200 OK')
+        self.assertEqual(res.content_type, 'application/json')
+        data = json.loads(res.body)
+        self.assertIn('1', data)
+        self.assertNotIn('2', data)
+
+        #GET (Tenant 2)
+        res = self.app.get('/T2000/%ss' % model_name)
+        self.assertEqual(res.status, '200 OK')
+        self.assertEqual(res.content_type, 'application/json')
+        data = json.loads(res.body)
+        self.assertIn('2', data)
+        self.assertNotIn('1', data)
 
 if __name__ == '__main__':
     unittest.main(verbosity=2)

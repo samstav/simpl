@@ -36,7 +36,7 @@ LOG = logging.getLogger(__name__)
 @get('/workflows')
 @get('/<tenant_id>/workflows')
 def get_workflows(tenant_id=None):
-    return write_body(db.get_workflows(tenant_id), request, response)
+    return write_body(db.get_workflows(tenant_id=tenant_id), request, response)
 
 
 @post('/workflows')

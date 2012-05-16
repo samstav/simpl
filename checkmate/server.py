@@ -92,7 +92,7 @@ def get_everything():
 @post('/test/parse')
 def parse():
     """ For debugging only """
-    return read_body(request)
+    return write_body(read_body(request), request, response)
 
 
 @post('/test/hack')
@@ -155,7 +155,8 @@ def root():
 @get('/components')
 @get('/<tenant_id>/components')
 def get_components(tenant_id=None):
-    return write_body(db.get_components(), request, response)
+    return write_body(db.get_components(tenant_id=tenant_id), request,
+            response)
 
 
 @post('/components')
@@ -170,7 +171,7 @@ def post_component(tenant_id=None):
     if any_id_problems(entity['id']):
         abort(406, any_id_problems(entity['id']))
 
-    results = db.save_component(entity['id'], entity)
+    results = db.save_component(entity['id'], entity, tenant_id=tenant_id)
 
     return write_body(results, request, response)
 
@@ -187,7 +188,7 @@ def put_component(id, tenant_id=None):
     if 'id' not in entity:
         entity['id'] = str(id)
 
-    results = db.save_component(id, entity)
+    results = db.save_component(id, entity, tenant_id=tenant_id)
 
     return write_body(results, request, response)
 
@@ -207,7 +208,8 @@ def get_component(id, tenant_id=None):
 @get('/blueprints')
 @get('/<tenant_id>/blueprints')
 def get_blueprints(tenant_id=None):
-    return write_body(db.get_blueprints(), request, response)
+    return write_body(db.get_blueprints(tenant_id=tenant_id), request,
+            response)
 
 
 @post('/blueprints')
@@ -222,7 +224,7 @@ def post_blueprint(tenant_id=None):
     if any_id_problems(entity['id']):
         abort(406, any_id_problems(entity['id']))
 
-    results = db.save_blueprint(entity['id'], entity)
+    results = db.save_blueprint(entity['id'], entity, tenant_id=tenant_id)
 
     return write_body(results, request, response)
 
@@ -239,7 +241,7 @@ def put_blueprint(id, tenant_id=None):
     if 'id' not in entity:
         entity['id'] = str(id)
 
-    results = db.save_blueprint(id, entity)
+    results = db.save_blueprint(id, entity, tenant_id=tenant_id)
 
     return write_body(results, request, response)
 
@@ -259,7 +261,8 @@ def get_blueprint(id, tenant_id=None):
 @get('/deployments')
 @get('/<tenant_id>/deployments')
 def get_deployments(tenant_id=None):
-    return write_body(db.get_deployments(), request, response)
+    return write_body(db.get_deployments(tenant_id=tenant_id), request,
+            response)
 
 
 @post('/deployments')
@@ -274,7 +277,7 @@ def post_deployment(tenant_id=None):
     if any_id_problems(entity['id']):
         abort(406, any_id_problems(entity['id']))
     id = str(entity['id'])
-    results = db.save_deployment(id, entity)
+    results = db.save_deployment(id, entity, tenant_id=tenant_id)
 
     response.add_header('Location', "/deployments/%s" % id)
 
@@ -287,8 +290,8 @@ def post_deployment(tenant_id=None):
     deployment = results['deployment']
     deployment['workflow'] = id
 
-    deployment = db.save_deployment(id, deployment)  # updated by plan()
-    db.save_workflow(id, workflow)
+    deployment = db.save_deployment(id, deployment, tenant_id=tenant_id)
+    db.save_workflow(id, workflow, tenant_id=tenant_id)
 
     #Trigger the workflow
     async_task = execute(id)
@@ -331,7 +334,7 @@ def put_deployment(id, tenant_id=None):
     if 'id' not in entity:
         entity['id'] = str(id)
 
-    results = db.save_deployment(id, entity)
+    results = db.save_deployment(id, entity, tenant_id=tenant_id)
 
     return write_body(results, request, response)
 
@@ -390,7 +393,7 @@ def get_deployment_status(id, tenant_id=None):
     return write_body(results, request, response)
 
 
-def execute(id, timeout=180):
+def execute(id, timeout=180, tenant_id=None):
     """Process a checkmate deployment workflow
 
     Executes and moves the workflow forward.

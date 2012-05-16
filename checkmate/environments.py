@@ -18,7 +18,8 @@ db = get_driver('checkmate.db.sql.Driver')
 @get('/environments')
 @get('/<tenant_id>/environments')
 def get_environments(tenant_id=None):
-    return write_body(db.get_environments(), request, response)
+    return write_body(db.get_environments(tenant_id=tenant_id), request,
+            response)
 
 
 @post('/environments')
@@ -33,7 +34,7 @@ def post_environment(tenant_id=None):
     if any_id_problems(entity['id']):
         abort(406, any_id_problems(entity['id']))
 
-    results = db.save_environment(entity['id'], entity)
+    results = db.save_environment(entity['id'], entity, tenant_id=tenant_id)
 
     return write_body(results, request, response)
 
@@ -50,7 +51,7 @@ def put_environment(id, tenant_id=None):
     if 'id' not in entity:
         entity['id'] = str(id)
 
-    results = db.save_environment(id, entity)
+    results = db.save_environment(id, entity, tenant_id=tenant_id)
 
     return write_body(results, request, response)
 
@@ -66,8 +67,8 @@ def get_environment(id, tenant_id=None):
 
 @delete('/environments/<id>')
 @delete('/<tenant_id>/environments/<id>')
-def delete_environments(id, tenant_id=None):
+def delete_environment(id, tenant_id=None):
     entity = db.get_environment(id)
     if not entity:
         abort(404, 'No environment with id %s' % id)
-    return write_body(db.get_environments(), request, response)
+    return write_body(entity, request, response)
