@@ -1,0 +1,18 @@
+{% extends "default.template" %}
+{% block title %}Checkmate - Deployment{% endblock %}
+{% block content %}
+            <table class="table table-striped">
+              <thead>
+                <tr>
+                  <th>ID</th>
+                </tr>
+              </thead>
+              <tbody>
+              {% for key, value in data.iteritems() %}
+                <tr>
+                  <td><a href="/deployments/{{key}}"><i class="icon-picture"></i> {{key}}</a></td>
+                </tr>
+              {% endfor %}
+              </tbody>
+            </table>
+{% endblock %}

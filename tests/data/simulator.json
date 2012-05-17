@@ -1,0 +1,2366 @@
+{"workflow":
+{
+  "wf_spec": {
+    "task_specs": {
+      "Authenticate": {
+        "inputs": [
+          "Start"
+        ], 
+        "lookahead": 2, 
+        "description": "", 
+        "name": "Authenticate", 
+        "outputs": [
+          "Write Token to Deployment", 
+          "Create Chef Environment"
+        ], 
+        "class": "SpiffWorkflow.specs.Celery.Celery", 
+        "args": [
+          [
+            "Attrib", 
+            "deployment"
+          ]
+        ], 
+        "manual": false, 
+        "properties": {}, 
+        "post_assign": [], 
+        "locks": [], 
+        "pre_assign": [], 
+        "call": "stockton.auth.distribute_get_token", 
+        "internal": false, 
+        "kwargs": {}, 
+        "result_key": "token", 
+        "id": 2, 
+        "defines": {}
+      }, 
+      "Create Chef Environment": {
+        "inputs": [
+          "Authenticate"
+        ], 
+        "lookahead": 2, 
+        "description": "", 
+        "name": "Create Chef Environment", 
+        "outputs": [
+          "Register Server:1", 
+          "Register Server:0", 
+          "Join:3"
+        ], 
+        "class": "SpiffWorkflow.specs.Celery.Celery", 
+        "args": [
+          [
+            "Attrib", 
+            "deployment"
+          ], 
+          [
+            "spiff:value", 
+            "${id}"
+          ], 
+          [
+            "spiff:value", 
+            "CheckMate Environment"
+          ]
+        ], 
+        "manual": false, 
+        "properties": {}, 
+        "post_assign": [], 
+        "locks": [], 
+        "pre_assign": [], 
+        "call": "stockton.chefserver.distribute_manage_env", 
+        "internal": false, 
+        "kwargs": {}, 
+        "result_key": null, 
+        "id": 4, 
+        "defines": {}
+      }, 
+      "Create LB": {
+        "inputs": [
+          "Write Token to Deployment"
+        ], 
+        "lookahead": 2, 
+        "description": "", 
+        "name": "Create LB", 
+        "outputs": [
+          "Wait for LB:0", 
+          "Wait for LB:1"
+        ], 
+        "class": "SpiffWorkflow.specs.Celery.Celery", 
+        "args": [
+          [
+            "Attrib", 
+            "deployment"
+          ], 
+          [
+            "spiff:value", 
+            "CMDEP21341c9-lb1.joe.smith.com"
+          ], 
+          [
+            "spiff:value", 
+            "PUBLIC"
+          ], 
+          [
+            "spiff:value", 
+            "HTTP"
+          ], 
+          [
+            "spiff:value", 
+            80
+          ]
+        ], 
+        "manual": false, 
+        "properties": {
+          "Resource": "2"
+        }, 
+        "post_assign": [], 
+        "locks": [], 
+        "pre_assign": [], 
+        "call": "stockton.lb.distribute_create_loadbalancer", 
+        "internal": false, 
+        "kwargs": {
+          "dns": [
+            "spiff:value", 
+            true
+          ]
+        }, 
+        "result_key": null, 
+        "id": 22, 
+        "defines": {
+          "Resource": "2"
+        }
+      }, 
+      "Start": {
+        "inputs": [], 
+        "description": "", 
+        "name": "Start", 
+        "outputs": [
+          "Authenticate"
+        ], 
+        "class": "SpiffWorkflow.specs.StartTask.StartTask", 
+        "manual": false, 
+        "properties": {}, 
+        "locks": [], 
+        "pre_assign": [], 
+        "post_assign": [], 
+        "internal": false, 
+        "lookahead": 2, 
+        "id": 1, 
+        "defines": {}
+      }, 
+      "Add LB Node:0": {
+        "inputs": [
+          "Wait for LB:0"
+        ], 
+        "lookahead": 2, 
+        "description": "", 
+        "name": "Add LB Node:0", 
+        "outputs": [], 
+        "class": "SpiffWorkflow.specs.Celery.Celery", 
+        "args": [
+          [
+            "Attrib", 
+            "deployment"
+          ], 
+          [
+            "Attrib", 
+            "id"
+          ], 
+          [
+            "Attrib", 
+            "ip"
+          ], 
+          [
+            "spiff:value", 
+            80
+          ]
+        ], 
+        "manual": false, 
+        "properties": {}, 
+        "post_assign": [], 
+        "locks": [], 
+        "pre_assign": [], 
+        "call": "stockton.lb.distribute_add_node", 
+        "internal": false, 
+        "kwargs": {}, 
+        "result_key": null, 
+        "id": 23, 
+        "defines": {}
+      }, 
+      "Add LB Node:1": {
+        "inputs": [
+          "Wait for LB:1"
+        ], 
+        "lookahead": 2, 
+        "description": "", 
+        "name": "Add LB Node:1", 
+        "outputs": [], 
+        "class": "SpiffWorkflow.specs.Celery.Celery", 
+        "args": [
+          [
+            "Attrib", 
+            "deployment"
+          ], 
+          [
+            "Attrib", 
+            "id"
+          ], 
+          [
+            "Attrib", 
+            "ip"
+          ], 
+          [
+            "spiff:value", 
+            80
+          ]
+        ], 
+        "manual": false, 
+        "properties": {}, 
+        "post_assign": [], 
+        "locks": [], 
+        "pre_assign": [], 
+        "call": "stockton.lb.distribute_add_node", 
+        "internal": false, 
+        "kwargs": {}, 
+        "result_key": null, 
+        "id": 25, 
+        "defines": {}
+      }, 
+      "Wait for LB:0": {
+        "inputs": [
+          "Create LB", 
+          "Create Server:0"
+        ], 
+        "cancel_remaining": false, 
+        "description": "", 
+        "split_task": null, 
+        "outputs": [
+          "Add LB Node:0"
+        ], 
+        "class": "SpiffWorkflow.specs.Join.Merge", 
+        "manual": false, 
+        "properties": {}, 
+        "locks": [], 
+        "pre_assign": [], 
+        "post_assign": [], 
+        "internal": false, 
+        "lookahead": 2, 
+        "threshold": [
+          "spiff:value", 
+          null
+        ], 
+        "name": "Wait for LB:0", 
+        "id": 24, 
+        "defines": {}
+      }, 
+      "Wait for LB:1": {
+        "inputs": [
+          "Create LB", 
+          "Create Server:1"
+        ], 
+        "cancel_remaining": false, 
+        "description": "", 
+        "split_task": null, 
+        "outputs": [
+          "Add LB Node:1"
+        ], 
+        "class": "SpiffWorkflow.specs.Join.Merge", 
+        "manual": false, 
+        "properties": {}, 
+        "locks": [], 
+        "pre_assign": [], 
+        "post_assign": [], 
+        "internal": false, 
+        "lookahead": 2, 
+        "threshold": [
+          "spiff:value", 
+          null
+        ], 
+        "name": "Wait for LB:1", 
+        "id": 26, 
+        "defines": {}
+      }, 
+      "Populate Chef Overrides": {
+        "inputs": [
+          "Join:3"
+        ], 
+        "lookahead": 2, 
+        "description": "", 
+        "name": "Populate Chef Overrides", 
+        "outputs": [
+          "Wait for Server Build:1", 
+          "Wait for Server Build:0"
+        ], 
+        "class": "SpiffWorkflow.specs.Celery.Celery", 
+        "args": [
+          [
+            "Attrib", 
+            "deployment"
+          ], 
+          [
+            "spiff:value", 
+            "${id}"
+          ]
+        ], 
+        "manual": false, 
+        "properties": {}, 
+        "post_assign": [], 
+        "locks": [], 
+        "pre_assign": [], 
+        "call": "stockton.chefserver.distribute_manage_env", 
+        "internal": false, 
+        "kwargs": {
+          "override_attributes": [
+            "Attrib", 
+            "overrides"
+          ], 
+          "desc": [
+            "spiff:value", 
+            "CheckMate Environment"
+          ]
+        }, 
+        "result_key": null, 
+        "id": 20, 
+        "defines": {}
+      }, 
+      "Bootstrap Server:1": {
+        "inputs": [
+          "Wait for Server Build:1"
+        ], 
+        "lookahead": 2, 
+        "description": "", 
+        "name": "Bootstrap Server:1", 
+        "outputs": [], 
+        "class": "SpiffWorkflow.specs.Celery.Celery", 
+        "args": [
+          [
+            "Attrib", 
+            "deployment"
+          ], 
+          [
+            "spiff:value", 
+            "CMDEP21341c9-web2.joe.smith.com"
+          ], 
+          [
+            "Attrib", 
+            "ip"
+          ]
+        ], 
+        "manual": false, 
+        "properties": {}, 
+        "post_assign": [], 
+        "locks": [], 
+        "pre_assign": [], 
+        "call": "stockton.chefserver.distribute_bootstrap", 
+        "internal": false, 
+        "kwargs": {
+          "environment": [
+            "spiff:value", 
+            "${id}"
+          ], 
+          "password": [
+            "Attrib", 
+            "password"
+          ], 
+          "run_roles": [
+            "spiff:value", 
+            [
+              "build", 
+              "wordpress-web"
+            ]
+          ], 
+          "identity_file": [
+            "spiff:value", 
+            "~/.ssh/id_rsa"
+          ]
+        }, 
+        "result_key": null, 
+        "id": 9, 
+        "defines": {}
+      }, 
+      "Bootstrap Server:0": {
+        "inputs": [
+          "Wait for Server Build:0"
+        ], 
+        "lookahead": 2, 
+        "description": "", 
+        "name": "Bootstrap Server:0", 
+        "outputs": [], 
+        "class": "SpiffWorkflow.specs.Celery.Celery", 
+        "args": [
+          [
+            "Attrib", 
+            "deployment"
+          ], 
+          [
+            "spiff:value", 
+            "CMDEP21341c9-web1.joe.smith.com"
+          ], 
+          [
+            "Attrib", 
+            "ip"
+          ]
+        ], 
+        "manual": false, 
+        "properties": {}, 
+        "post_assign": [], 
+        "locks": [], 
+        "pre_assign": [], 
+        "call": "stockton.chefserver.distribute_bootstrap", 
+        "internal": false, 
+        "kwargs": {
+          "environment": [
+            "spiff:value", 
+            "${id}"
+          ], 
+          "password": [
+            "Attrib", 
+            "password"
+          ], 
+          "run_roles": [
+            "spiff:value", 
+            [
+              "build", 
+              "wordpress-web"
+            ]
+          ], 
+          "identity_file": [
+            "spiff:value", 
+            "~/.ssh/id_rsa"
+          ]
+        }, 
+        "result_key": null, 
+        "id": 15, 
+        "defines": {}
+      }, 
+      "Create Server:0": {
+        "inputs": [
+          "Write Token to Deployment"
+        ], 
+        "lookahead": 2, 
+        "description": "", 
+        "name": "Create Server:0", 
+        "outputs": [
+          "Wait for Server:0", 
+          "Wait for LB:0"
+        ], 
+        "class": "SpiffWorkflow.specs.Celery.Celery", 
+        "args": [
+          [
+            "Attrib", 
+            "deployment"
+          ], 
+          [
+            "spiff:value", 
+            "CMDEP21341c9-web1.joe.smith.com"
+          ]
+        ], 
+        "manual": false, 
+        "properties": {
+          "Resource": "0"
+        }, 
+        "post_assign": [], 
+        "locks": [], 
+        "pre_assign": [], 
+        "call": "stockton.server.distribute_create", 
+        "internal": false, 
+        "kwargs": {
+          "files": [
+            "spiff:value", 
+            {
+              "/root/.ssh/authorized_keys": "ssh-rsa AAAAB3EzaC1yc2EAAAABIwAAAQEA7TT1qbLElv6tuAaA3Z4tQ752ms0Y7H53yybfFioFHELkp+NRMCKh4AqtqDBFsps1vPzhcXIxn4M4IH0ip7kSx0CSrM/9Vtz8jc+UZwixJdAWwHpum68rGmCQgAsZljI24Q9u8r/hXqjwY6ukTKbC0iy82LHqhcDjh3828+9GyyxbYGm5ND/5G/ZcnHD6HM9YKmc3voz5d/nez3Adlu4I1z4Y1T3lOwOxrP2OqvIeIPvVOZJ9GDmYYRDfqK8OIHDoLAzQx8xu0cvPRDL7gYRXN8nJZ5nOh+51zdPQEl99ACZDSSwTl2biOPNtXtuaGyjB5j8r7dz93JlsN8axea+ECQ== joe@smith.com\n"
+            }
+          ], 
+          "ip_address_type": [
+            "spiff:value", 
+            "public"
+          ], 
+          "api_object": [
+            "spiff:value", 
+            null
+          ], 
+          "flavor": [
+            "spiff:value", 
+            2
+          ], 
+          "image": [
+            "spiff:value", 
+            119
+          ]
+        }, 
+        "result_key": null, 
+        "id": 11, 
+        "defines": {
+          "Resource": "0"
+        }
+      }, 
+      "Create Server:1": {
+        "inputs": [
+          "Write Token to Deployment"
+        ], 
+        "lookahead": 2, 
+        "description": "", 
+        "name": "Create Server:1", 
+        "outputs": [
+          "Wait for Server:1", 
+          "Wait for LB:1"
+        ], 
+        "class": "SpiffWorkflow.specs.Celery.Celery", 
+        "args": [
+          [
+            "Attrib", 
+            "deployment"
+          ], 
+          [
+            "spiff:value", 
+            "CMDEP21341c9-web2.joe.smith.com"
+          ]
+        ], 
+        "manual": false, 
+        "properties": {
+          "Resource": "1"
+        }, 
+        "post_assign": [], 
+        "locks": [], 
+        "pre_assign": [], 
+        "call": "stockton.server.distribute_create", 
+        "internal": false, 
+        "kwargs": {
+          "files": [
+            "spiff:value", 
+            {
+              "/root/.ssh/authorized_keys": "ssh-rsa AAAAB3EzaC1yc2EAAAABIwAAAQEA7TT1qbLElv6tuAaA3Z4tQ752ms0Y7H53yybfFioFHELkp+NRMCKh4AqtqDBFsps1vPzhcXIxn4M4IH0ip7kSx0CSrM/9Vtz8jc+UZwixJdAWwHpum68rGmCQgAsZljI24Q9u8r/hXqjwY6ukTKbC0iy82LHqhcDjh3828+9GyyxbYGm5ND/5G/ZcnHD6HM9YKmc3voz5d/nez3Adlu4I1z4Y1T3lOwOxrP2OqvIeIPvVOZJ9GDmYYRDfqK8OIHDoLAzQx8xu0cvPRDL7gYRXN8nJZ5nOh+51zdPQEl99ACZDSSwTl2biOPNtXtuaGyjB5j8r7dz93JlsN8axea+ECQ== joe@smith.com\n"
+            }
+          ], 
+          "ip_address_type": [
+            "spiff:value", 
+            "public"
+          ], 
+          "api_object": [
+            "spiff:value", 
+            null
+          ], 
+          "flavor": [
+            "spiff:value", 
+            2
+          ], 
+          "image": [
+            "spiff:value", 
+            119
+          ]
+        }, 
+        "result_key": null, 
+        "id": 5, 
+        "defines": {
+          "Resource": "1"
+        }
+      }, 
+      "Apt-get Fix:0": {
+        "inputs": [
+          "Wait for Server:0"
+        ], 
+        "lookahead": 2, 
+        "description": "", 
+        "name": "Apt-get Fix:0", 
+        "outputs": [
+          "Wait for Server Build:0"
+        ], 
+        "class": "SpiffWorkflow.specs.Celery.Celery", 
+        "args": [
+          [
+            "Attrib", 
+            "ip"
+          ], 
+          [
+            "spiff:value", 
+            "sudo apt-get update"
+          ], 
+          [
+            "spiff:value", 
+            "root"
+          ]
+        ], 
+        "manual": false, 
+        "properties": {}, 
+        "post_assign": [], 
+        "locks": [], 
+        "pre_assign": [], 
+        "call": "stockton.ssh.ssh_execute", 
+        "internal": false, 
+        "kwargs": {
+          "password": [
+            "Attrib", 
+            "password"
+          ], 
+          "identity_file": [
+            "spiff:value", 
+            "~/.ssh/id_rsa"
+          ]
+        }, 
+        "result_key": null, 
+        "id": 14, 
+        "defines": {}
+      }, 
+      "Apt-get Fix:1": {
+        "inputs": [
+          "Wait for Server:1"
+        ], 
+        "lookahead": 2, 
+        "description": "", 
+        "name": "Apt-get Fix:1", 
+        "outputs": [
+          "Wait for Server Build:1"
+        ], 
+        "class": "SpiffWorkflow.specs.Celery.Celery", 
+        "args": [
+          [
+            "Attrib", 
+            "ip"
+          ], 
+          [
+            "spiff:value", 
+            "sudo apt-get update"
+          ], 
+          [
+            "spiff:value", 
+            "root"
+          ]
+        ], 
+        "manual": false, 
+        "properties": {}, 
+        "post_assign": [], 
+        "locks": [], 
+        "pre_assign": [], 
+        "call": "stockton.ssh.ssh_execute", 
+        "internal": false, 
+        "kwargs": {
+          "password": [
+            "Attrib", 
+            "password"
+          ], 
+          "identity_file": [
+            "spiff:value", 
+            "~/.ssh/id_rsa"
+          ]
+        }, 
+        "result_key": null, 
+        "id": 8, 
+        "defines": {}
+      }, 
+      "Register Server:1": {
+        "inputs": [
+          "Create Chef Environment"
+        ], 
+        "lookahead": 2, 
+        "description": "", 
+        "name": "Register Server:1", 
+        "outputs": [
+          "Wait for Server Build:1"
+        ], 
+        "class": "SpiffWorkflow.specs.Celery.Celery", 
+        "args": [
+          [
+            "Attrib", 
+            "deployment"
+          ], 
+          [
+            "spiff:value", 
+            "CMDEP21341c9-web2.joe.smith.com"
+          ], 
+          [
+            "spiff:value", 
+            [
+              "wordpress-web"
+            ]
+          ]
+        ], 
+        "manual": false, 
+        "properties": {
+          "Resource": "1"
+        }, 
+        "post_assign": [], 
+        "locks": [], 
+        "pre_assign": [], 
+        "call": "stockton.chefserver.distribute_register_node", 
+        "internal": false, 
+        "kwargs": {
+          "environment": [
+            "spiff:value", 
+            "${id}"
+          ]
+        }, 
+        "result_key": null, 
+        "id": 6, 
+        "defines": {
+          "Resource": "1"
+        }
+      }, 
+      "Register Server:0": {
+        "inputs": [
+          "Create Chef Environment"
+        ], 
+        "lookahead": 2, 
+        "description": "", 
+        "name": "Register Server:0", 
+        "outputs": [
+          "Wait for Server Build:0"
+        ], 
+        "class": "SpiffWorkflow.specs.Celery.Celery", 
+        "args": [
+          [
+            "Attrib", 
+            "deployment"
+          ], 
+          [
+            "spiff:value", 
+            "CMDEP21341c9-web1.joe.smith.com"
+          ], 
+          [
+            "spiff:value", 
+            [
+              "wordpress-web"
+            ]
+          ]
+        ], 
+        "manual": false, 
+        "properties": {
+          "Resource": "0"
+        }, 
+        "post_assign": [], 
+        "locks": [], 
+        "pre_assign": [], 
+        "call": "stockton.chefserver.distribute_register_node", 
+        "internal": false, 
+        "kwargs": {
+          "environment": [
+            "spiff:value", 
+            "${id}"
+          ]
+        }, 
+        "result_key": null, 
+        "id": 12, 
+        "defines": {
+          "Resource": "0"
+        }
+      }, 
+      "Wait for Server Build:0": {
+        "inputs": [
+          "Apt-get Fix:0", 
+          "Register Server:0", 
+          "Populate Chef Overrides"
+        ], 
+        "cancel_remaining": false, 
+        "description": "", 
+        "split_task": null, 
+        "outputs": [
+          "Bootstrap Server:0"
+        ], 
+        "class": "SpiffWorkflow.specs.Join.Merge", 
+        "manual": false, 
+        "properties": {}, 
+        "locks": [], 
+        "pre_assign": [], 
+        "post_assign": [], 
+        "internal": false, 
+        "lookahead": 2, 
+        "threshold": [
+          "spiff:value", 
+          null
+        ], 
+        "name": "Wait for Server Build:0", 
+        "id": 16, 
+        "defines": {}
+      }, 
+      "Wait for Server Build:1": {
+        "inputs": [
+          "Apt-get Fix:1", 
+          "Register Server:1", 
+          "Populate Chef Overrides"
+        ], 
+        "cancel_remaining": false, 
+        "description": "", 
+        "split_task": null, 
+        "outputs": [
+          "Bootstrap Server:1"
+        ], 
+        "class": "SpiffWorkflow.specs.Join.Merge", 
+        "manual": false, 
+        "properties": {}, 
+        "locks": [], 
+        "pre_assign": [], 
+        "post_assign": [], 
+        "internal": false, 
+        "lookahead": 2, 
+        "threshold": [
+          "spiff:value", 
+          null
+        ], 
+        "name": "Wait for Server Build:1", 
+        "id": 10, 
+        "defines": {}
+      }, 
+      "Join:3": {
+        "inputs": [
+          "Create Chef Environment", 
+          "Prepare Override"
+        ], 
+        "cancel_remaining": false, 
+        "description": "", 
+        "split_task": null, 
+        "outputs": [
+          "Populate Chef Overrides"
+        ], 
+        "class": "SpiffWorkflow.specs.Join.Merge", 
+        "manual": false, 
+        "properties": {}, 
+        "locks": [], 
+        "pre_assign": [], 
+        "post_assign": [], 
+        "internal": false, 
+        "lookahead": 2, 
+        "threshold": [
+          "spiff:value", 
+          null
+        ], 
+        "name": "Join:3", 
+        "id": 21, 
+        "defines": {}
+      }, 
+      "Root": {
+        "inputs": [], 
+        "description": "", 
+        "name": "Root", 
+        "outputs": [], 
+        "class": "SpiffWorkflow.specs.Simple.Simple", 
+        "manual": false, 
+        "properties": {}, 
+        "locks": [], 
+        "pre_assign": [], 
+        "post_assign": [], 
+        "internal": false, 
+        "lookahead": 2, 
+        "id": 27, 
+        "defines": {}
+      }, 
+      "Create DB": {
+        "inputs": [
+          "Write Token to Deployment"
+        ], 
+        "lookahead": 2, 
+        "description": "", 
+        "name": "Create DB", 
+        "outputs": [
+          "Add DB User:MyDBUser"
+        ], 
+        "class": "SpiffWorkflow.specs.Celery.Celery", 
+        "args": [
+          [
+            "Attrib", 
+            "deployment"
+          ], 
+          [
+            "spiff:value", 
+            "CMDEP21341c9-db1.joe.smith.com"
+          ], 
+          [
+            "spiff:value", 
+            1
+          ], 
+          [
+            "spiff:value", 
+            2
+          ], 
+          [
+            "spiff:value", 
+            [
+              {
+                "name": "db1"
+              }
+            ]
+          ]
+        ], 
+        "manual": false, 
+        "properties": {
+          "Resource": "3"
+        }, 
+        "post_assign": [], 
+        "locks": [], 
+        "pre_assign": [], 
+        "call": "stockton.db.distribute_create_instance", 
+        "internal": false, 
+        "kwargs": {
+          "update_chef": [
+            "spiff:value", 
+            true
+          ]
+        }, 
+        "result_key": null, 
+        "id": 17, 
+        "defines": {
+          "Resource": "3"
+        }
+      }, 
+      "Wait for Server:0": {
+        "inputs": [
+          "Create Server:0"
+        ], 
+        "lookahead": 2, 
+        "description": "", 
+        "name": "Wait for Server:0", 
+        "outputs": [
+          "Apt-get Fix:0"
+        ], 
+        "class": "SpiffWorkflow.specs.Celery.Celery", 
+        "args": [
+          [
+            "Attrib", 
+            "deployment"
+          ], 
+          [
+            "Attrib", 
+            "ip"
+          ], 
+          [
+            "spiff:value", 
+            "root"
+          ]
+        ], 
+        "manual": false, 
+        "properties": {}, 
+        "post_assign": [], 
+        "locks": [], 
+        "pre_assign": [], 
+        "call": "stockton.ssh.ssh_up", 
+        "internal": false, 
+        "kwargs": {
+          "password": [
+            "Attrib", 
+            "password"
+          ], 
+          "identity_file": [
+            "spiff:value", 
+            "~/.ssh/id_rsa"
+          ]
+        }, 
+        "result_key": null, 
+        "id": 13, 
+        "defines": {}
+      }, 
+      "Wait for Server:1": {
+        "inputs": [
+          "Create Server:1"
+        ], 
+        "lookahead": 2, 
+        "description": "", 
+        "name": "Wait for Server:1", 
+        "outputs": [
+          "Apt-get Fix:1"
+        ], 
+        "class": "SpiffWorkflow.specs.Celery.Celery", 
+        "args": [
+          [
+            "Attrib", 
+            "deployment"
+          ], 
+          [
+            "Attrib", 
+            "ip"
+          ], 
+          [
+            "spiff:value", 
+            "root"
+          ]
+        ], 
+        "manual": false, 
+        "properties": {}, 
+        "post_assign": [], 
+        "locks": [], 
+        "pre_assign": [], 
+        "call": "stockton.ssh.ssh_up", 
+        "internal": false, 
+        "kwargs": {
+          "password": [
+            "Attrib", 
+            "password"
+          ], 
+          "identity_file": [
+            "spiff:value", 
+            "~/.ssh/id_rsa"
+          ]
+        }, 
+        "result_key": null, 
+        "id": 7, 
+        "defines": {}
+      }, 
+      "Prepare Override": {
+        "inputs": [
+          "Add DB User:MyDBUser"
+        ], 
+        "description": "", 
+        "name": "Prepare Override", 
+        "outputs": [
+          "Join:3"
+        ], 
+        "class": "SpiffWorkflow.specs.Transform.Transform", 
+        "manual": false, 
+        "properties": {}, 
+        "locks": [], 
+        "pre_assign": [], 
+        "post_assign": [], 
+        "transforms": [
+          "my_task.attributes['overrides']={'wordpress': {'db': {'host': my_task.attributes['hostname'], 'database': 'db1', 'user': 'MyDBUser', 'password': 'password'}}}"
+        ], 
+        "internal": false, 
+        "lookahead": 2, 
+        "id": 19, 
+        "defines": {}
+      }, 
+      "Add DB User:MyDBUser": {
+        "inputs": [
+          "Create DB"
+        ], 
+        "lookahead": 2, 
+        "description": "", 
+        "name": "Add DB User:MyDBUser", 
+        "outputs": [
+          "Prepare Override"
+        ], 
+        "class": "SpiffWorkflow.specs.Celery.Celery", 
+        "args": [
+          [
+            "Attrib", 
+            "deployment"
+          ], 
+          [
+            "Attrib", 
+            "id"
+          ], 
+          [
+            "spiff:value", 
+            [
+              "db1"
+            ]
+          ], 
+          [
+            "spiff:value", 
+            "MyDBUser"
+          ], 
+          [
+            "spiff:value", 
+            "password"
+          ]
+        ], 
+        "manual": false, 
+        "properties": {}, 
+        "post_assign": [], 
+        "locks": [], 
+        "pre_assign": [], 
+        "call": "stockton.db.distribute_add_user", 
+        "internal": false, 
+        "kwargs": {}, 
+        "result_key": null, 
+        "id": 18, 
+        "defines": {}
+      }, 
+      "Write Token to Deployment": {
+        "inputs": [
+          "Authenticate"
+        ], 
+        "description": "", 
+        "name": "Write Token to Deployment", 
+        "outputs": [
+          "Create Server:1", 
+          "Create Server:0", 
+          "Create DB", 
+          "Create LB"
+        ], 
+        "class": "SpiffWorkflow.specs.Transform.Transform", 
+        "manual": false, 
+        "properties": {}, 
+        "locks": [], 
+        "pre_assign": [], 
+        "post_assign": [], 
+        "transforms": [
+          "my_task.attributes['deployment']['authtoken']=my_task.attributes['token']"
+        ], 
+        "internal": false, 
+        "lookahead": 2, 
+        "id": 3, 
+        "defines": {}
+      }
+    }, 
+    "description": "", 
+    "file": null, 
+    "name": "Scalable Wordpress Workflow"
+  }, 
+  "success": true, 
+  "workflow": "SpiffWorkflow.specs.WorkflowSpec.WorkflowSpec", 
+  "task_tree": {
+    "parent": null, 
+    "task_spec": "Root", 
+    "last_state_change": 1337121338.629806, 
+    "id": 1, 
+    "state": 64, 
+    "internal_attributes": {}, 
+    "attributes": {}, 
+    "children": [
+      {
+        "parent": 1, 
+        "task_spec": "Start", 
+        "last_state_change": 1337121339.035249, 
+        "id": 2, 
+        "state": 64, 
+        "internal_attributes": {}, 
+        "attributes": {
+          "deployment": {
+            "username": "joe.smith", 
+            "files": {
+              "/root/.ssh/authorized_keys": "ssh-rsa AAAAB3EzaC1yc2EAAAABIwAAAQEA7TT1qbLElv6tuAaA3Z4tQ752ms0Y7H53yybfFioFHELkp+NRMCKh4AqtqDBFsps1vPzhcXIxn4M4IH0ip7kSx0CSrM/9Vtz8jc+UZwixJdAWwHpum68rGmCQgAsZljI24Q9u8r/hXqjwY6ukTKbC0iy82LHqhcDjh3828+9GyyxbYGm5ND/5G/ZcnHD6HM9YKmc3voz5d/nez3Adlu4I1z4Y1T3lOwOxrP2OqvIeIPvVOZJ9GDmYYRDfqK8OIHDoLAzQx8xu0cvPRDL7gYRXN8nJZ5nOh+51zdPQEl99ACZDSSwTl2biOPNtXtuaGyjB5j8r7dz93JlsN8axea+ECQ== joe@smith.com\n"
+            }, 
+            "apikey": "--secret--", 
+            "region": "chicago", 
+            "authtoken": "92d426f0-46bd-4df9-bb5e-e1d67c347ae9", 
+            "id": "${id}"
+          }
+        }, 
+        "children": [
+          {
+            "parent": 2, 
+            "task_spec": "Authenticate", 
+            "last_state_change": 1337121340.110914, 
+            "id": 3, 
+            "state": 64, 
+            "internal_attributes": {
+              "task_id": "e89fc86c-4718-4a57-a6ba-33179bbd1aea"
+            }, 
+            "attributes": {
+              "token": "92d426f0-46bd-4df9-bb5e-e1d67c347ae9", 
+              "deployment": {
+                "username": "joe.smith", 
+                "files": {
+                  "/root/.ssh/authorized_keys": "ssh-rsa AAAAB3EzaC1yc2EAAAABIwAAAQEA7TT1qbLElv6tuAaA3Z4tQ752ms0Y7H53yybfFioFHELkp+NRMCKh4AqtqDBFsps1vPzhcXIxn4M4IH0ip7kSx0CSrM/9Vtz8jc+UZwixJdAWwHpum68rGmCQgAsZljI24Q9u8r/hXqjwY6ukTKbC0iy82LHqhcDjh3828+9GyyxbYGm5ND/5G/ZcnHD6HM9YKmc3voz5d/nez3Adlu4I1z4Y1T3lOwOxrP2OqvIeIPvVOZJ9GDmYYRDfqK8OIHDoLAzQx8xu0cvPRDL7gYRXN8nJZ5nOh+51zdPQEl99ACZDSSwTl2biOPNtXtuaGyjB5j8r7dz93JlsN8axea+ECQ== joe@smith.com\n"
+                }, 
+                "apikey": "--secret--", 
+                "region": "chicago", 
+                "authtoken": "92d426f0-46bd-4df9-bb5e-e1d67c347ae9", 
+                "id": "${id}"
+              }
+            }, 
+            "children": [
+              {
+                "parent": 3, 
+                "task_spec": "Write Token to Deployment", 
+                "last_state_change": 1337121340.178139, 
+                "id": 4, 
+                "state": 64, 
+                "internal_attributes": {}, 
+                "attributes": {
+                  "token": "92d426f0-46bd-4df9-bb5e-e1d67c347ae9", 
+                  "deployment": {
+                    "username": "joe.smith", 
+                    "files": {
+                      "/root/.ssh/authorized_keys": "ssh-rsa AAAAB3EzaC1yc2EAAAABIwAAAQEA7TT1qbLElv6tuAaA3Z4tQ752ms0Y7H53yybfFioFHELkp+NRMCKh4AqtqDBFsps1vPzhcXIxn4M4IH0ip7kSx0CSrM/9Vtz8jc+UZwixJdAWwHpum68rGmCQgAsZljI24Q9u8r/hXqjwY6ukTKbC0iy82LHqhcDjh3828+9GyyxbYGm5ND/5G/ZcnHD6HM9YKmc3voz5d/nez3Adlu4I1z4Y1T3lOwOxrP2OqvIeIPvVOZJ9GDmYYRDfqK8OIHDoLAzQx8xu0cvPRDL7gYRXN8nJZ5nOh+51zdPQEl99ACZDSSwTl2biOPNtXtuaGyjB5j8r7dz93JlsN8axea+ECQ== joe@smith.com\n"
+                    }, 
+                    "apikey": "--secret--", 
+                    "region": "chicago", 
+                    "authtoken": "92d426f0-46bd-4df9-bb5e-e1d67c347ae9", 
+                    "id": "${id}"
+                  }
+                }, 
+                "children": [
+                  {
+                    "parent": 4, 
+                    "task_spec": "Create Server:1", 
+                    "last_state_change": 1337121360.012793, 
+                    "id": 6, 
+                    "state": 64, 
+                    "internal_attributes": {
+                      "task_id": "b51f2f51-9fe0-46e1-942c-ce95c422c441"
+                    }, 
+                    "attributes": {
+                      "ip": "184.106.71.87", 
+                      "token": "92d426f0-46bd-4df9-bb5e-e1d67c347ae9", 
+                      "password": "Q2H7Q3acmCMDEP21341c9-web2.joe.smith.com", 
+                      "id": 20842761, 
+                      "deployment": {
+                        "username": "joe.smith", 
+                        "files": {
+                          "/root/.ssh/authorized_keys": "ssh-rsa AAAAB3EzaC1yc2EAAAABIwAAAQEA7TT1qbLElv6tuAaA3Z4tQ752ms0Y7H53yybfFioFHELkp+NRMCKh4AqtqDBFsps1vPzhcXIxn4M4IH0ip7kSx0CSrM/9Vtz8jc+UZwixJdAWwHpum68rGmCQgAsZljI24Q9u8r/hXqjwY6ukTKbC0iy82LHqhcDjh3828+9GyyxbYGm5ND/5G/ZcnHD6HM9YKmc3voz5d/nez3Adlu4I1z4Y1T3lOwOxrP2OqvIeIPvVOZJ9GDmYYRDfqK8OIHDoLAzQx8xu0cvPRDL7gYRXN8nJZ5nOh+51zdPQEl99ACZDSSwTl2biOPNtXtuaGyjB5j8r7dz93JlsN8axea+ECQ== joe@smith.com\n"
+                        }, 
+                        "apikey": "--secret--", 
+                        "region": "chicago", 
+                        "authtoken": "92d426f0-46bd-4df9-bb5e-e1d67c347ae9", 
+                        "id": "${id}"
+                      }
+                    }, 
+                    "children": [
+                      {
+                        "parent": 6, 
+                        "task_spec": "Wait for Server:1", 
+                        "last_state_change": 1337121860.821785, 
+                        "id": 10, 
+                        "state": 64, 
+                        "internal_attributes": {
+                          "task_id": "690725b0-6e08-43b4-be70-a77ca17d5387"
+                        }, 
+                        "attributes": {
+                          "ip": "184.106.71.87", 
+                          "token": "92d426f0-46bd-4df9-bb5e-e1d67c347ae9", 
+                          "result": true, 
+                          "deployment": {
+                            "username": "joe.smith", 
+                            "files": {
+                              "/root/.ssh/authorized_keys": "ssh-rsa AAAAB3EzaC1yc2EAAAABIwAAAQEA7TT1qbLElv6tuAaA3Z4tQ752ms0Y7H53yybfFioFHELkp+NRMCKh4AqtqDBFsps1vPzhcXIxn4M4IH0ip7kSx0CSrM/9Vtz8jc+UZwixJdAWwHpum68rGmCQgAsZljI24Q9u8r/hXqjwY6ukTKbC0iy82LHqhcDjh3828+9GyyxbYGm5ND/5G/ZcnHD6HM9YKmc3voz5d/nez3Adlu4I1z4Y1T3lOwOxrP2OqvIeIPvVOZJ9GDmYYRDfqK8OIHDoLAzQx8xu0cvPRDL7gYRXN8nJZ5nOh+51zdPQEl99ACZDSSwTl2biOPNtXtuaGyjB5j8r7dz93JlsN8axea+ECQ== joe@smith.com\n"
+                            }, 
+                            "apikey": "--secret--", 
+                            "region": "chicago", 
+                            "authtoken": "92d426f0-46bd-4df9-bb5e-e1d67c347ae9", 
+                            "id": "${id}"
+                          }, 
+                          "password": "Q2H7Q3acmCMDEP21341c9-web2.joe.smith.com", 
+                          "id": 20842761
+                        }, 
+                        "children": [
+                          {
+                            "parent": 10, 
+                            "task_spec": "Apt-get Fix:1", 
+                            "last_state_change": 1337121936.243324, 
+                            "id": 12, 
+                            "state": 64, 
+                            "internal_attributes": {
+                              "task_id": "3ca9b7f8-b8a3-45a1-b382-dc47e58efb1e"
+                            }, 
+                            "attributes": {
+                              "stdout": "Ign http://mirror.rackspace.com oneiric InRelease\nIgn http://mirror.rackspace.com oneiric-updates InRelease\nGet:1 http://mirror.rackspace.com oneiric Release.gpg [198 B]\nGet:2 http://mirror.rackspace.com oneiric-updates Release.gpg [198 B]\nIgn http://security.ubuntu.com oneiric-security InRelease\nGet:3 http://mirror.rackspace.com oneiric Release [40.8 kB]\nGet:4 http://security.ubuntu.com oneiric-security Release.gpg [198 B]\nGet:5 http://mirror.rackspace.com oneiric-updates Release [40.8 kB]\nGet:6 http://security.ubuntu.com oneiric-security Release [40.8 kB]\nGet:7 http://mirror.rackspace.com oneiric/main Sources [877 kB]\nGet:8 http://mirror.rackspace.com oneiric/restricted Sources [5,351 B]\nGet:9 http://security.ubuntu.com oneiric-security/main Sources [37.5 kB]\nGet:10 http://mirror.rackspace.com oneiric/universe Sources [4,677 kB]\nGet:11 http://security.ubuntu.com oneiric-security/restricted Sources [1,959 B]\nGet:12 http://security.ubuntu.com oneiric-security/universe Sources [16.5 kB]\nGet:13 http://security.ubuntu.com oneiric-security/multiverse Sources [1,644 B]\nGet:14 http://security.ubuntu.com oneiric-security/main amd64 Packages [118 kB]\nGet:15 http://security.ubuntu.com oneiric-security/restricted amd64 Packages [3,980 B]\nGet:16 http://security.ubuntu.com oneiric-security/universe amd64 Packages [36.3 kB]\nGet:17 http://security.ubuntu.com oneiric-security/multiverse amd64 Packages [3,209 B]\nGet:18 http://security.ubuntu.com oneiric-security/main i386 Packages [118 kB]\nGet:19 http://security.ubuntu.com oneiric-security/restricted i386 Packages [3,939 B]\nGet:20 http://security.ubuntu.com oneiric-security/universe i386 Packages [36.3 kB]\nGet:21 http://security.ubuntu.com oneiric-security/multiverse i386 Packages [3,371 B]\nGet:22 http://security.ubuntu.com oneiric-security/main TranslationIndex [73 B]\nGet:23 http://security.ubuntu.com oneiric-security/multiverse TranslationIndex [72 B]\nGet:24 http://security.ubuntu.com oneiric-security/restricted TranslationIndex [71 B]\nGet:25 http://security.ubuntu.com oneiric-security/universe TranslationIndex [73 B]\nGet:26 http://mirror.rackspace.com oneiric/multiverse Sources [149 kB]\nGet:27 http://security.ubuntu.com oneiric-security/main Translation-en [56.2 kB]\nGet:28 http://security.ubuntu.com oneiric-security/multiverse Translation-en [1,494 B]\nGet:29 http://security.ubuntu.com oneiric-security/restricted Translation-en [978 B]\nGet:30 http://security.ubuntu.com oneiric-security/universe Translation-en [25.1 kB]\nGet:31 http://mirror.rackspace.com oneiric/main amd64 Packages [1,226 kB]\nGet:32 http://mirror.rackspace.com oneiric/restricted amd64 Packages [8,261 B]\nGet:33 http://mirror.rackspace.com oneiric/universe amd64 Packages [4,460 kB]\nGet:34 http://mirror.rackspace.com oneiric/multiverse amd64 Packages [117 kB]\nGet:35 http://mirror.rackspace.com oneiric/main i386 Packages [1,226 kB]\nGet:36 http://mirror.rackspace.com oneiric/restricted i386 Packages [8,216 B]\nGet:37 http://mirror.rackspace.com oneiric/universe i386 Packages [4,468 kB]\nGet:38 http://mirror.rackspace.com oneiric/multiverse i386 Packages [119 kB]\nGet:39 http://mirror.rackspace.com oneiric/main TranslationIndex [3,289 B]\nGet:40 http://mirror.rackspace.com oneiric/multiverse TranslationIndex [2,265 B]\nGet:41 http://mirror.rackspace.com oneiric/restricted TranslationIndex [2,263 B]\nGet:42 http://mirror.rackspace.com oneiric/universe TranslationIndex [2,640 B]\nGet:43 http://mirror.rackspace.com oneiric-updates/main Sources [139 kB]\nGet:44 http://mirror.rackspace.com oneiric-updates/restricted Sources [3,347 B]\nGet:45 http://mirror.rackspace.com oneiric-updates/universe Sources [52.6 kB]\nGet:46 http://mirror.rackspace.com oneiric-updates/multiverse Sources [3,660 B]\nGet:47 http://mirror.rackspace.com oneiric-updates/main amd64 Packages [344 kB]\nGet:48 http://mirror.rackspace.com oneiric-updates/restricted amd64 Packages [6,656 B]\nGet:49 http://mirror.rackspace.com oneiric-updates/universe amd64 Packages [113 kB]\nGet:50 http://mirror.rackspace.com oneiric-updates/multiverse amd64 Packages [6,195 B]\nGet:51 http://mirror.rackspace.com oneiric-updates/main i386 Packages [344 kB]\nGet:52 http://mirror.rackspace.com oneiric-updates/restricted i386 Packages [6,631 B]\nGet:53 http://mirror.rackspace.com oneiric-updates/universe i386 Packages [113 kB]\nGet:54 http://mirror.rackspace.com oneiric-updates/multiverse i386 Packages [6,363 B]\nGet:55 http://mirror.rackspace.com oneiric-updates/main TranslationIndex [74 B]\nGet:56 http://mirror.rackspace.com oneiric-updates/multiverse TranslationIndex [72 B]\nGet:57 http://mirror.rackspace.com oneiric-updates/restricted TranslationIndex [72 B]\nGet:58 http://mirror.rackspace.com oneiric-updates/universe TranslationIndex [73 B]\nGet:59 http://mirror.rackspace.com oneiric/main Translation-en [701 kB]\nGet:60 http://mirror.rackspace.com oneiric/multiverse Translation-en [92.6 kB]\nGet:61 http://mirror.rackspace.com oneiric/restricted Translation-en [2,229 B]\nGet:62 http://mirror.rackspace.com oneiric/universe Translation-en [3,165 kB]\nGet:63 http://mirror.rackspace.com oneiric-updates/main Translation-en [155 kB]\nGet:64 http://mirror.rackspace.com oneiric-updates/multiverse Translation-en [3,524 B]\nGet:65 http://mirror.rackspace.com oneiric-updates/restricted Translation-en [1,547 B]\nGet:66 http://mirror.rackspace.com oneiric-updates/universe Translation-en [67.9 kB]\nFetched 23.3 MB in 11s (2,009 kB/s)\nReading package lists...\n", 
+                              "ip": "184.106.71.87", 
+                              "token": "92d426f0-46bd-4df9-bb5e-e1d67c347ae9", 
+                              "result": true, 
+                              "stderr": "", 
+                              "deployment": {
+                                "username": "joe.smith", 
+                                "files": {
+                                  "/root/.ssh/authorized_keys": "ssh-rsa AAAAB3EzaC1yc2EAAAABIwAAAQEA7TT1qbLElv6tuAaA3Z4tQ752ms0Y7H53yybfFioFHELkp+NRMCKh4AqtqDBFsps1vPzhcXIxn4M4IH0ip7kSx0CSrM/9Vtz8jc+UZwixJdAWwHpum68rGmCQgAsZljI24Q9u8r/hXqjwY6ukTKbC0iy82LHqhcDjh3828+9GyyxbYGm5ND/5G/ZcnHD6HM9YKmc3voz5d/nez3Adlu4I1z4Y1T3lOwOxrP2OqvIeIPvVOZJ9GDmYYRDfqK8OIHDoLAzQx8xu0cvPRDL7gYRXN8nJZ5nOh+51zdPQEl99ACZDSSwTl2biOPNtXtuaGyjB5j8r7dz93JlsN8axea+ECQ== joe@smith.com\n"
+                                }, 
+                                "apikey": "--secret--", 
+                                "region": "chicago", 
+                                "authtoken": "92d426f0-46bd-4df9-bb5e-e1d67c347ae9", 
+                                "id": "${id}"
+                              }, 
+                              "password": "Q2H7Q3acmCMDEP21341c9-web2.joe.smith.com", 
+                              "id": 20842761
+                            }, 
+                            "children": [
+                              {
+                                "parent": 12, 
+                                "task_spec": "Wait for Server Build:1", 
+                                "last_state_change": 1337121936.29347, 
+                                "id": 13, 
+                                "state": 64, 
+                                "internal_attributes": {}, 
+                                "attributes": {
+                                  "status": "BUILD", 
+                                  "name": "CMDEP21341c9-db1.joe.smith.com", 
+                                  "stdout": "Ign http://mirror.rackspace.com oneiric InRelease\nIgn http://mirror.rackspace.com oneiric-updates InRelease\nGet:1 http://mirror.rackspace.com oneiric Release.gpg [198 B]\nGet:2 http://mirror.rackspace.com oneiric-updates Release.gpg [198 B]\nIgn http://security.ubuntu.com oneiric-security InRelease\nGet:3 http://mirror.rackspace.com oneiric Release [40.8 kB]\nGet:4 http://security.ubuntu.com oneiric-security Release.gpg [198 B]\nGet:5 http://mirror.rackspace.com oneiric-updates Release [40.8 kB]\nGet:6 http://security.ubuntu.com oneiric-security Release [40.8 kB]\nGet:7 http://mirror.rackspace.com oneiric/main Sources [877 kB]\nGet:8 http://mirror.rackspace.com oneiric/restricted Sources [5,351 B]\nGet:9 http://security.ubuntu.com oneiric-security/main Sources [37.5 kB]\nGet:10 http://mirror.rackspace.com oneiric/universe Sources [4,677 kB]\nGet:11 http://security.ubuntu.com oneiric-security/restricted Sources [1,959 B]\nGet:12 http://security.ubuntu.com oneiric-security/universe Sources [16.5 kB]\nGet:13 http://security.ubuntu.com oneiric-security/multiverse Sources [1,644 B]\nGet:14 http://security.ubuntu.com oneiric-security/main amd64 Packages [118 kB]\nGet:15 http://security.ubuntu.com oneiric-security/restricted amd64 Packages [3,980 B]\nGet:16 http://security.ubuntu.com oneiric-security/universe amd64 Packages [36.3 kB]\nGet:17 http://security.ubuntu.com oneiric-security/multiverse amd64 Packages [3,209 B]\nGet:18 http://security.ubuntu.com oneiric-security/main i386 Packages [118 kB]\nGet:19 http://security.ubuntu.com oneiric-security/restricted i386 Packages [3,939 B]\nGet:20 http://security.ubuntu.com oneiric-security/universe i386 Packages [36.3 kB]\nGet:21 http://security.ubuntu.com oneiric-security/multiverse i386 Packages [3,371 B]\nGet:22 http://security.ubuntu.com oneiric-security/main TranslationIndex [73 B]\nGet:23 http://security.ubuntu.com oneiric-security/multiverse TranslationIndex [72 B]\nGet:24 http://security.ubuntu.com oneiric-security/restricted TranslationIndex [71 B]\nGet:25 http://security.ubuntu.com oneiric-security/universe TranslationIndex [73 B]\nGet:26 http://mirror.rackspace.com oneiric/multiverse Sources [149 kB]\nGet:27 http://security.ubuntu.com oneiric-security/main Translation-en [56.2 kB]\nGet:28 http://security.ubuntu.com oneiric-security/multiverse Translation-en [1,494 B]\nGet:29 http://security.ubuntu.com oneiric-security/restricted Translation-en [978 B]\nGet:30 http://security.ubuntu.com oneiric-security/universe Translation-en [25.1 kB]\nGet:31 http://mirror.rackspace.com oneiric/main amd64 Packages [1,226 kB]\nGet:32 http://mirror.rackspace.com oneiric/restricted amd64 Packages [8,261 B]\nGet:33 http://mirror.rackspace.com oneiric/universe amd64 Packages [4,460 kB]\nGet:34 http://mirror.rackspace.com oneiric/multiverse amd64 Packages [117 kB]\nGet:35 http://mirror.rackspace.com oneiric/main i386 Packages [1,226 kB]\nGet:36 http://mirror.rackspace.com oneiric/restricted i386 Packages [8,216 B]\nGet:37 http://mirror.rackspace.com oneiric/universe i386 Packages [4,468 kB]\nGet:38 http://mirror.rackspace.com oneiric/multiverse i386 Packages [119 kB]\nGet:39 http://mirror.rackspace.com oneiric/main TranslationIndex [3,289 B]\nGet:40 http://mirror.rackspace.com oneiric/multiverse TranslationIndex [2,265 B]\nGet:41 http://mirror.rackspace.com oneiric/restricted TranslationIndex [2,263 B]\nGet:42 http://mirror.rackspace.com oneiric/universe TranslationIndex [2,640 B]\nGet:43 http://mirror.rackspace.com oneiric-updates/main Sources [139 kB]\nGet:44 http://mirror.rackspace.com oneiric-updates/restricted Sources [3,347 B]\nGet:45 http://mirror.rackspace.com oneiric-updates/universe Sources [52.6 kB]\nGet:46 http://mirror.rackspace.com oneiric-updates/multiverse Sources [3,660 B]\nGet:47 http://mirror.rackspace.com oneiric-updates/main amd64 Packages [344 kB]\nGet:48 http://mirror.rackspace.com oneiric-updates/restricted amd64 Packages [6,656 B]\nGet:49 http://mirror.rackspace.com oneiric-updates/universe amd64 Packages [113 kB]\nGet:50 http://mirror.rackspace.com oneiric-updates/multiverse amd64 Packages [6,195 B]\nGet:51 http://mirror.rackspace.com oneiric-updates/main i386 Packages [344 kB]\nGet:52 http://mirror.rackspace.com oneiric-updates/restricted i386 Packages [6,631 B]\nGet:53 http://mirror.rackspace.com oneiric-updates/universe i386 Packages [113 kB]\nGet:54 http://mirror.rackspace.com oneiric-updates/multiverse i386 Packages [6,363 B]\nGet:55 http://mirror.rackspace.com oneiric-updates/main TranslationIndex [74 B]\nGet:56 http://mirror.rackspace.com oneiric-updates/multiverse TranslationIndex [72 B]\nGet:57 http://mirror.rackspace.com oneiric-updates/restricted TranslationIndex [72 B]\nGet:58 http://mirror.rackspace.com oneiric-updates/universe TranslationIndex [73 B]\nGet:59 http://mirror.rackspace.com oneiric/main Translation-en [701 kB]\nGet:60 http://mirror.rackspace.com oneiric/multiverse Translation-en [92.6 kB]\nGet:61 http://mirror.rackspace.com oneiric/restricted Translation-en [2,229 B]\nGet:62 http://mirror.rackspace.com oneiric/universe Translation-en [3,165 kB]\nGet:63 http://mirror.rackspace.com oneiric-updates/main Translation-en [155 kB]\nGet:64 http://mirror.rackspace.com oneiric-updates/multiverse Translation-en [3,524 B]\nGet:65 http://mirror.rackspace.com oneiric-updates/restricted Translation-en [1,547 B]\nGet:66 http://mirror.rackspace.com oneiric-updates/universe Translation-en [67.9 kB]\nFetched 23.3 MB in 11s (2,009 kB/s)\nReading package lists...\n", 
+                                  "ip": "184.106.71.87", 
+                                  "overrides": {
+                                    "wordpress": {
+                                      "db": {
+                                        "host": "5888a24f7e53a5c859e689b1cd1579ead0294a37.rackspaceclouddb.com", 
+                                        "password": "password", 
+                                        "user": "MyDBUser", 
+                                        "database": "db1"
+                                      }
+                                    }
+                                  }, 
+                                  "hostname": "5888a24f7e53a5c859e689b1cd1579ead0294a37.rackspaceclouddb.com", 
+                                  "token": "92d426f0-46bd-4df9-bb5e-e1d67c347ae9", 
+                                  "result": true, 
+                                  "stderr": "", 
+                                  "deployment": {
+                                    "username": "joe.smith", 
+                                    "files": {
+                                      "/root/.ssh/authorized_keys": "ssh-rsa AAAAB3EzaC1yc2EAAAABIwAAAQEA7TT1qbLElv6tuAaA3Z4tQ752ms0Y7H53yybfFioFHELkp+NRMCKh4AqtqDBFsps1vPzhcXIxn4M4IH0ip7kSx0CSrM/9Vtz8jc+UZwixJdAWwHpum68rGmCQgAsZljI24Q9u8r/hXqjwY6ukTKbC0iy82LHqhcDjh3828+9GyyxbYGm5ND/5G/ZcnHD6HM9YKmc3voz5d/nez3Adlu4I1z4Y1T3lOwOxrP2OqvIeIPvVOZJ9GDmYYRDfqK8OIHDoLAzQx8xu0cvPRDL7gYRXN8nJZ5nOh+51zdPQEl99ACZDSSwTl2biOPNtXtuaGyjB5j8r7dz93JlsN8axea+ECQ== joe@smith.com\n"
+                                    }, 
+                                    "apikey": "--secret--", 
+                                    "region": "chicago", 
+                                    "authtoken": "92d426f0-46bd-4df9-bb5e-e1d67c347ae9", 
+                                    "id": "${id}"
+                                  }, 
+                                  "password": "Q2H7Q3acmCMDEP21341c9-web2.joe.smith.com", 
+                                  "id": 20842761
+                                }, 
+                                "children": []
+                              }
+                            ]
+                          }
+                        ]
+                      }, 
+                      {
+                        "parent": 6, 
+                        "task_spec": "Wait for LB:1", 
+                        "last_state_change": 1337121361.220687, 
+                        "id": 11, 
+                        "state": 64, 
+                        "internal_attributes": {}, 
+                        "attributes": {
+                          "ip": "184.106.71.87", 
+                          "token": "92d426f0-46bd-4df9-bb5e-e1d67c347ae9", 
+                          "password": "Q2H7Q3acmCMDEP21341c9-web2.joe.smith.com", 
+                          "id": 20842761, 
+                          "deployment": {
+                            "username": "joe.smith", 
+                            "files": {
+                              "/root/.ssh/authorized_keys": "ssh-rsa AAAAB3EzaC1yc2EAAAABIwAAAQEA7TT1qbLElv6tuAaA3Z4tQ752ms0Y7H53yybfFioFHELkp+NRMCKh4AqtqDBFsps1vPzhcXIxn4M4IH0ip7kSx0CSrM/9Vtz8jc+UZwixJdAWwHpum68rGmCQgAsZljI24Q9u8r/hXqjwY6ukTKbC0iy82LHqhcDjh3828+9GyyxbYGm5ND/5G/ZcnHD6HM9YKmc3voz5d/nez3Adlu4I1z4Y1T3lOwOxrP2OqvIeIPvVOZJ9GDmYYRDfqK8OIHDoLAzQx8xu0cvPRDL7gYRXN8nJZ5nOh+51zdPQEl99ACZDSSwTl2biOPNtXtuaGyjB5j8r7dz93JlsN8axea+ECQ== joe@smith.com\n"
+                            }, 
+                            "apikey": "--secret--", 
+                            "region": "chicago", 
+                            "authtoken": "92d426f0-46bd-4df9-bb5e-e1d67c347ae9", 
+                            "id": "${id}"
+                          }
+                        }, 
+                        "children": []
+                      }
+                    ]
+                  }, 
+                  {
+                    "parent": 4, 
+                    "task_spec": "Create Server:0", 
+                    "last_state_change": 1337121380.21939, 
+                    "id": 7, 
+                    "state": 64, 
+                    "internal_attributes": {
+                      "task_id": "67ad43ef-0ba0-49b3-bc79-141e31e6d4b0"
+                    }, 
+                    "attributes": {
+                      "ip": "184.106.71.94", 
+                      "token": "92d426f0-46bd-4df9-bb5e-e1d67c347ae9", 
+                      "password": "QiC1mGv70CMDEP21341c9-web1.joe.smith.com", 
+                      "id": 20842765, 
+                      "deployment": {
+                        "username": "joe.smith", 
+                        "files": {
+                          "/root/.ssh/authorized_keys": "ssh-rsa AAAAB3EzaC1yc2EAAAABIwAAAQEA7TT1qbLElv6tuAaA3Z4tQ752ms0Y7H53yybfFioFHELkp+NRMCKh4AqtqDBFsps1vPzhcXIxn4M4IH0ip7kSx0CSrM/9Vtz8jc+UZwixJdAWwHpum68rGmCQgAsZljI24Q9u8r/hXqjwY6ukTKbC0iy82LHqhcDjh3828+9GyyxbYGm5ND/5G/ZcnHD6HM9YKmc3voz5d/nez3Adlu4I1z4Y1T3lOwOxrP2OqvIeIPvVOZJ9GDmYYRDfqK8OIHDoLAzQx8xu0cvPRDL7gYRXN8nJZ5nOh+51zdPQEl99ACZDSSwTl2biOPNtXtuaGyjB5j8r7dz93JlsN8axea+ECQ== joe@smith.com\n"
+                        }, 
+                        "apikey": "--secret--", 
+                        "region": "chicago", 
+                        "authtoken": "92d426f0-46bd-4df9-bb5e-e1d67c347ae9", 
+                        "id": "${id}"
+                      }
+                    }, 
+                    "children": [
+                      {
+                        "parent": 7, 
+                        "task_spec": "Wait for Server:0", 
+                        "last_state_change": 1337121861.119989, 
+                        "id": 16, 
+                        "state": 64, 
+                        "internal_attributes": {
+                          "task_id": "838d9b0e-11b6-4cab-92d4-d4ad7554e2b3"
+                        }, 
+                        "attributes": {
+                          "ip": "184.106.71.94", 
+                          "token": "92d426f0-46bd-4df9-bb5e-e1d67c347ae9", 
+                          "result": true, 
+                          "deployment": {
+                            "username": "joe.smith", 
+                            "files": {
+                              "/root/.ssh/authorized_keys": "ssh-rsa AAAAB3EzaC1yc2EAAAABIwAAAQEA7TT1qbLElv6tuAaA3Z4tQ752ms0Y7H53yybfFioFHELkp+NRMCKh4AqtqDBFsps1vPzhcXIxn4M4IH0ip7kSx0CSrM/9Vtz8jc+UZwixJdAWwHpum68rGmCQgAsZljI24Q9u8r/hXqjwY6ukTKbC0iy82LHqhcDjh3828+9GyyxbYGm5ND/5G/ZcnHD6HM9YKmc3voz5d/nez3Adlu4I1z4Y1T3lOwOxrP2OqvIeIPvVOZJ9GDmYYRDfqK8OIHDoLAzQx8xu0cvPRDL7gYRXN8nJZ5nOh+51zdPQEl99ACZDSSwTl2biOPNtXtuaGyjB5j8r7dz93JlsN8axea+ECQ== joe@smith.com\n"
+                            }, 
+                            "apikey": "--secret--", 
+                            "region": "chicago", 
+                            "authtoken": "92d426f0-46bd-4df9-bb5e-e1d67c347ae9", 
+                            "id": "${id}"
+                          }, 
+                          "password": "QiC1mGv70CMDEP21341c9-web1.joe.smith.com", 
+                          "id": 20842765
+                        }, 
+                        "children": [
+                          {
+                            "parent": 16, 
+                            "task_spec": "Apt-get Fix:0", 
+                            "last_state_change": 1337121936.284358, 
+                            "id": 18, 
+                            "state": 64, 
+                            "internal_attributes": {
+                              "task_id": "d299bc73-508a-4a0a-b22e-73b9e5cda0f6"
+                            }, 
+                            "attributes": {
+                              "stdout": "Ign http://mirror.rackspace.com oneiric InRelease\nIgn http://mirror.rackspace.com oneiric-updates InRelease\nGet:1 http://mirror.rackspace.com oneiric Release.gpg [198 B]\nGet:2 http://mirror.rackspace.com oneiric-updates Release.gpg [198 B]\nIgn http://security.ubuntu.com oneiric-security InRelease\nGet:3 http://mirror.rackspace.com oneiric Release [40.8 kB]\nGet:4 http://security.ubuntu.com oneiric-security Release.gpg [198 B]\nGet:5 http://mirror.rackspace.com oneiric-updates Release [40.8 kB]\nGet:6 http://security.ubuntu.com oneiric-security Release [40.8 kB]\nGet:7 http://mirror.rackspace.com oneiric/main Sources [877 kB]\nGet:8 http://security.ubuntu.com oneiric-security/main Sources [37.5 kB]\nGet:9 http://mirror.rackspace.com oneiric/restricted Sources [5,351 B]\nGet:10 http://mirror.rackspace.com oneiric/universe Sources [4,677 kB]\nGet:11 http://security.ubuntu.com oneiric-security/restricted Sources [1,959 B]\nGet:12 http://security.ubuntu.com oneiric-security/universe Sources [16.5 kB]\nGet:13 http://security.ubuntu.com oneiric-security/multiverse Sources [1,644 B]\nGet:14 http://security.ubuntu.com oneiric-security/main amd64 Packages [118 kB]\nGet:15 http://security.ubuntu.com oneiric-security/restricted amd64 Packages [3,980 B]\nGet:16 http://security.ubuntu.com oneiric-security/universe amd64 Packages [36.3 kB]\nGet:17 http://security.ubuntu.com oneiric-security/multiverse amd64 Packages [3,209 B]\nGet:18 http://security.ubuntu.com oneiric-security/main i386 Packages [118 kB]\nGet:19 http://security.ubuntu.com oneiric-security/restricted i386 Packages [3,939 B]\nGet:20 http://security.ubuntu.com oneiric-security/universe i386 Packages [36.3 kB]\nGet:21 http://security.ubuntu.com oneiric-security/multiverse i386 Packages [3,371 B]\nGet:22 http://security.ubuntu.com oneiric-security/main TranslationIndex [73 B]\nGet:23 http://security.ubuntu.com oneiric-security/multiverse TranslationIndex [72 B]\nGet:24 http://security.ubuntu.com oneiric-security/restricted TranslationIndex [71 B]\nGet:25 http://security.ubuntu.com oneiric-security/universe TranslationIndex [73 B]\nGet:26 http://security.ubuntu.com oneiric-security/main Translation-en [56.2 kB]\nGet:27 http://security.ubuntu.com oneiric-security/multiverse Translation-en [1,494 B]\nGet:28 http://security.ubuntu.com oneiric-security/restricted Translation-en [978 B]\nGet:29 http://security.ubuntu.com oneiric-security/universe Translation-en [25.1 kB]\nGet:30 http://mirror.rackspace.com oneiric/multiverse Sources [149 kB]\nGet:31 http://mirror.rackspace.com oneiric/main amd64 Packages [1,226 kB]\nGet:32 http://mirror.rackspace.com oneiric/restricted amd64 Packages [8,261 B]\nGet:33 http://mirror.rackspace.com oneiric/universe amd64 Packages [4,460 kB]\nGet:34 http://mirror.rackspace.com oneiric/multiverse amd64 Packages [117 kB]\nGet:35 http://mirror.rackspace.com oneiric/main i386 Packages [1,226 kB]\nGet:36 http://mirror.rackspace.com oneiric/restricted i386 Packages [8,216 B]\nGet:37 http://mirror.rackspace.com oneiric/universe i386 Packages [4,468 kB]\nGet:38 http://mirror.rackspace.com oneiric/multiverse i386 Packages [119 kB]\nGet:39 http://mirror.rackspace.com oneiric/main TranslationIndex [3,289 B]\nGet:40 http://mirror.rackspace.com oneiric/multiverse TranslationIndex [2,265 B]\nGet:41 http://mirror.rackspace.com oneiric/restricted TranslationIndex [2,263 B]\nGet:42 http://mirror.rackspace.com oneiric/universe TranslationIndex [2,640 B]\nGet:43 http://mirror.rackspace.com oneiric-updates/main Sources [139 kB]\nGet:44 http://mirror.rackspace.com oneiric-updates/restricted Sources [3,347 B]\nGet:45 http://mirror.rackspace.com oneiric-updates/universe Sources [52.6 kB]\nGet:46 http://mirror.rackspace.com oneiric-updates/multiverse Sources [3,660 B]\nGet:47 http://mirror.rackspace.com oneiric-updates/main amd64 Packages [344 kB]\nGet:48 http://mirror.rackspace.com oneiric-updates/restricted amd64 Packages [6,656 B]\nGet:49 http://mirror.rackspace.com oneiric-updates/universe amd64 Packages [113 kB]\nGet:50 http://mirror.rackspace.com oneiric-updates/multiverse amd64 Packages [6,195 B]\nGet:51 http://mirror.rackspace.com oneiric-updates/main i386 Packages [344 kB]\nGet:52 http://mirror.rackspace.com oneiric-updates/restricted i386 Packages [6,631 B]\nGet:53 http://mirror.rackspace.com oneiric-updates/universe i386 Packages [113 kB]\nGet:54 http://mirror.rackspace.com oneiric-updates/multiverse i386 Packages [6,363 B]\nGet:55 http://mirror.rackspace.com oneiric-updates/main TranslationIndex [74 B]\nGet:56 http://mirror.rackspace.com oneiric-updates/multiverse TranslationIndex [72 B]\nGet:57 http://mirror.rackspace.com oneiric-updates/restricted TranslationIndex [72 B]\nGet:58 http://mirror.rackspace.com oneiric-updates/universe TranslationIndex [73 B]\nGet:59 http://mirror.rackspace.com oneiric/main Translation-en [701 kB]\nGet:60 http://mirror.rackspace.com oneiric/multiverse Translation-en [92.6 kB]\nGet:61 http://mirror.rackspace.com oneiric/restricted Translation-en [2,229 B]\nGet:62 http://mirror.rackspace.com oneiric/universe Translation-en [3,165 kB]\nGet:63 http://mirror.rackspace.com oneiric-updates/main Translation-en [155 kB]\nGet:64 http://mirror.rackspace.com oneiric-updates/multiverse Translation-en [3,524 B]\nGet:65 http://mirror.rackspace.com oneiric-updates/restricted Translation-en [1,547 B]\nGet:66 http://mirror.rackspace.com oneiric-updates/universe Translation-en [67.9 kB]\nFetched 23.3 MB in 11s (2,076 kB/s)\nReading package lists...\n", 
+                              "ip": "184.106.71.94", 
+                              "token": "92d426f0-46bd-4df9-bb5e-e1d67c347ae9", 
+                              "result": true, 
+                              "stderr": "", 
+                              "deployment": {
+                                "username": "joe.smith", 
+                                "files": {
+                                  "/root/.ssh/authorized_keys": "ssh-rsa AAAAB3EzaC1yc2EAAAABIwAAAQEA7TT1qbLElv6tuAaA3Z4tQ752ms0Y7H53yybfFioFHELkp+NRMCKh4AqtqDBFsps1vPzhcXIxn4M4IH0ip7kSx0CSrM/9Vtz8jc+UZwixJdAWwHpum68rGmCQgAsZljI24Q9u8r/hXqjwY6ukTKbC0iy82LHqhcDjh3828+9GyyxbYGm5ND/5G/ZcnHD6HM9YKmc3voz5d/nez3Adlu4I1z4Y1T3lOwOxrP2OqvIeIPvVOZJ9GDmYYRDfqK8OIHDoLAzQx8xu0cvPRDL7gYRXN8nJZ5nOh+51zdPQEl99ACZDSSwTl2biOPNtXtuaGyjB5j8r7dz93JlsN8axea+ECQ== joe@smith.com\n"
+                                }, 
+                                "apikey": "--secret--", 
+                                "region": "chicago", 
+                                "authtoken": "92d426f0-46bd-4df9-bb5e-e1d67c347ae9", 
+                                "id": "${id}"
+                              }, 
+                              "password": "QiC1mGv70CMDEP21341c9-web1.joe.smith.com", 
+                              "id": 20842765
+                            }, 
+                            "children": [
+                              {
+                                "parent": 18, 
+                                "task_spec": "Wait for Server Build:0", 
+                                "last_state_change": 1337121936.296242, 
+                                "id": 19, 
+                                "state": 64, 
+                                "internal_attributes": {}, 
+                                "attributes": {
+                                  "status": "BUILD", 
+                                  "name": "CMDEP21341c9-db1.joe.smith.com", 
+                                  "stdout": "Ign http://mirror.rackspace.com oneiric InRelease\nIgn http://mirror.rackspace.com oneiric-updates InRelease\nGet:1 http://mirror.rackspace.com oneiric Release.gpg [198 B]\nGet:2 http://mirror.rackspace.com oneiric-updates Release.gpg [198 B]\nIgn http://security.ubuntu.com oneiric-security InRelease\nGet:3 http://mirror.rackspace.com oneiric Release [40.8 kB]\nGet:4 http://security.ubuntu.com oneiric-security Release.gpg [198 B]\nGet:5 http://mirror.rackspace.com oneiric-updates Release [40.8 kB]\nGet:6 http://security.ubuntu.com oneiric-security Release [40.8 kB]\nGet:7 http://mirror.rackspace.com oneiric/main Sources [877 kB]\nGet:8 http://security.ubuntu.com oneiric-security/main Sources [37.5 kB]\nGet:9 http://mirror.rackspace.com oneiric/restricted Sources [5,351 B]\nGet:10 http://mirror.rackspace.com oneiric/universe Sources [4,677 kB]\nGet:11 http://security.ubuntu.com oneiric-security/restricted Sources [1,959 B]\nGet:12 http://security.ubuntu.com oneiric-security/universe Sources [16.5 kB]\nGet:13 http://security.ubuntu.com oneiric-security/multiverse Sources [1,644 B]\nGet:14 http://security.ubuntu.com oneiric-security/main amd64 Packages [118 kB]\nGet:15 http://security.ubuntu.com oneiric-security/restricted amd64 Packages [3,980 B]\nGet:16 http://security.ubuntu.com oneiric-security/universe amd64 Packages [36.3 kB]\nGet:17 http://security.ubuntu.com oneiric-security/multiverse amd64 Packages [3,209 B]\nGet:18 http://security.ubuntu.com oneiric-security/main i386 Packages [118 kB]\nGet:19 http://security.ubuntu.com oneiric-security/restricted i386 Packages [3,939 B]\nGet:20 http://security.ubuntu.com oneiric-security/universe i386 Packages [36.3 kB]\nGet:21 http://security.ubuntu.com oneiric-security/multiverse i386 Packages [3,371 B]\nGet:22 http://security.ubuntu.com oneiric-security/main TranslationIndex [73 B]\nGet:23 http://security.ubuntu.com oneiric-security/multiverse TranslationIndex [72 B]\nGet:24 http://security.ubuntu.com oneiric-security/restricted TranslationIndex [71 B]\nGet:25 http://security.ubuntu.com oneiric-security/universe TranslationIndex [73 B]\nGet:26 http://security.ubuntu.com oneiric-security/main Translation-en [56.2 kB]\nGet:27 http://security.ubuntu.com oneiric-security/multiverse Translation-en [1,494 B]\nGet:28 http://security.ubuntu.com oneiric-security/restricted Translation-en [978 B]\nGet:29 http://security.ubuntu.com oneiric-security/universe Translation-en [25.1 kB]\nGet:30 http://mirror.rackspace.com oneiric/multiverse Sources [149 kB]\nGet:31 http://mirror.rackspace.com oneiric/main amd64 Packages [1,226 kB]\nGet:32 http://mirror.rackspace.com oneiric/restricted amd64 Packages [8,261 B]\nGet:33 http://mirror.rackspace.com oneiric/universe amd64 Packages [4,460 kB]\nGet:34 http://mirror.rackspace.com oneiric/multiverse amd64 Packages [117 kB]\nGet:35 http://mirror.rackspace.com oneiric/main i386 Packages [1,226 kB]\nGet:36 http://mirror.rackspace.com oneiric/restricted i386 Packages [8,216 B]\nGet:37 http://mirror.rackspace.com oneiric/universe i386 Packages [4,468 kB]\nGet:38 http://mirror.rackspace.com oneiric/multiverse i386 Packages [119 kB]\nGet:39 http://mirror.rackspace.com oneiric/main TranslationIndex [3,289 B]\nGet:40 http://mirror.rackspace.com oneiric/multiverse TranslationIndex [2,265 B]\nGet:41 http://mirror.rackspace.com oneiric/restricted TranslationIndex [2,263 B]\nGet:42 http://mirror.rackspace.com oneiric/universe TranslationIndex [2,640 B]\nGet:43 http://mirror.rackspace.com oneiric-updates/main Sources [139 kB]\nGet:44 http://mirror.rackspace.com oneiric-updates/restricted Sources [3,347 B]\nGet:45 http://mirror.rackspace.com oneiric-updates/universe Sources [52.6 kB]\nGet:46 http://mirror.rackspace.com oneiric-updates/multiverse Sources [3,660 B]\nGet:47 http://mirror.rackspace.com oneiric-updates/main amd64 Packages [344 kB]\nGet:48 http://mirror.rackspace.com oneiric-updates/restricted amd64 Packages [6,656 B]\nGet:49 http://mirror.rackspace.com oneiric-updates/universe amd64 Packages [113 kB]\nGet:50 http://mirror.rackspace.com oneiric-updates/multiverse amd64 Packages [6,195 B]\nGet:51 http://mirror.rackspace.com oneiric-updates/main i386 Packages [344 kB]\nGet:52 http://mirror.rackspace.com oneiric-updates/restricted i386 Packages [6,631 B]\nGet:53 http://mirror.rackspace.com oneiric-updates/universe i386 Packages [113 kB]\nGet:54 http://mirror.rackspace.com oneiric-updates/multiverse i386 Packages [6,363 B]\nGet:55 http://mirror.rackspace.com oneiric-updates/main TranslationIndex [74 B]\nGet:56 http://mirror.rackspace.com oneiric-updates/multiverse TranslationIndex [72 B]\nGet:57 http://mirror.rackspace.com oneiric-updates/restricted TranslationIndex [72 B]\nGet:58 http://mirror.rackspace.com oneiric-updates/universe TranslationIndex [73 B]\nGet:59 http://mirror.rackspace.com oneiric/main Translation-en [701 kB]\nGet:60 http://mirror.rackspace.com oneiric/multiverse Translation-en [92.6 kB]\nGet:61 http://mirror.rackspace.com oneiric/restricted Translation-en [2,229 B]\nGet:62 http://mirror.rackspace.com oneiric/universe Translation-en [3,165 kB]\nGet:63 http://mirror.rackspace.com oneiric-updates/main Translation-en [155 kB]\nGet:64 http://mirror.rackspace.com oneiric-updates/multiverse Translation-en [3,524 B]\nGet:65 http://mirror.rackspace.com oneiric-updates/restricted Translation-en [1,547 B]\nGet:66 http://mirror.rackspace.com oneiric-updates/universe Translation-en [67.9 kB]\nFetched 23.3 MB in 11s (2,076 kB/s)\nReading package lists...\n", 
+                                  "ip": "184.106.71.94", 
+                                  "overrides": {
+                                    "wordpress": {
+                                      "db": {
+                                        "host": "5888a24f7e53a5c859e689b1cd1579ead0294a37.rackspaceclouddb.com", 
+                                        "password": "password", 
+                                        "user": "MyDBUser", 
+                                        "database": "db1"
+                                      }
+                                    }
+                                  }, 
+                                  "hostname": "5888a24f7e53a5c859e689b1cd1579ead0294a37.rackspaceclouddb.com", 
+                                  "token": "92d426f0-46bd-4df9-bb5e-e1d67c347ae9", 
+                                  "result": true, 
+                                  "stderr": "", 
+                                  "deployment": {
+                                    "username": "joe.smith", 
+                                    "files": {
+                                      "/root/.ssh/authorized_keys": "ssh-rsa AAAAB3EzaC1yc2EAAAABIwAAAQEA7TT1qbLElv6tuAaA3Z4tQ752ms0Y7H53yybfFioFHELkp+NRMCKh4AqtqDBFsps1vPzhcXIxn4M4IH0ip7kSx0CSrM/9Vtz8jc+UZwixJdAWwHpum68rGmCQgAsZljI24Q9u8r/hXqjwY6ukTKbC0iy82LHqhcDjh3828+9GyyxbYGm5ND/5G/ZcnHD6HM9YKmc3voz5d/nez3Adlu4I1z4Y1T3lOwOxrP2OqvIeIPvVOZJ9GDmYYRDfqK8OIHDoLAzQx8xu0cvPRDL7gYRXN8nJZ5nOh+51zdPQEl99ACZDSSwTl2biOPNtXtuaGyjB5j8r7dz93JlsN8axea+ECQ== joe@smith.com\n"
+                                    }, 
+                                    "apikey": "--secret--", 
+                                    "region": "chicago", 
+                                    "authtoken": "92d426f0-46bd-4df9-bb5e-e1d67c347ae9", 
+                                    "id": "${id}"
+                                  }, 
+                                  "password": "QiC1mGv70CMDEP21341c9-web1.joe.smith.com", 
+                                  "id": 20842765
+                                }, 
+                                "children": []
+                              }
+                            ]
+                          }
+                        ]
+                      }, 
+                      {
+                        "parent": 7, 
+                        "task_spec": "Wait for LB:0", 
+                        "last_state_change": 1337122334.37683, 
+                        "id": 17, 
+                        "state": 64, 
+                        "internal_attributes": {}, 
+                        "attributes": {
+                          "ip": "184.106.71.94", 
+                          "token": "92d426f0-46bd-4df9-bb5e-e1d67c347ae9", 
+                          "vip": "198.101.128.186", 
+                          "deployment": {
+                            "username": "joe.smith", 
+                            "files": {
+                              "/root/.ssh/authorized_keys": "ssh-rsa AAAAB3EzaC1yc2EAAAABIwAAAQEA7TT1qbLElv6tuAaA3Z4tQ752ms0Y7H53yybfFioFHELkp+NRMCKh4AqtqDBFsps1vPzhcXIxn4M4IH0ip7kSx0CSrM/9Vtz8jc+UZwixJdAWwHpum68rGmCQgAsZljI24Q9u8r/hXqjwY6ukTKbC0iy82LHqhcDjh3828+9GyyxbYGm5ND/5G/ZcnHD6HM9YKmc3voz5d/nez3Adlu4I1z4Y1T3lOwOxrP2OqvIeIPvVOZJ9GDmYYRDfqK8OIHDoLAzQx8xu0cvPRDL7gYRXN8nJZ5nOh+51zdPQEl99ACZDSSwTl2biOPNtXtuaGyjB5j8r7dz93JlsN8axea+ECQ== joe@smith.com\n"
+                            }, 
+                            "apikey": "--secret--", 
+                            "region": "chicago", 
+                            "authtoken": "92d426f0-46bd-4df9-bb5e-e1d67c347ae9", 
+                            "id": "${id}"
+                          }, 
+                          "password": "QiC1mGv70CMDEP21341c9-web1.joe.smith.com", 
+                          "id": 48263
+                        }, 
+                        "children": [
+                          {
+                            "parent": 17, 
+                            "task_spec": "Add LB Node:0", 
+                            "last_state_change": 1337122353.152961, 
+                            "id": 21, 
+                            "state": 64, 
+                            "internal_attributes": {
+                              "task_id": "45a554b9-dafb-48e0-8001-d77eb3636eec"
+                            }, 
+                            "attributes": {
+                              "ip": "184.106.71.94", 
+                              "vip": "198.101.128.186", 
+                              "token": "92d426f0-46bd-4df9-bb5e-e1d67c347ae9", 
+                              "deployment": {
+                                "username": "joe.smith", 
+                                "files": {
+                                  "/root/.ssh/authorized_keys": "ssh-rsa AAAAB3EzaC1yc2EAAAABIwAAAQEA7TT1qbLElv6tuAaA3Z4tQ752ms0Y7H53yybfFioFHELkp+NRMCKh4AqtqDBFsps1vPzhcXIxn4M4IH0ip7kSx0CSrM/9Vtz8jc+UZwixJdAWwHpum68rGmCQgAsZljI24Q9u8r/hXqjwY6ukTKbC0iy82LHqhcDjh3828+9GyyxbYGm5ND/5G/ZcnHD6HM9YKmc3voz5d/nez3Adlu4I1z4Y1T3lOwOxrP2OqvIeIPvVOZJ9GDmYYRDfqK8OIHDoLAzQx8xu0cvPRDL7gYRXN8nJZ5nOh+51zdPQEl99ACZDSSwTl2biOPNtXtuaGyjB5j8r7dz93JlsN8axea+ECQ== joe@smith.com\n"
+                                }, 
+                                "apikey": "--secret--", 
+                                "region": "chicago", 
+                                "authtoken": "92d426f0-46bd-4df9-bb5e-e1d67c347ae9", 
+                                "id": "${id}"
+                              }, 
+                              "password": "QiC1mGv70CMDEP21341c9-web1.joe.smith.com", 
+                              "id": 170345
+                            }, 
+                            "children": []
+                          }
+                        ]
+                      }
+                    ]
+                  }, 
+                  {
+                    "parent": 4, 
+                    "task_spec": "Create DB", 
+                    "last_state_change": 1337121362.623249, 
+                    "id": 8, 
+                    "state": 64, 
+                    "internal_attributes": {
+                      "task_id": "604d4e17-e5cb-4b43-ab0d-6aaee2371a8f"
+                    }, 
+                    "attributes": {
+                      "status": "BUILD", 
+                      "name": "CMDEP21341c9-db1.joe.smith.com", 
+                      "hostname": "5888a24f7e53a5c859e689b1cd1579ead0294a37.rackspaceclouddb.com", 
+                      "token": "92d426f0-46bd-4df9-bb5e-e1d67c347ae9", 
+                      "deployment": {
+                        "username": "joe.smith", 
+                        "files": {
+                          "/root/.ssh/authorized_keys": "ssh-rsa AAAAB3EzaC1yc2EAAAABIwAAAQEA7TT1qbLElv6tuAaA3Z4tQ752ms0Y7H53yybfFioFHELkp+NRMCKh4AqtqDBFsps1vPzhcXIxn4M4IH0ip7kSx0CSrM/9Vtz8jc+UZwixJdAWwHpum68rGmCQgAsZljI24Q9u8r/hXqjwY6ukTKbC0iy82LHqhcDjh3828+9GyyxbYGm5ND/5G/ZcnHD6HM9YKmc3voz5d/nez3Adlu4I1z4Y1T3lOwOxrP2OqvIeIPvVOZJ9GDmYYRDfqK8OIHDoLAzQx8xu0cvPRDL7gYRXN8nJZ5nOh+51zdPQEl99ACZDSSwTl2biOPNtXtuaGyjB5j8r7dz93JlsN8axea+ECQ== joe@smith.com\n"
+                        }, 
+                        "apikey": "--secret--", 
+                        "region": "chicago", 
+                        "authtoken": "92d426f0-46bd-4df9-bb5e-e1d67c347ae9", 
+                        "id": "${id}"
+                      }, 
+                      "id": "50a70c66-6a4f-4830-80b3-5d7521292771"
+                    }, 
+                    "children": [
+                      {
+                        "parent": 8, 
+                        "task_spec": "Add DB User:MyDBUser", 
+                        "last_state_change": 1337121861.183741, 
+                        "id": 22, 
+                        "state": 64, 
+                        "internal_attributes": {
+                          "task_id": "b664ac4b-1cdc-4ffc-b70b-5741ef5774c1"
+                        }, 
+                        "attributes": {
+                          "status": "BUILD", 
+                          "name": "CMDEP21341c9-db1.joe.smith.com", 
+                          "hostname": "5888a24f7e53a5c859e689b1cd1579ead0294a37.rackspaceclouddb.com", 
+                          "token": "92d426f0-46bd-4df9-bb5e-e1d67c347ae9", 
+                          "result": null, 
+                          "deployment": {
+                            "username": "joe.smith", 
+                            "files": {
+                              "/root/.ssh/authorized_keys": "ssh-rsa AAAAB3EzaC1yc2EAAAABIwAAAQEA7TT1qbLElv6tuAaA3Z4tQ752ms0Y7H53yybfFioFHELkp+NRMCKh4AqtqDBFsps1vPzhcXIxn4M4IH0ip7kSx0CSrM/9Vtz8jc+UZwixJdAWwHpum68rGmCQgAsZljI24Q9u8r/hXqjwY6ukTKbC0iy82LHqhcDjh3828+9GyyxbYGm5ND/5G/ZcnHD6HM9YKmc3voz5d/nez3Adlu4I1z4Y1T3lOwOxrP2OqvIeIPvVOZJ9GDmYYRDfqK8OIHDoLAzQx8xu0cvPRDL7gYRXN8nJZ5nOh+51zdPQEl99ACZDSSwTl2biOPNtXtuaGyjB5j8r7dz93JlsN8axea+ECQ== joe@smith.com\n"
+                            }, 
+                            "apikey": "--secret--", 
+                            "region": "chicago", 
+                            "authtoken": "92d426f0-46bd-4df9-bb5e-e1d67c347ae9", 
+                            "id": "${id}"
+                          }, 
+                          "id": "50a70c66-6a4f-4830-80b3-5d7521292771"
+                        }, 
+                        "children": [
+                          {
+                            "parent": 22, 
+                            "task_spec": "Prepare Override", 
+                            "last_state_change": 1337121861.229238, 
+                            "id": 23, 
+                            "state": 64, 
+                            "internal_attributes": {}, 
+                            "attributes": {
+                              "status": "BUILD", 
+                              "name": "CMDEP21341c9-db1.joe.smith.com", 
+                              "overrides": {
+                                "wordpress": {
+                                  "db": {
+                                    "host": "5888a24f7e53a5c859e689b1cd1579ead0294a37.rackspaceclouddb.com", 
+                                    "password": "password", 
+                                    "user": "MyDBUser", 
+                                    "database": "db1"
+                                  }
+                                }
+                              }, 
+                              "hostname": "5888a24f7e53a5c859e689b1cd1579ead0294a37.rackspaceclouddb.com", 
+                              "token": "92d426f0-46bd-4df9-bb5e-e1d67c347ae9", 
+                              "result": null, 
+                              "deployment": {
+                                "username": "joe.smith", 
+                                "files": {
+                                  "/root/.ssh/authorized_keys": "ssh-rsa AAAAB3EzaC1yc2EAAAABIwAAAQEA7TT1qbLElv6tuAaA3Z4tQ752ms0Y7H53yybfFioFHELkp+NRMCKh4AqtqDBFsps1vPzhcXIxn4M4IH0ip7kSx0CSrM/9Vtz8jc+UZwixJdAWwHpum68rGmCQgAsZljI24Q9u8r/hXqjwY6ukTKbC0iy82LHqhcDjh3828+9GyyxbYGm5ND/5G/ZcnHD6HM9YKmc3voz5d/nez3Adlu4I1z4Y1T3lOwOxrP2OqvIeIPvVOZJ9GDmYYRDfqK8OIHDoLAzQx8xu0cvPRDL7gYRXN8nJZ5nOh+51zdPQEl99ACZDSSwTl2biOPNtXtuaGyjB5j8r7dz93JlsN8axea+ECQ== joe@smith.com\n"
+                                }, 
+                                "apikey": "--secret--", 
+                                "region": "chicago", 
+                                "authtoken": "92d426f0-46bd-4df9-bb5e-e1d67c347ae9", 
+                                "id": "${id}"
+                              }, 
+                              "id": "50a70c66-6a4f-4830-80b3-5d7521292771"
+                            }, 
+                            "children": [
+                              {
+                                "parent": 23, 
+                                "task_spec": "Join:3", 
+                                "last_state_change": 1337121861.297903, 
+                                "id": 24, 
+                                "state": 64, 
+                                "internal_attributes": {}, 
+                                "attributes": {
+                                  "status": "BUILD", 
+                                  "name": "CMDEP21341c9-db1.joe.smith.com", 
+                                  "overrides": {
+                                    "wordpress": {
+                                      "db": {
+                                        "host": "5888a24f7e53a5c859e689b1cd1579ead0294a37.rackspaceclouddb.com", 
+                                        "password": "password", 
+                                        "user": "MyDBUser", 
+                                        "database": "db1"
+                                      }
+                                    }
+                                  }, 
+                                  "hostname": "5888a24f7e53a5c859e689b1cd1579ead0294a37.rackspaceclouddb.com", 
+                                  "token": "92d426f0-46bd-4df9-bb5e-e1d67c347ae9", 
+                                  "result": null, 
+                                  "deployment": {
+                                    "username": "joe.smith", 
+                                    "files": {
+                                      "/root/.ssh/authorized_keys": "ssh-rsa AAAAB3EzaC1yc2EAAAABIwAAAQEA7TT1qbLElv6tuAaA3Z4tQ752ms0Y7H53yybfFioFHELkp+NRMCKh4AqtqDBFsps1vPzhcXIxn4M4IH0ip7kSx0CSrM/9Vtz8jc+UZwixJdAWwHpum68rGmCQgAsZljI24Q9u8r/hXqjwY6ukTKbC0iy82LHqhcDjh3828+9GyyxbYGm5ND/5G/ZcnHD6HM9YKmc3voz5d/nez3Adlu4I1z4Y1T3lOwOxrP2OqvIeIPvVOZJ9GDmYYRDfqK8OIHDoLAzQx8xu0cvPRDL7gYRXN8nJZ5nOh+51zdPQEl99ACZDSSwTl2biOPNtXtuaGyjB5j8r7dz93JlsN8axea+ECQ== joe@smith.com\n"
+                                    }, 
+                                    "apikey": "--secret--", 
+                                    "region": "chicago", 
+                                    "authtoken": "92d426f0-46bd-4df9-bb5e-e1d67c347ae9", 
+                                    "id": "${id}"
+                                  }, 
+                                  "id": "50a70c66-6a4f-4830-80b3-5d7521292771"
+                                }, 
+                                "children": [
+                                  {
+                                    "parent": 24, 
+                                    "task_spec": "Populate Chef Overrides", 
+                                    "last_state_change": 1337121936.316675, 
+                                    "id": 25, 
+                                    "state": 64, 
+                                    "internal_attributes": {
+                                      "task_id": "e0a1a492-fe21-4748-a685-3205c672635b"
+                                    }, 
+                                    "attributes": {
+                                      "status": "BUILD", 
+                                      "name": "CMDEP21341c9-db1.joe.smith.com", 
+                                      "overrides": {
+                                        "wordpress": {
+                                          "db": {
+                                            "host": "5888a24f7e53a5c859e689b1cd1579ead0294a37.rackspaceclouddb.com", 
+                                            "password": "password", 
+                                            "user": "MyDBUser", 
+                                            "database": "db1"
+                                          }
+                                        }
+                                      }, 
+                                      "hostname": "5888a24f7e53a5c859e689b1cd1579ead0294a37.rackspaceclouddb.com", 
+                                      "token": "92d426f0-46bd-4df9-bb5e-e1d67c347ae9", 
+                                      "result": true, 
+                                      "deployment": {
+                                        "username": "joe.smith", 
+                                        "files": {
+                                          "/root/.ssh/authorized_keys": "ssh-rsa AAAAB3EzaC1yc2EAAAABIwAAAQEA7TT1qbLElv6tuAaA3Z4tQ752ms0Y7H53yybfFioFHELkp+NRMCKh4AqtqDBFsps1vPzhcXIxn4M4IH0ip7kSx0CSrM/9Vtz8jc+UZwixJdAWwHpum68rGmCQgAsZljI24Q9u8r/hXqjwY6ukTKbC0iy82LHqhcDjh3828+9GyyxbYGm5ND/5G/ZcnHD6HM9YKmc3voz5d/nez3Adlu4I1z4Y1T3lOwOxrP2OqvIeIPvVOZJ9GDmYYRDfqK8OIHDoLAzQx8xu0cvPRDL7gYRXN8nJZ5nOh+51zdPQEl99ACZDSSwTl2biOPNtXtuaGyjB5j8r7dz93JlsN8axea+ECQ== joe@smith.com\n"
+                                        }, 
+                                        "apikey": "--secret--", 
+                                        "region": "chicago", 
+                                        "authtoken": "92d426f0-46bd-4df9-bb5e-e1d67c347ae9", 
+                                        "id": "${id}"
+                                      }, 
+                                      "id": "50a70c66-6a4f-4830-80b3-5d7521292771"
+                                    }, 
+                                    "children": [
+                                      {
+                                        "parent": 25, 
+                                        "task_spec": "Wait for Server Build:1", 
+                                        "last_state_change": 1337121936.343671, 
+                                        "id": 26, 
+                                        "state": 64, 
+                                        "internal_attributes": {}, 
+                                        "attributes": {
+                                          "status": "BUILD", 
+                                          "name": "CMDEP21341c9-db1.joe.smith.com", 
+                                          "stdout": "Ign http://mirror.rackspace.com oneiric InRelease\nIgn http://mirror.rackspace.com oneiric-updates InRelease\nGet:1 http://mirror.rackspace.com oneiric Release.gpg [198 B]\nGet:2 http://mirror.rackspace.com oneiric-updates Release.gpg [198 B]\nIgn http://security.ubuntu.com oneiric-security InRelease\nGet:3 http://mirror.rackspace.com oneiric Release [40.8 kB]\nGet:4 http://security.ubuntu.com oneiric-security Release.gpg [198 B]\nGet:5 http://mirror.rackspace.com oneiric-updates Release [40.8 kB]\nGet:6 http://security.ubuntu.com oneiric-security Release [40.8 kB]\nGet:7 http://mirror.rackspace.com oneiric/main Sources [877 kB]\nGet:8 http://mirror.rackspace.com oneiric/restricted Sources [5,351 B]\nGet:9 http://security.ubuntu.com oneiric-security/main Sources [37.5 kB]\nGet:10 http://mirror.rackspace.com oneiric/universe Sources [4,677 kB]\nGet:11 http://security.ubuntu.com oneiric-security/restricted Sources [1,959 B]\nGet:12 http://security.ubuntu.com oneiric-security/universe Sources [16.5 kB]\nGet:13 http://security.ubuntu.com oneiric-security/multiverse Sources [1,644 B]\nGet:14 http://security.ubuntu.com oneiric-security/main amd64 Packages [118 kB]\nGet:15 http://security.ubuntu.com oneiric-security/restricted amd64 Packages [3,980 B]\nGet:16 http://security.ubuntu.com oneiric-security/universe amd64 Packages [36.3 kB]\nGet:17 http://security.ubuntu.com oneiric-security/multiverse amd64 Packages [3,209 B]\nGet:18 http://security.ubuntu.com oneiric-security/main i386 Packages [118 kB]\nGet:19 http://security.ubuntu.com oneiric-security/restricted i386 Packages [3,939 B]\nGet:20 http://security.ubuntu.com oneiric-security/universe i386 Packages [36.3 kB]\nGet:21 http://security.ubuntu.com oneiric-security/multiverse i386 Packages [3,371 B]\nGet:22 http://security.ubuntu.com oneiric-security/main TranslationIndex [73 B]\nGet:23 http://security.ubuntu.com oneiric-security/multiverse TranslationIndex [72 B]\nGet:24 http://security.ubuntu.com oneiric-security/restricted TranslationIndex [71 B]\nGet:25 http://security.ubuntu.com oneiric-security/universe TranslationIndex [73 B]\nGet:26 http://mirror.rackspace.com oneiric/multiverse Sources [149 kB]\nGet:27 http://security.ubuntu.com oneiric-security/main Translation-en [56.2 kB]\nGet:28 http://security.ubuntu.com oneiric-security/multiverse Translation-en [1,494 B]\nGet:29 http://security.ubuntu.com oneiric-security/restricted Translation-en [978 B]\nGet:30 http://security.ubuntu.com oneiric-security/universe Translation-en [25.1 kB]\nGet:31 http://mirror.rackspace.com oneiric/main amd64 Packages [1,226 kB]\nGet:32 http://mirror.rackspace.com oneiric/restricted amd64 Packages [8,261 B]\nGet:33 http://mirror.rackspace.com oneiric/universe amd64 Packages [4,460 kB]\nGet:34 http://mirror.rackspace.com oneiric/multiverse amd64 Packages [117 kB]\nGet:35 http://mirror.rackspace.com oneiric/main i386 Packages [1,226 kB]\nGet:36 http://mirror.rackspace.com oneiric/restricted i386 Packages [8,216 B]\nGet:37 http://mirror.rackspace.com oneiric/universe i386 Packages [4,468 kB]\nGet:38 http://mirror.rackspace.com oneiric/multiverse i386 Packages [119 kB]\nGet:39 http://mirror.rackspace.com oneiric/main TranslationIndex [3,289 B]\nGet:40 http://mirror.rackspace.com oneiric/multiverse TranslationIndex [2,265 B]\nGet:41 http://mirror.rackspace.com oneiric/restricted TranslationIndex [2,263 B]\nGet:42 http://mirror.rackspace.com oneiric/universe TranslationIndex [2,640 B]\nGet:43 http://mirror.rackspace.com oneiric-updates/main Sources [139 kB]\nGet:44 http://mirror.rackspace.com oneiric-updates/restricted Sources [3,347 B]\nGet:45 http://mirror.rackspace.com oneiric-updates/universe Sources [52.6 kB]\nGet:46 http://mirror.rackspace.com oneiric-updates/multiverse Sources [3,660 B]\nGet:47 http://mirror.rackspace.com oneiric-updates/main amd64 Packages [344 kB]\nGet:48 http://mirror.rackspace.com oneiric-updates/restricted amd64 Packages [6,656 B]\nGet:49 http://mirror.rackspace.com oneiric-updates/universe amd64 Packages [113 kB]\nGet:50 http://mirror.rackspace.com oneiric-updates/multiverse amd64 Packages [6,195 B]\nGet:51 http://mirror.rackspace.com oneiric-updates/main i386 Packages [344 kB]\nGet:52 http://mirror.rackspace.com oneiric-updates/restricted i386 Packages [6,631 B]\nGet:53 http://mirror.rackspace.com oneiric-updates/universe i386 Packages [113 kB]\nGet:54 http://mirror.rackspace.com oneiric-updates/multiverse i386 Packages [6,363 B]\nGet:55 http://mirror.rackspace.com oneiric-updates/main TranslationIndex [74 B]\nGet:56 http://mirror.rackspace.com oneiric-updates/multiverse TranslationIndex [72 B]\nGet:57 http://mirror.rackspace.com oneiric-updates/restricted TranslationIndex [72 B]\nGet:58 http://mirror.rackspace.com oneiric-updates/universe TranslationIndex [73 B]\nGet:59 http://mirror.rackspace.com oneiric/main Translation-en [701 kB]\nGet:60 http://mirror.rackspace.com oneiric/multiverse Translation-en [92.6 kB]\nGet:61 http://mirror.rackspace.com oneiric/restricted Translation-en [2,229 B]\nGet:62 http://mirror.rackspace.com oneiric/universe Translation-en [3,165 kB]\nGet:63 http://mirror.rackspace.com oneiric-updates/main Translation-en [155 kB]\nGet:64 http://mirror.rackspace.com oneiric-updates/multiverse Translation-en [3,524 B]\nGet:65 http://mirror.rackspace.com oneiric-updates/restricted Translation-en [1,547 B]\nGet:66 http://mirror.rackspace.com oneiric-updates/universe Translation-en [67.9 kB]\nFetched 23.3 MB in 11s (2,009 kB/s)\nReading package lists...\n", 
+                                          "ip": "184.106.71.87", 
+                                          "overrides": {
+                                            "wordpress": {
+                                              "db": {
+                                                "host": "5888a24f7e53a5c859e689b1cd1579ead0294a37.rackspaceclouddb.com", 
+                                                "password": "password", 
+                                                "user": "MyDBUser", 
+                                                "database": "db1"
+                                              }
+                                            }
+                                          }, 
+                                          "hostname": "5888a24f7e53a5c859e689b1cd1579ead0294a37.rackspaceclouddb.com", 
+                                          "token": "92d426f0-46bd-4df9-bb5e-e1d67c347ae9", 
+                                          "result": true, 
+                                          "stderr": "", 
+                                          "deployment": {
+                                            "username": "joe.smith", 
+                                            "files": {
+                                              "/root/.ssh/authorized_keys": "ssh-rsa AAAAB3EzaC1yc2EAAAABIwAAAQEA7TT1qbLElv6tuAaA3Z4tQ752ms0Y7H53yybfFioFHELkp+NRMCKh4AqtqDBFsps1vPzhcXIxn4M4IH0ip7kSx0CSrM/9Vtz8jc+UZwixJdAWwHpum68rGmCQgAsZljI24Q9u8r/hXqjwY6ukTKbC0iy82LHqhcDjh3828+9GyyxbYGm5ND/5G/ZcnHD6HM9YKmc3voz5d/nez3Adlu4I1z4Y1T3lOwOxrP2OqvIeIPvVOZJ9GDmYYRDfqK8OIHDoLAzQx8xu0cvPRDL7gYRXN8nJZ5nOh+51zdPQEl99ACZDSSwTl2biOPNtXtuaGyjB5j8r7dz93JlsN8axea+ECQ== joe@smith.com\n"
+                                            }, 
+                                            "apikey": "--secret--", 
+                                            "region": "chicago", 
+                                            "authtoken": "92d426f0-46bd-4df9-bb5e-e1d67c347ae9", 
+                                            "id": "${id}"
+                                          }, 
+                                          "password": "Q2H7Q3acmCMDEP21341c9-web2.joe.smith.com", 
+                                          "id": "50a70c66-6a4f-4830-80b3-5d7521292771"
+                                        }, 
+                                        "children": [
+                                          {
+                                            "parent": 26, 
+                                            "task_spec": "Bootstrap Server:1", 
+                                            "last_state_change": 1337122159.436202, 
+                                            "id": 28, 
+                                            "state": 64, 
+                                            "internal_attributes": {
+                                              "task_id": "24baec63-a7d4-497f-afd5-c37d83ca9fb6"
+                                            }, 
+                                            "attributes": {
+                                              "status": "BUILD", 
+                                              "name": "CMDEP21341c9-db1.joe.smith.com", 
+                                              "stdout": "Ign http://mirror.rackspace.com oneiric InRelease\nIgn http://mirror.rackspace.com oneiric-updates InRelease\nGet:1 http://mirror.rackspace.com oneiric Release.gpg [198 B]\nGet:2 http://mirror.rackspace.com oneiric-updates Release.gpg [198 B]\nIgn http://security.ubuntu.com oneiric-security InRelease\nGet:3 http://mirror.rackspace.com oneiric Release [40.8 kB]\nGet:4 http://security.ubuntu.com oneiric-security Release.gpg [198 B]\nGet:5 http://mirror.rackspace.com oneiric-updates Release [40.8 kB]\nGet:6 http://security.ubuntu.com oneiric-security Release [40.8 kB]\nGet:7 http://mirror.rackspace.com oneiric/main Sources [877 kB]\nGet:8 http://mirror.rackspace.com oneiric/restricted Sources [5,351 B]\nGet:9 http://security.ubuntu.com oneiric-security/main Sources [37.5 kB]\nGet:10 http://mirror.rackspace.com oneiric/universe Sources [4,677 kB]\nGet:11 http://security.ubuntu.com oneiric-security/restricted Sources [1,959 B]\nGet:12 http://security.ubuntu.com oneiric-security/universe Sources [16.5 kB]\nGet:13 http://security.ubuntu.com oneiric-security/multiverse Sources [1,644 B]\nGet:14 http://security.ubuntu.com oneiric-security/main amd64 Packages [118 kB]\nGet:15 http://security.ubuntu.com oneiric-security/restricted amd64 Packages [3,980 B]\nGet:16 http://security.ubuntu.com oneiric-security/universe amd64 Packages [36.3 kB]\nGet:17 http://security.ubuntu.com oneiric-security/multiverse amd64 Packages [3,209 B]\nGet:18 http://security.ubuntu.com oneiric-security/main i386 Packages [118 kB]\nGet:19 http://security.ubuntu.com oneiric-security/restricted i386 Packages [3,939 B]\nGet:20 http://security.ubuntu.com oneiric-security/universe i386 Packages [36.3 kB]\nGet:21 http://security.ubuntu.com oneiric-security/multiverse i386 Packages [3,371 B]\nGet:22 http://security.ubuntu.com oneiric-security/main TranslationIndex [73 B]\nGet:23 http://security.ubuntu.com oneiric-security/multiverse TranslationIndex [72 B]\nGet:24 http://security.ubuntu.com oneiric-security/restricted TranslationIndex [71 B]\nGet:25 http://security.ubuntu.com oneiric-security/universe TranslationIndex [73 B]\nGet:26 http://mirror.rackspace.com oneiric/multiverse Sources [149 kB]\nGet:27 http://security.ubuntu.com oneiric-security/main Translation-en [56.2 kB]\nGet:28 http://security.ubuntu.com oneiric-security/multiverse Translation-en [1,494 B]\nGet:29 http://security.ubuntu.com oneiric-security/restricted Translation-en [978 B]\nGet:30 http://security.ubuntu.com oneiric-security/universe Translation-en [25.1 kB]\nGet:31 http://mirror.rackspace.com oneiric/main amd64 Packages [1,226 kB]\nGet:32 http://mirror.rackspace.com oneiric/restricted amd64 Packages [8,261 B]\nGet:33 http://mirror.rackspace.com oneiric/universe amd64 Packages [4,460 kB]\nGet:34 http://mirror.rackspace.com oneiric/multiverse amd64 Packages [117 kB]\nGet:35 http://mirror.rackspace.com oneiric/main i386 Packages [1,226 kB]\nGet:36 http://mirror.rackspace.com oneiric/restricted i386 Packages [8,216 B]\nGet:37 http://mirror.rackspace.com oneiric/universe i386 Packages [4,468 kB]\nGet:38 http://mirror.rackspace.com oneiric/multiverse i386 Packages [119 kB]\nGet:39 http://mirror.rackspace.com oneiric/main TranslationIndex [3,289 B]\nGet:40 http://mirror.rackspace.com oneiric/multiverse TranslationIndex [2,265 B]\nGet:41 http://mirror.rackspace.com oneiric/restricted TranslationIndex [2,263 B]\nGet:42 http://mirror.rackspace.com oneiric/universe TranslationIndex [2,640 B]\nGet:43 http://mirror.rackspace.com oneiric-updates/main Sources [139 kB]\nGet:44 http://mirror.rackspace.com oneiric-updates/restricted Sources [3,347 B]\nGet:45 http://mirror.rackspace.com oneiric-updates/universe Sources [52.6 kB]\nGet:46 http://mirror.rackspace.com oneiric-updates/multiverse Sources [3,660 B]\nGet:47 http://mirror.rackspace.com oneiric-updates/main amd64 Packages [344 kB]\nGet:48 http://mirror.rackspace.com oneiric-updates/restricted amd64 Packages [6,656 B]\nGet:49 http://mirror.rackspace.com oneiric-updates/universe amd64 Packages [113 kB]\nGet:50 http://mirror.rackspace.com oneiric-updates/multiverse amd64 Packages [6,195 B]\nGet:51 http://mirror.rackspace.com oneiric-updates/main i386 Packages [344 kB]\nGet:52 http://mirror.rackspace.com oneiric-updates/restricted i386 Packages [6,631 B]\nGet:53 http://mirror.rackspace.com oneiric-updates/universe i386 Packages [113 kB]\nGet:54 http://mirror.rackspace.com oneiric-updates/multiverse i386 Packages [6,363 B]\nGet:55 http://mirror.rackspace.com oneiric-updates/main TranslationIndex [74 B]\nGet:56 http://mirror.rackspace.com oneiric-updates/multiverse TranslationIndex [72 B]\nGet:57 http://mirror.rackspace.com oneiric-updates/restricted TranslationIndex [72 B]\nGet:58 http://mirror.rackspace.com oneiric-updates/universe TranslationIndex [73 B]\nGet:59 http://mirror.rackspace.com oneiric/main Translation-en [701 kB]\nGet:60 http://mirror.rackspace.com oneiric/multiverse Translation-en [92.6 kB]\nGet:61 http://mirror.rackspace.com oneiric/restricted Translation-en [2,229 B]\nGet:62 http://mirror.rackspace.com oneiric/universe Translation-en [3,165 kB]\nGet:63 http://mirror.rackspace.com oneiric-updates/main Translation-en [155 kB]\nGet:64 http://mirror.rackspace.com oneiric-updates/multiverse Translation-en [3,524 B]\nGet:65 http://mirror.rackspace.com oneiric-updates/restricted Translation-en [1,547 B]\nGet:66 http://mirror.rackspace.com oneiric-updates/universe Translation-en [67.9 kB]\nFetched 23.3 MB in 11s (2,009 kB/s)\nReading package lists...\n", 
+                                              "ip": "184.106.71.87", 
+                                              "overrides": {
+                                                "wordpress": {
+                                                  "db": {
+                                                    "host": "5888a24f7e53a5c859e689b1cd1579ead0294a37.rackspaceclouddb.com", 
+                                                    "password": "password", 
+                                                    "user": "MyDBUser", 
+                                                    "database": "db1"
+                                                  }
+                                                }
+                                              }, 
+                                              "hostname": "5888a24f7e53a5c859e689b1cd1579ead0294a37.rackspaceclouddb.com", 
+                                              "token": "92d426f0-46bd-4df9-bb5e-e1d67c347ae9", 
+                                              "result": true, 
+                                              "stderr": "", 
+                                              "deployment": {
+                                                "username": "joe.smith", 
+                                                "files": {
+                                                  "/root/.ssh/authorized_keys": "ssh-rsa AAAAB3EzaC1yc2EAAAABIwAAAQEA7TT1qbLElv6tuAaA3Z4tQ752ms0Y7H53yybfFioFHELkp+NRMCKh4AqtqDBFsps1vPzhcXIxn4M4IH0ip7kSx0CSrM/9Vtz8jc+UZwixJdAWwHpum68rGmCQgAsZljI24Q9u8r/hXqjwY6ukTKbC0iy82LHqhcDjh3828+9GyyxbYGm5ND/5G/ZcnHD6HM9YKmc3voz5d/nez3Adlu4I1z4Y1T3lOwOxrP2OqvIeIPvVOZJ9GDmYYRDfqK8OIHDoLAzQx8xu0cvPRDL7gYRXN8nJZ5nOh+51zdPQEl99ACZDSSwTl2biOPNtXtuaGyjB5j8r7dz93JlsN8axea+ECQ== joe@smith.com\n"
+                                                }, 
+                                                "apikey": "--secret--", 
+                                                "region": "chicago", 
+                                                "authtoken": "92d426f0-46bd-4df9-bb5e-e1d67c347ae9", 
+                                                "id": "${id}"
+                                              }, 
+                                              "password": "Q2H7Q3acmCMDEP21341c9-web2.joe.smith.com", 
+                                              "id": "50a70c66-6a4f-4830-80b3-5d7521292771"
+                                            }, 
+                                            "children": []
+                                          }
+                                        ]
+                                      }, 
+                                      {
+                                        "parent": 25, 
+                                        "task_spec": "Wait for Server Build:0", 
+                                        "last_state_change": 1337121936.399227, 
+                                        "id": 27, 
+                                        "state": 64, 
+                                        "internal_attributes": {}, 
+                                        "attributes": {
+                                          "status": "BUILD", 
+                                          "name": "CMDEP21341c9-db1.joe.smith.com", 
+                                          "stdout": "Ign http://mirror.rackspace.com oneiric InRelease\nIgn http://mirror.rackspace.com oneiric-updates InRelease\nGet:1 http://mirror.rackspace.com oneiric Release.gpg [198 B]\nGet:2 http://mirror.rackspace.com oneiric-updates Release.gpg [198 B]\nIgn http://security.ubuntu.com oneiric-security InRelease\nGet:3 http://mirror.rackspace.com oneiric Release [40.8 kB]\nGet:4 http://security.ubuntu.com oneiric-security Release.gpg [198 B]\nGet:5 http://mirror.rackspace.com oneiric-updates Release [40.8 kB]\nGet:6 http://security.ubuntu.com oneiric-security Release [40.8 kB]\nGet:7 http://mirror.rackspace.com oneiric/main Sources [877 kB]\nGet:8 http://security.ubuntu.com oneiric-security/main Sources [37.5 kB]\nGet:9 http://mirror.rackspace.com oneiric/restricted Sources [5,351 B]\nGet:10 http://mirror.rackspace.com oneiric/universe Sources [4,677 kB]\nGet:11 http://security.ubuntu.com oneiric-security/restricted Sources [1,959 B]\nGet:12 http://security.ubuntu.com oneiric-security/universe Sources [16.5 kB]\nGet:13 http://security.ubuntu.com oneiric-security/multiverse Sources [1,644 B]\nGet:14 http://security.ubuntu.com oneiric-security/main amd64 Packages [118 kB]\nGet:15 http://security.ubuntu.com oneiric-security/restricted amd64 Packages [3,980 B]\nGet:16 http://security.ubuntu.com oneiric-security/universe amd64 Packages [36.3 kB]\nGet:17 http://security.ubuntu.com oneiric-security/multiverse amd64 Packages [3,209 B]\nGet:18 http://security.ubuntu.com oneiric-security/main i386 Packages [118 kB]\nGet:19 http://security.ubuntu.com oneiric-security/restricted i386 Packages [3,939 B]\nGet:20 http://security.ubuntu.com oneiric-security/universe i386 Packages [36.3 kB]\nGet:21 http://security.ubuntu.com oneiric-security/multiverse i386 Packages [3,371 B]\nGet:22 http://security.ubuntu.com oneiric-security/main TranslationIndex [73 B]\nGet:23 http://security.ubuntu.com oneiric-security/multiverse TranslationIndex [72 B]\nGet:24 http://security.ubuntu.com oneiric-security/restricted TranslationIndex [71 B]\nGet:25 http://security.ubuntu.com oneiric-security/universe TranslationIndex [73 B]\nGet:26 http://security.ubuntu.com oneiric-security/main Translation-en [56.2 kB]\nGet:27 http://security.ubuntu.com oneiric-security/multiverse Translation-en [1,494 B]\nGet:28 http://security.ubuntu.com oneiric-security/restricted Translation-en [978 B]\nGet:29 http://security.ubuntu.com oneiric-security/universe Translation-en [25.1 kB]\nGet:30 http://mirror.rackspace.com oneiric/multiverse Sources [149 kB]\nGet:31 http://mirror.rackspace.com oneiric/main amd64 Packages [1,226 kB]\nGet:32 http://mirror.rackspace.com oneiric/restricted amd64 Packages [8,261 B]\nGet:33 http://mirror.rackspace.com oneiric/universe amd64 Packages [4,460 kB]\nGet:34 http://mirror.rackspace.com oneiric/multiverse amd64 Packages [117 kB]\nGet:35 http://mirror.rackspace.com oneiric/main i386 Packages [1,226 kB]\nGet:36 http://mirror.rackspace.com oneiric/restricted i386 Packages [8,216 B]\nGet:37 http://mirror.rackspace.com oneiric/universe i386 Packages [4,468 kB]\nGet:38 http://mirror.rackspace.com oneiric/multiverse i386 Packages [119 kB]\nGet:39 http://mirror.rackspace.com oneiric/main TranslationIndex [3,289 B]\nGet:40 http://mirror.rackspace.com oneiric/multiverse TranslationIndex [2,265 B]\nGet:41 http://mirror.rackspace.com oneiric/restricted TranslationIndex [2,263 B]\nGet:42 http://mirror.rackspace.com oneiric/universe TranslationIndex [2,640 B]\nGet:43 http://mirror.rackspace.com oneiric-updates/main Sources [139 kB]\nGet:44 http://mirror.rackspace.com oneiric-updates/restricted Sources [3,347 B]\nGet:45 http://mirror.rackspace.com oneiric-updates/universe Sources [52.6 kB]\nGet:46 http://mirror.rackspace.com oneiric-updates/multiverse Sources [3,660 B]\nGet:47 http://mirror.rackspace.com oneiric-updates/main amd64 Packages [344 kB]\nGet:48 http://mirror.rackspace.com oneiric-updates/restricted amd64 Packages [6,656 B]\nGet:49 http://mirror.rackspace.com oneiric-updates/universe amd64 Packages [113 kB]\nGet:50 http://mirror.rackspace.com oneiric-updates/multiverse amd64 Packages [6,195 B]\nGet:51 http://mirror.rackspace.com oneiric-updates/main i386 Packages [344 kB]\nGet:52 http://mirror.rackspace.com oneiric-updates/restricted i386 Packages [6,631 B]\nGet:53 http://mirror.rackspace.com oneiric-updates/universe i386 Packages [113 kB]\nGet:54 http://mirror.rackspace.com oneiric-updates/multiverse i386 Packages [6,363 B]\nGet:55 http://mirror.rackspace.com oneiric-updates/main TranslationIndex [74 B]\nGet:56 http://mirror.rackspace.com oneiric-updates/multiverse TranslationIndex [72 B]\nGet:57 http://mirror.rackspace.com oneiric-updates/restricted TranslationIndex [72 B]\nGet:58 http://mirror.rackspace.com oneiric-updates/universe TranslationIndex [73 B]\nGet:59 http://mirror.rackspace.com oneiric/main Translation-en [701 kB]\nGet:60 http://mirror.rackspace.com oneiric/multiverse Translation-en [92.6 kB]\nGet:61 http://mirror.rackspace.com oneiric/restricted Translation-en [2,229 B]\nGet:62 http://mirror.rackspace.com oneiric/universe Translation-en [3,165 kB]\nGet:63 http://mirror.rackspace.com oneiric-updates/main Translation-en [155 kB]\nGet:64 http://mirror.rackspace.com oneiric-updates/multiverse Translation-en [3,524 B]\nGet:65 http://mirror.rackspace.com oneiric-updates/restricted Translation-en [1,547 B]\nGet:66 http://mirror.rackspace.com oneiric-updates/universe Translation-en [67.9 kB]\nFetched 23.3 MB in 11s (2,076 kB/s)\nReading package lists...\n", 
+                                          "ip": "184.106.71.94", 
+                                          "overrides": {
+                                            "wordpress": {
+                                              "db": {
+                                                "host": "5888a24f7e53a5c859e689b1cd1579ead0294a37.rackspaceclouddb.com", 
+                                                "password": "password", 
+                                                "user": "MyDBUser", 
+                                                "database": "db1"
+                                              }
+                                            }
+                                          }, 
+                                          "hostname": "5888a24f7e53a5c859e689b1cd1579ead0294a37.rackspaceclouddb.com", 
+                                          "token": "92d426f0-46bd-4df9-bb5e-e1d67c347ae9", 
+                                          "result": true, 
+                                          "stderr": "", 
+                                          "deployment": {
+                                            "username": "joe.smith", 
+                                            "files": {
+                                              "/root/.ssh/authorized_keys": "ssh-rsa AAAAB3EzaC1yc2EAAAABIwAAAQEA7TT1qbLElv6tuAaA3Z4tQ752ms0Y7H53yybfFioFHELkp+NRMCKh4AqtqDBFsps1vPzhcXIxn4M4IH0ip7kSx0CSrM/9Vtz8jc+UZwixJdAWwHpum68rGmCQgAsZljI24Q9u8r/hXqjwY6ukTKbC0iy82LHqhcDjh3828+9GyyxbYGm5ND/5G/ZcnHD6HM9YKmc3voz5d/nez3Adlu4I1z4Y1T3lOwOxrP2OqvIeIPvVOZJ9GDmYYRDfqK8OIHDoLAzQx8xu0cvPRDL7gYRXN8nJZ5nOh+51zdPQEl99ACZDSSwTl2biOPNtXtuaGyjB5j8r7dz93JlsN8axea+ECQ== joe@smith.com\n"
+                                            }, 
+                                            "apikey": "--secret--", 
+                                            "region": "chicago", 
+                                            "authtoken": "92d426f0-46bd-4df9-bb5e-e1d67c347ae9", 
+                                            "id": "${id}"
+                                          }, 
+                                          "password": "QiC1mGv70CMDEP21341c9-web1.joe.smith.com", 
+                                          "id": "50a70c66-6a4f-4830-80b3-5d7521292771"
+                                        }, 
+                                        "children": [
+                                          {
+                                            "parent": 27, 
+                                            "task_spec": "Bootstrap Server:0", 
+                                            "last_state_change": 1337122159.449388, 
+                                            "id": 29, 
+                                            "state": 64, 
+                                            "internal_attributes": {
+                                              "task_id": "85dc231b-ce5b-400f-9a35-02703f12f219"
+                                            }, 
+                                            "attributes": {
+                                              "status": "BUILD", 
+                                              "name": "CMDEP21341c9-db1.joe.smith.com", 
+                                              "stdout": "Ign http://mirror.rackspace.com oneiric InRelease\nIgn http://mirror.rackspace.com oneiric-updates InRelease\nGet:1 http://mirror.rackspace.com oneiric Release.gpg [198 B]\nGet:2 http://mirror.rackspace.com oneiric-updates Release.gpg [198 B]\nIgn http://security.ubuntu.com oneiric-security InRelease\nGet:3 http://mirror.rackspace.com oneiric Release [40.8 kB]\nGet:4 http://security.ubuntu.com oneiric-security Release.gpg [198 B]\nGet:5 http://mirror.rackspace.com oneiric-updates Release [40.8 kB]\nGet:6 http://security.ubuntu.com oneiric-security Release [40.8 kB]\nGet:7 http://mirror.rackspace.com oneiric/main Sources [877 kB]\nGet:8 http://security.ubuntu.com oneiric-security/main Sources [37.5 kB]\nGet:9 http://mirror.rackspace.com oneiric/restricted Sources [5,351 B]\nGet:10 http://mirror.rackspace.com oneiric/universe Sources [4,677 kB]\nGet:11 http://security.ubuntu.com oneiric-security/restricted Sources [1,959 B]\nGet:12 http://security.ubuntu.com oneiric-security/universe Sources [16.5 kB]\nGet:13 http://security.ubuntu.com oneiric-security/multiverse Sources [1,644 B]\nGet:14 http://security.ubuntu.com oneiric-security/main amd64 Packages [118 kB]\nGet:15 http://security.ubuntu.com oneiric-security/restricted amd64 Packages [3,980 B]\nGet:16 http://security.ubuntu.com oneiric-security/universe amd64 Packages [36.3 kB]\nGet:17 http://security.ubuntu.com oneiric-security/multiverse amd64 Packages [3,209 B]\nGet:18 http://security.ubuntu.com oneiric-security/main i386 Packages [118 kB]\nGet:19 http://security.ubuntu.com oneiric-security/restricted i386 Packages [3,939 B]\nGet:20 http://security.ubuntu.com oneiric-security/universe i386 Packages [36.3 kB]\nGet:21 http://security.ubuntu.com oneiric-security/multiverse i386 Packages [3,371 B]\nGet:22 http://security.ubuntu.com oneiric-security/main TranslationIndex [73 B]\nGet:23 http://security.ubuntu.com oneiric-security/multiverse TranslationIndex [72 B]\nGet:24 http://security.ubuntu.com oneiric-security/restricted TranslationIndex [71 B]\nGet:25 http://security.ubuntu.com oneiric-security/universe TranslationIndex [73 B]\nGet:26 http://security.ubuntu.com oneiric-security/main Translation-en [56.2 kB]\nGet:27 http://security.ubuntu.com oneiric-security/multiverse Translation-en [1,494 B]\nGet:28 http://security.ubuntu.com oneiric-security/restricted Translation-en [978 B]\nGet:29 http://security.ubuntu.com oneiric-security/universe Translation-en [25.1 kB]\nGet:30 http://mirror.rackspace.com oneiric/multiverse Sources [149 kB]\nGet:31 http://mirror.rackspace.com oneiric/main amd64 Packages [1,226 kB]\nGet:32 http://mirror.rackspace.com oneiric/restricted amd64 Packages [8,261 B]\nGet:33 http://mirror.rackspace.com oneiric/universe amd64 Packages [4,460 kB]\nGet:34 http://mirror.rackspace.com oneiric/multiverse amd64 Packages [117 kB]\nGet:35 http://mirror.rackspace.com oneiric/main i386 Packages [1,226 kB]\nGet:36 http://mirror.rackspace.com oneiric/restricted i386 Packages [8,216 B]\nGet:37 http://mirror.rackspace.com oneiric/universe i386 Packages [4,468 kB]\nGet:38 http://mirror.rackspace.com oneiric/multiverse i386 Packages [119 kB]\nGet:39 http://mirror.rackspace.com oneiric/main TranslationIndex [3,289 B]\nGet:40 http://mirror.rackspace.com oneiric/multiverse TranslationIndex [2,265 B]\nGet:41 http://mirror.rackspace.com oneiric/restricted TranslationIndex [2,263 B]\nGet:42 http://mirror.rackspace.com oneiric/universe TranslationIndex [2,640 B]\nGet:43 http://mirror.rackspace.com oneiric-updates/main Sources [139 kB]\nGet:44 http://mirror.rackspace.com oneiric-updates/restricted Sources [3,347 B]\nGet:45 http://mirror.rackspace.com oneiric-updates/universe Sources [52.6 kB]\nGet:46 http://mirror.rackspace.com oneiric-updates/multiverse Sources [3,660 B]\nGet:47 http://mirror.rackspace.com oneiric-updates/main amd64 Packages [344 kB]\nGet:48 http://mirror.rackspace.com oneiric-updates/restricted amd64 Packages [6,656 B]\nGet:49 http://mirror.rackspace.com oneiric-updates/universe amd64 Packages [113 kB]\nGet:50 http://mirror.rackspace.com oneiric-updates/multiverse amd64 Packages [6,195 B]\nGet:51 http://mirror.rackspace.com oneiric-updates/main i386 Packages [344 kB]\nGet:52 http://mirror.rackspace.com oneiric-updates/restricted i386 Packages [6,631 B]\nGet:53 http://mirror.rackspace.com oneiric-updates/universe i386 Packages [113 kB]\nGet:54 http://mirror.rackspace.com oneiric-updates/multiverse i386 Packages [6,363 B]\nGet:55 http://mirror.rackspace.com oneiric-updates/main TranslationIndex [74 B]\nGet:56 http://mirror.rackspace.com oneiric-updates/multiverse TranslationIndex [72 B]\nGet:57 http://mirror.rackspace.com oneiric-updates/restricted TranslationIndex [72 B]\nGet:58 http://mirror.rackspace.com oneiric-updates/universe TranslationIndex [73 B]\nGet:59 http://mirror.rackspace.com oneiric/main Translation-en [701 kB]\nGet:60 http://mirror.rackspace.com oneiric/multiverse Translation-en [92.6 kB]\nGet:61 http://mirror.rackspace.com oneiric/restricted Translation-en [2,229 B]\nGet:62 http://mirror.rackspace.com oneiric/universe Translation-en [3,165 kB]\nGet:63 http://mirror.rackspace.com oneiric-updates/main Translation-en [155 kB]\nGet:64 http://mirror.rackspace.com oneiric-updates/multiverse Translation-en [3,524 B]\nGet:65 http://mirror.rackspace.com oneiric-updates/restricted Translation-en [1,547 B]\nGet:66 http://mirror.rackspace.com oneiric-updates/universe Translation-en [67.9 kB]\nFetched 23.3 MB in 11s (2,076 kB/s)\nReading package lists...\n", 
+                                              "ip": "184.106.71.94", 
+                                              "overrides": {
+                                                "wordpress": {
+                                                  "db": {
+                                                    "host": "5888a24f7e53a5c859e689b1cd1579ead0294a37.rackspaceclouddb.com", 
+                                                    "password": "password", 
+                                                    "user": "MyDBUser", 
+                                                    "database": "db1"
+                                                  }
+                                                }
+                                              }, 
+                                              "hostname": "5888a24f7e53a5c859e689b1cd1579ead0294a37.rackspaceclouddb.com", 
+                                              "token": "92d426f0-46bd-4df9-bb5e-e1d67c347ae9", 
+                                              "result": true, 
+                                              "stderr": "", 
+                                              "deployment": {
+                                                "username": "joe.smith", 
+                                                "files": {
+                                                  "/root/.ssh/authorized_keys": "ssh-rsa AAAAB3EzaC1yc2EAAAABIwAAAQEA7TT1qbLElv6tuAaA3Z4tQ752ms0Y7H53yybfFioFHELkp+NRMCKh4AqtqDBFsps1vPzhcXIxn4M4IH0ip7kSx0CSrM/9Vtz8jc+UZwixJdAWwHpum68rGmCQgAsZljI24Q9u8r/hXqjwY6ukTKbC0iy82LHqhcDjh3828+9GyyxbYGm5ND/5G/ZcnHD6HM9YKmc3voz5d/nez3Adlu4I1z4Y1T3lOwOxrP2OqvIeIPvVOZJ9GDmYYRDfqK8OIHDoLAzQx8xu0cvPRDL7gYRXN8nJZ5nOh+51zdPQEl99ACZDSSwTl2biOPNtXtuaGyjB5j8r7dz93JlsN8axea+ECQ== joe@smith.com\n"
+                                                }, 
+                                                "apikey": "--secret--", 
+                                                "region": "chicago", 
+                                                "authtoken": "92d426f0-46bd-4df9-bb5e-e1d67c347ae9", 
+                                                "id": "${id}"
+                                              }, 
+                                              "password": "QiC1mGv70CMDEP21341c9-web1.joe.smith.com", 
+                                              "id": "50a70c66-6a4f-4830-80b3-5d7521292771"
+                                            }, 
+                                            "children": []
+                                          }
+                                        ]
+                                      }
+                                    ]
+                                  }
+                                ]
+                              }
+                            ]
+                          }
+                        ]
+                      }
+                    ]
+                  }, 
+                  {
+                    "parent": 4, 
+                    "task_spec": "Create LB", 
+                    "last_state_change": 1337121361.235547, 
+                    "id": 9, 
+                    "state": 64, 
+                    "internal_attributes": {
+                      "task_id": "66c775b5-9a8d-4d92-9415-6edfb8f9b011"
+                    }, 
+                    "attributes": {
+                      "token": "92d426f0-46bd-4df9-bb5e-e1d67c347ae9", 
+                      "vip": "198.101.128.186", 
+                      "id": 48263, 
+                      "deployment": {
+                        "username": "joe.smith", 
+                        "files": {
+                          "/root/.ssh/authorized_keys": "ssh-rsa AAAAB3EzaC1yc2EAAAABIwAAAQEA7TT1qbLElv6tuAaA3Z4tQ752ms0Y7H53yybfFioFHELkp+NRMCKh4AqtqDBFsps1vPzhcXIxn4M4IH0ip7kSx0CSrM/9Vtz8jc+UZwixJdAWwHpum68rGmCQgAsZljI24Q9u8r/hXqjwY6ukTKbC0iy82LHqhcDjh3828+9GyyxbYGm5ND/5G/ZcnHD6HM9YKmc3voz5d/nez3Adlu4I1z4Y1T3lOwOxrP2OqvIeIPvVOZJ9GDmYYRDfqK8OIHDoLAzQx8xu0cvPRDL7gYRXN8nJZ5nOh+51zdPQEl99ACZDSSwTl2biOPNtXtuaGyjB5j8r7dz93JlsN8axea+ECQ== joe@smith.com\n"
+                        }, 
+                        "apikey": "--secret--", 
+                        "region": "chicago", 
+                        "authtoken": "92d426f0-46bd-4df9-bb5e-e1d67c347ae9", 
+                        "id": "${id}"
+                      }
+                    }, 
+                    "children": [
+                      {
+                        "parent": 9, 
+                        "task_spec": "Wait for LB:0", 
+                        "last_state_change": 1337121379.143344, 
+                        "id": 30, 
+                        "state": 64, 
+                        "internal_attributes": {}, 
+                        "attributes": {
+                          "token": "92d426f0-46bd-4df9-bb5e-e1d67c347ae9", 
+                          "deployment": {
+                            "username": "joe.smith", 
+                            "files": {
+                              "/root/.ssh/authorized_keys": "ssh-rsa AAAAB3EzaC1yc2EAAAABIwAAAQEA7TT1qbLElv6tuAaA3Z4tQ752ms0Y7H53yybfFioFHELkp+NRMCKh4AqtqDBFsps1vPzhcXIxn4M4IH0ip7kSx0CSrM/9Vtz8jc+UZwixJdAWwHpum68rGmCQgAsZljI24Q9u8r/hXqjwY6ukTKbC0iy82LHqhcDjh3828+9GyyxbYGm5ND/5G/ZcnHD6HM9YKmc3voz5d/nez3Adlu4I1z4Y1T3lOwOxrP2OqvIeIPvVOZJ9GDmYYRDfqK8OIHDoLAzQx8xu0cvPRDL7gYRXN8nJZ5nOh+51zdPQEl99ACZDSSwTl2biOPNtXtuaGyjB5j8r7dz93JlsN8axea+ECQ== joe@smith.com\n"
+                            }, 
+                            "apikey": "--secret--", 
+                            "region": "chicago", 
+                            "authtoken": "92d426f0-46bd-4df9-bb5e-e1d67c347ae9", 
+                            "id": "${id}"
+                          }, 
+                          "id": 48263, 
+                          "vip": "198.101.128.186"
+                        }, 
+                        "children": []
+                      }, 
+                      {
+                        "parent": 9, 
+                        "task_spec": "Wait for LB:1", 
+                        "last_state_change": 1337121361.317113, 
+                        "id": 31, 
+                        "state": 64, 
+                        "internal_attributes": {}, 
+                        "attributes": {
+                          "ip": "184.106.71.87", 
+                          "vip": "198.101.128.186", 
+                          "token": "92d426f0-46bd-4df9-bb5e-e1d67c347ae9", 
+                          "deployment": {
+                            "username": "joe.smith", 
+                            "files": {
+                              "/root/.ssh/authorized_keys": "ssh-rsa AAAAB3EzaC1yc2EAAAABIwAAAQEA7TT1qbLElv6tuAaA3Z4tQ752ms0Y7H53yybfFioFHELkp+NRMCKh4AqtqDBFsps1vPzhcXIxn4M4IH0ip7kSx0CSrM/9Vtz8jc+UZwixJdAWwHpum68rGmCQgAsZljI24Q9u8r/hXqjwY6ukTKbC0iy82LHqhcDjh3828+9GyyxbYGm5ND/5G/ZcnHD6HM9YKmc3voz5d/nez3Adlu4I1z4Y1T3lOwOxrP2OqvIeIPvVOZJ9GDmYYRDfqK8OIHDoLAzQx8xu0cvPRDL7gYRXN8nJZ5nOh+51zdPQEl99ACZDSSwTl2biOPNtXtuaGyjB5j8r7dz93JlsN8axea+ECQ== joe@smith.com\n"
+                            }, 
+                            "apikey": "--secret--", 
+                            "region": "chicago", 
+                            "authtoken": "92d426f0-46bd-4df9-bb5e-e1d67c347ae9", 
+                            "id": "${id}"
+                          }, 
+                          "password": "Q2H7Q3acmCMDEP21341c9-web2.joe.smith.com", 
+                          "id": 48263
+                        }, 
+                        "children": [
+                          {
+                            "parent": 31, 
+                            "task_spec": "Add LB Node:1", 
+                            "last_state_change": 1337121861.399175, 
+                            "id": 33, 
+                            "state": 64, 
+                            "internal_attributes": {
+                              "task_id": "4e2e3cce-7dfe-4d38-b837-5df16ce783a2"
+                            }, 
+                            "attributes": {
+                              "ip": "184.106.71.87", 
+                              "vip": "198.101.128.186", 
+                              "token": "92d426f0-46bd-4df9-bb5e-e1d67c347ae9", 
+                              "deployment": {
+                                "username": "joe.smith", 
+                                "files": {
+                                  "/root/.ssh/authorized_keys": "ssh-rsa AAAAB3EzaC1yc2EAAAABIwAAAQEA7TT1qbLElv6tuAaA3Z4tQ752ms0Y7H53yybfFioFHELkp+NRMCKh4AqtqDBFsps1vPzhcXIxn4M4IH0ip7kSx0CSrM/9Vtz8jc+UZwixJdAWwHpum68rGmCQgAsZljI24Q9u8r/hXqjwY6ukTKbC0iy82LHqhcDjh3828+9GyyxbYGm5ND/5G/ZcnHD6HM9YKmc3voz5d/nez3Adlu4I1z4Y1T3lOwOxrP2OqvIeIPvVOZJ9GDmYYRDfqK8OIHDoLAzQx8xu0cvPRDL7gYRXN8nJZ5nOh+51zdPQEl99ACZDSSwTl2biOPNtXtuaGyjB5j8r7dz93JlsN8axea+ECQ== joe@smith.com\n"
+                                }, 
+                                "apikey": "--secret--", 
+                                "region": "chicago", 
+                                "authtoken": "92d426f0-46bd-4df9-bb5e-e1d67c347ae9", 
+                                "id": "${id}"
+                              }, 
+                              "password": "Q2H7Q3acmCMDEP21341c9-web2.joe.smith.com", 
+                              "id": 170339
+                            }, 
+                            "children": []
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              }, 
+              {
+                "parent": 3, 
+                "task_spec": "Create Chef Environment", 
+                "last_state_change": 1337121341.540747, 
+                "id": 5, 
+                "state": 64, 
+                "internal_attributes": {
+                  "task_id": "d55e3336-117b-4555-8922-3a68b885f977"
+                }, 
+                "attributes": {
+                  "token": "92d426f0-46bd-4df9-bb5e-e1d67c347ae9", 
+                  "result": true, 
+                  "deployment": {
+                    "username": "joe.smith", 
+                    "files": {
+                      "/root/.ssh/authorized_keys": "ssh-rsa AAAAB3EzaC1yc2EAAAABIwAAAQEA7TT1qbLElv6tuAaA3Z4tQ752ms0Y7H53yybfFioFHELkp+NRMCKh4AqtqDBFsps1vPzhcXIxn4M4IH0ip7kSx0CSrM/9Vtz8jc+UZwixJdAWwHpum68rGmCQgAsZljI24Q9u8r/hXqjwY6ukTKbC0iy82LHqhcDjh3828+9GyyxbYGm5ND/5G/ZcnHD6HM9YKmc3voz5d/nez3Adlu4I1z4Y1T3lOwOxrP2OqvIeIPvVOZJ9GDmYYRDfqK8OIHDoLAzQx8xu0cvPRDL7gYRXN8nJZ5nOh+51zdPQEl99ACZDSSwTl2biOPNtXtuaGyjB5j8r7dz93JlsN8axea+ECQ== joe@smith.com\n"
+                    }, 
+                    "apikey": "--secret--", 
+                    "region": "chicago", 
+                    "authtoken": "92d426f0-46bd-4df9-bb5e-e1d67c347ae9", 
+                    "id": "${id}"
+                  }
+                }, 
+                "children": [
+                  {
+                    "parent": 5, 
+                    "task_spec": "Register Server:1", 
+                    "last_state_change": 1337121380.419056, 
+                    "id": 34, 
+                    "state": 64, 
+                    "internal_attributes": {
+                      "task_id": "2918e2ea-2387-4769-99bd-c90900077181"
+                    }, 
+                    "attributes": {
+                      "token": "92d426f0-46bd-4df9-bb5e-e1d67c347ae9", 
+                      "result": null, 
+                      "deployment": {
+                        "username": "joe.smith", 
+                        "files": {
+                          "/root/.ssh/authorized_keys": "ssh-rsa AAAAB3EzaC1yc2EAAAABIwAAAQEA7TT1qbLElv6tuAaA3Z4tQ752ms0Y7H53yybfFioFHELkp+NRMCKh4AqtqDBFsps1vPzhcXIxn4M4IH0ip7kSx0CSrM/9Vtz8jc+UZwixJdAWwHpum68rGmCQgAsZljI24Q9u8r/hXqjwY6ukTKbC0iy82LHqhcDjh3828+9GyyxbYGm5ND/5G/ZcnHD6HM9YKmc3voz5d/nez3Adlu4I1z4Y1T3lOwOxrP2OqvIeIPvVOZJ9GDmYYRDfqK8OIHDoLAzQx8xu0cvPRDL7gYRXN8nJZ5nOh+51zdPQEl99ACZDSSwTl2biOPNtXtuaGyjB5j8r7dz93JlsN8axea+ECQ== joe@smith.com\n"
+                        }, 
+                        "apikey": "--secret--", 
+                        "region": "chicago", 
+                        "authtoken": "92d426f0-46bd-4df9-bb5e-e1d67c347ae9", 
+                        "id": "${id}"
+                      }
+                    }, 
+                    "children": [
+                      {
+                        "parent": 34, 
+                        "task_spec": "Wait for Server Build:1", 
+                        "last_state_change": 1337121936.309186, 
+                        "id": 37, 
+                        "state": 64, 
+                        "internal_attributes": {}, 
+                        "attributes": {
+                          "status": "BUILD", 
+                          "name": "CMDEP21341c9-db1.joe.smith.com", 
+                          "stdout": "Ign http://mirror.rackspace.com oneiric InRelease\nIgn http://mirror.rackspace.com oneiric-updates InRelease\nGet:1 http://mirror.rackspace.com oneiric Release.gpg [198 B]\nGet:2 http://mirror.rackspace.com oneiric-updates Release.gpg [198 B]\nIgn http://security.ubuntu.com oneiric-security InRelease\nGet:3 http://mirror.rackspace.com oneiric Release [40.8 kB]\nGet:4 http://security.ubuntu.com oneiric-security Release.gpg [198 B]\nGet:5 http://mirror.rackspace.com oneiric-updates Release [40.8 kB]\nGet:6 http://security.ubuntu.com oneiric-security Release [40.8 kB]\nGet:7 http://mirror.rackspace.com oneiric/main Sources [877 kB]\nGet:8 http://mirror.rackspace.com oneiric/restricted Sources [5,351 B]\nGet:9 http://security.ubuntu.com oneiric-security/main Sources [37.5 kB]\nGet:10 http://mirror.rackspace.com oneiric/universe Sources [4,677 kB]\nGet:11 http://security.ubuntu.com oneiric-security/restricted Sources [1,959 B]\nGet:12 http://security.ubuntu.com oneiric-security/universe Sources [16.5 kB]\nGet:13 http://security.ubuntu.com oneiric-security/multiverse Sources [1,644 B]\nGet:14 http://security.ubuntu.com oneiric-security/main amd64 Packages [118 kB]\nGet:15 http://security.ubuntu.com oneiric-security/restricted amd64 Packages [3,980 B]\nGet:16 http://security.ubuntu.com oneiric-security/universe amd64 Packages [36.3 kB]\nGet:17 http://security.ubuntu.com oneiric-security/multiverse amd64 Packages [3,209 B]\nGet:18 http://security.ubuntu.com oneiric-security/main i386 Packages [118 kB]\nGet:19 http://security.ubuntu.com oneiric-security/restricted i386 Packages [3,939 B]\nGet:20 http://security.ubuntu.com oneiric-security/universe i386 Packages [36.3 kB]\nGet:21 http://security.ubuntu.com oneiric-security/multiverse i386 Packages [3,371 B]\nGet:22 http://security.ubuntu.com oneiric-security/main TranslationIndex [73 B]\nGet:23 http://security.ubuntu.com oneiric-security/multiverse TranslationIndex [72 B]\nGet:24 http://security.ubuntu.com oneiric-security/restricted TranslationIndex [71 B]\nGet:25 http://security.ubuntu.com oneiric-security/universe TranslationIndex [73 B]\nGet:26 http://mirror.rackspace.com oneiric/multiverse Sources [149 kB]\nGet:27 http://security.ubuntu.com oneiric-security/main Translation-en [56.2 kB]\nGet:28 http://security.ubuntu.com oneiric-security/multiverse Translation-en [1,494 B]\nGet:29 http://security.ubuntu.com oneiric-security/restricted Translation-en [978 B]\nGet:30 http://security.ubuntu.com oneiric-security/universe Translation-en [25.1 kB]\nGet:31 http://mirror.rackspace.com oneiric/main amd64 Packages [1,226 kB]\nGet:32 http://mirror.rackspace.com oneiric/restricted amd64 Packages [8,261 B]\nGet:33 http://mirror.rackspace.com oneiric/universe amd64 Packages [4,460 kB]\nGet:34 http://mirror.rackspace.com oneiric/multiverse amd64 Packages [117 kB]\nGet:35 http://mirror.rackspace.com oneiric/main i386 Packages [1,226 kB]\nGet:36 http://mirror.rackspace.com oneiric/restricted i386 Packages [8,216 B]\nGet:37 http://mirror.rackspace.com oneiric/universe i386 Packages [4,468 kB]\nGet:38 http://mirror.rackspace.com oneiric/multiverse i386 Packages [119 kB]\nGet:39 http://mirror.rackspace.com oneiric/main TranslationIndex [3,289 B]\nGet:40 http://mirror.rackspace.com oneiric/multiverse TranslationIndex [2,265 B]\nGet:41 http://mirror.rackspace.com oneiric/restricted TranslationIndex [2,263 B]\nGet:42 http://mirror.rackspace.com oneiric/universe TranslationIndex [2,640 B]\nGet:43 http://mirror.rackspace.com oneiric-updates/main Sources [139 kB]\nGet:44 http://mirror.rackspace.com oneiric-updates/restricted Sources [3,347 B]\nGet:45 http://mirror.rackspace.com oneiric-updates/universe Sources [52.6 kB]\nGet:46 http://mirror.rackspace.com oneiric-updates/multiverse Sources [3,660 B]\nGet:47 http://mirror.rackspace.com oneiric-updates/main amd64 Packages [344 kB]\nGet:48 http://mirror.rackspace.com oneiric-updates/restricted amd64 Packages [6,656 B]\nGet:49 http://mirror.rackspace.com oneiric-updates/universe amd64 Packages [113 kB]\nGet:50 http://mirror.rackspace.com oneiric-updates/multiverse amd64 Packages [6,195 B]\nGet:51 http://mirror.rackspace.com oneiric-updates/main i386 Packages [344 kB]\nGet:52 http://mirror.rackspace.com oneiric-updates/restricted i386 Packages [6,631 B]\nGet:53 http://mirror.rackspace.com oneiric-updates/universe i386 Packages [113 kB]\nGet:54 http://mirror.rackspace.com oneiric-updates/multiverse i386 Packages [6,363 B]\nGet:55 http://mirror.rackspace.com oneiric-updates/main TranslationIndex [74 B]\nGet:56 http://mirror.rackspace.com oneiric-updates/multiverse TranslationIndex [72 B]\nGet:57 http://mirror.rackspace.com oneiric-updates/restricted TranslationIndex [72 B]\nGet:58 http://mirror.rackspace.com oneiric-updates/universe TranslationIndex [73 B]\nGet:59 http://mirror.rackspace.com oneiric/main Translation-en [701 kB]\nGet:60 http://mirror.rackspace.com oneiric/multiverse Translation-en [92.6 kB]\nGet:61 http://mirror.rackspace.com oneiric/restricted Translation-en [2,229 B]\nGet:62 http://mirror.rackspace.com oneiric/universe Translation-en [3,165 kB]\nGet:63 http://mirror.rackspace.com oneiric-updates/main Translation-en [155 kB]\nGet:64 http://mirror.rackspace.com oneiric-updates/multiverse Translation-en [3,524 B]\nGet:65 http://mirror.rackspace.com oneiric-updates/restricted Translation-en [1,547 B]\nGet:66 http://mirror.rackspace.com oneiric-updates/universe Translation-en [67.9 kB]\nFetched 23.3 MB in 11s (2,009 kB/s)\nReading package lists...\n", 
+                          "ip": "184.106.71.87", 
+                          "overrides": {
+                            "wordpress": {
+                              "db": {
+                                "host": "5888a24f7e53a5c859e689b1cd1579ead0294a37.rackspaceclouddb.com", 
+                                "password": "password", 
+                                "user": "MyDBUser", 
+                                "database": "db1"
+                              }
+                            }
+                          }, 
+                          "hostname": "5888a24f7e53a5c859e689b1cd1579ead0294a37.rackspaceclouddb.com", 
+                          "token": "92d426f0-46bd-4df9-bb5e-e1d67c347ae9", 
+                          "result": null, 
+                          "stderr": "", 
+                          "deployment": {
+                            "username": "joe.smith", 
+                            "files": {
+                              "/root/.ssh/authorized_keys": "ssh-rsa AAAAB3EzaC1yc2EAAAABIwAAAQEA7TT1qbLElv6tuAaA3Z4tQ752ms0Y7H53yybfFioFHELkp+NRMCKh4AqtqDBFsps1vPzhcXIxn4M4IH0ip7kSx0CSrM/9Vtz8jc+UZwixJdAWwHpum68rGmCQgAsZljI24Q9u8r/hXqjwY6ukTKbC0iy82LHqhcDjh3828+9GyyxbYGm5ND/5G/ZcnHD6HM9YKmc3voz5d/nez3Adlu4I1z4Y1T3lOwOxrP2OqvIeIPvVOZJ9GDmYYRDfqK8OIHDoLAzQx8xu0cvPRDL7gYRXN8nJZ5nOh+51zdPQEl99ACZDSSwTl2biOPNtXtuaGyjB5j8r7dz93JlsN8axea+ECQ== joe@smith.com\n"
+                            }, 
+                            "apikey": "--secret--", 
+                            "region": "chicago", 
+                            "authtoken": "92d426f0-46bd-4df9-bb5e-e1d67c347ae9", 
+                            "id": "${id}"
+                          }, 
+                          "password": "Q2H7Q3acmCMDEP21341c9-web2.joe.smith.com", 
+                          "id": "50a70c66-6a4f-4830-80b3-5d7521292771"
+                        }, 
+                        "children": []
+                      }
+                    ]
+                  }, 
+                  {
+                    "parent": 5, 
+                    "task_spec": "Register Server:0", 
+                    "last_state_change": 1337121395.063476, 
+                    "id": 35, 
+                    "state": 64, 
+                    "internal_attributes": {
+                      "task_id": "16f34812-5e93-448c-81a2-3c783094a485"
+                    }, 
+                    "attributes": {
+                      "token": "92d426f0-46bd-4df9-bb5e-e1d67c347ae9", 
+                      "result": null, 
+                      "deployment": {
+                        "username": "joe.smith", 
+                        "files": {
+                          "/root/.ssh/authorized_keys": "ssh-rsa AAAAB3EzaC1yc2EAAAABIwAAAQEA7TT1qbLElv6tuAaA3Z4tQ752ms0Y7H53yybfFioFHELkp+NRMCKh4AqtqDBFsps1vPzhcXIxn4M4IH0ip7kSx0CSrM/9Vtz8jc+UZwixJdAWwHpum68rGmCQgAsZljI24Q9u8r/hXqjwY6ukTKbC0iy82LHqhcDjh3828+9GyyxbYGm5ND/5G/ZcnHD6HM9YKmc3voz5d/nez3Adlu4I1z4Y1T3lOwOxrP2OqvIeIPvVOZJ9GDmYYRDfqK8OIHDoLAzQx8xu0cvPRDL7gYRXN8nJZ5nOh+51zdPQEl99ACZDSSwTl2biOPNtXtuaGyjB5j8r7dz93JlsN8axea+ECQ== joe@smith.com\n"
+                        }, 
+                        "apikey": "--secret--", 
+                        "region": "chicago", 
+                        "authtoken": "92d426f0-46bd-4df9-bb5e-e1d67c347ae9", 
+                        "id": "${id}"
+                      }
+                    }, 
+                    "children": [
+                      {
+                        "parent": 35, 
+                        "task_spec": "Wait for Server Build:0", 
+                        "last_state_change": 1337121936.316168, 
+                        "id": 39, 
+                        "state": 64, 
+                        "internal_attributes": {}, 
+                        "attributes": {
+                          "status": "BUILD", 
+                          "name": "CMDEP21341c9-db1.joe.smith.com", 
+                          "stdout": "Ign http://mirror.rackspace.com oneiric InRelease\nIgn http://mirror.rackspace.com oneiric-updates InRelease\nGet:1 http://mirror.rackspace.com oneiric Release.gpg [198 B]\nGet:2 http://mirror.rackspace.com oneiric-updates Release.gpg [198 B]\nIgn http://security.ubuntu.com oneiric-security InRelease\nGet:3 http://mirror.rackspace.com oneiric Release [40.8 kB]\nGet:4 http://security.ubuntu.com oneiric-security Release.gpg [198 B]\nGet:5 http://mirror.rackspace.com oneiric-updates Release [40.8 kB]\nGet:6 http://security.ubuntu.com oneiric-security Release [40.8 kB]\nGet:7 http://mirror.rackspace.com oneiric/main Sources [877 kB]\nGet:8 http://security.ubuntu.com oneiric-security/main Sources [37.5 kB]\nGet:9 http://mirror.rackspace.com oneiric/restricted Sources [5,351 B]\nGet:10 http://mirror.rackspace.com oneiric/universe Sources [4,677 kB]\nGet:11 http://security.ubuntu.com oneiric-security/restricted Sources [1,959 B]\nGet:12 http://security.ubuntu.com oneiric-security/universe Sources [16.5 kB]\nGet:13 http://security.ubuntu.com oneiric-security/multiverse Sources [1,644 B]\nGet:14 http://security.ubuntu.com oneiric-security/main amd64 Packages [118 kB]\nGet:15 http://security.ubuntu.com oneiric-security/restricted amd64 Packages [3,980 B]\nGet:16 http://security.ubuntu.com oneiric-security/universe amd64 Packages [36.3 kB]\nGet:17 http://security.ubuntu.com oneiric-security/multiverse amd64 Packages [3,209 B]\nGet:18 http://security.ubuntu.com oneiric-security/main i386 Packages [118 kB]\nGet:19 http://security.ubuntu.com oneiric-security/restricted i386 Packages [3,939 B]\nGet:20 http://security.ubuntu.com oneiric-security/universe i386 Packages [36.3 kB]\nGet:21 http://security.ubuntu.com oneiric-security/multiverse i386 Packages [3,371 B]\nGet:22 http://security.ubuntu.com oneiric-security/main TranslationIndex [73 B]\nGet:23 http://security.ubuntu.com oneiric-security/multiverse TranslationIndex [72 B]\nGet:24 http://security.ubuntu.com oneiric-security/restricted TranslationIndex [71 B]\nGet:25 http://security.ubuntu.com oneiric-security/universe TranslationIndex [73 B]\nGet:26 http://security.ubuntu.com oneiric-security/main Translation-en [56.2 kB]\nGet:27 http://security.ubuntu.com oneiric-security/multiverse Translation-en [1,494 B]\nGet:28 http://security.ubuntu.com oneiric-security/restricted Translation-en [978 B]\nGet:29 http://security.ubuntu.com oneiric-security/universe Translation-en [25.1 kB]\nGet:30 http://mirror.rackspace.com oneiric/multiverse Sources [149 kB]\nGet:31 http://mirror.rackspace.com oneiric/main amd64 Packages [1,226 kB]\nGet:32 http://mirror.rackspace.com oneiric/restricted amd64 Packages [8,261 B]\nGet:33 http://mirror.rackspace.com oneiric/universe amd64 Packages [4,460 kB]\nGet:34 http://mirror.rackspace.com oneiric/multiverse amd64 Packages [117 kB]\nGet:35 http://mirror.rackspace.com oneiric/main i386 Packages [1,226 kB]\nGet:36 http://mirror.rackspace.com oneiric/restricted i386 Packages [8,216 B]\nGet:37 http://mirror.rackspace.com oneiric/universe i386 Packages [4,468 kB]\nGet:38 http://mirror.rackspace.com oneiric/multiverse i386 Packages [119 kB]\nGet:39 http://mirror.rackspace.com oneiric/main TranslationIndex [3,289 B]\nGet:40 http://mirror.rackspace.com oneiric/multiverse TranslationIndex [2,265 B]\nGet:41 http://mirror.rackspace.com oneiric/restricted TranslationIndex [2,263 B]\nGet:42 http://mirror.rackspace.com oneiric/universe TranslationIndex [2,640 B]\nGet:43 http://mirror.rackspace.com oneiric-updates/main Sources [139 kB]\nGet:44 http://mirror.rackspace.com oneiric-updates/restricted Sources [3,347 B]\nGet:45 http://mirror.rackspace.com oneiric-updates/universe Sources [52.6 kB]\nGet:46 http://mirror.rackspace.com oneiric-updates/multiverse Sources [3,660 B]\nGet:47 http://mirror.rackspace.com oneiric-updates/main amd64 Packages [344 kB]\nGet:48 http://mirror.rackspace.com oneiric-updates/restricted amd64 Packages [6,656 B]\nGet:49 http://mirror.rackspace.com oneiric-updates/universe amd64 Packages [113 kB]\nGet:50 http://mirror.rackspace.com oneiric-updates/multiverse amd64 Packages [6,195 B]\nGet:51 http://mirror.rackspace.com oneiric-updates/main i386 Packages [344 kB]\nGet:52 http://mirror.rackspace.com oneiric-updates/restricted i386 Packages [6,631 B]\nGet:53 http://mirror.rackspace.com oneiric-updates/universe i386 Packages [113 kB]\nGet:54 http://mirror.rackspace.com oneiric-updates/multiverse i386 Packages [6,363 B]\nGet:55 http://mirror.rackspace.com oneiric-updates/main TranslationIndex [74 B]\nGet:56 http://mirror.rackspace.com oneiric-updates/multiverse TranslationIndex [72 B]\nGet:57 http://mirror.rackspace.com oneiric-updates/restricted TranslationIndex [72 B]\nGet:58 http://mirror.rackspace.com oneiric-updates/universe TranslationIndex [73 B]\nGet:59 http://mirror.rackspace.com oneiric/main Translation-en [701 kB]\nGet:60 http://mirror.rackspace.com oneiric/multiverse Translation-en [92.6 kB]\nGet:61 http://mirror.rackspace.com oneiric/restricted Translation-en [2,229 B]\nGet:62 http://mirror.rackspace.com oneiric/universe Translation-en [3,165 kB]\nGet:63 http://mirror.rackspace.com oneiric-updates/main Translation-en [155 kB]\nGet:64 http://mirror.rackspace.com oneiric-updates/multiverse Translation-en [3,524 B]\nGet:65 http://mirror.rackspace.com oneiric-updates/restricted Translation-en [1,547 B]\nGet:66 http://mirror.rackspace.com oneiric-updates/universe Translation-en [67.9 kB]\nFetched 23.3 MB in 11s (2,076 kB/s)\nReading package lists...\n", 
+                          "ip": "184.106.71.94", 
+                          "overrides": {
+                            "wordpress": {
+                              "db": {
+                                "host": "5888a24f7e53a5c859e689b1cd1579ead0294a37.rackspaceclouddb.com", 
+                                "password": "password", 
+                                "user": "MyDBUser", 
+                                "database": "db1"
+                              }
+                            }
+                          }, 
+                          "hostname": "5888a24f7e53a5c859e689b1cd1579ead0294a37.rackspaceclouddb.com", 
+                          "token": "92d426f0-46bd-4df9-bb5e-e1d67c347ae9", 
+                          "result": null, 
+                          "stderr": "", 
+                          "deployment": {
+                            "username": "joe.smith", 
+                            "files": {
+                              "/root/.ssh/authorized_keys": "ssh-rsa AAAAB3EzaC1yc2EAAAABIwAAAQEA7TT1qbLElv6tuAaA3Z4tQ752ms0Y7H53yybfFioFHELkp+NRMCKh4AqtqDBFsps1vPzhcXIxn4M4IH0ip7kSx0CSrM/9Vtz8jc+UZwixJdAWwHpum68rGmCQgAsZljI24Q9u8r/hXqjwY6ukTKbC0iy82LHqhcDjh3828+9GyyxbYGm5ND/5G/ZcnHD6HM9YKmc3voz5d/nez3Adlu4I1z4Y1T3lOwOxrP2OqvIeIPvVOZJ9GDmYYRDfqK8OIHDoLAzQx8xu0cvPRDL7gYRXN8nJZ5nOh+51zdPQEl99ACZDSSwTl2biOPNtXtuaGyjB5j8r7dz93JlsN8axea+ECQ== joe@smith.com\n"
+                            }, 
+                            "apikey": "--secret--", 
+                            "region": "chicago", 
+                            "authtoken": "92d426f0-46bd-4df9-bb5e-e1d67c347ae9", 
+                            "id": "${id}"
+                          }, 
+                          "password": "QiC1mGv70CMDEP21341c9-web1.joe.smith.com", 
+                          "id": "50a70c66-6a4f-4830-80b3-5d7521292771"
+                        }, 
+                        "children": []
+                      }
+                    ]
+                  }, 
+                  {
+                    "parent": 5, 
+                    "task_spec": "Join:3", 
+                    "last_state_change": 1337121861.229018, 
+                    "id": 36, 
+                    "state": 64, 
+                    "internal_attributes": {}, 
+                    "attributes": {
+                      "status": "BUILD", 
+                      "name": "CMDEP21341c9-db1.joe.smith.com", 
+                      "hostname": "5888a24f7e53a5c859e689b1cd1579ead0294a37.rackspaceclouddb.com", 
+                      "token": "92d426f0-46bd-4df9-bb5e-e1d67c347ae9", 
+                      "result": true, 
+                      "deployment": {
+                        "username": "joe.smith", 
+                        "files": {
+                          "/root/.ssh/authorized_keys": "ssh-rsa AAAAB3EzaC1yc2EAAAABIwAAAQEA7TT1qbLElv6tuAaA3Z4tQ752ms0Y7H53yybfFioFHELkp+NRMCKh4AqtqDBFsps1vPzhcXIxn4M4IH0ip7kSx0CSrM/9Vtz8jc+UZwixJdAWwHpum68rGmCQgAsZljI24Q9u8r/hXqjwY6ukTKbC0iy82LHqhcDjh3828+9GyyxbYGm5ND/5G/ZcnHD6HM9YKmc3voz5d/nez3Adlu4I1z4Y1T3lOwOxrP2OqvIeIPvVOZJ9GDmYYRDfqK8OIHDoLAzQx8xu0cvPRDL7gYRXN8nJZ5nOh+51zdPQEl99ACZDSSwTl2biOPNtXtuaGyjB5j8r7dz93JlsN8axea+ECQ== joe@smith.com\n"
+                        }, 
+                        "apikey": "--secret--", 
+                        "region": "chicago", 
+                        "authtoken": "92d426f0-46bd-4df9-bb5e-e1d67c347ae9", 
+                        "id": "${id}"
+                      }, 
+                      "id": "50a70c66-6a4f-4830-80b3-5d7521292771"
+                    }, 
+                    "children": []
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }, 
+  "last_task": null, 
+  "attributes": {}, 
+  "id": "${id}"
+},
+"deployment":
+{
+    "blueprint": {
+        "services": {
+            "wordpress": {
+                "instances": [
+                    "0", 
+                    "1"
+                ], 
+                "config": {
+                    "settings": {
+                        "instance/os": {
+                            "default": "Ubuntu 11.10", 
+                            "description": "the operating system and version to use"
+                        }, 
+                        "instance/flavor": {
+                            "default": 1, 
+                            "type": {
+                                "1": "256Mb", 
+                                "2": "512Mb"
+                            }, 
+                            "description": "the type (and size) of instance to use"
+                        }, 
+                        "instance/count": {
+                            "default": 1, 
+                            "description": "the number of instances to spin up"
+                        }
+                    }, 
+                    "summary": "A pretty popular blog engine", 
+                    "options": {
+                        "url": {
+                            "default": "localhost", 
+                            "type": "String", 
+                            "description": "the url to use to host your blog on"
+                        }, 
+                        "high-availability": {
+                            "default": false, 
+                            "type": "Boolean", 
+                            "description": "build in redundancy? If not, build one server."
+                        }
+                    }, 
+                    "provides": {
+                        "url": "http"
+                    }, 
+                    "requires": {
+                        "db": {
+                            "interface": "mysql"
+                        }
+                    }, 
+                    "id": "wordpress1", 
+                    "revision": 3
+                }, 
+                "relations": {
+                    "db": "database"
+                }
+            }, 
+            "loadbalancer": {
+                "open-ports": [
+                    "80/tcp"
+                ], 
+                "exposed": true, 
+                "config": {
+                    "revision": 1, 
+                    "requires": {
+                        "url": {
+                            "interface": "http"
+                        }
+                    }, 
+                    "id": "loadbalancer", 
+                    "provides": {
+                        "url": "http"
+                    }, 
+                    "summary": "Load-balancer as a Service instance"
+                }, 
+                "relations": {
+                    "url": "wordpress"
+                }, 
+                "instances": [
+                    "2"
+                ]
+            }, 
+            "database": {
+                "instances": [
+                    "3"
+                ], 
+                "config": {
+                    "revision": 1, 
+                    "summary": "A pretty popular database", 
+                    "id": "mysql", 
+                    "provides": {
+                        "db": "mysql"
+                    }, 
+                    "settings": {
+                        "password": {
+                            "default": "=generate()", 
+                            "type": "String", 
+                            "description": "the password for the database"
+                        }, 
+                        "instance/flavor": {
+                            "default": 1, 
+                            "description": "the type (and size) of instance to use"
+                        }
+                    }
+                }
+            }
+        }, 
+        "name": "Scalable Wordpress"
+    }, 
+    "inputs": {
+        "wordpress:instance/count": 2, 
+        "database:instance/flavor": 2, 
+        "domain": "joe.smith.com", 
+        "region": "chicago", 
+        "high-availability": false, 
+        "wordpress:instance/flavor": 2, 
+        "ssl": false, 
+        "requests-per-second": 60
+    }, 
+    "workflow": "${id}", 
+    "environment": {
+        "name": "rackcloud-test", 
+        "providers": [
+            {
+                "compute": null, 
+                "vendor": "rackspace", 
+                "constraints": [
+                    {
+                        "region": "chicago"
+                    }
+                ]
+            }, 
+            {
+                "endpoint": "https://lbaas.api.rackpsacecloud.com/servers/{tenantId}", 
+                "loadbalancer": null
+            }, 
+            {
+                "endpoint": "https://database.api.rackpsacecloud.com/servers/{tenantId}", 
+                "database": null
+            }, 
+            {
+                "credentials": [
+                    {
+                        "username": "joe.smith", 
+                        "apikey": "--secret--", 
+                        "rackspace": null
+                    }
+                ], 
+                "vendor": "rackspace", 
+                "common": null
+            }
+        ]
+    }, 
+    "id": "${id}", 
+    "resources": {
+        "1": {
+            "image": 119, 
+            "relations": {
+                "wordpress-database": {
+                    "state": "new"
+                }, 
+                "loadbalancer-wordpress": {
+                    "state": "new"
+                }
+            }, 
+            "dns-name": "CMDEP21341c9-web2.joe.smith.com", 
+            "flavor": 2, 
+            "type": "server", 
+            "instance-id": null
+        }, 
+        "0": {
+            "image": 119, 
+            "relations": {
+                "wordpress-database": {
+                    "state": "new"
+                }, 
+                "loadbalancer-wordpress": {
+                    "state": "new"
+                }
+            }, 
+            "dns-name": "CMDEP21341c9-web1.joe.smith.com", 
+            "flavor": 2, 
+            "type": "server", 
+            "instance-id": null
+        }, 
+        "3": {
+            "flavor": 2, 
+            "type": "database", 
+            "instance-id": null, 
+            "relations": {
+                "wordpress-database": {
+                    "state": "new"
+                }
+            }, 
+            "dns-name": "CMDEP21341c9-db1.joe.smith.com"
+        }, 
+        "2": {
+            "type": "load-balancer", 
+            "instance-id": null, 
+            "relations": {
+                "loadbalancer-wordpress": {
+                    "state": "new"
+                }
+            }, 
+            "dns-name": "CMDEP21341c9-lb1.joe.smith.com"
+        }, 
+        "connections": {
+            "wordpress-database": {}, 
+            "loadbalancer-wordpress": {}
+        }
+    }
+}
+}

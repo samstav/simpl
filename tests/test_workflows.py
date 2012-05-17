@@ -1,14 +1,11 @@
 #!/usr/bin/env python
-import bottle
 import json
 import os
-import random
 from SpiffWorkflow.specs import Celery
 from SpiffWorkflow.storage import DictionarySerializer
 from string import Template
 import sys
 import unittest2 as unittest
-from webtest import TestApp
 import yaml
 
 os.environ['CHECKMATE_DATA_PATH'] = os.path.join(os.path.dirname(__file__),

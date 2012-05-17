@@ -73,6 +73,7 @@ from checkmate import orchestrator
 from checkmate.db import get_driver, any_id_problems, any_tenant_id_problems
 from checkmate.deployments import plan, plan_dict
 from checkmate import environments  # Load routes
+from checkmate import simulator  # Load routes
 from checkmate.workflows import create_workflow
 from checkmate.utils import write_body, read_body
 
@@ -115,16 +116,16 @@ def async():
     """Test async responses"""
     response.set_header('content-type', "application/json")
     response.set_header('Location', "uri://something")
-    return afunc()
 
-
-def afunc():
-    yield '{'
-    sleep(1)
-    for i in range(3):
-        yield '"%i": "Counting",' % i
+    def afunc():
+        yield ('{"Note": "To watch this in real-time, run: curl '\
+                'http://localhost:8080/test/async -N -v",')
         sleep(1)
-    yield '"Done": 3}'
+        for i in range(3):
+            yield '"%i": "Counting",' % i
+            sleep(1)
+        yield '"Done": 3}'
+    return afunc()
 
 
 #
@@ -132,7 +133,7 @@ def afunc():
 #
 @get('/favicon.ico')
 def favicon():
-    """Without this, browsers keep getting a 404 and perceive slow response more than 80"""
+    """Without this, browsers keep getting a 404 and perceive slow response """
     return static_file('favicon.ico',
             root=os.path.join(os.path.dirname(__file__), 'static'))
 
