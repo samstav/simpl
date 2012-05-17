@@ -11,16 +11,16 @@
                 <a href="#" onclick="document.forms['workflow'].submit(); return false;"><i class="icon-ok"></i> Save</a>
               </li>
               <li>
-                <a href="/workflows/{{data['id']}}/+execute"><i class="icon-play"></i> Run</a>
+                <a href="{{tenant_id|prepend}}/workflows/{{data.id}}/+execute"><i class="icon-play"></i> Run</a>
               </li>
               <li class="nav-header">
                 Navigation
               </li>
               <li>
-                <a href="/workflows/{{data['id']}}/status"><i class="icon-question-sign"></i> Status</a>
+                <a href="{{tenant_id|prepend}}/workflows/{{data.id}}/status"><i class="icon-question-sign"></i> Status</a>
               </li>
               <li>
-                <a href="/workflows/{{data['id']}}/.json"><i class="icon-eye-open"></i> Raw View</a>
+                <a href="{{tenant_id|prepend}}/workflows/{{data.id}}/.json"><i class="icon-eye-open"></i> Raw View</a>
               </li>
               <li class="nav-header">
                 Tasks
@@ -28,7 +28,7 @@
               {% set thedata = data %}
               {% for task in [data['task_tree']] recursive -%}
                 <li>
-                  <span style="white-space: nowrap;"><a href="/workflows/{{data['id']}}/tasks/{{task.id|e}}">
+                  <span style="white-space: nowrap;"><a href="{{tenant_id|prepend}}/workflows/{{data.id}}/tasks/{{task.id|e}}">
                   <span class="label
                   {% if task.state < 8 %}
                   {% elif task.state == 8 %} label-warning
@@ -43,7 +43,7 @@
                           $("#run-task-{{task.id}}").click(function(event) {
                               $('<div/>').dialog2({
                                   title: "Execute Task {{task.id}}",
-                                  content: "/workflows/{{data['id']}}/tasks/{{task.id|e}}/+execute.json",
+                                  content: "{{tenant_id|prepend}}/workflows/{{data.id}}/tasks/{{task.id|e}}/+execute.json",
                                   id: "task-dialog-{{task.id}}"
                               });
 
@@ -80,14 +80,7 @@
                 autoFocus: true,
                 lineWrapping: true,
                 dragDrop: false,
-                matchBrackets: true //,
-                //onChange: function () {
-                //  if (Editor.getValue() == '') {
-                //      $('div.report > div.alert-message').hide();
-                //      $('div.buttons div.alert-message').hide();
-                //      $('div.buttons div.alert-message.info').show();
-                //    }
-                //  }
+                matchBrackets: true
                 });
             </script>
           </div><!-- span10 -->

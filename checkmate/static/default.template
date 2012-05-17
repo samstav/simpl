@@ -76,11 +76,13 @@
                 <ul class="nav">
                   <li class="divider-vertical"></li>
                   <li><a href="/">Home</a></li>
-                  <li><a href="/environments/">Environments</a></li>
-                  <li><a href="/deployments/">Deployments</a></li>
-                  <li><a href="/blueprints/">Blueprints</a></li>
-                  <li><a href="/components/">Components</a></li>
-                  <li><a href="/workflows/">Workflows</a></li>
+                  <li><a href="{{tenant_id|prepend}}/environments/">Environments</a></li>
+                  <li><a href="{{tenant_id|prepend}}/deployments/">Deployments</a></li>
+                  <li><a href="{{tenant_id|prepend}}/blueprints/">Blueprints</a></li>
+                  <li><a href="{{tenant_id|prepend}}/components/">Components</a></li>
+                  <li><a href="{{tenant_id|prepend}}/workflows/">Workflows</a></li>
+                  <li class="divider-vertical"></li>
+                  <li><a href="/">{{tenant_id|prepend('Tenant: ')}}</a></li>
                 </ul>
               </div>
             </div>

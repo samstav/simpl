@@ -14,6 +14,8 @@ import yaml
 from yaml.events import AliasEvent, ScalarEvent
 
 LOG = logging.getLogger(__name__)
+RESOURCES = ['deployments', 'workflows', 'static', 'blueprints',
+             'environments', 'components', 'test']
 
 
 def import_class(import_str):
@@ -42,12 +44,12 @@ def get_template_name_from_path(path):
     name = 'default'
     if path:
         if path[0] == '/':
-            path = path[1:]  # normalize to always not include first path
-        parts = path.split('/')
-        if len(parts) > 0 and parts[0] not in ['workflows', 'deployments', 'environments',
-                'blueprints', 'components', 'test', 'static']:
+            parts = path[1:].split('/')  # normalize to always not include first path
+        else:
+            parts = path.split('/')
+        if len(parts) > 0 and parts[0] not in RESOURCES:
             # Assume it is a tenant (and remove it from our evaluation)
-            parts = parts[2:]
+            parts = parts[1:]
 
         # IDs are 2nd or 4th: /[type]/[id]/[type2|action]/[id2]/action
         if len(parts) == 1:
@@ -150,17 +152,35 @@ def write_body(data, request, response):
                 return source, path, lambda: mtime == os.path.getmtime(path)
         env = Environment(loader=MyLoader(os.path.join(os.path.dirname(
             __file__), 'static')))
+
+        def do_prepend(value, param='/'):
+            """
+            Prepend a string if the passed in string exists.
+
+            Example:
+            The template '{{ root|prepend('/')}}/path';
+            Called with root undefined renders:
+                /path
+            Called with root defined as 'root' renders:
+                /root/path
+            """
+            if value:
+                return '%s%s' % (param, value)
+            else:
+                return ''
+        env.filters['prepend'] = do_prepend
         env.json = json
+        tenant_id = request.get('HTTP_X_TENANT_ID')
         try:
             template = env.get_template("%s.template" % name)
             return template.render(data=data, source=json.dumps(data,
-                    indent=2))
+                    indent=2), tenant_id=tenant_id)
         except StandardError as exc:
             LOG.error(exc)
             try:
                 template = env.get_template("default.template")
                 return template.render(data=data, source=json.dumps(data,
-                        indent=2))
+                        indent=2), tenant_id=tenant_id)
             except StandardError as exc2:
                 LOG.error(exc2)
                 pass  # fall back to JSON

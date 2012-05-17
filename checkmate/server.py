@@ -75,7 +75,7 @@ from checkmate.deployments import plan, plan_dict
 from checkmate import environments  # Load routes
 from checkmate import simulator  # Load routes
 from checkmate.workflows import create_workflow
-from checkmate.utils import write_body, read_body
+from checkmate.utils import write_body, read_body, RESOURCES
 
 db = get_driver('checkmate.db.sql.Driver')
 
@@ -439,18 +439,17 @@ class TenantMiddleware(object):
         else:
             path_parts = e['PATH_INFO'].split('/')
             tenant = path_parts[1]
-            if tenant in ['deployments', 'workflows', 'static', 'blueprints',
-                    'environments', 'components', 'test']:
+            if tenant in RESOURCES:
                 pass  # route with bottle / Admin
             else:
                 errors = any_tenant_id_problems(tenant)
                 if errors:
                     return HTTPNotFound(errors)(e, h)
                 rewrite = "/%s" % '/'.join(path_parts[2:])
-                LOG.debug("Rewriting tenant %s from '%s' to '%s'" % (
-                        tenant, e['PATH_INFO'], rewrite))
+                LOG.debug("TODO: Tenant %s rewrite from '%s' "
+                        "to '%s'" % (tenant, e['PATH_INFO'], rewrite))
                 e['HTTP_X_TENANT_ID'] = tenant
-                e['PATH_INFO'] = rewrite
+                # TODO: e['PATH_INFO'] = rewrite
 
         return self.app(e, h)
 
@@ -490,6 +489,6 @@ if __name__ == '__main__':
     root_app = app()
     no_path = StripPathMiddleware(root_app)
     no_ext = ExtensionsMiddleware(no_path)
-    tenant = no_ext  # TenantMiddleware(no_ext)
+    tenant = TenantMiddleware(no_ext)
     run(app=tenant, host='127.0.0.1', port=8080, reloader=True,
             server='wsgiref')

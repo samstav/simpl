@@ -5,12 +5,14 @@
               <thead>
                 <tr>
                   <th>ID</th>
+                  <th>Tenant</th>
                 </tr>
               </thead>
               <tbody>
               {% for key, value in data.iteritems() %}
                 <tr>
-                  <td><a href="/deployments/{{key}}"><i class="icon-picture"></i> {{key}}</a></td>
+                  <td><a href="{{tenant_id|prepend}}/deployments/{{key}}"><i class="icon-picture"></i> {{key}}</a></td>
+                  <td>{{value['tenantId']}}</td>
                 </tr>
               {% endfor %}
               </tbody>

@@ -32,7 +32,7 @@ class TestUtils(unittest.TestCase):
                     % (path, template))
         # Check with tenant_id
         for path, template in expected.iteritems():
-            self.assertEqual(fxn('/T1000/%s' % path), template, '%s should have returned %s'
+            self.assertEqual(fxn('/T1000%s' % path), template, '%s should have returned %s'
                     % (path, template))
 
 

@@ -11,10 +11,10 @@
                 <a href="#" onclick="document.forms['task'].submit(); return false;"><i class="icon-ok"></i> Save</a>
               </li>
               <li>
-                <a href="/workflows/{{data.workflow_id}}/tasks/{{data.id}}/+reset"><i class="icon-repeat"></i> Reset</a>
+                <a href="{{data.tenantId|prepend}}/workflows/{{data.workflow_id}}/tasks/{{data.id}}/+reset"><i class="icon-repeat"></i> Reset</a>
               </li>
               <li>
-                <a href="/workflows/{{data.workflow_id}}/tasks/{{data.id}}/+execute"><i class="icon-play"></i> Run Task</a>
+                <a href="{{data.tenantId|prepend}}/workflows/{{data.workflow_id}}/tasks/{{data.id}}/+execute"><i class="icon-play"></i> Run Task</a>
               </li>
               <li class="nav-header">
                 Navigation
@@ -23,13 +23,13 @@
                 <a href=".json"><i class="icon-eye-open"></i> Raw View</a>
               </li>
               <li>
-                <a href="/workflows/{{data.workflow_id}}/"><i class="icon-tasks"></i> Go To Workflow</a>
+                <a href="{{data.tenantId|prepend}}/workflows/{{data.workflow_id}}/"><i class="icon-tasks"></i> Go To Workflow</a>
               </li>
             </ul>
           </div><!-- span2 -->
           <div class="span9">
             <h2>{{ data['task_spec'] }}</h2>
-            <form id="task" method="POST" action="/workflows/{{data.workflow_id}}/tasks/{{data.id}}">
+            <form id="task" method="POST" action="{{data.tenantId|prepend}}/workflows/{{data.workflow_id}}/tasks/{{data.id}}">
               <textarea name="object" id="editor">{{ source | safe }}</textarea>
             </form>
 
@@ -43,14 +43,7 @@
                 autoFocus: true,
                 lineWrapping: true,
                 dragDrop: false,
-                matchBrackets: true //,
-                //onChange: function () {
-                //  if (Editor.getValue() == '') {
-                //      $('div.report > div.alert-message').hide();
-                //      $('div.buttons div.alert-message').hide();
-                //      $('div.buttons div.alert-message.info').show();
-                //    }
-                //  }
+                matchBrackets: true
                 });
             </script>
           </div><!-- span10 -->

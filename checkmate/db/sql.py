@@ -195,6 +195,7 @@ class Driver(DbBase):
             response = {}
             for e in results:
                 response[e.id] = e.body
+                response[e.id]['tenantId'] = e.tenant_id
             return response
         else:
             return {}
