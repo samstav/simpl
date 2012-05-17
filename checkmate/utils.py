@@ -39,21 +39,40 @@ def import_object(import_str, *args, **kw):
 
 def get_template_name_from_path(path):
     """ Returns template name from request path"""
-    parts = path.split('/')
-    if len(parts) > 1 and parts[1] not in ['workflows', 'deployments', 'environments',
-            'blueprints', 'components', 'test', 'static']:
-        # Assume it is a tenant
-        parts = parts[2:]
+    name = 'default'
+    if path:
+        if path[0] == '/':
+            path = path[1:]  # normalize to always not include first path
+        parts = path.split('/')
+        if len(parts) > 0 and parts[0] not in ['workflows', 'deployments', 'environments',
+                'blueprints', 'components', 'test', 'static']:
+            # Assume it is a tenant (and remove it from our evaluation)
+            parts = parts[2:]
 
-    # IDs are 2nd or 3rd: /[type]/[id]/[type2|action]/[id2]/action
-    if len(parts) >= 4:
-        name = "%s.%s" % (parts[1][0:-1], parts[3][0:-1])
-    elif len(parts) == 2:
-        name = "%s" % parts[1]
-    elif len(parts) == 3:
-        name = "%s" % parts[1][0:-1]  # strip s
-    else:
-        name = 'default'
+        # IDs are 2nd or 4th: /[type]/[id]/[type2|action]/[id2]/action
+        if len(parts) == 1:
+            # Resource
+            name = "%s" % parts[0]
+        elif len(parts) == 2:
+            # Single resource
+            name = "%s" % parts[0][0:-1]  # strip s
+        elif len(parts) == 3:
+            if parts[2].startswith('+'):
+                # Action
+                name = "%s.%s" % (parts[0][0:-1], parts[2][1:])
+            elif parts[2] in ['tasks']:
+                # Subresource
+                name = "%s.%s" % (parts[0][0:-1], parts[2])
+            else:
+                # 'status' and the like
+                name = "%s.%s" % (parts[0][0:-1], parts[2])
+        elif len(parts) > 3:
+            if parts[2] in ['tasks']:
+                # Subresource
+                name = "%s.%s" % (parts[0][0:-1], parts[2][0:-1])
+            else:
+                # 'status' and the like
+                name = "%s.%s" % (parts[0][0:-1], parts[2])
     LOG.debug("Template for '%s' returned as '%s'" % (path, name))
     return name
 

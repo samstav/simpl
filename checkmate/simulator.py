@@ -1,5 +1,7 @@
 """ Simulator for workflow processing
 
+NOTE: FOR LOCAL DEVELOPMENT USE ONLY.
+
 To use this, submit a deployment to /deployments/simulate and then
 query it's state in /workflows/simulate. Each GET will progress one task
 at a time.

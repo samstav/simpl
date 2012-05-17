@@ -4,7 +4,6 @@ import json
 import os
 import unittest2 as unittest
 from webtest import TestApp
-import yaml
 
 os.environ['CHECKMATE_DATA_PATH'] = os.path.join(os.path.dirname(__file__),
                                               'data')
@@ -14,39 +13,11 @@ os.environ['BROKER_HOST'] = os.environ.get('BROKER_HOST', 'localhost')
 os.environ['BROKER_PORT'] = os.environ.get('BROKER_PORT', '5672')
 
 
-from checkmate import server
-
-
-class test_server(unittest.TestCase):
+class TestServer(unittest.TestCase):
     """ Test Basic Server code """
 
     def setUp(self):
         self.app = TestApp(bottle.app())
-
-    def test_environments_get(self):
-        res = self.app.get('/environments')
-        self.assertEqual(res.status, '200 OK')
-        self.assertEqual(res.content_type, 'application/json')
-
-    def test_environments_post(self):
-        environment = """environment: &env1
-  name: rackcloudtech-test
-  providers:
-  - compute: &rax-cloud-servers
-    endpoint: https://servers.api.rakcpsacecloud.com/servers/{tenantId}
-  - loadbalancer: &rax-lbaas
-    endpoint: https://lbaas.api.rakcpsacecloud.com/servers/{tenantId}
-  - database: &rax-dbaas
-    endpoint: https://database.api.rakcpsacecloud.com/servers/{tenantId}
-  - common:
-    vendor: rackspace
-    credentials:
-    - token: {token}"""
-        res = self.app.post('/environments', environment,
-                            content_type='application/x-yaml')
-        self.assertEqual(res.status, '200 OK')
-        self.assertEqual(res.content_type, 'application/json')
-        data = json.loads(res.body)
 
     def test_REST_deployment(self):
         self.rest_exercise('deployment')

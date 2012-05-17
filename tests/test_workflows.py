@@ -82,21 +82,17 @@ class TestWorkflow(unittest.TestCase):
                 if responses[name]:
                     response = responses[name]
             elif name.startswith('Create Server'):
-                i = name.split(":")[1]
+                i = name.split(":")[1] if ':' in name else 1
                 response = {'id': 1000 + int(i), 'ip': "10.1.1.%s" % i,
                         'password': 'shecret'}
             elif name.startswith('Create LB'):
-                i = name.split(":")[1]
+                i = name.split(":")[1] if ':' in name else 1
                 response = {'id': 2000 + int(i), 'vip': "200.1.1.%s" % i}
             elif name.startswith('Create DB'):
-                i = name.split(":")[1]
+                i = name.split(":")[1] if ':' in name else 1
                 response = {'id': 1000 + int(i), 'name': 'dbname.domain.local',
                         'status': 'BUILD', 'hostname':
                         'verylong.rackclouddb.com'}
-            elif name.startswith('Add DB User'):
-                i = name.split(":")[1]
-                response = {'id': 1000 + int(i), 'ip': "10.1.1.%s" % i,
-                        'password': 'shecret'}
             else:
                 print "Unhandled: %s" % name
             if response:
