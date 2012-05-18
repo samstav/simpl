@@ -5,6 +5,7 @@
 """
 # pylint: disable=E0611
 from bottle import abort
+import copy
 from jinja2 import BaseLoader, TemplateNotFound, Environment
 import json
 import logging
@@ -16,6 +17,8 @@ from yaml.events import AliasEvent, ScalarEvent
 LOG = logging.getLogger(__name__)
 RESOURCES = ['deployments', 'workflows', 'static', 'blueprints',
              'environments', 'components', 'test']
+DEFAULT_SENSITIVE_KEYS = ['credentials', 'password', 'apikey', 'token',
+        'authtoken']
 
 
 def import_class(import_str):
@@ -188,3 +191,131 @@ def write_body(data, request, response):
     #JSON (default)
     response.set_header('content-type', 'application/json')
     return json.dumps(data, indent=4)
+
+
+def extract_sensitive_data(data, sensitive_keys=None):
+    """Parses the dict passed in, extracts all sensitive data into another
+    dict, and returns two dicts; one without the sensitive data and with only
+    the sensitive data.
+    :param sensitive_keys: a list of keys considered sensitive"""
+
+    def recursive_split(data, sensitive_keys=None):
+        """Returns split of a dict or list if it contains any of the sensitive
+        fields"""
+        clean = None
+        sensitive = None
+        has_sensitive_data = False
+        has_clean_data = False
+        if isinstance(data, list):
+            clean = []
+            sensitive = []
+            for value in data:
+                if isinstance(value, dict):
+                    c, s = recursive_split(value, sensitive_keys=sensitive_keys)
+                    if s is not None:
+                        sensitive.append(s)
+                        has_sensitive_data = True
+                    else:
+                        sensitive.append({})  # placeholder
+                    if c is not None:
+                        clean.append(c)
+                        has_clean_data = True
+                    else:
+                        clean.append({})  # placeholder
+                elif isinstance(value, list):
+                    c, s = recursive_split(value, sensitive_keys=sensitive_keys)
+                    if s is not None:
+                        sensitive.append(s)
+                        has_sensitive_data = True
+                    else:
+                        sensitive.append([])  # placeholder
+                    if c is not None:
+                        clean.append(c)
+                        has_clean_data = True
+                    else:
+                        clean.append([])
+                else:
+                    clean.append(value)
+                    sensitive.append(None)  # placeholder
+                    has_clean_data = True
+        elif isinstance(data, dict):
+            clean = {}
+            sensitive = {}
+            for key, value in data.iteritems():
+                if key in sensitive_keys:
+                    has_sensitive_data = True
+                    sensitive[key] = value
+                elif isinstance(value, dict):
+                    c, s = recursive_split(value, sensitive_keys=sensitive_keys)
+                    if s is not None:
+                        has_sensitive_data = True
+                        sensitive[key] = s
+                    if c is not None:
+                        has_clean_data = True
+                        clean[key] = c
+                elif isinstance(value, list):
+                    c, s = recursive_split(value, sensitive_keys=sensitive_keys)
+                    if s is not None:
+                        has_sensitive_data = True
+                        sensitive[key] = s
+                    if c is not None:
+                        has_clean_data = True
+                        clean[key] = c
+                else:
+                    has_clean_data = True
+                    clean[key] = value
+        if has_sensitive_data:
+            if has_clean_data:
+                return clean, sensitive
+            else:
+                return None, sensitive
+        else:
+            if has_clean_data:
+                return clean, None
+            else:
+                return data, None
+
+    if sensitive_keys is None:
+        sensitive_keys = DEFAULT_SENSITIVE_KEYS
+    clean, sensitive = recursive_split(data, sensitive_keys=sensitive_keys)
+    return clean, sensitive
+
+
+def merge_dictionary(dst, src):
+    """Recursive merge two dicts (vs .update which overwrites the hashes at the
+        root level)
+    Note: This updates dst."""
+    stack = [(dst, src)]
+    while stack:
+        current_dst, current_src = stack.pop()
+        for key in current_src:
+            source = current_src[key]
+            if key not in current_dst:
+                current_dst[key] = source
+            else:
+                dest = current_dst[key]
+                if isinstance(source, dict) and isinstance(dest, dict):
+                    stack.append((dest, source))
+                elif isinstance(source, list) and isinstance(dest, list):
+                    # Make them the same size
+                    r = dest[:]
+                    s = source[:]
+                    if len(dest) > len(source):
+                        s.append([None for i in range(len(dest) -
+                                len(source))])
+                    elif len(dest) < len(source):
+                        r.append([None for i in range(len(source) -
+                                len(dest))])
+                    # Merge lists
+                    for index, value in enumerate(r):
+                        if (not value) and s[index]:
+                            r[index] = s[index]
+                        elif isinstance(value, dict) and \
+                                isinstance(s[index], dict):
+                            stack.append((dest[index], source[index]))
+                        else:
+                            dest[index] = s[index]
+                    current_dst[key] = r
+                else:
+                    current_dst[key] = source
+    return dst

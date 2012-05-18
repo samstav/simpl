@@ -11,7 +11,7 @@ db = get_driver('checkmate.db.sql.Driver')
 
 
 def plan(id):
-    deployment = db.get_deployment(id)
+    deployment = db.get_deployment(id, with_secrets=True)
     if not deployment:
         abort(404, "No deployment with id %s" % id)
     return plan_dict(deployment)

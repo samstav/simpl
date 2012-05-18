@@ -75,7 +75,7 @@ from checkmate.deployments import plan, plan_dict
 from checkmate import environments  # Load routes
 from checkmate import simulator  # Load routes
 from checkmate.workflows import create_workflow
-from checkmate.utils import write_body, read_body, RESOURCES
+from checkmate.utils import *
 
 db = get_driver('checkmate.db.sql.Driver')
 
@@ -172,7 +172,9 @@ def post_component(tenant_id=None):
     if any_id_problems(entity['id']):
         abort(406, any_id_problems(entity['id']))
 
-    results = db.save_component(entity['id'], entity, tenant_id=tenant_id)
+    body, secrets = extract_sensitive_data(entity)
+    results = db.save_component(entity['id'], body, secrets,
+            tenant_id=tenant_id)
 
     return write_body(results, request, response)
 
@@ -189,7 +191,8 @@ def put_component(id, tenant_id=None):
     if 'id' not in entity:
         entity['id'] = str(id)
 
-    results = db.save_component(id, entity, tenant_id=tenant_id)
+    body, secrets = extract_sensitive_data(entity)
+    results = db.save_component(id, body, secrets, tenant_id=tenant_id)
 
     return write_body(results, request, response)
 
@@ -225,7 +228,9 @@ def post_blueprint(tenant_id=None):
     if any_id_problems(entity['id']):
         abort(406, any_id_problems(entity['id']))
 
-    results = db.save_blueprint(entity['id'], entity, tenant_id=tenant_id)
+    body, secrets = extract_sensitive_data(entity)
+    results = db.save_blueprint(entity['id'], body, secrets,
+            tenant_id=tenant_id)
 
     return write_body(results, request, response)
 
@@ -242,7 +247,8 @@ def put_blueprint(id, tenant_id=None):
     if 'id' not in entity:
         entity['id'] = str(id)
 
-    results = db.save_blueprint(id, entity, tenant_id=tenant_id)
+    body, secrets = extract_sensitive_data(entity)
+    results = db.save_blueprint(id, body, secrets, tenant_id=tenant_id)
 
     return write_body(results, request, response)
 
@@ -278,7 +284,8 @@ def post_deployment(tenant_id=None):
     if any_id_problems(entity['id']):
         abort(406, any_id_problems(entity['id']))
     id = str(entity['id'])
-    results = db.save_deployment(id, entity, tenant_id=tenant_id)
+    body, secrets = extract_sensitive_data(entity)
+    db.save_deployment(id, body, secrets, tenant_id=tenant_id)
 
     response.add_header('Location', "/deployments/%s" % id)
 
@@ -291,8 +298,11 @@ def post_deployment(tenant_id=None):
     deployment = results['deployment']
     deployment['workflow'] = id
 
-    deployment = db.save_deployment(id, deployment, tenant_id=tenant_id)
-    db.save_workflow(id, workflow, tenant_id=tenant_id)
+    body, secrets = extract_sensitive_data(deployment)
+    deployment = db.save_deployment(id, body, secrets, tenant_id=tenant_id)
+
+    body, secrets = extract_sensitive_data(workflow)
+    db.save_workflow(id, body, secrets, tenant_id=tenant_id)
 
     #Trigger the workflow
     async_task = execute(id)
@@ -335,7 +345,8 @@ def put_deployment(id, tenant_id=None):
     if 'id' not in entity:
         entity['id'] = str(id)
 
-    results = db.save_deployment(id, entity, tenant_id=tenant_id)
+    body, secrets = extract_sensitive_data(entity)
+    results = db.save_deployment(id, body, secrets, tenant_id=tenant_id)
 
     return write_body(results, request, response)
 
@@ -343,7 +354,10 @@ def put_deployment(id, tenant_id=None):
 @get('/deployments/<id>')
 @get('/<tenant_id>/deployments/<id>')
 def get_deployment(id, tenant_id=None):
-    entity = db.get_deployment(id)
+    if 'with_secrets' in request.query:  # TODO: verify admin-ness
+        entity = db.get_deployment(id, with_secrets=True)
+    else:
+        entity = db.get_deployment(id)
     if not entity:
         abort(404, 'No deployment with id %s' % id)
     return write_body(entity, request, response)
@@ -411,7 +425,7 @@ def execute(id, timeout=180, tenant_id=None):
     if not deployment:
         abort(404, 'No deployment with id %s' % id)
 
-    result = orchestrator.distribute_run_workflow.delay(id)
+    result = orchestrator.distribute_run_workflow.delay(id, timeout=300)
     return result
 
 

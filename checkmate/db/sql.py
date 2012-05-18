@@ -16,6 +16,8 @@ except ImportError:
 
 from checkmate.db import migration
 from checkmate.db.common import *
+from checkmate.utils import merge_dictionary
+
 
 __all__ = ['Base', 'Environment', 'Blueprint', 'Deployment', 'Component',
            'Workflow']
@@ -132,82 +134,106 @@ class Driver(DbBase):
         return response
 
     # ENVIRONMENTS
-    def get_environment(self, id):
-        return self.get_object(Environment, id)
+    def get_environment(self, id, with_secrets=None):
+        return self.get_object(Environment, id, with_secrets)
 
-    def get_environments(self, tenant_id=None):
-        return self.get_objects(Environment, tenant_id)
+    def get_environments(self, tenant_id=None, with_secrets=None):
+        return self.get_objects(Environment, tenant_id, with_secrets)
 
     def save_environment(self, id, body, secrets=None, tenant_id=None):
         return self.save_object(Environment, id, body, secrets, tenant_id)
 
     # DEPLOYMENTS
-    def get_deployment(self, id):
-        return self.get_object(Deployment, id)
+    def get_deployment(self, id, with_secrets=None):
+        return self.get_object(Deployment, id, with_secrets)
 
-    def get_deployments(self, tenant_id=None):
-        return self.get_objects(Deployment, tenant_id)
+    def get_deployments(self, tenant_id=None, with_secrets=None):
+        return self.get_objects(Deployment, tenant_id, with_secrets)
 
     def save_deployment(self, id, body, secrets=None, tenant_id=None):
         return self.save_object(Deployment, id, body, secrets, tenant_id)
 
     #BLUEPRINTS
-    def get_blueprint(self, id):
-        return self.get_object(Blueprint, id)
+    def get_blueprint(self, id, with_secrets=None):
+        return self.get_object(Blueprint, id, with_secrets)
 
-    def get_blueprints(self, tenant_id=None):
-        return self.get_objects(Blueprint, tenant_id)
+    def get_blueprints(self, tenant_id=None, with_secrets=None):
+        return self.get_objects(Blueprint, tenant_id, with_secrets)
 
     def save_blueprint(self, id, body, secrets=None, tenant_id=None):
         return self.save_object(Blueprint, id, body, secrets, tenant_id)
 
     # COMPONENTS
-    def get_component(self, id):
-        return self.get_object(Component, id)
+    def get_component(self, id, with_secrets=None):
+        return self.get_object(Component, id, with_secrets)
 
-    def get_components(self, tenant_id=None):
-        return self.get_objects(Component, tenant_id)
+    def get_components(self, tenant_id=None, with_secrets=None):
+        return self.get_objects(Component, tenant_id, with_secrets)
 
     def save_component(self, id, body, secrets=None, tenant_id=None):
         return self.save_object(Component, id, body, secrets, tenant_id)
 
     # WORKFLOWS
-    def get_workflow(self, id):
-        return self.get_object(Workflow, id)
+    def get_workflow(self, id, with_secrets=None):
+        return self.get_object(Workflow, id, with_secrets)
 
-    def get_workflows(self, tenant_id=None):
-        return self.get_objects(Workflow, tenant_id)
+    def get_workflows(self, tenant_id=None, with_secrets=None):
+        return self.get_objects(Workflow, tenant_id, with_secrets)
 
     def save_workflow(self, id, body, secrets=None, tenant_id=None):
         return self.save_object(Workflow, id, body, secrets, tenant_id)
 
     # GENERIC
-    def get_object(self, klass, id):
+    def get_object(self, klass, id, with_secrets=None):
         results = Session.query(klass).filter_by(id=id)
         if results and results.count() > 0:
-            return results.first().body
+            if with_secrets == True:
+                first = results.first()
+                if first.secrets:
+                    return merge_dictionary(first.body, first.secrets)
+                else:
+                    return first.body
+            else:
+                return results.first().body
 
-    def get_objects(self, klass, tenant_id=None):
+    def get_objects(self, klass, tenant_id=None, with_secrets=None):
         results = Session.query(klass)
         if tenant_id:
             results = results.filter_by(tenant_id=tenant_id)
         if results and results.count() > 0:
             response = {}
-            for e in results:
-                response[e.id] = e.body
-                response[e.id]['tenantId'] = e.tenant_id
+            if with_secrets == True:
+                for e in results:
+                    if e.secrets:
+                        response[e.id] = utils.merge_dictionary(e.body, e.secrets)
+                    else:
+                        response[e.id] = e.body
+                    response[e.id]['tenantId'] = e.tenant_id
+            else:
+                for e in results:
+                    response[e.id] = e.body
+                    response[e.id]['tenantId'] = e.tenant_id
             return response
         else:
             return {}
 
     def save_object(self, klass, id, body, secrets=None, tenant_id=None):
+        """Clients that wish to save the body but do/did not have access to
+        secrets will by default send in None for secrets. We must not have that
+        overwrite the secrets. To clear the secrets for an object, a non-None
+        dict needs to be passed in: ex. {}
+        """
         assert isinstance(body, dict)  # Make sure we passed in a dict
         results = Session.query(klass).filter_by(id=id)
         if results and results.count() > 0:
             e = results.first()
             e.body = body
             e.tenant_id = tenant_id
-            e.secrets = secrets
+            if secrets is not None:
+                if not secrets:
+                    LOG.debug("Clearing secrets for %s:%s" % (klass.__name__,
+                            id))
+                e.secrets = secrets
         else:
             e = klass(id=id, body=body, tenant_id=tenant_id,
                     secrets=secrets)

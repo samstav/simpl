@@ -22,7 +22,7 @@ from SpiffWorkflow import Workflow, Task
 from SpiffWorkflow.operators import Attrib
 from SpiffWorkflow.storage import DictionarySerializer
 from checkmate.db import get_driver, any_id_problems, any_tenant_id_problems
-from checkmate.utils import write_body, read_body
+from checkmate.utils import write_body, read_body, extract_sensitive_data
 from checkmate import orchestrator
 
 db = get_driver('checkmate.db.sql.Driver')
@@ -51,7 +51,9 @@ def add_workflow(tenant_id=None):
     if any_id_problems(entity['id']):
         abort(406, any_id_problems(entity['id']))
 
-    results = db.save_workflow(entity['id'], entity)
+    body, secrets = extract_sensitive_data(entity)
+    results = db.save_workflow(entity['id'], body, secrets=secrets,
+            tenant_id=tenant_id)
 
     return write_body(results, request, response)
 
@@ -71,7 +73,8 @@ def save_workflow(id, tenant_id=None):
     if 'id' not in entity:
         entity['id'] = str(id)
 
-    results = db.save_workflow(id, entity)
+    body, secrets = extract_sensitive_data(entity)
+    results = db.save_workflow(id, body, secrets, tenant_id=tenant_id)
 
     return write_body(results, request, response)
 
@@ -79,7 +82,10 @@ def save_workflow(id, tenant_id=None):
 @get('/workflows/<id>')
 @get('/<tenant_id>/workflows/<id>')
 def get_workflow(id, tenant_id=None):
-    entity = db.get_workflow(id)
+    if 'with_secrets' in request.query:  # TODO: verify admin-ness
+        entity = db.get_workflow(id, with_secrets=True)
+    else:
+        entity = db.get_workflow(id)
     if not entity:
         abort(404, 'No workflow with id %s' % id)
     if 'id' not in entity:
@@ -132,7 +138,7 @@ def reset_workflow_task(id, task_id, tenant_id=None):
     :param task_id: checkmate workflow task id
     """
 
-    workflow = db.get_workflow(id)
+    workflow = db.get_workflow(id, with_secrets=True)
     if not workflow:
         abort(404, 'No workflow with id %s' % id)
 
@@ -159,14 +165,19 @@ def reset_workflow_task(id, task_id, tenant_id=None):
     task.parent._state = Task.READY
 
     serializer = DictionarySerializer()
-    results = db.save_workflow(id, wf.serialize(serializer))
+    entity = wf.serialize(serializer)
+    body, secrets = extract_sensitive_data(entity)
+    db.save_workflow(id, body, secrets)
 
     task = wf.get_task(task_id)
     if not task:
         abort(404, 'No task with id %s' % task_id)
+
+    # Return cleaned data (no credentials)
     data = serializer._serialize_task(task, skip_children=True)
-    data['workflow_id'] = id  # so we know which workflow it came from
-    return write_body(data, request, response)
+    body, secrets = extract_sensitive_data(data)
+    body['workflow_id'] = id  # so we know which workflow it came from
+    return write_body(body, request, response)
 
 
 @get('/workflows/<id>/tasks/<task_id:int>')
@@ -207,7 +218,8 @@ def post_workflow_task(id, task_id, tenant_id=None):
     """
     entity = read_body(request)
 
-    workflow = db.get_workflow(id)
+    # Extracting with secrets
+    workflow = db.get_workflow(id, with_secrets=True)
     if not workflow:
         abort(404, 'No workflow with id %s' % id)
 
@@ -233,8 +245,14 @@ def post_workflow_task(id, task_id, tenant_id=None):
             abort(406, "'state' must be an int")
         task._state = entity['state']
 
+    # Save workflow (with secrets)
     serializer = DictionarySerializer()
-    db.save_workflow(id, wf.serialize(serializer))
+    body, secrets = extract_sensitive_data(wf.serialize(serializer))
+
+    updated = db.save_workflow(id, body, secrets)
+    # Updated does not have secrets, so we deserialize that
+    serializer = DictionarySerializer()
+    wf = Workflow.deserialize(serializer, updated)
     task = wf.get_task(task_id)
     results = serializer._serialize_task(task, skip_children=True)
     results['workflow_id'] = id

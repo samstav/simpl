@@ -22,6 +22,7 @@ from SpiffWorkflow.operators import Attrib
 from SpiffWorkflow.storage import DictionarySerializer
 
 from checkmate.db import get_driver
+from checkmate.utils import extract_sensitive_data
 
 LOG = logging.getLogger(__name__)
 
@@ -127,7 +128,7 @@ def distribute_run_workflow(id, timeout=60):
     db = get_driver('checkmate.db.sql.Driver')
     serializer = DictionarySerializer()
     LOG.debug("Deserializing workflow %s" % id)
-    workflow = db.get_workflow(id)
+    workflow = db.get_workflow(id, with_secrets=True)
     wf = Workflow.deserialize(serializer, workflow)
 
     LOG.debug("Deserialized workflow %s: %s" % (id, wf.get_dump()))
@@ -146,7 +147,8 @@ def distribute_run_workflow(id, timeout=60):
         msg = "Saving: %s" % wf.get_dump()
         LOG.debug(msg)
         workflow = wf.serialize(serializer)
-        db.save_workflow(id, workflow)
+        body, secrets = extract_sensitive_data(workflow)
+        db.save_workflow(id, body, secrets)
         time.sleep(1)
         LOG.debug("Finished loop #%s for workflow %s (timeout in %is)" %
                 (i, id, timeout - i))
@@ -165,7 +167,7 @@ def distribute_run_one_task(workflow_id, task_id, timeout=60):
     db = get_driver('checkmate.db.sql.Driver')
     serializer = DictionarySerializer()
     LOG.debug("Deserializing workflow %s" % workflow_id)
-    workflow = db.get_workflow(workflow_id)
+    workflow = db.get_workflow(workflow_id, with_secrets=True)
     if not workflow:
         raise IndexError("Workflow %s not found" % workflow_id)
     wf = Workflow.deserialize(serializer, workflow)
@@ -185,13 +187,13 @@ def distribute_run_one_task(workflow_id, task_id, timeout=60):
         LOG.warn("Task %s in Workflow %s is in state %s and cannot be "
                 "progressed" % (task_id, workflow_id, task.get_state_name()))
         return False
-    LOG.debug("Task %s in Workflow %s completion result:%s" % (task_id,
+    LOG.debug("Task %s in Workflow %s completion result: %s" % (task_id,
             workflow_id, result))
     msg = "Saving: %s" % wf.get_dump()
     LOG.debug(msg)
     workflow = wf.serialize(serializer)
-    db.save_workflow(workflow_id, workflow)
-
+    body, secrets = extract_sensitive_data(workflow)
+    db.save_workflow(workflow_id, body, secrets)
     return result
 
 

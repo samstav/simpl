@@ -105,8 +105,8 @@ class TestWorkflow(unittest.TestCase):
             self.assertTrue(self.workflow.is_completed())
         finally:
             Celery.try_fire = try_fire
-        serializer = DictionarySerializer()
-        print json.dumps(self.workflow.serialize(serializer), indent=2)
+        # serializer = DictionarySerializer()
+        # Debugging: print json.dumps(self.workflow.serialize(serializer), indent=2)
 
 
 if __name__ == '__main__':
