@@ -28,6 +28,7 @@ from SpiffWorkflow.storage import DictionarySerializer
 from checkmate.db import any_id_problems
 from checkmate.utils import write_body, read_body
 from checkmate.deployments import plan_dict
+from checkmate.workflows import get_SpiffWorkflow_status
 
 PHASE = time.time()
 PACKAGE = None
@@ -75,6 +76,19 @@ def workflow_state():
     results = process()
 
     return write_body(results, request, response)
+
+
+@get('/workflows/simulate/status')
+def workflow_status():
+    """Return simulated workflow status"""
+    global PHASE
+
+    result = workflow_state()  # progress and return workflow
+    entity = json.loads(result)
+
+    serializer = DictionarySerializer()
+    wf = Workflow.deserialize(serializer, entity)
+    return write_body(get_SpiffWorkflow_status(wf), request, response)
 
 
 def process():
