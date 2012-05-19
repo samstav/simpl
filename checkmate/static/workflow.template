@@ -8,7 +8,7 @@
                 Commands
               </li>
               <li>
-                <a href="#" onclick="document.forms['workflow'].submit(); return false;"><i class="icon-ok"></i> Save</a>
+                <a href="#" onclick="document.forms['workflow'].submit(); return false;" class="tip" title="Save any edits of the JSON. The JSON on the right is editable!"><i class="icon-ok"></i> Save</a>
               </li>
               <li>
                 <a href="{{tenant_id|prepend}}/workflows/{{data.id}}/+execute"><i class="icon-play"></i> Run</a>
@@ -31,13 +31,14 @@
                   <span style="white-space: nowrap;"><a href="{{tenant_id|prepend}}/workflows/{{data.id}}/tasks/{{task.id|e}}">
                   <span class="label
                   {% if task.state < 8 %}
-                  {% elif task.state == 8 %} label-warning
+                  {% elif task.state == 8 %}
+                  {% if task.internal_attributes.task_state is defined and task.internal_attributes.task_state.state == 'FAILURE' %}label-important{% else %}label-warning{% endif %}
                   {% elif task.state == 16 %} label-info
                   {% elif task.state == 64 %} label-success
                   {% else %} label-inverse
                   {% endif %}"> {{ task.task_spec }}</span></a>
                   {% if task.state != 64 %}
-                  <a href="#" id="run-task-{{task.id}}"><i class="icon-play"></i></a>
+                  <a href="#" id="run-task-{{task.id}}" class="cmtip" title="Run this task"><i class="icon-play"></i></a>
                   <script type="text/javascript">
                       $(function() {
                           $("#run-task-{{task.id}}").click(function(event) {

@@ -110,4 +110,10 @@
     <script src="/static/bootstrap/js/bootstrap-collapse.js"></script>
     <script src="/static/bootstrap/js/bootstrap-carousel.js"></script>
     <script src="/static/bootstrap/js/bootstrap-typeahead.js"></script>
+    <!-- CheckMate Extensions and converntions -->
+    <script type="text/javascript" >
+            $(".cmpop").popover();  //anything with a 'cmpop' class will attempt to pop over using the data-content and title attributes
+            $(".cmtip").tooltip();  //anything with a 'cmtip' class will attempt to show a tooltip of the title attribute
+            $(".cmcollapse").collapse();  //anything with a 'cmcollapse' class will be collapsible
+    </script>
 </html>

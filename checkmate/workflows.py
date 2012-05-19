@@ -125,60 +125,9 @@ def execute_workflow(id, tenant_id=None):
     return write_body(entity, request, response)
 
 
-@get('/workflows/<id>/tasks/<task_id:int>/+reset')
-@get('/<tenant_id>/workflows/<id>/tasks/<task_id:int>/+reset')
-def reset_workflow_task(id, task_id, tenant_id=None):
-    """Reset a Celery workflow task and retry it
-
-    Checks if task is a celery task in waiting state.
-    Resets parent to READY and task to FUTURE.
-    Removes existing celery task ID.
-
-    :param id: checkmate workflow id
-    :param task_id: checkmate workflow task id
-    """
-
-    workflow = db.get_workflow(id, with_secrets=True)
-    if not workflow:
-        abort(404, 'No workflow with id %s' % id)
-
-    serializer = DictionarySerializer()
-    wf = Workflow.deserialize(serializer, workflow)
-
-    task = wf.get_task(task_id)
-    if not task:
-        abort(404, 'No task with id %s' % task_id)
-
-    if task.task_spec.__class__.__name__ != 'Celery':
-        abort(406, "You can only reset Celery tasks. This is a '%s' task" %
-            task.task_spec.__class__.__name__)
-
-    if task.state != Task.WAITING:
-        abort(406, "You can only reset WAITING tasks. This task is in '%s'" %
-            task.get_state_name())
-
-    if 'task_id' in task.internal_attributes:
-        del task.internal_attributes['task_id']
-    if 'error' in task.attributes:
-        del task.attributes['error']
-    task._state = Task.FUTURE
-    task.parent._state = Task.READY
-
-    serializer = DictionarySerializer()
-    entity = wf.serialize(serializer)
-    body, secrets = extract_sensitive_data(entity)
-    db.save_workflow(id, body, secrets)
-
-    task = wf.get_task(task_id)
-    if not task:
-        abort(404, 'No task with id %s' % task_id)
-
-    # Return cleaned data (no credentials)
-    data = serializer._serialize_task(task, skip_children=True)
-    body, secrets = extract_sensitive_data(data)
-    body['workflow_id'] = id  # so we know which workflow it came from
-    return write_body(body, request, response)
-
+#
+# Workflow Tasks
+#
 
 @get('/workflows/<id>/tasks/<task_id:int>')
 @get('/<tenant_id>/workflows/<id>/tasks/<task_id:int>')
@@ -188,7 +137,10 @@ def get_workflow_task(id, task_id, tenant_id=None):
     :param id: checkmate workflow id
     :param task_id: checkmate workflow task id
     """
-    entity = db.get_workflow(id)
+    if 'with_secrets' in request.query:  # TODO: verify admin-ness
+        entity = db.get_workflow(id, with_secrets=True)
+    else:
+        entity = db.get_workflow(id)
     if not entity:
         abort(404, 'No workflow with id %s' % id)
 
@@ -259,6 +211,113 @@ def post_workflow_task(id, task_id, tenant_id=None):
     return write_body(results, request, response)
 
 
+@get('/workflows/<id>/tasks/<task_id:int>/+reset')
+@get('/<tenant_id>/workflows/<id>/tasks/<task_id:int>/+reset')
+def reset_workflow_task(id, task_id, tenant_id=None):
+    """Reset a Celery workflow task and retry it
+
+    Checks if task is a celery task in waiting state.
+    Resets parent to READY and task to FUTURE.
+    Removes existing celery task ID.
+
+    :param id: checkmate workflow id
+    :param task_id: checkmate workflow task id
+    """
+
+    workflow = db.get_workflow(id, with_secrets=True)
+    if not workflow:
+        abort(404, 'No workflow with id %s' % id)
+
+    serializer = DictionarySerializer()
+    wf = Workflow.deserialize(serializer, workflow)
+
+    task = wf.get_task(task_id)
+    if not task:
+        abort(404, 'No task with id %s' % task_id)
+
+    if task.task_spec.__class__.__name__ != 'Celery':
+        abort(406, "You can only reset Celery tasks. This is a '%s' task" %
+            task.task_spec.__class__.__name__)
+
+    if task.state != Task.WAITING:
+        abort(406, "You can only reset WAITING tasks. This task is in '%s'" %
+            task.get_state_name())
+
+    if 'task_id' in task.internal_attributes:
+        # Save history for diagnostics/forensics
+        history = task.internal_attributes.get('task_history', [])
+        history.append(task.internal_attributes['task_id'])
+        del task.internal_attributes['task_id']
+    if 'error' in task.attributes:
+        del task.attributes['error']
+    task._state = Task.FUTURE
+    task.parent._state = Task.READY
+
+    serializer = DictionarySerializer()
+    entity = wf.serialize(serializer)
+    body, secrets = extract_sensitive_data(entity)
+    db.save_workflow(id, body, secrets)
+
+    task = wf.get_task(task_id)
+    if not task:
+        abort(404, 'No task with id %s' % task_id)
+
+    # Return cleaned data (no credentials)
+    data = serializer._serialize_task(task, skip_children=True)
+    body, secrets = extract_sensitive_data(data)
+    body['workflow_id'] = id  # so we know which workflow it came from
+    return write_body(body, request, response)
+
+
+@get('/workflows/<id>/tasks/<task_id:int>/+resubmit')
+@get('/<tenant_id>/workflows/<id>/tasks/<task_id:int>/+resubmit')
+def resubmit_workflow_task(id, task_id, tenant_id=None):
+    """Reset a Celery workflow task and retry it
+
+    Checks if task is a celery task in waiting state.
+    Clears Celery info and retries the task.
+
+    :param id: checkmate workflow id
+    :param task_id: checkmate workflow task id
+    """
+
+    workflow = db.get_workflow(id, with_secrets=True)
+    if not workflow:
+        abort(404, 'No workflow with id %s' % id)
+
+    serializer = DictionarySerializer()
+    wf = Workflow.deserialize(serializer, workflow)
+
+    task = wf.get_task(task_id)
+    if not task:
+        abort(404, 'No task with id %s' % task_id)
+
+    if task.task_spec.__class__.__name__ != 'Celery':
+        abort(406, "You can only reset Celery tasks. This is a '%s' task" %
+            task.task_spec.__class__.__name__)
+
+    if task.state != Task.WAITING:
+        abort(406, "You can only reset WAITING tasks. This task is in '%s'" %
+            task.get_state_name())
+
+    task.task_spec.retry_fire(task)
+
+    serializer = DictionarySerializer()
+    entity = wf.serialize(serializer)
+    body, secrets = extract_sensitive_data(entity)
+    db.save_workflow(id, body, secrets)
+
+    task = wf.get_task(task_id)
+    if not task:
+        abort(404, 'No task with id %s' % task_id)
+
+    # Return cleaned data (no credentials)
+    data = serializer._serialize_task(task, skip_children=True)
+    body, secrets = extract_sensitive_data(data)
+    body['workflow_id'] = id  # so we know which workflow it came from
+    return write_body(body, request, response)
+
+
 @get('/workflows/<id>/tasks/<task_id:int>/+execute')
 @get('/<tenant_id>/workflows/<id>/tasks/<task_id:int>/+execute')
 def execute_workflow_task(id, task_id, tenant_id=None):
@@ -284,6 +343,9 @@ def execute_workflow_task(id, task_id, tenant_id=None):
     return write_body(data, request, response)
 
 
+#
+# Workflow functions
+#
 def get_SpiffWorkflow_status(workflow):
     """
     Returns the subtree as a string for debugging.
@@ -537,14 +599,18 @@ def create_workflow(deployment):
                 specs[name] = task_spec
         for name, task_spec in specs.iteritems():
             # Wire to LB
+            save_lbid = Transform(wfspec, "Get LB ID:%s" % name.split(':')[1],
+                    transforms=[
+                    "my_task.attributes['lbid']=my_task.attributes['id']"])
+            create_lb_task.connect(save_lbid)
             add_node = Celery(wfspec,
-                    'Add LB Node:%s' % name.split(':')[1],
+                    "Add LB Node:%s" % name.split(':')[1],
                     'stockton.lb.distribute_add_node',
                     call_args=[Attrib('deployment'),  Attrib('id'),
                             Attrib('ip'), 80])
             join = Merge(wfspec, "Wait for LB:%s" % name.split(':')[1])
             join.connect(add_node)
-            create_lb_task.connect(join)
+            save_lbid.connect(join)
             task_spec.connect(join)
 
     wf = Workflow(wfspec)

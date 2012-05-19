@@ -8,13 +8,16 @@
                 Commands
               </li>
               <li>
-                <a href="#" onclick="document.forms['task'].submit(); return false;"><i class="icon-ok"></i> Save</a>
+                <a href="#" onclick="document.forms['task'].submit(); return false;" class="tip" title="Save any edits of the JSON. The JSON on the right is editable!"><i class="icon-ok"></i> Save</a>
               </li>
               <li>
-                <a href="{{data.tenantId|prepend}}/workflows/{{data.workflow_id}}/tasks/{{data.id}}/+reset"><i class="icon-repeat"></i> Reset</a>
+                <a href="{{data.tenantId|prepend}}/workflows/{{data.workflow_id}}/tasks/{{data.id}}/+reset" class="tip" title="Clear the task data and reset it"><i class="icon-repeat"></i> Reset</a>
               </li>
               <li>
-                <a href="{{data.tenantId|prepend}}/workflows/{{data.workflow_id}}/tasks/{{data.id}}/+execute"><i class="icon-play"></i> Run Task</a>
+                <a href="{{data.tenantId|prepend}}/workflows/{{data.workflow_id}}/tasks/{{data.id}}/+execute" class="tip" title="Attempt to run the task again using current state"><i class="icon-play"></i> Run Task</a>
+              </li>
+              <li>
+                <a href="{{data.tenantId|prepend}}/workflows/{{data.workflow_id}}/tasks/{{data.id}}/+resubmit" class="tip" title="Clear task data, abort the Celery task, and retrigger it"><i class="icon-retweet"></i> Abort and Resubmit</a>
               </li>
               <li class="nav-header">
                 Navigation
@@ -28,11 +31,47 @@
             </ul>
           </div><!-- span2 -->
           <div class="span9">
-            <h2>{{ data['task_spec'] }}</h2>
+            <h2>{{ data['task_spec'] }}
+              {% if data.internal_attributes.task_state is defined %}
+                {% if data.internal_attributes.task_state.state == 'FAILURE' %}
+                  <span class="label label-important cmpop" title="{{data.internal_attributes.task_state.state}}" data-content="{{data.internal_attributes.task_state.info}}">
+                {% else %}
+                  <span class="label">
+                {% endif %}
+              {{data.internal_attributes.task_state.state}}</span>
+            {% else %}
+                <span class="label
+                  {% if data.state < 8 %}"> Future
+                  {% elif data.state == 8 %} label-warning"> Waiting
+                  {% elif data.state == 16 %} label-info"> Ready
+                  {% elif data.state == 64 %} label-success"> Complete
+                  {% else %} label-inverse"> Unknown
+                  {% endif %}</span>
+            {% endif %}</h2>
+            {% if data.internal_attributes.task_state is defined %}
+              {% if data.internal_attributes.task_state.state == 'FAILURE' %}
+            <div id="error-alert" class="alert alert-block alert-error fade in">
+              <button class="close" data-dismiss="alert">&times;</button>
+              <h4 class="alert-heading">Oh snap! Something didn't work!</h4>
+              <p>This error was reported: {{data.internal_attributes.task_state.info}}. See the code <a class="accordion-toggle cmcollapse" data-toggle="collapse" href="#traceback">traceback</a>.</p><div id="traceback" class="cmcollapse collapse in"><pre>{{data.internal_attributes.task_state.traceback}}</pre></div>
+              <p>
+                <a class="btn btn-primary" href="{{data.tenantId|prepend}}/workflows/{{data.workflow_id}}/tasks/{{data.id}}/+execute">Just try again</a> <a class="btn btn-danger cmtip" href="{{data.tenantId|prepend}}/workflows/{{data.workflow_id}}/tasks/{{data.id}}/+resubmit" title="Clear task data, abort the Celery task, and retrigger it"><i class="icon-retweet"></i> Abort and Retry</a>
+              </p>
+            </div>
+            {% elif data.internal_attributes.task_state.state == 'RETRY' %}
+            <div id="error-alert" class="alert alert-block fade in">
+              <button class="close" data-dismiss="alert">&times;</button>
+              <h4 class="alert-heading">Something might be up! But we haven't given up yet...</h4>
+              <p>This task is being retried. See the code <a class="accordion-toggle cmcollapse" data-toggle="collapse" href="#traceback">traceback</a>.</p><div id="traceback" class="cmcollapse collapse in"><pre>{{data.internal_attributes.task_state.traceback}}</pre></div>
+              <p>
+                If you don't think this task is going to succeed you could <a class="btn btn-danger cmtip" href="{{data.tenantId|prepend}}/workflows/{{data.workflow_id}}/tasks/{{data.id}}/+resubmit" title="Clear task data, abort the Celery task, and retrigger it"><i class="icon-retweet"></i> Abort and Retry</a>, but please choose this carefully so we don't end up with duplicate resources!
+              </p>
+            </div>
+              {% endif %}
+            {% endif %}
             <form id="task" method="POST" action="{{data.tenantId|prepend}}/workflows/{{data.workflow_id}}/tasks/{{data.id}}">
               <textarea name="object" id="editor">{{ source | safe }}</textarea>
             </form>
-
             <script>
               var foldFunc = CodeMirror.newFoldFunction(CodeMirror.braceRangeFinder);
               var Editor = CodeMirror.fromTextArea(document.getElementById('editor'), {
