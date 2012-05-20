@@ -37,7 +37,7 @@
 
         <!-- *** Code Mirror - code viewer/editor *** -->
         <link rel="stylesheet" href="/static/code-mirror/lib/codemirror.css" />
-        <link rel="stylesheet" href="/static/code-mirror/theme/elegant.css" />
+        <link rel="stylesheet" href="/static/code-mirror/theme/lesser-dark.css" />
         <script type="text/javascript" src="/static/code-mirror/lib/codemirror.js"></script>
         <script type="text/javascript" src="/static/code-mirror/mode/javascript/javascript.js"></script>
         <script type="text/javascript" src="/static/code-mirror/lib/util/foldcode.js"></script>
@@ -59,6 +59,10 @@
         }
         .container-fluid, .span9, form, .CodeMirror, .row-fluid { height: inherit; }
         .CodeMirror-scroll { height: 80%; }
+        .CodeMirror pre {
+            line-height: inherit;
+            color: inherit;
+        }
         </style>
     </head>
     <body onload="prettyPrint()">
