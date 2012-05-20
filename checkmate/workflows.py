@@ -22,6 +22,7 @@ from SpiffWorkflow import Workflow, Task
 from SpiffWorkflow.operators import Attrib
 from SpiffWorkflow.storage import DictionarySerializer
 from checkmate.db import get_driver, any_id_problems, any_tenant_id_problems
+from checkmate.environments import Environment
 from checkmate.utils import write_body, read_body, extract_sensitive_data
 from checkmate import orchestrator
 
@@ -370,6 +371,10 @@ def create_workflow(deployment):
     :returns: SpiffWorkflow.Workflow"""
     blueprint = deployment['blueprint']
     inputs = deployment['inputs']
+    environment = deployment.get('environment')
+    if not environment:
+        abort(406, "Environment not found. Nowhere to deploy to.")
+    environment = Environment(environment)
 
     # Build a workflow spec (the spec is the design of the workflow)
     wfspec = WorkflowSpec(name="%s Workflow" % blueprint['name'])
@@ -446,13 +451,24 @@ def create_workflow(deployment):
     #
     # Create the tasks that make the async calls
     #
-    # TODO: remove this hard-coding to Chef
-    create_environment = Celery(wfspec, 'Create Chef Environment',
-                       'stockton.chefserver.distribute_manage_env',
-                       call_args=[Attrib('deployment'), deployment['id'],
-                            'CheckMate Environment'])
-    auth_task.connect(create_environment)
-    create_lb_task = None
+    config_provider_type = None
+    config_provider = environment.select_provider(resource='configuration')
+    if config_provider:
+        config_provider_type = config_provider.dict.get('type', 'chef-local')
+        if config_provider_type == 'chef-local':
+            pass
+        elif config_provider_type == 'chef-server':
+            # TODO: remove this hard-coding to Chef
+            create_environment = Celery(wfspec, 'Create Chef Environment',
+                               'stockton.chefserver.distribute_manage_env',
+                               call_args=[Attrib('deployment'), deployment['id'],
+                                    'CheckMate Environment'])
+            auth_task.connect(create_environment)
+        else:
+            raise NotImplementedError("Config provider '%s' not supported" %
+                    config_provider_type)
+
+            create_lb_task = None
 
     # For resources we create, we store the resource key in the spec's Defines
     # Hard-coding some logic for now:
@@ -479,46 +495,51 @@ def create_workflow(deployment):
             write_token.connect(create_server_task)
 
             # Then register in Chef
-            register_node_task = Celery(wfspec, 'Register Server:%s' % key,
+            if config_provider_type == 'chef-server':
+                register_node_task = Celery(wfspec, 'Register Server:%s' % key,
                                'stockton.chefserver.distribute_register_node',
                                call_args=[Attrib('deployment'), hostname,
                                     ['wordpress-web']],
                                 environment=deployment['id'],
                                defines={"Resource": key})
-            create_environment.connect(register_node_task)
+                create_environment.connect(register_node_task)
 
-            ssh_wait_task = Celery(wfspec, 'Wait for Server:%s' % key,
-                               'stockton.ssh.ssh_up',
-                                call_args=[Attrib('deployment'), Attrib('ip'),
-                                    'root'],
-                                password=Attrib('password'),
-                                identity_file=os.environ.get(
-                                    'CHECKMATE_PRIVATE_KEY', '~/.ssh/id_rsa'))
-            create_server_task.connect(ssh_wait_task)
+                ssh_wait_task = Celery(wfspec, 'Wait for Server:%s' % key,
+                                   'stockton.ssh.ssh_up',
+                                    call_args=[Attrib('deployment'),
+                                        Attrib('ip'), 'root'],
+                                    password=Attrib('password'),
+                                    identity_file=os.environ.get(
+                                            'CHECKMATE_PRIVATE_KEY',
+                                            '~/.ssh/id_rsa'))
+                create_server_task.connect(ssh_wait_task)
 
-            ssh_apt_get_task = Celery(wfspec, 'Apt-get Fix:%s' % key,
-                               'stockton.ssh.ssh_execute',
-                                call_args=[Attrib('ip'), "sudo apt-get update",
-                                    'root'],
-                                password=Attrib('password'),
-                                identity_file=os.environ.get(
-                                    'CHECKMATE_PRIVATE_KEY', '~/.ssh/id_rsa'))
-            ssh_wait_task.connect(ssh_apt_get_task)
+                ssh_apt_get_task = Celery(wfspec, 'Apt-get Fix:%s' % key,
+                                   'stockton.ssh.ssh_execute',
+                                    call_args=[Attrib('ip'),
+                                            "sudo apt-get update",
+                                            'root'],
+                                    password=Attrib('password'),
+                                    identity_file=os.environ.get(
+                                            'CHECKMATE_PRIVATE_KEY',
+                                            '~/.ssh/id_rsa'))
+                ssh_wait_task.connect(ssh_apt_get_task)
 
-            bootstrap_task = Celery(wfspec, 'Bootstrap Server:%s' % key,
-                               'stockton.chefserver.distribute_bootstrap',
-                                call_args=[Attrib('deployment'), hostname,
-                                Attrib('ip')],
-                                password=Attrib('password'),
-                                identity_file=os.environ.get(
-                                    'CHECKMATE_PRIVATE_KEY', '~/.ssh/id_rsa'),
-                                run_roles=['build', 'wordpress-web'],
-                                environment=deployment['id'])
-            join = Merge(wfspec, "Wait for Server Build:%s" % key)
-            join.connect(bootstrap_task)
-            ssh_apt_get_task.connect(join)
-            register_node_task.connect(join)
-            bootstrap_joins.append(join)  # to wire up later
+                bootstrap_task = Celery(wfspec, 'Bootstrap Server:%s' % key,
+                                   'stockton.chefserver.distribute_bootstrap',
+                                    call_args=[Attrib('deployment'), hostname,
+                                    Attrib('ip')],
+                                    password=Attrib('password'),
+                                    identity_file=os.environ.get(
+                                            'CHECKMATE_PRIVATE_KEY',
+                                            '~/.ssh/id_rsa'),
+                                    run_roles=['build', 'wordpress-web'],
+                                    environment=deployment['id'])
+                join = Merge(wfspec, "Wait for Server Build:%s" % key)
+                join.connect(bootstrap_task)
+                ssh_apt_get_task.connect(join)
+                register_node_task.connect(join)
+                bootstrap_joins.append(join)  # to wire up later
 
         elif resource.get('type') == 'load-balancer':
             # Third task takes the 'deployment' attribute and creates a lb
@@ -550,27 +571,29 @@ def create_workflow(deployment):
                                         username, password])
             create_db_task.connect(create_db_user)
 
-            # TODO: fix hard-coding DB (this should be triggered by a relation)
-            # Take output from Create DB task and write it into the 'override'
-            # dict to be available to future tasks
-            write_override = Transform(wfspec, "Prepare Override",
-                    transforms=[
-                    "my_task.attributes['overrides']={'wordpress': {'db': "
-                    "{'host': my_task.attributes['hostname'], "
-                    "'database': '%s', 'user': '%s', 'password': '%s'}}}" % (
-                        db_name, username, password)])
-            create_db_user.connect(write_override)
+            # Then register in Chef
+            if config_provider_type == 'chef-server':
+                # TODO: fix hard-coding DB (this should be triggered by a
+                # relation) Take output from Create DB task and write it into
+                # the 'override' dict to be available to future tasks
+                write_override = Transform(wfspec, "Prepare Override",
+                        transforms=[
+                        "my_task.attributes['overrides']={'wordpress': {'db': "
+                        "{'host': my_task.attributes['hostname'], "
+                        "'database': '%s', 'user': '%s', 'password': '%s'}}}" %
+                                (db_name, username, password)])
+                create_db_user.connect(write_override)
 
-            # Set environment databag
-            populate_databag = Celery(wfspec, "Populate Chef Overrides",
-                        'stockton.chefserver.distribute_manage_env',
-                        call_args=[Attrib('deployment'), deployment['id']],
-                            desc='CheckMate Environment',
-                            override_attributes=Attrib('overrides'))
-            join = Merge(wfspec, "Join:%s" % key)
-            join.connect(populate_databag)
-            create_environment.connect(join)
-            write_override.connect(join)
+                # Set environment databag
+                populate_databag = Celery(wfspec, "Populate Chef Overrides",
+                            'stockton.chefserver.distribute_manage_env',
+                            call_args=[Attrib('deployment'), deployment['id']],
+                                desc='CheckMate Environment',
+                                override_attributes=Attrib('overrides'))
+                join = Merge(wfspec, "Join:%s" % key)
+                join.connect(populate_databag)
+                create_environment.connect(join)
+                write_override.connect(join)
 
         elif resource.get('type') == 'dns':
             # TODO: NOT TESTED YET

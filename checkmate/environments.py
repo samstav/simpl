@@ -89,19 +89,15 @@ class Environment():
     def __init__(self, environment):
         self.dict = environment
 
-    def select_provider(self, type=None):
+    def select_provider(self, resource=None):
         providers = self.get_providers()
-        LOG.debug(providers)
-        for key, p in providers.iteritems():
-            print key
-            print p.provides()
         applicable = [p for key, p in providers.iteritems()
-                        if type in p.provides()]
+                        if resource in p.provides()]
         if applicable:
             return applicable[0]
         else:
-            LOG.debug("No '%s' providers found in: %s" % (type, self.dict))
-            raise CheckmateException("No '%s' providers found" % type)
+            LOG.debug("No '%s' providers found in: %s" % (resource, self.dict))
+            return None
 
     def get_providers(self):
         """ Returns provider class instances for this environment """
@@ -126,7 +122,6 @@ class Environment():
 class Provider():
     def __init__(self, provider):
         self.dict = provider
-        LOG.debug(provider)
 
     def provides(self):
         return self.dict.get('provides', [])

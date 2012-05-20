@@ -129,7 +129,7 @@ def plan_dict(deployment):
             domain = inputs.get('domain', os.environ.get('CHECKMATE_DOMAIN',
                                                            'mydomain.local'))
             if web_heads > 0:
-                compute = environment.select_provider(type='compute')
+                compute = environment.select_provider(resource='compute')
 
                 for index in range(web_heads):
                     # Generate a default name
@@ -158,7 +158,7 @@ def plan_dict(deployment):
                             "but no loadbalancer is included in blueprint" %
                             service_name)
         elif service_name == 'database':
-            database = environment.select_provider(type='database')
+            database = environment.select_provider(resource='database')
             domain = inputs.get('domain', os.environ.get(
                     'CHECKMATE_DOMAIN', 'mydomain.local'))
             name = 'CMDEP%s-db1.%s' % (deployment['id'][0:7], domain)

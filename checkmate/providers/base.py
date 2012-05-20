@@ -8,7 +8,6 @@ LOG = logging.getLogger(__name__)
 class ProviderBase():
     def __init__(self, provider):
         self.dict = provider
-        LOG.debug(provider)
 
     def provides(self):
         return self.dict.get('provides', [])
