@@ -158,18 +158,14 @@ def plan_dict(deployment):
                             "but no loadbalancer is included in blueprint" %
                             service_name)
         elif service_name == 'database':
-            flavor = inputs.get('database:instance/flavor',
-                    service['config']['settings'].get(
-                            'database:instance/flavor',
-                            service['config']['settings']
-                                    ['instance/flavor']['default']))
-
+            database = environment.select_provider(type='database')
             domain = inputs.get('domain', os.environ.get(
                     'CHECKMATE_DOMAIN', 'mydomain.local'))
-
             name = 'CMDEP%s-db1.%s' % (deployment['id'][0:7], domain)
-            resources[str(resource_index)] = {'type': 'database', 'dns-name': name,
-                                         'flavor': flavor, 'instance-id': None}
+            # Call provider to give us a resource template
+            resource = database.generate_template(deployment, service_name,
+                    service, name=name)
+            resources[str(resource_index)] = resource
             if 'instances' not in service:
                 service['instances'] = []
             instances = service['instances']
