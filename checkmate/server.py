@@ -42,18 +42,20 @@ Notes:
     Trailing slashes are ignored (ex. /blueprints/ == /blueprints)
 """
 
+import base64
 import json
 # pylint: disable=E0611
 from bottle import app, get, post, put, delete, run, request, \
         response, abort, static_file
 import os
 import logging
+import pam
 from SpiffWorkflow.storage import DictionarySerializer
 import sys
 from time import sleep
 import uuid
 import webob
-from webob.exc import HTTPNotFound
+from webob.exc import HTTPNotFound, HTTPUnauthorized
 from celery.app import app_or_default
 
 
@@ -468,6 +470,54 @@ class TenantMiddleware(object):
         return self.app(e, h)
 
 
+class AuthMiddleware(object):
+    """ First stab at an Authentication module.
+
+    ****************************************
+    NOTE: THIS IS NOT PROVIDING SECURITY YET
+    ****************************************
+
+    - Allows all calls to /static/
+    - Allows all calls with a tenant_id
+    - ALlows all calls with X-Auth-Token header
+    - Authenticates all other calls to PAM
+    """
+    def __init__(self, app):
+        self.app = app
+
+    def __call__(self, e, h):
+        tenant = e.get('HTTP_X_TENANT_ID', None)
+        if tenant:
+            # Allow all tenant calls
+            return self.app(e, h)
+        else:
+            path_parts = e['PATH_INFO'].split('/')
+            root = path_parts[1]
+            if root in ['static', 'test']:
+                # Allow test and static calls
+                return self.app(e, h)
+
+            # Authenticate admin calls to PAM
+            if 'HTTP_AUTHORIZATION' in e:
+                auth = e['HTTP_AUTHORIZATION'].split()
+                if len(auth) == 2:
+                    if auth[0].lower() == "basic":
+                        uname, passwd = base64.b64decode(auth[1]).split(':')
+                        # TODO: implement some caching
+                        if pam.authenticate(uname, passwd, service='login'):
+                            return self.app(e, h)
+            # Authenticate calls with X-Auth-Token to the X-Auth-Source service
+            if 'HTTP_X_AUTH_TOKEN' in e:
+                service = e.get('HTTP_X_AUTH_TOKEN',
+                    'https://identity.api.rackspacecloud.com/v2.0')
+                auth = e['HTTP_X_AUTH_TOKEN']
+                # TODO: implement auth & some caching to not overload auth
+                if auth:
+                    return self.app(e, h)
+        return HTTPUnauthorized(None, [('WWW-Authenticate',
+                'Basic realm="CheckMate PAM Module"')])(e, h)
+
+
 class StripPathMiddleware(object):
     """Strips extra / at end of path"""
     def __init__(self, app):
@@ -500,9 +550,12 @@ class ExtensionsMiddleware(object):
 
 if __name__ == '__main__':
     LOG.setLevel(logging.DEBUG)
+    # Build WSGI Chain:
+    # Tenant->Auth->Extension to Content Type->Path Normalizer
     root_app = app()
     no_path = StripPathMiddleware(root_app)
     no_ext = ExtensionsMiddleware(no_path)
-    tenant = TenantMiddleware(no_ext)
+    auth = AuthMiddleware(no_ext)
+    tenant = TenantMiddleware(auth)
     run(app=tenant, host='127.0.0.1', port=8080, reloader=True,
             server='wsgiref')

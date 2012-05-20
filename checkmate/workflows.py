@@ -243,13 +243,8 @@ def reset_workflow_task(id, task_id, tenant_id=None):
         abort(406, "You can only reset WAITING tasks. This task is in '%s'" %
             task.get_state_name())
 
-    if 'task_id' in task.internal_attributes:
-        # Save history for diagnostics/forensics
-        history = task.internal_attributes.get('task_history', [])
-        history.append(task.internal_attributes['task_id'])
-        del task.internal_attributes['task_id']
-    if 'error' in task.attributes:
-        del task.attributes['error']
+    task.task_spec._clear_celery_task_data(task)
+
     task._state = Task.FUTURE
     task.parent._state = Task.READY
 
