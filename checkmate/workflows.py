@@ -388,8 +388,9 @@ def create_workflow(deployment):
     auth_task.connect(write_token)
 
     #TODO: make this smarter
-    creds = [p['credentials'][0] for p in
-            deployment['environment']['providers'] if 'common' in p][0]
+    creds = [p['credentials'][0] for key, p in
+            deployment['environment']['providers'].iteritems()
+            if key == 'common'][0]
 
     stockton_deployment = {
         'id': deployment['id'],

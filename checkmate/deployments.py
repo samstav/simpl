@@ -1,9 +1,9 @@
-#!/usr/bin/env python
 from bottle import abort
 import logging
 import os
 
 from checkmate.db import get_driver
+from checkmate.environments import Environment
 from checkmate.workflows import create_workflow
 
 LOG = logging.getLogger(__name__)
@@ -40,6 +40,7 @@ def plan_dict(deployment):
     environment = deployment.get('environment')
     if not environment:
         abort(406, "Environment not found. Nowhere to deploy to.")
+    environment = Environment(environment)
 
     #
     # Analyze Dependencies
@@ -128,26 +129,18 @@ def plan_dict(deployment):
             domain = inputs.get('domain', os.environ.get('CHECKMATE_DOMAIN',
                                                            'mydomain.local'))
             if web_heads > 0:
-                flavor = inputs.get('wordpress:instance/flavor',
-                        service['config']['settings'].get(
-                                'wordpress:instance/flavor',
-                                service['config']['settings']
-                                ['instance/flavor']['default']))
-                image = inputs.get('wordpress:instance/os',
-                        service['config']['settings'].get(
-                                'wordpress:instance/os',
-                                service['config']['settings']['instance/os']
-                                ['default']))
-                if image == 'Ubuntu 11.10':
-                    image = 119  # TODO: call provider to make this translation
+                compute = environment.select_provider(type='compute')
+
                 for index in range(web_heads):
-                    name = 'CMDEP%s-web%s.%s' % (deployment['id'][0:7], index + 1,
-                            domain)
-                    resources[str(resource_index)] = {'type': 'server',
-                                                 'dns-name': name,
-                                                 'flavor': flavor,
-                                                 'image': image,
-                                                 'instance-id': None}
+                    # Generate a default name
+                    name = 'CMDEP%s-web%s.%s' % (deployment['id'][0:7],
+                            index + 1, domain)
+                    # Call provider to give us a resource template
+                    resource = compute.generate_template(deployment,
+                            service_name, service, name=name)
+                    # Add it to resources
+                    resources[str(resource_index)] = resource
+                    # Link resource to tier
                     if 'instances' not in service:
                         service['instances'] = []
                     instances = service['instances']
@@ -224,9 +217,9 @@ def plan_dict(deployment):
                     provider_tier_name, resource_type,
                     provider_tier['config']['provides'][resource_type],
                     relation, resource_type, interface))
-        providers = provider_tier['instances']
+        endpoint_providers = provider_tier['instances']
         LOG.debug("    These instances provide %s:%s: %s" % (resource_type,
-                interface, providers))
+                interface, endpoint_providers))
 
         # Wire them up
         name = "%s-%s" % (relation, provider_tier_name)
@@ -236,14 +229,15 @@ def plan_dict(deployment):
         for instance in instances:
             if 'relations' not in resources[instance]:
                 resources[instance]['relations'] = {}
-            for provider in providers:
-                if 'relations' not in resources[provider]:
-                    resources[provider]['relations'] = {}
+            for endpoint_provider in endpoint_providers:
+                if 'relations' not in resources[endpoint_provider]:
+                    resources[endpoint_provider]['relations'] = {}
                 resources[instance]['relations'][name] = {'state': 'new'}
-                resources[provider]['relations'][name] = {'state': 'new'}
+                resources[endpoint_provider]['relations'][name] = {'state':
+                        'new'}
                 LOG.debug("    New connection from %s:%s to %s:%s created: %s"
-                        % (relation, instance, provider_tier_name, provider,
-                        name))
+                        % (relation, instance, provider_tier_name,
+                                endpoint_provider, name))
     resources['connections'] = wires
     deployment['resources'] = resources
 

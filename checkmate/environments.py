@@ -5,8 +5,10 @@ from bottle import get, post, put, delete, request, \
 import logging
 import uuid
 
-from checkmate.utils import read_body, write_body, extract_sensitive_data
 from checkmate.db import get_driver, any_id_problems, any_tenant_id_problems
+from checkmate.exceptions import CheckmateException
+from checkmate.providers import get_provider_class
+from checkmate.utils import read_body, write_body, extract_sensitive_data
 
 LOG = logging.getLogger(__name__)
 db = get_driver('checkmate.db.sql.Driver')
@@ -78,3 +80,56 @@ def delete_environment(id, tenant_id=None):
     if not entity:
         abort(404, 'No environment with id %s' % id)
     return write_body(entity, request, response)
+
+
+#
+# Environment Code
+#
+class Environment():
+    def __init__(self, environment):
+        self.dict = environment
+
+    def select_provider(self, type=None):
+        providers = self.get_providers()
+        LOG.debug(providers)
+        for key, p in providers.iteritems():
+            print key
+            print p.provides()
+        applicable = [p for key, p in providers.iteritems()
+                        if type in p.provides()]
+        if applicable:
+            return applicable[0]
+        else:
+            LOG.debug("No '%s' providers found in: %s" % (type, self.dict))
+            raise CheckmateException("No '%s' providers found" % type)
+
+    def get_providers(self):
+        """ Returns provider class instances for this environment """
+        providers = self.dict.get('providers', None)
+        if not providers:
+            raise CheckmateException("Environment does not have providers")
+        common = providers.get('common', {})
+
+        results = {}
+        for key, provider in providers.iteritems():
+            if key == 'common':
+                continue
+            vendor = provider.get('vendor', common.get('vendor', None))
+            if not vendor:
+                raise CheckmateException("No vendor specified for '%s'" % key)
+            provider_class = get_provider_class("%s.%s" % (vendor,
+                    key.replace('-', '_')))
+            results[key] = provider_class(provider)
+        return results
+
+
+class Provider():
+    def __init__(self, provider):
+        self.dict = provider
+        LOG.debug(provider)
+
+    def provides(self):
+        return self.dict.get('provides', [])
+
+    def generate_template(self, deployment, service_name, service, name=None):
+        raise NotImplementedError()

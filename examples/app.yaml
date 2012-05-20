@@ -12,7 +12,7 @@
 #
 # To transform and send the output to checkmate:
 #
-#     awk '{while(match($0,"[$][\\{][^\\}]*\\}")) {var=substr($0,RSTART+2,RLENGTH -3);gsub("[$][{]"var"[}]",ENVIRON[var])}}1' < app.yaml | curl -H 'content-type: application/x-yaml' http://localhost:8080/deployments -v --data-binary @-
+#     awk '{while(match($0,"[$][\\{][^\\}]*\\}")) {var=substr($0,RSTART+2,RLENGTH -3);gsub("[$][{]"var"[}]",ENVIRON[var])}}1' < app.yaml | curl -H 'X-Auth-Token: abcdef' -H 'content-type: application/x-yaml' http://localhost:8080/deployments -v --data-binary @-
 
 
 #### ALPHA STATUS
@@ -143,7 +143,18 @@ blueprint: &wp-multi
 
 
 #### Environments
-
+#
+# Schema is:
+# environment:
+#   name: !!str
+#   providers:
+#      id:  &unique-reference  # reference is unique in this environment
+#        vendor: !!str
+#        id: !!str
+#        provides:
+#        - type: !!enum('compute', 'database', etc..)
+#        [endpoint: !!uri]
+#      [common:]  #any values common to all providers
 # A test environment
 environment: &env1
   name: rackcloud-test
@@ -152,35 +163,36 @@ environment: &env1
   # The intent is that these providers can be extracted automatically from the service catalog when authenticating, but including providers here
   # means we can pre-determine or hard-code them if we want to.
   providers:
-  - compute: &rax-cloud-servers
-    vendor: rackspace
-    constraints:
-    - region: ${CHECKMATE_REGION}                                               #IMPLEMENTED at root of env, but not under constraints
-  - loadbalancer: &rax-lbaas
-    endpoint: https://lbaas.api.rackpsacecloud.com/servers/{tenantId}
-  - database: &rax-dbaas
-    endpoint: https://database.api.rackpsacecloud.com/servers/{tenantId}
-  - common:
-    vendor: rackspace
-    credentials:
-    - rackspace:
-      username: ${CHECKMATE_USERNAME}
-      apikey: ${CHECKMATE_APIKEY}
+    compute: &rax-cloud-servers-openstack
+      provides:
+      - compute
+      vendor: rackspace
+    legacy-compute: &rax-cloud-servers-slice
+      provides:
+      - compute
+      vendor: rackspace
+    loadbalancer: &rax-lbaas
+      provides:
+      - load-balancer
+      endpoint: https://lbaas.api.rackpsacecloud.com/servers/{tenantId}
+    database: &rax-dbaas
+      provides:
+      - database
+      endpoint: https://database.api.rackpsacecloud.com/servers/{tenantId}
+    configuration-management: &configurator  # MORE THOUGHT needed...
+      type: chef-local  # vs chef-server, puppet, etc...
+      vendor: opscode
+      provides:
+      - configuration
+    common:
+      vendor: rackspace
+      credentials:
+      - rackspace:
+        username: ${CHECKMATE_USERNAME}
+        apikey: ${CHECKMATE_APIKEY}
+      constraints:
+      - region: ${CHECKMATE_REGION}                                               #IMPLEMENTED at root of env, but not under constraints
 
-# Another environment referenced with the anchor &dfw and named rackcloud-prod
-environment: &dfw
-  name: rackcloud-prod
-  region: dfw
-  providers:
-  - common:
-    vendor: rackspace
-    credentials:
-    - rackspace:
-      username: ${CHECKMATE_USERNAME}
-      apikey: ${CHECKMATE_APIKEY}
-    - ssh:
-      public_key: ${CHECKMATE_PUBLIC_KEY}
-      private_key: ${CHECKMATE_PRIVATE_KEY}
 
 #### Deployments
 
