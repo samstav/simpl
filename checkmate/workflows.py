@@ -456,7 +456,11 @@ def create_workflow(deployment):
     if config_provider:
         config_provider_type = config_provider.dict.get('type', 'chef-local')
         if config_provider_type == 'chef-local':
-            pass
+            # TODO: remove this hard-coding to Chef
+            create_environment = Celery(wfspec, 'Create Chef Environment',
+                    'stockton.cheflocal.distribute_create_environment',
+                    call_args=[deployment['id']])
+            auth_task.connect(create_environment)
         elif config_provider_type == 'chef-server':
             # TODO: remove this hard-coding to Chef
             create_environment = Celery(wfspec, 'Create Chef Environment',
@@ -625,7 +629,7 @@ def create_workflow(deployment):
             add_node = Celery(wfspec,
                     "Add LB Node:%s" % name.split(':')[1],
                     'stockton.lb.distribute_add_node',
-                    call_args=[Attrib('deployment'),  Attrib('id'),
+                    call_args=[Attrib('deployment'),  Attrib('lbid'),
                             Attrib('ip'), 80])
             join = Merge(wfspec, "Wait for LB:%s" % name.split(':')[1])
             join.connect(add_node)

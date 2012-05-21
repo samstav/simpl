@@ -31,7 +31,7 @@
             </ul>
           </div><!-- span2 -->
           <div class="span9">
-            <h2>{{ data['task_spec'] }}
+            <h2>Task: {{ data['task_spec'] }}
               {% if data.internal_attributes.task_state is defined %}
                 {% if data.internal_attributes.task_state.state == 'FAILURE' %}
                   <span class="label label-important cmpop" title="{{data.internal_attributes.task_state.state}}" data-content="{{data.internal_attributes.task_state.info}}">
@@ -68,6 +68,22 @@
               </p>
             </div>
               {% endif %}
+            {% endif %}
+            {% if data.task_spec[0:13] == 'Create Server' and data.attributes.id is defined %}
+            <div class="alert alert-success">
+              <a class="close" data-dismiss="alert" href="#">×</a>
+              Server {{data.attributes.id}} was created with IP address {{data.attributes.ip}}. You can see it in the <a target="_blank" href="https://manage.rackspacecloud.com/CloudServers/Overview.do?cloudServerId={{data.attributes.id}}">control panel</a> or connect to it over <a href="ssh://root@{{data.attributes.ip}}">ssh</a>.
+            </div>
+            {% elif data.task_spec[0:9] == 'Create LB' %}
+            <div class="alert alert-success">
+              <a class="close" data-dismiss="alert" href="#">×</a>
+              Load balancer {{data.attributes.id}} was created and assigned VIP {{data.attributes.vip}}. See it in the <a target="_blank" href="https://manage.rackspacecloud.com/LoadBalancers/Nodes.do?loadBalancerId={{data.attributes.id}}&amp;datacenter=prod-ord">control panel</a> or <a target="_blank" href="http://{{data.attributes.vip}}/">browse</a> the VIP.
+            </div>
+            {% elif data.task_spec[0:9] == 'Create DB' %}
+            <div class="alert alert-success">
+              <a class="close" data-dismiss="alert" href="#">×</a>
+              Database {{data.attributes.id}} was created on host {{data.attributes.hostname}}. Try the <a target="_blank" href="https://github.rackspace.com/zachary-schneider/clouddb-client">Cloud DB Client</a> to see it.
+            </div>
             {% endif %}
             <form id="task" method="POST" action="{{data.tenantId|prepend}}/workflows/{{data.workflow_id}}/tasks/{{data.id}}">
               <textarea name="object" id="editor">{{ source | safe }}</textarea>
