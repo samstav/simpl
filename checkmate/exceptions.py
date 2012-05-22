@@ -1,6 +1,6 @@
 """Custome Exceptions for CheckMate
 
-To be seriilzation-friendly, call the Exception __init__ with any extra
+To be serialization-friendly, call the Exception __init__ with any extra
 attributes:
 
 class CheckmateCustomException(Exception):

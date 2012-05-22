@@ -135,6 +135,7 @@ def distribute_run_workflow(id, timeout=60):
 
     i = 0
     last_reported_complete = 0
+    wait = 0  # How long to wait (increases with no activity until 6s)
     while not wf.is_completed() and i < timeout:
         total = len(wf.get_tasks(state=Task.ANY_MASK))  # Changes
         count = len(wf.get_tasks(state=Task.COMPLETED))
@@ -142,16 +143,19 @@ def distribute_run_workflow(id, timeout=60):
             last_reported_complete = count
             LOG.debug("Workflow status: %s/%s (state=%s)" % (count, total,
                     "PROGRESS"))
+            LOG.debug(wf.get_dump())
+            wait = 1
+        else:
+            if wait < 6:
+                wait += 1
         wf.complete_all()
         i += 1
-        msg = "Saving: %s" % wf.get_dump()
-        LOG.debug(msg)
         workflow = wf.serialize(serializer)
         body, secrets = extract_sensitive_data(workflow)
         db.save_workflow(id, body, secrets)
-        time.sleep(1)
-        LOG.debug("Finished loop #%s for workflow %s (timeout in %is)" %
-                (i, id, timeout - i))
+        LOG.debug("Finished loop #%s for workflow %s (timeout in %is, waiting "
+                "%i)" % (i, id, timeout - i, wait))
+        time.sleep(wait)
 
     return workflow
 

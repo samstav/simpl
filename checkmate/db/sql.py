@@ -231,8 +231,9 @@ class Driver(DbBase):
             e.tenant_id = tenant_id
             if secrets is not None:
                 if not secrets:
-                    LOG.debug("Clearing secrets for %s:%s" % (klass.__name__,
+                    LOG.warning("Clearing secrets for %s:%s" % (klass.__name__,
                             id))
+                    raise Exception("CLEARING CREDS! Why?!!!!")
                 e.secrets = secrets
         else:
             e = klass(id=id, body=body, tenant_id=tenant_id,

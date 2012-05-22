@@ -32,22 +32,23 @@
           </div><!-- span2 -->
           <div class="span9">
             <h2>Task: {{ data['task_spec'] }}
-              {% if data.internal_attributes.task_state is defined %}
-                {% if data.internal_attributes.task_state.state == 'FAILURE' %}
-                  <span class="label label-important cmpop" title="{{data.internal_attributes.task_state.state}}" data-content="{{data.internal_attributes.task_state.info}}">
+              {% if data.state < 8 %}<span class="label"> Future</span>
+              {% elif data.state == 8 %}
+                {% if data.internal_attributes.task_state is defined %}
+                  {% if data.internal_attributes.task_state.state == 'FAILURE' %}
+                    <span class="label label-important cmpop" title="{{data.internal_attributes.task_state.state}}" data-content="{{data.internal_attributes.task_state.info}}">
+                  {% else %}
+                    <span class="label">
+                  {% endif %}
+                  {{data.internal_attributes.task_state.state}}</span>
                 {% else %}
-                  <span class="label">
+                  <span class="label label-warning">Waiting</span>
                 {% endif %}
-              {{data.internal_attributes.task_state.state}}</span>
-            {% else %}
-                <span class="label
-                  {% if data.state < 8 %}"> Future
-                  {% elif data.state == 8 %} label-warning"> Waiting
-                  {% elif data.state == 16 %} label-info"> Ready
-                  {% elif data.state == 64 %} label-success"> Complete
-                  {% else %} label-inverse"> Unknown
-                  {% endif %}</span>
-            {% endif %}</h2>
+              {% elif data.state == 16 %}<span class="label label-info"> Ready</span>
+              {% elif data.state == 64 %}<span class="label label-success"> Complete</span>
+              {% else %} label-inverse"><span class="label label-inverse"> Unknown</span>
+              {% endif %}
+            </h2>
             {% if data.internal_attributes.task_state is defined %}
               {% if data.internal_attributes.task_state.state == 'FAILURE' %}
             <div id="error-alert" class="alert alert-block alert-error fade in">
@@ -58,7 +59,7 @@
                 <a class="btn btn-primary" href="{{data.tenantId|prepend}}/workflows/{{data.workflow_id}}/tasks/{{data.id}}/+execute">Just try again</a> <a class="btn btn-danger cmtip" href="{{data.tenantId|prepend}}/workflows/{{data.workflow_id}}/tasks/{{data.id}}/+resubmit" title="Clear task data, abort the Celery task, and retrigger it"><i class="icon-retweet"></i> Abort and Retry</a>
               </p>
             </div>
-            {% elif data.internal_attributes.task_state.state == 'RETRY' %}
+            {% elif data.internal_attributes.task_state.state == 'RETRY' and data.state != 64 %}
             <div id="error-alert" class="alert alert-block fade in">
               <button class="close" data-dismiss="alert">&times;</button>
               <h4 class="alert-heading">Something might be up! But we haven't given up yet...</h4>

@@ -8,6 +8,8 @@ from bottle import app, get, post, put, delete, request, \
         response, abort
 import logging
 import os
+import random
+import string
 import uuid
 
 try:
@@ -120,8 +122,9 @@ def execute_workflow(id, tenant_id=None):
     if not entity:
         abort(404, 'No workflow with id %s' % id)
 
-    #Synchronous call
-    orchestrator.distribute_run_workflow(id, timeout=10)
+    async_call = orchestrator.distribute_run_workflow.delay(id, timeout=10)
+    #Wait for call
+    async_call.wait()
     entity = db.get_workflow(id)
     return write_body(entity, request, response)
 
@@ -461,6 +464,25 @@ def create_workflow(deployment):
                     'stockton.cheflocal.distribute_create_environment',
                     call_args=[deployment['id']])
             auth_task.connect(create_environment)
+
+            create_build_role = Celery(wfspec, 'Create Build Role',
+                    'stockton.cheflocal.distribute_manage_role',
+                    call_args=['build', deployment['id']],
+                    run_list=["recipe[apt]",
+                              "recipe[build-essential]",
+                              "recipe[chef-client::delete_validation]",
+                              "recipe[chef-client::config]",
+                              "recipe[chef-client::service]"],
+                    override_attributes={"chef_client": {
+                            "server_url":
+                                    "http://chef-server.cldsrvr.com:4000",
+                            "interval": "30",
+                            "validation_client_name": "chef-validator",
+                            "init_style": "init"
+                            }},
+                    desc="This role runs once at build time (bootstrap)")
+            create_environment.connect(create_build_role)
+
         elif config_provider_type == 'chef-server':
             # TODO: remove this hard-coding to Chef
             create_environment = Celery(wfspec, 'Create Chef Environment',
@@ -499,7 +521,43 @@ def create_workflow(deployment):
             write_token.connect(create_server_task)
 
             # Then register in Chef
-            if config_provider_type == 'chef-server':
+            if config_provider_type == 'chef-local':
+                ssh_wait_task = Celery(wfspec, 'Wait for Server:%s' % key,
+                                   'stockton.ssh.ssh_up',
+                                    call_args=[Attrib('deployment'),
+                                        Attrib('ip'), 'root'],
+                                    password=Attrib('password'),
+                                    identity_file=os.environ.get(
+                                            'CHECKMATE_PRIVATE_KEY',
+                                            '~/.ssh/id_rsa'))
+                create_server_task.connect(ssh_wait_task)
+
+                register_node_task = Celery(wfspec, 'Register Server:%s' % key,
+                               'stockton.cheflocal.distribute_register_node',
+                               call_args=[Attrib('ip'), deployment['id']],
+                               password=Attrib('password'),
+                               defines={"Resource": key})
+
+                # Register only when server is up and environment is ready
+                join = Merge(wfspec, "Wait for Server Build:%s" % key)
+                join.connect(register_node_task)
+                ssh_wait_task.connect(join)
+                create_environment.connect(join)
+
+                bootstrap_task = Celery(wfspec, 'Configure Server:%s' % key,
+                       'stockton.cheflocal.distribute_cook',
+                        call_args=[Attrib('ip'), deployment['id']],
+                        roles=['build', 'wordpress-web'],
+                        password=Attrib('password'),
+                        identity_file=os.environ.get(
+                            'CHECKMATE_PRIVATE_KEY',
+                            '~/.ssh/id_rsa'))
+                join = Merge(wfspec, "Wait on Server and Settings:%s" % key)
+                join.connect(bootstrap_task)
+                register_node_task.connect(join)
+
+                bootstrap_joins.append(join)  # to wire up overrides
+            elif config_provider_type == 'chef-server':
                 register_node_task = Celery(wfspec, 'Register Server:%s' % key,
                                'stockton.chefserver.distribute_register_node',
                                call_args=[Attrib('deployment'), hostname,
@@ -543,7 +601,7 @@ def create_workflow(deployment):
                 join.connect(bootstrap_task)
                 ssh_apt_get_task.connect(join)
                 register_node_task.connect(join)
-                bootstrap_joins.append(join)  # to wire up later
+                bootstrap_joins.append(join)  # to wire up later to overrides
 
         elif resource.get('type') == 'load-balancer':
             # Third task takes the 'deployment' attribute and creates a lb
@@ -556,9 +614,12 @@ def create_workflow(deployment):
             write_token.connect(create_lb_task)
         elif resource.get('type') == 'database':
             # Third task takes the 'deployment' attribute and creates a server
-            username = 'MyDBUser'
-            password = 'password'
+            start_with = string.ascii_uppercase + string.ascii_lowercase
+            password = '%s%s' % (random.choice(start_with),
+                    ''.join(random.choice(start_with + string.digits + '@?#_')
+                    for x in range(11)))
             db_name = 'db1'
+            username = 'wp_user_%s' % db_name
             create_db_task = Celery(wfspec, 'Create DB',
                                'stockton.db.distribute_create_instance',
                                call_args=[Attrib('deployment'), hostname, 1,
@@ -576,28 +637,38 @@ def create_workflow(deployment):
             create_db_task.connect(create_db_user)
 
             # Then register in Chef
-            if config_provider_type == 'chef-server':
-                # TODO: fix hard-coding DB (this should be triggered by a
-                # relation) Take output from Create DB task and write it into
-                # the 'override' dict to be available to future tasks
-                write_override = Transform(wfspec, "Prepare Override",
-                        transforms=[
-                        "my_task.attributes['overrides']={'wordpress': {'db': "
-                        "{'host': my_task.attributes['hostname'], "
-                        "'database': '%s', 'user': '%s', 'password': '%s'}}}" %
-                                (db_name, username, password)])
-                create_db_user.connect(write_override)
 
-                # Set environment databag
-                populate_databag = Celery(wfspec, "Populate Chef Overrides",
-                            'stockton.chefserver.distribute_manage_env',
-                            call_args=[Attrib('deployment'), deployment['id']],
-                                desc='CheckMate Environment',
-                                override_attributes=Attrib('overrides'))
-                join = Merge(wfspec, "Join:%s" % key)
-                join.connect(populate_databag)
-                create_environment.connect(join)
-                write_override.connect(join)
+            # TODO: fix hard-coding DB (this should be triggered by a
+            # relation) Take output from Create DB task and write it into
+            # the 'override' dict to be available to future tasks
+
+            compile_override = Transform(wfspec, "Prepare Overrides",
+                    transforms=[
+                    "my_task.attributes['overrides']={'wordpress': {'db': "
+                    "{'host': my_task.attributes['hostname'], "
+                    "'database': '%s', 'user': '%s', 'password': '%s'}}}" %
+                            (db_name, username, password)])
+            create_db_user.connect(compile_override)
+
+            # Set environment databag
+            if config_provider_type == 'chef-local':
+                set_overrides = Celery(wfspec,
+                        'Create Wordpress Role',
+                        'stockton.cheflocal.distribute_manage_role',
+                        call_args=['wordpress-web', deployment['id']],
+                        run_list=["recipe[wordpress]"],
+                        override_attributes=Attrib('overrides'))
+            elif config_provider_type == 'chef-server':
+                set_overrides = Celery(wfspec,
+                        "Write Database Settings",
+                        'stockton.chefserver.distribute_manage_env',
+                        call_args=[Attrib('deployment'), deployment['id']],
+                            desc='CheckMate Environment',
+                            override_attributes=Attrib('overrides'))
+            join = Merge(wfspec, "Wait on Environment and Settings:%s" % key)
+            join.connect(set_overrides)
+            create_environment.connect(join)
+            compile_override.connect(join)
 
         elif resource.get('type') == 'dns':
             # TODO: NOT TESTED YET
@@ -613,7 +684,7 @@ def create_workflow(deployment):
     # Wire connections
     #TODO: remove this hard-coding and use relations
     for bootstrap_join in bootstrap_joins:
-        populate_databag.connect(bootstrap_join)
+        set_overrides.connect(bootstrap_join)
 
     if create_lb_task:
         specs = {}

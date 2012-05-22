@@ -5,7 +5,6 @@
 """
 # pylint: disable=E0611
 from bottle import abort
-import copy
 from jinja2 import BaseLoader, TemplateNotFound, Environment
 import json
 import logging
@@ -106,7 +105,7 @@ def read_body(request):
     """Reads request body, taking into consideration the content-type, and
     return it as a dict"""
     data = request.body
-    if not data:
+    if not data or getattr(data, 'len', -1) == 0:
         abort(400, 'No data received')
     content_type = request.get_header('Content-type', 'application/json')
     if content_type == 'application/x-yaml':
