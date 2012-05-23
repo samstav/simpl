@@ -203,7 +203,7 @@ deployment:                                                                     
   inputs:
     domain: ${CHECKMATE_DOMAIN}
     ssl: false
-    region: chicago # TODO: this is still read from os.environ
+    region: dallas # TODO: this is still read from os.environ
     high-availability: false
     requests-per-second: 60
     database:instance/flavor: 2
