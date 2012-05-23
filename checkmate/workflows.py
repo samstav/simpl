@@ -471,20 +471,11 @@ def create_workflow(deployment):
 
             create_build_role = Celery(wfspec, 'Create Build Role',
                     'stockton.cheflocal.distribute_manage_role',
-                    call_args=['build', deployment['id']],
+                    call_args=['build-ks', deployment['id']],
                     run_list=["recipe[apt]",
-                              "recipe[build-essential]",
-                              "recipe[chef-client::delete_validation]",
-                              "recipe[chef-client::config]",
-                              "recipe[chef-client::service]"],
-                    override_attributes={"chef_client": {
-                            "server_url":
-                                    "http://chef-server.cldsrvr.com:4000",
-                            "interval": "30",
-                            "validation_client_name": "chef-validator",
-                            "init_style": "init"
-                            }},
-                    desc="This role runs once at build time (bootstrap)")
+                              "recipe[build-essential]"],
+                    desc="This chef-solo role runs once at build time "
+                            "(bootstrap)")
             create_environment.connect(create_build_role)
 
         elif config_provider_type == 'chef-server':
@@ -551,7 +542,7 @@ def create_workflow(deployment):
                 bootstrap_task = Celery(wfspec, 'Configure Server:%s' % key,
                        'stockton.cheflocal.distribute_cook',
                         call_args=[Attrib('ip'), deployment['id']],
-                        roles=['build', 'wordpress-web'],
+                        roles=['build-ks', 'wordpress-web'],
                         password=Attrib('password'),
                         identity_file=os.environ.get(
                             'CHECKMATE_PRIVATE_KEY',
@@ -693,7 +684,8 @@ def create_workflow(deployment):
     if create_lb_task:
         specs = {}
         for name, task_spec in wfspec.task_specs.iteritems():
-            if name.startswith('Create Server'):
+            if name.startswith('Bootstrap Server') or\
+                    name.startswith('Configure Server'):
                 specs[name] = task_spec
         for name, task_spec in specs.iteritems():
             # Wire to LB
