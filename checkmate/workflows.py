@@ -4,8 +4,7 @@ This module uses SpiffWorkflow to create, mange, and run workflows for
 CheckMate
 """
 # pylint: disable=E0611
-from bottle import app, get, post, put, delete, request, \
-        response, abort
+from bottle import get, post, put, request, response, abort
 import logging
 import os
 import random
@@ -23,9 +22,10 @@ except ImportError:
 from SpiffWorkflow import Workflow, Task
 from SpiffWorkflow.operators import Attrib
 from SpiffWorkflow.storage import DictionarySerializer
-from checkmate.db import get_driver, any_id_problems, any_tenant_id_problems
+from checkmate.db import get_driver, any_id_problems
 from checkmate.environments import Environment
-from checkmate.utils import write_body, read_body, extract_sensitive_data
+from checkmate.utils import write_body, read_body, extract_sensitive_data,\
+        merge_dictionary
 from checkmate import orchestrator
 
 db = get_driver('checkmate.db.sql.Driver')
@@ -189,7 +189,11 @@ def post_workflow_task(id, task_id, tenant_id=None):
     if 'attributes' in entity:
         if not isinstance(entity['attributes'], dict):
             abort(406, "'attribues' must be a dict")
-        task.attributes = entity['attributes']
+        # Don't do a simple overwrite since incoming may not have secrets and
+        # we don't want to stomp on them
+        body, secrets = extract_sensitive_data(task.attributes)
+        updated = merge_dictionary(secrets or {}, entity['attributes'])
+        task.attributes = updated
 
     if 'internal_attributes' in entity:
         if not isinstance(entity['internal_attributes'], dict):
