@@ -228,7 +228,8 @@ class Driver(DbBase):
         if results and results.count() > 0:
             e = results.first()
             e.body = body
-            e.tenant_id = tenant_id
+            if tenant_id:
+                e.tenant_id = tenant_id
             if secrets is not None:
                 if not secrets:
                     LOG.warning("Clearing secrets for %s:%s" % (klass.__name__,

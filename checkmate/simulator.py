@@ -37,7 +37,8 @@ LOG = logging.getLogger(__name__)
 
 
 @post('/deployments/simulate')
-def simulate():
+@post('/<tenant_id>/deployments/simulate')
+def simulate(tenant_id=None):
     """ Run a simulation """
     global PHASE, PACKAGE
     PHASE = time.time()
@@ -63,13 +64,15 @@ def simulate():
 
 
 @get('/deployments/simulate')
-def display():
+@get('/<tenant_id>/deployments/simulate')
+def display(tenant_id=None):
     global PHASE, PACKAGE
     return write_body(PACKAGE, request, response)
 
 
 @get('/workflows/simulate')
-def workflow_state():
+@get('/<tenant_id>/workflows/simulate')
+def workflow_state(tenant_id=None):
     """Return slightly updated workflow each time"""
     global PHASE
 
