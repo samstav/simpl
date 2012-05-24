@@ -83,7 +83,7 @@
             {% elif data.task_spec[0:9] == 'Create DB' %}
             <div class="alert alert-success">
               <a class="close" data-dismiss="alert" href="#">×</a>
-              Database {{data.attributes.id}} was created on host {{data.attributes.hostname}}. Try the <a target="_blank" href="https://github.rackspace.com/zachary-schneider/clouddb-client">Cloud DB Client</a> to see it.
+              Database {{data.attributes.id}} was created on host {{data.attributes.hostname}}. Install the <a target="_blank" href="https://github.rackspace.com/zachary-schneider/clouddb-client">Cloud DB Client</a> to see it <a target="_blank" href="chrome-extension://pnpkkmloheblphhafpehdabejjckbbaj/index.html#">here</a>.
             </div>
             {% endif %}
             <form id="task" method="POST" action="{{data.tenantId|prepend}}/workflows/{{data.workflow_id}}/tasks/{{data.id}}">

@@ -149,7 +149,8 @@ def wire(path):
 
 @get('/')
 def root():
-    return write_body('go to workflows', request, response)
+    return write_body('Welcome to the CheckMate Administration Interface',
+            request, response)
 
 
 #
