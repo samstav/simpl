@@ -462,28 +462,18 @@ def create_workflow(deployment):
     config_provider = environment.select_provider(resource='configuration')
     if config_provider:
         config_provider_type = config_provider.dict.get('type', 'chef-local')
+        # TODO: remove this hard-coding to Chef
         if config_provider_type == 'chef-local':
-            # TODO: remove this hard-coding to Chef
             create_environment = Celery(wfspec, 'Create Chef Environment',
                     'stockton.cheflocal.distribute_create_environment',
                     call_args=[deployment['id']])
             auth_task.connect(create_environment)
 
-            create_build_role = Celery(wfspec, 'Create Build Role',
-                    'stockton.cheflocal.distribute_manage_role',
-                    call_args=['build-ks', deployment['id']],
-                    run_list=["recipe[apt]",
-                              "recipe[build-essential]"],
-                    desc="This chef-solo role runs once at build time "
-                            "(bootstrap)")
-            create_environment.connect(create_build_role)
-
         elif config_provider_type == 'chef-server':
-            # TODO: remove this hard-coding to Chef
             create_environment = Celery(wfspec, 'Create Chef Environment',
-                               'stockton.chefserver.distribute_manage_env',
-                               call_args=[Attrib('deployment'), deployment['id'],
-                                    'CheckMate Environment'])
+                    'stockton.chefserver.distribute_manage_env',
+                    call_args=[Attrib('deployment'), deployment['id'],
+                    'CheckMate Environment'])
             auth_task.connect(create_environment)
         else:
             raise NotImplementedError("Config provider '%s' not supported" %
@@ -517,14 +507,12 @@ def create_workflow(deployment):
 
             # Then register in Chef
             if config_provider_type == 'chef-local':
-                ssh_wait_task = Celery(wfspec, 'Wait for Server:%s' % key,
-                                   'stockton.ssh.ssh_up',
-                                    call_args=[Attrib('deployment'),
-                                        Attrib('ip'), 'root'],
-                                    password=Attrib('password'),
-                                    identity_file=os.environ.get(
-                                            'CHECKMATE_PRIVATE_KEY',
-                                            '~/.ssh/id_rsa'))
+                ssh_wait_task = Celery(wfspec, 'Check that Server is Up:%s'
+                        % key, 'stockton.ssh.ssh_up',
+                        call_args=[Attrib('deployment'), Attrib('ip'), 'root'],
+                        password=Attrib('password'),
+                        identity_file=os.environ.get('CHECKMATE_PRIVATE_KEY',
+                                '~/.ssh/id_rsa'))
                 create_server_task.connect(ssh_wait_task)
 
                 register_node_task = Celery(wfspec, 'Register Server:%s' % key,
@@ -561,14 +549,12 @@ def create_workflow(deployment):
                                defines={"Resource": key})
                 create_environment.connect(register_node_task)
 
-                ssh_wait_task = Celery(wfspec, 'Wait for Server:%s' % key,
-                                   'stockton.ssh.ssh_up',
-                                    call_args=[Attrib('deployment'),
-                                        Attrib('ip'), 'root'],
-                                    password=Attrib('password'),
-                                    identity_file=os.environ.get(
-                                            'CHECKMATE_PRIVATE_KEY',
-                                            '~/.ssh/id_rsa'))
+                ssh_wait_task = Celery(wfspec, 'Check that Server is Up:%s' %
+                        key, 'stockton.ssh.ssh_up',
+                        call_args=[Attrib('deployment'), Attrib('ip'), 'root'],
+                        password=Attrib('password'),
+                        identity_file=os.environ.get('CHECKMATE_PRIVATE_KEY',
+                                '~/.ssh/id_rsa'))
                 create_server_task.connect(ssh_wait_task)
 
                 ssh_apt_get_task = Celery(wfspec, 'Apt-get Fix:%s' % key,
@@ -648,10 +634,9 @@ def create_workflow(deployment):
             # Set environment databag
             if config_provider_type == 'chef-local':
                 set_overrides = Celery(wfspec,
-                        'Create Wordpress Role',
+                        'Write Database Settings',
                         'stockton.cheflocal.distribute_manage_role',
                         call_args=['wordpress-web', deployment['id']],
-                        run_list=["recipe[wordpress]"],
                         override_attributes=Attrib('overrides'))
             elif config_provider_type == 'chef-server':
                 set_overrides = Celery(wfspec,
