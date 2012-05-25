@@ -1,12 +1,12 @@
 """
-  Celery tasks to orchestrate a sohpisticated deployment
+  Celery tasks to orchestrate a sophisticated deployment
 """
 import logging
 import time
 
-from celery.app import app_or_default
-from celery.task import task
 from celery import current_app
+from celery.contrib.abortable import AbortableTask
+from celery.task import task
 assert current_app.backend.__class__.__name__ == 'DatabaseBackend'
 assert 'python-stockton' in current_app.backend.dburi.split('/')
 
@@ -118,46 +118,77 @@ def distribute_count_seconds(seconds):
     return seconds
 
 
-@task
-def distribute_run_workflow(id, timeout=60):
-    """Loop through trying to complete the workflow and periodically send
-    status updates"""
+class distribute_run_workflow(AbortableTask):
+    track_started = True
+    default_retry_delay = 10
+    max_retries = 300  # We use our own timeout
 
-    from checkmate.db import get_driver
+    def run(self, id, timeout=60, wait=1, counter=1):
+        """Loop through trying to complete the workflow and periodically log
+        status updates. Each time we cycle through, if nothing happens we
+        extend the wait time between cycles so we don't load the system.
 
-    db = get_driver('checkmate.db.sql.Driver')
-    serializer = DictionarySerializer()
-    LOG.debug("Deserializing workflow %s" % id)
-    workflow = db.get_workflow(id, with_secrets=True)
-    wf = Workflow.deserialize(serializer, workflow)
+        This function should not consume time, so the timeout is only counting
+        the number of seconds we wait between runs
 
-    LOG.debug("Deserialized workflow %s: %s" % (id, wf.get_dump()))
+        :param id: the workflow id
+        :param timeout: the timeout in seconds. Unless we complete before then
+        :param wait: how long to wait between runs. Grows without activity
+        :returns: True if workflow is complete
+        """
 
-    i = 0
-    last_reported_complete = 0
-    wait = 0  # How long to wait (increases with no activity until 6s)
-    while not wf.is_completed() and i < timeout:
-        total = len(wf.get_tasks(state=Task.ANY_MASK))  # Changes
-        count = len(wf.get_tasks(state=Task.COMPLETED))
-        if count != last_reported_complete:
-            last_reported_complete = count
-            LOG.debug("Workflow status: %s/%s (state=%s)" % (count, total,
-                    "PROGRESS"))
-            LOG.debug(wf.get_dump())
-            wait = 1
-        else:
-            if wait < 6:
-                wait += 1
+        # Get the workflow
+        db = get_driver('checkmate.db.sql.Driver')
+        serializer = DictionarySerializer()
+        workflow = db.get_workflow(id, with_secrets=True)
+        wf = Workflow.deserialize(serializer, workflow)
+        LOG.debug("Deserialized workflow %s: %s" % (id, wf.get_dump()))
+
+        # Prepare to run it
+        if wf.is_completed():
+            return True
+
+        before = wf.get_dump()
+
+        # Run!
         wf.complete_all()
-        i += 1
-        workflow = wf.serialize(serializer)
-        body, secrets = extract_sensitive_data(workflow)
-        db.save_workflow(id, body, secrets)
-        LOG.debug("Finished loop #%s for workflow %s (timeout in %is, waiting "
-                "%i)" % (i, id, timeout - i, wait))
-        time.sleep(wait)
 
-    return workflow
+        # Assess impact of run
+        if wf.is_completed():
+            return True
+
+        after = wf.get_dump()
+
+        if before != after:
+            # We made some progress, so save and prioritize next run
+            workflow = wf.serialize(serializer)
+            body, secrets = extract_sensitive_data(workflow)
+            db.save_workflow(id, body, secrets)
+            wait = 1
+
+            # Report progress
+            total = len(wf.get_tasks(state=Task.ANY_MASK))  # Changes
+            completed = len(wf.get_tasks(state=Task.COMPLETED))
+            LOG.debug("Workflow status: %s/%s (state=%s)" % (completed, total,
+                    "PROGRESS"))
+            self.update_state(state="PROGRESS",
+                    meta={'complete': completed, 'total': total})
+        else:
+            # No progress made. So we lose some priority (to max of 20s wait)
+            if wait < 20:
+                wait += 1
+        timeout = timeout - wait if timeout > wait else 0
+        if timeout:
+            LOG.debug("Finished run of workflow %s. %is to go. Waiting %i to "
+                    "next run. Retries: %s" % (id, timeout, wait,
+                    counter))
+            retry_kwargs = {'timeout': timeout, 'wait': wait,
+                    'counter': counter + 1}
+            return self.retry([id], kwargs=retry_kwargs, countdown=wait,
+                    Throw=False)
+        else:
+            LOG.debug("Workflow %s timed out." % id)
+            return False
 
 
 @task
