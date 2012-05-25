@@ -156,18 +156,18 @@ blueprint: &wp-multi
 #        [endpoint: !!uri]
 #      [common:]  #any values common to all providers
 # A test environment
-environment: &env1
-  name: rackcloud-test
+environment: &rackspace-legacy-cloud-test
+  name: rackspace-legacy-cloud-test
+  description: |
+    This environment tests legacy cloud servers. It is hard-targetted at chicago
+    because the rackcloudtech legacy servers account is in chicago
+
   # The idea behind providers is that the environment can be configured to use different providers for different types of resources
   # For example, we could use Cloud Servers or Dedicated Servers as a compute provider.
   # The intent is that these providers can be extracted automatically from the service catalog when authenticating, but including providers here
   # means we can pre-determine or hard-code them if we want to.
   providers:
-    compute: &rax-cloud-servers-openstack
-      provides:
-      - compute
-      vendor: rackspace
-    legacy-compute: &rax-cloud-servers-slice
+    legacy: &rax-cloud-servers-slice
       provides:
       - compute
       vendor: rackspace
@@ -179,8 +179,7 @@ environment: &env1
       provides:
       - database
       endpoint: https://database.api.rackpsacecloud.com/servers/{tenantId}
-    configuration-management: &configurator  # MORE THOUGHT needed...
-      type: chef-local  # vs chef-server, puppet, etc...
+    chef-local: &configurator  # MORE THOUGHT needed...
       vendor: opscode
       provides:
       - configuration
@@ -191,24 +190,53 @@ environment: &env1
         username: ${CHECKMATE_USERNAME}
         apikey: ${CHECKMATE_APIKEY}
       constraints:
-      - region: ${CHECKMATE_REGION}                                               #IMPLEMENTED at root of env, but not under constraints
+      - region: chicago
 
+environment: &rackspace-nova-test
+  name: rackspace-lnova-test
+  description: |
+    This environment is using Nova/next-gen cloud servers
+  providers:
+    legacy:
+      provides:
+      - compute
+      vendor: rackspace
+    loadbalancer:
+      provides:
+      - load-balancer
+      endpoint: https://lbaas.api.rackpsacecloud.com/servers/{tenantId}
+    database:
+      provides:
+      - database
+      endpoint: https://database.api.rackpsacecloud.com/servers/{tenantId}
+    chef-local:
+      vendor: opscode
+      provides:
+      - configuration
+    common:
+      vendor: rackspace
+      credentials:
+      - rackspace:
+        username: ${CHECKMATE_USERNAME}
+        apikey: ${CHECKMATE_APIKEY}
+      constraints:
+      - region: ${CHECKMATE_REGION}
 
 #### Deployments
 
 # Actual deployment instances. These are our live, running systems
 deployment:                                                                     #IMPLEMENTED - checkmate looks for this
   blueprint: *wp-multi
-  environment: *env1
+  environment: *rackspace-nova-test
   inputs:
     domain: ${CHECKMATE_DOMAIN}
     ssl: false
-    region: dallas # TODO: this is still read from os.environ
+    region: ${CHECKMATE_REGION}  # TODO: this is still read from os.environ
     high-availability: false
     requests-per-second: 60
     database:instance/flavor: 1
     wordpress:instance/flavor: 1  # Is this how we want to do this? That would mnean no colons in settings names...
-    wordpress:instance/count: 1
+    wordpress:instance/count: 2
 
 #### Sample Output
 #-POSTed added to prevent checkmate from looking at this when we post this doc for testing

@@ -113,8 +113,7 @@ class Environment():
             vendor = provider.get('vendor', common.get('vendor', None))
             if not vendor:
                 raise CheckmateException("No vendor specified for '%s'" % key)
-            provider_class = get_provider_class("%s.%s" % (vendor,
-                    key.replace('-', '_')))
+            provider_class = get_provider_class(vendor, key)
             results[key] = provider_class(provider)
         return results
 

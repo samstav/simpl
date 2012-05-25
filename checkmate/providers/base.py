@@ -16,5 +16,8 @@ class ProviderBase():
         raise NotImplementedError()
 
 
-def get_provider_class(name):
-    return utils.import_class("checkmate.providers.%s" % name)
+def get_provider_class(vendor, key):
+    name = "%s.%s" % (vendor, key)
+    class_name = "checkmate.providers.%s" % name.replace('-', '_')
+    LOG.debug("Instantiating provider class: %s" % class_name)
+    return utils.import_class(class_name)

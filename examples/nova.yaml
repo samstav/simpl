@@ -1,0 +1,189 @@
+# **CheckMate** is a configuration management REST service written in python.
+# The source can be found [here](http://github.com/ziadsawalha/checkmate)
+#
+# This sample configuration file can be used to deploy a wordpress application
+# to the cloud. It also currently serves as the main reference for the
+# CheckMate configuration syntax.
+#
+# ${VARIABLE} can be replaced by with your local variables
+# before posting it to checkmate like this:
+#
+#     awk '{while(match($0,"[$][\\{][^\\}]*\\}")) {var=substr($0,RSTART+2,RLENGTH -3);gsub("[$][{]"var"[}]",ENVIRON[var])}}1' < app.yaml
+#
+# To transform and send the output to checkmate:
+#
+#     awk '{while(match($0,"[$][\\{][^\\}]*\\}")) {var=substr($0,RSTART+2,RLENGTH -3);gsub("[$][{]"var"[}]",ENVIRON[var])}}1' < app.yaml | curl -H 'X-Auth-Token: abcdef' -H 'content-type: application/x-yaml' http://localhost:8080/deployments -v --data-binary @-
+
+
+#### ALPHA STATUS
+#
+# This syntax is under development (and open for discussion). So, in order to
+# distinguish what has been implemnted in the code, versus what is only being
+# discussed in this document, any piece that is actually used in the code is
+# marked with the comment #IMPLEMENTED at the end of the document which shows
+# a sample deployment after checkmate has processed it
+
+
+#### Application
+# This file defines all the aspects of a number of possible wordpress
+# deployments. The pieces it brings together are
+# [components](#components),
+# environments,
+# blueprints,
+# and deployments.
+
+# <a id="components" />
+#### Components
+# Components define the basic building blocks for checkmate. We use a syntax
+# similar to Juju Charm syntax
+
+#Definitions of components/services used in this file
+components:
+  # the name of the component and an optional anchor (any unique name preceded by &) which
+  # can be used to reference it from elsewhere in the file
+  wordpress: &wordpress1
+    id: wordpress1
+    # revisions track multiple versions of a component definition
+    revision: 3
+    # a short description of the component
+    summary: "A pretty popular blog engine"
+    # the interfaces it provides (a web service on port 80, a database host,
+    # etc...). Accepted list is:
+    #    - url: an internet resource accessible over a URL (http[s], ftp, etc)
+    #    - db: a database
+    provides:
+      url: http
+    requires:
+      db:
+       interface: mysql
+    # User/consumer options - these are less technical and can change settings
+    options:
+      url:
+        type: String
+        default: localhost
+        description: the url to use to host your blog on
+      high-availability:
+        type: Boolean
+        default: false
+        description: build in redundancy? If not, build one server.
+    # Advanced settings - technical
+    settings:
+      instance/flavor:
+        default: 1  # flavor=256mb. TODO: or maybe something more generic
+        description: the type (and size) of instance to use
+        type: {1: "256Mb", 2: "512Mb"} # TODO: How do we link this to a list of images?
+      instance/os:
+        default: Ubuntu 11.10  # Translated to image 119 by Rax provider.
+        description: the operating system and version to use
+      instance/count:
+        default: 1
+        description: the number of instances to spin up
+
+  mysql: &mysql
+    id: mysql
+    revision: 1
+    summary: "A pretty popular database"
+    provides:
+      db: mysql
+    # Advanced settings - technical
+    settings:
+      password:
+        type: String
+        default: =generate()  # TODO: think about how best to represent this.
+        description: the password for the database
+      instance/flavor:
+        default: 1  # flavor=512mb.
+        description: the type (and size) of instance to use
+
+  loadbalancer: &loadbalancer
+    id: loadbalancer
+    revision: 1
+    summary: Load-balancer as a Service instance
+    provides:
+      url: http
+    requires:
+      url:
+        interface: http
+
+#### Blueprints
+
+# An architecture template
+# This would be where we define the architecture of an application which would include
+# all the components, tiers, connections, and scaling rules for that application
+blueprint: &wp
+  name: Simple Wordpress
+  services:
+    wordpress:
+      config: *wordpress1 #Reference in local file
+      exposed: true
+      open-ports: [80/tcp]
+      relations: {db: database}  # resource-type: service
+    database: #TODO: remove hard coding against this name. Thinak about what these names mean. These are basically tiers...
+      config: *mysql  #TODO: support local (same server) and remote links like local://components/mysql
+
+blueprint: &wp1
+  name: OneBox Wordpress
+  inherit: *wp
+  constraint:
+    instance-count: 1
+
+blueprint: &wp-multi
+  name: Scalable Wordpress
+  services:
+    loadbalancer:
+      config: *loadbalancer
+      exposed: true
+      open-ports: [80/tcp]
+      relations: {url: wordpress}
+    wordpress:
+      config: *wordpress1 #Reference in local file
+      relations: {db: database}  # resource-type: service
+    database: #TODO: remove hard coding against this name. Thinak about what these names mean. These are basically tiers...
+      config: *mysql  #TODO: support local (same server) and remote links like local://components/mysql
+
+
+environment: &rackspace-nova-test
+  name: rackspace-nova-test
+  description: |
+    This environment is using Nova/next-gen cloud servers
+  providers:
+    nova: &rax-cloud-servers-openstack
+      provides:
+      - compute
+      vendor: rackspace
+    loadbalancer: &rax-lbaas
+      provides:
+      - load-balancer
+      endpoint: https://lbaas.api.rackpsacecloud.com/servers/{tenantId}
+    database: &rax-dbaas
+      provides:
+      - database
+      endpoint: https://database.api.rackpsacecloud.com/servers/{tenantId}
+    chef-local: &configurator  # MORE THOUGHT needed...
+      vendor: opscode
+      provides:
+      - configuration
+    common:
+      vendor: rackspace
+      credentials:
+      - rackspace:
+        username: ${CHECKMATE_USERNAME}
+        apikey: ${CHECKMATE_APIKEY}
+      constraints:
+      - region: ${CHECKMATE_REGION} 
+
+#### Deployments
+
+# Actual deployment instances. These are our live, running systems
+deployment:                                                                     #IMPLEMENTED - checkmate looks for this
+  blueprint: *wp-multi
+  environment: *rackspace-nova-test
+  inputs:
+    domain: ${CHECKMATE_DOMAIN}
+    ssl: false
+    region: ${CHECKMATE_REGION}  # TODO: this is still read from os.environ
+    high-availability: false
+    requests-per-second: 60
+    database:instance/flavor: 1
+    wordpress:instance/flavor: 1  # Is this how we want to do this? That would mnean no colons in settings names...
+    wordpress:instance/count: 2
