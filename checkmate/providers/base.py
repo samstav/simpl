@@ -22,7 +22,7 @@ class ProviderBase():
         raise NotImplementedError()
 
     def add_resource_tasks(self, resource, key, wfspec, deployment,
-            stockton_deployment, wait_on=None):
+            context, wait_on=None):
         """Add tasks needed to create a resource (the resource would normally
             what was generated in the generate_template call)"""
         raise NotImplementedError()

@@ -8,8 +8,8 @@ LOG = logging.getLogger(__name__)
 
 
 class Provider(ProviderBase):
-    def add_resource_tasks(self, resource, key, wfspec, deployment,
-            stockton_deployment, wait_on=None):
+    def add_resource_tasks(self, resource, key, wfspec, deployment, context,
+                wait_on=None):
         return Celery(wfspec, 'Create LB',
                        'stockton.lb.distribute_create_loadbalancer',
                        call_args=[Attrib('deployment'),

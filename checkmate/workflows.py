@@ -401,7 +401,7 @@ def create_workflow(deployment):
             deployment['environment']['providers'].iteritems()
             if key == 'common'][0]
 
-    stockton_deployment = {
+    context = {
         'id': deployment['id'],
         'username': creds['username'],
         'apikey': creds['apikey'],
@@ -446,7 +446,7 @@ def create_workflow(deployment):
                     "'%s' environment variable: %s" % (
                             os.environ['STOCKTON_PUBLIC_KEY'], exc))
     if keys:
-        stockton_deployment['files']['/root/.ssh/authorized_keys'] = \
+        context['files']['/root/.ssh/authorized_keys'] = \
                 "\n".join(keys)
     else:
         LOG.warn("No public keys detected. Less secure password auth will be "
@@ -485,12 +485,12 @@ def create_workflow(deployment):
         if resource.get('type') == 'server':
             # Third task takes the 'deployment' attribute and creates a server
             create_server_task = compute_provider.add_resource_tasks(resource,
-                    key, wfspec, deployment, stockton_deployment)
+                    key, wfspec, deployment, context)
             write_token.connect(create_server_task)
 
             # NOTE: chef-server provider assums wait_on[0]=create_server_task
             configure_server_task = config_provider.add_resource_tasks(
-                    resource, key, wfspec, deployment, stockton_deployment,
+                    resource, key, wfspec, deployment, context,
                     wait_on=create_server_task.outputs)
 
             bootstrap_joins.extend(configure_server_task.outputs)
@@ -498,12 +498,12 @@ def create_workflow(deployment):
         elif resource.get('type') == 'load-balancer':
             # Third task takes the 'deployment' attribute and creates a lb
             create_lb_task = lb_provider.add_resource_tasks(resource,
-                    key, wfspec, deployment, stockton_deployment)
+                    key, wfspec, deployment, context)
             write_token.connect(create_lb_task)
         elif resource.get('type') == 'database':
             # Third task takes the 'deployment' attribute and creates a server
             create_db_task = database_provider.add_resource_tasks(resource,
-                    key, wfspec, deployment, stockton_deployment)
+                    key, wfspec, deployment, context)
 
             write_token.connect(create_db_task)
 
@@ -582,5 +582,5 @@ def create_workflow(deployment):
 
     wf = Workflow(wfspec)
     #Pass in the initial deployemnt dict (task 2 is the Start task)
-    wf.get_task(2).set_attribute(deployment=stockton_deployment)
+    wf.get_task(2).set_attribute(deployment=context)
     return wf

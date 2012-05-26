@@ -27,8 +27,8 @@ class Provider(ProviderBase):
 
         return template
 
-    def add_resource_tasks(self, resource, key, wfspec, deployment,
-            stockton_deployment, wait_on=None):
+    def add_resource_tasks(self, resource, key, wfspec, deployment, context,
+            wait_on=None):
         start_with = string.ascii_uppercase + string.ascii_lowercase
         password = '%s%s' % (random.choice(start_with),
                 ''.join(random.choice(start_with + string.digits + '@?#_')
@@ -50,8 +50,8 @@ class Provider(ProviderBase):
                                         Attrib('id'), [db_name],
                                         username, password])
         # Store these in the context for use by other tasks
-        stockton_deployment['db_name'] = db_name
-        stockton_deployment['db_username'] = username
-        stockton_deployment['db_password'] = password
+        context['db_name'] = db_name
+        context['db_username'] = username
+        context['db_password'] = password
         create_db_task.connect(create_db_user)
         return create_db_task

@@ -22,8 +22,8 @@ class LocalProvider(ProviderBase):
         self.prep_task = create_environment
         return create_environment
 
-    def add_resource_tasks(self, resource, key, wfspec, deployment,
-            stockton_deployment, wait_on=None):
+    def add_resource_tasks(self, resource, key, wfspec, deployment, context,
+                wait_on=None):
         register_node_task = Celery(wfspec, 'Register Server:%s' % key,
                        'stockton.cheflocal.distribute_register_node',
                        call_args=[Attrib('ip'), deployment['id']],
@@ -68,8 +68,8 @@ class ServerProvider(ProviderBase):
         self.prep_task = create_environment
         return create_environment
 
-    def add_resource_tasks(self, resource, key, wfspec, deployment,
-            stockton_deployment, wait_on=None):
+    def add_resource_tasks(self, resource, key, wfspec, deployment, context,
+                wait_on=None):
         register_node_task = Celery(wfspec, 'Register Server:%s' % key,
                         'stockton.chefserver.distribute_register_node',
                         call_args=[Attrib('deployment'),
