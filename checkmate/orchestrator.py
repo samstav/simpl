@@ -153,10 +153,6 @@ class distribute_run_workflow(AbortableTask):
         # Run!
         wf.complete_all()
 
-        # Assess impact of run
-        if wf.is_completed():
-            return True
-
         after = wf.get_dump()
 
         if before != after:
@@ -177,6 +173,11 @@ class distribute_run_workflow(AbortableTask):
             # No progress made. So we lose some priority (to max of 20s wait)
             if wait < 20:
                 wait += 1
+
+        # Assess impact of run
+        if wf.is_completed():
+            return True
+
         timeout = timeout - wait if timeout > wait else 0
         if timeout:
             LOG.debug("Finished run of workflow %s. %is to go. Waiting %i to "
