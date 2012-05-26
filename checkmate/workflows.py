@@ -465,6 +465,7 @@ def create_workflow(deployment):
             auth_task.connect(create_environment)
 
     compute_provider = environment.select_provider(resource='compute')
+    lb_provider = environment.select_provider(resource='load-balancer')
     database_provider = environment.select_provider(resource='database')
 
     # For resources we create, we store the resource key in the spec's Defines
@@ -496,12 +497,8 @@ def create_workflow(deployment):
 
         elif resource.get('type') == 'load-balancer':
             # Third task takes the 'deployment' attribute and creates a lb
-            create_lb_task = Celery(wfspec, 'Create LB',
-                               'stockton.lb.distribute_create_loadbalancer',
-                               call_args=[Attrib('deployment'), hostname,
-                                    'PUBLIC', 'HTTP', 80],
-                               dns=True,
-                               defines={"Resource": key})
+            create_lb_task = lb_provider.add_resource_tasks(resource,
+                    key, wfspec, deployment, stockton_deployment)
             write_token.connect(create_lb_task)
         elif resource.get('type') == 'database':
             # Third task takes the 'deployment' attribute and creates a server
