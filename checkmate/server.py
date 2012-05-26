@@ -43,20 +43,15 @@ Notes:
 """
 
 import base64
-import json
 # pylint: disable=E0611
-from bottle import app, get, post, put, delete, run, request, \
-        response, abort, static_file
+from bottle import app, get, post, run, request, response, abort, static_file
 import os
 import logging
 import pam
-from SpiffWorkflow.storage import DictionarySerializer
-import sys
 from time import sleep
 import uuid
 import webob
 from webob.exc import HTTPNotFound, HTTPUnauthorized
-from celery.app import app_or_default
 
 
 # define a Handler which writes INFO messages or higher to the sys.stderr
@@ -71,12 +66,12 @@ logging.getLogger().addHandler(console)
 logging.getLogger().setLevel(logging.DEBUG)
 LOG = logging.getLogger(__name__)
 
-from checkmate import orchestrator
 from checkmate.db import get_driver, any_id_problems, any_tenant_id_problems
-from checkmate.deployments import plan, plan_dict
-from checkmate import environments  # Load routes
-from checkmate import simulator  # Load routes
-from checkmate.workflows import create_workflow
+
+# Load routes
+from checkmate import simulator
+from checkmate import blueprints, components, deployments, environments
+
 from checkmate.utils import *
 
 db = get_driver('checkmate.db.sql.Driver')
@@ -151,285 +146,6 @@ def wire(path):
 def root():
     return write_body('Welcome to the CheckMate Administration Interface',
             request, response)
-
-
-#
-# Components
-#
-@get('/components')
-@get('/<tenant_id>/components')
-def get_components(tenant_id=None):
-    return write_body(db.get_components(tenant_id=tenant_id), request,
-            response)
-
-
-@post('/components')
-@post('/<tenant_id>/components')
-def post_component(tenant_id=None):
-    entity = read_body(request)
-    if 'component' in entity:
-        entity = entity['component']
-
-    if 'id' not in entity:
-        entity['id'] = uuid.uuid4().hex
-    if any_id_problems(entity['id']):
-        abort(406, any_id_problems(entity['id']))
-
-    body, secrets = extract_sensitive_data(entity)
-    results = db.save_component(entity['id'], body, secrets,
-            tenant_id=tenant_id)
-
-    return write_body(results, request, response)
-
-
-@put('/components/<id>')
-@put('/<tenant_id>/components/<id>')
-def put_component(id, tenant_id=None):
-    entity = read_body(request)
-    if 'component' in entity:
-        entity = entity['component']
-
-    if any_id_problems(id):
-        abort(406, any_id_problems(id))
-    if 'id' not in entity:
-        entity['id'] = str(id)
-
-    body, secrets = extract_sensitive_data(entity)
-    results = db.save_component(id, body, secrets, tenant_id=tenant_id)
-
-    return write_body(results, request, response)
-
-
-@get('/components/<id>')
-@get('/<tenant_id>/components/<id>')
-def get_component(id, tenant_id=None):
-    entity = db.get_component(id)
-    if not entity:
-        abort(404, 'No component with id %s' % id)
-    return write_body(entity, request, response)
-
-
-#
-# Blueprints
-#
-@get('/blueprints')
-@get('/<tenant_id>/blueprints')
-def get_blueprints(tenant_id=None):
-    return write_body(db.get_blueprints(tenant_id=tenant_id), request,
-            response)
-
-
-@post('/blueprints')
-@post('/<tenant_id>/blueprints')
-def post_blueprint(tenant_id=None):
-    entity = read_body(request)
-    if 'blueprint' in entity:
-        entity = entity['blueprint']
-
-    if 'id' not in entity:
-        entity['id'] = uuid.uuid4().hex
-    if any_id_problems(entity['id']):
-        abort(406, any_id_problems(entity['id']))
-
-    body, secrets = extract_sensitive_data(entity)
-    results = db.save_blueprint(entity['id'], body, secrets,
-            tenant_id=tenant_id)
-
-    return write_body(results, request, response)
-
-
-@put('/blueprints/<id>')
-@put('/<tenant_id>/blueprints/<id>')
-def put_blueprint(id, tenant_id=None):
-    entity = read_body(request)
-    if 'blueprint' in entity:
-        entity = entity['blueprint']
-
-    if any_id_problems(id):
-        abort(406, any_id_problems(id))
-    if 'id' not in entity:
-        entity['id'] = str(id)
-
-    body, secrets = extract_sensitive_data(entity)
-    results = db.save_blueprint(id, body, secrets, tenant_id=tenant_id)
-
-    return write_body(results, request, response)
-
-
-@get('/blueprints/<id>')
-@get('/<tenant_id>/blueprints/<id>')
-def get_blueprint(id, tenant_id=None):
-    entity = db.get_blueprint(id)
-    if not entity:
-        abort(404, 'No blueprint with id %s' % id)
-    return write_body(entity, request, response)
-
-
-#
-# Deployments
-#
-@get('/deployments')
-@get('/<tenant_id>/deployments')
-def get_deployments(tenant_id=None):
-    return write_body(db.get_deployments(tenant_id=tenant_id), request,
-            response)
-
-
-@post('/deployments')
-@post('/<tenant_id>/deployments')
-def post_deployment(tenant_id=None):
-    entity = read_body(request)
-    if 'deployment' in entity:
-        entity = entity['deployment']
-
-    if 'id' not in entity:
-        entity['id'] = uuid.uuid4().hex
-    if any_id_problems(entity['id']):
-        abort(406, any_id_problems(entity['id']))
-    id = str(entity['id'])
-    body, secrets = extract_sensitive_data(entity)
-    db.save_deployment(id, body, secrets, tenant_id=tenant_id)
-
-    response.add_header('Location', "/deployments/%s" % id)
-
-    #Assess work to be done & resources to be created
-    results = plan(id)
-
-    serializer = DictionarySerializer()
-    workflow = results['workflow'].serialize(serializer)
-    workflow['id'] = id
-    deployment = results['deployment']
-    deployment['workflow'] = id
-
-    body, secrets = extract_sensitive_data(deployment)
-    deployment = db.save_deployment(id, body, secrets, tenant_id=tenant_id)
-
-    body, secrets = extract_sensitive_data(workflow)
-    db.save_workflow(id, body, secrets, tenant_id=tenant_id)
-
-    #Trigger the workflow
-    async_task = execute(id)
-
-    # Return response (with new resource location in header)
-    return write_body(deployment, request, response)
-
-
-@post('/deployments/+parse')
-@post('/<tenant_id>/deployments/+parse')
-def parse_deployment():
-    """ Use this to preview a request """
-    entity = read_body(request)
-    if 'deployment' in entity:
-        entity = entity['deployment']
-
-    if 'id' not in entity:
-        entity['id'] = uuid.uuid4().hex
-    if any_id_problems(entity['id']):
-        abort(406, any_id_problems(entity['id']))
-
-    results = plan_dict(entity)
-
-    serializer = DictionarySerializer()
-    workflow = results['workflow'].serialize(serializer)
-    results['workflow'] = workflow
-
-    return write_body(results, request, response)
-
-
-@put('/deployments/<id>')
-@put('/<tenant_id>/deployments/<id>')
-def put_deployment(id, tenant_id=None):
-    entity = read_body(request)
-    if 'deployment' in entity:
-        entity = entity['deployment']
-
-    if any_id_problems(id):
-        abort(406, any_id_problems(id))
-    if 'id' not in entity:
-        entity['id'] = str(id)
-
-    body, secrets = extract_sensitive_data(entity)
-    results = db.save_deployment(id, body, secrets, tenant_id=tenant_id)
-
-    return write_body(results, request, response)
-
-
-@get('/deployments/<id>')
-@get('/<tenant_id>/deployments/<id>')
-def get_deployment(id, tenant_id=None):
-    if 'with_secrets' in request.query:  # TODO: verify admin-ness
-        entity = db.get_deployment(id, with_secrets=True)
-    else:
-        entity = db.get_deployment(id)
-    if not entity:
-        abort(404, 'No deployment with id %s' % id)
-    return write_body(entity, request, response)
-
-
-@get('/deployments/<id>/status')
-@get('/<tenant_id>/deployments/<id>/status')
-def get_deployment_status(id, tenant_id=None):
-    deployment = db.get_deployment(id)
-    if not deployment:
-        abort(404, 'No deployment with id %s' % id)
-
-    resources = deployment.get('resources', {})
-    results = {}
-    workflow_id = deployment.get('workflow')
-    if workflow_id:
-        workflow = db.get_workflow(workflow_id)
-        serializer = DictionarySerializer()
-        wf = Workflow.deserialize(serializer, workflow)
-        for task in wf.get_tasks(state=Task.ANY_MASK):
-            if 'Resource' in task.task_spec.defines:
-                resource_id = str(task.task_spec.defines['Resource'])
-                resource = resources.get(resource_id, None)
-                if resource:
-                    result = {}
-                    result['state'] = task.get_state_name()
-                    error = task.get_attribute('error', None)
-                    if error is not None:  # Show empty strings too
-                        result['error'] = error
-                    result['output'] = {key: task.attributes[key] for key
-                            in task.attributes if key not in['deployment',
-                            'token', 'error']}
-                    if 'tasks' not in resource:
-                        resource['tasks'] = {}
-                    resource['tasks'][task.get_name()] = result
-            else:
-                result = {}
-                result['state'] = task.get_state_name()
-                error = task.get_attribute('error', None)
-                if error is not None:  # Show empty strings too
-                    result['error'] = error
-                if 'tasks' not in results:
-                    results['tasks'] = {}
-                results['tasks'][task.get_name()] = result
-
-    results['resources'] = resources
-
-    return write_body(results, request, response)
-
-
-def execute(id, timeout=180, tenant_id=None):
-    """Process a checkmate deployment workflow
-
-    Executes and moves the workflow forward.
-    Retrieves results (final or intermediate) and updates them into
-    deployment.
-
-    :param id: checkmate deployment id
-    :returns: the async task
-    """
-    if any_id_problems(id):
-        abort(406, any_id_problems(id))
-
-    deployment = db.get_deployment(id)
-    if not deployment:
-        abort(404, 'No deployment with id %s' % id)
-
-    result = orchestrator.distribute_run_workflow.delay(id, timeout=600)
-    return result
 
 
 # Keep this at end

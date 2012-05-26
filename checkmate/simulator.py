@@ -25,6 +25,7 @@ except ImportError:
 
 from SpiffWorkflow import Workflow
 from SpiffWorkflow.storage import DictionarySerializer
+
 from checkmate.db import any_id_problems
 from checkmate.utils import write_body, read_body
 from checkmate.deployments import plan_dict
