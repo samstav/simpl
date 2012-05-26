@@ -55,7 +55,7 @@ components:
       url: http
     requires:
       db:
-       interface: mysql
+        interface: mysql
     # User/consumer options - these are less technical and can change settings
     options:
       url:
@@ -155,10 +155,12 @@ environment: &rackspace-nova-test
       provides:
       - load-balancer
       endpoint: https://lbaas.api.rackpsacecloud.com/servers/{tenantId}
+      vendor: rackspace
     database: &rax-dbaas
       provides:
       - database
       endpoint: https://database.api.rackpsacecloud.com/servers/{tenantId}
+      vendor: rackspace
     chef-local: &configurator  # MORE THOUGHT needed...
       vendor: opscode
       provides:

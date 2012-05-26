@@ -194,42 +194,12 @@ environment: &rackspace-legacy-cloud-test
       constraints:
       - region: chicago
 
-environment: &rackspace-nova-test
-  name: rackspace-lnova-test
-  description: |
-    This environment is using Nova/next-gen cloud servers
-  providers:
-    legacy:
-      provides:
-      - compute
-      vendor: rackspace
-    loadbalancer:
-      provides:
-      - load-balancer
-      endpoint: https://lbaas.api.rackpsacecloud.com/servers/{tenantId}
-    database:
-      provides:
-      - database
-      endpoint: https://database.api.rackpsacecloud.com/servers/{tenantId}
-    chef-local:
-      vendor: opscode
-      provides:
-      - configuration
-    common:
-      vendor: rackspace
-      credentials:
-      - rackspace:
-        username: ${CHECKMATE_USERNAME}
-        apikey: ${CHECKMATE_APIKEY}
-      constraints:
-      - region: ${CHECKMATE_REGION}
-
 #### Deployments
 
 # Actual deployment instances. These are our live, running systems
 deployment:                                                                     #IMPLEMENTED - checkmate looks for this
   blueprint: *wp-multi
-  environment: *rackspace-nova-test
+  environment: *rackspace-legacy-cloud-test
   inputs:
     domain: ${CHECKMATE_DOMAIN}
     ssl: false
