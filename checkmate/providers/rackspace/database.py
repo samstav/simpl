@@ -1,4 +1,9 @@
 import logging
+import random
+from SpiffWorkflow.operators import Attrib
+from SpiffWorkflow.specs import Celery
+import string
+
 from checkmate.providers import ProviderBase
 
 
@@ -21,3 +26,32 @@ class Provider(ProviderBase):
                                      'flavor': flavor, 'instance-id': None}
 
         return template
+
+    def add_resource_tasks(self, resource, key, wfspec, deployment,
+            stockton_deployment, wait_on=None):
+        start_with = string.ascii_uppercase + string.ascii_lowercase
+        password = '%s%s' % (random.choice(start_with),
+                ''.join(random.choice(start_with + string.digits + '@?#_')
+                for x in range(11)))
+        db_name = 'db1'
+        username = 'wp_user_%s' % db_name
+
+        create_db_task = Celery(wfspec, 'Create DB',
+                               'stockton.db.distribute_create_instance',
+                               call_args=[Attrib('deployment'),
+                                        resource.get('dns-name'), 1,
+                                        resource.get('flavor', 1),
+                                        [{'name': db_name}]],
+                               update_chef=True,
+                               defines={"Resource": key})
+        create_db_user = Celery(wfspec, "Add DB User:%s" % username,
+                               'stockton.db.distribute_add_user',
+                               call_args=[Attrib('deployment'),
+                                        Attrib('id'), [db_name],
+                                        username, password])
+        # Store these in the context for use by other tasks
+        stockton_deployment['db_name'] = db_name
+        stockton_deployment['db_username'] = username
+        stockton_deployment['db_password'] = password
+        create_db_task.connect(create_db_user)
+        return create_db_task

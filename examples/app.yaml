@@ -176,6 +176,7 @@ environment: &rackspace-legacy-cloud-test
       - load-balancer
       endpoint: https://lbaas.api.rackpsacecloud.com/servers/{tenantId}
     database: &rax-dbaas
+      vendor: rackspace
       provides:
       - database
       endpoint: https://database.api.rackpsacecloud.com/servers/{tenantId}

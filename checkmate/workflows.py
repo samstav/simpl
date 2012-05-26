@@ -7,8 +7,6 @@ CheckMate
 from bottle import get, post, put, request, response, abort
 import logging
 import os
-import random
-import string
 import uuid
 
 try:
@@ -467,12 +465,15 @@ def create_workflow(deployment):
             auth_task.connect(create_environment)
 
     compute_provider = environment.select_provider(resource='compute')
+    database_provider = environment.select_provider(resource='database')
 
     # For resources we create, we store the resource key in the spec's Defines
     # Hard-coding some logic for now:
     # we need to remember bootstrap join tasks so we can make them wait for the
     # database task to complete and populate the chef environment before they
     # run
+    # TODO: make bootstrap tasks wait and join based on requires/provides in
+    # components and blueprints
 
     create_lb_task = None
     bootstrap_joins = []
@@ -504,41 +505,25 @@ def create_workflow(deployment):
             write_token.connect(create_lb_task)
         elif resource.get('type') == 'database':
             # Third task takes the 'deployment' attribute and creates a server
-            start_with = string.ascii_uppercase + string.ascii_lowercase
-            password = '%s%s' % (random.choice(start_with),
-                    ''.join(random.choice(start_with + string.digits + '@?#_')
-                    for x in range(11)))
-            db_name = 'db1'
-            username = 'wp_user_%s' % db_name
-            create_db_task = Celery(wfspec, 'Create DB',
-                               'stockton.db.distribute_create_instance',
-                               call_args=[Attrib('deployment'), hostname, 1,
-                                        resource.get('flavor', 1),
-                                        [{'name': db_name}]],
-                               update_chef=True,
-                               defines={"Resource": key})
+            create_db_task = database_provider.add_resource_tasks(resource,
+                    key, wfspec, deployment, stockton_deployment)
+
             write_token.connect(create_db_task)
 
-            create_db_user = Celery(wfspec, "Add DB User:%s" % username,
-                               'stockton.db.distribute_add_user',
-                               call_args=[Attrib('deployment'),
-                                        Attrib('id'), [db_name],
-                                        username, password])
-            create_db_task.connect(create_db_user)
-
-            # Then register in Chef
+            # Register database settings in Chef
 
             # TODO: fix hard-coding DB (this should be triggered by a
             # relation) Take output from Create DB task and write it into
             # the 'override' dict to be available to future tasks
-
             compile_override = Transform(wfspec, "Prepare Overrides",
                     transforms=[
                     "my_task.attributes['overrides']={'wordpress': {'db': "
                     "{'host': my_task.attributes['hostname'], "
-                    "'database': '%s', 'user': '%s', 'password': '%s'}}}" %
-                            (db_name, username, password)])
-            create_db_user.connect(compile_override)
+                    "'database': my_task.attributes['deployment']['db_name'], "
+                    "'user': my_task.attributes['deployment']['db_username'], "
+                    "'password': my_task.attributes['deployment']"
+                    "['db_password']}}}"])
+            create_db_task.outputs[0].connect(compile_override)
 
             # Set environment databag
             if config_provider.__class__.__name__ == 'LocalProvider':
