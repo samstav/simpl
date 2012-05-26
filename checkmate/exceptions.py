@@ -13,3 +13,7 @@ class CheckmateCustomException(Exception):
 
 class CheckmateException(Exception):
     pass
+
+
+class CheckmateDatabaseMigrationError(Exception):
+    pass

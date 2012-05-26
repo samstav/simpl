@@ -27,9 +27,8 @@ try:
 except ImportError:
     from migrate import exceptions as versioning_exceptions
 
+from checkmate.exceptions import CheckmateDatabaseMigrationError
 
-class DatabaseMigrationError(Exception):
-    pass
 
 LOG = logging.getLogger(__name__)  # pylint: disable=C0103
 
@@ -84,7 +83,7 @@ def db_goto_version(sql_connection, version):
     except versioning_exceptions.DatabaseNotControlledError:
         msg = (_("database '%(sql_connection)s' is not under "
                  "migration control") % locals())
-        raise DatabaseMigrationError(msg)
+        raise CheckmateDatabaseMigrationError(msg)
 
 
 def db_version(sql_connection):
@@ -100,7 +99,7 @@ def db_version(sql_connection):
     except versioning_exceptions.DatabaseNotControlledError:
         msg = ("database '%(sql_connection)s' is not under "
                  "migration control") % locals()
-        raise DatabaseMigrationError(msg)
+        raise CheckmateDatabaseMigrationError(msg)
 
 
 def upgrade(sql_connection, version=None):

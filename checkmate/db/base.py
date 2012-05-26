@@ -1,4 +1,5 @@
 
+
 class DbBase(object):
     def dump(self):
         raise NotImplementedError()

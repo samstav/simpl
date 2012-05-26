@@ -2,6 +2,8 @@ from sqlalchemy import *
 from migrate import *
 
 
+meta = MetaData()
+
 environments = Table(
     'environments', meta,
     Column('dbid', Integer, primary_key=True, autoincrement=True),
@@ -52,5 +54,5 @@ def downgrade(migrate_engine):
     workflows.drop()
     components.drop()
     deployments.drop()
-    blueporints.drop()
-    enviromments.drop()
+    blueprints.drop()
+    environments.drop()

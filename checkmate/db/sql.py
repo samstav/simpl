@@ -16,6 +16,7 @@ except ImportError:
 
 from checkmate.db import migration
 from checkmate.db.common import *
+from checkmate.exceptions import CheckmateDatabaseMigrationError
 from checkmate.utils import merge_dictionary
 
 
@@ -55,7 +56,7 @@ def _init_version_control():
                 "override your migrate version manually (see docs)" %
                 (CONNECTION_STRING, db_version, repo_version))
             LOG.warning(msg)
-            raise Exception(msg)
+            raise CheckmateDatabaseMigrationError(msg)
     except versioning_exceptions.DatabaseNotControlledError:
         msg = ("Database (%s) is not version controlled; "
                 "run `repository/manage.py version_control "
