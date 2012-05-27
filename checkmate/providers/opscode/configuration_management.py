@@ -18,7 +18,8 @@ class LocalProvider(ProviderBase):
     def prep_environment(self, wfspec, deployment):
         create_environment = Celery(wfspec, 'Create Chef Environment',
                 'stockton.cheflocal.distribute_create_environment',
-                call_args=[deployment['id']])
+                call_args=[deployment['id']],
+                properties={'estimated_duration': 10})
         self.prep_task = create_environment
         return create_environment
 
@@ -28,17 +29,23 @@ class LocalProvider(ProviderBase):
                        'stockton.cheflocal.distribute_register_node',
                        call_args=[Attrib('ip'), deployment['id']],
                        password=Attrib('password'),
-                       defines={"Resource": key})
+                       defines={"Resource": key}, description="Install "
+                               "Chef client on the server and register it in "
+                               "the environment",
+                       properties={'estimated_duration': 120})
 
         # Register only when server is up and environment is ready
         if wait_on:
-            join = Merge(wfspec, "Wait for Server Build:%s" % key)
+            join = Merge(wfspec, "Check that Environment is Ready and Server "
+                    "is Up:%s" % key)
             join.connect(register_node_task)
             self.prep_task.connect(join)
             for dependency in wait_on:
                 dependency.connect(join)
+            result = join
         else:
-            self.prep_task.connect(join)
+            self.prep_task.connect(register_node_task)
+            result = register_node_task
 
         bootstrap_task = Celery(wfspec, 'Configure Server:%s' % key,
                'stockton.cheflocal.distribute_cook',
@@ -47,11 +54,18 @@ class LocalProvider(ProviderBase):
                 password=Attrib('password'),
                 identity_file=os.environ.get(
                     'CHECKMATE_PRIVATE_KEY',
-                    '~/.ssh/id_rsa'))
-        join = Merge(wfspec, "Wait on Server and Settings:%s" % key)
+                    '~/.ssh/id_rsa'), description="Push and apply Chef "
+                            "recipes on the server",
+                properties={'estimated_duration': 100})
+        # This join is assumed to exist by create_workflow
+        join = Merge(wfspec, "Check on Registration and Overrides:%s" % key,
+                description="Before applying chef recipes, we need to know "
+                "that the server has chef on it and that the overrides "
+                "(database settings) have been applied")
         join.connect(bootstrap_task)
         register_node_task.connect(join)
-        return bootstrap_task
+        # The connection to overrides will be done later (using the join)
+        return result
 
 
 class ServerProvider(ProviderBase):
@@ -63,8 +77,9 @@ class ServerProvider(ProviderBase):
     def prep_environment(self, wfspec, deployment):
         create_environment = Celery(wfspec, 'Create Chef Environment',
                 'stockton.chefserver.distribute_manage_env',
-                call_args=[Attrib('deployment'), deployment['id'],
-                'CheckMate Environment'])
+                call_args=[Attrib('context'), deployment['id'],
+                        'CheckMate Environment'],
+                properties={'estimated_duration': 10})
         self.prep_task = create_environment
         return create_environment
 
@@ -72,10 +87,13 @@ class ServerProvider(ProviderBase):
                 wait_on=None):
         register_node_task = Celery(wfspec, 'Register Server:%s' % key,
                         'stockton.chefserver.distribute_register_node',
-                        call_args=[Attrib('deployment'),
+                        call_args=[Attrib('context'),
                                resource.get('dns-name'), ['wordpress-web']],
                         environment=deployment['id'],
-                        defines={"Resource": key})
+                        defines={"Resource": key}, description="Register the "
+                                "node in the Chef Server. Nothing is done "
+                                "the node itself",
+                        properties={'estimated_duration': 20})
         self.prep_task.connect(register_node_task)
 
         ssh_apt_get_task = Celery(wfspec, 'Apt-get Fix:%s' % key,
@@ -86,20 +104,22 @@ class ServerProvider(ProviderBase):
                             password=Attrib('password'),
                             identity_file=os.environ.get(
                                     'CHECKMATE_PRIVATE_KEY',
-                                    '~/.ssh/id_rsa'))
+                                    '~/.ssh/id_rsa'),
+                            properties={'estimated_duration': 100})
         # TODO: stop assuming only one wait_on=create_server_task
         wait_on[0].connect(ssh_apt_get_task)
 
         bootstrap_task = Celery(wfspec, 'Bootstrap Server:%s' % key,
                            'stockton.chefserver.distribute_bootstrap',
-                            call_args=[Attrib('deployment'),
+                            call_args=[Attrib('context'),
                                     resource.get('dns-name'), Attrib('ip')],
                             password=Attrib('password'),
                             identity_file=os.environ.get(
                                     'CHECKMATE_PRIVATE_KEY',
                                     '~/.ssh/id_rsa'),
                             run_roles=['build', 'wordpress-web'],
-                            environment=deployment['id'])
+                            environment=deployment['id'],
+                            properties={'estimated_duration': 90})
         join = Merge(wfspec, "Wait for Server Build:%s" % key)
         join.connect(bootstrap_task)
         ssh_apt_get_task.connect(join)

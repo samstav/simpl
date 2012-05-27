@@ -386,14 +386,20 @@ def create_workflow(deployment):
     # First task will read 'deployment' attribute and send it to Stockton
     auth_task = Celery(wfspec, 'Authenticate',
                        'stockton.auth.distribute_get_token',
-                       call_args=[Attrib('deployment')], result_key='token')
+                       call_args=[Attrib('context')], result_key='token',
+                       description="Authenticate and get a token to use with "
+                            "other calls. Authentication also gates any "
+                            "further work, to make sure we are working on "
+                            "behalf of an authenticated client",
+                       properties={'estimated_duration': 5})
     wfspec.start.connect(auth_task)
 
     # Second task will take output from first task (the 'token') and write it
     # into the 'deployment' dict to be available to future tasks
-    write_token = Transform(wfspec, "Write Token to Deployment", transforms=[
-            "my_task.attributes['deployment']['authtoken']"\
-            "=my_task.attributes['token']"])
+    write_token = Transform(wfspec, "Get Token", transforms=[
+            "my_task.attributes['context']['authtoken']"\
+            "=my_task.attributes['token']"], description="Get token response "
+                    "and write it into context")
     auth_task.connect(write_token)
 
     #TODO: make this smarter
@@ -477,7 +483,6 @@ def create_workflow(deployment):
     # components and blueprints
 
     create_lb_task = None
-    bootstrap_joins = []
 
     for key in deployment['resources']:
         resource = deployment['resources'][key]
@@ -489,11 +494,9 @@ def create_workflow(deployment):
             write_token.connect(create_server_task)
 
             # NOTE: chef-server provider assums wait_on[0]=create_server_task
-            configure_server_task = config_provider.add_resource_tasks(
+            config_provider.add_resource_tasks(
                     resource, key, wfspec, deployment, context,
                     wait_on=create_server_task.outputs)
-
-            bootstrap_joins.extend(configure_server_task.outputs)
 
         elif resource.get('type') == 'load-balancer':
             # Third task takes the 'deployment' attribute and creates a lb
@@ -516,10 +519,13 @@ def create_workflow(deployment):
                     transforms=[
                     "my_task.attributes['overrides']={'wordpress': {'db': "
                     "{'host': my_task.attributes['hostname'], "
-                    "'database': my_task.attributes['deployment']['db_name'], "
-                    "'user': my_task.attributes['deployment']['db_username'], "
-                    "'password': my_task.attributes['deployment']"
-                    "['db_password']}}}"])
+                    "'database': my_task.attributes['context']['db_name'], "
+                    "'user': my_task.attributes['context']['db_username'], "
+                    "'password': my_task.attributes['context']"
+                    "['db_password']}}}"], description="Get all the variables "
+                            "we need (like database name and password) and "
+                            "compile them into JSON that we can set on the "
+                            "role or environment")
             create_db_task.outputs[0].connect(compile_override)
 
             # Set environment databag
@@ -528,15 +534,25 @@ def create_workflow(deployment):
                         'Write Database Settings',
                         'stockton.cheflocal.distribute_manage_role',
                         call_args=['wordpress-web', deployment['id']],
-                        override_attributes=Attrib('overrides'))
+                        override_attributes=Attrib('overrides'),
+                        description="Take the JSON prepared earlier and write "
+                                "it into the wordpress role. It will be used "
+                                "by the Chef recipe to connect to the DB",
+                        properties={'estimated_duration': 10})
             elif config_provider.__class__.__name__ == 'ServerProvider':
                 set_overrides = Celery(wfspec,
                         "Write Database Settings",
                         'stockton.chefserver.distribute_manage_env',
-                        call_args=[Attrib('deployment'), deployment['id']],
+                        call_args=[Attrib('context'), deployment['id']],
                             desc='CheckMate Environment',
-                            override_attributes=Attrib('overrides'))
-            join = Merge(wfspec, "Wait on Environment and Settings:%s" % key)
+                            override_attributes=Attrib('overrides'),
+                        description="Take the JSON prepared earlier and write "
+                                "it into the environment overrides. It will "
+                                "be used by the Chef recipe to connect to "
+                                "the database",
+                        properties={'estimated_duration': 15})
+            join = Merge(wfspec, "Wait on Environment and Settings:%s"
+                    % key)
             join.connect(set_overrides)
             if create_environment:
                 create_environment.connect(join)
@@ -546,17 +562,26 @@ def create_workflow(deployment):
             # TODO: NOT TESTED YET
             create_dns_task = Celery(wfspec, 'Create DNS Record',
                                'stockton.dns.distribute_create_record',
-                               call_args=[Attrib('deployment'),
+                               call_args=[Attrib('context'),
                                inputs.get('domain', 'localhost'), hostname,
                                'A', Attrib('vip')],
-                               defines={"Resource": key})
+                               defines={"Resource": key},
+                               properties={'estimated_duration': 30})
         else:
             pass
 
     # Wire connections
     #TODO: remove this hard-coding and use relations
-    for bootstrap_join in bootstrap_joins:
-        set_overrides.connect(bootstrap_join)
+    # Get configure tasks make them preced LB Add Node and make set_overrides
+    # preced them
+    specs = {}
+    for name, task_spec in wfspec.task_specs.iteritems():
+        if name.startswith('Bootstrap Server') or\
+                name.startswith('Configure Server'):
+            specs[name] = task_spec
+            # Assuming input is join
+            assert isinstance(task_spec.inputs[0], Merge)
+            set_overrides.connect(task_spec.inputs[0])
 
     if create_lb_task:
         specs = {}
@@ -573,14 +598,34 @@ def create_workflow(deployment):
             add_node = Celery(wfspec,
                     "Add LB Node:%s" % name.split(':')[1],
                     'stockton.lb.distribute_add_node',
-                    call_args=[Attrib('deployment'),  Attrib('lbid'),
-                            Attrib('ip'), 80])
+                    call_args=[Attrib('context'),  Attrib('lbid'),
+                            Attrib('ip'), 80],
+                    properties={'estimated_duration': 20})
             join = Merge(wfspec, "Wait for LB:%s" % name.split(':')[1])
             join.connect(add_node)
             save_lbid.connect(join)
             task_spec.connect(join)
 
-    wf = Workflow(wfspec)
+    workflow = Workflow(wfspec)
     #Pass in the initial deployemnt dict (task 2 is the Start task)
-    wf.get_task(2).set_attribute(deployment=context)
-    return wf
+    workflow.get_task(2).set_attribute(context=context)
+    #TODO: remove this once we've updated all pieces that use it
+    workflow.get_task(2).set_attribute(deployment=context)
+
+    # Calculate estimated_duration
+    root = workflow.task_tree
+    root._set_internal_attribute(estimated_completed_in=0)
+    tasks = root.children[:]
+    overall = 0
+    while tasks:
+        task = tasks.pop(0)
+        tasks.extend(task.children)
+        expect_to_take = task.parent._get_internal_attribute(
+                'estimated_completed_in') +\
+                task.task_spec.get_property('estimated_duration', 0)
+        if expect_to_take > overall:
+            overall = expect_to_take
+        task._set_internal_attribute(estimated_completed_in=expect_to_take)
+    workflow.attributes['estimated_duration'] = overall
+
+    return workflow

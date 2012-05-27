@@ -40,20 +40,22 @@ class LegacyProvider(ProviderBase):
         """
         create_server_task = Celery(wfspec, 'Create Server:%s' % key,
                            'stockton.server.distribute_create',
-                           call_args=[Attrib('deployment'),
+                           call_args=[Attrib('context'),
                            resource.get('dns-name')],
                            image=resource.get('image', 119),
                            flavor=resource.get('flavor', 1),
                            files=context['files'],
                            ip_address_type='public',
-                           defines={"Resource": key})
+                           defines={"Resource": key},
+                           properties={'estimated_duration': 20})
 
         build_wait_task = Celery(wfspec, 'Check that Server is Up:%s'
                 % key, 'stockton.server.distribute_wait_on_build',
-                call_args=[Attrib('deployment'), Attrib('id')],
+                call_args=[Attrib('context'), Attrib('id')],
                 password=Attrib('password'),
                 identity_file=os.environ.get('CHECKMATE_PRIVATE_KEY',
-                        '~/.ssh/id_rsa'))
+                        '~/.ssh/id_rsa'),
+                properties={'estimated_duration': 150})
         create_server_task.connect(build_wait_task)
         return create_server_task
 
@@ -91,19 +93,21 @@ class NovaProvider(ProviderBase):
         """
         create_server_task = Celery(wfspec, 'Create Server:%s' % key,
                            'stockton.nova.distribute_create',
-                           call_args=[Attrib('deployment'),
+                           call_args=[Attrib('context'),
                            resource.get('dns-name')],
                            image=resource.get('image',
                                     '3afe97b2-26dc-49c5-a2cc-a2fc8d80c001'),
                            flavor=resource.get('flavor', "1"),
                            files=context['files'],
-                           defines={"Resource": key})
+                           defines={"Resource": key},
+                           properties={'estimated_duration': 20})
 
         build_wait_task = Celery(wfspec, 'Check that Server is Up:%s'
                 % key, 'stockton.nova.distribute_wait_on_build',
-                call_args=[Attrib('deployment'), Attrib('id')],
+                call_args=[Attrib('context'), Attrib('id')],
                 password=Attrib('password'),
                 identity_file=os.environ.get('CHECKMATE_PRIVATE_KEY',
-                        '~/.ssh/id_rsa'))
+                        '~/.ssh/id_rsa'),
+                properties={'estimated_duration': 150})
         create_server_task.connect(build_wait_task)
         return create_server_task

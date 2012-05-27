@@ -38,17 +38,19 @@ class Provider(ProviderBase):
 
         create_db_task = Celery(wfspec, 'Create DB',
                                'stockton.db.distribute_create_instance',
-                               call_args=[Attrib('deployment'),
+                               call_args=[Attrib('context'),
                                         resource.get('dns-name'), 1,
                                         resource.get('flavor', 1),
                                         [{'name': db_name}]],
                                update_chef=True,
-                               defines={"Resource": key})
+                               defines={"Resource": key},
+                               properties={'estimated_duration': 80})
         create_db_user = Celery(wfspec, "Add DB User:%s" % username,
                                'stockton.db.distribute_add_user',
-                               call_args=[Attrib('deployment'),
+                               call_args=[Attrib('context'),
                                         Attrib('id'), [db_name],
-                                        username, password])
+                                        username, password],
+                               properties={'estimated_duration': 20})
         # Store these in the context for use by other tasks
         context['db_name'] = db_name
         context['db_username'] = username

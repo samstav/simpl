@@ -12,7 +12,8 @@ class Provider(ProviderBase):
                 wait_on=None):
         return Celery(wfspec, 'Create LB',
                        'stockton.lb.distribute_create_loadbalancer',
-                       call_args=[Attrib('deployment'),
+                       call_args=[Attrib('context'),
                        resource.get('dns-name'), 'PUBLIC', 'HTTP', 80],
                        dns=True,
-                       defines={"Resource": key})
+                       defines={"Resource": key},
+                       properties={'estimated_duration': 30})
