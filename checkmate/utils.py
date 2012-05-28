@@ -181,13 +181,13 @@ def write_body(data, request, response):
             return template.render(data=data, source=json.dumps(data,
                     indent=2), tenant_id=tenant_id)
         except StandardError as exc:
-            LOG.error(exc)
+            LOG.exception(exc)
             try:
                 template = env.get_template("default.template")
                 return template.render(data=data, source=json.dumps(data,
                         indent=2), tenant_id=tenant_id)
             except StandardError as exc2:
-                LOG.error(exc2)
+                LOG.exception(exc2)
                 pass  # fall back to JSON
 
     #JSON (default)

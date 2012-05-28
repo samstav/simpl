@@ -584,8 +584,6 @@ def create_workflow(deployment):
     workflow = Workflow(wfspec)
     #Pass in the initial deployemnt dict (task 2 is the Start task)
     workflow.get_task(2).set_attribute(context=context)
-    #TODO: remove this once we've updated all pieces that use it
-    workflow.get_task(2).set_attribute(deployment=context)
 
     # Calculate estimated_duration
     root = workflow.task_tree
