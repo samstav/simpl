@@ -1,8 +1,7 @@
 #!/usr/bin/env python
 import copy
-import json
-import os
 import unittest2 as unittest
+
 from checkmate import utils
 
 
@@ -142,6 +141,25 @@ class TestUtils(unittest.TestCase):
         assert r['c']['cd']['cda']['cdab'] == 'u3412'
         assert r['g'] == 7
         assert src['h'] is r['h']
+
+    def test_is_ssh_key(self):
+        self.assertFalse(utils.is_ssh_key(None))
+        self.assertFalse(utils.is_ssh_key(''))
+        self.assertFalse(utils.is_ssh_key(1))
+        self.assertFalse(utils.is_ssh_key("AAAAB3NzaC1yc2EA"))
+        self.assertFalse(utils.is_ssh_key("AAAAB3NzaC1yc2EA-bad"))
+        self.assertFalse(utils.is_ssh_key("AAAAB3NzaC1yc2EA onespace"))
+        self.assertFalse(utils.is_ssh_key("AAAAB3NzaC1yc2EA two space"))
+        self.assertFalse(utils.is_ssh_key("AAAAB3NzaC1yc2EA 3 spaces here"))
+        key = """ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQDtjYYMFbpCJ/ND3izZ1DqNFQHlooXyNcDGWilAqNqcCfz9L+gpGjY2pQlZz/1Hir3R8fz0MS9VY32RYmP3wWygt85kNccEkOpVGGpGyV/aMFaQHZD0h6d0AT+haP0Iig+OrH1YBnpdgVPWx3SbU4eV/KYGpO9Mintj3P54of22lTK4dOwCNvID9P9w+T1kMfdVxGwhqsSL0RxVXnSSkozXQWCNvaZJMUmidm8YA009c5PoksyWjl3EE+rEzZ8ywvtUJf9DvnLCESfhF3hK5lAiEd8z7gyiQnBexn/dXzldGFiJYJgQ5HolYaNMtTF+AQY6R6Qt0okCPyEDJxHJUM7d"""
+        self.assertTrue(utils.is_ssh_key(key))
+        self.assertTrue(utils.is_ssh_key("%s /n" % key))
+        self.assertTrue(utils.is_ssh_key("%s email@domain.com/n" % key))
+
+    def test_get_source_body(self):
+        source = utils.get_source_body(self.test_get_source_body)
+        self.assertTrue(source.startswith("source = utils"))
+
 
 if __name__ == '__main__':
     unittest.main(verbosity=2)

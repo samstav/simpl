@@ -1,10 +1,9 @@
 import logging
-import os
 from SpiffWorkflow.operators import Attrib
-from SpiffWorkflow.specs import Celery, Merge
+from SpiffWorkflow.specs import Celery, Merge, Transform
 
 from checkmate.providers import ProviderBase
-
+from checkmate.utils import get_source_body
 
 LOG = logging.getLogger(__name__)
 
@@ -20,8 +19,20 @@ class LocalProvider(ProviderBase):
                 'stockton.cheflocal.distribute_create_environment',
                 call_args=[deployment['id']],
                 properties={'estimated_duration': 10})
-        self.prep_task = create_environment
-        return create_environment
+
+        def get_keys_code(my_task):
+            my_task.attributes['context']['keys']['environment'] =\
+                    {'public_key': my_task.attributes['public_key'],
+                     'public_key_path': my_task.attributes['public_key_path']}
+
+        write_key = Transform(wfspec, "Get Environment Key",
+                transforms=[get_source_body(get_keys_code)],
+                description="Add environment public key data to context so "
+                        "providers have access to them")
+        create_environment.connect(write_key)
+        self.prep_task = write_key
+
+        return {'root': create_environment, 'final': write_key}
 
     def add_resource_tasks(self, resource, key, wfspec, deployment, context,
                 wait_on=None):
@@ -42,20 +53,18 @@ class LocalProvider(ProviderBase):
             self.prep_task.connect(join)
             for dependency in wait_on:
                 dependency.connect(join)
-            result = join
+            root = join
         else:
             self.prep_task.connect(register_node_task)
-            result = register_node_task
+            root = register_node_task
 
         bootstrap_task = Celery(wfspec, 'Configure Server:%s' % key,
                'stockton.cheflocal.distribute_cook',
                 call_args=[Attrib('ip'), deployment['id']],
                 roles=['build-ks', 'wordpress-web'],
                 password=Attrib('password'),
-                identity_file=os.environ.get(
-                    'CHECKMATE_PRIVATE_KEY',
-                    '~/.ssh/id_rsa'), description="Push and apply Chef "
-                            "recipes on the server",
+                identity_file=Attrib('private_key_path'),
+                description="Push and apply Chef recipes on the server",
                 properties={'estimated_duration': 100})
         # This join is assumed to exist by create_workflow
         join = Merge(wfspec, "Check on Registration and Overrides:%s" % key,
@@ -65,7 +74,7 @@ class LocalProvider(ProviderBase):
         join.connect(bootstrap_task)
         register_node_task.connect(join)
         # The connection to overrides will be done later (using the join)
-        return result
+        return {'root': root, 'final': bootstrap_task}
 
 
 class ServerProvider(ProviderBase):
@@ -81,7 +90,7 @@ class ServerProvider(ProviderBase):
                         'CheckMate Environment'],
                 properties={'estimated_duration': 10})
         self.prep_task = create_environment
-        return create_environment
+        return {'root': self.prep_task, 'final': self.prep_task}
 
     def add_resource_tasks(self, resource, key, wfspec, deployment, context,
                 wait_on=None):
@@ -102,9 +111,7 @@ class ServerProvider(ProviderBase):
                                     "sudo apt-get update",
                                     'root'],
                             password=Attrib('password'),
-                            identity_file=os.environ.get(
-                                    'CHECKMATE_PRIVATE_KEY',
-                                    '~/.ssh/id_rsa'),
+                            identity_file=Attrib('private_key_path'),
                             properties={'estimated_duration': 100})
         # TODO: stop assuming only one wait_on=create_server_task
         wait_on[0].connect(ssh_apt_get_task)
@@ -114,9 +121,7 @@ class ServerProvider(ProviderBase):
                             call_args=[Attrib('context'),
                                     resource.get('dns-name'), Attrib('ip')],
                             password=Attrib('password'),
-                            identity_file=os.environ.get(
-                                    'CHECKMATE_PRIVATE_KEY',
-                                    '~/.ssh/id_rsa'),
+                            identity_file=Attrib('private_key_path'),
                             run_roles=['build', 'wordpress-web'],
                             environment=deployment['id'],
                             properties={'estimated_duration': 90})
@@ -124,4 +129,4 @@ class ServerProvider(ProviderBase):
         join.connect(bootstrap_task)
         ssh_apt_get_task.connect(join)
         register_node_task.connect(join)
-        return join
+        return {'root': register_node_task, 'final': bootstrap_task}

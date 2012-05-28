@@ -4,11 +4,14 @@
 - handling templating (Jinja2)
 """
 # pylint: disable=E0611
+import base64
 from bottle import abort
+import inspect
 from jinja2 import BaseLoader, TemplateNotFound, Environment
 import json
 import logging
 import os
+import struct
 import sys
 import yaml
 from yaml.events import AliasEvent, ScalarEvent
@@ -17,7 +20,7 @@ LOG = logging.getLogger(__name__)
 RESOURCES = ['deployments', 'workflows', 'static', 'blueprints',
              'environments', 'components', 'test']
 DEFAULT_SENSITIVE_KEYS = ['credentials', 'password', 'apikey', 'token',
-        'authtoken']
+        'authtoken', 'db_password', 'ssh-private-key']
 
 
 def import_class(import_str):
@@ -318,3 +321,43 @@ def merge_dictionary(dst, src):
                 else:
                     current_dst[key] = source
     return dst
+
+
+def is_ssh_key(key):
+    """Checks if string looks like it is an ssh key"""
+    if not key:
+        return False
+    if not isinstance(key, basestring):
+        return False
+    if not key.startswith('ssh-rsa AAAAB3NzaC1yc2EA'):
+        return False
+    if ' ' not in key:
+        return False
+    parts = key.split()
+    if len(parts) < 2:
+        return False
+    if len(parts) > 2:
+        key_type, key_string, comment = parts[0:3]
+    else:
+        key_type, key_string = parts[0:2]
+    try:
+        data = base64.decodestring(key_string)
+    except:
+        return False
+    int_len = 4
+    str_len = struct.unpack('>I', data[:int_len])[0]  # this should return 7
+    if str_len != 7:
+        return False
+    if data[int_len:int_len + str_len] == 'ssh-rsa':
+        return True
+    return False
+
+
+def get_source_body(function):
+    """Gets the body of a function (i.e. no definition line, and unindented"""
+    # Unindent
+    lines = inspect.getsource(function).split('\n')[1:]
+    indent = len(lines[0]) - len(lines[0].lstrip())
+    for index, line in enumerate(lines):
+        lines[index] = line[indent:]
+    return '\n'.join(lines)

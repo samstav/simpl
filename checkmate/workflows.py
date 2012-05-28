@@ -23,7 +23,7 @@ from SpiffWorkflow.storage import DictionarySerializer
 from checkmate.db import get_driver, any_id_problems
 from checkmate.environments import Environment
 from checkmate.utils import write_body, read_body, extract_sensitive_data,\
-        merge_dictionary
+        merge_dictionary, is_ssh_key
 from checkmate import orchestrator
 
 db = get_driver('checkmate.db.sql.Driver')
@@ -407,72 +407,44 @@ def create_workflow(deployment):
             deployment['environment']['providers'].iteritems()
             if key == 'common'][0]
 
+    keys = get_os_env_keys()
+    # Read in the public keys to be passed to newly created servers.
+    if 'public_key' in inputs:
+        if not is_ssh_key(inputs['public_key']):
+            abort("public_key input is not a valid public key string.")
+        keys['client'] = {'public_key': inputs['public_key']}
+    if not keys:
+        LOG.warn("No public keys supplied. Less secure password auth will be "
+                "used.")
+
     context = {
         'id': deployment['id'],
         'username': creds['username'],
         'apikey': creds['apikey'],
         'region': inputs['region'],
-        'files': {}
+        'keys': keys
     }
-
-    keys = []
-    # Read in the public keys to be passed to newly created servers.
-    if 'public_key' in inputs:
-        keys.append(inputs['public_key'])
-    if ('CHECKMATE_PUBLIC_KEY' in os.environ and
-            os.path.exists(os.path.expanduser(
-                os.environ['CHECKMATE_PUBLIC_KEY']))):
-        try:
-            f = open(os.path.expanduser(os.environ['CHECKMATE_PUBLIC_KEY']))
-            keys.append(f.read())
-            f.close()
-        except IOError as (errno, strerror):
-            LOG.error("I/O error reading public key from CHECKMATE_PUBLIC_KEY="
-                    "'%s' environment variable (%s): %s" % (
-                            os.environ['CHECKMATE_PUBLIC_KEY'], errno,
-                                                                strerror))
-        except StandardError as exc:
-            LOG.error("Error reading public key from CHECKMATE_PUBLIC_KEY="
-                    "'%s' environment variable: %s" % (
-                            os.environ['CHECKMATE_PUBLIC_KEY'], exc))
-    if ('STOCKTON_PUBLIC_KEY' in os.environ and
-            os.path.exists(os.path.expanduser(
-                os.environ['STOCKTON_PUBLIC_KEY']))):
-        try:
-            f = open(os.path.expanduser(os.environ['STOCKTON_PUBLIC_KEY']))
-            keys.append(f.read())
-            f.close()
-        except IOError as (errno, strerror):
-            LOG.error("I/O error reading public key from STOCKTON_PUBLIC_KEY="
-                    "'%s' environment variable (%s): %s" % (
-                            os.environ['STOCKTON_PUBLIC_KEY'], errno,
-                                                                strerror))
-        except StandardError as exc:
-            LOG.error("Error reading public key from STOCKTON_PUBLIC_KEY="
-                    "'%s' environment variable: %s" % (
-                            os.environ['STOCKTON_PUBLIC_KEY'], exc))
-    if keys:
-        context['files']['/root/.ssh/authorized_keys'] = \
-                "\n".join(keys)
-    else:
-        LOG.warn("No public keys detected. Less secure password auth will be "
-                "used.")
 
     #
     # Create the tasks that make the async calls
     #
-    config_provider = environment.select_provider(resource='configuration')
 
-    #TODO: remove this hard-link to create_environment
-    create_environment = None
-    if config_provider:
-        create_environment = config_provider.prep_environment(wfspec, deployment)
-        if create_environment:
-            auth_task.connect(create_environment)
+    # Get list of providers and store them for use throughout
+    providers = {}
+    for resource_type in ['configuration', 'compute', 'load-balancer',
+            'database']:
+        provider = environment.select_provider(resource=resource_type)
+        if provider:
+            providers[resource_type] = provider
+            prep_result = provider.prep_environment(wfspec,  deployment)
+            # Wire up if not wired in somewhere
+            if prep_result and not prep_result['root'].inputs:
+                auth_task.connect(prep_result['root'])
 
-    compute_provider = environment.select_provider(resource='compute')
-    lb_provider = environment.select_provider(resource='load-balancer')
-    database_provider = environment.select_provider(resource='database')
+    config_provider = providers['configuration']
+    compute_provider = providers['compute']
+    lb_provider = providers['load-balancer']
+    database_provider = providers['database']
 
     # For resources we create, we store the resource key in the spec's Defines
     # Hard-coding some logic for now:
@@ -489,26 +461,28 @@ def create_workflow(deployment):
         hostname = resource.get('dns-name')
         if resource.get('type') == 'server':
             # Third task takes the 'deployment' attribute and creates a server
-            create_server_task = compute_provider.add_resource_tasks(resource,
-                    key, wfspec, deployment, context)
-            write_token.connect(create_server_task)
+            compute_result = compute_provider.add_resource_tasks(resource,
+                    key, wfspec, deployment, context,
+                    wait_on=[config_provider.prep_task])
+            write_token.connect(compute_result['root'])
 
             # NOTE: chef-server provider assums wait_on[0]=create_server_task
             config_provider.add_resource_tasks(
                     resource, key, wfspec, deployment, context,
-                    wait_on=create_server_task.outputs)
+                    wait_on=[compute_result['final']])
 
         elif resource.get('type') == 'load-balancer':
             # Third task takes the 'deployment' attribute and creates a lb
-            create_lb_task = lb_provider.add_resource_tasks(resource,
+            lb_result = lb_provider.add_resource_tasks(resource,
                     key, wfspec, deployment, context)
-            write_token.connect(create_lb_task)
+            write_token.connect(lb_result['root'])
+            create_lb_task = lb_result['final']
         elif resource.get('type') == 'database':
             # Third task takes the 'deployment' attribute and creates a server
-            create_db_task = database_provider.add_resource_tasks(resource,
+            db_result = database_provider.add_resource_tasks(resource,
                     key, wfspec, deployment, context)
 
-            write_token.connect(create_db_task)
+            write_token.connect(db_result['root'])
 
             # Register database settings in Chef
 
@@ -526,7 +500,7 @@ def create_workflow(deployment):
                             "we need (like database name and password) and "
                             "compile them into JSON that we can set on the "
                             "role or environment")
-            create_db_task.outputs[0].connect(compile_override)
+            db_result['final'].connect(compile_override)
 
             # Set environment databag
             if config_provider.__class__.__name__ == 'LocalProvider':
@@ -554,8 +528,8 @@ def create_workflow(deployment):
             join = Merge(wfspec, "Wait on Environment and Settings:%s"
                     % key)
             join.connect(set_overrides)
-            if create_environment:
-                create_environment.connect(join)
+            if config_provider:
+                config_provider.prep_task.connect(join)
             compile_override.connect(join)
 
         elif resource.get('type') == 'dns':
@@ -567,6 +541,7 @@ def create_workflow(deployment):
                                'A', Attrib('vip')],
                                defines={"Resource": key},
                                properties={'estimated_duration': 30})
+            write_token.connect(create_dns_task)
         else:
             pass
 
@@ -629,3 +604,43 @@ def create_workflow(deployment):
     workflow.attributes['estimated_duration'] = overall
 
     return workflow
+
+
+def get_os_env_keys():
+    """Get keys if they asre set in the os_environment"""
+    keys = {}
+    if ('CHECKMATE_PUBLIC_KEY' in os.environ and
+            os.path.exists(os.path.expanduser(
+                os.environ['CHECKMATE_PUBLIC_KEY']))):
+        try:
+            path = os.path.expanduser(os.environ['CHECKMATE_PUBLIC_KEY'])
+            f = open(path)
+            keys['checkmate'] = {'public_key': f.read(), 'public_key_path': path}
+            f.close()
+        except IOError as (errno, strerror):
+            LOG.error("I/O error reading public key from CHECKMATE_PUBLIC_KEY="
+                    "'%s' environment variable (%s): %s" % (
+                            os.environ['CHECKMATE_PUBLIC_KEY'], errno,
+                                                                strerror))
+        except StandardError as exc:
+            LOG.error("Error reading public key from CHECKMATE_PUBLIC_KEY="
+                    "'%s' environment variable: %s" % (
+                            os.environ['CHECKMATE_PUBLIC_KEY'], exc))
+    if ('STOCKTON_PUBLIC_KEY' in os.environ and
+            os.path.exists(os.path.expanduser(
+                os.environ['STOCKTON_PUBLIC_KEY']))):
+        try:
+            path = os.path.expanduser(os.environ['STOCKTON_PUBLIC_KEY'])
+            f = open(path)
+            keys['stockton'] = {'public_key': f.read(), 'public_key_path': path}
+            f.close()
+        except IOError as (errno, strerror):
+            LOG.error("I/O error reading public key from STOCKTON_PUBLIC_KEY="
+                    "'%s' environment variable (%s): %s" % (
+                            os.environ['STOCKTON_PUBLIC_KEY'], errno,
+                                                                strerror))
+        except StandardError as exc:
+            LOG.error("Error reading public key from STOCKTON_PUBLIC_KEY="
+                    "'%s' environment variable: %s" % (
+                            os.environ['STOCKTON_PUBLIC_KEY'], exc))
+    return keys

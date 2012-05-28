@@ -56,4 +56,4 @@ class Provider(ProviderBase):
         context['db_username'] = username
         context['db_password'] = password
         create_db_task.connect(create_db_user)
-        return create_db_task
+        return {'root': create_db_task, 'final': create_db_user}

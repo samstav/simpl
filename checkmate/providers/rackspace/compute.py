@@ -1,14 +1,46 @@
 import logging
 import os
 from SpiffWorkflow.operators import Attrib
-from SpiffWorkflow.specs import Celery
+from SpiffWorkflow.specs import Celery, Merge, Transform
 
 from checkmate.providers import ProviderBase
+from checkmate.utils import get_source_body
 
 LOG = logging.getLogger(__name__)
 
 
 class LegacyProvider(ProviderBase):
+    def __init__(self, provider):
+        ProviderBase.__init__(self, provider)
+        self.prep_task = None
+
+    def prep_environment(self, wfspec, deployment):
+        #file = {'/root/.ssh/authorized_keys': "\n".join(keys)}
+        def get_keys_code(my_task):
+            keys = []
+            for key, value in my_task.attributes['context'].get('keys',
+                        {}).iteritems():
+                if 'public_key' in value:
+                    keys.append(value['public_key'])
+            if keys:
+                path = '/root/.ssh/authorized_keys'
+                if not 'files' in my_task.attributes:
+                    my_task.attributes['files'] = {}
+                keys_string = '\n'.join(keys)
+                if path in my_task.attributes['files']:
+                    my_task.attributes['files'][path] += keys_string
+                else:
+                    my_task.attributes['files'][path] = keys_string
+
+        self.prep_task = Transform(wfspec, "Get Keys to Inject",
+                transforms=[get_source_body(get_keys_code)],
+                description="Collect keys into correct files syntax")
+
+        #TODO: remove direct-coding to config provider task names
+        config_spec = wfspec.task_specs['Create Chef Environment']
+        config_spec.connect(self.prep_task)
+        return {'root': self.prep_task, 'final': self.prep_task}
+
     def generate_template(self, deployment, service_name, service, name=None):
         inputs = deployment.get('inputs', {})
         flavor = inputs.get('%s:instance/flavor' % service_name,
@@ -38,13 +70,14 @@ class LegacyProvider(ProviderBase):
         :returns: returns the root task in the chain of tasks
         TODO: use environment keys instead of private key
         """
+
         create_server_task = Celery(wfspec, 'Create Server:%s' % key,
                            'stockton.server.distribute_create',
                            call_args=[Attrib('context'),
                            resource.get('dns-name')],
                            image=resource.get('image', 119),
                            flavor=resource.get('flavor', 1),
-                           files=context['files'],
+                           files=Attrib('files'),
                            ip_address_type='public',
                            defines={"Resource": key},
                            properties={'estimated_duration': 20})
@@ -57,7 +90,15 @@ class LegacyProvider(ProviderBase):
                         '~/.ssh/id_rsa'),
                 properties={'estimated_duration': 150})
         create_server_task.connect(build_wait_task)
-        return create_server_task
+
+        join = Merge(wfspec, "Server Wait on:%s" % key)
+        join.connect(create_server_task)
+        self.prep_task.connect(join)
+        if wait_on:
+            for dependency in wait_on:
+                dependency.connect(join)
+
+        return {'root': join, 'final': build_wait_task}
 
 
 class NovaProvider(ProviderBase):
@@ -110,4 +151,11 @@ class NovaProvider(ProviderBase):
                         '~/.ssh/id_rsa'),
                 properties={'estimated_duration': 150})
         create_server_task.connect(build_wait_task)
-        return create_server_task
+
+        if wait_on:
+            join = Merge(wfspec, "Server Wait on:%s" % key)
+            join.connect(create_server_task)
+            for dependency in wait_on:
+                dependency.connect(join)
+
+        return {'root': join, 'final': build_wait_task}
