@@ -171,13 +171,17 @@ environment: &rackspace-nova-test
       - rackspace:
         username: ${CHECKMATE_USERNAME}
         apikey: ${CHECKMATE_APIKEY}
+      - ssh:
+        public_key: =generate()
       constraints:
-      - region: ${CHECKMATE_REGION} 
+      - region: ${CHECKMATE_REGION}
 
 #### Deployments
 
 # Actual deployment instances. These are our live, running systems
 deployment:                                                                     #IMPLEMENTED - checkmate looks for this
+  name: My WordPress by CheckMate
+  prefix: CM-WP-
   blueprint: *wp-multi
   environment: *rackspace-nova-test
   inputs:
