@@ -128,28 +128,14 @@ def process():
             'tests', 'data', 'simulator.json'))
     serializer = DictionarySerializer()
     with open(path) as f:
-        responses = json.load(f)
-        template = Workflow.deserialize(serializer, responses['workflow'])
+        data = json.load(f)
+        template = Workflow.deserialize(serializer, data)
 
     global PHASE, PACKAGE
     workflow = Workflow.deserialize(serializer, PACKAGE['workflow'])
 
     def hijacked_try_fire(self, my_task, force=False):
         """We patch this in to intercept calls that would go to celery"""
-        celery_module = sys.modules['SpiffWorkflow.specs.Celery']
-        if self.args:
-            args = celery_module.eval_args(self.args, my_task)
-            if self.kwargs:
-                LOG.debug("Hijacked %s(%s, %s)" % (self.call, args,
-                        celery_module.eval_kwargs(self.kwargs, my_task)))
-            else:
-                LOG.debug("Hijacked %s(%s)" % (self.call, args))
-        else:
-            if self.kwargs:
-                LOG.debug("Hijacked %s(%s, %s)" % (self.call,
-                        celery_module.eval_kwargs(self.kwargs, my_task)))
-            else:
-                LOG.debug("Hijacked %s(%s, %s)" % (self.call))
         name = my_task.get_name()
         result = None
         if name in template.spec.task_specs:

@@ -1,15 +1,15 @@
 #!/usr/bin/env python
 from celery.app import default_app
 from celery.result import AsyncResult
+import copy
 import json
 import logging
 import mox
-from mox import IsA, In, And, Or, IgnoreArg, ContainsKeyValue
+from mox import IsA, In, And, Or, IgnoreArg, ContainsKeyValue, Func, \
+        StrContains
 import os
-from SpiffWorkflow.specs import Celery as SpiffCelery
 from SpiffWorkflow.storage import DictionarySerializer
 from string import Template
-import sys
 import unittest2 as unittest
 import yaml
 import uuid
@@ -23,10 +23,20 @@ os.environ['BROKER_PASSWORD'] = os.environ.get('BROKER_PASSWORD', 'password')
 os.environ['BROKER_HOST'] = os.environ.get('BROKER_HOST', 'localhost')
 os.environ['BROKER_PORT'] = os.environ.get('BROKER_PORT', '5672')
 
-from checkmate import server
+from checkmate import server  # enables logging
 from checkmate.deployments import plan_dict
-from checkmate.workflows import create_workflow
-from checkmate.utils import resolve_yaml_external_refs
+from checkmate.utils import resolve_yaml_external_refs, is_ssh_key
+from checkmate.workflows import get_os_env_keys
+
+# Environment variables and safe alternatives
+ENV_VARS = {
+        'CHECKMATE_USERNAME': 'john.doe',
+        'CHECKMATE_APIKEY': 'secret-api-key',
+        'CHECKMATE_PUBLIC_KEY': 'ssh-rsa AAAAB3NzaC1...',
+        'CHECKMATE_PRIVATE_KEY': 'mumble-code',
+        'CHECKMATE_DOMAIN': 'test.local',
+        'CHECKMATE_REGION': 'north'
+    }
 
 
 class TestWorkflow(unittest.TestCase):
@@ -39,17 +49,11 @@ class TestWorkflow(unittest.TestCase):
             'app.yaml')
         with file(path) as f:
             source = f.read().decode('utf-8')
-        env = {
-                'CHECKMATE_USERNAME': '1',
-                'CHECKMATE_APIKEY': '2',
-                'CHECKMATE_PUBLIC_KEY': '3',
-                'CHECKMATE_PRIVATE_KEY': '4',
-                'CHECKMATE_DOMAIN': '5',
-                'CHECKMATE_REGION': '6'
-            }
+
         t = Template(source)
-        env.update(os.environ)
-        parsed = t.safe_substitute(**env)
+        combined = copy.copy(ENV_VARS)
+        combined.update(os.environ)
+        parsed = t.safe_substitute(**combined)
         app = yaml.safe_load(yaml.emit(resolve_yaml_external_refs(parsed),
                          Dumper=yaml.SafeDumper))
         deployment = app['deployment']
@@ -66,6 +70,37 @@ class TestWorkflow(unittest.TestCase):
     def test_workflow_completion(self):
         """Verify workflow sequence and data flow"""
         # Prepare expected call names, args, and returns for mocking
+        def context_has_server_settings(context):
+            """Checks that server_create call has all necessary settings"""
+            if not is_ssh_key(context['keys']['checkmate']['public_key']):
+                LOG.warn("Create server call did not get checkmate key")
+                return False
+            if not context['keys']['environment']['public_key'] == \
+                    'ssh-rsa AAAAB3NzaC1...':
+                LOG.warn("Create server call did not get environment key")
+                return False
+            return True
+
+        def server_got_keys(files):
+            """Checks that server_create call has all needed keys"""
+            path = '/root/.ssh/authorized_keys'
+            if not files:
+                LOG.warn("Create server call got blank files")
+                return False
+            if path not in files:
+                LOG.warn("Create server files don't have keys")
+                return False
+            entries = files[path].strip().split('\n')
+            if len(entries) < 2:
+                LOG.warn("Create server files has %s keys, which is less than "
+                        " 2" % len(entries))
+                return False
+            for entry in entries:
+                if not (entry == 'ssh-rsa AAAAB3NzaC1...'
+                        or is_ssh_key(entry)):
+                    return False
+            return True
+
         calls = [{
                 # Authenticate first
                 'call': 'stockton.auth.distribute_get_token',
@@ -79,27 +114,10 @@ class TestWorkflow(unittest.TestCase):
                 'call': 'stockton.cheflocal.distribute_create_environment',
                 'args': IgnoreArg(),
                 'kwargs': None,
-                'result': "mock-token"
-            },
-            {
-                # Create First Server
-                'call': 'stockton.server.distribute_create',
-                'args': [IsA(dict), IsA(basestring)],
-                'kwargs': And(ContainsKeyValue('image', 119),
-                        ContainsKeyValue('flavor', 1),
-                        ContainsKeyValue('ip_address_type', 'public')),
-                'result': {'id': 10001, 'ip': "10.1.1.1",
-                        'password': "shecret"}
-            },
-            {
-                # Create Second Server
-                'call': 'stockton.server.distribute_create',
-                'args': [IsA(dict), IsA(basestring)],
-                'kwargs': And(ContainsKeyValue('image', 119),
-                        ContainsKeyValue('flavor', 1),
-                        ContainsKeyValue('ip_address_type', 'public')),
-                'result': {'id': 10002, 'ip': "10.1.1.2",
-                        'password': "shecret"}
+                'result': {'environment': '/var/tmp/DEP-ID-1000/',
+                    'private_key_path': '/var/tmp/DEP-ID-1000/private.pem',
+                    'public_key_path': '/var/tmp/DEP-ID-1000/checkmate.pub',
+                    'public_key': 'ssh-rsa AAAAB3NzaC1...'}
             },
             {
                 # Create Database
@@ -121,6 +139,36 @@ class TestWorkflow(unittest.TestCase):
                 'result': {'id': 20001, 'vip': "200.1.1.1"}
             },
             {
+                # Create Database User
+                'call': 'stockton.db.distribute_add_user',
+                'args': [IsA(dict), 'db-inst-1', ['db1'], 'wp_user_db1',
+                        IsA(basestring)],
+                'kwargs': None,
+                'result': True
+            },
+            {
+                # Create First Server
+                'call': 'stockton.server.distribute_create',
+                'args': [Func(context_has_server_settings),
+                        StrContains('web1')],
+                'kwargs': And(ContainsKeyValue('image', 119),
+                        ContainsKeyValue('flavor', 1),
+                        ContainsKeyValue('ip_address_type', 'public')),
+                'result': {'id': 10001, 'ip': "10.1.1.1",
+                        'password': "shecret"}
+            },
+            {
+                # Create Second Server
+                'call': 'stockton.server.distribute_create',
+                'args': [Func(context_has_server_settings),
+                        StrContains('web2')],
+                'kwargs': And(ContainsKeyValue('image', 119),
+                        ContainsKeyValue('flavor', 1),
+                        ContainsKeyValue('ip_address_type', 'public')),
+                'result': {'id': 10002, 'ip': "10.1.1.2",
+                        'password': "shecret"}
+            },
+            {
                 # Wait for First Server Build
                 'call': 'stockton.server.distribute_wait_on_build',
                 'args': [IsA(dict), 10001],
@@ -132,14 +180,6 @@ class TestWorkflow(unittest.TestCase):
                 'call': 'stockton.server.distribute_wait_on_build',
                 'args': [IsA(dict), 10002],
                 'kwargs': And(In('password')),
-                'result': True
-            },
-            {
-                # Create Database User
-                'call': 'stockton.db.distribute_add_user',
-                'args': [IsA(dict), 'db-inst-1', ['db1'], 'wp_user_db1',
-                        IsA(basestring)],
-                'kwargs': None,
                 'result': True
             },
             {
@@ -200,20 +240,20 @@ class TestWorkflow(unittest.TestCase):
         self.mox.StubOutWithMock(default_app, 'AsyncResult')
         for call in calls:
             async_mock = self.mox.CreateMock(AsyncResult)
-            async_mock.id = "MOCK%s" % uuid.uuid4().hex
+            async_mock.task_id = "MOCK%s" % uuid.uuid4().hex
             async_mock.result = call['result']
             async_mock.state = 'SUCCESS'
-            self.mock_tasks[async_mock.id] = async_mock
+            self.mock_tasks[async_mock.task_id] = async_mock
 
             # Task is called
             default_app.send_task(call['call'], args=call['args'],
-                    kwargs=call['kwargs']).AndReturn(async_mock)
+                    kwargs=call['kwargs']).InAnyOrder().AndReturn(async_mock)
 
             # State is checked
             async_mock.ready().AndReturn(True)
 
             # Data is retrieved
-            default_app.AsyncResult.__call__(async_mock.id).AndReturn(
+            default_app.AsyncResult.__call__(async_mock.task_id).AndReturn(
                     async_mock)
 
         self.mox.ReplayAll()
@@ -221,7 +261,39 @@ class TestWorkflow(unittest.TestCase):
         self.workflow.complete_all()
 
         serializer = DictionarySerializer()
-        LOG.debug(json.dumps(self.workflow.serialize(serializer), indent=2))
+        simulation = self.workflow.serialize(serializer)
+        simulation['id'] = 'simulate'
+        result = json.dumps(simulation, indent=2)
+        LOG.debug(result)
+
+        # Update simulator (since this test was successful)
+        simulator_file_path = os.path.join(os.path.dirname(__file__),
+                'data', 'simulator.json')
+
+        # Scrub data
+        for var_name, safe_value in ENV_VARS.iteritems():
+            if var_name in os.environ:
+                result = result.replace(os.environ[var_name], safe_value)
+        keys = get_os_env_keys()
+        if keys:
+            for key, value in keys.iteritems():
+                if 'public_key' in value:
+                    result = result.replace(value['public_key'][0:-1],
+                            ENV_VARS['CHECKMATE_PUBLIC_KEY'])
+                if 'public_key_path' in value:
+                    result = result.replace(value['public_key_path'],
+                            '/var/tmp/DEP-ID-1000/key.pub')
+                if 'private_key' in value:
+                    result = result.replace(value['private_key'][0:-1],
+                            ENV_VARS['CHECKMATE_PUBLIC_KEY'])
+                if 'private_key_path' in value:
+                    result = result.replace(value['private_key_path'],
+                            '/var/tmp/DEP-ID-1000/key.pem')
+        try:
+            with file(simulator_file_path, 'w') as f:
+                f.write(result)
+        except:
+            pass
 
     def tearDown(self):
         self.mox.UnsetStubs()
