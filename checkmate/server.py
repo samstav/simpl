@@ -70,7 +70,8 @@ from checkmate.db import get_driver, any_id_problems, any_tenant_id_problems
 
 # Load routes
 from checkmate import simulator
-from checkmate import blueprints, components, deployments, environments
+from checkmate import blueprints, components, deployments, environments, \
+        workflows
 
 from checkmate.utils import *
 

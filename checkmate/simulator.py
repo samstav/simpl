@@ -31,6 +31,12 @@ from checkmate.utils import write_body, read_body
 from checkmate.deployments import plan_dict
 from checkmate.workflows import get_SpiffWorkflow_status
 
+# Import these for simulation only so that bottle knows to reload when we edit
+# them
+from checkmate.providers.rackspace import compute, legacy, loadbalancer,\
+        database
+from checkmate.providers.opscode import chef_local, chef_server
+
 PHASE = time.time()
 PACKAGE = None
 
@@ -59,6 +65,7 @@ def simulate(tenant_id=None):
     serializer = DictionarySerializer()
     workflow = results['workflow'].serialize(serializer)
     results['workflow'] = workflow
+    results['workflow']['id'] = 'simulate'
     PACKAGE = results
 
     return write_body(results, request, response)
@@ -93,6 +100,26 @@ def workflow_status():
     serializer = DictionarySerializer()
     wf = Workflow.deserialize(serializer, entity)
     return write_body(get_SpiffWorkflow_status(wf), request, response)
+
+
+@get('/workflows/simulate/tasks/<task_id:int>')
+@get('/<tenant_id>/workflows/simulate/tasks/<task_id:int>')
+def get_workflow_task(task_id, tenant_id=None):
+    """Get a workflow task
+
+    :param task_id: checkmate workflow task id
+    """
+    global PHASE
+
+    serializer = DictionarySerializer()
+    wf = Workflow.deserialize(serializer, PACKAGE['workflow'])
+
+    task = wf.get_task(task_id)
+    if not task:
+        abort(404, 'No task with id %s' % task_id)
+    data = serializer._serialize_task(task, skip_children=True)
+    data['workflow_id'] = 'simulate'  # so we know which workflow it came from
+    return write_body(data, request, response)
 
 
 def process():
@@ -146,5 +173,6 @@ def process():
         Celery.try_fire = try_fire
 
     results = workflow.serialize(serializer)
+    results['id'] = 'simulate'
     PACKAGE['workflow'] = results
     return results
