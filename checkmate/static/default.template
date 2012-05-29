@@ -90,6 +90,7 @@
                     </a>
                     <ul class="dropdown-menu">
                       <li><a href="/status/celery/">Celery</a></li>
+                      <li><a href="/status/libraries/">Libraries</a></li>
                     </ul>
                   </li>
                   <li class="divider-vertical"></li>

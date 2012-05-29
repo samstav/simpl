@@ -48,6 +48,7 @@ from bottle import app, get, post, run, request, response, abort, static_file
 import os
 import logging
 import pam
+import sys
 from time import sleep
 import uuid
 import webob
@@ -126,6 +127,9 @@ def async():
     return afunc()
 
 
+#
+# Status and Sytem Information
+#
 @get('/status/celery')
 def get_celery_worker_status():
     """ Checking on celery """
@@ -145,6 +149,25 @@ def get_celery_worker_status():
     except ImportError as e:
         d = {ERROR_KEY: str(e)}
     return write_body(d, request, response)
+
+
+@get('/status/libraries')
+def get_dependency_versions():
+    """ Checking on dependencies """
+    result = {}
+    libraries = ['celery', 'kombu', 'SpiffWorkflow', 'stockton']
+    for library in libraries:
+        result[library] = {}
+        if library in sys.modules:
+            module = sys.modules[library]
+            if hasattr(module, '__version__'):
+                result[library]['version'] = module.__version__
+            result[library]['path'] = module.__path__
+            result[library]['status'] = 'loaded'
+        else:
+            result[library]['status'] = 'not loaded'
+
+    return write_body(result, request, response)
 
 
 #
