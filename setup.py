@@ -14,7 +14,7 @@ for p in github_projects:
 setup(
     name='checkmate',
     description='Configuration management and orchestration',
-    version='0.0.1',
+    version='0.1',
     author='Ziad Sawalha',
     author_email='ziad.sawalha@rackspace.com',
     install_requires=['celery', 'sqlalchemy', 'bottle', 'SpiffWorkflow',
