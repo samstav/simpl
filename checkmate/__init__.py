@@ -6,9 +6,9 @@ import gettext
 # don't need to.
 gettext.install('checkmate')
 
-__version__ = '0.1'
+__version__ = '0.2'
 __release__ = 'alpha'
 
 
 def version():
-    return "%s %s - released on 2012.05.28" % (__version__, __release__)
+    return "%s %s - dev" % (__version__, __release__)
