@@ -299,4 +299,4 @@ class TestWorkflow(unittest.TestCase):
         self.mox.UnsetStubs()
 
 if __name__ == '__main__':
-    unittest.main(verbosity=2)
+    unittest.main()

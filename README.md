@@ -178,14 +178,13 @@ In the third window, run these scripts::
     curl http://localhost:8080/deployments/*enter-your-deployment-id-here*/status
 
 
-
 ### Dependencies
 
 Some of checkmate's more significant dependencies are::
 
 - python-stockton: for managing Rackspace cloud services
-- celeryd: used by Stockton and integrates with a message queue (ex. RabbitMQ)
-- rabbitmq: or another backend for celery, but rabbit is what we tested on
+- celeryd: also used by Stockton and integrates with a message queue (ex. RabbitMQ)
+- rabbitmq: or another backend for celery (celery even has emulators that can use a database), but rabbit is what we tested on
 - SpiffWorkflow: a python workflow engine
-- chef: OpsCode's chef... and a chef server for now...
+- chef: OpsCode's chef... you don't need a server.
 

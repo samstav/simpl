@@ -2,7 +2,7 @@
 {% block title %}Checkmate - Workflow{% endblock %}
 {% block content %}
         <div class="row-fluid">
-          <div class="span3">
+          <div class="span4">
             <ul class="nav nav-list">
               <li class="nav-header">
                 Commands
@@ -65,7 +65,7 @@
               {%- endfor %}
             </ul>
           </div><!-- span2 -->
-          <div class="span9">
+          <div class="span8">
             <h2>{{ data['wf_spec']['name'] }}</h2>
             <form id="workflow" method="POST" action="{{tenant_id|prepend}}/workflows/{{data.id}}">
               <textarea name="object" id="editor">{{ source | safe }}</textarea>
@@ -83,6 +83,7 @@
                 dragDrop: false,
                 matchBrackets: true
                 });
+              // To fold lines use foldFunc(editor, 9);
             </script>
           </div><!-- span10 -->
         </div><!-- row-fluid -->
