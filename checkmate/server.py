@@ -47,7 +47,11 @@ import base64
 from bottle import app, get, post, run, request, response, abort, static_file
 import os
 import logging
-import pam
+# some distros install as PAM (Ubuntu, SuSE) https://bugs.launchpad.net/keystone/+bug/938801
+try:
+    import pam
+except ImportError:
+    import PAM
 import sys
 from time import sleep
 import uuid
