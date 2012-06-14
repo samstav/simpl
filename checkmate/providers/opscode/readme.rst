@@ -22,6 +22,24 @@ Each managed environment gets its own, isolated folder containing:
 
 When operating knife in that folder, the environment is isolated from other folders.
 
+The folder structure is:
+
+/opt
+ /checkmate
+  /environments/
+   /myEnv
+    ├── private.pem
+    ├── checkmate.pub
+    └── /kitchen/
+        ├── certificates
+        ├── cookbooks
+        ├── data_bags
+        ├── nodes
+        ├── roles
+        ├── site-cookbooks
+        └── solo.rb [-> linked to knife.rb]
+
+
 INSTALLING CHEF FOR CHECKMATE CHEF-LOCAL
 ========================================
 
