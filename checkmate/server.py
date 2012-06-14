@@ -62,6 +62,12 @@ import webob
 import webob.dec
 from webob.exc import HTTPNotFound, HTTPUnauthorized
 
+if '--newrelic' in sys.argv:
+    import newrelic.agent
+    newrelic.agent.initialize(os.path.normpath(os.path.join(
+            os.path.dirname(__file__), os.path.pardir,
+            'newrelic.ini')))  # optional ->, 'staging')
+
 
 # define a Handler which writes INFO messages or higher to the sys.stderr
 console = logging.StreamHandler()
@@ -562,6 +568,9 @@ if __name__ == '__main__':
     pam_auth = PAMAuthMiddleware(token)
     tenant = TenantMiddleware(pam_auth)
     context = ContextMiddleware(tenant)
-    first = context
+    if '--newrelic' in sys.argv:
+        first = newrelic.agent.wsgi_application()(context)
+    else:
+        first = context
     run(app=first, host='127.0.0.1', port=8080, reloader=True,
             server='wsgiref')
