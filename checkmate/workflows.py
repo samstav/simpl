@@ -1,6 +1,6 @@
 """ Workflow handling
 
-This module uses SpiffWorkflow to create, mange, and run workflows for
+This module uses SpiffWorkflow to create, manage, and run workflows for
 CheckMate
 """
 # pylint: disable=E0611
@@ -23,7 +23,7 @@ from SpiffWorkflow.storage import DictionarySerializer
 from checkmate.db import get_driver, any_id_problems
 from checkmate.environments import Environment
 from checkmate.utils import write_body, read_body, extract_sensitive_data,\
-        merge_dictionary, is_ssh_key
+        merge_dictionary, is_ssh_key, with_tenant
 from checkmate import orchestrator
 
 db = get_driver('checkmate.db.sql.Driver')
@@ -35,13 +35,13 @@ LOG = logging.getLogger(__name__)
 # Workflows
 #
 @get('/workflows')
-@get('/<tenant_id>/workflows')
+@with_tenant
 def get_workflows(tenant_id=None):
     return write_body(db.get_workflows(tenant_id=tenant_id), request, response)
 
 
 @post('/workflows')
-@post('/<tenant_id>/workflows')
+@with_tenant
 def add_workflow(tenant_id=None):
     entity = read_body(request)
     if 'workflow' in entity and isinstance(entity['workflow'], dict):
@@ -61,8 +61,7 @@ def add_workflow(tenant_id=None):
 
 @post('/workflows/<id>')
 @put('/workflows/<id>')
-@post('/<tenant_id>/workflows/<id>')
-@put('/<tenant_id>/workflows/<id>')
+@with_tenant
 def save_workflow(id, tenant_id=None):
     entity = read_body(request)
 
@@ -81,7 +80,7 @@ def save_workflow(id, tenant_id=None):
 
 
 @get('/workflows/<id>')
-@get('/<tenant_id>/workflows/<id>')
+@with_tenant
 def get_workflow(id, tenant_id=None):
     if 'with_secrets' in request.query:  # TODO: verify admin-ness
         entity = db.get_workflow(id, with_secrets=True)
@@ -95,7 +94,7 @@ def get_workflow(id, tenant_id=None):
 
 
 @get('/workflows/<id>/status')
-@get('/<tenant_id>/workflows/<id>/status')
+@with_tenant
 def get_workflow_status(id, tenant_id=None):
     entity = db.get_workflow(id)
     if not entity:
@@ -106,7 +105,7 @@ def get_workflow_status(id, tenant_id=None):
 
 
 @get('/workflows/<id>/+execute')
-@get('/<tenant_id>/workflows/<id>/+execute')
+@with_tenant
 def execute_workflow(id, tenant_id=None):
     """Process a checkmate deployment workflow
 
@@ -131,7 +130,7 @@ def execute_workflow(id, tenant_id=None):
 #
 
 @get('/workflows/<id>/tasks/<task_id:int>')
-@get('/<tenant_id>/workflows/<id>/tasks/<task_id:int>')
+@with_tenant
 def get_workflow_task(id, task_id, tenant_id=None):
     """Get a workflow task
 
@@ -157,7 +156,7 @@ def get_workflow_task(id, task_id, tenant_id=None):
 
 
 @post('/workflows/<id>/tasks/<task_id:int>')
-@post('/<tenant_id>/workflows/<id>/tasks/<task_id:int>')
+@with_tenant
 def post_workflow_task(id, task_id, tenant_id=None):
     """Update a workflow task
 
@@ -217,7 +216,7 @@ def post_workflow_task(id, task_id, tenant_id=None):
 
 
 @get('/workflows/<id>/tasks/<task_id:int>/+reset')
-@get('/<tenant_id>/workflows/<id>/tasks/<task_id:int>/+reset')
+@with_tenant
 def reset_workflow_task(id, task_id, tenant_id=None):
     """Reset a Celery workflow task and retry it
 
@@ -270,7 +269,7 @@ def reset_workflow_task(id, task_id, tenant_id=None):
 
 
 @get('/workflows/<id>/tasks/<task_id:int>/+resubmit')
-@get('/<tenant_id>/workflows/<id>/tasks/<task_id:int>/+resubmit')
+@with_tenant
 def resubmit_workflow_task(id, task_id, tenant_id=None):
     """Reset a Celery workflow task and retry it
 
@@ -319,7 +318,7 @@ def resubmit_workflow_task(id, task_id, tenant_id=None):
 
 
 @get('/workflows/<id>/tasks/<task_id:int>/+execute')
-@get('/<tenant_id>/workflows/<id>/tasks/<task_id:int>/+execute')
+@with_tenant
 def execute_workflow_task(id, task_id, tenant_id=None):
     """Process a checkmate deployment workflow task
 
@@ -605,7 +604,7 @@ def create_workflow(deployment):
 
 
 def get_os_env_keys():
-    """Get keys if they asre set in the os_environment"""
+    """Get keys if they are set in the os_environment"""
     keys = {}
     if ('CHECKMATE_PUBLIC_KEY' in os.environ and
             os.path.exists(os.path.expanduser(
@@ -613,7 +612,8 @@ def get_os_env_keys():
         try:
             path = os.path.expanduser(os.environ['CHECKMATE_PUBLIC_KEY'])
             f = open(path)
-            keys['checkmate'] = {'public_key': f.read(), 'public_key_path': path}
+            keys['checkmate'] = {'public_key': f.read(),
+                    'public_key_path': path}
             f.close()
         except IOError as (errno, strerror):
             LOG.error("I/O error reading public key from CHECKMATE_PUBLIC_KEY="
@@ -630,7 +630,8 @@ def get_os_env_keys():
         try:
             path = os.path.expanduser(os.environ['STOCKTON_PUBLIC_KEY'])
             f = open(path)
-            keys['stockton'] = {'public_key': f.read(), 'public_key_path': path}
+            keys['stockton'] = {'public_key': f.read(),
+                    'public_key_path': path}
             f.close()
         except IOError as (errno, strerror):
             LOG.error("I/O error reading public key from STOCKTON_PUBLIC_KEY="

@@ -12,7 +12,7 @@ from checkmate.environments import Environment
 from checkmate import orchestrator
 from checkmate.workflows import create_workflow
 from checkmate.utils import write_body, read_body, extract_sensitive_data,\
-        merge_dictionary
+        merge_dictionary, with_tenant
 from checkmate import orchestrator
 
 LOG = logging.getLogger(__name__)
@@ -23,14 +23,14 @@ db = get_driver('checkmate.db.sql.Driver')
 # Deployments
 #
 @get('/deployments')
-@get('/<tenant_id>/deployments')
+@with_tenant
 def get_deployments(tenant_id=None):
     return write_body(db.get_deployments(tenant_id=tenant_id), request,
             response)
 
 
 @post('/deployments')
-@post('/<tenant_id>/deployments')
+@with_tenant
 def post_deployment(tenant_id=None):
     entity = read_body(request)
     if 'deployment' in entity:
@@ -69,7 +69,7 @@ def post_deployment(tenant_id=None):
 
 
 @post('/deployments/+parse')
-@post('/<tenant_id>/deployments/+parse')
+@with_tenant
 def parse_deployment():
     """ Use this to preview a request """
     entity = read_body(request)
@@ -91,7 +91,7 @@ def parse_deployment():
 
 
 @put('/deployments/<id>')
-@put('/<tenant_id>/deployments/<id>')
+@with_tenant
 def put_deployment(id, tenant_id=None):
     entity = read_body(request)
     if 'deployment' in entity:
@@ -109,7 +109,7 @@ def put_deployment(id, tenant_id=None):
 
 
 @get('/deployments/<id>')
-@get('/<tenant_id>/deployments/<id>')
+@with_tenant
 def get_deployment(id, tenant_id=None):
     if 'with_secrets' in request.query:  # TODO: verify admin-ness
         entity = db.get_deployment(id, with_secrets=True)
@@ -121,7 +121,7 @@ def get_deployment(id, tenant_id=None):
 
 
 @get('/deployments/<id>/status')
-@get('/<tenant_id>/deployments/<id>/status')
+@with_tenant
 def get_deployment_status(id, tenant_id=None):
     deployment = db.get_deployment(id)
     if not deployment:

@@ -5,7 +5,8 @@ import logging
 import uuid
 
 from checkmate.db import get_driver, any_id_problems
-from checkmate.utils import read_body, write_body, extract_sensitive_data
+from checkmate.utils import read_body, write_body, extract_sensitive_data,\
+        with_tenant
 
 LOG = logging.getLogger(__name__)
 db = get_driver('checkmate.db.sql.Driver')
@@ -15,14 +16,14 @@ db = get_driver('checkmate.db.sql.Driver')
 # Blueprints
 #
 @get('/blueprints')
-@get('/<tenant_id>/blueprints')
+@with_tenant
 def get_blueprints(tenant_id=None):
     return write_body(db.get_blueprints(tenant_id=tenant_id), request,
             response)
 
 
 @post('/blueprints')
-@post('/<tenant_id>/blueprints')
+@with_tenant
 def post_blueprint(tenant_id=None):
     entity = read_body(request)
     if 'blueprint' in entity:
@@ -41,7 +42,7 @@ def post_blueprint(tenant_id=None):
 
 
 @put('/blueprints/<id>')
-@put('/<tenant_id>/blueprints/<id>')
+@with_tenant
 def put_blueprint(id, tenant_id=None):
     entity = read_body(request)
     if 'blueprint' in entity:
@@ -59,7 +60,7 @@ def put_blueprint(id, tenant_id=None):
 
 
 @get('/blueprints/<id>')
-@get('/<tenant_id>/blueprints/<id>')
+@with_tenant
 def get_blueprint(id, tenant_id=None):
     entity = db.get_blueprint(id)
     if not entity:

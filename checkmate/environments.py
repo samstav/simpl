@@ -8,7 +8,8 @@ import uuid
 from checkmate.db import get_driver, any_id_problems, any_tenant_id_problems
 from checkmate.exceptions import CheckmateException
 from checkmate.providers import get_provider_class
-from checkmate.utils import read_body, write_body, extract_sensitive_data
+from checkmate.utils import read_body, write_body, extract_sensitive_data,\
+        with_tenant
 
 LOG = logging.getLogger(__name__)
 db = get_driver('checkmate.db.sql.Driver')
@@ -18,14 +19,14 @@ db = get_driver('checkmate.db.sql.Driver')
 # Environments
 #
 @get('/environments')
-@get('/<tenant_id>/environments')
+@with_tenant
 def get_environments(tenant_id=None):
     return write_body(db.get_environments(tenant_id=tenant_id), request,
             response)
 
 
 @post('/environments')
-@post('/<tenant_id>/environments')
+@with_tenant
 def post_environment(tenant_id=None):
     entity = read_body(request)
     if 'environment' in entity:
@@ -44,7 +45,7 @@ def post_environment(tenant_id=None):
 
 
 @put('/environments/<id>')
-@put('/<tenant_id>/environments/<id>')
+@with_tenant
 def put_environment(id, tenant_id=None):
     entity = read_body(request)
     if 'environment' in entity:
@@ -62,7 +63,7 @@ def put_environment(id, tenant_id=None):
 
 
 @get('/environments/<id>')
-@get('/<tenant_id>/environments/<id>')
+@with_tenant
 def get_environment(id, tenant_id=None):
     if 'with_secrets' in request.query:  # TODO: verify admin-ness
         entity = db.get_environment(id)
@@ -74,7 +75,7 @@ def get_environment(id, tenant_id=None):
 
 
 @delete('/environments/<id>')
-@delete('/<tenant_id>/environments/<id>')
+@with_tenant
 def delete_environment(id, tenant_id=None):
     entity = db.get_environment(id)
     if not entity:

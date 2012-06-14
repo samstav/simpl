@@ -27,7 +27,7 @@ from SpiffWorkflow import Workflow
 from SpiffWorkflow.storage import DictionarySerializer
 
 from checkmate.db import any_id_problems
-from checkmate.utils import write_body, read_body
+from checkmate.utils import write_body, read_body, with_tenant
 from checkmate.deployments import plan_dict
 from checkmate.workflows import get_SpiffWorkflow_status
 
@@ -44,7 +44,7 @@ LOG = logging.getLogger(__name__)
 
 
 @post('/deployments/simulate')
-@post('/<tenant_id>/deployments/simulate')
+@with_tenant
 def simulate(tenant_id=None):
     """ Run a simulation """
     global PHASE, PACKAGE
@@ -72,14 +72,14 @@ def simulate(tenant_id=None):
 
 
 @get('/deployments/simulate')
-@get('/<tenant_id>/deployments/simulate')
+@with_tenant
 def display(tenant_id=None):
     global PHASE, PACKAGE
     return write_body(PACKAGE, request, response)
 
 
 @get('/workflows/simulate')
-@get('/<tenant_id>/workflows/simulate')
+@with_tenant
 def workflow_state(tenant_id=None):
     """Return slightly updated workflow each time"""
     global PHASE
@@ -103,7 +103,7 @@ def workflow_status():
 
 
 @get('/workflows/simulate/tasks/<task_id:int>')
-@get('/<tenant_id>/workflows/simulate/tasks/<task_id:int>')
+@with_tenant
 def get_workflow_task(task_id, tenant_id=None):
     """Get a workflow task
 

@@ -5,14 +5,15 @@
 """
 # pylint: disable=E0611
 import base64
-from bottle import abort
 import inspect
-from jinja2 import BaseLoader, TemplateNotFound, Environment
 import json
 import logging
 import os
 import struct
 import sys
+
+from bottle import abort, request
+from jinja2 import BaseLoader, TemplateNotFound, Environment
 import yaml
 from yaml.events import AliasEvent, ScalarEvent
 
@@ -361,3 +362,14 @@ def get_source_body(function):
     for index, line in enumerate(lines):
         lines[index] = line[indent:]
     return '\n'.join(lines)
+
+
+def with_tenant(fn):
+    """Assures that a context tenant_id is passed in to called function"""
+    def wrapped(*args, **kwargs):
+        if kwargs and kwargs.get('tenant_id'):
+            # Tenant ID is being passed in
+            return fn(*args, **kwargs)
+        else:
+            return fn(*args, tenant_id=request.context.tenant, **kwargs)
+    return wrapped

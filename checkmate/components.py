@@ -5,7 +5,8 @@ import logging
 import uuid
 
 from checkmate.db import get_driver, any_id_problems
-from checkmate.utils import read_body, write_body, extract_sensitive_data
+from checkmate.utils import read_body, write_body, extract_sensitive_data,\
+        with_tenant
 
 LOG = logging.getLogger(__name__)
 db = get_driver('checkmate.db.sql.Driver')
@@ -15,14 +16,14 @@ db = get_driver('checkmate.db.sql.Driver')
 # Components
 #
 @get('/components')
-@get('/<tenant_id>/components')
+@with_tenant
 def get_components(tenant_id=None):
     return write_body(db.get_components(tenant_id=tenant_id), request,
             response)
 
 
 @post('/components')
-@post('/<tenant_id>/components')
+@with_tenant
 def post_component(tenant_id=None):
     entity = read_body(request)
     if 'component' in entity:
@@ -41,7 +42,7 @@ def post_component(tenant_id=None):
 
 
 @put('/components/<id>')
-@put('/<tenant_id>/components/<id>')
+@with_tenant
 def put_component(id, tenant_id=None):
     entity = read_body(request)
     if 'component' in entity:
@@ -59,7 +60,7 @@ def put_component(id, tenant_id=None):
 
 
 @get('/components/<id>')
-@get('/<tenant_id>/components/<id>')
+@with_tenant
 def get_component(id, tenant_id=None):
     entity = db.get_component(id)
     if not entity:

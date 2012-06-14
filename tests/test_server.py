@@ -5,6 +5,8 @@ import os
 import unittest2 as unittest
 from webtest import TestApp
 
+from checkmate.server import TenantMiddleware, ContextMiddleware
+
 os.environ['CHECKMATE_DATA_PATH'] = os.path.join(os.path.dirname(__file__),
                                               'data')
 os.environ['BROKER_USERNAME'] = os.environ.get('BROKER_USERNAME', 'checkmate')
@@ -17,7 +19,10 @@ class TestServer(unittest.TestCase):
     """ Test Basic Server code """
 
     def setUp(self):
-        self.app = TestApp(bottle.app())
+        root_app = bottle.app()
+        tenant = TenantMiddleware(root_app)
+        context = ContextMiddleware(tenant)
+        self.app = TestApp(context)
 
     def test_REST_deployment(self):
         self.rest_exercise('deployment')
