@@ -76,6 +76,27 @@ class LocalProvider(ProviderBase):
         # The connection to overrides will be done later (using the join)
         return {'root': root, 'final': bootstrap_task}
 
+    def get_catalog(self, context, type_filter=None):
+        #TODO: remove hard-coding
+        results = {}
+        if type_filter is None or type_filter == 'config':
+            results = {'configs': {
+                    'wordpress': {
+                        'name': 'wordpress',
+                        },
+                    'apache2': {
+                        'name': 'apache',
+                        },
+                    'mysql': {
+                        'name': 'mysql',
+                        },
+                    'php5': {
+                        'name': 'php5',
+                        },
+                    }}
+
+        return results
+
 
 class ServerProvider(ProviderBase):
     """Implements a Chef Server configuration management provider"""
