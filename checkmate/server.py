@@ -294,7 +294,7 @@ class TenantMiddleware(object):
 
 
 class PAMAuthMiddleware(object):
-    """Authenticate basic auth calls to PAM and mark success as admin
+    """Authenticate basic auth calls to PAM and mark user as admin
 
     - Authenticates any basic auth to PAM
         - 401 if fails
@@ -397,17 +397,18 @@ class TokenAuthMiddleware(object):
             except ValueError:
                 LOG.debug('Keystone did not return json-encoded body')
                 content = {}
-            catalog = self.get_catalog(content)
+            catalog = self.get_service_catalog(content)
             context.catalog = catalog
             user_tenants = self.get_user_tenants(content)
             context.user_tenants = user_tenants
             context.auth_tok = e['HTTP_X_AUTH_TOKEN']
             context.user = self.get_user(content)
             context.roles = self.get_roles(content)
+            context.authenticated = True
 
         return self.app(e, h)
 
-    def get_catalog(self, content):
+    def get_service_catalog(self, content):
         return content['access']['serviceCatalog']
 
     def get_user_tenants(self, content):
@@ -436,8 +437,8 @@ class TokenAuthMiddleware(object):
             except KeyError:
                 pass
 
-        # Get tenants from catalog
-        catalog = self.get_catalog(content)
+        # Get tenants from service catalog
+        catalog = self.get_service_catalog(content)
         for service in catalog:
             endpoints = service['endpoints']
             for endpoint in endpoints:
@@ -457,13 +458,11 @@ class AuthorizationMiddleware(object):
     """Checks that call is authenticated and authorized to access the resource
     requested.
 
-    ****************************************
-    FIXME: THIS IS NOT PROVIDING SECURITY YET
-    ****************************************
-
     - Allows all calls to /static/
     - Allows all calls that have been validated
     - Denies all others
+    Note: calls authenticated with PAM will not have an auth_token. They will
+          not be able to access calls that need an auth token
     """
     def __init__(self, app):
         self.app = app
@@ -482,12 +481,18 @@ class AuthorizationMiddleware(object):
             return self.app(e, h)
         elif context.tenant:
             # Authorize tenant calls
+            if not context.authenticated:
+                return HTTPUnauthorized(None, [('WWW-Authenticate',
+                                'Basic realm="CheckMate PAM Module"')])(e, h)
             if not context.allowed_to_access_tenant():
                 return HTTPUnauthorized("Access to tenant not allowed")(e, h)
             return self.app(e, h)
         else:
             LOG.debug('Auth-Z failed. Returning 401')
-            return HTTPUnauthorized()(e, h)
+            #TODO: returning basic auth info now for browser support, but need
+            # fix this in PAMAuthMiddleware
+            return HTTPUnauthorized(None, [('WWW-Authenticate',
+                                'Basic realm="CheckMate PAM Module"')])(e, h)
 
 
 class StripPathMiddleware(object):
@@ -542,6 +547,10 @@ class RequestContext(object):
         self.show_deleted = show_deleted
 
     def allowed_to_access_tenant(self, tenant_id=None):
+        """Checks if a tenant can be accessed by this current session.
+
+        If no tenant is specified, the check will be done against the current
+        context's tenant."""
         return (tenant_id or self.tenant) in (self.user_tenants or [])
 
 

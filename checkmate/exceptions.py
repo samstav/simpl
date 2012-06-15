@@ -12,8 +12,15 @@ class CheckmateCustomException(Exception):
 
 
 class CheckmateException(Exception):
+    """Checkmate Error"""
     pass
 
 
-class CheckmateDatabaseMigrationError(Exception):
+class CheckmateDatabaseMigrationError(CheckmateException):
+    pass
+
+
+class CheckmateNoTokenError(CheckmateException):
+    """No cloud auth token was available in this session. Try logging on using
+    an auth token"""
     pass
