@@ -1,8 +1,10 @@
 import logging
 import os
+import openstack.compute
 from SpiffWorkflow.operators import Attrib
 from SpiffWorkflow.specs import Celery, Merge, Transform
 
+from checkmate.exceptions import CheckmateNoTokenError
 from checkmate.providers import ProviderBase
 from checkmate.utils import get_source_body
 
@@ -99,6 +101,52 @@ class LegacyProvider(ProviderBase):
                 dependency.connect(join)
 
         return {'root': join, 'final': build_wait_task}
+
+    def get_catalog(self, context, type_filter=None):
+        api = self._connect(context)
+
+        results = {}
+        if type_filter is None or type_filter == 'type':
+            images = api.images.list()
+            results['types'] = {
+                    i.id: {
+                        'name': i.name,
+                        'os': i.name,
+                        } for i in images if int(i.id) < 1000}
+        if type_filter is None or type_filter == 'image':
+            images = api.images.list()
+            results['images'] = {
+                    i.id: {
+                        'name': i.name
+                        } for i in images if int(i.id) > 1000}
+        if type_filter is None or type_filter == 'size':
+            flavors = api.flavors.list()
+            results['sizes'] = {
+                f.id: {
+                    'name': f.name,
+                    'ram': f.ram,
+                    'disk': f.disk,
+                    } for f in flavors}
+
+        return results
+
+    def _connect(self, context):
+        """Use context info to connect to API and return api object"""
+        if not context.auth_tok:
+            raise CheckmateNoTokenError()
+        api = openstack.compute.Compute()
+        api.client.auth_token = context.auth_tok
+
+        def find_url(catalog):
+            for service in catalog:
+                if service['name'] == 'cloudServers':
+                    endpoints = service['endpoints']
+                    for endpoint in endpoints:
+                        return endpoint['publicURL']
+
+        url = find_url(context.catalog)
+        api.client.management_url = url
+        return api
 
 
 class NovaProvider(ProviderBase):
