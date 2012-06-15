@@ -1,8 +1,10 @@
 import logging
 import random
+import string
+
+import clouddb
 from SpiffWorkflow.operators import Attrib
 from SpiffWorkflow.specs import Celery
-import string
 
 from checkmate.providers import ProviderBase
 
@@ -57,3 +59,54 @@ class Provider(ProviderBase):
         context['db_password'] = password
         create_db_task.connect(create_db_user)
         return {'root': create_db_task, 'final': create_db_user}
+
+    def get_catalog(self, context, type_filter=None):
+        api = self._connect(context)
+        results = {}
+
+        if type_filter is None or type_filter == 'regions':
+            regions = {}
+            for service in context.catalog:
+                if service['type'] == 'rax:database':
+                    endpoints = service['endpoints']
+                    for endpoint in endpoints:
+                        if 'region' in endpoint:
+                            regions[endpoint['region']] = endpoint['publicURL']
+            results['regions'] = regions
+
+        if type_filter is None or type_filter == 'size':
+            flavors = api.flavors.list_flavors()
+            results['sizes'] = {
+                f.id: {
+                    'name': f.name,
+                    } for f in flavors}
+
+        return results
+
+    def _connect(self, context):
+        """Use context info to connect to API and return api object"""
+        #FIXME: handle region in context
+        if not context.auth_tok:
+            raise CheckmateNoTokenError()
+
+        def find_url(catalog):
+            for service in catalog:
+                if service['type'] == 'rax:database':
+                    endpoints = service['endpoints']
+                    for endpoint in endpoints:
+                        return endpoint['publicURL']
+
+        def find_a_region(catalog):
+            for service in catalog:
+                if service['type'] == 'rax:database':
+                    endpoints = service['endpoints']
+                    for endpoint in endpoints:
+                        return endpoint['region']
+
+        api = clouddb.CloudDB(context.user, 'dummy',
+                find_a_region(context.catalog) or 'DFW')
+        api.client.auth_token = context.auth_tok
+        url = find_url(context.catalog)
+        api.client.region_account_url = url
+
+        return api
