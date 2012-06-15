@@ -18,3 +18,19 @@ class Provider(ProviderBase):
                        defines={"Resource": key},
                        properties={'estimated_duration': 30})
         return {'root': create_lb, 'final': create_lb}
+
+    def get_catalog(self, context, type_filter=None):
+        #TODO: add more than just regions
+        results = {}
+
+        if type_filter is None or type_filter == 'regions':
+            regions = {}
+            for service in context.catalog:
+                if service['type'] == 'rax:load-balancer':
+                    endpoints = service['endpoints']
+                    for endpoint in endpoints:
+                        if 'region' in endpoint:
+                            regions[endpoint['region']] = endpoint['publicURL']
+            results['regions'] = regions
+
+        return results
