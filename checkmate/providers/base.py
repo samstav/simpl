@@ -33,6 +33,16 @@ class ProviderBase():
         """
         pass
 
+    def get_catalog(self, context, type_filter=None):
+        """Returns catalog (filterable by type) for this provider.
+
+        Catalogs display the types of resources that can be created by this
+        provider
+        :param context: a RequestContext that has a security information
+        :param type_filter: which type of resource to filter by
+        :return_type: dict"""
+        return {}
+
 
 def get_provider_class(vendor, key):
     """Given a vendor name, and provider kjey, returjn the provider class"""

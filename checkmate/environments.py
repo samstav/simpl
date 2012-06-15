@@ -84,6 +84,51 @@ def delete_environment(id, tenant_id=None):
 
 
 #
+# Providers and Resources
+#
+@get('/environments/<environment_id>/providers')
+@with_tenant
+def get_providers(environment_id, tenant_id=None):
+    entity = db.get_environment(environment_id)
+    if not entity:
+        abort(404, 'No environment with id %s' % environment_id)
+
+    providers = entity.get('providers', {})
+
+    return write_body(providers, request, response)
+
+
+@get('/environments/<environment_id>/providers/<provider_id>')
+@with_tenant
+def get_provider(environment_id, provider_id, tenant_id=None):
+    entity = db.get_environment(environment_id)
+    if not entity:
+        abort(404, 'No environment with id %s' % environment_id)
+
+    providers = entity.get('providers', {})
+    provider = providers.get(provider_id, {})
+
+    return write_body(provider, request, response)
+
+
+@get('/environments/<environment_id>/providers/<provider_id>/catalog')
+@with_tenant
+def get_catalog(environment_id, provider_id, tenant_id=None):
+    entity = db.get_environment(environment_id, with_secrets=True)
+    if not entity:
+        abort(404, 'No environment with id %s' % environment_id)
+    environment = Environment(entity)
+    provider = environment.get_provider(provider_id)
+    if 'type' in request.query:
+        catalog = provider.get_catalog(request.context,
+                type_filter=request.query['type'])
+    else:
+        catalog = provider.get_catalog(request.context)
+
+    return write_body(catalog, request, response)
+
+
+#
 # Environment Code
 #
 class Environment():
@@ -118,13 +163,16 @@ class Environment():
             results[key] = provider_class(provider)
         return results
 
+    def get_provider(self, key):
+        """ Returns provider class instance from this environment """
+        providers = self.dict.get('providers', None)
+        if not providers:
+            raise CheckmateException("Environment does not have providers")
+        common = providers.get('common', {})
 
-class Provider():
-    def __init__(self, provider):
-        self.dict = provider
-
-    def provides(self):
-        return self.dict.get('provides', [])
-
-    def generate_template(self, deployment, service_name, service, name=None):
-        raise NotImplementedError()
+        provider = providers[key]
+        vendor = provider.get('vendor', common.get('vendor', None))
+        if not vendor:
+            raise CheckmateException("No vendor specified for '%s'" % key)
+        provider_class = get_provider_class(vendor, key)
+        return provider_class(provider)
