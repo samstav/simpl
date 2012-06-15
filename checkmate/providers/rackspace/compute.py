@@ -1,5 +1,8 @@
 import logging
 import os
+
+from novaclient.exceptions import EndpointNotFound, AmbiguousEndpoints
+from novaclient.v1_1 import client
 import openstack.compute
 from SpiffWorkflow.operators import Attrib
 from SpiffWorkflow.specs import Celery, Merge, Transform
@@ -207,3 +210,66 @@ class NovaProvider(ProviderBase):
                 dependency.connect(join)
 
         return {'root': join, 'final': build_wait_task}
+
+    def get_catalog(self, context, type_filter=None):
+        api = self._connect(context)
+
+        results = {}
+        if type_filter is None or type_filter == 'type':
+            images = api.images.list()
+            results['types'] = {
+                    i.id: {
+                        'name': i.name,
+                        'os': i.name,
+                        } for i in images}
+        if type_filter is None or type_filter == 'image':
+            images = api.images.list()
+            results['images'] = {
+                    i.id: {
+                        'name': i.name
+                        } for i in images if False}
+        if type_filter is None or type_filter == 'size':
+            flavors = api.flavors.list()
+            results['sizes'] = {
+                f.id: {
+                    'name': f.name,
+                    'ram': f.ram,
+                    'disk': f.disk,
+                    } for f in flavors}
+
+        if type_filter is None or type_filter == 'regions':
+            regions = {}
+            for service in context.catalog:
+                if service['name'] == 'cloudServersOpenStack':
+                    endpoints = service['endpoints']
+                    for endpoint in endpoints:
+                        if 'region' in endpoint:
+                            regions[endpoint['region']] = endpoint['publicURL']
+            results['regions'] = regions
+
+        return results
+
+    def _connect(self, context):
+        """Use context info to connect to API and return api object"""
+        #TODO: Hard-coded to Rax auth for now
+        #FIXME: handle region in context
+        if not context.auth_tok:
+            raise CheckmateNoTokenError()
+        os.environ['NOVA_RAX_AUTH'] = "Yes Please!"
+        api = client.Client(context.user, 'dummy', None,
+                "https://identity.api.rackspacecloud.com/v2.0",
+                region_name=None, service_type="compute",
+                service_name='cloudServersOpenStack')
+        api.client.auth_token = context.auth_tok
+
+        def find_url(catalog):
+            for service in catalog:
+                if service['name'] == 'cloudServersOpenStack':
+                    endpoints = service['endpoints']
+                    for endpoint in endpoints:
+                        return endpoint['publicURL']
+
+        url = find_url(context.catalog)
+        api.client.management_url = url
+
+        return api

@@ -26,6 +26,7 @@ setup(
                       'pyyaml',
                       'sqlalchemy-migrate',
                       'openstack.compute',
+                      'python-novaclient',
                       ],
     tests_require=['nose', 'unittest2', 'mox'],
     dependency_links=github_urls,
