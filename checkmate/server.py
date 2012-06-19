@@ -210,7 +210,7 @@ def root():
 # Keep this at end
 @get('<path:path>')
 def extensions(path):
-    """Catch-all unmatched paths (so we know we got teh request, but didn't
+    """Catch-all unmatched paths (so we know we got the request, but didn't
        match it)"""
     abort(404, "Path '%s' not recognized" % path)
 
