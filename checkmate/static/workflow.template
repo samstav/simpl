@@ -36,7 +36,9 @@
                   {% elif task.state == 16 %} label-info
                   {% elif task.state == 64 %} label-success
                   {% else %} label-inverse
-                  {% endif %}"> {{ task.task_spec }}</span></a>
+                  {% endif %}
+                  {% if data.wf_spec.task_specs[task.task_spec].description %} cmtip{% endif %}"
+                  {% if data.wf_spec.task_specs[task.task_spec].description %} title="{{data.wf_spec.task_specs[task.task_spec].description}}"{% endif %}> {{ task.task_spec }}</span></a>
                   {% if task.state != 64 %}
                   <a href="#" id="run-task-{{task.id}}" class="cmtip" title="Run this task"><i class="icon-play"></i></a>
                   <script type="text/javascript">
