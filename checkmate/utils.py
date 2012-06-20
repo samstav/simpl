@@ -8,18 +8,16 @@ import base64
 import inspect
 import json
 import logging
-import os
 import struct
 import sys
 
 from bottle import abort, request
-from jinja2 import BaseLoader, TemplateNotFound, Environment
 import yaml
 from yaml.events import AliasEvent, ScalarEvent
 
 LOG = logging.getLogger(__name__)
-RESOURCES = ['deployments', 'workflows', 'static', 'blueprints',
-             'environments', 'components', 'test', 'status', 'favicon.ico']
+RESOURCES = ['deployments', 'workflows', 'blueprints', 'environments',
+        'components', 'test', 'status']
 DEFAULT_SENSITIVE_KEYS = ['credentials', 'password', 'apikey', 'token',
         'authtoken', 'db_password', 'ssh-private-key']
 
@@ -43,46 +41,6 @@ def import_object(import_str, *args, **kw):
     except ImportError:
         cls = import_class(import_str)
         return cls(*args, **kw)
-
-
-def get_template_name_from_path(path):
-    """ Returns template name from request path"""
-    name = 'default'
-    if path:
-        if path[0] == '/':
-            parts = path[1:].split('/')  # normalize to always not include first path
-        else:
-            parts = path.split('/')
-        if len(parts) > 0 and parts[0] not in RESOURCES:
-            # Assume it is a tenant (and remove it from our evaluation)
-            parts = parts[1:]
-
-        # IDs are 2nd or 4th: /[type]/[id]/[type2|action]/[id2]/action
-        if len(parts) == 1:
-            # Resource
-            name = "%s" % parts[0]
-        elif len(parts) == 2:
-            # Single resource
-            name = "%s" % parts[0][0:-1]  # strip s
-        elif len(parts) == 3:
-            if parts[2].startswith('+'):
-                # Action
-                name = "%s.%s" % (parts[0][0:-1], parts[2][1:])
-            elif parts[2] in ['tasks']:
-                # Subresource
-                name = "%s.%s" % (parts[0][0:-1], parts[2])
-            else:
-                # 'status' and the like
-                name = "%s.%s" % (parts[0][0:-1], parts[2])
-        elif len(parts) > 3:
-            if parts[2] in ['tasks']:
-                # Subresource
-                name = "%s.%s" % (parts[0][0:-1], parts[2][0:-1])
-            else:
-                # 'status' and the like
-                name = "%s.%s" % (parts[0][0:-1], parts[2])
-    LOG.debug("Template for '%s' returned as '%s'" % (path, name))
-    return name
 
 
 def resolve_yaml_external_refs(document):
@@ -129,71 +87,39 @@ def read_body(request):
         abort(415, "Unsupported Media Type: %s" % content_type)
 
 
-def write_body(data, request, response):
-    """Write output with format based on accept header. json is default"""
-    accept = request.get_header('Accept', ['application/json'])
+def write_yaml(data, request, response):
+    """Write output in yaml"""
+    response.add_header('content-type', 'application/x-yaml')
+    return yaml.safe_dump(data, default_flow_style=False)
 
-    # YAML
-    if 'application/x-yaml' in accept:
-        response.add_header('content-type', 'application/x-yaml')
-        return yaml.safe_dump(data, default_flow_style=False)
 
-    # HTML
-    if 'text/html' in accept:
-        response.add_header('content-type', 'text/html')
-
-        name = get_template_name_from_path(request.path)
-
-        class MyLoader(BaseLoader):
-            def __init__(self, path):
-                self.path = path
-
-            def get_source(self, environment, template):
-                path = os.path.join(self.path, template)
-                if not os.path.exists(path):
-                    raise TemplateNotFound(template)
-                mtime = os.path.getmtime(path)
-                with file(path) as f:
-                    source = f.read().decode('utf-8')
-                return source, path, lambda: mtime == os.path.getmtime(path)
-        env = Environment(loader=MyLoader(os.path.join(os.path.dirname(
-            __file__), 'static')))
-
-        def do_prepend(value, param='/'):
-            """
-            Prepend a string if the passed in string exists.
-
-            Example:
-            The template '{{ root|prepend('/')}}/path';
-            Called with root undefined renders:
-                /path
-            Called with root defined as 'root' renders:
-                /root/path
-            """
-            if value:
-                return '%s%s' % (param, value)
-            else:
-                return ''
-        env.filters['prepend'] = do_prepend
-        env.json = json
-        tenant_id = request.get('HTTP_X_TENANT_ID')
-        try:
-            template = env.get_template("%s.template" % name)
-            return template.render(data=data, source=json.dumps(data,
-                    indent=2), tenant_id=tenant_id)
-        except StandardError as exc:
-            LOG.exception(exc)
-            try:
-                template = env.get_template("default.template")
-                return template.render(data=data, source=json.dumps(data,
-                        indent=2), tenant_id=tenant_id)
-            except StandardError as exc2:
-                LOG.exception(exc2)
-                pass  # fall back to JSON
-
-    #JSON (default)
+def write_json(data, request, response):
+    """Write output in json"""
     response.set_header('content-type', 'application/json')
     return json.dumps(data, indent=4)
+
+
+HANDLERS = {
+    'application/x-yaml': write_yaml,
+    'application/json': write_json,
+    'default': write_json
+    }
+
+
+def write_body(data, request, response):
+    """Write output with format based on accept header.
+    This cycles through the global HANDLERs to match content type and then
+    calls that handler. Additional handlers can be added to support Additional
+    content types.
+    """
+    accept = request.get_header('Accept', ['application/json'])
+
+    for content_type in HANDLERS:
+        if content_type in accept:
+            return HANDLERS[content_type](data, request, response)
+
+    #Use default
+    return HANDLERS['default'](data, request, response)
 
 
 def extract_sensitive_data(data, sensitive_keys=None):
