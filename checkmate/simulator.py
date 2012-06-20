@@ -58,7 +58,10 @@ def simulate(tenant_id=None):
     if any_id_problems(entity['id']):
         abort(406, any_id_problems(entity['id']))
 
-    response.add_header('Location', "/deployments/simulate")
+    if tenant_id:
+        response.add_header('Location', "/%s/deployments/simulate" % tenant_id)
+    else:
+        response.add_header('Location', "/deployments/simulate")
 
     results = plan_dict(entity)
 

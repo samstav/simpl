@@ -44,7 +44,11 @@ def post_deployment(tenant_id=None):
     body, secrets = extract_sensitive_data(entity)
     db.save_deployment(id, body, secrets, tenant_id=tenant_id)
 
-    response.add_header('Location', "/deployments/%s" % id)
+    # Return response (with new resource location in header)
+    if tenant_id:
+        response.add_header('Location', "/%s/deployments/%s" % (tenant_id, id))
+    else:
+        response.add_header('Location', "/deployments/%s" % id)
 
     #Assess work to be done & resources to be created
     results = plan(id)
@@ -64,7 +68,6 @@ def post_deployment(tenant_id=None):
     #Trigger the workflow
     async_task = execute(id)
 
-    # Return response (with new resource location in header)
     return write_body(deployment, request, response)
 
 

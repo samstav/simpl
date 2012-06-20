@@ -73,7 +73,7 @@
             {% if data.task_spec[0:13] == 'Create Server' and data.attributes.id is defined %}
             <div class="alert alert-success">
               <a class="close" data-dismiss="alert" href="#">×</a>
-              Server {{data.attributes.id}} was created with IP address {{data.attributes.ip}}. You can see it in the {% if '-' in data.attributes.id|string %}<a target="_blank" href="https://privatebeta.rackspace.com/a/{{data.attributes.context.username}}/#list/location:Next Generation/">next-gen control panel</a>{% else %}<a target="_blank" href="https://manage.rackspacecloud.com/CloudServers/Overview.do?cloudServerId={{data.attributes.id}}">control panel</a>{% endif %} or connect to it over <a href="ssh://root@{{data.attributes.ip}}">ssh</a>.
+              Server {{data.attributes.id}} was created with IP address {{data.attributes.ip}}. You can see it in the {% if '-' in data.attributes.id|string %}<a target="_blank" href="https://mycloud.rackspace.com/a/{{data.attributes.context.username}}/#list/location:Next Generation/">next-gen control panel</a>{% else %}<a target="_blank" href="https://manage.rackspacecloud.com/CloudServers/Overview.do?cloudServerId={{data.attributes.id}}">control panel</a>{% endif %} or connect to it over <a href="ssh://root@{{data.attributes.ip}}">ssh</a>.
             </div>
             {% elif data.task_spec[0:9] == 'Create LB' %}
             <div class="alert alert-success">

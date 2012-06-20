@@ -66,9 +66,9 @@ def put_environment(id, tenant_id=None):
 @with_tenant
 def get_environment(id, tenant_id=None):
     if 'with_secrets' in request.query:  # TODO: verify admin-ness
-        entity = db.get_environment(id)
-    else:
         entity = db.get_environment(id, with_secrets=True)
+    else:
+        entity = db.get_environment(id)
     if not entity:
         abort(404, 'No environment with id %s' % id)
     return write_body(entity, request, response)
