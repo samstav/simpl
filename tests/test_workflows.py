@@ -115,6 +115,7 @@ class TestWorkflow(unittest.TestCase):
                 'args': IgnoreArg(),
                 'kwargs': None,
                 'result': {'environment': '/var/tmp/DEP-ID-1000/',
+                    'kitchen': '/var/tmp/DEP-ID-1000/kitchen',
                     'private_key_path': '/var/tmp/DEP-ID-1000/private.pem',
                     'public_key_path': '/var/tmp/DEP-ID-1000/checkmate.pub',
                     'public_key': 'ssh-rsa AAAAB3NzaC1...'}
@@ -127,9 +128,11 @@ class TestWorkflow(unittest.TestCase):
                                 'wp_user_db1')), IsA(basestring),
                         1, 1, [{'name': 'db1'}]],
                 'kwargs': IgnoreArg(),
-                'result': {'id': 'db-inst-1', 'name': 'dbname.domain.local',
-                        'status': 'BUILD', 'hostname':
-                        'verylong.rackclouddb.com'}
+                'result': {
+                        'id': 'db-inst-1',
+                        'name': 'dbname.domain.local',
+                        'status': 'BUILD',
+                        'hostname': 'verylong.rackspaceclouddb.com'}
             },
             {
                 # Create Load Balancer
@@ -144,7 +147,7 @@ class TestWorkflow(unittest.TestCase):
                 'args': [IsA(dict), 'db-inst-1', ['db1'], 'wp_user_db1',
                         IsA(basestring)],
                 'kwargs': None,
-                'result': True
+                'result': None
             },
             {
                 # Create First Server
@@ -165,22 +168,62 @@ class TestWorkflow(unittest.TestCase):
                 'kwargs': And(ContainsKeyValue('image', 119),
                         ContainsKeyValue('flavor', 1),
                         ContainsKeyValue('ip_address_type', 'public')),
-                'result': {'id': 10002, 'ip': "10.1.1.2",
+                'result': {'id': "10-uuid-002", 'ip': "10.1.1.2",
                         'password': "shecret"}
             },
             {
-                # Wait for First Server Build
+                # Wait for First Server Build (Legacy format)
                 'call': 'stockton.server.distribute_wait_on_build',
                 'args': [IsA(dict), 10001],
                 'kwargs': And(In('password')),
-                'result': True
+                'result': {
+                        'status': "ACTIVE",
+                        'addresses': {
+                          'public': [
+                            {
+                              "version": 4,
+                              "addr": "10.1.1.1"
+                            },
+                            {
+                              "version": 6,
+                              "addr": "2001:babe::ff04:36c1"
+                            }
+                          ],
+                          'private': [
+                            {
+                              "version": 4,
+                              "addr": "10.1.2.1"
+                            }
+                          ]
+                        }
+                    }
             },
             {
-                # Wait for Second Server Build
+                # Wait for Second Server Build (Nova format)
                 'call': 'stockton.server.distribute_wait_on_build',
-                'args': [IsA(dict), 10002],
+                'args': [IsA(dict), "10-uuid-002"],
                 'kwargs': And(In('password')),
-                'result': True
+                'result': {
+                        'status': "ACTIVE",
+                        'addresses': {
+                          'public': [
+                            {
+                              "version": 4,
+                              "addr": "10.1.1.2"
+                            },
+                            {
+                              "version": 6,
+                              "addr": "2001:babe::ff04:36c2"
+                            }
+                          ],
+                          'private': [
+                            {
+                              "version": 4,
+                              "addr": "10.1.2.2"
+                            }
+                          ]
+                        }
+                    }
             },
             {
                 # Bootstrap Server 1 with Chef
@@ -200,7 +243,7 @@ class TestWorkflow(unittest.TestCase):
                 'call': 'stockton.cheflocal.distribute_manage_role',
                 'args': ['wordpress-web', 'DEP-ID-1000'],
                 'kwargs': {'override_attributes': {'wordpress': {'db': {
-                        'host': 'verylong.rackclouddb.com',
+                        'host': 'verylong.rackspaceclouddb.com',
                         'password': IsA(basestring),
                         'user': 'wp_user_db1',
                         'database': 'db1'}}}},
@@ -215,7 +258,7 @@ class TestWorkflow(unittest.TestCase):
             },
             {
                 'call': 'stockton.lb.distribute_add_node',
-                'args': [IsA(dict), 20001, '10.1.1.1', 80],
+                'args': [IsA(dict), 20001, '10.1.2.1', 80],
                 'kwargs': None,
                 'result': None
             },
@@ -228,7 +271,7 @@ class TestWorkflow(unittest.TestCase):
             },
             {
                 'call': 'stockton.lb.distribute_add_node',
-                'args': [IsA(dict), 20001, '10.1.1.2', 80],
+                'args': [IsA(dict), 20001, '10.1.2.2', 80],
                 'kwargs': None,
                 'result': None
             }
@@ -259,6 +302,7 @@ class TestWorkflow(unittest.TestCase):
         self.mox.ReplayAll()
 
         self.workflow.complete_all()
+        self.assertTrue(self.workflow.is_completed())
 
         serializer = DictionarySerializer()
         simulation = self.workflow.serialize(serializer)
