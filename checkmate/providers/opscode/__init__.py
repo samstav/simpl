@@ -1,22 +1,20 @@
 """Aliases for imports are used as keys in the environment definition
 
 Defines:
-nova         - openstack, next-gen compute provider
-legacy       - legacy, slice compute provider
-database     - Cloud Databases database provider
-loadbalancer - Clud LoadBalancers load-balancer provider
+chef_local   - chef-solo configuration provider (no chef server needed)
+chef_server  - configuration provider using Chef server
 
 Explanation:
 
 environment:
   providers:
-    nova:
+    chef-server:
       provides:
-      - compute
-      vendor: rackspace
+      - configuration
+      vendor: opscode
 
-From vendor and provider key (nova) above, the class
-'checkmate.providers.rackspace.nova' will be loaded
+From vendor and provider key (chef-server) above, the class
+'checkmate.providers.opscode.chef_server' will be loaded
 """
 from checkmate.providers.opscode.configuration_management \
-	import LocalProvider as chef_local, ServerProvider as chef_server
+    import LocalProvider as chef_local, ServerProvider as chef_server

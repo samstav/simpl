@@ -291,7 +291,8 @@ def get_source_body(function):
 
 
 def with_tenant(fn):
-    """Assures that a context tenant_id is passed in to called function"""
+    """A function decorator that a context tenant_id is passed in to the
+    decorated function as a kwarg"""
     def wrapped(*args, **kwargs):
         if kwargs and kwargs.get('tenant_id'):
             # Tenant ID is being passed in
