@@ -193,7 +193,7 @@ class NovaProvider(RackspaceComputeProviderBase):
                            image=resource.get('image',
                                     '3afe97b2-26dc-49c5-a2cc-a2fc8d80c001'),
                            flavor=resource.get('flavor', "1"),
-                           files=context['files'],
+                           files=Attrib('files'),
                            defines={"Resource": key},
                            properties={'estimated_duration': 20})
 
