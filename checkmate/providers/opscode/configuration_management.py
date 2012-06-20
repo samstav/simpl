@@ -40,6 +40,7 @@ class LocalProvider(ProviderBase):
                        'stockton.cheflocal.distribute_register_node',
                        call_args=[Attrib('ip'), deployment['id']],
                        password=Attrib('password'),
+                       omnibus_version="0.10.10-1",
                        defines={"Resource": key}, description="Install "
                                "Chef client on the server and register it in "
                                "the environment",

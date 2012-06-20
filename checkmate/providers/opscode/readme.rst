@@ -75,9 +75,10 @@ Starting with a clean Ununtu 11.10 system::
 
     # install/set up checkmate with knife solo
     sudo gem install knife-solo --no-ri --no-rdoc
+    sudo gem install knife-solo_data_bag --no-ri --no-rdoc
 
     cd ~ # or wherever you want to the root of your chef data to be
-    git clone https://ziadsawalha@github.com/jarretraim/checkmate.git
+    git clone https://github.com/ziadsawalha/checkmate.git
     cd checkmate
 
     #Kill the noise! - create default knife configs so knife stops complaining
@@ -114,7 +115,7 @@ New Customer Environment (called 'abc' for example)
 
     export ENAME=abc
     cd environments
-    knife kitchen $ENAME # create a kitchen
+    mkdir $ENAME
     cd $ENAME
 
     # Generate key pair for this environment
@@ -122,6 +123,9 @@ New Customer Environment (called 'abc' for example)
     chmod 0600 private.pem
     ssh-keygen -y -f private.pem > checkmate.pub # this will be sent to servers
     #openssl rsa -in private.pem -pubout # BEGIN/END format
+
+    knife kitchen kitchen # create a kitchen
+    cd kitchen
 
     # init cookbook repo
     cd cookbooks
@@ -164,6 +168,6 @@ Operations (in environment folder)
     # Deploy recipes to servers
     #
     # Option 1 - Modify nodes/[ip].json (add recipes: { "run_list": ["recipe[wordpress]"] })
-    knife cook root@108.166.87.62 -i private.pem -c solo.rb
+    knife cook root@108.166.87.62 -i ../private.pem -c solo.rb
     # browse to http://108.166.87.62 to see your wordpress site
 
