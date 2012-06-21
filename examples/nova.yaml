@@ -8,11 +8,11 @@
 # ${VARIABLE} can be replaced by with your local variables
 # before posting it to checkmate like this:
 #
-#     awk '{while(match($0,"[$][\\{][^\\}]*\\}")) {var=substr($0,RSTART+2,RLENGTH -3);gsub("[$][{]"var"[}]",ENVIRON[var])}}1' < app.yaml
+#     awk '{while(match($0,"[$][\\{][^\\}]*\\}")) {var=substr($0,RSTART+2,RLENGTH -3);gsub("[$][{]"var"[}]",ENVIRON[var])}}1' < examples/app.yaml
 #
 # To transform and send the output to checkmate:
 #
-#     awk '{while(match($0,"[$][\\{][^\\}]*\\}")) {var=substr($0,RSTART+2,RLENGTH -3);gsub("[$][{]"var"[}]",ENVIRON[var])}}1' < app.yaml | curl -H 'X-Auth-Token: abcdef' -H 'content-type: application/x-yaml' http://localhost:8080/deployments -v --data-binary @-
+#     CHECKMATE_TENANT=$(curl -H "X-Auth-User: ${CHECKMATE_USERNAME}" -H "X-Auth-Key: ${CHECKMATE_APIKEY}" -I https://identity.api.rackspacecloud.com/v1.0 -v 2> /dev/null | grep "X-Server-Management-Url" | grep -P -o $'(?!.*/).+$'| tr -d '\r') && CHECKMATE_TOKEN=$(curl -H "X-Auth-User: ${CHECKMATE_USERNAME}" -H "X-Auth-Key: ${CHECKMATE_APIKEY}" -I https://identity.api.rackspacecloud.com/v1.0 -v 2> /dev/null | grep "X-Auth-Token:" | awk '/^X-Auth-Token:/ { print $2 }') && awk '{while(match($0,"[$][\\{][^\\}]*\\}")) {var=substr($0,RSTART+2,RLENGTH -3);gsub("[$][{]"var"[}]",ENVIRON[var])}}1' < examples/nova.yaml | curl -H "X-Auth-Token: ${CHECKMATE_TOKEN}" -H 'content-type: application/x-yaml' http://localhost:8080/${CHECKMATE_TENANT}/deployments/simulate -v --data-binary @-
 
 
 #### ALPHA STATUS
@@ -71,7 +71,7 @@ components:
       instance/flavor:
         default: 1  # flavor=256mb. TODO: or maybe something more generic
         description: the type (and size) of instance to use
-        type: {1: "256Mb", 2: "512Mb"} # TODO: How do we link this to a list of images?
+        type: {2: "512Mb"} # TODO: How do we link this to a list of images? Ex. 1: "256Mb" is no longer available in Nova
       instance/os:
         default: Ubuntu 11.10  # Translated to image 119 by Rax provider.
         description: the operating system and version to use
@@ -191,5 +191,5 @@ deployment:                                                                     
     high-availability: false
     requests-per-second: 60
     database:instance/flavor: 1
-    wordpress:instance/flavor: 1  # Is this how we want to do this? That would mnean no colons in settings names...
+    wordpress:instance/flavor: 2  # Is this how we want to do this? That would mnean no colons in settings names...
     wordpress:instance/count: 2

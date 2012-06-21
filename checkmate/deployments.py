@@ -44,7 +44,11 @@ def post_deployment(tenant_id=None):
     body, secrets = extract_sensitive_data(entity)
     db.save_deployment(id, body, secrets, tenant_id=tenant_id)
 
-    response.add_header('Location', "/deployments/%s" % id)
+    # Return response (with new resource location in header)
+    if tenant_id:
+        response.add_header('Location', "/%s/deployments/%s" % (tenant_id, id))
+    else:
+        response.add_header('Location', "/deployments/%s" % id)
 
     #Assess work to be done & resources to be created
     results = plan(id)
@@ -64,7 +68,6 @@ def post_deployment(tenant_id=None):
     #Trigger the workflow
     async_task = execute(id)
 
-    # Return response (with new resource location in header)
     return write_body(deployment, request, response)
 
 
@@ -223,7 +226,8 @@ def plan_dict(deployment):
     #
     relations = {}
     requirements = {}
-    provided = {}
+    provided = {}  # From other components
+    available = {}  # From environment
     options = {}
     for service_name, service in blueprint['services'].iteritems():
         LOG.debug("Analyzing service %s" % service_name)
@@ -240,11 +244,16 @@ def plan_dict(deployment):
                     else:
                         provided[key] = [service_name]
             if 'requires' in config:
-                for key in config['requires']:
-                    if key in requirements:
-                        requirements[key].append(service_name)
+                for key, value in config['requires'].iteritems():
+                    if key == 'host':
+                        # Find host type (ex: host/instance=compute)
+                        requirement_type = value['instance']
                     else:
-                        requirements[key] = [service_name]
+                        requirement_type = key
+                    if requirement_type in requirements:
+                        requirements[requirement_type].append(service_name)
+                    else:
+                        requirements[requirement_type] = [service_name]
             if 'options' in config:
                 for key, option in config['options'].iteritems():
                     if not 'default' in option:
@@ -262,17 +271,33 @@ def plan_dict(deployment):
                 LOG.debug("    This is the LB!")
             else:
                 abort(406, "Unrecognized component type '%s'" % klass)
+    # Add resources provided by environment
+    providers = environment.get_providers()
+    for provider in providers.values():
+        LOG.debug("%s provides %s" % (provider.__class__, provider.provides()))
+        for resource in provider.provides():
+            if resource in available:
+                available[resource].append(provider)
+            else:
+                available[resource] = [provider]
+
     # Check we have what we need (requirements are met)
     for requirement in requirements.keys():
-        if requirement not in provided:
-            abort(406, "Cannot satisfy requirement '%s'" % requirement)
+        if requirement not in provided and requirement not in available:
+            msg = "Cannot satisfy requirement '%s' in deployment %s" % (
+                    requirement, deployment['id'])
+            LOG.info(msg)
+            abort(406, msg)
         # TODO: check that interfaces match between requirement and provider
     # Check we have what we need (we can resolve relations)
     for service_name in relations:
         for relation in relations[service_name]:
             if relations[service_name][relation] not in blueprint['services']:
-                abort(406, "Cannot find '%s' for '%s' to connect to" %
-                        (relations[service_name][relation], service_name))
+                msg = "Cannot find '%s' for '%s' to connect to in " \
+                      "deployment %s" % (relations[service_name][relation],
+                      service_name, deployment['id'])
+                LOG.info(msg)
+                abort(406, msg)
 
     #
     # Build needed resource list

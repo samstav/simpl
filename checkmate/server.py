@@ -51,6 +51,7 @@ try:
     import pam
 except ImportError:
     import PAM
+from subprocess import check_output
 import sys
 from time import sleep
 from urlparse import urlparse
@@ -180,6 +181,19 @@ def get_dependency_versions():
             result[library]['status'] = 'loaded'
         else:
             result[library]['status'] = 'not loaded'
+
+    # Chef version
+    output = check_output(['knife', '-v'])
+    result['knife'] = {'version': output.strip()}
+
+    # Chef version
+    output = check_output(['gem', 'list', 'knife-solo'])
+    if output:
+        for line in output.split('\n'):
+            if line.startswith('knife-solo '):
+                output = line
+                break
+    result['knife-solo'] = {'version': output.strip()}
 
     return write_body(result, request, response)
 

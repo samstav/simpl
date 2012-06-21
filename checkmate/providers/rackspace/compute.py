@@ -5,16 +5,18 @@ from novaclient.exceptions import EndpointNotFound, AmbiguousEndpoints
 from novaclient.v1_1 import client
 import openstack.compute
 from SpiffWorkflow.operators import Attrib
-from SpiffWorkflow.specs import Celery, Merge, Transform
+from SpiffWorkflow.specs import Celery, Transform
 
 from checkmate.exceptions import CheckmateNoTokenError
 from checkmate.providers import ProviderBase
 from checkmate.utils import get_source_body
+from checkmate.workflows import wait_for
 
 LOG = logging.getLogger(__name__)
 
 
-class LegacyProvider(ProviderBase):
+class RackspaceComputeProviderBase(ProviderBase):
+    """Generic functions for rackspace Compute providers"""
     def __init__(self, provider):
         ProviderBase.__init__(self, provider)
         self.prep_task = None
@@ -46,6 +48,8 @@ class LegacyProvider(ProviderBase):
         config_spec.connect(self.prep_task)
         return {'root': self.prep_task, 'final': self.prep_task}
 
+
+class LegacyProvider(RackspaceComputeProviderBase):
     def generate_template(self, deployment, service_name, service, name=None):
         inputs = deployment.get('inputs', {})
         flavor = inputs.get('%s:instance/flavor' % service_name,
@@ -96,12 +100,11 @@ class LegacyProvider(ProviderBase):
                 properties={'estimated_duration': 150})
         create_server_task.connect(build_wait_task)
 
-        join = Merge(wfspec, "Server Wait on:%s" % key)
-        join.connect(create_server_task)
-        self.prep_task.connect(join)
-        if wait_on:
-            for dependency in wait_on:
-                dependency.connect(join)
+        if wait_on is None:
+            wait_on = []
+        wait_on.append(self.prep_task)
+        join = wait_for(wfspec, create_server_task, wait_on,
+                name="Server Wait on:%s" % key)
 
         return {'root': join, 'final': build_wait_task}
 
@@ -152,7 +155,7 @@ class LegacyProvider(ProviderBase):
         return api
 
 
-class NovaProvider(ProviderBase):
+class NovaProvider(RackspaceComputeProviderBase):
     def generate_template(self, deployment, service_name, service, name=None):
         inputs = deployment.get('inputs', {})
         flavor = inputs.get('%s:instance/flavor' % service_name,
@@ -190,7 +193,7 @@ class NovaProvider(ProviderBase):
                            image=resource.get('image',
                                     '3afe97b2-26dc-49c5-a2cc-a2fc8d80c001'),
                            flavor=resource.get('flavor', "1"),
-                           files=context['files'],
+                           files=Attrib('files'),
                            defines={"Resource": key},
                            properties={'estimated_duration': 20})
 
@@ -203,11 +206,11 @@ class NovaProvider(ProviderBase):
                 properties={'estimated_duration': 150})
         create_server_task.connect(build_wait_task)
 
-        if wait_on:
-            join = Merge(wfspec, "Server Wait on:%s" % key)
-            join.connect(create_server_task)
-            for dependency in wait_on:
-                dependency.connect(join)
+        if wait_on is None:
+            wait_on = []
+        wait_on.append(self.prep_task)
+        join = wait_for(wfspec, create_server_task, wait_on,
+                name="Server Wait on:%s" % key)
 
         return {'root': join, 'final': build_wait_task}
 

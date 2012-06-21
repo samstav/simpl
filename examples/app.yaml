@@ -53,9 +53,29 @@ components:
     #    - db: a database
     provides:
       url: http
+    # what this component requires.
     requires:
+      # the class of the object that is required
       db:
-       interface: mysql
+        # the relationship between the objects.
+        # 'interface' indicates a connection to that resource, but neither
+        #    object needs the other to exist (it is not a containment relationship)
+        interface: mysql
+      # 'host' is a special type of requirement that specifies an object that this
+      # component runs within. It therefore needs that resource to exist before it
+      # can be created. It is a containment relationship.
+      host:
+        # the type of resource needed to host this component
+        instance: compute
+
+      # MAYBE: still considering if 'dependency' is neeeded
+      # 'dependency' is a special type of requirment pointintg to other components
+      # that this one depends on. It is mainly informative and does not define the
+      # relationship between them.
+      #dependency:
+      #- *apache
+      #- *mysql-client
+
     # User/consumer options - these are less technical and can change settings
     options:
       url:
