@@ -29,6 +29,8 @@ def get_environments(tenant_id=None):
 @with_tenant
 def post_environment(tenant_id=None):
     entity = read_body(request)
+    LOG.debug("ENVIRONMENT: %s" % (entity))
+
     if 'environment' in entity:
         entity = entity['environment']
 

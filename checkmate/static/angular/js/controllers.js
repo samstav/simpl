@@ -11,15 +11,44 @@ function EnvironmentListCtrl($scope, $location, Environment) {
   $scope.create = function() {
     $location.path('/environments/new');
   }
-
 }
-EnvironmentListCtrl.$inject = ['$scope', '$location', 'Environment']; // Needed to keep minification from breaking things
+EnvironmentListCtrl.$inject = ['$scope', '$location', 'Environment']; 
 
 
 // environments/:environmentId
-function EnvironmentDetailCtrl($scope, $routeParams, Environment) {
+function EnvironmentDetailCtrl($scope, $location, $routeParams, Environment) {
   if ($routeParams.environmentId != "new") {
     $scope.environment = Environment.get({environmentId: $routeParams.environmentId});  
+  } else {
+    $scope.environment = {};
+  }
+
+  $scope.update = function(environment) {
+    $scope.environment = angular.copy(environment);
+    $scope.environment.$save();
+    $location.path('/environments');
+  }
+
+  $scope.reset = function() {
+    $scope.environment = Environment.get({environmentId: $routeParams.environmentId});
   }
 }
-EnvironmentDetailCtrl.$inject = ['$scope', '$routeParams', 'Environment']; // Needed to keep minification from breaking things
+EnvironmentDetailCtrl.$inject = ['$scope', '$location', '$routeParams', 'Environment']; 
+
+
+function AuthCtrl($scope, $location) {
+  $scope.auth = {
+    username: '',
+    password: '',
+    catalog: null
+  };
+
+  $scope.authenticated = function() {
+    return $scope.auth.catalog != null;
+  }
+
+  $scope.authenticate = function() {
+  }
+
+}
+AuthCtrl.$inject = ['$scope', '$location']

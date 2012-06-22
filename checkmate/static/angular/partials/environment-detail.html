@@ -1,44 +1,109 @@
 <div ng-controller="EnvironmentDetailCtrl">
+  <div class="span9">
+
+    <div class="page-header">
+      <h1>Environment Detail</h1>
+    </div>
+
+    <form class="form-horizontal">
+      <fieldset>
+        <div class="control-group">
+          <label class="control-label" for="name">Name</label>
+          <div class="controls">
+            <input type="text" class="input-xlarge" id="name" ng-model="environment.name">
+          </div>
+        </div>
+
+        <div class="control-group">
+          <label class="control-label" for="description">Description</label>
+          <div class="controls">
+            <textarea class="input-xlarge" id="description" rows="7" 
+                      ng-model="environment.description">
+            </textarea>
+          </div>
+        </div>
+      </fieldset>
+
+      <fieldset>
+        <legend>Providers</legend>
+        <div class="control-group">
+          <label class="control-label" for="compute">Compute</label>
+          <div class="controls">
+            <select id="compute">
+              <option default>US Legacy Cloud Servers</option>
+              <option>UK Legacy Clous Servers</option>
+              <option>US Open Cloud Servers</option>
+              <option>UK Open Cloud Servers</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="control-group">
+          <label class="control-label" for="database">Database</label>
+          <div class="controls">
+            <select id="database">
+              <option default>US Database as a Service</option>
+              <option>UK Database as a Service</option>
+              <option>US Legacy Cloud Servers</option>
+              <option>UK Legacy Clous Servers</option>
+              <option>US Open Cloud Servers</option>
+              <option>UK Open Cloud Servers</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="control-group">
+          <label class="control-label" for="load-balancer">Load Balancing</label>
+          <div class="controls">
+            <select id="load-balancer">
+              <option default>US Load Balancer as a Service</option>
+              <option>UK Load Balancer as a Service</option>
+              <option>US Legacy Cloud Servers</option>
+              <option>UK Legacy Clous Servers</option>
+              <option>US Open Cloud Servers</option>
+              <option>UK Open Cloud Servers</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="control-group">
+          <label class="control-label" for="configuration">Configuration</label>
+          <div class="controls">
+            <select id="configuration">
+              <option default>Chef</option>
+            </select>
+          </div>
+        </div>
+      </fieldset>
+      <div class="form-actions">        
+        <button class="btn" ng-click="reset()">Cancel</button>
+        <button class="btn btn-primary" ng-click="update(environment)">Save changes</button>
+      </div>
+    </form>
+  </div>
+
   <div class="span3">
     <div class="well sidebar-nav">
       <ul class="nav nav-list">
-        <li class="nav-header">Environments</li>
-
-
-
-        <li class="active"><a href="#">Link</a></li>
-        <li><a href="#">Link</a></li>
-        <li><a href="#">Link</a></li>
-        <li><a href="#">Link</a></li>
-        <li class="nav-header">Sidebar</li>
-        <li><a href="#">Link</a></li>
-        <li><a href="#">Link</a></li>
-        <li><a href="#">Link</a></li>
-        <li><a href="#">Link</a></li>
-        <li><a href="#">Link</a></li>
-        <li><a href="#">Link</a></li>
-        <li class="nav-header">Sidebar</li>
-        <li><a href="#">Link</a></li>
-        <li><a href="#">Link</a></li>
-        <li><a href="#">Link</a></li>
+        <li class="nav-header">Help</li>
+        <li>
+          <p>
+            Everyone likes contextual help! This form allows you to edit and existing environment 
+            or create a new one.
+          </p>
+        </li>
+        <li class="nav-header">Providers</li>
+        <li>
+          <p>
+            Providers are the engines of your configuration. Whenever you need a particular resource
+            like compute or storage, that resources is gotten from your providers, e.g. Rackspace.
+          </p>
+        </li>
+        
       </ul>
     </div><!--/.well -->
   </div>
 
-  <div class="span9">
-    <table class="table-condensed">
-      <thead>        
-      </thead>
-      <tbody>
-        <tr><td>Name</td><td>{{environment.name}}</td></tr>
-        <tr><td>Description</td><td>{{environment.description}}</td></tr>
-        <tr><td>ID</td><td>{{environment.id}}</td></tr>
-      </tbody>
-    </table>
-
-
-    <input type="text" class="input-medium search-query" ng-model="query"> 
-  </div>
 </div>
 
 <script type="text/javascript">

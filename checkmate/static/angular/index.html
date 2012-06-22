@@ -31,7 +31,7 @@
     <link rel="apple-touch-icon-precomposed" href="img/ico/apple-touch-icon-57-precomposed.png">
   </head>
 
-  <body>
+  <body ng-controller="AuthCtrl">
 
     <div class="navbar navbar-fixed-top">
       <div class="navbar-inner">
@@ -45,7 +45,7 @@
           <!-- User Control -->          
           <div class="btn-group pull-right">
             <a class="btn dropdown-toggle" data-toggle="dropdown" href="#">
-              <i class="icon-user"></i> Username
+              <i class="icon-user"></i> {{auth.username}}
               <span class="caret"></span>
             </a>
             <ul class="dropdown-menu">
@@ -78,13 +78,42 @@
 
     </div> <!-- /container -->
 
+    <!-- Modal -->
+    <div id="auth_modal" class="modal hide fade" ng-hide="authenticated()">
+      <div class="modal-header">
+        <button type="button" class="close" data-dismiss="modal">×</button>
+        <h3>Time To Authenticate!</h3>
+      </div>
+      <form class="form-horizontal">
+        <div class="modal-body">
+          <fieldset>
+            <div class="control-group">
+              <label class="control-label" for="username">Username</label>
+              <div class="controls">
+                <input type="text" class="input-xlarge" id="username" ng-model="auth.username">
+              </div>
+            </div>
+
+            <div class="control-group">
+              <label class="control-label" for="password">Password</label>
+              <div class="controls">
+                <input type="password" class="input-xlarge" id="password" ng-model="auth.password">
+              </div>
+            </div>
+          </fieldset>
+        <div class="modal-footer">
+          <a href="#" class="btn btn-primary" ng-click="authenticate()">Authenticate!</a>
+        </div>
+      </form>
+    </div>  
+
     <!-- Le javascript
     ================================================== -->
     <!-- Placed at the end of the document so the pages load faster -->
     <script src="js/lib/jquery-1.7.2.min.js"></script>
-    <script src="js/lib/angular-1.0.0.min.js"></script>
-    <script src="js/lib/angular-resource-1.0.0.min.js"></script>
-    <script src="js/lib/angular-sanitize-1.0.0.min.js"></script>    
+    <script src="js/lib/angular-1.0.0.js"></script>
+    <script src="js/lib/angular-resource-1.0.0.js"></script>
+    <script src="js/lib/angular-sanitize-1.0.0.js"></script>    
     <script src="js/lib/bootstrap.min.js"></script>    
     <script src="js/app.js"></script>
     <script src="js/controllers.js"></script>

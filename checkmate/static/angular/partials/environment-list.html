@@ -4,7 +4,7 @@
       <ul class="nav nav-list">
         <li class="nav-header">Environments</li>
         <li id="environment-{{environment.id}}" ng-repeat="environment in environments">
-          {{environment.name | truncate:32}}
+          <a ng-href="#/environments/{{environment.id}}">{{environment.name | truncate:32}}</a>
         </li>
         <li class="nav-header">Search</li>
         <li>
@@ -14,7 +14,9 @@
         </li>
         <li class="nav-header">Actions</li>
         <li>
-          <button class="btn btn-primary" ng-click="create()"><i class="icon-plus icon-white"></i>Create New Environment</button>
+          <button class="btn btn-primary" ng-click="create()">
+            <i class="icon-plus icon-white"></i>Create New Environment
+          </button>
         </li>
       </ul>
 
@@ -37,7 +39,9 @@
       </thead>
       <tbody>
         <tr ng-repeat="environment in environments | filter:query">
-          <td></td>
+          <td>
+            sss
+          </td>
           <td>{{environment.name}}</td>
           <td>{{environment.description}}</td>
           <td>{{provider_count(environment)}}</td>
