@@ -28,7 +28,7 @@
       <h1>Current Environments</h1>
     </div>
 
-    <table class="table table-striped">
+    <table id="env-table" class="table table-striped">
       <thead>
         <tr>
           <th></th>
@@ -38,13 +38,21 @@
         </tr>
       </thead>
       <tbody>
-        <tr ng-repeat="environment in environments | filter:query">
-          <td>
-            sss
+        <tr class="clickable" ng-repeat="environment in environments | filter:query">
+          <td style="width:50px">
+            <div class="btn-group pull-left">
+              <a class="btn dropdown-toggle" data-toggle="dropdown" href="#">
+                <i class="icon-cog"></i><span class="caret"></span>
+              </a>
+              <ul class="dropdown-menu">
+                <li><a href="#" ng-click="navigate(environment.id)">Edit</a></li>
+                <li><a href="#">Delete</a></li>
+              </ul>
+            </div>
           </td>
-          <td>{{environment.name}}</td>
-          <td>{{environment.description}}</td>
-          <td>{{provider_count(environment)}}</td>
+          <td ng-click="navigate(environment.id)">{{environment.name}}</td>
+          <td ng-click="navigate(environment.id)">{{environment.description}}</td>
+          <td style="text-align: center;" ng-click="navigate(environment.id)">{{provider_count(environment)}}</td>
         </tr>
       </tbody>      
     </table>
