@@ -1,6 +1,8 @@
 'use strict'
 
-// environments/
+/**
+  *   environments
+  */
 function EnvironmentListCtrl($scope, $location, Environment) {
 	$scope.environments = Environment.query();
 
@@ -18,9 +20,10 @@ function EnvironmentListCtrl($scope, $location, Environment) {
 }
 EnvironmentListCtrl.$inject = ['$scope', '$location', 'Environment']; 
 
-
-// environments/:environmentId
-function EnvironmentDetailCtrl($scope, $location, $routeParams, Environment) {
+/**
+  *   environments/:environmentId
+  */
+function EnvironmentDetailCtrl($scope, $location, $routeParams, Environment, $http) {
   if ($routeParams.environmentId != "new") {
     $scope.environment = Environment.get({environmentId: $routeParams.environmentId});  
   } else {
@@ -28,8 +31,18 @@ function EnvironmentDetailCtrl($scope, $location, $routeParams, Environment) {
   }
 
   $scope.update = function(environment) {
+    if ($scope.environment.id == null) {
+      $scope.environment = new Environment()
+    }
+
     $scope.environment = angular.copy(environment);
-    $scope.environment.$save();
+
+    if ($scope.environment.id == null) {
+      $http.post('environments'. $scope.environment)
+    } else {
+      $http.put('/environments/' + $scope.environment.id, $scope.environment);
+    }
+    
     $location.path('/environments');
   }
 
@@ -37,9 +50,20 @@ function EnvironmentDetailCtrl($scope, $location, $routeParams, Environment) {
     $scope.environment = Environment.get({environmentId: $routeParams.environmentId});
   }
 }
-EnvironmentDetailCtrl.$inject = ['$scope', '$location', '$routeParams', 'Environment']; 
+EnvironmentDetailCtrl.$inject = ['$scope', '$location', '$routeParams', 'Environment', "$http"]; 
 
+/**
+  *   blueprints
+  */
+function BlueprintListCtrl($scope, Blueprint) {
+  $scope.blueprints = Blueprint.query();
 
+}
+BlueprintListCtrl.$inject = ['$scope', 'Blueprint']
+
+/**
+  *   Authentication
+  */
 function AuthCtrl($scope, $location) {
   $scope.auth = {
     username: '',
@@ -75,7 +99,6 @@ function AuthCtrl($scope, $location) {
       type: "POST",
       contentType: "application/json; charset=utf-8",
       dataType: "json",
-      async: false,
       url: "https://identity.api.rackspacecloud.com/v1.1/auth",
       data: JSON.stringify({
               "credentials": {
@@ -92,11 +115,17 @@ function AuthCtrl($scope, $location) {
       $("#auth_error_text").html("Something bad happened");
       $('#auth_loader').hide();
       $("#auth_error").show();
+
+      //REMOVE THIS - DEVELOPMENT ONLY
+      $scope.auth.catalog = '{}'
     });
   }
 }
 AuthCtrl.$inject = ['$scope', '$location']
 
+/**
+  *   Profile
+  */
 function ProfileCtrl($scope, $location) {
 
 }
