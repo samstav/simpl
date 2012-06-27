@@ -5,6 +5,7 @@ angular.module('checkmate', ['checkmateFilters', 'checkmateServices', 'ngSanitiz
         when('/environments/:environmentId', {templateUrl: 'partials/environment-detail.html', controller: EnvironmentDetailCtrl}).
         when('/profile', {templateUrl: 'partials/profile.html', controller: ProfileCtrl}).
         when('/blueprints', {templateUrl: 'partials/blueprint-list.html', controller: BlueprintListCtrl}).
+        when('/blueprints/:blueprintId', {templateUrl: 'partials/blueprint-detail.html', controller: BlueprintDetailCtrl}).
         when('/deployments', {templateUrl: 'partials/deployment-list.html', controller: DeploymentListCtrl}).
         otherwise({redirectTo: '/'});
   }])

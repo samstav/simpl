@@ -31,7 +31,7 @@ EnvironmentListCtrl.$inject = ['$scope', '$location', 'Environment'];
 /**
   *   environments/:environmentId
   */
-function EnvironmentDetailCtrl($scope, $location, $routeParams, Environment, $http) {
+function EnvironmentDetailCtrl($scope, $location, $routeParams, Environment) {
   if ($routeParams.environmentId != "new") {
     $scope.environment = Environment.get({environmentId: $routeParams.environmentId});  
   } else {
@@ -54,16 +54,63 @@ function EnvironmentDetailCtrl($scope, $location, $routeParams, Environment, $ht
     $scope.environment = Environment.get({environmentId: $routeParams.environmentId});
   }
 }
-EnvironmentDetailCtrl.$inject = ['$scope', '$location', '$routeParams', 'Environment', "$http"]; 
+EnvironmentDetailCtrl.$inject = ['$scope', '$location', '$routeParams', 'Environment']; 
 
 /**
   *   blueprints
   */
-function BlueprintListCtrl($scope, Blueprint) {
+function BlueprintListCtrl($scope, $location, Blueprint) {
   $scope.blueprints = Blueprint.query();
 
+  $scope.serviceList = function(blueprint) {
+    return blueprint.services ? Object.keys(blueprint.services).join(', ') : 0;
+  }
+
+  $scope.detail = function(blueprintId) {
+    $location.path('/blueprints/' + blueprintId);
+  }
+
 }
-BlueprintListCtrl.$inject = ['$scope', 'Blueprint']
+BlueprintListCtrl.$inject = ['$scope', '$location', 'Blueprint']
+
+/**
+  *   blueprints
+  */
+function BlueprintDetailCtrl($scope, $location, $routeParams, Blueprint) {
+  if ($routeParams.blueprintId != "new") {
+    $scope.blueprint = Blueprint.get({blueprintId: $routeParams.blueprintId}, function() {
+      $scope.stringify = JSON.stringify($scope.blueprint, null, '\t');
+      $scope.codeMirror = CodeMirror.fromTextArea($('#editor').get(0), {
+       value: $scope.stringify,
+       mode: 'javascript',
+       lineNumbers: true
+      });
+    });  
+  } else {
+    $scope.blueprint = new Blueprint();
+    $scope.stringify = "{ }"
+  }
+
+
+  $scope.update = function(blueprint) {
+    $scope.blueprint = angular.copy(JSON.parse(scope.stringify))
+
+    if ($scope.blueprint.id == null) {
+      $scope.blueprint.$save();
+    } else {
+      $scope.blueprint.$update();
+    }
+    
+    $location.path('/blueprints');
+  }
+
+  $scope.reset = function() {
+    $scope.blueprint = Blueprint.get({blueprintId: $routeParams.blueprintId});
+  }
+
+
+}
+BlueprintDetailCtrl.$inject = ['$scope', '$location', '$routeParams', 'Blueprint']
 
 /**
   *   Authentication

@@ -17,6 +17,7 @@
       }
     </style>
     <link href="css/bootstrap-responsive.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="js/code-mirror-2.3/lib/codemirror.css">
     <link href="css/app.css" rel="stylesheet">
 
     <!-- Le HTML5 shim, for IE6-8 support of HTML5 elements -->
@@ -105,6 +106,7 @@
               </div>
             </div>
           </fieldset>
+        </div>
         <div class="modal-footer">
           <img id="auth_loader" src="img/ajax-loader.gif" alt="Loading..." class="hide"></img>
           <a href="#" class="btn btn-primary" ng-click="authenticate()">Authenticate!</a>
@@ -124,5 +126,8 @@
     <script src="js/controllers.js"></script>
     <script src="js/filters.js"></script>
     <script src="js/services.js"></script>
+    <script src="js/code-mirror-2.3/lib/codemirror.js"></script>
+    <script src="js/code-mirror-2.3/mode/javascript/javascript.js"></script>
+    <script src="js/code-mirror-2.3/mode/yaml/yaml.js"></script>
   </body>
 </html>

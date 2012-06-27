@@ -33,7 +33,7 @@
         <tr>
           <th></th>
           <th>Name</th>
-          <th>Description</th>
+          <th>Services</th>
           <th></th>
         </tr>
       </thead>
@@ -45,14 +45,14 @@
                 <i class="icon-cog"></i><span class="caret"></span>
               </a>
               <ul class="dropdown-menu">
-                <li><a href="#" ng-click="navigate(blueprint.id)">Edit</a></li>
+                <li><a href="#" ng-click="detail(blueprint.id)">Edit</a></li>
                 <li><a href="#">Delete</a></li>
               </ul>
             </div>
           </td>
-          <td ng-click="navigate(blueprint.id)">{{blueprint.name}}</td>
-          <td ng-click="navigate(blueprint.id)">{{blueprint.description}}</td>
-          <td style="text-align: center;" ng-click="navigate(blueprint.id)">xxx</td>
+          <td ng-click="detail(blueprint.id)">{{blueprint.name}}</td>
+          <td ng-click="detail(blueprint.id)">{{serviceList(blueprint)}}</td>
+          <td style="text-align: center;" ng-click="detail(blueprint.id)"></td>
         </tr>
       </tbody>      
     </table>
