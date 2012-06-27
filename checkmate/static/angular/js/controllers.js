@@ -7,7 +7,15 @@ function EnvironmentListCtrl($scope, $location, Environment) {
 	$scope.environments = Environment.query();
 
   $scope.provider_count = function(environment) {
-    return Object.keys(environment.providers).length
+    if (environment.providers == null) {
+      return 0;
+    } else {
+      return Object.keys(environment.providers).length
+    }
+  }
+
+  $scope.delete = function(environment) {
+    environment.$delete();
   }
 
   $scope.create = function() {
@@ -27,20 +35,16 @@ function EnvironmentDetailCtrl($scope, $location, $routeParams, Environment, $ht
   if ($routeParams.environmentId != "new") {
     $scope.environment = Environment.get({environmentId: $routeParams.environmentId});  
   } else {
-    $scope.environment = {};
+    $scope.environment = new Environment();
   }
 
   $scope.update = function(environment) {
-    if ($scope.environment.id == null) {
-      $scope.environment = new Environment()
-    }
-
     $scope.environment = angular.copy(environment);
 
     if ($scope.environment.id == null) {
-      $http.post('environments'. $scope.environment)
+      $scope.environment.$save();
     } else {
-      $http.put('/environments/' + $scope.environment.id, $scope.environment);
+      $scope.environment.$update();
     }
     
     $location.path('/environments');
@@ -130,3 +134,11 @@ function ProfileCtrl($scope, $location) {
 
 }
 ProfileCtrl.$inject = ['$scope', '$location'];
+
+/**
+  *   Deployments
+  */
+function DeploymentListCtrl($scope, $location) {
+
+}
+DeploymentListCtrl.$inject = ['$scope', '$location'];

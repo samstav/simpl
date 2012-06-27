@@ -4,7 +4,7 @@
       <ul class="nav nav-list">
         <li class="nav-header">Environments</li>
         <li id="environment-{{environment.id}}" ng-repeat="environment in environments">
-          <a ng-href="#/environments/{{environment.id}}">{{environment.name | truncate:32}}</a>
+          <a ng-click="navigate(environment.id)">{{environment.name | truncate:32}}</a>
         </li>
         <li class="nav-header">Search</li>
         <li>
@@ -45,8 +45,8 @@
                 <i class="icon-cog"></i><span class="caret"></span>
               </a>
               <ul class="dropdown-menu">
-                <li><a href="#" ng-click="navigate(environment.id)">Edit</a></li>
-                <li><a href="#">Delete</a></li>
+                <li><a ng-click="navigate(environment.id)">Edit</a></li>
+                <li><a ng-click="delete(environment)">Delete</a></li>
               </ul>
             </div>
           </td>
@@ -60,6 +60,7 @@
 
   <script type="text/javascript">
     $(document).ready(function() {
+      $('#nav-elements li').removeClass('active');
       $('#nav-environments').addClass('active');
       $('#environment-{{environment.id}}').addClass('active');
     });

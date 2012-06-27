@@ -6,6 +6,14 @@ angular.module('checkmateFilters', [])
   })
   .filter('truncate', function() {
     return function(input, max_length) {
-      return input.substring(0, (max_length-3)) + '...';
+      if (input == null || input == "") {
+        return "...[no name]...";
+      }
+
+      if (input.length > max_length) {
+        return input.substring(0, (max_length-3)) + '...';
+      } else {
+        return input;
+      }
     }
   });
