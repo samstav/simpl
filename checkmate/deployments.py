@@ -1,19 +1,20 @@
 # pylint: disable=E0611
-from bottle import get, post, put, request, response, abort
-from celery.app import app_or_default
 import logging
 import os
-from SpiffWorkflow.storage import DictionarySerializer
 import sys
 import uuid
 
+from bottle import get, post, put, request, response, abort
+from celery.app import app_or_default
+from SpiffWorkflow.storage import DictionarySerializer
+
+from checkmate import orchestrator
 from checkmate.db import get_driver, any_id_problems
 from checkmate.environments import Environment
-from checkmate import orchestrator
+from checkmate.exceptions import CheckmateException
 from checkmate.workflows import create_workflow
 from checkmate.utils import write_body, read_body, extract_sensitive_data,\
         merge_dictionary, with_tenant
-from checkmate import orchestrator
 
 LOG = logging.getLogger(__name__)
 db = get_driver('checkmate.db.sql.Driver')
@@ -33,6 +34,12 @@ def get_deployments(tenant_id=None):
 @with_tenant
 def post_deployment(tenant_id=None):
     entity = read_body(request)
+
+    # Validate syntax
+    errors = check_deployment(entity)
+    if errors:
+        abort(406, "\n".join(errors))
+
     if 'deployment' in entity:
         entity = entity['deployment']
 
@@ -40,6 +47,7 @@ def post_deployment(tenant_id=None):
         entity['id'] = uuid.uuid4().hex
     if any_id_problems(entity['id']):
         abort(406, any_id_problems(entity['id']))
+
     id = str(entity['id'])
     body, secrets = extract_sensitive_data(entity)
     db.save_deployment(id, body, secrets, tenant_id=tenant_id)
@@ -212,7 +220,8 @@ def plan_dict(deployment):
 
     :param id: checkmate deployment id
     """
-    inputs = deployment.get('inputs', {})
+    LOG.info("Planning deploymewnt '%s'" % deployment['id'])
+    # Find blueprint and environment. Without those, there's nothing to plan!
     blueprint = deployment.get('blueprint')
     if not blueprint:
         abort(406, "Blueprint not found. Nothing to do.")
@@ -220,224 +229,318 @@ def plan_dict(deployment):
     if not environment:
         abort(406, "Environment not found. Nowhere to deploy to.")
     environment = Environment(environment)
+    inputs = deployment.get('inputs', {})
+    services = blueprint['services']
+    relations = {}
+
+    # The following are hashes with resource_type as the hash:
+    requirements = {}  # list of interfaces needed by component
+    provided = {}  # list of interfaces provided by other components
+    available = {}  # interfaces available from environment
 
     #
     # Analyze Dependencies
     #
-    relations = {}
-    requirements = {}
-    provided = {}  # From other components
-    available = {}  # From environment
-    options = {}
-    for service_name, service in blueprint['services'].iteritems():
-        LOG.debug("Analyzing service %s" % service_name)
-        if 'relations' in service:
-            relations[service_name] = service['relations']
-        config = service.get('config')
-        if config:
-            klass = config['id']
-            LOG.debug("  Config for %s", klass)
-            if 'provides' in config:
-                for key in config['provides']:
-                    if key in provided:
-                        provided[key].append(service_name)
-                    else:
-                        provided[key] = [service_name]
-            if 'requires' in config:
-                for key, value in config['requires'].iteritems():
-                    if key == 'host':
-                        # Find host type (ex: host/instance=compute)
-                        requirement_type = value['instance']
-                    else:
-                        requirement_type = key
-                    if requirement_type in requirements:
-                        requirements[requirement_type].append(service_name)
-                    else:
-                        requirements[requirement_type] = [service_name]
-            if 'options' in config:
-                for key, option in config['options'].iteritems():
-                    if not 'default' in option:
-                        if key not in inputs:
-                            abort(406, "Input required: %s" % key)
-                    if key in options:
-                        options[key].append(service_name)
-                    else:
-                        options[key] = [service_name]
-            if service_name == 'wordpress':
-                LOG.debug("    This is wordpress!")
-            elif service_name == 'database':
-                LOG.debug("    This is the DB!")
-            elif service_name == 'loadbalancer':
-                LOG.debug("    This is the LB!")
-            else:
-                abort(406, "Unrecognized component type '%s'" % klass)
-    # Add resources provided by environment
+    _verify_required_blueprint_options_supplied(deployment)
+
+    # Load providers
     providers = environment.get_providers()
+    # Get interfaces available from environment
     for provider in providers.values():
         LOG.debug("%s provides %s" % (provider.__class__, provider.provides()))
-        for resource in provider.provides():
-            if resource in available:
-                available[resource].append(provider)
+        for item in provider.provides():
+            resource_type = item.keys()[0]
+            interface = item.values()[0]
+            entry = dict(provider=provider, resource=resource_type)
+            if interface in available:
+                available[interface].append(entry)
+                LOG.warning("More than one provider for '%s': %s" % (
+                        interface, available[interface]))
             else:
-                available[resource] = [provider]
+                available[interface] = [entry]
 
-    # Check we have what we need (requirements are met)
-    for requirement in requirements.keys():
-        if requirement not in provided and requirement not in available:
+    # Collect all requirements from components
+    for service_name, service in services.iteritems():
+        LOG.debug("Analyzing service %s" % service_name)
+        components = service['components']
+        if not isinstance(components, list):
+            components = [components]
+        for component in components:
+            LOG.debug("  Config for %s", component['id'])
+            # Check that the environment can provide this component
+            if 'is' in component:
+                klass = component['is']
+                found = False
+                for l in available.values():
+                    for e in l:
+                        if e['resource'] == klass:
+                            found = True
+                            break
+                if not found:
+                    abort(406, "Environment does not provide '%s'" % klass)
+            # Save list of interfaces provided by which service
+            if 'provides' in component:
+                for resource_type, interface in component['provides']\
+                        .iteritems():
+                    if resource_type in provided:
+                        provided[resource_type].append(interface)
+                    else:
+                        provided[resource_type] = [interface]
+            # Save list of what interfaces are required by each service
+            if 'requires' in component:
+                for key, value in component['requires'].iteritems():
+                    # Convert short form to long form before evaluating
+                    if not isinstance(value, dict):
+                        value = {'interface': value}
+                    interface = value['interface']
+                    if interface in requirements:
+                        requirements[interface].append(service_name)
+                    else:
+                        requirements[interface] = [service_name]
+
+    # Quick check that at least each interface is provided
+    for required_interface in requirements.keys():
+        if required_interface not in provided.values() and required_interface \
+                not in available:
             msg = "Cannot satisfy requirement '%s' in deployment %s" % (
-                    requirement, deployment['id'])
+                    required_interface, deployment['id'])
             LOG.info(msg)
             abort(406, msg)
         # TODO: check that interfaces match between requirement and provider
-    # Check we have what we need (we can resolve relations)
-    for service_name in relations:
-        for relation in relations[service_name]:
-            if relations[service_name][relation] not in blueprint['services']:
-                msg = "Cannot find '%s' for '%s' to connect to in " \
-                      "deployment %s" % (relations[service_name][relation],
-                      service_name, deployment['id'])
-                LOG.info(msg)
-                abort(406, msg)
+
+    # Collect relations and verify service for relation exists
+    for service_name, service in services.iteritems():
+        if 'relations' in service:
+            # Check that they all connect to valid service
+            # TODO: check interfaces also match
+            for key, relation in service['relations'].iteritems():
+                if isinstance(relation, dict):
+                    target = relation['service']
+                else:
+                    target = key
+                if target not in services:
+                    msg = "Cannot find service '%s' for '%s' to connect to " \
+                          "in deployment %s" % (target, service_name,
+                          deployment['id'])
+                    LOG.info(msg)
+                    abort(406, msg)
+            # Collect all of them (converting short syntax to long)
+            expanded = {}
+            for key, value in service['relations'].iteritems():
+                if isinstance(value, dict):
+                    expanded[key] = value
+                else:
+                    # Generate name and expand
+                    relation_name = '%s-%s' % (service_name, key)
+                    expanded_relation = {
+                            'interface': value,
+                            'service': key,
+                            }
+                    expanded[relation_name] = expanded_relation
+            relations[service_name] = expanded
 
     #
     # Build needed resource list
     #
+    domain = inputs.get('domain', os.environ.get('CHECKMATE_DOMAIN',
+                                                   'mydomain.local'))
     resources = {}
     resource_index = 0  # counter we use to increment as we create resources
-    for service_name, service in blueprint['services'].iteritems():
+    for service_name, service in services.iteritems():
         LOG.debug("Gather resources needed for service %s" % service_name)
-        if service_name == 'wordpress':
-            #TODO: now hard-coded to this logic:
-            # <20 requests => 1 server, running mysql & web
-            # 21-200 requests => 1 mysql, mod 50 web servers
-            # if ha selected, use min 1 sql, 2 web, and 1 lb
-            # More than 4 web heads not supported
-            high_availability = False
-            if 'high-availability' in inputs:
-                if inputs['high-availability'] in [True, 'true', 'True', '1',
-                        'TRUE']:
-                    high_availability = True
-            rps = 1  # requests per second
-            if 'requests-per-second' in inputs:
-                rps = int(inputs['requests-per-second'])
-            web_heads = inputs.get('wordpress:instance/count',
-                    service['config']['settings'].get(
-                            'wordpress:instance/count', int((rps + 49) / 50.)))
+        components = service['components']
+        if not isinstance(components, list):
+            components = [components]
+        for component in components:
+            resource_type = component.get('is')
 
-            if web_heads > 6:
-                abort(406, "Blueprint does not support the required number of "
-                        "web-heads: %s" % web_heads)
-            domain = inputs.get('domain', os.environ.get('CHECKMATE_DOMAIN',
-                                                           'mydomain.local'))
-            if web_heads > 0:
-                compute = environment.select_provider(resource='compute')
+            host = None
+            if 'requires' in component:
+                for key, value in component['requires'].iteritems():
+                    # Skip short form which implies a reference relationship
+                    if not isinstance(value, dict):
+                        continue
+                    if value.get('relation', 'reference') == 'host':
+                        host = key
+                        host_interface = value['interface']
+                        break
+            if host:
+                host_provider = available[host_interface][0]['provider']
+                host_type = available[host_interface][0]['resource']
 
-                for index in range(web_heads):
-                    # Generate a default name
-                    name = 'CMDEP%s-web%s.%s' % (deployment['id'][0:7],
-                            index + 1, domain)
-                    # Call provider to give us a resource template
-                    resource = compute.generate_template(deployment,
-                            service_name, service, name=name)
-                    # Add it to resources
-                    resources[str(resource_index)] = resource
-                    # Link resource to tier
-                    if 'instances' not in service:
-                        service['instances'] = []
-                    instances = service['instances']
-                    instances.append(str(resource_index))
-                    LOG.debug("  Adding %s with id %s" % (resources[str(
-                            resource_index)]['type'], resource_index))
+            provider = environment.select_provider(resource=resource_type)
+            count = provider.get_deployment_setting(deployment, 'count',
+                    resource_type=resource_type, service=service_name) or 1
+
+            def add_resource(provider, deployment, service, service_name,
+                    index, domain, resource_type, component_id):
+                # Generate a default name
+                name = 'CM-%s-%s%s.%s' % (deployment['id'][0:7], service_name,
+                        index, domain)
+                # Call provider to give us a resource template
+                resource = provider.generate_template(deployment,
+                        resource_type, service_name, name=name)
+                resource['component'] = component_id
+                # Add it to resources
+                resources[str(resource_index)] = resource
+                # Link resource to service
+                if 'instances' not in service:
+                    service['instances'] = []
+                instances = service['instances']
+                instances.append(str(resource_index))
+                LOG.debug("  Adding %s with id %s" % (resources[str(
+                        resource_index)]['type'], resource_index))
+                return resource
+
+            for index in range(count):
+                if host:
+                    # Obtain resource to host this one on
+                    host_resource = add_resource(host_provider, deployment,
+                            service, service_name, index + 1, domain,
+                            host_type, component['id'])
+                    host_index = str(resource_index)
                     resource_index += 1
-            load_balancer = high_availability or web_heads > 1 or rps > 20
-            if load_balancer == True:
-                lb = [service for key, service in
-                        deployment['blueprint']['services'].iteritems()
-                        if service['config']['id'] == 'loadbalancer']
-                if not lb:
-                    raise Exception("%s tier calls for multiple webheads "
-                            "but no loadbalancer is included in blueprint" %
-                            service_name)
-        elif service_name == 'database':
-            database = environment.select_provider(resource='database')
-            domain = inputs.get('domain', os.environ.get(
-                    'CHECKMATE_DOMAIN', 'mydomain.local'))
-            name = 'CMDEP%s-db1.%s' % (deployment['id'][0:7], domain)
-            # Call provider to give us a resource template
-            resource = database.generate_template(deployment, service_name,
-                    service, name=name)
-            resources[str(resource_index)] = resource
-            if 'instances' not in service:
-                service['instances'] = []
-            instances = service['instances']
-            instances.append(str(resource_index))
-            LOG.debug("  Adding %s with id %s" % (resources[str(
-                    resource_index)]['type'], resource_index))
-            resource_index += 1
-        elif service_name == 'loadbalancer':
-            name = 'CMDEP%s-lb1.%s' % (deployment['id'][0:7], domain)
-            resources[str(resource_index)] = {'type': 'load-balancer',
-                                               'dns-name': name,
-                                               'instance-id': None}
-            if 'instances' not in service:
-                service['instances'] = []
-            instances = service['instances']
-            instances.append(str(resource_index))
-            LOG.debug("  Adding %s with id %s" % (resources[str(
-                    resource_index)]['type'], resource_index))
-            resource_index += 1
-        else:
-            abort(406, "Unrecognized service type '%s'" % service_name)
+                resource = add_resource(provider, deployment, service,
+                        service_name, index + 1, domain, resource_type,
+                        component['id'])
+                resource_index += 1
+                if host:
+                    # Fill in relations on hosted resource
+                    resource['hosted_on'] = str(resource_index - 2)
+                    relation = dict(interface=host_interface, state='planned',
+                            relation='host', target=host_index)
+                    if 'relations' not in resource:
+                        resource['relations'] = dict(host=relation)
+                    else:
+                        if 'host' in resource['relations']:
+                            CheckmateException("Conflicting relation named "
+                                    "'host' exists in service '%s'" %
+                                    service_name)
+                        resource['relations']['host'] = relation
+
+                    # Fill in relations on hosting resource
+                    # no need to fill in a full relation for host, so just
+                    # populate and array
+                    if 'hosts' in host_resource:
+                        host_resource['hosts'].append(str(resource_index - 1))
+                    else:
+                        host_resource['hosts'] = [str(resource_index - 1)]
 
     # Create connections between components
-    wires = {}
-    LOG.debug("Wiring tiers and resources")
-    for relation in relations:
-        # Find what's needed
-        tier = deployment['blueprint']['services'][relation]
-        resource_type = relations[relation].keys()[0]
-        interface = tier['config']['requires'][resource_type]['interface']
-        LOG.debug("  Looking for a provider for %s:%s for the %s tier" % (
-                resource_type, interface, relation))
-        instances = tier['instances']
-        LOG.debug("    These instances need %s:%s: %s" % (resource_type,
-                interface, instances))
-        # Find who can provide it
-        provider_tier_name = relations[relation].values()[0]
-        provider_tier = deployment['blueprint']['services'][provider_tier_name]
-        if resource_type not in provider_tier['config']['provides']:
-            raise Exception("%s does not provide a %s resource, which is "
-                    "needed by %s" % (provider_tier_name, resource_type,
-                    relation))
-        if provider_tier['config']['provides'][resource_type] != interface:
-            raise Exception("'%s' provides %s:%s, but %s needs %s:%s" % (
-                    provider_tier_name, resource_type,
-                    provider_tier['config']['provides'][resource_type],
-                    relation, resource_type, interface))
-        endpoint_providers = provider_tier['instances']
-        LOG.debug("    These instances provide %s:%s: %s" % (resource_type,
-                interface, endpoint_providers))
+    connections = {}
+    LOG.debug("Wiring services and resources")
+    for service_name, service_relations in relations.iteritems():
+        LOG.debug("    For %s" % service_name)
+        service = services[service_name]
+        instances = service['instances']
+        for name, relation in service_relations.iteritems():
+            # Find what interface is needed
+            target_interface = relation['interface']
+            LOG.debug("  Looking for a provider supporting %s for the %s "
+                    "service" % (target_interface, service_name))
+            target_service_name = relation['service']
+            target_service = services[target_service_name]
 
-        # Wire them up
-        name = "%s-%s" % (relation, provider_tier_name)
-        if name in wires:
-            name = "%s-%s" % (name, len(wires))
-        wires[name] = {}
-        for instance in instances:
-            if 'relations' not in resources[instance]:
-                resources[instance]['relations'] = {}
-            for endpoint_provider in endpoint_providers:
-                if 'relations' not in resources[endpoint_provider]:
-                    resources[endpoint_provider]['relations'] = {}
-                resources[instance]['relations'][name] = {'state': 'new'}
-                resources[endpoint_provider]['relations'][name] = {'state':
-                        'new'}
-                LOG.debug("    New connection from %s:%s to %s:%s created: %s"
-                        % (relation, instance, provider_tier_name,
-                                endpoint_provider, name))
-    resources['connections'] = wires
+            # Verify target can provide requested interface
+            target_components = target_service['components']
+            if not isinstance(target_components, list):
+                target_components = [target_components]
+            found = []
+            for component in target_components:
+                if target_interface in component.get('provides', {})\
+                        .values():
+                        found.append(component)
+            if not found:
+                raise CheckmateException("'%s' service does not provide a "
+                        "resource with an interface of type '%s', which is "
+                        "needed by the '%s' relationship to '%s'" % (
+                        target_service_name, target_interface, name,
+                        service_name))
+            if len(found) > 1:
+                raise CheckmateException("'%s' has more than one resource "
+                        "that provides an interface of type '%s', which is "
+                        "needed by the '%s' relationship to '%s'. This causes "
+                        "ambiguity. Additional information is needed to "
+                        "identify which component to connect" % (
+                        target_service_name, target_interface, name,
+                        service_name))
+
+            # Get list of source instances
+            source_instances = {index: resources[index] for index in
+                                instances}
+            LOG.debug("    These instances need '%s' from the '%s' service: %s"
+                    % (target_interface, target_service_name,
+                    source_instances))
+
+            # Get list of target instances
+            target_instances = target_service['instances']
+            LOG.debug("    These instances provide %s: %s" % (target_interface,
+                    target_instances))
+
+            # Wire them up (create relation entries under resources)
+            connection_name = "%s-%s" % (service_name, target_service_name)
+            if connection_name in connections:
+                connection_name = "%s-%s" % (connection_name, len(connections))
+            connections[connection_name] = {}
+            for source_instance in source_instances:
+                if 'relations' not in resources[source_instance]:
+                    resources[source_instance]['relations'] = {}
+                for target_instance in target_instances:
+                    if 'relations' not in resources[target_instance]:
+                        resources[target_instance]['relations'] = {}
+                    # Add forward relation (from source to target)
+                    resources[source_instance]['relations'][connection_name] \
+                            = dict(state='planned', target=target_instance,
+                                interface=target_interface)
+                    # Add relation to target showing incoming from source
+                    resources[target_instance]['relations'][connection_name] \
+                            = dict(state='planned', source=source_instance,
+                                interface=target_interface)
+                    LOG.debug("    New connection from %s:%s to %s:%s "
+                            "created: %s" % (service_name, source_instance,
+                            target_service_name, target_instance,
+                            connection_name))
+
+    #Write resources and connections to deployment
+    resources['connections'] = connections
     deployment['resources'] = resources
 
-    wf = create_workflow(deployment)
+    #Create workflow
+    workflow = create_workflow(deployment)
 
-    return {'deployment': deployment, 'workflow': wf}
+    return {'deployment': deployment, 'workflow': workflow}
+
+
+def _verify_required_blueprint_options_supplied(deployment):
+    """Check that blueprint options marked 'required' are supplied.
+
+    Raise error if not
+    """
+    blueprint = deployment['blueprint']
+    if 'options' in blueprint:
+        inputs = deployment.get('inputs', {})
+        bp_inputs = inputs.get('blueprint')
+        for key, option in blueprint['options'].iteritems():
+            if (not 'default' in option) and \
+                    option.get('required') in ['true', True]:
+                if key not in bp_inputs:
+                    abort(406, "Required blueprint input '%s' not supplied" %
+                            key)
+
+
+def check_deployment(deployment):
+    """Validates deployment (a combination of components, blueprints, deployments,
+    and environments)
+
+    This is a simple, initial atempt at validation"""
+    errors = []
+    roots = ['components', 'blueprint', 'environment', 'deployment']
+    values = ['name', 'prefix', 'inputs', 'includes']
+    if deployment:
+        allowed = roots[:]
+        allowed.extend(values)
+        for key, value in deployment.iteritems():
+            if key not in allowed:
+                errors.append("'%s' not a valid value. Only %s allowed" % (key,
+                        ', '.join(allowed)))
+    return errors

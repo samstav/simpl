@@ -20,10 +20,12 @@ except ImportError:
 from SpiffWorkflow import Workflow, Task
 from SpiffWorkflow.operators import Attrib
 from SpiffWorkflow.storage import DictionarySerializer
+
 from checkmate.db import get_driver, any_id_problems
 from checkmate.environments import Environment
+from checkmate.exceptions import CheckmateException
 from checkmate.utils import write_body, read_body, extract_sensitive_data,\
-        merge_dictionary, is_ssh_key, with_tenant, get_source_body
+        merge_dictionary, is_ssh_key, with_tenant
 from checkmate import orchestrator
 
 db = get_driver('checkmate.db.sql.Driver')
@@ -371,7 +373,9 @@ def get_SpiffWorkflow_status(workflow):
 
 def create_workflow(deployment):
     """Creates a SpiffWorkflow from a CheckMate deployment dict
+
     :returns: SpiffWorkflow.Workflow"""
+    LOG.info("Creating workflow for deploymewnt '%s'" % deployment['id'])
     blueprint = deployment['blueprint']
     inputs = deployment['inputs']
     environment = deployment.get('environment')
@@ -401,13 +405,12 @@ def create_workflow(deployment):
                     "and write it into context")
     auth_task.connect(write_token)
 
-    #TODO: make this smarter
-    creds = [p['credentials'][0] for key, p in
-            deployment['environment']['providers'].iteritems()
-            if key == 'common'][0]
+    #
+    # Create context with creds and keys
+    #
 
-    keys = get_os_env_keys()
     # Read in the public keys to be passed to newly created servers.
+    keys = get_os_env_keys()
     if 'public_key' in inputs:
         if not is_ssh_key(inputs['public_key']):
             abort("public_key input is not a valid public key string.")
@@ -416,11 +419,36 @@ def create_workflow(deployment):
         LOG.warn("No public keys supplied. Less secure password auth will be "
                 "used.")
 
+    bp_inputs = inputs.get('blueprint')
+    private_key = bp_inputs.get('private_key')
+    public_key = bp_inputs.get('public_key')
+    if private_key is None or private_key == '=generate()':
+        private, public = environment.generate_key_pair()
+        keys['environment'] = dict(public_key=public['PEM'],
+                public_key_ssh=public['ssh'], private_key=private['PEM'])
+        if private_key == '=generate()':
+            bp_inputs['private_key'] = private['PEM']
+            if public_key:
+                LOG.warning("Overwritting supplied public key by generated "
+                        "keys because the private_key value was blank or set "
+                        "to '=generate()'")
+            bp_inputs['public_key'] = public['PEM']
+    else:
+        if public_key is None:
+            public_key = environment.get_ssh_public_key(private_key)
+            keys['environment'] = dict(public_key_ssh=public_key,
+                private_key=private_key)
+
+    #TODO: make this smarter
+    creds = [p['credentials'][0] for key, p in
+            deployment['environment']['providers'].iteritems()
+            if key == 'common'][0]
+
     context = {
         'id': deployment['id'],
         'username': creds['username'],
         'apikey': creds['apikey'],
-        'region': inputs['region'],
+        'region': bp_inputs.get('region'),
         'keys': keys
     }
 
@@ -428,174 +456,76 @@ def create_workflow(deployment):
     # Create the tasks that make the async calls
     #
 
-    # Get list of providers and store them for use throughout
-    providers = {}
-    for resource_type in ['configuration', 'compute', 'load-balancer',
-            'database']:
-        provider = environment.select_provider(resource=resource_type)
-        if provider:
-            providers[resource_type] = provider
-            prep_result = provider.prep_environment(wfspec,  deployment)
-            # Wire up if not wired in somewhere
-            if prep_result and not prep_result['root'].inputs:
-                auth_task.connect(prep_result['root'])
+    # Get list of providers
+    resource_providers = {}  # Hash of provider for each resource
+    providers = {}  # Providers used in this deployment
 
-    config_provider = providers['configuration']
-    compute_provider = providers['compute']
-    lb_provider = providers['load-balancer']
-    database_provider = providers['database']
+    provider_keys = set()
+    for key, resource in deployment['resources'].iteritems():
+        if key != 'connections' and resource['type'] not in provider_keys:
+            provider_keys.add(resource['type'])
+            provider = environment.select_provider(resource['type'])
+            resource_providers[resource['type']] = provider
+            providers[provider.key] = provider
 
-    # For resources we create, we store the resource key in the spec's Defines
-    # Hard-coding some logic for now:
-    # we need to remember bootstrap join tasks so we can make them wait for the
-    # database task to complete and populate the chef environment before they
-    # run
-    # TODO: make bootstrap tasks wait and join based on requires/provides in
-    # components and blueprints
+    # BLATANT HACK: we have a dependency between compute and chef, so we need
+    # to call chef first
+    #TODO: figure out elegant solution to handle interdependencies
+    if 'application' in resource_providers:
+        prep_result = resource_providers['application'].prep_environment(
+                wfspec, deployment)
+        # Wire up tasks if not wired in somewhere
+        if prep_result and not prep_result['root'].inputs:
+            auth_task.connect(prep_result['root'])
 
-    create_lb_task = None
+    for provider in providers.values():
+        prep_result = provider.prep_environment(wfspec, deployment)
+        # Wire up tasks if not wired in somewhere
+        if prep_result and not prep_result['root'].inputs:
+            auth_task.connect(prep_result['root'])
 
-    for key in deployment['resources']:
+    #build sorted list of resources based on dependencies
+    sorted_resources = []
+
+    def recursive_add_host(sorted_list, resource_key, resources, stack):
+        resource = resources[resource_key]
+        for key, relation in resource.get('relations', {}).iteritems():
+                if 'target' in relation:
+                    if relation['target'] not in sorted_list:
+                        if relation['target'] in stack:
+                            raise CheckmateException("Circular dependency in "
+                                    "resources between %s and %s " % (
+                                    resource_key, relation['target']))
+                        stack.append(resource_key)
+                        recursive_add_host(sorted_resources,
+                                relation['target'], resources, stack)
+        if resource_key not in sorted_list:
+            sorted_list.append(resource_key)
+
+    for key, resource in deployment['resources'].iteritems():
+        if key != 'connections':
+            recursive_add_host(sorted_resources, key, deployment['resources'],
+                    [])
+
+    # Do resources
+    for key in sorted_resources:
         resource = deployment['resources'][key]
-        hostname = resource.get('dns-name')
-        if resource.get('type') == 'server':
-            # Third task takes the 'deployment' attribute and creates a server
-            compute_result = compute_provider.add_resource_tasks(resource,
-                    key, wfspec, deployment, context,
-                    wait_on=[config_provider.prep_task])
-            write_token.connect(compute_result['root'])
+        provider = providers[resource['provider']]
+        provider_result = provider.add_resource_tasks(resource,
+                key, wfspec, deployment, context)
 
-            # NOTE: chef-server provider assums wait_on[0]=create_server_task
-            config_provider.add_resource_tasks(
-                    resource, key, wfspec, deployment, context,
-                    wait_on=[compute_result['final']])
+        if not provider_result['root'].inputs:
+            # Run after creds available
+            write_token.connect(provider_result['root'])
 
-        elif resource.get('type') == 'load-balancer':
-            # Third task takes the 'deployment' attribute and creates a lb
-            lb_result = lb_provider.add_resource_tasks(resource,
-                    key, wfspec, deployment, context)
-            write_token.connect(lb_result['root'])
-            create_lb_task = lb_result['final']
-        elif resource.get('type') == 'database':
-            # Third task takes the 'deployment' attribute and creates a server
-            db_result = database_provider.add_resource_tasks(resource,
-                    key, wfspec, deployment, context)
-
-            write_token.connect(db_result['root'])
-
-            # Register database settings in Chef
-
-            # TODO: fix hard-coding DB (this should be triggered by a
-            # relation) Take output from Create DB task and write it into
-            # the 'override' dict to be available to future tasks
-            compile_override = Transform(wfspec, "Prepare Overrides",
-                    transforms=[
-                    "my_task.attributes['overrides']={'wordpress': {'db': "
-                    "{'host': my_task.attributes['hostname'], "
-                    "'database': my_task.attributes['context']['db_name'], "
-                    "'user': my_task.attributes['context']['db_username'], "
-                    "'password': my_task.attributes['context']"
-                    "['db_password']}}}"], description="Get all the variables "
-                            "we need (like database name and password) and "
-                            "compile them into JSON that we can set on the "
-                            "role or environment")
-            db_result['final'].connect(compile_override)
-
-            # Set environment databag
-            if config_provider.__class__.__name__ == 'LocalProvider':
-                set_overrides = Celery(wfspec,
-                        'Write Database Settings',
-                        'stockton.cheflocal.distribute_manage_role',
-                        call_args=['wordpress-web', deployment['id']],
-                        override_attributes=Attrib('overrides'),
-                        description="Take the JSON prepared earlier and write "
-                                "it into the wordpress role. It will be used "
-                                "by the Chef recipe to connect to the DB",
-                        properties={'estimated_duration': 10})
-            elif config_provider.__class__.__name__ == 'ServerProvider':
-                set_overrides = Celery(wfspec,
-                        "Write Database Settings",
-                        'stockton.chefserver.distribute_manage_env',
-                        call_args=[Attrib('context'), deployment['id']],
-                            desc='CheckMate Environment',
-                            override_attributes=Attrib('overrides'),
-                        description="Take the JSON prepared earlier and write "
-                                "it into the environment overrides. It will "
-                                "be used by the Chef recipe to connect to "
-                                "the database",
-                        properties={'estimated_duration': 15})
-            wait_on = [compile_override]
-            if config_provider:
-                wait_on.append(config_provider.prep_task)
-            wait_for(wfspec, set_overrides, wait_on,
-                    name="Wait on Environment and Settings:%s" % key)
-
-        elif resource.get('type') == 'dns':
-            # TODO: NOT TESTED YET
-            create_dns_task = Celery(wfspec, 'Create DNS Record',
-                               'stockton.dns.distribute_create_record',
-                               call_args=[Attrib('context'),
-                               inputs.get('domain', 'localhost'), hostname,
-                               'A', Attrib('vip')],
-                               defines={"Resource": key},
-                               properties={'estimated_duration': 30})
-            write_token.connect(create_dns_task)
-        else:
-            pass
-
-    # Wire connections
-    #TODO: remove this hard-coding and use relations
-    # Get configure tasks make them preced LB Add Node and make set_overrides
-    # preced them
-    specs = {}
-    for name, task_spec in wfspec.task_specs.iteritems():
-        if name.startswith('Bootstrap Server') or\
-                name.startswith('Configure Server'):
-            specs[name] = task_spec
-            # Assuming input is join
-            assert isinstance(task_spec.inputs[0], Merge)
-            set_overrides.connect(task_spec.inputs[0])
-
-    if create_lb_task:
-        specs = {}
-        for name, task_spec in wfspec.task_specs.iteritems():
-            if name.startswith('Bootstrap Server') or\
-                    name.startswith('Configure Server'):
-                specs[name] = task_spec
-        for name, task_spec in specs.iteritems():
-            # Wire to LB
-            save_lbid = Transform(wfspec, "Get LB ID:%s" % name.split(':')[1],
-                    transforms=[
-                    "my_task.attributes['lbid']=my_task.attributes['id']"])
-            create_lb_task.connect(save_lbid)
-
-            # Get ServiceNet IP and use that
-            def get_private_ip(my_task):
-                addresses = my_task.attributes.get('addresses', [])
-                private_addresses = addresses.get('private', [])
-                for address in private_addresses:
-                    if address['version'] == 4:
-                        my_task.attributes['private_ip'] = address['addr']
-                        break
-
-            get_snet_ip = Transform(wfspec,
-                                 "Get ServiceNet IP:%s" % name.split(':')[1],
-                                 transforms=[get_source_body(get_private_ip)])
-            server_up_task = wfspec.get_task_spec_from_name("Check that "
-                    "Server is Up:%s" % name.split(':')[1])
-            server_up_task.connect(get_snet_ip)
-
-            add_node = Celery(wfspec,
-                    "Add LB Node:%s" % name.split(':')[1],
-                    'stockton.lb.distribute_add_node',
-                    call_args=[Attrib('context'),  Attrib('lbid'),
-                            Attrib('private_ip'), 80],
-                    properties={'estimated_duration': 20})
-            wait_for(wfspec, add_node, [get_snet_ip, task_spec, save_lbid],
-                    name="Wait before adding to LB:%s" % name.split(':')[1],
-                    description="Wait for Load Balancer ID, ServiceNet IP, "
-                            "and for server to be fully configured before "
-                            "adding it to load balancer")
+    # Do relations
+    for key, resource in deployment['resources'].iteritems():
+        if 'relations' in resource:
+            for name, relation in resource['relations'].iteritems():
+                if 'target' in relation:  # This is a source
+                    provider = providers[resource['provider']]
+                    provider_result = provider.add_connection_tasks(resource,
+                            key, relation, name, wfspec, deployment)
 
     workflow = Workflow(wfspec)
     #Pass in the initial deployemnt dict (task 2 is the Start task)
@@ -620,7 +550,7 @@ def create_workflow(deployment):
     return workflow
 
 
-def wait_for(wf_spec, task, wait_list, name=None, description=None):
+def wait_for(wf_spec, task, wait_list, name=None, **kwargs):
     """Wires up tasks so that 'task' will wait for all tasks in 'wait_list' to
     complete before proceeding.
 
@@ -628,11 +558,12 @@ def wait_for(wf_spec, task, wait_list, name=None, description=None):
     :param task: the task that will be waiting
     :param wait_list: a list of tasks to wait on
     :param name: the name of the merge task (autogenerated if not supplied)
-    :param description: a description for the wait task
+    :param kwargs: all additional kwargs are passed to Merge.__init__
     """
     if not name:
-        name = "%s wait on %s" % (task.id, ",".join([t.id for t in wait_list]))
-    join = Merge(wf_spec, name, description=description)
+        name = "Wait (%s on %s)" % (task.id, ",".join([str(t.id) for t in
+                wait_list]))
+    join = Merge(wf_spec, name, **kwargs)
     join.connect(task)
     for t in wait_list:
         t.connect(join)

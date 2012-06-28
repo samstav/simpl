@@ -7,8 +7,8 @@ import openstack.compute
 from SpiffWorkflow.operators import Attrib
 from SpiffWorkflow.specs import Celery, Transform
 
-from checkmate.exceptions import CheckmateNoTokenError
-from checkmate.providers import ProviderBase
+from checkmate.exceptions import CheckmateNoTokenError, CheckmateNoMapping
+from checkmate.providers import ProviderBase, register_providers
 from checkmate.utils import get_source_body
 from checkmate.workflows import wait_for
 
@@ -16,19 +16,23 @@ LOG = logging.getLogger(__name__)
 
 
 class RackspaceComputeProviderBase(ProviderBase):
+    vendor = 'rackspace'
+
     """Generic functions for rackspace Compute providers"""
-    def __init__(self, provider):
-        ProviderBase.__init__(self, provider)
+    def __init__(self, provider, key=None):
+        ProviderBase.__init__(self, provider, key=key)
         self.prep_task = None
 
     def prep_environment(self, wfspec, deployment):
-        #file = {'/root/.ssh/authorized_keys': "\n".join(keys)}
+
         def get_keys_code(my_task):
             keys = []
             for key, value in my_task.attributes['context'].get('keys',
                         {}).iteritems():
-                if 'public_key' in value:
-                    keys.append(value['public_key'])
+                if 'public_key_ssh' in value:
+                    keys.append(value['public_key_ssh'])
+                elif 'public_key' in value:
+                    LOG.warning("Code still using public_key without _ssh")
             if keys:
                 path = '/root/.ssh/authorized_keys'
                 if not 'files' in my_task.attributes:
@@ -50,25 +54,34 @@ class RackspaceComputeProviderBase(ProviderBase):
 
 
 class LegacyProvider(RackspaceComputeProviderBase):
-    def generate_template(self, deployment, service_name, service, name=None):
-        inputs = deployment.get('inputs', {})
-        flavor = inputs.get('%s:instance/flavor' % service_name,
-                service['config']['settings'].get(
-                    '%s:instance/flavor' % service_name,
-                    service['config']['settings']
-                    ['instance/flavor']['default']))
-        image = inputs.get('%s:instance/os' % service_name,
-                service['config']['settings'].get(
-                        '%s:instance/os' % service_name,
-                        service['config']['settings']['instance/os']
-                        ['default']))
-        if image == 'Ubuntu 11.10':
-            image = 119
-        if not name:
-            name = 'CMDEP%s-server.stabletransit.com' % (deployment['id'][0:7])
-        template = {'type': 'server', 'dns-name': name, 'flavor': flavor,
-                'image': image, 'instance-id': None}
+    name = 'legacy'
 
+    def generate_template(self, deployment, resource_type, service, name=None):
+        template = RackspaceComputeProviderBase.generate_template(self,
+                deployment, resource_type, service, name=name)
+
+        image = self.get_deployment_setting(deployment, 'os',
+                resource_type=resource_type, service=service)
+        if isinstance(image, int):
+            pass
+        elif image == 'Ubuntu 11.10':
+            image = 119
+        else:
+            raise CheckmateNoMapping("No image mapping for '%s' in '%s'" % (
+                    image, self.name))
+
+        flavor = self.get_deployment_setting(deployment, 'memory',
+                resource_type=resource_type, service=service, default=1)
+        if isinstance(flavor, int):
+            pass
+        elif flavor == '512 Mb':
+            flavor = 2
+        else:
+            raise CheckmateNoMapping("No flavor mapping for '%s' in '%s'" % (
+                    flavor, self.name))
+
+        template['flavor'] = flavor
+        template['image'] = image
         return template
 
     def add_resource_tasks(self, resource, key, wfspec, deployment, context,
@@ -88,25 +101,35 @@ class LegacyProvider(RackspaceComputeProviderBase):
                            flavor=resource.get('flavor', 1),
                            files=Attrib('files'),
                            ip_address_type='public',
-                           defines={"Resource": key},
+                           prefix=key,
+                           defines=dict(resource=key,
+                                        provider=self.key,
+                                        task_tags=['create']),
                            properties={'estimated_duration': 20})
 
         build_wait_task = Celery(wfspec, 'Check that Server is Up:%s'
                 % key, 'stockton.server.distribute_wait_on_build',
                 call_args=[Attrib('context'), Attrib('id')],
                 password=Attrib('password'),
-                identity_file=os.environ.get('CHECKMATE_PRIVATE_KEY',
-                        '~/.ssh/id_rsa'),
-                properties={'estimated_duration': 150})
+                identity_file=Attrib('private_key_path'),
+                prefix=key,
+                properties={'estimated_duration': 150},
+                defines=dict(resource=key,
+                             provider=self.key,
+                             task_tags=['final']))
         create_server_task.connect(build_wait_task)
 
         if wait_on is None:
             wait_on = []
         wait_on.append(self.prep_task)
         join = wait_for(wfspec, create_server_task, wait_on,
-                name="Server Wait on:%s" % key)
+                name="Server Wait on:%s" % key,
+                defines=dict(resource=key,
+                             provider=self.key,
+                             task_tags=['root']))
 
-        return {'root': join, 'final': build_wait_task}
+        return dict(root=join, final=build_wait_task,
+                create=create_server_task)
 
     def get_catalog(self, context, type_filter=None):
         api = self._connect(context)
@@ -156,26 +179,33 @@ class LegacyProvider(RackspaceComputeProviderBase):
 
 
 class NovaProvider(RackspaceComputeProviderBase):
-    def generate_template(self, deployment, service_name, service, name=None):
-        inputs = deployment.get('inputs', {})
-        flavor = inputs.get('%s:instance/flavor' % service_name,
-                service['config']['settings'].get(
-                    '%s:instance/flavor' % service_name,
-                    service['config']['settings']
-                    ['instance/flavor']['default']))
-        image = inputs.get('%s:instance/os' % service_name,
-                service['config']['settings'].get(
-                        '%s:instance/os' % service_name,
-                        service['config']['settings']['instance/os']
-                        ['default']))
+    name = 'nova'
+
+    def generate_template(self, deployment, resource_type, service, name=None):
+        template = RackspaceComputeProviderBase.generate_template(self,
+                deployment, resource_type, service, name=name)
+
+        # Find and translate image
+        image = self.get_deployment_setting(deployment, 'os',
+                resource_type=resource_type, service=service)
+
         if image == 'Ubuntu 11.10':
             image = '3afe97b2-26dc-49c5-a2cc-a2fc8d80c001'
-        flavor = str(flavor)  # nova uses string IDs
-        if not name:
-            name = 'CMDEP%s-server.stabletransit.com' % (deployment['id'][0:7])
-        template = {'type': 'server', 'dns-name': name, 'flavor': flavor,
-                'image': image, 'instance-id': None}
+        else:
+            raise CheckmateNoMapping("No image mapping for '%s' in '%s'" % (
+                    image, self.name))
 
+        # Find and translate flavor
+        flavor = self.get_deployment_setting(deployment, 'memory',
+                resource_type=resource_type, service=service, default=2)
+        if isinstance(flavor, int):
+            pass
+        else:
+            raise CheckmateNoMapping("No flavor mapping for '%s' in '%s'" % (
+                    flavor, self.name))
+
+        template['flavor'] = flavor
+        template['image'] = image
         return template
 
     def add_resource_tasks(self, resource, key, wfspec, deployment,
@@ -199,10 +229,9 @@ class NovaProvider(RackspaceComputeProviderBase):
 
         build_wait_task = Celery(wfspec, 'Check that Server is Up:%s'
                 % key, 'stockton.nova.distribute_wait_on_build',
-                call_args=[Attrib('context'), Attrib('id')],
+                call_args=[Attrib('context'), Attrib('id'), 'root'],
                 password=Attrib('password'),
-                identity_file=os.environ.get('CHECKMATE_PRIVATE_KEY',
-                        '~/.ssh/id_rsa'),
+                identity_file=Attrib('public_key_path'),
                 properties={'estimated_duration': 150})
         create_server_task.connect(build_wait_task)
 
@@ -276,3 +305,6 @@ class NovaProvider(RackspaceComputeProviderBase):
         api.client.management_url = url
 
         return api
+
+
+register_providers([NovaProvider, LegacyProvider])

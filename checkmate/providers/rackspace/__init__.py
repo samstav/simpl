@@ -1,25 +1,30 @@
-"""Aliases for imports are used as keys in the environment definition
+"""Rackspace Providers
 
-Defines:
-nova         - openstack, next-gen compute provider
-legacy       - legacy, slice compute provider
-database     - Cloud Databases database provider
-loadbalancer - Clud LoadBalancers load-balancer provider
+Defined:
+nova          - openstack, next-gen compute provider
+legacy        - legacy, slice compute provider
+databases     - Cloud Databases database provider
+loadbalancer  - Cloud LoadBalancers load-balancer provider
+dns           - Cloud DNS
 
-Explanation:
+Sample use:
 
 environment:
   providers:
-    nova:
+    legacy:
       provides:
-      - compute
+      - compute: linux
+      - compute: windows
       vendor: rackspace
 
-From vendor and provider key (nova) above, the class
-'checkmate.providers.rackspace.nova' will be loaded
 """
-from checkmate.providers.rackspace.compute import NovaProvider as nova
-from checkmate.providers.rackspace.compute import LegacyProvider as legacy
-from checkmate.providers.rackspace.database import Provider as database
-from checkmate.providers.rackspace.loadbalancer import Provider as\
-        loadbalancer
+
+
+def register_providers():
+    import checkmate.providers.rackspace.compute
+    import checkmate.providers.rackspace.loadbalancer
+    import checkmate.providers.rackspace.database
+    import checkmate.providers.rackspace.dns
+
+
+register_providers()
