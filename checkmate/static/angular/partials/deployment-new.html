@@ -1,0 +1,112 @@
+<div ng-controller="DeploymentNewCtrl">
+
+  <div class="span9">
+    <div class="page-header">
+      <h1>Create a New Deployment</h1>
+    </div>
+
+    <form class="form-horizontal">
+      <fieldset>
+        <div class="control-group">
+          <label class="control-label" for="environment">Environment</label>
+          <div class="controls">
+            <select id="environment">
+              <option ng-repeat="environment in environments" value="{{environment.id}}">
+                {{environment.name}}
+              </option>
+            </select>
+          </div>
+        </div>
+        <div class="control-group">
+          <label class="control-label" for="blueprint">Blueprint</label>
+          <div class="controls">
+            <select id="blueprint">
+              <option ng-repeat="blueprint in blueprints" value="{{blueprint.id}}">
+                {{blueprint.name}}
+              </option>
+            </select>
+          </div>
+        </div>
+      </fieldset>
+
+      <fieldset>
+        <legend>Settings</legend>
+        <div class="control-group" ng-repeat="setting in settings" 
+             ng-bind-html-unsafe="renderSetting(setting)">
+        </div>
+
+        <div class="form-actions">
+          <button ng-click="submit()" class="btn btn-primary">Build It!</button>
+          <button ng-click="reset()" class="btn">Cancel</button>
+        </div>
+      </fieldset>
+    </form>
+  </div>
+
+  <div class="span3">
+    <div class="well sidebar-nav">
+      <ul class="nav nav-list">
+        <li class="nav-header">Help</li>
+        <li>
+          Help text!
+        </li>
+        <li class="nav-header">Search</li>
+        <li>
+          <div class="input-prepend">
+            <span class="add-on"><i class="icon-search"></i></span><input type="text" class="span2" ng-model="query"> 
+          </div>    
+        </li>
+      </ul>
+    </div><!--/.well -->
+  </div>
+
+
+  <script type="text/javascript">
+    $(document).ready(function() {
+      $('#nav-elements li').removeClass('active');
+      $('#nav-deployments').addClass('active');
+    });
+  </script>
+
+  <script id="setting-string" type="text/html" ng-non-bindable>
+    <label class="control-label capitalize" for="{{id}}">{{label}}</label>
+    <div class="controls">
+      <input  type="text" class="input-xlarge" id="{{id}}" ng-model="setting.{{id}}" 
+              {{#required}}required{{/required}} {{#regex}}ng-pattern="{{regex}}"{{/regex}}
+              {{#default}}value="{{default}}"{{/default}}>
+      {{#description}}<p class="help-block">{{description}}</p>{{/description}}
+    </div>
+  </script>
+
+   <script id="setting-number" type="text/html" ng-non-bindable>
+    <label class="control-label capitalize" for="{{id}}">{{label}}</label>
+    <div class="controls">
+      <input  type="number" class="input-small" id="{{id}}" ng-model="setting.{{id}}" 
+              {{#required}}required{{/required}} 
+              {{#default}}value="{{default}}"{{/default}}>
+      {{#description}}<p class="help-block">{{description}}</p>{{/description}}
+    </div>
+  </script>
+
+   <script id="setting-boolean" type="text/html" ng-non-bindable>
+    <label class="control-label capitalize" for="{{id}}">{{label}}</label>
+    <div class="controls">
+      <label class="checkbox">      
+        <input type="checkbox" class="input-xlarge" id="{{id}}" ng-model="setting.{{id}}" 
+              {{#required}}required{{/required}} {{#default}}value="{{default}}"{{/default}}>
+        {{#description}}{{description}}{{/description}}
+      </label>
+    </div>
+  </script>
+
+  <script id="setting-select" type="text/html" ng-non-bindable>
+    <label class="control-label capitalize" for="{{id}}">{{label}}</label>
+    <div class="controls">
+      <select id="{{id}}">
+        {{#options}}
+          <option value="{{value}}">{{name}}</option>
+        {{/options}}
+      </select>
+    </div>
+  </script>
+</div>

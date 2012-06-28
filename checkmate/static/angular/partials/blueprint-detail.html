@@ -1,0 +1,41 @@
+<div ng-controller="BlueprintDetailCtrl">
+  <div class="page-header">
+    <h1>Blueprint Detail</h1>
+  </div>
+
+  <div class="span9">
+      <textarea id="editor" ng-model="stringify"></textarea>
+  </div>
+    
+  </div>
+
+  <div class="span3">
+    <div class="well sidebar-nav">
+      <ul class="nav nav-list">
+        <li class="nav-header">Help</li>
+        <li>
+          <p>
+            Everyone likes contextual help! This form allows you to edit an existing deployment 
+            or create a new one.
+          </p>
+        </li>
+        <li class="nav-header">Providers</li>
+        <li>
+          <p>
+            Providers are the engines of your configuration. Whenever you need a particular resource
+            like compute or storage, that resources is gotten from your providers, e.g. Rackspace.
+          </p>
+        </li>
+        
+      </ul>
+    </div><!--/.well -->
+  </div>
+
+</div>
+
+<script type="text/javascript">
+  $(document).ready(function() {
+    $('#nav-elements li').removeClass('active');
+    $('#nav-blueprints').addClass('active');    
+  });
+</script>

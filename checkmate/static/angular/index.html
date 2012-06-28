@@ -1,0 +1,134 @@
+
+<!DOCTYPE html>
+<html lang="en" ng-app="checkmate">
+  <head>
+    <meta charset="utf-8">
+    <title>Checkmate</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="">
+    <meta name="author" content="">
+
+    <!-- Le styles -->
+    <link href="css/bootstrap.min.css" rel="stylesheet">
+    <style type="text/css">
+      body {
+        padding-top: 60px;
+        padding-bottom: 40px;
+      }
+    </style>
+    <link href="css/bootstrap-responsive.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="js/code-mirror-2.3/lib/codemirror.css">
+    <link href="css/app.css" rel="stylesheet">
+
+    <!-- Le HTML5 shim, for IE6-8 support of HTML5 elements -->
+    <!--[if lt IE 9]>
+      <script src="http://html5shim.googlecode.com/svn/trunk/html5.js"></script>
+    <![endif]-->
+
+    <!-- Le fav and touch icons -->
+    <link rel="shortcut icon" href="img/favicon.ico">
+    <link rel="apple-touch-icon-precomposed" sizes="144x144" href="img/apple-touch-icon-144-precomposed.png">
+    <link rel="apple-touch-icon-precomposed" sizes="114x114" href="img/apple-touch-icon-114-precomposed.png">
+    <link rel="apple-touch-icon-precomposed" sizes="72x72" href="img/apple-touch-icon-72-precomposed.png">
+    <link rel="apple-touch-icon-precomposed" href="img/apple-touch-icon-57-precomposed.png">
+  </head>
+
+  <body ng-controller="AuthCtrl">
+
+    <div class="navbar navbar-fixed-top">
+      <div class="navbar-inner">
+        <div class="container">
+          <a class="btn btn-navbar" data-toggle="collapse" data-target=".nav-collapse">
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+          </a>
+          <a class="brand" href="#">Checkmate</a>
+          <!-- User Control -->          
+          <div class="btn-group pull-right">
+            <a class="btn dropdown-toggle" data-toggle="dropdown" href="#">
+              <i class="icon-user"></i> {{auth.username}}
+              <span class="caret"></span>
+            </a>
+            <ul class="dropdown-menu">
+              <li><a href="#/profile">Profile</a></li>
+              <li class="divider"></li>
+              <li><a href="#" ng-click="signOut">Sign Out</a></li>
+            </ul>
+          </div>
+          <div class="nav-collapse">
+            <ul id="nav-elements" class="nav">
+              <li id="nav-environments"><a href="#/environments">Environments</a></li>
+              <li id="nav-blueprints"><a href="#/blueprints">Blueprints</a></li>
+              <li id="nav-deployments"><a href="#/deployments">Deployments</a></li>
+            </ul>
+          </div><!--/.nav-collapse -->
+        </div>
+      </div>
+    </div>
+
+    <div class="container">
+
+      <div class="row" ng-view>
+      </div>
+
+      <hr>
+
+      <footer>
+        <p>&copy; Rackspace Hosting 2012</p>
+      </footer>
+
+    </div> <!-- /container -->
+
+    <!-- Modal -->
+    <div id="auth_modal" class="modal hide fade">
+      <div class="modal-header">
+        <button type="button" class="close" data-dismiss="modal">×</button>
+        <h3>Time To Authenticate!</h3>
+      </div>
+      <form class="form-horizontal">
+        <div class="modal-body">
+          <div id="auth_error" class="alert alert-error hide">
+            <strong>Authetication Failed!</strong> <span id="auth_error_text"></span>.
+          </div>
+          <fieldset>
+            <div class="control-group">
+              <label class="control-label" for="username">Username</label>
+              <div class="controls">
+                <input type="text" class="input-xlarge" id="username" ng-model="auth.username">
+              </div>
+            </div>
+
+            <div class="control-group">
+              <label class="control-label" for="password">API Key</label>
+              <div class="controls">
+                <input type="password" class="input-xlarge" id="password" ng-model="auth.password">
+              </div>
+            </div>
+          </fieldset>
+        </div>
+        <div class="modal-footer">
+          <img id="auth_loader" src="img/ajax-loader.gif" alt="Loading..." class="hide"></img>
+          <a href="#" class="btn btn-primary" ng-click="authenticate()">Authenticate!</a>
+        </div>
+      </form>
+    </div>  
+
+    <!-- Le javascript
+    ================================================== -->
+    <!-- Placed at the end of the document so the pages load faster -->
+    <script src="js/lib/jquery-1.7.2.min.js"></script>
+    <script src="js/lib/angular-1.0.0.js"></script>
+    <script src="js/lib/angular-resource-1.0.0.js"></script>
+    <script src="js/lib/angular-sanitize-1.0.0.js"></script>    
+    <script src="js/lib/bootstrap.min.js"></script>
+    <script src="js/lib/mustache.js"></script>
+    <script src="js/app.js"></script>
+    <script src="js/controllers.js"></script>
+    <script src="js/filters.js"></script>
+    <script src="js/services.js"></script>
+    <script src="js/code-mirror-2.3/lib/codemirror.js"></script>
+    <script src="js/code-mirror-2.3/mode/javascript/javascript.js"></script>
+    <script src="js/code-mirror-2.3/mode/yaml/yaml.js"></script>
+  </body>
+</html>
