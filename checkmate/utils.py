@@ -70,6 +70,9 @@ def read_body(request):
     if not data or getattr(data, 'len', -1) == 0:
         abort(400, 'No data received')
     content_type = request.get_header('Content-type', 'application/json')
+    if ';' in content_type:
+        content_type = content_type.split(';')[0]
+
     if content_type == 'application/x-yaml':
         return yaml.safe_load(yaml.emit(resolve_yaml_external_refs(data),
                          Dumper=yaml.SafeDumper))
