@@ -30,19 +30,29 @@ class LocalProvider(ProviderBase):
                             task_tags=['root']),
                 properties={'estimated_duration': 10})
 
-        def get_keys_code(my_task):
-            my_task.attributes['context']['keys']['environment'] =\
-                    {'public_key': my_task.attributes['public_key'],
-                     'public_key_path': my_task.attributes['public_key_path']}
+        def write_keys_code(my_task):
+            if 'environment' not in my_task.attributes['context']['keys']:
+                my_task.attributes['context']['keys']['environment'] = {}
+            data = my_task.attributes['context']['keys']['environment']
+            if 'public_key' not in data:
+                data['public_key'] = my_task.attributes['public_key']
+            if 'public_key_path' not in data:
+                data['public_key_path'] = my_task.attributes.get(
+                        'public_key_path')
+            if 'private_key_path' not in data:
+                data['private_key_path'] = my_task.attributes.get(
+                        'private_key_path')
 
-        write_key = Transform(wfspec, "Get Environment Key",
-                transforms=[get_source_body(get_keys_code)],
+        write_keys = Transform(wfspec, "Get Environment Key",
+                transforms=[get_source_body(write_keys_code)],
                 description="Add environment public key data to context so "
-                        "providers have access to them")
-        create_environment.connect(write_key)
-        self.prep_task = write_key
+                        "providers have access to them",
+                defines=dict(provider=self.key,
+                            task_tags=['final', 'prep', 'environment keys']))
+        create_environment.connect(write_keys)
+        self.prep_task = write_keys
 
-        return {'root': create_environment, 'final': write_key}
+        return dict(root=create_environment, final=write_keys)
 
     def add_resource_tasks(self, resource, key, wfspec, deployment, context,
                 wait_on=None):

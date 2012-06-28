@@ -419,6 +419,25 @@ def create_workflow(deployment):
         LOG.warn("No public keys supplied. Less secure password auth will be "
                 "used.")
 
+    bp_inputs = inputs.get('blueprint')
+    private_key = bp_inputs.get('private_key')
+    public_key = bp_inputs.get('public_key')
+    if private_key is None or private_key == '=generate()':
+        private, public = environment.generate_key_pair()
+        keys['environment'] = dict(public_key=public['PEM'],
+                public_key_ssh=public['ssh'], private_key=private['PEM'])
+        if private_key == '=generate()':
+            bp_inputs['private_key'] = private['PEM']
+            if public_key:
+                LOG.warning("Overwritting supplied public key by generated "
+                        "keys because the private_key value was blank or set "
+                        "to '=generate()'")
+            bp_inputs['public_key'] = public['PEM']
+    else:
+        if public_key is None:
+            public_key = environment.get_ssh_public_key(private_key)
+            keys['environment'] = dict(public_key_ssh=public_key,
+                private_key=private_key)
 
     #TODO: make this smarter
     creds = [p['credentials'][0] for key, p in

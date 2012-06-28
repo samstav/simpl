@@ -28,6 +28,7 @@ setup(
                       'openstack.compute',
                       'python-novaclient',
                       'python-clouddb',
+                      'pycrypto',
                       ],
     tests_require=['nose', 'unittest2', 'mox'],
     dependency_links=github_urls,

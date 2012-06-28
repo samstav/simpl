@@ -3,6 +3,9 @@ import logging
 import uuid
 
 # pylint: disable=E0611
+from bottle import get, post, put, delete, request, response, abort
+from Crypto.PublicKey import RSA  # pip install pycrypto
+
 from checkmate.db import get_driver, any_id_problems, any_tenant_id_problems
 from checkmate.exceptions import CheckmateException
 from checkmate.providers import get_provider_class, CheckmateInvalidProvider, \
@@ -189,3 +192,21 @@ class Environment():
             raise CheckmateException("No vendor specified for '%s'" % key)
         provider_class = get_provider_class(vendor, key)
         return provider_class(provider, key=key)
+
+    def generate_key_pair(self, bits=2048):
+        """Generates a private/public key pair.
+
+        returns them as a private, public tuple of dicts. The dicts have key, and
+        PEM values. The public key also has an ssh value in it"""
+        key = RSA.generate(2048)
+        private_string = key.exportKey('PEM')
+        public = key.publickey()
+        public_string = public.exportKey('PEM')
+        ssh = public.exportKey('OpenSSH')
+        return (dict(key=key, PEM=private_string),
+                dict(key=public, PEM=public_string, ssh=ssh))
+
+    def get_ssh_public_key(self, private_key):
+        """Generates an ssh public key from a private key public_string"""
+        key = RSA.importKey(private_key)
+        return key.publickey().exportKey('OpenSSH')
