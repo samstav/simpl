@@ -5,7 +5,8 @@ import os
 import unittest2 as unittest
 from webtest import TestApp
 
-from checkmate.server import TenantMiddleware, ContextMiddleware
+from checkmate.server import TenantMiddleware, ContextMiddleware, \
+        BrowserMiddleware
 
 os.environ['CHECKMATE_DATA_PATH'] = os.path.join(os.path.dirname(__file__),
                                               'data')
@@ -117,6 +118,30 @@ class TestServer(unittest.TestCase):
         data = json.loads(res.body)
         self.assertIn('2', data)
         self.assertNotIn('1', data)
+
+    def test_get_template_name_from_path(self):
+        fxn = BrowserMiddleware.get_template_name_from_path
+        self.assertEqual(fxn(None), 'default')
+        self.assertEqual(fxn(''), 'default')
+        self.assertEqual(fxn('/'), 'default')
+
+        expected = {'/workflows': 'workflows',
+                    '/deployments': 'deployments',
+                    '/blueprints': 'blueprints',
+                    '/components': 'components',
+                    '/environments': 'environments',
+                    '/workflows/1': 'workflow',
+                    '/workflows/1/tasks': 'workflow.tasks',
+                    '/workflows/1/tasks/1': 'workflow.task',
+                    '/workflows/1/status': 'workflow.status'
+                }
+        for path, template in expected.iteritems():
+            self.assertEqual(fxn(path), template, '%s should have returned %s'
+                    % (path, template))
+        # Check with tenant_id
+        for path, template in expected.iteritems():
+            self.assertEqual(fxn('/T1000%s' % path), template, '%s should '
+                    'have returned %s' % (path, template))
 
 if __name__ == '__main__':
     unittest.main(verbosity=2)
