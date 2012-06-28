@@ -1,13 +1,12 @@
 #!/usr/bin/env python
-# pylint: disable=E0611
-from bottle import get, post, put, delete, request, \
-        response, abort
 import logging
 import uuid
 
+# pylint: disable=E0611
 from checkmate.db import get_driver, any_id_problems, any_tenant_id_problems
 from checkmate.exceptions import CheckmateException
-from checkmate.providers import get_provider_class
+from checkmate.providers import get_provider_class, CheckmateInvalidProvider, \
+        PROVIDER_CLASSES
 from checkmate.utils import read_body, write_body, extract_sensitive_data,\
         with_tenant
 
@@ -88,7 +87,7 @@ def delete_environment(id, tenant_id=None):
 #
 @get('/environments/<environment_id>/providers')
 @with_tenant
-def get_providers(environment_id, tenant_id=None):
+def get_environment_providers(environment_id, tenant_id=None):
     entity = db.get_environment(environment_id)
     if not entity:
         abort(404, 'No environment with id %s' % environment_id)
@@ -100,7 +99,7 @@ def get_providers(environment_id, tenant_id=None):
 
 @get('/environments/<environment_id>/providers/<provider_id>')
 @with_tenant
-def get_provider(environment_id, provider_id, tenant_id=None):
+def get_environment_provider(environment_id, provider_id, tenant_id=None):
     entity = db.get_environment(environment_id)
     if not entity:
         abort(404, 'No environment with id %s' % environment_id)
@@ -113,12 +112,15 @@ def get_provider(environment_id, provider_id, tenant_id=None):
 
 @get('/environments/<environment_id>/providers/<provider_id>/catalog')
 @with_tenant
-def get_catalog(environment_id, provider_id, tenant_id=None):
+def get_environment_catalog(environment_id, provider_id, tenant_id=None):
     entity = db.get_environment(environment_id, with_secrets=True)
     if not entity:
         abort(404, 'No environment with id %s' % environment_id)
     environment = Environment(entity)
-    provider = environment.get_provider(provider_id)
+    try:
+        provider = environment.get_provider(provider_id)
+    except KeyError:
+        abort(404, "Invalid provider: %s" % provider_id)
     if 'type' in request.query:
         catalog = provider.get_catalog(request.context,
                 type_filter=request.query['type'])
@@ -126,6 +128,18 @@ def get_catalog(environment_id, provider_id, tenant_id=None):
         catalog = provider.get_catalog(request.context)
 
     return write_body(catalog, request, response)
+
+
+#
+# Providers and Resources
+#
+@get('/providers')
+@with_tenant
+def get_providers(tenant_id=None):
+    results = {}
+    for key, provider in PROVIDER_CLASSES.iteritems():
+        results[key] = dict(vendor=provider.vendor, name=provider.name)
+    return write_body(results, request, response)
 
 
 #
@@ -137,13 +151,12 @@ class Environment():
 
     def select_provider(self, resource=None):
         providers = self.get_providers()
-        applicable = [p for key, p in providers.iteritems()
-                        if resource in p.provides()]
-        if applicable:
-            return applicable[0]
-        else:
-            LOG.debug("No '%s' providers found in: %s" % (resource, self.dict))
-            return None
+        for p in providers.values():
+            for entry in p.provides():
+                if resource in entry:
+                    return p
+        LOG.debug("No '%s' providers found in: %s" % (resource, self.dict))
+        return None
 
     def get_providers(self):
         """ Returns provider class instances for this environment """
@@ -160,7 +173,7 @@ class Environment():
             if not vendor:
                 raise CheckmateException("No vendor specified for '%s'" % key)
             provider_class = get_provider_class(vendor, key)
-            results[key] = provider_class(provider)
+            results[key] = provider_class(provider, key=key)
         return results
 
     def get_provider(self, key):
@@ -175,4 +188,4 @@ class Environment():
         if not vendor:
             raise CheckmateException("No vendor specified for '%s'" % key)
         provider_class = get_provider_class(vendor, key)
-        return provider_class(provider)
+        return provider_class(provider, key=key)

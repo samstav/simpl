@@ -11,9 +11,10 @@ Sample use:
 
 environment:
   providers:
-    nova:
+    legacy:
       provides:
-      - compute
+      - compute: linux
+      - compute: windows
       vendor: rackspace
 
 """

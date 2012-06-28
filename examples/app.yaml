@@ -5,163 +5,419 @@
 # to the cloud. It also currently serves as the main reference for the
 # CheckMate configuration syntax.
 #
-# ${VARIABLE} can be replaced by with your local variables
-# before posting it to checkmate like this:
+# ${VARIABLE} can be replaced by with your local environment variables
+# before posting it to checkmate with this command:
 #
 #     awk '{while(match($0,"[$][\\{][^\\}]*\\}")) {var=substr($0,RSTART+2,RLENGTH -3);gsub("[$][{]"var"[}]",ENVIRON[var])}}1' < app.yaml
 #
-# To transform and send the output to checkmate:
+# To perform the above transform and actually send the output to checkmate:
 #
 #     CHECKMATE_TENANT=$(curl -H "X-Auth-User: ${CHECKMATE_USERNAME}" -H "X-Auth-Key: ${CHECKMATE_APIKEY}" -I https://identity.api.rackspacecloud.com/v1.0 -v 2> /dev/null | grep "X-Server-Management-Url" | grep -P -o $'(?!.*/).+$'| tr -d '\r') && CHECKMATE_TOKEN=$(curl -H "X-Auth-User: ${CHECKMATE_USERNAME}" -H "X-Auth-Key: ${CHECKMATE_APIKEY}" -I https://identity.api.rackspacecloud.com/v1.0 -v 2> /dev/null | grep "X-Auth-Token:" | awk '/^X-Auth-Token:/ { print $2 }') && awk '{while(match($0,"[$][\\{][^\\}]*\\}")) {var=substr($0,RSTART+2,RLENGTH -3);gsub("[$][{]"var"[}]",ENVIRON[var])}}1' < examples/app.yaml | curl -H "X-Auth-Token: ${CHECKMATE_TOKEN}" -H 'content-type: application/x-yaml' http://localhost:8080/${CHECKMATE_TENANT}/deployments/simulate -v --data-binary @-
-
+#
+# Note: the deployments/simulate URL is used for testing and does not persist anythoing on the server. The deployment resides in memory at the deployments/simulate
+#       URL (i.e. simulate is a fake ID)
 
 #### ALPHA STATUS
 #
 # This syntax is under development (and open for discussion). So, in order to
 # distinguish what has been implemnted in the code, versus what is only being
-# discussed in this document, any piece that is actually used in the code is
-# marked with the comment #IMPLEMENTED at the end of the document which shows
-# a sample deployment after checkmate has processed it
+# discussed in this document, any piece that is not used in the code should
+# be separated by the others by a blank line or marked with
+# a capitalized comment like #PROTOTYPE, #PROPOSAL, etc...
 
 
-#### Application
-# This file defines all the aspects of a number of possible wordpress
-# deployments. The pieces it brings together are
-# [components](#components),
-# environments,
-# blueprints,
-# and deployments.
+#### Deployment
+# This file really only defines a wordpress deployment. All the other items
+# listed are used as documentation or reference by the deployment using the
+# YAML reference syntax. When submitted to the server the references are
+# resolved.
 
 # <a id="components" />
 #### Components
-# Components define the basic building blocks for checkmate. We use a syntax
-# similar to Juju Charm syntax
+# Components define the basic building blocks for checkmate.
+#
+# Components have interfaces. Here's a list of component types and interfaces:
+# - compute:
+#     linux (or debian or ubuntu is specificity is needed)
+#     windows
+# - database:
+#     mysql
+#     mssql
+# - load-balancer:
+#     http
+#     https
+# - application: #Renamed from configuration?
+# - endpoint: protocols such as http, https, ip (ipv4, ipv6 if specific), ldap
+# - url: an internet resource. url defines protocol://host:port/path (and multiple urls can share the protocol://host:port/)
+#        the protocol may be provided as the interface (ex. http)
 
 #Definitions of components/services used in this file
-components:
+#THOUGHTS: these should come from providers. But there should be generik, well-known names like 'wordpress' that are used in blueprints.
+components: #Items under here are referenced by the blueprint below.
   # the name of the component and an optional anchor (any unique name preceded by &) which
   # can be used to reference it from elsewhere in the file
-  wordpress: &wordpress1
-    id: wordpress1
-    # revisions track multiple versions of a component definition
-    revision: 3
-    # a short description of the component
-    summary: "A pretty popular blog engine"
-    # the interfaces it provides (a web service on port 80, a database host,
-    # etc...). Accepted list is:
-    #    - url: an internet resource accessible over a URL (http[s], ftp, etc)
-    #    - db: a database
-    provides:
-      url: http
-    # what this component requires.
-    requires:
-      # the class of the object that is required
-      db:
-        # the relationship between the objects.
-        # 'interface' indicates a connection to that resource, but neither
-        #    object needs the other to exist (it is not a containment relationship)
-        interface: mysql
-      # 'host' is a special type of requirement that specifies an object that this
-      # component runs within. It therefore needs that resource to exist before it
-      # can be created. It is a containment relationship.
-      host:
-        # the type of resource needed to host this component
-        instance: compute
+  # Checkmate manages components using the following set of attributes:
+  # - is: this identifies what type of component this is. Examples are: compute, database, application
+  # - requires: this describes what interfaces this component needs and what the relationship to the components providing these interfaces is
+  # - provides: what interfaces this component provides
+  # for requires and provides, the default syntax is name:interface. In this case, the relationship is assumed to be a reference relationship
+  # for other types of relationships, the syntax is broken out: name: {interface: interface_name, relation: relation_type}
+  # Component relationships can be:
+  # - hosting: this component 'lives' in another one and requires it before creation
+  # - reference: another component that is needed for this one to operate (but not for creation)
+  # - is (see above): 'is' is a type of relationship also.
+- &wordpress1
+  id: wordpress
+  revision: 0.8.8  # revisions track multiple versions of a component definition. This comes from Chef cookbook in this case
+  summary: "A pretty popular blog engine" # a short description of the component
+  is: application # An 'is' relationship describing this component as a type of 'application' (or application)
+  requires:
+    # Here is one in the name:interface syntax
+    db: mysql #relation: reference (implied)
+    # Here is one in the name:mapping extended syntax (expanded because we have two non-default values)
+    server:
+      relation: host
+      interface: linux
+  provides:
+    url: http  # url means an http resource, could be on a shared endpoint
 
-      # MAYBE: still considering if 'dependency' is neeeded
-      # 'dependency' is a special type of requirment pointintg to other components
-      # that this one depends on. It is mainly informative and does not define the
-      # relationship between them.
-      #dependency:
-      #- *apache
-      #- *mysql-client
-
-    # User/consumer options - these are less technical and can change settings
-    options:
-      url:
+    # PROTOTYPING: still considering if 'dependency' is needed
+    # 'dependency' is a special type of requirement pointing to other components
+    # that this one depends on. It is mainly informative and does not define the
+    # relationship between them.
+    #dependency:
+    #- *apache
+    #- *mysql-client
+  options: # The raw (straight from the underlying provider) list of options that can be set on this resource type
+    raw:  # these come from the cookbook (metadata.json)
+      "wordpress/checksum":
+        calculated: false
+        choice: []
+        default: 7342627f4a3dca44886c5aca6834cc88671dbd3aa2760182d2fcb9a330807
+        description: Checksum of the tarball for the version specified.
+        display_name: Wordpress tarball checksum
+        recipes: []
+        required: optional
+        type: string
+      "wordpress/db/database":
+        maps-to: wordpress/database/password
+        calculated: false
+        choice: []
+        default: wordpressdb
+        description: Wordpress will use this MySQL database to store its data.
+        display_name: Wordpress MySQL database
+        recipes: []
+        required: optional
+        type: string
+      "wordpress/db/password":
+        calculated: false
+        choice: []
+        default: randomly generated
+        description: Password for the Wordpress MySQL user.
+        display_name: Wordpress MySQL password
+        recipes: []
+        required: optional
+        type: string
+      "wordpress/db/user":
+        calculated: false
+        choice: []
+        default: wordpressuser
+        description: Wordpress will connect to MySQL using this user.
+        display_name: Wordpress MySQL user
+        recipes: []
+        required: optional
+        type: string
+      "wordpress/dir":
+        calculated: false
+        choice: []
+        default: /var/www
+        description: Location to place wordpress files.
+        display_name: Wordpress installation directory
+        recipes: []
+        required: optional
+        type: string
+      "wordpress/keys/auth":
+        calculated: false
+        choice: []
+        default: randomly generated
+        description: Wordpress auth key.
+        display_name: Wordpress auth key
+        recipes: []
+        required: optional
+        type: string
+      "wordpress/keys/logged_in":
+        calculated: false
+        choice: []
+        default: randomly generated
+        description: Wordpress logged-in key.
+        display_name: Wordpress logged-in key
+        recipes: []
+        required: optional
+        type: string
+      "wordpress/keys/nonce":
+        calculated: false
+        choice: []
+        default: randomly generated
+        description: Wordpress nonce key.
+        display_name: Wordpress nonce key
+        recipes: []
+        required: optional
+        type: string
+      "wordpress/keys/secure_auth":
+        calculated: false
+        choice: []
+        default: randomly generated
+        description: Wordpress secure auth key.
+        display_name: Wordpress secure auth key
+        recipes: []
+        required: false
+        type: string
+      "wordpress/server_aliases":
+        calculated: false
+        choice: []
+        default: FQDN
+        description: Wordpress Server Aliases
+        display_name: Wordpress Server Aliases
+        recipes: []
+        required: false
+        type: string
+      "wordpress/version":
+        calculated: false
+        choice: []
+        default: 3.0.4
+        description: Version of Wordpress to download from the Wordpress site.
+        display_name: Wordpress download version
+        recipes: []
+        required: false
+        type: string
+    #TODO: maybe? standardized values to be implemented by all providers?
+    standard:
+      "wordpress/database/user":
+        regex:
+        type: string
+        required: false
+      domain:
         type: String
         default: localhost
+        required: true
         description: the url to use to host your blog on
       high-availability:
         type: Boolean
         default: false
         description: build in redundancy? If not, build one server.
-    # Advanced settings - technical
-    settings:
-      instance/flavor:
+      "instance/flavor":
         default: 1  # flavor=256mb. TODO: or maybe something more generic
         description: the type (and size) of instance to use
         type: {1: "256Mb", 2: "512Mb"} # TODO: How do we link this to a list of images?
-      instance/os:
+      "instance/os":
         default: Ubuntu 11.10  # Translated to image 119 by Rax provider.
         description: the operating system and version to use
-      instance/count:
+      "instance/count":
         default: 1
         description: the number of instances to spin up
+- &mysql
+  id: mysql
+  revision: 1
+  summary: "A pretty popular database"
+  is: database
+  provides:
+    database: mysql
+  # Advanced settings - technical
+  options:
+    password:
+      type: String
+      default: =generate()  # TODO: think about how best to represent this.
+      description: the password for the database
+- &loadbalancer
+  id: loadbalancer
+  revision: 1
+  summary: Load-balancer as a Service instance
+  is: load-balancer
+  provides:
+    url: http
+- &load-balancer-image
+  id: nginx
+  revision: 1
+  summary: Load-balancer software
+  is: load-balancer
+  provides:
+    url: http
+  requires:
+    compute:
+      relation: host
 
-  mysql: &mysql
-    id: mysql
-    revision: 1
-    summary: "A pretty popular database"
-    provides:
-      db: mysql
-    # Advanced settings - technical
-    settings:
-      password:
-        type: String
-        default: =generate()  # TODO: think about how best to represent this.
-        description: the password for the database
-      instance/flavor:
-        default: 1  # flavor=512mb.
-        description: the type (and size) of instance to use
-
-  loadbalancer: &loadbalancer
-    id: loadbalancer
-    revision: 1
-    summary: Load-balancer as a Service instance
-    provides:
-      url: http
-    requires:
-      url:
-        interface: http
+      interface: linux #PROPOSAL: os or distro as an interface (it has a protocol to interact with it)
+      constraint: #PROTOTYPING
+      - os: [debian, redhat]
 
 #### Blueprints
 
 # An architecture template
 # This would be where we define the architecture of an application which would include
-# all the components, tiers, connections, and scaling rules for that application
-blueprint: &wp
-  name: Simple Wordpress
-  services:
-    wordpress:
-      config: *wordpress1 #Reference in local file
-      exposed: true
-      open-ports: [80/tcp]
-      relations: {db: database}  # resource-type: service
-    database: #TODO: remove hard coding against this name. Thinak about what these names mean. These are basically tiers...
-      config: *mysql  #TODO: support local (same server) and remote links like local://components/mysql
-
-blueprint: &wp1
-  name: OneBox Wordpress
-  inherit: *wp
-  constraint:
-    instance-count: 1
-
+# all the components, tiers, connections, and scaling rules for that application.
+# Blueprints contain best practices and 'constrain' the available options in an environment to
+# those that are architecturally sound.
 blueprint: &wp-multi
-  name: Scalable Wordpress
+  name: Scalable Wordpress (Managed Cloud Config)
+  description: uses MC config recipes which support blah...., multiple domains, ....
+  #Services are similar to tiers. The names are arbitrary keys to be chosen by the blueprint author.
+  # components: the type of component used in the service.
+  # relations: connections to other services. The syntax can be short (service:interface) or long (name:{map})
   services:
-    loadbalancer:
-      config: *loadbalancer
+    lb:
+      components: *loadbalancer
+      relations:
+        # Short syntax: service_name:interface (look at web tier for long form example)
+        web: http
+
+      #PROTOTYPING
       exposed: true
       open-ports: [80/tcp]
-      relations: {url: wordpress}
-    wordpress:
-      config: *wordpress1 #Reference in local file
-      relations: {db: database}  # resource-type: service
-    database: #TODO: remove hard coding against this name. Thinak about what these names mean. These are basically tiers...
-      config: *mysql  #TODO: support local (same server) and remote links like local://components/mysql
+    web:
+      components: # Showing the syntax for multiple components
+      - *wordpress1 #Reference in local file
+      relations:
+        #NEW: Long format example. For when we need to identify more than service & interface
+        db: # Long syntax includes a name for the relation, since we need to manage the relationships later (drain, stop, start, check, etc...)
+          interface: mysql
+          service: backend
+
+          constraints:
+          - yada-yada
+      # TO TEST: for multiple configs
+      # take web1, give it lsyncd-master config
+      # all others, give them lsyncd-slave
+    backend: #TODO: remove hard coding against this name. Think about what these names mean. These are basically tiers...
+      components: *mysql  #TODO: support local (same server) and remote links like local://components/mysql
+  # A blueprint author (the architect) provides the list of parameteres for a blueprint in the
+  # blueprint options field.
+  # Blueprints provide constraints (as architectural specs do) and they therefore override and filter
+  # the underlying provider values. Options can exist in blueprints and in provider catalogs. There may be overlap.
+  # For example, a provider may offer Ubuntu, CentOS and RHEL servers, but the blueprint might constrain the list
+  # of allowed options to RHEL.
+  # The API will only validate that a deployment matches blueprint constraints once the deployment is submitted.
+  # The UI could filter available options to what a blueprint allows and perform up-front validation before a deployment is attempted
+  options:
+    instance_count: &instance_count
+      type: number
+      label: Number of Instances
+      description: The number of instances for the specified task.
+      default: 2
+      constrains:
+      - {service: web, resource_type: compute, setting: count}
+      constraints:
+      - greater-than: 1 # this is an HA config
+
+    #PROTOTYPING
+    sample:  # just to play with the schema of these options
+      default: Ubuntu 12.04
+      constrains: [{service: web, resource_type: compute, setting: foo}]
+
+      group: advanced
+      type: uri
+      uri: /577366/providers/...?type=type  #preferred; relative URI (no CORS needed) looks better. Let checkmate.provider handle the code. Keep it simple for client.
+      label: Instance OS
+      description: The operating system of web servers.
+    domain:
+      type: string
+      regex: xxx
+      label: Domain
+      description: "The domain you wish to host your blog on. (ex: http://example.com)"
+    username:
+      type: string
+      regex: xxx
+      label: Admin
+      required: generatable #??
+      description: "The user name used to access all resources in this deployment"
+      #TBD: do we need to list what settings this applies to here?
+      #constraint:
+      #- copy:database/username  # hard-code the copying for now
+      #- copy:database/username
+    high_availability: &high_availability
+      type: boolean
+      label: High Availability
+      description: "Insures your blog has higher uptimes by using redundant hardware (e.g. multuple servers)"
+    instance_flavor: &instance_flavor
+      default: 1024
+
+      type: uri
+      uri: /577366/providers/...?type=type  #preferred; relative URI (no CORS needed) looks better. Let checkmate.provider handle the code. Keep it simple for client.
+      label: Instance Size
+      description: The size of the instance in MB of RAM.
+    instance_os: &instance_os
+      default: Ubuntu 12.04
+      constrains: [{service: web, resource_type: compute, setting: os}]
+
+      group: advanced
+      type: uri
+      uri: /577366/providers/...?type=type  #preferred; relative URI (no CORS needed) looks better. Let checkmate.provider handle the code. Keep it simple for client.
+      label: Instance OS
+      description: The operating system of web servers.
+    database_size: &database_size
+      default: 20
+
+      type: uri
+      uri: /577366/providers/...?type=type  #preferred; relative URI (no CORS needed) looks better. Let checkmate.provider handle the code. Keep it simple for client.
+      label: Database Size
+      description: The hard drive space available for the database instance in GB.
+    ssl: &ssl
+      default: true
+
+      type: boolean
+      label: SSL Enabled
+      description: Use SSL to encrypt web traffic.
+    password: &password
+      type: string
+      regex: xxx
+      label: Password
+      description: Password to use for service. Click the generate button to generate a random password.
+    secure:
+
+      type: boolean
+      label: secure
+      description: Make this a hardened deployment (you lose some flexibility)
 
 
+  #PROTOTYPING
+  exposes:
+    http: 80
+    https: 443
+  # do we support binaries and other files with the blueprint? Does this introduce the concept of trusted bps (with code)?
+  artifacts:
+  - "code/python": ....
+  - "code/ruby": ....
+  - image: ....
+  - yaml: ...
+
+includes:
+- blueprint: &wp
+    name: Simple Wordpress
+    services:
+      wordpress:
+        config: *wordpress1 #Reference in local file
+        exposed: true
+        open-ports: [80/tcp]
+        relations: {db: database}  # resource-type: service
+      database: #TODO: remove hard coding against this name. Thinak about what these names mean. These are basically tiers...
+        config: *mysql  #TODO: support local (same server) and remote links like local://components/mysql
+
+  #TBD: toying with the idea of inheriting blueprints and overriding settings or applying constraints
+- blueprint: &wp1
+    <<: *wp #inherit all values from wp
+    # override inherited values
+    name: OneBox Wordpress
+    # and add constraints
+    constraint:
+      instance-count: 1
+- blueprint: &wp-with-varnish
+    <<: *wp-multi
+    # override values
+    name: Super-fast Wordpress
+    services:
+      wordpress:
+        components:
+        - *wordpress1
+        - varnish
 #### Environments
 #
 # Schema is:
@@ -187,55 +443,104 @@ environment: &rackspace-legacy-cloud-test
   # The intent is that these providers can be extracted automatically from the service catalog when authenticating, but including providers here
   # means we can pre-determine or hard-code them if we want to.
   providers:
+    "chef-local": &configurator  # MORE THOUGHT needed...
+      vendor: opscode
+      provides:
+      - application: wordpress
+
+      #SAMPLE DATA: only showing this as demo. These get pulled in real time from providers
+      # The catalog is what is available using the env/provider//catalog call.
+      # but does not actually need to be populated
+      # resource types available
+      catalog:
+
+        #PROTOTYPING: do we need to add other lists (not just resource templates)?
+        application: #This is the resource type
+          wordpress: *wordpress1 # This is a list of resources types (flavors) available of that type
     legacy: &rax-cloud-servers-slice
-      provides:
-      - compute
-      vendor: rackspace
-    loadbalancer: &rax-lbaas
       vendor: rackspace
       provides:
-      - load-balancer
+      - compute: linux
+      - compute: windows
+
+      #SAMPLE DATA: only showing this as demo. These get pulled in real time from providers
+      catalog:
+        compute:
+          sizes:
+            119:
+              memory: 512Mb
+              disk: 10GB
+              cpus: 2
+          types:
+            1:
+              name: Ubuntu 11.10
+          images:
+            101010:
+             name: myBackup
+    load-balancer: &rax-lbaas
+      vendor: rackspace
+      provides:
+      - load-balancer: http
+
+      #PROTOTYPING: can we provide override values here (like region or endpoint?)
       endpoint: https://lbaas.api.rackpsacecloud.com/servers/{tenantId}
     database: &rax-dbaas
       vendor: rackspace
       provides:
-      - database
-      endpoint: https://database.api.rackpsacecloud.com/servers/{tenantId}
-    chef-local: &configurator  # MORE THOUGHT needed...
-      vendor: opscode
-      provides:
-      - configuration
+      - database: mysql
     common:
       vendor: rackspace
+
+      #PROVISIONAL: do we need these? Or should we use the live token (what about deserializing a workflow?)
       credentials:
       - rackspace:
         username: ${CHECKMATE_USERNAME}
         apikey: ${CHECKMATE_APIKEY}
-      - ssh:
-        public_key: =generate()
+      #- ssh:
+      #  public_key: =generate()
+      #PROTOTYPING:
       constraints:
       - region: chicago
 
 #### Deployments
 
 # Actual deployment instances. These are our live, running systems
+# Design notes:
+# - we don't set them in the blueprint or environment so we can reference those (read only)
+# - we don't use paths for options (use a hierachy) so we don't have to parse the key values
+# - therefore, we provide options selected under 'inputs' as a hierarchy that mirrors the blueprint or environment
 deployment:                                                                     #IMPLEMENTED - checkmate looks for this
   name: My WordPress by CheckMate
   prefix: CM-WP-
   blueprint: *wp-multi
   environment: *rackspace-legacy-cloud-test
-  inputs:
-    domain: ${CHECKMATE_DOMAIN}
-    ssl: false
-    region: ${CHECKMATE_REGION}  # TODO: this is still read from os.environ
-    high-availability: false
-    requests-per-second: 60
-    database:instance/flavor: 1
-    wordpress:instance/flavor: 1  # Is this how we want to do this? That would mnean no colons in settings names...
-    wordpress:instance/count: 2
+  inputs: # Answers to or values for blueprint/provider options & settings.
+    blueprint:
+      domain: ${CHECKMATE_DOMAIN}
+      username: joe
+      password: =generate() # Ugh!
+      private_key: =generate()  # will also write to public_key and public_key_ssh
+      ssl: required  # no port 80
+      ssl_public_key: skldjfhalkjsdfhasd
+      ssl_private_key: asdfasdfasdf
+      region: ${CHECKMATE_REGION}  # TODO: this is still read from os.environ
+      high-availability: false
+      requests-per-second: 60
+    services:
+      backend:
+        database:
+          memory: 512 Mb
+      web:
+        compute:
+          memory: 512 Mb
+          count: 2
+    providers:
+      legacy:
+        compute:
+          os: Ubuntu 11.10
 
 components: &exceptional-scenarios
-  test: *nosql  # Just to test an unknown reference. Should translate to a local URI.
+#- <<: *nosql  # Just to test an unknown reference. Should translate to a local URI.
 
 #### For sample Output, see simulatior.json in tests directory
 

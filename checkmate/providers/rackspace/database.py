@@ -43,26 +43,31 @@ class Provider(ProviderBase):
         username = 'wp_user_%s' % db_name
 
         create_db_task = Celery(wfspec, 'Create DB',
-                               'stockton.db.distribute_create_instance',
+                               'checkmate.providers.rackspace.database.create_instance',
                                call_args=[Attrib('context'),
                                         resource.get('dns-name'), 1,
                                         resource.get('flavor', 1),
                                         [{'name': db_name}]],
-                               update_chef=True,
-                               defines={"Resource": key},
+                               prefix=key,
+                               defines=dict(resource=key,
+                                            provider=self.key,
+                                            task_tags=['create']),
                                properties={'estimated_duration': 80})
         create_db_user = Celery(wfspec, "Add DB User:%s" % username,
                                'stockton.db.distribute_add_user',
                                call_args=[Attrib('context'),
                                         Attrib('id'), [db_name],
                                         username, password],
+                               defines=dict(resource=key,
+                                            provider=self.key,
+                                            task_tags=['final']),
                                properties={'estimated_duration': 20})
         # Store these in the context for use by other tasks
         context['db_name'] = db_name
         context['db_username'] = username
         context['db_password'] = password
         create_db_task.connect(create_db_user)
-        return {'root': create_db_task, 'final': create_db_user}
+        return dict(root=create_db_task, final=create_db_user)
 
     def get_catalog(self, context, type_filter=None):
         api = self._connect(context)

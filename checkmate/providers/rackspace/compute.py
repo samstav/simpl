@@ -29,8 +29,10 @@ class RackspaceComputeProviderBase(ProviderBase):
             keys = []
             for key, value in my_task.attributes['context'].get('keys',
                         {}).iteritems():
-                if 'public_key' in value:
-                    keys.append(value['public_key'])
+                if 'public_key_ssh' in value:
+                    keys.append(value['public_key_ssh'])
+                elif 'public_key' in value:
+                    LOG.warning("Code still using public_key without _ssh")
             if keys:
                 path = '/root/.ssh/authorized_keys'
                 if not 'files' in my_task.attributes:
@@ -99,25 +101,35 @@ class LegacyProvider(RackspaceComputeProviderBase):
                            flavor=resource.get('flavor', 1),
                            files=Attrib('files'),
                            ip_address_type='public',
-                           defines={"Resource": key},
+                           prefix=key,
+                           defines=dict(resource=key,
+                                        provider=self.key,
+                                        task_tags=['create']),
                            properties={'estimated_duration': 20})
 
         build_wait_task = Celery(wfspec, 'Check that Server is Up:%s'
                 % key, 'stockton.server.distribute_wait_on_build',
                 call_args=[Attrib('context'), Attrib('id')],
                 password=Attrib('password'),
-                identity_file=os.environ.get('CHECKMATE_PRIVATE_KEY',
-                        '~/.ssh/id_rsa'),
-                properties={'estimated_duration': 150})
+                identity_file=Attrib('private_key_path'),
+                prefix=key,
+                properties={'estimated_duration': 150},
+                defines=dict(resource=key,
+                             provider=self.key,
+                             task_tags=['final']))
         create_server_task.connect(build_wait_task)
 
         if wait_on is None:
             wait_on = []
         wait_on.append(self.prep_task)
         join = wait_for(wfspec, create_server_task, wait_on,
-                name="Server Wait on:%s" % key)
+                name="Server Wait on:%s" % key,
+                defines=dict(resource=key,
+                             provider=self.key,
+                             task_tags=['root']))
 
-        return {'root': join, 'final': build_wait_task}
+        return dict(root=join, final=build_wait_task,
+                create=create_server_task)
 
     def get_catalog(self, context, type_filter=None):
         api = self._connect(context)
@@ -217,10 +229,9 @@ class NovaProvider(RackspaceComputeProviderBase):
 
         build_wait_task = Celery(wfspec, 'Check that Server is Up:%s'
                 % key, 'stockton.nova.distribute_wait_on_build',
-                call_args=[Attrib('context'), Attrib('id')],
+                call_args=[Attrib('context'), Attrib('id'), 'root'],
                 password=Attrib('password'),
-                identity_file=os.environ.get('CHECKMATE_PRIVATE_KEY',
-                        '~/.ssh/id_rsa'),
+                identity_file=Attrib('public_key_path'),
                 properties={'estimated_duration': 150})
         create_server_task.connect(build_wait_task)
 

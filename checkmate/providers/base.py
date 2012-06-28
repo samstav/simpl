@@ -47,6 +47,64 @@ class ProviderBaseWorkflowMixIn():
         LOG.debug("%s.%s.add_resource_tasks called, but was not implemented" %
                 (self.vendor, self.name))
 
+    def add_connection_tasks(self, resource, key, relation, relation_key,
+            wfspec, deployment):
+        """Add tasks needed to create a connection between rersources
+
+        :param resource: the resource we are connecting from
+        :param key: the ID of resource we are connecting from
+        :param relation: the relation we are connecting
+        :param relation_key: the ID of the relation
+        :param wfspec: the SpiffWorkflow WorkflowSpec we are building
+        :returns: a hash (dict) of relevant tasks. The hash keys are:
+                'root': the root task in the sequence
+                'final': the task that signifies readiness (work is done)
+        Note: the tasks also have defined properties that mark the resource
+              impacted, the provider who owns the task, and the position or
+              role of the task (ex. final, root, etc). This allows for other
+              providers top look this task up and connect to it if needed
+        """
+        LOG.debug("%s.%s.add_connection_tasks called, but was not "
+                "implemented" % (self.vendor, self.name))
+
+    def find_tasks(self, wfspec, resource=None, provider=None, tag=None):
+        """Find tasks in the workflow based on deployment data.
+
+        :param wfspec: the SpiffWorkflow WorkflowSpec we are building
+        :param resource: the ID of the resource we are looking for
+        :param provider: the key of the provider we are looking for
+        :param tag: the tag for the task (root, final, create, etc..)
+        """
+        tasks = []
+        for task in wfspec.task_specs.values():
+            if (resource is None or task.get_property('resource') == resource)\
+                    and (provider is None or task.get_property('provider') ==
+                            provider) \
+                    and (tag is None or tag in
+                            (task.get_property('task_tags') or [])):
+                tasks.append(task)
+            elif provider == 'database':
+                print task.name, task.properties
+        if not tasks:
+            LOG.debug("No tasks found in find_tasks for resource=%s, "
+                    "provider=%s, tag=%s" % (resource, provider, tag))
+        return tasks
+
+    def add_wait_on_host_tasks(self, resource, wfspec, deployment, wait_on):
+        """Add task to wait on host if this is hosted on another resource
+
+        :param wfspec: the SpiffWorkflow WorkflowSpec we are building
+        """
+        if 'hosted_on' in resource:
+            host_key = resource['hosted_on']
+            host_resource = deployment['resources'][host_key]
+            host_final = self.find_tasks(wfspec, resource=host_key,
+                    provider=host_resource['provider'], tag='final')
+            if host_final:
+                host_final = host_final[0]
+                wait_on.append(host_final)
+            return host_final
+
 
 class ProviderBasePlanningMixIn():
     """The methods used by the deployment planning code

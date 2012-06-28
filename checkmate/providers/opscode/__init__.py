@@ -10,7 +10,8 @@ environment:
   providers:
     chef-server:
       provides:
-      - configuration
+      - application: wordpress
+      - application: drupal
       vendor: opscode
 
 """
