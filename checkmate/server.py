@@ -44,6 +44,7 @@ Notes:
 
 import base64
 import httplib
+import json
 import os
 import logging
 # some distros install as PAM (Ubuntu, SuSE) https://bugs.launchpad.net/keystone/+bug/938801
@@ -59,16 +60,10 @@ import uuid
 
 # pylint: disable=E0611
 from bottle import app, get, post, run, request, response, abort, static_file
+from jinja2 import BaseLoader, Environment, TemplateNotFound
 import webob
 import webob.dec
 from webob.exc import HTTPNotFound, HTTPUnauthorized
-
-if '--newrelic' in sys.argv:
-    import newrelic.agent
-    newrelic.agent.initialize(os.path.normpath(os.path.join(
-            os.path.dirname(__file__), os.path.pardir,
-            'newrelic.ini')))  # optional ->, 'staging')
-
 
 # define a Handler which writes INFO messages or higher to the sys.stderr
 console = logging.StreamHandler()
@@ -83,13 +78,19 @@ logging.getLogger().setLevel(logging.DEBUG)
 LOG = logging.getLogger(__name__)
 
 from checkmate.db import get_driver, any_id_problems, any_tenant_id_problems
+from checkmate.utils import HANDLERS, RESOURCES, STATIC, write_body, read_body
 
-# Load routes
-from checkmate import simulator
-from checkmate import blueprints, components, deployments, environments, \
-        workflows
 
-from checkmate.utils import *
+def init():
+    # Load routes
+    from checkmate import simulator
+    from checkmate import blueprints, components, deployments, environments, \
+            workflows
+
+    # Register built-in providers
+    from checkmate.providers import rackspace, opscode
+
+init()
 
 db = get_driver('checkmate.db.sql.Driver')
 
@@ -97,8 +98,6 @@ db = get_driver('checkmate.db.sql.Driver')
 #
 # Making life easy - calls that are handy but will not be in final API
 #
-
-
 @get('/test/dump')
 def get_everything():
     return write_body(db.dump(), request, response)
@@ -198,37 +197,6 @@ def get_dependency_versions():
     return write_body(result, request, response)
 
 
-#
-# Static files & browser support
-#
-@get('/favicon.ico')
-def favicon():
-    """Without this, browsers keep getting a 404 and perceive slow response """
-    return static_file('favicon.ico',
-            root=os.path.join(os.path.dirname(__file__), 'static'))
-
-
-@get('/static/<path:path>')
-def wire(path):
-    """Expose static files"""
-    return static_file(path,
-            root=os.path.join(os.path.dirname(__file__), 'static'))
-
-
-@get('/')
-def root():
-    return write_body('Welcome to the CheckMate Administration Interface',
-            request, response)
-
-
-# Keep this at end
-@get('<path:path>')
-def extensions(path):
-    """Catch-all unmatched paths (so we know we got the request, but didn't
-       match it)"""
-    abort(404, "Path '%s' not recognized" % path)
-
-
 class TenantMiddleware(object):
     """Strips /tenant_id/ from path and puts it in context
 
@@ -245,7 +213,7 @@ class TenantMiddleware(object):
         else:
             path_parts = e['PATH_INFO'].split('/')
             tenant = path_parts[1]
-            if tenant in RESOURCES:
+            if tenant in RESOURCES or tenant in STATIC:
                 pass  # route with bottle. This call needs Admin rights.
             else:
                 errors = any_tenant_id_problems(tenant)
@@ -483,8 +451,8 @@ class AuthorizationMiddleware(object):
 
     def __call__(self, e, h):
         path_parts = e['PATH_INFO'].split('/')
-        root = path_parts[1]
-        if root in ['static', 'test']:
+        root = path_parts[1] if len(path_parts) > 1 else None
+        if root in STATIC:
             # Allow test and static calls
             return self.app(e, h)
 
@@ -539,6 +507,174 @@ class ExtensionsMiddleware(object):
         return self.app(e, h)
 
 
+class BrowserMiddleware(object):
+    """Adds support for browser interaction and HTML content"""
+
+    def __init__(self, app):
+        self.app = app
+        HANDLERS['text/html'] = BrowserMiddleware.write_html
+        STATIC.extend(['static', 'favicon.ico'])
+
+        # Add static routes
+        @get('/favicon.ico')
+        def favicon():
+            """Without this, browsers keep getting a 404 and perceive slow response """
+            return static_file('favicon.ico',
+                    root=os.path.join(os.path.dirname(__file__), 'static'))
+
+        @get('/static/<path:path>')
+        def wire(path):
+            """Expose static files"""
+            return static_file(path,
+                    root=os.path.join(os.path.dirname(__file__), 'static'))
+
+        @get('/')
+        def root():
+            return write_body('Welcome to the CheckMate Administration Interface',
+                    request, response)
+
+    def __call__(self, e, h):
+        return self.app(e, h)
+
+    @staticmethod
+    def get_template_name_from_path(path):
+        """ Returns template name from request path"""
+        name = 'default'
+        if path:
+            if path[0] == '/':
+                parts = path[1:].split('/')  # normalize to always not include first path
+            else:
+                parts = path.split('/')
+            if len(parts) > 0 and parts[0] not in RESOURCES and \
+                    parts[0] not in STATIC:
+                # Assume it is a tenant (and remove it from our evaluation)
+                parts = parts[1:]
+
+            # IDs are 2nd or 4th: /[type]/[id]/[type2|action]/[id2]/action
+            if len(parts) == 1:
+                # Resource
+                name = "%s" % parts[0]
+            elif len(parts) == 2:
+                # Single resource
+                name = "%s" % parts[0][0:-1]  # strip s
+            elif len(parts) == 3:
+                if parts[2].startswith('+'):
+                    # Action
+                    name = "%s.%s" % (parts[0][0:-1], parts[2][1:])
+                elif parts[2] in ['tasks']:
+                    # Subresource
+                    name = "%s.%s" % (parts[0][0:-1], parts[2])
+                else:
+                    # 'status' and the like
+                    name = "%s.%s" % (parts[0][0:-1], parts[2])
+            elif len(parts) > 3:
+                if parts[2] in ['tasks']:
+                    # Subresource
+                    name = "%s.%s" % (parts[0][0:-1], parts[2][0:-1])
+                else:
+                    # 'status' and the like
+                    name = "%s.%s" % (parts[0][0:-1], parts[2])
+        LOG.debug("Template for '%s' returned as '%s'" % (path, name))
+        return name
+
+    @staticmethod
+    def write_html(data, request, response):
+        """Write output in html"""
+        response.add_header('content-type', 'text/html')
+
+        name = BrowserMiddleware.get_template_name_from_path(request.path)
+
+        class MyLoader(BaseLoader):
+            def __init__(self, path):
+                self.path = path
+
+            def get_source(self, environment, template):
+                path = os.path.join(self.path, template)
+                if not os.path.exists(path):
+                    raise TemplateNotFound(template)
+                mtime = os.path.getmtime(path)
+                with file(path) as f:
+                    source = f.read().decode('utf-8')
+                return source, path, lambda: mtime == os.path.getmtime(path)
+        env = Environment(loader=MyLoader(os.path.join(os.path.dirname(
+            __file__), 'static')))
+
+        def do_prepend(value, param='/'):
+            """
+            Prepend a string if the passed in string exists.
+
+            Example:
+            The template '{{ root|prepend('/')}}/path';
+            Called with root undefined renders:
+                /path
+            Called with root defined as 'root' renders:
+                /root/path
+            """
+            if value:
+                return '%s%s' % (param, value)
+            else:
+                return ''
+        env.filters['prepend'] = do_prepend
+        env.json = json
+        tenant_id = request.get('HTTP_X_TENANT_ID')
+        try:
+            template = env.get_template("%s.template" % name)
+            return template.render(data=data, source=json.dumps(data,
+                    indent=2), tenant_id=tenant_id)
+        except StandardError as exc:
+            LOG.exception(exc)
+            try:
+                template = env.get_template("default.template")
+                return template.render(data=data, source=json.dumps(data,
+                        indent=2), tenant_id=tenant_id)
+            except StandardError as exc2:
+                LOG.exception(exc2)
+                pass  # fall back to JSON
+
+
+class DebugMiddleware():
+    """Helper class for debugging a WSGI application.
+
+    Can be inserted into any WSGI application chain to get information
+    about the request and response.
+
+    """
+
+    def __init__(self, app):
+        self.app = app
+
+    def __call__(self, e, h):
+        LOG.debug('%s %s %s', ('*' * 20), 'REQUEST ENVIRON', ('*' * 20))
+        for key, value in e.items():
+            LOG.debug('%s = %s', key, value)
+        LOG.debug('')
+        LOG.debug('%s %s %s', ('*' * 20), 'REQUEST BODY', ('*' * 20))
+        LOG.debug('')
+
+        resp = self.print_generator(self.app(e, h))
+
+        LOG.debug('%s %s %s', ('*' * 20), 'RESPONSE HEADERS', ('*' * 20))
+        for (key, value) in response.headers.iteritems():
+            LOG.debug('%s = %s', key, value)
+        LOG.debug('')
+
+        return resp
+
+    @staticmethod
+    def print_generator(app_iter):
+        """Iterator that prints the contents of a wrapper string."""
+        LOG.debug('%s %s %s', ('*' * 20), 'RESPONSE BODY', ('*' * 20))
+        for part in app_iter:
+            #sys.stdout.write(part)
+            LOG.debug(part)
+            #sys.stdout.flush()
+            yield part
+        print
+
+
+#
+# Call Context (class and middleware)
+#
 #TODO: Get this from openstack common
 class RequestContext(object):
     """
@@ -568,7 +704,6 @@ class RequestContext(object):
         return (tenant_id or self.tenant) in (self.user_tenants or [])
 
 
-#TODO: Get this from openstack common
 class ContextMiddleware(object):
     """Adds a request.context to the call which holds authn+z data"""
     def __init__(self, app):
@@ -580,20 +715,40 @@ class ContextMiddleware(object):
         return self.app(e, h)
 
 
+#
+# Main function
+#
 if __name__ == '__main__':
     LOG.setLevel(logging.DEBUG)
     # Build WSGI Chain:
-    root_app = app()  # This is the main checkmate app
-    no_path = StripPathMiddleware(root_app)
-    no_ext = ExtensionsMiddleware(no_path)
-    auth = AuthorizationMiddleware(no_ext)  # Make sure requests are allowed
-    token = TokenAuthMiddleware(auth)  # Token Auth validator
-    pam_auth = PAMAuthMiddleware(token)
-    tenant = TenantMiddleware(pam_auth)
-    context = ContextMiddleware(tenant)
+    next = app()  # This is the main checkmate app
+    next = AuthorizationMiddleware(next)  # Make sure requests are allowed
+    next = TokenAuthMiddleware(next)  # Token Auth validator
+    next = PAMAuthMiddleware(next)
+    next = TenantMiddleware(next)
+    next = ContextMiddleware(next)
+    next = StripPathMiddleware(next)
+    next = ExtensionsMiddleware(next)
+    if '--with-ui' in sys.argv:
+        next = BrowserMiddleware(next)
     if '--newrelic' in sys.argv:
-        first = newrelic.agent.wsgi_application()(context)
-    else:
-        first = context
-    run(app=first, host='127.0.0.1', port=8080, reloader=True,
+        import newrelic.agent
+        newrelic.agent.initialize(os.path.normpath(os.path.join(
+                os.path.dirname(__file__), os.path.pardir,
+                'newrelic.ini')))  # optional param ->, 'staging')
+        next = newrelic.agent.wsgi_application()(next)
+    if '--debug' in sys.argv:
+        next = DebugMiddleware(next)
+        LOG.debug("Routes: %s" % [r.rule for r in app().routes])
+
+    run(app=next, host='127.0.0.1', port=8080, reloader=True,
             server='wsgiref')
+
+
+# Keep this at end so it picks up any remaining calls after all other routes
+# have been added (and some routes are added in the __main__ code)
+@get('<path:path>')
+def extensions(path):
+    """Catch-all unmatched paths (so we know we got the request, but didn't
+       match it)"""
+    abort(404, "Path '%s' not recognized" % path)
