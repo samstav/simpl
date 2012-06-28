@@ -70,6 +70,10 @@ function BlueprintListCtrl($scope, $location, Blueprint) {
     $location.path('/blueprints/' + blueprintId);
   }
 
+  $scope.newDeployment = function(blueprintId) {
+    $location.path('/deployments/new').search({blueprintId: blueprintId});
+  }
+
 }
 BlueprintListCtrl.$inject = ['$scope', '$location', 'Blueprint']
 
@@ -185,7 +189,46 @@ ProfileCtrl.$inject = ['$scope', '$location'];
 /**
   *   Deployments
   */
-function DeploymentListCtrl($scope, $location) {
+function DeploymentListCtrl($scope, $location, Deployment) {
+  $scope.deployments = Deployment.query();
+
+  $scope.delete = function(deoloyment) {
+    deployment.$delete();
+  }
+
+  $scope.create = function() {
+    $location.path('/deployments/new');
+  }
+
+  $scope.navigate = function(deploymentId) {
+    $location.path('/deployments/' + deploymentId);
+  }
 
 }
-DeploymentListCtrl.$inject = ['$scope', '$location'];
+DeploymentListCtrl.$inject = ['$scope', '$location', 'Deployment'];
+
+/**
+  *   Deployments
+  */
+function DeploymentNewCtrl($scope, $location, $routeParams, Deployment, Environment, Blueprint) {
+  $scope.blueprints = Blueprint.query();
+  $scope.environments = Environment.query();
+
+  // Munge the settings so they have an id I can use.
+  var s = new Array();
+  for(var i in SETTINGS.options) { 
+    s.push($.extend({id: i}, SETTINGS.options[i])) 
+  }
+  $scope.settings = s;
+
+  $scope.renderSetting = function(setting) {
+    var template = $('#setting-' + setting.type).html();
+
+    if (template) {
+      return Mustache.render(template, setting);
+    } else {
+      return "";
+    }
+  }
+}
+DeploymentNewCtrl.$inject = ['$scope', '$location', '$routeParams', 'Deployment', 'Environment', 'Blueprint'];

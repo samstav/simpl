@@ -7,7 +7,13 @@ angular.module('checkmateServices', ['ngResource']).
   }).
   factory('Blueprint', function($resource) {
     return $resource('/blueprints/:blueprintId', {blueprintId: '@id'}, {
-      query: {method: 'GET', url:'blueprints', isArray:true},
+      query: {method: 'GET', url:'/blueprints', isArray:true},
+      update: {method: 'PUT'}
+    })
+  }).
+  factory('Deployment', function($resource) {
+    return $resource('/deployments/:deploymentId', {deploymentId: '@id'}, {
+      query: {method: 'GET', url:'/deployments', isArray:true},
       update: {method: 'PUT'}
     })
   });

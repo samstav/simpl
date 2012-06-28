@@ -1,3 +1,7 @@
 .clickable {
   cursor: pointer;
 }
+
+label.capitalize {
+  text-transform:capitalize;
+}
