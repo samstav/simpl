@@ -19,7 +19,7 @@ LOG = logging.getLogger(__name__)
 RESOURCES = ['deployments', 'workflows', 'blueprints', 'environments',
         'components', 'test', 'status']
 DEFAULT_SENSITIVE_KEYS = ['credentials', 'password', 'apikey', 'token',
-        'authtoken', 'db_password', 'ssh-private-key']
+        'authtoken', 'db_password', 'ssh-private-key', 'private_key']
 
 
 def import_class(import_str):
