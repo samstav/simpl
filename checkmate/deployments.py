@@ -33,6 +33,12 @@ def get_deployments(tenant_id=None):
 @with_tenant
 def post_deployment(tenant_id=None):
     entity = read_body(request)
+
+    # Validate syntax
+    errors = check_deployment(entity)
+    if errors:
+        abort(406, "\n".join(errors))
+
     if 'deployment' in entity:
         entity = entity['deployment']
 
@@ -40,6 +46,7 @@ def post_deployment(tenant_id=None):
         entity['id'] = uuid.uuid4().hex
     if any_id_problems(entity['id']):
         abort(406, any_id_problems(entity['id']))
+
     id = str(entity['id'])
     body, secrets = extract_sensitive_data(entity)
     db.save_deployment(id, body, secrets, tenant_id=tenant_id)
@@ -441,3 +448,19 @@ def plan_dict(deployment):
     wf = create_workflow(deployment)
 
     return {'deployment': deployment, 'workflow': wf}
+def check_deployment(deployment):
+    """Validates deployment (a combination of components, blueprints, deployments,
+    and environments)
+
+    This is a simple, initial atempt at validation"""
+    errors = []
+    roots = ['components', 'blueprint', 'environment', 'deployment']
+    values = ['name', 'prefix', 'inputs', 'includes']
+    if deployment:
+        allowed = roots[:]
+        allowed.extend(values)
+        for key, value in deployment.iteritems():
+            if key not in allowed:
+                errors.append("'%s' not a valid value. Only %s allowed" % (key,
+                        ', '.join(allowed)))
+    return errors
