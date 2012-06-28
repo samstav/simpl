@@ -151,28 +151,33 @@ class distribute_run_workflow(AbortableTask):
         before = wf.get_dump()
 
         # Run!
-        wf.complete_all()
+        try:
+            wf.complete_all()
+        except Exception as exc:
+            LOG.exception(exc)
+            return False
+        finally:
+            # Save any changes, even if we errored out
+            after = wf.get_dump()
 
-        after = wf.get_dump()
+            if before != after:
+                # We made some progress, so save and prioritize next run
+                workflow = wf.serialize(serializer)
+                body, secrets = extract_sensitive_data(workflow)
+                db.save_workflow(id, body, secrets)
+                wait = 1
 
-        if before != after:
-            # We made some progress, so save and prioritize next run
-            workflow = wf.serialize(serializer)
-            body, secrets = extract_sensitive_data(workflow)
-            db.save_workflow(id, body, secrets)
-            wait = 1
-
-            # Report progress
-            total = len(wf.get_tasks(state=Task.ANY_MASK))  # Changes
-            completed = len(wf.get_tasks(state=Task.COMPLETED))
-            LOG.debug("Workflow status: %s/%s (state=%s)" % (completed, total,
-                    "PROGRESS"))
-            self.update_state(state="PROGRESS",
-                    meta={'complete': completed, 'total': total})
-        else:
-            # No progress made. So we lose some priority (to max of 20s wait)
-            if wait < 20:
-                wait += 1
+                # Report progress
+                total = len(wf.get_tasks(state=Task.ANY_MASK))  # Changes
+                completed = len(wf.get_tasks(state=Task.COMPLETED))
+                LOG.debug("Workflow status: %s/%s (state=%s)" % (completed, total,
+                        "PROGRESS"))
+                self.update_state(state="PROGRESS",
+                        meta={'complete': completed, 'total': total})
+            else:
+                # No progress made. So we lose some priority (to max of 20s wait)
+                if wait < 20:
+                    wait += 1
 
         # Assess impact of run
         if wf.is_completed():
