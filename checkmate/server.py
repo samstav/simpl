@@ -64,13 +64,6 @@ import webob
 import webob.dec
 from webob.exc import HTTPNotFound, HTTPUnauthorized
 
-if '--newrelic' in sys.argv:
-    import newrelic.agent
-    newrelic.agent.initialize(os.path.normpath(os.path.join(
-            os.path.dirname(__file__), os.path.pardir,
-            'newrelic.ini')))  # optional ->, 'staging')
-
-
 # define a Handler which writes INFO messages or higher to the sys.stderr
 console = logging.StreamHandler()
 console.setLevel(logging.DEBUG)
@@ -693,6 +686,10 @@ if __name__ == '__main__':
     if '--with-ui' in sys.argv:
         next = BrowserMiddleware(next)
     if '--newrelic' in sys.argv:
+        import newrelic.agent
+        newrelic.agent.initialize(os.path.normpath(os.path.join(
+                os.path.dirname(__file__), os.path.pardir,
+                'newrelic.ini')))  # optional param ->, 'staging')
         next = newrelic.agent.wsgi_application()(next)
     run(app=next, host='127.0.0.1', port=8080, reloader=True,
             server='wsgiref')
