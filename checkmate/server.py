@@ -626,6 +626,46 @@ class BrowserMiddleware(object):
                 pass  # fall back to JSON
 
 
+class DebugMiddleware():
+    """Helper class for debugging a WSGI application.
+
+    Can be inserted into any WSGI application chain to get information
+    about the request and response.
+
+    """
+
+    def __init__(self, app):
+        self.app = app
+
+    def __call__(self, e, h):
+        LOG.debug('%s %s %s', ('*' * 20), 'REQUEST ENVIRON', ('*' * 20))
+        for key, value in e.items():
+            LOG.debug('%s = %s', key, value)
+        LOG.debug('')
+        LOG.debug('%s %s %s', ('*' * 20), 'REQUEST BODY', ('*' * 20))
+        LOG.debug('')
+
+        resp = self.print_generator(self.app(e, h))
+
+        LOG.debug('%s %s %s', ('*' * 20), 'RESPONSE HEADERS', ('*' * 20))
+        for (key, value) in response.headers.iteritems():
+            LOG.debug('%s = %s', key, value)
+        LOG.debug('')
+
+        return resp
+
+    @staticmethod
+    def print_generator(app_iter):
+        """Iterator that prints the contents of a wrapper string."""
+        LOG.debug('%s %s %s', ('*' * 20), 'RESPONSE BODY', ('*' * 20))
+        for part in app_iter:
+            #sys.stdout.write(part)
+            LOG.debug(part)
+            #sys.stdout.flush()
+            yield part
+        print
+
+
 #
 # Call Context (class and middleware)
 #
@@ -691,6 +731,10 @@ if __name__ == '__main__':
                 os.path.dirname(__file__), os.path.pardir,
                 'newrelic.ini')))  # optional param ->, 'staging')
         next = newrelic.agent.wsgi_application()(next)
+    if '--debug' in sys.argv:
+        next = DebugMiddleware(next)
+        LOG.debug("Routes: %s" % [r.rule for r in app().routes])
+
     run(app=next, host='127.0.0.1', port=8080, reloader=True,
             server='wsgiref')
 
