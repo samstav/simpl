@@ -8,15 +8,14 @@ at a time.
 """
 
 # pylint: disable=E0611
-from bottle import get, post, request, response, abort
 import json
 import logging
 import os
-import sys
 import time
 
+from bottle import get, post, request, response, abort
 try:
-    from SpiffWorkflow.specs import WorkflowSpec, Celery, Transform, Merge
+    from SpiffWorkflow.specs import Celery
 except ImportError:
     #TODO(zns): remove this when Spiff incorporates the code in it
     print "Get SpiffWorkflow with the Celery spec in it from here: "\
@@ -31,11 +30,6 @@ from checkmate.utils import write_body, read_body, with_tenant
 from checkmate.deployments import plan_dict
 from checkmate.workflows import get_SpiffWorkflow_status
 
-# Import these for simulation only so that bottle knows to reload when we edit
-# them
-from checkmate.providers.rackspace import compute, legacy, loadbalancer,\
-        database
-from checkmate.providers.opscode import chef_local, chef_server
 
 PHASE = time.time()
 PACKAGE = None
@@ -64,6 +58,7 @@ def simulate(tenant_id=None):
         response.add_header('Location', "/deployments/simulate")
 
     results = plan_dict(entity)
+    PACKAGE = results
 
     serializer = DictionarySerializer()
     workflow = results['workflow'].serialize(serializer)
