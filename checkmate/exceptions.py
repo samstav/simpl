@@ -24,3 +24,8 @@ class CheckmateNoTokenError(CheckmateException):
     """No cloud auth token was available in this session. Try logging on using
     an auth token"""
     pass
+
+
+class CheckmateNoMapping(CheckmateException):
+    """No mapping found between parameter types"""
+    pass

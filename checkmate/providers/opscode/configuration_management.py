@@ -1,17 +1,22 @@
 import logging
+
 from SpiffWorkflow.operators import Attrib
 from SpiffWorkflow.specs import Celery, Merge, Transform
 
-from checkmate.providers import ProviderBase
+from checkmate.exceptions import CheckmateException
+from checkmate.providers import ProviderBase, register_providers
 from checkmate.utils import get_source_body
 
 LOG = logging.getLogger(__name__)
 
 
 class LocalProvider(ProviderBase):
+    name = 'chef-local'
+    vendor = 'opscode'
+
     """Implements a Chef Local/Solo configuration management provider"""
-    def __init__(self, provider):
-        ProviderBase.__init__(self, provider)
+    def __init__(self, provider, key=None):
+        ProviderBase.__init__(self, provider, key=key)
         self.prep_task = None
 
     def prep_environment(self, wfspec, deployment):
@@ -100,9 +105,12 @@ class LocalProvider(ProviderBase):
 
 
 class ServerProvider(ProviderBase):
+    name = 'chef-server'
+    vendor = 'opscode'
+
     """Implements a Chef Server configuration management provider"""
-    def __init__(self, provider):
-        super(ServerProvider, self).__init__(provider)
+    def __init__(self, provider, key=None):
+        super(ServerProvider, self).__init__(provider, key=key)
         self.prep_task = None
 
     def prep_environment(self, wfspec, deployment):
@@ -152,3 +160,4 @@ class ServerProvider(ProviderBase):
         ssh_apt_get_task.connect(join)
         register_node_task.connect(join)
         return {'root': register_node_task, 'final': bootstrap_task}
+register_providers([ServerProvider, LocalProvider])

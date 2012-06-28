@@ -6,27 +6,31 @@ import clouddb
 from SpiffWorkflow.operators import Attrib
 from SpiffWorkflow.specs import Celery
 
-from checkmate.providers import ProviderBase
+from checkmate.exceptions import CheckmateNoMapping
+from checkmate.providers import ProviderBase, register_providers
 
 
 LOG = logging.getLogger(__name__)
 
 
 class Provider(ProviderBase):
-    def generate_template(self, deployment, service_name, service, name=None):
-        inputs = deployment.get('inputs', {})
+    name = 'database'
+    vendor = 'rackspace'
 
-        flavor = inputs.get('%s:instance/flavor' % service_name,
-                    service['config']['settings'].get(
-                            '%s:instance/flavor' % service_name,
-                            service['config']['settings']
-                                    ['instance/flavor']['default']))
+    def generate_template(self, deployment, resource_type, service, name=None):
+        template = ProviderBase.generate_template(self,
+                deployment, resource_type, service, name=name)
 
-        if not name:
-            name = 'CMDEP%s-db.rackclouddb.com' % (deployment['id'][0:7])
-        template = {'type': 'database', 'dns-name': name,
-                                     'flavor': flavor, 'instance-id': None}
+        flavor = self.get_deployment_setting(deployment, 'memory',
+                resource_type=resource_type, service=service, default=512)
+        #FIXME: mapping needs to be done
+        if '512' in str(flavor):
+            flavor = 1
+        else:
+            raise CheckmateNoMapping("No flavor mapping for '%s' in '%s'" % (
+                    flavor, self.name))
 
+        template['flavor'] = flavor
         return template
 
     def add_resource_tasks(self, resource, key, wfspec, deployment, context,
@@ -110,3 +114,7 @@ class Provider(ProviderBase):
         api.client.region_account_url = url
 
         return api
+
+
+register_providers([Provider])
+

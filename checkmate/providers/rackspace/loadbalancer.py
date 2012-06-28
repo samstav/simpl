@@ -1,13 +1,17 @@
 import logging
+
 from SpiffWorkflow.operators import Attrib
 from SpiffWorkflow.specs import Celery
 
-from checkmate.providers import ProviderBase
+from checkmate.providers import ProviderBase, register_providers
 
 LOG = logging.getLogger(__name__)
 
 
 class Provider(ProviderBase):
+    name = 'load-balancer'
+    vendor = 'rackspace'
+
     def add_resource_tasks(self, resource, key, wfspec, deployment, context,
                 wait_on=None):
         create_lb = Celery(wfspec, 'Create LB',
@@ -34,3 +38,6 @@ class Provider(ProviderBase):
             results['regions'] = regions
 
         return results
+
+
+register_providers([Provider])
