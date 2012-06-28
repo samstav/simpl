@@ -18,6 +18,7 @@ from yaml.events import AliasEvent, ScalarEvent
 LOG = logging.getLogger(__name__)
 RESOURCES = ['deployments', 'workflows', 'blueprints', 'environments',
         'components', 'test', 'status']
+STATIC = ['test']
 DEFAULT_SENSITIVE_KEYS = ['credentials', 'password', 'apikey', 'token',
         'authtoken', 'db_password', 'ssh-private-key', 'private_key']
 

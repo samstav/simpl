@@ -44,6 +44,7 @@ Notes:
 
 import base64
 import httplib
+import json
 import os
 import logging
 # some distros install as PAM (Ubuntu, SuSE) https://bugs.launchpad.net/keystone/+bug/938801
@@ -77,13 +78,19 @@ logging.getLogger().setLevel(logging.DEBUG)
 LOG = logging.getLogger(__name__)
 
 from checkmate.db import get_driver, any_id_problems, any_tenant_id_problems
+from checkmate.utils import HANDLERS, RESOURCES, STATIC, write_body, read_body
 
-# Load routes
-from checkmate import simulator
-from checkmate import blueprints, components, deployments, environments, \
-        workflows
 
-from checkmate.utils import *
+def init():
+    # Load routes
+    from checkmate import simulator
+    from checkmate import blueprints, components, deployments, environments, \
+            workflows
+
+    # Register built-in providers
+    from checkmate.providers import rackspace, opscode
+
+init()
 
 db = get_driver('checkmate.db.sql.Driver')
 
@@ -91,8 +98,6 @@ db = get_driver('checkmate.db.sql.Driver')
 #
 # Making life easy - calls that are handy but will not be in final API
 #
-
-
 @get('/test/dump')
 def get_everything():
     return write_body(db.dump(), request, response)
@@ -208,7 +213,7 @@ class TenantMiddleware(object):
         else:
             path_parts = e['PATH_INFO'].split('/')
             tenant = path_parts[1]
-            if tenant in RESOURCES:
+            if tenant in RESOURCES or tenant in STATIC:
                 pass  # route with bottle. This call needs Admin rights.
             else:
                 errors = any_tenant_id_problems(tenant)
@@ -447,7 +452,7 @@ class AuthorizationMiddleware(object):
     def __call__(self, e, h):
         path_parts = e['PATH_INFO'].split('/')
         root = path_parts[1] if len(path_parts) > 1 else None
-        if root in ['static', 'test']:
+        if root in STATIC:
             # Allow test and static calls
             return self.app(e, h)
 
@@ -508,7 +513,7 @@ class BrowserMiddleware(object):
     def __init__(self, app):
         self.app = app
         HANDLERS['text/html'] = BrowserMiddleware.write_html
-        RESOURCES.extend(['static', 'favicon.ico'])
+        STATIC.extend(['static', 'favicon.ico'])
 
         # Add static routes
         @get('/favicon.ico')
@@ -540,7 +545,8 @@ class BrowserMiddleware(object):
                 parts = path[1:].split('/')  # normalize to always not include first path
             else:
                 parts = path.split('/')
-            if len(parts) > 0 and parts[0] not in RESOURCES:
+            if len(parts) > 0 and parts[0] not in RESOURCES and \
+                    parts[0] not in STATIC:
                 # Assume it is a tenant (and remove it from our evaluation)
                 parts = parts[1:]
 
@@ -740,7 +746,7 @@ if __name__ == '__main__':
 
 
 # Keep this at end so it picks up any remaining calls after all other routes
-# have been added
+# have been added (and some routes are added in the __main__ code)
 @get('<path:path>')
 def extensions(path):
     """Catch-all unmatched paths (so we know we got the request, but didn't
