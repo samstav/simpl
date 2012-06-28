@@ -241,6 +241,8 @@ def plan_dict(deployment):
     #
     # Analyze Dependencies
     #
+    _verify_required_blueprint_options_supplied(deployment)
+
     # Load providers
     providers = environment.get_providers()
     # Get interfaces available from environment
@@ -507,6 +509,23 @@ def plan_dict(deployment):
     workflow = create_workflow(deployment)
 
     return {'deployment': deployment, 'workflow': workflow}
+
+
+def _verify_required_blueprint_options_supplied(deployment):
+    """Check that blueprint options marked 'required' are supplied.
+
+    Raise error if not
+    """
+    blueprint = deployment['blueprint']
+    if 'options' in blueprint:
+        inputs = deployment.get('inputs', {})
+        bp_inputs = inputs.get('blueprint')
+        for key, option in blueprint['options'].iteritems():
+            if (not 'default' in option) and \
+                    option.get('required') in ['true', True]:
+                if key not in bp_inputs:
+                    abort(406, "Required blueprint input '%s' not supplied" %
+                            key)
 
 
 def check_deployment(deployment):
