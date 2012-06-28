@@ -127,3 +127,27 @@ SETTINGS = {
     }
   }
 }
+
+PROVIDERS = {[
+  compute: [{
+    id: "0505af50-a38d-012f-ead2-583062589e95",
+    name: "Legacy Cloud Servers"
+  },
+  { id: "19691970-a38d-012f-ead3-583062589e95",
+    name: "Open Cloud Servers" 
+  }],
+  database: [{
+    id: "6701f550-a38d-012f-ead4-583062589e95",
+    name: "Database as a Service"
+  }, {
+    id: "89632410-a38d-012f-ead5-583062589e95",
+    name: "Open Cloud Servers"
+  }],
+  "load balancing": [{
+    id: "0000f550-a38d-012f-ead4-583062589e95",
+    name: "Load Balancer as a Service"
+  }, {
+    id: "8643c410-a38d-012f-ead5-583062589e95",
+    name: "Open Cloud Servers"
+  }]
+]}

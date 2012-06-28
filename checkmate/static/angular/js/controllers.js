@@ -214,21 +214,33 @@ function DeploymentNewCtrl($scope, $location, $routeParams, Deployment, Environm
   $scope.blueprints = Blueprint.query();
   $scope.environments = Environment.query();
 
+  $scope.blueprintId = null;
+  $scope.environmentId = null;
+  $scope.setting = {};
+
   // Munge the settings so they have an id I can use.
   var s = new Array();
   for(var i in SETTINGS.options) { 
     s.push($.extend({id: i}, SETTINGS.options[i])) 
+    $scope.setting[i] = null;
   }
   $scope.settings = s;
 
   $scope.renderSetting = function(setting) {
     var template = $('#setting-' + setting.type).html();
+    return template ? Mustache.render(template, setting) : "";
+  }
 
-    if (template) {
-      return Mustache.render(template, setting);
-    } else {
-      return "";
-    }
+  $scope.submit = function() {
+    var deployment = new Deployment();
+    var blueprint = _.find($scope.blueprints, function(bp) { return bp.id == $scope.blueprintId });
+    var environment = _.find($scope.environments, function(env) { return env.id == $scope.environmentId });
+
+    
+    deployment.blueprint = blueprint;
+    deployment.environment = environment;
+
+    deployment.$save();
   }
 }
 DeploymentNewCtrl.$inject = ['$scope', '$location', '$routeParams', 'Deployment', 'Environment', 'Blueprint'];
