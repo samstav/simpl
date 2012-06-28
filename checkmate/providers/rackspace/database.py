@@ -123,3 +123,142 @@ class Provider(ProviderBase):
 
 register_providers([Provider])
 
+#
+# Exploring Celery tasks from within CheckMate
+#
+from celery.task import task
+import clouddb
+from stockton.base import StocktonResource
+
+REGION_MAP = {'DFW': 'dallas',
+              'ORD': 'chicago',
+              'LON': 'london'}
+
+
+def _get_db_object(context):
+    region = context['region']
+    # Map to clouddb library known names (it uses full names)
+    if region in REGION_MAP:
+        region = REGION_MAP[region]
+    return clouddb.CloudDB(context['username'], context['apikey'],
+                           region)
+
+
+@task(default_retry_delay=10, max_retries=2)
+def create_instance(context, instance_name, size, flavor,
+                               databases, username=None, password=None,
+                               api=None, prefix=None):
+    """Creates a Cloud Database instancem, initial databases and user.
+
+    databases is an array of dictionaries with keys to set the database
+    name, character set and collation.  For example:
+
+        databases=[{'name': 'db1'},
+                   {'name': 'db2', 'character_set': 'latin5',
+                    'collate': 'latin5_turkish_ci'}]
+    """
+    if api is None:
+        api = _get_db_object(context)
+
+    #try:
+    instance = api.create_instance(instance_name, size, flavor,
+                                          databases=databases)
+    LOG.info("Created database instance %s (%s). Size %d, Flavor %d. "
+            "Databases = %s" % (instance_name, instance.id, size, flavor,
+            databases))
+    #except clouddb.errors.ResponseError, exc:
+    #    log(context,
+    #        'Response error while trying to create database instance ' \
+    #        '%s. Error %d %s. Retrying.' % (
+    #          instance_name, exc.status, exc.reason))
+    #    distribute_create_instance.retry(exc=exc)
+    #except Exception, exc:
+    #    log(context,
+    #        'Error creating database instance %s. Error %s. Retrying.' % (
+    #        instance_name, str(exc)))
+    #    distribute_create_instance.retry()
+
+    db_name_list = []
+    for database in databases:
+        db_name_list.append(database['name'])
+        if username:
+            distribute_add_user.delay(context, instance.id, db_name_list,
+                                  username, password)
+
+    results = dict(id=instance.id, name=instance.name, status=instance.status,
+            hostname=instance.hostname)
+    if prefix:
+        # Add each value back in with the prefix
+        results.update({'%s.%s' % (prefix, key): value for key, value in
+                results.iteritems()})
+
+    return results
+
+
+@task(default_retry_delay=10, max_retries=10)
+def distribute_add_databases(deployment, instance_id, databases, api=None):
+    """Adds new database(s) to an existing instance.
+
+    database is a list of dictionaries with a required key for database
+    name and optional keys for setting the character set and collation.
+    For example:
+
+        databases = [{'name': 'mydb1'}]
+        databases = [{'name': 'mydb2', 'character_set': 'latin5',
+                    'collate': 'latin5_turkish_ci'}]
+        databases = [{'name': 'mydb3'}, {'name': 'mydb4'}]
+    """
+    if api is None:
+        api = _get_db_object(deployment)
+
+    dbnames = []
+    for db in databases:
+        dbnames.append(db['name'])
+
+    try:
+        instance = api.get_instance(instance_id)
+        instance.create_databases(databases)
+        log(deployment,
+            'Added database(s) %s to instance %s' % (dbnames,
+                                                     instance_id))
+    except clouddb.errors.ResponseError, exc:
+        log(deployment,
+            'Response error while trying to add new database(s) %s to ' \
+            'instance %s. Error %d %s. Retrying.' % (
+              dbnames, instance_id, exc.status, exc.reason))
+        distribute_add_databases.retry(exc=exc)
+    except Exception, exc:
+        log(deployment,
+            'Error adding database(s) %s to instance %s. Error %s. ' \
+            'Retrying.' % (
+              dbnames, instance_id, str(exc)))
+        distribute_add_databases.retry()
+
+
+@task(default_retry_delay=10, max_retries=10)
+def distribute_add_user(deployment, instance_id, databases, username,
+                        password, api=None):
+    """Add a database user to an instance for a database"""
+    if api is None:
+        api = _get_db_object(deployment)
+
+    try:
+        instance = api.get_instance(instance_id)
+        instance.create_user(username, password, databases)
+        log(deployment,
+            'Added user %s to %s on instance %s' % (username,
+                                                    databases,
+                                                    instance_id))
+    except clouddb.errors.ResponseError, exc:
+        log(deployment,
+            'Response error while trying to add database user %s to %s ' \
+            'on instance %s. Error %s %s. Retrying.' % (
+              username, databases, instance_id, exc.status,
+              exc.reason))
+        distribute_add_user.retry(exc=exc)
+    except Exception, exc:
+        log(deployment,
+            'Error creating database user %s, database %s, instance %s.' \
+            ' Error %s. Retrying.' % (
+              username, databases, instance_id, str(exc)))
+        distribute_add_user.retry()
