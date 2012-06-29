@@ -14,6 +14,8 @@ import sys
 from bottle import abort, request
 import yaml
 from yaml.events import AliasEvent, ScalarEvent
+from yaml.parser import ParserError
+from yaml.composer import ComposerError
 
 LOG = logging.getLogger(__name__)
 RESOURCES = ['deployments', 'workflows', 'blueprints', 'environments',
@@ -77,8 +79,14 @@ def read_body(request):
         content_type = content_type.split(';')[0]
 
     if content_type == 'application/x-yaml':
-        return yaml.safe_load(yaml.emit(resolve_yaml_external_refs(data),
+        try:
+            return yaml.safe_load(yaml.emit(resolve_yaml_external_refs(data),
                          Dumper=yaml.SafeDumper))
+        except ParserError as exc:
+            abort(406, "Invalid YAML syntax. Check:\n%s" % exc)
+        except ComposerError as exc:
+            abort(406, "Invalid YAML structure. Check:\n%s" % exc)
+
     elif content_type == 'application/json':
         return json.load(data)
     elif content_type == 'application/x-www-form-urlencoded':
