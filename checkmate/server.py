@@ -188,31 +188,42 @@ def get_dependency_versions():
                 ]  # copied from setup.py with additions added
     for library in libraries:
         result[library] = {}
-        if library in sys.modules:
-            module = sys.modules[library]
-            if hasattr(module, '__version__'):
-                result[library]['version'] = module.__version__
-            result[library]['path'] = module.__path__
-            result[library]['status'] = 'loaded'
-        else:
-            result[library]['status'] = 'not loaded'
+        try:
+            if library in sys.modules:
+                module = sys.modules[library]
+                if hasattr(module, '__version__'):
+                    result[library]['version'] = module.__version__
+                result[library]['path'] = getattr(module, '__path__', 'N/A')
+                result[library]['status'] = 'loaded'
+            else:
+                result[library]['status'] = 'not loaded'
+        except Exception as exc:
+            result[library]['status'] = 'ERROR: %s' % exc
 
     # Chef version
-    output = check_output(['knife', '-v'])
-    result['knife'] = {'version': output.strip()}
+    try:
+        output = check_output(['knife', '-v'])
+        result['knife'] = {'version': output.strip()}
+    except Exception as exc:
+        result['knife'] = {'status': 'ERROR: %s' % exc}
 
     # Chef version
     expected = ['knife-solo',  'knife-solo_data_bag']
-    output = check_output(['gem', 'list', 'knife-solo'])
-    if output:
-        for line in output.split('\n'):
-            for name in expected[:]:
-                if line.startswith('%s ' % name):
-                    output = line
-                    result[name] = {'version': output.strip()}
-                    expected.remove(name)
-    for name in expected:
-        result[name] = {'status': 'missing'}
+    try:
+        output = check_output(['gem', 'list', 'knife-solo'])
+
+        if output:
+            for line in output.split('\n'):
+                for name in expected[:]:
+                    if line.startswith('%s ' % name):
+                        output = line
+                        result[name] = {'version': output.strip()}
+                        expected.remove(name)
+        for name in expected:
+            result[name] = {'status': 'missing'}
+    except Exception as exc:
+        for name in expected:
+            result[name] = {'status': 'ERROR: %s' % exc}
 
     return write_body(result, request, response)
 
