@@ -1,8 +1,9 @@
 # CheckMate
 ![CheckMate](https://github.com/ziadsawalha/checkmate/raw/master/checkmate/static/checkmate.png)
 
-CheckMate stores and controls your cloud configurations. It exposes a REST API
-for manipulating configurations. It uses celery for task queuing and SpiffWorkflow to orchestrate deploying them. It support JSON and YAML configurations.
+CheckMate stores and controls your cloud configurations. Use it to deploy complete application stacks.
+
+It exposes a REST API for manipulating configurations. It uses celery for task queuing and SpiffWorkflow to orchestrate deploying them. It support JSON and YAML interchangeably. It has optional built-in browser support & a UI.
 
 ## The API
 
@@ -24,8 +25,8 @@ Special cases::
 
 ### Components
 
-This is the equivalent of Chef recipes or Juju charms. They are the building
-blocks of a deployment. These can be supplied as part of a deployment or referenced from a provider.
+These are the equivalent of Chef recipes or Juju charms. They are the building
+blocks of an application deployment. These can be supplied as part of a deployment or looked up from the server.
 
     # Definitions of components used (similar to Juju charm syntax)
     components:
@@ -58,8 +59,8 @@ blocks of a deployment. These can be supplied as part of a deployment or referen
 
 ### Environments
 
-An environment is a place where you can launch and manage deployments. It could be your development laptop, a cloud provider, or a combination of cloud providers that you have grouped together to use as your environment.
-Multiple environments can exist in one tenant or account. Example: dev, test, staging, and production.
+An environment is a place where you can launch and manage application deployments. It could be your development laptop, a cloud provider, or a combination of cloud providers that you have grouped together to use together as a single environment.
+Multiple environments can exist in one tenant or account. For example, you could have dev, test, staging, and production environments on one Rackspace Cloud account.
 
     # Environment
     environment: &environment_1000_stag
@@ -85,7 +86,7 @@ Multiple environments can exist in one tenant or account. Example: dev, test, st
 ### Blueprints
 
 These define the architecture for an application. The blueprint describes the
-resources needed and how to connect and scale them.
+resources needed and how to connect and scale them when deploying and managing an application.
 
     # An wordpress architecture template
     blueprint: &wp
@@ -117,8 +118,7 @@ resources needed and how to connect and scale them.
 
 ### Deployments
 
-A deployment defines and points to a running application stack. It consists of a
-blueprint, an environment to deploy the resources to, and any additional inputs specific to this deployment.
+A deployment defines and points to a running application and the infrastructure it is running on. It combines a blueprint, an environment to deploy the resources to, and any additional inputs specific to this deployment.
 
 
     # Actual running app and the parameters supplied when deploying it
@@ -167,31 +167,35 @@ blueprint, an environment to deploy the resources to, and any additional inputs 
           instance:
             id: 99958744
 
-Once deployed, the live resources running the application are also listed. The intent is for CheckMate to be able to manage the deployment. An example of a management operation would be resixzing the servers:
-1 - bring down the load-balancer connection for srv1 (knowing srv2 is up)
-2 - resize srv1
-3 - bring the load balancer connection back up
-4 - perform the same on srv1
+Once deployed, the live resources running the application are also listed. The intent is for CheckMate to be able to manage the deployment. An example of a management operation would be resizing the servers:
 
-Such an operation cannot be performed by the underlying services since they have no knowledge of the full stack like checkmate does.
+  1 - bring down the load-balancer connection for srv1 (knowing srv2 is up)
+
+  2 - resize srv1
+
+  3 - bring the load balancer connection back up
+
+  4 - perform the same on srv1
+
+Such an operation cannot be performed by the underlying services alone since they have no knowledge of the full stack like checkmate does.
 
 
-Note:: for additional description of each fields see examples/app.yaml
+Note: for additional descriptions of each field see the examples/app.yaml file.
 
 
 ## Usage
 
-CheckMate is a REST server. To run it::
+CheckMate is a REST server. To run it:
 
     $ python checkmate/server.py
 
-Options::
+Options:
 
     --with-ui: enable support for browsers and HTML templates
-    --debug: log full request/response
-    --newrelic: enable newrelic monitoring
+    --debug: log full HTTP requests and responses
+    --newrelic: enable newrelic monitoring (place newrelic.ini in your directory)
 
-You also need to have celery running with the checkmate tasks loaded::
+You also need to have celery running with the checkmate tasks loaded:
 
     $ celeryd -l info --config=checkmate.celeryconfig -I checkmate.orchestrator,checkmate.ssh,checkmate.providers.rackspace,checkmate.providers.opscode
 
@@ -213,37 +217,37 @@ Install, configure, and start rabbitmq.
 ### Trying a test call
 
 You'll need three terminal windows and Rackspace cloud credentials (username &
-API key). In the first terminal window, start Stockton::
+API key). In the first terminal window, start the task queue:
 
-    export CHECKMATE_BROKER_USERNAME="Stockton"
-    export CHECKMATE_BROKER_PASSWORD="Stockton"
-    export CHECKMATE_BROKER_PORT="5672"
-    export CHECKMATE_BROKER_HOST="localhost"
-    export CELERY_CONFIG_MODULE=celeryconfig
-
-    export CHECKMATE_CONNECTION_STRING=sqlite:///~/checkmate.sqlite
-
-    export CHECKMATE_CHEF_LOCAL_PATH=/var/chef
-
-    celeryd -l info --config=celeryconfig -I checkmate.orchestrator,checkmate.ssh,checkmate.providers.rackspace,checkmate.providers.opscode
-
-
-In the second window, start checkmate::
-
-    export CHECKMATE_BROKER_USERNAME="Stockton"
-    export CHECKMATE_BROKER_PASSWORD="Stockton"
+    export CHECKMATE_BROKER_USERNAME="checkmate"
+    export CHECKMATE_BROKER_PASSWORD="password"
     export CHECKMATE_BROKER_PORT="5672"
     export CHECKMATE_BROKER_HOST="localhost"
     export CELERY_CONFIG_MODULE=checkmate.celeryconfig
 
-    export CHECKMATE_CONNECTION_STRING=sqlite:///~/checkmate.sqlite
+    export CHECKMATE_CONNECTION_STRING=sqlite:////var/checkmate/data/db.sqlite
+
+    export CHECKMATE_CHEF_LOCAL_PATH=/var/chef
+
+    celeryd -l info --config=checkmate.celeryconfig -I checkmate.orchestrator,checkmate.ssh,checkmate.providers.rackspace,checkmate.providers.opscode
+
+
+In the second window, start the checkmate server & REST API:
+
+    export CHECKMATE_BROKER_USERNAME="checkmate"
+    export CHECKMATE_BROKER_PASSWORD="password"
+    export CHECKMATE_BROKER_PORT="5672"
+    export CHECKMATE_BROKER_HOST="localhost"
+    export CELERY_CONFIG_MODULE=checkmate.celeryconfig
+
+    export CHECKMATE_CONNECTION_STRING=sqlite:////var/checkmate/data/db.sqlite
 
     export CHECKMATE_PUBLIC_KEY=~/.ssh/id_rsa.pub  # on a mac
     export CHECKMATE_PRIVATE_KEY=~/.ssh/id_rsa     # on a mac
 
     python checkmate/server.py --with-ui
 
-In the third window, run these scripts::
+In the third window, run these commands to simulate a client call:
 
     export CHECKMATE_CLIENT_APIKEY="*your_rax_API_key*"
     export CHECKMATE_CLIENT_REGION="chicago"
@@ -254,23 +258,23 @@ In the third window, run these scripts::
     # Yes, sorry, this is long. It's mostly auth and template replacement stuff
     CHECKMATE_CLIENT_TENANT=$(curl -H "X-Auth-User: ${CHECKMATE_CLIENT_USERNAME}" -H "X-Auth-Key: ${CHECKMATE_CLIENT_APIKEY}" -I https://identity.api.rackspacecloud.com/v1.0 -v 2> /dev/null | grep "X-Server-Management-Url" | grep -P -o $'(?!.*/).+$'| tr -d '\r') && CHECKMATE_CLIENT_TOKEN=$(curl -H "X-Auth-User: ${CHECKMATE_CLIENT_USERNAME}" -H "X-Auth-Key: ${CHECKMATE_CLIENT_APIKEY}" -I https://identity.api.rackspacecloud.com/v1.0 -v 2> /dev/null | grep "X-Auth-Token:" | awk '/^X-Auth-Token:/ { print $2 }') && awk '{while(match($0,"[$][\\{][^\\}]*\\}")) {var=substr($0,RSTART+2,RLENGTH -3);gsub("[$][{]"var"[}]",ENVIRON[var])}}1' < examples/app.yaml | curl -H "X-Auth-Token: ${CHECKMATE_CLIENT_TOKEN}" -H 'content-type: application/x-yaml' http://localhost:8080/${CHECKMATE_CLIENT_TENANT}/deployments/simulate -v --data-binary @-
 
-    # this starts a deployment by picking up app.yaml as a template and replacing in a bunch
-    # of environment variables. Browse to http://localhost:8080/${CHECKMATE_CLIENT_TENANT}/workflows/simulate to see how the build is progressing
+    # this starts a deployment simulation by picking up app.yaml as a template and replacing in a bunch
+    # of environment variables. Browse to http://localhost:8080/${CHECKMATE_CLIENT_TENANT}/workflows/simulate to see how the build is progressing (each reload of the page moves the workflow forward one step)
 
-    Note:: for a real deployment that creates servers, remove the /simulate part of the URL in the call above
+    Note: for a real deployment that creates servers, remove the /simulate part of the URL in the call above
 
 ## Tools
 
 ### Monitoring
 
-celery has a tool called celeryev that can monitor ruinning tasks and events. To
+celery has a tool called celeryev that can monitor running tasks and events. To
 use it, you need to turn `events` on when running celeryd using -E or --events:
 
     celeryd -l debug --config=checkmate.celeryconfig -I checkmate.orchestrator,checkmate.ssh,checkmate.providers.rackspace,checkmate.providers.opscode --events
 
 And then use celeryev from the python-stockton directory to watch events and tasks::
 
-    celeryev --config=celeryconfig
+    celeryev --config=checkmate.celeryconfig
 
 ### Tuning
 
