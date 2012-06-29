@@ -23,8 +23,9 @@ else:
 #
 # Use this if we want to track status and let clients query it
 CELERY_RESULT_BACKEND = "database"
-CELERY_RESULT_DBURI = "sqlite:///%s" % os.path.join(os.path.dirname(__file__),
-                                         os.pardir, 'data', 'celerydb.sqlite')
+CELERY_RESULT_DBURI = "sqlite:///%s" % os.path.expanduser(os.path.normpath(
+        os.path.join(os.path.dirname(__file__), os.pardir, 'data',
+        'celerydb.sqlite')))
 
 # Report out that this file was used for configuration
 print "celery config loaded from %s" % __file__
