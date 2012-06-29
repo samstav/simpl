@@ -26,57 +26,18 @@
 
       <fieldset>
         <legend>Providers</legend>
-        <div class="control-group">
-          <label class="control-label" for="compute">Compute</label>
-          <div class="controls">
-            <select id="compute">
-              <option default>US Legacy Cloud Servers</option>
-              <option>UK Legacy Clous Servers</option>
-              <option>US Open Cloud Servers</option>
-              <option>UK Open Cloud Servers</option>
-            </select>
-          </div>
-        </div>
 
-        <div class="control-group">
-          <label class="control-label" for="database">Database</label>
+        <div class="control-group" ng-repeat="provider in providers">
+          <label class="control-label capitalize" for="{{provider.id}}">{{provider.label}}</label>
           <div class="controls">
-            <select id="database">
-              <option default>US Database as a Service</option>
-              <option>UK Database as a Service</option>
-              <option>US Legacy Cloud Servers</option>
-              <option>UK Legacy Clous Servers</option>
-              <option>US Open Cloud Servers</option>
-              <option>UK Open Cloud Servers</option>
-            </select>
-          </div>
-        </div>
-
-        <div class="control-group">
-          <label class="control-label" for="load-balancer">Load Balancing</label>
-          <div class="controls">
-            <select id="load-balancer">
-              <option default>US Load Balancer as a Service</option>
-              <option>UK Load Balancer as a Service</option>
-              <option>US Legacy Cloud Servers</option>
-              <option>UK Legacy Clous Servers</option>
-              <option>US Open Cloud Servers</option>
-              <option>UK Open Cloud Servers</option>
-            </select>
-          </div>
-        </div>
-
-        <div class="control-group">
-          <label class="control-label" for="configuration">Configuration</label>
-          <div class="controls">
-            <select id="configuration">
-              <option default>Chef</option>
+            <select id="{{provider.id}}" ng-model="selectedProviders[provider.id]"
+                    ng-options="o as o.name for o in provider.options" required>
             </select>
           </div>
         </div>
       </fieldset>
       <div class="form-actions">        
-        <button class="btn" ng-click="reset()">Cancel</button>
+        <button class="btn" ng-click="reset()">Reset</button>
         <button class="btn btn-primary" ng-click="update(environment)">Save changes</button>
       </div>
     </form>

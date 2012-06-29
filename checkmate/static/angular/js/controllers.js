@@ -31,15 +31,39 @@ EnvironmentListCtrl.$inject = ['$scope', '$location', 'Environment'];
 /**
   *   environments/:environmentId
   */
-function EnvironmentDetailCtrl($scope, $location, $routeParams, Environment) {
+function EnvironmentDetailCtrl($scope, $location, $routeParams, Environment) {  
+  // Munge the providers so they have an id I can use.
+  var p = new Array();
+  $scope.selectedProviders = {}
+  for(var i in PROVIDERS) { 
+    p.push($.extend({id: i, select: null}, PROVIDERS[i]));     
+    $scope.selectedProviders[i] = null;
+  }
+  $scope.providers = p;
+
   if ($routeParams.environmentId != "new") {
-    $scope.environment = Environment.get({environmentId: $routeParams.environmentId});  
+    $scope.environment = Environment.get({environmentId: $routeParams.environmentId}, function() {
+      
+      // If we have some selected providers already
+      if ($scope.environment.providers) {
+        // For each selected provider, we set the selected properties
+        _.each($scope.environment.providers, function(selected, key) {
+          $scope.selectedProviders[key] = selected;
+        });
+      }
+    });  
   } else {
     $scope.environment = new Environment();
   }
 
   $scope.update = function(environment) {
     $scope.environment = angular.copy(environment);
+
+    //build the providers    
+    $scope.environment.providers = {};    
+    _.each($scope.selectedProviders, function(provider, key) {
+      $scope.environment.providers[key] = provider;
+    });
 
     if ($scope.environment.id == null) {
       $scope.environment.$save();
