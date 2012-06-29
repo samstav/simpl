@@ -170,19 +170,21 @@ def get_celery_worker_status():
 def get_dependency_versions():
     """ Checking on dependencies """
     result = {}
-    libraries = ['kombu',
-                'celery',
-                'sqlalchemy',
-                'bottle',
-                'SpiffWorkflow',
-                'Jinja2',
-                'webob',
-                'pyyaml',
-                'sqlalchemy-migrate',
-                'openstack.compute',
-                'python-novaclient',
-                'python-clouddb',
-                'pycrypto',
+    libraries = [
+                'bottle',  # HTTP request router
+                'celery',  # asynchronous/queued call wrapper
+                'Jinja2',  # templating library for HTML calls
+                'kombu',   # message queue interface (dependency for celery)
+                'openstack.compute',  # Rackspace CLoud Server (legacy) library
+                'paramiko',  # SSH library
+                'pycrypto',  # Cryptography (key generation)
+                'python-novaclient',  # OpenStack Compute client library
+                'python-clouddb',  # Rackspace DBaaS client library
+                'pyyaml',  # YAML parser
+                'SpiffWorkflow',  # Workflow Engine
+                'sqlalchemy',  # ORM
+                'sqlalchemy-migrate',  # database schema versioning
+                'webob',   # HTTP request handling
                 ]  # copied from setup.py with additions added
     for library in libraries:
         result[library] = {}

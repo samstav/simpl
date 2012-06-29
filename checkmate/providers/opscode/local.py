@@ -500,6 +500,7 @@ def create_environment(name, path=None, private_key=None,
 
     # Create environment
     os.mkdir(fullpath, 0770)
+    LOG.debug("Created environment directory: %s" % fullpath)
     results = {"environment": fullpath}
 
     key_data = _create_environment_keys(fullpath, private_key=private_key,
@@ -598,7 +599,8 @@ encrypted_data_bag_secret "%s"
     LOG.debug("Stored secrets file: %s" % secrets_key_path)
 
     # Knife defaults to knife.rb, but knife-solo looks for solo.rb, so we link
-    # so that knife and knife-solo commands will work
+    # both files so that knife and knife-solo commands will work and anyone
+    # editing one will also change the other
     knife_file = os.path.join(path, name, 'knife.rb')
     os.link(solo_file, knife_file)
     LOG.debug("Linked knife.rb: %s" % knife_file)
@@ -951,7 +953,7 @@ def manage_role(name, environment, path=None, desc=None,
     the_ruby = os.path.join(kitchen_path, 'roles', '%s.rb' % name)
     if os.path.exists(the_ruby):
         raise CheckmateException("Encountered a chef role in Ruby. Only JSON "
-                "roles can be manipulated by Stockton: %s" % the_ruby)
+                "roles can be manipulated by CheckMate: %s" % the_ruby)
 
     role_path = os.path.join(kitchen_path, 'roles', '%s.json' % name)
 

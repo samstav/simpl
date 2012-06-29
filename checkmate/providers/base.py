@@ -83,8 +83,6 @@ class ProviderBaseWorkflowMixIn():
                     and (tag is None or tag in
                             (task.get_property('task_tags') or [])):
                 tasks.append(task)
-            elif provider == 'database':
-                print task.name, task.properties
         if not tasks:
             LOG.debug("No tasks found in find_tasks for resource=%s, "
                     "provider=%s, tag=%s" % (resource, provider, tag))
