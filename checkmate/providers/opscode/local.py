@@ -801,7 +801,7 @@ def register_node(host, environment, path=None, password=None,
     :param password: the node's password
     :param omnibus_version: override for knife bootstrap (default=latest)
     :param attributes: attributes to set on node (dict)
-    :param identity_file: provate key file to use to connect to the node
+    :param identity_file: private key file to use to connect to the node
     """
     # Get path
     root = _get_root_environments_path(path)
@@ -842,9 +842,11 @@ def register_node(host, environment, path=None, password=None,
 def _run_kitchen_command(kitchen_path, params):
     """Runs the 'knife xxx' command.
 
-    That needs to be run in a kitchen, s
-    we move curdir and need to make sure we stay there, so I added some
-    synchronization
+    This also needs to handle knife command errors, which are returned to
+    stderr.
+
+    That needs to be run in a kitchen, so we move curdir and need to make sure
+    we stay there, so I added some synchronization code while that takes place
     """
     LOG.debug("Running: %s" % ' '.join(params))
     lock = threading.Lock()
@@ -863,9 +865,11 @@ def _run_kitchen_command(kitchen_path, params):
     # output to return a useful error
     fatal = []
     last_fatal = ''
+    last_error = ''
     for line in result.split('\n'):
         if 'ERROR:' in line:
             LOG.error(line)
+            last_error = line
         if 'FATAL:' in line:
             fatal.append(line)
             last_fatal = line
@@ -878,6 +882,14 @@ def _run_kitchen_command(kitchen_path, params):
                         output="Chef/Knife error encountered: %s" % error)
         raise CheckmateCalledProcessError(1, ' '.join(params),
                 output=''.join(fatal))
+    elif last_error:
+        if 'KnifeSolo::::' in last_fatal:
+            # Get the string after a Knife-Solo error::
+            error = last_error.split('Error:')[-1]
+            if error:
+                raise CheckmateCalledProcessError(1, ' '.join(params),
+                        output="Knife error encountered: %s" % error)
+            # Don't raise on all errors. They don't all mean failure!
     return result
 
 
