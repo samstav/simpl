@@ -277,6 +277,8 @@ def wait_on_build(deployment, id, ip_address_type='public',
     if server.status == 'BUILD':
         results['progress'] = server.progress
         countdown = 100 - server.progress
+        if countdown <= 0:
+            countdown = 15  # progress is not accurate. Allow at least 15s wait
         wait_on_build.update_state(state='PROGRESS',
                 meta=results)
         LOG.debug("Server %s progress is %s. Retrying after %s seconds" % (id,
