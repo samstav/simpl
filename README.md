@@ -288,11 +288,19 @@ setting resolves issues with workers hanging::
 
 Some of checkmate's more significant dependencies are::
 
-- python-stockton: for managing Rackspace cloud services
 - celeryd: also used by Stockton and integrates with a message queue (ex. RabbitMQ)
 - rabbitmq: or another backend for celery (celery even has emulators that can use a database), but rabbit is what we tested on
 - SpiffWorkflow: a python workflow engine
 - chef: OpsCode's chef... you don't need a server.
+- cloud client libraries: python-novaclient, python-clouddb, etc...
+
+#### SpiffWorkflow
+Necessary additions to SpiffWorkflow are not yet in the source repo, so install
+the development branch from this fork:
+
+    $ git clone -b master https://github.rackspace.com/checkmate/SpiffWorkflow
+    $ cd SpiffWorkflow
+    $ sudo python setup.py install
 
 #### Chef
 

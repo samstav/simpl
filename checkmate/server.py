@@ -170,7 +170,20 @@ def get_celery_worker_status():
 def get_dependency_versions():
     """ Checking on dependencies """
     result = {}
-    libraries = ['celery', 'kombu', 'SpiffWorkflow', 'stockton']
+    libraries = ['kombu',
+                'celery',
+                'sqlalchemy',
+                'bottle',
+                'SpiffWorkflow',
+                'Jinja2',
+                'webob',
+                'pyyaml',
+                'sqlalchemy-migrate',
+                'openstack.compute',
+                'python-novaclient',
+                'python-clouddb',
+                'pycrypto',
+                ]  # copied from setup.py with additions added
     for library in libraries:
         result[library] = {}
         if library in sys.modules:
@@ -187,13 +200,17 @@ def get_dependency_versions():
     result['knife'] = {'version': output.strip()}
 
     # Chef version
+    expected = ['knife-solo',  'knife-solo_data_bag']
     output = check_output(['gem', 'list', 'knife-solo'])
     if output:
         for line in output.split('\n'):
-            if line.startswith('knife-solo '):
-                output = line
-                break
-    result['knife-solo'] = {'version': output.strip()}
+            for name in expected[:]:
+                if line.startswith('%s ' % name):
+                    output = line
+                    result[name] = {'version': output.strip()}
+                    expected.remove(name)
+    for name in expected:
+        result[name] = {'status': 'missing'}
 
     return write_body(result, request, response)
 
