@@ -27,11 +27,11 @@ class RackspaceComputeProviderBase(ProviderBase):
     def prep_environment(self, wfspec, deployment):
 
         def get_keys_code(my_task):
-            keys = []
+            keys = set()
             for key, value in my_task.attributes['context'].get('keys',
                         {}).iteritems():
                 if 'public_key_ssh' in value:
-                    keys.append(value['public_key_ssh'])
+                    keys.add(value['public_key_ssh'])
                 elif 'public_key' in value:
                     LOG.warning("Code still using public_key without _ssh")
             if keys:

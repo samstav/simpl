@@ -1,6 +1,8 @@
 import logging
 import os
 
+from Crypto.PublicKey import RSA  # pip install pycrypto
+from Crypto.Random import atfork
 from SpiffWorkflow.operators import Attrib
 from SpiffWorkflow.specs import Celery, Merge, Transform
 
@@ -28,33 +30,15 @@ class Provider(ProviderBase):
         create_environment = Celery(wfspec, 'Create Chef Environment',
                 'checkmate.providers.opscode.local.create_environment',
                 call_args=[deployment['id']],
+                public_key_ssh=Attrib('public_key_ssh'),
+                private_key=Attrib('private_key'),
+                secrets_key=Attrib('secrets_key'),
                 defines=dict(provider=self.key,
-                            task_tags=['root']),
+                            task_tags=['root', 'final']),
                 properties={'estimated_duration': 10})
+        self.prep_task = create_environment
 
-        def write_keys_code(my_task):
-            if 'environment' not in my_task.attributes['context']['keys']:
-                my_task.attributes['context']['keys']['environment'] = {}
-            data = my_task.attributes['context']['keys']['environment']
-            if 'public_key' not in data:
-                data['public_key'] = my_task.attributes['public_key']
-            if 'public_key_path' not in data:
-                data['public_key_path'] = my_task.attributes.get(
-                        'public_key_path')
-            if 'private_key_path' not in data:
-                data['private_key_path'] = my_task.attributes.get(
-                        'private_key_path')
-
-        write_keys = Transform(wfspec, "Get Environment Key",
-                transforms=[get_source_body(write_keys_code)],
-                description="Add environment public key data to context so "
-                        "providers have access to them",
-                defines=dict(provider=self.key,
-                            task_tags=['final', 'prep', 'environment keys']))
-        create_environment.connect(write_keys)
-        self.prep_task = write_keys
-
-        return dict(root=create_environment, final=write_keys)
+        return dict(root=create_environment, final=create_environment)
 
     def add_resource_tasks(self, resource, key, wfspec, deployment, context,
                 wait_on=None):
@@ -478,7 +462,20 @@ from checkmate.ssh import execute as ssh_execute
 
 @task
 def create_environment(name, path=None, private_key=None,
-        public_key=None):
+        public_key_ssh=None, secrets_key=None):
+    """Create a knife-solo environment
+
+    The environment is a directory structure that is self-contained and
+    seperate from other environments. It is used by this provider to run knife
+    solo commands.
+
+    :param name: the name of the environment. This will be the directory name.
+    :param path: an override to the root path where to create this environment
+    :param private_key: PEM-formatted private key
+    :param public_key_ssh: SSH-formatted public key
+    :param secrets_key: PEM-formatted private key for use by knife/chef for
+        data bag encryption
+    """
     # Get path
     root = _get_root_environments_path(path)
     fullpath = os.path.join(root, name)
@@ -490,11 +487,12 @@ def create_environment(name, path=None, private_key=None,
     results = {"environment": fullpath}
 
     key_data = _create_environment_keys(fullpath, private_key=private_key,
-            public_key=public_key)
+            public_key_ssh=public_key_ssh)
 
     # Kitchen is created in a /kitchen subfolder since it gets completely
     # rsynced to hosts. We don't want the whole environment rsynced
-    kitchen_data = _create_kitchen('kitchen', fullpath)
+    kitchen_data = _create_kitchen('kitchen', fullpath,
+            secrets_key=secrets_key)
     kitchen_path = os.path.join(fullpath, 'kitchen')
 
     # Copy environment public key to kitchen certs folder
@@ -527,8 +525,13 @@ def _get_root_environments_path(path=None):
     return root
 
 
-def _create_kitchen(name, path):
-    """ Creates a new knife-solo kitchen in path """
+def _create_kitchen(name, path, secrets_key=None):
+    """Creates a new knife-solo kitchen in path
+
+    :param name: the name of the kitchen
+    :param path: where to create the kitchen
+    :param secrets_key: PEM-formatted private key for data bag encryption
+    """
     if not os.path.exists(path):
         raise CheckmateException("Invalid path: %s" % path)
 
@@ -540,6 +543,7 @@ def _create_kitchen(name, path):
     params = ['knife', 'kitchen', '.']
     _run_kitchen_command(kitchen_path, params)
 
+    secrets_key_path = os.path.join(kitchen_path, 'certificates', 'chef.pem')
     config = """# knife -c knife.rb
 file_cache_path  "%s"
 cookbook_path    ["%s", "%s"]
@@ -547,11 +551,14 @@ role_path  "%s"
 data_bag_path  "%s"
 log_level        :info
 log_location     STDOUT
-ssl_verify_mode  :verify_none""" % (kitchen_path,
+ssl_verify_mode  :verify_none
+encrypted_data_bag_secret "%s"
+""" % (kitchen_path,
             os.path.join(kitchen_path, 'cookbooks'),
             os.path.join(kitchen_path, 'site-cookbooks'),
             os.path.join(kitchen_path, 'roles'),
-            os.path.join(kitchen_path, 'data_bags'))
+            os.path.join(kitchen_path, 'data_bags'),
+            secrets_key_path)
     solo_file = os.path.join(kitchen_path, 'solo.rb')
     with file(solo_file, 'w') as f:
         f.write(config)
@@ -561,6 +568,18 @@ ssl_verify_mode  :verify_none""" % (kitchen_path,
     certs_path = os.path.join(kitchen_path, 'certificates')
     os.mkdir(certs_path, 0770)
     LOG.debug("Created certs directory: %s" % certs_path)
+
+    # Store (generate if necessary) the secrets file
+    if not secrets_key:
+        # celery runs os.fork(). We need to reset the random number generator
+        # before generating a key. See atfork.__doc__
+        atfork()
+        key = RSA.generate(2048)
+        secrets_key = key.exportKey('PEM')
+        LOG.debug("Generated secrets private key")
+    with file(secrets_key_path, 'w') as f:
+        f.write(secrets_key)
+    LOG.debug("Stored secrets file: %s" % secrets_key_path)
 
     # Knife defaults to knife.rb, but knife-solo looks for solo.rb, so we link
     # so that knife and knife-solo commands will work
@@ -573,7 +592,7 @@ ssl_verify_mode  :verify_none""" % (kitchen_path,
 
 
 def _create_environment_keys(environment_path, private_key=None,
-        public_key=None):
+        public_key_ssh=None):
     """Put keys in an existing environment
 
     If none are provided, a new set of public/private keys are created
@@ -595,16 +614,16 @@ def _create_environment_keys(environment_path, private_key=None,
             private_key_path)
 
     # Generate public key
-    if not public_key:
+    if not public_key_ssh:
         params = ['ssh-keygen', '-y', '-f', private_key_path]
-        public_key = check_output(params)
+        public_key_ssh = check_output(params)
 
     # Write it to environment
     public_key_path = os.path.join(environment_path, 'checkmate.pub')
     with file(public_key_path, 'w') as f:
-        f.write(public_key)
+        f.write(public_key_ssh)
     LOG.debug("Wrote environment public key: %s" % public_key_path)
-    return dict(public_key=public_key, public_key_path=public_key_path,
+    return dict(public_key_ssh=public_key_ssh, public_key_path=public_key_path,
             private_key_path=private_key_path)
 
 

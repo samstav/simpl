@@ -14,7 +14,7 @@ from checkmate.environments import Environment
 from checkmate.exceptions import CheckmateException
 from checkmate.workflows import create_workflow
 from checkmate.utils import write_body, read_body, extract_sensitive_data,\
-        merge_dictionary, with_tenant
+        merge_dictionary, with_tenant, is_ssh_key
 
 LOG = logging.getLogger(__name__)
 db = get_driver('checkmate.db.sql.Driver')
@@ -505,8 +505,42 @@ def plan_dict(deployment):
     resources['connections'] = connections
     deployment['resources'] = resources
 
+    #
+    # Create context with creds and keys
+    #
+
+    #TODO: make this smarter
+    creds = [p['credentials'][0] for key, p in
+                    deployment['environment']['providers'].iteritems()
+                    if key == 'common']
+    if not creds:
+        raise CheckmateException("No credentials supplied in "
+                "environment/common/credentials")
+    else:
+        creds = creds[0]
+
+    context = {
+        'id': deployment['id'],
+        'username': creds['username'],
+        'apikey': creds['apikey'],
+        'region': inputs.get('blueprint', {}).get('region'),
+    }
+
+    # Read in the public keys to be passed to newly created servers.
+    os_keys = get_os_env_keys()
+
+    # Look in inputs:
+    keys = get_keys(inputs, environment)
+    if os_keys:
+        keys.update(os_keys)
+
+    if not keys:
+        LOG.warn("No keys supplied. Less secure password auth will be used.")
+
+    context['keys'] = keys
+
     #Create workflow
-    workflow = create_workflow(deployment)
+    workflow = create_workflow(deployment, context)
 
     return {'deployment': deployment, 'workflow': workflow}
 
@@ -544,3 +578,80 @@ def check_deployment(deployment):
                 errors.append("'%s' not a valid value. Only %s allowed" % (key,
                         ', '.join(allowed)))
     return errors
+
+
+def get_os_env_keys():
+    """Get keys if they are set in the os_environment"""
+    keys = {}
+    if ('CHECKMATE_PUBLIC_KEY' in os.environ and
+            os.path.exists(os.path.expanduser(
+                os.environ['CHECKMATE_PUBLIC_KEY']))):
+        try:
+            path = os.path.expanduser(os.environ['CHECKMATE_PUBLIC_KEY'])
+            with file(path, 'r') as f:
+                key = f.read()
+            if is_ssh_key(key):
+                keys['checkmate'] = {'public_key_ssh': key,
+                        'public_key_path': path}
+            else:
+                keys['checkmate'] = {'public_key': key,
+                        'public_key_path': path}
+        except IOError as (errno, strerror):
+            LOG.error("I/O error reading public key from CHECKMATE_PUBLIC_KEY="
+                    "'%s' environment variable (%s): %s" % (
+                            os.environ['CHECKMATE_PUBLIC_KEY'], errno,
+                                                                strerror))
+        except StandardError as exc:
+            LOG.error("Error reading public key from CHECKMATE_PUBLIC_KEY="
+                    "'%s' environment variable: %s" % (
+                            os.environ['CHECKMATE_PUBLIC_KEY'], exc))
+    return keys
+
+
+def get_keys(inputs, environment):
+    """Get keys from inputs or generate them if they are not there.
+
+    Inputs can supply a 'client' public key to be added to all servers.
+
+    Inputs can also supply environment private/public key pairs. If not, then
+    a pair is generated.
+    """
+    keys = {}
+    # Get 'client' keys
+    if 'client_public_key' in inputs:
+        if is_ssh_key(inputs['client_public_key']):
+            abort("ssh public key must be in public_key_ssh field, not "
+                    "client_public_key. client_public_key must be in PEM "
+                    "format.")
+        keys['client'] = {'public_key': inputs['client_public_key']}
+
+    if 'client_public_key_ssh' in inputs:
+        if not is_ssh_key(inputs['client_public_key_ssh']):
+            abort("client_public_key_ssh input is not a valid ssh public key "
+                    "string.")
+        keys['client'] = {'public_key_ssh': inputs['client_public_key_ssh']}
+
+    # Get 'environment' keys
+    private_key = inputs.get('environment_private_key')
+    if private_key is None or private_key == '=generate()':
+        private, public = environment.generate_key_pair()
+        keys['environment'] = dict(public_key=public['PEM'],
+                public_key_ssh=public['ssh'], private_key=private['PEM'])
+        if private_key == '=generate()':
+            inputs['environment_private_key'] = private['PEM']
+    else:
+        # Private key was supplied, make sure we have or can get a public key
+        results = {}
+        if 'environment_public_key' in inputs:
+            results['public_key'] = inputs['environment_public_key']
+        if 'environment_public_key_ssh' in inputs:
+            results['public_key_ssh'] = inputs['environment_public_key_ssh']
+        if 'environment_public_key_ssh' not in results:
+            # Generate public ssh key
+            public_key = environment.get_ssh_public_key(private_key)
+            results['public_key_ssh'] = public_key
+
+        results['private_key'] = private['PEM']
+        keys['environment'] = results
+
+    return keys

@@ -6,7 +6,6 @@ CheckMate
 # pylint: disable=E0611
 from bottle import get, post, put, request, response, abort
 import logging
-import os
 import uuid
 
 try:
@@ -25,7 +24,7 @@ from checkmate.db import get_driver, any_id_problems
 from checkmate.environments import Environment
 from checkmate.exceptions import CheckmateException
 from checkmate.utils import write_body, read_body, extract_sensitive_data,\
-        merge_dictionary, is_ssh_key, with_tenant
+        merge_dictionary, with_tenant, get_source_body
 from checkmate import orchestrator
 
 db = get_driver('checkmate.db.sql.Driver')
@@ -371,13 +370,12 @@ def get_SpiffWorkflow_status(workflow):
     return result
 
 
-def create_workflow(deployment):
+def create_workflow(deployment, context):
     """Creates a SpiffWorkflow from a CheckMate deployment dict
 
     :returns: SpiffWorkflow.Workflow"""
     LOG.info("Creating workflow for deploymewnt '%s'" % deployment['id'])
     blueprint = deployment['blueprint']
-    inputs = deployment['inputs']
     environment = deployment.get('environment')
     if not environment:
         abort(406, "Environment not found. Nowhere to deploy to.")
@@ -397,60 +395,20 @@ def create_workflow(deployment):
                        properties={'estimated_duration': 5})
     wfspec.start.connect(auth_task)
 
-    # Second task will take output from first task (the 'token') and write it
-    # into the 'deployment' dict to be available to future tasks
-    write_token = Transform(wfspec, "Get Token", transforms=[
-            "my_task.attributes['context']['authtoken']"\
-            "=my_task.attributes['token']"], description="Get token response "
-                    "and write it into context")
-    auth_task.connect(write_token)
+    # Second task will take output from first task (the 'token') write it to
+    # the context. It will conversely take the keys from the context and write
+    # the them as attributes to be available to future tasks
+    def write_credentials_code(my_task):
+        my_task.attributes['context']['authtoken'] = \
+                my_task.attributes['token']
+        env_keys = my_task.attributes['context']['keys']['environment']
+        my_task.set_attribute(**env_keys)
 
-    #
-    # Create context with creds and keys
-    #
-
-    # Read in the public keys to be passed to newly created servers.
-    keys = get_os_env_keys()
-    if 'public_key' in inputs:
-        if not is_ssh_key(inputs['public_key']):
-            abort("public_key input is not a valid public key string.")
-        keys['client'] = {'public_key': inputs['public_key']}
-    if not keys:
-        LOG.warn("No public keys supplied. Less secure password auth will be "
-                "used.")
-
-    bp_inputs = inputs.get('blueprint')
-    private_key = bp_inputs.get('private_key')
-    public_key = bp_inputs.get('public_key')
-    if private_key is None or private_key == '=generate()':
-        private, public = environment.generate_key_pair()
-        keys['environment'] = dict(public_key=public['PEM'],
-                public_key_ssh=public['ssh'], private_key=private['PEM'])
-        if private_key == '=generate()':
-            bp_inputs['private_key'] = private['PEM']
-            if public_key:
-                LOG.warning("Overwritting supplied public key by generated "
-                        "keys because the private_key value was blank or set "
-                        "to '=generate()'")
-            bp_inputs['public_key'] = public['PEM']
-    else:
-        if public_key is None:
-            public_key = environment.get_ssh_public_key(private_key)
-            keys['environment'] = dict(public_key_ssh=public_key,
-                private_key=private_key)
-
-    #TODO: make this smarter
-    creds = [p['credentials'][0] for key, p in
-            deployment['environment']['providers'].iteritems()
-            if key == 'common'][0]
-
-    context = {
-        'id': deployment['id'],
-        'username': creds['username'],
-        'apikey': creds['apikey'],
-        'region': bp_inputs.get('region'),
-        'keys': keys
-    }
+    write_credentials = Transform(wfspec, "Get Credentials",
+            transforms=[get_source_body(write_credentials_code)],
+            description="Get token response and write it into context. Get "
+                    "generated/supplied keys and put them in attributes")
+    auth_task.connect(write_credentials)
 
     #
     # Create the tasks that make the async calls
@@ -516,7 +474,7 @@ def create_workflow(deployment):
 
         if not provider_result['root'].inputs:
             # Run after creds available
-            write_token.connect(provider_result['root'])
+            write_credentials.connect(provider_result['root'])
 
     # Do relations
     for key, resource in deployment['resources'].iteritems():
@@ -568,27 +526,3 @@ def wait_for(wf_spec, task, wait_list, name=None, **kwargs):
     for t in wait_list:
         t.connect(join)
     return join
-
-
-def get_os_env_keys():
-    """Get keys if they are set in the os_environment"""
-    keys = {}
-    if ('CHECKMATE_PUBLIC_KEY' in os.environ and
-            os.path.exists(os.path.expanduser(
-                os.environ['CHECKMATE_PUBLIC_KEY']))):
-        try:
-            path = os.path.expanduser(os.environ['CHECKMATE_PUBLIC_KEY'])
-            f = open(path)
-            keys['checkmate'] = {'public_key': f.read(),
-                    'public_key_path': path}
-            f.close()
-        except IOError as (errno, strerror):
-            LOG.error("I/O error reading public key from CHECKMATE_PUBLIC_KEY="
-                    "'%s' environment variable (%s): %s" % (
-                            os.environ['CHECKMATE_PUBLIC_KEY'], errno,
-                                                                strerror))
-        except StandardError as exc:
-            LOG.error("Error reading public key from CHECKMATE_PUBLIC_KEY="
-                    "'%s' environment variable: %s" % (
-                            os.environ['CHECKMATE_PUBLIC_KEY'], exc))
-    return keys

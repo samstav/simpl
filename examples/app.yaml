@@ -515,11 +515,14 @@ deployment:                                                                     
   blueprint: *wp-multi
   environment: *rackspace-legacy-cloud-test
   inputs: # Answers to or values for blueprint/provider options & settings.
+    # Provide an additional public key to be added to all hosts
+    client_public_key_ssh: ${CHECKMATE_CLIENT_PUBLIC_KEY}
+    # Optionally specify an environment private key
+    environment_private_key: =generate()  # Optional, since default is =generate(). This will also write to public_key and public_key_ssh
     blueprint:
       domain: ${CHECKMATE_CLIENT_DOMAIN}
       username: joe
       password: =generate() # Ugh!
-      private_key: =generate()  # will also write to public_key and public_key_ssh
       ssl: required  # no port 80
       ssl_public_key: skldjfhalkjsdfhasd
       ssl_private_key: asdfasdfasdf
