@@ -52,6 +52,8 @@ class Provider(ProviderBase):
                 call_args=[Attrib('ip'), deployment['id']],
                 password=Attrib('password'),
                 omnibus_version="0.10.10-1",
+                identity_file=Attrib('private_key_path'),
+                attributes={'deployment': {'id': deployment['id']}},
                 defines=dict(resource=key,
                             provider=self.key,
                             task_tags=['root']),
@@ -137,8 +139,8 @@ class Provider(ProviderBase):
         # Call manage_databag(environment, bagname, itemname, contents)
         write_bag = Celery(wfspec, 'Write Data Bag',
                'checkmate.providers.opscode.local.manage_databag',
-                call_args=[deployment['id'], 'deployments',
-                        "webapp_wordpress_app1", Attrib('bag')],
+                call_args=[deployment['id'], deployment['id'],
+                        "webapp_wordpress_A", Attrib('bag')],
                 secret_file='certificates/chef.pem',
                 defines=dict(resource=key,
                             provider=self.key,
@@ -766,13 +768,25 @@ def download_roles(environment, path=None, roles=None, source=None):
 
 @task
 def register_node(host, environment, path=None, password=None,
-        omnibus_version=None):
+        omnibus_version=None, attributes=None, identity_file=None):
     """Register a node in Chef.
+
     Using 'knife prepare' we will:
     - update apt caches on Ubuntu by default (which bootstrap does not do)
     - install chef on the client
     - register the node by creating as .json file for it in /nodes/
-    Note: Maintaining same 'register_node' name as chefserver.py"""
+
+    Note: Maintaining same 'register_node' name as chefserver.py
+
+    :param host: the public IP of the host (that's how knife solo tracks the
+        nodes)
+    :param environment: the ID of the environment
+    :param path: an optional override for path to the environment root
+    :param password: the node's password
+    :param omnibus_version: override for knife bootstrap (default=latest)
+    :param attributes: attributes to set on node (dict)
+    :param identity_file: provate key file to use to connect to the node
+    """
     # Get path
     root = _get_root_environments_path(path)
     kitchen_path = os.path.join(root, environment, 'kitchen')
@@ -796,7 +810,17 @@ def register_node(host, environment, path=None, password=None,
         params.extend(['-P', password])
     if omnibus_version:
         params.extend(['--omnibus-version', omnibus_version])
+    if identity_file:
+        params.extend(['-i', identity_file])
     _run_kitchen_command(kitchen_path, params)
+    LOG.info("Knife prepare succeeded for %s" % host)
+
+    if attributes:
+        with file(node_path, 'rw') as f:
+            node = json.load(f)
+            node.update(attributes)
+            json.dump(f, node)
+        LOG.info("Node attributes written in %s" % node_path)
 
 
 def _run_kitchen_command(kitchen_path, params):
