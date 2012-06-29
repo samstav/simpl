@@ -16,9 +16,13 @@ environment:
 
 """
 
-
-def register_providers():
-    import checkmate.providers.opscode.configuration_management
+from checkmate.providers import register_providers
 
 
-register_providers()
+def register():
+    from checkmate.providers.opscode.server import Provider as server
+    from checkmate.providers.opscode.local import Provider as local
+    register_providers([server, local])
+
+
+register()

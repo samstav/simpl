@@ -121,7 +121,7 @@ def execute_workflow(id, tenant_id=None):
     if not entity:
         abort(404, 'No workflow with id %s' % id)
 
-    async_call = orchestrator.distribute_run_workflow.delay(id, timeout=10)
+    async_call = orchestrator.run_workflow.delay(id, timeout=10)
     LOG.debug("Executed run workflow task: %s" % async_call)
     entity = db.get_workflow(id)
     return write_body(entity, request, response)
@@ -332,7 +332,7 @@ def execute_workflow_task(id, task_id, tenant_id=None):
         abort(404, 'No workflow with id %s' % id)
 
     #Synchronous call
-    orchestrator.distribute_run_one_task(id, task_id, timeout=10)
+    orchestrator.run_one_task(id, task_id, timeout=10)
     entity = db.get_workflow(id)
 
     serializer = DictionarySerializer()
@@ -388,7 +388,7 @@ def create_workflow(deployment):
 
     # First task will read 'deployment' attribute and send it to Stockton
     auth_task = Celery(wfspec, 'Authenticate',
-                       'stockton.auth.distribute_get_token',
+                       'checkmate.providers.rackspace.identity.get_token',
                        call_args=[Attrib('context')], result_key='token',
                        description="Authenticate and get a token to use with "
                             "other calls. Authentication also gates any "
@@ -591,22 +591,4 @@ def get_os_env_keys():
             LOG.error("Error reading public key from CHECKMATE_PUBLIC_KEY="
                     "'%s' environment variable: %s" % (
                             os.environ['CHECKMATE_PUBLIC_KEY'], exc))
-    if ('STOCKTON_PUBLIC_KEY' in os.environ and
-            os.path.exists(os.path.expanduser(
-                os.environ['STOCKTON_PUBLIC_KEY']))):
-        try:
-            path = os.path.expanduser(os.environ['STOCKTON_PUBLIC_KEY'])
-            f = open(path)
-            keys['stockton'] = {'public_key': f.read(),
-                    'public_key_path': path}
-            f.close()
-        except IOError as (errno, strerror):
-            LOG.error("I/O error reading public key from STOCKTON_PUBLIC_KEY="
-                    "'%s' environment variable (%s): %s" % (
-                            os.environ['STOCKTON_PUBLIC_KEY'], errno,
-                                                                strerror))
-        except StandardError as exc:
-            LOG.error("Error reading public key from STOCKTON_PUBLIC_KEY="
-                    "'%s' environment variable: %s" % (
-                            os.environ['STOCKTON_PUBLIC_KEY'], exc))
     return keys

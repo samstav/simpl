@@ -29,3 +29,15 @@ class CheckmateNoTokenError(CheckmateException):
 class CheckmateNoMapping(CheckmateException):
     """No mapping found between parameter types"""
     pass
+
+
+class CheckmateCalledProcessError(CheckmateException):
+    def __init__(self, returncode, cmd, output=None):
+        self.returncode = returncode
+        self.cmd = cmd
+        self.output = output
+        super(CheckmateException, self).__init__(returncode, cmd, output)
+
+
+def CheckmateServerBuildFailed(CheckmateException):
+    pass
