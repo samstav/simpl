@@ -61,6 +61,19 @@ class Provider(ProviderBase):
                        "register it in the environment",
                 properties={'estimated_duration': 120})
 
+        bootstrap_task = Celery(wfspec, 'Pre-Configure Server:%s' % key,
+               'checkmate.providers.opscode.local.cook',
+                call_args=[Attrib('ip'), deployment['id']],
+                recipes=['build-essential'],
+                password=Attrib('password'),
+                identity_file=Attrib('private_key_path'),
+                description="Run build-essential on server",
+                defines=dict(resource=key,
+                            provider=self.key,
+                            task_tags=None),
+                properties={'estimated_duration': 100})
+        register_node_task.connect(bootstrap_task)
+
         # Register only when server is up and environment is ready
         if wait_on:
             tasks = wait_on[:]
@@ -148,7 +161,7 @@ class Provider(ProviderBase):
                 properties={'estimated_duration': 5})
         build_bag.connect(write_bag)
 
-        bootstrap_task = Celery(wfspec, 'Configure Server:%s' % key,
+        configure_task = Celery(wfspec, 'Configure Application:%s' % key,
                'checkmate.providers.opscode.local.cook',
                 call_args=[Attrib('ip'), deployment['id']],
                 roles=['build-ks', 'wordpress-web'],
@@ -159,8 +172,9 @@ class Provider(ProviderBase):
                             provider=self.key,
                             task_tags=['final']),
                 properties={'estimated_duration': 100})
+
         # Note: This join is assumed to exist by create_workflow
-        wait_for(wfspec, bootstrap_task, [register_node_task, write_bag],
+        wait_for(wfspec, configure_task, [bootstrap_task, write_bag],
                 name="Check on Registration and Overrides:%s" % key,
                 description="Before applying chef recipes, we need to know "
                 "that the server has chef on it and that the overrides "
