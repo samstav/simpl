@@ -18,10 +18,10 @@ LOG = logging.getLogger(__name__)
 
 os.environ['CHECKMATE_DATA_PATH'] = os.path.join(os.path.dirname(__file__),
                                               'data')
-os.environ['BROKER_USERNAME'] = os.environ.get('BROKER_USERNAME', 'checkmate')
-os.environ['BROKER_PASSWORD'] = os.environ.get('BROKER_PASSWORD', 'password')
-os.environ['BROKER_HOST'] = os.environ.get('BROKER_HOST', 'localhost')
-os.environ['BROKER_PORT'] = os.environ.get('BROKER_PORT', '5672')
+os.environ['CHECKMATE_BROKER_USERNAME'] = os.environ.get('CHECKMATE_BROKER_USERNAME', 'checkmate')
+os.environ['CHECKMATE_BROKER_PASSWORD'] = os.environ.get('CHECKMATE_BROKER_PASSWORD', 'password')
+os.environ['CHECKMATE_BROKER_HOST'] = os.environ.get('CHECKMATE_BROKER_HOST', 'localhost')
+os.environ['CHECKMATE_BROKER_PORT'] = os.environ.get('CHECKMATE_BROKER_PORT', '5672')
 
 from checkmate import server  # enables logging
 from checkmate.deployments import plan_dict
@@ -30,12 +30,12 @@ from checkmate.workflows import get_os_env_keys
 
 # Environment variables and safe alternatives
 ENV_VARS = {
-        'CHECKMATE_USERNAME': 'john.doe',
-        'CHECKMATE_APIKEY': 'secret-api-key',
-        'CHECKMATE_PUBLIC_KEY': 'ssh-rsa AAAAB3NzaC1...',
-        'CHECKMATE_PRIVATE_KEY': 'mumble-code',
-        'CHECKMATE_DOMAIN': 'test.local',
-        'CHECKMATE_REGION': 'north'
+        'CHECKMATE_CLIENT_USERNAME': 'john.doe',
+        'CHECKMATE_CLIENT_APIKEY': 'secret-api-key',
+        'CHECKMATE_CLIENT_PUBLIC_KEY': 'ssh-rsa AAAAB3NzaC1...',
+        'CHECKMATE_CLIENT_PRIVATE_KEY': 'mumble-code',
+        'CHECKMATE_CLIENT_DOMAIN': 'test.local',
+        'CHECKMATE_CLIENT_REGION': 'north'
     }
 
 
@@ -103,7 +103,7 @@ class TestWorkflow(unittest.TestCase):
 
         calls = [{
                 # Authenticate first
-                'call': 'stockton.auth.distribute_get_token',
+                'call': 'checkmate.providers.rackspace.identity.get_token',
                 'args': [And(Or(In('apikey'), In('password')),
                         In('username'))],
                 'kwargs': None,
@@ -111,7 +111,7 @@ class TestWorkflow(unittest.TestCase):
             },
             {
                 # Create Chef Environment
-                'call': 'stockton.cheflocal.distribute_create_environment',
+                'call': 'checkmate.providers.opscode.local.create_environment',
                 'args': IgnoreArg(),
                 'kwargs': None,
                 'result': {'environment': '/var/tmp/DEP-ID-1000/',
@@ -122,7 +122,8 @@ class TestWorkflow(unittest.TestCase):
             },
             {
                 # Create Database
-                'call': 'stockton.db.distribute_create_instance',
+                'call': 'checkmate.providers.rackspace.database.'
+                        'create_instance',
                 'args': [And(ContainsKeyValue('db_name', 'db1'),
                         In('db_password'), ContainsKeyValue('db_username',
                                 'wp_user_db1')), IsA(basestring),
@@ -136,14 +137,15 @@ class TestWorkflow(unittest.TestCase):
             },
             {
                 # Create Load Balancer
-                'call': 'stockton.lb.distribute_create_loadbalancer',
+                'call': 'checkmate.providers.rackspace.loadbalancer.'
+                        'create_loadbalancer',
                 'args': [IsA(dict), IsA(basestring), 'PUBLIC', 'HTTP', 80],
                 'kwargs': IgnoreArg(),
                 'result': {'id': 20001, 'vip': "200.1.1.1"}
             },
             {
                 # Create Database User
-                'call': 'stockton.db.distribute_add_user',
+                'call': 'checkmate.providers.rackspace.database.add_user',
                 'args': [IsA(dict), 'db-inst-1', ['db1'], 'wp_user_db1',
                         IsA(basestring)],
                 'kwargs': None,
@@ -151,18 +153,20 @@ class TestWorkflow(unittest.TestCase):
             },
             {
                 # Create First Server
-                'call': 'stockton.server.distribute_create',
+                'call': 'checkmate.providers.rackspace.compute.'
+                        'create_server',
                 'args': [Func(context_has_server_settings),
                         StrContains('web1')],
                 'kwargs': And(ContainsKeyValue('image', 119),
-                        ContainsKeyValue('flavor', 1),
+                        ContainsKeyValue('flavor', 2),
                         ContainsKeyValue('ip_address_type', 'public')),
                 'result': {'id': 10001, 'ip': "10.1.1.1",
                         'password': "shecret"}
             },
             {
                 # Create Second Server
-                'call': 'stockton.server.distribute_create',
+                'call': 'checkmate.providers.rackspace.compute.'
+                        'create_server',
                 'args': [Func(context_has_server_settings),
                         StrContains('web2')],
                 'kwargs': And(ContainsKeyValue('image', 119),
@@ -173,7 +177,8 @@ class TestWorkflow(unittest.TestCase):
             },
             {
                 # Wait for First Server Build (Legacy format)
-                'call': 'stockton.server.distribute_wait_on_build',
+                'call': 'checkmate.providers.rackspace.compute.'
+                        'wait_on_build',
                 'args': [IsA(dict), 10001],
                 'kwargs': And(In('password')),
                 'result': {
@@ -200,7 +205,8 @@ class TestWorkflow(unittest.TestCase):
             },
             {
                 # Wait for Second Server Build (Nova format)
-                'call': 'stockton.server.distribute_wait_on_build',
+                'call': 'checkmate.providers.rackspace.compute.'
+                        'wait_on_build',
                 'args': [IsA(dict), "10-uuid-002"],
                 'kwargs': And(In('password')),
                 'result': {
@@ -227,20 +233,20 @@ class TestWorkflow(unittest.TestCase):
             },
             {
                 # Bootstrap Server 1 with Chef
-                'call': 'stockton.cheflocal.distribute_register_node',
+                'call': 'checkmate.providers.opscode.local.register_node',
                 'args': ['10.1.1.1', 'DEP-ID-1000'],
                 'kwargs': In('password'),
                 'result': None
             },
             {
                 # Bootstrap Server 2 with Chef
-                'call': 'stockton.cheflocal.distribute_register_node',
+                'call': 'checkmate.providers.opscode.local.register_node',
                 'args': ['10.1.1.2', 'DEP-ID-1000'],
                 'kwargs': In('password'),
                 'result': None
             },
             {
-                'call': 'stockton.cheflocal.distribute_manage_role',
+                'call': 'checkmate.providers.opscode.local.manage_role',
                 'args': ['wordpress-web', 'DEP-ID-1000'],
                 'kwargs': {'override_attributes': {'wordpress': {'db': {
                         'host': 'verylong.rackspaceclouddb.com',
@@ -250,27 +256,27 @@ class TestWorkflow(unittest.TestCase):
                 'result': None
             },
             {
-                'call': 'stockton.cheflocal.distribute_cook',
+                'call': 'checkmate.providers.opscode.local.cook',
                 'args': ['10.1.1.1', 'DEP-ID-1000'],
                 'kwargs': And(In('password'), ContainsKeyValue('roles',
                         ['build-ks', 'wordpress-web'])),
                 'result': None
             },
             {
-                'call': 'stockton.lb.distribute_add_node',
+                'call': 'checkmate.providers.rackspace.loadbalancer.add_node',
                 'args': [IsA(dict), 20001, '10.1.2.1', 80],
                 'kwargs': None,
                 'result': None
             },
             {
-                'call': 'stockton.cheflocal.distribute_cook',
+                'call': 'checkmate.providers.opscode.local.cook',
                 'args': ['10.1.1.2', 'DEP-ID-1000'],
                 'kwargs': And(In('password'), ContainsKeyValue('roles',
                         ['build-ks', 'wordpress-web'])),
                 'result': None
             },
             {
-                'call': 'stockton.lb.distribute_add_node',
+                'call': 'checkmate.providers.rackspace.loadbalancer.add_node',
                 'args': [IsA(dict), 20001, '10.1.2.2', 80],
                 'kwargs': None,
                 'result': None

@@ -12,7 +12,7 @@
 #
 # To perform the above transform and actually send the output to checkmate:
 #
-#     CHECKMATE_TENANT=$(curl -H "X-Auth-User: ${CHECKMATE_USERNAME}" -H "X-Auth-Key: ${CHECKMATE_APIKEY}" -I https://identity.api.rackspacecloud.com/v1.0 -v 2> /dev/null | grep "X-Server-Management-Url" | grep -P -o $'(?!.*/).+$'| tr -d '\r') && CHECKMATE_TOKEN=$(curl -H "X-Auth-User: ${CHECKMATE_USERNAME}" -H "X-Auth-Key: ${CHECKMATE_APIKEY}" -I https://identity.api.rackspacecloud.com/v1.0 -v 2> /dev/null | grep "X-Auth-Token:" | awk '/^X-Auth-Token:/ { print $2 }') && awk '{while(match($0,"[$][\\{][^\\}]*\\}")) {var=substr($0,RSTART+2,RLENGTH -3);gsub("[$][{]"var"[}]",ENVIRON[var])}}1' < examples/app.yaml | curl -H "X-Auth-Token: ${CHECKMATE_TOKEN}" -H 'content-type: application/x-yaml' http://localhost:8080/${CHECKMATE_TENANT}/deployments/simulate -v --data-binary @-
+#     CHECKMATE_CLIENT_TENANT=$(curl -H "X-Auth-User: ${CHECKMATE_CLIENT_USERNAME}" -H "X-Auth-Key: ${CHECKMATE_CLIENT_APIKEY}" -I https://identity.api.rackspacecloud.com/v1.0 -v 2> /dev/null | grep "X-Server-Management-Url" | grep -P -o $'(?!.*/).+$'| tr -d '\r') && CHECKMATE_CLIENT_TOKEN=$(curl -H "X-Auth-User: ${CHECKMATE_CLIENT_USERNAME}" -H "X-Auth-Key: ${CHECKMATE_CLIENT_APIKEY}" -I https://identity.api.rackspacecloud.com/v1.0 -v 2> /dev/null | grep "X-Auth-Token:" | awk '/^X-Auth-Token:/ { print $2 }') && awk '{while(match($0,"[$][\\{][^\\}]*\\}")) {var=substr($0,RSTART+2,RLENGTH -3);gsub("[$][{]"var"[}]",ENVIRON[var])}}1' < examples/app.yaml | curl -H "X-Auth-Token: ${CHECKMATE_CLIENT_TOKEN}" -H 'content-type: application/x-yaml' http://localhost:8080/${CHECKMATE_CLIENT_TENANT}/deployments/simulate -v --data-binary @-
 #
 # Note: the deployments/simulate URL is used for testing and does not persist anythoing on the server. The deployment resides in memory at the deployments/simulate
 #       URL (i.e. simulate is a fake ID)
@@ -494,8 +494,8 @@ environment: &rackspace-legacy-cloud-test
       #PROVISIONAL: do we need these? Or should we use the live token (what about deserializing a workflow?)
       credentials:
       - rackspace:
-        username: ${CHECKMATE_USERNAME}
-        apikey: ${CHECKMATE_APIKEY}
+        username: ${CHECKMATE_CLIENT_USERNAME}
+        apikey: ${CHECKMATE_CLIENT_APIKEY}
       #- ssh:
       #  public_key: =generate()
       #PROTOTYPING:
@@ -516,14 +516,14 @@ deployment:                                                                     
   environment: *rackspace-legacy-cloud-test
   inputs: # Answers to or values for blueprint/provider options & settings.
     blueprint:
-      domain: ${CHECKMATE_DOMAIN}
+      domain: ${CHECKMATE_CLIENT_DOMAIN}
       username: joe
       password: =generate() # Ugh!
       private_key: =generate()  # will also write to public_key and public_key_ssh
       ssl: required  # no port 80
       ssl_public_key: skldjfhalkjsdfhasd
       ssl_private_key: asdfasdfasdf
-      region: ${CHECKMATE_REGION}  # TODO: this is still read from os.environ
+      region: ${CHECKMATE_CLIENT_REGION}  # TODO: this is still read from os.environ
       high-availability: false
       requests-per-second: 60
     services:
