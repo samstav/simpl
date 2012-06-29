@@ -170,12 +170,12 @@ class run_workflow(AbortableTask):
                 # Report progress
                 total = len(wf.get_tasks(state=Task.ANY_MASK))  # Changes
                 completed = len(wf.get_tasks(state=Task.COMPLETED))
-                LOG.debug("Workflow status: %s/%s (state=%s)" % (completed, total,
-                        "PROGRESS"))
+                LOG.debug("Workflow status: %s/%s (state=%s)" % (completed,
+                        total, "PROGRESS"))
                 self.update_state(state="PROGRESS",
                         meta={'complete': completed, 'total': total})
             else:
-                # No progress made. So we lose some priority (to max of 20s wait)
+                # No progress made. So drop priority (to max of 20s wait)
                 if wait < 20:
                     wait += 1
 

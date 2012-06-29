@@ -196,8 +196,8 @@ class Environment():
     def generate_key_pair(self, bits=2048):
         """Generates a private/public key pair.
 
-        returns them as a private, public tuple of dicts. The dicts have key, and
-        PEM values. The public key also has an ssh value in it"""
+        returns them as a private, public tuple of dicts. The dicts have key,
+        and PEM values. The public key also has an ssh value in it"""
         key = RSA.generate(2048)
         private_string = key.exportKey('PEM')
         public = key.publickey()

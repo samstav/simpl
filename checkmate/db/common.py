@@ -51,9 +51,10 @@ def get_driver(name):
 def any_tenant_id_problems(id):
     """Validates the tenant provided is safe and returns problems as a string.
 
-    To use this, call it with a tenant ID you want to validate. If the response is
-    None, then the ID is good. Otherwise, the response is a string explaining
-    the problem with the ID that you can use to return to the client"""
+    To use this, call it with a tenant ID you want to validate. If the response
+    is None, then the ID is good. Otherwise, the response is a string
+    explaining the problem with the ID that you can use to return to the
+    client"""
     allowed_start_chars = "abcdefghijklmnopqrstuvwxyz"\
                           "ABCDEFGHIJKLMNOPQRSTUVWXYZ"\
                           "0123456789"

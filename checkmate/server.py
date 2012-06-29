@@ -47,7 +47,8 @@ import httplib
 import json
 import os
 import logging
-# some distros install as PAM (Ubuntu, SuSE) https://bugs.launchpad.net/keystone/+bug/938801
+# some distros install as PAM (Ubuntu, SuSE)
+# https://bugs.launchpad.net/keystone/+bug/938801
 try:
     import pam
 except ImportError:
@@ -518,7 +519,8 @@ class BrowserMiddleware(object):
         # Add static routes
         @get('/favicon.ico')
         def favicon():
-            """Without this, browsers keep getting a 404 and perceive slow response """
+            """Without this, browsers keep getting a 404 and perceive slow
+            response """
             return static_file('favicon.ico',
                     root=os.path.join(os.path.dirname(__file__), 'static'))
 
@@ -530,8 +532,8 @@ class BrowserMiddleware(object):
 
         @get('/')
         def root():
-            return write_body('Welcome to the CheckMate Administration Interface',
-                    request, response)
+            return write_body("Welcome to the CheckMate Administration"
+                    "Interface", request, response)
 
     def __call__(self, e, h):
         return self.app(e, h)
@@ -542,7 +544,8 @@ class BrowserMiddleware(object):
         name = 'default'
         if path:
             if path[0] == '/':
-                parts = path[1:].split('/')  # normalize to always not include first path
+                # normalize to always not include first path
+                parts = path[1:].split('/')
             else:
                 parts = path.split('/')
             if len(parts) > 0 and parts[0] not in RESOURCES and \

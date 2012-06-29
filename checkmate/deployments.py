@@ -529,8 +529,8 @@ def _verify_required_blueprint_options_supplied(deployment):
 
 
 def check_deployment(deployment):
-    """Validates deployment (a combination of components, blueprints, deployments,
-    and environments)
+    """Validates deployment (a combination of components, blueprints,
+    deployments, and environments)
 
     This is a simple, initial atempt at validation"""
     errors = []

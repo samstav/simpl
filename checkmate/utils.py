@@ -144,7 +144,8 @@ def extract_sensitive_data(data, sensitive_keys=None):
             sensitive = []
             for value in data:
                 if isinstance(value, dict):
-                    c, s = recursive_split(value, sensitive_keys=sensitive_keys)
+                    c, s = recursive_split(value,
+                            sensitive_keys=sensitive_keys)
                     if s is not None:
                         sensitive.append(s)
                         has_sensitive_data = True
@@ -156,7 +157,8 @@ def extract_sensitive_data(data, sensitive_keys=None):
                     else:
                         clean.append({})  # placeholder
                 elif isinstance(value, list):
-                    c, s = recursive_split(value, sensitive_keys=sensitive_keys)
+                    c, s = recursive_split(value,
+                            sensitive_keys=sensitive_keys)
                     if s is not None:
                         sensitive.append(s)
                         has_sensitive_data = True
@@ -179,7 +181,8 @@ def extract_sensitive_data(data, sensitive_keys=None):
                     has_sensitive_data = True
                     sensitive[key] = value
                 elif isinstance(value, dict):
-                    c, s = recursive_split(value, sensitive_keys=sensitive_keys)
+                    c, s = recursive_split(value,
+                            sensitive_keys=sensitive_keys)
                     if s is not None:
                         has_sensitive_data = True
                         sensitive[key] = s
@@ -187,7 +190,8 @@ def extract_sensitive_data(data, sensitive_keys=None):
                         has_clean_data = True
                         clean[key] = c
                 elif isinstance(value, list):
-                    c, s = recursive_split(value, sensitive_keys=sensitive_keys)
+                    c, s = recursive_split(value,
+                            sensitive_keys=sensitive_keys)
                     if s is not None:
                         has_sensitive_data = True
                         sensitive[key] = s
