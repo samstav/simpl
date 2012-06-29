@@ -7,8 +7,6 @@ import time
 from celery import current_app
 from celery.contrib.abortable import AbortableTask
 from celery.task import task
-assert current_app.backend.__class__.__name__ == 'DatabaseBackend'
-assert 'python-stockton' in current_app.backend.dburi.split('/')
 
 try:
     from SpiffWorkflow.specs import WorkflowSpec, Celery, Transform
@@ -25,6 +23,15 @@ from checkmate.db import get_driver
 from checkmate.utils import extract_sensitive_data
 
 LOG = logging.getLogger(__name__)
+
+try:
+    if current_app.backend.__class__.__name__ != 'DatabaseBackend':
+        LOG.warning("Celery backend does not seem to be configured for a "
+                "database")
+    if 'checkmate' not in current_app.backend.dburi.split('/'):
+        LOG.warning('Celery backend does not seem to be in chackmate folder')
+except:
+    pass
 
 
 @task

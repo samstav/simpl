@@ -115,16 +115,32 @@ CheckMate is a REST server. To run it::
 
     $ python checkmate/server.py
 
-You should also have Stockton running (see Stockton docs for setting Stockton
-up), but when starting up Stockton, make sure to add the checkmate
-orchestrator::
+Options::
 
-    $ celeryd -l info --config=celeryconfig -I stockton,checkmate.orchestrator
+    --with-ui: enable support for browsers and HTML templates
+    --debug: log full request/response
+    --newrelic: enable newrelic monitoring
 
-This will add additional calls to celery.
+You also need to have celery running with the checkmate tasks loaded::
+
+    $ celeryd -l info --config=checkmate.celeryconfig -I checkmate.orchestrator,checkmate.ssh,checkmate.providers.rackspace,checkmate.providers.opscode
+
+### Celery Installation
+
+[celeryd](http://www.celeryproject.org/) does the heavy lifting for
+distributing tasks and retrying those that fail.
+
+Install, configure, and start rabbitmq.
+
+    $ sudo apt-get -y install rabbitmq-server python-dev python-setuptools
+    $ sudo rabbitmqctl delete_user guest
+    $ sudo rabbitmqctl add_vhost checkmate
+    $ sudo rabbitmqctl add_user checkmate <some_password_here>
+    $ sudo rabbitmqctl set_permissions -p checkmate checkmate ".*" ".*" ".*"
+    $ sudo rabbitmq-server -detached
 
 
-### Execute a Test Call
+### Trying a test call
 
 You'll need three terminal windows and Rackspace cloud credentials (username &
 API key). In the first terminal window, start Stockton::
@@ -141,8 +157,8 @@ API key). In the first terminal window, start Stockton::
     export STOCKTON_PUBLIC_KEY=~/.ssh/id_rsa.pub  # on a mac
     export STOCKTON_PRIVATE_KEY=~/.ssh/id_rsa     # on a mac
     export STOCKTON_TEST_DOMAIN=validInRaxDNS.local
+    celeryd -l info --config=celeryconfig -I checkmate.orchestrator,checkmate.ssh,checkmate.providers.rackspace,checkmate.providers.opscode
 
-    celeryd -l info --config=celeryconfig -I stockton,checkmate.orchestrator
 
 In the second window, start checkmate::
 
@@ -166,16 +182,29 @@ In the third window, run these scripts::
     export CHECKMATE_USERNAME="*your_rax_user*"
     export CHECKMATE_DOMAIN=*aworkingRAXdomain.com*
     export CHECKMATE_PUBLIC_KEY=~/.ssh/id_rsa.pub
+## Tools
 
+### Monitoring
 
-    awk '{while(match($0,"[%][\\(][^\\)]*\\)[s]")) {var=substr($0,RSTART+2,RLENGTH -4);gsub("[%][(]"var"[)][s]",ENVIRON[var])}}1' < examples/app.yaml | curl -H 'content-type: application/x-yaml' http://localhost:8080/deployments -v --data-binary @-
+celery has a tool called celeryev that can monitor ruinning tasks and events. To
+use it, you need to turn `events` on when running celeryd using -E or --events:
 
+    celeryd -l debug --config=checkmate.celeryconfig -I checkmate.orchestrator,checkmate.ssh,checkmate.providers.rackspace,checkmate.providers.opscode --events
 
-    # this starts a deploymentby picking up app.yaml as a template and replacing in a bunch
-    # of environment variables. Get the ID or Location header from the response, and watch the
-    # status here:
+And then use celeryev from the python-stockton directory to watch events and tasks::
 
-    curl http://localhost:8080/deployments/*enter-your-deployment-id-here*/status
+    celeryev --config=celeryconfig
+
+### Tuning
+
+The following has been tested to run up to 10 simultaneous workflows using amqp::
+
+    celeryd --config=checkmate.celeryconfig -I checkmate.orchestrator,checkmate.ssh,checkmate.providers.rackspace,checkmate.providers.opscode --autoscale=10,2
+
+On Unix/Linux Systems (including Mac), the following
+setting resolves issues with workers hanging::
+
+    export CELERYD_FORCE_EXECV=1
 
 
 ### Dependencies
