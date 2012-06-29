@@ -1,32 +1,36 @@
 #!/usr/bin/env python
-from celery.app import default_app
-from celery.result import AsyncResult
 import copy
 import json
 import logging
+import os
+from string import Template
+import unittest2 as unittest
+import uuid
+
 import mox
 from mox import IsA, In, And, Or, IgnoreArg, ContainsKeyValue, Func, \
         StrContains
-import os
+from celery.app import default_app
+from celery.result import AsyncResult
 from SpiffWorkflow.storage import DictionarySerializer
-from string import Template
-import unittest2 as unittest
 import yaml
-import uuid
 
 LOG = logging.getLogger(__name__)
 
 os.environ['CHECKMATE_DATA_PATH'] = os.path.join(os.path.dirname(__file__),
                                               'data')
-os.environ['CHECKMATE_BROKER_USERNAME'] = os.environ.get('CHECKMATE_BROKER_USERNAME', 'checkmate')
-os.environ['CHECKMATE_BROKER_PASSWORD'] = os.environ.get('CHECKMATE_BROKER_PASSWORD', 'password')
-os.environ['CHECKMATE_BROKER_HOST'] = os.environ.get('CHECKMATE_BROKER_HOST', 'localhost')
-os.environ['CHECKMATE_BROKER_PORT'] = os.environ.get('CHECKMATE_BROKER_PORT', '5672')
+os.environ['CHECKMATE_BROKER_USERNAME'] = os.environ.get(
+        'CHECKMATE_BROKER_USERNAME', 'checkmate')
+os.environ['CHECKMATE_BROKER_PASSWORD'] = os.environ.get(
+        'CHECKMATE_BROKER_PASSWORD', 'password')
+os.environ['CHECKMATE_BROKER_HOST'] = os.environ.get('CHECKMATE_BROKER_HOST',
+        'localhost')
+os.environ['CHECKMATE_BROKER_PORT'] = os.environ.get('CHECKMATE_BROKER_PORT',
+        '5672')
 
 from checkmate import server  # enables logging
-from checkmate.deployments import plan_dict
+from checkmate.deployments import plan_dict, get_os_env_keys
 from checkmate.utils import resolve_yaml_external_refs, is_ssh_key
-from checkmate.workflows import get_os_env_keys
 
 # Environment variables and safe alternatives
 ENV_VARS = {
@@ -72,11 +76,13 @@ class TestWorkflow(unittest.TestCase):
         # Prepare expected call names, args, and returns for mocking
         def context_has_server_settings(context):
             """Checks that server_create call has all necessary settings"""
-            if not is_ssh_key(context['keys']['checkmate']['public_key']):
-                LOG.warn("Create server call did not get checkmate key")
+            if not is_ssh_key(context['keys']['client']['public_key_ssh']):
+                LOG.warn("Create server call did not get client key")
                 return False
-            if not context['keys']['environment']['public_key'] == \
-                    'ssh-rsa AAAAB3NzaC1...':
+            if not (context['keys']['environment']['public_key_ssh'] == \
+                    'ssh-rsa AAAAB3NzaC1...' or
+                    is_ssh_key(context['keys']['environment']['public_key_ssh']
+                    )):
                 LOG.warn("Create server call did not get environment key")
                 return False
             return True
@@ -112,8 +118,10 @@ class TestWorkflow(unittest.TestCase):
             {
                 # Create Chef Environment
                 'call': 'checkmate.providers.opscode.local.create_environment',
-                'args': IgnoreArg(),
-                'kwargs': None,
+                'args': IsA(list),
+                'kwargs': And(ContainsKeyValue('private_key', IgnoreArg()),
+                        ContainsKeyValue('secrets_key', IgnoreArg()),
+                        ContainsKeyValue('public_key_ssh', IgnoreArg())),
                 'result': {'environment': '/var/tmp/DEP-ID-1000/',
                     'kitchen': '/var/tmp/DEP-ID-1000/kitchen',
                     'private_key_path': '/var/tmp/DEP-ID-1000/private.pem',
@@ -153,41 +161,70 @@ class TestWorkflow(unittest.TestCase):
             },
             {
                 # Create First Server
-                'call': 'checkmate.providers.rackspace.compute.'
+                'call': 'checkmate.providers.rackspace.compute_legacy.'
                         'create_server',
                 'args': [Func(context_has_server_settings),
                         StrContains('web1')],
                 'kwargs': And(ContainsKeyValue('image', 119),
                         ContainsKeyValue('flavor', 2),
+                        ContainsKeyValue('prefix', '0'),
                         ContainsKeyValue('ip_address_type', 'public')),
-                'result': {'id': 10001, 'ip': "10.1.1.1",
-                        'password': "shecret"}
+                'result': {'id': 10001, 'ip': "4.4.4.1",
+                        'private_ip': "10.1.1.1",
+                        'password': "shecret",
+                        '0.id': 10001, '0.ip': "4.4.4.1",
+                        '0.private_ip': "10.1.1.1",
+                        '0.password': "shecret"}
             },
             {
-                # Create Second Server
-                'call': 'checkmate.providers.rackspace.compute.'
+                # Create Second Server (Nova format)
+                'call': 'checkmate.providers.rackspace.compute_legacy.'
                         'create_server',
                 'args': [Func(context_has_server_settings),
                         StrContains('web2')],
                 'kwargs': And(ContainsKeyValue('image', 119),
-                        ContainsKeyValue('flavor', 1),
+                        ContainsKeyValue('flavor', 2),
+                        ContainsKeyValue('prefix', '1'),
                         ContainsKeyValue('ip_address_type', 'public')),
-                'result': {'id': "10-uuid-002", 'ip': "10.1.1.2",
-                        'password': "shecret"}
+                'result': {'id': "10-uuid-002", 'password': "shecret",
+                        '1.id': "10-uuid-002", '1.password': "shecret"}
             },
             {
                 # Wait for First Server Build (Legacy format)
-                'call': 'checkmate.providers.rackspace.compute.'
+                'call': 'checkmate.providers.rackspace.compute_legacy.'
                         'wait_on_build',
                 'args': [IsA(dict), 10001],
                 'kwargs': And(In('password')),
                 'result': {
                         'status': "ACTIVE",
+                        '0.status': "ACTIVE",
+                        'ip': '4.4.4.1',
+                        '0.ip': '4.4.4.1',
+                        'private_ip': '10.1.2.1',
+                        '0.private_ip': '10.1.2.1',
                         'addresses': {
                           'public': [
                             {
                               "version": 4,
-                              "addr": "10.1.1.1"
+                              "addr": "4.4.4.1"
+                            },
+                            {
+                              "version": 6,
+                              "addr": "2001:babe::ff04:36c1"
+                            }
+                          ],
+                          'private': [
+                            {
+                              "version": 4,
+                              "addr": "10.1.2.1"
+                            }
+                          ]
+                        },
+                        '0.addresses': {
+                          'public': [
+                            {
+                              "version": 4,
+                              "addr": "4.4.4.1"
                             },
                             {
                               "version": 6,
@@ -205,17 +242,40 @@ class TestWorkflow(unittest.TestCase):
             },
             {
                 # Wait for Second Server Build (Nova format)
-                'call': 'checkmate.providers.rackspace.compute.'
+                'call': 'checkmate.providers.rackspace.compute_legacy.'
                         'wait_on_build',
                 'args': [IsA(dict), "10-uuid-002"],
                 'kwargs': And(In('password')),
                 'result': {
                         'status': "ACTIVE",
+                        '1.status': "ACTIVE",
+                        'ip': '4.4.4.2',
+                        '1.ip': '4.4.4.2',
+                        'private_ip': '10.1.2.2',
+                        '1.private_ip': '10.1.2.2',
                         'addresses': {
                           'public': [
                             {
                               "version": 4,
-                              "addr": "10.1.1.2"
+                              "addr": "4.4.4.2"
+                            },
+                            {
+                              "version": 6,
+                              "addr": "2001:babe::ff04:36c2"
+                            }
+                          ],
+                          'private': [
+                            {
+                              "version": 4,
+                              "addr": "10.1.2.2"
+                            }
+                          ]
+                        },
+                        '1.addresses': {
+                          'public': [
+                            {
+                              "version": 4,
+                              "addr": "4.4.4.2"
                             },
                             {
                               "version": 6,
@@ -234,14 +294,14 @@ class TestWorkflow(unittest.TestCase):
             {
                 # Bootstrap Server 1 with Chef
                 'call': 'checkmate.providers.opscode.local.register_node',
-                'args': ['10.1.1.1', 'DEP-ID-1000'],
+                'args': ['4.4.4.1', 'DEP-ID-1000'],
                 'kwargs': In('password'),
                 'result': None
             },
             {
                 # Bootstrap Server 2 with Chef
                 'call': 'checkmate.providers.opscode.local.register_node',
-                'args': ['10.1.1.2', 'DEP-ID-1000'],
+                'args': ['4.4.4.2', 'DEP-ID-1000'],
                 'kwargs': In('password'),
                 'result': None
             },
@@ -256,10 +316,29 @@ class TestWorkflow(unittest.TestCase):
                 'result': None
             },
             {
+                'call': 'checkmate.providers.opscode.local.manage_databag',
+                'args': ['DEP-ID-1000', 'DEP-ID-1000', 'webapp_wordpress_A',
+                        IsA(dict)],
+                'kwargs': ContainsKeyValue('secret_file',
+                        'certificates/chef.pem'),
+                'result': None
+            },
+            {
                 'call': 'checkmate.providers.opscode.local.cook',
-                'args': ['10.1.1.1', 'DEP-ID-1000'],
+                'args': ['4.4.4.1', 'DEP-ID-1000'],
+                'kwargs': And(In('password'), ContainsKeyValue('recipes',
+                        ['build-essential']),
+                        ContainsKeyValue('identity_file',
+                            '/var/tmp/DEP-ID-1000/private.pem')),
+                'result': None
+            },
+            {
+                'call': 'checkmate.providers.opscode.local.cook',
+                'args': ['4.4.4.1', 'DEP-ID-1000'],
                 'kwargs': And(In('password'), ContainsKeyValue('roles',
-                        ['build-ks', 'wordpress-web'])),
+                        ['build-ks', 'wordpress-web']),
+                        ContainsKeyValue('identity_file',
+                            '/var/tmp/DEP-ID-1000/private.pem')),
                 'result': None
             },
             {
@@ -270,9 +349,20 @@ class TestWorkflow(unittest.TestCase):
             },
             {
                 'call': 'checkmate.providers.opscode.local.cook',
-                'args': ['10.1.1.2', 'DEP-ID-1000'],
+                'args': ['4.4.4.2', 'DEP-ID-1000'],
+                'kwargs': And(In('password'), ContainsKeyValue('recipes',
+                        ['build-essential']),
+                        ContainsKeyValue('identity_file',
+                            '/var/tmp/DEP-ID-1000/private.pem')),
+                'result': None
+            },
+            {
+                'call': 'checkmate.providers.opscode.local.cook',
+                'args': ['4.4.4.2', 'DEP-ID-1000'],
                 'kwargs': And(In('password'), ContainsKeyValue('roles',
-                        ['build-ks', 'wordpress-web'])),
+                        ['build-ks', 'wordpress-web']),
+                        ContainsKeyValue('identity_file',
+                            '/var/tmp/DEP-ID-1000/private.pem')),
                 'result': None
             },
             {
@@ -329,13 +419,18 @@ class TestWorkflow(unittest.TestCase):
             for key, value in keys.iteritems():
                 if 'public_key' in value:
                     result = result.replace(value['public_key'][0:-1],
+                            "-----BEGIN PUBLIC KEY-----\n...\n"
+                            "-----END PUBLIC KEY-----\n")
+                if 'public_key_ssh' in value:
+                    result = result.replace(value['public_key_ssh'][0:-1],
                             ENV_VARS['CHECKMATE_PUBLIC_KEY'])
                 if 'public_key_path' in value:
                     result = result.replace(value['public_key_path'],
                             '/var/tmp/DEP-ID-1000/key.pub')
                 if 'private_key' in value:
                     result = result.replace(value['private_key'][0:-1],
-                            ENV_VARS['CHECKMATE_PUBLIC_KEY'])
+                            "-----BEGIN RSA PRIVATE KEY-----\n...\n"
+                            "-----END RSA PRIVATE KEY-----")
                 if 'private_key_path' in value:
                     result = result.replace(value['private_key_path'],
                             '/var/tmp/DEP-ID-1000/key.pem')
