@@ -483,7 +483,7 @@ environment: &rackspace-legacy-cloud-test
       - load-balancer: http
 
       #PROTOTYPING: can we provide override values here (like region or endpoint?)
-      endpoint: https://lbaas.api.rackpsacecloud.com/servers/{tenantId}
+      endpoint: https://lbaas.api.rackpsacecloud.com/loadbalancers/{tenantId}
     database: &rax-dbaas
       vendor: rackspace
       provides:

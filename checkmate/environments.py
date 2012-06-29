@@ -6,10 +6,9 @@ import uuid
 from bottle import get, post, put, delete, request, response, abort
 from Crypto.PublicKey import RSA  # pip install pycrypto
 
-from checkmate.db import get_driver, any_id_problems, any_tenant_id_problems
+from checkmate.db import get_driver, any_id_problems
 from checkmate.exceptions import CheckmateException
-from checkmate.providers import get_provider_class, CheckmateInvalidProvider, \
-        PROVIDER_CLASSES
+from checkmate.providers import get_provider_class, PROVIDER_CLASSES
 from checkmate.utils import read_body, write_body, extract_sensitive_data,\
         with_tenant
 

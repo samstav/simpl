@@ -220,7 +220,7 @@ def plan_dict(deployment):
 
     :param id: checkmate deployment id
     """
-    LOG.info("Planning deploymewnt '%s'" % deployment['id'])
+    LOG.info("Planning deployment '%s'" % deployment['id'])
     # Find blueprint and environment. Without those, there's nothing to plan!
     blueprint = deployment.get('blueprint')
     if not blueprint:

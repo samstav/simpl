@@ -31,7 +31,7 @@
           ], 
           [
             "spiff:value", 
-            "nyIiNjgdyb_T"
+            "TGY?2HpuuoGT"
           ]
         ], 
         "locks": [], 
@@ -251,10 +251,10 @@
       }, 
       "Check that Environment is Ready and Server is Up:1": {
         "inputs": [
-          "Get Environment Key", 
-          "Check that Server is Up:1"
+          "Check that Server is Up:1", 
+          "Get Environment Key"
         ], 
-        "description": "", 
+        "description": null, 
         "split_task": null, 
         "outputs": [
           "Register Server:1"
@@ -687,10 +687,10 @@
       }, 
       "Check that Environment is Ready and Server is Up:0": {
         "inputs": [
-          "Get Environment Key", 
-          "Check that Server is Up:0"
+          "Check that Server is Up:0", 
+          "Get Environment Key"
         ], 
-        "description": "", 
+        "description": null, 
         "split_task": null, 
         "outputs": [
           "Register Server:0"
@@ -1231,27 +1231,27 @@
   "task_tree": {
     "parent": null, 
     "task_spec": "Root", 
-    "last_state_change": 1340160409.307372, 
+    "last_state_change": 1340203455.954323, 
     "children": [
       {
         "parent": 1, 
         "task_spec": "Start", 
-        "last_state_change": 1340160409.357073, 
+        "last_state_change": 1340203456.010569, 
         "children": [
           {
             "parent": 2, 
             "task_spec": "Authenticate", 
-            "last_state_change": 1340160409.373638, 
+            "last_state_change": 1340203456.041711, 
             "children": [
               {
                 "parent": 3, 
                 "task_spec": "Get Token", 
-                "last_state_change": 1340160409.400699, 
+                "last_state_change": 1340203456.064314, 
                 "children": [
                   {
                     "parent": 4, 
                     "task_spec": "Server Wait on:1", 
-                    "last_state_change": 1340160409.707665, 
+                    "last_state_change": 1340203456.371387, 
                     "children": [], 
                     "state": 64, 
                     "internal_attributes": {
@@ -1275,7 +1275,7 @@
                             "public_key_path": "ssh-rsa AAAAB3NzaC1..."
                           }
                         }, 
-                        "db_password": "nyIiNjgdyb_T", 
+                        "db_password": "TGY?2HpuuoGT", 
                         "region": "north", 
                         "db_name": "db1", 
                         "db_username": "wp_user_db1", 
@@ -1290,7 +1290,7 @@
                   {
                     "parent": 4, 
                     "task_spec": "Server Wait on:0", 
-                    "last_state_change": 1340160409.712894, 
+                    "last_state_change": 1340203456.37454, 
                     "children": [], 
                     "state": 64, 
                     "internal_attributes": {
@@ -1314,7 +1314,7 @@
                             "public_key_path": "ssh-rsa AAAAB3NzaC1..."
                           }
                         }, 
-                        "db_password": "nyIiNjgdyb_T", 
+                        "db_password": "TGY?2HpuuoGT", 
                         "region": "north", 
                         "db_name": "db1", 
                         "db_username": "wp_user_db1", 
@@ -1329,22 +1329,22 @@
                   {
                     "parent": 4, 
                     "task_spec": "Create DB", 
-                    "last_state_change": 1340160409.432621, 
+                    "last_state_change": 1340203456.090841, 
                     "children": [
                       {
                         "parent": 8, 
                         "task_spec": "Add DB User:wp_user_db1", 
-                        "last_state_change": 1340160409.442933, 
+                        "last_state_change": 1340203456.101103, 
                         "children": [
                           {
                             "parent": 32, 
                             "task_spec": "Prepare Overrides", 
-                            "last_state_change": 1340160409.453493, 
+                            "last_state_change": 1340203456.110336, 
                             "children": [
                               {
                                 "parent": 33, 
                                 "task_spec": "Wait on Environment and Settings:3", 
-                                "last_state_change": 1340160409.567338, 
+                                "last_state_change": 1340203456.232969, 
                                 "children": [], 
                                 "state": 64, 
                                 "internal_attributes": {
@@ -1358,7 +1358,7 @@
                                     "wordpress": {
                                       "db": {
                                         "host": "verylong.rackspaceclouddb.com", 
-                                        "password": "nyIiNjgdyb_T", 
+                                        "password": "TGY?2HpuuoGT", 
                                         "user": "wp_user_db1", 
                                         "database": "db1"
                                       }
@@ -1382,7 +1382,7 @@
                                         "public_key_path": "ssh-rsa AAAAB3NzaC1..."
                                       }
                                     }, 
-                                    "db_password": "nyIiNjgdyb_T", 
+                                    "db_password": "TGY?2HpuuoGT", 
                                     "region": "north", 
                                     "db_name": "db1", 
                                     "db_username": "wp_user_db1", 
@@ -1418,7 +1418,7 @@
                                     "public_key_path": "ssh-rsa AAAAB3NzaC1..."
                                   }
                                 }, 
-                                "db_password": "nyIiNjgdyb_T", 
+                                "db_password": "TGY?2HpuuoGT", 
                                 "region": "north", 
                                 "db_name": "db1", 
                                 "db_username": "wp_user_db1", 
@@ -1428,7 +1428,7 @@
                                 "wordpress": {
                                   "db": {
                                     "host": "verylong.rackspaceclouddb.com", 
-                                    "password": "nyIiNjgdyb_T", 
+                                    "password": "TGY?2HpuuoGT", 
                                     "user": "wp_user_db1", 
                                     "database": "db1"
                                   }
@@ -1444,7 +1444,7 @@
                         "state": 64, 
                         "internal_attributes": {
                           "estimated_completed_in": 105, 
-                          "task_id": "MOCKd8b8bb01824b4612acc2050c665affde"
+                          "task_id": "MOCKaf025f9fdfa04673920d72c7cfe5e8c2"
                         }, 
                         "attributes": {
                           "status": "BUILD", 
@@ -1464,7 +1464,7 @@
                                 "public_key_path": "ssh-rsa AAAAB3NzaC1..."
                               }
                             }, 
-                            "db_password": "nyIiNjgdyb_T", 
+                            "db_password": "TGY?2HpuuoGT", 
                             "region": "north", 
                             "db_name": "db1", 
                             "db_username": "wp_user_db1", 
@@ -1480,7 +1480,7 @@
                     "state": 64, 
                     "internal_attributes": {
                       "estimated_completed_in": 85, 
-                      "task_id": "MOCKb7f164571269444c848c2af5e4709dba"
+                      "task_id": "MOCKf9a4692514b54bd389c430de6369efac"
                     }, 
                     "attributes": {
                       "status": "BUILD", 
@@ -1500,7 +1500,7 @@
                             "public_key_path": "ssh-rsa AAAAB3NzaC1..."
                           }
                         }, 
-                        "db_password": "nyIiNjgdyb_T", 
+                        "db_password": "TGY?2HpuuoGT", 
                         "region": "north", 
                         "db_name": "db1", 
                         "db_username": "wp_user_db1", 
@@ -1514,17 +1514,17 @@
                   {
                     "parent": 4, 
                     "task_spec": "Create LB", 
-                    "last_state_change": 1340160409.4663, 
+                    "last_state_change": 1340203456.135536, 
                     "children": [
                       {
                         "parent": 9, 
                         "task_spec": "Get LB ID:1", 
-                        "last_state_change": 1340160409.484622, 
+                        "last_state_change": 1340203456.147928, 
                         "children": [
                           {
                             "parent": 44, 
                             "task_spec": "Wait before adding to LB:1", 
-                            "last_state_change": 1340160409.908517, 
+                            "last_state_change": 1340203456.566878, 
                             "children": [], 
                             "state": 64, 
                             "internal_attributes": {
@@ -1567,7 +1567,7 @@
                                 "wordpress": {
                                   "db": {
                                     "host": "verylong.rackspaceclouddb.com", 
-                                    "password": "nyIiNjgdyb_T", 
+                                    "password": "TGY?2HpuuoGT", 
                                     "user": "wp_user_db1", 
                                     "database": "db1"
                                   }
@@ -1591,7 +1591,7 @@
                                     "public_key_path": "ssh-rsa AAAAB3NzaC1..."
                                   }
                                 }, 
-                                "db_password": "nyIiNjgdyb_T", 
+                                "db_password": "TGY?2HpuuoGT", 
                                 "region": "north", 
                                 "db_name": "db1", 
                                 "db_username": "wp_user_db1", 
@@ -1623,7 +1623,7 @@
                                 "public_key_path": "ssh-rsa AAAAB3NzaC1..."
                               }
                             }, 
-                            "db_password": "nyIiNjgdyb_T", 
+                            "db_password": "TGY?2HpuuoGT", 
                             "region": "north", 
                             "db_name": "db1", 
                             "db_username": "wp_user_db1", 
@@ -1636,12 +1636,12 @@
                       {
                         "parent": 9, 
                         "task_spec": "Get LB ID:0", 
-                        "last_state_change": 1340160409.508261, 
+                        "last_state_change": 1340203456.179927, 
                         "children": [
                           {
                             "parent": 45, 
                             "task_spec": "Wait before adding to LB:0", 
-                            "last_state_change": 1340160410.015037, 
+                            "last_state_change": 1340203456.671676, 
                             "children": [], 
                             "state": 64, 
                             "internal_attributes": {
@@ -1684,7 +1684,7 @@
                                 "wordpress": {
                                   "db": {
                                     "host": "verylong.rackspaceclouddb.com", 
-                                    "password": "nyIiNjgdyb_T", 
+                                    "password": "TGY?2HpuuoGT", 
                                     "user": "wp_user_db1", 
                                     "database": "db1"
                                   }
@@ -1708,7 +1708,7 @@
                                     "public_key_path": "ssh-rsa AAAAB3NzaC1..."
                                   }
                                 }, 
-                                "db_password": "nyIiNjgdyb_T", 
+                                "db_password": "TGY?2HpuuoGT", 
                                 "region": "north", 
                                 "db_name": "db1", 
                                 "db_username": "wp_user_db1", 
@@ -1740,7 +1740,7 @@
                                 "public_key_path": "ssh-rsa AAAAB3NzaC1..."
                               }
                             }, 
-                            "db_password": "nyIiNjgdyb_T", 
+                            "db_password": "TGY?2HpuuoGT", 
                             "region": "north", 
                             "db_name": "db1", 
                             "db_username": "wp_user_db1", 
@@ -1754,7 +1754,7 @@
                     "state": 64, 
                     "internal_attributes": {
                       "estimated_completed_in": 35, 
-                      "task_id": "MOCKbae9cfec368241599d06bf43f7f315eb"
+                      "task_id": "MOCKccaeec596cef43d28edba68f602a4cd3"
                     }, 
                     "attributes": {
                       "token": "mock-token", 
@@ -1773,7 +1773,7 @@
                             "public_key_path": "ssh-rsa AAAAB3NzaC1..."
                           }
                         }, 
-                        "db_password": "nyIiNjgdyb_T", 
+                        "db_password": "TGY?2HpuuoGT", 
                         "region": "north", 
                         "db_name": "db1", 
                         "db_username": "wp_user_db1", 
@@ -1804,7 +1804,7 @@
                         "public_key_path": "ssh-rsa AAAAB3NzaC1..."
                       }
                     }, 
-                    "db_password": "nyIiNjgdyb_T", 
+                    "db_password": "TGY?2HpuuoGT", 
                     "region": "north", 
                     "db_name": "db1", 
                     "db_username": "wp_user_db1", 
@@ -1816,17 +1816,17 @@
               {
                 "parent": 3, 
                 "task_spec": "Create Chef Environment", 
-                "last_state_change": 1340160409.533611, 
+                "last_state_change": 1340203456.202772, 
                 "children": [
                   {
                     "parent": 5, 
                     "task_spec": "Get Environment Key", 
-                    "last_state_change": 1340160409.575482, 
+                    "last_state_change": 1340203456.242167, 
                     "children": [
                       {
                         "parent": 50, 
                         "task_spec": "Server Wait on:1", 
-                        "last_state_change": 1340160409.723677, 
+                        "last_state_change": 1340203456.386413, 
                         "children": [], 
                         "state": 64, 
                         "internal_attributes": {
@@ -1850,7 +1850,7 @@
                                 "public_key_path": "ssh-rsa AAAAB3NzaC1..."
                               }
                             }, 
-                            "db_password": "nyIiNjgdyb_T", 
+                            "db_password": "TGY?2HpuuoGT", 
                             "region": "north", 
                             "db_name": "db1", 
                             "db_username": "wp_user_db1", 
@@ -1865,7 +1865,7 @@
                       {
                         "parent": 50, 
                         "task_spec": "Check that Environment is Ready and Server is Up:1", 
-                        "last_state_change": 1340160409.820381, 
+                        "last_state_change": 1340203456.478693, 
                         "children": [], 
                         "state": 64, 
                         "internal_attributes": {
@@ -1912,7 +1912,7 @@
                                 "public_key_path": "ssh-rsa AAAAB3NzaC1..."
                               }
                             }, 
-                            "db_password": "nyIiNjgdyb_T", 
+                            "db_password": "TGY?2HpuuoGT", 
                             "region": "north", 
                             "db_name": "db1", 
                             "db_username": "wp_user_db1", 
@@ -1929,7 +1929,7 @@
                       {
                         "parent": 50, 
                         "task_spec": "Server Wait on:0", 
-                        "last_state_change": 1340160409.729142, 
+                        "last_state_change": 1340203456.392696, 
                         "children": [], 
                         "state": 64, 
                         "internal_attributes": {
@@ -1953,7 +1953,7 @@
                                 "public_key_path": "ssh-rsa AAAAB3NzaC1..."
                               }
                             }, 
-                            "db_password": "nyIiNjgdyb_T", 
+                            "db_password": "TGY?2HpuuoGT", 
                             "region": "north", 
                             "db_name": "db1", 
                             "db_username": "wp_user_db1", 
@@ -1968,7 +1968,7 @@
                       {
                         "parent": 50, 
                         "task_spec": "Check that Environment is Ready and Server is Up:0", 
-                        "last_state_change": 1340160409.971236, 
+                        "last_state_change": 1340203456.62794, 
                         "children": [], 
                         "state": 64, 
                         "internal_attributes": {
@@ -2015,7 +2015,7 @@
                                 "public_key_path": "ssh-rsa AAAAB3NzaC1..."
                               }
                             }, 
-                            "db_password": "nyIiNjgdyb_T", 
+                            "db_password": "TGY?2HpuuoGT", 
                             "region": "north", 
                             "db_name": "db1", 
                             "db_username": "wp_user_db1", 
@@ -2032,17 +2032,17 @@
                       {
                         "parent": 50, 
                         "task_spec": "Wait on Environment and Settings:3", 
-                        "last_state_change": 1340160409.651371, 
+                        "last_state_change": 1340203456.318574, 
                         "children": [
                           {
                             "parent": 56, 
                             "task_spec": "Write Database Settings", 
-                            "last_state_change": 1340160409.682449, 
+                            "last_state_change": 1340203456.36105, 
                             "children": [
                               {
                                 "parent": 89, 
                                 "task_spec": "Check on Registration and Overrides:1", 
-                                "last_state_change": 1340160409.865783, 
+                                "last_state_change": 1340203456.522658, 
                                 "children": [], 
                                 "state": 64, 
                                 "internal_attributes": {
@@ -2084,7 +2084,7 @@
                                     "wordpress": {
                                       "db": {
                                         "host": "verylong.rackspaceclouddb.com", 
-                                        "password": "nyIiNjgdyb_T", 
+                                        "password": "TGY?2HpuuoGT", 
                                         "user": "wp_user_db1", 
                                         "database": "db1"
                                       }
@@ -2107,7 +2107,7 @@
                                         "public_key_path": "ssh-rsa AAAAB3NzaC1..."
                                       }
                                     }, 
-                                    "db_password": "nyIiNjgdyb_T", 
+                                    "db_password": "TGY?2HpuuoGT", 
                                     "region": "north", 
                                     "db_name": "db1", 
                                     "db_username": "wp_user_db1", 
@@ -2119,7 +2119,7 @@
                               {
                                 "parent": 89, 
                                 "task_spec": "Check on Registration and Overrides:0", 
-                                "last_state_change": 1340160409.999605, 
+                                "last_state_change": 1340203456.64371, 
                                 "children": [], 
                                 "state": 64, 
                                 "internal_attributes": {
@@ -2161,7 +2161,7 @@
                                     "wordpress": {
                                       "db": {
                                         "host": "verylong.rackspaceclouddb.com", 
-                                        "password": "nyIiNjgdyb_T", 
+                                        "password": "TGY?2HpuuoGT", 
                                         "user": "wp_user_db1", 
                                         "database": "db1"
                                       }
@@ -2184,7 +2184,7 @@
                                         "public_key_path": "ssh-rsa AAAAB3NzaC1..."
                                       }
                                     }, 
-                                    "db_password": "nyIiNjgdyb_T", 
+                                    "db_password": "TGY?2HpuuoGT", 
                                     "region": "north", 
                                     "db_name": "db1", 
                                     "db_username": "wp_user_db1", 
@@ -2197,7 +2197,7 @@
                             "state": 64, 
                             "internal_attributes": {
                               "estimated_completed_in": 25, 
-                              "task_id": "MOCK08f47f49982548908acdbe2cfbbe4e71"
+                              "task_id": "MOCKbf90921e66384228bd16eae98512fc27"
                             }, 
                             "attributes": {
                               "status": "BUILD", 
@@ -2207,7 +2207,7 @@
                                 "wordpress": {
                                   "db": {
                                     "host": "verylong.rackspaceclouddb.com", 
-                                    "password": "nyIiNjgdyb_T", 
+                                    "password": "TGY?2HpuuoGT", 
                                     "user": "wp_user_db1", 
                                     "database": "db1"
                                   }
@@ -2231,7 +2231,7 @@
                                     "public_key_path": "ssh-rsa AAAAB3NzaC1..."
                                   }
                                 }, 
-                                "db_password": "nyIiNjgdyb_T", 
+                                "db_password": "TGY?2HpuuoGT", 
                                 "region": "north", 
                                 "db_name": "db1", 
                                 "db_username": "wp_user_db1", 
@@ -2257,7 +2257,7 @@
                             "wordpress": {
                               "db": {
                                 "host": "verylong.rackspaceclouddb.com", 
-                                "password": "nyIiNjgdyb_T", 
+                                "password": "TGY?2HpuuoGT", 
                                 "user": "wp_user_db1", 
                                 "database": "db1"
                               }
@@ -2281,7 +2281,7 @@
                                 "public_key_path": "ssh-rsa AAAAB3NzaC1..."
                               }
                             }, 
-                            "db_password": "nyIiNjgdyb_T", 
+                            "db_password": "TGY?2HpuuoGT", 
                             "region": "north", 
                             "db_name": "db1", 
                             "db_username": "wp_user_db1", 
@@ -2317,7 +2317,7 @@
                             "public_key_path": "ssh-rsa AAAAB3NzaC1..."
                           }
                         }, 
-                        "db_password": "nyIiNjgdyb_T", 
+                        "db_password": "TGY?2HpuuoGT", 
                         "region": "north", 
                         "db_name": "db1", 
                         "db_username": "wp_user_db1", 
@@ -2332,47 +2332,47 @@
                   {
                     "parent": 5, 
                     "task_spec": "Get Keys to Inject", 
-                    "last_state_change": 1340160409.752946, 
+                    "last_state_change": 1340203456.415985, 
                     "children": [
                       {
                         "parent": 51, 
                         "task_spec": "Server Wait on:1", 
-                        "last_state_change": 1340160409.791703, 
+                        "last_state_change": 1340203456.437944, 
                         "children": [
                           {
                             "parent": 98, 
                             "task_spec": "Create Server:1", 
-                            "last_state_change": 1340160409.810845, 
+                            "last_state_change": 1340203456.467339, 
                             "children": [
                               {
                                 "parent": 100, 
                                 "task_spec": "Check that Server is Up:1", 
-                                "last_state_change": 1340160409.828476, 
+                                "last_state_change": 1340203456.484229, 
                                 "children": [
                                   {
                                     "parent": 101, 
                                     "task_spec": "Check that Environment is Ready and Server is Up:1", 
-                                    "last_state_change": 1340160409.856197, 
+                                    "last_state_change": 1340203456.508681, 
                                     "children": [
                                       {
                                         "parent": 102, 
                                         "task_spec": "Register Server:1", 
-                                        "last_state_change": 1340160409.868141, 
+                                        "last_state_change": 1340203456.524741, 
                                         "children": [
                                           {
                                             "parent": 104, 
                                             "task_spec": "Check on Registration and Overrides:1", 
-                                            "last_state_change": 1340160409.87838, 
+                                            "last_state_change": 1340203456.536264, 
                                             "children": [
                                               {
                                                 "parent": 105, 
                                                 "task_spec": "Configure Server:1", 
-                                                "last_state_change": 1340160409.900411, 
+                                                "last_state_change": 1340203456.553328, 
                                                 "children": [
                                                   {
                                                     "parent": 106, 
                                                     "task_spec": "Wait before adding to LB:1", 
-                                                    "last_state_change": 1340160409.919625, 
+                                                    "last_state_change": 1340203456.575046, 
                                                     "children": [], 
                                                     "state": 64, 
                                                     "internal_attributes": {
@@ -2415,7 +2415,7 @@
                                                         "wordpress": {
                                                           "db": {
                                                             "host": "verylong.rackspaceclouddb.com", 
-                                                            "password": "nyIiNjgdyb_T", 
+                                                            "password": "TGY?2HpuuoGT", 
                                                             "user": "wp_user_db1", 
                                                             "database": "db1"
                                                           }
@@ -2439,7 +2439,7 @@
                                                             "public_key_path": "ssh-rsa AAAAB3NzaC1..."
                                                           }
                                                         }, 
-                                                        "db_password": "nyIiNjgdyb_T", 
+                                                        "db_password": "TGY?2HpuuoGT", 
                                                         "region": "north", 
                                                         "db_name": "db1", 
                                                         "db_username": "wp_user_db1", 
@@ -2452,7 +2452,7 @@
                                                 "state": 64, 
                                                 "internal_attributes": {
                                                   "estimated_completed_in": 405, 
-                                                  "task_id": "MOCK3bbe2a7ee4b240efb6cc2193d317b18a"
+                                                  "task_id": "MOCKe1a0b0ebbfa44e2097995cd33b07517c"
                                                 }, 
                                                 "attributes": {
                                                   "status": "ACTIVE", 
@@ -2490,7 +2490,7 @@
                                                     "wordpress": {
                                                       "db": {
                                                         "host": "verylong.rackspaceclouddb.com", 
-                                                        "password": "nyIiNjgdyb_T", 
+                                                        "password": "TGY?2HpuuoGT", 
                                                         "user": "wp_user_db1", 
                                                         "database": "db1"
                                                       }
@@ -2513,7 +2513,7 @@
                                                         "public_key_path": "ssh-rsa AAAAB3NzaC1..."
                                                       }
                                                     }, 
-                                                    "db_password": "nyIiNjgdyb_T", 
+                                                    "db_password": "TGY?2HpuuoGT", 
                                                     "region": "north", 
                                                     "db_name": "db1", 
                                                     "db_username": "wp_user_db1", 
@@ -2563,7 +2563,7 @@
                                                 "wordpress": {
                                                   "db": {
                                                     "host": "verylong.rackspaceclouddb.com", 
-                                                    "password": "nyIiNjgdyb_T", 
+                                                    "password": "TGY?2HpuuoGT", 
                                                     "user": "wp_user_db1", 
                                                     "database": "db1"
                                                   }
@@ -2586,7 +2586,7 @@
                                                     "public_key_path": "ssh-rsa AAAAB3NzaC1..."
                                                   }
                                                 }, 
-                                                "db_password": "nyIiNjgdyb_T", 
+                                                "db_password": "TGY?2HpuuoGT", 
                                                 "region": "north", 
                                                 "db_name": "db1", 
                                                 "db_username": "wp_user_db1", 
@@ -2599,7 +2599,7 @@
                                         "state": 64, 
                                         "internal_attributes": {
                                           "estimated_completed_in": 305, 
-                                          "task_id": "MOCKea9bc3cc304a45bfa5e31d45f8520a3e"
+                                          "task_id": "MOCK2f4325d233844572b04c5e814d33fc4c"
                                         }, 
                                         "attributes": {
                                           "files": {
@@ -2643,7 +2643,7 @@
                                                 "public_key_path": "ssh-rsa AAAAB3NzaC1..."
                                               }
                                             }, 
-                                            "db_password": "nyIiNjgdyb_T", 
+                                            "db_password": "TGY?2HpuuoGT", 
                                             "region": "north", 
                                             "db_name": "db1", 
                                             "db_username": "wp_user_db1", 
@@ -2708,7 +2708,7 @@
                                             "public_key_path": "ssh-rsa AAAAB3NzaC1..."
                                           }
                                         }, 
-                                        "db_password": "nyIiNjgdyb_T", 
+                                        "db_password": "TGY?2HpuuoGT", 
                                         "region": "north", 
                                         "db_name": "db1", 
                                         "db_username": "wp_user_db1", 
@@ -2720,22 +2720,22 @@
                                   {
                                     "parent": 101, 
                                     "task_spec": "Get ServiceNet IP:1", 
-                                    "last_state_change": 1340160409.920181, 
+                                    "last_state_change": 1340203456.575611, 
                                     "children": [
                                       {
                                         "parent": 103, 
                                         "task_spec": "Wait before adding to LB:1", 
-                                        "last_state_change": 1340160409.942956, 
+                                        "last_state_change": 1340203456.587967, 
                                         "children": [
                                           {
                                             "parent": 109, 
                                             "task_spec": "Add LB Node:1", 
-                                            "last_state_change": 1340160409.950556, 
+                                            "last_state_change": 1340203456.595192, 
                                             "children": [], 
                                             "state": 64, 
                                             "internal_attributes": {
                                               "estimated_completed_in": 205, 
-                                              "task_id": "MOCK1e93fd441ad74b15a06bc1bd5773e0d7"
+                                              "task_id": "MOCK3b2a27d502984aa8bda9dc46d2be59bb"
                                             }, 
                                             "attributes": {
                                               "status": "ACTIVE", 
@@ -2774,7 +2774,7 @@
                                                 "wordpress": {
                                                   "db": {
                                                     "host": "verylong.rackspaceclouddb.com", 
-                                                    "password": "nyIiNjgdyb_T", 
+                                                    "password": "TGY?2HpuuoGT", 
                                                     "user": "wp_user_db1", 
                                                     "database": "db1"
                                                   }
@@ -2798,7 +2798,7 @@
                                                     "public_key_path": "ssh-rsa AAAAB3NzaC1..."
                                                   }
                                                 }, 
-                                                "db_password": "nyIiNjgdyb_T", 
+                                                "db_password": "TGY?2HpuuoGT", 
                                                 "region": "north", 
                                                 "db_name": "db1", 
                                                 "db_username": "wp_user_db1", 
@@ -2850,7 +2850,7 @@
                                             "wordpress": {
                                               "db": {
                                                 "host": "verylong.rackspaceclouddb.com", 
-                                                "password": "nyIiNjgdyb_T", 
+                                                "password": "TGY?2HpuuoGT", 
                                                 "user": "wp_user_db1", 
                                                 "database": "db1"
                                               }
@@ -2874,7 +2874,7 @@
                                                 "public_key_path": "ssh-rsa AAAAB3NzaC1..."
                                               }
                                             }, 
-                                            "db_password": "nyIiNjgdyb_T", 
+                                            "db_password": "TGY?2HpuuoGT", 
                                             "region": "north", 
                                             "db_name": "db1", 
                                             "db_username": "wp_user_db1", 
@@ -2931,7 +2931,7 @@
                                             "public_key_path": "ssh-rsa AAAAB3NzaC1..."
                                           }
                                         }, 
-                                        "db_password": "nyIiNjgdyb_T", 
+                                        "db_password": "TGY?2HpuuoGT", 
                                         "region": "north", 
                                         "db_name": "db1", 
                                         "db_username": "wp_user_db1", 
@@ -2949,7 +2949,7 @@
                                 "state": 64, 
                                 "internal_attributes": {
                                   "estimated_completed_in": 185, 
-                                  "task_id": "MOCK05af512f034a4e43a6e037d0bbf002d5"
+                                  "task_id": "MOCK65e6279df98644c3b5a97f1ad2872f62"
                                 }, 
                                 "attributes": {
                                   "files": {
@@ -2992,7 +2992,7 @@
                                         "public_key_path": "ssh-rsa AAAAB3NzaC1..."
                                       }
                                     }, 
-                                    "db_password": "nyIiNjgdyb_T", 
+                                    "db_password": "TGY?2HpuuoGT", 
                                     "region": "north", 
                                     "db_name": "db1", 
                                     "db_username": "wp_user_db1", 
@@ -3010,7 +3010,7 @@
                             "state": 64, 
                             "internal_attributes": {
                               "estimated_completed_in": 35, 
-                              "task_id": "MOCK394fa7aded44469897f31bf034dab95c"
+                              "task_id": "MOCK885f96f8ee3a40cd8f4e5d85a5c42ba7"
                             }, 
                             "attributes": {
                               "files": {
@@ -3034,7 +3034,7 @@
                                     "public_key_path": "ssh-rsa AAAAB3NzaC1..."
                                   }
                                 }, 
-                                "db_password": "nyIiNjgdyb_T", 
+                                "db_password": "TGY?2HpuuoGT", 
                                 "region": "north", 
                                 "db_name": "db1", 
                                 "db_username": "wp_user_db1", 
@@ -3074,7 +3074,7 @@
                                 "public_key_path": "ssh-rsa AAAAB3NzaC1..."
                               }
                             }, 
-                            "db_password": "nyIiNjgdyb_T", 
+                            "db_password": "TGY?2HpuuoGT", 
                             "region": "north", 
                             "db_name": "db1", 
                             "db_username": "wp_user_db1", 
@@ -3089,42 +3089,42 @@
                       {
                         "parent": 51, 
                         "task_spec": "Server Wait on:0", 
-                        "last_state_change": 1340160409.956814, 
+                        "last_state_change": 1340203456.611467, 
                         "children": [
                           {
                             "parent": 99, 
                             "task_spec": "Create Server:0", 
-                            "last_state_change": 1340160409.964976, 
+                            "last_state_change": 1340203456.621558, 
                             "children": [
                               {
                                 "parent": 111, 
                                 "task_spec": "Check that Server is Up:0", 
-                                "last_state_change": 1340160409.973094, 
+                                "last_state_change": 1340203456.63015, 
                                 "children": [
                                   {
                                     "parent": 112, 
                                     "task_spec": "Check that Environment is Ready and Server is Up:0", 
-                                    "last_state_change": 1340160409.994294, 
+                                    "last_state_change": 1340203456.637269, 
                                     "children": [
                                       {
                                         "parent": 113, 
                                         "task_spec": "Register Server:0", 
-                                        "last_state_change": 1340160409.999874, 
+                                        "last_state_change": 1340203456.643982, 
                                         "children": [
                                           {
                                             "parent": 115, 
                                             "task_spec": "Check on Registration and Overrides:0", 
-                                            "last_state_change": 1340160410.004732, 
+                                            "last_state_change": 1340203456.648479, 
                                             "children": [
                                               {
                                                 "parent": 116, 
                                                 "task_spec": "Configure Server:0", 
-                                                "last_state_change": 1340160410.008653, 
+                                                "last_state_change": 1340203456.667191, 
                                                 "children": [
                                                   {
                                                     "parent": 117, 
                                                     "task_spec": "Wait before adding to LB:0", 
-                                                    "last_state_change": 1340160410.016999, 
+                                                    "last_state_change": 1340203456.673641, 
                                                     "children": [], 
                                                     "state": 64, 
                                                     "internal_attributes": {
@@ -3167,7 +3167,7 @@
                                                         "wordpress": {
                                                           "db": {
                                                             "host": "verylong.rackspaceclouddb.com", 
-                                                            "password": "nyIiNjgdyb_T", 
+                                                            "password": "TGY?2HpuuoGT", 
                                                             "user": "wp_user_db1", 
                                                             "database": "db1"
                                                           }
@@ -3191,7 +3191,7 @@
                                                             "public_key_path": "ssh-rsa AAAAB3NzaC1..."
                                                           }
                                                         }, 
-                                                        "db_password": "nyIiNjgdyb_T", 
+                                                        "db_password": "TGY?2HpuuoGT", 
                                                         "region": "north", 
                                                         "db_name": "db1", 
                                                         "db_username": "wp_user_db1", 
@@ -3204,7 +3204,7 @@
                                                 "state": 64, 
                                                 "internal_attributes": {
                                                   "estimated_completed_in": 405, 
-                                                  "task_id": "MOCK5ea285198d0447a48005fb46b10675b1"
+                                                  "task_id": "MOCKda0484d14e524860b7d647d58eac4b95"
                                                 }, 
                                                 "attributes": {
                                                   "status": "ACTIVE", 
@@ -3242,7 +3242,7 @@
                                                     "wordpress": {
                                                       "db": {
                                                         "host": "verylong.rackspaceclouddb.com", 
-                                                        "password": "nyIiNjgdyb_T", 
+                                                        "password": "TGY?2HpuuoGT", 
                                                         "user": "wp_user_db1", 
                                                         "database": "db1"
                                                       }
@@ -3265,7 +3265,7 @@
                                                         "public_key_path": "ssh-rsa AAAAB3NzaC1..."
                                                       }
                                                     }, 
-                                                    "db_password": "nyIiNjgdyb_T", 
+                                                    "db_password": "TGY?2HpuuoGT", 
                                                     "region": "north", 
                                                     "db_name": "db1", 
                                                     "db_username": "wp_user_db1", 
@@ -3315,7 +3315,7 @@
                                                 "wordpress": {
                                                   "db": {
                                                     "host": "verylong.rackspaceclouddb.com", 
-                                                    "password": "nyIiNjgdyb_T", 
+                                                    "password": "TGY?2HpuuoGT", 
                                                     "user": "wp_user_db1", 
                                                     "database": "db1"
                                                   }
@@ -3338,7 +3338,7 @@
                                                     "public_key_path": "ssh-rsa AAAAB3NzaC1..."
                                                   }
                                                 }, 
-                                                "db_password": "nyIiNjgdyb_T", 
+                                                "db_password": "TGY?2HpuuoGT", 
                                                 "region": "north", 
                                                 "db_name": "db1", 
                                                 "db_username": "wp_user_db1", 
@@ -3351,7 +3351,7 @@
                                         "state": 64, 
                                         "internal_attributes": {
                                           "estimated_completed_in": 305, 
-                                          "task_id": "MOCK438ad49db98442789710e6e55eccb2e6"
+                                          "task_id": "MOCKf63626e71b5a465f98e5a6e16c5ba735"
                                         }, 
                                         "attributes": {
                                           "files": {
@@ -3395,7 +3395,7 @@
                                                 "public_key_path": "ssh-rsa AAAAB3NzaC1..."
                                               }
                                             }, 
-                                            "db_password": "nyIiNjgdyb_T", 
+                                            "db_password": "TGY?2HpuuoGT", 
                                             "region": "north", 
                                             "db_name": "db1", 
                                             "db_username": "wp_user_db1", 
@@ -3460,7 +3460,7 @@
                                             "public_key_path": "ssh-rsa AAAAB3NzaC1..."
                                           }
                                         }, 
-                                        "db_password": "nyIiNjgdyb_T", 
+                                        "db_password": "TGY?2HpuuoGT", 
                                         "region": "north", 
                                         "db_name": "db1", 
                                         "db_username": "wp_user_db1", 
@@ -3472,22 +3472,22 @@
                                   {
                                     "parent": 112, 
                                     "task_spec": "Get ServiceNet IP:0", 
-                                    "last_state_change": 1340160410.017546, 
+                                    "last_state_change": 1340203456.674181, 
                                     "children": [
                                       {
                                         "parent": 114, 
                                         "task_spec": "Wait before adding to LB:0", 
-                                        "last_state_change": 1340160410.021382, 
+                                        "last_state_change": 1340203456.681428, 
                                         "children": [
                                           {
                                             "parent": 120, 
                                             "task_spec": "Add LB Node:0", 
-                                            "last_state_change": 1340160410.02272, 
+                                            "last_state_change": 1340203456.682808, 
                                             "children": [], 
                                             "state": 64, 
                                             "internal_attributes": {
                                               "estimated_completed_in": 205, 
-                                              "task_id": "MOCK1ae1e0ddfe6245f6a5171bb1df29717f"
+                                              "task_id": "MOCKc7dad9f4e8194690b7a5e24a2e897ea3"
                                             }, 
                                             "attributes": {
                                               "status": "ACTIVE", 
@@ -3526,7 +3526,7 @@
                                                 "wordpress": {
                                                   "db": {
                                                     "host": "verylong.rackspaceclouddb.com", 
-                                                    "password": "nyIiNjgdyb_T", 
+                                                    "password": "TGY?2HpuuoGT", 
                                                     "user": "wp_user_db1", 
                                                     "database": "db1"
                                                   }
@@ -3550,7 +3550,7 @@
                                                     "public_key_path": "ssh-rsa AAAAB3NzaC1..."
                                                   }
                                                 }, 
-                                                "db_password": "nyIiNjgdyb_T", 
+                                                "db_password": "TGY?2HpuuoGT", 
                                                 "region": "north", 
                                                 "db_name": "db1", 
                                                 "db_username": "wp_user_db1", 
@@ -3602,7 +3602,7 @@
                                             "wordpress": {
                                               "db": {
                                                 "host": "verylong.rackspaceclouddb.com", 
-                                                "password": "nyIiNjgdyb_T", 
+                                                "password": "TGY?2HpuuoGT", 
                                                 "user": "wp_user_db1", 
                                                 "database": "db1"
                                               }
@@ -3626,7 +3626,7 @@
                                                 "public_key_path": "ssh-rsa AAAAB3NzaC1..."
                                               }
                                             }, 
-                                            "db_password": "nyIiNjgdyb_T", 
+                                            "db_password": "TGY?2HpuuoGT", 
                                             "region": "north", 
                                             "db_name": "db1", 
                                             "db_username": "wp_user_db1", 
@@ -3683,7 +3683,7 @@
                                             "public_key_path": "ssh-rsa AAAAB3NzaC1..."
                                           }
                                         }, 
-                                        "db_password": "nyIiNjgdyb_T", 
+                                        "db_password": "TGY?2HpuuoGT", 
                                         "region": "north", 
                                         "db_name": "db1", 
                                         "db_username": "wp_user_db1", 
@@ -3701,7 +3701,7 @@
                                 "state": 64, 
                                 "internal_attributes": {
                                   "estimated_completed_in": 185, 
-                                  "task_id": "MOCK669ba6cbccde47719878520112d39215"
+                                  "task_id": "MOCK0ca683418a5d499c9d1c7d6e6b602b4d"
                                 }, 
                                 "attributes": {
                                   "files": {
@@ -3744,7 +3744,7 @@
                                         "public_key_path": "ssh-rsa AAAAB3NzaC1..."
                                       }
                                     }, 
-                                    "db_password": "nyIiNjgdyb_T", 
+                                    "db_password": "TGY?2HpuuoGT", 
                                     "region": "north", 
                                     "db_name": "db1", 
                                     "db_username": "wp_user_db1", 
@@ -3762,7 +3762,7 @@
                             "state": 64, 
                             "internal_attributes": {
                               "estimated_completed_in": 35, 
-                              "task_id": "MOCK4fd135362d0b4d37a88f0a8c39b5cf3f"
+                              "task_id": "MOCKce4cb5b911334157b250f5fc9bc2166e"
                             }, 
                             "attributes": {
                               "files": {
@@ -3786,7 +3786,7 @@
                                     "public_key_path": "ssh-rsa AAAAB3NzaC1..."
                                   }
                                 }, 
-                                "db_password": "nyIiNjgdyb_T", 
+                                "db_password": "TGY?2HpuuoGT", 
                                 "region": "north", 
                                 "db_name": "db1", 
                                 "db_username": "wp_user_db1", 
@@ -3826,7 +3826,7 @@
                                 "public_key_path": "ssh-rsa AAAAB3NzaC1..."
                               }
                             }, 
-                            "db_password": "nyIiNjgdyb_T", 
+                            "db_password": "TGY?2HpuuoGT", 
                             "region": "north", 
                             "db_name": "db1", 
                             "db_username": "wp_user_db1", 
@@ -3861,7 +3861,7 @@
                             "public_key_path": "ssh-rsa AAAAB3NzaC1..."
                           }
                         }, 
-                        "db_password": "nyIiNjgdyb_T", 
+                        "db_password": "TGY?2HpuuoGT", 
                         "region": "north", 
                         "db_name": "db1", 
                         "db_username": "wp_user_db1", 
@@ -3880,7 +3880,7 @@
                 "state": 64, 
                 "internal_attributes": {
                   "estimated_completed_in": 15, 
-                  "task_id": "MOCKdacc552cdcc4482aade2510d03177f4e"
+                  "task_id": "MOCK4882b39351d647ec93bceaf6758f5c00"
                 }, 
                 "attributes": {
                   "environment": "/var/tmp/DEP-ID-1000/", 
@@ -3900,7 +3900,7 @@
                         "public_key_path": "ssh-rsa AAAAB3NzaC1..."
                       }
                     }, 
-                    "db_password": "nyIiNjgdyb_T", 
+                    "db_password": "TGY?2HpuuoGT", 
                     "region": "north", 
                     "db_name": "db1", 
                     "db_username": "wp_user_db1", 
@@ -3916,7 +3916,7 @@
             "state": 64, 
             "internal_attributes": {
               "estimated_completed_in": 5, 
-              "task_id": "MOCK2dcc0abeb8d144418820b1c56a2f4deb"
+              "task_id": "MOCK598b48ba5f0844cdb7ecf73f4d8786d9"
             }, 
             "attributes": {
               "token": "mock-token", 
@@ -3934,7 +3934,7 @@
                     "public_key_path": "ssh-rsa AAAAB3NzaC1..."
                   }
                 }, 
-                "db_password": "nyIiNjgdyb_T", 
+                "db_password": "TGY?2HpuuoGT", 
                 "region": "north", 
                 "db_name": "db1", 
                 "db_username": "wp_user_db1", 
@@ -3963,7 +3963,7 @@
                 "public_key_path": "ssh-rsa AAAAB3NzaC1..."
               }
             }, 
-            "db_password": "nyIiNjgdyb_T", 
+            "db_password": "TGY?2HpuuoGT", 
             "region": "north", 
             "db_name": "db1", 
             "db_username": "wp_user_db1", 
