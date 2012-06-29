@@ -171,7 +171,7 @@ def create_server(deployment, name, api_object=None, flavor=1, files=None,
     :param flavor: the size of the server
     :param files: a list of files to inject
     :type files: dict
-    :param prefix: a strig to prepend to any results. Used by Spiff and
+    :param prefix: a string to prepend to any results. Used by Spiff and
             CheckMate
     :Example:
 

@@ -96,6 +96,7 @@ class Provider(RackspaceComputeProviderBase):
                'checkmate.providers.rackspace.compute.create_server',
                call_args=[Attrib('context'),
                resource.get('dns-name')],
+               prefix=key,
                image=resource.get('image',
                         '3afe97b2-26dc-49c5-a2cc-a2fc8d80c001'),
                flavor=resource.get('flavor', "1"),
@@ -107,6 +108,7 @@ class Provider(RackspaceComputeProviderBase):
                 % key, 'checkmate.providers.rackspace.compute.wait_on_build',
                 call_args=[Attrib('context'), Attrib('id'), 'root'],
                 password=Attrib('password'),
+                prefix=key,
                 identity_file=Attrib('public_key_path'),
                 properties={'estimated_duration': 150})
         create_server_task.connect(build_wait_task)
@@ -236,7 +238,8 @@ def _get_api_connection(deployment):
 #
 @task
 def create_server(deployment, name, api_object=None, flavor="1",
-            files=None, image='3afe97b2-26dc-49c5-a2cc-a2fc8d80c001'):
+            files=None, image='3afe97b2-26dc-49c5-a2cc-a2fc8d80c001',
+            prefix=None):
     """Create a Rackspace Cloud server using novaclient.
 
     Note: Nova server creation requests are asynchronous. The IP address of the
@@ -251,6 +254,8 @@ def create_server(deployment, name, api_object=None, flavor="1",
     :param flavor: the size of the server (a string ID)
     :param files: a list of files to inject
     :type files: dict
+    :param prefix: a string to prepend to any results. Used by Spiff and
+            CheckMate
     :Example:
 
     {
@@ -286,25 +291,31 @@ def create_server(deployment, name, api_object=None, flavor="1",
                                meta={"server.id": server.id})
     LOG.debug('Created server %s (%s).  Admin pass = %s' % (
             name, server.id, server.adminPass))
-
-    return {'id': server.id, 'password': server.adminPass}
+    results = {'id': server.id, 'password': server.adminPass}
+    if prefix:
+        # Add each value back in with the prefix
+        results.update({'%s.%s' % (prefix, key): value for key, value
+                in results.iteritems()})
+    return results
 
 
 @task(default_retry_delay=10, max_retries=18)  # ~3 minute wait
 def wait_on_build(deployment, id, ip_address_type='public',
             check_ssh=True, username='root', timeout=10, password=None,
-            identity_file=None, port=22, api_object=None):
+            identity_file=None, port=22, api_object=None, prefix=None):
     """Checks build is complete and. optionally, that SSH is working.
 
     :param ip_adress_type: the type of IP addresss to return as 'ip' in the
         response
+    :param prefix: a string to prepend to any results. Used by Spiff and
+            CheckMate
     :returns: False when build not ready. Dict with ip addresses when done.
     """
     if api_object is None:
         api_object = _get_api_connection(deployment)
 
     server = api_object.servers.find(id=id)
-    result = {'id': id,
+    results = {'id': id,
             'status': server.status,
             'addresses': server.addresses
             }
@@ -319,22 +330,22 @@ def wait_on_build(deployment, id, ip_address_type='public',
             if address['version'] == 4:
                 ip = address['addr']
                 break
-        result['ip'] = ip
+        results['ip'] = ip
 
         # Also get service_net IP
         private_addresses = server.addresses.get('private', [])
         for address in private_addresses:
             if address['version'] == 4:
-                result['private_ip'] = address['addr']
+                results['private_ip'] = address['addr']
                 break
 
     if server.status == 'BUILD':
-        result['progress'] = server.progress
+        results['progress'] = server.progress
         countdown = 100 - server.progress
         if countdown <= 0:
             countdown = 15  # progress is not accurate. Allow at least 15s wait
         wait_on_build.update_state(state='PROGRESS',
-                meta=result)
+                meta=results)
         LOG.debug("Server %s progress is %s. Retrying after %s seconds" % (id,
                 server.progress, countdown))
         return wait_on_build.retry(countdown=countdown)
@@ -350,6 +361,10 @@ def wait_on_build(deployment, id, ip_address_type='public',
                 password=password, identity_file=identity_file, port=port)
         if up:
             LOG.info("Server %s is up" % id)
-            return result
+            if prefix:
+                # Add each value back in with the prefix
+                results.update({'%s.%s' % (prefix, key): value for key, value
+                        in results.iteritems()})
+            return results
         return wait_on_build.retry(exc=CheckmateException("Server "
                 "%s not ready yet" % id))
