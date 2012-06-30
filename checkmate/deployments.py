@@ -205,6 +205,65 @@ def plan(id):
 
 
 def plan_dict(deployment):
+    """DEPRECATED: Process a new checkmate deployment, plan for execution,
+    create a context, and create a workflow.
+
+    This creates placeholder tags that will be used for the actual creation
+    of resources.
+
+    :returns: dict of parsed deployment and workflow
+    :param deployment: checkmate deployment dict
+    """
+    parsed_deployment = plan(deployment)
+    context = get_context(deployment)
+    workflow = create_workflow(parsed_deployment, context)
+
+    return {'deployment': parsed_deployment, 'workflow': workflow}
+
+
+def get_context(deployment):
+    """Create context with creds and keys"""
+    #
+    context = dict(id=deployment['id'])
+
+    #TODO: make this smarter
+    creds = [p['credentials'][0] for key, p in
+                    deployment['environment']['providers'].iteritems()
+                    if key == 'common']
+    if creds:
+        creds = creds[0]
+        context['username'] = creds['username']
+        if 'apikey' in creds:
+            context['apikey'] = creds['apikey']
+        if 'password' in creds:
+            context['password'] = creds['password']
+    else:
+        LOG.debug("No credentials supplied in environment/common/credentials")
+
+    inputs = deployment.get('inputs', {})
+    context['region'] = inputs.get('blueprint', {}).get('region')
+
+    # Look in inputs:
+    # Read in the public keys to be passed to newly created servers.
+    os_keys = get_os_env_keys()
+
+    environment = deployment.get('environment')
+    if not environment:
+        abort(406, "Environment not found. Nowhere to deploy to.")
+    environment = Environment(environment)
+
+    keys = get_keys(inputs, environment)
+    if os_keys:
+        keys.update(os_keys)
+
+    if not keys:
+        LOG.warn("No keys supplied. Less secure password auth will be used.")
+
+    context['keys'] = keys
+    return context
+
+
+def plan(deployment):
     """Process a new checkmate deployment and plan for execution.
 
     This creates placeholder tags that will be used for the actual creation
@@ -215,10 +274,9 @@ def plan_dict(deployment):
     - get the components from the blueprint
     - identify dependencies (inputs/options and connections/relations)
     - build a list of resources to create
-    - build a workflow based on resources and dependencies
-    - return the workflow
+    - returns the parsed deployment
 
-    :param id: checkmate deployment id
+    :param deployment: checkmate deployment dict
     """
     LOG.info("Planning deployment '%s'" % deployment['id'])
     # Find blueprint and environment. Without those, there's nothing to plan!
@@ -230,7 +288,7 @@ def plan_dict(deployment):
         abort(406, "Environment not found. Nowhere to deploy to.")
     environment = Environment(environment)
     inputs = deployment.get('inputs', {})
-    services = blueprint['services']
+    services = blueprint.get('services', {})
     relations = {}
 
     # The following are hashes with resource_type as the hash:
@@ -352,7 +410,7 @@ def plan_dict(deployment):
         if not isinstance(components, list):
             components = [components]
         for component in components:
-            resource_type = component.get('is')
+            resource_type = component.get('is', component['id'])
 
             host = None
             if 'requires' in component:
@@ -507,44 +565,7 @@ def plan_dict(deployment):
     if resources:
         deployment['resources'] = resources
 
-    #
-    # Create context with creds and keys
-    #
-    context = dict(id=deployment['id'])
-
-    #TODO: make this smarter
-    creds = [p['credentials'][0] for key, p in
-                    deployment['environment']['providers'].iteritems()
-                    if key == 'common']
-    if creds:
-        creds = creds[0]
-        context['username'] = creds['username']
-        if 'apikey' in creds:
-            context['apikey'] = creds['apikey']
-        if 'password' in creds:
-            context['password'] = creds['password']
-    else:
-        LOG.debug("No credentials supplied in environment/common/credentials")
-
-    context['region'] = inputs.get('blueprint', {}).get('region')
-
-    # Read in the public keys to be passed to newly created servers.
-    os_keys = get_os_env_keys()
-
-    # Look in inputs:
-    keys = get_keys(inputs, environment)
-    if os_keys:
-        keys.update(os_keys)
-
-    if not keys:
-        LOG.warn("No keys supplied. Less secure password auth will be used.")
-
-    context['keys'] = keys
-
-    #Create workflow
-    workflow = create_workflow(deployment, context)
-
-    return {'deployment': deployment, 'workflow': workflow}
+    return deployment
 
 
 def _verify_required_blueprint_options_supplied(deployment):
