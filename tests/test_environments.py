@@ -2,6 +2,7 @@
 import unittest2 as unittest
 
 from checkmate.environments import Environment
+from checkmate.providers.base import PROVIDER_CLASSES, ProviderBase
 
 
 class TestEnvironments(unittest.TestCase):
@@ -19,6 +20,35 @@ class TestEnvironments(unittest.TestCase):
         hashed_value = environment.HashMD5('test', salt="abcdef")
         self.assertEqual(hashed_value, '$1$abcdef$307d25203d209e1f7747885dc45c'
                 '9b65')
+
+    def test_provider_lookup(self):
+        """Test that provider lookup uses environment keys"""
+        definition = {
+                    'name': 'environment',
+                    'providers': {
+                        'base': {
+                            'vendor': 'test',
+                            'provides': [
+                                {'widget': 'foo'},
+                                {'widget': 'bar'}
+                                ],
+                        },
+                        'common': {
+                            'credentials': [
+                                {
+                                    'username': 'tester',
+                                    'password': 'secret',
+                                }]
+                            }
+                        },
+                    }
+
+        PROVIDER_CLASSES['test.base'] = ProviderBase
+
+        environment = Environment(definition)
+        self.assertIn('base', environment.get_providers())
+        self.assertIsInstance(environment.select_provider(resource='widget'),
+                ProviderBase)
 
 if __name__ == '__main__':
     unittest.main()
