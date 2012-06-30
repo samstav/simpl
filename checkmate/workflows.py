@@ -374,7 +374,7 @@ def create_workflow(deployment, context):
     """Creates a SpiffWorkflow from a CheckMate deployment dict
 
     :returns: SpiffWorkflow.Workflow"""
-    LOG.info("Creating workflow for deploymewnt '%s'" % deployment['id'])
+    LOG.info("Creating workflow for deployment '%s'" % deployment['id'])
     blueprint = deployment['blueprint']
     environment = deployment.get('environment')
     if not environment:
@@ -472,7 +472,7 @@ def create_workflow(deployment, context):
         provider_result = provider.add_resource_tasks(resource,
                 key, wfspec, deployment, context)
 
-        if not provider_result['root'].inputs:
+        if 'root' in provider_result and not provider_result['root'].inputs:
             # Run after creds available
             write_credentials.connect(provider_result['root'])
 

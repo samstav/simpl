@@ -30,6 +30,7 @@ os.environ['CHECKMATE_BROKER_PORT'] = os.environ.get('CHECKMATE_BROKER_PORT',
 
 from checkmate import server  # enables logging
 from checkmate.deployments import plan_dict, get_os_env_keys
+from checkmate.providers.base import PROVIDER_CLASSES, ProviderBase
 from checkmate.utils import resolve_yaml_external_refs, is_ssh_key
 
 # Environment variables and safe alternatives
@@ -411,8 +412,56 @@ class TestWorkflowStubbing(StubbedWorkflowBase):
         self.assertNotIn('resources', deployment)
 
 
+class TestWorkflowLogic(StubbedWorkflowBase):
+    """ Test Basic Workflow code """
+    def test_workflow_resource_generation(self):
+        deployment = {
+                'id': 'test',
+                'blueprint': {
+                    'name': 'test bp',
+                    'services': {
+                        'one': {
+                            'components': dict(id='widget')
+                        },
+                        'two': {
+                            'components': dict(id='widget')
+                            },
+                        },
+                    },
+                'environment': {
+                    'name': 'environment',
+                    'providers': {
+                        'base': {
+                            'vendor': 'test',
+                            'provides': [
+                                {'widget': 'foo'},
+                                {'widget': 'bar'}
+                                ],
+                            },
+                        'common': {
+                            'credentials': [
+                                {
+                                    'username': 'tester',
+                                    'password': 'secret',
+                                }]
+                            }
+                        },
+                    },
+                }
+        PROVIDER_CLASSES['test.base'] = ProviderBase
+        data = self._get_stubbed_out_workflow(deployment)
+        deployment = data['deployment']
+        workflow = data['workflow']
+
+        self.mox.ReplayAll()
+
+        workflow.complete_all()
+        self.assertTrue(workflow.is_completed())
+        self.assertEqual(len(workflow.get_tasks()), 4)  # until we remove auth
+
+
 class TestWorkflow(StubbedWorkflowBase):
-    """ Test Basic Server code """
+    """ Test Basic Workflow Stubbing works """
 
     @classmethod
     def setUpClass(cls):

@@ -27,7 +27,7 @@ class ProviderBaseWorkflowMixIn():
                 'root': the root task in the sequence
                 'final': the task that signifies readiness (work is done)
         """
-        pass
+        return {}
 
     def add_resource_tasks(self, resource, key, wfspec, deployment,
             context, wait_on=None):
@@ -46,6 +46,7 @@ class ProviderBaseWorkflowMixIn():
         """
         LOG.debug("%s.%s.add_resource_tasks called, but was not implemented" %
                 (self.vendor, self.name))
+        return {}
 
     def add_connection_tasks(self, resource, key, relation, relation_key,
             wfspec, deployment):
@@ -66,6 +67,7 @@ class ProviderBaseWorkflowMixIn():
         """
         LOG.debug("%s.%s.add_connection_tasks called, but was not "
                 "implemented" % (self.vendor, self.name))
+        return {}
 
     def find_tasks(self, wfspec, resource=None, provider=None, tag=None):
         """Find tasks in the workflow based on deployment data.
