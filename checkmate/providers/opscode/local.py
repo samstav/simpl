@@ -835,7 +835,7 @@ def register_node(host, environment, path=None, password=None,
         with file(node_path, 'rw') as f:
             node = json.load(f)
             node.update(attributes)
-            json.dump(f, node)
+            json.dump(node, f)
         LOG.info("Node attributes written in %s" % node_path)
 
 
@@ -874,14 +874,15 @@ def _run_kitchen_command(kitchen_path, params):
             fatal.append(line)
             last_fatal = line
     if fatal:
+        command = ' '.join(params)
         if 'Chef::Exceptions::' in last_fatal:
             # Get the string after Chef::Exceptions::
             error = last_fatal.split('::')[-1]
             if error:
-                raise CheckmateCalledProcessError(1, ' '.join(params),
+                raise CheckmateCalledProcessError(1, command,
                         output="Chef/Knife error encountered: %s" % error)
-        raise CheckmateCalledProcessError(1, ' '.join(params),
-                output=''.join(fatal))
+        output = '\n'.join(fatal)
+        raise CheckmateCalledProcessError(1, command, output=output)
     elif last_error:
         if 'KnifeSolo::::' in last_fatal:
             # Get the string after a Knife-Solo error::
