@@ -43,36 +43,16 @@ ENV_VARS = {
     }
 
 
-class TestWorkflow(unittest.TestCase):
-    """ Test Basic Server code """
-
-    @classmethod
-    def setUpClass(cls):
-        # Load app.yaml, substitute variables
-        path = os.path.join(os.path.dirname(__file__), '..', 'examples',
-            'app.yaml')
-        with file(path) as f:
-            source = f.read().decode('utf-8')
-
-        t = Template(source)
-        combined = copy.copy(ENV_VARS)
-        combined.update(os.environ)
-        parsed = t.safe_substitute(**combined)
-        app = yaml.safe_load(yaml.emit(resolve_yaml_external_refs(parsed),
-                         Dumper=yaml.SafeDumper))
-        deployment = app['deployment']
-        deployment['id'] = 'DEP-ID-1000'
-        cls.deployment = deployment
-
+class StubbedWorkflowBase(unittest.TestCase):
     def setUp(self):
         self.mox = mox.Mox()
-        # Parse app.yaml as a deployment
-        result = plan_dict(TestWorkflow.deployment)
-        self.deployment = result['deployment']
-        self.workflow = result['workflow']
 
-    def test_workflow_completion(self):
-        """Verify workflow sequence and data flow"""
+    def tearDown(self):
+        self.mox.UnsetStubs()
+
+    def _get_stubbed_out_workflow(self, deployment):
+        result = plan_dict(deployment)
+
         # Prepare expected call names, args, and returns for mocking
         def context_has_server_settings(context):
             """Checks that server_create call has all necessary settings"""
@@ -373,7 +353,7 @@ class TestWorkflow(unittest.TestCase):
             }
             ]
 
-        #Mock out celery calls
+       #Mock out celery calls
         self.mock_tasks = {}
         self.mox.StubOutWithMock(default_app, 'send_task')
         self.mox.StubOutWithMock(default_app, 'AsyncResult')
@@ -394,6 +374,73 @@ class TestWorkflow(unittest.TestCase):
             # Data is retrieved
             default_app.AsyncResult.__call__(async_mock.task_id).AndReturn(
                     async_mock)
+
+        return result
+
+
+class TestWorkflowStubbing(StubbedWorkflowBase):
+    """ Test Basic Server code """
+    def test_workflow_run(self):
+        deployment = {
+                'id': 'test',
+                'blueprint': {
+                    'name': 'test bp',
+                    'services': {},
+                    },
+                'environment': {
+                    'name': 'environment',
+                    'providers': {
+                        'common': {
+                            'credentials': [
+                                {
+                                    'username': 'tester',
+                                    'password': 'secret',
+                                }]
+                        }
+                    },
+                    },
+                }
+        data = self._get_stubbed_out_workflow(deployment)
+        deployment = data['deployment']
+        workflow = data['workflow']
+
+        self.mox.ReplayAll()
+
+        workflow.complete_all()
+        self.assertTrue(workflow.is_completed())
+        self.assertNotIn('resources', deployment)
+
+
+class TestWorkflow(StubbedWorkflowBase):
+    """ Test Basic Server code """
+
+    @classmethod
+    def setUpClass(cls):
+        # Load app.yaml, substitute variables
+        path = os.path.join(os.path.dirname(__file__), '..', 'examples',
+            'app.yaml')
+        with file(path) as f:
+            source = f.read().decode('utf-8')
+
+        t = Template(source)
+        combined = copy.copy(ENV_VARS)
+        combined.update(os.environ)
+        parsed = t.safe_substitute(**combined)
+        app = yaml.safe_load(yaml.emit(resolve_yaml_external_refs(parsed),
+                         Dumper=yaml.SafeDumper))
+        deployment = app['deployment']
+        deployment['id'] = 'DEP-ID-1000'
+        cls.deployment = deployment
+
+    def setUp(self):
+        StubbedWorkflowBase.setUp(self)
+        # Parse app.yaml as a deployment
+        result = self._get_stubbed_out_workflow(TestWorkflow.deployment)
+        self.deployment = result['deployment']
+        self.workflow = result['workflow']
+
+    def test_workflow_completion(self):
+        """Verify workflow sequence and data flow"""
 
         self.mox.ReplayAll()
 
@@ -440,8 +487,6 @@ class TestWorkflow(unittest.TestCase):
         except:
             pass
 
-    def tearDown(self):
-        self.mox.UnsetStubs()
 
 if __name__ == '__main__':
     unittest.main()

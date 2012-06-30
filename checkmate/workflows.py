@@ -419,7 +419,7 @@ def create_workflow(deployment, context):
     providers = {}  # Providers used in this deployment
 
     provider_keys = set()
-    for key, resource in deployment['resources'].iteritems():
+    for key, resource in deployment.get('resources', {}).iteritems():
         if key != 'connections' and resource['type'] not in provider_keys:
             provider_keys.add(resource['type'])
             provider = environment.select_provider(resource['type'])
@@ -460,7 +460,7 @@ def create_workflow(deployment, context):
         if resource_key not in sorted_list:
             sorted_list.append(resource_key)
 
-    for key, resource in deployment['resources'].iteritems():
+    for key, resource in deployment.get('resources', {}).iteritems():
         if key != 'connections':
             recursive_add_host(sorted_resources, key, deployment['resources'],
                     [])
@@ -477,7 +477,7 @@ def create_workflow(deployment, context):
             write_credentials.connect(provider_result['root'])
 
     # Do relations
-    for key, resource in deployment['resources'].iteritems():
+    for key, resource in deployment.get('resources', {}).iteritems():
         if 'relations' in resource:
             for name, relation in resource['relations'].iteritems():
                 if 'target' in relation:  # This is a source

@@ -165,9 +165,10 @@ class Environment():
     def get_providers(self):
         """ Returns provider class instances for this environment """
         providers = self.dict.get('providers', None)
-        if not providers:
-            raise CheckmateException("Environment does not have providers")
-        common = providers.get('common', {})
+        if providers:
+            common = providers.get('common', {})
+        else:
+            LOG.debug("Environment does not have providers")
 
         results = {}
         for key, provider in providers.iteritems():

@@ -502,29 +502,31 @@ def plan_dict(deployment):
                             connection_name))
 
     #Write resources and connections to deployment
-    resources['connections'] = connections
-    deployment['resources'] = resources
+    if connections:
+        resources['connections'] = connections
+    if resources:
+        deployment['resources'] = resources
 
     #
     # Create context with creds and keys
     #
+    context = dict(id=deployment['id'])
 
     #TODO: make this smarter
     creds = [p['credentials'][0] for key, p in
                     deployment['environment']['providers'].iteritems()
                     if key == 'common']
-    if not creds:
-        raise CheckmateException("No credentials supplied in "
-                "environment/common/credentials")
-    else:
+    if creds:
         creds = creds[0]
+        context['username'] = creds['username']
+        if 'apikey' in creds:
+            context['apikey'] = creds['apikey']
+        if 'password' in creds:
+            context['password'] = creds['password']
+    else:
+        LOG.debug("No credentials supplied in environment/common/credentials")
 
-    context = {
-        'id': deployment['id'],
-        'username': creds['username'],
-        'apikey': creds['apikey'],
-        'region': inputs.get('blueprint', {}).get('region'),
-    }
+    context['region'] = inputs.get('blueprint', {}).get('region')
 
     # Read in the public keys to be passed to newly created servers.
     os_keys = get_os_env_keys()
