@@ -5,6 +5,8 @@ import uuid
 # pylint: disable=E0611
 from bottle import get, post, put, delete, request, response, abort
 from Crypto.PublicKey import RSA  # pip install pycrypto
+from Crypto.Hash import SHA512, MD5
+from Crypto import Random
 
 from checkmate.db import get_driver, any_id_problems
 from checkmate.exceptions import CheckmateException
@@ -209,3 +211,17 @@ class Environment():
         """Generates an ssh public key from a private key public_string"""
         key = RSA.importKey(private_key)
         return key.publickey().exportKey('OpenSSH')
+
+    def HashSHA512(self, value, salt=None):
+        if not salt:
+            salt = Random.get_random_bytes(8).encode('base64').strip()
+        h = SHA512.new(salt)
+        h.update(value)
+        return "$6$%s$%s" % (salt, h.hexdigest())
+
+    def HashMD5(self, value, salt=None):
+        if not salt:
+            salt = Random.get_random_bytes(8).encode('base64').strip()
+        h = MD5.new(salt)
+        h.update(value)
+        return "$1$%s$%s" % (salt, h.hexdigest())
