@@ -80,8 +80,7 @@ def read_body(request):
 
     if content_type == 'application/x-yaml':
         try:
-            return yaml.safe_load(yaml.emit(resolve_yaml_external_refs(data),
-                         Dumper=yaml.SafeDumper))
+            return yaml_to_dict(data)
         except ParserError as exc:
             abort(406, "Invalid YAML syntax. Check:\n%s" % exc)
         except ComposerError as exc:
@@ -99,6 +98,17 @@ def read_body(request):
                 "in the 'object' field")
     else:
         abort(415, "Unsupported Media Type: %s" % content_type)
+
+
+def yaml_to_dict(data):
+    """Parses YAML to a dict using checkmate extensions."""
+    return yaml.safe_load(yaml.emit(resolve_yaml_external_refs(data),
+             Dumper=yaml.SafeDumper))
+
+
+def dict_to_yaml(data):
+    """Parses dict to YAML using checkmate extensions."""
+    return yaml.safe_dump(data, default_flow_style=False)
 
 
 def write_yaml(data, request, response):

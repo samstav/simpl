@@ -14,6 +14,7 @@ from celery.app import default_app
 from celery.result import AsyncResult
 from SpiffWorkflow.storage import DictionarySerializer
 import yaml
+from checkmate.utils import yaml_to_dict
 
 LOG = logging.getLogger(__name__)
 
@@ -382,25 +383,19 @@ class StubbedWorkflowBase(unittest.TestCase):
 class TestWorkflowStubbing(StubbedWorkflowBase):
     """ Test Basic Server code """
     def test_workflow_run(self):
-        deployment = {
-                'id': 'test',
-                'blueprint': {
-                    'name': 'test bp',
-                    'services': {},
-                    },
-                'environment': {
-                    'name': 'environment',
-                    'providers': {
-                        'common': {
-                            'credentials': [
-                                {
-                                    'username': 'tester',
-                                    'password': 'secret',
-                                }]
-                        }
-                    },
-                    },
-                }
+        deployment = yaml_to_dict("""
+                id: test
+                blueprint:
+                  name: test bp
+                  services: {}
+                environment:
+                  name: environment
+                  providers:
+                    common:
+                      credentials:
+                      - password: secret
+                        username: tester
+                """)
         data = self._get_stubbed_out_workflow(deployment)
         deployment = data['deployment']
         workflow = data['workflow']
@@ -415,39 +410,30 @@ class TestWorkflowStubbing(StubbedWorkflowBase):
 class TestWorkflowLogic(StubbedWorkflowBase):
     """ Test Basic Workflow code """
     def test_workflow_resource_generation(self):
-        deployment = {
-                'id': 'test',
-                'blueprint': {
-                    'name': 'test bp',
-                    'services': {
-                        'one': {
-                            'components': dict(id='widget')
-                        },
-                        'two': {
-                            'components': dict(id='widget')
-                            },
-                        },
-                    },
-                'environment': {
-                    'name': 'environment',
-                    'providers': {
-                        'base': {
-                            'vendor': 'test',
-                            'provides': [
-                                {'widget': 'foo'},
-                                {'widget': 'bar'}
-                                ],
-                            },
-                        'common': {
-                            'credentials': [
-                                {
-                                    'username': 'tester',
-                                    'password': 'secret',
-                                }]
-                            }
-                        },
-                    },
-                }
+        deployment = yaml_to_dict("""
+                id: test
+                blueprint:
+                  name: test bp
+                  services:
+                    one:
+                      components:
+                        id: widget
+                    two:
+                      components:
+                        id: widget
+                environment:
+                  name: environment
+                  providers:
+                    base:
+                      provides:
+                      - widget: foo
+                      - widget: bar
+                      vendor: test
+                    common:
+                      credentials:
+                      - password: secret
+                        username: tester
+            """)
         PROVIDER_CLASSES['test.base'] = ProviderBase
         data = self._get_stubbed_out_workflow(deployment)
         deployment = data['deployment']

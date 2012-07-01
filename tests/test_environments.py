@@ -3,6 +3,7 @@ import unittest2 as unittest
 
 from checkmate.environments import Environment
 from checkmate.providers.base import PROVIDER_CLASSES, ProviderBase
+from checkmate.utils import yaml_to_dict
 
 
 class TestEnvironments(unittest.TestCase):
@@ -23,25 +24,19 @@ class TestEnvironments(unittest.TestCase):
 
     def test_provider_lookup(self):
         """Test that provider lookup uses environment keys"""
-        definition = {
-                    'name': 'environment',
-                    'providers': {
-                        'base': {
-                            'vendor': 'test',
-                            'provides': [
-                                {'widget': 'foo'},
-                                {'widget': 'bar'}
-                                ],
-                        },
-                        'common': {
-                            'credentials': [
-                                {
-                                    'username': 'tester',
-                                    'password': 'secret',
-                                }]
-                            }
-                        },
-                    }
+        definition = yaml_to_dict("""
+                name: environment
+                providers:
+                  base:
+                    provides:
+                    - widget: foo
+                    - widget: bar
+                    vendor: test
+                  common:
+                    credentials:
+                    - password: secret
+                      username: tester
+                      """)
 
         PROVIDER_CLASSES['test.base'] = ProviderBase
 

@@ -4,6 +4,7 @@ import unittest2 as unittest
 
 from checkmate.deployments import plan
 from checkmate.providers.base import PROVIDER_CLASSES, ProviderBase
+from checkmate.utils import yaml_to_dict
 
 
 class TestDeployments(unittest.TestCase):
@@ -25,55 +26,41 @@ class TestDeployments(unittest.TestCase):
 
     def test_resource_generator(self):
         """Test the parser generates the right number of resources"""
-        widget = dict(id='widget', provides={'widget': 'foo'})
-        deployment = {
-                'id': 'test',
-                'blueprint': {
-                    'name': 'test bp',
-                    'services': {
-                        'front': {
-                            'components': widget,
-                            'relations': {'middle': 'foo'},
-
-
-                            },
-                        'middle': {
-                            'components': widget,
-                            'relations': {'back': 'foo'}
-                            },
-                        'back': {
-                            'components': widget,
-                            },
-                        }
-                    },
-                'environment': {
-                    'name': 'environment',
-                    'providers': {
-                        'base': {
-                            'vendor': 'test',
-                            'provides': [
-                                {'widget': 'foo'},
-                                ],
-                        },
-                        'common': {
-                            'credentials': [
-                                {
-                                    'username': 'tester',
-                                    'password': 'secret',
-                                }]
-                            }
-                        },
-                    },
-                'inputs': {
-                    'services': {
-                        'middle': {
-                            'widget': {
-                                'count': 4,
-                                }
-                            },
-                        }
-                    }
-                }
+        deployment = yaml_to_dict("""
+                id: test
+                blueprint:
+                  name: test bp
+                  services:
+                    back:
+                      components: &widget
+                        id: widget
+                        provides:
+                          widget: foo
+                    front:
+                      components: *widget
+                      relations:
+                        middle: foo
+                    middle:
+                      components: *widget
+                      relations:
+                        back: foo
+                environment:
+                  name: environment
+                  providers:
+                    base:
+                      provides:
+                      - widget: foo
+                      vendor: test
+                    common:
+                      credentials:
+                      - password: secret
+                        username: tester
+                inputs:
+                  services:
+                    middle:
+                      widget:
+                        count: 4
+            """)
 
         PROVIDER_CLASSES['test.base'] = ProviderBase
 
