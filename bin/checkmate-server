@@ -1,0 +1,45 @@
+#!/usr/bin/env python
+import os
+from subprocess import call
+import sys
+
+if len(sys.argv) > 1 and sys.argv[1] == 'START':
+    path = os.path.normpath(os.path.join(os.path.dirname(__file__), os.pardir,
+            'checkmate', 'server.py'))
+    params = ["python", path]
+    if len(sys.argv) > 2:
+        params.extend(sys.argv[2:])
+    try:
+        print 'Running: %s' % ' '.join(params)
+        call(params)
+    except KeyboardInterrupt:
+        print "\nExiting by keyboard request"
+else:
+    print """
+    *** CheckMate Server Command-line Utility ***
+
+    Starts the CheckMate Server & REST API
+
+    Usage:
+
+        checkmate-server START [options]
+
+    Options:
+
+        --with-ui:  enable support for browsers and HTML templates
+        --newrelic: enable newrelic monitoring (place newrelic.ini in your
+                    directory)
+        --quiet:    turn down logging to WARN (default is INFO)
+        --verbose:  turn up logging to DEBUG (default is INFO)
+        --debug:    turn on additional debugging inspection and output
+                    including full HTTP requests and responses
+
+
+    Settings:
+    """
+    for key in os.environ:
+        if key.startswith('CHECKMATE_') or key.startswith('CELERY'):
+            if key.startswith('CHECKMATE_CLIENT'):
+                pass
+            else:
+                print key, '=', os.environ[key]
