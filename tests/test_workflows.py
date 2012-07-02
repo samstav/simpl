@@ -523,5 +523,104 @@ class TestWorkflow(StubbedWorkflowBase):
             pass
 
 
+class TestWordpressWorkflow(StubbedWorkflowBase):
+    """ Test WordPress Workflow """
+
+    @classmethod
+    def setUpClass(cls):
+        # Load app.yaml, substitute variables
+        path = os.path.join(os.path.dirname(__file__), '..', 'examples',
+            'app.yaml')
+        with file(path) as f:
+            source = f.read().decode('utf-8')
+
+        t = Template(source)
+        combined = copy.copy(ENV_VARS)
+        combined.update(os.environ)
+        parsed = t.safe_substitute(**combined)
+        app = yaml.safe_load(yaml.emit(resolve_yaml_external_refs(parsed),
+                         Dumper=yaml.SafeDumper))
+        deployment = app['deployment']
+        deployment['id'] = 'DEP-ID-1000'
+        cls.deployment = deployment
+
+        # WordPress Settings
+        inputs = yaml_to_dict("""
+                client_public_key_ssh: ssh-rsa AAAAB3NzaC1...
+                environment_private_key: |
+                    -----BEGIN RSA PRIVATE KEY-----
+                    MIIEpAIBAAKCAQEAvQYtPZCP+5SVD68nf9OzEEE7itZlfynbf/XRQ6YggOa0t1U5
+                    XRqdHPnmG7nYtxdMQLZkMYJtyML8u56p11DrpQCF9p9VISrnjSS4CmO2Y6vLbd2H
+                    yntKeV57repsAnhqkE788rWQ5bm15bYyYLa52qhpYxy3R7O/Nif3B1wQzq0+KYbD
+                    MqoHs7dOGErKXxRcqO1f1WZe6gBfat2qDY/XUJe+VQXNSGl7e19KSr9FZXMTQBOs
+                    sGvleL0mDy0Gn9NKp9V3haKmAMPW0ZAMA14TqwBfHaELPuRLrCDRt6YtDLGg4V+w
+                    vgZdGkzwoEAAAuKheu+5TwEBrD9wO4fE/C8sBwIDAQABAoIBAGzHaDOcxO9f82Ri
+                    RRXv64V4NN7SQPisSvBZs4L90Ii9u9QhjHCDB1WMjpr4GbpMAwreq8w+JhW5+J20
+                    UkNiAyoiofVqfiAnQ7fbILqB5Y14aQqhySqCRzqPYBeW52+IgrLncfPu/yLk+8Pl
+                    VRqJLW2jK3rpJKRz0Z9F4ohuuBFnbjsGtjknivH+Xd6KR9022mzNiBinjD/R8R+K
+                    GW75buDzquvuaQ12mHub4uQ59hhyp2a/jrwy6ez0lbXu3zqIyzPzhHk95WLMmrDv
+                    AeyzqkjcbuJ1VBv8ko8enp56m9CQvoPnmYHW8xI53I4yCzp6yymd9/mgFj6CoSyv
+                    Z/NUIJkCgYEA2A9ibxjvNVF/s6lKhb8WGRhSlQZoZT3u360ok8JzPDWwEOyEEUy2
+                    OFJDJ8gtJ6PelQD2b9xaz+dGWEfZU2CGL68KtiRmO5uDD5BmJ02UmjfBUl/7uipl
+                    BhtZLDexj1vORZQMrhSrxt7n1VfEgpX42n0WR/EU4aoWSX1CAIG2AksCgYEA3/de
+                    YCuHYjEscDbkee0CSqBfdg/u01+HRE+fQ8AesNLC1ZZv7h5OfCfrZvM925Kk+0tm
+                    ex8IdMfnuGaF3E25mkAshDeQQO5kj14KcJ8GD9z3qG6iiWOcTJtFw8CNkbPe9SfT
+                    9FmYPZbvXGeIQvj6b9dEVRJOcI+4WsoiMgOeh7UCgYEAqhmSmXy79vIu47dIYHvM
+                    Xf10JrdgwTQ9OAQPiiTwrFpoPyq13xjR7Q12qX9DbY3p0s1rNy34oO2nyCDozGeV
+                    vTzF5hhKFGueh0Zb5l2BvNhgbwX6HNr7pg8p6VH/jKnuf4DLatIDWxJq2t+6akTA
+                    IuOQAxueIPvTiBABQnzcWnkCgYAtWHNGO2n0yon5ylNmEEOXgnLxf3ZWW5ASl6Bi
+                    YkKUgIesIQJWjtJLNvXlaThL/ZvjuTdtlDHtGxBieHd/zEjY30dkGa/eRaYclOi+
+                    NqROj+mgs427DWz24bU1VgYTyvxIXKEAZyd4yNd7uQaQsMJb5JTUOJmjFqY305cq
+                    0yrExQKBgQCB2Be1RFBkLa+7VGpK+kT7OVHhmMAMjr9apL4XI6WYQzeS+JN6elG3
+                    hEN1X4K28pVFgiQKqoUZhTjo9MGJsiA8TJ8QX4fLqfyhzitV98zTvPar4i/3bATc
+                    /lQOh9JeTc7pCXHX9A2sVT0A7XNR2riT+zoof5edWIBK0UFSA8u0Vw==
+                    -----END RSA PRIVATE KEY-----
+                blueprint:
+                  "prefix": TEST-BLOG
+                  "domain": testing.local
+                  "path": '/test_blog'
+                  "username": tester
+                  "password": test_password
+                  "ssl": true
+                  "ssl_certificate": SSLCERT
+                  "ssl_private_key": SSLKEY
+                  "region": testonia
+                  "high-availability": true
+                  "requests-per-second": 60
+                services:
+                  "backend":
+                    'database':
+                      'memory': 1024 Mb
+                  "web":
+                    'compute':
+                      'memory': 2048 Mb
+                      'count': 2
+                providers:
+                  'legacy':
+                    'compute':
+                      'os': Ubuntu 12.04
+                      """)
+        deployment['inputs'] = inputs
+
+    def setUp(self):
+        StubbedWorkflowBase.setUp(self)
+        # Parse app.yaml as a deployment
+        result = self._get_stubbed_out_workflow(TestWordpressWorkflow.deployment)
+        self.deployment = result['deployment']
+        self.workflow = result['workflow']
+
+    def test_workflow_completion(self):
+        """Verify workflow sequence and data flow"""
+
+        self.mox.ReplayAll()
+
+        self.workflow.complete_all()
+        self.assertTrue(self.workflow.is_completed())
+
+        serializer = DictionarySerializer()
+        simulation = self.workflow.serialize(serializer)
+        simulation['id'] = 'simulate'
+
+
 if __name__ == '__main__':
     unittest.main()
