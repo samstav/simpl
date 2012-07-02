@@ -19,7 +19,7 @@ from yaml.composer import ComposerError
 
 LOG = logging.getLogger(__name__)
 RESOURCES = ['deployments', 'workflows', 'blueprints', 'environments',
-        'components', 'test', 'status']
+        'components', 'providers', 'test', 'status']
 STATIC = ['test']
 #TODO: make this wildcards (0.password, 1.password, client_private_key,
 # etc... will be returned)
@@ -114,13 +114,15 @@ def dict_to_yaml(data):
 
 def write_yaml(data, request, response):
     """Write output in yaml"""
-    response.add_header('content-type', 'application/x-yaml')
+    response.set_header('content-type', 'application/x-yaml')
+    response.set_header('vary', 'Accept,Accept-Encoding,X-Auth-Token')
     return yaml.safe_dump(data, default_flow_style=False)
 
 
 def write_json(data, request, response):
     """Write output in json"""
     response.set_header('content-type', 'application/json')
+    response.set_header('vary', 'Accept,Accept-Encoding,X-Auth-Token')
     return json.dumps(data, indent=4)
 
 
