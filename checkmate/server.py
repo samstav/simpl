@@ -61,6 +61,7 @@ import uuid
 
 # pylint: disable=E0611
 from bottle import app, get, post, run, request, response, abort, static_file
+from Crypto.Hash import MD5
 from jinja2 import BaseLoader, Environment, TemplateNotFound
 import webob
 import webob.dec
@@ -248,21 +249,22 @@ def get_dependency_versions():
 class TenantMiddleware(object):
     """Strips /tenant_id/ from path and puts it in context
 
-    This is needed by the authz middleware too"""
+    This is needed by the authz middleware too
+    """
     def __init__(self, app):
         self.app = app
 
     def __call__(self, e, h):
-        # Clear headers is supplied
+        # Clear headers if supplied (anti-spoofing)
         self._remove_auth_headers(e)
 
         if e['PATH_INFO'] in [None, "", "/"]:
-            pass  # route with bottle. This call needs Admin rights.
+            pass  # Not a tenant call
         else:
             path_parts = e['PATH_INFO'].split('/')
             tenant = path_parts[1]
             if tenant in RESOURCES or tenant in STATIC:
-                pass  # route with bottle. This call needs Admin rights.
+                pass  # Not a tenant call
             else:
                 errors = any_tenant_id_problems(tenant)
                 if errors:
@@ -324,119 +326,158 @@ class TenantMiddleware(object):
 
 
 class PAMAuthMiddleware(object):
-    """Authenticate basic auth calls to PAM and mark user as admin
+    """Authenticate basic auth calls to PAM and optionally mark user as admin
 
     - Authenticates any basic auth to PAM
         - 401 if fails
-        - Mark authenticated as admin if true
+        - Mark authenticated as admin if all_admins is set
+        - checks for domain if set. Ignores other domains otherwise
     - Adds basic auth header to any returning calls so client knows basic
       auth is supported
     """
-    def __init__(self, app):
+    def __init__(self, app, domain=None, all_admins=False):
         self.app = app
+        self.domain = None  # Which domain to authenticate in this instance
+        self.all_admins = all_admins  # Does this authenticate admins?
 
     def __call__(self, e, h):
         # Authenticate basic auth calls to PAM
         #TODO: this header is not being returned in a 401
-        response.add_header('WWW-Authenticate',
-                            'Basic realm="CheckMate PAM Module"')
+        h = self.start_response_callback(h)
+        context = request.context
 
         if 'HTTP_AUTHORIZATION' in e:
+            if getattr(context, 'authenticated', False) == True:
+                return self.app(e, h)
+
             auth = e['HTTP_AUTHORIZATION'].split()
             if len(auth) == 2:
                 if auth[0].lower() == "basic":
-                    uname, passwd = base64.b64decode(auth[1]).split(':')
+                    login, passwd = base64.b64decode(auth[1]).split(':')
+                    username = login
+                    if self.domain:
+                        if '\\' in login:
+                            domain = login.split('\\')[0]
+                            if domain != self.domain:
+                                # Does not apply to this instance. Pass through
+                                return self.app(e, h)
+                            username = login.split('\\')[len(domain) + 1:]
                     # TODO: maybe implement some caching?
-                    if not pam.authenticate(uname, passwd, service='login'):
+                    if not pam.authenticate(login, passwd, service='login'):
                         LOG.debug('PAM failing request because of bad creds')
-                        return HTTPUnauthorized(None, [('WWW-Authenticate',
-                                'Basic realm="CheckMate PAM Module"')])(e, h)
-                    LOG.debug("PAM authenticated '%s' as admin" % uname)
-                    context = request.context
-                    context.user = uname
+                        return HTTPUnauthorized("Invalid credentials")(e, h)
+                    LOG.debug("PAM authenticated '%s' as admin" % login)
+                    context.domain = self.domain
+                    context.user = username
                     context.authenticated = True
-                    context.is_admin = True
+                    context.is_admin = self.all_admins
 
         return self.app(e, h)
+
+    def start_response_callback(self, start_response):
+        """Intercepts upstream start_response and adds our headers"""
+        def callback(status, headers, exc_info=None):
+            # Add our headers to response
+            headers.append(('WWW-Authenticate',
+                    'Basic realm="CheckMate PAM Module"'))
+            # Call upstream start_response
+            start_response(status, headers, exc_info)
+        return callback
 
 
 class TokenAuthMiddleware(object):
     """Authenticate any tokens provided.
-
-    ****************************************
-    FIXME: THIS IS NOT PROVIDING SECURITY YET
-    ****************************************
 
     - Appends www-authenticate headers to returning calls
     - Authenticates all tokens passed in with X-Auth-Token
         - 401s if invalid
         - Marks authenticated if valid and populates user and catalog data
     """
-    def __init__(self, app, options={}):
+    def __init__(self, app, endpoint):
         self.app = app
-        self.options = options
+        self.endpoint = endpoint
 
     def __call__(self, e, h):
         # Authenticate calls with X-Auth-Token to the source auth service
-        #TODO: this header is not being returned in a 401
-        response.add_header('WWW-Authenticate',
-                            'Keystone realm="CheckMate Token Auth Module"')
+        h = self.start_response_callback(h)
 
         if 'HTTP_X_AUTH_TOKEN' in e:
             context = request.context
-            service = e.get('HTTP_X_AUTH_SOURCE',
-                'https://identity.api.rackspacecloud.com/v2.0/tokens')
-
-            url = urlparse(service)
-            if url.scheme == 'https':
-                http_class = httplib.HTTPSConnection
-                port = url.port or 443
-            else:
-                http_class = httplib.HTTPConnection
-                port = url.port or 80
-            host = url.hostname
-
-            http = http_class(host, port)
-            body = {"auth": {"token": {"id": e['HTTP_X_AUTH_TOKEN']}}}
-            if context.tenant:
-                auth = body['auth']
-                auth['tenantId'] = context.tenant
-            headers = {
-                    'Content-type': 'application/json',
-                    'Accept': 'application/json',
-                }
-            # TODO: implement some caching to not overload auth
             try:
-                http.request('POST', url.path, body=json.dumps(body),
-                        headers=headers)
-                resp = http.getresponse()
-                if resp.status != 200:
-                    LOG.debug('Invalid token for tenant: %s' % resp.reason)
-                    return HTTPUnauthorized("Token invalid or not valid for "
-                            "this tenant (%s)" % resp.reason)(e, h)
-
-                body = resp.read()
-            except Exception, e:
-                LOG.error('HTTP connection exception: %s' % e)
-                return HTTPUnauthorized('Unable to communicate with keystone')
-            finally:
-                http.close()
-
-            try:
-                content = json.loads(body)
-            except ValueError:
-                LOG.debug('Keystone did not return json-encoded body')
-                content = {}
-            catalog = self.get_service_catalog(content)
-            context.catalog = catalog
-            user_tenants = self.get_user_tenants(content)
-            context.user_tenants = user_tenants
-            context.auth_tok = e['HTTP_X_AUTH_TOKEN']
-            context.user = self.get_user(content)
-            context.roles = self.get_roles(content)
-            context.authenticated = True
+                content = self._auth_keystone(e, h, context,
+                        token=e['HTTP_X_AUTH_TOKEN'])
+            except HTTPUnauthorized as exc:
+                LOG.exception(exc)
+                return exc(e, h)
+            self.set_context(content)
 
         return self.app(e, h)
+
+    def set_context(self, content):
+        """Updates context with current auth data"""
+        context = request.context
+        catalog = self.get_service_catalog(content)
+        context.catalog = catalog
+        user_tenants = self.get_user_tenants(content)
+        context.user_tenants = user_tenants
+        context.auth_tok = content['access']['token']['id']
+        context.user = self.get_user(content)
+        context.roles = self.get_roles(content)
+        context.authenticated = True
+
+    def _auth_keystone(self, e, h, context, token=None, username=None,
+                apikey=None, password=None):
+        url = urlparse(self.endpoint)
+        if url.scheme == 'https':
+            http_class = httplib.HTTPSConnection
+            port = url.port or 443
+        else:
+            http_class = httplib.HTTPConnection
+            port = url.port or 80
+        host = url.hostname
+
+        http = http_class(host, port)
+        if token:
+            body = {"auth": {"token": {"id": token}}}
+        elif password:
+            body = {"auth": {"passwordCredentials": {
+                    "username": username, 'password': password}}}
+        elif apikey:
+            body = {"auth": {"RAX-KSKEY:apiKeyCredentials": {
+                    "username": username, 'apiKey': apikey}}}
+
+        if context.tenant:
+            auth = body['auth']
+            auth['tenantId'] = context.tenant
+        headers = {
+                'Content-type': 'application/json',
+                'Accept': 'application/json',
+            }
+        # TODO: implement some caching to not overload auth
+        try:
+            LOG.debug('Authenticating to %s' % self.endpoint)
+            http.request('POST', url.path, body=json.dumps(body),
+                    headers=headers)
+            resp = http.getresponse()
+            body = resp.read()
+        except Exception, e:
+            LOG.error('HTTP connection exception: %s' % e)
+            raise HTTPUnauthorized('Unable to communicate with keystone')
+        finally:
+            http.close()
+
+        if resp.status != 200:
+            LOG.debug('Invalid token for tenant: %s' % resp.reason)
+            raise HTTPUnauthorized("Token invalid or not valid for "
+                    "this tenant (%s)" % resp.reason)
+
+        try:
+            content = json.loads(body)
+        except ValueError:
+            msg = 'Keystone did not return json-encoded body'
+            LOG.debug(msg)
+            raise HTTPUnauthorized(msg)
+        return content
 
     def get_service_catalog(self, content):
         return content['access']['serviceCatalog']
@@ -483,24 +524,35 @@ class TokenAuthMiddleware(object):
         user = content['access']['user']
         return [role['name'] for role in user.get('roles', [])]
 
+    def start_response_callback(self, start_response):
+        """Intercepts upstream start_response and adds our headers"""
+        def callback(status, headers, exc_info=None):
+            # Add our headers to response
+            headers.append(('WWW-Authenticate',
+                            'Keystone uri="%s"' % self.endpoint))
+            # Call upstream start_response
+            start_response(status, headers, exc_info)
+        return callback
+
 
 class AuthorizationMiddleware(object):
     """Checks that call is authenticated and authorized to access the resource
     requested.
 
-    - Allows all calls to /static/
+    - Allows all calls to anonymous_paths
     - Allows all calls that have been validated
-    - Denies all others
+    - Denies all others (redirect to tenant URL if we have the tenant)
     Note: calls authenticated with PAM will not have an auth_token. They will
           not be able to access calls that need an auth token
     """
-    def __init__(self, app):
+    def __init__(self, app, anonymous_paths=None):
         self.app = app
+        self.anonymous_paths = anonymous_paths
 
     def __call__(self, e, h):
         path_parts = e['PATH_INFO'].split('/')
         root = path_parts[1] if len(path_parts) > 1 else None
-        if root in STATIC:
+        if root in self.anonymous_paths:
             # Allow test and static calls
             return self.app(e, h)
 
@@ -512,17 +564,23 @@ class AuthorizationMiddleware(object):
         elif context.tenant:
             # Authorize tenant calls
             if not context.authenticated:
-                return HTTPUnauthorized(None, [('WWW-Authenticate',
-                                'Basic realm="CheckMate PAM Module"')])(e, h)
+                LOG.debug('Authentication required for this resource')
+                return HTTPUnauthorized()(e, h)
             if not context.allowed_to_access_tenant():
+                LOG.debug('Access to tenant not allowed')
                 return HTTPUnauthorized("Access to tenant not allowed")(e, h)
             return self.app(e, h)
-        else:
-            LOG.debug('Auth-Z failed. Returning 401')
-            #TODO: returning basic auth info now for browser support, but need
-            # fix this in PAMAuthMiddleware
-            return HTTPUnauthorized(None, [('WWW-Authenticate',
-                                'Basic realm="CheckMate PAM Module"')])(e, h)
+        elif root in RESOURCES or root is None:
+            # Failed attempt to access admin resource
+            if context.user_tenants:
+                for tenant in context.user_tenants:
+                    if 'Mosso' not in tenant:
+                        LOG.debug('Redirecting to tenant')
+                        return HTTPFound(location='/%s%s' % (tenant,
+                                e['PATH_INFO']))(e, h)
+
+        LOG.debug('Auth-Z failed. Returning 401.')
+        return HTTPUnauthorized()(e, h)
 
 
 class StripPathMiddleware(object):
@@ -666,7 +724,8 @@ class BrowserMiddleware(object):
                 return ''
         env.filters['prepend'] = do_prepend
         env.json = json
-        tenant_id = request.get('HTTP_X_TENANT_ID')
+        context = request.context
+        tenant_id = context.tenant
         try:
             template = env.get_template("%s.template" % name)
             return template.render(data=data, source=json.dumps(data,
@@ -734,17 +793,18 @@ class RequestContext(object):
 
     def __init__(self, auth_tok=None, user=None, tenant=None, is_admin=False,
                  read_only=False, show_deleted=False, authenticated=False,
-                 catalog=None, user_tenants=None, roles=None):
+                 catalog=None, user_tenants=None, roles=None, domain=None):
         self.authenticated = authenticated
         self.auth_tok = auth_tok
         self.catalog = catalog
         self.user = user
-        self.user_tenants = user_tenants
-        self.tenant = tenant
+        self.user_tenants = user_tenants  # all allowed tenants
+        self.tenant = tenant  # current tenant
         self.is_admin = is_admin
         self.roles = roles
         self.read_only = read_only
         self.show_deleted = show_deleted
+        self.domain = domain  # which cloud?
 
     def allowed_to_access_tenant(self, tenant_id=None):
         """Checks if a tenant can be accessed by this current session.
@@ -765,15 +825,215 @@ class ContextMiddleware(object):
         return self.app(e, h)
 
 
+class BasicAuthMultiCloudMiddleware(object):
+    """Implements basic auth to multiple cloud endpoints
+
+    - Authenticates any basic auth to PAM
+        - 401 if fails
+        - Mark authenticated as admin if true
+    - Adds basic auth header to any returning calls so client knows basic
+      auth is supported
+    """
+    def __init__(self, app, domains=None):
+        """
+        :param domains: the hash of domains to authenticate against. Each key
+                is a realm that points to a different cloud. The hash contains
+                endpoint and protocol, which is one of:
+                    keystone: using keystone protocol
+        """
+        self.domains = domains
+        self.app = app
+        self.cache = {}
+        # For each endpoint, instantiate a middleware instance to process its
+        # token auth calls. We'll route to it when appropriate
+        for key, value in domains.iteritems():
+            if value['protocol'] in ['keystone', 'keystone-rax']:
+                value['middleware'] = TokenAuthMiddleware(app,
+                        endpoint=value['endpoint'])
+
+    def __call__(self, e, h):
+        # Authenticate basic auth calls to endpoints
+        h = self.start_response_callback(h)
+
+        if 'HTTP_AUTHORIZATION' in e:
+            auth = e['HTTP_AUTHORIZATION'].split()
+            if len(auth) == 2:
+                if auth[0].lower() == "basic":
+                    uname, passwd = base64.b64decode(auth[1]).split(':')
+                    if '\\' in uname:
+                        domain, uname = uname.split('\\')
+                        LOG.debug('Detected domain authentication: %s' %
+                                domain)
+                    else:
+                        domain = 'default'
+                    if domain in self.domains:
+                        if self.domains[domain]['protocol'] == 'keystone':
+                            return self._auth_cloud_basic(e, h, uname, passwd,
+                                    self.domains[domain]['middleware'])
+                    else:
+                        LOG.warning("Unrecognized domain: %s" % domain)
+        return self.app(e, h)
+
+    def _auth_cloud_basic(self, e, h, uname, passwd, middleware):
+        context = request.context
+        cred_hash = MD5.new('%s%s%s' % (uname, passwd, middleware.endpoint))\
+                .hexdigest()
+        if cred_hash in self.cache:
+            content = self.cache[cred_hash]
+            LOG.debug('Using cached catalog')
+        else:
+            try:
+                LOG.debug('Authenticating to %s' % middleware.endpoint)
+                content = middleware._auth_keystone(e, h, context,
+                        username=uname, password=passwd)
+                self.cache[cred_hash] = content
+            except HTTPUnauthorized as exc:
+                LOG.exception(exc)
+                return exc(e, h)
+        middleware.set_context(content)
+        LOG.debug("Basic auth over Cloud authenticated '%s'" % uname)
+        return self.app(e, h)
+
+    def start_response_callback(self, start_response):
+        """Intercepts upstream start_response and adds our headers"""
+        def callback(status, headers, exc_info=None):
+            # Add our headers to response
+            if self.domains:
+                for key, value in self.domains.iteritems():
+                    if value['protocol'] in ['keystone', 'keystone-rax']:
+                        headers.extend([
+                                ('WWW-Authenticate', 'Basic realm="%s"' % key),
+                                ('WWW-Authenticate', 'Keystone uri="%s"' %
+                                        value['endpoint']),
+                                ])
+                    elif value['protocol'] == 'PAM':
+                        headers.append(('WWW-Authenticate', 'Basic'))
+            # Call upstream start_response
+            start_response(status, headers, exc_info)
+        return callback
+
+
+class AuthTokenRouterMiddleware():
+    """Middleware that routes Keystone auth to multiple endpoints
+
+    All tokens with an X-Auth-Source header get routed to that source if the
+    source is in the list of allowed endpoints.
+    If a default endpoint is selected, it receives all calls without an
+    X-Auth-Source header. If no default is selected, calls are routed to each
+    endpoint until a valid response is received
+    """
+    def __init__(self, app, endpoints, default=None):
+        """
+        :param domains: the hash of domains to authenticate against. Each key
+                is a realm that points to a different cloud. The hash contains
+                endpoint and protocol, which is one of:
+                    keystone: using keystone protocol
+        """
+        self.app = app
+        self.default_endpoint = default
+        # Make endpoints unique and maintain order
+        self.endpoints = []
+        if endpoints:
+            for endpoint in endpoints:
+                if endpoint not in self.endpoints:
+                    self.endpoints.append(endpoint)
+        self.middleware = {}
+        self.default_middleware = None
+
+        self.last_status = None
+        self.last_headers = None
+        self.last_exc_info = None
+
+        # For each endpoint, instantiate a middleware instance to process its
+        # token auth calls. We'll route to it when appropriate
+        for endpoint in self.endpoints:
+            if endpoint not in self.middleware:
+                middleware = TokenAuthMiddleware(app, endpoint=endpoint)
+                self.middleware[endpoint] = middleware
+                if endpoint == self.default_endpoint:
+                    self.default_middleware = middleware
+
+        if self.default_endpoint and self.default_middleware is None:
+            self.default_middleware = TokenAuthMiddleware(app,
+                    endpoint=self.default_endpoint)
+
+    def __call__(self, e, h):
+        if 'HTTP_X_AUTH_TOKEN' in e:
+            if 'HTTP_X_AUTH_SOURCE' in e:
+                source = e['HTTP_X_AUTH_SOURCE']
+                if not (source in self.endpoints or
+                        source == self.default_endpoint):
+                    LOG.info("Untrusted Auth Source supplied: %s" % source)
+                    return HTTPUnauthorized("Untrusted Auth Source")(e, h)
+
+                sources = [source]
+            else:
+                sources = self.endpoints
+
+            sr = self.start_response_intercept(h)
+            for source in sources:
+                result = self.middleware[source].__call__(e, sr)
+                if self.last_status:
+                    if self.last_status.startswith('200 '):
+                        # We got a good hit
+                        LOG.debug("Token Auth Router got a successful response "
+                                "against %s" % source)
+                        h(self.last_status, self.last_headers,
+                            exc_info=self.last_exc_info)
+                        return result
+
+            # Call default endpoint if not already called and if source was not
+            # specified
+            if 'HTTP_X_AUTH_SOURCE' not in e and self.default_endpoint not in\
+                    sources:
+                result = self.middleware[self.default_endpoint].__call__(e, sr)
+                if self.last_status.startswith('200 '):
+                    # We got a good hit
+                    LOG.debug("Token Auth Router got a successful response "
+                            "against %s" % self.default_endpoint)
+                    h(self.last_status, self.last_headers,
+                        exc_info=self.last_exc_info)
+                    return result
+
+        return self.app(e, h)
+
+    def start_response_intercept(self, start_response):
+        """Intercepts upstream start_response and remembers status"""
+        def callback(status, headers, exc_info=None):
+            self.last_status = status
+            self.last_headers = headers
+            self.last_exc_info = exc_info
+        return callback
+
 #
 # Main function
 #
 if __name__ == '__main__':
     # Build WSGI Chain:
     next = app()  # This is the main checkmate app
-    next = AuthorizationMiddleware(next)  # Make sure requests are allowed
-    next = TokenAuthMiddleware(next)  # Token Auth validator
-    next = PAMAuthMiddleware(next)
+    next = AuthorizationMiddleware(next, anonymous_paths=STATIC)
+    next = PAMAuthMiddleware(next, all_admins=True)
+    endpoints = ['https://identity.api.rackspacecloud.com/v2.0/tokens',
+            'https://lon.identity.api.rackspacecloud.com/v2.0/tokens']
+    next = AuthTokenRouterMiddleware(next, endpoints,
+            default='https://identity.api.rackspacecloud.com/v2.0/tokens')
+    if '--with-ui' in sys.argv:
+        # With a UI, we use basic auth and route that to cloud auth.
+        domains = {
+                'UK': {
+                        'protocol': 'keystone',
+                        'endpoint':
+                                'https://lon.identity.api.rackspacecloud.com/'
+                                'v2.0/tokens',
+                    },
+                'US': {
+                        'protocol': 'keystone',
+                        'endpoint': 'https://identity.api.rackspacecloud.com/'
+                        'v2.0/tokens',
+                    },
+            }
+        next = BasicAuthMultiCloudMiddleware(next, domains=domains)
+
     next = TenantMiddleware(next)
     next = ContextMiddleware(next)
     next = StripPathMiddleware(next)
