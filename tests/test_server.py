@@ -10,10 +10,14 @@ from checkmate.server import TenantMiddleware, ContextMiddleware, \
 
 os.environ['CHECKMATE_DATA_PATH'] = os.path.join(os.path.dirname(__file__),
                                               'data')
-os.environ['BROKER_USERNAME'] = os.environ.get('BROKER_USERNAME', 'checkmate')
-os.environ['BROKER_PASSWORD'] = os.environ.get('BROKER_PASSWORD', 'password')
-os.environ['BROKER_HOST'] = os.environ.get('BROKER_HOST', 'localhost')
-os.environ['BROKER_PORT'] = os.environ.get('BROKER_PORT', '5672')
+os.environ['CHECKMATE_BROKER_USERNAME'] = os.environ.get(
+        'CHECKMATE_BROKER_USERNAME', 'checkmate')
+os.environ['CHECKMATE_BROKER_PASSWORD'] = os.environ.get(
+        'CHECKMATE_BROKER_PASSWORD', 'password')
+os.environ['CHECKMATE_BROKER_HOST'] = os.environ.get('CHECKMATE_BROKER_HOST',
+        'localhost')
+os.environ['CHECKMATE_BROKER_PORT'] = os.environ.get('CHECKMATE_BROKER_PORT',
+        '5672')
 
 
 class TestServer(unittest.TestCase):

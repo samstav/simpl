@@ -21,7 +21,8 @@ LOG = logging.getLogger(__name__)
 RESOURCES = ['deployments', 'workflows', 'blueprints', 'environments',
         'components', 'test', 'status']
 STATIC = ['test']
-#TODO: make thise wildcards (0.password, 1.password, etc... will be returned)
+#TODO: make this wildcards (0.password, 1.password, client_private_key,
+# etc... will be returned)
 DEFAULT_SENSITIVE_KEYS = ['credentials', 'password', 'apikey', 'token',
         'authtoken', 'db_password', 'ssh-private-key', 'private_key',
         'environment_private_key']

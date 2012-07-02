@@ -357,8 +357,8 @@ blueprint: &wp-multi
           Encoded Certificate
           -----END CERTIFICATE-----
       constrains: [{service: web, resource_type: application, setting: "apache/ssl_cert"}]
-    "ssl_certificate_key":
-      label: SSL Certificate Key
+    "ssl_private_key":
+      label: SSL Certificate Private Key
       type: string #certificate-PEM
       sample: |
           -----BEGIN PRIVATE KEY-----
@@ -626,20 +626,21 @@ environment: &rackspace-legacy-cloud-test
 # - therefore, we provide options selected under 'inputs' as a hierarchy that mirrors the blueprint or environment
 deployment:                                                                     #IMPLEMENTED - checkmate looks for this
   name: My WordPress by CheckMate
-  prefix: CM-BLOG
   blueprint: *wp-multi
   environment: *rackspace-legacy-cloud-test
   inputs: # Answers to or values for blueprint/provider options & settings.
     # Provide an additional public key to be added to all hosts
-    "client_public_key_ssh": ${CHECKMATE_CLIENT_PUBLIC_KEY}
+    client_public_key_ssh: ${CHECKMATE_CLIENT_PUBLIC_KEY}
     # Optionally specify an environment private key
     environment_private_key: =generate()  # Optional, since default is =generate(). This will also write to public_key and public_key_ssh
     blueprint:
+      "prefix": CM-BLOG
       "domain": ${CHECKMATE_CLIENT_DOMAIN}
+      "path": '/blog'
       "username": joe
       "password": =generate() # Ugh!
       "ssl": required  # no port 80
-      "ssl_public_key": skldjfhalkjsdfhasd
+      "ssl_certificate": skldjfhalkjsdfhasd
       "ssl_private_key": asdfasdfasdf
       "region": ${CHECKMATE_CLIENT_REGION}  # TODO: this is still read from os.environ
       "high-availability": false

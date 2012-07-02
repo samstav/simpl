@@ -199,10 +199,75 @@ You also need to have celery running with the checkmate tasks loaded:
 
     $ celeryd -l info --config=checkmate.celeryconfig -I checkmate.orchestrator,checkmate.ssh,checkmate.providers.rackspace,checkmate.providers.opscode
 
-### Celery Installation
+### Settings
 
-[celeryd](http://www.celeryproject.org/) does the heavy lifting for
-distributing tasks and retrying those that fail.
+The following environment variables can be set to configure checkmate:
+
+CHECKMATE_CONNECTION_STRING
+
+CHECKMATE_DOMAIN
+CHECKMATE_PUBLIC_KEY
+CHECKMATE_CHEF_REPO
+CHECKMATE_CHEF_LOCAL_PATH - local
+CHECKMATE_CHEF_PATH - server
+
+CHECKMATE_BROKER_USERNAME
+CHECKMATE_BROKER_PASSWORD
+CHECKMATE_BROKER_HOST
+CHECKMATE_BROKER_PORT
+or
+CHECKMATE_BROKER_URL
+
+CELERY_CONFIG_MODULE
+CELERYD_FORCE_EXECV
+
+
+Deprecated:
+CHECKMATE_DATA_PATH - used with file system data provider
+CHECKMATE_PRIVATE_KEY
+
+
+## CheckMate Installation
+
+Create and go to the directory you want to install CheckMate in:
+
+Install Chef client and knife-solo:
+
+  # Get latest chef code
+  git clone git://github.com/opscode/chef.git  # Get latest chef code
+  cd chef
+
+  # Install RVM
+  echo insecure >> ~/.curlrc
+  curl -k -L get.rvm.io | bash -s stable
+  source ~/.rvm/scripts/rvm
+
+  # Install Ruby 1.9.3 locally
+  rvm install 1.9.3-p125
+  rvm use ruby-1.9.3-p125
+
+  rvm gemset create chef
+  rvm gemset use chef
+  gem install bundler
+
+  # Build chef
+  rake install
+
+Install CheckMate:
+
+  git clone http://github.com/ziadsawalha/checkmate.git
+  cd checkmate
+  git checkout master
+  python setup.py install
+  cd ..
+
+Install SpiffWorkflow:
+
+  git clone http://github.com/ziadsawalha/SpiffWorkflow.git
+  cd SpiffWorkflow
+  git checkout celery
+  python setup.py install
+  cd ..
 
 Install, configure, and start rabbitmq.
 
@@ -212,6 +277,41 @@ Install, configure, and start rabbitmq.
     $ sudo rabbitmqctl add_user checkmate <some_password_here>
     $ sudo rabbitmqctl set_permissions -p checkmate checkmate ".*" ".*" ".*"
     $ sudo rabbitmq-server -detached
+
+Set the environment variable for your checkmate environments and create the directory:
+
+    $ export CHECKMATE_CHEF_LOCAL_PATH=/var/checkmate/environments
+    $ mkdir -p $CHECKMATE_CHEF_LOCAL_PATH
+
+
+### Authentication
+
+
+CheckMate supports multiple authentication protocols and endpoints simultaneously. If is is started with a web UI (using the --with-ui) option, it will also support basic auth for browser friendliness.
+
+#### Authenticating through a Browser
+
+By default, three authentication domains are enabled. In a browser, if you are prompted for credentials, enter the following:
+
+- To log in as an administrator: username and password from the machine running CheckMate.
+
+- To log in to a US Cloud Account: use US\username and password.
+
+- To log in to a UK Cloud Account: use UK\username and password.
+
+#### Authenticating using REST
+
+CheckMate supports standard Rackspace\OpenStack authentication with a token. Get a token from your auth endpoint (US or UK!) and provide it in the X-Auth-Header:
+
+    curl -H "X-Auth-Token: ccdcd4f9-d72d-5677-8b1a-f329389cc539" http://localhost:8080/4500 -v
+
+CheckMate will try the US and then UK endpoints.
+
+To avoid hitting the US for each UK call, and to be a good citizen, tell CheckMate which endpoint your token came from using the X-Auth-Source header:
+
+    curl -H "X-Auth-Source: https://lon.identity.api.rackspacecloud.com/v2.0/tokens" -H "X-Auth-Token: ccdcd4f9-d72d-5677-8b1a-f329389cc539" http://localhost:8080/1000002 -v
+
+Note: This is a CheckMate extension to the auth mechanism. This won't work on any other services.
 
 
 ### Trying a test call
@@ -243,7 +343,6 @@ In the second window, start the checkmate server & REST API:
     export CHECKMATE_CONNECTION_STRING=sqlite:////var/checkmate/data/db.sqlite
 
     export CHECKMATE_PUBLIC_KEY=~/.ssh/id_rsa.pub  # on a mac
-    export CHECKMATE_PRIVATE_KEY=~/.ssh/id_rsa     # on a mac
 
     python checkmate/server.py --with-ui
 
@@ -312,3 +411,8 @@ The chef-local provider uses the following environment variables::
 
     CHECKMATE_CHEF_REPO: used to store a master copy of all cookbooks used
     CHECKMATE_CHEF_LOCAL_PATH: used to store all environments
+
+### Celery
+
+[celeryd](http://www.celeryproject.org/) does the heavy lifting for
+distributing tasks and retrying those that fail.

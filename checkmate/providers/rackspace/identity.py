@@ -24,8 +24,7 @@ def _get_ddi(context, tenants):
 # Celeryd functions
 @task
 def get_token(context):
-    LOG.debug('Auth %s' % (
-        context['username']))
+    LOG.debug('Auth %s' % (context['username']))
     if 'apikey' in context:
         LOG.debug("Using cloudlb to handle APIKEY aurthentication")
         clb = cloudlb.CloudLoadBalancer(context['username'],
