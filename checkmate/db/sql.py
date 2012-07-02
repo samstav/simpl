@@ -51,16 +51,14 @@ def _init_version_control():
 
         if repo_version != db_version:
             msg = ("Database (%s) is not up to date (current=%s, "
-                "latest=%s); run `repository/manage.py upgrade "
-                "'sqlite:///../../data/db.sqlite' repository` or '"
+                "latest=%s); run `checkmate-database upgrade` or '"
                 "override your migrate version manually (see docs)" %
                 (CONNECTION_STRING, db_version, repo_version))
             LOG.warning(msg)
             raise CheckmateDatabaseMigrationError(msg)
     except versioning_exceptions.DatabaseNotControlledError:
         msg = ("Database (%s) is not version controlled; "
-                "run `repository/manage.py version_control "
-                "'sqlite:///../../data/db.sqlite' repository` or "
+                "run `checkmate-database version_control` or "
                 "override your migrate version manually (see docs)" %
                 (CONNECTION_STRING))
         LOG.warning(msg)
