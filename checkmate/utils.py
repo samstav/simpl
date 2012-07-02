@@ -14,13 +14,18 @@ import sys
 from bottle import abort, request
 import yaml
 from yaml.events import AliasEvent, ScalarEvent
+from yaml.parser import ParserError
+from yaml.composer import ComposerError
 
 LOG = logging.getLogger(__name__)
 RESOURCES = ['deployments', 'workflows', 'blueprints', 'environments',
         'components', 'test', 'status']
 STATIC = ['test']
+#TODO: make this wildcards (0.password, 1.password, client_private_key,
+# etc... will be returned)
 DEFAULT_SENSITIVE_KEYS = ['credentials', 'password', 'apikey', 'token',
-        'authtoken', 'db_password', 'ssh-private-key', 'private_key']
+        'authtoken', 'db_password', 'ssh-private-key', 'private_key',
+        'environment_private_key']
 
 
 def import_class(import_str):
@@ -75,8 +80,13 @@ def read_body(request):
         content_type = content_type.split(';')[0]
 
     if content_type == 'application/x-yaml':
-        return yaml.safe_load(yaml.emit(resolve_yaml_external_refs(data),
-                         Dumper=yaml.SafeDumper))
+        try:
+            return yaml_to_dict(data)
+        except ParserError as exc:
+            abort(406, "Invalid YAML syntax. Check:\n%s" % exc)
+        except ComposerError as exc:
+            abort(406, "Invalid YAML structure. Check:\n%s" % exc)
+
     elif content_type == 'application/json':
         return json.load(data)
     elif content_type == 'application/x-www-form-urlencoded':
@@ -89,6 +99,17 @@ def read_body(request):
                 "in the 'object' field")
     else:
         abort(415, "Unsupported Media Type: %s" % content_type)
+
+
+def yaml_to_dict(data):
+    """Parses YAML to a dict using checkmate extensions."""
+    return yaml.safe_load(yaml.emit(resolve_yaml_external_refs(data),
+             Dumper=yaml.SafeDumper))
+
+
+def dict_to_yaml(data):
+    """Parses dict to YAML using checkmate extensions."""
+    return yaml.safe_dump(data, default_flow_style=False)
 
 
 def write_yaml(data, request, response):
@@ -144,7 +165,8 @@ def extract_sensitive_data(data, sensitive_keys=None):
             sensitive = []
             for value in data:
                 if isinstance(value, dict):
-                    c, s = recursive_split(value, sensitive_keys=sensitive_keys)
+                    c, s = recursive_split(value,
+                            sensitive_keys=sensitive_keys)
                     if s is not None:
                         sensitive.append(s)
                         has_sensitive_data = True
@@ -156,7 +178,8 @@ def extract_sensitive_data(data, sensitive_keys=None):
                     else:
                         clean.append({})  # placeholder
                 elif isinstance(value, list):
-                    c, s = recursive_split(value, sensitive_keys=sensitive_keys)
+                    c, s = recursive_split(value,
+                            sensitive_keys=sensitive_keys)
                     if s is not None:
                         sensitive.append(s)
                         has_sensitive_data = True
@@ -179,7 +202,8 @@ def extract_sensitive_data(data, sensitive_keys=None):
                     has_sensitive_data = True
                     sensitive[key] = value
                 elif isinstance(value, dict):
-                    c, s = recursive_split(value, sensitive_keys=sensitive_keys)
+                    c, s = recursive_split(value,
+                            sensitive_keys=sensitive_keys)
                     if s is not None:
                         has_sensitive_data = True
                         sensitive[key] = s
@@ -187,7 +211,8 @@ def extract_sensitive_data(data, sensitive_keys=None):
                         has_clean_data = True
                         clean[key] = c
                 elif isinstance(value, list):
-                    c, s = recursive_split(value, sensitive_keys=sensitive_keys)
+                    c, s = recursive_split(value,
+                            sensitive_keys=sensitive_keys)
                     if s is not None:
                         has_sensitive_data = True
                         sensitive[key] = s

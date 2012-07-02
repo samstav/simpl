@@ -5,11 +5,12 @@ import uuid
 # pylint: disable=E0611
 from bottle import get, post, put, delete, request, response, abort
 from Crypto.PublicKey import RSA  # pip install pycrypto
+from Crypto.Hash import SHA512, MD5
+from Crypto import Random
 
-from checkmate.db import get_driver, any_id_problems, any_tenant_id_problems
+from checkmate.db import get_driver, any_id_problems
 from checkmate.exceptions import CheckmateException
-from checkmate.providers import get_provider_class, CheckmateInvalidProvider, \
-        PROVIDER_CLASSES
+from checkmate.providers import get_provider_class, PROVIDER_CLASSES
 from checkmate.utils import read_body, write_body, extract_sensitive_data,\
         with_tenant
 
@@ -164,9 +165,10 @@ class Environment():
     def get_providers(self):
         """ Returns provider class instances for this environment """
         providers = self.dict.get('providers', None)
-        if not providers:
-            raise CheckmateException("Environment does not have providers")
-        common = providers.get('common', {})
+        if providers:
+            common = providers.get('common', {})
+        else:
+            LOG.debug("Environment does not have providers")
 
         results = {}
         for key, provider in providers.iteritems():
@@ -196,8 +198,8 @@ class Environment():
     def generate_key_pair(self, bits=2048):
         """Generates a private/public key pair.
 
-        returns them as a private, public tuple of dicts. The dicts have key, and
-        PEM values. The public key also has an ssh value in it"""
+        returns them as a private, public tuple of dicts. The dicts have key,
+        and PEM values. The public key also has an ssh value in it"""
         key = RSA.generate(2048)
         private_string = key.exportKey('PEM')
         public = key.publickey()
@@ -210,3 +212,17 @@ class Environment():
         """Generates an ssh public key from a private key public_string"""
         key = RSA.importKey(private_key)
         return key.publickey().exportKey('OpenSSH')
+
+    def HashSHA512(self, value, salt=None):
+        if not salt:
+            salt = Random.get_random_bytes(8).encode('base64').strip()
+        h = SHA512.new(salt)
+        h.update(value)
+        return "$6$%s$%s" % (salt, h.hexdigest())
+
+    def HashMD5(self, value, salt=None):
+        if not salt:
+            salt = Random.get_random_bytes(8).encode('base64').strip()
+        h = MD5.new(salt)
+        h.update(value)
+        return "$1$%s$%s" % (salt, h.hexdigest())

@@ -206,7 +206,8 @@ class Driver(DbBase):
             if with_secrets == True:
                 for e in results:
                     if e.secrets:
-                        response[e.id] = utils.merge_dictionary(e.body, e.secrets)
+                        response[e.id] = utils.merge_dictionary(e.body,
+                                e.secrets)
                     else:
                         response[e.id] = e.body
                     response[e.id]['tenantId'] = e.tenant_id

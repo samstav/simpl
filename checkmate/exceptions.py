@@ -8,6 +8,8 @@ class CheckmateCustomException(Exception):
         super(CheckmateCustomException, self).__init__(something_custom)
         self.something_custom = something_custom
 
+This is important to allow exceptioons to flow back from the message queue
+tasks.
 """
 
 
@@ -28,4 +30,16 @@ class CheckmateNoTokenError(CheckmateException):
 
 class CheckmateNoMapping(CheckmateException):
     """No mapping found between parameter types"""
+    pass
+
+
+class CheckmateCalledProcessError(CheckmateException):
+    def __init__(self, returncode, cmd, output=None):
+        self.returncode = returncode
+        self.cmd = cmd
+        self.output = output
+        super(CheckmateException, self).__init__(returncode, cmd, output)
+
+
+class CheckmateServerBuildFailed(CheckmateException):
     pass

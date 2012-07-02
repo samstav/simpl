@@ -7,7 +7,7 @@ from SpiffWorkflow.operators import Attrib
 from SpiffWorkflow.specs import Celery
 
 from checkmate.exceptions import CheckmateNoMapping
-from checkmate.providers import ProviderBase, register_providers
+from checkmate.providers import ProviderBase
 
 
 LOG = logging.getLogger(__name__)
@@ -43,25 +43,25 @@ class Provider(ProviderBase):
         username = 'wp_user_%s' % db_name
 
         create_db_task = Celery(wfspec, 'Create DB',
-                               'checkmate.providers.rackspace.database.create_instance',
-                               call_args=[Attrib('context'),
-                                        resource.get('dns-name'), 1,
-                                        resource.get('flavor', 1),
-                                        [{'name': db_name}]],
-                               prefix=key,
-                               defines=dict(resource=key,
-                                            provider=self.key,
-                                            task_tags=['create']),
-                               properties={'estimated_duration': 80})
+               'checkmate.providers.rackspace.database.create_instance',
+               call_args=[Attrib('context'),
+                        resource.get('dns-name'), 1,
+                        resource.get('flavor', 1),
+                        [{'name': db_name}]],
+               prefix=key,
+               defines=dict(resource=key,
+                            provider=self.key,
+                            task_tags=['create']),
+               properties={'estimated_duration': 80})
         create_db_user = Celery(wfspec, "Add DB User:%s" % username,
-                               'stockton.db.distribute_add_user',
-                               call_args=[Attrib('context'),
-                                        Attrib('id'), [db_name],
-                                        username, password],
-                               defines=dict(resource=key,
-                                            provider=self.key,
-                                            task_tags=['final']),
-                               properties={'estimated_duration': 20})
+               'checkmate.providers.rackspace.database.add_user',
+               call_args=[Attrib('context'),
+                        Attrib('id'), [db_name],
+                        username, password],
+               defines=dict(resource=key,
+                            provider=self.key,
+                            task_tags=['final']),
+               properties={'estimated_duration': 20})
         # Store these in the context for use by other tasks
         context['db_name'] = db_name
         context['db_username'] = username
@@ -121,14 +121,11 @@ class Provider(ProviderBase):
         return api
 
 
-register_providers([Provider])
-
 #
 # Exploring Celery tasks from within CheckMate
 #
 from celery.task import task
 import clouddb
-from stockton.base import StocktonResource
 
 REGION_MAP = {'DFW': 'dallas',
               'ORD': 'chicago',
@@ -171,18 +168,18 @@ def create_instance(context, instance_name, size, flavor,
     #        'Response error while trying to create database instance ' \
     #        '%s. Error %d %s. Retrying.' % (
     #          instance_name, exc.status, exc.reason))
-    #    distribute_create_instance.retry(exc=exc)
+    #    create_instance.retry(exc=exc)
     #except Exception, exc:
     #    log(context,
     #        'Error creating database instance %s. Error %s. Retrying.' % (
     #        instance_name, str(exc)))
-    #    distribute_create_instance.retry()
+    #    create_instance.retry()
 
     db_name_list = []
     for database in databases:
         db_name_list.append(database['name'])
         if username:
-            distribute_add_user.delay(context, instance.id, db_name_list,
+            add_user.delay(context, instance.id, db_name_list,
                                   username, password)
 
     results = dict(id=instance.id, name=instance.name, status=instance.status,
@@ -196,7 +193,7 @@ def create_instance(context, instance_name, size, flavor,
 
 
 @task(default_retry_delay=10, max_retries=10)
-def distribute_add_databases(deployment, instance_id, databases, api=None):
+def add_databases(deployment, instance_id, databases, api=None):
     """Adds new database(s) to an existing instance.
 
     database is a list of dictionaries with a required key for database
@@ -218,25 +215,25 @@ def distribute_add_databases(deployment, instance_id, databases, api=None):
     try:
         instance = api.get_instance(instance_id)
         instance.create_databases(databases)
-        log(deployment,
+        LOG.debug(
             'Added database(s) %s to instance %s' % (dbnames,
                                                      instance_id))
     except clouddb.errors.ResponseError, exc:
-        log(deployment,
+        LOG.debug(
             'Response error while trying to add new database(s) %s to ' \
             'instance %s. Error %d %s. Retrying.' % (
               dbnames, instance_id, exc.status, exc.reason))
-        distribute_add_databases.retry(exc=exc)
+        add_databases.retry(exc=exc)
     except Exception, exc:
-        log(deployment,
+        LOG.debug(
             'Error adding database(s) %s to instance %s. Error %s. ' \
             'Retrying.' % (
               dbnames, instance_id, str(exc)))
-        distribute_add_databases.retry()
+        add_databases.retry()
 
 
 @task(default_retry_delay=10, max_retries=10)
-def distribute_add_user(deployment, instance_id, databases, username,
+def add_user(deployment, instance_id, databases, username,
                         password, api=None):
     """Add a database user to an instance for a database"""
     if api is None:
@@ -245,20 +242,96 @@ def distribute_add_user(deployment, instance_id, databases, username,
     try:
         instance = api.get_instance(instance_id)
         instance.create_user(username, password, databases)
-        log(deployment,
+        LOG.debug(
             'Added user %s to %s on instance %s' % (username,
                                                     databases,
                                                     instance_id))
     except clouddb.errors.ResponseError, exc:
-        log(deployment,
+        LOG.debug(
             'Response error while trying to add database user %s to %s ' \
             'on instance %s. Error %s %s. Retrying.' % (
               username, databases, instance_id, exc.status,
               exc.reason))
-        distribute_add_user.retry(exc=exc)
+        add_user.retry(exc=exc)
     except Exception, exc:
-        log(deployment,
+        LOG.debug(
             'Error creating database user %s, database %s, instance %s.' \
             ' Error %s. Retrying.' % (
               username, databases, instance_id, str(exc)))
-        distribute_add_user.retry()
+        add_user.retry()
+
+
+@task(default_retry_delay=10, max_retries=10)
+def delete_instance(deployment, instance_id, api=None):
+    """Deletes a database instance and its associated databases and
+    users.
+    """
+    if api is None:
+        api = _get_db_object(deployment)
+
+    try:
+        api.delete_instance(instanceid=instance_id)
+        LOG.debug('Database instance %s deleted.' % instance_id)
+    except clouddb.errors.ResponseError, exc:
+        LOG.debug(
+            'Response error while trying to delete database instance ' \
+            '%s. Error %d %s. Retrying.' % (
+              instance_id, exc.status, exc.reason))
+        delete_database.retry(exc=exc)
+    except Exception, exc:
+        LOG.debug(
+            'Error deleting database instance %s. Error %s. Retrying.' % (
+            instance_id, str(exc)))
+        delete_database.retry()
+
+
+@task(default_retry_delay=10, max_retries=10)
+def delete_database(deployment, instance_id, db, api=None):
+    """Delete a database from an instance"""
+    if api is None:
+        api = _get_db_object(deployment)
+
+    try:
+        instance = api.get_instance(instance_id)
+        instance.delete_database(db)
+        LOG.debug('Database %s deleted from instance %s' % (db, instance_id))
+    except clouddb.errors.ResponseError, exc:
+        LOG.debug(
+            'Response error while trying to delete database %s from ' \
+            'instance %s. Error %d %s. Retrying.' % (
+              db, instance_id, exc.status, exc.reason))
+        delete_database.retry(exc=exc)
+    except Exception, exc:
+        LOG.debug(
+            'Error deleting database %s from instance %s. Error %s. ' \
+            'Retrying.' % (
+              db, instance_id, str(exc)))
+        delete_database.retry()
+
+
+@task(default_retry_delay=10, max_retries=10)
+def delete_user(deployment, instance_id, username, api=None):
+    """Delete a database user from an instance."""
+    """
+    if api is None:
+        api = _get_db_object(deployment)
+
+    try:
+        instance = api.get_instance(instanceid=instance_id)
+        instance.delete_user(username)
+        LOG.debug(
+            'Deleted user %s from database instance %d' % (username,
+                                                           instance_id))
+    except clouddb.errors.ResponseError, exc:
+        LOG.debug(
+            'Response error while trying to delete database user %s to ' \
+            '%s on instance %d. Error %d %s. Retrying.' % (
+              username, database_name, instance_id, exc.status, exc.reason))
+        delete_user.retry(exc=exc)
+    except Exception, exc:
+        LOG.debug(
+            'Error deleting database user %s, database %s, instance %s.' \
+            ' Error %s. Retrying.' % (
+              username, database_name, instance_id, str(exc)))
+        delete_user.retry(exc=exc)
+    """

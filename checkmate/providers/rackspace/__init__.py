@@ -19,12 +19,21 @@ environment:
 
 """
 
-
-def register_providers():
-    import checkmate.providers.rackspace.compute
-    import checkmate.providers.rackspace.loadbalancer
-    import checkmate.providers.rackspace.database
-    import checkmate.providers.rackspace.dns
+from checkmate.providers import register_providers
+import checkmate.providers.rackspace.identity  # for celery
 
 
-register_providers()
+def register():
+    from checkmate.providers.rackspace.compute_legacy import Provider as \
+            legacy
+    from checkmate.providers.rackspace.compute import Provider as \
+            nova
+    from checkmate.providers.rackspace.loadbalancer import Provider as \
+        loadbalancer
+    from checkmate.providers.rackspace.database import Provider as database
+    from checkmate.providers.rackspace.dns import Provider as dns
+    from checkmate.providers.rackspace.files import Provider as files
+    register_providers([legacy, nova, loadbalancer, database, dns, files])
+
+
+register()

@@ -1,48 +1,38 @@
 #!/usr/bin/env python
-import json
 import unittest2 as unittest
 
 from checkmate.providers.base import ProviderBase
+from checkmate.utils import yaml_to_dict
 
 
 class TestProviderBase(unittest.TestCase):
     def test_get_setting(self):
         """Test the get_setting function"""
-        deployment = {
-              'blueprint': {
-                'options': {
-                    'my_server_type': {
-                        'constrains': [dict(service='web',
-                                            resource_type='compute',
-                                            setting='os')]
-                    }
-                }
-              },
-              'inputs': {
-                'blueprint': {
-                    'domain': 'example.com',
-                    'my_server_type': 'Ubuntu 11.10'
-                    },
-                'services': {
-                    'web': {
-                        'compute': {
-                            'memory': '2 Gb',
-                            'number-only-test': 512,
-                            'mb-test': '512 Mb',
-                            'case-whitespace-test': '512mb',
-                            'gigabyte-test': '8 gigabytes',
-                            }
-                        }
-                    },
-                'providers': {
-                    'base': {
-                        'compute': {
-                            'memory': '4 Gb'
-                            }
-                        }
-                    },
-              },
-            }
+        deployment = yaml_to_dict("""
+                blueprint:
+                  options:
+                    my_server_type:
+                      constrains:
+                      - resource_type: compute
+                        service: web
+                        setting: os
+                inputs:
+                  blueprint:
+                    domain: example.com
+                    my_server_type: Ubuntu 11.10
+                  providers:
+                    base:
+                      compute:
+                        memory: 4 Gb
+                  services:
+                    web:
+                      compute:
+                        case-whitespace-test: 512mb
+                        gigabyte-test: 8 gigabytes
+                        mb-test: 512 Mb
+                        memory: 2 Gb
+                        number-only-test: 512
+            """)
         cases = [{
                 'case': "Set in blueprint/inputs",
                 'name': "domain",
