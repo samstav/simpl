@@ -1,4 +1,7 @@
+import logging
 import os
+
+LOG = logging.getLogger(__name__)
 
 if 'CHECKMATE_BROKER_URL' in os.environ:
     # Example for debugging that does not need AMQP:
@@ -28,5 +31,6 @@ CELERY_RESULT_DBURI = "sqlite:///%s" % os.path.expanduser(os.path.normpath(
         'celerydb.sqlite')))
 
 # Report out that this file was used for configuration
-print "celery config loaded from %s" % __file__
-print "celery persisting data in %s" % CELERY_RESULT_DBURI
+LOG.info("celery config loaded from %s" % __file__)
+LOG.info("celery persisting data in %s" % CELERY_RESULT_DBURI)
+LOG.info("celery broker is %s" % BROKER_URL)

@@ -64,19 +64,36 @@ from bottle import app, get, post, run, request, response, abort, static_file
 from jinja2 import BaseLoader, Environment, TemplateNotFound
 import webob
 import webob.dec
-from webob.exc import HTTPNotFound, HTTPUnauthorized
+from webob.exc import HTTPNotFound, HTTPUnauthorized, HTTPFound
 
-# define a Handler which writes INFO messages or higher to the sys.stderr
-console = logging.StreamHandler()
-console.setLevel(logging.DEBUG)
-# set a format which is simpler for console use
-formatter = logging.Formatter('%(name)-12s: %(levelname)-8s %(message)s')
-# tell the handler to use this format
-console.setFormatter(formatter)
-# add the handler to the root logger
-logging.getLogger().addHandler(console)
-logging.getLogger().setLevel(logging.DEBUG)
+
+def get_debug_level():
+    if '--debug' in sys.argv:
+        return logging.DEBUG
+    elif '--verbose' in sys.argv:
+        return logging.DEBUG
+    elif '--quiet' in sys.argv:
+        return logging.WARNING
+    else:
+        return logging.INFO
+
+
+def init_console_logging():
+    # define a Handler which writes messages to the sys.stderr
+    console = logging.StreamHandler()
+    console.setLevel(get_debug_level())
+
+    # set a format which is simpler for console use
+    formatter = logging.Formatter('%(name)-12s: %(levelname)-8s %(message)s')
+    # tell the handler to use this format
+    console.setFormatter(formatter)
+    # add the handler to the root logger
+    logging.getLogger().addHandler(console)
+    logging.getLogger().setLevel(logging.DEBUG)
+
+
 LOG = logging.getLogger(__name__)
+init_console_logging()
 
 from checkmate.db import get_driver, any_id_problems, any_tenant_id_problems
 from checkmate.utils import HANDLERS, RESOURCES, STATIC, write_body, read_body
@@ -752,7 +769,6 @@ class ContextMiddleware(object):
 # Main function
 #
 if __name__ == '__main__':
-    LOG.setLevel(logging.DEBUG)
     # Build WSGI Chain:
     next = app()  # This is the main checkmate app
     next = AuthorizationMiddleware(next)  # Make sure requests are allowed
