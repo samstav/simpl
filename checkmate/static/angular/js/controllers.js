@@ -48,7 +48,10 @@ function EnvironmentDetailCtrl($scope, $location, $routeParams, Environment) {
       if ($scope.environment.providers) {
         // For each selected provider, we set the selected properties
         _.each($scope.environment.providers, function(selected, key) {
-          $scope.selectedProviders[key] = selected;
+          var p = _.find($scope.providers, function(provider) { 
+            if (provider.id == key) { return provider; } 
+          });
+          $scope.selectedProviders[key] = p;
         });
       }
     });  
