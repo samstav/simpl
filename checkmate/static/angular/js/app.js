@@ -84,6 +84,59 @@ cm.auth = (function() {
   }
 }());
 
+cm.Resource = (function() {
+
+  function query($http, resource) {
+    return $http({
+      method: 'GET',
+      url: tenantUri() + resource, 
+      headers: headers()
+    });
+  }
+
+  function get($http, resource, id) {
+    return $http({
+      method: 'GET',
+      url: tenantUri() + resource + '/' + id,
+      headers: headers
+    });
+  }
+
+  function saveOrUpdate($http, resource, instance) {
+    if (instance.id == null) {
+      return $http({
+        method: 'POST',
+        url: tenantUri() + resource,
+        headers: headers,
+        data: JSON.stringify(instance)
+      });
+
+    } else {
+      return $http({
+        method: 'PUT',
+        url: tenantUri() + resource + '/' + instance.id,
+        headers: headers,
+        data: JSON.stringify(instance)
+      });
+    }
+  }
+
+  // Privates
+  function tenantUri() {
+    return '/' + cm.auth.getTenant() + '/';
+  }
+
+  function headers() {
+    return {"X-Auth-Token": cm.auth.getToken()};
+  }
+
+   return {
+    query:query,
+    get:get,
+    saveOrUpdate:saveOrUpdate
+  }
+}());
+
 
 // TODO: REMOVE THIS, DEVELOPMENT ONLY
 SETTINGS = {

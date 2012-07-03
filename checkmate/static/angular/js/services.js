@@ -2,7 +2,7 @@ angular.module('checkmateServices', ['ngResource']).
 factory('Environment', function($resource) {
   return $resource('/:tenantId/environments/:environmentId', {
     environmentId: '@id',
-    tenantId: cm.auth.getTenant()
+    tenantId: '@tenantId'
   }, {
     query: {
       method: 'GET',
@@ -11,10 +11,21 @@ factory('Environment', function($resource) {
         tenantId: cm.auth.getTenant()
       },
       isArray: true,
-      headers: {"X-Auth-Token": cm.auth.getToken()}
+      headers: {
+        "X-Auth-Token": cm.auth.getToken()
+      }
+    },
+    get: {
+      method: 'GET',
+      headers: {
+        "X-Auth-Token": cm.auth.getToken()
+      }
     },
     update: {
-      method: 'PUT'
+      method: 'PUT',
+      headers: {
+        "X-Auth-Token": cm.auth.getToken()
+      }
     }
   });
 }).

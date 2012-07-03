@@ -3,8 +3,13 @@
 /**
   *   environments
   */
-function EnvironmentListCtrl($scope, $location, Environment) {
-	$scope.environments = Environment.query();
+function EnvironmentListCtrl($scope, $location, $http, Environment) {
+	 
+  // Get the environments
+  cm.Resource.query($http, 'environments')
+    .success(function(data, status) {
+      $scope.environments = data;
+    });    
 
   $scope.provider_count = function(environment) {
     if (environment.providers == null) {
@@ -26,12 +31,12 @@ function EnvironmentListCtrl($scope, $location, Environment) {
     $location.path('/environments/' + environmentId);
   }
 }
-EnvironmentListCtrl.$inject = ['$scope', '$location', 'Environment']; 
+EnvironmentListCtrl.$inject = ['$scope', '$location', '$http', 'Environment']; 
 
 /**
   *   environments/:environmentId
   */
-function EnvironmentDetailCtrl($scope, $location, $routeParams, Environment) {  
+function EnvironmentDetailCtrl($scope, $location, $http, $routeParams, Environment) {  
   // Munge the providers so they have an id I can use.
   var p = new Array();
   $scope.selectedProviders = {}
@@ -42,6 +47,12 @@ function EnvironmentDetailCtrl($scope, $location, $routeParams, Environment) {
   $scope.providers = p;
 
   if ($routeParams.environmentId != "new") {
+    cm.Resource.get($http, 'environments', $routeParams.environmentId)
+      .success(function(data, status) {
+        $scope.environment = data;
+      });
+
+    /*
     $scope.environment = Environment.get({environmentId: $routeParams.environmentId}, function() {
       
       // If we have some selected providers already
@@ -55,6 +66,7 @@ function EnvironmentDetailCtrl($scope, $location, $routeParams, Environment) {
         });
       }
     });  
+    */
   } else {
     $scope.environment = new Environment();
   }
@@ -68,20 +80,17 @@ function EnvironmentDetailCtrl($scope, $location, $routeParams, Environment) {
       $scope.environment.providers[key] = provider;
     });
 
-    if ($scope.environment.id == null) {
-      $scope.environment.$save();
-    } else {
-      $scope.environment.$update();
-    }
-    
-    $location.path('/environments');
+    cm.Resource.saveOrUpdate($http, 'environments', $scope.environment)
+      .success(function(data,status) {
+        $location.path('/environments');
+      });    
   }
 
   $scope.reset = function() {
     $scope.environment = Environment.get({environmentId: $routeParams.environmentId});
   }
 }
-EnvironmentDetailCtrl.$inject = ['$scope', '$location', '$routeParams', 'Environment']; 
+EnvironmentDetailCtrl.$inject = ['$scope', '$location', '$http', '$routeParams', 'Environment']; 
 
 /**
   *   blueprints
