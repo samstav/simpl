@@ -10,7 +10,7 @@
         <div class="control-group">
           <label class="control-label" for="environment">Environment</label>
           <div class="controls">
-            <select id="environment">
+            <select id="environment" class="span3" ng-model="environmentId" required>
               <option ng-repeat="environment in environments" value="{{environment.id}}">
                 {{environment.name}}
               </option>
@@ -20,10 +20,8 @@
         <div class="control-group">
           <label class="control-label" for="blueprint">Blueprint</label>
           <div class="controls">
-            <select id="blueprint">
-              <option ng-repeat="blueprint in blueprints" value="{{blueprint.id}}">
-                {{blueprint.name}}
-              </option>
+            <select id="blueprint" class="span3" ng-model="blueprintId" 
+                    ng-options="b as b.name for b in blueprints" required>              
             </select>
           </div>
         </div>
@@ -37,7 +35,6 @@
 
         <div class="form-actions">
           <button ng-click="submit()" class="btn btn-primary">Build It!</button>
-          <button ng-click="reset()" class="btn">Cancel</button>
         </div>
       </fieldset>
     </form>
@@ -71,7 +68,7 @@
   <script id="setting-string" type="text/html" ng-non-bindable>
     <label class="control-label capitalize" for="{{id}}">{{label}}</label>
     <div class="controls">
-      <input  type="text" class="input-xlarge" id="{{id}}" ng-model="setting.{{id}}" 
+      <input  type="text" class="input-xlarge" id="{{id}}" ng-model="settings.{{id}}" 
               {{#required}}required{{/required}} {{#regex}}ng-pattern="{{regex}}"{{/regex}}
               {{#default}}value="{{default}}"{{/default}}>
       {{#description}}<p class="help-block">{{description}}</p>{{/description}}
@@ -81,7 +78,7 @@
    <script id="setting-number" type="text/html" ng-non-bindable>
     <label class="control-label capitalize" for="{{id}}">{{label}}</label>
     <div class="controls">
-      <input  type="number" class="input-small" id="{{id}}" ng-model="setting.{{id}}" 
+      <input  type="number" class="input-small" id="{{id}}" ng-model="settings.{{id}}" 
               {{#required}}required{{/required}} 
               {{#default}}value="{{default}}"{{/default}}>
       {{#description}}<p class="help-block">{{description}}</p>{{/description}}
@@ -92,7 +89,7 @@
     <label class="control-label capitalize" for="{{id}}">{{label}}</label>
     <div class="controls">
       <label class="checkbox">      
-        <input type="checkbox" class="input-xlarge" id="{{id}}" ng-model="setting.{{id}}" 
+        <input type="checkbox" class="input-xlarge" id="{{id}}" ng-model="settings.{{id}}" 
               {{#required}}required{{/required}} {{#default}}value="{{default}}"{{/default}}>
         {{#description}}{{description}}{{/description}}
       </label>
@@ -102,7 +99,7 @@
   <script id="setting-select" type="text/html" ng-non-bindable>
     <label class="control-label capitalize" for="{{id}}">{{label}}</label>
     <div class="controls">
-      <select id="{{id}}">
+      <select id="{{id}}" ng-model="settings.{{id}}" {{#required}}required{{/required}}>
         {{#options}}
           <option value="{{value}}">{{name}}</option>
         {{/options}}

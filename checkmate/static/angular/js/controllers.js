@@ -31,15 +31,42 @@ EnvironmentListCtrl.$inject = ['$scope', '$location', 'Environment'];
 /**
   *   environments/:environmentId
   */
-function EnvironmentDetailCtrl($scope, $location, $routeParams, Environment) {
+function EnvironmentDetailCtrl($scope, $location, $routeParams, Environment) {  
+  // Munge the providers so they have an id I can use.
+  var p = new Array();
+  $scope.selectedProviders = {}
+  for(var i in PROVIDERS) { 
+    p.push($.extend({id: i, select: null}, PROVIDERS[i]));     
+    $scope.selectedProviders[i] = null;
+  }
+  $scope.providers = p;
+
   if ($routeParams.environmentId != "new") {
-    $scope.environment = Environment.get({environmentId: $routeParams.environmentId});  
+    $scope.environment = Environment.get({environmentId: $routeParams.environmentId}, function() {
+      
+      // If we have some selected providers already
+      if ($scope.environment.providers) {
+        // For each selected provider, we set the selected properties
+        _.each($scope.environment.providers, function(selected, key) {
+          var p = _.find($scope.providers, function(provider) { 
+            if (provider.id == key) { return provider; } 
+          });
+          $scope.selectedProviders[key] = p;
+        });
+      }
+    });  
   } else {
     $scope.environment = new Environment();
   }
 
   $scope.update = function(environment) {
     $scope.environment = angular.copy(environment);
+
+    //build the providers    
+    $scope.environment.providers = {};    
+    _.each($scope.selectedProviders, function(provider, key) {
+      $scope.environment.providers[key] = provider;
+    });
 
     if ($scope.environment.id == null) {
       $scope.environment.$save();
@@ -120,10 +147,9 @@ BlueprintDetailCtrl.$inject = ['$scope', '$location', '$routeParams', 'Blueprint
   *   Authentication
   */
 function AuthCtrl($scope, $location) {
+  $scope.location = 'us';
   $scope.auth = {
     username: '',
-    password: '',
-    catalog: null
   };
 
   var modal = $('#auth_modal');
@@ -132,47 +158,53 @@ function AuthCtrl($scope, $location) {
     show: true
   });
 
-  $('#auth_modal').modal('show');
+  if (!cm.auth.isAuthenticated()) {    
+    modal.modal('show');
+  }
 
   $scope.authenticated = function() {
-    return $scope.auth.catalog != null;
+    return cm.auth.isAuthenticated();
   }
 
   $scope.signOut = function() {
-    $scope.auth = {
-      username: '',
-      password: '',
-      catalog: null
-    };
+    $scope.auth.username = '';
+    $scope.auth.key = '';
+    $scope.auth.catalog = null;
     $location('/');
+    $('#auth_modal').modal('show');
   }
 
   $scope.authenticate = function() {
     $('#auth_loader').show();
 
+    var location = "https://identity.api.rackspacecloud.com/v2.0/tokens";
+    if ($scope.location == 'uk') {
+      location = "https://lon.identity.api.rackspacecloud.com/v2.0/tokens";
+    }
+
+    var data = JSON.stringify({
+               "auth":  {
+                  "RAX-KSKEY:apiKeyCredentials": {
+                    "username": $scope.auth.username,
+                    "apiKey": $scope.auth.password
+                  }
+                }
+            });
+
     return $.ajax({
       type: "POST",
       contentType: "application/json; charset=utf-8",
+      headers: {"X-Auth-Source": location},
       dataType: "json",
-      url: "https://identity.api.rackspacecloud.com/v1.1/auth",
-      data: JSON.stringify({
-              "credentials": {
-                "username": $scope.auth.username,
-                "key": $scope.auth.password
-              }
-            }),
+      url: "/authproxy",
+      data: data,
     }).always(function(json) {
-      $scope.auth.catalog = json;
+      cm.auth.setServiceCatalog(json);
     }).success(function() {
       $('#auth_modal').modal('hide');
-      $('#auth_loader').hide();
     }).error(function() {
       $("#auth_error_text").html("Something bad happened");
-      $('#auth_loader').hide();
       $("#auth_error").show();
-
-      //REMOVE THIS - DEVELOPMENT ONLY
-      $scope.auth.catalog = '{}'
     });
   }
 }
@@ -211,24 +243,38 @@ DeploymentListCtrl.$inject = ['$scope', '$location', 'Deployment'];
   *   Deployments
   */
 function DeploymentNewCtrl($scope, $location, $routeParams, Deployment, Environment, Blueprint) {
-  $scope.blueprints = Blueprint.query();
+  $scope.blueprints = Blueprint.query(function() {
+    $scope.blueprintId = _.find($scope.blueprints, function(bp) { return bp.id == $routeParams.blueprintId });
+  });
   $scope.environments = Environment.query();
+
+  
+  $scope.environmentId = null;
+  $scope.setting = {};
 
   // Munge the settings so they have an id I can use.
   var s = new Array();
   for(var i in SETTINGS.options) { 
     s.push($.extend({id: i}, SETTINGS.options[i])) 
+    $scope.setting[i] = null;
   }
   $scope.settings = s;
 
   $scope.renderSetting = function(setting) {
     var template = $('#setting-' + setting.type).html();
+    return template ? Mustache.render(template, setting) : "";
+  }
 
-    if (template) {
-      return Mustache.render(template, setting);
-    } else {
-      return "";
-    }
+  $scope.submit = function() {
+    var deployment = new Deployment();
+    var blueprint = _.find($scope.blueprints, function(bp) { return bp.id == $scope.blueprintId });
+    var environment = _.find($scope.environments, function(env) { return env.id == $scope.environmentId });
+
+    
+    deployment.blueprint = blueprint;
+    deployment.environment = environment;
+
+    deployment.$save();
   }
 }
 DeploymentNewCtrl.$inject = ['$scope', '$location', '$routeParams', 'Deployment', 'Environment', 'Blueprint'];
