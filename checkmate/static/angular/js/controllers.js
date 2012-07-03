@@ -147,10 +147,9 @@ BlueprintDetailCtrl.$inject = ['$scope', '$location', '$routeParams', 'Blueprint
   *   Authentication
   */
 function AuthCtrl($scope, $location) {
+  $scope.location = 'us';
   $scope.auth = {
     username: '',
-    password: '',
-    catalog: null
   };
 
   var modal = $('#auth_modal');
@@ -159,48 +158,53 @@ function AuthCtrl($scope, $location) {
     show: true
   });
 
-  $('#auth_modal').modal('show');
+  if (!cm.auth.isAuthenticated()) {    
+    modal.modal('show');
+  }
 
   $scope.authenticated = function() {
-    return $scope.auth.catalog != null;
+    return cm.auth.isAuthenticated();
   }
 
   $scope.signOut = function() {
-    $scope.auth = {
-      username: '',
-      password: '',
-      catalog: null
-    };
+    $scope.auth.username = '';
+    $scope.auth.key = '';
+    $scope.auth.catalog = null;
     $location('/');
+    $('#auth_modal').modal('show');
   }
 
   $scope.authenticate = function() {
     $('#auth_loader').show();
 
+    var location = "https://identity.api.rackspacecloud.com/v2.0/tokens";
+    if ($scope.location == 'uk') {
+      location = "https://lon.identity.api.rackspacecloud.com/v2.0/tokens";
+    }
+
+    var data = JSON.stringify({
+               "auth":  {
+                  "RAX-KSKEY:apiKeyCredentials": {
+                    "username": $scope.auth.username,
+                    "apiKey": $scope.auth.password
+                  }
+                }
+            });
+
     return $.ajax({
       type: "POST",
       contentType: "application/json; charset=utf-8",
+      headers: {"X-Auth-Source": location},
       dataType: "json",
       url: "/authproxy",
-      data: JSON.stringify({
-              "endpoint": "us",
-              "credentials": {
-                "username": $scope.auth.username,
-                "key": $scope.auth.password
-              }
-            }),
+      data: data,
     }).always(function(json) {
-      $scope.auth.catalog = json;
+      cm.auth.setServiceCatalog(json);
     }).success(function() {
       $('#auth_modal').modal('hide');
-      $('#auth_loader').hide();
     }).error(function() {
       $("#auth_error_text").html("Something bad happened");
-      $('#auth_loader').hide();
       $("#auth_error").show();
-
-      //REMOVE THIS - DEVELOPMENT ONLY
-      $scope.auth.catalog = '{}'
     });
   }
 }
