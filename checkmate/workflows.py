@@ -416,7 +416,7 @@ def create_workflow(deployment, context):
 
     # Get list of providers
     resource_providers = {}  # Hash of provider for each resource
-    providers = {}  # Providers used in this deployment
+    providers = {}  # Unique providers used in this deployment
 
     provider_keys = set()
     for key, resource in deployment.get('resources', {}).iteritems():

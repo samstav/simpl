@@ -152,6 +152,7 @@ def get_providers(tenant_id=None):
 class Environment():
     def __init__(self, environment):
         self.dict = environment
+        self.providers = None
 
     def select_provider(self, resource=None):
         providers = self.get_providers()
@@ -164,22 +165,24 @@ class Environment():
 
     def get_providers(self):
         """ Returns provider class instances for this environment """
-        providers = self.dict.get('providers', None)
-        if providers:
-            common = providers.get('common', {})
-        else:
-            LOG.debug("Environment does not have providers")
+        if not self.providers:
+            providers = self.dict.get('providers', None)
+            if providers:
+                common = providers.get('common', {})
+            else:
+                LOG.debug("Environment does not have providers")
 
-        results = {}
-        for key, provider in providers.iteritems():
-            if key == 'common':
-                continue
-            vendor = provider.get('vendor', common.get('vendor', None))
-            if not vendor:
-                raise CheckmateException("No vendor specified for '%s'" % key)
-            provider_class = get_provider_class(vendor, key)
-            results[key] = provider_class(provider, key=key)
-        return results
+            results = {}
+            for key, provider in providers.iteritems():
+                if key == 'common':
+                    continue
+                vendor = provider.get('vendor', common.get('vendor', None))
+                if not vendor:
+                    raise CheckmateException("No vendor specified for '%s'" % key)
+                provider_class = get_provider_class(vendor, key)
+                results[key] = provider_class(provider, key=key)
+            self.providers = results
+        return self.providers
 
     def get_provider(self, key):
         """ Returns provider class instance from this environment """
