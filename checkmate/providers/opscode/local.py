@@ -248,217 +248,62 @@ class Provider(ProviderBase):
                     "interface '%s'" % (self.key, interface))
 
     def get_catalog(self, context, type_filter=None):
-        #TODO: remove hard-coding
-        results = {}
         if type_filter is None or type_filter == 'application':
-            results = {'application': {
-                    'apache2': {
-                        'name': 'apache',
-                        },
-                    'mysql': {
-                        'name': 'mysql',
-                        },
-                    'php5': {
-                        'name': 'php5',
-                        },
-                    'lsyncd': {
-                        'name': 'lsyncd',
-                        },
-                    }}
-            results['application']['wordpress'] = self.get_component()
+            # Get cookbooks
+            repo_path = _get_repo_path()
+            cookbook_path = os.path.join(repo_path, 'cookbooks')
+            cookbooks = self._get_cookbooks(cookbook_path)
+            site_cookbook_path = os.path.join(repo_path, 'site-cookbooks')
+            site_cookbooks = self._get_cookbooks(site_cookbook_path)
+
+            cookbooks.update(site_cookbooks)
+
+            results = {'application': cookbooks}
 
         return results
 
-    def get_component(self):
-        """Initial trials of parsing and returning components
+    def _get_cookbooks(self, path):
+        """Get all cookbooks as CheckMate components"""
+        results = {}
+        names = []
+        for top, dirs, files in os.walk(path):
+            names = [name for name in dirs if name[0] != '.']
+            break
 
-        This is not real code...
+        for name in names:
+            meta_path = os.path.join(path, name, 'metadata.json')
+            if os.path.exists(meta_path):
+                data = self._get_cookbook_data(meta_path)
+                if data:
+                    results[data['id']] = data
+        return results
+
+    def _get_cookbook_data(self, metadata_json_path):
+        """Get a cookbook's data and format it as a checkmate component
+
+        :param path: path to metadata.json file
         """
-        result = {
-                    'name': 'wordpress',
-                    'options': {}
-                  }
-        repo_path = _get_repo_path()
-        path = os.path.join(repo_path, "/cookbooks/wordpress/metadata.rb")
-        with file(path, 'r') as f:
-            text = f.read()
-        attribute = None
-        for line in text.split('\n'):
-            if line.startswith('attribute '):
-                name = line.split('"')[1]
-                attribute = {}
-                result['options'][name] = attribute
-            elif line.startswith('description '):
-                result['description'] = line[13:].strip()
-            elif attribute is not None:
-                if line.lstrip().startswith(':'):
-                    # add value
-                    array = line.strip().split('=>')
-                    key = array[0].strip(':').strip()
-                    value = array[1].split('"')[1]
-                    attribute[key] = value
-                else:
-                    attribute = None  # finished
-        result = {
-            "attributes": {
-                "wordpress/version": {
-                  "display_name": "Wordpress download version",
-                  "description": "Version of Wordpress to download from the Wordpress site.",
-                  "default": "3.0.4",
-                  "choice": [
+        component = {}
+        with file(metadata_json_path, 'r') as f:
+            data = json.load(f)
+            component['id'] = data['name']
+            component['summary'] = data.get('description')
+            component['version'] = data.get('version')
+            if 'attributes' in data:
+                component['options'] = data['attributes']
+            if 'dependencies' in data:
+                component['dependencies'] = data['dependencies']
+            if 'platforms' in data:
+                requires = {'server': dict(relation='host',
+                        interface=data['platforms'].keys())}
+                component['requires'] = requires
+        return component
 
-                  ],
-                  "calculated": False,
-                  "type": "string",
-                  "required": "optional",
-                  "recipes": [
-
-                  ]
-                },
-                "wordpress/checksum": {
-                  "display_name": "Wordpress tarball checksum",
-                  "description": "Checksum of the tarball for the version specified.",
-                  "default": "7342627f4a3dca44886c5aca6834cc88671dbd3aa2760182d2fcb9a330807",
-                  "choice": [
-
-                  ],
-                  "calculated": False,
-                  "type": "string",
-                  "required": "optional",
-                  "recipes": [
-
-                  ]
-                },
-                "wordpress/dir": {
-                  "display_name": "Wordpress installation directory",
-                  "description": "Location to place wordpress files.",
-                  "default": "/var/www",
-                  "choice": [
-
-                  ],
-                  "calculated": False,
-                  "type": "string",
-                  "required": "optional",
-                  "recipes": [
-
-                  ]
-                },
-                "wordpress/db/database": {
-                  "display_name": "Wordpress MySQL database",
-                  "description": "Wordpress will use this MySQL database to store its data.",
-                  "default": "wordpressdb",
-                  "choice": [
-
-                  ],
-                  "calculated": False,
-                  "type": "string",
-                  "required": "optional",
-                  "recipes": [
-
-                  ]
-                },
-                "wordpress/db/user": {
-                  "display_name": "Wordpress MySQL user",
-                  "description": "Wordpress will connect to MySQL using this user.",
-                  "default": "wordpressuser",
-                  "choice": [
-
-                  ],
-                  "calculated": False,
-                  "type": "string",
-                  "required": "optional",
-                  "recipes": [
-
-                  ]
-                },
-                "wordpress/db/password": {
-                  "display_name": "Wordpress MySQL password",
-                  "description": "Password for the Wordpress MySQL user.",
-                  "default": "randomly generated",
-                  "choice": [
-
-                  ],
-                  "calculated": False,
-                  "type": "string",
-                  "required": "optional",
-                  "recipes": [
-
-                  ]
-                },
-                "wordpress/keys/auth": {
-                  "display_name": "Wordpress auth key",
-                  "description": "Wordpress auth key.",
-                  "default": "randomly generated",
-                  "choice": [
-
-                  ],
-                  "calculated": False,
-                  "type": "string",
-                  "required": "optional",
-                  "recipes": [
-
-                  ]
-                },
-                "wordpress/keys/secure_auth": {
-                  "display_name": "Wordpress secure auth key",
-                  "description": "Wordpress secure auth key.",
-                  "default": "randomly generated",
-                  "choice": [
-
-                  ],
-                  "calculated": False,
-                  "type": "string",
-                  "required": "optional",
-                  "recipes": [
-
-                  ]
-                },
-                "wordpress/keys/logged_in": {
-                  "display_name": "Wordpress logged-in key",
-                  "description": "Wordpress logged-in key.",
-                  "default": "randomly generated",
-                  "choice": [
-
-                  ],
-                  "calculated": False,
-                  "type": "string",
-                  "required": "optional",
-                  "recipes": [
-
-                  ]
-                },
-                "wordpress/keys/nonce": {
-                  "display_name": "Wordpress nonce key",
-                  "description": "Wordpress nonce key.",
-                  "default": "randomly generated",
-                  "choice": [
-
-                  ],
-                  "calculated": False,
-                  "type": "string",
-                  "required": "optional",
-                  "recipes": [
-
-                  ]
-                },
-                "wordpress/server_aliases": {
-                  "display_name": "Wordpress Server Aliases",
-                  "description": "Wordpress Server Aliases",
-                  "default": "FQDN",
-                  "choice": [
-
-                  ],
-                  "calculated": False,
-                  "type": "string",
-                  "required": "optional",
-                  "recipes": [
-
-                  ]
-                }
-              }
-            }
-
-        return result
+    def status(self):
+        # Files to be changed:
+        #   git diff --stat --color remotes/origin/master..master
+        # Full diff: remove --stat
+        pass
 
 #
 # Celery Tasks (moved from python-stockton)
