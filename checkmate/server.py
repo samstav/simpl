@@ -60,7 +60,8 @@ from urlparse import urlparse
 import uuid
 
 # pylint: disable=E0611
-from bottle import app, get, post, run, request, response, abort, static_file
+from bottle import app, get, post, run, request, response, abort, static_file,\
+        HTTPError
 from Crypto.Hash import MD5
 from jinja2 import BaseLoader, Environment, TemplateNotFound
 import webob
@@ -614,12 +615,16 @@ class ExtensionsMiddleware(object):
 
 
 class BrowserMiddleware(object):
-    """Adds support for browser interaction and HTML content"""
+    """Adds support for browser interaction and HTML content
 
-    def __init__(self, app):
+    Includes /authproxy for Ajax clients to authenticate
+    """
+
+    def __init__(self, app, proxy_endpoints=None):
         self.app = app
         HANDLERS['text/html'] = BrowserMiddleware.write_html
-        STATIC.extend(['static', 'favicon.ico'])
+        STATIC.extend(['static', 'favicon.ico', 'authproxy'])
+        self.proxy_endpoints = proxy_endpoints
 
         # Add static routes
         @get('/favicon.ico')
@@ -639,6 +644,65 @@ class BrowserMiddleware(object):
         def root():
             return write_body("Welcome to the CheckMate Administration"
                     "Interface", request, response)
+
+        @post('/authproxy')
+        def authproxy():
+            """Proxy Auth Requests
+
+            The Ajax client cannot talk to auth because of CORS. This function
+            allows it to authenticate through this server.
+            """
+            auth = read_body(request)
+            if not auth:
+                abort(406, "Expecting a body in the request")
+            source = request.get_header('X-Auth-Source')
+            if not source:
+                abort(401, "X-Auth-Source header not supplied. The header is "
+                        "required and must point to a valid and permitted "
+                        "auth endpoint.")
+            if source not in self.proxy_endpoints:
+                abort(401, "Auth endpoint not permitted: %s" % source)
+
+            url = urlparse(source)
+            if url.scheme == 'https':
+                http_class = httplib.HTTPSConnection
+                port = url.port or 443
+            else:
+                http_class = httplib.HTTPConnection
+                port = url.port or 80
+            host = url.hostname
+
+            http = http_class(host, port)
+            headers = {
+                'Content-type': 'application/json',
+                'Accept': 'application/json',
+                }
+            # TODO: implement some caching to not overload auth
+            try:
+                LOG.debug('Proxy authenticating to %s' % source)
+                http.request('POST', url.path, body=json.dumps(auth),
+                        headers=headers)
+                resp = http.getresponse()
+                body = resp.read()
+            except Exception, e:
+                LOG.error('HTTP connection exception: %s' % e)
+                raise HTTPError(401, output='Unable to communicate with '
+                        'keystone server')
+            finally:
+                http.close()
+
+            if resp.status != 200:
+                LOG.debug('Invalid authentication: %s' % resp.reason)
+                raise HTTPError(401, output=resp.reason)
+
+            try:
+                content = json.loads(body)
+            except ValueError:
+                msg = 'Keystone did not return json-encoded body'
+                LOG.debug(msg)
+                raise HTTPError(401, output=msg)
+
+            return write_body(content, request, response)
 
     def __call__(self, e, h):
         return self.app(e, h)
@@ -1039,7 +1103,7 @@ if __name__ == '__main__':
     next = StripPathMiddleware(next)
     next = ExtensionsMiddleware(next)
     if '--with-ui' in sys.argv:
-        next = BrowserMiddleware(next)
+        next = BrowserMiddleware(next, proxy_endpoints=endpoints)
     if '--newrelic' in sys.argv:
         import newrelic.agent
         newrelic.agent.initialize(os.path.normpath(os.path.join(
