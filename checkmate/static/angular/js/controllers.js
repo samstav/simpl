@@ -181,8 +181,9 @@ function AuthCtrl($scope, $location) {
       type: "POST",
       contentType: "application/json; charset=utf-8",
       dataType: "json",
-      url: "https://identity.api.rackspacecloud.com/v1.1/auth",
+      url: "/authproxy",
       data: JSON.stringify({
+              "endpoint": "us",
               "credentials": {
                 "username": $scope.auth.username,
                 "key": $scope.auth.password
@@ -238,10 +239,12 @@ DeploymentListCtrl.$inject = ['$scope', '$location', 'Deployment'];
   *   Deployments
   */
 function DeploymentNewCtrl($scope, $location, $routeParams, Deployment, Environment, Blueprint) {
-  $scope.blueprints = Blueprint.query();
+  $scope.blueprints = Blueprint.query(function() {
+    $scope.blueprintId = _.find($scope.blueprints, function(bp) { return bp.id == $routeParams.blueprintId });
+  });
   $scope.environments = Environment.query();
 
-  $scope.blueprintId = null;
+  
   $scope.environmentId = null;
   $scope.setting = {};
 

@@ -20,10 +20,8 @@
         <div class="control-group">
           <label class="control-label" for="blueprint">Blueprint</label>
           <div class="controls">
-            <select id="blueprint" class="span3" ng-model="blueprintId" required>
-              <option ng-repeat="blueprint in blueprints" value="{{blueprint.id}}">
-                {{blueprint.name}}
-              </option>
+            <select id="blueprint" class="span3" ng-model="blueprintId" 
+                    ng-options="b as b.name for b in blueprints" required>              
             </select>
           </div>
         </div>
