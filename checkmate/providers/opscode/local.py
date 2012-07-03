@@ -839,7 +839,7 @@ def register_node(host, environment, path=None, password=None,
         LOG.info("Node attributes written in %s" % node_path)
 
 
-def _run_kitchen_command(kitchen_path, params):
+def _run_kitchen_command(kitchen_path, params, lock=True):
     """Runs the 'knife xxx' command.
 
     This also needs to handle knife command errors, which are returned to
@@ -847,19 +847,25 @@ def _run_kitchen_command(kitchen_path, params):
 
     That needs to be run in a kitchen, so we move curdir and need to make sure
     we stay there, so I added some synchronization code while that takes place
+    However, if code calls in that already has a lock, the optional lock param
+    can be set to false so thise code does not lock
     """
     LOG.debug("Running: %s" % ' '.join(params))
-    lock = threading.Lock()
-    lock.acquire()
-    try:
+    if lock:
+        path_lock = threading.Lock()
+        path_lock.acquire()
+        try:
+            os.chdir(kitchen_path)
+            result = check_all_output(params)  # check_output(params)
+        except CalledProcessError, exc:
+            # Reraise pickleable exception
+            raise CheckmateCalledProcessError(exc.returncode, exc.cmd,
+                    output=exc.output)
+        finally:
+            path_lock.release()
+    else:
         os.chdir(kitchen_path)
         result = check_all_output(params)  # check_output(params)
-    except CalledProcessError, exc:
-        # Reraise pickleable exception
-        raise CheckmateCalledProcessError(exc.returncode, exc.cmd,
-                output=exc.output)
-    finally:
-        lock.release()
     LOG.debug(result)
     # Knife succeeds even if there is an error. This code tries to parse the
     # output to return a useful error
@@ -1000,25 +1006,76 @@ def manage_role(name, environment, path=None, desc=None,
 
 @task
 def manage_databag(environment, bagname, itemname, contents,
-        path=None, secret_file=None):
+        path=None, secret_file=None, merge=True):
+    """Updates a data_bag or encrypted_data_bag
+
+    :param environment: the ID of the environment
+    :param bagname: the name of the databag (in solo, this end up being a
+            directory)
+    :param item: the name of the item (in solo this ends up being a .json file)
+    :param contents: this is a dict of attributes to write in to the databag
+    :param path: optional override to the default path where environments live
+    :param secret_file: the path to a certificate used to encrypt a data_bag
+    :param merge: if True, the data will be merged in. If not, it will be
+            completely overwritten
+    """
     root = _get_root_environments_path(path)
     kitchen_path = os.path.join(root, environment, 'kitchen')
-    databags_path = os.path.join(kitchen_path, 'data_bags')
-    if not os.path.exists(databags_path):
+    databags_root = os.path.join(kitchen_path, 'data_bags')
+    if not os.path.exists(databags_root):
         raise CheckmateException("Data bags path does not exist: %s" %
-                databags_path)
-    databag_path = os.path.join(databags_path, bagname)
+                databags_root)
+
+    databag_path = os.path.join(databags_root, bagname)
     if not os.path.exists(databag_path):
+        merge = False  # Nothing to merge if it is new!
         _run_kitchen_command(kitchen_path, ['knife', 'solo', 'data', 'bag',
                 'create', bagname])
         LOG.debug("Created data bag: %s" % databag_path)
-    if isinstance(contents, dict):
-        contents = json.dumps(contents)
-    params = ['knife', 'solo', 'data',
-            'bag', 'create', bagname, itemname, '-d', '--json', contents]
-    if secret_file:
-        params.extend(['--secret-file', secret_file])
-    result = _run_kitchen_command(kitchen_path, params)
+
+    if merge:
+        params = ['knife', 'solo', 'data', 'bag', 'show', bagname, itemname,
+            '-F', 'json']
+        if secret_file:
+            params.extend('--secret_file', secret_file)
+
+        lock = threading.Lock()
+        lock.acquire()
+        try:
+            data = _run_kitchen_command(kitchen_path, params)
+            existing = json.loads(data)
+            contents = merge_dictionary(existing, contents)
+            if isinstance(contents, dict):
+                contents = json.dumps(contents)
+            params = ['knife', 'solo', 'data',
+                    'bag', 'create', bagname, itemname, '-d', '--json',
+                    contents]
+            if secret_file:
+                params.extend(['--secret-file', secret_file])
+            result = _run_kitchen_command(kitchen_path, params)
+        except CalledProcessError, exc:
+            # Reraise pickleable exception
+            raise CheckmateCalledProcessError(exc.returncode, exc.cmd,
+                    output=exc.output)
+        finally:
+            lock.release()
+    else:
+        if 'id' not in contents:
+            contents['id'] = itemname
+        elif contents['id'] != itemname:
+            raise CheckmateException("The value of the 'id' field in a databag"
+                    " item is reserved by Chef and must be set to the name of "
+                    "the databag item. Checkmate will set this for you if it "
+                    "is missing, but the data you supplied included an ID "
+                    "that did not match the databag item name. The ID was "
+                    "'%s' and the databg item name was '%s'")
+        if isinstance(contents, dict):
+            contents = json.dumps(contents)
+        params = ['knife', 'solo', 'data',
+                'bag', 'create', bagname, itemname, '-d', '--json', contents]
+        if secret_file:
+            params.extend(['--secret-file', secret_file])
+        result = _run_kitchen_command(kitchen_path, params)
     LOG.debug(result)
 
 

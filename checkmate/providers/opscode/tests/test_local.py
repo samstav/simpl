@@ -3,16 +3,25 @@ import __builtin__
 import json
 import mox
 import os
+import shutil
 import unittest2 as unittest
+import uuid
 
+from checkmate.exceptions import CheckmateException
 from checkmate.providers.opscode import local
 
 
 class TestChefLocal(unittest.TestCase):
-    """ Test CheffLocal Module """
+    """ Test ChefLocal Module """
+
+    @classmethod
+    def setUpClass(cls):
+        os.environ['CHECKMATE_CHEF_LOCAL_PATH'] = '/tmp/checkmate/test'
+        if not os.path.exists(os.environ['CHECKMATE_CHEF_LOCAL_PATH']):
+            shutil.os.makedirs(os.environ['CHECKMATE_CHEF_LOCAL_PATH'])
+            local.create_environment('test_env')
 
     def setUp(self):
-        os.environ['CHECKMATE_CHEF_LOCAL_PATH'] = '/tmp/checkmate/test'
         self.mox = mox.Mox()
 
     def tearDown(self):
@@ -81,6 +90,74 @@ class TestChefLocal(unittest.TestCase):
                         exc.__str__())
 
         #TODO: check this self.mox.VerifyAll()
+
+    def test_databag_create(self):
+        """Test databag item creation (with chekcmate filling in ID)"""
+        original = {
+                'a': 1,
+                'b': '2',
+                'boolean': False,
+                'blank': None,
+                'multi-level': {
+                        'ml_stays': "I'm here!",
+                        'ml_goes': 'Bye!',
+                    },
+            }
+        bag = uuid.uuid4().hex
+        local.manage_databag('test_env', bag, 'test', original)
+        stored = local._run_kitchen_command(
+                "/tmp/checkmate/test/test_env/kitchen/",
+                ['knife', 'solo', 'data', 'bag', 'show', bag, 'test', '-F',
+                'json'])
+        self.assertDictEqual(json.loads(stored), original)
+
+    def test_databag_merge(self):
+        """Test databag item merging"""
+        original = {
+                'a': 1,
+                'b': '2',
+                'boolean': False,
+                'blank': None,
+                'multi-level': {
+                        'ml_stays': "I'm here!",
+                        'ml_goes': 'Bye!',
+                    },
+            }
+        merge = {
+                'b': 3,
+                'multi-level': {
+                        'ml_goes': 'fishing',
+                    },
+        }
+        expected = {
+                'id': 'test',
+                'a': 1,
+                'b': 3,
+                'boolean': False,
+                'blank': None,
+                'multi-level': {
+                        'ml_stays': "I'm here!",
+                        'ml_goes': 'fishing',
+                    },
+            }
+        bag = uuid.uuid4().hex
+        local.manage_databag('test_env', bag, 'test', original)
+        local.manage_databag('test_env', bag, 'test', merge, merge=True)
+        stored = local._run_kitchen_command(
+                "/tmp/checkmate/test/test_env/kitchen/",
+                ['knife', 'solo', 'data', 'bag', 'show', bag, 'test', '-F',
+                'json'])
+        self.assertDictEqual(json.loads(stored),
+                             json.loads(json.dumps(expected)))
+
+    def test_databag_create_bad_id(self):
+        """Test databag item creation (with supplied ID not matching)"""
+        original = {
+                'id': 'Not-the-tem-name',
+            }
+        bag = uuid.uuid4().hex
+        self.assertRaises(CheckmateException, local.manage_databag,
+                'test_env', bag, 'test', original)
 
 
 if __name__ == '__main__':
