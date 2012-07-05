@@ -10,18 +10,16 @@
         <div class="control-group">
           <label class="control-label" for="environment">Environment</label>
           <div class="controls">
-            <select id="environment" class="span3" ng-model="environmentId" required>
-              <option ng-repeat="environment in environments" value="{{environment.id}}">
-                {{environment.name}}
-              </option>
+            <select id="environment" class="span3" ng-model="environment" ng-change="updateSettings()"
+                    ng-options="environment.name for (id,environment) in environments" required>
             </select>
           </div>
         </div>
         <div class="control-group">
           <label class="control-label" for="blueprint">Blueprint</label>
           <div class="controls">
-            <select id="blueprint" class="span3" ng-model="blueprintId" 
-                    ng-options="b as b.name for b in blueprints" required>              
+            <select id="blueprint" class="span3" ng-model="blueprint" ng-change="updateSettings()"
+                    ng-options="blueprint.name for (id,blueprint) in blueprints" required>              
             </select>
           </div>
         </div>
@@ -45,13 +43,13 @@
       <ul class="nav nav-list">
         <li class="nav-header">Help</li>
         <li>
-          Help text!
+          This screen allows you to create and launch a deployment. You'll start by selecting
+          an environment and a blueprint. Both of these selections will expose settings that you
+          will need to configure how you want. 
         </li>
-        <li class="nav-header">Search</li>
         <li>
-          <div class="input-prepend">
-            <span class="add-on"><i class="icon-search"></i></span><input type="text" class="span2" ng-model="query"> 
-          </div>    
+          Once you are happy with everything, click the Build It! button and Checkmate will start
+          provisining your environment.
         </li>
       </ul>
     </div><!--/.well -->

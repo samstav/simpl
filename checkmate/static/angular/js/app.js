@@ -84,107 +84,114 @@ cm.auth = (function() {
   }
 }());
 
+cm.Resource = (function() {
 
-// TODO: REMOVE THIS, DEVELOPMENT ONLY
-SETTINGS = {
-  "options": {
-    "username": {
-      "regex": "xxx",
-      "required": "generatable",
-      "type": "string",
-      "description": "The user name used to access all resources in this deployment",
-      "label": "Admin"
-    },
-    "instance_os": {
-      "constrains": [{
-        "setting": "os",
-        "service": "web",
-        "resource_type": "compute"
-      }],
-      "group": "advanced",
-      "description": "The operating system of web servers.",
-      "default": "1",
-      "type": "select",
-      "options": [{
-        "name": "Ubuntu 12.04 LTS",
-        "value": 1
-      }, {
-        "name": "Ubuntu 10.04 LTS",
-        "value": 2
-      }],
-      "label": "Instance OS"
-    },
-    "domain": {
-      "regex": "xxx",
-      "type": "string",
-      "description": "The domain you wish to host your blog on. (ex: http://example.com)",
-      "label": "Domain"
-    },
-    "secure": {
-      "type": "boolean",
-      "description": "Make this a hardened deployment (you lose some flexibility)",
-      "label": "secure"
-    },
-    "instance_count": {
-      "constrains": [{
-        "setting": "count",
-        "service": "web",
-        "resource_type": "compute"
-      }],
-      "description": "The number of instances for the specified task.",
-      "default": 2,
-      "constraints": [{
-        "greater-than": 1
-      }],
-      "type": "number",
-      "label": "Number of Instances"
-    },
-    "instance_flavor": {
-      "default": 1024,
-      "label": "Instance Size",
-      "type": "uri",
-      "description": "The size of the instance in MB of RAM.",
-      "uri": "/577366/providers/...?type=type"
-    },
-    "database_size": {
-      "default": 20,
-      "label": "Database Size",
-      "type": "uri",
-      "description": "The hard drive space available for the database instance in GB.",
-      "uri": "/577366/providers/...?type=type"
-    },
-    "ssl": {
-      "default": true,
-      "type": "boolean",
-      "description": "Use SSL to encrypt web traffic.",
-      "label": "SSL Enabled"
-    },
-    "sample": {
-      "constrains": [{
-        "setting": "foo",
-        "service": "web",
-        "resource_type": "compute"
-      }],
-      "group": "advanced",
-      "description": "The operating system of web servers.",
-      "default": "Ubuntu 12.04",
-      "type": "uri",
-      "uri": "/577366/providers/...?type=type",
-      "label": "Instance OS"
-    },
-    "password": {
-      "regex": "xxx",
-      "type": "string",
-      "description": "Password to use for service. Click the generate button to generate a random password.",
-      "label": "Password"
-    },
-    "high_availability": {
-      "type": "boolean",
-      "description": "Insures your blog has higher uptimes by using redundant hardware (e.g. multuple servers)",
-      "label": "High Availability"
+  function query($http, resource) {
+    return $http({
+      method: 'GET',
+      url: tenantUri() + resource,
+      headers: headers()
+    });
+  }
+
+  function get($http, resource, id) {
+    return $http({
+      method: 'GET',
+      url: tenantUri() + resource + '/' + id,
+      headers: headers
+    });
+  }
+
+  function saveOrUpdate($http, resource, instance) {
+    if (instance.id == null) {
+      return $http({
+        method: 'POST',
+        url: tenantUri() + resource,
+        headers: headers,
+        data: JSON.stringify(instance)
+      });
+
+    } else {
+      return $http({
+        method: 'PUT',
+        url: tenantUri() + resource + '/' + instance.id,
+        headers: headers,
+        data: JSON.stringify(instance)
+      });
     }
   }
-}
+
+  // Privates
+
+  function tenantUri() {
+    return '/' + cm.auth.getTenant() + '/';
+  }
+
+  function headers() {
+    return {
+      "X-Auth-Token": cm.auth.getToken()
+    };
+  }
+
+  return {
+    query: query,
+    get: get,
+    saveOrUpdate: saveOrUpdate
+  }
+}());
+
+cm.Settings = (function() {
+
+  function getSettingsFromBlueprint(bp) {
+    var options = new Array(); // The accumulating array
+    // Start with high level options for the blueprint
+    var opts = bp.options;
+    _.each(opts, function(option, key) {
+      options.push($.extend({
+        id: key
+      }, option));
+    });
+
+    // Now we need the settings for each component in each service
+    // TODO: Can this be done with something like an XPATH gather or something?
+    if (!bp.services) {
+      return options;
+    }
+
+    // Each service
+    _.each(bp.services, function(service) {
+      if (!service.components) {
+        return;       // Simlutes a continue for a normal forloop
+      }
+
+      // Each component
+      _.each(service.components, function(component) {
+        if (!component.options || !component.options.standard) {
+          return;
+        }
+
+        // Each standard option in a component
+        _.each(component.options.standard, function(opt, key) {
+          options.push($.extend({
+            id: key
+          }, opt));
+        });
+      });
+    });
+
+    return options;
+  }
+
+  function getSettingsFromEnvironment(env) {
+
+  }
+
+
+  return {
+    getSettingsFromBlueprint: getSettingsFromBlueprint,
+    getSettingsFromEnvironment: getSettingsFromEnvironment
+  }
+}());
 
 PROVIDERS = {
   compute: {
