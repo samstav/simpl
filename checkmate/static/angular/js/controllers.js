@@ -1,15 +1,15 @@
 'use strict'
 
 /**
-  *   environments
-  */
+ *   environments
+ */
+
 function EnvironmentListCtrl($scope, $location, $http, Environment) {
-	 
+
   // Get the environments
-  cm.Resource.query($http, 'environments')
-    .success(function(data, status) {
-      $scope.environments = data;
-    });    
+  cm.Resource.query($http, 'environments').success(function(data, status) {
+    $scope.environments = data;
+  });
 
   $scope.provider_count = function(environment) {
     if (environment.providers == null) {
@@ -31,26 +31,29 @@ function EnvironmentListCtrl($scope, $location, $http, Environment) {
     $location.path('/environments/' + environmentId);
   }
 }
-EnvironmentListCtrl.$inject = ['$scope', '$location', '$http', 'Environment']; 
+EnvironmentListCtrl.$inject = ['$scope', '$location', '$http', 'Environment'];
 
 /**
-  *   environments/:environmentId
-  */
-function EnvironmentDetailCtrl($scope, $location, $http, $routeParams, Environment) {  
+ *   environments/:environmentId
+ */
+
+function EnvironmentDetailCtrl($scope, $location, $http, $routeParams, Environment) {
   // Munge the providers so they have an id I can use.
   var p = new Array();
   $scope.selectedProviders = {}
-  for(var i in PROVIDERS) { 
-    p.push($.extend({id: i, select: null}, PROVIDERS[i]));     
+  for (var i in PROVIDERS) {
+    p.push($.extend({
+      id: i,
+      select: null
+    }, PROVIDERS[i]));
     $scope.selectedProviders[i] = null;
   }
   $scope.providers = p;
 
   if ($routeParams.environmentId != "new") {
-    cm.Resource.get($http, 'environments', $routeParams.environmentId)
-      .success(function(data, status) {
-        $scope.environment = data;
-      });
+    cm.Resource.get($http, 'environments', $routeParams.environmentId).success(function(data, status) {
+      $scope.environment = data;
+    });
 
     /*
     $scope.environment = Environment.get({environmentId: $routeParams.environmentId}, function() {
@@ -75,28 +78,33 @@ function EnvironmentDetailCtrl($scope, $location, $http, $routeParams, Environme
     $scope.environment = angular.copy(environment);
 
     //build the providers    
-    $scope.environment.providers = {};    
+    $scope.environment.providers = {};
     _.each($scope.selectedProviders, function(provider, key) {
       $scope.environment.providers[key] = provider;
     });
 
-    cm.Resource.saveOrUpdate($http, 'environments', $scope.environment)
-      .success(function(data,status) {
-        $location.path('/environments');
-      });    
+    cm.Resource.saveOrUpdate($http, 'environments', $scope.environment).success(function(data, status) {
+      $location.path('/environments');
+    });
   }
 
   $scope.reset = function() {
-    $scope.environment = Environment.get({environmentId: $routeParams.environmentId});
+    $scope.environment = Environment.get({
+      environmentId: $routeParams.environmentId
+    });
   }
 }
-EnvironmentDetailCtrl.$inject = ['$scope', '$location', '$http', '$routeParams', 'Environment']; 
+EnvironmentDetailCtrl.$inject = ['$scope', '$location', '$http', '$routeParams', 'Environment'];
 
 /**
-  *   blueprints
-  */
-function BlueprintListCtrl($scope, $location, Blueprint) {
-  $scope.blueprints = Blueprint.query();
+ *   blueprints
+ */
+
+function BlueprintListCtrl($scope, $location, $http, Blueprint) {
+  //$scope.blueprints = Blueprint.query();
+  cm.Resource.query($http, 'blueprints').success(function(data, status) {
+    $scope.blueprints = data;
+  });
 
   $scope.serviceList = function(blueprint) {
     return blueprint.services ? Object.keys(blueprint.services).join(', ') : 0;
@@ -107,25 +115,30 @@ function BlueprintListCtrl($scope, $location, Blueprint) {
   }
 
   $scope.newDeployment = function(blueprintId) {
-    $location.path('/deployments/new').search({blueprintId: blueprintId});
+    $location.path('/deployments/new').search({
+      blueprintId: blueprintId
+    });
   }
 
 }
-BlueprintListCtrl.$inject = ['$scope', '$location', 'Blueprint']
+BlueprintListCtrl.$inject = ['$scope', '$location', '$http', 'Blueprint']
 
 /**
-  *   blueprints
-  */
+ *   blueprints
+ */
+
 function BlueprintDetailCtrl($scope, $location, $routeParams, Blueprint) {
   if ($routeParams.blueprintId != "new") {
-    $scope.blueprint = Blueprint.get({blueprintId: $routeParams.blueprintId}, function() {
+    $scope.blueprint = Blueprint.get({
+      blueprintId: $routeParams.blueprintId
+    }, function() {
       $scope.stringify = JSON.stringify($scope.blueprint, null, '\t');
       $scope.codeMirror = CodeMirror.fromTextArea($('#editor').get(0), {
-       value: $scope.stringify,
-       mode: 'javascript',
-       lineNumbers: true
+        value: $scope.stringify,
+        mode: 'javascript',
+        lineNumbers: true
       });
-    });  
+    });
   } else {
     $scope.blueprint = new Blueprint();
     $scope.stringify = "{ }"
@@ -140,12 +153,14 @@ function BlueprintDetailCtrl($scope, $location, $routeParams, Blueprint) {
     } else {
       $scope.blueprint.$update();
     }
-    
+
     $location.path('/blueprints');
   }
 
   $scope.reset = function() {
-    $scope.blueprint = Blueprint.get({blueprintId: $routeParams.blueprintId});
+    $scope.blueprint = Blueprint.get({
+      blueprintId: $routeParams.blueprintId
+    });
   }
 
 
@@ -153,13 +168,22 @@ function BlueprintDetailCtrl($scope, $location, $routeParams, Blueprint) {
 BlueprintDetailCtrl.$inject = ['$scope', '$location', '$routeParams', 'Blueprint']
 
 /**
-  *   Authentication
-  */
+ *   Authentication
+ */
+
 function AuthCtrl($scope, $location) {
   $scope.location = 'us';
+
   $scope.auth = {
     username: '',
+    key: ''
   };
+
+  if ($location.host() == "localhost") {
+    $scope.auth.username = "rackcloudtech";
+    $scope.auth.key = "";
+  }
+
 
   var modal = $('#auth_modal');
   modal.modal({
@@ -167,7 +191,7 @@ function AuthCtrl($scope, $location) {
     show: true
   });
 
-  if (!cm.auth.isAuthenticated()) {    
+  if (!cm.auth.isAuthenticated()) {
     modal.modal('show');
   }
 
@@ -184,26 +208,26 @@ function AuthCtrl($scope, $location) {
   }
 
   $scope.authenticate = function() {
-    $('#auth_loader').show();
-
     var location = "https://identity.api.rackspacecloud.com/v2.0/tokens";
     if ($scope.location == 'uk') {
       location = "https://lon.identity.api.rackspacecloud.com/v2.0/tokens";
     }
 
     var data = JSON.stringify({
-               "auth":  {
-                  "RAX-KSKEY:apiKeyCredentials": {
-                    "username": $scope.auth.username,
-                    "apiKey": $scope.auth.password
-                  }
-                }
-            });
+      "auth": {
+        "RAX-KSKEY:apiKeyCredentials": {
+          "username": $scope.auth.username,
+          "apiKey": $scope.auth.key
+        }
+      }
+    });
 
     return $.ajax({
       type: "POST",
       contentType: "application/json; charset=utf-8",
-      headers: {"X-Auth-Source": location},
+      headers: {
+        "X-Auth-Source": location
+      },
       dataType: "json",
       url: "/authproxy",
       data: data,
@@ -220,16 +244,18 @@ function AuthCtrl($scope, $location) {
 AuthCtrl.$inject = ['$scope', '$location']
 
 /**
-  *   Profile
-  */
+ *   Profile
+ */
+
 function ProfileCtrl($scope, $location) {
 
 }
 ProfileCtrl.$inject = ['$scope', '$location'];
 
 /**
-  *   Deployments
-  */
+ *   Deployments
+ */
+
 function DeploymentListCtrl($scope, $location, Deployment) {
   $scope.deployments = Deployment.query();
 
@@ -249,41 +275,75 @@ function DeploymentListCtrl($scope, $location, Deployment) {
 DeploymentListCtrl.$inject = ['$scope', '$location', 'Deployment'];
 
 /**
-  *   Deployments
-  */
-function DeploymentNewCtrl($scope, $location, $routeParams, Deployment, Environment, Blueprint) {
-  $scope.blueprints = Blueprint.query(function() {
-    $scope.blueprintId = _.find($scope.blueprints, function(bp) { return bp.id == $routeParams.blueprintId });
-  });
-  $scope.environments = Environment.query();
+ *   Deployments
+ */
 
-  
-  $scope.environmentId = null;
+function DeploymentNewCtrl($scope, $location, $routeParams, $http, Deployment, Environment, Blueprint) {
+  $scope.environment = null;
+  $scope.blueprint = null;
   $scope.setting = {};
 
-  // Munge the settings so they have an id I can use.
-  var s = new Array();
-  for(var i in SETTINGS.options) { 
-    s.push($.extend({id: i}, SETTINGS.options[i])) 
-    $scope.setting[i] = null;
+  $scope.updateSettings = function() {
+    $scope.settings = new Array();
+    $scope.setting = {};
+
+    if ($scope.blueprint) {
+      $scope.settings.push(cm.Settings.getSettingsFromBlueprint($scope.blueprint));
+    }
+
+    if ($scope.environment) {
+      $scope.settings.push(cm.Settings.getSettingsFromEnvironment($scope.environment));
+    }
+
+    $scope.settings = _.flatten($scope.settings, true); // combine everything to one array
+    _.each($scope.settings, function(data, key) {
+      $scope.setting[key] = null;
+    });
   }
-  $scope.settings = s;
 
   $scope.renderSetting = function(setting) {
     var template = $('#setting-' + setting.type).html();
+
+    if (template == null) {
+      console.log("No template for setting type '" + setting.type + "'.");
+    }
+
     return template ? Mustache.render(template, setting) : "";
   }
 
   $scope.submit = function() {
     var deployment = new Deployment();
-    var blueprint = _.find($scope.blueprints, function(bp) { return bp.id == $scope.blueprintId });
-    var environment = _.find($scope.environments, function(env) { return env.id == $scope.environmentId });
+    var blueprint = _.find($scope.blueprints, function(bp) {
+      return bp.id == $scope.blueprintId
+    });
+    var environment = _.find($scope.environments, function(env) {
+      return env.id == $scope.environmentId
+    });
 
-    
+
     deployment.blueprint = blueprint;
     deployment.environment = environment;
 
     deployment.$save();
   }
+
+  // Load blueprints
+  cm.Resource.query($http, 'blueprints').success(function(data) {
+    $scope.blueprints = data;
+
+    if ($routeParams.blueprintId) {
+      $scope.blueprint = _.find($scope.blueprints, function(bp) {
+        return bp.id == $routeParams.blueprintId
+      });
+      $scope.updateSettings();
+    }
+  });
+
+  // Load the environments
+  cm.Resource.query($http, 'environments').success(function(data) {
+    $scope.environments = data;
+  });
+
+
 }
-DeploymentNewCtrl.$inject = ['$scope', '$location', '$routeParams', 'Deployment', 'Environment', 'Blueprint'];
+DeploymentNewCtrl.$inject = ['$scope', '$location', '$routeParams', '$http', 'Deployment', 'Environment', 'Blueprint'];
