@@ -66,7 +66,7 @@
   <script id="setting-string" type="text/html" ng-non-bindable>
     <label class="control-label capitalize" for="{{id}}">{{label}}</label>
     <div class="controls">
-      <input  type="text" class="input-xlarge" id="{{id}}" ng-model="settings.{{id}}" 
+      <input  type="text" class="input-xlarge" id="{{id}}" ng-model="answers['{{id}}']" 
               {{#required}}required{{/required}} {{#regex}}ng-pattern="{{regex}}"{{/regex}}
               {{#default}}value="{{default}}"{{/default}}>
       {{#description}}<p class="help-block">{{description}}</p>{{/description}}
@@ -76,7 +76,7 @@
    <script id="setting-number" type="text/html" ng-non-bindable>
     <label class="control-label capitalize" for="{{id}}">{{label}}</label>
     <div class="controls">
-      <input  type="number" class="input-small" id="{{id}}" ng-model="settings.{{id}}" 
+      <input  type="number" class="input-small" id="{{id}}" ng-model="answers.{{id}}" 
               {{#required}}required{{/required}} 
               {{#default}}value="{{default}}"{{/default}}>
       {{#description}}<p class="help-block">{{description}}</p>{{/description}}
@@ -87,7 +87,7 @@
     <label class="control-label capitalize" for="{{id}}">{{label}}</label>
     <div class="controls">
       <label class="checkbox">      
-        <input type="checkbox" class="input-xlarge" id="{{id}}" ng-model="settings.{{id}}" 
+        <input type="checkbox" class="input-xlarge" id="{{id}}" ng-model="answers.{{id}}" 
               {{#required}}required{{/required}} {{#default}}value="{{default}}"{{/default}}>
         {{#description}}{{description}}{{/description}}
       </label>
@@ -97,10 +97,8 @@
   <script id="setting-select" type="text/html" ng-non-bindable>
     <label class="control-label capitalize" for="{{id}}">{{label}}</label>
     <div class="controls">
-      <select id="{{id}}" ng-model="settings.{{id}}" {{#required}}required{{/required}}>
-        {{#options}}
-          <option value="{{value}}">{{name}}</option>
-        {{/options}}
+      <select id="{{id}}" ng-model="answers.{{id}}" {{#required}}required{{/required}}
+              ng-options="element.name for (id,element) in options">
       </select>
     </div>
   </script>

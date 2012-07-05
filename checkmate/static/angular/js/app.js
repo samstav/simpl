@@ -121,6 +121,14 @@ cm.Resource = (function() {
     }
   }
 
+  function del($http, resource, instance) {
+    return $http({
+      method: 'DELETE',
+      url: tenantId() + resource + '/' + instance.id,
+      headers: headers()
+    });
+  }
+
   // Privates
 
   function tenantUri() {
@@ -136,7 +144,8 @@ cm.Resource = (function() {
   return {
     query: query,
     get: get,
-    saveOrUpdate: saveOrUpdate
+    saveOrUpdate: saveOrUpdate,
+    del: del
   }
 }());
 

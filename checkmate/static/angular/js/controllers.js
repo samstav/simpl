@@ -256,11 +256,17 @@ ProfileCtrl.$inject = ['$scope', '$location'];
  *   Deployments
  */
 
-function DeploymentListCtrl($scope, $location, Deployment) {
-  $scope.deployments = Deployment.query();
+function DeploymentListCtrl($scope, $location, $http) {
+  cm.Resource.query($http, 'deployments')
+    .success(function(data, status) {
+      $scope.deployments = data;
+    });
 
-  $scope.delete = function(deoloyment) {
-    deployment.$delete();
+  $scope.delete = function(deployment) {
+    cm.Resource.del($http, 'deployments', deployment)
+      .success(function(data, status) {
+        $location('/deployments');
+      });
   }
 
   $scope.create = function() {
@@ -272,20 +278,20 @@ function DeploymentListCtrl($scope, $location, Deployment) {
   }
 
 }
-DeploymentListCtrl.$inject = ['$scope', '$location', 'Deployment'];
+DeploymentListCtrl.$inject = ['$scope', '$location', '$http'];
 
 /**
  *   Deployments
  */
 
-function DeploymentNewCtrl($scope, $location, $routeParams, $http, Deployment, Environment, Blueprint) {
+function DeploymentNewCtrl($scope, $location, $routeParams, $http) {
   $scope.environment = null;
   $scope.blueprint = null;
-  $scope.setting = {};
+  $scope.answers = {};
 
   $scope.updateSettings = function() {
     $scope.settings = new Array();
-    $scope.setting = {};
+    $scope.answers = {};
 
     if ($scope.blueprint) {
       $scope.settings.push(cm.Settings.getSettingsFromBlueprint($scope.blueprint));
@@ -296,13 +302,21 @@ function DeploymentNewCtrl($scope, $location, $routeParams, $http, Deployment, E
     }
 
     $scope.settings = _.flatten($scope.settings, true); // combine everything to one array
-    _.each($scope.settings, function(data, key) {
-      $scope.setting[key] = null;
+    _.each($scope.settings, function(element, index) {
+      if (element && element.id) {
+        $scope.answers[element.id] = null;
+      }
     });
   }
 
   $scope.renderSetting = function(setting) {
-    if (!setting.type || !_.isString(setting.type) ) {
+    if (!setting) {
+      var message = "The requested setting is null";
+      console.log(message);
+      return "<em>" + message + "</em>";
+    }
+
+    if (!setting.type || !_.isString(setting.type)) {
       var message = "The requested setting '" + setting.id + "' has no type or the type is not a string."
       console.log(message);
       return "<em>" + message + "</em>";
@@ -322,19 +336,16 @@ function DeploymentNewCtrl($scope, $location, $routeParams, $http, Deployment, E
   }
 
   $scope.submit = function() {
-    var deployment = new Deployment();
-    var blueprint = _.find($scope.blueprints, function(bp) {
-      return bp.id == $scope.blueprintId
-    });
-    var environment = _.find($scope.environments, function(env) {
-      return env.id == $scope.environmentId
-    });
+    var deployment = {};
 
+    deployment.blueprint = $scope.blueprint;
+    deployment.environment = $scope.environment;
+    deployment.inputs = $scope.answers;
 
-    deployment.blueprint = blueprint;
-    deployment.environment = environment;
-
-    deployment.$save();
+    cm.Resource.saveOrUpdate($http, 'deployments', deployment)
+      .success(function(data, status) {
+        $location('/deployment/' + data.id);
+      });
   }
 
   // Load blueprints
@@ -353,7 +364,5 @@ function DeploymentNewCtrl($scope, $location, $routeParams, $http, Deployment, E
   cm.Resource.query($http, 'environments').success(function(data) {
     $scope.environments = data;
   });
-
-
 }
-DeploymentNewCtrl.$inject = ['$scope', '$location', '$routeParams', '$http', 'Deployment', 'Environment', 'Blueprint'];
+DeploymentNewCtrl.$inject = ['$scope', '$location', '$routeParams', '$http'];
