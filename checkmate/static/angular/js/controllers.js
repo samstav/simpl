@@ -181,7 +181,7 @@ function AuthCtrl($scope, $location) {
 
   if ($location.host() == "localhost") {
     $scope.auth.username = "rackcloudtech";
-    $scope.auth.key = "";
+    $scope.auth.key = "a1207b3b4eb8638d02cdb1c4f3f36644";
   }
 
 
@@ -302,10 +302,20 @@ function DeploymentNewCtrl($scope, $location, $routeParams, $http, Deployment, E
   }
 
   $scope.renderSetting = function(setting) {
-    var template = $('#setting-' + setting.type).html();
+    if (!setting.type || !_.isString(setting.type) ) {
+      var message = "The requested setting '" + setting.id + "' has no type or the type is not a string."
+      console.log(message);
+      return "<em>" + message + "</em>";
+    } else {
+      var lowerType = setting.type.toLowerCase().trim();
+    }
+
+    var template = $('#setting-' + lowerType).html();
 
     if (template == null) {
-      console.log("No template for setting type '" + setting.type + "'.");
+      var message = "No template for setting type '" + setting.type + "'."
+      console.log(message);
+      return "<em>" + message + "</em>";
     }
 
     return template ? Mustache.render(template, setting) : "";
