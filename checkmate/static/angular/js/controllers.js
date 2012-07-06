@@ -343,7 +343,8 @@ function DeploymentNewCtrl($scope, $location, $routeParams, $http) {
 
     deployment.blueprint = $scope.blueprint;
     deployment.environment = $scope.environment;
-    deployment.inputs = $scope.answers;
+    deployment.inputs = {};
+    deployment.inputs.blueprint = $scope.answers;
 
     cm.Resource.saveOrUpdate($http, 'deployments', deployment)
       .success(function(data, status) {

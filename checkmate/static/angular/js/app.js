@@ -173,39 +173,12 @@ cm.Settings = (function() {
 
   function getSettingsFromBlueprint(bp) {
     var options = new Array(); // The accumulating array
-    // Start with high level options for the blueprint
+
     var opts = bp.options;
     _.each(opts, function(option, key) {
       options.push($.extend({
         id: key
       }, option));
-    });
-
-    // Now we need the settings for each component in each service
-    // TODO: Can this be done with something like an XPATH gather or something?
-    if (!bp.services) {
-      return options;
-    }
-
-    // Each service
-    _.each(bp.services, function(service) {
-      if (!service.components) {
-        return; // Simlutes a continue for a normal forloop
-      }
-
-      // Each component
-      _.each(service.components, function(component) {
-        if (!component.options || !component.options.standard) {
-          return;
-        }
-
-        // Each standard option in a component
-        _.each(component.options.standard, function(opt, key) {
-          options.push($.extend({
-            id: key
-          }, opt));
-        });
-      });
     });
 
     _.each(options, function(option) {
