@@ -30,7 +30,7 @@ checkmate.config(['$routeProvider', function($routeProvider) {
     templateUrl: 'partials/deployment-new.html',
     controller: DeploymentNewCtrl
   }).
-  when('/deployments/:deploymentId/status', {
+  when('/deployments/:deploymentId', {
     templateUrl: 'partials/deployment-status.html',
     controller: DeploymentStatusCtrl
   }).

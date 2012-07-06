@@ -4,7 +4,7 @@
  *   environments
  */
 
-function EnvironmentListCtrl($scope, $location, $http, Environment) {
+function EnvironmentListCtrl($scope, $location, $http) {
 
   // Get the environments
   cm.Resource.query($http, 'environments').success(function(data, status) {
@@ -31,13 +31,13 @@ function EnvironmentListCtrl($scope, $location, $http, Environment) {
     $location.path('/environments/' + environmentId);
   }
 }
-EnvironmentListCtrl.$inject = ['$scope', '$location', '$http', 'Environment'];
+EnvironmentListCtrl.$inject = ['$scope', '$location', '$http'];
 
 /**
  *   environments/:environmentId
  */
 
-function EnvironmentDetailCtrl($scope, $location, $http, $routeParams, Environment) {
+function EnvironmentDetailCtrl($scope, $location, $http, $routeParams) {
   // Munge the providers so they have an id I can use.
   var p = new Array();
   $scope.selectedProviders = {}
@@ -54,24 +54,8 @@ function EnvironmentDetailCtrl($scope, $location, $http, $routeParams, Environme
     cm.Resource.get($http, 'environments', $routeParams.environmentId).success(function(data, status) {
       $scope.environment = data;
     });
-
-    /*
-    $scope.environment = Environment.get({environmentId: $routeParams.environmentId}, function() {
-      
-      // If we have some selected providers already
-      if ($scope.environment.providers) {
-        // For each selected provider, we set the selected properties
-        _.each($scope.environment.providers, function(selected, key) {
-          var p = _.find($scope.providers, function(provider) { 
-            if (provider.id == key) { return provider; } 
-          });
-          $scope.selectedProviders[key] = p;
-        });
-      }
-    });  
-    */
   } else {
-    $scope.environment = new Environment();
+    $scope.environment = {};
   }
 
   $scope.update = function(environment) {
@@ -94,13 +78,13 @@ function EnvironmentDetailCtrl($scope, $location, $http, $routeParams, Environme
     });
   }
 }
-EnvironmentDetailCtrl.$inject = ['$scope', '$location', '$http', '$routeParams', 'Environment'];
+EnvironmentDetailCtrl.$inject = ['$scope', '$location', '$http', '$routeParams'];
 
 /**
  *   blueprints
  */
 
-function BlueprintListCtrl($scope, $location, $http, Blueprint) {
+function BlueprintListCtrl($scope, $location, $http) {
   //$scope.blueprints = Blueprint.query();
   cm.Resource.query($http, 'blueprints').success(function(data, status) {
     $scope.blueprints = data;
@@ -121,17 +105,16 @@ function BlueprintListCtrl($scope, $location, $http, Blueprint) {
   }
 
 }
-BlueprintListCtrl.$inject = ['$scope', '$location', '$http', 'Blueprint']
+BlueprintListCtrl.$inject = ['$scope', '$location', '$http']
 
 /**
  *   blueprints
  */
 
-function BlueprintDetailCtrl($scope, $location, $routeParams, Blueprint) {
-  if ($routeParams.blueprintId != "new") {
-    $scope.blueprint = Blueprint.get({
-      blueprintId: $routeParams.blueprintId
-    }, function() {
+function BlueprintDetailCtrl($scope, $location, $http, $routeParams) {
+  cm.Resource.get($http, 'blueprints', $routeParams.blueprintId)
+    .success(function(data) {
+      $scope.blueprint = data;
       $scope.stringify = JSON.stringify($scope.blueprint, null, '\t');
       $scope.codeMirror = CodeMirror.fromTextArea($('#editor').get(0), {
         value: $scope.stringify,
@@ -139,11 +122,6 @@ function BlueprintDetailCtrl($scope, $location, $routeParams, Blueprint) {
         lineNumbers: true
       });
     });
-  } else {
-    $scope.blueprint = new Blueprint();
-    $scope.stringify = "{ }"
-  }
-
 
   $scope.update = function(blueprint) {
     $scope.blueprint = angular.copy(JSON.parse(scope.stringify))
@@ -162,10 +140,8 @@ function BlueprintDetailCtrl($scope, $location, $routeParams, Blueprint) {
       blueprintId: $routeParams.blueprintId
     });
   }
-
-
 }
-BlueprintDetailCtrl.$inject = ['$scope', '$location', '$routeParams', 'Blueprint']
+BlueprintDetailCtrl.$inject = ['$scope', '$location', '$http', '$routeParams']
 
 /**
  *   Authentication
@@ -278,8 +254,97 @@ function DeploymentListCtrl($scope, $location, $http) {
 }
 DeploymentListCtrl.$inject = ['$scope', '$location', '$http'];
 
-function DeploymentStatusCtrl($scope, $location, $http, $routeParams) {
 
+/**
+ *  Deployment status
+ */
+
+function DeploymentStatusCtrl($scope, $location, $http, $routeParams) {
+  cm.Resource.get($http, 'deployments', $routeParams.deploymentId)
+    .success(function(deployment) {
+      $scope.deployment = deployment;
+
+      // TODO: Do some magic to get the workflow id
+      cm.Resource.get($http, 'workflows', "60fc11ab0bb74023b67995e9938ecc7b")
+        .success(function(workflow) {
+          $scope.workflow = workflow;
+          $scope.task_specs = workflow.wf_spec.task_specs;
+
+          $scope.tasks = $scope.flattenTasks({}, workflow.task_tree)
+        });
+    });
+
+  $scope.flattenTasks = function(accumulator, tree) {
+    accumulator[tree.task_spec] = tree;
+
+    if (tree.children.length > 0) {
+      _.each(tree.children, function(child, index) {
+        $.extend(accumulator, $scope.flattenTasks(accumulator, tree.children[index]));
+      });
+    }
+
+    /**
+     *  FUTURE    =   1
+     *  LIKELY    =   2
+     *  MAYBE     =   4
+     *  WAITING   =   8
+     *  READY     =  16
+     *  CANCELLED =  32
+     *  COMPLETED =  64
+     *  TRIGGERED = 128
+     *
+     *  TODO: This will be fixed in the API, see:
+     *    https://github.rackspace.com/checkmate/checkmate/issues/45
+     */
+    $scope.iconify = function(state) {
+      switch(state) {
+        case 1:
+          return "icon-fast-forward";
+          break;
+        case 2:
+          return "icon-thumbs-up"
+          break;
+        case 4:
+          return "icon-hand-right";
+          break;
+        case 8:
+          return "icon-pause"
+          break;
+        case 16:
+          return "icon-plus";
+          break;
+        case 32:
+          return "icon-remove";
+          break;
+        case 64:
+          return "icon-ok";
+          break;
+        case 128:
+          return "icon-adjust";
+          break;
+        default:
+          console.log("Invalid state '" + state + "'.");
+          return "icon-question-sign"
+        break;
+      }
+    }
+
+    return accumulator;
+  }
+
+  $scope.renderTask = function(task) {
+    if (!task) {
+      return "<em>Task is null.</em>";
+    }
+
+    if (task.outputs.length > 0) {
+      var template = $('#task-with-children').html();
+    } else {
+      var template = $('#task-leaf').html();
+    }
+
+    return Mustache.render(template, task);
+  }
 }
 DeploymentStatusCtrl.$inject = ['$scope', '$location', '$http', '$routeParams'];
 
