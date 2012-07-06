@@ -4,7 +4,7 @@
       <ul class="nav nav-list">
         <li class="nav-header">Deployments</li>
         <li id="deployment-{{deployment.id}}" ng-repeat="deployment in deployments">
-          <a ng-click="navigate(deployment.id)">{{deployment.name | truncate:32}}</a>
+          <a ng-click="navigate(deployment.id)">{{deployment.blueprint.name | truncate:30}}</a>
         </li>
         <li class="nav-header">Search</li>
         <li>
@@ -33,7 +33,7 @@
         <tr>
           <th></th>
           <th>Name</th>
-          <th>Description</th>
+          <th>Environment</th>
           <th>Providers</th>
         </tr>
       </thead>
@@ -50,8 +50,8 @@
               </ul>
             </div>
           </td>
-          <td ng-click="navigate(deployment.id)">{{deployment.name}}</td>
-          <td ng-click="navigate(deployment.id)">{{deployment.description}}</td>
+          <td ng-click="navigate(deployment.id)">{{deployment.blueprint.name}}</td>
+          <td ng-click="navigate(deployment.id)">{{deployment.environment.name}}</td>
           <td style="text-align: center;" ng-click="navigate(deployment.id)">xxx</td>
         </tr>
       </tbody>      

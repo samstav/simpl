@@ -181,7 +181,7 @@ function AuthCtrl($scope, $location) {
 
   if ($location.host() == "localhost") {
     $scope.auth.username = "rackcloudtech";
-    $scope.auth.key = "";
+    $scope.auth.key = "a1207b3b4eb8638d02cdb1c4f3f36644";
   }
 
 
@@ -256,11 +256,15 @@ ProfileCtrl.$inject = ['$scope', '$location'];
  *   Deployments
  */
 
-function DeploymentListCtrl($scope, $location, Deployment) {
-  $scope.deployments = Deployment.query();
+function DeploymentListCtrl($scope, $location, $http) {
+  cm.Resource.query($http, 'deployments').success(function(data, status) {
+    $scope.deployments = data;
+  });
 
-  $scope.delete = function(deoloyment) {
-    deployment.$delete();
+  $scope.delete = function(deployment) {
+    cm.Resource.del($http, 'deployments', deployment).success(function(data, status) {
+      $location('/deployments');
+    });
   }
 
   $scope.create = function() {
@@ -272,20 +276,25 @@ function DeploymentListCtrl($scope, $location, Deployment) {
   }
 
 }
-DeploymentListCtrl.$inject = ['$scope', '$location', 'Deployment'];
+DeploymentListCtrl.$inject = ['$scope', '$location', '$http'];
+
+function DeploymentStatusCtrl($scope, $location, $http, $routeParams) {
+
+}
+DeploymentStatusCtrl.$inject = ['$scope', '$location', '$http', '$routeParams'];
 
 /**
  *   Deployments
  */
 
-function DeploymentNewCtrl($scope, $location, $routeParams, $http, Deployment, Environment, Blueprint) {
+function DeploymentNewCtrl($scope, $location, $routeParams, $http) {
   $scope.environment = null;
   $scope.blueprint = null;
-  $scope.setting = {};
+  $scope.answers = {};
 
   $scope.updateSettings = function() {
     $scope.settings = new Array();
-    $scope.setting = {};
+    $scope.answers = {};
 
     if ($scope.blueprint) {
       $scope.settings.push(cm.Settings.getSettingsFromBlueprint($scope.blueprint));
@@ -296,35 +305,55 @@ function DeploymentNewCtrl($scope, $location, $routeParams, $http, Deployment, E
     }
 
     $scope.settings = _.flatten($scope.settings, true); // combine everything to one array
-    _.each($scope.settings, function(data, key) {
-      $scope.setting[key] = null;
+    _.each($scope.settings, function(element, index) {
+      if (element && element.id) {
+        $scope.answers[element.id] = null;
+      }
     });
   }
 
   $scope.renderSetting = function(setting) {
-    var template = $('#setting-' + setting.type).html();
+    if (!setting) {
+      var message = "The requested setting is null";
+      console.log(message);
+      return "<em>" + message + "</em>";
+    }
+
+    if (!setting.type || !_.isString(setting.type)) {
+      var message = "The requested setting '" + setting.id + "' has no type or the type is not a string."
+      console.log(message);
+      return "<em>" + message + "</em>";
+    } else {
+      var lowerType = setting.type.toLowerCase().trim();
+    }
+
+    var template = $('#setting-' + lowerType).html();
 
     if (template == null) {
-      console.log("No template for setting type '" + setting.type + "'.");
+      var message = "No template for setting type '" + setting.type + "'."
+      console.log(message);
+      return "<em>" + message + "</em>";
     }
 
     return template ? Mustache.render(template, setting) : "";
   }
 
   $scope.submit = function() {
-    var deployment = new Deployment();
-    var blueprint = _.find($scope.blueprints, function(bp) {
-      return bp.id == $scope.blueprintId
-    });
-    var environment = _.find($scope.environments, function(env) {
-      return env.id == $scope.environmentId
-    });
+    var deployment = {};
 
+    deployment.blueprint = $scope.blueprint;
+    deployment.environment = $scope.environment;
+    deployment.inputs = {};
+    deployment.inputs.blueprint = $scope.answers;
 
-    deployment.blueprint = blueprint;
-    deployment.environment = environment;
-
-    deployment.$save();
+    cm.Resource.saveOrUpdate($http, 'deployments', deployment)
+      .success(function(data, status) {
+        $location('/deployment/' + data.id);
+      })
+      .error(function(data,status) {
+        console.log("Error " + status + " creating new deployment.");
+        console.log(deployment);
+      });
   }
 
   // Load blueprints
@@ -343,7 +372,5 @@ function DeploymentNewCtrl($scope, $location, $routeParams, $http, Deployment, E
   cm.Resource.query($http, 'environments').success(function(data) {
     $scope.environments = data;
   });
-
-
 }
-DeploymentNewCtrl.$inject = ['$scope', '$location', '$routeParams', '$http', 'Deployment', 'Environment', 'Blueprint'];
+DeploymentNewCtrl.$inject = ['$scope', '$location', '$routeParams', '$http'];
