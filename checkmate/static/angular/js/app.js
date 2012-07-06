@@ -1,4 +1,6 @@
-angular.module('checkmate', ['checkmateFilters', 'checkmateServices', 'ngSanitize']).config(['$routeProvider', function($routeProvider) {
+checkmate = angular.module('checkmate', ['checkmateFilters', 'checkmateServices', 'ngSanitize'])
+
+checkmate.config(['$routeProvider', function($routeProvider) {
   $routeProvider.
   when('/environments', {
     templateUrl: 'partials/environment-list.html',
@@ -28,12 +30,30 @@ angular.module('checkmate', ['checkmateFilters', 'checkmateServices', 'ngSanitiz
     templateUrl: 'partials/deployment-new.html',
     controller: DeploymentNewCtrl
   }).
+  when('/deployments/:deploymentId/status', {
+    templateUrl: 'partials/deployment-status.html',
+    controller: DeploymentStatusCtrl
+  }).
   otherwise({
     redirectTo: '/'
   });
-}]).config(['$locationProvider', function($locationProvider) {
-  //$locationProvider.html5Mode(true).hashPrefix('!');
 }]);
+
+checkmate.directive('compileHtml', function($compile) {
+  return {
+    restrict: 'A',
+    scope: {
+      compileHtml: '='
+    },
+    replace: true,
+
+    link: function(scope, element, attrs) {
+      scope.$watch('compileHtml', function(value) {
+        element.html($compile(value)(scope.$parent));
+      });
+    }
+  }
+});
 
 
 // TODO: Make this more permanent
@@ -170,7 +190,7 @@ cm.Settings = (function() {
     // Each service
     _.each(bp.services, function(service) {
       if (!service.components) {
-        return;       // Simlutes a continue for a normal forloop
+        return; // Simlutes a continue for a normal forloop
       }
 
       // Each component
@@ -186,6 +206,15 @@ cm.Settings = (function() {
           }, opt));
         });
       });
+    });
+
+    _.each(options, function(option) {
+      if (option.regex) {
+        if (!_.isRegExp(option.regex)) {
+          console.log("Regex '" + option.regex + "' is invalid for setting " + option.id);
+          delete option["regex"];
+        }
+      }
     });
 
     return options;

@@ -26,9 +26,9 @@
       </fieldset>
 
       <fieldset>
-        <legend>Settings</legend>
+        <legend>Settings</legend>        
         <div class="control-group" ng-repeat="setting in settings" 
-             ng-bind-html-unsafe="renderSetting(setting)">
+             compile-html="renderSetting(setting)">
         </div>
 
         <div class="form-actions">
@@ -63,41 +63,41 @@
     });
   </script>
 
-  <script id="setting-string" type="text/html" ng-non-bindable>
+  <script id="setting-string" type="text/html">
     <label class="control-label capitalize" for="{{id}}">{{label}}</label>
     <div class="controls">
-      <input  type="text" class="input-xlarge" id="{{id}}" ng-model="answers['{{id}}']" 
+      <input  type="text" class="input-xlarge ng-model" id="{{id}}" ng-model="answers['{{id}}']" 
               {{#required}}required{{/required}} {{#regex}}ng-pattern="{{regex}}"{{/regex}}
               {{#default}}value="{{default}}"{{/default}}>
       {{#description}}<p class="help-block">{{description}}</p>{{/description}}
     </div>
   </script>
 
-   <script id="setting-number" type="text/html" ng-non-bindable>
+   <script id="setting-number" type="text/html">
     <label class="control-label capitalize" for="{{id}}">{{label}}</label>
     <div class="controls">
-      <input  type="number" class="input-small" id="{{id}}" ng-model="answers.{{id}}" 
+      <input  type="number" class="input-small" id="{{id}}" ng-model="answers['{{id}}']" 
               {{#required}}required{{/required}} 
               {{#default}}value="{{default}}"{{/default}}>
       {{#description}}<p class="help-block">{{description}}</p>{{/description}}
     </div>
   </script>
 
-   <script id="setting-boolean" type="text/html" ng-non-bindable>
+   <script id="setting-boolean" type="text/html">
     <label class="control-label capitalize" for="{{id}}">{{label}}</label>
     <div class="controls">
       <label class="checkbox">      
-        <input type="checkbox" class="input-xlarge" id="{{id}}" ng-model="answers.{{id}}" 
+        <input type="checkbox" class="input-xlarge" id="{{id}}" ng-model="answers['{{id}}']" 
               {{#required}}required{{/required}} {{#default}}value="{{default}}"{{/default}}>
         {{#description}}{{description}}{{/description}}
       </label>
     </div>
   </script>
 
-  <script id="setting-select" type="text/html" ng-non-bindable>
+  <script id="setting-select" type="text/html">
     <label class="control-label capitalize" for="{{id}}">{{label}}</label>
     <div class="controls">
-      <select id="{{id}}" ng-model="answers.{{id}}" {{#required}}required{{/required}}
+      <select id="{{id}}" ng-model="answers['{{id}}']" {{#required}}required{{/required}}
               ng-options="element.name for (id,element) in options">
       </select>
     </div>

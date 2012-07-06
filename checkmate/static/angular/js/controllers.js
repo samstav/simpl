@@ -257,16 +257,14 @@ ProfileCtrl.$inject = ['$scope', '$location'];
  */
 
 function DeploymentListCtrl($scope, $location, $http) {
-  cm.Resource.query($http, 'deployments')
-    .success(function(data, status) {
-      $scope.deployments = data;
-    });
+  cm.Resource.query($http, 'deployments').success(function(data, status) {
+    $scope.deployments = data;
+  });
 
   $scope.delete = function(deployment) {
-    cm.Resource.del($http, 'deployments', deployment)
-      .success(function(data, status) {
-        $location('/deployments');
-      });
+    cm.Resource.del($http, 'deployments', deployment).success(function(data, status) {
+      $location('/deployments');
+    });
   }
 
   $scope.create = function() {
@@ -279,6 +277,11 @@ function DeploymentListCtrl($scope, $location, $http) {
 
 }
 DeploymentListCtrl.$inject = ['$scope', '$location', '$http'];
+
+function DeploymentStatusCtrl($scope, $location, $http, $routeParams) {
+
+}
+DeploymentStatusCtrl.$inject = ['$scope', '$location', '$http', '$routeParams'];
 
 /**
  *   Deployments
@@ -345,6 +348,10 @@ function DeploymentNewCtrl($scope, $location, $routeParams, $http) {
     cm.Resource.saveOrUpdate($http, 'deployments', deployment)
       .success(function(data, status) {
         $location('/deployment/' + data.id);
+      })
+      .error(function(data,status) {
+        console.log("Error " + status + " creating new deployment.");
+        console.log(deployment);
       });
   }
 
