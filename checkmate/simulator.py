@@ -25,6 +25,7 @@ except ImportError:
 from SpiffWorkflow import Workflow
 from SpiffWorkflow.storage import DictionarySerializer
 
+from checkmate.common import schema
 from checkmate.db import any_id_problems
 from checkmate.utils import write_body, read_body, with_tenant
 from checkmate.deployments import plan_dict
@@ -51,6 +52,10 @@ def simulate(tenant_id=None):
         entity['id'] = "simulate"
     if any_id_problems(entity['id']):
         abort(406, any_id_problems(entity['id']))
+
+    errors = schema.validate(entity, schema.DEPLOYMENT_FIELDS)
+    if errors:
+        abort(406, "Invalid deployment: %s" % '\n'.join(errors))
 
     if tenant_id:
         response.add_header('Location', "/%s/deployments/simulate" % tenant_id)

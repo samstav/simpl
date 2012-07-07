@@ -12,6 +12,7 @@ from checkmate import orchestrator
 from checkmate.db import get_driver, any_id_problems
 from checkmate.environments import Environment
 from checkmate.exceptions import CheckmateException
+from checkmate.common import schema
 from checkmate.workflows import create_workflow
 from checkmate.utils import write_body, read_body, extract_sensitive_data,\
         merge_dictionary, with_tenant, is_ssh_key
@@ -47,6 +48,10 @@ def post_deployment(tenant_id=None):
         entity['id'] = uuid.uuid4().hex
     if any_id_problems(entity['id']):
         abort(406, any_id_problems(entity['id']))
+
+    errors = schema.validate(deployment, schema.DEPLOYMENT_FIELDS)
+    if errors:
+        abort(406, "Invalid deployment: %s" % '\n'.join(errors))
 
     id = str(entity['id'])
     body, secrets = extract_sensitive_data(entity)
@@ -92,6 +97,10 @@ def parse_deployment():
     if any_id_problems(entity['id']):
         abort(406, any_id_problems(entity['id']))
 
+    errors = schema.validate(deployment, schema.DEPLOYMENT_FIELDS)
+    if errors:
+        abort(406, "Invalid deployment: %s" % '\n'.join(errors))
+
     results = plan_dict(entity)
 
     serializer = DictionarySerializer()
@@ -112,6 +121,10 @@ def put_deployment(id, tenant_id=None):
         abort(406, any_id_problems(id))
     if 'id' not in entity:
         entity['id'] = str(id)
+
+    errors = schema.validate(deployment, schema.DEPLOYMENT_FIELDS)
+    if errors:
+        abort(406, "Invalid deployment: %s" % '\n'.join(errors))
 
     body, secrets = extract_sensitive_data(entity)
     results = db.save_deployment(id, body, secrets, tenant_id=tenant_id)
@@ -583,24 +596,6 @@ def _verify_required_blueprint_options_supplied(deployment):
                 if key not in bp_inputs:
                     abort(406, "Required blueprint input '%s' not supplied" %
                             key)
-
-
-def check_deployment(deployment):
-    """Validates deployment (a combination of components, blueprints,
-    deployments, and environments)
-
-    This is a simple, initial atempt at validation"""
-    errors = []
-    roots = ['components', 'blueprint', 'environment', 'deployment']
-    values = ['name', 'prefix', 'inputs', 'includes']
-    if deployment:
-        allowed = roots[:]
-        allowed.extend(values)
-        for key, value in deployment.iteritems():
-            if key not in allowed:
-                errors.append("'%s' not a valid value. Only %s allowed" % (key,
-                        ', '.join(allowed)))
-    return errors
 
 
 def get_os_env_keys():
