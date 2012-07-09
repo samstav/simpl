@@ -231,8 +231,8 @@ def plan(deployment, context):
     :param deployment: checkmate deployment instance (dict)
     """
     assert context.__class__.__name__ == 'RequestContext'
-    if not isinstance(deployment, Deployment):
-        deployment = Deployment(deployment)
+    assert isinstance(deployment, Deployment)
+
     LOG.info("Planning deployment '%s'" % deployment['id'])
     # Find blueprint and environment. Without those, there's nothing to plan!
     blueprint = deployment.get('blueprint')

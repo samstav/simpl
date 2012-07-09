@@ -16,6 +16,7 @@ except ImportError:
 
 from checkmate.db import migration
 from checkmate.db.common import *
+from checkmate.classes import ExtensibleDict
 from checkmate.exceptions import CheckmateDatabaseMigrationError
 from checkmate.utils import merge_dictionary
 
@@ -223,7 +224,10 @@ class Driver(DbBase):
         overwrite the secrets. To clear the secrets for an object, a non-None
         dict needs to be passed in: ex. {}
         """
-        assert isinstance(body, dict)  # Make sure we passed in a dict
+        if isinstance(body, ExtensibleDict):
+            body = body.__dict__()
+        assert isinstance(body, dict), "dict required by sqlalchemy backend"
+
         results = Session.query(klass).filter_by(id=id)
         if results and results.count() > 0:
             e = results.first()
@@ -234,6 +238,7 @@ class Driver(DbBase):
                 if not secrets:
                     LOG.warning("Clearing secrets for %s:%s" % (klass.__name__,
                             id))
+                    #TODO: to catch bugs. We can remove when we're comfortable
                     raise Exception("CLEARING CREDS! Why?!!!!")
                 e.secrets = secrets
         else:

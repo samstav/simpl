@@ -15,6 +15,7 @@ from mox import IsA, In, And, Or, IgnoreArg, ContainsKeyValue, Func, \
 from SpiffWorkflow.storage import DictionarySerializer
 import yaml
 
+from checkmate.deployments import Deployment
 from checkmate.utils import yaml_to_dict
 
 LOG = logging.getLogger(__name__)
@@ -386,7 +387,7 @@ class StubbedWorkflowBase(unittest.TestCase):
 class TestWorkflowStubbing(StubbedWorkflowBase):
     """ Test Basic Server code """
     def test_workflow_run(self):
-        deployment = yaml_to_dict("""
+        deployment = Deployment(yaml_to_dict("""
                 id: test
                 blueprint:
                   name: test bp
@@ -413,7 +414,7 @@ class TestWorkflowStubbing(StubbedWorkflowBase):
 class TestWorkflowLogic(StubbedWorkflowBase):
     """ Test Basic Workflow code """
     def test_workflow_resource_generation(self):
-        deployment = yaml_to_dict("""
+        deployment = Deployment(yaml_to_dict("""
                 id: test
                 blueprint:
                   name: test bp
@@ -447,7 +448,7 @@ class TestWorkflowLogic(StubbedWorkflowBase):
                       credentials:
                       - password: secret
                         username: tester
-            """)
+            """))
         PROVIDER_CLASSES['test.base'] = ProviderBase
         data = self._get_stubbed_out_workflow(deployment)
         deployment = data['deployment']
@@ -478,7 +479,7 @@ class TestWorkflow(StubbedWorkflowBase):
         app = yaml.safe_load(yaml.emit(resolve_yaml_external_refs(parsed),
                          Dumper=yaml.SafeDumper))
         app['id'] = 'DEP-ID-1000'
-        cls.deployment = app
+        cls.deployment = Deployment(app)
 
     def setUp(self):
         StubbedWorkflowBase.setUp(self)
@@ -554,7 +555,6 @@ class TestWordpressWorkflow(StubbedWorkflowBase):
         app = yaml.safe_load(yaml.emit(resolve_yaml_external_refs(parsed),
                          Dumper=yaml.SafeDumper))
         app['id'] = 'DEP-ID-1000'
-        cls.deployment = app
 
         # WordPress Settings
         inputs = yaml_to_dict("""
@@ -612,7 +612,8 @@ class TestWordpressWorkflow(StubbedWorkflowBase):
                     'compute':
                       'os': Ubuntu 12.04 LTS
                       """ % ENV_VARS['CHECKMATE_CLIENT_PUBLIC_KEY'])
-        cls.deployment['inputs'] = inputs
+        app['inputs'] = inputs
+        cls.deployment = Deployment(app)
 
     def setUp(self):
         StubbedWorkflowBase.setUp(self)
@@ -689,7 +690,7 @@ class TestDBWorkflow(StubbedWorkflowBase):
                       provides:
                       - database: mysql
             """)
-        cls.deployment = deployment
+        cls.deployment = Deployment(deployment)
 
     def setUp(self):
         StubbedWorkflowBase.setUp(self)

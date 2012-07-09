@@ -22,12 +22,12 @@ class TestDeployments(unittest.TestCase):
                     },
                 }
         original = copy.copy(deployment)
-        parsed = plan(deployment, RequestContext())
+        parsed = plan(Deployment(deployment), RequestContext())
         self.assertDictEqual(original, parsed.__dict__())
 
     def test_resource_generator(self):
         """Test the parser generates the right number of resources"""
-        deployment = yaml_to_dict("""
+        deployment = Deployment(yaml_to_dict("""
                 id: test
                 blueprint:
                   name: test bp
@@ -71,7 +71,7 @@ class TestDeployments(unittest.TestCase):
                     middle:
                       widget:
                         count: 4
-            """)
+            """))
 
         PROVIDER_CLASSES['test.base'] = ProviderBase
 
