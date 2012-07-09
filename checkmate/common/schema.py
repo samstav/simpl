@@ -95,8 +95,8 @@ RESOURCE_SCHEMA = ['id', 'name', 'provider', 'relations', 'hosted_on', 'hosts',
         'type', 'component', 'dns-name', 'instance', 'flavor', 'image']
 
 
-COMPONENT_FIELDS = ['id', 'options', 'requires', 'provides', 'summary',
-        'dependencies', 'revision', 'is']
+COMPONENT_SCHEMA = ['id', 'options', 'requires', 'provides', 'summary',
+        'dependencies', 'version', 'is']
 
 
 def validate_catalog(obj):
