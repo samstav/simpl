@@ -13,6 +13,8 @@ The design uses the following:
 - chef-solo and chef-client installed on the checkmate server
 - knife-solo - a Knife plugin that makes knife work better without a server
     https://github.com/matschaffer/knife-solo
+- knife-solo_data_bag - a Knife plugin that makes knife work with local, encrypted data bags
+    https://github.com/thbishop/knife-solo_data_bag
 
 Each managed environment gets its own, isolated folder containing:
 

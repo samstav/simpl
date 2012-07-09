@@ -782,7 +782,7 @@ from checkmate.ssh import execute as ssh_execute
 
 @task
 def create_environment(name, path=None, private_key=None,
-        public_key_ssh=None, secrets_key=None):
+        public_key_ssh=None, secret_key=None):
     """Create a knife-solo environment
 
     The environment is a directory structure that is self-contained and
@@ -793,8 +793,7 @@ def create_environment(name, path=None, private_key=None,
     :param path: an override to the root path where to create this environment
     :param private_key: PEM-formatted private key
     :param public_key_ssh: SSH-formatted public key
-    :param secrets_key: PEM-formatted private key for use by knife/chef for
-        data bag encryption
+    :param secret_key: used for data bag encryption
     """
     # Get path
     root = _get_root_environments_path(path)
@@ -813,7 +812,7 @@ def create_environment(name, path=None, private_key=None,
     # Kitchen is created in a /kitchen subfolder since it gets completely
     # rsynced to hosts. We don't want the whole environment rsynced
     kitchen_data = _create_kitchen('kitchen', fullpath,
-            secrets_key=secrets_key)
+            secret_key=secret_key)
     kitchen_path = os.path.join(fullpath, 'kitchen')
 
     # Copy environment public key to kitchen certs folder
@@ -846,12 +845,12 @@ def _get_root_environments_path(path=None):
     return root
 
 
-def _create_kitchen(name, path, secrets_key=None):
+def _create_kitchen(name, path, secret_key=None):
     """Creates a new knife-solo kitchen in path
 
     :param name: the name of the kitchen
     :param path: where to create the kitchen
-    :param secrets_key: PEM-formatted private key for data bag encryption
+    :param secret_key: PEM-formatted private key for data bag encryption
     """
     if not os.path.exists(path):
         raise CheckmateException("Invalid path: %s" % path)
@@ -864,7 +863,7 @@ def _create_kitchen(name, path, secrets_key=None):
     params = ['knife', 'kitchen', '.']
     _run_kitchen_command(kitchen_path, params)
 
-    secrets_key_path = os.path.join(kitchen_path, 'certificates', 'chef.pem')
+    secret_key_path = os.path.join(kitchen_path, 'certificates', 'chef.pem')
     config = """# knife -c knife.rb
 file_cache_path  "%s"
 cookbook_path    ["%s", "%s"]
@@ -879,7 +878,7 @@ encrypted_data_bag_secret "%s"
             os.path.join(kitchen_path, 'site-cookbooks'),
             os.path.join(kitchen_path, 'roles'),
             os.path.join(kitchen_path, 'data_bags'),
-            secrets_key_path)
+            secret_key_path)
     solo_file = os.path.join(kitchen_path, 'solo.rb')
     with file(solo_file, 'w') as f:
         f.write(config)
@@ -891,16 +890,16 @@ encrypted_data_bag_secret "%s"
     LOG.debug("Created certs directory: %s" % certs_path)
 
     # Store (generate if necessary) the secrets file
-    if not secrets_key:
+    if not secret_key:
         # celery runs os.fork(). We need to reset the random number generator
         # before generating a key. See atfork.__doc__
         atfork()
         key = RSA.generate(2048)
-        secrets_key = key.exportKey('PEM')
+        secret_key = key.exportKey('PEM')
         LOG.debug("Generated secrets private key")
-    with file(secrets_key_path, 'w') as f:
-        f.write(secrets_key)
-    LOG.debug("Stored secrets file: %s" % secrets_key_path)
+    with file(secret_key_path, 'w') as f:
+        f.write(secret_key)
+    LOG.debug("Stored secrets file: %s" % secret_key_path)
 
     # Knife defaults to knife.rb, but knife-solo looks for solo.rb, so we link
     # both files so that knife and knife-solo commands will work and anyone
@@ -1356,7 +1355,7 @@ def manage_databag(environment, bagname, itemname, contents,
                     contents]
             if secret_file:
                 params.extend(['--secret-file', secret_file])
-            result = _run_kitchen_command(kitchen_path, params)
+            result = _run_kitchen_command(kitchen_path, params, lock=False)
         except CalledProcessError, exc:
             # Reraise pickleable exception
             raise CheckmateCalledProcessError(exc.returncode, exc.cmd,
@@ -1372,7 +1371,8 @@ def manage_databag(environment, bagname, itemname, contents,
                     "the databag item. Checkmate will set this for you if it "
                     "is missing, but the data you supplied included an ID "
                     "that did not match the databag item name. The ID was "
-                    "'%s' and the databg item name was '%s'")
+                    "'%s' and the databg item name was '%s'" % (contents['id'],
+                    itemname))
         if isinstance(contents, dict):
             contents = json.dumps(contents)
         params = ['knife', 'solo', 'data',
