@@ -10,34 +10,29 @@
         <div class="control-group">
           <label class="control-label" for="environment">Environment</label>
           <div class="controls">
-            <select id="environment">
-              <option ng-repeat="environment in environments" value="{{environment.id}}">
-                {{environment.name}}
-              </option>
+            <select id="environment" class="span3" ng-model="environment" ng-change="updateSettings()"
+                    ng-options="environment.name for (id,environment) in environments" required>
             </select>
           </div>
         </div>
         <div class="control-group">
           <label class="control-label" for="blueprint">Blueprint</label>
           <div class="controls">
-            <select id="blueprint">
-              <option ng-repeat="blueprint in blueprints" value="{{blueprint.id}}">
-                {{blueprint.name}}
-              </option>
+            <select id="blueprint" class="span3" ng-model="blueprint" ng-change="updateSettings()"
+                    ng-options="blueprint.name for (id,blueprint) in blueprints" required>              
             </select>
           </div>
         </div>
       </fieldset>
 
       <fieldset>
-        <legend>Settings</legend>
+        <legend>Settings</legend>        
         <div class="control-group" ng-repeat="setting in settings" 
-             ng-bind-html-unsafe="renderSetting(setting)">
+             compile-html="renderSetting(setting)">
         </div>
 
         <div class="form-actions">
           <button ng-click="submit()" class="btn btn-primary">Build It!</button>
-          <button ng-click="reset()" class="btn">Cancel</button>
         </div>
       </fieldset>
     </form>
@@ -48,13 +43,13 @@
       <ul class="nav nav-list">
         <li class="nav-header">Help</li>
         <li>
-          Help text!
+          This screen allows you to create and launch a deployment. You'll start by selecting
+          an environment and a blueprint. Both of these selections will expose settings that you
+          will need to configure how you want. 
         </li>
-        <li class="nav-header">Search</li>
         <li>
-          <div class="input-prepend">
-            <span class="add-on"><i class="icon-search"></i></span><input type="text" class="span2" ng-model="query"> 
-          </div>    
+          Once you are happy with everything, click the Build It! button and Checkmate will start
+          provisining your environment.
         </li>
       </ul>
     </div><!--/.well -->
@@ -68,44 +63,42 @@
     });
   </script>
 
-  <script id="setting-string" type="text/html" ng-non-bindable>
+  <script id="setting-string" type="text/html">
     <label class="control-label capitalize" for="{{id}}">{{label}}</label>
     <div class="controls">
-      <input  type="text" class="input-xlarge" id="{{id}}" ng-model="setting.{{id}}" 
+      <input  type="text" class="input-xlarge ng-model" id="{{id}}" ng-model="answers['{{id}}']" 
               {{#required}}required{{/required}} {{#regex}}ng-pattern="{{regex}}"{{/regex}}
               {{#default}}value="{{default}}"{{/default}}>
       {{#description}}<p class="help-block">{{description}}</p>{{/description}}
     </div>
   </script>
 
-   <script id="setting-number" type="text/html" ng-non-bindable>
+   <script id="setting-number" type="text/html">
     <label class="control-label capitalize" for="{{id}}">{{label}}</label>
     <div class="controls">
-      <input  type="number" class="input-small" id="{{id}}" ng-model="setting.{{id}}" 
+      <input  type="number" class="input-small" id="{{id}}" ng-model="answers['{{id}}']" 
               {{#required}}required{{/required}} 
               {{#default}}value="{{default}}"{{/default}}>
       {{#description}}<p class="help-block">{{description}}</p>{{/description}}
     </div>
   </script>
 
-   <script id="setting-boolean" type="text/html" ng-non-bindable>
+   <script id="setting-boolean" type="text/html">
     <label class="control-label capitalize" for="{{id}}">{{label}}</label>
     <div class="controls">
       <label class="checkbox">      
-        <input type="checkbox" class="input-xlarge" id="{{id}}" ng-model="setting.{{id}}" 
+        <input type="checkbox" class="input-xlarge" id="{{id}}" ng-model="answers['{{id}}']" 
               {{#required}}required{{/required}} {{#default}}value="{{default}}"{{/default}}>
         {{#description}}{{description}}{{/description}}
       </label>
     </div>
   </script>
 
-  <script id="setting-select" type="text/html" ng-non-bindable>
+  <script id="setting-select" type="text/html">
     <label class="control-label capitalize" for="{{id}}">{{label}}</label>
     <div class="controls">
-      <select id="{{id}}">
-        {{#options}}
-          <option value="{{value}}">{{name}}</option>
-        {{/options}}
+      <select id="{{id}}" ng-model="answers['{{id}}']" {{#required}}required{{/required}}
+              ng-options="element.name for (id,element) in options">
       </select>
     </div>
   </script>

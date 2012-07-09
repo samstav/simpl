@@ -1,0 +1,46 @@
+{
+  "environment": {
+    "description": "This environment tests legacy cloud servers. It is hard-targetted at chicago\nbecause the rackcloudtech legacy servers account is in chicago\n", 
+    "name": "Legacy Cloud Servers Test Environment in ORD", 
+    "providers": {
+      "legacy": {
+        "vendor": "rackspace", 
+        "provides": [
+          {
+            "compute": "linux"
+          }, 
+          {
+            "compute": "windows"
+          }
+        ]
+      }, 
+      "chef-local": {
+        "vendor": "opscode", 
+        "provides": [
+          {
+            "application": "wordpress"
+          }
+        ]
+      }, 
+      "common": {
+        "vendor": "rackspace"
+      }, 
+      "load-balancer": {
+        "vendor": "rackspace", 
+        "provides": [
+          {
+            "load-balancer": "http"
+          }
+        ]
+      }, 
+      "database": {
+        "vendor": "rackspace", 
+        "provides": [
+          {
+            "database": "mysql"
+          }
+        ]
+      }
+    }
+  }
+}

@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="en" ng-app="checkmate">
   <head>
@@ -53,7 +52,7 @@
             <ul class="dropdown-menu">
               <li><a href="#/profile">Profile</a></li>
               <li class="divider"></li>
-              <li><a href="#" ng-click="signOut">Sign Out</a></li>
+              <li><a ng-click="signOut()">Sign Out</a></li>
             </ul>
           </div>
           <div class="nav-collapse">
@@ -102,13 +101,22 @@
             <div class="control-group">
               <label class="control-label" for="password">API Key</label>
               <div class="controls">
-                <input type="password" class="input-xlarge" id="password" ng-model="auth.password">
+                <input type="password" class="input-xlarge" id="password" ng-model="auth.key">
+              </div>
+            </div>
+
+            <div class="control-group">
+              <label class="control-label" for="location">Location</label>
+              <div class="controls">
+                <select id="location" class="span3" ng-model="location" required>
+                  <option value="us">US</option>
+                  <option value="uk">UK</option>
+                </select>
               </div>
             </div>
           </fieldset>
         </div>
         <div class="modal-footer">
-          <img id="auth_loader" src="img/ajax-loader.gif" alt="Loading..." class="hide"></img>
           <a href="#" class="btn btn-primary" ng-click="authenticate()">Authenticate!</a>
         </div>
       </form>
@@ -116,13 +124,15 @@
 
     <!-- Le javascript
     ================================================== -->
-    <!-- Placed at the end of the document so the pages load faster -->
+    <!-- Placed at the end of the document so the pages load faster -->     
     <script src="js/lib/jquery-1.7.2.min.js"></script>
     <script src="js/lib/angular-1.0.0.js"></script>
     <script src="js/lib/angular-resource-1.0.0.js"></script>
     <script src="js/lib/angular-sanitize-1.0.0.js"></script>    
     <script src="js/lib/bootstrap.min.js"></script>
+    <script src="js/lib/bootstrap-popover.js"></script>
     <script src="js/lib/mustache.js"></script>
+    <script src="js/lib/underscore-min.js"></script>
     <script src="js/app.js"></script>
     <script src="js/controllers.js"></script>
     <script src="js/filters.js"></script>

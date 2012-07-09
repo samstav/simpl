@@ -368,7 +368,8 @@ angular.module('ngResource', ['ng']).
           $http({
             method: action.method,
             url: route.url(extend({}, extractParams(data), action.params || {}, params)),
-            data: data
+            data: data,
+            headers: extend({}, action.headers || {})
           }).then(function(response) {
               var data = response.data;
 
