@@ -13,6 +13,7 @@ from SpiffWorkflow.storage import DictionarySerializer
 from checkmate import orchestrator
 from checkmate.classes import ExtensibleDict
 from checkmate.common import schema
+from checkmate.components import Component
 from checkmate.db import get_driver, any_id_problems
 from checkmate.environments import Environment
 from checkmate.exceptions import CheckmateException,\

@@ -25,7 +25,7 @@ STATIC = ['test']
 # etc... will be returned)
 DEFAULT_SENSITIVE_KEYS = ['credentials', 'password', 'apikey', 'token',
         'authtoken', 'db_password', 'ssh-private-key', 'private_key',
-        'environment_private_key']
+        'environment_private_key', 'ssh_priv_key']
 
 
 def import_class(import_str):

@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 # pylint: disable=E0611
 from bottle import get, post, put, request, response, abort
+import json
 import logging
 import uuid
 

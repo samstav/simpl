@@ -1,41 +1,56 @@
+"""Chef Local/Solo configuration management provider
+
+How do settings flow through:
+- values that are only available at run time (ex. ip of a server) can be picked
+  up directly using the Attrib() object (Attrib('ip') gets resolved into the
+  'ip' key's value before the call)
+- settings available at compile time get set in the context object. The context
+  object is made available during the run and any task can pick up a value from
+  it using the Attrib() object (Attrib('ip') gets resolved into the 'ip' key's
+  before the call)
+- setting that are generated?
+
+"""
 import logging
 import os
+import uuid
 
 from Crypto.PublicKey import RSA  # pip install pycrypto
 from Crypto.Random import atfork
 from SpiffWorkflow.operators import Attrib
-from SpiffWorkflow.specs import Celery, Merge, Transform
+from SpiffWorkflow.specs import Celery, Transform
 
+from checkmate.common import crypto
 from checkmate.components import Component
 from checkmate.exceptions import CheckmateException, \
-        CheckmateCalledProcessError
+        CheckmateCalledProcessError, CheckmateNoMapping
 from checkmate.providers import ProviderBase
-from checkmate.utils import get_source_body
+from checkmate.utils import get_source_body, merge_dictionary
 from checkmate.workflows import wait_for
 
 LOG = logging.getLogger(__name__)
 
 
 class Provider(ProviderBase):
+    """Implements a Chef Local/Solo configuration management provider"""
     name = 'chef-local'
     vendor = 'opscode'
 
-    """Implements a Chef Local/Solo configuration management provider"""
     def __init__(self, provider, key=None):
         ProviderBase.__init__(self, provider, key=key)
         self.prep_task = None
 
-    def prep_environment(self, wfspec, deployment):
-        if self.prep_task is not None:
+    def prep_environment(self, wfspec, deployment, context):
+        if self.prep_task:
             return  # already prepped
         create_environment = Celery(wfspec, 'Create Chef Environment',
                 'checkmate.providers.opscode.local.create_environment',
                 call_args=[deployment['id']],
                 public_key_ssh=Attrib('public_key_ssh'),
                 private_key=Attrib('private_key'),
-                secrets_key=Attrib('secrets_key'),
+                secret_key=Attrib('secret_key'),
                 defines=dict(provider=self.key,
-                            task_tags=['root', 'final']),
+                            task_tags=['root']),
                 properties={'estimated_duration': 10})
         self.prep_task = create_environment
 

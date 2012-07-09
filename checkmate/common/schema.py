@@ -8,7 +8,7 @@ schema.
 from checkmate.utils import yaml_to_dict
 
 
-INTERFACES = yaml_to_dict("""
+INTERFACE_SCHEMA = yaml_to_dict("""
       mysql:
         fields:
           username:
@@ -86,8 +86,8 @@ INTERFACES = yaml_to_dict("""
         description: for testing
     """)
 
-DEPLOYMENT_FIELDS = ['id', 'name', 'blueprint', 'environment', 'inputs',
-        'includes']
+INTERFACE_TYPES = INTERFACE_SCHEMA.keys()
+
 RESOURCE_TYPES = ['compute', 'database', 'wordpress', 'php5', 'load-balancer',
         'endpoint', 'host', 'application', 'widget']
 

@@ -209,6 +209,9 @@ class Environment():
 
     def get_provider(self, key):
         """ Returns provider class instance from this environment """
+        if self.providers and key in self.providers:
+            return self.providers[key]
+
         providers = self.dict.get('providers', None)
         if not providers:
             raise CheckmateException("Environment does not have providers")
