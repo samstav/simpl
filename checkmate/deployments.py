@@ -1,18 +1,23 @@
-# pylint: disable=E0611
+import copy
+import json
 import logging
 import os
 import sys
 import uuid
 
+# pylint: disable=E0611
 from bottle import get, post, put, request, response, abort
 from celery.app import app_or_default
 from SpiffWorkflow.storage import DictionarySerializer
 
 from checkmate import orchestrator
+from checkmate.classes import ExtensibleDict
+from checkmate.common import schema
 from checkmate.db import get_driver, any_id_problems
 from checkmate.environments import Environment
-from checkmate.exceptions import CheckmateException
-from checkmate.common import schema
+from checkmate.exceptions import CheckmateException,\
+        CheckmateValidationException
+from checkmate.providers import ProviderBase
 from checkmate.workflows import create_workflow
 from checkmate.utils import write_body, read_body, extract_sensitive_data,\
         merge_dictionary, with_tenant, is_ssh_key
@@ -673,3 +678,260 @@ def get_keys(inputs, environment):
         keys['environment'] = results
 
     return keys
+
+
+class Deployment(ExtensibleDict):
+    """A checkmate deployment.
+
+    Acts like a dict. Includes validation, setting logic and other useful
+    methods.
+    Holds the Environment and providers during the processing of a deployment
+    and creation of a workflow
+    """
+    def __init__(self, *args, **kwargs):
+        ExtensibleDict.__init__(self, *args, **kwargs)
+        self._environment = None
+
+    @classmethod
+    def validate(cls, obj):
+        errors = schema.validate(obj, schema.DEPLOYMENT_SCHEMA)
+        if errors:
+            raise CheckmateValidationException("Invalid %s: %s" % (
+                    cls.__name__, '\n'.join(errors)))
+
+    def environment(self):
+        if self._environment is None:
+            entity = self.get('environment')
+            if entity:
+                self._environment = Environment(entity)
+        return self._environment
+
+    def inputs(self):
+        return self.get('inputs', {})
+
+    def settings(self):
+        """Returns (inits if does not exist) a reference to the deployment
+        settings
+
+        Note: this is to be used instead of the old context object
+        """
+        if 'settings' in self:
+            return self['settings']
+
+        results = {}
+
+        #TODO: make this smarter
+        creds = [p['credentials'][0] for key, p in
+                        self['environment']['providers'].iteritems()
+                        if key == 'common']
+        if creds:
+            creds = creds[0]
+            results['username'] = creds['username']
+            if 'apikey' in creds:
+                results['apikey'] = creds['apikey']
+            if 'password' in creds:
+                results['password'] = creds['password']
+        else:
+            LOG.debug("No credentials supplied in environment/common/"
+                    "credentials")
+
+        inputs = self.inputs()
+        results['region'] = inputs.get('blueprint', {}).get('region')
+
+        # Look in inputs:
+        # Read in the public keys to be passed to newly created servers.
+        os_keys = get_os_env_keys()
+
+        keys = get_keys(inputs, self.environment())
+        if os_keys:
+            keys.update(os_keys)
+
+        if not keys:
+            LOG.warn("No keys supplied. Less secure password auth will be "
+                    "used.")
+
+        results['keys'] = keys
+
+        results['domain'] = inputs.get('domain', os.environ.get(
+                    'CHECKMATE_DOMAIN', 'checkmate.local'))
+        self['settings'] = results
+        return results
+
+    def get_setting(self, name, resource_type=None,
+                service_name=None, provider_key=None, default=None):
+        """Find a value that an option was set to.
+
+        Look in this order:
+        - start with the deployment inputs where the paths are:
+            inputs/blueprint
+            inputs/providers/:provider
+        - finally look at the component defaults
+
+        :param name: the name of the setting
+        :param service: the name of the service being evaluated
+        :param resource_type: the type of the resource being evaluated (ex.
+                compute, database)
+        :param default: value to return if no match found
+        """
+        result = self._get_input_simple(name)
+        if result:
+            return result
+
+        result = self._get_input_blueprint_option_constraint(name,
+                service_name=service_name, resource_type=resource_type)
+        if result:
+            return result
+
+        if service_name:
+            result = self._get_input_service_override(name, service_name,
+                    resource_type=resource_type)
+            if result:
+                return result
+
+        if provider_key:
+            result = self._get_input_provider_option(name, provider_key,
+                    resource_type=resource_type)
+        if result:
+            return result
+
+        return default
+
+    def _get_input_simple(self, name):
+        """Get a setting directly from inputs/blueprint"""
+        inputs = self.inputs()
+        if 'blueprint' in inputs:
+            blueprint_inputs = inputs['blueprint']
+            # Direct, simple entry
+            if name in blueprint_inputs:
+                result = blueprint_inputs[name]
+                LOG.debug("Found setting '%s' in inputs/blueprint: %s" %
+                        (name, result))
+                return result
+
+    def _get_input_blueprint_option_constraint(self, name, service_name=None,
+            resource_type=None):
+        """Get a setting implied through blueprint option constraint
+
+        :param name: the name of the setting
+        :param service_name: the name of the service being evaluated
+        """
+        blueprint = self['blueprint']
+        if 'options' in blueprint:
+            options = blueprint['options']
+            for key, option in options.iteritems():
+                if 'constrains' in option:  # the verb 'constrains' (not noun)
+                    for constraint in option['constrains']:
+                        if self.constraint_applies(constraint, name,
+                                service_name=service_name,
+                                resource_type=resource_type):
+                            # Find in inputs or use default if available
+                            result = self._get_input_simple(key)
+                            if result:
+                                LOG.debug("Found setting '%s' from constraint "
+                                        "in blueprint input '%s': %s" % (name,
+                                        key, result))
+                                return result
+                            if 'default' in option:
+                                result = option['default']
+                                LOG.debug("Found setting '%s' from constraint "
+                                        "in blueprint input '%s': default=%s"
+                                        % (name, key, result))
+                                return result
+
+    def constraint_applies(self, constraint, name, resource_type=None,
+                service_name=None):
+        """Checks if a constraint applies
+
+        :param constraint: the constraint dict
+        :param name: the name of the setting
+        :param resource_type: the resource type (ex. compute)
+        :param service_name: the name of the service being evaluated
+        """
+        if 'resource_type' in constraint:
+            if resource_type is None or \
+                    constraint['resource_type'] != resource_type:
+                return False
+        if 'setting' in constraint:
+            if constraint['setting'] != name:
+                return False
+        if 'service' in constraint:
+            if service_name is None or constraint['service'] != service_name:
+                return False
+        LOG.debug("Constraint '%s' for '%s' applied to '%s/%s'" % (
+                constraint, name, service_name, resource_type))
+        return True
+
+    def _get_input_service_override(self, name, service_name,
+            resource_type=None):
+        """Get a setting applied through a deployment setting on a service
+
+        Params are ordered similar to how they appear in yaml/json::
+            inputs/services/:id/:resource_type/:option-name
+
+        :param service_name: the name of the service being evaluated
+        :param resource_type: the resource type (ex. compute)
+        :param name: the name of the setting
+        """
+        inputs = self.inputs()
+        if 'services' in inputs:
+            services = inputs['services']
+            if service_name in services:
+                service_object = services[service_name]
+                if resource_type in service_object:
+                    options = service_object[resource_type]
+                    if name in options:
+                        result = options[name]
+                        LOG.debug("Found setting '%s' as service "
+                                "setting in blueprint/services/%s/%s':"
+                                " %s" % (name, service_name, resource_type,
+                                result))
+                        return result
+
+    def _get_input_provider_option(self, name, provider_key,
+            resource_type=None):
+        """Get a setting applied through a deployment setting to a provider
+
+        Params are ordered similar to how they appear in yaml/json::
+            inputs/providers/:id/[:resource_type/]:option-name
+
+        :param name: the name of the setting
+        :param provider_key: the key of the provider in question
+        :param resource_type: the resource type (ex. compute)
+        """
+        inputs = self.inputs()
+        if 'providers' in inputs:
+            providers = inputs['providers']
+            if provider_key in providers:
+                provider = providers[provider_key]
+                if resource_type in provider:
+                    options = provider[resource_type]
+                    if options and name in options:
+                        result = options[name]
+                        LOG.debug("Found setting '%s' as provider "
+                                "setting in blueprint/providers/%s/%s':"
+                                " %s" % (name, provider_key, resource_type,
+                                result))
+                        return result
+
+    def get_components(self, context):
+        """Collect all requirements from components
+
+        :param context: the call context. Component catalog may depend on
+                current context
+        :returns: hash of service_name/Component
+        """
+        results = {}
+        services = self['blueprint'].get('services', {})
+        for service_name, service in services.iteritems():
+            LOG.debug("Identifying component for service %s" % service_name)
+            service_component = service['component']
+            assert not isinstance(service_component, list)  # deprecated syntax
+            component = self.environment().find_component(service_component,
+                    context)
+            if not component:
+                raise CheckmateException("Could not resolve component '%s'"
+                        % service_component)
+            LOG.debug("Component %s identified for service %s" % (
+                    service_component, service_name))
+            results[service_name] = component
+        return results

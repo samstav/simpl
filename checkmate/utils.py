@@ -123,7 +123,11 @@ def write_json(data, request, response):
     """Write output in json"""
     response.set_header('content-type', 'application/json')
     response.set_header('vary', 'Accept,Accept-Encoding,X-Auth-Token')
-    return json.dumps(data, indent=4)
+    try:
+        return json.dumps(data, indent=4)
+    except TypeError:
+        #TODO: try json.dumps(data, indent=4, default=lambda o: o.__dict__)
+        return data.dumps(indent=4)
 
 
 HANDLERS = {
