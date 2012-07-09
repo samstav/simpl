@@ -118,7 +118,7 @@ def get_environment_provider(environment_id, provider_id, tenant_id=None):
 
 @get('/environments/<environment_id>/providers/<provider_id>/catalog')
 @with_tenant
-def get_environment_catalog(environment_id, provider_id, tenant_id=None):
+def get_provider_catalog(environment_id, provider_id, tenant_id=None):
     entity = db.get_environment(environment_id, with_secrets=True)
     if not entity:
         abort(404, 'No environment with id %s' % environment_id)
@@ -134,6 +134,27 @@ def get_environment_catalog(environment_id, provider_id, tenant_id=None):
         catalog = provider.get_catalog(request.context)
 
     return write_body(catalog, request, response)
+
+
+@get('/environments/<environment_id>/providers/<provider_id>/catalog/'
+        '<component_id>')
+@with_tenant
+def get_component(environment_id, provider_id, component_id, tenant_id=None):
+    entity = db.get_environment(environment_id, with_secrets=True)
+    if not entity:
+        abort(404, 'No environment with id %s' % environment_id)
+    environment = Environment(entity)
+    try:
+        provider = environment.get_provider(provider_id)
+    except KeyError:
+        abort(404, "Invalid provider: %s" % provider_id)
+    component = provider.get_component(request.context, component_id)
+    if component:
+        return write_body(component, request, response)
+    else:
+        abort(404, "Component %s not found or not available under this "
+                "provider and environment (%s/%s)" % (component_id,
+                environment_id, provider_id))
 
 
 #

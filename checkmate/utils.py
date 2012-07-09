@@ -60,7 +60,7 @@ def resolve_yaml_external_refs(document):
         if isinstance(event, AliasEvent):
             if event.anchor not in anchors:
                 # Swap out local reference for external reference
-                new_ref = u'checkmate-reference://%s' % event.anchor
+                new_ref = u'ref://%s' % event.anchor
                 event = ScalarEvent(anchor=None, tag=None,
                                     implicit=(True, False), value=new_ref)
         if hasattr(event, 'anchor') and event.anchor:
