@@ -46,12 +46,42 @@ class Provider(ProviderBase):
 
     def add_resource_tasks(self, resource, key, wfspec, deployment, context,
             wait_on=None):
+        service_name = None
+        for name, service in deployment['blueprint']['services'].iteritems():
+            if key in service.get('instances', []):
+                service_name = name
+                break
+
+        # Password
+        password = deployment.get_setting('password',
+                resource_type=resource.get('type'), provider_key=self.key,
+                service_name=service_name)
         start_with = string.ascii_uppercase + string.ascii_lowercase
-        password = '%s%s' % (random.choice(start_with),
+        if password:
+            if password[0] not in start_with:
+                raise CheckmateException("Database password must start with "
+                        "one of '%s'" % start_with)
+        else:
+            password = '%s%s' % (random.choice(start_with),
                 ''.join(random.choice(start_with + string.digits + '@?#_')
                 for x in range(11)))
-        db_name = 'db1'
-        username = 'wp_user_%s' % db_name
+            deployment.settings()['db_password'] = password
+
+        # Database name
+        db_name = deployment.get_setting('db_name',
+                resource_type=resource.get('type'), provider_key=self.key,
+                service_name=service_name)
+        if not db_name:
+            db_name = 'db1'
+            deployment.settings()['db_name'] = db_name
+
+        # User name
+        username = deployment.get_setting('username',
+                resource_type=resource.get('type'), provider_key=self.key,
+                service_name=service_name)
+        if not username:
+            username = 'wp_user_%s' % db_name
+            deployment.settings()['db_username'] = username
 
         create_db_task = Celery(wfspec, 'Create DB',
                'checkmate.providers.rackspace.database.create_instance',
@@ -73,10 +103,7 @@ class Provider(ProviderBase):
                             provider=self.key,
                             task_tags=['final']),
                properties={'estimated_duration': 20})
-        # Store these in the context for use by other tasks
-        context['db_name'] = db_name
-        context['db_username'] = username
-        context['db_password'] = password
+
         create_db_task.connect(create_db_user)
         return dict(root=create_db_task, final=create_db_user)
 
