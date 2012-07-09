@@ -1,5 +1,5 @@
 # CheckMate
-![CheckMate](https://github.com/ziadsawalha/checkmate/raw/master/checkmate/static/checkmate.png)
+![CheckMate](https://github.rackspace.com/checkmate/checkmate/raw/master/checkmate/static/checkmate.png)
 
 CheckMate stores and controls your cloud configurations. Use it to deploy complete application stacks.
 
@@ -191,9 +191,13 @@ CheckMate is a REST server. To run it:
 
 Options:
 
-    --with-ui: enable support for browsers and HTML templates
-    --debug: log full HTTP requests and responses
-    --newrelic: enable newrelic monitoring (place newrelic.ini in your directory)
+        --with-ui:  enable support for browsers and HTML templates
+        --newrelic: enable newrelic monitoring (place newrelic.ini in your
+                    directory)
+        --quiet:    turn down logging to WARN (default is INFO)
+        --verbose:  turn up logging to DEBUG (default is INFO)
+        --debug:    turn on additional debugging inspection and output
+                    including full HTTP requests and responses
 
 You also need to have celery running with the checkmate tasks loaded:
 
@@ -203,28 +207,28 @@ You also need to have celery running with the checkmate tasks loaded:
 
 The following environment variables can be set to configure checkmate:
 
-CHECKMATE_CONNECTION_STRING
+    CHECKMATE_CONNECTION_STRING
 
-CHECKMATE_DOMAIN
-CHECKMATE_PUBLIC_KEY
-CHECKMATE_CHEF_REPO
-CHECKMATE_CHEF_LOCAL_PATH - local
-CHECKMATE_CHEF_PATH - server
+    CHECKMATE_DOMAIN
+    CHECKMATE_PUBLIC_KEY
+    CHECKMATE_CHEF_REPO
+    CHECKMATE_CHEF_LOCAL_PATH - local
+    CHECKMATE_CHEF_PATH - server
 
-CHECKMATE_BROKER_USERNAME
-CHECKMATE_BROKER_PASSWORD
-CHECKMATE_BROKER_HOST
-CHECKMATE_BROKER_PORT
-or
-CHECKMATE_BROKER_URL
+    CHECKMATE_BROKER_USERNAME
+    CHECKMATE_BROKER_PASSWORD
+    CHECKMATE_BROKER_HOST
+    CHECKMATE_BROKER_PORT
+    or
+    CHECKMATE_BROKER_URL
 
-CELERY_CONFIG_MODULE
-CELERYD_FORCE_EXECV
+    CELERY_CONFIG_MODULE
+    CELERYD_FORCE_EXECV
 
 
-Deprecated:
-CHECKMATE_DATA_PATH - used with file system data provider
-CHECKMATE_PRIVATE_KEY
+    Deprecated:
+    CHECKMATE_DATA_PATH - used with file system data provider
+    CHECKMATE_PRIVATE_KEY
 
 
 ## CheckMate Installation
