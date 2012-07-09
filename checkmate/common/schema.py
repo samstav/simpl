@@ -1,4 +1,10 @@
-# This files contains initial schema validation and utilities
+""" This files contains initial schema validation and utilities
+
+It is currently used for debugging and so is limited to known reqoiurce types,
+interfaces, and such. The intent is to broaden it once we have stab lized the
+schema.
+
+"""
 from checkmate.utils import yaml_to_dict
 
 
@@ -21,7 +27,8 @@ INTERFACES = yaml_to_dict("""
           database:
             type: string
             required: false
-      website:
+      mssql:
+      http:
         is: url
         constraint:
         - protocol: [http, https]
@@ -64,23 +71,57 @@ INTERFACES = yaml_to_dict("""
             options:
             - shell
             - ssh
+      windows:
+        description: wmi and shell interface to Windows
+        fields:
+          protocol:
+            default: wmi
+            type: string
+            options:
+            - shell
+            - wmi
+      foo:
+        description: for testing
+      bar:
+        description: for testing
     """)
 
 DEPLOYMENT_FIELDS = ['id', 'name', 'blueprint', 'environment', 'inputs',
         'includes']
+RESOURCE_TYPES = ['compute', 'database', 'wordpress', 'php5', 'load-balancer',
+        'endpoint', 'host', 'application', 'widget']
+
+RESOURCE_SCHEMA = ['id', 'name', 'provider', 'relations', 'hosted_on', 'hosts',
+        'type', 'component', 'dns-name', 'instance', 'flavor', 'image']
+
 
 COMPONENT_FIELDS = ['id', 'options', 'requires', 'provides', 'summary',
         'dependencies', 'revision', 'is']
 
 
+def validate_catalog(obj):
+    """Validates provider catalog"""
+    errors = []
+    if obj:
+        for key, value in obj.iteritems():
+            if not (key in RESOURCE_TYPES or key == 'lists'):
+                errors.append("'%s' not a valid value. Only %s, 'lists' "
+                        "allowed" % (key, ', '.join(RESOURCE_TYPES)))
+    return errors
+
+
 def validate(obj, schema):
     """Validates an object
+
+    :param obj: a dict of the object to validate
+    :param schema: a schema to validate against (usually from this file)
 
     This is a simple, initial attempt at validation"""
     errors = []
     if obj:
-        for key, value in obj.iteritems():
-            if key not in schema:
-                errors.append("'%s' not a valid value. Only %s allowed" % (key,
-                        ', '.join(schema)))
+        if schema:
+            for key, value in obj.iteritems():
+                if key not in schema:
+                    errors.append("'%s' not a valid value. Only %s allowed" %
+                            (key, ', '.join(schema)))
     return errors
