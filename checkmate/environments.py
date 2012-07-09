@@ -8,6 +8,8 @@ from Crypto.PublicKey import RSA  # pip install pycrypto
 from Crypto.Hash import SHA512, MD5
 from Crypto import Random
 
+from checkmate.common import schema
+from checkmate.components import Component
 from checkmate.db import get_driver, any_id_problems
 from checkmate.exceptions import CheckmateException
 from checkmate.providers import get_provider_class, PROVIDER_CLASSES
@@ -198,6 +200,40 @@ class Environment():
         provider_class = get_provider_class(vendor, key)
         return provider_class(provider, key=key)
 
+    def find_component(self, blueprint_entry, context):
+        """Resolve blueprint component into actual provider component
+
+        Examples of blueprint_entries:
+        - type: application
+          name: wordpress
+          role: master
+        - type: load-balancer
+          interface: http
+        - id: component_id
+        """
+        resource_type = blueprint_entry.get('type')
+        interface = blueprint_entry.get('interface')
+        for provider in self.get_providers().values():
+            matches = []
+            if resource_type or interface:
+                if provider.provides(resource_type=resource_type,
+                    interface=interface):  # we can narrow down search
+                    # normalize 'type' to 'resource_type'
+                    params = {}
+                    params.update(blueprint_entry)
+                    if 'type' in params:
+                        del params['type']
+                    params['resource_type'] = resource_type
+                    matches = provider.find_components(context, **params)
+            else:
+                matches = provider.find_components(context, **blueprint_entry)
+
+            if matches:
+                if len(matches) == 1:
+                    return Component(matches[0], provider=provider)
+                else:
+                    LOG.warning("Ambiguous component %s matches: %s" %
+                            (blueprint_entry, matches))
     def generate_key_pair(self, bits=2048):
         """Generates a private/public key pair.
 

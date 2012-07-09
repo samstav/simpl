@@ -6,6 +6,7 @@ from Crypto.Random import atfork
 from SpiffWorkflow.operators import Attrib
 from SpiffWorkflow.specs import Celery, Merge, Transform
 
+from checkmate.components import Component
 from checkmate.exceptions import CheckmateException, \
         CheckmateCalledProcessError
 from checkmate.providers import ProviderBase
@@ -248,56 +249,232 @@ class Provider(ProviderBase):
                     "interface '%s'" % (self.key, interface))
 
     def get_catalog(self, context, type_filter=None):
+        """Return stored/override catalog if it exists, else connect, build,
+        and return one"""
+
+        # TODO: maybe implement this an on_get_catalog so we don't have to do
+        #        this for every provider
+        results = ProviderBase.get_catalog(self, context,
+            type_filter=type_filter)
+        if results:
+            # We have a prexisting or overridecatalog stored
+            return results
+
+        # build a live catalog ()this would be the on_get_catalog called if no
+        # stored/override existed
         if type_filter is None or type_filter == 'application':
             # Get cookbooks
-            repo_path = _get_repo_path()
-            cookbook_path = os.path.join(repo_path, 'cookbooks')
-            cookbooks = self._get_cookbooks(cookbook_path)
-            site_cookbook_path = os.path.join(repo_path, 'site-cookbooks')
-            site_cookbooks = self._get_cookbooks(site_cookbook_path)
+            cookbooks = self._get_cookbooks(site_cookbooks=False)
+            site_cookbooks = self._get_cookbooks(site_cookbooks=True)
+            roles = self._get_roles(context)
 
+            cookbooks.update(roles)
             cookbooks.update(site_cookbooks)
 
             results = {'application': cookbooks}
 
         return results
 
-    def _get_cookbooks(self, path):
+    def get_component(self, context, id):
+        # Get cookbook
+        assert id, 'Blank component ID requested from get_component'
+        if '::' in id:
+            id = id.split('::')[0]
+
+        cookbook = self._get_cookbook(id, site_cookbook=True)
+        if cookbook:
+            Component.validate(cookbook)
+            return cookbook
+
+        cookbook = self._get_cookbook(id, site_cookbook=False)
+        if cookbook:
+            Component.validate(cookbook)
+            return cookbook
+
+        role = self._get_role(id, context)
+        if role:
+            Component.validate(role)
+            return role
+
+        LOG.debug("Component '%s' not found" % id)
+
+    def _get_cookbooks(self, site_cookbooks=False):
         """Get all cookbooks as CheckMate components"""
         results = {}
+        repo_path = _get_repo_path()
+        if site_cookbooks:
+            path = os.path.join(repo_path, 'site-cookbooks')
+        else:
+            path = os.path.join(repo_path, 'cookbooks')
+
         names = []
         for top, dirs, files in os.walk(path):
             names = [name for name in dirs if name[0] != '.']
             break
 
         for name in names:
-            meta_path = os.path.join(path, name, 'metadata.json')
-            if os.path.exists(meta_path):
-                data = self._get_cookbook_data(meta_path)
-                if data:
-                    results[data['id']] = data
+            data = self._get_cookbook(name, site_cookbook=site_cookbooks)
+            if data:
+                results[data['id']] = data
         return results
 
-    def _get_cookbook_data(self, metadata_json_path):
+    def _get_cookbook(self, id, site_cookbook=False):
+        """Get a cookbook as a CheckMate component"""
+        assert id, 'Blank cookbook ID requested from _get_cookbook'
+        cookbook = {}
+        repo_path = _get_repo_path()
+        if site_cookbook:
+            meta_path = os.path.join(repo_path, 'site-cookbooks', id,
+                    'metadata.json')
+        else:
+            meta_path = os.path.join(repo_path, 'cookbooks', id,
+                    'metadata.json')
+        if os.path.exists(meta_path):
+            cookbook = self._parse_cookbook_metadata(meta_path)
+        return cookbook
+
+    def _parse_cookbook_metadata(self, metadata_json_path):
         """Get a cookbook's data and format it as a checkmate component
 
-        :param path: path to metadata.json file
+        :param metadata_json_path: path to metadata.json file
         """
-        component = {}
+        component = {'is': 'application'}
         with file(metadata_json_path, 'r') as f:
             data = json.load(f)
-            component['id'] = data['name']
-            component['summary'] = data.get('description')
-            component['version'] = data.get('version')
-            if 'attributes' in data:
-                component['options'] = data['attributes']
-            if 'dependencies' in data:
-                component['dependencies'] = data['dependencies']
-            if 'platforms' in data:
-                requires = {'server': dict(relation='host',
-                        interface=data['platforms'].keys())}
+        component['id'] = data['name']
+        component['summary'] = data.get('description')
+        component['version'] = data.get('version')
+        if 'attributes' in data:
+            component['options'] = data['attributes']
+        if 'dependencies' in data:
+            dependencies = []
+            for key, value in data['dependencies'].iteritems():
+                dependencies.append(dict(id=key, version=value))
+            component['dependencies'] = dependencies
+        if 'platforms' in data:
+            #TODO: support multiple options
+            if 'ubuntu' in data['platforms'] or 'centos' in data['platforms']:
+                requires = [dict(host='linux')]
                 component['requires'] = requires
+
+        # Tweaks we apply for each cookbook
+        mapping = {
+                'apache2': {
+                        'provides': [{'application': 'http'}],
+                    },
+                'wordpress': {
+                        'provides': [{'application': 'http'}],
+                    },
+            }
+        if component['id'] in mapping:
+            component.update(mapping[component['id']])
+        # Add hosting relationship
+        if 'requires' in component:
+            found = False
+            for entry in component['requires']:
+                key, value = entry.items()[0]
+                if key == 'host':
+                    found = True
+                    break
+                if isinstance(value, dict):
+                    if value.get('relation') == 'host':
+                        found = True
+                        break
+            if not found:
+                component['requires'].append(dict(host='linux'))
+        else:
+            component['requires'] = [dict(host='linux')]
+
         return component
+
+    def _get_roles(self, context):
+        """Get all roles as CheckMate components"""
+        results = {}
+        repo_path = _get_repo_path()
+        path = os.path.join(repo_path, 'roles')
+
+        names = []
+        for top, dirs, files in os.walk(path):
+            names = [name for name in files if name.endswith('.json')]
+            break
+
+        for name in names:
+            data = self._get_role(name[:-5], context)
+            if data:
+                results[data['id']] = data
+        return results
+
+    def _get_role(self, id, context):
+        """Get a role as a CheckMate component"""
+        assert id, 'Blank role ID requested from _get_role'
+        role = {}
+        repo_path = _get_repo_path()
+        if id.endswith("-role"):
+            id = id[:-5]
+        role_path = os.path.join(repo_path, 'roles', "%s.json" % id)
+        if os.path.exists(role_path):
+            role = self._parse_role_metadata(role_path, context)
+        return role
+
+    def _parse_role_metadata(self, role_json_path, context):
+        """Get a roles's data and format it as a checkmate component
+
+        :param role_json_path: path to role json file
+
+        Note: role names get '-role' appended to their ID to identify them as
+              roles.
+        """
+        component = {'is': 'application'}
+        provides = []
+        requires = []
+        options = {}
+        with file(role_json_path, 'r') as f:
+            data = json.load(f)
+        component['id'] = "%s-role" % data['name']
+        if data.get('description'):
+            component['summary'] = data['description']
+        if 'run_list' in data:
+            dependencies = []
+            for value in data['run_list']:
+                if value.startswith('recipe'):
+                    name = value[value.index('[') + 1:-1]
+                    dependencies.append(name)
+                elif value.startswith('role'):
+                    name = value[value.index('[') + 1:-1]
+                    dependencies.append("%s-role" % name)
+                else:
+                    continue
+
+                dependency = self.get_component(context, name)
+                if dependency:
+                    if 'provides' in dependency:
+                        provides.extend(dependency['provides'])
+                    if 'requires' in dependency:
+                        requires.extend(dependency['requires'])
+                    if 'options' in dependency:
+                        options.update(dependency['options'])
+            if dependencies:
+                component['dependencies'] = dependencies
+            if provides:
+                component['provides'] = provides
+            if requires:
+                component['requires'] = requires
+            if options:
+                component['options'] = options
+
+        return component
+
+    def find_components(self, context, **kwargs):
+        name = kwargs.pop('name', None)
+        role = kwargs.pop('role', None)
+        if role:
+            id = "%s-%s-role" % (name, role)
+        else:
+            id = name
+        if id:
+            return [self.get_component(context, id)]
+
+        return ProviderBase.find_components(self, context, **kwargs)
 
     def status(self):
         # Files to be changed:

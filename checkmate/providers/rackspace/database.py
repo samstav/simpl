@@ -6,7 +6,9 @@ import clouddb
 from SpiffWorkflow.operators import Attrib
 from SpiffWorkflow.specs import Celery
 
-from checkmate.exceptions import CheckmateNoMapping
+from checkmate.deployments import Deployment
+from checkmate.exceptions import CheckmateException, CheckmateNoMapping, \
+        CheckmateNoTokenError
 from checkmate.providers import ProviderBase
 
 
@@ -70,8 +72,25 @@ class Provider(ProviderBase):
         return dict(root=create_db_task, final=create_db_user)
 
     def get_catalog(self, context, type_filter=None):
+        """Return stored/override catalog if it exists, else connect, build,
+        and return one"""
+
+        # TODO: maybe implement this an on_get_catalog so we don't have to do
+        #        this for every provider
+        results = ProviderBase.get_catalog(self, context,
+            type_filter=type_filter)
+        if results:
+            # We have a prexisting or overridecatalog stored
+            return results
+
+        # build a live catalog ()this would be the on_get_catalog called if no
+        # stored/override existed
         api = self._connect(context)
-        results = {}
+        if type_filter is None or type_filter == 'database':
+            results['database'] = dict(mysql_instance={
+                'id': 'mysql_instance',
+                'is': 'database',
+                'provides': [{'database': 'mysql'}]})
 
         if type_filter is None or type_filter == 'regions':
             regions = {}
@@ -81,15 +100,21 @@ class Provider(ProviderBase):
                     for endpoint in endpoints:
                         if 'region' in endpoint:
                             regions[endpoint['region']] = endpoint['publicURL']
-            results['regions'] = regions
+            if 'lists' not in results:
+                results['lists'] = {}
+            results['lists']['regions'] = regions
 
         if type_filter is None or type_filter == 'size':
             flavors = api.flavors.list_flavors()
-            results['sizes'] = {
+            if 'lists' not in results:
+                results['lists'] = {}
+            results['lists']['sizes'] = {
                 f.id: {
                     'name': f.name,
+                    'memory': f.ram
                     } for f in flavors}
 
+        self.validate_catalog(results)
         return results
 
     def _connect(self, context):

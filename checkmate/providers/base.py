@@ -1,6 +1,9 @@
 import logging
 
 from checkmate import utils
+from checkmate.common import schema
+from checkmate.components import Component
+from checkmate.exceptions import CheckmateValidationException
 
 LOG = logging.getLogger(__name__)
 PROVIDER_CLASSES = {}
@@ -286,17 +289,50 @@ class ProviderBase(ProviderBasePlanningMixIn, ProviderBaseWorkflowMixIn):
     vendor = 'checkmate'
 
     def __init__(self, provider, key=None):
-        """Initialize provider with :
-        :param provider: a dict from thje environment
-        :param key: optional key used for environment to mark which provider
-                is
-        """
-        self.dict = provider
-        self.key = key
+        """Initialize provider
 
-    def provides(self):
-        """Returns  a list of resources that this provider can provder"""
-        return self.dict.get('provides', [])
+        :param provider: an initialization dict (usually from the environment)
+            includes:
+                catalog
+                vendor
+                provides (overrides provider settings)
+
+        :param key: optional key used for environment to mark which provider
+                this is
+        """
+        if 'catalog' in provider:
+            self.validate_catalog(provider['catalog'])
+        self._dict = provider or {}
+        self.key = key or "%s.%s" % (self.vendor, self.name)
+        if 'vendor' in provider and provider['vendor'] != self.vendor:
+            LOG.debug("Vendor value being overwridden for %s to %s" % (
+                    self.key, provider['vendor']))
+
+    def provides(self, resource_type=None, interface=None):
+        """Returns a list of resources that this provider can provide or
+        validates that a specific type of resource or interface is provided.
+
+        :param resource_type: a string used to filter the list returned by
+                resource type
+        :param interface: a string used to filter the list returned by
+                the interface
+        :returns: list of resource_type:interface hashes
+        Usage:
+            for item in provider.provides():
+                ...
+        or
+            if provider.provides(resources_type='database'):
+                print "We have databases!"
+        """
+        results = self._dict.get('provides', [])
+        filtered = []
+        for entry in results:
+            item_type, item_interface = entry.items()[0]
+            if (resource_type is None or resource_type == item_type) and\
+                    (interface is None or interface == item_interface):
+                filtered.append(entry)
+
+        return filtered
 
     def get_catalog(self, context, type_filter=None):
         """Returns catalog (filterable by type) for this provider.
@@ -306,11 +342,66 @@ class ProviderBase(ProviderBasePlanningMixIn, ProviderBaseWorkflowMixIn):
         :param context: a RequestContext that has a security information
         :param type_filter: which type of resource to filter by
         :return_type: dict"""
+        if 'catalog' in self._dict:
+            return self._dict['catalog']
         return {}
+
+    def validate_catalog(self, catalog):
+        errors = schema.validate_catalog(catalog)
+        if errors:
+            raise CheckmateValidationException("Invalid catalog: %s" %
+                    '\n'.join(errors))
+
+    def get_component(self, context, id):
+        """Get component by ID. Default implementation gets full catalog and
+        searches for ID. Override with a more efficient implementation in your
+        provider code."""
+        LOG.debug("Default get_component implementation being used for '%s'. "
+                "Override with more efficient implementation." % self.key)
+        catalog = self.get_catalog(context)
+        for key, value in catalog.iteritems():
+            if key == 'lists':
+                continue
+            if id in value:
+                return Component(value[id], id=id, provider=self)
+
+    def find_components(self, context, **kwargs):
+        """Finds the components that matches the supplied key/value arguments
+        returns: list of matching components
+
+        Note: resource type is usually called 'type' in serialized objects, but
+              called resource_type in much of the code. Combine the two params.
+        """
+        component_id = kwargs.pop('id', None)
+        resource_type = kwargs.pop('resource_type', kwargs.pop('type', None))
+        interface = kwargs.pop('interface', None)
+        if kwargs:
+            LOG.debug("Extra kwargs: %s" % kwargs)
+
+        if component_id:
+            component = self.get_component(context, component_id)
+            if component:
+                LOG.debug("Found component by id: %s" % component_id)
+                return [Component(component, id=component_id, provider=self)]
+
+        catalog = self.get_catalog(context, type_filter=resource_type)
+        matches = []
+        # Loop through catalog
+        for key, components in catalog.iteritems():
+            if key == 'lists':
+                continue  # ignore lists, we are looking for components
+            for id, component in components.iteritems():
+                if interface:
+                    interfaces = [p.values()[0] for p in component.get(
+                            'provides', [])]
+                    if interface not in interfaces:
+                        continue
+                matches.append(Component(component, id=id, provider=self))
+        return matches
 
 
 def register_providers(providers):
-    """Add provider class to list of available providers"""
+    """Add provider classes to list of available providers"""
     for provider in providers:
         name = '%s.%s' % (provider.vendor, provider.name)
         if name in PROVIDER_CLASSES:

@@ -122,25 +122,56 @@ class Provider(RackspaceComputeProviderBase):
         return {'root': join, 'final': build_wait_task}
 
     def get_catalog(self, context, type_filter=None):
+        """Return stored/override catalog if it exists, else connect, build,
+        and return one"""
+
+        # TODO: maybe implement this an on_get_catalog so we don't have to do
+        #        this for every provider
+        results = RackspaceComputeProviderBase.get_catalog(self, context,
+            type_filter=type_filter)
+        if results:
+            # We have a prexisting or overridecatalog stored
+            return results
+
+        # build a live catalog ()this would be the on_get_catalog called if no
+        # stored/override existed
         api = self._connect(context)
 
-        results = {}
+        if type_filter is None or type_filter == 'compute':
+            results['compute'] = dict(
+                    linux_instance={
+                            'id': 'linux_instance',
+                            'provides': [{'compute': 'linux'}],
+                            'is': 'compute',
+                        },
+                    windows_instance={
+                            'id': 'windows_instance',
+                            'provides': [{'compute': 'windows'}],
+                            'is': 'compute',
+                        },
+                    )
         if type_filter is None or type_filter == 'type':
             images = api.images.list()
-            results['types'] = {
+            if 'lists' not in results:
+                results['lists'] = {}
+            results['lists']['types'] = {
                     i.id: {
                         'name': i.name,
                         'os': i.name,
                         } for i in images}
         if type_filter is None or type_filter == 'image':
             images = api.images.list()
-            results['images'] = {
+            if 'lists' not in results:
+                results['lists'] = {}
+            results['lists']['images'] = {
                     i.id: {
                         'name': i.name
                         } for i in images if False}
         if type_filter is None or type_filter == 'size':
             flavors = api.flavors.list()
-            results['sizes'] = {
+            if 'lists' not in results:
+                results['lists'] = {}
+            results['lists']['sizes'] = {
                 f.id: {
                     'name': f.name,
                     'ram': f.ram,
@@ -155,8 +186,11 @@ class Provider(RackspaceComputeProviderBase):
                     for endpoint in endpoints:
                         if 'region' in endpoint:
                             regions[endpoint['region']] = endpoint['publicURL']
-            results['regions'] = regions
+            if 'lists' not in results:
+                results['lists'] = {}
+            results['lists']['regions'] = regions
 
+        self.validate_catalog(results)
         return results
 
     def _connect(self, context):

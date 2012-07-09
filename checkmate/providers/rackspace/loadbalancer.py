@@ -3,7 +3,8 @@ import logging
 from SpiffWorkflow.operators import Attrib
 from SpiffWorkflow.specs import Celery, Transform
 
-from checkmate.exceptions import CheckmateException
+
+from checkmate.exceptions import CheckmateException, CheckmateNoTokenError
 from checkmate.providers import ProviderBase
 from checkmate.workflows import wait_for
 
@@ -71,7 +72,20 @@ class Provider(ProviderBase):
                                 task_tags=['root']))
 
     def get_catalog(self, context, type_filter=None):
-        #TODO: add more than just regions
+        """Return stored/override catalog if it exists, else connect, build,
+        and return one"""
+
+        # TODO: maybe implement this an on_get_catalog so we don't have to do
+        #        this for every provider
+        results = ProviderBase.get_catalog(self, context,
+            type_filter=type_filter)
+        if results:
+            # We have a prexisting or overridecatalog stored
+            return results
+
+        # build a live catalog ()this would be the on_get_catalog called if no
+        # stored/override existed
+        api = self._connect(context)
         results = {}
 
         if type_filter is None or type_filter == 'regions':
@@ -82,10 +96,49 @@ class Provider(ProviderBase):
                     for endpoint in endpoints:
                         if 'region' in endpoint:
                             regions[endpoint['region']] = endpoint['publicURL']
-            results['regions'] = regions
+            if 'lists' not in results:
+                results['lists'] = {}
+            results['lists']['regions'] = regions
 
+        if type_filter is None or type_filter == 'load-balancer':
+            protocols = api.get_protocols()
+            algorithms = api.get_algorithms()
+            options = {'algorithm': {'type': 'list', 'choice': algorithms}}
+            items = {}
+            for protocol in protocols:
+                item = {
+                        'id': protocol.lower(),
+                        'is': 'load-balancer',
+                        'provides': [{'load-balancer': protocol.lower()}],
+                        'options': options,
+                    }
+                items[protocol.lower()] = item
+            results['load-balancer'] = items
+
+        self.validate_catalog(results)
         return results
 
+    def _connect(self, context):
+        """Use context info to connect to API and return api object"""
+        #TODO: Hard-coded to Rax auth for now
+        #FIXME: handle region in context
+        if not context.auth_tok:
+            raise CheckmateNoTokenError()
+        api = cloudlb.CloudLoadBalancer(context.user, 'dummy',
+                'DFW')
+        api.client.auth_token = context.auth_tok
+
+        def find_url(catalog):
+            for service in catalog:
+                if service['type'] == 'rax:load-balancer':
+                    endpoints = service['endpoints']
+                    for endpoint in endpoints:
+                        return endpoint['publicURL']
+
+        url = find_url(context.catalog)
+        api.client.region_account_url = url
+
+        return api
 
 """
   Celery tasks to manipulate Rackspace Cloud Load Balancers
