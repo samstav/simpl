@@ -19,29 +19,42 @@ LOG = logging.getLogger(__name__)
 class Provider(RackspaceComputeProviderBase):
     name = 'legacy'
 
-    def generate_template(self, deployment, resource_type, service, name=None):
+    def generate_template(self, deployment, resource_type, service, context,
+            name=None):
         template = RackspaceComputeProviderBase.generate_template(self,
-                deployment, resource_type, service, name=name)
+                deployment, resource_type, service, context, name=name)
 
-        image = self.get_deployment_setting(deployment, 'os',
-                resource_type=resource_type, service=service)
+        catalog = self.get_catalog(context)
+        image = deployment.get_setting('os', resource_type=resource_type,
+                service_name=service, provider_key=self.key, default=119)
         if isinstance(image, int):
             pass
-        elif image == 'Ubuntu 11.10':
-            image = 119
         else:
+            for key, value in catalog['lists']['types'].iteritems():
+                if image == value['name']:
+                    LOG.debug("Mapping image from '%s' to '%s'" % (image, key))
+                    image = key
+                    break
+
+        if not isinstance(image, int):
             raise CheckmateNoMapping("No image mapping for '%s' in '%s'" % (
                     image, self.name))
 
-        flavor = self.get_deployment_setting(deployment, 'memory',
-                resource_type=resource_type, service=service, default=1)
+        flavor = deployment.get_setting('memory', resource_type=resource_type,
+                service_name=service, provider_key=self.key, default=1)
         if isinstance(flavor, int):
             pass
-        elif flavor == '512 Mb':
-            flavor = 2
         else:
+            number = flavor.split(' ')[0]
+            for key, value in catalog['lists']['sizes'].iteritems():
+                if number == str(value['memory']):
+                    LOG.debug("Mapping flavor from '%s' to '%s'" % (flavor,
+                            key))
+                    flavor = key
+                    break
+        if not isinstance(flavor, int):
             raise CheckmateNoMapping("No flavor mapping for '%s' in '%s'" % (
-                    flavor, self.name))
+                    flavor, self.key))
 
         template['flavor'] = flavor
         template['image'] = image
@@ -70,7 +83,7 @@ class Provider(RackspaceComputeProviderBase):
                             task_tags=['create']),
                properties={'estimated_duration': 20})
 
-        build_wait_task = Celery(wfspec, 'Check that Server is Up:%s'
+        build_wait_task = Celery(wfspec, 'Wait for server build:%s'
                 % key, 'checkmate.providers.rackspace.compute_legacy.'
                         'wait_on_build',
                 call_args=[Attrib('context'), Attrib('id')],
@@ -85,7 +98,8 @@ class Provider(RackspaceComputeProviderBase):
 
         if wait_on is None:
             wait_on = []
-        wait_on.append(self.prep_task)
+        if getattr(self, 'prep_task', None):
+            wait_on.append(self.prep_task)
         join = wait_for(wfspec, create_server_task, wait_on,
                 name="Server Wait on:%s" % key,
                 defines=dict(resource=key,
@@ -149,7 +163,7 @@ class Provider(RackspaceComputeProviderBase):
             results['lists']['sizes'] = {
                 f.id: {
                     'name': f.name,
-                    'ram': f.ram,
+                    'memory': f.ram,
                     'disk': f.disk,
                     } for f in flavors}
 

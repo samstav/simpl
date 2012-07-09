@@ -19,18 +19,27 @@ class Provider(ProviderBase):
     name = 'database'
     vendor = 'rackspace'
 
-    def generate_template(self, deployment, resource_type, service, name=None):
+    def generate_template(self, deployment, resource_type, service, context,
+            name=None):
         template = ProviderBase.generate_template(self,
-                deployment, resource_type, service, name=name)
+                deployment, resource_type, service, context, name=name)
 
-        flavor = self.get_deployment_setting(deployment, 'memory',
-                resource_type=resource_type, service=service, default=512)
-        #FIXME: mapping needs to be done
-        if '512' in str(flavor):
-            flavor = 1
+        catalog = self.get_catalog(context)
+        flavor = deployment.get_setting('memory', resource_type=resource_type,
+                service_name=service, provider_key=self.key, default=1)
+        if isinstance(flavor, int):
+            pass
         else:
+            number = flavor.split(' ')[0]
+            for key, value in catalog['lists']['sizes'].iteritems():
+                if number == str(value['memory']):
+                    LOG.debug("Mapping flavor from '%s' to '%s'" % (flavor,
+                            key))
+                    flavor = key
+                    break
+        if not isinstance(flavor, int):
             raise CheckmateNoMapping("No flavor mapping for '%s' in '%s'" % (
-                    flavor, self.name))
+                    flavor, self.key))
 
         template['flavor'] = flavor
         return template

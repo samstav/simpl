@@ -42,11 +42,6 @@ def get_deployments(tenant_id=None):
 def post_deployment(tenant_id=None):
     entity = read_body(request)
 
-    # Validate syntax
-    errors = check_deployment(entity)
-    if errors:
-        abort(406, "\n".join(errors))
-
     if 'deployment' in entity:
         entity = entity['deployment']
 
@@ -55,12 +50,13 @@ def post_deployment(tenant_id=None):
     if any_id_problems(entity['id']):
         abort(406, any_id_problems(entity['id']))
 
-    errors = schema.validate(deployment, schema.DEPLOYMENT_FIELDS)
-    if errors:
-        abort(406, "Invalid deployment: %s" % '\n'.join(errors))
+    # Validate syntax
+    deployment = Deployment(entity)
+    if 'includes' in deployment:
+        del deployment['includes']
 
-    id = str(entity['id'])
-    body, secrets = extract_sensitive_data(entity)
+    id = str(deployment['id'])
+    body, secrets = extract_sensitive_data(deployment)
     db.save_deployment(id, body, secrets, tenant_id=tenant_id)
 
     # Return response (with new resource location in header)
@@ -70,18 +66,20 @@ def post_deployment(tenant_id=None):
         response.add_header('Location', "/deployments/%s" % id)
 
     #Assess work to be done & resources to be created
-    results = plan(id)
+    parsed_deployment = plan(deployment, request.context)
+
+    # Create workflow
+    workflow = create_workflow(parsed_deployment, request.context)
 
     serializer = DictionarySerializer()
-    workflow = results['workflow'].serialize(serializer)
-    workflow['id'] = id
-    deployment = results['deployment']
-    deployment['workflow'] = id
+    serialized_workflow = workflow.serialize(serializer)
+    serialized_workflow['id'] = id
+    parsed_deployment['workflow'] = id
 
     body, secrets = extract_sensitive_data(deployment)
     deployment = db.save_deployment(id, body, secrets, tenant_id=tenant_id)
 
-    body, secrets = extract_sensitive_data(workflow)
+    body, secrets = extract_sensitive_data(serialized_workflow)
     db.save_workflow(id, body, secrets, tenant_id=tenant_id)
 
     #Trigger the workflow
@@ -103,15 +101,17 @@ def parse_deployment():
     if any_id_problems(entity['id']):
         abort(406, any_id_problems(entity['id']))
 
-    errors = schema.validate(deployment, schema.DEPLOYMENT_FIELDS)
-    if errors:
-        abort(406, "Invalid deployment: %s" % '\n'.join(errors))
+    # Validate syntax
+    deployment = Deployment(entity)
+    if 'includes' in deployment:
+        del deployment['includes']
 
-    results = plan_dict(entity)
+    results = plan(deployment, request.context)
 
+    workflow = create_workflow(parsed_deployment, request.context)
     serializer = DictionarySerializer()
-    workflow = results['workflow'].serialize(serializer)
-    results['workflow'] = workflow
+    serialized_workflow = workflow.serialize(serializer)
+    results['workflow'] = serialized_workflow
 
     return write_body(results, request, response)
 
@@ -128,11 +128,10 @@ def put_deployment(id, tenant_id=None):
     if 'id' not in entity:
         entity['id'] = str(id)
 
-    errors = schema.validate(deployment, schema.DEPLOYMENT_FIELDS)
-    if errors:
-        abort(406, "Invalid deployment: %s" % '\n'.join(errors))
+    # Validate syntax
+    deployment = Deployment(entity)
 
-    body, secrets = extract_sensitive_data(entity)
+    body, secrets = extract_sensitive_data(deployment)
     results = db.save_deployment(id, body, secrets, tenant_id=tenant_id)
 
     return write_body(results, request, response)
@@ -165,8 +164,8 @@ def get_deployment_status(id, tenant_id=None):
         serializer = DictionarySerializer()
         wf = Workflow.deserialize(serializer, workflow)
         for task in wf.get_tasks(state=Task.ANY_MASK):
-            if 'Resource' in task.task_spec.defines:
-                resource_id = str(task.task_spec.defines['Resource'])
+            if 'resource' in task.task_spec.defines:
+                resource_id = str(task.task_spec.defines['resource'])
                 resource = resources.get(resource_id, None)
                 if resource:
                     result = {}
@@ -216,73 +215,7 @@ def execute(id, timeout=180, tenant_id=None):
     return result
 
 
-def plan(id):
-    deployment = db.get_deployment(id, with_secrets=True)
-    if not deployment:
-        abort(404, "No deployment with id %s" % id)
-    return plan_dict(deployment)
-
-
-def plan_dict(deployment):
-    """DEPRECATED: Process a new checkmate deployment, plan for execution,
-    create a context, and create a workflow.
-
-    This creates placeholder tags that will be used for the actual creation
-    of resources.
-
-    :returns: dict of parsed deployment and workflow
-    :param deployment: checkmate deployment dict
-    """
-    parsed_deployment = plan(deployment)
-    context = get_context(deployment)
-    workflow = create_workflow(parsed_deployment, context)
-
-    return {'deployment': parsed_deployment, 'workflow': workflow}
-
-
-def get_context(deployment):
-    """Create context with creds and keys"""
-    #
-    context = dict(id=deployment['id'])
-
-    #TODO: make this smarter
-    creds = [p['credentials'][0] for key, p in
-                    deployment['environment']['providers'].iteritems()
-                    if key == 'common']
-    if creds:
-        creds = creds[0]
-        context['username'] = creds['username']
-        if 'apikey' in creds:
-            context['apikey'] = creds['apikey']
-        if 'password' in creds:
-            context['password'] = creds['password']
-    else:
-        LOG.debug("No credentials supplied in environment/common/credentials")
-
-    inputs = deployment.get('inputs', {})
-    context['region'] = inputs.get('blueprint', {}).get('region')
-
-    # Look in inputs:
-    # Read in the public keys to be passed to newly created servers.
-    os_keys = get_os_env_keys()
-
-    environment = deployment.get('environment')
-    if not environment:
-        abort(406, "Environment not found. Nowhere to deploy to.")
-    environment = Environment(environment)
-
-    keys = get_keys(inputs, environment)
-    if os_keys:
-        keys.update(os_keys)
-
-    if not keys:
-        LOG.warn("No keys supplied. Less secure password auth will be used.")
-
-    context['keys'] = keys
-    return context
-
-
-def plan(deployment):
+def plan(deployment, context):
     """Process a new checkmate deployment and plan for execution.
 
     This creates placeholder tags that will be used for the actual creation
@@ -293,27 +226,27 @@ def plan(deployment):
     - get the components from the blueprint
     - identify dependencies (inputs/options and connections/relations)
     - build a list of resources to create
-    - returns the parsed deployment
+    - returns the parsed Deployment
 
-    :param deployment: checkmate deployment dict
+    :param deployment: checkmate deployment instance (dict)
     """
+    assert context.__class__.__name__ == 'RequestContext'
+    if not isinstance(deployment, Deployment):
+        deployment = Deployment(deployment)
     LOG.info("Planning deployment '%s'" % deployment['id'])
     # Find blueprint and environment. Without those, there's nothing to plan!
     blueprint = deployment.get('blueprint')
     if not blueprint:
         abort(406, "Blueprint not found. Nothing to do.")
-    environment = deployment.get('environment')
+    environment = deployment.environment()
     if not environment:
         abort(406, "Environment not found. Nowhere to deploy to.")
-    environment = Environment(environment)
-    inputs = deployment.get('inputs', {})
     services = blueprint.get('services', {})
     relations = {}
 
     # The following are hashes with resource_type as the hash:
     requirements = {}  # list of interfaces needed by component
     provided = {}  # list of interfaces provided by other components
-    available = {}  # interfaces available from environment
 
     #
     # Analyze Dependencies
@@ -322,58 +255,38 @@ def plan(deployment):
 
     # Load providers
     providers = environment.get_providers()
-    # Get interfaces available from environment
-    for provider in providers.values():
-        LOG.debug("%s provides %s" % (provider.__class__, provider.provides()))
-        for item in provider.provides():
-            resource_type = item.keys()[0]
-            interface = item.values()[0]
-            entry = dict(provider=provider, resource=resource_type)
-            if interface in available:
-                available[interface].append(entry)
-                LOG.warning("More than one provider for '%s': %s" % (
-                        interface, available[interface]))
-            else:
-                available[interface] = [entry]
+
+    # Load interface/provider/resource_types map
+    available = environment.get_interface_map()
+
+    #Identify component providers and get the resolved components
+    components = deployment.get_components(context)
 
     # Collect all requirements from components
-    for service_name, service in services.iteritems():
-        LOG.debug("Analyzing service %s" % service_name)
-        components = service['components']
-        if not isinstance(components, list):
-            components = [components]
-        for component in components:
-            LOG.debug("  Config for %s", component['id'])
-            # Check that the environment can provide this component
-            if 'is' in component:
-                klass = component['is']
-                found = False
-                for l in available.values():
-                    for e in l:
-                        if e['resource'] == klass:
-                            found = True
-                            break
-                if not found:
-                    abort(406, "Environment does not provide '%s'" % klass)
-            # Save list of interfaces provided by which service
-            if 'provides' in component:
-                for resource_type, interface in component['provides']\
-                        .iteritems():
-                    if resource_type in provided:
-                        provided[resource_type].append(interface)
-                    else:
-                        provided[resource_type] = [interface]
-            # Save list of what interfaces are required by each service
-            if 'requires' in component:
-                for key, value in component['requires'].iteritems():
-                    # Convert short form to long form before evaluating
-                    if not isinstance(value, dict):
-                        value = {'interface': value}
-                    interface = value['interface']
-                    if interface in requirements:
-                        requirements[interface].append(service_name)
-                    else:
-                        requirements[interface] = [service_name]
+    for service_name, component in components.iteritems():
+        LOG.debug("Analyzing component %s in service %s" % (component['id'],
+                service_name))
+
+        # Save list of interfaces provided by which service
+        if 'provides' in component:
+            for entry in component['provides']:
+                resource_type, interface = entry.items()[0]
+                if resource_type in provided:
+                    provided[resource_type].append(interface)
+                else:
+                    provided[resource_type] = [interface]
+        # Save list of what interfaces are required by each service
+        if 'requires' in component:
+            for entry in component['requires']:
+                key, value = entry.items()[0]
+                # Convert short form to long form before evaluating
+                if not isinstance(value, dict):
+                    value = {'interface': value}
+                interface = value['interface']
+                if interface in requirements:
+                    requirements[interface].append(service_name)
+                else:
+                    requirements[interface] = [service_name]
 
     # Quick check that at least each interface is provided
     for required_interface in requirements.keys():
@@ -419,45 +332,61 @@ def plan(deployment):
     #
     # Build needed resource list
     #
-    domain = inputs.get('domain', os.environ.get('CHECKMATE_DOMAIN',
-                                                   'mydomain.local'))
     resources = {}
     resource_index = 0  # counter we use to increment as we create resources
     for service_name, service in services.iteritems():
         LOG.debug("Gather resources needed for service %s" % service_name)
-        components = service['components']
-        if not isinstance(components, list):
-            components = [components]
-        for component in components:
-            resource_type = component.get('is', component['id'])
+        service_components = components[service_name]
+        if not isinstance(service_components, list):
+            service_components = [service_components]
+        for component in service_components:
+            if 'is' in component:
+                resource_type = component['is']
+            else:
+                resource_type = component['id']
+                LOG.debug("Component '%s' has no type specified using the "
+                        "'is' attribute so the id of the component is being "
+                        "used as the type" % component['id'])
 
+            # Check for hosting relationship
             host = None
             if 'requires' in component:
-                for key, value in component['requires'].iteritems():
-                    # Skip short form which implies a reference relationship
+                for entry in component['requires']:
+                    key, value = entry.items()[0]
+                    # Skip short form not called host (reference relationship)
                     if not isinstance(value, dict):
-                        continue
+                        if key != 'host':
+                            continue
+                        value = dict(interface=value, relation='host')
                     if value.get('relation', 'reference') == 'host':
+                        LOG.debug("Host needed for %s" % component['id'])
                         host = key
                         host_interface = value['interface']
                         break
             if host:
-                host_provider = available[host_interface][0]['provider']
-                host_type = available[host_interface][0]['resource']
+                host_provider_key = available[host_interface].keys()[0]
+                host_provider = providers[host_provider_key]
+                host_type = available[host_interface].values()[0][0]
 
-            provider = environment.select_provider(resource=resource_type)
-            count = provider.get_deployment_setting(deployment, 'count',
-                    resource_type=resource_type, service=service_name) or 1
+            provider = component.provider()
+            if not provider:
+                raise CheckmateException("No provider could be found for the "
+                        "'%s' resource in component '%s'" % (resource_type,
+                        component['id']))
+            count = deployment.get_setting('count', provider_key=provider.key,
+                    resource_type=resource_type, service_name=service_name,
+                    default=1)
 
             def add_resource(provider, deployment, service, service_name,
-                    index, domain, resource_type, component_id):
+                    index, domain, resource_type, component_id=None):
                 # Generate a default name
                 name = 'CM-%s-%s%s.%s' % (deployment['id'][0:7], service_name,
                         index, domain)
                 # Call provider to give us a resource template
                 resource = provider.generate_template(deployment,
-                        resource_type, service_name, name=name)
-                resource['component'] = component_id
+                        resource_type, service_name, context, name=name)
+                if component_id:
+                    resource['component'] = component_id
                 # Add it to resources
                 resources[str(resource_index)] = resource
                 # Link resource to service
@@ -467,20 +396,29 @@ def plan(deployment):
                 instances.append(str(resource_index))
                 LOG.debug("  Adding %s with id %s" % (resources[str(
                         resource_index)]['type'], resource_index))
+                Resource.validate(resource)
                 return resource
 
+            domain = deployment.get_setting('domain',
+                    provider_key=provider.key, resource_type=resource_type,
+                    service_name=service_name,
+                    default=os.environ.get('CHECKMATE_DOMAIN',
+                                                   'checkmate.local'))
             for index in range(count):
                 if host:
                     # Obtain resource to host this one on
                     host_resource = add_resource(host_provider, deployment,
-                            service, service_name, index + 1, domain,
-                            host_type, component['id'])
+                            service, service_name, index + 1,
+                            domain, host_type)
                     host_index = str(resource_index)
                     resource_index += 1
+
                 resource = add_resource(provider, deployment, service,
-                        service_name, index + 1, domain, resource_type,
-                        component['id'])
+                        service_name, index + 1, domain,
+                        resource_type, component_id=component['id'])
+                resource['debug'] = copy.copy(component.__dict__())
                 resource_index += 1
+
                 if host:
                     # Fill in relations on hosted resource
                     resource['hosted_on'] = str(resource_index - 2)
@@ -497,7 +435,7 @@ def plan(deployment):
 
                     # Fill in relations on hosting resource
                     # no need to fill in a full relation for host, so just
-                    # populate and array
+                    # populate an array
                     if 'hosts' in host_resource:
                         host_resource['hosts'].append(str(resource_index - 1))
                     else:
@@ -519,13 +457,15 @@ def plan(deployment):
             target_service = services[target_service_name]
 
             # Verify target can provide requested interface
-            target_components = target_service['components']
+            target_components = components[target_service_name]
             if not isinstance(target_components, list):
                 target_components = [target_components]
+            target_component_ids = [c['id'] for c in target_components]
             found = []
             for component in target_components:
-                if target_interface in component.get('provides', {})\
-                        .values():
+                provides = component.get('provides', [])
+                for entry in provides:
+                    if target_interface == entry.values()[0]:
                         found.append(component)
             if not found:
                 raise CheckmateException("'%s' service does not provide a "
@@ -547,10 +487,11 @@ def plan(deployment):
                                 instances}
             LOG.debug("    These instances need '%s' from the '%s' service: %s"
                     % (target_interface, target_service_name,
-                    source_instances))
+                    instances))
 
             # Get list of target instances
-            target_instances = target_service['instances']
+            target_instances = [i for i in target_service.get('instances', [])
+                    if resources[i].get('component') in target_component_ids]
             LOG.debug("    These instances provide %s: %s" % (target_interface,
                     target_instances))
 
@@ -644,15 +585,17 @@ def get_keys(inputs, environment):
     # Get 'client' keys
     if 'client_public_key' in inputs:
         if is_ssh_key(inputs['client_public_key']):
-            abort("ssh public key must be in public_key_ssh field, not "
+            abort(406, "ssh public key must be in public_key_ssh field, not "
                     "client_public_key. client_public_key must be in PEM "
                     "format.")
         keys['client'] = {'public_key': inputs['client_public_key']}
 
     if 'client_public_key_ssh' in inputs:
+        LOG.info(inputs['client_public_key_ssh'])
+        LOG.info(is_ssh_key(inputs['client_public_key_ssh']))
         if not is_ssh_key(inputs['client_public_key_ssh']):
-            abort("client_public_key_ssh input is not a valid ssh public key "
-                    "string.")
+            abort(406, "client_public_key_ssh input is not a valid ssh public "
+                    "key string: %s" % inputs['client_public_key_ssh'])
         keys['client'] = {'public_key_ssh': inputs['client_public_key_ssh']}
 
     # Get 'environment' keys
@@ -675,10 +618,38 @@ def get_keys(inputs, environment):
             public_key = environment.get_ssh_public_key(private_key)
             results['public_key_ssh'] = public_key
 
-        results['private_key'] = private['PEM']
+        results['private_key'] = private_key
         keys['environment'] = results
 
     return keys
+
+
+class Resource():
+    def __init__(self, key, obj):
+        Resource.validate(obj)
+        self.key = key
+        self.dict = obj
+
+    @classmethod
+    def validate(cls, obj):
+        errors = schema.validate(obj, schema.RESOURCE_SCHEMA)
+        if errors:
+            raise CheckmateValidationException("Invalid resource: %s" %
+                    '\n'.join(errors))
+
+    def get_settings(self, deployment, context, provider):
+        """Get all settings for this resource
+
+        :param deployment: the dict of the deployment
+        :param context: the current planning context
+        :param provider: the instance of the provider (subclasses ProviderBase)
+        """
+        assert isinstance(provider, ProviderBase)
+        component = provider.get_component(self.dict['component'])
+        if not component:
+            raise CheckmateException("Could not find component '%s' in "
+                    "provider %s.%s's catalog" % (self.dict['component'],
+                    provider.vendor, provider.name))
 
 
 class Deployment(ExtensibleDict):

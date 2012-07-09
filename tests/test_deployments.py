@@ -22,8 +22,8 @@ class TestDeployments(unittest.TestCase):
                     },
                 }
         original = copy.copy(deployment)
-        parsed = plan(deployment)
-        self.assertDictEqual(original, parsed)
+        parsed = plan(deployment, RequestContext())
+        self.assertDictEqual(original, parsed.__dict__())
 
     def test_resource_generator(self):
         """Test the parser generates the right number of resources"""
@@ -33,16 +33,16 @@ class TestDeployments(unittest.TestCase):
                   name: test bp
                   services:
                     back:
-                      components: &widget
+                      component: &widget
                         id: widget
-                        provides:
-                          widget: foo
+                        type: widget
+                        interface: foo
                     front:
-                      components: *widget
+                      component: *widget
                       relations:
                         middle: foo
                     middle:
-                      components: *widget
+                      component: *widget
                       relations:
                         back: foo
                 environment:
@@ -52,6 +52,16 @@ class TestDeployments(unittest.TestCase):
                       provides:
                       - widget: foo
                       vendor: test
+                      catalog:
+                        widget:
+                          small_widget:
+                            is: widget
+                            provides:
+                            - widget: foo
+                          big_widget:
+                            is: widget
+                            provides:
+                            - widget: bar
                     common:
                       credentials:
                       - password: secret
@@ -65,7 +75,7 @@ class TestDeployments(unittest.TestCase):
 
         PROVIDER_CLASSES['test.base'] = ProviderBase
 
-        parsed = plan(deployment)
+        parsed = plan(deployment, RequestContext())
         services = parsed['blueprint']['services']
         self.assertEqual(len(services['front']['instances']), 1)
         self.assertEqual(len(services['middle']['instances']), 4)

@@ -58,99 +58,310 @@ class Provider(ProviderBase):
 
     def add_resource_tasks(self, resource, key, wfspec, deployment, context,
                 wait_on=None):
+        """Create and write data_bag, generate run_list, and call cook
+
+        Steps:
+        1 - wait on any host tasks
+        2 - add tasks for each component/dependency
+        3 - wait on those tasks
+        1 - configure the resource
+        """
         if wait_on is None:
             wait_on = []
-        self.add_wait_on_host_tasks(resource, wfspec, deployment, wait_on)
+        # 1 - Wait on host to be ready
+        wait_on.extend(self.get_hosting_relation_final_tasks(wfspec, key))
 
-        # Add tasks
-        register_node_task = Celery(wfspec, 'Register Server:%s' % key,
-                'checkmate.providers.opscode.local.register_node',
-                call_args=[Attrib('ip'), deployment['id']],
-                password=Attrib('password'),
-                omnibus_version="0.10.10-1",
-                identity_file=Attrib('private_key_path'),
-                attributes={'deployment': {'id': deployment['id']}},
-                defines=dict(resource=key,
-                            provider=self.key,
-                            task_tags=['root']),
-                description="Install Chef client on the target machine and "
-                       "register it in the environment",
-                properties={'estimated_duration': 120})
+        # Get component
+        component_id = resource['component']
+        component = self.get_component(context, component_id)
+        if not component:
+            raise CheckmateNoMapping("Component '%s' not found" % component_id)
+        service_name = None
+        for name, service in deployment['blueprint']['services'].iteritems():
+            if key in service.get('instances', []):
+                service_name = name
+                break
+        if not component_id:
+            raise CheckmateException("Component ID not found for instance %s" %
+                    key)
+        if not service_name:
+            raise CheckmateException("Service not found for Component %s" %
+                    key)
 
-        bootstrap_task = Celery(wfspec, 'Pre-Configure Server:%s' % key,
+        # 2 - Make a call for each component (some have custom code)
+        special_handlers = {
+                'wordpress': self._add_wordpress_tasks,
+                'apache': self._add_apache_tasks,
+                'apache2': self._add_apache_tasks,
+                'mysql': self._add_mysql_tasks,
+                'lsyncd': self._add_lsyncd_tasks,
+            }
+        default_handler = self._process_options
+
+        components = [dict(id=component_id)]  # this component comes first
+        components.extend(component.get('dependencies', []))
+        for item in components:
+            if isinstance(item, basestring):
+                item = self.get_component(context, item)
+            if item and item['id'] in special_handlers:
+                special_handlers[item['id']](wfspec, item['id'], deployment,
+                        key, context, service_name)
+            else:
+                default_handler(wfspec, item['id'], deployment, key,
+                        context, service_name)
+
+        # General call to wrap everything together
+        self._add_common_tasks(wfspec, deployment, key, context)
+
+        # The connection to overrides will be done later (using the join)
+        return {}  # dict(root=root, final=bootstrap_task)
+
+    def _add_common_tasks(self, wfspec, deployment, key, context):
+        """General call to wrap everything together"""
+        pass
+
+    def _process_options(self, wfspec, component_id, deployment, key,
+            context, service_name):
+        """Parse options and generate tasks if any of them need run-time
+        processing"""
+        assert component_id,\
+                "Empty component_id passed to _add_component_tasks"
+        resource = deployment['resources'][key]
+        component = self.get_component(context, component_id)
+        option_names = [name for name in component.get('options', {}).keys()]
+
+        # Set the options if they are available now
+        pre_run_options = {}
+        runtime_option_names = []
+        for option in option_names:
+            value = deployment.get_setting(option, provider_key=self.key,
+                    resource_type=resource['type'], service_name=service_name)
+            if value:
+                pre_run_options[option] = value
+                runtime_option_names.append(option)
+        data_bag_template = {component_id: pre_run_options}
+
+        if runtime_option_names:
+            def build_bag_code(my_task):
+                context = my_task.attributes['context']
+                options = my_task.task_spec.properties['options']
+
+                data = {}
+                for option in options:
+                    value = my_task.attributes.get(option, context.get(option))
+                    if value:
+                        data[option] = value
+
+                if data:
+                    my_bag_data = my_task.task_spec.properties[
+                            'data_bag_template']
+                    my_bag_data.values()[0].update(data)
+                my_task.set_attribute(my_bag_data=my_bag_data)
+
+            build_bag = Transform(wfspec, "Build %s Bag Data:%s" % (
+                    component_id, key),
+                    transforms=[get_source_body(build_bag_code)],
+                    description="Get %s data needed for our cookbooks and "
+                            "place it in a structure ready for storage in a "
+                            "databag" % component_id,
+                    defines=dict(provider=self.key,
+                            options=runtime_option_names,
+                            component_id=component_id,
+                            data_bag_template=data_bag_template))
+            # Call manage_databag(environment, bagname, itemname, contents)
+            write_bag = Celery(wfspec, "Write Data Bag",
+                   'checkmate.providers.opscode.local.manage_databag',
+                    call_args=[deployment['id'], deployment['id'],
+                            Attrib('app_id'), Attrib('deployment_data_bag')],
+                    secret_file='certificates/chef.pem',
+                    merge=True,
+                    defines=dict(provider=self.key,
+                                task_tags=['final']),
+                    properties={'estimated_duration': 5})
+            build_bag.connect(write_bag)
+
+            tasks = self.find_tasks(wfspec, provider=self.key,
+                    resource=key, tag='final')
+
+            return wait_for(wfspec, build_bag, tasks,
+                    name="Get %s data:%s" % (component_id, key),
+                    description="Before applying chef recipes, we need to "
+                    "know that the server has chef on it and that the "
+                    "overrides (database settings) have been applied")
+
+    def _add_component_tasks(self, wfspec, component_id, deployment, key,
+            context, service_name):
+        assert component_id,\
+                "Empty component_id passed to _add_component_tasks"
+        predecessors = self._process_options(wfspec, component_id, deployment,
+                key, context, service_name) or []
+
+        configure_task = Celery(wfspec, 'Configure %s:%s' % (component_id,
+                key),
                'checkmate.providers.opscode.local.cook',
                 call_args=[Attrib('ip'), deployment['id']],
-                recipes=['build-essential'],
+                recipes=[component_id],
                 password=Attrib('password'),
                 identity_file=Attrib('private_key_path'),
-                description="Run build-essential on server",
+                description="Push and apply Chef recipes on the server",
+                defines=dict(resource=key,
+                            provider=self.key),
+                properties={'estimated_duration': 100})
+
+        tasks = self.find_tasks(wfspec, provider=self.key,
+                resource=key, tag='final')
+        if tasks:
+            predecessors.extend(tasks)
+        server_id = deployment['resources'][key].get('hosted_on', key)
+        wait_for(wfspec, configure_task, predecessors,
+                name="After server %s is registered and databag is ready" %
+                        server_id,
+                description="Before applying chef recipes, we need to know "
+                "that the server has chef on it and that the overrides "
+                "(database settings) have been applied")
+
+    def _add_wordpress_tasks(self, wfspec, component_id, deployment, key,
+                context, service_name):
+        """Write wordpress options into databag."""
+        if not hasattr(self, 'data_bag_task'):
+            # Do this only once
+            prefix = deployment.get_setting('prefix', default="wp")
+
+            bag = {
+                        "id": "webapp_wordpress_%s" % prefix,
+                    }
+
+            #FIXME: should this be handled by the identity provider?
+            pwd = crypto.Random.get_random_bytes(8).encode('base64').strip()
+            pwd_hash = crypto.HashSHA512(pwd)
+            user = {
+                    "hash": pwd_hash,
+                    "password": pwd,
+                    "name": prefix,
+                }
+            if 'client' in deployment.settings()['keys']:
+                client_keys = deployment.settings()['keys']['client']
+                if 'public_key_ssh' in client_keys:
+                    user['ssh_pub_key'] = client_keys['public_key_ssh']
+                if 'private_key' in client_keys:
+                    user['ssh_priv_key'] = client_keys['private_key']
+            bag['user'] = user
+
+            options = {
+                    "wordpress/database/prefix": "%s_" % prefix,
+                    "wordpress/rackspace/path": deployment.settings().get(
+                            'url_path', '/'),
+                    'wordpress/keys/nonce': uuid.uuid4().hex,
+                    "wordpress/keys/auth": uuid.uuid4().hex,
+                    "wordpress/keys/secure_auth": uuid.uuid4().hex,
+                    'wordpress/keys/logged_in': uuid.uuid4().hex,
+                }
+            bag['wordpress'] = options
+
+            deployment.settings()['deployment_data_bag'] = bag
+            # default. Can be overwritten during wf
+            deployment.settings()['app_id'] = bag['id']
+
+            # Call manage_databag(environment, bagname, itemname, contents)
+            write_bag = Celery(wfspec, "Write Data Bag",
+                   'checkmate.providers.opscode.local.manage_databag',
+                    call_args=[deployment['id'], deployment['id'],
+                            Attrib('app_id'), Attrib('deployment_data_bag')],
+                    secret_file='certificates/chef.pem',
+                    merge=True,
+                    defines=dict(provider=self.key,
+                                task_tags=['final']),
+                    properties={'estimated_duration': 5})
+            self.prep_task.connect(write_bag)
+            self.data_bag_task = write_bag
+
+        tags = []
+        if self.find_tasks(wfspec, provider=self.key, tag='master'):
+            # Mark first one as master
+            roles = ['wordpress-web-master']
+            tags.append('master')
+        else:
+            roles = ['wordpress-web']
+
+        server_id = deployment['resources'][key].get('hosted_on', key)
+        configure_task = Celery(wfspec, 'Configure Wordpress:%s' % server_id,
+               'checkmate.providers.opscode.local.cook',
+                call_args=[Attrib('ip'), deployment['id']],
+                roles=roles,
+                password=Attrib('password'),
+                identity_file=Attrib('private_key_path'),
+                description="Push and apply Chef recipes on the server",
                 defines=dict(resource=key,
                             provider=self.key,
-                            task_tags=None),
+                            task_tags=tags),
                 properties={'estimated_duration': 100})
-        register_node_task.connect(bootstrap_task)
 
-        # Register only when server is up and environment is ready
-        if wait_on:
-            tasks = wait_on[:]
-            tasks.append(self.prep_task)
-            root = wait_for(wfspec, register_node_task, tasks, name="Check "
-                    "that Environment is Ready and Server is Up:%s" % key)
-        else:
-            self.prep_task.connect(register_node_task)
-            root = register_node_task
+        # Note: This join is assumed to exist by create_workflow
+        tasks = self.find_tasks(wfspec, provider=self.key,
+                resource=key, tag='final')
+        tasks.append(self.data_bag_task)
+        if tasks:
+            wait_for(wfspec, configure_task, tasks,
+                    name="Check on Registration and Overrides:%s" % key,
+                    description="Before applying chef recipes, we need to "
+                    "know that the server has chef on it and that the "
+                    "overrides (database settings) have been applied")
 
-        def build_bag_code(my_task):
-            bag = {
-                "mysql": {
-                  "db_user": my_task.attributes['context']['db_username'],
-                  "db_password": my_task.attributes['context']['db_password'],
-                  "db_name": my_task.attributes['context']['db_name'],
-                  #"db_root_pw": "super_secret_pw",
-                  "db_host": my_task.attributes['hostname']
-                },
-                "wordpress": {
-                  "prefix": "wp_",
-                  "wp_logged_in": "59de5a96acf7709097ba7a9ba2ca421b2fff73ee",
-                  "path": "/",
-                  "wp_nonce": "d52ed52f6664f6006ba22150542728157ce83cdb",
-                  "wp_auth": "3ed26d885e9e90d3ec6e43cd15f406092b85c134",
-                  "wp_secure_auth": "63d4f698784c128ecd938493075bdb12bd5922b2"
-                },
-                "apache": {
-                  "domain_name": "example.com",
-                  "ssl_key": "-----BEGIN RSA PRIVATE KEY-----\nMIIEowIBAAKCAQEAyql1QiZCxzSc5aikNRk4dJ8ham2YpBubjM82rgWtQbcArKc4\nlKi9V/zzaBlzp0shKqfs8LQK3IvNqOD2CfXPK2AMx2UbTJoPmSkf/MP2jvwBbi36\nBoqlS2lnHsQEUdH8N1vagfOCowUP2zQFm2Cw5XvrS3YXqYJoIG4030pfGM6h4u3w\nai8MPjkqfT2BSbNNr+kyMzVWV8OUxU2nnSLjmosc+XbGo7lmoPWF9i2+2LJeVdO2\n6dDL7+GBslV7Z4IoCtlrisKTBWzmSUW2GE/SwCvl7ySlMvOV3JsV0400RJkuk0tZ\n7yYBQLt7j9XaX5B/Sc1raV7bGdHAoRUC9flNTQIDAQABAoIBAE3RhgoRgQDXDgwN\nloghGBGH7R/d14fkZfVKt/dYjK+4IpUpXMuQg6weoCRv6X3qlmC3vH6s06LeN+lK\nAI/QiG1iY2XJSBNA8Q5hwTugz7MVx0LUerY6VMBBR+yDXhlA5XUoWx4dMCOC1RTZ\nw/FmzmZAEBiYzvsy7OLPDpRTDXMLbV3ULlC+TsKOHAGeSnJbLFrS7MMI4rs8d366\nlyz9pYy9VG2/NRFk+yLvO5vd2YKiPgWWCFWmxkULvRYC7pRU8Uye6iUh0Zn/LWQd\n0Rt38ZrMfVUoIm8ep8TjfwvZDO4MURy7mqAtqLRNyUJk1Rau23crbq5F6jCF0ukq\nMzLlguECgYEA+mzdUD4dic92V5+sP9LYM79DMVlRFLQ9nDJOK4hKukG9+KXSyk8T\nWEtLlJA/2LoDOBAPqq+3eg6l54YTq1RPgVOQxFAwIQHq1K2aBJEt1tyMA1eK3Kp/\nbsS8/jbr3V3C82q3E/Llsm0JCO/5cTCc59DC6xHZvWZ4YJRT7Fc+LHUCgYEAzyxl\nz81fgoaOglcEpVMcv+48EUANEoG06+WXLu9Juc7G9xuKe/QGvl3cAhx0zB+PwnKw\nSF9CXj3d5hCgnioNC8HZ6fO9IiYBqbrjmenrvdPBAbG4SSVZTChYSg44Kh6puSOB\nfZpDaW3poTl4YFFOSpijkukL/kWs5m7zpM4b4nkCgYBkL6d+0crpdllnBtdXlVev\npCYSmSQJ/23ijnGdkuIqj+CbmGOzUl1v5nevUOJqJ0jgZfSOmcvyheezr30w/wLr\nv23cTCRlICo9udIzX42SNxvAvoYsb/2ZaBYgMgK8xiUXUys5TOS+NEb4D2Gg+gzb\n5TYF61dMIbGpGc5VcDXMfQKBgDId/WsttYMv5d2mC1urJXNQwHsz0XW+pvPCELar\n8Fvgp8UzhmbB+7eloQlptN+EaxSRBhAb60Q9FycGsrRQW+OSO5MbAY/3PcO/kDu1\nmO/NAA3W3kvjmxyPTfxsQC4ASPKeoj6uSMyCaFg2POagBJ6LGlb5xYr3dAIyqQIf\nUiORAoGBAN79cXdQBL6XJIFuy43QzcT37IDihxJ3sGOBPf4nOCealOHxA/iRgYim\nN7YE6SrkAPPZdG3L9U7LOCfchUiIbSvQFXReukewn6714N4QMYY0Dz+1NBwXD/w1\n8j3jDF3oufViQELOIrmjxtZbBazVffOTpgYiepnP8Ns7U5WGijhF\n-----END RSA PRIVATE KEY-----\n",
-                  "path": "/",
-                  "ssl_cert": "-----BEGIN CERTIFICATE-----\nMIIDxjCCAq6gAwIBAgIJAMPPVAWqOFGIMA0GCSqGSIb3DQEBBQUAMIGWMQswCQYD\nVQQGEwJVUzELMAkGA1UECBMCVHgxFDASBgNVBAcTC1NhbiBBbnRvbmlvMRowGAYD\nVQQKExFBd2Vzb21lbmVzcywgSW5jLjEdMBsGA1UEAxMUbXlhd2Vzb21ld2Vic2l0\nZS5jb20xKTAnBgkqhkiG9w0BCQEWGnN0dWZmQG15YXdlc29tZXdlYnNpdGUuY29t\nMB4XDTEyMDYxNTE0MDE0NloXDTIyMDYxMzE0MDE0NlowgZYxCzAJBgNVBAYTAlVT\nMQswCQYDVQQIEwJUeDEUMBIGA1UEBxMLU2FuIEFudG9uaW8xGjAYBgNVBAoTEUF3\nZXNvbWVuZXNzLCBJbmMuMR0wGwYDVQQDExRteWF3ZXNvbWV3ZWJzaXRlLmNvbTEp\nMCcGCSqGSIb3DQEJARYac3R1ZmZAbXlhd2Vzb21ld2Vic2l0ZS5jb20wggEiMA0G\nCSqGSIb3DQEBAQUAA4IBDwAwggEKAoIBAQDKqXVCJkLHNJzlqKQ1GTh0nyFqbZik\nG5uMzzauBa1BtwCspziUqL1X/PNoGXOnSyEqp+zwtArci82o4PYJ9c8rYAzHZRtM\nmg+ZKR/8w/aO/AFuLfoGiqVLaWcexARR0fw3W9qB84KjBQ/bNAWbYLDle+tLdhep\ngmggbjTfSl8YzqHi7fBqLww+OSp9PYFJs02v6TIzNVZXw5TFTaedIuOaixz5dsaj\nuWag9YX2Lb7Ysl5V07bp0Mvv4YGyVXtngigK2WuKwpMFbOZJRbYYT9LAK+XvJKUy\n85XcmxXTjTREmS6TS1nvJgFAu3uP1dpfkH9JzWtpXtsZ0cChFQL1+U1NAgMBAAGj\nFTATMBEGCWCGSAGG+EIBAQQEAwIGQDANBgkqhkiG9w0BAQUFAAOCAQEAqXZuiTPy\n+YRWkkE9DOWJmmnSsjLBrnh1YY0ZmNDMFM9xP6uRd/StAbwgIYxMS2Wo8ZtMkrNv\nnaCBB6ghgQHaNJmx1j92SpS1U/WELcSKV01j9DnklFXbSH6n5fS/VsckTcmVOXoW\nwLgHXXd0aueqBTPpiKEjNfI7dUl+uUpbklb+RyN565hxjzrSDSuhSjZ/0GL61RVz\n4pY+rjEPNp3itHbR6weyWwNvi0xA8FYipwJYEiErN2zuhH1ikACrlBw9Fo/7hSmh\nZ3rujqhToCEbXsejLKjSKSzdVGEhgRHla+9+cEvnAYfWnIkAl1pVK3BH+5Bg4634\nFQOjVTygmZVlVw==\n-----END CERTIFICATE-----\n"
-                },
-                "user": {
-                  "hash": "1c1c17efcbae072dcfaa85e133ced2d8f0484ce2c9edb5b073cdb82bd19286f4",
-                  "password": "secret_password",
-                  "ssh_pub_key": "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQC4yHdB478LU+1xdlSHfOzu1oNBixez9iEHM5O4cdsg8O4J88kXvR8Ks9fFNcuLFRPLdiX4m/H97HVt3iFaBUBKq1nORrbrkJxik5Eb/8s1VBDumey8gPDN4GDD7WfJS5BeCgWY9LEbtV7Eqlqn3Q2et8nywDYpBUOYcOhDK9sZHI8hk2gk8M4ZDI3rSf/sZVZU0/oVwUrRIa8Gh5rL5cRB7gXrhjrFqosXj9Xrq/ACIBvuTMlpFV+w1y3OztqIObUhmfc1XRWMOt+m54r4bfeULIBhLzQ5+aT0wWeSA0oY9BLCzBG751zMzDmcvcAdLk3K1Ux2qsKzUZE+vd4XmLd9",
-                  "name": "example_user",
-                  "ssh_priv_key": "-----BEGIN RSA PRIVATE KEY-----\nMIIEowIBAAKCAQEAuMh3QeO/C1PtcXZUh3zs7taDQYsXs/YhBzOTuHHbIPDuCfPJ\nF70fCrPXxTXLixUTy3Yl+Jvx/ex1bd4hWgVASqtZzka265CcYpORG//LNVQQ7pns\nvIDwzeBgw+1nyUuQXgoFmPSxG7VexKpap90NnrfJ8sA2KQVDmHDoQyvbGRyPIZNo\nJPDOGQyN60n/7GVWVNP6FcFK0SGvBoeay+XEQe4F64Y6xaqLF4/V66vwAiAb7kzJ\naRVfsNctzs7aiDm1IZn3NV0VjDrfpueK+G33lCyAYS80Ofmk9MFnkgNKGPQSwswR\nu+dczMw5nL3AHS5NytVMdqrCs1GRPr3eF5i3fQIDAQABAoIBAB7rPDlEOHVWx8ZS\nfHZnSuXz8uaGtaKhLomb8b3NH1N1vP7hUeas+IK78QDIrZRKJJPI4zWkMmvAoy2N\nG5uKgWV9InvHjVgBTImaE4/Rz1jPBj5Gdzxbfu+T+d0O3mzqPe/eUW10lCYExSS3\nNJAeBudl7V63FtjqTpM1YUfMEM80lPE8UXIZEk1YQuoyzxt46jhFPY3pNtACJjEI\nycbX04UPQAf8W1bHIJZir8FOD0NwFkAXewTth9JA6jrstHmUAi55asrskzI1LvBR\nkb7S2VkG2HSw2MRbmvfbxfCb8vbsbOzQjS8G4d9u5H1M8JzLWWkraWDgh+Tiew0a\nPK0p3ykCgYEA8jbub7UMmjUdR+c4/mYZ5JdJFSyPaNoU40eNSx86vGDjO2jZgZGQ\nbNL+E/byDLR44cZNYTKixgUpb6SFoR/hzJ3sQq3/PUcWmu6CvnFj/9Z3nBecHTbq\nCyeN4uATW/DF/aujyTLvQ+brZ6eaOzxSWbDVhIVX6aXOWMv51I60nQ8CgYEAw0zB\nwxuOwEbbbJ4aOFTxbwE1aMhaoD52fzGf/olJWOltp47CH4VgxlDRrDLf4U6yEQS0\n3UEgdJqeppcxAZtRPLs/rK1LHpEM5ZQCs8XSouicKIMQ4oEpS7+wyqySDBCRuM1y\nSWKiokxwEPAEJUOP8BL5+owyGa9glAREiFuuurMCgYATnhdZvNQ0eTDR7gxTrnlS\nZl5o9J744xDmB5mOCA19zGsbGLblI6EK71vcyhd4p/VSc/k4ch105F4iyLR6BFcJ\nd5D3JZiSoftWuRKl0hFDW198qPzf8N6r4JxBT9zBiZK/pPMzDIkMett+HbkEKzKQ\nSR5CCXrBVciMsJifep9uSQKBgQC6Y8AtCFj2MunpwP5/Mrp1Wa7ygPzVIKgQ/niX\nAclpvOZ1Wu70DGRvAOULNkarDmMtkNNYsnZaMtMlZPhVczlV/9NmZsFhu8eWN+tY\nTX2ZEu0uUOBFfEXAUINW+tor/4hD2neviB51TQRLdfZO5isyUboYH8MU9mby/Ru3\nE+EvtwKBgCAVdXWErd+xHLdcU1UqZEPO/s/Dok5vJqgDZLWdzrEv2O4jQ5RBA7r6\nlgXjwuvjgcWtLJKolxPSIcd/ZP2yxIuGAXuRGloKmEz13XOZvzqYZ6t3CRGl++Pj\nojYMBG29dekW0ceDPEIaIA817OdZKXfmOkNmPi3IDpbnav9ubq8a\n-----END RSA PRIVATE KEY-----\n"
-                },
-                "id": "webapp_wordpress_app1",
-                "lsyncd": {
-                  "slaves": []
+    def _add_mysql_tasks(self, wfspec, component_id, deployment, key,
+                context, service_name):
+        resource = deployment['resources'][key]
+        if resource['type'] == 'database':
+            options = {
+                    "database/create_database": True,
+                    "database/create_user": True,
+                    "database/root_pw": deployment.settings()['db_password'],
                 }
-              }
+            deployment.settings()['deployment_data_bag']['mysql'] = options
+
+    def _add_apache_tasks(self, wfspec, component_id, deployment, key,
+                context, service_name):
+        resource = deployment['resources'][key]
+        options = {
+                "domain_name": deployment.settings()['domain'],
+                "path": deployment.settings().get('url_path', '/'),
+                "ssl_cert": deployment.get_setting('ssl_certificate',
+                        resource_type=resource['type']),
+                "ssl_key": deployment.get_setting('ssl_private_key',
+                        resource_type=resource['type']),
+            }
+        deployment.settings()['deployment_data_bag']['apache'] = options
+
+    def _add_lsyncd_tasks(self, wfspec, component_id, deployment, key,
+                context, service_name):
+        """Configure lsyncd sync between servers.
+
+        lsyncd needs IPs of all servers. This means creating a merge task
+        that wires all server creates and writrs them to the data bag"""
+
+        print "*** LSYNCD BYPASSED ***"
+        return
+
+        def build_slave_list_code(my_task):
             #FIXME: this is a test. It doesn't account for master
+            bag = {'lsyncd': {}}
+
             for key, value in my_task.attributes.iteritems():
                 if key.endswith(".private_ip"):
                     bag['lsyncd']['slaves'].append(value)
 
-            my_task.set_attribute(bag=bag)
+            my_task.set_attribute(lsync_bag=bag)
 
-        build_bag = Transform(wfspec, "Build Data Bag",
-                transforms=[get_source_body(build_bag_code)],
+        #FIX ME: We don't need to build this for each server
+        build_bag = Transform(wfspec, "Build Data Bag:%s" % key,
+                transforms=[get_source_body(build_slave_list_code)],
                 description="Get all data needed for our cookbooks and place "
                         "it in a structure ready for storage in a databag",
-                defines=dict(provider=self.key, task_tags=None))
+                defines=dict(provider=self.key))
 
         # Build Bag needs to wait on all required resources
         # we need the keys from the environment
         predecessors = [self.prep_task]
+        resource = deployment['resources'][key]
         for relation in resource.get('relations', {}).values():
             if 'target' in relation:
                 # We are the source, so we need data from the target
@@ -166,38 +377,51 @@ class Provider(ProviderBase):
         wait_for(wfspec, build_bag, predecessors)
 
         # Call manage_databag(environment, bagname, itemname, contents)
-        write_bag = Celery(wfspec, 'Write Data Bag',
+        write_bag = Celery(wfspec, "Write lsyncd Slave List",
                'checkmate.providers.opscode.local.manage_databag',
                 call_args=[deployment['id'], deployment['id'],
-                        "webapp_wordpress_A", Attrib('bag')],
+                        Attrib('app_id'), Attrib('lsync_bag')],
                 secret_file='certificates/chef.pem',
-                defines=dict(resource=key,
-                            provider=self.key,
-                            task_tags=None),
+                merge=True,
+                defines=dict(provider=self.key,
+                            task_tags=['final']),
                 properties={'estimated_duration': 5})
         build_bag.connect(write_bag)
 
-        configure_task = Celery(wfspec, 'Configure Application:%s' % key,
+        if self.find_tasks(wfspec, provider=self.key, tag='master'):
+            # Mark first one as master
+            roles = ['lsyncd-master']
+        else:
+            roles = ['lsyncd-slave']
+
+        if 'hosted_on' in deployment['resources'][key]:
+            server_id = deployment['resources'][key]['hosted_on']
+            provider = deployment['resources'][server_id]['provider']
+        else:
+            server_id = key
+            provider = self.key
+        configure_task = Celery(wfspec, 'Configure lsyncd on %s' % server_id,
                'checkmate.providers.opscode.local.cook',
                 call_args=[Attrib('ip'), deployment['id']],
-                roles=['build-ks', 'wordpress-web'],
+                roles=roles,
                 password=Attrib('password'),
                 identity_file=Attrib('private_key_path'),
                 description="Push and apply Chef recipes on the server",
                 defines=dict(resource=key,
-                            provider=self.key,
-                            task_tags=['final']),
+                            provider=self.key),
                 properties={'estimated_duration': 100})
-
-        # Note: This join is assumed to exist by create_workflow
-        wait_for(wfspec, configure_task, [bootstrap_task, write_bag],
-                name="Check on Registration and Overrides:%s" % key,
-                description="Before applying chef recipes, we need to know "
-                "that the server has chef on it and that the overrides "
-                "(database settings) have been applied")
-
-        # The connection to overrides will be done later (using the join)
-        return dict(root=root, final=bootstrap_task)
+        # Find all host final tasks
+        tasks = self.find_tasks(wfspec, provider=provider, tag='final')
+        if not tasks:
+            raise Exception()
+        if tasks:
+            print tasks
+            print [t.get_proprty('resource') for t in tasks
+                    if t.get_property('resource')]
+            tasks = [t for t in tasks if t.get_property('resource')]
+            print tasks
+            if tasks:
+                wait_for(wfspec, configure_task, tasks)
 
     def add_connection_tasks(self, resource, key, relation, relation_key,
             wfspec, deployment):
@@ -209,12 +433,12 @@ class Provider(ProviderBase):
             # the 'override' dict to be available to future tasks
 
             db_final = self.find_tasks(wfspec, provider=target['provider'],
-                    tag='final')
+                    resource=relation['target'], tag='final')
             if not db_final:
                 raise CheckmateException("Database creation task not found")
             if len(db_final) > 1:
                 raise CheckmateException("Multiple database creation tasks "
-                        "found")
+                        "found: %s" % [t.name for t in db_final])
             db_final = db_final[0]
 
             def compile_override_code(my_task):
@@ -225,18 +449,19 @@ class Provider(ProviderBase):
                     'password': my_task.attributes['context']
                     ['db_password']}}}
 
-            compile_override = Transform(wfspec, "Prepare Overrides",
+            compile_override = Transform(wfspec, "Prepare Overrides:%s/%s" %
+                    (relation_key, key),
                     transforms=[get_source_body(compile_override_code)],
                     description="Get all the variables "
                             "we need (like database name and password) and "
                             "compile them into JSON that we can set on the "
                             "role or environment",
                     defines=dict(relation=relation_key,
-                                provider=self.key,
-                                task_tags=None))
+                                provider=self.key))
             db_final.connect(compile_override)
 
-            set_overrides = Celery(wfspec, 'Write Database Settings',
+            set_overrides = Celery(wfspec, "Write Database Settings:%s/%s" %
+                    (relation_key, key),
                     'checkmate.providers.opscode.local.manage_role',
                     call_args=['wordpress-web', deployment['id']],
                     override_attributes=Attrib('overrides'),
@@ -245,23 +470,65 @@ class Provider(ProviderBase):
                             "by the Chef recipe to connect to the DB",
                     defines=dict(relation=relation_key,
                                 resource=key,
-                                provider=self.key,
-                                task_tags=None),
+                                provider=self.key),
                     properties={'estimated_duration': 10})
-            wait_on = [compile_override, self.prep_task]
+            wait_on = [compile_override, self.data_bag_task]
             wait_for(wfspec, set_overrides, wait_on,
                     name="Wait on Environment and Settings:%s" % key)
 
             config_final = self.find_tasks(wfspec, resource=key,
-                    provider=self.key, tag='final')[0]
-            # Assuming input is join
-            assert isinstance(config_final.inputs[0], Merge)
-            set_overrides.connect(config_final.inputs[0])
-        elif relation.get('relation') == 'host':
-            pass
-        else:
-            LOG.warning("Provider '%s' does not recognized connection "
-                    "interface '%s'" % (self.key, interface))
+                    provider=self.key, tag='final')
+            wait_for(wfspec, set_overrides, config_final)
+
+        if relation_key == 'host':
+            # Wait on host to be ready
+            wait_on = self.get_host_ready_tasks(resource, wfspec,
+                    deployment)
+            if not wait_on:
+                raise CheckmateException("No host")
+
+            # Create chef setup tasks
+            register_node_task = Celery(wfspec,
+                    'Register Server:%s' % relation['target'],
+                    'checkmate.providers.opscode.local.register_node',
+                    call_args=[Attrib('ip'), deployment['id']],
+                    password=Attrib('password'),
+                    omnibus_version="0.10.10-1",
+                    identity_file=Attrib('private_key_path'),
+                    attributes={'deployment': {'id': deployment['id']}},
+                    defines=dict(resource=key,
+                                relation=relation_key,
+                                provider=self.key),
+                    description="Install Chef client on the target machine and "
+                           "register it in the environment",
+                    properties=dict(estimated_duration=120))
+
+            bootstrap_task = Celery(wfspec,
+                    'Pre-Configure Server:%s' % relation['target'],
+                    'checkmate.providers.opscode.local.cook',
+                    call_args=[Attrib('ip'), deployment['id']],
+                    recipes=['build-essential'],
+                    password=Attrib('password'),
+                    identity_file=Attrib('private_key_path'),
+                    description="Install build-essentials on server",
+                    defines=dict(resource=key,
+                                 relation=relation_key,
+                                 provider=self.key),
+                    properties=dict(estimated_duration=100,
+                                    task_tags=['final']))
+            register_node_task.connect(bootstrap_task)
+
+            # Register only when server is up and environment is ready
+            wait_on.append(self.prep_task)
+            root = wait_for(wfspec, register_node_task, wait_on,
+                    name="After Environment is Ready and Server %s is Up" %
+                            relation['target'],
+                    resource=key, relation=relation_key, provider=self.key)
+            if 'task_tags' in root.properties:
+                root.properties['task_tags'].append('root')
+            else:
+                root.properties['task_tags'] = ['root']
+            return dict(root=root, final=bootstrap_task)
 
     def get_catalog(self, context, type_filter=None):
         """Return stored/override catalog if it exists, else connect, build,

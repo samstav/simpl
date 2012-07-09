@@ -258,6 +258,43 @@ class Environment():
                 else:
                     LOG.warning("Ambiguous component %s matches: %s" %
                             (blueprint_entry, matches))
+
+    def get_interface_map(self):
+        """Get interfaces available from environment and providers that
+        provide them
+
+        :returns: dict of {interface={provider_key=[resource list]}}
+        example:
+        {
+            'mysql': {
+                    'databases': ['database'],
+                    'chef-local': ['database'],
+                }
+            }
+        """
+        results = {}
+        for provider_key, provider in self.get_providers().iteritems():
+            LOG.debug("%s provides %s" % (provider_key, provider.provides()))
+            for item in provider.provides():
+                resource_type, interface = item.items()[0]
+                assert resource_type in schema.RESOURCE_TYPES
+                if interface in results:
+                    interface_entry = results[interface]
+                    if provider_key in interface_entry:
+                        provider_entry = interface_entry[provider_key]
+                        if resource_type not in provider_entry:
+                            provider_entry.append(resource_type)
+                    else:
+                        provider_entry = [resource_type]
+                    interface_entry[provider_key] = provider_entry
+
+                    if len(interface_entry) > 1:
+                        LOG.warning("More than one provider for '%s': %s" % (
+                                interface, results[interface]))
+                else:
+                    results[interface] = {provider_key: [resource_type]}
+        return results
+
     def generate_key_pair(self, bits=2048):
         """Generates a private/public key pair.
 

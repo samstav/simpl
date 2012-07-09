@@ -7,13 +7,14 @@ from string import Template
 import unittest2 as unittest
 import uuid
 
+from celery.app import default_app
+from celery.result import AsyncResult
 import mox
 from mox import IsA, In, And, Or, IgnoreArg, ContainsKeyValue, Func, \
         StrContains
-from celery.app import default_app
-from celery.result import AsyncResult
 from SpiffWorkflow.storage import DictionarySerializer
 import yaml
+
 from checkmate.utils import yaml_to_dict
 
 LOG = logging.getLogger(__name__)
@@ -29,16 +30,17 @@ os.environ['CHECKMATE_BROKER_HOST'] = os.environ.get('CHECKMATE_BROKER_HOST',
 os.environ['CHECKMATE_BROKER_PORT'] = os.environ.get('CHECKMATE_BROKER_PORT',
         '5672')
 
-from checkmate import server  # enables logging
-from checkmate.deployments import plan_dict, get_os_env_keys
+from checkmate.server import RequestContext  # also enables logging
+from checkmate.deployments import plan, get_os_env_keys
 from checkmate.providers.base import PROVIDER_CLASSES, ProviderBase
 from checkmate.utils import resolve_yaml_external_refs, is_ssh_key
+from checkmate.workflows import create_workflow
 
 # Environment variables and safe alternatives
 ENV_VARS = {
         'CHECKMATE_CLIENT_USERNAME': 'john.doe',
         'CHECKMATE_CLIENT_APIKEY': 'secret-api-key',
-        'CHECKMATE_CLIENT_PUBLIC_KEY': 'ssh-rsa AAAAB3NzaC1...',
+        'CHECKMATE_CLIENT_PUBLIC_KEY': """ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQDtjYYMFbpCJ/ND3izZ1DqNFQHlooXyNcDGWilAqNqcCfz9L+gpGjY2pQlZz/1Hir3R8fz0MS9VY32RYmP3wWygt85kNccEkOpVGGpGyV/aMFaQHZD0h6d0AT+haP0Iig+OrH1YBnpdgVPWx3SbU4eV/KYGpO9Mintj3P54of22lTK4dOwCNvID9P9w+T1kMfdVxGwhqsSL0RxVXnSSkozXQWCNvaZJMUmidm8YA009c5PoksyWjl3EE+rEzZ8ywvtUJf9DvnLCESfhF3hK5lAiEd8z7gyiQnBexn/dXzldGFiJYJgQ5HolYaNMtTF+AQY6R6Qt0okCPyEDJxHJUM7d""",
         'CHECKMATE_CLIENT_PRIVATE_KEY': 'mumble-code',
         'CHECKMATE_CLIENT_DOMAIN': 'test.local',
         'CHECKMATE_CLIENT_REGION': 'north'
@@ -53,7 +55,8 @@ class StubbedWorkflowBase(unittest.TestCase):
         self.mox.UnsetStubs()
 
     def _get_stubbed_out_workflow(self, deployment):
-        result = plan_dict(deployment)
+        deployment = plan(deployment, RequestContext())
+        workflow = create_workflow(deployment, RequestContext())
 
         # Prepare expected call names, args, and returns for mocking
         def context_has_server_settings(context):
@@ -377,7 +380,7 @@ class StubbedWorkflowBase(unittest.TestCase):
             default_app.AsyncResult.__call__(async_mock.task_id).AndReturn(
                     async_mock)
 
-        return result
+        return dict(deployment=deployment, workflow=workflow)
 
 
 class TestWorkflowStubbing(StubbedWorkflowBase):
@@ -416,11 +419,12 @@ class TestWorkflowLogic(StubbedWorkflowBase):
                   name: test bp
                   services:
                     one:
-                      components:
-                        id: widget
+                      component:
+                        type: widget
+                        interface: foo
                     two:
-                      components:
-                        id: widget
+                      component:
+                        id: big_widget
                 environment:
                   name: environment
                   providers:
@@ -429,6 +433,16 @@ class TestWorkflowLogic(StubbedWorkflowBase):
                       - widget: foo
                       - widget: bar
                       vendor: test
+                      catalog:
+                        widget:
+                          small_widget:
+                            is: widget
+                            provides:
+                            - widget: foo
+                          big_widget:
+                            is: widget
+                            provides:
+                            - widget: bar
                     common:
                       credentials:
                       - password: secret
@@ -443,7 +457,7 @@ class TestWorkflowLogic(StubbedWorkflowBase):
 
         workflow.complete_all()
         self.assertTrue(workflow.is_completed())
-        self.assertEqual(len(workflow.get_tasks()), 4)  # until we remove auth
+        self.assertEqual(len(workflow.get_tasks()), 3)
 
 
 class TestWorkflow(StubbedWorkflowBase):
@@ -463,9 +477,8 @@ class TestWorkflow(StubbedWorkflowBase):
         parsed = t.safe_substitute(**combined)
         app = yaml.safe_load(yaml.emit(resolve_yaml_external_refs(parsed),
                          Dumper=yaml.SafeDumper))
-        deployment = app['deployment']
-        deployment['id'] = 'DEP-ID-1000'
-        cls.deployment = deployment
+        app['id'] = 'DEP-ID-1000'
+        cls.deployment = app
 
     def setUp(self):
         StubbedWorkflowBase.setUp(self)
@@ -540,13 +553,12 @@ class TestWordpressWorkflow(StubbedWorkflowBase):
         parsed = t.safe_substitute(**combined)
         app = yaml.safe_load(yaml.emit(resolve_yaml_external_refs(parsed),
                          Dumper=yaml.SafeDumper))
-        deployment = app['deployment']
-        deployment['id'] = 'DEP-ID-1000'
-        cls.deployment = deployment
+        app['id'] = 'DEP-ID-1000'
+        cls.deployment = app
 
         # WordPress Settings
         inputs = yaml_to_dict("""
-                client_public_key_ssh: ssh-rsa AAAAB3NzaC1...
+                client_public_key_ssh: %s
                 environment_private_key: |
                     -----BEGIN RSA PRIVATE KEY-----
                     MIIEpAIBAAKCAQEAvQYtPZCP+5SVD68nf9OzEEE7itZlfynbf/XRQ6YggOa0t1U5
@@ -598,14 +610,91 @@ class TestWordpressWorkflow(StubbedWorkflowBase):
                 providers:
                   'legacy':
                     'compute':
-                      'os': Ubuntu 12.04
-                      """)
-        deployment['inputs'] = inputs
+                      'os': Ubuntu 12.04 LTS
+                      """ % ENV_VARS['CHECKMATE_CLIENT_PUBLIC_KEY'])
+        cls.deployment['inputs'] = inputs
 
     def setUp(self):
         StubbedWorkflowBase.setUp(self)
         # Parse app.yaml as a deployment
         result = self._get_stubbed_out_workflow(TestWordpressWorkflow.deployment)
+        self.deployment = result['deployment']
+        self.workflow = result['workflow']
+
+    def test_workflow_completion(self):
+        """Verify workflow sequence and data flow"""
+
+        self.mox.ReplayAll()
+
+        self.workflow.complete_all()
+        self.assertTrue(self.workflow.is_completed())
+
+        serializer = DictionarySerializer()
+        simulation = self.workflow.serialize(serializer)
+        simulation['id'] = 'simulate'
+
+
+class TestDBWorkflow(StubbedWorkflowBase):
+    """ Test MySQL and DBaaS Workflow """
+
+    @classmethod
+    def setUpClass(cls):
+        deployment = yaml_to_dict("""
+                id: 'DEP-ID-1000'
+                blueprint:
+                  name: test db
+                  services:
+                    db:
+                      component:
+                        id: my_sql
+                        is: database
+                        type: database
+                        requires:
+                          "server":
+                            relation: host
+                            interface: 'linux'
+                environment:
+                  name: test
+                  providers:
+                    database:
+                      vendor: rackspace
+                      provides:
+                      - database: mysql
+                      catalog:  # override so we don't need a token to connect
+                        database:
+                          mysql_instance:
+                            id: mysql_instance
+                            is: database
+                            provides:
+                            - database: mysql
+                        lists:
+                          regions:
+                            DFW: https://dfw.databases.api.rackspacecloud.com/v1.0/T1000
+                            ORD: https://ord.databases.api.rackspacecloud.com/v1.0/T1000
+                          sizes:
+                            1:
+                              memory: 512
+                              name: m1.tiny
+                            2:
+                              memory: 1024
+                              name: m1.small
+                            3:
+                              memory: 2048
+                              name: m1.medium
+                            4:
+                              memory: 4096
+                              name: m1.large
+                    chef-local:
+                      vendor: opscode
+                      provides:
+                      - database: mysql
+            """)
+        cls.deployment = deployment
+
+    def setUp(self):
+        StubbedWorkflowBase.setUp(self)
+        # Parse app.yaml as a deployment
+        result = self._get_stubbed_out_workflow(self.deployment)
         self.deployment = result['deployment']
         self.workflow = result['workflow']
 

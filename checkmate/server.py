@@ -141,7 +141,11 @@ def hack():
     if any_id_problems(entity['id']):
         abort(406, any_id_problems(entity['id']))
 
-    return write_body(entity, request, response)
+    from checkmate.deployments import Deployment, plan
+    dep = Deployment(entity)
+    plan(dep, request.context)
+
+    return write_body(dep.settings(), request, response)
 
 
 @get('/test/async')

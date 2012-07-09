@@ -22,48 +22,35 @@ class RackspaceComputeProviderBase(ProviderBase):
     """Generic functions for rackspace Compute providers"""
     def __init__(self, provider, key=None):
         ProviderBase.__init__(self, provider, key=key)
-        self.prep_task = None
 
-    def prep_environment(self, wfspec, deployment):
-
-        def get_keys_code(my_task):
-            keys = set()
-            for key, value in my_task.attributes['context'].get('keys',
-                        {}).iteritems():
-                if 'public_key_ssh' in value:
-                    keys.add(value['public_key_ssh'])
-                elif 'public_key' in value:
-                    LOG.warning("Code still using public_key without _ssh")
-            if keys:
-                path = '/root/.ssh/authorized_keys'
-                if not 'files' in my_task.attributes:
-                    my_task.attributes['files'] = {}
-                keys_string = '\n'.join(keys)
-                if path in my_task.attributes['files']:
-                    my_task.attributes['files'][path] += keys_string
-                else:
-                    my_task.attributes['files'][path] = keys_string
-
-        self.prep_task = Transform(wfspec, "Get Keys to Inject",
-                transforms=[get_source_body(get_keys_code)],
-                description="Collect keys into correct files syntax")
-
-        #TODO: remove direct-coding to config provider task names
-        config_spec = wfspec.task_specs['Create Chef Environment']
-        config_spec.connect(self.prep_task)
-        return {'root': self.prep_task, 'final': self.prep_task}
+    def prep_environment(self, wfspec, deployment, context):
+        keys = set()
+        for key, value in deployment.settings().get('keys', {}).iteritems():
+            if 'public_key_ssh' in value:
+                keys.add(value['public_key_ssh'])
+            elif 'public_key' in value:
+                LOG.warning("Code still using public_key without _ssh")
+        if keys:
+            path = '/root/.ssh/authorized_keys'
+            if not 'files' in deployment.settings():
+                deployment.settings()['files'] = {path: '\n'.join(keys)}
+            else:
+                existing = deployment.settings()['files'][path].split('\n')
+                keys.update(existing)
+                deployment.settings()['files'][path] = '\n'.join(keys)
 
 
 class Provider(RackspaceComputeProviderBase):
     name = 'nova'
 
-    def generate_template(self, deployment, resource_type, service, name=None):
+    def generate_template(self, deployment, resource_type, service, context,
+            name=None):
         template = RackspaceComputeProviderBase.generate_template(self,
-                deployment, resource_type, service, name=name)
+                deployment, resource_type, service, context, name=name)
 
         # Find and translate image
-        image = self.get_deployment_setting(deployment, 'os',
-                resource_type=resource_type, service=service)
+        image = deployment.get_setting('os', resource_type=resource_type,
+                service_name=service, provider_key=self.key)
 
         if image == 'Ubuntu 11.10':
             image = '3afe97b2-26dc-49c5-a2cc-a2fc8d80c001'
@@ -72,8 +59,8 @@ class Provider(RackspaceComputeProviderBase):
                     image, self.name))
 
         # Find and translate flavor
-        flavor = self.get_deployment_setting(deployment, 'memory',
-                resource_type=resource_type, service=service, default=2)
+        flavor = deployment.get_setting('memory', resource_type=resource_type,
+                service_name=service, provider_key=self.key, default=2)
         if isinstance(flavor, int):
             pass
         else:
@@ -174,7 +161,7 @@ class Provider(RackspaceComputeProviderBase):
             results['lists']['sizes'] = {
                 f.id: {
                     'name': f.name,
-                    'ram': f.ram,
+                    'memory': f.ram,
                     'disk': f.disk,
                     } for f in flavors}
 

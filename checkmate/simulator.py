@@ -27,9 +27,9 @@ from SpiffWorkflow.storage import DictionarySerializer
 
 from checkmate.common import schema
 from checkmate.db import any_id_problems
+from checkmate.deployments import plan, Deployment
+from checkmate.workflows import get_SpiffWorkflow_status, create_workflow
 from checkmate.utils import write_body, read_body, with_tenant
-from checkmate.deployments import plan_dict
-from checkmate.workflows import get_SpiffWorkflow_status
 
 
 PHASE = time.time()
@@ -53,21 +53,23 @@ def simulate(tenant_id=None):
     if any_id_problems(entity['id']):
         abort(406, any_id_problems(entity['id']))
 
-    errors = schema.validate(entity, schema.DEPLOYMENT_FIELDS)
-    if errors:
-        abort(406, "Invalid deployment: %s" % '\n'.join(errors))
+    deployment = Deployment(entity)
+    if 'includes' in deployment:
+        del deployment['includes']
 
     if tenant_id:
         response.add_header('Location', "/%s/deployments/simulate" % tenant_id)
     else:
         response.add_header('Location', "/deployments/simulate")
 
-    results = plan_dict(entity)
+    PACKAGE = deployment
+    results = plan(deployment, request.context)
     PACKAGE = results
 
     serializer = DictionarySerializer()
-    workflow = results['workflow'].serialize(serializer)
-    results['workflow'] = workflow
+    workflow = create_workflow(deployment, request.context)
+    serialized_workflow = workflow.serialize(serializer)
+    results['workflow'] = serialized_workflow
     results['workflow']['id'] = 'simulate'
     PACKAGE = results
 
