@@ -270,7 +270,9 @@ function DeploymentStatusCtrl($scope, $location, $http, $routeParams) {
           $scope.workflow = workflow;
           $scope.task_specs = workflow.wf_spec.task_specs;
 
-          $scope.tasks = $scope.flattenTasks({}, workflow.task_tree)
+          $scope.tasks = $scope.flattenTasks({}, workflow.task_tree);
+          $scope.jit = $scope.jitTasks($scope.tasks);
+          cm.graph.createGraph("graph", $scope.jit);
         });
     });
 
@@ -283,67 +285,82 @@ function DeploymentStatusCtrl($scope, $location, $http, $routeParams) {
       });
     }
 
-    /**
-     *  FUTURE    =   1
-     *  LIKELY    =   2
-     *  MAYBE     =   4
-     *  WAITING   =   8
-     *  READY     =  16
-     *  CANCELLED =  32
-     *  COMPLETED =  64
-     *  TRIGGERED = 128
-     *
-     *  TODO: This will be fixed in the API, see:
-     *    https://github.rackspace.com/checkmate/checkmate/issues/45
-     */
-    $scope.iconify = function(state) {
-      switch(state) {
-        case 1:
-          return "icon-fast-forward";
-          break;
-        case 2:
-          return "icon-thumbs-up"
-          break;
-        case 4:
-          return "icon-hand-right";
-          break;
-        case 8:
-          return "icon-pause"
-          break;
-        case 16:
-          return "icon-plus";
-          break;
-        case 32:
-          return "icon-remove";
-          break;
-        case 64:
-          return "icon-ok";
-          break;
-        case 128:
-          return "icon-adjust";
-          break;
-        default:
-          console.log("Invalid state '" + state + "'.");
-          return "icon-question-sign"
-        break;
-      }
-    }
-
     return accumulator;
   }
 
-  $scope.renderTask = function(task) {
-    if (!task) {
-      return "<em>Task is null.</em>";
-    }
+  $scope.jitTasks = function(tasks) {
+    var jsonTasks = new Array();
 
-    if (task.outputs.length > 0) {
-      var template = $('#task-with-children').html();
-    } else {
-      var template = $('#task-leaf').html();
-    }
+    _.each(tasks, function(task) {
+      var adjacencies = new Array();
+      _.each(task.children, function(child) {
+        var adj = {
+          nodeTo: child.task_spec,
+          nodeFrom: task.task_spec,
+          data: {}        
+        }
+        adjacencies.push(adj);
+      }); 
 
-    return Mustache.render(template, task);
+      var t = {
+        id: task.task_spec,
+        name: task.task_spec,
+        adjacencies: adjacencies,
+        data: {
+          "$color": "#83548B",
+          "$type": "circle"
+        }
+      }
+      jsonTasks.push(t);
+    });
+
+    return jsonTasks;
+  }
+
+  /**
+   *  FUTURE    =   1
+   *  LIKELY    =   2
+   *  MAYBE     =   4
+   *  WAITING   =   8
+   *  READY     =  16
+   *  CANCELLED =  32
+   *  COMPLETED =  64
+   *  TRIGGERED = 128
+   *
+   *  TODO: This will be fixed in the API, see:
+   *    https://github.rackspace.com/checkmate/checkmate/issues/45
+   */
+  $scope.iconify = function(state) {
+    switch(state) {
+      case 1:
+        return "icon-fast-forward";
+        break;
+      case 2:
+        return "icon-thumbs-up"
+        break;
+      case 4:
+        return "icon-hand-right";
+        break;
+      case 8:
+        return "icon-pause"
+        break;
+      case 16:
+        return "icon-plus";
+        break;
+      case 32:
+        return "icon-remove";
+        break;
+      case 64:
+        return "icon-ok";
+        break;
+      case 128:
+        return "icon-adjust";
+        break;
+      default:
+        console.log("Invalid state '" + state + "'.");
+        return "icon-question-sign"
+      break;
+    }
   }
 }
 DeploymentStatusCtrl.$inject = ['$scope', '$location', '$http', '$routeParams'];

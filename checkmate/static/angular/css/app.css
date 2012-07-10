@@ -5,3 +5,8 @@
 label.capitalize {
   text-transform:capitalize;
 }
+
+#graph {
+  height: 700px; 
+  background-color: #404040;
+}
