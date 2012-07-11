@@ -447,6 +447,11 @@ includes:
         - service: backend
           resource_type: database
           setting: "database/name"
+      "region":
+        label: Region
+        type: select
+        choice: [dallas, chicago]
+        required: true
       "ssl": &ssl
         label: SSL Enabled
         default: false
@@ -915,7 +920,7 @@ inputs: # Answers to or values for blueprint/provider options & settings.
     "ssl": required  # no port 80
     "ssl_certificate": skldjfhalkjsdfhasd
     "ssl_private_key": asdfasdfasdf
-    "region": ${CHECKMATE_CLIENT_REGION}  # TODO: this is still read from os.environ
+    "region": ${CHECKMATE_CLIENT_REGION}
     "high-availability": false
     "requests-per-second": 60
   services:

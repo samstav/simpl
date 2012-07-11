@@ -469,7 +469,7 @@ def create_workflow(deployment, context):
     workflow = Workflow(wfspec)
     #Pass in the initial deployemnt dict (task 2 is the Start task)
     runtime_context = copy.copy(deployment.settings())
-    runtime_context['token'] = context.auth_tok
+    runtime_context['token'] = context.auth_token
     workflow.get_task(2).set_attribute(**runtime_context)
 
     # Calculate estimated_duration

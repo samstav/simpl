@@ -170,12 +170,17 @@ class Provider(RackspaceComputeProviderBase):
         self.validate_catalog(results)
         return results
 
-    def _connect(self, context):
+    @staticmethod
+    def _connect(context):
         """Use context info to connect to API and return api object"""
-        if not context.auth_tok:
+        #FIXME: figure out better serialization/deserialization scheme
+        if isinstance(context, dict):
+            from checkmate.server import RequestContext
+            context = RequestContext(**context)
+        if not context.auth_token:
             raise CheckmateNoTokenError()
         api = openstack.compute.Compute()
-        api.client.auth_token = context.auth_tok
+        api.client.auth_token = context.auth_token
 
         def find_url(catalog):
             for service in catalog:
@@ -197,21 +202,16 @@ import openstack.compute
 from checkmate.ssh import test_connection
 
 
-def _get_server_object(deployment):
-    return openstack.compute.Compute(username=deployment['username'],
-                                     apikey=deployment['apikey'])
-
-
 """ Celeryd tasks """
 
 
 @task
-def create_server(deployment, name, api_object=None, flavor=1, files=None,
+def create_server(context, name, api_object=None, flavor=1, files=None,
             image=119, ip_address_type='public', prefix=None):
     """Create a Rackspace Cloud server.
 
-    :param deployment: the deployment information
-    :type deployment: dict
+    :param context: the context information
+    :type context: dict
     :param name: the name of the server
     :param api_object: existing, authenticated connection to API
     :param image: the image ID to use when building the server (which OS)
@@ -239,7 +239,7 @@ def create_server(deployment, name, api_object=None, flavor=1, files=None,
 
     """
     if api_object is None:
-        api_object = _get_server_object(deployment)
+        api_object = Provider._connect(context)
 
     LOG.debug('Image=%s, Flavor=%s, Name=%s, Files=%s' % (
                   image, flavor, name, files))
@@ -282,7 +282,7 @@ def create_server(deployment, name, api_object=None, flavor=1, files=None,
 
 
 @task(default_retry_delay=10, max_retries=18)  # ~3 minute wait
-def wait_on_build(deployment, id, ip_address_type='public',
+def wait_on_build(context, id, ip_address_type='public',
             check_ssh=True, username='root', timeout=10, password=None,
             identity_file=None, port=22, api_object=None, prefix=None):
     """Checks build is complete and. optionally, that SSH is working.
@@ -292,7 +292,7 @@ def wait_on_build(deployment, id, ip_address_type='public',
     :returns: False when build not ready. Dict with ip addresses when done.
     """
     if api_object is None:
-        api_object = _get_server_object(deployment)
+        api_object = Provider._connect(context)
 
     server = api_object.servers.find(id=id)
     results = {'id': id,
@@ -339,7 +339,7 @@ def wait_on_build(deployment, id, ip_address_type='public',
     if not ip:
         raise StocktonException("Could not find IP of server %s" % (id))
     else:
-        up = test_connection(deployment, ip, username, timeout=timeout,
+        up = test_connection(context, ip, username, timeout=timeout,
                 password=password, identity_file=identity_file, port=port)
         if up:
             LOG.info("Server %s is up" % id)
@@ -395,8 +395,8 @@ def _convert_v1_adresses_to_v2(addresses):
 
 
 @task
-def delete_server(deployment, serverid, api_object=None):
+def delete_server(context, serverid, api_object=None):
     if api_object is None:
-        api_object = _get_server_object(deployment)
+        api_object = Provider._connect(context)
     api_object.servers.delete(serverid)
     LOG.debug('Server %d deleted.' % serverid)

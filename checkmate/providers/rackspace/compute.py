@@ -68,8 +68,16 @@ class Provider(RackspaceComputeProviderBase):
             raise CheckmateNoMapping("No flavor mapping for '%s' in '%s'" % (
                     flavor, self.name))
 
+        # Get region
+        region = deployment.get_setting('region', resource_type=resource_type,
+                service_name=service, provider_key=self.key)
+        if not region:
+            raise CheckmateException("Could not identify which region to "
+                    "create servers in")
+
         template['flavor'] = flavor
         template['image'] = image
+        template['region'] = region
         return template
 
     def add_resource_tasks(self, resource, key, wfspec, deployment,
@@ -83,7 +91,7 @@ class Provider(RackspaceComputeProviderBase):
         create_server_task = Celery(wfspec, 'Create Server:%s' % key,
                'checkmate.providers.rackspace.compute.create_server',
                call_args=[context.get_queued_task_dict(),
-               resource.get('dns-name')],
+               resource.get('dns-name'), resource['region']],
                prefix=key,
                image=resource.get('image',
                         '3afe97b2-26dc-49c5-a2cc-a2fc8d80c001'),
@@ -94,7 +102,8 @@ class Provider(RackspaceComputeProviderBase):
 
         build_wait_task = Celery(wfspec, 'Check that Server is Up:%s'
                 % key, 'checkmate.providers.rackspace.compute.wait_on_build',
-                call_args=[context.get_queued_task_dict(), Attrib('id'), 'root'],
+                call_args=[context.get_queued_task_dict(), Attrib('id'),
+                    'root', resource['region']],
                 password=Attrib('password'),
                 prefix=key,
                 identity_file=Attrib('public_key_path'),
@@ -181,27 +190,44 @@ class Provider(RackspaceComputeProviderBase):
         self.validate_catalog(results)
         return results
 
-    def _connect(self, context):
+    @staticmethod
+    def _connect(context, region=None):
         """Use context info to connect to API and return api object"""
+        #FIXME: figure out better serialization/deserialization scheme
+        if isinstance(context, dict):
+            from checkmate.server import RequestContext
+            context = RequestContext(**context)
         #TODO: Hard-coded to Rax auth for now
-        #FIXME: handle region in context
-        if not context.auth_tok:
+        if not context.auth_token:
             raise CheckmateNoTokenError()
-        os.environ['NOVA_RAX_AUTH'] = "Yes Please!"
-        api = client.Client(context.user, 'dummy', None,
-                "https://identity.api.rackspacecloud.com/v2.0",
-                region_name=None, service_type="compute",
-                service_name='cloudServersOpenStack')
-        api.client.auth_token = context.auth_tok
 
-        def find_url(catalog):
+        def find_url(catalog, region):
             for service in catalog:
                 if service['name'] == 'cloudServersOpenStack':
                     endpoints = service['endpoints']
                     for endpoint in endpoints:
-                        return endpoint['publicURL']
+                        if endpoint.get('region') == region:
+                            return endpoint['publicURL']
 
-        url = find_url(context.catalog)
+        def find_a_region(catalog):
+            """Any region"""
+            for service in catalog:
+                if service['name'] == 'cloudServersOpenStack':
+                    endpoints = service['endpoints']
+                    for endpoint in endpoints:
+                        return endpoint['region']
+
+        if not region:
+            region = find_a_region(context.catalog) or 'DFW'
+
+        os.environ['NOVA_RAX_AUTH'] = "Yes Please!"
+        api = client.Client(context.username, 'dummy', None,
+                "https://identity.api.rackspacecloud.com/v2.0",
+                region_name=region, service_type="compute",
+                service_name='cloudServersOpenStack')
+        api.client.auth_token = context.auth_token
+
+        url = find_url(context.catalog, region)
         api.client.management_url = url
 
         return api
@@ -259,7 +285,7 @@ def _get_api_connection(deployment):
 # Celery Tasks
 #
 @task
-def create_server(deployment, name, api_object=None, flavor="1",
+def create_server(deployment, name, region, api_object=None, flavor="1",
             files=None, image='3afe97b2-26dc-49c5-a2cc-a2fc8d80c001',
             prefix=None):
     """Create a Rackspace Cloud server using novaclient.
@@ -296,7 +322,7 @@ def create_server(deployment, name, api_object=None, flavor="1",
 
     """
     if api_object is None:
-        api_object = _get_api_connection(deployment)
+        api_object = Provider._connect(context, region)
 
     LOG.debug('Image=%s, Flavor=%s, Name=%s, Files=%s' % (
                   image, flavor, name, files))

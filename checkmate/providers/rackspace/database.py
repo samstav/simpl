@@ -2,6 +2,7 @@ import logging
 import random
 import string
 
+from celery.task import task
 import clouddb
 from SpiffWorkflow.operators import Attrib
 from SpiffWorkflow.specs import Celery
@@ -12,6 +13,11 @@ from checkmate.exceptions import CheckmateException, CheckmateNoMapping, \
 from checkmate.providers import ProviderBase
 
 LOG = logging.getLogger(__name__)
+
+# Any names should become airport codes
+REGION_MAP = {'dallas': 'DFW',
+              'chicago': 'ORD',
+              'london': 'LON'}
 
 
 class Provider(ProviderBase):
@@ -24,6 +30,7 @@ class Provider(ProviderBase):
                 deployment, resource_type, service, context, name=name)
 
         catalog = self.get_catalog(context)
+
         # Get flavor
         memory = deployment.get_setting('memory', resource_type=resource_type,
                 service_name=service, provider_key=self.key) or 512
@@ -42,8 +49,16 @@ class Provider(ProviderBase):
         volume = deployment.get_setting('disk', resource_type=resource_type,
                 service_name=service, provider_key=self.key, default=1)
 
+        # Get region
+        region = deployment.get_setting('region', resource_type=resource_type,
+                service_name=service, provider_key=self.key)
+        if not region:
+            raise CheckmateException("Could not identify which region to "
+                    "create database in")
+
         template['flavor'] = flavor
         template['disk'] = volume
+        template['region'] = region
         return template
 
     def add_resource_tasks(self, resource, key, wfspec, deployment, context,
@@ -91,7 +106,9 @@ class Provider(ProviderBase):
                         resource.get('dns-name'),
                         resource.get('disk', 1),
                         resource.get('flavor', 1),
-                        [{'name': db_name}]],
+                        [{'name': db_name}],
+                        resource['region'],
+                    ],
                prefix=key,
                defines=dict(resource=key,
                             provider=self.key,
@@ -101,7 +118,9 @@ class Provider(ProviderBase):
                'checkmate.providers.rackspace.database.add_user',
                call_args=[context.get_queued_task_dict(),
                         Attrib('id'), [db_name],
-                        username, password],
+                        username, password,
+                        resource['region'],
+                        ],
                defines=dict(resource=key,
                             provider=self.key,
                             task_tags=['final']),
@@ -169,30 +188,46 @@ class Provider(ProviderBase):
         self.validate_catalog(results)
         return results
 
-    def _connect(self, context):
+    @staticmethod
+    def _connect(context, region=None):
         """Use context info to connect to API and return api object"""
-        #FIXME: handle region in context
-        if not context.auth_tok:
+        #FIXME: figure out better serialization/deserialization scheme
+        if isinstance(context, dict):
+            from checkmate.server import RequestContext
+            context = RequestContext(**context)
+        if not context.auth_token:
             raise CheckmateNoTokenError()
 
-        def find_url(catalog):
+        # Make sure we use airport codes (translate cities to that)
+        if region in REGION_MAP:
+            region = REGION_MAP[region]
+
+        def find_url(catalog, region):
             for service in catalog:
                 if service['type'] == 'rax:database':
                     endpoints = service['endpoints']
                     for endpoint in endpoints:
-                        return endpoint['publicURL']
+                        if endpoint.get('region') == region:
+                            return endpoint['publicURL']
 
         def find_a_region(catalog):
+            """Any region"""
             for service in catalog:
                 if service['type'] == 'rax:database':
                     endpoints = service['endpoints']
                     for endpoint in endpoints:
                         return endpoint['region']
 
-        api = clouddb.CloudDB(context.user, 'dummy',
-                find_a_region(context.catalog) or 'DFW')
-        api.client.auth_token = context.auth_tok
-        url = find_url(context.catalog)
+        if not region:
+            region = find_a_region(context.catalog) or 'DFW'
+
+        #TODO: instead of hacking auth using a token, submit patch upstream
+        url = find_url(context.catalog, region)
+        if not url:
+            raise CheckmateException("Unable to locate region url for DBaaS "
+                    "for region '%s'" % region)
+        api = clouddb.CloudDB(context.username, 'dummy', region)
+        api.client.auth_token = context.auth_token
         api.client.region_account_url = url
 
         return api
@@ -201,25 +236,8 @@ class Provider(ProviderBase):
 #
 # Celery tasks
 #
-from celery.task import task
-import clouddb
-
-REGION_MAP = {'DFW': 'dallas',
-              'ORD': 'chicago',
-              'LON': 'london'}
-
-
-def _get_db_object(context):
-    region = context['region']
-    # Map to clouddb library known names (it uses full names)
-    if region in REGION_MAP:
-        region = REGION_MAP[region]
-    return clouddb.CloudDB(context['username'], context['apikey'],
-                           region)
-
-
 @task(default_retry_delay=10, max_retries=2)
-def create_instance(context, instance_name, size, flavor, databases,
+def create_instance(context, instance_name, size, flavor, databases, region,
         prefix=None, api=None):
     """Creates a Cloud Database instance with optional initial databases.
 
@@ -231,7 +249,7 @@ def create_instance(context, instance_name, size, flavor, databases,
                     'collate': 'latin5_turkish_ci'}]
     """
     if not api:
-        api = _get_db_object(context)
+        api = Provider._connect(context, region)
 
     instance = api.create_instance(instance_name, size, flavor,
                                           databases=databases)
@@ -240,7 +258,7 @@ def create_instance(context, instance_name, size, flavor, databases,
             databases))
 
     results = dict(id=instance.id, name=instance.name, status=instance.status,
-            hostname=instance.hostname)
+            hostname=instance.hostname, region=region)
     if prefix:
         # Add each value back in with the prefix
         results.update({'%s.%s' % (prefix, key): value for key, value in
@@ -250,7 +268,7 @@ def create_instance(context, instance_name, size, flavor, databases,
 
 
 @task(default_retry_delay=10, max_retries=10)
-def add_databases(context, instance_id, databases, api=None):
+def add_databases(context, instance_id, databases, region, api=None):
     """Adds new database(s) to an existing instance.
 
     :param databases: a list of dictionaries with a required key for database
@@ -263,7 +281,7 @@ def add_databases(context, instance_id, databases, api=None):
         databases = [{'name': 'mydb3'}, {'name': 'mydb4'}]
     """
     if not api:
-        api = _get_db_object(context)
+        api = Provider._connect(context, region)
 
     dbnames = []
     for db in databases:
@@ -276,10 +294,11 @@ def add_databases(context, instance_id, databases, api=None):
 
 
 @task(default_retry_delay=10, max_retries=10)
-def add_user(context, instance_id, databases, username, password, api=None):
+def add_user(context, instance_id, databases, username, password, region,
+        api=None):
     """Add a database user to an instance for one or more databases"""
     if not api:
-        api = _get_db_object(context)
+        api = Provider._connect(context, region)
 
     instance = api.get_instance(instance_id)
     instance.create_user(username, password, databases)
@@ -289,22 +308,22 @@ def add_user(context, instance_id, databases, username, password, api=None):
 
 
 @task(default_retry_delay=10, max_retries=10)
-def delete_instance(context, instance_id, api=None):
+def delete_instance(context, instance_id, region, api=None):
     """Deletes a database server instance and its associated databases and
     users.
     """
     if not api:
-        api = _get_db_object(context)
+        api = Provider._connect(context, region)
 
     api.delete_instance(instanceid=instance_id)
     LOG.info('Database instance %s deleted.' % instance_id)
 
 
 @task(default_retry_delay=10, max_retries=10)
-def delete_database(deployment, instance_id, db, api=None):
+def delete_database(context, instance_id, db, region, api=None):
     """Delete a database from an instance"""
     if not api:
-        api = _get_db_object(deployment)
+        api = Provider._connect(context, region)
 
     instance = api.get_instance(instance_id)
     instance.delete_database(db)
@@ -312,10 +331,10 @@ def delete_database(deployment, instance_id, db, api=None):
 
 
 @task(default_retry_delay=10, max_retries=10)
-def delete_user(deployment, instance_id, username, api=None):
+def delete_user(context, instance_id, username, region, api=None):
     """Delete a database user from an instance."""
     if api is None:
-        api = _get_db_object(deployment)
+        api = Provider._connect(context, region)
 
     instance = api.get_instance(instanceid=instance_id)
     instance.delete_user(username)

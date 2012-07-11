@@ -371,7 +371,7 @@ class PAMAuthMiddleware(object):
                         return HTTPUnauthorized("Invalid credentials")(e, h)
                     LOG.debug("PAM authenticated '%s' as admin" % login)
                     context.domain = self.domain
-                    context.user = username
+                    context.username = username
                     context.authenticated = True
                     context.is_admin = self.all_admins
 
@@ -739,8 +739,7 @@ class BrowserMiddleware(object):
             template = env.get_template("%s.template" % name)
             return template.render(data=data, source=json.dumps(data,
                     indent=2), tenant_id=tenant_id)
-        except StandardError as exc:
-            LOG.exception(exc)
+        except StandardError:
             try:
                 template = env.get_template("default.template")
                 return template.render(data=data, source=json.dumps(data,
@@ -800,13 +799,13 @@ class RequestContext(object):
     accesses the system, as well as additional request information.
     """
 
-    def __init__(self, auth_tok=None, user=None, tenant=None, is_admin=False,
+    def __init__(self, auth_token=None, username=None, tenant=None, is_admin=False,
                  read_only=False, show_deleted=False, authenticated=False,
                  catalog=None, user_tenants=None, roles=None, domain=None):
         self.authenticated = authenticated
-        self.auth_tok = auth_tok
+        self.auth_token = auth_token
         self.catalog = catalog
-        self.user = user
+        self.username = username
         self.user_tenants = user_tenants  # all allowed tenants
         self.tenant = tenant  # current tenant
         self.is_admin = is_admin
@@ -822,8 +821,8 @@ class RequestContext(object):
         Only certain fields are needed.
         """
         result = dict(
-                username=self.user,
-                token=self.auth_tok,
+                username=self.username,
+                auth_token=self.auth_token,
                 catalog=self.catalog,
             )
         return result
@@ -841,8 +840,8 @@ class RequestContext(object):
         self.catalog = catalog
         user_tenants = self.get_user_tenants(content)
         self.user_tenants = user_tenants
-        self.auth_tok = content['access']['token']['id']
-        self.user = self.get_user(content)
+        self.auth_token = content['access']['token']['id']
+        self.username = self.get_username(content)
         self.roles = self.get_roles(content)
         self.authenticated = True
 
@@ -884,7 +883,7 @@ class RequestContext(object):
                     user_tenants[endpoint['tenantId']] = None
         return user_tenants.keys()
 
-    def get_user(self, content):
+    def get_username(self, content):
         return content['access']['user']['name']
 
     def get_roles(self, content):

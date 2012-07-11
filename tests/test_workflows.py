@@ -165,7 +165,7 @@ class StubbedWorkflowBase(unittest.TestCase):
         :param deployment: a Deployment object
         """
         assert isinstance(deployment, Deployment)
-        context = RequestContext(auth_tok="MOCK_TOKEN", user="MOCK_USER",
+        context = RequestContext(auth_token="MOCK_TOKEN", username="MOCK_USER",
                 catalog=CATALOG)
         deployment = plan(deployment, context)
         workflow = create_workflow(deployment, context)
@@ -173,7 +173,7 @@ class StubbedWorkflowBase(unittest.TestCase):
         # Prepare expected call names, args, and returns for mocking
         def is_good_context(context):
             """Checks that call has all necessary context data"""
-            for key in ['token', 'username', 'catalog']:
+            for key in ['auth_token', 'username', 'catalog']:
                 if key not in context:
                     LOG.warn("Context does not have a '%s'" % key)
                     return False
@@ -217,7 +217,8 @@ class StubbedWorkflowBase(unittest.TestCase):
                 'call': 'checkmate.providers.rackspace.loadbalancer.'
                         'create_loadbalancer',
                 'args': [Func(is_good_context), IsA(basestring), 'PUBLIC',
-                        'HTTP', 80],
+                        'HTTP', 80,  deployment.get_setting('region',
+                                                        default='testonia')],
                 'kwargs': IgnoreArg(),
                 'result': {'id': 20001, 'vip': "200.1.1.1"}
             },
@@ -380,7 +381,7 @@ class StubbedWorkflowBase(unittest.TestCase):
                 expected_calls.append({
                         'call': 'checkmate.providers.rackspace.loadbalancer.add_node',
                         'args': [Func(is_good_context), 20001, "10.1.2.%s" % ip,
-                                80],
+                                80, deployment.get_setting('region', default='testonia')],
                         'kwargs': None,
                         'result': None
                     })
@@ -395,20 +396,23 @@ class StubbedWorkflowBase(unittest.TestCase):
                                 'create_instance',
                         'args': [Func(is_good_context),
                                 IsA(basestring),
-                                1, 1, [{'name': 'db1'}]],
+                                1, 1, [{'name': 'db1'}],
+                                 deployment.get_setting('region', default='testonia')],
                         'kwargs': IgnoreArg(),
                         'result': {
                                 'id': 'db-inst-1',
                                 'name': 'dbname.domain.local',
                                 'status': 'BUILD',
-                                'hostname': 'verylong.rackspaceclouddb.com'}
+                                'hostname': 'verylong.rackspaceclouddb.com',
+                                'region': 'testonia'}
                     })
                 expected_calls.append({
                     # Create Database User
                     'call': 'checkmate.providers.rackspace.database.add_user',
                     'args': [Func(is_good_context),
                             'db-inst-1', ['db1'], username,
-                            IsA(basestring)],
+                            IsA(basestring),
+                             deployment.get_setting('region', default='testonia')],
                     'kwargs': None,
                     'result': {'db_username': username, 'db_password': 'DbPxWd'}
                 })
@@ -739,6 +743,9 @@ class TestDBWorkflow(StubbedWorkflowBase):
                       vendor: opscode
                       provides:
                       - database: mysql
+                inputs:
+                  blueprint:
+                    region: DFW
             """)
         cls.deployment = Deployment(deployment)
 
