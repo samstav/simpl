@@ -568,7 +568,8 @@ class BrowserMiddleware(object):
     def __init__(self, app, proxy_endpoints=None):
         self.app = app
         HANDLERS['text/html'] = BrowserMiddleware.write_html
-        STATIC.extend(['static', 'favicon.ico', 'authproxy'])
+        STATIC.extend(['static', 'favicon.ico', 'authproxy', 'marketing',
+                'api'])
         self.proxy_endpoints = proxy_endpoints
 
         # Add static routes
@@ -587,8 +588,18 @@ class BrowserMiddleware(object):
 
         @get('/')
         def root():
-            return write_body("Welcome to the CheckMate Administration"
-                    "Interface", request, response)
+            return static_file('home.html',
+                    root=os.path.join(os.path.dirname(__file__), 'static'))
+
+        @get('/api')
+        def api():
+            return write_body("Admin API", request, response)
+
+        @get('/marketing/<path:path>')
+        def home(path):
+            return static_file(path,
+                    root=os.path.join(os.path.dirname(__file__), 'static',
+                        'marketing'))
 
         @post('/authproxy')
         def authproxy():
