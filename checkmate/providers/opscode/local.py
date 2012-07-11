@@ -1201,11 +1201,18 @@ def register_node(host, environment, path=None, password=None,
     LOG.info("Knife prepare succeeded for %s" % host)
 
     if attributes:
-        with file(node_path, 'rw') as f:
-            node = json.load(f)
-            node.update(attributes)
-            json.dump(node, f)
-        LOG.info("Node attributes written in %s" % node_path)
+        lock = threading.Lock()
+        lock.acquire()
+        try:
+            with file(node_path, 'r+') as f:
+                node = json.load(f)
+                node.update(attributes)
+                json.dump(node, f)
+            LOG.info("Node attributes written in %s" % node_path)
+        except StandardError, exc:
+            raise exc
+        finally:
+            lock.release()
 
 
 def _run_kitchen_command(kitchen_path, params, lock=True):
@@ -1406,7 +1413,7 @@ def manage_databag(environment, bagname, itemname, contents,
         params = ['knife', 'solo', 'data', 'bag', 'show', bagname, itemname,
             '-F', 'json']
         if secret_file:
-            params.extend('--secret_file', secret_file)
+            params.extend(['--secret-file', secret_file])
 
         lock = threading.Lock()
         lock.acquire()
