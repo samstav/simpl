@@ -384,17 +384,11 @@ function DeploymentNewCtrl($scope, $location, $routeParams, $http) {
     $scope.answers = {};
 
     if ($scope.blueprint) {
-      var s = cm.Settings.getSettingsFromBlueprint($scope.blueprint);
-      if (s) {
-        $scope.settings = $scope.settings.concat(s);
-      }
+      $scope.settings = $scope.settings.concat(cm.Settings.getSettingsFromBlueprint($scope.blueprint));
     }
 
     if ($scope.environment) {
-      var t = cm.Settings.getSettingsFromEnvironment($scope.environment);
-      if (t) {
-        $scope.settings = $scope.settings.concat(t);  
-      }    
+      $scope.settings = $scope.settings.concat(cm.Settings.getSettingsFromEnvironment($scope.environment));
     }
 
     _.each($scope.settings, function(element, index) {

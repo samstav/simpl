@@ -194,7 +194,8 @@ cm.Settings = (function() {
   }
 
   function getSettingsFromEnvironment(env) {
-
+    var options = new Array();
+    return options;
   }
 
   return {
