@@ -540,7 +540,7 @@ includes:
         - {service: web, resource_type: compute, setting: count}
         constraints:
         - greater-than: 1 # this is an HA config
-      "database_size":
+      "database_memory":
         default: 312
         label: Database Size
         description: The size of the database instance in MB of RAM.
@@ -555,12 +555,14 @@ includes:
         - value: 4096
           name: 4096 Mb
         constrains:
-        - {service: backend, resource_type: database, setting: size}
+        - {service: backend, resource_type: database, setting: memory}
       "database_volume_size":
         default: 1
         label: Database Volume Size
         description: The hard drive space available for the database instance in GB.
-        type: number  #1-10, units in Gb
+        type: int  #1-10, units in Gb
+        constrains:
+        - {service: backend, resource_type: database, setting: disk}
 
       #database_type: DBaaS or compute instance. This should probably be driven by
       # the fact that two providers in the environment can satisfy this requirement and the providers

@@ -24,23 +24,26 @@ class Provider(ProviderBase):
                 deployment, resource_type, service, context, name=name)
 
         catalog = self.get_catalog(context)
-        flavor = deployment.get_setting('memory', resource_type=resource_type,
-                service_name=service, provider_key=self.key, default=1)
-        if isinstance(flavor, int):
-            pass
-        else:
-            number = flavor.split(' ')[0]
-            for key, value in catalog['lists']['sizes'].iteritems():
-                if number == str(value['memory']):
-                    LOG.debug("Mapping flavor from '%s' to '%s'" % (flavor,
-                            key))
+        # Get flavor
+        memory = deployment.get_setting('memory', resource_type=resource_type,
+                service_name=service, provider_key=self.key) or 512
+
+        # Find same or next largest size and get flavor ID
+        size = 512
+        flavor = 1
+        number = str(memory).split(' ')[0]
+        for key, value in catalog['lists']['sizes'].iteritems():
+            if number <= str(value['memory']):
+                if key > size:
+                    size = value['memory']
                     flavor = key
-                    break
-        if not isinstance(flavor, int):
-            raise CheckmateNoMapping("No flavor mapping for '%s' in '%s'" % (
-                    flavor, self.key))
+
+        # Get volume size
+        volume = deployment.get_setting('disk', resource_type=resource_type,
+                service_name=service, provider_key=self.key, default=1)
 
         template['flavor'] = flavor
+        template['disk'] = volume
         return template
 
     def add_resource_tasks(self, resource, key, wfspec, deployment, context,
@@ -82,7 +85,7 @@ class Provider(ProviderBase):
             username = 'wp_user_%s' % db_name
             deployment.settings()['db_username'] = username
 
-        create_db_task = Celery(wfspec, 'Create DB',
+        create_instance_task = Celery(wfspec, 'Create Database Instance',
                'checkmate.providers.rackspace.database.create_instance',
                call_args=[context.get_queued_task_dict(),
                         resource.get('dns-name'),
@@ -104,8 +107,8 @@ class Provider(ProviderBase):
                             task_tags=['final']),
                properties={'estimated_duration': 20})
 
-        create_db_task.connect(create_db_user)
-        return dict(root=create_db_task, final=create_db_user)
+        create_instance_task.connect(create_db_user)
+        return dict(root=create_instance_task, final=create_db_user)
 
     def get_catalog(self, context, type_filter=None):
         """Return stored/override catalog if it exists, else connect, build,
@@ -126,7 +129,20 @@ class Provider(ProviderBase):
             results['database'] = dict(mysql_instance={
                 'id': 'mysql_instance',
                 'is': 'database',
-                'provides': [{'database': 'mysql'}]})
+                'provides': [{'database': 'mysql'}],
+                'options': {
+                        'disk': {
+                                'type': 'int',
+                                'choice': [1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
+                                'unit': 'Gb',
+                            },
+                        'memory': {
+                                'type': 'int',
+                                'choice': [512, 1024, 2048, 4096],
+                                'unit': 'Mb',
+                            },
+                    }
+                })
 
         if type_filter is None or type_filter == 'regions':
             regions = {}

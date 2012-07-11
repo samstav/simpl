@@ -92,7 +92,7 @@ RESOURCE_TYPES = ['compute', 'database', 'wordpress', 'php5', 'load-balancer',
         'endpoint', 'host', 'application', 'widget']
 
 RESOURCE_SCHEMA = ['id', 'name', 'provider', 'relations', 'hosted_on', 'hosts',
-        'type', 'component', 'dns-name', 'instance', 'flavor', 'image']
+        'type', 'component', 'dns-name', 'instance', 'flavor', 'image', 'disk']
 
 DEPLOYMENT_SCHEMA = ['id', 'name', 'blueprint', 'environment', 'inputs',
         'includes', 'resources', 'settings']
