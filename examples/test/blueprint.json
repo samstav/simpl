@@ -1,304 +1,333 @@
 {
-    "description": "uses MC config recipes which support blah...., multiple domains, ....",
+  "blueprint": {
     "services": {
-        "web": {
-            "relations": {
-                "db": {
-                    "interface": "mysql",
-                    "service": "backend",
-                    "constraints": ["yada-yada"]
-                }
-            },
-            "components": [{
-                "is": "application",
-                "id": "wordpress",
-                "provides": {
-                    "url": "http"
-                },
-                "summary": "A pretty popular blog engine",
-                "requires": {
-                    "db": "mysql",
-                    "server": {
-                        "interface": "linux",
-                        "relation": "host"
-                    }
-                },
-                "options": {
-                    "raw": {
-                        "wordpress/keys/auth": {
-                            "display_name": "Wordpress auth key",
-                            "description": "Wordpress auth key.",
-                            "default": "randomly generated",
-                            "recipes": [],
-                            "required": "optional",
-                            "choice": [],
-                            "type": "string",
-                            "calculated": false
-                        },
-                        "wordpress/db/database": {
-                            "display_name": "Wordpress MySQL database",
-                            "description": "Wordpress will use this MySQL database to store its data.",
-                            "default": "wordpressdb",
-                            "calculated": false,
-                            "required": "optional",
-                            "maps-to": "wordpress/database/password",
-                            "choice": [],
-                            "type": "string",
-                            "recipes": []
-                        },
-                        "wordpress/server_aliases": {
-                            "display_name": "Wordpress Server Aliases",
-                            "description": "Wordpress Server Aliases",
-                            "default": "FQDN",
-                            "recipes": [],
-                            "required": false,
-                            "choice": [],
-                            "type": "string",
-                            "calculated": false
-                        },
-                        "wordpress/keys/logged_in": {
-                            "display_name": "Wordpress logged-in key",
-                            "description": "Wordpress logged-in key.",
-                            "default": "randomly generated",
-                            "recipes": [],
-                            "required": "optional",
-                            "choice": [],
-                            "type": "string",
-                            "calculated": false
-                        },
-                        "wordpress/db/user": {
-                            "display_name": "Wordpress MySQL user",
-                            "description": "Wordpress will connect to MySQL using this user.",
-                            "default": "wordpressuser",
-                            "recipes": [],
-                            "required": "optional",
-                            "choice": [],
-                            "type": "string",
-                            "calculated": false
-                        },
-                        "wordpress/db/password": {
-                            "display_name": "Wordpress MySQL password",
-                            "description": "Password for the Wordpress MySQL user.",
-                            "default": "randomly generated",
-                            "recipes": [],
-                            "required": "optional",
-                            "choice": [],
-                            "type": "string",
-                            "calculated": false
-                        },
-                        "wordpress/keys/nonce": {
-                            "display_name": "Wordpress nonce key",
-                            "description": "Wordpress nonce key.",
-                            "default": "randomly generated",
-                            "recipes": [],
-                            "required": "optional",
-                            "choice": [],
-                            "type": "string",
-                            "calculated": false
-                        },
-                        "wordpress/version": {
-                            "display_name": "Wordpress download version",
-                            "description": "Version of Wordpress to download from the Wordpress site.",
-                            "default": "3.0.4",
-                            "recipes": [],
-                            "required": false,
-                            "choice": [],
-                            "type": "string",
-                            "calculated": false
-                        },
-                        "wordpress/dir": {
-                            "display_name": "Wordpress installation directory",
-                            "description": "Location to place wordpress files.",
-                            "default": "/var/www",
-                            "recipes": [],
-                            "required": "optional",
-                            "choice": [],
-                            "type": "string",
-                            "calculated": false
-                        },
-                        "wordpress/keys/secure_auth": {
-                            "display_name": "Wordpress secure auth key",
-                            "description": "Wordpress secure auth key.",
-                            "default": "randomly generated",
-                            "recipes": [],
-                            "required": false,
-                            "choice": [],
-                            "type": "string",
-                            "calculated": false
-                        },
-                        "wordpress/checksum": {
-                            "display_name": "Wordpress tarball checksum",
-                            "description": "Checksum of the tarball for the version specified.",
-                            "default": "7342627f4a3dca44886c5aca6834cc88671dbd3aa2760182d2fcb9a330807",
-                            "recipes": [],
-                            "required": "optional",
-                            "choice": [],
-                            "type": "string",
-                            "calculated": false
-                        }
-                    },
-                    "standard": {
-                        "domain": {
-                            "default": "localhost",
-                            "required": true,
-                            "type": "string",
-                            "label": "Domain",
-                            "description": "the url to use to host your blog on"
-                        },
-                        "wordpress/database/user": {
-                            "required": false,
-                            "label": "Wordpress Database Username",
-                            "type": "string"
-                        },
-                        "high-availability": {
-                            "default": false,
-                            "type": "boolean",
-                            "label": "High Availability",
-                            "description": "build in redundancy? If not, build one server."
-                        },
-                        "instance/os": {
-                            "default": 1,
-                            "type": "select",
-                            "label": "OS for Instances",
-                            "options": {[
-                                { "key": 1, "value": "Ubuntu 10.04" },
-                                { "key": 2, "value": "Ubuntu 12.04" }
-                            ]},
-                            "description": "the operating system and version to use"
-                        },
-                        "instance/count": {
-                            "label": "Number of Instances",
-                            "default": 1,
-                            "description": "the number of instances to spin up"
-                            "type": "number"
-                        },
-                        "instance/flavor": {
-                            "default": 1,
-                            "label": "Size of Instances",
-                            "type": "select",
-                            "options": {[
-                                { "key": 1, "value": "256MB" },
-                                { "key": 2, "value": "512MB" }
-                            ]},
-                            "description": "the type (and size) of instance to use"
-                        }
-                    }
-                },
-                "revision": "0.8.8"
-            }]
-        },
-        "lb": {
-            "open-ports": ["80/tcp"],
-            "relations": {
-                "web": "http"
-            },
-            "components": {
-                "is": "load-balancer",
-                "summary": "Load-balancer as a Service instance",
-                "id": "loadbalancer",
-                "provides": {
-                    "url": "http"
-                },
-                "revision": 1
-            },
-            "exposed": true
-        },
-        "backend": {
-            "components": {
-                "is": "database",
-                "summary": "A pretty popular database",
-                "id": "mysql",
-                "provides": {
-                    "database": "mysql"
-                },
-                "revision": 1
-            }
+      "lb": {
+        "open-ports": [
+          "80/tcp"
+        ], 
+        "component": {
+          "interface": "http", 
+          "type": "load-balancer"
+        }, 
+        "relations": {
+          "web": "http", 
+          "master": "http"
+        }, 
+        "exposed": true
+      }, 
+      "master": {
+        "component": {
+          "type": "application", 
+          "role": "master", 
+          "name": "wordpress"
+        }, 
+        "relations": {
+          "backend": "mysql"
+        }, 
+        "constraints": [
+          {
+            "count": 1
+          }
+        ]
+      }, 
+      "web": {
+        "component": {
+          "type": "application", 
+          "role": "web", 
+          "name": "wordpress"
+        }, 
+        "relations": {
+          "master": "http", 
+          "db": {
+            "interface": "mysql", 
+            "service": "backend"
+          }
         }
-    },
+      }, 
+      "backend": {
+        "component": {
+          "interface": "mysql", 
+          "type": "database"
+        }
+      }
+    }, 
+    "description": "uses MC config recipes which support blah...., multiple domains, ....", 
     "options": {
-        "username": {
-            "regex": "xxx",
-            "required": "generatable",
-            "type": "string",
-            "description": "The user name used to access all resources in this deployment",
-            "label": "Admin"
-        },
-        "instance_os": {
-            "constrains": [{
-                "setting": "os",
-                "resource_type": "compute",
-                "service": "web"
-            }],
-            "group": "advanced",
-            "description": "The operating system of web servers.",
-            "default": "Ubuntu 12.04",
-            "uri": "/577366/providers/...?type=type",
-            "label": "Instance OS",
-            "type": "uri"
-        },
-        "domain": {
-            "regex": "xxx",
-            "type": "string",
-            "description": "The domain you wish to host your blog on. (ex: http://example.com)",
-            "label": "Domain"
-        },
-        "secure": {
-            "type": "boolean",
-            "description": "Make this a hardened deployment (you lose some flexibility)",
-            "label": "secure"
-        },
-        "instance_flavor": {
-            "default": 1024,
-            "description": "The size of the instance in MB of RAM.",
-            "type": "uri",
-            "uri": "/577366/providers/...?type=type",
-            "label": "Instance Size"
-        },
-        "database_size": {
-            "default": 20,
-            "description": "The hard drive space available for the database instance in GB.",
-            "type": "uri",
-            "uri": "/577366/providers/...?type=type",
-            "label": "Database Size"
-        },
-        "ssl": {
-            "default": true,
-            "type": "boolean",
-            "description": "Use SSL to encrypt web traffic.",
-            "label": "SSL Enabled"
-        },
-        "sample": {
-            "constrains": [{
-                "setting": "foo",
-                "resource_type": "compute",
-                "service": "web"
-            }],
-            "group": "advanced",
-            "description": "The operating system of web servers.",
-            "default": "Ubuntu 12.04",
-            "uri": "/577366/providers/...?type=type",
-            "label": "Instance OS",
-            "type": "uri"
-        },
-        "instance_count": {
-            "constrains": [{
-                "setting": "count",
-                "resource_type": "compute",
-                "service": "web"
-            }],
-            "description": "The number of instances for the specified task.",
-            "default": 2,
-            "label": "Number of Instances",
-            "type": "number",
-            "constraints": [{
-                "greater-than": 1
-            }]
-        },
-        "high_availability": {
-            "type": "boolean",
-            "description": "Insures your blog has higher uptimes by using redundant hardware (e.g. multuple servers)",
-            "label": "High Availability"
-        }
-    },
+      "username": {
+        "regex": "xxx", 
+        "type": "string", 
+        "description": "The user name used to access all resources in this deployment", 
+        "label": "Admin"
+      }, 
+      "domain": {
+        "regex": "^(([a-zA-Z]|[a-zA-Z][a-zA-Z0-9\\-]*[a-zA-Z0-9])\\.)*([A-Za-z]|[A-Za-z][A-Za-z0-9\\-]*[A-Za-z0-9])$", 
+        "constrains": [
+          {
+            "setting": "apache/domain_name", 
+            "service": "web", 
+            "resource_type": "application"
+          }
+        ], 
+        "sample": "example.com", 
+        "description": "The domain you wish to host your blog on. (ex: example.com)", 
+        "type": "string", 
+        "label": "Domain"
+      }, 
+      "secure": {
+        "type": "boolean", 
+        "description": "Make this a hardened deployment (you lose some flexibility)", 
+        "label": "secure"
+      }, 
+      "instance_os": {
+        "constrains": [
+          {
+            "setting": "os", 
+            "service": "web", 
+            "resource_type": "compute"
+          }, 
+          {
+            "setting": "os", 
+            "service": "web", 
+            "resource_type": "compute"
+          }
+        ], 
+        "description": "The operating system for the web servers.", 
+        "default": "Ubuntu 11.10", 
+        "type": "select", 
+        "options": [
+          {
+            "name": "Ubuntu 11.10", 
+            "value": "Ubuntu 11.10"
+          },
+          {
+            "name": "Ubuntu 12.04", 
+            "value": "Ubuntu 12.04"
+          },
+          {
+            "name": "CentOS", 
+            "value": "CentOS"
+          },
+          {
+            "name": "RHEL 6", 
+            "value": "RHEL 6"
+          }
+        ], 
+        "label": "Instance OS"
+      }, 
+      "instance_count": {
+        "constrains": [
+          {
+            "setting": "count", 
+            "service": "web", 
+            "resource_type": "compute"
+          }
+        ], 
+        "description": "The number of instances for the specified task.", 
+        "default": 2, 
+        "constraints": [
+          {
+            "greater-than": 1
+          }
+        ], 
+        "type": "number", 
+        "label": "Number of Instances"
+      }, 
+      "instance_flavor": {
+        "constrains": [
+          {
+            "setting": "size", 
+            "service": "web", 
+            "resource_type": "compute"
+          }, 
+          {
+            "setting": "size", 
+            "service": "master", 
+            "resource_type": "compute"
+          }
+        ], 
+        "description": "The size of the instance in MB of RAM.", 
+        "default": 1024, 
+        "type": "select", 
+        "options": [
+          {
+            "name": "256 Mb", 
+            "value": 256
+          }, 
+          {
+            "name": "512 Mb", 
+            "value": 512
+          }, 
+          {
+            "name": "1 Gb", 
+            "value": 1024
+          }
+        ], 
+        "label": "Instance Size"
+      }, 
+      "database_volume_size": {
+        "default": 1, 
+        "constrains": [
+          {
+            "setting": "disk", 
+            "service": "backend", 
+            "resource_type": "database"
+          }
+        ], 
+        "type": "number", 
+        "description": "The hard drive space available for the database instance in GB.", 
+        "label": "Database Volume Size"
+      }, 
+      "ssl": {
+        "default": false, 
+        "label": "SSL Enabled", 
+        "type": "boolean", 
+        "help": "If this option is selected, SSL keys need to be supplied as well. This option is\nalso currently mutually exclusive with the Varnish Caching option.\n", 
+        "description": "Use SSL to encrypt web traffic."
+      }, 
+      "prefix": {
+        "constrains": [
+          {
+            "setting": "wordpress/prefix", 
+            "service": "web", 
+            "resource_type": "application"
+          }, 
+          {
+            "setting": "user/name", 
+            "service": "web", 
+            "resource_type": "application"
+          }, 
+          {
+            "setting": "database/name", 
+            "service": "backend", 
+            "resource_type": "database"
+          }
+        ], 
+        "help": "Note that this also the user name, database name, and also identifies this\nwordpress install from other ones you might add later to the same deployment.\n", 
+        "description": "The application ID (and wordpress table prefix).", 
+        "required": true, 
+        "type": "string", 
+        "label": "Prefix"
+      }, 
+      "ssl_private_key": {
+        "sample": "-----BEGIN PRIVATE KEY-----\nEncoded key\n-----END PRIVATE KEY-----\n", 
+        "constrains": [
+          {
+            "setting": "apache/ssl_key", 
+            "service": "web", 
+            "resource_type": "application"
+          }
+        ], 
+        "type": "string", 
+        "label": "SSL Certificate Private Key"
+      }, 
+      "path": {
+        "constrains": [
+          {
+            "setting": "apache/path", 
+            "service": "web", 
+            "resource_type": "application"
+          }, 
+          {
+            "setting": "wordpress/path", 
+            "service": "web", 
+            "resource_type": "application"
+          }
+        ], 
+        "sample": "/blog", 
+        "description": "The path you wish to host your blog on under your domain. (ex: /blog)", 
+        "default": "/", 
+        "type": "string", 
+        "label": "Path"
+      }, 
+      "password": {
+        "regex": "xxx", 
+        "type": "string", 
+        "description": "Password to use for service. Click the generate button to generate a random password.", 
+        "label": "Password"
+      }, 
+      "high_availability": {
+        "type": "boolean", 
+        "description": "Insures your blog has higher uptimes by using redundant hardware (e.g. multuple servers)", 
+        "label": "High Availability"
+      }, 
+      "ssl_certificate": {
+        "sample": "-----BEGIN CERTIFICATE-----\nEncoded Certificate\n-----END CERTIFICATE-----\n", 
+        "constrains": [
+          {
+            "setting": "apache/ssl_cert", 
+            "service": "web", 
+            "resource_type": "application"
+          }
+        ], 
+        "type": "string", 
+        "description": "SSL certificate in PEM format. Make sure to include the BEGIN and END certificate lines.", 
+        "label": "SSL Certificate"
+      }, 
+      "varnish": {
+        "default": false, 
+        "constrains": [
+          {
+            "setting": "varnish/enabled", 
+            "service": "web", 
+            "resource_type": "application"
+          }
+        ], 
+        "type": "boolean", 
+        "label": "Varnish Caching"
+      }, 
+      "database_memory": {
+        "constrains": [
+          {
+            "setting": "memory", 
+            "service": "backend", 
+            "resource_type": "database"
+          }
+        ], 
+        "description": "The size of the database instance in MB of RAM.", 
+        "default": 312, 
+        "type": "select", 
+        "options": [
+          {
+            "name": "512 Mb", 
+            "value": 512
+          }, 
+          {
+            "name": "1024 Mb", 
+            "value": 1024
+          }, 
+          {
+            "name": "2048 Mb", 
+            "value": 2048
+          }, 
+          {
+            "name": "4096 Mb", 
+            "value": 4096
+          }
+        ], 
+        "label": "Database Size"
+      }, 
+      "region": {
+        "required": true, 
+        "type": "select", 
+        "label": "Region", 
+        "options": [
+          {
+            "name": "Dallas, TX USA",
+            "value": "dfw2"
+          },
+          {
+            "name": "Chicago, IL USA",
+            "value": "ord"
+
+          }
+        ]
+      }, 
+      "register-dns": {
+        "default": false, 
+        "type": "boolean", 
+        "label": "Register DNS Name"
+      }
+    }, 
     "name": "Scalable Wordpress (Managed Cloud Config)"
+  }
 }

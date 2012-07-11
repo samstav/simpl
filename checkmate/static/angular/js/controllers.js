@@ -38,6 +38,11 @@ EnvironmentListCtrl.$inject = ['$scope', '$location', '$http'];
  */
 
 function EnvironmentDetailCtrl($scope, $location, $http, $routeParams) {
+  cm.Resource.query($http, 'providers')
+    .success(function(data) {
+      $scope.providers = data;
+    });
+
   // Munge the providers so they have an id I can use.
   var p = new Array();
   $scope.selectedProviders = {}
@@ -379,14 +384,13 @@ function DeploymentNewCtrl($scope, $location, $routeParams, $http) {
     $scope.answers = {};
 
     if ($scope.blueprint) {
-      $scope.settings.push(cm.Settings.getSettingsFromBlueprint($scope.blueprint));
+      $scope.settings = $scope.settings.concat(cm.Settings.getSettingsFromBlueprint($scope.blueprint));
     }
 
     if ($scope.environment) {
-      $scope.settings.push(cm.Settings.getSettingsFromEnvironment($scope.environment));
+      $scope.settings = $scope.settings.concat(cm.Settings.getSettingsFromEnvironment($scope.environment));
     }
 
-    $scope.settings = _.flatten($scope.settings, true); // combine everything to one array
     _.each($scope.settings, function(element, index) {
       if (element && element.id) {
         $scope.answers[element.id] = null;
@@ -416,6 +420,8 @@ function DeploymentNewCtrl($scope, $location, $routeParams, $http) {
       console.log(message);
       return "<em>" + message + "</em>";
     }
+
+    console.log(JSON.stringify(setting));
 
     return template ? Mustache.render(template, setting) : "";
   }

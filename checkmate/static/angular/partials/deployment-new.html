@@ -98,7 +98,7 @@
     <label class="control-label capitalize" for="{{id}}">{{label}}</label>
     <div class="controls">
       <select id="{{id}}" ng-model="answers['{{id}}']" {{#required}}required{{/required}}
-              ng-options="element.name for (id,element) in options">
+              ng-options="o.name for o in setting.options">
       </select>
     </div>
   </script>
