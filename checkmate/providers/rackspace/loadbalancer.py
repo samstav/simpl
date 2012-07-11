@@ -41,8 +41,8 @@ class Provider(ProviderBase):
                 'checkmate.providers.rackspace.loadbalancer.'
                         'create_loadbalancer',
                 call_args=[context.get_queued_task_dict(),
-                resource.get('dns-name'), 'PUBLIC', 'HTTP', 80],
-                dns=True,  # TODO: shouldn't this be parameterized?
+                        resource.get('dns-name'), 'PUBLIC', 'HTTP', 80,
+                        resource['region']],
                 defines=dict(resource=key,
                     provider=self.key,
                     task_tags=['create', 'root', 'final']),

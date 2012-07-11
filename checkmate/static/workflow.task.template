@@ -73,12 +73,12 @@
             {% if data.task_spec[0:13] == 'Create Server' and data.attributes.id is defined %}
             <div class="alert alert-success">
               <a class="close" data-dismiss="alert" href="#">×</a>
-              Server {{data.attributes.id}} was created with IP address {{data.attributes.ip}}. You can see it in the {% if '-' in data.attributes.id|string %}<a target="_blank" href="https://mycloud.rackspace.com/a/{{data.attributes.context.username}}/#list/location:Next Generation/">next-gen control panel</a>{% else %}<a target="_blank" href="https://manage.rackspacecloud.com/CloudServers/Overview.do?cloudServerId={{data.attributes.id}}">control panel</a>{% endif %} or connect to it over <a href="ssh://root@{{data.attributes.ip}}">ssh</a>.
+              Server {{data.attributes.id}} was created with IP address {{data.attributes.ip}}. You can see it in the {% if '-' in data.attributes.id|string %}<a target="_blank" href="https://mycloud.rackspace.com/a/{{data.attributes.username}}/#list/location:Next Generation/">next-gen control panel</a>{% else %}<a target="_blank" href="https://manage.rackspacecloud.com/CloudServers/Overview.do?cloudServerId={{data.attributes.id}}">control panel</a>{% endif %} or connect to it over <a href="ssh://root@{{data.attributes.ip}}">ssh</a>.
             </div>
-            {% elif data.task_spec[0:9] == 'Create LB' %}
+            {% elif data.task_spec[0:9] == 'Create LB'and data.attributes.lbid is defined%}
             <div class="alert alert-success">
               <a class="close" data-dismiss="alert" href="#">×</a>
-              Load balancer {{data.attributes.id}} was created and assigned VIP {{data.attributes.vip}}. See it in the <a target="_blank" href="https://manage.rackspacecloud.com/LoadBalancers/Nodes.do?loadBalancerId={{data.attributes.id}}&amp;datacenter={% if data.attributes.context.region == 'dallas' %}prod-dfw{% else %}prod-ord{% endif %}">control panel</a> or <a target="_blank" href="http://{{data.attributes.vip}}/">browse</a> the VIP.
+              Load balancer {{data.attributes.id}} was created and assigned VIP {{data.attributes.vip}}. See it in the <a target="_blank" href="https://manage.rackspacecloud.com/LoadBalancers/Nodes.do?loadBalancerId={{data.attributes.id}}&amp;datacenter={% if data.attributes.region == 'dallas' %}prod-dfw{% else %}prod-ord{% endif %}">control panel</a> or <a target="_blank" href="http://{{data.attributes.vip}}/">browse</a> the VIP.
             </div>
             {% elif data.task_spec[0:9] == 'Create DB' %}
             <div class="alert alert-success">
