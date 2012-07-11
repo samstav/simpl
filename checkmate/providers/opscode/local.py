@@ -143,7 +143,7 @@ class Provider(ProviderBase):
 
         if runtime_option_names:
             def build_bag_code(my_task):
-                context = my_task.attributes['context']
+                context = my_task.attributes
                 options = my_task.task_spec.properties['options']
 
                 data = {}
@@ -424,7 +424,7 @@ class Provider(ProviderBase):
                 wait_for(wfspec, configure_task, tasks)
 
     def add_connection_tasks(self, resource, key, relation, relation_key,
-            wfspec, deployment):
+            wfspec, deployment, context):
         target = deployment['resources'][relation['target']]
         interface = relation['interface']
 

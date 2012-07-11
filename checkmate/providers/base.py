@@ -52,7 +52,7 @@ class ProviderBaseWorkflowMixIn():
                 (self.vendor, self.name))
 
     def add_connection_tasks(self, resource, key, relation, relation_key,
-            wfspec, deployment):
+            wfspec, deployment, context):
         """Add tasks needed to create a connection between rersources
 
         :param resource: the resource we are connecting from

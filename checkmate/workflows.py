@@ -441,7 +441,7 @@ def create_workflow(deployment, context):
                 relation = hr['relations']['host']
                 provider = providers[hr['provider']]
                 provider_result = provider.add_connection_tasks(hr,
-                        index, relation, 'host', wfspec, deployment)
+                        index, relation, 'host', wfspec, deployment, context)
                 if provider_result and provider_result.get('root') and \
                         not provider_result['root'].inputs:
                     # Attach unattached tasks
@@ -455,7 +455,7 @@ def create_workflow(deployment, context):
                 if 'target' in relation and name != 'host':
                     provider = providers[resource['provider']]
                     provider_result = provider.add_connection_tasks(resource,
-                            key, relation, name, wfspec, deployment)
+                            key, relation, name, wfspec, deployment, context)
                     if provider_result and provider_result.get('root') and \
                             not provider_result['root'].inputs:
                         # Attach unattached tasks
@@ -470,7 +470,7 @@ def create_workflow(deployment, context):
     #Pass in the initial deployemnt dict (task 2 is the Start task)
     runtime_context = copy.copy(deployment.settings())
     runtime_context['token'] = context.auth_tok
-    workflow.get_task(2).set_attribute(context=deployment.settings())
+    workflow.get_task(2).set_attribute(**runtime_context)
 
     # Calculate estimated_duration
     root = workflow.task_tree

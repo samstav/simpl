@@ -11,7 +11,6 @@ from checkmate.exceptions import CheckmateException, CheckmateNoMapping, \
         CheckmateNoTokenError
 from checkmate.providers import ProviderBase
 
-
 LOG = logging.getLogger(__name__)
 
 
@@ -85,8 +84,9 @@ class Provider(ProviderBase):
 
         create_db_task = Celery(wfspec, 'Create DB',
                'checkmate.providers.rackspace.database.create_instance',
-               call_args=[Attrib('context'),
-                        resource.get('dns-name'), 1,
+               call_args=[context.get_queued_task_dict(),
+                        resource.get('dns-name'),
+                        resource.get('disk', 1),
                         resource.get('flavor', 1),
                         [{'name': db_name}]],
                prefix=key,
@@ -96,7 +96,7 @@ class Provider(ProviderBase):
                properties={'estimated_duration': 80})
         create_db_user = Celery(wfspec, "Add DB User:%s" % username,
                'checkmate.providers.rackspace.database.add_user',
-               call_args=[Attrib('context'),
+               call_args=[context.get_queued_task_dict(),
                         Attrib('id'), [db_name],
                         username, password],
                defines=dict(resource=key,
@@ -183,7 +183,7 @@ class Provider(ProviderBase):
 
 
 #
-# Exploring Celery tasks from within CheckMate
+# Celery tasks
 #
 from celery.task import task
 import clouddb
@@ -203,45 +203,25 @@ def _get_db_object(context):
 
 
 @task(default_retry_delay=10, max_retries=2)
-def create_instance(context, instance_name, size, flavor,
-                               databases, username=None, password=None,
-                               api=None, prefix=None):
-    """Creates a Cloud Database instancem, initial databases and user.
+def create_instance(context, instance_name, size, flavor, databases,
+        prefix=None, api=None):
+    """Creates a Cloud Database instance with optional initial databases.
 
-    databases is an array of dictionaries with keys to set the database
+    :param databases: an array of dictionaries with keys to set the database
     name, character set and collation.  For example:
 
         databases=[{'name': 'db1'},
                    {'name': 'db2', 'character_set': 'latin5',
                     'collate': 'latin5_turkish_ci'}]
     """
-    if api is None:
+    if not api:
         api = _get_db_object(context)
 
-    #try:
     instance = api.create_instance(instance_name, size, flavor,
                                           databases=databases)
-    LOG.info("Created database instance %s (%s). Size %d, Flavor %d. "
+    LOG.info("Created database instance %s (%s). Size %s, Flavor %s. "
             "Databases = %s" % (instance_name, instance.id, size, flavor,
             databases))
-    #except clouddb.errors.ResponseError, exc:
-    #    log(context,
-    #        'Response error while trying to create database instance ' \
-    #        '%s. Error %d %s. Retrying.' % (
-    #          instance_name, exc.status, exc.reason))
-    #    create_instance.retry(exc=exc)
-    #except Exception, exc:
-    #    log(context,
-    #        'Error creating database instance %s. Error %s. Retrying.' % (
-    #        instance_name, str(exc)))
-    #    create_instance.retry()
-
-    db_name_list = []
-    for database in databases:
-        db_name_list.append(database['name'])
-        if username:
-            add_user.delay(context, instance.id, db_name_list,
-                                  username, password)
 
     results = dict(id=instance.id, name=instance.name, status=instance.status,
             hostname=instance.hostname)
@@ -254,10 +234,10 @@ def create_instance(context, instance_name, size, flavor,
 
 
 @task(default_retry_delay=10, max_retries=10)
-def add_databases(deployment, instance_id, databases, api=None):
+def add_databases(context, instance_id, databases, api=None):
     """Adds new database(s) to an existing instance.
 
-    database is a list of dictionaries with a required key for database
+    :param databases: a list of dictionaries with a required key for database
     name and optional keys for setting the character set and collation.
     For example:
 
@@ -266,133 +246,62 @@ def add_databases(deployment, instance_id, databases, api=None):
                     'collate': 'latin5_turkish_ci'}]
         databases = [{'name': 'mydb3'}, {'name': 'mydb4'}]
     """
-    if api is None:
-        api = _get_db_object(deployment)
+    if not api:
+        api = _get_db_object(context)
 
     dbnames = []
     for db in databases:
         dbnames.append(db['name'])
 
-    try:
-        instance = api.get_instance(instance_id)
-        instance.create_databases(databases)
-        LOG.debug(
-            'Added database(s) %s to instance %s' % (dbnames,
-                                                     instance_id))
-    except clouddb.errors.ResponseError, exc:
-        LOG.debug(
-            'Response error while trying to add new database(s) %s to ' \
-            'instance %s. Error %d %s. Retrying.' % (
-              dbnames, instance_id, exc.status, exc.reason))
-        add_databases.retry(exc=exc)
-    except Exception, exc:
-        LOG.debug(
-            'Error adding database(s) %s to instance %s. Error %s. ' \
-            'Retrying.' % (
-              dbnames, instance_id, str(exc)))
-        add_databases.retry()
+    instance = api.get_instance(instance_id)
+    instance.create_databases(databases)
+    LOG.info('Added database(s) %s to instance %s' % (dbnames, instance_id))
+    return dict(databases=dbnames)
 
 
 @task(default_retry_delay=10, max_retries=10)
-def add_user(deployment, instance_id, databases, username,
-                        password, api=None):
-    """Add a database user to an instance for a database"""
-    if api is None:
-        api = _get_db_object(deployment)
+def add_user(context, instance_id, databases, username, password, api=None):
+    """Add a database user to an instance for one or more databases"""
+    if not api:
+        api = _get_db_object(context)
 
-    try:
-        instance = api.get_instance(instance_id)
-        instance.create_user(username, password, databases)
-        LOG.debug(
-            'Added user %s to %s on instance %s' % (username,
-                                                    databases,
-                                                    instance_id))
-    except clouddb.errors.ResponseError, exc:
-        LOG.debug(
-            'Response error while trying to add database user %s to %s ' \
-            'on instance %s. Error %s %s. Retrying.' % (
-              username, databases, instance_id, exc.status,
-              exc.reason))
-        add_user.retry(exc=exc)
-    except Exception, exc:
-        LOG.debug(
-            'Error creating database user %s, database %s, instance %s.' \
-            ' Error %s. Retrying.' % (
-              username, databases, instance_id, str(exc)))
-        add_user.retry()
+    instance = api.get_instance(instance_id)
+    instance.create_user(username, password, databases)
+    LOG.info('Added user %s to %s on instance %s' % (username, databases,
+            instance_id))
+    return dict(db_username=username, db_password=password)
 
 
 @task(default_retry_delay=10, max_retries=10)
-def delete_instance(deployment, instance_id, api=None):
-    """Deletes a database instance and its associated databases and
+def delete_instance(context, instance_id, api=None):
+    """Deletes a database server instance and its associated databases and
     users.
     """
-    if api is None:
-        api = _get_db_object(deployment)
+    if not api:
+        api = _get_db_object(context)
 
-    try:
-        api.delete_instance(instanceid=instance_id)
-        LOG.debug('Database instance %s deleted.' % instance_id)
-    except clouddb.errors.ResponseError, exc:
-        LOG.debug(
-            'Response error while trying to delete database instance ' \
-            '%s. Error %d %s. Retrying.' % (
-              instance_id, exc.status, exc.reason))
-        delete_database.retry(exc=exc)
-    except Exception, exc:
-        LOG.debug(
-            'Error deleting database instance %s. Error %s. Retrying.' % (
-            instance_id, str(exc)))
-        delete_database.retry()
+    api.delete_instance(instanceid=instance_id)
+    LOG.info('Database instance %s deleted.' % instance_id)
 
 
 @task(default_retry_delay=10, max_retries=10)
 def delete_database(deployment, instance_id, db, api=None):
     """Delete a database from an instance"""
-    if api is None:
+    if not api:
         api = _get_db_object(deployment)
 
-    try:
-        instance = api.get_instance(instance_id)
-        instance.delete_database(db)
-        LOG.debug('Database %s deleted from instance %s' % (db, instance_id))
-    except clouddb.errors.ResponseError, exc:
-        LOG.debug(
-            'Response error while trying to delete database %s from ' \
-            'instance %s. Error %d %s. Retrying.' % (
-              db, instance_id, exc.status, exc.reason))
-        delete_database.retry(exc=exc)
-    except Exception, exc:
-        LOG.debug(
-            'Error deleting database %s from instance %s. Error %s. ' \
-            'Retrying.' % (
-              db, instance_id, str(exc)))
-        delete_database.retry()
+    instance = api.get_instance(instance_id)
+    instance.delete_database(db)
+    LOG.info('Database %s deleted from instance %s' % (db, instance_id))
 
 
 @task(default_retry_delay=10, max_retries=10)
 def delete_user(deployment, instance_id, username, api=None):
     """Delete a database user from an instance."""
-    """
     if api is None:
         api = _get_db_object(deployment)
 
-    try:
-        instance = api.get_instance(instanceid=instance_id)
-        instance.delete_user(username)
-        LOG.debug(
-            'Deleted user %s from database instance %d' % (username,
-                                                           instance_id))
-    except clouddb.errors.ResponseError, exc:
-        LOG.debug(
-            'Response error while trying to delete database user %s to ' \
-            '%s on instance %d. Error %d %s. Retrying.' % (
-              username, database_name, instance_id, exc.status, exc.reason))
-        delete_user.retry(exc=exc)
-    except Exception, exc:
-        LOG.debug(
-            'Error deleting database user %s, database %s, instance %s.' \
-            ' Error %s. Retrying.' % (
-              username, database_name, instance_id, str(exc)))
-        delete_user.retry(exc=exc)
-    """
+    instance = api.get_instance(instanceid=instance_id)
+    instance.delete_user(username)
+    LOG.info('Deleted user %s from database instance %d' % (username,
+            instance_id))

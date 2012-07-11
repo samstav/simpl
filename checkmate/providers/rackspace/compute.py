@@ -81,19 +81,19 @@ class Provider(RackspaceComputeProviderBase):
         """
         create_server_task = Celery(wfspec, 'Create Server:%s' % key,
                'checkmate.providers.rackspace.compute.create_server',
-               call_args=[Attrib('context'),
+               call_args=[context.get_queued_task_dict(),
                resource.get('dns-name')],
                prefix=key,
                image=resource.get('image',
                         '3afe97b2-26dc-49c5-a2cc-a2fc8d80c001'),
                flavor=resource.get('flavor', "1"),
-               files=Attrib('files'),
+               files=self._kwargs.get('files', None),
                defines={"Resource": key},
                properties={'estimated_duration': 20})
 
         build_wait_task = Celery(wfspec, 'Check that Server is Up:%s'
                 % key, 'checkmate.providers.rackspace.compute.wait_on_build',
-                call_args=[Attrib('context'), Attrib('id'), 'root'],
+                call_args=[context.get_queued_task_dict(), Attrib('id'), 'root'],
                 password=Attrib('password'),
                 prefix=key,
                 identity_file=Attrib('public_key_path'),

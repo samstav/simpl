@@ -20,7 +20,7 @@ class Provider(ProviderBase):
         create_lb = Celery(wfspec, 'Create LB',
                 'checkmate.providers.rackspace.loadbalancer.'
                         'create_loadbalancer',
-                call_args=[Attrib('context'),
+                call_args=[context.get_queued_task_dict(),
                 resource.get('dns-name'), 'PUBLIC', 'HTTP', 80],
                 dns=True,  # TODO: shouldn't this be parameterized?
                 defines=dict(resource=key,
@@ -40,7 +40,7 @@ class Provider(ProviderBase):
         return dict(root=create_lb, final=save_lbid)
 
     def add_connection_tasks(self, resource, key, relation, relation_key,
-            wfspec, deployment):
+            wfspec, deployment, context):
         interface = relation['interface']
 
         if interface == 'http':
@@ -54,7 +54,7 @@ class Provider(ProviderBase):
             add_node = Celery(wfspec,
                     "Add LB Node:%s" % relation['target'],
                     'checkmate.providers.rackspace.loadbalancer.add_node',
-                    call_args=[Attrib('context'),  Attrib('lbid'),
+                    call_args=[context.get_queued_task_dict(),  Attrib('lbid'),
                             Attrib('private_ip'), 80],
                     defines=dict(relation=relation_key, provider=self.key,
                             task_tags=['final']),

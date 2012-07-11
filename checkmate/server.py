@@ -815,6 +815,19 @@ class RequestContext(object):
         self.show_deleted = show_deleted
         self.domain = domain  # which cloud?
 
+    def get_queued_task_dict(self):
+        """Get a serializable dict of this context for use with remote, queued
+        tasks.
+
+        Only certain fields are needed.
+        """
+        result = dict(
+                username=self.user,
+                token=self.auth_tok,
+                catalog=self.catalog,
+            )
+        return result
+
     def allowed_to_access_tenant(self, tenant_id=None):
         """Checks if a tenant can be accessed by this current session.
 
