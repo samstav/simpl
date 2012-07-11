@@ -97,8 +97,29 @@ class Provider(ProviderBase):
             }
         default_handler = self._process_options
 
-        components = [component]  # this component comes first
-        components.extend(component.get('dependencies', []))
+        def recursive_load_dependencies(components, component, provider,
+                context):
+            """Get and add dependencies to compoennts list"""
+            # Skip ones we have already processed
+            if component not in components:
+                components.append(component)
+                for dependency in component.get('dependencies', []):
+                    if isinstance(dependency, basestring):
+                        dependency = self.get_component(context, dependency)
+                        if dependency:
+                            dependency = [dependency]
+                    if isinstance(dependency, dict):
+                        dependency = provider.find_components(context,
+                            **dependency) or []
+                    for item in dependency:
+                        if item in components:
+                            continue
+                        recursive_load_dependencies(components, item,
+                                provider, context)
+
+        components = []  # this component comes first
+        recursive_load_dependencies(components, component, self, context)
+
         for item in components:
             if isinstance(item, basestring):
                 item = self.get_component(context, item)
