@@ -119,6 +119,8 @@ class Provider(ProviderBase):
 
         components = []  # this component comes first
         recursive_load_dependencies(components, component, self, context)
+        LOG.debug("Recursed to get dependencies for %s and found: %s" %
+                (component_id, ', '.join([c['id'] for c in components[1:]])))
 
         for item in components:
             if isinstance(item, basestring):
@@ -290,13 +292,12 @@ class Provider(ProviderBase):
             bag['user'] = user
 
             options = {
-                    "wordpress/database/prefix": "%s_" % prefix,
-                    "wordpress/rackspace/path": deployment.settings().get(
-                            'url_path', '/'),
-                    'wordpress/keys/nonce': uuid.uuid4().hex,
-                    "wordpress/keys/auth": uuid.uuid4().hex,
-                    "wordpress/keys/secure_auth": uuid.uuid4().hex,
-                    'wordpress/keys/logged_in': uuid.uuid4().hex,
+                    "prefix": "%s_" % prefix,
+                    "path": deployment.settings().get('path', '/'),
+                    'wp_nonce': uuid.uuid4().hex,
+                    "wp_auth": uuid.uuid4().hex,
+                    "wp_secure_auth": uuid.uuid4().hex,
+                    'wp_logged_in': uuid.uuid4().hex,
                 }
             bag['wordpress'] = options
 
@@ -359,20 +360,29 @@ class Provider(ProviderBase):
     def _add_mysql_tasks(self, wfspec, component_id, deployment, key,
                 context, service_name):
         resource = deployment['resources'][key]
+        options = {}
         if resource['type'] == 'database':
-            options = {
+            local_options = {
                     "database/create_database": True,
                     "database/create_user": True,
                     "database/root_pw": deployment.settings()['db_password'],
                 }
-            deployment.settings()['chef_overrides']['mysql'] = options
+            options.update(local_options)
+
+        generic_options = {
+                'db_user': deployment.get_setting('username'),
+                'db_password': deployment.settings()['db_password'],
+                'db_name': deployment.settings()['db_name'],
+            }
+        options.update(generic_options)
+        deployment.settings()['chef_overrides']['mysql'] = options
 
     def _add_apache_tasks(self, wfspec, component_id, deployment, key,
                 context, service_name):
         resource = deployment['resources'][key]
         options = {
                 "domain_name": deployment.settings()['domain'],
-                "path": deployment.settings().get('url_path', '/'),
+                "path": deployment.settings().get('path', '/'),
                 "ssl_cert": deployment.get_setting('ssl_certificate',
                         resource_type=resource['type']),
                 "ssl_key": deployment.get_setting('ssl_private_key',
@@ -386,9 +396,6 @@ class Provider(ProviderBase):
 
         lsyncd needs IPs of all servers. This means creating a merge task
         that wires all server creates and writrs them to the data bag"""
-
-        print "*** LSYNCD BYPASSED ***"
-        return
 
         def build_slave_list_code(my_task):
             #FIXME: this is a test. It doesn't account for master
@@ -427,7 +434,7 @@ class Provider(ProviderBase):
         wait_for(wfspec, build_bag, predecessors)
 
         # Call manage_databag(environment, bagname, itemname, contents)
-        write_bag = Celery(wfspec, "Write lsyncd Slave List",
+        write_bag = Celery(wfspec, "Write lsyncd Slave List:%s" % key,
                'checkmate.providers.opscode.local.manage_databag',
                 call_args=[deployment['id'], deployment['id'],
                         Attrib('app_id'), Attrib('lsync_bag')],
@@ -466,7 +473,7 @@ class Provider(ProviderBase):
             raise Exception()
         if tasks:
             print tasks
-            print [t.get_proprty('resource') for t in tasks
+            print [t.get_property('resource') for t in tasks
                     if t.get_property('resource')]
             tasks = [t for t in tasks if t.get_property('resource')]
             print tasks

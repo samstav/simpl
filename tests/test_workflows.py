@@ -199,6 +199,21 @@ class StubbedWorkflowBase(unittest.TestCase):
                     return False
             return True
 
+        def is_good_data_bag(context):
+            """Checks that we're writing everything we need to the chef databag
+            for managed cloud cookbooks to work"""
+            if 'wordpress' not in context:
+                return False
+            if 'user' not in context:
+                return False
+            if 'mysql' not in context:
+                return False
+            if 'lsyncd' not in context:
+                return False
+            if 'apache' not in context:
+                return False
+            return True
+
         expected_calls = [{
                 # Create Chef Environment
                 'call': 'checkmate.providers.opscode.local.create_environment',
@@ -226,7 +241,7 @@ class StubbedWorkflowBase(unittest.TestCase):
                 'call': 'checkmate.providers.opscode.local.manage_databag',
                 'args': ['DEP-ID-1000', 'DEP-ID-1000',
                         IsA(basestring),
-                        And(IsA(dict), In('wordpress'), In('user'))],
+                        Func(is_good_data_bag)],
                 'kwargs': And(ContainsKeyValue('secret_file',
                         'certificates/chef.pem'), ContainsKeyValue('merge',
                         True)),
