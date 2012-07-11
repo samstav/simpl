@@ -22,6 +22,7 @@ class RackspaceComputeProviderBase(ProviderBase):
     """Generic functions for rackspace Compute providers"""
     def __init__(self, provider, key=None):
         ProviderBase.__init__(self, provider, key=key)
+        self._kwargs = {}
 
     def prep_environment(self, wfspec, deployment, context):
         keys = set()
@@ -32,12 +33,12 @@ class RackspaceComputeProviderBase(ProviderBase):
                 LOG.warning("Code still using public_key without _ssh")
         if keys:
             path = '/root/.ssh/authorized_keys'
-            if not 'files' in deployment.settings():
-                deployment.settings()['files'] = {path: '\n'.join(keys)}
+            if 'files' not in self._kwargs:
+                self._kwargs['files'] = {path: '\n'.join(keys)}
             else:
-                existing = deployment.settings()['files'][path].split('\n')
+                existing = self._kwargs['files'][path].split('\n')
                 keys.update(existing)
-                deployment.settings()['files'][path] = '\n'.join(keys)
+                self._kwargs['files'][path] = '\n'.join(keys)
 
 
 class Provider(RackspaceComputeProviderBase):
