@@ -48,16 +48,7 @@ class Provider(ProviderBase):
                     task_tags=['create', 'root', 'final']),
                 properties={'estimated_duration': 30})
 
-        save_lbid = Transform(wfspec, "Get LB ID",
-                transforms=[
-                    "my_task.attributes['lbid']=my_task.attributes['id']"],
-                defines=dict(resource=key, provider=self.key,
-                        task_tags=['final']),
-                description="Copies LB ID to lbid field so it doesn't"
-                        "conflict with other id fields")
-        create_lb.connect(save_lbid)
-
-        return dict(root=create_lb, final=save_lbid)
+        return dict(root=create_lb, final=create_lb)
 
     def add_connection_tasks(self, resource, key, relation, relation_key,
             wfspec, deployment, context):
@@ -235,7 +226,7 @@ def create_loadbalancer(context, name, type, protocol, port, region,
                       monitor_delay, monitor_timeout, monitor_attempts,
                       monitor_body, monitor_status)
 
-    return {'id': lb.id, 'vip': vip}
+    return {'id': lb.id, 'vip': vip, 'lbid': lb.id}
 
 
 @task

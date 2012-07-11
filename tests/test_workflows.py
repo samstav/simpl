@@ -220,7 +220,7 @@ class StubbedWorkflowBase(unittest.TestCase):
                         'HTTP', 80,  deployment.get_setting('region',
                                                         default='testonia')],
                 'kwargs': IgnoreArg(),
-                'result': {'id': 20001, 'vip': "200.1.1.1"}
+                'result': {'id': 20001, 'vip': "200.1.1.1", 'lbid': 20001}
             },
             {
                 'call': 'checkmate.providers.opscode.local.manage_databag',
