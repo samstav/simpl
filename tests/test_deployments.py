@@ -23,6 +23,8 @@ class TestDeployments(unittest.TestCase):
                 }
         original = copy.copy(deployment)
         parsed = plan(Deployment(deployment), RequestContext())
+        del parsed['status']  # we expect this to get added
+        del parsed['created']  # we expect this to get added
         self.assertDictEqual(original, parsed.__dict__())
 
     def test_resource_generator(self):

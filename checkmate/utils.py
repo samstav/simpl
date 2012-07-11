@@ -10,6 +10,7 @@ import json
 import logging
 import struct
 import sys
+from time import gmtime, strftime
 
 from bottle import abort, request
 import yaml
@@ -335,3 +336,11 @@ def with_tenant(fn):
         else:
             return fn(*args, tenant_id=request.context.tenant, **kwargs)
     return wrapped
+
+
+def get_time_string():
+    """Central function that returns time (UTC in ISO format) as a string
+
+    Changing this function will change all times that checkmate uses in
+    blueprints, deployments, etc..."""
+    return strftime("%Y-%m-%d %H:%M:%S +0000", gmtime())

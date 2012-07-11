@@ -21,7 +21,7 @@ from checkmate.exceptions import CheckmateException,\
 from checkmate.providers import ProviderBase
 from checkmate.workflows import create_workflow
 from checkmate.utils import write_body, read_body, extract_sensitive_data,\
-        merge_dictionary, with_tenant, is_ssh_key
+        merge_dictionary, with_tenant, is_ssh_key, get_time_string
 
 LOG = logging.getLogger(__name__)
 db = get_driver('checkmate.db.sql.Driver')
@@ -231,6 +231,7 @@ def plan(deployment, context):
     :param deployment: checkmate deployment instance (dict)
     """
     assert context.__class__.__name__ == 'RequestContext'
+    assert deployment.get('status') == 'NEW'
     assert isinstance(deployment, Deployment)
 
     LOG.info("Planning deployment '%s'" % deployment['id'])
@@ -525,6 +526,7 @@ def plan(deployment, context):
     if resources:
         deployment['resources'] = resources
 
+    deployment['status'] = 'PLANNED'
     return deployment
 
 
@@ -663,6 +665,11 @@ class Deployment(ExtensibleDict):
     def __init__(self, *args, **kwargs):
         ExtensibleDict.__init__(self, *args, **kwargs)
         self._environment = None
+
+        if 'status' not in self:
+            self['status'] = 'NEW'
+        if 'created' not in self:
+            self['created'] = get_time_string()
 
     @classmethod
     def validate(cls, obj):
