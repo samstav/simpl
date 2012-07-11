@@ -368,6 +368,8 @@ def plan(deployment, context):
                 host_provider_key = available[host_interface].keys()[0]
                 host_provider = providers[host_provider_key]
                 host_type = available[host_interface].values()[0][0]
+                host_component = environment.find_component(dict(
+                        interface=host_interface), context)
 
             provider = component.provider()
             if not provider:
@@ -410,7 +412,8 @@ def plan(deployment, context):
                     # Obtain resource to host this one on
                     host_resource = add_resource(host_provider, deployment,
                             service, service_name, index + 1,
-                            domain, host_type)
+                            domain, host_type,
+                            component_id=host_component['id'])
                     host_index = str(resource_index)
                     resource_index += 1
 

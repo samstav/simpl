@@ -214,6 +214,7 @@ The following environment variables can be set to configure checkmate:
     CHECKMATE_CHEF_REPO
     CHECKMATE_CHEF_LOCAL_PATH - local
     CHECKMATE_CHEF_PATH - server
+    CHECKMATE_CHEF_USE_DATA_BAGS - store data in databags instead of roles (default=True)
 
     CHECKMATE_BROKER_USERNAME
     CHECKMATE_BROKER_PASSWORD
