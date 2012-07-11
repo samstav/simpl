@@ -384,11 +384,17 @@ function DeploymentNewCtrl($scope, $location, $routeParams, $http) {
     $scope.answers = {};
 
     if ($scope.blueprint) {
-      $scope.settings = $scope.settings.concat(cm.Settings.getSettingsFromBlueprint($scope.blueprint));
+      var s = cm.Settings.getSettingsFromBlueprint($scope.blueprint);
+      if (s) {
+        $scope.settings = $scope.settings.concat(s);
+      }
     }
 
     if ($scope.environment) {
-      $scope.settings = $scope.settings.concat(cm.Settings.getSettingsFromEnvironment($scope.environment));
+      var t = cm.Settings.getSettingsFromEnvironment($scope.environment);
+      if (t) {
+        $scope.settings = $scope.settings.concat(t);  
+      }    
     }
 
     _.each($scope.settings, function(element, index) {
@@ -420,8 +426,6 @@ function DeploymentNewCtrl($scope, $location, $routeParams, $http) {
       console.log(message);
       return "<em>" + message + "</em>";
     }
-
-    console.log(JSON.stringify(setting));
 
     return template ? Mustache.render(template, setting) : "";
   }
