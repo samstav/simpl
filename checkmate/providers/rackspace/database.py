@@ -2,52 +2,113 @@ import logging
 import random
 import string
 
+from celery.task import task
 import clouddb
 from SpiffWorkflow.operators import Attrib
 from SpiffWorkflow.specs import Celery
 
-from checkmate.exceptions import CheckmateNoMapping
+from checkmate.deployments import Deployment
+from checkmate.exceptions import CheckmateException, CheckmateNoMapping, \
+        CheckmateNoTokenError
 from checkmate.providers import ProviderBase
 
-
 LOG = logging.getLogger(__name__)
+
+# Any names should become airport codes
+REGION_MAP = {'dallas': 'DFW',
+              'chicago': 'ORD',
+              'london': 'LON'}
 
 
 class Provider(ProviderBase):
     name = 'database'
     vendor = 'rackspace'
 
-    def generate_template(self, deployment, resource_type, service, name=None):
+    def generate_template(self, deployment, resource_type, service, context,
+            name=None):
         template = ProviderBase.generate_template(self,
-                deployment, resource_type, service, name=name)
+                deployment, resource_type, service, context, name=name)
 
-        flavor = self.get_deployment_setting(deployment, 'memory',
-                resource_type=resource_type, service=service, default=512)
-        #FIXME: mapping needs to be done
-        if '512' in str(flavor):
-            flavor = 1
-        else:
-            raise CheckmateNoMapping("No flavor mapping for '%s' in '%s'" % (
-                    flavor, self.name))
+        catalog = self.get_catalog(context)
+
+        # Get flavor
+        memory = deployment.get_setting('memory', resource_type=resource_type,
+                service_name=service, provider_key=self.key) or 512
+
+        # Find same or next largest size and get flavor ID
+        size = 512
+        flavor = 1
+        number = str(memory).split(' ')[0]
+        for key, value in catalog['lists']['sizes'].iteritems():
+            if number <= str(value['memory']):
+                if key > size:
+                    size = value['memory']
+                    flavor = key
+
+        # Get volume size
+        volume = deployment.get_setting('disk', resource_type=resource_type,
+                service_name=service, provider_key=self.key, default=1)
+
+        # Get region
+        region = deployment.get_setting('region', resource_type=resource_type,
+                service_name=service, provider_key=self.key)
+        if not region:
+            raise CheckmateException("Could not identify which region to "
+                    "create database in")
 
         template['flavor'] = flavor
+        template['disk'] = volume
+        template['region'] = region
         return template
 
     def add_resource_tasks(self, resource, key, wfspec, deployment, context,
             wait_on=None):
+        service_name = None
+        for name, service in deployment['blueprint']['services'].iteritems():
+            if key in service.get('instances', []):
+                service_name = name
+                break
+
+        # Password
+        password = deployment.get_setting('password',
+                resource_type=resource.get('type'), provider_key=self.key,
+                service_name=service_name)
         start_with = string.ascii_uppercase + string.ascii_lowercase
-        password = '%s%s' % (random.choice(start_with),
+        if password:
+            if password[0] not in start_with:
+                raise CheckmateException("Database password must start with "
+                        "one of '%s'" % start_with)
+        else:
+            password = '%s%s' % (random.choice(start_with),
                 ''.join(random.choice(start_with + string.digits + '@?#_')
                 for x in range(11)))
-        db_name = 'db1'
-        username = 'wp_user_%s' % db_name
+            deployment.settings()['db_password'] = password
 
-        create_db_task = Celery(wfspec, 'Create DB',
+        # Database name
+        db_name = deployment.get_setting('db_name',
+                resource_type=resource.get('type'), provider_key=self.key,
+                service_name=service_name)
+        if not db_name:
+            db_name = 'db1'
+            deployment.settings()['db_name'] = db_name
+
+        # User name
+        username = deployment.get_setting('username',
+                resource_type=resource.get('type'), provider_key=self.key,
+                service_name=service_name)
+        if not username:
+            username = 'wp_user_%s' % db_name
+            deployment.settings()['db_username'] = username
+
+        create_instance_task = Celery(wfspec, 'Create Database Instance',
                'checkmate.providers.rackspace.database.create_instance',
-               call_args=[Attrib('context'),
-                        resource.get('dns-name'), 1,
+               call_args=[context.get_queued_task_dict(),
+                        resource.get('dns-name'),
+                        resource.get('disk', 1),
                         resource.get('flavor', 1),
-                        [{'name': db_name}]],
+                        [{'name': db_name}],
+                        resource['region'],
+                    ],
                prefix=key,
                defines=dict(resource=key,
                             provider=self.key,
@@ -55,23 +116,52 @@ class Provider(ProviderBase):
                properties={'estimated_duration': 80})
         create_db_user = Celery(wfspec, "Add DB User:%s" % username,
                'checkmate.providers.rackspace.database.add_user',
-               call_args=[Attrib('context'),
+               call_args=[context.get_queued_task_dict(),
                         Attrib('id'), [db_name],
-                        username, password],
+                        username, password,
+                        resource['region'],
+                        ],
                defines=dict(resource=key,
                             provider=self.key,
                             task_tags=['final']),
                properties={'estimated_duration': 20})
-        # Store these in the context for use by other tasks
-        context['db_name'] = db_name
-        context['db_username'] = username
-        context['db_password'] = password
-        create_db_task.connect(create_db_user)
-        return dict(root=create_db_task, final=create_db_user)
+
+        create_instance_task.connect(create_db_user)
+        return dict(root=create_instance_task, final=create_db_user)
 
     def get_catalog(self, context, type_filter=None):
+        """Return stored/override catalog if it exists, else connect, build,
+        and return one"""
+
+        # TODO: maybe implement this an on_get_catalog so we don't have to do
+        #        this for every provider
+        results = ProviderBase.get_catalog(self, context,
+            type_filter=type_filter)
+        if results:
+            # We have a prexisting or overridecatalog stored
+            return results
+
+        # build a live catalog ()this would be the on_get_catalog called if no
+        # stored/override existed
         api = self._connect(context)
-        results = {}
+        if type_filter is None or type_filter == 'database':
+            results['database'] = dict(mysql_instance={
+                'id': 'mysql_instance',
+                'is': 'database',
+                'provides': [{'database': 'mysql'}],
+                'options': {
+                        'disk': {
+                                'type': 'int',
+                                'choice': [1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
+                                'unit': 'Gb',
+                            },
+                        'memory': {
+                                'type': 'int',
+                                'choice': [512, 1024, 2048, 4096],
+                                'unit': 'Mb',
+                            },
+                    }
+                })
 
         if type_filter is None or type_filter == 'regions':
             regions = {}
@@ -81,109 +171,94 @@ class Provider(ProviderBase):
                     for endpoint in endpoints:
                         if 'region' in endpoint:
                             regions[endpoint['region']] = endpoint['publicURL']
-            results['regions'] = regions
+            if 'lists' not in results:
+                results['lists'] = {}
+            results['lists']['regions'] = regions
 
         if type_filter is None or type_filter == 'size':
             flavors = api.flavors.list_flavors()
-            results['sizes'] = {
+            if 'lists' not in results:
+                results['lists'] = {}
+            results['lists']['sizes'] = {
                 f.id: {
                     'name': f.name,
+                    'memory': f.ram
                     } for f in flavors}
 
+        self.validate_catalog(results)
         return results
 
-    def _connect(self, context):
+    @staticmethod
+    def _connect(context, region=None):
         """Use context info to connect to API and return api object"""
-        #FIXME: handle region in context
-        if not context.auth_tok:
+        #FIXME: figure out better serialization/deserialization scheme
+        if isinstance(context, dict):
+            from checkmate.server import RequestContext
+            context = RequestContext(**context)
+        if not context.auth_token:
             raise CheckmateNoTokenError()
 
-        def find_url(catalog):
+        # Make sure we use airport codes (translate cities to that)
+        if region in REGION_MAP:
+            region = REGION_MAP[region]
+
+        def find_url(catalog, region):
             for service in catalog:
                 if service['type'] == 'rax:database':
                     endpoints = service['endpoints']
                     for endpoint in endpoints:
-                        return endpoint['publicURL']
+                        if endpoint.get('region') == region:
+                            return endpoint['publicURL']
 
         def find_a_region(catalog):
+            """Any region"""
             for service in catalog:
                 if service['type'] == 'rax:database':
                     endpoints = service['endpoints']
                     for endpoint in endpoints:
                         return endpoint['region']
 
-        api = clouddb.CloudDB(context.user, 'dummy',
-                find_a_region(context.catalog) or 'DFW')
-        api.client.auth_token = context.auth_tok
-        url = find_url(context.catalog)
+        if not region:
+            region = find_a_region(context.catalog) or 'DFW'
+
+        #TODO: instead of hacking auth using a token, submit patch upstream
+        url = find_url(context.catalog, region)
+        if not url:
+            raise CheckmateException("Unable to locate region url for DBaaS "
+                    "for region '%s'" % region)
+        api = clouddb.CloudDB(context.username, 'dummy', region)
+        api.client.auth_token = context.auth_token
         api.client.region_account_url = url
 
         return api
 
 
 #
-# Exploring Celery tasks from within CheckMate
+# Celery tasks
 #
-from celery.task import task
-import clouddb
-
-REGION_MAP = {'DFW': 'dallas',
-              'ORD': 'chicago',
-              'LON': 'london'}
-
-
-def _get_db_object(context):
-    region = context['region']
-    # Map to clouddb library known names (it uses full names)
-    if region in REGION_MAP:
-        region = REGION_MAP[region]
-    return clouddb.CloudDB(context['username'], context['apikey'],
-                           region)
-
-
 @task(default_retry_delay=10, max_retries=2)
-def create_instance(context, instance_name, size, flavor,
-                               databases, username=None, password=None,
-                               api=None, prefix=None):
-    """Creates a Cloud Database instancem, initial databases and user.
+def create_instance(context, instance_name, size, flavor, databases, region,
+        prefix=None, api=None):
+    """Creates a Cloud Database instance with optional initial databases.
 
-    databases is an array of dictionaries with keys to set the database
+    :param databases: an array of dictionaries with keys to set the database
     name, character set and collation.  For example:
 
         databases=[{'name': 'db1'},
                    {'name': 'db2', 'character_set': 'latin5',
                     'collate': 'latin5_turkish_ci'}]
     """
-    if api is None:
-        api = _get_db_object(context)
+    if not api:
+        api = Provider._connect(context, region)
 
-    #try:
     instance = api.create_instance(instance_name, size, flavor,
                                           databases=databases)
-    LOG.info("Created database instance %s (%s). Size %d, Flavor %d. "
+    LOG.info("Created database instance %s (%s). Size %s, Flavor %s. "
             "Databases = %s" % (instance_name, instance.id, size, flavor,
             databases))
-    #except clouddb.errors.ResponseError, exc:
-    #    log(context,
-    #        'Response error while trying to create database instance ' \
-    #        '%s. Error %d %s. Retrying.' % (
-    #          instance_name, exc.status, exc.reason))
-    #    create_instance.retry(exc=exc)
-    #except Exception, exc:
-    #    log(context,
-    #        'Error creating database instance %s. Error %s. Retrying.' % (
-    #        instance_name, str(exc)))
-    #    create_instance.retry()
-
-    db_name_list = []
-    for database in databases:
-        db_name_list.append(database['name'])
-        if username:
-            add_user.delay(context, instance.id, db_name_list,
-                                  username, password)
 
     results = dict(id=instance.id, name=instance.name, status=instance.status,
-            hostname=instance.hostname)
+            hostname=instance.hostname, region=region)
     if prefix:
         # Add each value back in with the prefix
         results.update({'%s.%s' % (prefix, key): value for key, value in
@@ -193,10 +268,10 @@ def create_instance(context, instance_name, size, flavor,
 
 
 @task(default_retry_delay=10, max_retries=10)
-def add_databases(deployment, instance_id, databases, api=None):
+def add_databases(context, instance_id, databases, region, api=None):
     """Adds new database(s) to an existing instance.
 
-    database is a list of dictionaries with a required key for database
+    :param databases: a list of dictionaries with a required key for database
     name and optional keys for setting the character set and collation.
     For example:
 
@@ -205,133 +280,63 @@ def add_databases(deployment, instance_id, databases, api=None):
                     'collate': 'latin5_turkish_ci'}]
         databases = [{'name': 'mydb3'}, {'name': 'mydb4'}]
     """
-    if api is None:
-        api = _get_db_object(deployment)
+    if not api:
+        api = Provider._connect(context, region)
 
     dbnames = []
     for db in databases:
         dbnames.append(db['name'])
 
-    try:
-        instance = api.get_instance(instance_id)
-        instance.create_databases(databases)
-        LOG.debug(
-            'Added database(s) %s to instance %s' % (dbnames,
-                                                     instance_id))
-    except clouddb.errors.ResponseError, exc:
-        LOG.debug(
-            'Response error while trying to add new database(s) %s to ' \
-            'instance %s. Error %d %s. Retrying.' % (
-              dbnames, instance_id, exc.status, exc.reason))
-        add_databases.retry(exc=exc)
-    except Exception, exc:
-        LOG.debug(
-            'Error adding database(s) %s to instance %s. Error %s. ' \
-            'Retrying.' % (
-              dbnames, instance_id, str(exc)))
-        add_databases.retry()
+    instance = api.get_instance(instance_id)
+    instance.create_databases(databases)
+    LOG.info('Added database(s) %s to instance %s' % (dbnames, instance_id))
+    return dict(databases=dbnames)
 
 
 @task(default_retry_delay=10, max_retries=10)
-def add_user(deployment, instance_id, databases, username,
-                        password, api=None):
-    """Add a database user to an instance for a database"""
-    if api is None:
-        api = _get_db_object(deployment)
+def add_user(context, instance_id, databases, username, password, region,
+        api=None):
+    """Add a database user to an instance for one or more databases"""
+    if not api:
+        api = Provider._connect(context, region)
 
-    try:
-        instance = api.get_instance(instance_id)
-        instance.create_user(username, password, databases)
-        LOG.debug(
-            'Added user %s to %s on instance %s' % (username,
-                                                    databases,
-                                                    instance_id))
-    except clouddb.errors.ResponseError, exc:
-        LOG.debug(
-            'Response error while trying to add database user %s to %s ' \
-            'on instance %s. Error %s %s. Retrying.' % (
-              username, databases, instance_id, exc.status,
-              exc.reason))
-        add_user.retry(exc=exc)
-    except Exception, exc:
-        LOG.debug(
-            'Error creating database user %s, database %s, instance %s.' \
-            ' Error %s. Retrying.' % (
-              username, databases, instance_id, str(exc)))
-        add_user.retry()
+    instance = api.get_instance(instance_id)
+    instance.create_user(username, password, databases)
+    LOG.info('Added user %s to %s on instance %s' % (username, databases,
+            instance_id))
+    return dict(db_username=username, db_password=password)
 
 
 @task(default_retry_delay=10, max_retries=10)
-def delete_instance(deployment, instance_id, api=None):
-    """Deletes a database instance and its associated databases and
+def delete_instance(context, instance_id, region, api=None):
+    """Deletes a database server instance and its associated databases and
     users.
     """
-    if api is None:
-        api = _get_db_object(deployment)
+    if not api:
+        api = Provider._connect(context, region)
 
-    try:
-        api.delete_instance(instanceid=instance_id)
-        LOG.debug('Database instance %s deleted.' % instance_id)
-    except clouddb.errors.ResponseError, exc:
-        LOG.debug(
-            'Response error while trying to delete database instance ' \
-            '%s. Error %d %s. Retrying.' % (
-              instance_id, exc.status, exc.reason))
-        delete_database.retry(exc=exc)
-    except Exception, exc:
-        LOG.debug(
-            'Error deleting database instance %s. Error %s. Retrying.' % (
-            instance_id, str(exc)))
-        delete_database.retry()
+    api.delete_instance(instanceid=instance_id)
+    LOG.info('Database instance %s deleted.' % instance_id)
 
 
 @task(default_retry_delay=10, max_retries=10)
-def delete_database(deployment, instance_id, db, api=None):
+def delete_database(context, instance_id, db, region, api=None):
     """Delete a database from an instance"""
-    if api is None:
-        api = _get_db_object(deployment)
+    if not api:
+        api = Provider._connect(context, region)
 
-    try:
-        instance = api.get_instance(instance_id)
-        instance.delete_database(db)
-        LOG.debug('Database %s deleted from instance %s' % (db, instance_id))
-    except clouddb.errors.ResponseError, exc:
-        LOG.debug(
-            'Response error while trying to delete database %s from ' \
-            'instance %s. Error %d %s. Retrying.' % (
-              db, instance_id, exc.status, exc.reason))
-        delete_database.retry(exc=exc)
-    except Exception, exc:
-        LOG.debug(
-            'Error deleting database %s from instance %s. Error %s. ' \
-            'Retrying.' % (
-              db, instance_id, str(exc)))
-        delete_database.retry()
+    instance = api.get_instance(instance_id)
+    instance.delete_database(db)
+    LOG.info('Database %s deleted from instance %s' % (db, instance_id))
 
 
 @task(default_retry_delay=10, max_retries=10)
-def delete_user(deployment, instance_id, username, api=None):
+def delete_user(context, instance_id, username, region, api=None):
     """Delete a database user from an instance."""
-    """
     if api is None:
-        api = _get_db_object(deployment)
+        api = Provider._connect(context, region)
 
-    try:
-        instance = api.get_instance(instanceid=instance_id)
-        instance.delete_user(username)
-        LOG.debug(
-            'Deleted user %s from database instance %d' % (username,
-                                                           instance_id))
-    except clouddb.errors.ResponseError, exc:
-        LOG.debug(
-            'Response error while trying to delete database user %s to ' \
-            '%s on instance %d. Error %d %s. Retrying.' % (
-              username, database_name, instance_id, exc.status, exc.reason))
-        delete_user.retry(exc=exc)
-    except Exception, exc:
-        LOG.debug(
-            'Error deleting database user %s, database %s, instance %s.' \
-            ' Error %s. Retrying.' % (
-              username, database_name, instance_id, str(exc)))
-        delete_user.retry(exc=exc)
-    """
+    instance = api.get_instance(instanceid=instance_id)
+    instance.delete_user(username)
+    LOG.info('Deleted user %s from database instance %d' % (username,
+            instance_id))

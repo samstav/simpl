@@ -7,13 +7,15 @@ from string import Template
 import unittest2 as unittest
 import uuid
 
+from celery.app import default_app
+from celery.result import AsyncResult
 import mox
 from mox import IsA, In, And, Or, IgnoreArg, ContainsKeyValue, Func, \
         StrContains
-from celery.app import default_app
-from celery.result import AsyncResult
 from SpiffWorkflow.storage import DictionarySerializer
 import yaml
+
+from checkmate.deployments import Deployment
 from checkmate.utils import yaml_to_dict
 
 LOG = logging.getLogger(__name__)
@@ -29,20 +31,125 @@ os.environ['CHECKMATE_BROKER_HOST'] = os.environ.get('CHECKMATE_BROKER_HOST',
 os.environ['CHECKMATE_BROKER_PORT'] = os.environ.get('CHECKMATE_BROKER_PORT',
         '5672')
 
-from checkmate import server  # enables logging
-from checkmate.deployments import plan_dict, get_os_env_keys
+from checkmate.server import RequestContext  # also enables logging
+from checkmate.deployments import plan, get_os_env_keys
 from checkmate.providers.base import PROVIDER_CLASSES, ProviderBase
 from checkmate.utils import resolve_yaml_external_refs, is_ssh_key
+from checkmate.workflows import create_workflow
 
 # Environment variables and safe alternatives
 ENV_VARS = {
         'CHECKMATE_CLIENT_USERNAME': 'john.doe',
         'CHECKMATE_CLIENT_APIKEY': 'secret-api-key',
-        'CHECKMATE_CLIENT_PUBLIC_KEY': 'ssh-rsa AAAAB3NzaC1...',
+        'CHECKMATE_CLIENT_PUBLIC_KEY': """ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQDtjYYMFbpCJ/ND3izZ1DqNFQHlooXyNcDGWilAqNqcCfz9L+gpGjY2pQlZz/1Hir3R8fz0MS9VY32RYmP3wWygt85kNccEkOpVGGpGyV/aMFaQHZD0h6d0AT+haP0Iig+OrH1YBnpdgVPWx3SbU4eV/KYGpO9Mintj3P54of22lTK4dOwCNvID9P9w+T1kMfdVxGwhqsSL0RxVXnSSkozXQWCNvaZJMUmidm8YA009c5PoksyWjl3EE+rEzZ8ywvtUJf9DvnLCESfhF3hK5lAiEd8z7gyiQnBexn/dXzldGFiJYJgQ5HolYaNMtTF+AQY6R6Qt0okCPyEDJxHJUM7d""",
         'CHECKMATE_CLIENT_PRIVATE_KEY': 'mumble-code',
         'CHECKMATE_CLIENT_DOMAIN': 'test.local',
         'CHECKMATE_CLIENT_REGION': 'north'
     }
+
+CATALOG = [{
+                "endpoints": [
+                    {
+                        "publicURL": "https://monitoring.api.rackspacecloud.com/v1.0/T1000",
+                        "tenantId": "T1000"
+                    }
+                ],
+                "name": "cloudMonitoring",
+                "type": "rax:monitor"
+            },
+            {
+                "endpoints": [
+                    {
+                        "publicURL": "https://ord.loadbalancers.api.rackspacecloud.com/v1.0/T1000",
+                        "region": "ORD",
+                        "tenantId": "T1000"
+                    },
+                    {
+                        "publicURL": "https://dfw.loadbalancers.api.rackspacecloud.com/v1.0/T1000",
+                        "region": "DFW",
+                        "tenantId": "T1000"
+                    }
+                ],
+                "name": "cloudLoadBalancers",
+                "type": "rax:load-balancer"
+            },
+            {
+                "endpoints": [
+                    {
+                        "internalURL": "https://snet-storage101.ord1.clouddrive.com/v1/Mosso_T-2000",
+                        "publicURL": "https://storage101.ord1.clouddrive.com/v1/Mosso_T-2000",
+                        "region": "ORD",
+                        "tenantId": "Mossos_T-2000"
+                    }
+                ],
+                "name": "cloudFiles",
+                "type": "object-store"
+            },
+            {
+                "endpoints": [
+                    {
+                        "publicURL": "https://dfw.databases.api.rackspacecloud.com/v1.0/T1000",
+                        "region": "DFW",
+                        "tenantId": "T1000"
+                    },
+                    {
+                        "publicURL": "https://ord.databases.api.rackspacecloud.com/v1.0/T1000",
+                        "region": "ORD",
+                        "tenantId": "T1000"
+                    }
+                ],
+                "name": "cloudDatabases",
+                "type": "rax:database"
+            },
+            {
+                "endpoints": [
+                    {
+                        "publicURL": "https://servers.api.rackspacecloud.com/v1.0/T1000",
+                        "tenantId": "T1000",
+                        "versionId": "1.0",
+                        "versionInfo": "https://servers.api.rackspacecloud.com/v1.0",
+                        "versionList": "https://servers.api.rackspacecloud.com/"
+                    }
+                ],
+                "name": "cloudServers",
+                "type": "compute"
+            },
+            {
+                "endpoints": [
+                    {
+                        "publicURL": "https://dfw.servers.api.rackspacecloud.com/v2/T1000",
+                        "region": "DFW",
+                        "tenantId": "T1000",
+                        "versionId": "2",
+                        "versionInfo": "https://dfw.servers.api.rackspacecloud.com/v2",
+                        "versionList": "https://dfw.servers.api.rackspacecloud.com/"
+                    }
+                ],
+                "name": "cloudServersOpenStack",
+                "type": "compute"
+            },
+            {
+                "endpoints": [
+                    {
+                        "publicURL": "https://dns.api.rackspacecloud.com/v1.0/T1000",
+                        "tenantId": "T1000"
+                    }
+                ],
+                "name": "cloudDNS",
+                "type": "rax:dns"
+            },
+            {
+                "endpoints": [
+                    {
+                        "publicURL": "https://cdn2.clouddrive.com/v1/Mosso_T-2000",
+                        "region": "ORD",
+                        "tenantId": "Mosso_T-2000"
+                    }
+                ],
+                "name": "cloudFilesCDN",
+                "type": "rax:object-cdn"
+            }
+        ]
 
 
 class StubbedWorkflowBase(unittest.TestCase):
@@ -53,20 +160,23 @@ class StubbedWorkflowBase(unittest.TestCase):
         self.mox.UnsetStubs()
 
     def _get_stubbed_out_workflow(self, deployment):
-        result = plan_dict(deployment)
+        """Returns a workflow with mocks attached to all celery calls
+
+        :param deployment: a Deployment object
+        """
+        assert isinstance(deployment, Deployment)
+        context = RequestContext(auth_token="MOCK_TOKEN", username="MOCK_USER",
+                catalog=CATALOG)
+        deployment = plan(deployment, context)
+        workflow = create_workflow(deployment, context)
 
         # Prepare expected call names, args, and returns for mocking
-        def context_has_server_settings(context):
-            """Checks that server_create call has all necessary settings"""
-            if not is_ssh_key(context['keys']['client']['public_key_ssh']):
-                LOG.warn("Create server call did not get client key")
-                return False
-            if not (context['keys']['environment']['public_key_ssh'] == \
-                    'ssh-rsa AAAAB3NzaC1...' or
-                    is_ssh_key(context['keys']['environment']['public_key_ssh']
-                    )):
-                LOG.warn("Create server call did not get environment key")
-                return False
+        def is_good_context(context):
+            """Checks that call has all necessary context data"""
+            for key in ['auth_token', 'username', 'catalog']:
+                if key not in context:
+                    LOG.warn("Context does not have a '%s'" % key)
+                    return False
             return True
 
         def server_got_keys(files):
@@ -89,277 +199,244 @@ class StubbedWorkflowBase(unittest.TestCase):
                     return False
             return True
 
-        calls = [{
-                # Authenticate first
-                'call': 'checkmate.providers.rackspace.identity.get_token',
-                'args': [And(Or(In('apikey'), In('password')),
-                        In('username'))],
-                'kwargs': None,
-                'result': "mock-token"
-            },
-            {
+        def is_good_data_bag(context):
+            """Checks that we're writing everything we need to the chef databag
+            for managed cloud cookbooks to work"""
+            if 'wordpress' not in context:
+                return False
+            if 'user' not in context:
+                return False
+            if 'mysql' not in context:
+                return False
+            if 'lsyncd' not in context:
+                return False
+            if 'apache' not in context:
+                return False
+            return True
+
+        expected_calls = [{
                 # Create Chef Environment
                 'call': 'checkmate.providers.opscode.local.create_environment',
-                'args': IsA(list),
+                'args': ['DEP-ID-1000'],
                 'kwargs': And(ContainsKeyValue('private_key', IgnoreArg()),
-                        ContainsKeyValue('secrets_key', IgnoreArg()),
+                        ContainsKeyValue('secret_key', IgnoreArg()),
                         ContainsKeyValue('public_key_ssh', IgnoreArg())),
                 'result': {'environment': '/var/tmp/DEP-ID-1000/',
                     'kitchen': '/var/tmp/DEP-ID-1000/kitchen',
                     'private_key_path': '/var/tmp/DEP-ID-1000/private.pem',
                     'public_key_path': '/var/tmp/DEP-ID-1000/checkmate.pub',
-                    'public_key': 'ssh-rsa AAAAB3NzaC1...'}
-            },
-            {
-                # Create Database
-                'call': 'checkmate.providers.rackspace.database.'
-                        'create_instance',
-                'args': [And(ContainsKeyValue('db_name', 'db1'),
-                        In('db_password'), ContainsKeyValue('db_username',
-                                'wp_user_db1')), IsA(basestring),
-                        1, 1, [{'name': 'db1'}]],
-                'kwargs': IgnoreArg(),
-                'result': {
-                        'id': 'db-inst-1',
-                        'name': 'dbname.domain.local',
-                        'status': 'BUILD',
-                        'hostname': 'verylong.rackspaceclouddb.com'}
+                    'public_key': ENV_VARS['CHECKMATE_CLIENT_PUBLIC_KEY']}
             },
             {
                 # Create Load Balancer
                 'call': 'checkmate.providers.rackspace.loadbalancer.'
                         'create_loadbalancer',
-                'args': [IsA(dict), IsA(basestring), 'PUBLIC', 'HTTP', 80],
+                'args': [Func(is_good_context), IsA(basestring), 'PUBLIC',
+                        'HTTP', 80,  deployment.get_setting('region',
+                                                        default='testonia')],
                 'kwargs': IgnoreArg(),
-                'result': {'id': 20001, 'vip': "200.1.1.1"}
+                'result': {'id': 20001, 'vip': "200.1.1.1", 'lbid': 20001}
             },
             {
-                # Create Database User
-                'call': 'checkmate.providers.rackspace.database.add_user',
-                'args': [IsA(dict), 'db-inst-1', ['db1'], 'wp_user_db1',
-                        IsA(basestring)],
-                'kwargs': None,
+                'call': 'checkmate.providers.opscode.local.manage_databag',
+                'args': ['DEP-ID-1000', 'DEP-ID-1000',
+                        IsA(basestring),
+                        Func(is_good_data_bag)],
+                'kwargs': And(ContainsKeyValue('secret_file',
+                        'certificates/chef.pem'), ContainsKeyValue('merge',
+                        True)),
                 'result': None
             },
-            {
-                # Create First Server
-                'call': 'checkmate.providers.rackspace.compute_legacy.'
-                        'create_server',
-                'args': [Func(context_has_server_settings),
-                        StrContains('web1')],
-                'kwargs': And(ContainsKeyValue('image', 119),
-                        ContainsKeyValue('flavor', 2),
-                        ContainsKeyValue('prefix', '0'),
-                        ContainsKeyValue('ip_address_type', 'public')),
-                'result': {'id': 10001, 'ip': "4.4.4.1",
-                        'private_ip': "10.1.1.1",
-                        'password': "shecret",
-                        '0.id': 10001, '0.ip': "4.4.4.1",
-                        '0.private_ip': "10.1.1.1",
-                        '0.password': "shecret"}
-            },
-            {
-                # Create Second Server (Nova format)
-                'call': 'checkmate.providers.rackspace.compute_legacy.'
-                        'create_server',
-                'args': [Func(context_has_server_settings),
-                        StrContains('web2')],
-                'kwargs': And(ContainsKeyValue('image', 119),
-                        ContainsKeyValue('flavor', 2),
-                        ContainsKeyValue('prefix', '1'),
-                        ContainsKeyValue('ip_address_type', 'public')),
-                'result': {'id': "10-uuid-002", 'password': "shecret",
-                        '1.id': "10-uuid-002", '1.password': "shecret"}
-            },
-            {
-                # Wait for First Server Build (Legacy format)
-                'call': 'checkmate.providers.rackspace.compute_legacy.'
-                        'wait_on_build',
-                'args': [IsA(dict), 10001],
-                'kwargs': And(In('password')),
-                'result': {
-                        'status': "ACTIVE",
-                        '0.status': "ACTIVE",
-                        'ip': '4.4.4.1',
-                        '0.ip': '4.4.4.1',
-                        'private_ip': '10.1.2.1',
-                        '0.private_ip': '10.1.2.1',
-                        'addresses': {
-                          'public': [
-                            {
-                              "version": 4,
-                              "addr": "4.4.4.1"
-                            },
-                            {
-                              "version": 6,
-                              "addr": "2001:babe::ff04:36c1"
-                            }
-                          ],
-                          'private': [
-                            {
-                              "version": 4,
-                              "addr": "10.1.2.1"
-                            }
-                          ]
-                        },
-                        '0.addresses': {
-                          'public': [
-                            {
-                              "version": 4,
-                              "addr": "4.4.4.1"
-                            },
-                            {
-                              "version": 6,
-                              "addr": "2001:babe::ff04:36c1"
-                            }
-                          ],
-                          'private': [
-                            {
-                              "version": 4,
-                              "addr": "10.1.2.1"
-                            }
-                          ]
-                        }
-                    }
-            },
-            {
-                # Wait for Second Server Build (Nova format)
-                'call': 'checkmate.providers.rackspace.compute_legacy.'
-                        'wait_on_build',
-                'args': [IsA(dict), "10-uuid-002"],
-                'kwargs': And(In('password')),
-                'result': {
-                        'status': "ACTIVE",
-                        '1.status': "ACTIVE",
-                        'ip': '4.4.4.2',
-                        '1.ip': '4.4.4.2',
-                        'private_ip': '10.1.2.2',
-                        '1.private_ip': '10.1.2.2',
-                        'addresses': {
-                          'public': [
-                            {
-                              "version": 4,
-                              "addr": "4.4.4.2"
-                            },
-                            {
-                              "version": 6,
-                              "addr": "2001:babe::ff04:36c2"
-                            }
-                          ],
-                          'private': [
-                            {
-                              "version": 4,
-                              "addr": "10.1.2.2"
-                            }
-                          ]
-                        },
-                        '1.addresses': {
-                          'public': [
-                            {
-                              "version": 4,
-                              "addr": "4.4.4.2"
-                            },
-                            {
-                              "version": 6,
-                              "addr": "2001:babe::ff04:36c2"
-                            }
-                          ],
-                          'private': [
-                            {
-                              "version": 4,
-                              "addr": "10.1.2.2"
-                            }
-                          ]
-                        }
-                    }
-            },
-            {
-                # Bootstrap Server 1 with Chef
-                'call': 'checkmate.providers.opscode.local.register_node',
-                'args': ['4.4.4.1', 'DEP-ID-1000'],
-                'kwargs': In('password'),
-                'result': None
-            },
-            {
-                # Bootstrap Server 2 with Chef
-                'call': 'checkmate.providers.opscode.local.register_node',
-                'args': ['4.4.4.2', 'DEP-ID-1000'],
-                'kwargs': In('password'),
-                'result': None
-            },
+            # Not needed for local?
             {
                 'call': 'checkmate.providers.opscode.local.manage_role',
                 'args': ['wordpress-web', 'DEP-ID-1000'],
                 'kwargs': {'override_attributes': {'wordpress': {'db': {
                         'host': 'verylong.rackspaceclouddb.com',
                         'password': IsA(basestring),
-                        'user': 'wp_user_db1',
+                        'user': os.environ['USER'],
                         'database': 'db1'}}}},
-                'result': None
-            },
-            {
-                'call': 'checkmate.providers.opscode.local.manage_databag',
-                'args': ['DEP-ID-1000', 'DEP-ID-1000', 'webapp_wordpress_A',
-                        IsA(dict)],
-                'kwargs': ContainsKeyValue('secret_file',
-                        'certificates/chef.pem'),
-                'result': None
-            },
-            {
-                'call': 'checkmate.providers.opscode.local.cook',
-                'args': ['4.4.4.1', 'DEP-ID-1000'],
-                'kwargs': And(In('password'), ContainsKeyValue('recipes',
-                        ['build-essential']),
-                        ContainsKeyValue('identity_file',
-                            '/var/tmp/DEP-ID-1000/private.pem')),
-                'result': None
-            },
-            {
-                'call': 'checkmate.providers.opscode.local.cook',
-                'args': ['4.4.4.1', 'DEP-ID-1000'],
-                'kwargs': And(In('password'), ContainsKeyValue('roles',
-                        ['build-ks', 'wordpress-web']),
-                        ContainsKeyValue('identity_file',
-                            '/var/tmp/DEP-ID-1000/private.pem')),
-                'result': None
-            },
-            {
-                'call': 'checkmate.providers.rackspace.loadbalancer.add_node',
-                'args': [IsA(dict), 20001, '10.1.2.1', 80],
-                'kwargs': None,
-                'result': None
-            },
-            {
-                'call': 'checkmate.providers.opscode.local.cook',
-                'args': ['4.4.4.2', 'DEP-ID-1000'],
-                'kwargs': And(In('password'), ContainsKeyValue('recipes',
-                        ['build-essential']),
-                        ContainsKeyValue('identity_file',
-                            '/var/tmp/DEP-ID-1000/private.pem')),
-                'result': None
-            },
-            {
-                'call': 'checkmate.providers.opscode.local.cook',
-                'args': ['4.4.4.2', 'DEP-ID-1000'],
-                'kwargs': And(In('password'), ContainsKeyValue('roles',
-                        ['build-ks', 'wordpress-web']),
-                        ContainsKeyValue('identity_file',
-                            '/var/tmp/DEP-ID-1000/private.pem')),
-                'result': None
-            },
-            {
-                'call': 'checkmate.providers.rackspace.loadbalancer.add_node',
-                'args': [IsA(dict), 20001, '10.1.2.2', 80],
-                'kwargs': None,
                 'result': None
             }
             ]
+        # Add repetive calls (per server)
+        for key, resource in deployment.get('resources', {}).iteritems():
+            if resource.get('type') == 'compute':
+                if 'master' in resource['dns-name']:
+                    id = 10000 + int(key)  # legacy format
+                    role = 'master'
+                    ip = 100
+                else:
+                    id = "10-uuid-00%s" % key  # Nova format
+                    role = 'web'
+                    ip = key
+                name = resource['dns-name']
+                flavor = resource['flavor']
+                index = key
+                image = resource['image']
+
+                expected_calls.append({
+                    # Create First Server
+                    'call': 'checkmate.providers.rackspace.compute_legacy.'
+                            'create_server',
+                    'args': [Func(is_good_context),
+                            StrContains(name)],
+                    'kwargs': And(ContainsKeyValue('image', image),
+                            ContainsKeyValue('flavor', flavor),
+                            ContainsKeyValue('prefix', key),
+                            ContainsKeyValue('ip_address_type', 'public')),
+                    'result': {'id': id,
+                            'ip': "4.4.4.%s" % ip,
+                            'private_ip': "10.1.1.%s" % ip,
+                            'password': "shecret",
+                            '%s.id' % index: id,
+                            '%s.ip' % index: "4.4.4.%s" % ip,
+                            '%s.private_ip' % index: "10.1.1.%s" % ip,
+                            '%s.password' % index: "shecret"}
+                    })
+                expected_calls.append({
+                    # Wait for Server Build
+                    'call': 'checkmate.providers.rackspace.compute_legacy.'
+                            'wait_on_build',
+                    'args': [Func(is_good_context), id],
+                    'kwargs': And(In('password')),
+                    'result': {
+                            'status': "ACTIVE",
+                            '%s.status' % index: "ACTIVE",
+                            'ip': '4.4.4.%s' % ip,
+                            '%s.ip' % index: '4.4.4.%s' % ip,
+                            'private_ip': '10.1.2.%s' % ip,
+                            '%s.private_ip' % index: '10.1.2.%s' % ip,
+                            'addresses': {
+                              'public': [
+                                {
+                                  "version": 4,
+                                  "addr": "4.4.4.%s" % ip,
+                                },
+                                {
+                                  "version": 6,
+                                  "addr": "2001:babe::ff04:36c%s" % index,
+                                }
+                              ],
+                              'private': [
+                                {
+                                  "version": 4,
+                                  "addr": "10.1.2.%s" % ip,
+                                }
+                              ]
+                            },
+                            '%s.addresses' % index: {
+                              'public': [
+                                {
+                                  "version": 4,
+                                  "addr": "4.4.4.%s" % ip,
+                                },
+                                {
+                                  "version": 6,
+                                  "addr": "2001:babe::ff04:36c%s" % index,
+                                }
+                              ],
+                              'private': [
+                                {
+                                  "version": 4,
+                                  "addr": "10.1.2.%s" % ip,
+                                }
+                              ]
+                            }
+                        }
+                    })
+                # Bootstrap Server with Chef
+                expected_calls.append({
+                        'call': 'checkmate.providers.opscode.local.register_node',
+                        'args': ["4.4.4.%s" % ip, 'DEP-ID-1000'],
+                        'kwargs': In('password'),
+                        'result': None
+                    })
+                # build-essential and then role
+                expected_calls.append({
+                        'call': 'checkmate.providers.opscode.local.cook',
+                        'args': ["4.4.4.%s" % ip, 'DEP-ID-1000'],
+                        'kwargs': And(In('password'), ContainsKeyValue('recipes',
+                                ['build-essential']),
+                                ContainsKeyValue('identity_file',
+                                    '/var/tmp/DEP-ID-1000/private.pem')),
+                        'result': None
+                    })
+                expected_calls.append(
+                    {
+                        'call': 'checkmate.providers.opscode.local.cook',
+                        'args': ["4.4.4.%s" % ip, 'DEP-ID-1000'],
+                        'kwargs': And(In('password'), ContainsKeyValue('roles',
+                                ["wordpress-%s" % role]),
+                                ContainsKeyValue('identity_file',
+                                    '/var/tmp/DEP-ID-1000/private.pem')),
+                        'result': None
+                    })
+                #TODO: this should not be a per server call... and not twice per server!
+                expected_calls.append({
+                        'call': 'checkmate.providers.opscode.local.manage_databag',
+                        'args': ['DEP-ID-1000', 'DEP-ID-1000',
+                                'webapp_wordpress_%s' % deployment.get_setting('prefix'),
+                                And(IsA(dict), In('wordpress'), In('user'))],
+                        'kwargs': And(ContainsKeyValue('secret_file',
+                                'certificates/chef.pem'), ContainsKeyValue('merge',
+                                True)),
+                        'result': None
+                    })
+                expected_calls.append({
+                        'call': 'checkmate.providers.opscode.local.manage_databag',
+                        'args': ['DEP-ID-1000', 'DEP-ID-1000',
+                                'webapp_wordpress_%s' % deployment.get_setting('prefix'),
+                                And(IsA(dict), In('wordpress'), In('user'))],
+                        'kwargs': And(ContainsKeyValue('secret_file',
+                                'certificates/chef.pem'), ContainsKeyValue('merge',
+                                True)),
+                        'result': None
+                    })
+                expected_calls.append({
+                        'call': 'checkmate.providers.rackspace.loadbalancer.add_node',
+                        'args': [Func(is_good_context), 20001, "10.1.2.%s" % ip,
+                                80, deployment.get_setting('region', default='testonia')],
+                        'kwargs': None,
+                        'result': None
+                    })
+            elif resource.get('type') == 'database':
+                username = deployment.get_setting('username',
+                        resource_type=resource.get('type'),
+                        provider_key=resource.get('provider'),
+                        default='wp_user_db1')
+                expected_calls.append({
+                        # Create Database
+                        'call': 'checkmate.providers.rackspace.database.'
+                                'create_instance',
+                        'args': [Func(is_good_context),
+                                IsA(basestring),
+                                1, 1, [{'name': 'db1'}],
+                                 deployment.get_setting('region', default='testonia')],
+                        'kwargs': IgnoreArg(),
+                        'result': {
+                                'id': 'db-inst-1',
+                                'name': 'dbname.domain.local',
+                                'status': 'BUILD',
+                                'hostname': 'verylong.rackspaceclouddb.com',
+                                'region': 'testonia'}
+                    })
+                expected_calls.append({
+                    # Create Database User
+                    'call': 'checkmate.providers.rackspace.database.add_user',
+                    'args': [Func(is_good_context),
+                            'db-inst-1', ['db1'], username,
+                            IsA(basestring),
+                             deployment.get_setting('region', default='testonia')],
+                    'kwargs': None,
+                    'result': {'db_username': username, 'db_password': 'DbPxWd'}
+                })
 
        #Mock out celery calls
         self.mock_tasks = {}
         self.mox.StubOutWithMock(default_app, 'send_task')
         self.mox.StubOutWithMock(default_app, 'AsyncResult')
-        for call in calls:
+        for call in expected_calls:
             async_mock = self.mox.CreateMock(AsyncResult)
             async_mock.task_id = "MOCK%s" % uuid.uuid4().hex
             async_mock.result = call['result']
@@ -377,13 +454,13 @@ class StubbedWorkflowBase(unittest.TestCase):
             default_app.AsyncResult.__call__(async_mock.task_id).AndReturn(
                     async_mock)
 
-        return result
+        return workflow
 
 
 class TestWorkflowStubbing(StubbedWorkflowBase):
     """ Test Basic Server code """
     def test_workflow_run(self):
-        deployment = yaml_to_dict("""
+        deployment = Deployment(yaml_to_dict("""
                 id: test
                 blueprint:
                   name: test bp
@@ -395,10 +472,9 @@ class TestWorkflowStubbing(StubbedWorkflowBase):
                       credentials:
                       - password: secret
                         username: tester
-                """)
-        data = self._get_stubbed_out_workflow(deployment)
-        deployment = data['deployment']
-        workflow = data['workflow']
+                """))
+
+        workflow = self._get_stubbed_out_workflow(deployment)
 
         self.mox.ReplayAll()
 
@@ -410,17 +486,18 @@ class TestWorkflowStubbing(StubbedWorkflowBase):
 class TestWorkflowLogic(StubbedWorkflowBase):
     """ Test Basic Workflow code """
     def test_workflow_resource_generation(self):
-        deployment = yaml_to_dict("""
+        deployment = Deployment(yaml_to_dict("""
                 id: test
                 blueprint:
                   name: test bp
                   services:
                     one:
-                      components:
-                        id: widget
+                      component:
+                        type: widget
+                        interface: foo
                     two:
-                      components:
-                        id: widget
+                      component:
+                        id: big_widget
                 environment:
                   name: environment
                   providers:
@@ -429,21 +506,30 @@ class TestWorkflowLogic(StubbedWorkflowBase):
                       - widget: foo
                       - widget: bar
                       vendor: test
+                      catalog:
+                        widget:
+                          small_widget:
+                            is: widget
+                            provides:
+                            - widget: foo
+                          big_widget:
+                            is: widget
+                            provides:
+                            - widget: bar
                     common:
                       credentials:
                       - password: secret
                         username: tester
-            """)
+            """))
         PROVIDER_CLASSES['test.base'] = ProviderBase
-        data = self._get_stubbed_out_workflow(deployment)
-        deployment = data['deployment']
-        workflow = data['workflow']
+
+        workflow = self._get_stubbed_out_workflow(deployment)
 
         self.mox.ReplayAll()
 
         workflow.complete_all()
         self.assertTrue(workflow.is_completed())
-        self.assertEqual(len(workflow.get_tasks()), 4)  # until we remove auth
+        self.assertEqual(len(workflow.get_tasks()), 3)
 
 
 class TestWorkflow(StubbedWorkflowBase):
@@ -463,16 +549,14 @@ class TestWorkflow(StubbedWorkflowBase):
         parsed = t.safe_substitute(**combined)
         app = yaml.safe_load(yaml.emit(resolve_yaml_external_refs(parsed),
                          Dumper=yaml.SafeDumper))
-        deployment = app['deployment']
-        deployment['id'] = 'DEP-ID-1000'
-        cls.deployment = deployment
+        app['id'] = 'DEP-ID-1000'
+        cls.deployment = Deployment(app)
 
     def setUp(self):
         StubbedWorkflowBase.setUp(self)
         # Parse app.yaml as a deployment
-        result = self._get_stubbed_out_workflow(TestWorkflow.deployment)
-        self.deployment = result['deployment']
-        self.workflow = result['workflow']
+        self.deployment = TestWorkflow.deployment
+        self.workflow = self._get_stubbed_out_workflow(TestWorkflow.deployment)
 
     def test_workflow_completion(self):
         """Verify workflow sequence and data flow"""
@@ -540,13 +624,11 @@ class TestWordpressWorkflow(StubbedWorkflowBase):
         parsed = t.safe_substitute(**combined)
         app = yaml.safe_load(yaml.emit(resolve_yaml_external_refs(parsed),
                          Dumper=yaml.SafeDumper))
-        deployment = app['deployment']
-        deployment['id'] = 'DEP-ID-1000'
-        cls.deployment = deployment
+        app['id'] = 'DEP-ID-1000'
 
         # WordPress Settings
         inputs = yaml_to_dict("""
-                client_public_key_ssh: ssh-rsa AAAAB3NzaC1...
+                client_public_key_ssh: %s
                 environment_private_key: |
                     -----BEGIN RSA PRIVATE KEY-----
                     MIIEpAIBAAKCAQEAvQYtPZCP+5SVD68nf9OzEEE7itZlfynbf/XRQ6YggOa0t1U5
@@ -598,16 +680,94 @@ class TestWordpressWorkflow(StubbedWorkflowBase):
                 providers:
                   'legacy':
                     'compute':
-                      'os': Ubuntu 12.04
-                      """)
-        deployment['inputs'] = inputs
+                      'os': Ubuntu 12.04 LTS
+                      """ % ENV_VARS['CHECKMATE_CLIENT_PUBLIC_KEY'])
+        app['inputs'] = inputs
+        cls.deployment = Deployment(app)
 
     def setUp(self):
         StubbedWorkflowBase.setUp(self)
         # Parse app.yaml as a deployment
-        result = self._get_stubbed_out_workflow(TestWordpressWorkflow.deployment)
-        self.deployment = result['deployment']
-        self.workflow = result['workflow']
+        self.deployment = TestWordpressWorkflow.deployment
+        self.workflow = self._get_stubbed_out_workflow(self.deployment)
+
+    def test_workflow_completion(self):
+        """Verify workflow sequence and data flow"""
+
+        self.mox.ReplayAll()
+
+        self.workflow.complete_all()
+        self.assertTrue(self.workflow.is_completed())
+
+        serializer = DictionarySerializer()
+        simulation = self.workflow.serialize(serializer)
+        simulation['id'] = 'simulate'
+
+
+class TestDBWorkflow(StubbedWorkflowBase):
+    """ Test MySQL and DBaaS Workflow """
+
+    @classmethod
+    def setUpClass(cls):
+        deployment = yaml_to_dict("""
+                id: 'DEP-ID-1000'
+                blueprint:
+                  name: test db
+                  services:
+                    db:
+                      component:
+                        id: my_sql
+                        is: database
+                        type: database
+                        requires:
+                          "server":
+                            relation: host
+                            interface: 'linux'
+                environment:
+                  name: test
+                  providers:
+                    database:
+                      vendor: rackspace
+                      provides:
+                      - database: mysql
+                      catalog:  # override so we don't need a token to connect
+                        database:
+                          mysql_instance:
+                            id: mysql_instance
+                            is: database
+                            provides:
+                            - database: mysql
+                        lists:
+                          regions:
+                            DFW: https://dfw.databases.api.rackspacecloud.com/v1.0/T1000
+                            ORD: https://ord.databases.api.rackspacecloud.com/v1.0/T1000
+                          sizes:
+                            1:
+                              memory: 512
+                              name: m1.tiny
+                            2:
+                              memory: 1024
+                              name: m1.small
+                            3:
+                              memory: 2048
+                              name: m1.medium
+                            4:
+                              memory: 4096
+                              name: m1.large
+                    chef-local:
+                      vendor: opscode
+                      provides:
+                      - database: mysql
+                inputs:
+                  blueprint:
+                    region: DFW
+            """)
+        cls.deployment = Deployment(deployment)
+
+    def setUp(self):
+        StubbedWorkflowBase.setUp(self)
+        # Parse app.yaml as a deployment
+        self.workflow = self._get_stubbed_out_workflow(self.deployment)
 
     def test_workflow_completion(self):
         """Verify workflow sequence and data flow"""

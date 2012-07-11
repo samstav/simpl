@@ -8,6 +8,8 @@ from Crypto.PublicKey import RSA  # pip install pycrypto
 from Crypto.Hash import SHA512, MD5
 from Crypto import Random
 
+from checkmate.common import schema
+from checkmate.components import Component
 from checkmate.db import get_driver, any_id_problems
 from checkmate.exceptions import CheckmateException
 from checkmate.providers import get_provider_class, PROVIDER_CLASSES
@@ -116,7 +118,7 @@ def get_environment_provider(environment_id, provider_id, tenant_id=None):
 
 @get('/environments/<environment_id>/providers/<provider_id>/catalog')
 @with_tenant
-def get_environment_catalog(environment_id, provider_id, tenant_id=None):
+def get_provider_catalog(environment_id, provider_id, tenant_id=None):
     entity = db.get_environment(environment_id, with_secrets=True)
     if not entity:
         abort(404, 'No environment with id %s' % environment_id)
@@ -132,6 +134,27 @@ def get_environment_catalog(environment_id, provider_id, tenant_id=None):
         catalog = provider.get_catalog(request.context)
 
     return write_body(catalog, request, response)
+
+
+@get('/environments/<environment_id>/providers/<provider_id>/catalog/'
+        '<component_id>')
+@with_tenant
+def get_component(environment_id, provider_id, component_id, tenant_id=None):
+    entity = db.get_environment(environment_id, with_secrets=True)
+    if not entity:
+        abort(404, 'No environment with id %s' % environment_id)
+    environment = Environment(entity)
+    try:
+        provider = environment.get_provider(provider_id)
+    except KeyError:
+        abort(404, "Invalid provider: %s" % provider_id)
+    component = provider.get_component(request.context, component_id)
+    if component:
+        return write_body(component, request, response)
+    else:
+        abort(404, "Component %s not found or not available under this "
+                "provider and environment (%s/%s)" % (component_id,
+                environment_id, provider_id))
 
 
 #
@@ -152,6 +175,7 @@ def get_providers(tenant_id=None):
 class Environment():
     def __init__(self, environment):
         self.dict = environment
+        self.providers = None
 
     def select_provider(self, resource=None):
         providers = self.get_providers()
@@ -164,25 +188,30 @@ class Environment():
 
     def get_providers(self):
         """ Returns provider class instances for this environment """
-        providers = self.dict.get('providers', None)
-        if providers:
-            common = providers.get('common', {})
-        else:
-            LOG.debug("Environment does not have providers")
+        if not self.providers:
+            providers = self.dict.get('providers', None)
+            if providers:
+                common = providers.get('common', {})
+            else:
+                LOG.debug("Environment does not have providers")
 
-        results = {}
-        for key, provider in providers.iteritems():
-            if key == 'common':
-                continue
-            vendor = provider.get('vendor', common.get('vendor', None))
-            if not vendor:
-                raise CheckmateException("No vendor specified for '%s'" % key)
-            provider_class = get_provider_class(vendor, key)
-            results[key] = provider_class(provider, key=key)
-        return results
+            results = {}
+            for key, provider in providers.iteritems():
+                if key == 'common':
+                    continue
+                vendor = provider.get('vendor', common.get('vendor', None))
+                if not vendor:
+                    raise CheckmateException("No vendor specified for '%s'" % key)
+                provider_class = get_provider_class(vendor, key)
+                results[key] = provider_class(provider, key=key)
+            self.providers = results
+        return self.providers
 
     def get_provider(self, key):
         """ Returns provider class instance from this environment """
+        if self.providers and key in self.providers:
+            return self.providers[key]
+
         providers = self.dict.get('providers', None)
         if not providers:
             raise CheckmateException("Environment does not have providers")
@@ -194,6 +223,77 @@ class Environment():
             raise CheckmateException("No vendor specified for '%s'" % key)
         provider_class = get_provider_class(vendor, key)
         return provider_class(provider, key=key)
+
+    def find_component(self, blueprint_entry, context):
+        """Resolve blueprint component into actual provider component
+
+        Examples of blueprint_entries:
+        - type: application
+          name: wordpress
+          role: master
+        - type: load-balancer
+          interface: http
+        - id: component_id
+        """
+        resource_type = blueprint_entry.get('type')
+        interface = blueprint_entry.get('interface')
+        for provider in self.get_providers().values():
+            matches = []
+            if resource_type or interface:
+                if provider.provides(resource_type=resource_type,
+                    interface=interface):  # we can narrow down search
+                    # normalize 'type' to 'resource_type'
+                    params = {}
+                    params.update(blueprint_entry)
+                    if 'type' in params:
+                        del params['type']
+                    params['resource_type'] = resource_type
+                    matches = provider.find_components(context, **params)
+            else:
+                matches = provider.find_components(context, **blueprint_entry)
+
+            if matches:
+                if len(matches) == 1:
+                    return Component(matches[0], provider=provider)
+                else:
+                    LOG.warning("Ambiguous component %s matches: %s" %
+                            (blueprint_entry, matches))
+
+    def get_interface_map(self):
+        """Get interfaces available from environment and providers that
+        provide them
+
+        :returns: dict of {interface={provider_key=[resource list]}}
+        example:
+        {
+            'mysql': {
+                    'databases': ['database'],
+                    'chef-local': ['database'],
+                }
+            }
+        """
+        results = {}
+        for provider_key, provider in self.get_providers().iteritems():
+            LOG.debug("%s provides %s" % (provider_key, provider.provides()))
+            for item in provider.provides():
+                resource_type, interface = item.items()[0]
+                assert resource_type in schema.RESOURCE_TYPES
+                if interface in results:
+                    interface_entry = results[interface]
+                    if provider_key in interface_entry:
+                        provider_entry = interface_entry[provider_key]
+                        if resource_type not in provider_entry:
+                            provider_entry.append(resource_type)
+                    else:
+                        provider_entry = [resource_type]
+                    interface_entry[provider_key] = provider_entry
+
+                    if len(interface_entry) > 1:
+                        LOG.warning("More than one provider for '%s': %s" % (
+                                interface, results[interface]))
+                else:
+                    results[interface] = {provider_key: [resource_type]}
+        return results
 
     def generate_key_pair(self, bits=2048):
         """Generates a private/public key pair.

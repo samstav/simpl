@@ -19,7 +19,7 @@ class Provider(ProviderBase):
         ProviderBase.__init__(self, provider, key=key)
         self.prep_task = None
 
-    def prep_environment(self, wfspec, deployment):
+    def prep_environment(self, wfspec, deployment, context):
         create_environment = Celery(wfspec, 'Create Chef Environment',
                 'checkmate.providers.opscode.server.manage_env',
                 call_args=[Attrib('context'), deployment['id'],

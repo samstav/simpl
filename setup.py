@@ -14,6 +14,7 @@ for p in github_projects:
 setup(
     name='checkmate',
     description='Configuration management and orchestration',
+    keywords='orchestration configuration automation rackspace openstack',
     version='0.2',
     author='Ziad Sawalha',
     author_email='ziad.sawalha@rackspace.com',
@@ -31,9 +32,14 @@ setup(
                       'sqlalchemy-migrate',
                       'webob',
                       ],
-    tests_require=['nose', 'unittest2', 'mox'],
+    scripts=['bin/checkmate', 'bin/checkmate-server', 'bin/checkmate-queue',
+            'bin/checkmate-simulation'],
+    tests_require=['nose', 'unittest2', 'mox', 'webtest'],
     dependency_links=github_urls,
-    packages=find_packages(exclude=['tests', 'bin', 'data']),
-    license='GPLv2',
+    packages=find_packages(exclude=['tests', 'bin', 'examples', 'doc',
+            'checkmate.openstack.*']),
+    include_package_data=True,
+    license='Apache License (2.0)',
+    classifiers=["Programming Language :: Python"],
     url='https://github.com/ziadsawalha/checkmate'
 )

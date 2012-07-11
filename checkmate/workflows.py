@@ -5,11 +5,12 @@ CheckMate
 """
 # pylint: disable=E0611
 from bottle import get, post, put, request, response, abort
+import copy
 import logging
 import uuid
 
 try:
-    from SpiffWorkflow.specs import WorkflowSpec, Celery, Transform, Merge
+    from SpiffWorkflow.specs import WorkflowSpec, Merge, Simple
 except ImportError:
     #TODO(zns): remove this when Spiff incorporates the code in it
     print "Get SpiffWorkflow with the Celery spec in it from here: "\
@@ -17,14 +18,12 @@ except ImportError:
     raise
 
 from SpiffWorkflow import Workflow, Task
-from SpiffWorkflow.operators import Attrib
 from SpiffWorkflow.storage import DictionarySerializer
 
 from checkmate.db import get_driver, any_id_problems
-from checkmate.environments import Environment
 from checkmate.exceptions import CheckmateException
 from checkmate.utils import write_body, read_body, extract_sensitive_data,\
-        merge_dictionary, with_tenant, get_source_body
+        merge_dictionary, with_tenant
 from checkmate import orchestrator
 
 db = get_driver('checkmate.db.sql.Driver')
@@ -376,71 +375,30 @@ def create_workflow(deployment, context):
     :returns: SpiffWorkflow.Workflow"""
     LOG.info("Creating workflow for deployment '%s'" % deployment['id'])
     blueprint = deployment['blueprint']
-    environment = deployment.get('environment')
-    if not environment:
-        abort(406, "Environment not found. Nowhere to deploy to.")
-    environment = Environment(environment)
+    environment = deployment.environment()
 
     # Build a workflow spec (the spec is the design of the workflow)
     wfspec = WorkflowSpec(name="%s Workflow" % blueprint['name'])
-
-    # First task will read 'deployment' attribute and send it to Stockton
-    auth_task = Celery(wfspec, 'Authenticate',
-                       'checkmate.providers.rackspace.identity.get_token',
-                       call_args=[Attrib('context')], result_key='token',
-                       description="Authenticate and get a token to use with "
-                            "other calls. Authentication also gates any "
-                            "further work, to make sure we are working on "
-                            "behalf of an authenticated client",
-                       properties={'estimated_duration': 5})
-    wfspec.start.connect(auth_task)
-
-    # Second task will take output from first task (the 'token') write it to
-    # the context. It will conversely take the keys from the context and write
-    # the them as attributes to be available to future tasks
-    def write_credentials_code(my_task):
-        my_task.attributes['context']['authtoken'] = \
-                my_task.attributes['token']
-        env_keys = my_task.attributes['context']['keys']['environment']
-        my_task.set_attribute(**env_keys)
-
-    write_credentials = Transform(wfspec, "Get Credentials",
-            transforms=[get_source_body(write_credentials_code)],
-            description="Get token response and write it into context. Get "
-                    "generated/supplied keys and put them in attributes")
-    auth_task.connect(write_credentials)
 
     #
     # Create the tasks that make the async calls
     #
 
     # Get list of providers
-    resource_providers = {}  # Hash of provider for each resource
-    providers = {}  # Providers used in this deployment
+    providers = {}  # Unique providers used in this deployment
 
     provider_keys = set()
     for key, resource in deployment.get('resources', {}).iteritems():
-        if key != 'connections' and resource['type'] not in provider_keys:
-            provider_keys.add(resource['type'])
-            provider = environment.select_provider(resource['type'])
-            resource_providers[resource['type']] = provider
-            providers[provider.key] = provider
+        if key != 'connections' and resource['provider'] not in provider_keys:
+            provider_keys.add(resource['provider'])
 
-    # BLATANT HACK: we have a dependency between compute and chef, so we need
-    # to call chef first
-    #TODO: figure out elegant solution to handle interdependencies
-    if 'application' in resource_providers:
-        prep_result = resource_providers['application'].prep_environment(
-                wfspec, deployment)
+    for key in provider_keys:
+        provider = environment.get_provider(key)
+        providers[provider.key] = provider
+        prep_result = provider.prep_environment(wfspec, deployment, context)
         # Wire up tasks if not wired in somewhere
         if prep_result and not prep_result['root'].inputs:
-            auth_task.connect(prep_result['root'])
-
-    for provider in providers.values():
-        prep_result = provider.prep_environment(wfspec, deployment)
-        # Wire up tasks if not wired in somewhere
-        if prep_result and not prep_result['root'].inputs:
-            auth_task.connect(prep_result['root'])
+            wfspec.start.connect(prep_result['root'])
 
     #build sorted list of resources based on dependencies
     sorted_resources = []
@@ -472,22 +430,47 @@ def create_workflow(deployment, context):
         provider_result = provider.add_resource_tasks(resource,
                 key, wfspec, deployment, context)
 
-        if 'root' in provider_result and not provider_result['root'].inputs:
-            # Run after creds available
-            write_credentials.connect(provider_result['root'])
+        if provider_result and provider_result.get('root') and \
+                not provider_result['root'].inputs:
+            # Attach unattached tasks
+            wfspec.start.connect(provider_result['root'])
+        # Process hosting relationship before the hosted resource
+        if 'hosts' in resource:
+            for index in resource['hosts']:
+                hr = deployment['resources'][index]
+                relation = hr['relations']['host']
+                provider = providers[hr['provider']]
+                provider_result = provider.add_connection_tasks(hr,
+                        index, relation, 'host', wfspec, deployment, context)
+                if provider_result and provider_result.get('root') and \
+                        not provider_result['root'].inputs:
+                    # Attach unattached tasks
+                    wfspec.start.connect(provider_result['root'])
 
     # Do relations
     for key, resource in deployment.get('resources', {}).iteritems():
         if 'relations' in resource:
             for name, relation in resource['relations'].iteritems():
-                if 'target' in relation:  # This is a source
+                # Process where this is a source (host relations done above)
+                if 'target' in relation and name != 'host':
                     provider = providers[resource['provider']]
                     provider_result = provider.add_connection_tasks(resource,
-                            key, relation, name, wfspec, deployment)
+                            key, relation, name, wfspec, deployment, context)
+                    if provider_result and provider_result.get('root') and \
+                            not provider_result['root'].inputs:
+                        # Attach unattached tasks
+                        wfspec.start.connect(provider_result['root'])
+
+    # Check that we have a at least one task
+    if not wfspec.start.outputs:
+        noop = Simple(wfspec, "end")
+        wfspec.start.connect(noop)
 
     workflow = Workflow(wfspec)
     #Pass in the initial deployemnt dict (task 2 is the Start task)
-    workflow.get_task(2).set_attribute(context=context)
+    runtime_context = copy.copy(deployment.settings())
+    runtime_context['token'] = context.auth_token
+    workflow.get_task(2).set_attribute(**runtime_context)
 
     # Calculate estimated_duration
     root = workflow.task_tree
@@ -503,6 +486,8 @@ def create_workflow(deployment, context):
         if expect_to_take > overall:
             overall = expect_to_take
         task._set_internal_attribute(estimated_completed_in=expect_to_take)
+    LOG.debug("Workflow %s estimated duration: %s" % (deployment['id'],
+            overall))
     workflow.attributes['estimated_duration'] = overall
 
     return workflow
@@ -512,17 +497,28 @@ def wait_for(wf_spec, task, wait_list, name=None, **kwargs):
     """Wires up tasks so that 'task' will wait for all tasks in 'wait_list' to
     complete before proceeding.
 
+    If wait_list has more than one task, we'll use a Merge task. If wait_list
+    only contains one task, we'll just wire them up directly.
+
     :param wf_spec: the workflow spec being worked on
     :param task: the task that will be waiting
     :param wait_list: a list of tasks to wait on
     :param name: the name of the merge task (autogenerated if not supplied)
     :param kwargs: all additional kwargs are passed to Merge.__init__
+    :returns: the final task or the task itself if no waiting needs to happen
     """
-    if not name:
-        name = "Wait (%s on %s)" % (task.id, ",".join([str(t.id) for t in
-                wait_list]))
-    join = Merge(wf_spec, name, **kwargs)
-    join.connect(task)
-    for t in wait_list:
-        t.connect(join)
-    return join
+    if wait_list:
+        if len(wait_list) > 1:
+            if not name:
+                name = "After %s run %s" % (",".join([str(t.id)
+                        for t in wait_list]), task.id)
+            join = Merge(wf_spec, name, **kwargs)
+            join.connect(task)
+            for t in wait_list:
+                t.connect(join)
+            return join
+        else:
+            wait_list[0].connect(task)
+            return wait_list[0]
+    else:
+        return task

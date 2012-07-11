@@ -19,29 +19,42 @@ LOG = logging.getLogger(__name__)
 class Provider(RackspaceComputeProviderBase):
     name = 'legacy'
 
-    def generate_template(self, deployment, resource_type, service, name=None):
+    def generate_template(self, deployment, resource_type, service, context,
+            name=None):
         template = RackspaceComputeProviderBase.generate_template(self,
-                deployment, resource_type, service, name=name)
+                deployment, resource_type, service, context, name=name)
 
-        image = self.get_deployment_setting(deployment, 'os',
-                resource_type=resource_type, service=service)
+        catalog = self.get_catalog(context)
+        image = deployment.get_setting('os', resource_type=resource_type,
+                service_name=service, provider_key=self.key, default=119)
         if isinstance(image, int):
             pass
-        elif image == 'Ubuntu 11.10':
-            image = 119
         else:
+            for key, value in catalog['lists']['types'].iteritems():
+                if image == value['name']:
+                    LOG.debug("Mapping image from '%s' to '%s'" % (image, key))
+                    image = key
+                    break
+
+        if not isinstance(image, int):
             raise CheckmateNoMapping("No image mapping for '%s' in '%s'" % (
                     image, self.name))
 
-        flavor = self.get_deployment_setting(deployment, 'memory',
-                resource_type=resource_type, service=service, default=1)
+        flavor = deployment.get_setting('memory', resource_type=resource_type,
+                service_name=service, provider_key=self.key, default=1)
         if isinstance(flavor, int):
             pass
-        elif flavor == '512 Mb':
-            flavor = 2
         else:
+            number = flavor.split(' ')[0]
+            for key, value in catalog['lists']['sizes'].iteritems():
+                if number == str(value['memory']):
+                    LOG.debug("Mapping flavor from '%s' to '%s'" % (flavor,
+                            key))
+                    flavor = key
+                    break
+        if not isinstance(flavor, int):
             raise CheckmateNoMapping("No flavor mapping for '%s' in '%s'" % (
-                    flavor, self.name))
+                    flavor, self.key))
 
         template['flavor'] = flavor
         template['image'] = image
@@ -58,11 +71,11 @@ class Provider(RackspaceComputeProviderBase):
 
         create_server_task = Celery(wfspec, 'Create Server:%s' % key,
                'checkmate.providers.rackspace.compute_legacy.create_server',
-               call_args=[Attrib('context'),
+               call_args=[context.get_queued_task_dict(),
                resource.get('dns-name')],
                image=resource.get('image', 119),
                flavor=resource.get('flavor', 1),
-               files=Attrib('files'),
+               files=self._kwargs.get('files', None),
                ip_address_type='public',
                prefix=key,
                defines=dict(resource=key,
@@ -70,10 +83,10 @@ class Provider(RackspaceComputeProviderBase):
                             task_tags=['create']),
                properties={'estimated_duration': 20})
 
-        build_wait_task = Celery(wfspec, 'Check that Server is Up:%s'
+        build_wait_task = Celery(wfspec, 'Wait for server build:%s'
                 % key, 'checkmate.providers.rackspace.compute_legacy.'
                         'wait_on_build',
-                call_args=[Attrib('context'), Attrib('id')],
+                call_args=[context.get_queued_task_dict(), Attrib('id')],
                 password=Attrib('password'),
                 identity_file=Attrib('private_key_path'),
                 prefix=key,
@@ -85,7 +98,8 @@ class Provider(RackspaceComputeProviderBase):
 
         if wait_on is None:
             wait_on = []
-        wait_on.append(self.prep_task)
+        if getattr(self, 'prep_task', None):
+            wait_on.append(self.prep_task)
         join = wait_for(wfspec, create_server_task, wait_on,
                 name="Server Wait on:%s" % key,
                 defines=dict(resource=key,
@@ -96,39 +110,77 @@ class Provider(RackspaceComputeProviderBase):
                 create=create_server_task)
 
     def get_catalog(self, context, type_filter=None):
+        """Return stored/override catalog if it exists, else connect, build,
+        and return one"""
+
+        # TODO: maybe implement this an on_get_catalog so we don't have to do
+        #        this for every provider
+        results = RackspaceComputeProviderBase.get_catalog(self, context,
+            type_filter=type_filter)
+        if results:
+            # We have a prexisting or overridecatalog stored
+            return results
+
+        # build a live catalog ()this would be the on_get_catalog called if no
+        # stored/override existed
         api = self._connect(context)
 
-        results = {}
+        if type_filter is None or type_filter == 'compute':
+            results['compute'] = dict(
+                    linux_instance={
+                            'id': 'linux_instance',
+                            'provides': [{'compute': 'linux'}],
+                            'is': 'compute',
+                        },
+                    windows_instance={
+                            'id': 'windows_instance',
+                            'provides': [{'compute': 'windows'}],
+                            'is': 'compute',
+                        },
+                    )
+
         if type_filter is None or type_filter == 'type':
             images = api.images.list()
-            results['types'] = {
+            if 'lists' not in results:
+                results['lists'] = {}
+            results['lists']['types'] = {
                     i.id: {
                         'name': i.name,
                         'os': i.name,
                         } for i in images if int(i.id) < 1000}
         if type_filter is None or type_filter == 'image':
             images = api.images.list()
-            results['images'] = {
+            if 'lists' not in results:
+                results['lists'] = {}
+            results['lists']['images'] = {
                     i.id: {
                         'name': i.name
                         } for i in images if int(i.id) > 1000}
         if type_filter is None or type_filter == 'size':
             flavors = api.flavors.list()
-            results['sizes'] = {
+            if 'lists' not in results:
+                results['lists'] = {}
+            results['lists']['sizes'] = {
                 f.id: {
                     'name': f.name,
-                    'ram': f.ram,
+                    'memory': f.ram,
                     'disk': f.disk,
                     } for f in flavors}
 
+        self.validate_catalog(results)
         return results
 
-    def _connect(self, context):
+    @staticmethod
+    def _connect(context):
         """Use context info to connect to API and return api object"""
-        if not context.auth_tok:
+        #FIXME: figure out better serialization/deserialization scheme
+        if isinstance(context, dict):
+            from checkmate.server import RequestContext
+            context = RequestContext(**context)
+        if not context.auth_token:
             raise CheckmateNoTokenError()
         api = openstack.compute.Compute()
-        api.client.auth_token = context.auth_tok
+        api.client.auth_token = context.auth_token
 
         def find_url(catalog):
             for service in catalog:
@@ -150,21 +202,16 @@ import openstack.compute
 from checkmate.ssh import test_connection
 
 
-def _get_server_object(deployment):
-    return openstack.compute.Compute(username=deployment['username'],
-                                     apikey=deployment['apikey'])
-
-
 """ Celeryd tasks """
 
 
 @task
-def create_server(deployment, name, api_object=None, flavor=1, files=None,
+def create_server(context, name, api_object=None, flavor=1, files=None,
             image=119, ip_address_type='public', prefix=None):
     """Create a Rackspace Cloud server.
 
-    :param deployment: the deployment information
-    :type deployment: dict
+    :param context: the context information
+    :type context: dict
     :param name: the name of the server
     :param api_object: existing, authenticated connection to API
     :param image: the image ID to use when building the server (which OS)
@@ -192,7 +239,7 @@ def create_server(deployment, name, api_object=None, flavor=1, files=None,
 
     """
     if api_object is None:
-        api_object = _get_server_object(deployment)
+        api_object = Provider._connect(context)
 
     LOG.debug('Image=%s, Flavor=%s, Name=%s, Files=%s' % (
                   image, flavor, name, files))
@@ -235,7 +282,7 @@ def create_server(deployment, name, api_object=None, flavor=1, files=None,
 
 
 @task(default_retry_delay=10, max_retries=18)  # ~3 minute wait
-def wait_on_build(deployment, id, ip_address_type='public',
+def wait_on_build(context, id, ip_address_type='public',
             check_ssh=True, username='root', timeout=10, password=None,
             identity_file=None, port=22, api_object=None, prefix=None):
     """Checks build is complete and. optionally, that SSH is working.
@@ -245,7 +292,7 @@ def wait_on_build(deployment, id, ip_address_type='public',
     :returns: False when build not ready. Dict with ip addresses when done.
     """
     if api_object is None:
-        api_object = _get_server_object(deployment)
+        api_object = Provider._connect(context)
 
     server = api_object.servers.find(id=id)
     results = {'id': id,
@@ -292,7 +339,7 @@ def wait_on_build(deployment, id, ip_address_type='public',
     if not ip:
         raise StocktonException("Could not find IP of server %s" % (id))
     else:
-        up = test_connection(deployment, ip, username, timeout=timeout,
+        up = test_connection(context, ip, username, timeout=timeout,
                 password=password, identity_file=identity_file, port=port)
         if up:
             LOG.info("Server %s is up" % id)
@@ -348,8 +395,8 @@ def _convert_v1_adresses_to_v2(addresses):
 
 
 @task
-def delete_server(deployment, serverid, api_object=None):
+def delete_server(context, serverid, api_object=None):
     if api_object is None:
-        api_object = _get_server_object(deployment)
+        api_object = Provider._connect(context)
     api_object.servers.delete(serverid)
     LOG.debug('Server %d deleted.' % serverid)

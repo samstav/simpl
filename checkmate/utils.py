@@ -10,6 +10,7 @@ import json
 import logging
 import struct
 import sys
+from time import gmtime, strftime
 
 from bottle import abort, request
 import yaml
@@ -25,7 +26,7 @@ STATIC = ['test']
 # etc... will be returned)
 DEFAULT_SENSITIVE_KEYS = ['credentials', 'password', 'apikey', 'token',
         'authtoken', 'db_password', 'ssh-private-key', 'private_key',
-        'environment_private_key']
+        'environment_private_key', 'ssh_priv_key']
 
 
 def import_class(import_str):
@@ -60,7 +61,7 @@ def resolve_yaml_external_refs(document):
         if isinstance(event, AliasEvent):
             if event.anchor not in anchors:
                 # Swap out local reference for external reference
-                new_ref = u'checkmate-reference://%s' % event.anchor
+                new_ref = u'ref://%s' % event.anchor
                 event = ScalarEvent(anchor=None, tag=None,
                                     implicit=(True, False), value=new_ref)
         if hasattr(event, 'anchor') and event.anchor:
@@ -123,7 +124,11 @@ def write_json(data, request, response):
     """Write output in json"""
     response.set_header('content-type', 'application/json')
     response.set_header('vary', 'Accept,Accept-Encoding,X-Auth-Token')
-    return json.dumps(data, indent=4)
+    try:
+        return json.dumps(data, indent=4)
+    except TypeError:
+        #TODO: try json.dumps(data, indent=4, default=lambda o: o.__dict__)
+        return data.dumps(indent=4)
 
 
 HANDLERS = {
@@ -331,3 +336,11 @@ def with_tenant(fn):
         else:
             return fn(*args, tenant_id=request.context.tenant, **kwargs)
     return wrapped
+
+
+def get_time_string():
+    """Central function that returns time (UTC in ISO format) as a string
+
+    Changing this function will change all times that checkmate uses in
+    blueprints, deployments, etc..."""
+    return strftime("%Y-%m-%d %H:%M:%S +0000", gmtime())

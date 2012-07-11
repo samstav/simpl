@@ -22,48 +22,36 @@ class RackspaceComputeProviderBase(ProviderBase):
     """Generic functions for rackspace Compute providers"""
     def __init__(self, provider, key=None):
         ProviderBase.__init__(self, provider, key=key)
-        self.prep_task = None
+        self._kwargs = {}
 
-    def prep_environment(self, wfspec, deployment):
-
-        def get_keys_code(my_task):
-            keys = set()
-            for key, value in my_task.attributes['context'].get('keys',
-                        {}).iteritems():
-                if 'public_key_ssh' in value:
-                    keys.add(value['public_key_ssh'])
-                elif 'public_key' in value:
-                    LOG.warning("Code still using public_key without _ssh")
-            if keys:
-                path = '/root/.ssh/authorized_keys'
-                if not 'files' in my_task.attributes:
-                    my_task.attributes['files'] = {}
-                keys_string = '\n'.join(keys)
-                if path in my_task.attributes['files']:
-                    my_task.attributes['files'][path] += keys_string
-                else:
-                    my_task.attributes['files'][path] = keys_string
-
-        self.prep_task = Transform(wfspec, "Get Keys to Inject",
-                transforms=[get_source_body(get_keys_code)],
-                description="Collect keys into correct files syntax")
-
-        #TODO: remove direct-coding to config provider task names
-        config_spec = wfspec.task_specs['Create Chef Environment']
-        config_spec.connect(self.prep_task)
-        return {'root': self.prep_task, 'final': self.prep_task}
+    def prep_environment(self, wfspec, deployment, context):
+        keys = set()
+        for key, value in deployment.settings().get('keys', {}).iteritems():
+            if 'public_key_ssh' in value:
+                keys.add(value['public_key_ssh'])
+            elif 'public_key' in value:
+                LOG.warning("Code still using public_key without _ssh")
+        if keys:
+            path = '/root/.ssh/authorized_keys'
+            if 'files' not in self._kwargs:
+                self._kwargs['files'] = {path: '\n'.join(keys)}
+            else:
+                existing = self._kwargs['files'][path].split('\n')
+                keys.update(existing)
+                self._kwargs['files'][path] = '\n'.join(keys)
 
 
 class Provider(RackspaceComputeProviderBase):
     name = 'nova'
 
-    def generate_template(self, deployment, resource_type, service, name=None):
+    def generate_template(self, deployment, resource_type, service, context,
+            name=None):
         template = RackspaceComputeProviderBase.generate_template(self,
-                deployment, resource_type, service, name=name)
+                deployment, resource_type, service, context, name=name)
 
         # Find and translate image
-        image = self.get_deployment_setting(deployment, 'os',
-                resource_type=resource_type, service=service)
+        image = deployment.get_setting('os', resource_type=resource_type,
+                service_name=service, provider_key=self.key)
 
         if image == 'Ubuntu 11.10':
             image = '3afe97b2-26dc-49c5-a2cc-a2fc8d80c001'
@@ -72,16 +60,24 @@ class Provider(RackspaceComputeProviderBase):
                     image, self.name))
 
         # Find and translate flavor
-        flavor = self.get_deployment_setting(deployment, 'memory',
-                resource_type=resource_type, service=service, default=2)
+        flavor = deployment.get_setting('memory', resource_type=resource_type,
+                service_name=service, provider_key=self.key, default=2)
         if isinstance(flavor, int):
             pass
         else:
             raise CheckmateNoMapping("No flavor mapping for '%s' in '%s'" % (
                     flavor, self.name))
 
+        # Get region
+        region = deployment.get_setting('region', resource_type=resource_type,
+                service_name=service, provider_key=self.key)
+        if not region:
+            raise CheckmateException("Could not identify which region to "
+                    "create servers in")
+
         template['flavor'] = flavor
         template['image'] = image
+        template['region'] = region
         return template
 
     def add_resource_tasks(self, resource, key, wfspec, deployment,
@@ -94,19 +90,20 @@ class Provider(RackspaceComputeProviderBase):
         """
         create_server_task = Celery(wfspec, 'Create Server:%s' % key,
                'checkmate.providers.rackspace.compute.create_server',
-               call_args=[Attrib('context'),
-               resource.get('dns-name')],
+               call_args=[context.get_queued_task_dict(),
+               resource.get('dns-name'), resource['region']],
                prefix=key,
                image=resource.get('image',
                         '3afe97b2-26dc-49c5-a2cc-a2fc8d80c001'),
                flavor=resource.get('flavor', "1"),
-               files=Attrib('files'),
+               files=self._kwargs.get('files', None),
                defines={"Resource": key},
                properties={'estimated_duration': 20})
 
         build_wait_task = Celery(wfspec, 'Check that Server is Up:%s'
                 % key, 'checkmate.providers.rackspace.compute.wait_on_build',
-                call_args=[Attrib('context'), Attrib('id'), 'root'],
+                call_args=[context.get_queued_task_dict(), Attrib('id'),
+                    'root', resource['region']],
                 password=Attrib('password'),
                 prefix=key,
                 identity_file=Attrib('public_key_path'),
@@ -122,28 +119,59 @@ class Provider(RackspaceComputeProviderBase):
         return {'root': join, 'final': build_wait_task}
 
     def get_catalog(self, context, type_filter=None):
+        """Return stored/override catalog if it exists, else connect, build,
+        and return one"""
+
+        # TODO: maybe implement this an on_get_catalog so we don't have to do
+        #        this for every provider
+        results = RackspaceComputeProviderBase.get_catalog(self, context,
+            type_filter=type_filter)
+        if results:
+            # We have a prexisting or overridecatalog stored
+            return results
+
+        # build a live catalog ()this would be the on_get_catalog called if no
+        # stored/override existed
         api = self._connect(context)
 
-        results = {}
+        if type_filter is None or type_filter == 'compute':
+            results['compute'] = dict(
+                    linux_instance={
+                            'id': 'linux_instance',
+                            'provides': [{'compute': 'linux'}],
+                            'is': 'compute',
+                        },
+                    windows_instance={
+                            'id': 'windows_instance',
+                            'provides': [{'compute': 'windows'}],
+                            'is': 'compute',
+                        },
+                    )
         if type_filter is None or type_filter == 'type':
             images = api.images.list()
-            results['types'] = {
+            if 'lists' not in results:
+                results['lists'] = {}
+            results['lists']['types'] = {
                     i.id: {
                         'name': i.name,
                         'os': i.name,
                         } for i in images}
         if type_filter is None or type_filter == 'image':
             images = api.images.list()
-            results['images'] = {
+            if 'lists' not in results:
+                results['lists'] = {}
+            results['lists']['images'] = {
                     i.id: {
                         'name': i.name
                         } for i in images if False}
         if type_filter is None or type_filter == 'size':
             flavors = api.flavors.list()
-            results['sizes'] = {
+            if 'lists' not in results:
+                results['lists'] = {}
+            results['lists']['sizes'] = {
                 f.id: {
                     'name': f.name,
-                    'ram': f.ram,
+                    'memory': f.ram,
                     'disk': f.disk,
                     } for f in flavors}
 
@@ -155,31 +183,51 @@ class Provider(RackspaceComputeProviderBase):
                     for endpoint in endpoints:
                         if 'region' in endpoint:
                             regions[endpoint['region']] = endpoint['publicURL']
-            results['regions'] = regions
+            if 'lists' not in results:
+                results['lists'] = {}
+            results['lists']['regions'] = regions
 
+        self.validate_catalog(results)
         return results
 
-    def _connect(self, context):
+    @staticmethod
+    def _connect(context, region=None):
         """Use context info to connect to API and return api object"""
+        #FIXME: figure out better serialization/deserialization scheme
+        if isinstance(context, dict):
+            from checkmate.server import RequestContext
+            context = RequestContext(**context)
         #TODO: Hard-coded to Rax auth for now
-        #FIXME: handle region in context
-        if not context.auth_tok:
+        if not context.auth_token:
             raise CheckmateNoTokenError()
-        os.environ['NOVA_RAX_AUTH'] = "Yes Please!"
-        api = client.Client(context.user, 'dummy', None,
-                "https://identity.api.rackspacecloud.com/v2.0",
-                region_name=None, service_type="compute",
-                service_name='cloudServersOpenStack')
-        api.client.auth_token = context.auth_tok
 
-        def find_url(catalog):
+        def find_url(catalog, region):
             for service in catalog:
                 if service['name'] == 'cloudServersOpenStack':
                     endpoints = service['endpoints']
                     for endpoint in endpoints:
-                        return endpoint['publicURL']
+                        if endpoint.get('region') == region:
+                            return endpoint['publicURL']
 
-        url = find_url(context.catalog)
+        def find_a_region(catalog):
+            """Any region"""
+            for service in catalog:
+                if service['name'] == 'cloudServersOpenStack':
+                    endpoints = service['endpoints']
+                    for endpoint in endpoints:
+                        return endpoint['region']
+
+        if not region:
+            region = find_a_region(context.catalog) or 'DFW'
+
+        os.environ['NOVA_RAX_AUTH'] = "Yes Please!"
+        api = client.Client(context.username, 'dummy', None,
+                "https://identity.api.rackspacecloud.com/v2.0",
+                region_name=region, service_type="compute",
+                service_name='cloudServersOpenStack')
+        api.client.auth_token = context.auth_token
+
+        url = find_url(context.catalog, region)
         api.client.management_url = url
 
         return api
@@ -237,7 +285,7 @@ def _get_api_connection(deployment):
 # Celery Tasks
 #
 @task
-def create_server(deployment, name, api_object=None, flavor="1",
+def create_server(deployment, name, region, api_object=None, flavor="1",
             files=None, image='3afe97b2-26dc-49c5-a2cc-a2fc8d80c001',
             prefix=None):
     """Create a Rackspace Cloud server using novaclient.
@@ -274,7 +322,7 @@ def create_server(deployment, name, api_object=None, flavor="1",
 
     """
     if api_object is None:
-        api_object = _get_api_connection(deployment)
+        api_object = Provider._connect(context, region)
 
     LOG.debug('Image=%s, Flavor=%s, Name=%s, Files=%s' % (
                   image, flavor, name, files))

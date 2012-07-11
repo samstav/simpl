@@ -1,8 +1,0 @@
-[
-{"id":"jkdhasdfgahsjkdf",
-"name":"workflow",
-"working":
-{"modules":[{"config":{"position":[132,77],"xtype":"WireIt.ImageContainer"},"name":"Bubble","value":{}},{"config":{"position":[371,161],"xtype":"WireIt.ImageContainer"},"name":"Bubble","value":{}},{"config":{"position":[143,308],"xtype":"WireIt.ImageContainer"},"name":"Bubble","value":{}}],"properties":{"category":"Demo","description":"","isTest":true,"name":"bubbles"},"wires":[{"src":{"moduleId":0,"terminal":"br"},"tgt":{"moduleId":1,"terminal":"tl"}},{"src":{"moduleId":0,"terminal":"bl"},"tgt":{"moduleId":2,"terminal":"tl"}},{"src":{"moduleId":2,"terminal":"tr"},"tgt":{"moduleId":1,"terminal":"bl"}},{"src":{"moduleId":1,"terminal":"br"},"tgt":{"moduleId":2,"terminal":"br"}},{"src":{"moduleId":0,"terminal":"tl"},"tgt":{"moduleId":1,"terminal":"tr"}},{"src":{"moduleId":0,"terminal":"tr"},"tgt":{"moduleId":2,"terminal":"bl"}}]},
-"language":"meltingpotDemo",
-"readonly":"0"}
-]

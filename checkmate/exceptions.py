@@ -43,3 +43,7 @@ class CheckmateCalledProcessError(CheckmateException):
 
 class CheckmateServerBuildFailed(CheckmateException):
     pass
+
+
+class CheckmateValidationException(CheckmateException):
+    pass

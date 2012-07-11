@@ -141,7 +141,11 @@ def hack():
     if any_id_problems(entity['id']):
         abort(406, any_id_problems(entity['id']))
 
-    return write_body(entity, request, response)
+    from checkmate.deployments import Deployment, plan
+    dep = Deployment(entity)
+    plan(dep, request.context)
+
+    return write_body(dep.settings(), request, response)
 
 
 @get('/test/async')
@@ -297,18 +301,16 @@ class TenantMiddleware(object):
             'X-Tenant',
             'X-Role',
         )
-        LOG.debug('Removing headers from request environment: %s' %
-                     ','.join(auth_headers))
         self._remove_headers(env, auth_headers)
 
     def _remove_headers(self, env, keys):
         """Remove http headers from environment."""
         for k in keys:
             env_key = self._header_to_env_var(k)
-            try:
+            if env_key in env:
+                LOG.debug('Removing header from request environment: %s' %
+                        env_key)
                 del env[env_key]
-            except KeyError:
-                pass
 
     def _header_to_env_var(self, key):
         """Convert header to wsgi env variable.
@@ -369,7 +371,7 @@ class PAMAuthMiddleware(object):
                         return HTTPUnauthorized("Invalid credentials")(e, h)
                     LOG.debug("PAM authenticated '%s' as admin" % login)
                     context.domain = self.domain
-                    context.user = username
+                    context.username = username
                     context.authenticated = True
                     context.is_admin = self.all_admins
 
@@ -405,28 +407,16 @@ class TokenAuthMiddleware(object):
         if 'HTTP_X_AUTH_TOKEN' in e:
             context = request.context
             try:
-                content = self._auth_keystone(e, h, context,
+                content = self._auth_keystone(context,
                         token=e['HTTP_X_AUTH_TOKEN'])
             except HTTPUnauthorized as exc:
                 LOG.exception(exc)
                 return exc(e, h)
-            self.set_context(content)
+            context.set_context(content)
 
         return self.app(e, h)
 
-    def set_context(self, content):
-        """Updates context with current auth data"""
-        context = request.context
-        catalog = self.get_service_catalog(content)
-        context.catalog = catalog
-        user_tenants = self.get_user_tenants(content)
-        context.user_tenants = user_tenants
-        context.auth_tok = content['access']['token']['id']
-        context.user = self.get_user(content)
-        context.roles = self.get_roles(content)
-        context.authenticated = True
-
-    def _auth_keystone(self, e, h, context, token=None, username=None,
+    def _auth_keystone(self, context, token=None, username=None,
                 apikey=None, password=None):
         url = urlparse(self.endpoint)
         if url.scheme == 'https':
@@ -479,51 +469,6 @@ class TokenAuthMiddleware(object):
             LOG.debug(msg)
             raise HTTPUnauthorized(msg)
         return content
-
-    def get_service_catalog(self, content):
-        return content['access']['serviceCatalog']
-
-    def get_user_tenants(self, content):
-        """Returns a list of tenants from token and catalog."""
-
-        user = content['access']['user']
-        token = content['access']['token']
-
-        def essex():
-            """Essex puts the tenant ID and name on the token."""
-            return token['tenant']['id']
-
-        def pre_diablo():
-            """Pre-diablo, Keystone only provided tenantId."""
-            return token['tenantId']
-
-        def default_tenant():
-            """Assume the user's default tenant."""
-            return user['tenantId']
-
-        user_tenants = {}
-        # Get tenants from token
-        for method in [essex, pre_diablo, default_tenant]:
-            try:
-                user_tenants[method()] = None
-            except KeyError:
-                pass
-
-        # Get tenants from service catalog
-        catalog = self.get_service_catalog(content)
-        for service in catalog:
-            endpoints = service['endpoints']
-            for endpoint in endpoints:
-                if 'tenantId' in endpoint:
-                    user_tenants[endpoint['tenantId']] = None
-        return user_tenants.keys()
-
-    def get_user(self, content):
-        return content['access']['user']['name']
-
-    def get_roles(self, content):
-        user = content['access']['user']
-        return [role['name'] for role in user.get('roles', [])]
 
     def start_response_callback(self, start_response):
         """Intercepts upstream start_response and adds our headers"""
@@ -623,7 +568,8 @@ class BrowserMiddleware(object):
     def __init__(self, app, proxy_endpoints=None):
         self.app = app
         HANDLERS['text/html'] = BrowserMiddleware.write_html
-        STATIC.extend(['static', 'favicon.ico', 'authproxy'])
+        STATIC.extend(['static', 'favicon.ico', 'authproxy', 'marketing',
+                'api'])
         self.proxy_endpoints = proxy_endpoints
 
         # Add static routes
@@ -642,8 +588,18 @@ class BrowserMiddleware(object):
 
         @get('/')
         def root():
-            return write_body("Welcome to the CheckMate Administration"
-                    "Interface", request, response)
+            return static_file('home.html',
+                    root=os.path.join(os.path.dirname(__file__), 'static'))
+
+        @get('/api')
+        def api():
+            return write_body("Admin API", request, response)
+
+        @get('/marketing/<path:path>')
+        def home(path):
+            return static_file(path,
+                    root=os.path.join(os.path.dirname(__file__), 'static',
+                        'marketing'))
 
         @post('/authproxy')
         def authproxy():
@@ -794,8 +750,7 @@ class BrowserMiddleware(object):
             template = env.get_template("%s.template" % name)
             return template.render(data=data, source=json.dumps(data,
                     indent=2), tenant_id=tenant_id)
-        except StandardError as exc:
-            LOG.exception(exc)
+        except StandardError:
             try:
                 template = env.get_template("default.template")
                 return template.render(data=data, source=json.dumps(data,
@@ -855,13 +810,13 @@ class RequestContext(object):
     accesses the system, as well as additional request information.
     """
 
-    def __init__(self, auth_tok=None, user=None, tenant=None, is_admin=False,
+    def __init__(self, auth_token=None, username=None, tenant=None, is_admin=False,
                  read_only=False, show_deleted=False, authenticated=False,
                  catalog=None, user_tenants=None, roles=None, domain=None):
         self.authenticated = authenticated
-        self.auth_tok = auth_tok
+        self.auth_token = auth_token
         self.catalog = catalog
-        self.user = user
+        self.username = username
         self.user_tenants = user_tenants  # all allowed tenants
         self.tenant = tenant  # current tenant
         self.is_admin = is_admin
@@ -870,12 +825,81 @@ class RequestContext(object):
         self.show_deleted = show_deleted
         self.domain = domain  # which cloud?
 
+    def get_queued_task_dict(self):
+        """Get a serializable dict of this context for use with remote, queued
+        tasks.
+
+        Only certain fields are needed.
+        """
+        result = dict(
+                username=self.username,
+                auth_token=self.auth_token,
+                catalog=self.catalog,
+            )
+        return result
+
     def allowed_to_access_tenant(self, tenant_id=None):
         """Checks if a tenant can be accessed by this current session.
 
         If no tenant is specified, the check will be done against the current
         context's tenant."""
         return (tenant_id or self.tenant) in (self.user_tenants or [])
+
+    def set_context(self, content):
+        """Updates context with current auth data"""
+        catalog = self.get_service_catalog(content)
+        self.catalog = catalog
+        user_tenants = self.get_user_tenants(content)
+        self.user_tenants = user_tenants
+        self.auth_token = content['access']['token']['id']
+        self.username = self.get_username(content)
+        self.roles = self.get_roles(content)
+        self.authenticated = True
+
+    def get_service_catalog(self, content):
+        return content['access']['serviceCatalog']
+
+    def get_user_tenants(self, content):
+        """Returns a list of tenants from token and catalog."""
+
+        user = content['access']['user']
+        token = content['access']['token']
+
+        def essex():
+            """Essex puts the tenant ID and name on the token."""
+            return token['tenant']['id']
+
+        def pre_diablo():
+            """Pre-diablo, Keystone only provided tenantId."""
+            return token['tenantId']
+
+        def default_tenant():
+            """Assume the user's default tenant."""
+            return user['tenantId']
+
+        user_tenants = {}
+        # Get tenants from token
+        for method in [essex, pre_diablo, default_tenant]:
+            try:
+                user_tenants[method()] = None
+            except KeyError:
+                pass
+
+        # Get tenants from service catalog
+        catalog = self.get_service_catalog(content)
+        for service in catalog:
+            endpoints = service['endpoints']
+            for endpoint in endpoints:
+                if 'tenantId' in endpoint:
+                    user_tenants[endpoint['tenantId']] = None
+        return user_tenants.keys()
+
+    def get_username(self, content):
+        return content['access']['user']['name']
+
+    def get_roles(self, content):
+        user = content['access']['user']
+        return [role['name'] for role in user.get('roles', [])]
 
 
 class ContextMiddleware(object):
@@ -928,18 +952,23 @@ class BasicAuthMultiCloudMiddleware(object):
                         domain, uname = uname.split('\\')
                         LOG.debug('Detected domain authentication: %s' %
                                 domain)
+                        if domain in self.domains:
+                            LOG.warning("Unrecognized domain: %s" % domain)
                     else:
                         domain = 'default'
                     if domain in self.domains:
                         if self.domains[domain]['protocol'] == 'keystone':
-                            return self._auth_cloud_basic(e, h, uname, passwd,
-                                    self.domains[domain]['middleware'])
-                    else:
-                        LOG.warning("Unrecognized domain: %s" % domain)
+                            context = request.context
+                            try:
+                                content = self._auth_cloud_basic(context,
+                                        uname, passwd,
+                                        self.domains[domain]['middleware'])
+                            except HTTPUnauthorized as exc:
+                                return exc(e, h)
+                            context.set_context(content)
         return self.app(e, h)
 
-    def _auth_cloud_basic(self, e, h, uname, passwd, middleware):
-        context = request.context
+    def _auth_cloud_basic(self, context, uname, passwd, middleware):
         cred_hash = MD5.new('%s%s%s' % (uname, passwd, middleware.endpoint))\
                 .hexdigest()
         if cred_hash in self.cache:
@@ -948,15 +977,14 @@ class BasicAuthMultiCloudMiddleware(object):
         else:
             try:
                 LOG.debug('Authenticating to %s' % middleware.endpoint)
-                content = middleware._auth_keystone(e, h, context,
+                content = middleware._auth_keystone(context,
                         username=uname, password=passwd)
                 self.cache[cred_hash] = content
             except HTTPUnauthorized as exc:
                 LOG.exception(exc)
-                return exc(e, h)
-        middleware.set_context(content)
+                raise exc
         LOG.debug("Basic auth over Cloud authenticated '%s'" % uname)
-        return self.app(e, h)
+        return content
 
     def start_response_callback(self, start_response):
         """Intercepts upstream start_response and adds our headers"""
@@ -1038,20 +1066,22 @@ class AuthTokenRouterMiddleware():
             for source in sources:
                 result = self.middleware[source].__call__(e, sr)
                 if self.last_status:
-                    if self.last_status.startswith('200 '):
-                        # We got a good hit
-                        LOG.debug("Token Auth Router got a successful response "
-                                "against %s" % source)
-                        h(self.last_status, self.last_headers,
-                            exc_info=self.last_exc_info)
-                        return result
+                    if self.last_status.startswith('401 '):
+                        # Unauthorized, let's try next route
+                        continue
+                    # We got an authorized response
+                    LOG.debug("Token Auth Router successfully authorized "
+                            "against %s" % source)
+                    h(self.last_status, self.last_headers,
+                        exc_info=self.last_exc_info)
+                    return result
 
             # Call default endpoint if not already called and if source was not
             # specified
             if 'HTTP_X_AUTH_SOURCE' not in e and self.default_endpoint not in\
                     sources:
                 result = self.middleware[self.default_endpoint].__call__(e, sr)
-                if self.last_status.startswith('200 '):
+                if not self.last_status.startswith('401 '):
                     # We got a good hit
                     LOG.debug("Token Auth Router got a successful response "
                             "against %s" % self.default_endpoint)
