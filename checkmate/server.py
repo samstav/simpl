@@ -47,6 +47,7 @@ import httplib
 import json
 import os
 import logging
+import string
 # some distros install as PAM (Ubuntu, SuSE)
 # https://bugs.launchpad.net/keystone/+bug/938801
 try:
@@ -1144,7 +1145,17 @@ if __name__ == '__main__':
         next = DebugMiddleware(next)
         LOG.debug("Routes: %s" % [r.rule for r in app().routes])
 
-    run(app=next, host='127.0.0.1', port=8080, reloader=True,
+    # Pick up IP/port from last param
+    ip = '127.0.0.1'
+    port = 8080
+    supplied = sys.argv[-1]
+    if len([c for c in supplied if c in '%s:.' % string.digits]) == \
+            len(supplied):
+        if ':' in supplied:
+            ip, port = supplied.split(':')
+        else:
+            ip = supplied
+    run(app=next, host=ip, port=port, reloader=True,
             server='wsgiref')
 
 

@@ -187,7 +187,7 @@ Note: for additional descriptions of each field see the examples/app.yaml file.
 
 CheckMate is a REST server. To run it:
 
-    $ python checkmate/server.py
+    $ bin/checkmate-server START [options] [address[:port]]
 
 Options:
 

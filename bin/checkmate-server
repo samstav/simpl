@@ -22,7 +22,7 @@ else:
 
     Usage:
 
-        checkmate-server START [options]
+        checkmate-server START [options] [address[:port]
 
     Options:
 
