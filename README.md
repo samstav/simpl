@@ -1,99 +1,111 @@
-# CheckMate
+# Checkmate
 ![CheckMate](https://github.rackspace.com/checkmate/checkmate/raw/master/checkmate/static/checkmate.png)
 
-CheckMate stores and controls your cloud configurations. Use it to deploy complete application stacks.
+Checkmate stores and controls your cloud configurations. Use it to deploy complete application stacks.
 
 It exposes a REST API for manipulating configurations. It uses celery for task queuing and SpiffWorkflow to orchestrate deploying them. It support JSON and YAML interchangeably. It has optional built-in browser support & a UI.
 
 ## The API
 
 POST, PUT, GET on /components[/:id], /blueprints[/:id], /environments[/:id],
-/deployments[/:id], and /workflows[/:id]
+/deployments[/:id], /workflows[/:id], and /providers[/:id]
 
-PUT updates without taking any action.
-POST can trigger actions (like actual server deployments)
+The symantics are:
+- PUT updates without taking any action.
+- POST can trigger actions or have side-effects (like actual server deployments)
 
 Objects are returned as JSON by default, but YAML is also supported (application/x-yaml)
 HTML output is also supported if the server is started with a `--with-ui` parameter.
 
-Special cases::
+Special cases and considerations::
 
-    POST /deployment
+    All objects should have a root key with the name of the class. Ex. {"blueprint": {"id": 1}}. However, checkmate will permit objects without the root if they are provided. Ex. PUT /blueprints/2 {"id": 2}
 
-        Create a new deployment passing in all the necessary components, blueprints, environments, etc... (or
-        references to them).
+    checkmate will fill in the id, status, tenant_id, and creation date of posted objects. For puts, these value must be supplied and must be correct (i.e. matching the tenant and id in the URL).
+
+    YAML supports references within a document. If a deployment is in YAML format and is using references, the references can be provided under a key called 'includes'. This can be used, for example, to create a new deployment passing in all the necessary components, blueprints, environments, etc... (or
+    references to them).
+
+    Some commands can be issued with a '+command' URL. Example:
+
+      /workflows/wf1000/+execute
 
 ### Components
 
-These are the equivalent of Chef recipes or Juju charms. They are the building
-blocks of an application deployment. These can be supplied as part of a deployment or looked up from the server.
+These are the equivalent of Chef recipes or Juju charms. They are the primitive building blocks of an application deployment. These can be supplied as part of a deployment or looked up from the server.
 
     # Definitions of components used (similar to Juju charm syntax)
     components:
     - &wordpress_reference_id
-        id: wordpress
-        revision: 3
-        summary: "A pretty popular blog engine"
-        provides:
-          url:
-            interface: http
-        requires:
-          db:
-           interface: mysql
-          server:
-            relation: host
-            interface: linux
-        options:
-          url:
-            type: String
-            default: wp.test.local
-            description: the url to use to host your blog on
+      id: wordpress
+      revision: 3
+      summary: "A pretty popular blog engine"
+      provides:
+        url:
+          interface: http
+      requires:
+        db:
+         interface: mysql
+        server:
+          relation: host
+          interface: linux
+      options:
+        url:
+          type: String
+          default: wp.test.local
+          description: the url to use to host your blog on
 
     - &mysql.1
-        id: mysql
-        revision: 1
-        summary: "A pretty popular database"
-        provides:
-          db: mysql
+      id: mysql
+      revision: 1
+      summary: "A pretty popular database. Note, this is a cloud database and therefore does not need a host"
+      provides:
+        db: mysql
 
+Components are defined by 'providers' and come with predefined options supported by the provider.
 
 ### Environments
 
 An environment is a place where you can launch and manage application deployments. It could be your development laptop, a cloud provider, or a combination of cloud providers that you have grouped together to use together as a single environment.
-Multiple environments can exist in one tenant or account. For example, you could have dev, test, staging, and production environments on one Rackspace Cloud account.
+Multiple environments can exist in one tenant or account. For example, you could have dev, test, staging, and production environments defined on one Rackspace Cloud account. Checkmate will manage which resources belong in which environment under a tenant using its own database, naming conventions, and tags.
 
     # Environment
     environment: &environment_1000_stag
-        name: Rackspace Cloud US - staging
-        providers:
-          nova:
-            vendor: rackspace
-            provides:
-            - compute: linux
-            - compute: windows
-            constraints:
-            - region: ORD
-          load-balancer:
-            vendor: rackspace
-            provides:
-            - loadbalancer: http
-          database:
-            vendor: rackspace
-            provides:
-            - database: mysql
+      name: Rackspace Cloud US - staging
+      providers:
+        nova:
+          vendor: rackspace
+          provides:
+          - compute: linux
+          - compute: windows
+          constraints:
+          - region: ORD
+        load-balancer:
+          vendor: rackspace
+          provides:
+          - loadbalancer: http
+        database:
+          vendor: rackspace
+          provides:
+          - database: mysql
+        chef-local:
+          vendor: opscode
+          provides:
+          - application: http  # see catalog for list of apps like wordpress, drupal, etc...
+          - database: mysql  # this is mysql installed on a host
 
 
 ### Blueprints
 
-These define the architecture for an application. The blueprint describes the
-resources needed and how to connect and scale them when deploying and managing an application.
+These define the architecture for an application. The blueprint describes the resources needed to make an application run, how to connect, and how scale them.
+Blueprints can have options that determine the final deployment topology and the values that go into the individual component options. The blueprint author determines what options to expose and with what constraints to aplpy on the options available to the end user.
 
     # An wordpress architecture template
     blueprint: &wp
       name: Multi-server Wordpress
       services:
         lb:
-          components: *loadbalancer
+          component: *loadbalancer
           relations:
             web: http
           exposed: true
@@ -104,21 +116,20 @@ resources needed and how to connect and scale them when deploying and managing a
         backend:
           components: *mysql
       options:
-        blueprint:
-          instance_count:
-            type: number
-            label: Number of Instances
-            description: The number of instances for the specified task.
-            default: 2
-            constrains:
-            - {service: web, resource_type: compute, setting: count}
-            constraints:
-            - greater-than: 1 # this is an HA config
+        instance_count:
+          type: number
+          label: Number of Instances
+          description: The number of instances for the specified task.
+          default: 2
+          constrains:
+          - {service: web, resource_type: compute, setting: count}
+          constraints:
+          - greater-than: 1 # this is an HA config
 
 
 ### Deployments
 
-A deployment defines and points to a running application and the infrastructure it is running on. It combines a blueprint, an environment to deploy the resources to, and any additional inputs specific to this deployment.
+A deployment defines and points to a running application and the infrastructure it is running on. It basically says "I took blueprint X and deployed it to environment Y using the following options". It combines a blueprint, an environment to deploy the resources to, and any additional inputs specific to this deployment.
 
 
     # Actual running app and the parameters supplied when deploying it
@@ -130,6 +141,8 @@ A deployment defines and points to a running application and the infrastructure 
       resources:
         '0':
           type: server
+          provider: nova
+          status: up
           flavor: 1
           image: 119
           instance:
@@ -142,6 +155,8 @@ A deployment defines and points to a running application and the infrastructure 
               state: up
         '1':
           type: server
+          status: up
+          provider: nova
           flavor: 1
           image: 119
           instance:
@@ -162,12 +177,14 @@ A deployment defines and points to a running application and the infrastructure 
               state: up
         '3':
           type: database
+          provider: databases
           dns-name: CMDEP32ea304-db1.rackcloudtech.com
           flavor: 1
+          disk: 2
           instance:
             id: 99958744
 
-Once deployed, the live resources running the application are also listed. The intent is for CheckMate to be able to manage the deployment. An example of a management operation would be resizing the servers:
+Once deployed, the live resources running the application are also listed. The intent is for Checkmate to be able to manage the deployment. An example of a management operation would be resizing the servers:
 
   1 - bring down the load-balancer connection for srv1 (knowing srv2 is up)
 
@@ -199,7 +216,13 @@ Options:
         --debug:    turn on additional debugging inspection and output
                     including full HTTP requests and responses
 
-You also need to have celery running with the checkmate tasks loaded:
+Once up, you can issue curl commands (or point your browser at it if you started the server --with-ui) to use checkmate.
+
+To execute deployments, checkmate uses a message queue. You need to have celery running with the checkmate tasks loaded:
+
+    $ bin/checkmate-queue START
+
+    or, directly using celery:
 
     $ celeryd -l info --config=checkmate.celeryconfig -I checkmate.orchestrator,checkmate.ssh,checkmate.providers.rackspace,checkmate.providers.opscode
 
@@ -207,38 +230,57 @@ You also need to have celery running with the checkmate tasks loaded:
 
 The following environment variables can be set to configure checkmate:
 
-    CHECKMATE_CONNECTION_STRING
+    CHECKMATE_CONNECTION_STRING: a sql-alchemy connection string pointing to the database store for checkmate.
 
-    CHECKMATE_DOMAIN
-    CHECKMATE_PUBLIC_KEY
-    CHECKMATE_CHEF_REPO
-    CHECKMATE_CHEF_LOCAL_PATH - local
-    CHECKMATE_CHEF_PATH - server
-    CHECKMATE_CHEF_USE_DATA_BAGS - store data in databags instead of roles (default=True)
+    CHECKMATE_DOMAIN: a default DNS domain to use for resources created.
 
-    CHECKMATE_BROKER_USERNAME
-    CHECKMATE_BROKER_PASSWORD
-    CHECKMATE_BROKER_HOST
-    CHECKMATE_BROKER_PORT
-    or
-    CHECKMATE_BROKER_URL
+    CHECKMATE_PUBLIC_KEY: a public key string to push to all created servers to allow ssh access to them. If you set this to the contents of your ~/.ssh/id_rsa.pub file you will be able to log on to all checkmate-created servers without having to suply a password.
 
-    CELERY_CONFIG_MODULE
-    CELERYD_FORCE_EXECV
+    CHECKMATE_CHEF_LOCAL_PATH: checkmate uses chef to configure applications on servers. Checkmate supports using chef with and without a chef server. When using it without a chef server, checkmate has a provider called chef-local that stores all deployments in a multi-tenant capable and scalable file structure. This setting points to the directory where this structure should be hosted. An example would be /var/checkmate/deployments.
 
+    CHECKMATE_CHEF_REPO: This setting points to a directory that contains a chef repository (a directory with cookbooks, roles, environments, site-cookbooks subdirecotries, etc...). You can clone the opscode repo (https://github.com/opscode-cookbooks/) or use your own. This repo is never modified by checkmate. Files from it are copied to the individual deployments.
 
-    Deprecated:
-    CHECKMATE_DATA_PATH - used with file system data provider
+    CHECKMATE_CHEF_USE_DATA_BAGS: when using the chef-local provider, some capabilities of a chef server can be emulated using data bags. Setting this value to True tells checkmate to use data bags instead of normal node, role, and environment overrides to store data for deployments. (default=True).
+
+    CHECKMATE_CHEF_PATH: when using checkmate with a server, checkmate needs to know the path for the chef client deployment. This points to that path. The kniofe.rb file should be in there.
+
+    CHECKMATE_BROKER_USERNAME: the username to use to connect to the message queue
+
+    CHECKMATE_BROKER_PASSWORD: the password to use to connect to the message queue.
+
+    CHECKMATE_BROKER_HOST: the IP address or resolveable name of the message queue server
+
+    CHECKMATE_BROKER_PORT: the port to use to connect to the message queue server
+
+    CHECKMATE_BROKER_URL: Alternatively, a full url with username and password can be supplied. This overrides the previous four settings.
+    Checkmate server and queue listener will report out what settings they are using when they start up.
+
+    CELERY_CONFIG_MODULE: use checkmate.celeryconfig by default. See celery instructions for more detail.
+
+    CELERYD_FORCE_EXECV: See celery instructions for more detail. This setting can prevent queue listeners hanging on some OSes (seen frequently on developer Macs)
+
+    Deprecated: not used anymore
+
+    CHECKMATE_DATA_PATH
+
     CHECKMATE_PRIVATE_KEY
 
 
 ## CheckMate Installation
 
-Create and go to the directory you want to install CheckMate in:
+Checkmate is mostly a python service. Therefore, most installations can be done with python tools like pip or easy_install. There are two main exceptions to this:
 
-Install Chef client and knife-solo:
+1. Chef: chef is a ruby-based app.
 
-  # Get latest chef code
+2. forks: of existing projects are sometimes used to support functionality that is not available for a system like checkmate. For example, checkmate uses OpenStack auth tokens to call OpenStack services. Many of the libraries for OpenStack services are rapidly evolving and designed for command-line use. Another example is the SpiffWorkflow workflow engine. This is a project developed in an academic setting and needed significant patching to work with checkmate. For these projects, we maintain our own forks that need to be deployed with checkmate. All modifications are intended be proposed upstream.
+
+### Installation:
+
+Create and go to the directory you want to install Checkmate in:
+
+Install the latest Chef client, knife-solo, and knife-solo_data_bag:
+
+  # Get latest chef code (or see chef install for version 10.12.0):
   git clone git://github.com/opscode/chef.git  # Get latest chef code
   cd chef
 
@@ -258,7 +300,13 @@ Install Chef client and knife-solo:
   # Build chef
   rake install
 
-Install CheckMate:
+Install knife add-ons:
+
+  gem install knife-solo --version 0.0.10
+
+  gem install knife-solo_data_bag --version 0.2.1
+
+Install Checkmate:
 
   git clone http://github.com/ziadsawalha/checkmate.git
   cd checkmate
@@ -266,7 +314,8 @@ Install CheckMate:
   python setup.py install
   cd ..
 
-Install SpiffWorkflow:
+
+Install SpiffWorkflow fork:
 
   git clone http://github.com/ziadsawalha/SpiffWorkflow.git
   cd SpiffWorkflow
@@ -283,43 +332,13 @@ Install, configure, and start rabbitmq.
     $ sudo rabbitmqctl set_permissions -p checkmate checkmate ".*" ".*" ".*"
     $ sudo rabbitmq-server -detached
 
-Set the environment variable for your checkmate environments and create the directory:
+Set the environment variable for your checkmate deployment environments and create the directory:
 
-    $ export CHECKMATE_CHEF_LOCAL_PATH=/var/checkmate/environments
+    $ export CHECKMATE_CHEF_LOCAL_PATH=/var/checkmate/deployments
     $ mkdir -p $CHECKMATE_CHEF_LOCAL_PATH
 
 
-### Authentication
-
-
-CheckMate supports multiple authentication protocols and endpoints simultaneously. If is is started with a web UI (using the --with-ui) option, it will also support basic auth for browser friendliness.
-
-#### Authenticating through a Browser
-
-By default, three authentication domains are enabled. In a browser, if you are prompted for credentials, enter the following:
-
-- To log in as an administrator: username and password from the machine running CheckMate.
-
-- To log in to a US Cloud Account: use US\username and password.
-
-- To log in to a UK Cloud Account: use UK\username and password.
-
-#### Authenticating using REST
-
-CheckMate supports standard Rackspace\OpenStack authentication with a token. Get a token from your auth endpoint (US or UK!) and provide it in the X-Auth-Header:
-
-    curl -H "X-Auth-Token: ccdcd4f9-d72d-5677-8b1a-f329389cc539" http://localhost:8080/4500 -v
-
-CheckMate will try the US and then UK endpoints.
-
-To avoid hitting the US for each UK call, and to be a good citizen, tell CheckMate which endpoint your token came from using the X-Auth-Source header:
-
-    curl -H "X-Auth-Source: https://lon.identity.api.rackspacecloud.com/v2.0/tokens" -H "X-Auth-Token: ccdcd4f9-d72d-5677-8b1a-f329389cc539" http://localhost:8080/1000002 -v
-
-Note: This is a CheckMate extension to the auth mechanism. This won't work on any other services.
-
-
-### Trying a test call
+Starting the server processes:
 
 You'll need three terminal windows and Rackspace cloud credentials (username &
 API key). In the first terminal window, start the task queue:
@@ -334,7 +353,7 @@ API key). In the first terminal window, start the task queue:
 
     export CHECKMATE_CHEF_LOCAL_PATH=/var/chef
 
-    celeryd -l info --config=checkmate.celeryconfig -I checkmate.orchestrator,checkmate.ssh,checkmate.providers.rackspace,checkmate.providers.opscode
+    bin/checkmate-queue START
 
 
 In the second window, start the checkmate server & REST API:
@@ -347,19 +366,23 @@ In the second window, start the checkmate server & REST API:
 
     export CHECKMATE_CONNECTION_STRING=sqlite:////var/checkmate/data/db.sqlite
 
-    export CHECKMATE_PUBLIC_KEY=~/.ssh/id_rsa.pub  # on a mac
+    export CHECKMATE_PUBLIC_KEY=`cat ~/.ssh/id_rsa.pub`  # on a mac
 
-    python checkmate/server.py --with-ui
+    bin/checkmate-server START --with-ui
+
+There are multiple ways to use checkmate. You could browse to http://localhost:8080/ now, but below is how to make a complete deployment call using a sample deployment in simulations mode.
 
 In the third window, run these commands to simulate a client call:
 
+    # load your cloud credentials in (checkmate by default talks to the Rakcpspce cloud using the OpsnStack Keystone Identity API)
     export CHECKMATE_CLIENT_APIKEY="*your_rax_API_key*"
     export CHECKMATE_CLIENT_REGION="chicago"
     export CHECKMATE_CLIENT_USERNAME="*your_rax_user*"
     export CHECKMATE_CLIENT_DOMAIN=*aworkingRAXdomain.com*
     export CHECKMATE_CLIENT_PUBLIC_KEY=`cat ~/.ssh/id_rsa.pub`
 
-    # Yes, sorry, this is long. It's mostly auth and template replacement stuff
+    # Yes, sorry, this is long. It's mostly auth and text template replacement stuff to send a complete deployment to checkmate. That's not how wyou would need to use it *in real life* (this comes from examples/app.yaml)
+
     CHECKMATE_CLIENT_TENANT=$(curl -H "X-Auth-User: ${CHECKMATE_CLIENT_USERNAME}" -H "X-Auth-Key: ${CHECKMATE_CLIENT_APIKEY}" -I https://identity.api.rackspacecloud.com/v1.0 -v 2> /dev/null | grep "X-Server-Management-Url" | grep -P -o $'(?!.*/).+$'| tr -d '\r') && CHECKMATE_CLIENT_TOKEN=$(curl -H "X-Auth-User: ${CHECKMATE_CLIENT_USERNAME}" -H "X-Auth-Key: ${CHECKMATE_CLIENT_APIKEY}" -I https://identity.api.rackspacecloud.com/v1.0 -v 2> /dev/null | grep "X-Auth-Token:" | awk '/^X-Auth-Token:/ { print $2 }') && awk '{while(match($0,"[$][\\{][^\\}]*\\}")) {var=substr($0,RSTART+2,RLENGTH -3);gsub("[$][{]"var"[}]",ENVIRON[var])}}1' < examples/app.yaml | curl -H "X-Auth-Token: ${CHECKMATE_CLIENT_TOKEN}" -H 'content-type: application/x-yaml' http://localhost:8080/${CHECKMATE_CLIENT_TENANT}/deployments/simulate -v --data-binary @-
 
     # this starts a deployment simulation by picking up app.yaml as a template and replacing in a bunch
@@ -367,16 +390,45 @@ In the third window, run these commands to simulate a client call:
 
     Note: for a real deployment that creates servers, remove the /simulate part of the URL in the call above
 
+
+### Authentication
+
+
+CheckMate supports multiple authentication protocols and endpoints simultaneously. If it is started with a web UI (using the --with-ui) option, it will also support basic auth for browser friendliness.
+
+#### Authenticating through a Browser
+
+By default, three authentication domains are enabled. In a browser, if you are prompted for credentials, enter the following:
+
+- To log in as an administrator: username and password from the machine running Checkmate (uses PAM).
+
+- To log in to a Rackspace US Cloud Account: use US\username and password.
+
+- To log in to a Rackspace UK Cloud Account: use UK\username and password.
+
+#### Authenticating using REST HTTP calls
+
+Checkmate supports standard Rackspace\OpenStack authentication with a token. Get a token from your auth endpoint (US or UK!) and provide it in the X-Auth-Header:
+
+    curl -H "X-Auth-Token: ccdcd4f9-d72d-5677-8b1a-f329389cc539" http://localhost:8080/4500 -v
+
+Checkmate will try the US and then UK endpoints.
+
+To avoid hitting the US for each UK call, and to be a good citizen, tell Checkmate which endpoint your token came from using the X-Auth-Source header:
+
+    curl -H "X-Auth-Source: https://lon.identity.api.rackspacecloud.com/v2.0/tokens" -H "X-Auth-Token: ccdcd4f9-d72d-5677-8b1a-f329389cc539" http://localhost:8080/1000002 -v
+
+Note: This is a Checkmate extension to the auth mechanism. This won't work on any other services in OpenStack.
+
 ## Tools
 
 ### Monitoring
 
-celery has a tool called celeryev that can monitor running tasks and events. To
-use it, you need to turn `events` on when running celeryd using -E or --events:
+celery has a tool called celeryev that can monitor running tasks and events. To use it, you need to turn `events` on when running celeryd using -E or --events:
 
     celeryd -l debug --config=checkmate.celeryconfig -I checkmate.orchestrator,checkmate.ssh,checkmate.providers.rackspace,checkmate.providers.opscode --events
 
-And then use celeryev from the python-stockton directory to watch events and tasks::
+And then use celeryev from the checkmate directory to watch events and tasks::
 
     celeryev --config=checkmate.celeryconfig
 
@@ -396,11 +448,11 @@ setting resolves issues with workers hanging::
 
 Some of checkmate's more significant dependencies are::
 
-- celeryd: also used by Stockton and integrates with a message queue (ex. RabbitMQ)
+- celeryd: integrates with a message queue (ex. RabbitMQ)
 - rabbitmq: or another backend for celery (celery even has emulators that can use a database), but rabbit is what we tested on
 - SpiffWorkflow: a python workflow engine
-- chef: OpsCode's chef... you don't need a server.
-- cloud client libraries: python-novaclient, python-clouddb, etc...
+- chef: OpsCode's chef... you don't need a server, but use with a server is supported.
+- cloud service client libraries: python-novaclient, python-clouddb, etc...
 
 #### SpiffWorkflow
 Necessary additions to SpiffWorkflow are not yet in the source repo, so install
@@ -410,14 +462,65 @@ the development branch from this fork:
     $ cd SpiffWorkflow
     $ sudo python setup.py install
 
-#### Chef
-
-The chef-local provider uses the following environment variables::
-
-    CHECKMATE_CHEF_REPO: used to store a master copy of all cookbooks used
-    CHECKMATE_CHEF_LOCAL_PATH: used to store all environments
 
 ### Celery
 
 [celeryd](http://www.celeryproject.org/) does the heavy lifting for
 distributing tasks and retrying those that fail.
+
+
+#### Why the name checkmate?
+
+My intention for this product is be a deployment _verification_ and management service, and not just a deployment automation service. So it will be used to CHECK configurations and autoMATE, not only the deployment, but the repair of live deployments as well. It also conveniently abbreviates to 'cm' which could also stand for configuration management, aludes to this being a killer app, appeals to my inner strategist, it has a 'k' sound in it which I am told by branding experts makes it sticky, and, above all, it sounds cool.
+
+
+
+## API Calls in more detail
+
+All calls are supported flat off of the root or under a tenant ID. Calls off of the root require administrative privileges and will return all objects from all tenants (ex. /environments vs /T1000/environments)
+
+### PUT & POST
+Sometimes a religious debate, here's how checkmate works now:
+
+POST /objects (without ID):
+- creates a new object. ID is generated by checkmate and returned in the Location header.
+- use it to create objects without fear of ID conflicts
+
+POST /objects/:id
+- Update an existing object. Partal updates are supported (i.e. I can POST only the name to rename the object). Could trigger side effects, like running a workflow.
+- Use it to modify parts of an object.
+
+PUT /objects/:id
+- Overwrites the object completely. Does not trigger side effects, but will validate data (especially id and tenant_id fields).
+- Use it to store something in checkmate (ex. a deployment from another instance of checkmate)
+
+GET will sometimes add the object ID and tenant ID if the underlying store does not provide them. This is so that the object can be identified when parsed.
+
+### All Calls
+GET/POST [/:tid]/environments
+PUT/GET/POST [/:tid]/environments/:id
+GET [/:tid]/environments/providers
+GET [/:tid]/environments/providers/:provider_id
+GET [/:tid]/environments/providers/:provider_id/catalog
+GET [/:tid]/environments/providers/:provider_id/catalog/:component_id
+
+GET/POST [/:tid]/blueprints
+PUT/GET/POST [/:tid]/blueprints/:id
+
+GET/POST [/:tid]/deployments
+PUT/GET/POST [/:tid]/deployments/:id
+GET [/:tid]/deployments/:id/status
+
+PUT/GET/POST [/:tid]/workflows
+PUT/GET/POST [/:tid]/workflows/:id
+GET [/:tid]/workflows/:id/status
+POST [/:tid]/workflows/:id/+execute
+GET/POST [/:tid]/workflows/:id/tasks/:task_id
+POST [/:tid]/workflows/:id/tasks/:task_id/+execute
+POST [/:tid]/workflows/:id/tasks/:task_id/+resubmit
+
+GET [/:tid]/providers
+
+GET /status/celery
+GET /status/libraries
+

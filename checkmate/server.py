@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-""" REST API for CheckMate
+""" REST API for Checkmate
 
 *****************************************************
 *          This is still a VERY MESSY WIP           *

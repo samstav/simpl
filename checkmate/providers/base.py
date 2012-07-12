@@ -18,7 +18,8 @@ class CheckmateInvalidProvider(Exception):
 
 
 class ProviderBaseWorkflowMixIn():
-    """The methods used by the workflow generation code
+    """The methods used by the workflow generation code (i.e. they need a
+    workflow to work on)
 
     This class is mixed in to the ProviderBase
     """
@@ -132,7 +133,8 @@ class ProviderBaseWorkflowMixIn():
 
 
 class ProviderBasePlanningMixIn():
-    """The methods used by the deployment planning code
+    """The methods used by the deployment planning code (i.e. they need a
+    deployment to work on)
 
     This class is mixed in to the ProviderBase
     """
@@ -150,7 +152,9 @@ class ProviderBasePlanningMixIn():
 class ProviderBase(ProviderBasePlanningMixIn, ProviderBaseWorkflowMixIn):
     """Base class the providers inherit from.
 
-    It includes mixins for deployment planning and workflow generation
+    It includes mixins for deployment planning and workflow generation. The
+    calls ion this base class operate on the provider (they don't need a
+    deployment or workflow)
     """
     name = 'base'
     vendor = 'checkmate'
