@@ -508,17 +508,26 @@ def wait_for(wf_spec, task, wait_list, name=None, **kwargs):
     :returns: the final task or the task itself if no waiting needs to happen
     """
     if wait_list:
+        if task.inputs:
+            # Move inputs to join
+            for input in task.inputs:
+                if input not in wait_list:
+                    wait_list.append(input)
+                # remove it from the other tasks outputs
+                input.outputs.remove(task)
+            task.inputs = []
+
         if len(wait_list) > 1:
             if not name:
                 name = "After %s run %s" % (",".join([str(t.id)
                         for t in wait_list]), task.id)
             join = Merge(wf_spec, name, **kwargs)
-            join.connect(task)
+            task.follow(join)
             for t in wait_list:
                 t.connect(join)
             return join
         else:
-            wait_list[0].connect(task)
+            task.follow(wait_list[0])
             return wait_list[0]
     else:
         return task
