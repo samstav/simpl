@@ -633,28 +633,35 @@ class Provider(ProviderBase):
     def get_component(self, context, id):
         # Get cookbook
         assert id, 'Blank component ID requested from get_component'
+        role = None
         if '::' in id:
-            id = id.split('::')[0]
+            id, role = id.split('::')[0:2]
 
         cookbook = self._get_cookbook(id, site_cookbook=True)
         if cookbook:
+            if role:
+                cookbook['role'] = role
             Component.validate(cookbook)
             return cookbook
 
         cookbook = self._get_cookbook(id, site_cookbook=False)
         if cookbook:
+            if role:
+                cookbook['role'] = role
             Component.validate(cookbook)
             return cookbook
 
-        role = self._get_role(id, context)
-        if role:
-            Component.validate(role)
-            return role
+        chef_role = self._get_role(id, context)
+        if chef_role:
+            if role:
+                chef_role['role'] = role
+            Component.validate(chef_role)
+            return chef_role
 
         LOG.debug("Component '%s' not found" % id)
 
     def _get_cookbooks(self, site_cookbooks=False):
-        """Get all cookbooks as CheckMate components"""
+        """Get all cookbooks as Checkmate components"""
         results = {}
         repo_path = _get_repo_path()
         if site_cookbooks:
