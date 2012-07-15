@@ -12,6 +12,7 @@ from celery.result import AsyncResult
 import mox
 from mox import IsA, In, And, Or, IgnoreArg, ContainsKeyValue, Func, \
         StrContains
+from SpiffWorkflow.specs import Join
 from SpiffWorkflow.storage import DictionarySerializer
 import yaml
 
@@ -202,16 +203,12 @@ class StubbedWorkflowBase(unittest.TestCase):
         def is_good_data_bag(context):
             """Checks that we're writing everything we need to the chef databag
             for managed cloud cookbooks to work"""
-            if 'wordpress' not in context:
+            if context is None:
                 return False
-            if 'user' not in context:
-                return False
-            if 'mysql' not in context:
-                return False
-            if 'lsyncd' not in context:
-                return False
-            if 'apache' not in context:
-                return False
+            for key in context:
+                if key not in ['wordpress', 'user', 'lsyncd', 'mysql',
+                        'apache']:
+                        return False
             return True
 
         expected_calls = [{
@@ -236,30 +233,32 @@ class StubbedWorkflowBase(unittest.TestCase):
                                                         default='testonia')],
                 'kwargs': IgnoreArg(),
                 'result': {'id': 20001, 'vip': "200.1.1.1", 'lbid': 20001}
-            },
-            {
-                'call': 'checkmate.providers.opscode.local.manage_databag',
-                'args': ['DEP-ID-1000', 'DEP-ID-1000',
-                        IsA(basestring),
-                        Func(is_good_data_bag)],
-                'kwargs': And(ContainsKeyValue('secret_file',
-                        'certificates/chef.pem'), ContainsKeyValue('merge',
-                        True)),
-                'result': None
-            },
-            # Not needed for local?
-            {
-                'call': 'checkmate.providers.opscode.local.manage_role',
-                'args': ['wordpress-web', 'DEP-ID-1000'],
-                'kwargs': {'override_attributes': {'wordpress': {'db': {
-                        'host': 'verylong.rackspaceclouddb.com',
-                        'password': IsA(basestring),
-                        'user': os.environ['USER'],
-                        'database': 'db1'}}}},
-                'result': None
-            }
-            ]
-        # Add repetive calls (per server)
+            }]
+
+        if str(os.environ.get('CHECKMATE_CHEF_USE_DATA_BAGS', True)
+                    ).lower() in ['true', '1', 'yes']:
+            expected_calls.append({
+                    'call': 'checkmate.providers.opscode.local.manage_databag',
+                    'args': ['DEP-ID-1000', 'DEP-ID-1000',
+                            'webapp_wordpress_%s' % deployment.get_setting('prefix'),
+                            Func(is_good_data_bag)],
+                    'kwargs': And(ContainsKeyValue('secret_file',
+                            'certificates/chef.pem'), ContainsKeyValue('merge',
+                            True)),
+                    'result': None
+                })
+        else:
+            expected_calls.append({
+                    'call': 'checkmate.providers.opscode.local.manage_role',
+                    'args': ['wordpress-web', 'DEP-ID-1000'],
+                    'kwargs': {'override_attributes': {'wordpress': {'db': {
+                            'host': 'verylong.rackspaceclouddb.com',
+                            'password': IsA(basestring),
+                            'user': os.environ['USER'],
+                            'database': 'db1'}}}},
+                    'result': None
+                })
+        # Add repetive calls (per resource)
         for key, resource in deployment.get('resources', {}).iteritems():
             if resource.get('type') == 'compute':
                 if 'master' in resource['dns-name']:
@@ -372,27 +371,39 @@ class StubbedWorkflowBase(unittest.TestCase):
                                     '/var/tmp/DEP-ID-1000/private.pem')),
                         'result': None
                     })
-                #TODO: this should not be a per server call... and not twice per server!
-                expected_calls.append({
+                if role == 'master':
+                    expected_calls.append({
                         'call': 'checkmate.providers.opscode.local.manage_databag',
                         'args': ['DEP-ID-1000', 'DEP-ID-1000',
                                 'webapp_wordpress_%s' % deployment.get_setting('prefix'),
-                                And(IsA(dict), In('wordpress'), In('user'))],
+                                And(IsA(dict), In('lsyncd'))],
                         'kwargs': And(ContainsKeyValue('secret_file',
                                 'certificates/chef.pem'), ContainsKeyValue('merge',
                                 True)),
                         'result': None
                     })
-                expected_calls.append({
-                        'call': 'checkmate.providers.opscode.local.manage_databag',
-                        'args': ['DEP-ID-1000', 'DEP-ID-1000',
-                                'webapp_wordpress_%s' % deployment.get_setting('prefix'),
-                                And(IsA(dict), In('wordpress'), In('user'))],
-                        'kwargs': And(ContainsKeyValue('secret_file',
-                                'certificates/chef.pem'), ContainsKeyValue('merge',
-                                True)),
-                        'result': None
-                    })
+                    expected_calls.append(
+                        {
+                            'call': 'checkmate.providers.opscode.local.cook',
+                            'args': ["4.4.4.%s" % ip, 'DEP-ID-1000'],
+                            'kwargs': And(In('password'), ContainsKeyValue('recipes',
+                                    ['lsyncd::install']),
+                                    ContainsKeyValue('identity_file',
+                                        '/var/tmp/DEP-ID-1000/private.pem')),
+                            'result': None
+                        })
+
+                else:
+                    expected_calls.append(
+                        {
+                            'call': 'checkmate.providers.opscode.local.cook',
+                            'args': ["4.4.4.%s" % ip, 'DEP-ID-1000'],
+                            'kwargs': And(In('password'), ContainsKeyValue('recipes',
+                                    ["lsyncd::install_keys"]),
+                                    ContainsKeyValue('identity_file',
+                                        '/var/tmp/DEP-ID-1000/private.pem')),
+                            'result': None
+                        })
                 expected_calls.append({
                         'call': 'checkmate.providers.rackspace.loadbalancer.add_node',
                         'args': [Func(is_good_context), 20001, "10.1.2.%s" % ip,
@@ -422,15 +433,25 @@ class StubbedWorkflowBase(unittest.TestCase):
                                 'region': 'testonia'}
                     })
                 expected_calls.append({
-                    # Create Database User
-                    'call': 'checkmate.providers.rackspace.database.add_user',
-                    'args': [Func(is_good_context),
-                            'db-inst-1', ['db1'], username,
-                            IsA(basestring),
-                             deployment.get_setting('region', default='testonia')],
-                    'kwargs': None,
-                    'result': {'db_username': username, 'db_password': 'DbPxWd'}
-                })
+                        # Create Database User
+                        'call': 'checkmate.providers.rackspace.database.add_user',
+                        'args': [Func(is_good_context),
+                                'db-inst-1', ['db1'], username,
+                                IsA(basestring),
+                                 deployment.get_setting('region', default='testonia')],
+                        'kwargs': None,
+                        'result': {'db_username': username, 'db_password': 'DbPxWd'}
+                    })
+                expected_calls.append({
+                        'call': 'checkmate.providers.opscode.local.manage_databag',
+                        'args': ['DEP-ID-1000', 'DEP-ID-1000',
+                                'webapp_wordpress_%s' % deployment.get_setting('prefix'),
+                                IsA(dict)],
+                        'kwargs': And(ContainsKeyValue('secret_file',
+                                'certificates/chef.pem'), ContainsKeyValue('merge',
+                                True)),
+                        'result': None
+                    })
 
        #Mock out celery calls
         self.mock_tasks = {}
@@ -696,8 +717,26 @@ class TestWordpressWorkflow(StubbedWorkflowBase):
 
         self.mox.ReplayAll()
 
+        def recursive_tree(task, indent):
+            print ' ' * indent, task.id, "-", task.name
+            for child in task.outputs:
+                recursive_tree(child, indent + 1)
+
+        def pp(workflow):
+            print workflow.spec.name
+            recursive_tree(workflow.spec.start, 1)
+
+            for id, task in workflow.spec.task_specs.iteritems():
+                if task.inputs:
+                    print task.id, "-", id
+                else:
+                    print task.id, "-", id, "    >>>>  DICONNECTED!"
+
+        #pp(self.workflow)
+
         self.workflow.complete_all()
-        self.assertTrue(self.workflow.is_completed())
+        self.assertTrue(self.workflow.is_completed(), "Workflow did not "
+                "complete")
 
         serializer = DictionarySerializer()
         simulation = self.workflow.serialize(serializer)
@@ -775,7 +814,8 @@ class TestDBWorkflow(StubbedWorkflowBase):
         self.mox.ReplayAll()
 
         self.workflow.complete_all()
-        self.assertTrue(self.workflow.is_completed())
+        self.assertTrue(self.workflow.is_completed(), "Workflow did not "
+                "complete")
 
         serializer = DictionarySerializer()
         simulation = self.workflow.serialize(serializer)
