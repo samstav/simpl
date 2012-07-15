@@ -101,6 +101,13 @@ class ProviderBaseWorkflowMixIn():
                     elif value is not None and task.get_property(key) != value:
                         match = False
                         break
+
+                    # Don't match if the task is ted toa relation and no
+                    # relation key was provided
+                    if 'relation' not in kwargs and \
+                            task.get_property('relation'):
+                        match = False
+                        break
             if match:
                 tasks.append(task)
         if not tasks:
