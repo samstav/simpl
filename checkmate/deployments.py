@@ -755,15 +755,6 @@ class Deployment(ExtensibleDict):
                 compute, database)
         :param default: value to return if no match found
         """
-        result = self._get_input_simple(name)
-        if result:
-            return result
-
-        result = self._get_input_blueprint_option_constraint(name,
-                service_name=service_name, resource_type=resource_type)
-        if result:
-            return result
-
         if service_name:
             result = self._get_input_service_override(name, service_name,
                     resource_type=resource_type)
@@ -773,6 +764,15 @@ class Deployment(ExtensibleDict):
         if provider_key:
             result = self._get_input_provider_option(name, provider_key,
                     resource_type=resource_type)
+            if result:
+                return result
+
+        result = self._get_input_blueprint_option_constraint(name,
+                service_name=service_name, resource_type=resource_type)
+        if result:
+            return result
+
+        result = self._get_input_simple(name)
         if result:
             return result
 

@@ -166,125 +166,127 @@ includes:
     provides:
     - 'application': 'http'  # http means a web resource, could be on a shared endpoint
     options: # The raw (straight from the underlying provider) list of options that can be set on this resource type
-      raw:  # these come from the cookbook (metadata.json)
-        'wordpress/checksum':
-          calculated: false
-          choice: []
-          default: 7342627f4a3dca44886c5aca6834cc88671dbd3aa2760182d2fcb9a330807
-          description: Checksum of the tarball for the version specified.
-          display_name: Wordpress tarball checksum
-          recipes: []
-          required: optional
-          type: string
-        'wordpress/db/database':
-          maps-to: wordpress/database/password
-          calculated: false
-          choice: []
-          default: wordpressdb
-          description: Wordpress will use this MySQL database to store its data.
-          display_name: Wordpress MySQL database
-          recipes: []
-          required: optional
-          type: string
-        'wordpress/db/password':
-          calculated: false
-          choice: []
-          default: randomly generated
-          description: Password for the Wordpress MySQL user.
-          display_name: Wordpress MySQL password
-          recipes: []
-          required: optional
-          type: string
-        'wordpress/db/user':
-          calculated: false
-          choice: []
-          default: wordpressuser
-          description: Wordpress will connect to MySQL using this user.
-          display_name: Wordpress MySQL user
-          recipes: []
-          required: optional
-          type: string
-        'wordpress/dir':
-          calculated: false
-          choice: []
-          default: /var/www
-          description: Location to place wordpress files.
-          display_name: Wordpress installation directory
-          recipes: []
-          required: optional
-          type: string
-        'wordpress/keys/auth':
-          calculated: false
-          choice: []
-          default: randomly generated
-          description: Wordpress auth key.
-          display_name: Wordpress auth key
-          recipes: []
-          required: optional
-          type: string
-        'wordpress/keys/logged_in':
-          calculated: false
-          choice: []
-          default: randomly generated
-          description: Wordpress logged-in key.
-          display_name: Wordpress logged-in key
-          recipes: []
-          required: optional
-          type: string
-        'wordpress/keys/nonce':
-          calculated: false
-          choice: []
-          default: randomly generated
-          description: Wordpress nonce key.
-          display_name: Wordpress nonce key
-          recipes: []
-          required: optional
-          type: string
-        'wordpress/keys/secure_auth':
-          calculated: false
-          choice: []
-          default: randomly generated
-          description: Wordpress secure auth key.
-          display_name: Wordpress secure auth key
-          recipes: []
-          required: false
-          type: string
-        'wordpress/server_aliases':
-          calculated: false
-          choice: []
-          default: FQDN
-          description: Wordpress Server Aliases
-          display_name: Wordpress Server Aliases
-          recipes: []
-          required: false
-          type: string
-        'wordpress/version':
-          calculated: false
-          choice: []
-          default: 3.0.4
-          description: Version of Wordpress to download from the Wordpress site.
-          display_name: Wordpress download version
-          recipes: []
-          required: false
-          type: string
-      #TODO: maybe? standardized values to be implemented by all providers?
-      standard:
-        "wordpress/database/user":
-          regex:
-          type: string
-          required: false
-        "domain":
-          type: String
-          default: localhost
-          required: true
-          description: the url to use to host your blog on
-        "instance/flavor":
-          default: 1  # flavor=256mb. TODO: or maybe something more generic
-          description: the type (and size) of instance to use
-          type: {1: "256Mb", 2: "512Mb"} # TODO: How do we link this to a list of images?
-        "instance/os":
-          default: Ubuntu 11.10  # Translated to image 119 by Rax provider.
-          description: the operating system and version to use
+      'example':
+        type: string (one of string, int?)
+        descriptiion: explanatioj of the option
+        required: optional # optional or required
+        source: component_id # this option comes from a dependenct/included component
+      'wordpress/checksum':
+        calculated: false
+        choice: []
+        default: 7342627f4a3dca44886c5aca6834cc88671dbd3aa2760182d2fcb9a330807
+        description: Checksum of the tarball for the version specified.
+        display_name: Wordpress tarball checksum
+        recipes: []
+        required: optional
+        type: string
+      'wordpress/db/database':
+        maps-to: wordpress/database/password
+        calculated: false
+        choice: []
+        default: wordpressdb
+        description: Wordpress will use this MySQL database to store its data.
+        display_name: Wordpress MySQL database
+        recipes: []
+        required: optional
+        type: string
+      'wordpress/db/password':
+        calculated: false
+        choice: []
+        default: randomly generated
+        description: Password for the Wordpress MySQL user.
+        display_name: Wordpress MySQL password
+        recipes: []
+        required: optional
+        type: string
+      'wordpress/db/user':
+        calculated: false
+        choice: []
+        default: wordpressuser
+        description: Wordpress will connect to MySQL using this user.
+        display_name: Wordpress MySQL user
+        recipes: []
+        required: optional
+        type: string
+      'wordpress/dir':
+        calculated: false
+        choice: []
+        default: /var/www
+        description: Location to place wordpress files.
+        display_name: Wordpress installation directory
+        recipes: []
+        required: optional
+        type: string
+      'wordpress/keys/auth':
+        calculated: false
+        choice: []
+        default: randomly generated
+        description: Wordpress auth key.
+        display_name: Wordpress auth key
+        recipes: []
+        required: optional
+        type: string
+      'wordpress/keys/logged_in':
+        calculated: false
+        choice: []
+        default: randomly generated
+        description: Wordpress logged-in key.
+        display_name: Wordpress logged-in key
+        recipes: []
+        required: optional
+        type: string
+      'wordpress/keys/nonce':
+        calculated: false
+        choice: []
+        default: randomly generated
+        description: Wordpress nonce key.
+        display_name: Wordpress nonce key
+        recipes: []
+        required: optional
+        type: string
+      'wordpress/keys/secure_auth':
+        calculated: false
+        choice: []
+        default: randomly generated
+        description: Wordpress secure auth key.
+        display_name: Wordpress secure auth key
+        recipes: []
+        required: false
+        type: string
+      'wordpress/server_aliases':
+        calculated: false
+        choice: []
+        default: FQDN
+        description: Wordpress Server Aliases
+        display_name: Wordpress Server Aliases
+        recipes: []
+        required: false
+        type: string
+      'wordpress/version':
+        calculated: false
+        choice: []
+        default: 3.0.4
+        description: Version of Wordpress to download from the Wordpress site.
+        display_name: Wordpress download version
+        recipes: []
+        required: false
+        type: string
+      "wordpress/database/user":
+        regex:
+        type: string
+        required: false
+      "domain":
+        type: String
+        default: localhost
+        required: true
+        description: the url to use to host your blog on
+      "instance/flavor":
+        default: 1  # flavor=256mb. TODO: or maybe something more generic
+        description: the type (and size) of instance to use
+        type: {1: "256Mb", 2: "512Mb"} # TODO: How do we link this to a list of images?
+      "instance/os":
+        default: Ubuntu 11.10  # Translated to image 119 by Rax provider.
+        description: the operating system and version to use
   - &mysql
     id: mysql
     version: 1
