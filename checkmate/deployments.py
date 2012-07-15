@@ -596,8 +596,6 @@ def get_keys(inputs, environment):
         keys['client'] = {'public_key': inputs['client_public_key']}
 
     if 'client_public_key_ssh' in inputs:
-        LOG.info(inputs['client_public_key_ssh'])
-        LOG.info(is_ssh_key(inputs['client_public_key_ssh']))
         if not is_ssh_key(inputs['client_public_key_ssh']):
             abort(406, "client_public_key_ssh input is not a valid ssh public "
                     "key string: %s" % inputs['client_public_key_ssh'])
