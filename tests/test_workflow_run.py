@@ -12,7 +12,6 @@ from celery.result import AsyncResult
 import mox
 from mox import IsA, In, And, Or, IgnoreArg, ContainsKeyValue, Func, \
         StrContains
-from SpiffWorkflow.specs import Join
 from SpiffWorkflow.storage import DictionarySerializer
 import yaml
 
@@ -156,20 +155,36 @@ CATALOG = [{
 class StubbedWorkflowBase(unittest.TestCase):
     def setUp(self):
         self.mox = mox.Mox()
+        self.deployment = None
 
     def tearDown(self):
         self.mox.UnsetStubs()
 
-    def _get_stubbed_out_workflow(self, deployment):
-        """Returns a workflow with mocks attached to all celery calls
+    def result_postback(self, *args, **kwargs):
+        """Simluates a postback from the called resource which updates the
+        deployment data. The results will be appended to the simulated
+        deployment results"""
+        if args[0] == 'checkmate.providers.rackspace.database.'\
+                'create_instance':
+            args = kwargs['args']
+            context = args[0]
+            self.deployment.on_resource_postback(context['resource'],
+                    {  # TODO: This is a copy of call results. Consolidate?
+                        'id': 'db-inst-1',
+                        'name': 'dbname.domain.local',
+                        'status': 'BUILD',
+                        'hostname': 'verylong.rackspaceclouddb.com',
+                        'region': 'testonia'})
 
-        :param deployment: a Deployment object
+    def _get_stubbed_out_workflow(self):
+        """Returns a workflow of self.deployment with mocks attached to all
+        celery calls
         """
-        assert isinstance(deployment, Deployment)
+        assert isinstance(self.deployment, Deployment)
         context = RequestContext(auth_token="MOCK_TOKEN", username="MOCK_USER",
                 catalog=CATALOG)
-        deployment = plan(deployment, context)
-        workflow = create_workflow(deployment, context)
+        plan(self.deployment, context)
+        workflow = create_workflow(self.deployment, context)
 
         # Prepare expected call names, args, and returns for mocking
         def is_good_context(context):
@@ -229,7 +244,7 @@ class StubbedWorkflowBase(unittest.TestCase):
                 'call': 'checkmate.providers.rackspace.loadbalancer.'
                         'create_loadbalancer',
                 'args': [Func(is_good_context), IsA(basestring), 'PUBLIC',
-                        'HTTP', 80,  deployment.get_setting('region',
+                        'HTTP', 80,  self.deployment.get_setting('region',
                                                         default='testonia')],
                 'kwargs': IgnoreArg(),
                 'result': {'id': 20001, 'vip': "200.1.1.1", 'lbid': 20001}
@@ -240,7 +255,7 @@ class StubbedWorkflowBase(unittest.TestCase):
             expected_calls.append({
                     'call': 'checkmate.providers.opscode.local.manage_databag',
                     'args': ['DEP-ID-1000', 'DEP-ID-1000',
-                            'webapp_wordpress_%s' % deployment.get_setting('prefix'),
+                            'webapp_wordpress_%s' % self.deployment.get_setting('prefix'),
                             Func(is_good_data_bag)],
                     'kwargs': And(ContainsKeyValue('secret_file',
                             'certificates/chef.pem'), ContainsKeyValue('merge',
@@ -259,7 +274,7 @@ class StubbedWorkflowBase(unittest.TestCase):
                     'result': None
                 })
         # Add repetive calls (per resource)
-        for key, resource in deployment.get('resources', {}).iteritems():
+        for key, resource in self.deployment.get('resources', {}).iteritems():
             if resource.get('type') == 'compute':
                 if 'master' in resource['dns-name']:
                     id = 10000 + int(key)  # legacy format
@@ -375,7 +390,7 @@ class StubbedWorkflowBase(unittest.TestCase):
                     expected_calls.append({
                         'call': 'checkmate.providers.opscode.local.manage_databag',
                         'args': ['DEP-ID-1000', 'DEP-ID-1000',
-                                'webapp_wordpress_%s' % deployment.get_setting('prefix'),
+                                'webapp_wordpress_%s' % self.deployment.get_setting('prefix'),
                                 And(IsA(dict), In('lsyncd'))],
                         'kwargs': And(ContainsKeyValue('secret_file',
                                 'certificates/chef.pem'), ContainsKeyValue('merge',
@@ -407,12 +422,12 @@ class StubbedWorkflowBase(unittest.TestCase):
                 expected_calls.append({
                         'call': 'checkmate.providers.rackspace.loadbalancer.add_node',
                         'args': [Func(is_good_context), 20001, "10.1.2.%s" % ip,
-                                80, deployment.get_setting('region', default='testonia')],
+                                80, self.deployment.get_setting('region', default='testonia')],
                         'kwargs': None,
                         'result': None
                     })
             elif resource.get('type') == 'database':
-                username = deployment.get_setting('username',
+                username = self.deployment.get_setting('username',
                         resource_type=resource.get('type'),
                         provider_key=resource.get('provider'),
                         default='wp_user_db1')
@@ -423,7 +438,7 @@ class StubbedWorkflowBase(unittest.TestCase):
                         'args': [Func(is_good_context),
                                 IsA(basestring),
                                 1, 1, [{'name': 'db1'}],
-                                 deployment.get_setting('region', default='testonia')],
+                                 self.deployment.get_setting('region', default='testonia')],
                         'kwargs': IgnoreArg(),
                         'result': {
                                 'id': 'db-inst-1',
@@ -438,14 +453,14 @@ class StubbedWorkflowBase(unittest.TestCase):
                         'args': [Func(is_good_context),
                                 'db-inst-1', ['db1'], username,
                                 IsA(basestring),
-                                 deployment.get_setting('region', default='testonia')],
+                                 self.deployment.get_setting('region', default='testonia')],
                         'kwargs': None,
                         'result': {'db_username': username, 'db_password': 'DbPxWd'}
                     })
                 expected_calls.append({
                         'call': 'checkmate.providers.opscode.local.manage_databag',
                         'args': ['DEP-ID-1000', 'DEP-ID-1000',
-                                'webapp_wordpress_%s' % deployment.get_setting('prefix'),
+                                'webapp_wordpress_%s' % self.deployment.get_setting('prefix'),
                                 IsA(dict)],
                         'kwargs': And(ContainsKeyValue('secret_file',
                                 'certificates/chef.pem'), ContainsKeyValue('merge',
@@ -466,7 +481,8 @@ class StubbedWorkflowBase(unittest.TestCase):
 
             # Task is called
             default_app.send_task(call['call'], args=call['args'],
-                    kwargs=call['kwargs']).InAnyOrder().AndReturn(async_mock)
+                    kwargs=call['kwargs']).InAnyOrder()\
+                    .WithSideEffects(self.result_postback).AndReturn(async_mock)
 
             # State is checked
             async_mock.ready().AndReturn(True)
@@ -481,7 +497,7 @@ class StubbedWorkflowBase(unittest.TestCase):
 class TestWorkflowStubbing(StubbedWorkflowBase):
     """ Test Basic Server code """
     def test_workflow_run(self):
-        deployment = Deployment(yaml_to_dict("""
+        self.deployment = Deployment(yaml_to_dict("""
                 id: test
                 blueprint:
                   name: test bp
@@ -495,19 +511,19 @@ class TestWorkflowStubbing(StubbedWorkflowBase):
                         username: tester
                 """))
 
-        workflow = self._get_stubbed_out_workflow(deployment)
+        workflow = self._get_stubbed_out_workflow()
 
         self.mox.ReplayAll()
 
         workflow.complete_all()
         self.assertTrue(workflow.is_completed())
-        self.assertNotIn('resources', deployment)
+        self.assertNotIn('resources', self.deployment)
 
 
 class TestWorkflowLogic(StubbedWorkflowBase):
     """ Test Basic Workflow code """
     def test_workflow_resource_generation(self):
-        deployment = Deployment(yaml_to_dict("""
+        self.deployment = Deployment(yaml_to_dict("""
                 id: test
                 blueprint:
                   name: test bp
@@ -544,7 +560,7 @@ class TestWorkflowLogic(StubbedWorkflowBase):
             """))
         PROVIDER_CLASSES['test.base'] = ProviderBase
 
-        workflow = self._get_stubbed_out_workflow(deployment)
+        workflow = self._get_stubbed_out_workflow()
 
         self.mox.ReplayAll()
 
@@ -577,7 +593,7 @@ class TestWorkflow(StubbedWorkflowBase):
         StubbedWorkflowBase.setUp(self)
         # Parse app.yaml as a deployment
         self.deployment = TestWorkflow.deployment
-        self.workflow = self._get_stubbed_out_workflow(TestWorkflow.deployment)
+        self.workflow = self._get_stubbed_out_workflow()
 
     def test_workflow_completion(self):
         """Verify workflow sequence and data flow"""
@@ -710,7 +726,7 @@ class TestWordpressWorkflow(StubbedWorkflowBase):
         StubbedWorkflowBase.setUp(self)
         # Parse app.yaml as a deployment
         self.deployment = TestWordpressWorkflow.deployment
-        self.workflow = self._get_stubbed_out_workflow(self.deployment)
+        self.workflow = self._get_stubbed_out_workflow()
 
     def test_workflow_completion(self):
         """Verify workflow sequence and data flow"""
@@ -746,9 +762,9 @@ class TestWordpressWorkflow(StubbedWorkflowBase):
 class TestDBWorkflow(StubbedWorkflowBase):
     """ Test MySQL and DBaaS Workflow """
 
-    @classmethod
-    def setUpClass(cls):
-        deployment = yaml_to_dict("""
+    def setUp(self):
+        StubbedWorkflowBase.setUp(self)
+        self.deployment = Deployment(yaml_to_dict("""
                 id: 'DEP-ID-1000'
                 blueprint:
                   name: test db
@@ -800,13 +816,8 @@ class TestDBWorkflow(StubbedWorkflowBase):
                 inputs:
                   blueprint:
                     region: DFW
-            """)
-        cls.deployment = Deployment(deployment)
-
-    def setUp(self):
-        StubbedWorkflowBase.setUp(self)
-        # Parse app.yaml as a deployment
-        self.workflow = self._get_stubbed_out_workflow(self.deployment)
+            """))
+        self.workflow = self._get_stubbed_out_workflow()
 
     def test_workflow_completion(self):
         """Verify workflow sequence and data flow"""

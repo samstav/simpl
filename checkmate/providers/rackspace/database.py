@@ -7,7 +7,7 @@ import clouddb
 from SpiffWorkflow.operators import Attrib
 from SpiffWorkflow.specs import Celery
 
-from checkmate.deployments import Deployment
+from checkmate.deployments import Deployment, resource_postback
 from checkmate.exceptions import CheckmateException, CheckmateNoMapping, \
         CheckmateNoTokenError
 from checkmate.providers import ProviderBase
@@ -102,7 +102,9 @@ class Provider(ProviderBase):
 
         create_instance_task = Celery(wfspec, 'Create Database Instance',
                'checkmate.providers.rackspace.database.create_instance',
-               call_args=[context.get_queued_task_dict(),
+               call_args=[context.get_queued_task_dict(
+                                deployment=deployment['id'],
+                                resource=key),
                         resource.get('dns-name'),
                         resource.get('disk', 1),
                         resource.get('flavor', 1),
@@ -259,6 +261,12 @@ def create_instance(context, instance_name, size, flavor, databases, region,
 
     results = dict(id=instance.id, name=instance.name, status=instance.status,
             hostname=instance.hostname, region=region)
+
+    # Send data back to deployment
+    resource_postback.delay(context['deployment'], context['resource'],
+            results)
+
+    # Add a uniqueness prefix to any results if requested
     if prefix:
         # Add each value back in with the prefix
         results.update({'%s.%s' % (prefix, key): value for key, value in

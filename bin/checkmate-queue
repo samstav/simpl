@@ -12,9 +12,9 @@ if len(sys.argv) > 1 and sys.argv[1] == 'START':
         params = ['NEW_RELIC_CONFIG_FILE=newrelic.ini', 'newrelic-admin',
                 'run-program']
     params.extend(['celeryd', '--config=checkmate.celeryconfig', '-I',
-            'checkmate.orchestrator,checkmate.ssh,checkmate.providers.'
-            'rackspace,checkmate.providers.opscode', '--events',
-            '--autoscale=10,2'])
+            'checkmate.orchestrator,checkmate.ssh,checkmate.deployments,'
+            'checkmate.providers.rackspace,checkmate.providers.opscode',
+            '--events', '--autoscale=10,2'])
     if '--verbose' in sys.argv:
         sys.argv.pop(sys.argv.index('--verbose'))
         params.extend(['-l', 'debug'])

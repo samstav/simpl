@@ -804,11 +804,12 @@ class DebugMiddleware():
 #
 # Call Context (class and middleware)
 #
-#TODO: Get this from openstack common
+#TODO: Get this from openstack common?
 class RequestContext(object):
     """
     Stores information about the security context under which the user
-    accesses the system, as well as additional request information.
+    accesses the system, as well as additional request information related to
+    the current call, such as scope (which object, resource, etc).
     """
 
     def __init__(self, auth_token=None, username=None, tenant=None, is_admin=False,
@@ -826,9 +827,11 @@ class RequestContext(object):
         self.show_deleted = show_deleted
         self.domain = domain  # which cloud?
 
-    def get_queued_task_dict(self):
+    def get_queued_task_dict(self, **kwargs):
         """Get a serializable dict of this context for use with remote, queued
         tasks.
+
+        :param kwargs: any additional kwargs get added to the context
 
         Only certain fields are needed.
         """
@@ -836,6 +839,7 @@ class RequestContext(object):
                 username=self.username,
                 auth_token=self.auth_token,
                 catalog=self.catalog,
+                **kwargs
             )
         return result
 

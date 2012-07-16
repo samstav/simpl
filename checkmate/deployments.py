@@ -8,6 +8,7 @@ import uuid
 # pylint: disable=E0611
 from bottle import get, post, put, request, response, abort
 from celery.app import app_or_default
+from celery.task import task
 from SpiffWorkflow.storage import DictionarySerializer
 
 from checkmate import orchestrator
@@ -915,3 +916,39 @@ class Deployment(ExtensibleDict):
                     service_component, service_name))
             results[service_name] = component
         return results
+
+    def on_resource_postback(self, resource_id, contents):
+        """Called to handle contents when a postback with new resource data
+        is received."""
+        resource = self['resources'][resource_id]
+        if not resource:
+            raise IndexError("Resource %s not found" % resource_id)
+
+        if contents:
+            LOG.debug("Merging %s into %s" % (contents, resource))
+            merge_dictionary(resource, contents)
+
+
+@task
+def resource_postback(deployment_id, resource_id, results):
+    """Accepts back results from a remote call and updates the deployment with
+    the result data for a specific resource.
+
+    The data updated can be:
+    - resource data
+    - resource status
+
+    The contents are a hash (dict)
+    """
+    deployment = db.get_deployment(deployment_id, with_secrets=True)
+    if not deployment:
+        raise IndexError("Deployment %s not found" % deployment_id)
+
+    deployment = Deployment(deployment)
+    deployment.on_resource_postback(resource_id, results)
+
+    body, secrets = extract_sensitive_data(deployment)
+    results = db.save_deployment(id, body, secrets)
+
+    LOG.debug("Updated deployment %s resource %s" % (deployment_id,
+            resource_id))
