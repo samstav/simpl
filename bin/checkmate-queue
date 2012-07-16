@@ -8,14 +8,20 @@ if len(sys.argv) > 1 and sys.argv[1] == 'START':
             'checkmate', 'server.py'))
     params = []
     if '--newrelic' in sys.argv:
-        params = ['NEW_RELIC_CONFIG_FILE=newrelic.ini',  'newrelic-admin',
+        sys.argv.pop(sys.argv.index('--newrelic'))
+        params = ['NEW_RELIC_CONFIG_FILE=newrelic.ini', 'newrelic-admin',
                 'run-program']
     params.extend(['celeryd', '--config=checkmate.celeryconfig', '-I',
             'checkmate.orchestrator,checkmate.ssh,checkmate.providers.'
             'rackspace,checkmate.providers.opscode', '--events',
             '--autoscale=10,2'])
     if '--verbose' in sys.argv:
+        sys.argv.pop(sys.argv.index('--verbose'))
         params.extend(['-l', 'debug'])
+
+    # Append extra parameters
+    if len(sys.argv) > 2:
+        params.extend(sys.argv[2:])
 
     try:
         print 'Running: %s' % ' '.join(params)
@@ -44,6 +50,9 @@ else:
         --newrelic: enable newrelic monitoring (place newrelic.ini in your
                     directory)
         --verbose:  turn up logging to DEBUG (default is INFO)
+
+    Note: any additional parameters supplied will be appended to the command
+    line for celery (ex. you can use --autoreload when debugging)
 
 
     Settings:
