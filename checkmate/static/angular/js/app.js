@@ -34,6 +34,10 @@ checkmate.config(['$routeProvider', function($routeProvider) {
     templateUrl: 'partials/deployment-status.html',
     controller: DeploymentStatusCtrl
   }).
+  when('/providers', {
+    templateUrl: 'partials/provider-list.html',
+    controller: ProviderListCtrl
+  }).
   otherwise({
     redirectTo: '/'
   });
@@ -110,7 +114,7 @@ cm.Resource = (function() {
     return $http({
       method: 'GET',
       url: tenantUri() + resource,
-      headers: headers()
+      headers: getHeaders()
     });
   }
 
@@ -118,7 +122,7 @@ cm.Resource = (function() {
     return $http({
       method: 'GET',
       url: tenantUri() + resource + '/' + id,
-      headers: headers
+      headers: getHeaders()
     });
   }
 
@@ -127,7 +131,7 @@ cm.Resource = (function() {
       return $http({
         method: 'POST',
         url: tenantUri() + resource,
-        headers: headers,
+        headers: getHeaders(),
         data: JSON.stringify(instance)
       });
 
@@ -135,7 +139,7 @@ cm.Resource = (function() {
       return $http({
         method: 'PUT',
         url: tenantUri() + resource + '/' + instance.id,
-        headers: headers,
+        headers: getHeaders(),
         data: JSON.stringify(instance)
       });
     }
@@ -145,7 +149,7 @@ cm.Resource = (function() {
     return $http({
       method: 'DELETE',
       url: tenantId() + resource + '/' + instance.id,
-      headers: headers()
+      headers: getHeaders()
     });
   }
 
@@ -155,7 +159,7 @@ cm.Resource = (function() {
     return '/' + cm.auth.getTenant() + '/';
   }
 
-  function headers() {
+  function getHeaders() {
     return {
       "X-Auth-Token": cm.auth.getToken()
     };

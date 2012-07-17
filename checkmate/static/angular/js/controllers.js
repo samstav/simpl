@@ -43,18 +43,6 @@ function EnvironmentDetailCtrl($scope, $location, $http, $routeParams) {
       $scope.providers = data;
     });
 
-  // Munge the providers so they have an id I can use.
-  var p = new Array();
-  $scope.selectedProviders = {}
-  for (var i in PROVIDERS) {
-    p.push($.extend({
-      id: i,
-      select: null
-    }, PROVIDERS[i]));
-    $scope.selectedProviders[i] = null;
-  }
-  $scope.providers = p;
-
   if ($routeParams.environmentId != "new") {
     cm.Resource.get($http, 'environments', $routeParams.environmentId).success(function(data, status) {
       $scope.environment = data;
@@ -270,7 +258,7 @@ function DeploymentStatusCtrl($scope, $location, $http, $routeParams) {
       $scope.deployment = deployment;
 
       // TODO: Do some magic to get the workflow id
-      cm.Resource.get($http, 'workflows', "60fc11ab0bb74023b67995e9938ecc7b")
+      cm.Resource.get($http, 'workflows', deployment.id)
         .success(function(workflow) {
           $scope.workflow = workflow;
           $scope.task_specs = workflow.wf_spec.task_specs;
@@ -371,7 +359,7 @@ function DeploymentStatusCtrl($scope, $location, $http, $routeParams) {
 DeploymentStatusCtrl.$inject = ['$scope', '$location', '$http', '$routeParams'];
 
 /**
- *   Deployments
+ *   New Deployment
  */
 
 function DeploymentNewCtrl($scope, $location, $routeParams, $http) {
@@ -421,7 +409,7 @@ function DeploymentNewCtrl($scope, $location, $routeParams, $http) {
       return "<em>" + message + "</em>";
     }
 
-    return template ? Mustache.render(template, setting) : "";
+      return template ? Mustache.render(template, setting) : "";
   }
 
   $scope.submit = function() {
@@ -460,3 +448,16 @@ function DeploymentNewCtrl($scope, $location, $routeParams, $http) {
   });
 }
 DeploymentNewCtrl.$inject = ['$scope', '$location', '$routeParams', '$http'];
+
+
+function ProviderListCtrl($scope, $location, $http) {
+
+  cm.Resource.query($http, 'providers')
+    .success(function(data) {
+      $scope.providers = data;
+    });
+
+}
+ProviderListCtrl.$inject = ['$scope', '$location', '$http'];
+  
+

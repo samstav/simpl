@@ -32,7 +32,7 @@
     <link rel="apple-touch-icon-precomposed" href="img/apple-touch-icon-57-precomposed.png">
   </head>
 
-  <body ng-controller="AuthCtrl">
+  <body ng-controller="AuthCtrl" ng-hide="!authenticated">
 
     <div class="navbar navbar-fixed-top">
       <div class="navbar-inner">
@@ -60,6 +60,7 @@
               <li id="nav-environments"><a href="#/environments">Environments</a></li>
               <li id="nav-blueprints"><a href="#/blueprints">Blueprints</a></li>
               <li id="nav-deployments"><a href="#/deployments">Deployments</a></li>
+              <li id="nav-providers"><a href="#/providers">Providers</a></li>
             </ul>
           </div><!--/.nav-collapse -->
         </div>
