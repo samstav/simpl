@@ -18,7 +18,8 @@ class CheckmateInvalidProvider(Exception):
 
 
 class ProviderBaseWorkflowMixIn():
-    """The methods used by the workflow generation code
+    """The methods used by the workflow generation code (i.e. they need a
+    workflow to work on)
 
     This class is mixed in to the ProviderBase
     """
@@ -100,6 +101,13 @@ class ProviderBaseWorkflowMixIn():
                     elif value is not None and task.get_property(key) != value:
                         match = False
                         break
+
+                    # Don't match if the task is ted toa relation and no
+                    # relation key was provided
+                    if 'relation' not in kwargs and \
+                            task.get_property('relation'):
+                        match = False
+                        break
             if match:
                 tasks.append(task)
         if not tasks:
@@ -132,7 +140,8 @@ class ProviderBaseWorkflowMixIn():
 
 
 class ProviderBasePlanningMixIn():
-    """The methods used by the deployment planning code
+    """The methods used by the deployment planning code (i.e. they need a
+    deployment to work on)
 
     This class is mixed in to the ProviderBase
     """
@@ -150,7 +159,9 @@ class ProviderBasePlanningMixIn():
 class ProviderBase(ProviderBasePlanningMixIn, ProviderBaseWorkflowMixIn):
     """Base class the providers inherit from.
 
-    It includes mixins for deployment planning and workflow generation
+    It includes mixins for deployment planning and workflow generation. The
+    calls ion this base class operate on the provider (they don't need a
+    deployment or workflow)
     """
     name = 'base'
     vendor = 'checkmate'

@@ -33,4 +33,5 @@ CELERY_RESULT_DBURI = "sqlite:///%s" % os.path.expanduser(os.path.normpath(
 # Report out that this file was used for configuration
 LOG.info("celery config loaded from %s" % __file__)
 LOG.info("celery persisting data in %s" % CELERY_RESULT_DBURI)
-LOG.info("celery broker is %s" % BROKER_URL)
+LOG.info("celery broker is %s" % BROKER_URL.replace(
+            os.environ.get('CHECKMATE_BROKER_PASSWORD', '*****'), '*****'))

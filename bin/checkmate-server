@@ -16,13 +16,13 @@ if len(sys.argv) > 1 and sys.argv[1] == 'START':
         print "\nExiting by keyboard request"
 else:
     print """
-    *** CheckMate Server Command-line Utility ***
+    *** Checkmate Server Command-line Utility ***
 
-    Starts the CheckMate Server & REST API
+    Starts the Checkmate Server & REST API
 
     Usage:
 
-        checkmate-server START [options]
+        checkmate-server START [options] [address[:port]
 
     Options:
 
@@ -40,6 +40,6 @@ else:
     for key in os.environ:
         if key.startswith('CHECKMATE_') or key.startswith('CELERY'):
             if key.startswith('CHECKMATE_CLIENT'):
-                pass
+                pass  # used for client/test calls, not the server
             else:
                 print key, '=', os.environ[key]

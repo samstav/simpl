@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-""" REST API for CheckMate
+""" REST API for Checkmate
 
 *****************************************************
 *          This is still a VERY MESSY WIP           *
@@ -47,6 +47,7 @@ import httplib
 import json
 import os
 import logging
+import string
 # some distros install as PAM (Ubuntu, SuSE)
 # https://bugs.launchpad.net/keystone/+bug/938801
 try:
@@ -803,11 +804,12 @@ class DebugMiddleware():
 #
 # Call Context (class and middleware)
 #
-#TODO: Get this from openstack common
+#TODO: Get this from openstack common?
 class RequestContext(object):
     """
     Stores information about the security context under which the user
-    accesses the system, as well as additional request information.
+    accesses the system, as well as additional request information related to
+    the current call, such as scope (which object, resource, etc).
     """
 
     def __init__(self, auth_token=None, username=None, tenant=None, is_admin=False,
@@ -825,9 +827,11 @@ class RequestContext(object):
         self.show_deleted = show_deleted
         self.domain = domain  # which cloud?
 
-    def get_queued_task_dict(self):
+    def get_queued_task_dict(self, **kwargs):
         """Get a serializable dict of this context for use with remote, queued
         tasks.
+
+        :param kwargs: any additional kwargs get added to the context
 
         Only certain fields are needed.
         """
@@ -835,6 +839,7 @@ class RequestContext(object):
                 username=self.username,
                 auth_token=self.auth_token,
                 catalog=self.catalog,
+                **kwargs
             )
         return result
 
@@ -1144,7 +1149,17 @@ if __name__ == '__main__':
         next = DebugMiddleware(next)
         LOG.debug("Routes: %s" % [r.rule for r in app().routes])
 
-    run(app=next, host='127.0.0.1', port=8080, reloader=True,
+    # Pick up IP/port from last param
+    ip = '127.0.0.1'
+    port = 8080
+    supplied = sys.argv[-1]
+    if len([c for c in supplied if c in '%s:.' % string.digits]) == \
+            len(supplied):
+        if ':' in supplied:
+            ip, port = supplied.split(':')
+        else:
+            ip = supplied
+    run(app=next, host=ip, port=port, reloader=True,
             server='wsgiref')
 
 

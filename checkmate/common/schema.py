@@ -99,7 +99,7 @@ DEPLOYMENT_SCHEMA = ['id', 'name', 'blueprint', 'environment', 'inputs',
         'includes', 'resources', 'settings']
 
 COMPONENT_SCHEMA = ['id', 'options', 'requires', 'provides', 'summary',
-        'dependencies', 'version', 'is']
+        'dependencies', 'version', 'is', 'role']
 
 
 def validate_catalog(obj):

@@ -445,6 +445,8 @@ def create_workflow(deployment, context):
                 if provider_result and provider_result.get('root') and \
                         not provider_result['root'].inputs:
                     # Attach unattached tasks
+                    LOG.debug("Attaching '%s' to 'Start'" %
+                            provider_result['root'].name)
                     wfspec.start.connect(provider_result['root'])
 
     # Do relations
@@ -459,12 +461,19 @@ def create_workflow(deployment, context):
                     if provider_result and provider_result.get('root') and \
                             not provider_result['root'].inputs:
                         # Attach unattached tasks
+                        LOG.debug("Attaching '%s' to 'Start'" %
+                                provider_result['root'].name)
                         wfspec.start.connect(provider_result['root'])
 
-    # Check that we have a at least one task
+    # Check that we have a at least one task. Workflow fails otherwise.
     if not wfspec.start.outputs:
         noop = Simple(wfspec, "end")
         wfspec.start.connect(noop)
+
+    results = wfspec.validate()
+    if results:
+        LOG.debug("Errors in Workflow: %s" % '\n'.join(results))
+        raise CheckmateException('. '.join(results))
 
     workflow = Workflow(wfspec)
     #Pass in the initial deployemnt dict (task 2 is the Start task)
@@ -508,17 +517,26 @@ def wait_for(wf_spec, task, wait_list, name=None, **kwargs):
     :returns: the final task or the task itself if no waiting needs to happen
     """
     if wait_list:
+        if task.inputs:
+            # Move inputs to join
+            for input in task.inputs:
+                if input not in wait_list:
+                    wait_list.append(input)
+                # remove it from the other tasks outputs
+                input.outputs.remove(task)
+            task.inputs = []
+
         if len(wait_list) > 1:
             if not name:
                 name = "After %s run %s" % (",".join([str(t.id)
                         for t in wait_list]), task.id)
             join = Merge(wf_spec, name, **kwargs)
-            join.connect(task)
+            task.follow(join)
             for t in wait_list:
                 t.connect(join)
             return join
         else:
-            wait_list[0].connect(task)
+            task.follow(wait_list[0])
             return wait_list[0]
     else:
         return task
