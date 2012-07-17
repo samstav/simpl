@@ -1584,3 +1584,4 @@ def _get_repo_path():
         LOG.warning("No CHECKMATE_CHEF_REPO variable set. Defaulting to %s" %
                 path)
     return path
+
