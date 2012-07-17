@@ -24,6 +24,9 @@ class Provider(ProviderBase):
     name = 'database'
     vendor = 'rackspace'
 
+    def provides(self, resource_type=None, interface=None):
+        return [dict(database='mysql')]
+
     def generate_template(self, deployment, resource_type, service, context,
             name=None):
         template = ProviderBase.generate_template(self,
