@@ -33,17 +33,20 @@ def _connect(deployment):
 def create_entity_and_check(driver=None,ip,data=None,name,context):
 	if driver is None:
 		driver = Provider._connect(context)
-
-	#TODO: Check that ip/meta/label all have values
+	#TODO: Check for values of ip/data/name/context
 
 	#Create an entity for a given resource (represented by the resource's ip address)
-	entity_location = driver.create_entity(who='',why='',label=name,ip_addresses={'default':ip},metadata=data)
-
-	#location is in form of endpoint/entities/entity_id
-	entity_id = entity_location.split('/')[-1]
-	entity = driver.get_entity(entity_id)
+	entity = driver.create_entity(label=name,ip_addresses={'default':ip},metadata=data)
 	
-	driver.create_check(entity,disabled=None,type='remote.ping',details=None,
-		label='ping',target_alias=None,target_resolver=None,target_hostname=None,
-		who='',why='')
+	#TODO: Need a way to decide what monitoring zones to poll from
+	#Maybe all of them? Maybe whatever zone the device lives in? Defaulting to dfw for now
+	#TODO: Need a way to decide what sort of check to put against a device
+	#Maybe make sure certain ports open on server? SSH capabilities?
+	
+
+	#TODO: Check to make sure entity has been created before created check 
+
+	#Create a basic 'ping' check against resource
+	driver.create_check(entity,type='remote.ping',name='ping',target_alias='default',
+		monitoring_zones=['mzdfw'])
 

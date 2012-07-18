@@ -349,6 +349,7 @@ def create_server(deployment, name, region, api_object=None, flavor="1",
                 in results.iteritems()})
     return results
 
+from checkmate.providers.rackspace.monitoring import create_entity_and_check
 
 @task(default_retry_delay=10, max_retries=18)  # ~3 minute wait
 def wait_on_build(deployment, id, ip_address_type='public',
@@ -411,6 +412,7 @@ def wait_on_build(deployment, id, ip_address_type='public',
         up = ssh_up(deployment, ip, username, timeout=timeout,
                 password=password, identity_file=identity_file, port=port)
         if up:
+	    create_entity_and_check(driver=None,ip,data=None,id,deployment)
             LOG.info("Server %s is up" % id)
             if prefix:
                 # Add each value back in with the prefix
