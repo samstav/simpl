@@ -337,10 +337,15 @@ Note: to connect to mongodb, also install the pymongo client library:
 
 **CHECKMATE_BROKER_PORT**: the port to use to connect to the message queue server
 
-**CHECKMATE_BROKER_URL**: Alternatively, a full url with username and password can be supplied. This *overrides* the previous four settings.
-    Checkmate server and queue listener will report out what settings they are using when they start up.
+**CHECKMATE_BROKER_URL**: Alternatively, a full url with username and password can be supplied. This *overrides* the previous four settings. Checkmate server and queue listener will report out what settings they are using when they start up.
 
-**CELERY_CONFIG_MODULE**: use checkmate.celeryconfig by default. See celery instructions for more detail.
+Note: all CHECKMATE_BROKER_* values are picked up from checkmate.celeryconfig. If you use an alternate config file, these variable may be ignored. See **CELERY_CONFIG_MODULE**.
+
+**CHECKMATE_RESULT_BACKEND**: default is 'database'. Checkmate needs to query task results and status. [tested with 'database' only]. This value is picked up from checkmate.celeryconfig. If you use an alternate config file, this variable may be ignored. See **CELERY_CONFIG_MODULE**.
+
+**CHECKMATE_RESULT_DBURI**: defaults to 'sqlite://../data/celerydb.sqlite' under the checkmate directory. Use this to set an alternate location for the celery result store. This value is picked up from checkmate.celeryconfig. If you use an alternate config file, this variable may be ignored. See **CELERY_CONFIG_MODULE**.
+
+**CELERY_CONFIG_MODULE**: use checkmate.celeryconfig by default. See celery instructions for more detail. THis module also picks up the values from some of the other environment variables. If you use a different config module, the other checkmate variables may get ignored.
 
 **CELERYD_FORCE_EXECV**: See celery instructions for more detail. This setting can prevent queue listeners hanging on some OSes (seen frequently on developer Macs)
 
