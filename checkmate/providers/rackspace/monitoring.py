@@ -37,7 +37,9 @@ def create_entity(driver=None,ip,data=None,name,context):
 	:returns: the created entity
 	TODO: Kick off task based on a successfull task completion of a resource creation
 	(I need to know if it's possible to call task_success for multiple senders) As of now,
-	monitoring is added during a create resource task.
+	monitoring is added during a create resource task. This isn't a huge problem - entities/checks
+	create in a matter of seconds, but it needs to eventually become asynchronous from resource
+	creation.
 	"""
 	if driver is None:
 		driver = Provider._connect(context)
