@@ -307,7 +307,15 @@ To execute deployments, checkmate uses a message queue. You need to have celery 
 
 The following environment variables can be set to configure checkmate:
 
-**CHECKMATE_CONNECTION_STRING**: a sql-alchemy connection string pointing to the database store for checkmate.
+**CHECKMATE_CONNECTION_STRING**: a sql-alchemy or mongodb connection string pointing to the database store for checkmate. Examples:
+
+    sqlite:////var/checkmate/data/db.sqlite
+
+    mongodb://localhost/checkmate
+
+Note: to connect to mongodb, also install the pymongo client library:
+
+    $ pip install pymongo  # you probably need to sudo this
 
 **CHECKMATE_DOMAIN**: a default DNS domain to use for resources created.
 

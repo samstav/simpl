@@ -14,7 +14,7 @@ from checkmate.utils import read_body, write_body, extract_sensitive_data,\
 
 
 LOG = logging.getLogger(__name__)
-db = get_driver('checkmate.db.sql.Driver')
+db = get_driver()
 
 
 #

@@ -25,7 +25,7 @@ from checkmate.utils import write_body, read_body, extract_sensitive_data,\
         merge_dictionary, with_tenant, is_ssh_key, get_time_string
 
 LOG = logging.getLogger(__name__)
-db = get_driver('checkmate.db.sql.Driver')
+db = get_driver()
 
 
 #
