@@ -17,7 +17,7 @@ from checkmate.utils import read_body, write_body, extract_sensitive_data,\
         with_tenant
 
 LOG = logging.getLogger(__name__)
-db = get_driver('checkmate.db.sql.Driver')
+db = get_driver()
 
 
 #
@@ -165,7 +165,8 @@ def get_component(environment_id, provider_id, component_id, tenant_id=None):
 def get_providers(tenant_id=None):
     results = {}
     for key, provider in PROVIDER_CLASSES.iteritems():
-        results[key] = dict(vendor=provider.vendor, name=provider.name)
+        results[key] = dict(vendor=provider.vendor, name=provider.name,
+                provides=provider({}).provides())
     return write_body(results, request, response)
 
 

@@ -25,7 +25,7 @@ from checkmate.utils import write_body, read_body, extract_sensitive_data,\
         merge_dictionary, with_tenant, is_ssh_key, get_time_string
 
 LOG = logging.getLogger(__name__)
-db = get_driver('checkmate.db.sql.Driver')
+db = get_driver()
 
 
 #
@@ -702,19 +702,23 @@ class Deployment(ExtensibleDict):
         results = {}
 
         #TODO: make this smarter
-        creds = [p['credentials'][0] for key, p in
-                        self['environment']['providers'].iteritems()
-                        if key == 'common']
-        if creds:
-            creds = creds[0]
-            results['username'] = creds['username']
-            if 'apikey' in creds:
-                results['apikey'] = creds['apikey']
-            if 'password' in creds:
-                results['password'] = creds['password']
-        else:
+        try:
+            creds = [p['credentials'][0] for key, p in
+                            self['environment']['providers'].iteritems()
+                            if key == 'common']
+            if creds:
+                creds = creds[0]
+                results['username'] = creds['username']
+                if 'apikey' in creds:
+                    results['apikey'] = creds['apikey']
+                if 'password' in creds:
+                    results['password'] = creds['password']
+            else:
+                LOG.debug("No credentials supplied in environment/common/"
+                        "credentials")
+        except Exception as exc:
             LOG.debug("No credentials supplied in environment/common/"
-                    "credentials")
+                        "credentials")
 
         inputs = self.inputs()
         results['region'] = inputs.get('blueprint', {}).get('region')

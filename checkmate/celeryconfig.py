@@ -25,10 +25,12 @@ else:
 #CELERY_RESULT_BACKEND = "amqp"
 #
 # Use this if we want to track status and let clients query it
-CELERY_RESULT_BACKEND = "database"
-CELERY_RESULT_DBURI = "sqlite:///%s" % os.path.expanduser(os.path.normpath(
+CELERY_RESULT_BACKEND = os.environ.get('CHECKMATE_RESULT_BACKEND', "database")
+
+sql_default = "sqlite:///%s" % os.path.expanduser(os.path.normpath(
         os.path.join(os.path.dirname(__file__), os.pardir, 'data',
         'celerydb.sqlite')))
+CELERY_RESULT_DBURI = os.environ.get('CHECKMATE_RESULT_DBURI', sql_default)
 
 # Report out that this file was used for configuration
 LOG.info("celery config loaded from %s" % __file__)

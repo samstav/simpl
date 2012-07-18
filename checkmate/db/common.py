@@ -39,9 +39,16 @@ def any_id_problems(id):
     return None
 
 
-def get_driver(name):
+def get_driver(name=None):
     global DB
     if DB is None:
+        if not name:
+            connection_string = os.environ.get('CHECKMATE_CONNECTION_STRING',
+                    'sqlite://')
+            if connection_string.startswith('mongodb://'):
+                name = 'checkmate.db.mongodb.Driver'
+            else:
+                name = 'checkmate.db.sql.Driver'
         LOG.debug("Initializing database engine: %s" % name)
         driver = utils.import_class(name)
         DB = driver()

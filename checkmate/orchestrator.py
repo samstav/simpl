@@ -22,6 +22,7 @@ from SpiffWorkflow.storage import DictionarySerializer
 from checkmate.db import get_driver
 from checkmate.utils import extract_sensitive_data
 
+db = get_driver()
 LOG = logging.getLogger(__name__)
 
 try:
@@ -84,7 +85,6 @@ def create_simple_server(context, name, image=214, flavor=1,
     #Pass in the initial deployemnt dict (task 3 is the Auth task)
     wf.get_task(3).set_attribute(context=context)
 
-    db = get_driver('checkmate.db.sql.Driver')
     serializer = DictionarySerializer()
     db.save_workflow(create_simple_server.request.id,
                      wf.serialize(serializer))
@@ -210,14 +210,11 @@ def run_one_task(workflow_id, task_id, timeout=60):
 
     returns True/False indicating if task completed"""
 
-    from checkmate.db import get_driver
-
-    db = get_driver('checkmate.db.sql.Driver')
     serializer = DictionarySerializer()
-    LOG.debug("Deserializing workflow %s" % workflow_id)
     workflow = db.get_workflow(workflow_id, with_secrets=True)
     if not workflow:
         raise IndexError("Workflow %s not found" % workflow_id)
+    LOG.debug("Deserializing workflow %s" % workflow_id)
     wf = Workflow.deserialize(serializer, workflow)
     task = wf.get_task(task_id)
     if not task:
