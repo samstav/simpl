@@ -186,6 +186,7 @@ from celery.task import task
 
 from checkmate.providers.rackspace.dns import create_record,\
         parse_domain
+from checkmate.providers.rackspace.monitoring import create_entity_and_check
 
 
 LOG = logging.getLogger(__name__)
@@ -224,6 +225,8 @@ def create_loadbalancer(context, name, type, protocol, port, region,
     if dns:
         create_record.delay(context, parse_domain(name), name,
                                        'A', vip, region, ttl=300)
+
+    create_entity_and_check(driver=None,vip,data=None,name,context)
 
     set_monitor.delay(context, lb.id, monitor_type, region, monitor_path,
                       monitor_delay, monitor_timeout, monitor_attempts,

@@ -30,7 +30,7 @@ def _connect(deployment):
 
 
 @task
-def create_entity_and_check(driver=None,ip,data=None,name):
+def create_entity_and_check(driver=None,ip,data=None,name,context):
 	if driver is None:
 		driver = Provider._connect(context)
 
