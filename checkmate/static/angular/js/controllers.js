@@ -282,10 +282,10 @@ function DeploymentStatusCtrl($scope, $location, $http, $routeParams) {
   }
 
   $scope.jitTasks = function(tasks) {
-    var jsonTasks = new Array();
+    var jsonTasks = [];
 
     _.each(tasks, function(task) {
-      var adjacencies = new Array();
+      var adjacencies = [];
       _.each(task.children, function(child) {
         var adj = {
           nodeTo: child.task_spec,
@@ -368,7 +368,7 @@ function DeploymentNewCtrl($scope, $location, $routeParams, $http) {
   $scope.answers = {};
 
   $scope.updateSettings = function() {
-    $scope.settings = new Array();
+    $scope.settings = [];
     $scope.answers = {};
 
     if ($scope.blueprint) {
@@ -418,7 +418,29 @@ function DeploymentNewCtrl($scope, $location, $routeParams, $http) {
     deployment.blueprint = $scope.blueprint;
     deployment.environment = $scope.environment;
     deployment.inputs = {};
-    deployment.inputs.blueprint = $scope.answers;
+    deployment.inputs.blueprint = {};
+
+    // Have to fix some of the answers so they are in the right format, specifically the select
+    // and checkboxes. This is lame and slow and I should figure out a better way to do this.
+    _.each($scope.answers, function(element, key) {
+      var setting = _.find($scope.settings, function(item) {
+        if (item.id == key) {
+          return item;
+        }
+      });
+
+      if (setting.type === "select") {
+        deployment.inputs.blueprint[key] = $scope.answers[key].value;
+      } else if (setting.type === "boolean") {
+        if ($scope.answers[key] === null) {
+          deployment.inputs.blueprint[key] = false;
+        } else {
+          deployment.inputs.blueprint[key] = $scope.answers[key];
+        }
+      } else {
+        deployment.inputs.blueprint[key] = $scope.answers[key];
+      }
+    });
 
     cm.Resource.saveOrUpdate($http, 'deployments', deployment)
       .success(function(data, status) {
