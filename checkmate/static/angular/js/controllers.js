@@ -430,7 +430,9 @@ function DeploymentNewCtrl($scope, $location, $routeParams, $http) {
       });
 
       if (setting.type === "select") {
-        deployment.inputs.blueprint[key] = $scope.answers[key].value;
+        if ($scope.answers[key] != null) {
+          deployment.inputs.blueprint[key] = $scope.answers[key].value;
+        }         
       } else if (setting.type === "boolean") {
         if ($scope.answers[key] === null) {
           deployment.inputs.blueprint[key] = false;
@@ -442,7 +444,7 @@ function DeploymentNewCtrl($scope, $location, $routeParams, $http) {
       }
     });
 
-    cm.Resource.saveOrUpdate($http, 'deployments', deployment)
+    cm.Resource.saveOrUpdate($http, 'deployments/simulate', deployment)
       .success(function(data, status) {
         $location('/deployment/' + data.id);
       })
