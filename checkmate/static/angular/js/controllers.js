@@ -232,7 +232,7 @@ function DeploymentListCtrl($scope, $location, $http) {
 
   $scope.delete = function(deployment) {
     cm.Resource.del($http, 'deployments', deployment).success(function(data, status) {
-      $location('/deployments');
+      $location.path('/deployments');
     });
   }
 
@@ -412,7 +412,11 @@ function DeploymentNewCtrl($scope, $location, $routeParams, $http) {
       return template ? Mustache.render(template, setting) : "";
   }
 
-  $scope.submit = function() {
+  $scope.showSettings = function() {
+    return !($scope.environment && $scope.blueprint);
+  }
+
+  $scope.submit = function(simulate) {
     var deployment = {};
 
     deployment.blueprint = $scope.blueprint;
@@ -444,13 +448,23 @@ function DeploymentNewCtrl($scope, $location, $routeParams, $http) {
       }
     });
 
-    cm.Resource.saveOrUpdate($http, 'deployments/simulate', deployment)
-      .success(function(data, status) {
-        $location('/deployment/' + data.id);
+    var resource = 'deployments';
+    if (simulate) {
+      resource = 'deployments/simulate';
+    }
+
+    cm.Resource.saveOrUpdate($http, resource, deployment)
+      .success(function(data, status, headers) {
+        var deploymentId = headers('location').split('/')[3];
+        $location.path('deployments/' + deploymentId);
       })
-      .error(function(data,status) {
+      .error(function(data, status, headers, config) {
         console.log("Error " + status + " creating new deployment.");
         console.log(deployment);
+
+        //TODO: Need to slice out the data we are interested in.
+        $scope.error = data;
+        $('#error_modal').modal('show');
       });
   }
 

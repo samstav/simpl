@@ -10,3 +10,7 @@ label.capitalize {
   height: 700px; 
   background-color: #404040;
 }
+
+.required {
+  font-weight: bold;
+}
