@@ -28,7 +28,7 @@ class Provider(RackspaceComputeProviderBase):
         image = deployment.get_setting('os', resource_type=resource_type,
                 service_name=service, provider_key=self.key, default=119)
         if isinstance(image, int):
-            pass
+            image = str(image)
         else:
             for key, value in catalog['lists']['types'].iteritems():
                 if image == value['name']:
@@ -36,7 +36,7 @@ class Provider(RackspaceComputeProviderBase):
                     image = key
                     break
 
-        if not isinstance(image, int):
+        if image not in catalog['lists']['types']:
             raise CheckmateNoMapping("No image mapping for '%s' in '%s'" % (
                     image, self.name))
 
