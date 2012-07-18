@@ -12,6 +12,10 @@ doc/source/checkmate.*
 build/
 dist/
 
+# Sublime project files #
+*.sublime-project
+*.sublime-workspace
+
 # Compiled source #
 ###################
 *.com
