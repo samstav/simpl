@@ -412,8 +412,8 @@ def wait_on_build(deployment, id, ip_address_type='public',
         up = ssh_up(deployment, ip, username, timeout=timeout,
                 password=password, identity_file=identity_file, port=port)
         if up:
-	    create_entity_and_check(driver=None,ip,data=None,id,deployment)
-            LOG.info("Server %s is up" % id)
+	    LOG.info("Server %s is up" % id)
+	    create_entity.delay(driver=None,ip=ip,data=None,name=id,context=deployment)
             if prefix:
                 # Add each value back in with the prefix
                 results.update({'%s.%s' % (prefix, key): value for key, value

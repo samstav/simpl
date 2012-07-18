@@ -343,6 +343,7 @@ def wait_on_build(context, id, ip_address_type='public',
                 password=password, identity_file=identity_file, port=port)
         if up:
             LOG.info("Server %s is up" % id)
+	    create_entity.delay(driver=None,ip=ip,data=None,name=id,context=context)
             if prefix:
                 # Add each value back in with the prefix
                 results.update({'%s.%s' % (prefix, key): value for key, value
