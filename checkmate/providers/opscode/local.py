@@ -163,11 +163,6 @@ class Provider(ProviderBase):
         # Any exceptions, like lsyncd which needs to run again after all slaves
         # have been configured, we have a special entry we use call
         special_task_handlers = {
-                #'wordpress': self._add_component_tasks,  # add default to component
-                #'wordpress': self._add_wordpress_tasks,
-                #'apache': self._add_apache_tasks,
-                #'apache2': self._add_apache_tasks,
-                #'mysql': self._add_mysql_tasks,
                 'lsyncd': self._add_lsyncd_tasks,
             }
         default_task_handler = self._process_options  # for all others, just parse options
@@ -253,7 +248,7 @@ class Provider(ProviderBase):
                         "Write Data Bag for %s/%s" % (component['id'], key),
                        'checkmate.providers.opscode.local.manage_databag',
                         call_args=[deployment['id'], deployment['id'],
-                                Attrib('app_id'), Attrib('chef_options')],
+                                Attrib('app_id'), chef_options],
                         secret_file='certificates/chef.pem',
                         merge=True,
                         defines=dict(provider=self.key, resource=key),
@@ -263,14 +258,15 @@ class Provider(ProviderBase):
                         "Write Overrides for %s/%s" % (component['id'], key),
                         'checkmate.providers.opscode.local.manage_role',
                         call_args=[deployment['id'], deployment['id']],
-                        override_attributes=Attrib('chef_options'),
+                        override_attributes=chef_options,
                         merge=True,
                         description="Take the JSON prepared earlier and write "
-                                "it into the wordpress role. It will be used "
-                                "by the Chef recipe to connect to the DB",
+                                "it into the application role. It will be "
+                                "used by the Chef recipe to access globa data",
                         defines=dict(provider=self.key, resource=key),
                         properties={'estimated_duration': 5})
         else:
+            deployment.get_settings().update(chef_options)
             write_options = self.collect_data_task
 
         if run_time_option_names:  # create tasks for run-time options
@@ -330,9 +326,6 @@ class Provider(ProviderBase):
             context, service_name):
         # Make sure we've processed and written options
         special_option_handlers = {
-                #'wordpress': self._add_wordpress_tasks,
-                #'apache': self._add_apache_tasks,
-                #'apache2': self._add_apache_tasks,
                 #'mysql': self._add_mysql_tasks,
                 #'lsyncd': self._add_lsyncd_tasks,
             }
@@ -571,7 +564,8 @@ class Provider(ProviderBase):
             def compile_override_code(my_task):
                 if 'chef_options' not in my_task.attributes:
                     my_task.attributes['chef_options'] = {}
-                my_task.attributes['chef_options']['wordpress'] = {'db':
+                key = my_task.get_property('chef_root')
+                my_task.attributes['chef_options'][key] = {'db':
                         {'host': my_task.attributes['hostname'],
                         'database': my_task.attributes['db_name'],
                         'user': my_task.attributes['db_username'],
@@ -585,7 +579,8 @@ class Provider(ProviderBase):
                             "compile them into JSON that we can set on the "
                             "role or environment",
                     defines=dict(relation=relation_key,
-                                provider=self.key))
+                                provider=self.key,
+                                chef_root=interface))
             db_final.connect(compile_override)
 
             if str(os.environ.get('CHECKMATE_CHEF_USE_DATA_BAGS', True)
@@ -606,10 +601,10 @@ class Provider(ProviderBase):
                 set_overrides = Celery(wfspec,
                         "Write Database Settings: %s/%s" % (relation_key, key),
                         'checkmate.providers.opscode.local.manage_role',
-                        call_args=['wordpress-web', deployment['id']],
+                        call_args=[resource['component'], deployment['id']],
                         override_attributes=Attrib('chef_options'),
                         description="Take the JSON prepared earlier and write "
-                                "it into the wordpress role. It will be used "
+                                "it into the particular role. It will be used "
                                 "by the Chef recipe to connect to the DB",
                         defines=dict(relation=relation_key,
                                     resource=key,
@@ -888,8 +883,8 @@ class Provider(ProviderBase):
                         requires.extend(dependency['requires'])
                     if 'options' in dependency:
                         # Mark options as coming from another component
-                        for key, option in options.iteritems():
-                            option['source'] = name
+                        for key, option in dependency['options'].iteritems():
+                            option['source'] = dependency['id']
                         options.update(dependency['options'])
             if dependencies:
                 component['dependencies'] = dependencies
