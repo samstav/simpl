@@ -547,6 +547,8 @@ setting resolves issues with workers hanging::
 
 ### Dependencies
 
+Checkmate has code that is python 2.7 specific. It won't work on earlier versions.
+
 Some of checkmate's more significant dependencies are::
 
 - celeryd: integrates with a message queue (ex. RabbitMQ)
@@ -563,6 +565,21 @@ the development branch from this fork:
     $ cd SpiffWorkflow
     $ sudo python setup.py install
 
+#### python-novacalient
+Necessary patches to python-novacalient are not yet in the source repo, so install
+the development branch from this fork:
+
+    $ git clone -b master https://github.rackspace.com/checkmate/python-novacalient
+    $ cd python-novacalient
+    $ sudo python setup.py install
+
+#### python-clouddb
+Necessary patches to python-clouddb are not yet in the source repo, so install
+the development branch from this fork:
+
+    $ git clone -b master https://github.rackspace.com/checkmate/python-clouddb
+    $ cd python-clouddb
+    $ sudo python setup.py install
 
 #### Celery
 
