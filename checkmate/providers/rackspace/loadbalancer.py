@@ -40,7 +40,7 @@ class Provider(ProviderBase):
 
     def add_resource_tasks(self, resource, key, wfspec, deployment, context,
                 wait_on=None):
-        create_lb = Celery(wfspec, 'Create LB',
+        create_lb = Celery(wfspec, 'Create Loadbalancer',
                 'checkmate.providers.rackspace.loadbalancer.'
                         'create_loadbalancer',
                 call_args=[context.get_queued_task_dict(),
@@ -66,7 +66,7 @@ class Provider(ProviderBase):
 
             #Create the add node task
             add_node = Celery(wfspec,
-                    "Add LB Node:%s" % relation['target'],
+                    "Add LB Node: %s" % relation['target'],
                     'checkmate.providers.rackspace.loadbalancer.add_node',
                     call_args=[context.get_queued_task_dict(),  Attrib('lbid'),
                             Attrib('private_ip'), 80,
@@ -78,7 +78,7 @@ class Provider(ProviderBase):
             #Make it wait on all other provider completions
             finals.append(create_lb)
             wait_for(wfspec, add_node, finals,
-                    name="Wait before adding to LB:%s" % relation['target'],
+                    name="Wait before adding to LB: %s" % relation['target'],
                     description="Wait for Load Balancer ID "
                             "and for server to be fully configured before "
                             "adding it to load balancer",

@@ -85,16 +85,16 @@ class Provider(ProviderBase):
                     call_args=[deployment['id'], deployment['id']],
                     override_attributes=Attrib('chef_options'),
                     description="Take the JSON prepared earlier and write "
-                            "it into the wordpress role. It will be used "
-                            "by the Chef recipe to connect to the DB",
+                            "it into the application role. It will be used "
+                            "by the Chef recipe to access global data",
                     defines=dict(provider=self.key,
                                 task_tags=['write_options']),
                     properties={'estimated_duration': 5})
-        # We create this task but don't wire it up. ANy other task that needs
+        # We create this task but don't wire it up. Any other task that needs
         # it will connect to it and wire it up by default. Otherwise, it is
         # ignored. That also prevents it from executing before chef_options
         # exists.
-        #write_options.follow(create_environment)
+        # Not doing this (see above): write_options.follow(create_environment)
         self.collect_data_task = write_options
 
         return dict(root=create_environment, final=create_environment)
@@ -298,7 +298,7 @@ class Provider(ProviderBase):
                     my_task.attributes['chef_options'][key].update(
                             chef_options.values()[0])
 
-            collect_data = Transform(wfspec, "Collect %s Chef Data:%s" % (
+            collect_data = Transform(wfspec, "Collect %s Chef Data: %s" % (
                     component['id'], key),
                     transforms=[get_source_body(build_data_code)],
                     description="Get %s data needed for our cookbooks and "
@@ -310,7 +310,7 @@ class Provider(ProviderBase):
                             chef_options=chef_options))
 
             wait_for(wfspec, write_options, [collect_data],
-                    name="Get %s data:%s" % (component['id'], key),
+                    name="Get %s data: %s" % (component['id'], key),
                     description="Before applying chef recipes, we need to "
                     "know that the server has chef on it and that the "
                     "overrides (database settings) have been applied")
@@ -346,6 +346,7 @@ class Provider(ProviderBase):
 
         # Get component/role or recipe name
         kwargs = {}
+        LOG.debug("Determining component from dict: %s" % component)
         if 'role' in component:
             name = '%s::%s' % (component['id'], component['role'])
         else:
@@ -358,7 +359,7 @@ class Provider(ProviderBase):
         LOG.debug("Component determined to be %s" % kwargs)
 
         # Create the cook task
-        configure_task = Celery(wfspec, 'Configure %s:%s' % (component['id'],
+        configure_task = Celery(wfspec, 'Configure %s: %s' % (component['id'],
                 key),
                'checkmate.providers.opscode.local.cook',
                 call_args=[Attrib('ip'), deployment['id']],
@@ -489,7 +490,7 @@ class Provider(ProviderBase):
                     options['slaves'] = []
                 options['slaves'].append(my_task.get_attribute('private_ip'))
 
-            build_bag = Transform(wfspec, "Get Slave IP:%s" % key,
+            build_bag = Transform(wfspec, "Get Slave IP from Server %s" % key,
                     transforms=[get_source_body(get_slave_ip_code)],
                     description="Get all data needed for our cookbooks "
                             "and place it in a structure ready for "
@@ -576,7 +577,7 @@ class Provider(ProviderBase):
                         'user': my_task.attributes['db_username'],
                         'password': my_task.attributes['db_password']}}
 
-            compile_override = Transform(wfspec, "Prepare Overrides:%s/%s" %
+            compile_override = Transform(wfspec, "Prepare Overrides: %s/%s" %
                     (relation_key, key),
                     transforms=[get_source_body(compile_override_code)],
                     description="Get all the variables "
@@ -591,7 +592,7 @@ class Provider(ProviderBase):
                         ).lower() in ['true', '1', 'yes']:
                 # Call manage_databag(environment, bagname, itemname, contents)
                 set_overrides = Celery(wfspec,
-                        "Write Data Bag:%s/%s" % (relation_key, key),
+                        "Write Data Bag: %s/%s" % (relation_key, key),
                        'checkmate.providers.opscode.local.manage_databag',
                         call_args=[deployment['id'], deployment['id'],
                                 Attrib('app_id'), Attrib('chef_options')],
@@ -603,7 +604,7 @@ class Provider(ProviderBase):
                         properties={'estimated_duration': 5})
             else:
                 set_overrides = Celery(wfspec,
-                        "Write Database Settings:%s/%s" % (relation_key, key),
+                        "Write Database Settings: %s/%s" % (relation_key, key),
                         'checkmate.providers.opscode.local.manage_role',
                         call_args=['wordpress-web', deployment['id']],
                         override_attributes=Attrib('chef_options'),
@@ -634,7 +635,7 @@ class Provider(ProviderBase):
 
             # Create chef setup tasks
             register_node_task = Celery(wfspec,
-                    'Register Server:%s' % relation['target'],
+                    'Register Server %s' % relation['target'],
                     'checkmate.providers.opscode.local.register_node',
                     call_args=[Attrib('ip'), deployment['id']],
                     password=Attrib('password'),
@@ -649,7 +650,7 @@ class Provider(ProviderBase):
                     properties=dict(estimated_duration=120))
 
             bootstrap_task = Celery(wfspec,
-                    'Pre-Configure Server:%s' % relation['target'],
+                    'Pre-Configure Server %s' % relation['target'],
                     'checkmate.providers.opscode.local.cook',
                     call_args=[Attrib('ip'), deployment['id']],
                     recipes=['build-essential'],
