@@ -38,7 +38,8 @@ os.environ['CHECKMATE_BROKER_PORT'] = os.environ.get('CHECKMATE_BROKER_PORT',
 from checkmate.server import RequestContext  # also enables logging
 from checkmate.deployments import plan, get_os_env_keys
 from checkmate.providers.base import PROVIDER_CLASSES, ProviderBase
-from checkmate.utils import resolve_yaml_external_refs, is_ssh_key
+from checkmate.utils import resolve_yaml_external_refs, is_ssh_key, \
+        merge_dictionary
 from checkmate.workflows import create_workflow
 
 # Environment variables and safe alternatives
@@ -160,6 +161,7 @@ class StubbedWorkflowBase(unittest.TestCase):
     def setUp(self):
         self.mox = mox.Mox()
         self.deployment = None
+        self.outcome = {}  # store results and end state as simulation runs
 
     def tearDown(self):
         self.mox.UnsetStubs()
@@ -168,6 +170,12 @@ class StubbedWorkflowBase(unittest.TestCase):
         """Simluates a postback from the called resource which updates the
         deployment data. The results will be appended to the simulated
         deployment results"""
+        # If we need to get the calling task, use inspect. The call stack is
+        # self->mock->method->class (so 3 in a zero-based index)
+        # import inspect
+        # obj = inspect.stack()[3][0].f_locals['self']
+        # print obj.name
+
         if args[0] == 'checkmate.providers.rackspace.database.'\
                 'create_instance':
             args = kwargs['args']
@@ -179,6 +187,21 @@ class StubbedWorkflowBase(unittest.TestCase):
                         'status': 'BUILD',
                         'hostname': 'verylong.rackspaceclouddb.com',
                         'region': 'testonia'})
+        elif args[0] == 'checkmate.providers.opscode.local.manage_databag':
+            args = kwargs['args']
+            bag_name = args[1]
+            item_name = args[2]
+            contents = args[3]
+            if 'data_bags' not in self.outcome:
+                self.outcome['data_bags'] = {}
+            if bag_name not in self.outcome['data_bags']:
+                self.outcome['data_bags'][bag_name] = {}
+            if kwargs.get('merge', False) == True or \
+                    item_name not in self.outcome['data_bags'][bag_name]:
+                self.outcome['data_bags'][bag_name][item_name] = contents
+            else:
+                merge_dictionary(self.outcome['data_bags'][bag_name][item_name],
+                        contents)
 
     def _get_stubbed_out_workflow(self):
         """Returns a workflow of self.deployment with mocks attached to all
@@ -287,14 +310,14 @@ class StubbedWorkflowBase(unittest.TestCase):
                 else:
                     id = "10-uuid-00%s" % key  # Nova format
                     role = 'web'
-                    ip = key
+                    ip = int(key) + 1
                 name = resource['dns-name']
                 flavor = resource['flavor']
                 index = key
                 image = resource['image']
 
                 expected_calls.append({
-                    # Create First Server
+                    # Create Server
                     'call': 'checkmate.providers.rackspace.compute_legacy.'
                             'create_server',
                     'args': [Func(is_good_context),
@@ -441,7 +464,7 @@ class StubbedWorkflowBase(unittest.TestCase):
                                 'create_instance',
                         'args': [Func(is_good_context),
                                 IsA(basestring),
-                                1, 1, [{'name': 'db1'}],
+                                1, '1', [{'name': 'db1'}],
                                  self.deployment.get_setting('region', default='testonia')],
                         'kwargs': IgnoreArg(),
                         'result': {
@@ -758,9 +781,17 @@ class TestWordpressWorkflow(StubbedWorkflowBase):
         self.assertTrue(self.workflow.is_completed(), "Workflow did not "
                 "complete")
 
-        serializer = DictionarySerializer()
-        simulation = self.workflow.serialize(serializer)
-        simulation['id'] = 'simulate'
+        self.assertIn('data_bags', self.outcome)
+        self.assertIn('DEP-ID-1000', self.outcome['data_bags'])
+
+        print json.dumps(self.outcome, indent=2)
+        databag = self.outcome['data_bags']['DEP-ID-1000']
+        self.assertIn('webapp_wordpress_TEST-BLOG', databag)
+
+        item = databag['webapp_wordpress_TEST-BLOG']
+        self.assertIn('wordpress', item)
+        self.assertIn('lsyncd', item)
+        self.assertIn('mysql', item)
 
 
 class TestDBWorkflow(StubbedWorkflowBase):
