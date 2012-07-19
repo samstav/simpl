@@ -29,17 +29,12 @@ def _connect(deployment):
   Celery tasks to manipulate Monitoring as a Service
 """
 
-from celery.task import task,task_success
+from celery.task import task
 
 @task(default_retry_delay=5, max_retries=5)
 def create_entity(driver=None,ip,data=None,name,context):
 	"""
 	:returns: the created entity
-	TODO: Kick off task based on a successfull task completion of a resource creation
-	(I need to know if it's possible to call task_success for multiple senders) As of now,
-	monitoring is added during a create resource task. This isn't a huge problem - entities/checks
-	create in a matter of seconds, but it needs to eventually become asynchronous from resource
-	creation.
 	"""
 	if driver is None:
 		driver = Provider._connect(context)
@@ -51,16 +46,13 @@ def create_entity(driver=None,ip,data=None,name,context):
 		LOG.debug("Failed to create entity for %s") % ip
 		create_entity.retry(exc=exc)
 	LOG.debug("Successfully created entity %s for %s") % (name,ip)
-	return entity
+	create_check.delay(driver,context,entity)
 	
 
-@task_success.connect(sender='create_entity',default_retry_delay=5, max_retries=5)
-def create_check(driver=None,context,result=None):
+def create_check(driver=None,context,entity):
 	"""
-	:param result: The return value of the sender task (create_entity)
 	TODO: Decide what sort of checks to create based on resource
 	"""
-	entity = result
 	if driver is None:
 		driver = Provider_connect(context)	
 	try:
