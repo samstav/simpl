@@ -265,9 +265,58 @@ function DeploymentStatusCtrl($scope, $location, $http, $routeParams) {
 
           $scope.tasks = $scope.flattenTasks({}, workflow.task_tree);
           $scope.jit = $scope.jitTasks($scope.tasks);
-          cm.graph.createGraph("graph", $scope.jit);
+
+          $scope.renderWorkflow($scope.jit);
         });
     });
+
+  $scope.renderWorkflow = function(tasks) {
+    var template = $('#task').html();
+    var container = $('#task_container');
+
+    for(var i = 0; i < Math.floor(tasks.length/4); i++) {
+      var div = $('<div class="row">');
+      var row = tasks.slice(i*4, (i+1)*4);
+      
+      _.each(row, function(task) {
+
+        div.append(Mustache.render(template, task));
+      });
+
+      container.append(div);
+    }
+
+    $('.task').hover(
+      function() {
+        //hover-in
+        $(this).addClass('hovering');
+        $scope.showConnections($(this));
+      },
+      function() {
+        $(this).removeClass('hovering');
+      }
+    );
+  }
+
+  $scope.showConnections = function(task_div) {
+    jsPlumb.Defaults.Container = "task_container";
+
+    var selectedTask = _.find($scope.tasks, function(task) {
+      if (task.id === parseInt(task_div.attr('id'))) {
+        return task;
+      }
+    });
+
+    jsPlumb.addEndpoint(selectedTask.id);
+    _.each(selectedTask.children, function(child) {    
+      jsPlumb.addEndpoint(child.id);
+
+      jsPlumb.connect({
+        source: selectedTask.id,
+        target: child.id
+      });
+    });
+  }
 
   $scope.flattenTasks = function(accumulator, tree) {
     accumulator[tree.task_spec] = tree;
@@ -296,9 +345,10 @@ function DeploymentStatusCtrl($scope, $location, $http, $routeParams) {
       }); 
 
       var t = {
-        id: task.task_spec,
+        id: task.id,
         name: task.task_spec,
         adjacencies: adjacencies,
+        state: $scope.colorize(task.state),
         data: {
           "$color": "#83548B",
           "$type": "circle"
@@ -352,6 +402,35 @@ function DeploymentStatusCtrl($scope, $location, $http, $routeParams) {
       default:
         console.log("Invalid state '" + state + "'.");
         return "icon-question-sign"
+      break;
+    }
+  }
+
+  /**
+   *  See above.
+   *
+   */
+  $scope.colorize = function(state) {
+    switch(state) {
+      case 1:
+      case 2:
+      case 4:
+      case 8:
+        return "alert-waiting";
+        break;
+      case 16:
+      case 128:
+        return "alert-info";
+        break;
+      case 32:
+        return "alert-error";
+        break;
+      case 64:
+        return "alert-success";
+        break;
+      default:
+        console.log("Invalid state '" + state + "'.");
+        return "unkonwn"
       break;
     }
   }

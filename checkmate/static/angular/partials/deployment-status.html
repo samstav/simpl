@@ -1,47 +1,28 @@
-<div>
-  <div class="span12">
-    <div class="page-header">
-      <h1>Deployment Status
-        <small>({{deployment.id}})</small>
-      </h1>
-    </div>    
+<div class="span12">
+  <div class="page-header">
+    <h1>Deployment Status
+      <small>({{deployment.id}})</small>
+    </h1>
+  </div>
 
-    <div class="span3">
-      <div class="well sidebar-nav">
-        <ul class="nav nav-list" id="connections">
-          <li class="nav-header">Tasks</li>
-          <li>
-            <i ng-class="iconify(tasks[spec.name].state)"></i>
-            {{spec.name}}, State: {{tasks[spec.name].internal_attributes.estimated_completed_in}}, 
-            ETA: {{tasks[spec.name].internal_attributes.estimated_completed_in}}
-          </li>
-          <li class="nav-header">Estimated Time</li>
-          <li>1,245 seconds total, 456 left</li>
-          <li>
-            <div class="progress progress-striped active">
-              <div class="bar" style="width: 40%;"></div>
-            </div>
-          </li>
-          <li class="nav-header">Connections</li>
-        </ul>
-      </div><!--/.well -->
-    </div>
-
-    <div id="graph" class="span8">
-    </div>
-
-<!--
-    <ul ng-repeat="spec in task_specs">
-      
-    </ul>
--->
-  </div>  
-
-  <script type="text/javascript">
-    $(document).ready(function() {
-      $('#nav-elements li').removeClass('active');
-      $('#nav-deployments').addClass('active');
-    });
-  </script>
+  <div class="well">
+    Stuff goes here.
+  </div>
 </div>
+
+<div id="task_container" style="padding-left: 30px;">
+</div>
+
+<script id="task" type="text/html">
+  <div id="{{id}}" class="alert task span2 {{state}}">
+    {{id}}:{{name}}
+  </div>
+</script>
+
+<script type="text/javascript">
+  $(document).ready(function() {
+    $('#nav-elements li').removeClass('active');
+    $('#nav-deployments').addClass('active');    
+  });
+</script>
 

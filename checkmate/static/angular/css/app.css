@@ -14,3 +14,27 @@ label.capitalize {
 .required {
   font-weight: bold;
 }
+
+.task {
+  text-align: center; 
+  padding-right: 14px;
+  cursor: pointer;
+  min-height: 55px;
+  margin: 50px;
+}
+
+.hovering {
+  font-weight: bold;
+}
+
+.alert-waiting {
+  background-color: #d3d3d3;
+  border-color: #a9a9a9;
+  color: #a9a9a9;
+}
+
+.alert-surprise {
+  background-color: #EEDFF2;
+  border-color: #DBC6E8;
+  color: #A549BA;
+}
