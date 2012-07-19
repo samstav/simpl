@@ -38,17 +38,10 @@ EnvironmentListCtrl.$inject = ['$scope', '$location', '$http'];
  */
 
 function EnvironmentDetailCtrl($scope, $location, $http, $routeParams) {
-  // Munge the providers so they have an id I can use.
-  var p = new Array();
-  $scope.selectedProviders = {}
-  for (var i in PROVIDERS) {
-    p.push($.extend({
-      id: i,
-      select: null
-    }, PROVIDERS[i]));
-    $scope.selectedProviders[i] = null;
-  }
-  $scope.providers = p;
+  cm.Resource.query($http, 'providers')
+    .success(function(data) {
+      $scope.providers = data;
+    });
 
   if ($routeParams.environmentId != "new") {
     cm.Resource.get($http, 'environments', $routeParams.environmentId).success(function(data, status) {
@@ -239,7 +232,7 @@ function DeploymentListCtrl($scope, $location, $http) {
 
   $scope.delete = function(deployment) {
     cm.Resource.del($http, 'deployments', deployment).success(function(data, status) {
-      $location('/deployments');
+      $location.path('/deployments');
     });
   }
 
@@ -265,14 +258,65 @@ function DeploymentStatusCtrl($scope, $location, $http, $routeParams) {
       $scope.deployment = deployment;
 
       // TODO: Do some magic to get the workflow id
-      cm.Resource.get($http, 'workflows', "60fc11ab0bb74023b67995e9938ecc7b")
+      cm.Resource.get($http, 'workflows', deployment.id)
         .success(function(workflow) {
           $scope.workflow = workflow;
           $scope.task_specs = workflow.wf_spec.task_specs;
 
-          $scope.tasks = $scope.flattenTasks({}, workflow.task_tree)
+          $scope.tasks = $scope.flattenTasks({}, workflow.task_tree);
+          $scope.jit = $scope.jitTasks($scope.tasks);
+
+          $scope.renderWorkflow($scope.jit);
         });
     });
+
+  $scope.renderWorkflow = function(tasks) {
+    var template = $('#task').html();
+    var container = $('#task_container');
+
+    for(var i = 0; i < Math.floor(tasks.length/4); i++) {
+      var div = $('<div class="row">');
+      var row = tasks.slice(i*4, (i+1)*4);
+      
+      _.each(row, function(task) {
+
+        div.append(Mustache.render(template, task));
+      });
+
+      container.append(div);
+    }
+
+    $('.task').hover(
+      function() {
+        //hover-in
+        $(this).addClass('hovering');
+        $scope.showConnections($(this));
+      },
+      function() {
+        $(this).removeClass('hovering');
+      }
+    );
+  }
+
+  $scope.showConnections = function(task_div) {
+    jsPlumb.Defaults.Container = "task_container";
+
+    var selectedTask = _.find($scope.tasks, function(task) {
+      if (task.id === parseInt(task_div.attr('id'))) {
+        return task;
+      }
+    });
+
+    jsPlumb.addEndpoint(selectedTask.id);
+    _.each(selectedTask.children, function(child) {    
+      jsPlumb.addEndpoint(child.id);
+
+      jsPlumb.connect({
+        source: selectedTask.id,
+        target: child.id
+      });
+    });
+  }
 
   $scope.flattenTasks = function(accumulator, tree) {
     accumulator[tree.task_spec] = tree;
@@ -283,73 +327,118 @@ function DeploymentStatusCtrl($scope, $location, $http, $routeParams) {
       });
     }
 
-    /**
-     *  FUTURE    =   1
-     *  LIKELY    =   2
-     *  MAYBE     =   4
-     *  WAITING   =   8
-     *  READY     =  16
-     *  CANCELLED =  32
-     *  COMPLETED =  64
-     *  TRIGGERED = 128
-     *
-     *  TODO: This will be fixed in the API, see:
-     *    https://github.rackspace.com/checkmate/checkmate/issues/45
-     */
-    $scope.iconify = function(state) {
-      switch(state) {
-        case 1:
-          return "icon-fast-forward";
-          break;
-        case 2:
-          return "icon-thumbs-up"
-          break;
-        case 4:
-          return "icon-hand-right";
-          break;
-        case 8:
-          return "icon-pause"
-          break;
-        case 16:
-          return "icon-plus";
-          break;
-        case 32:
-          return "icon-remove";
-          break;
-        case 64:
-          return "icon-ok";
-          break;
-        case 128:
-          return "icon-adjust";
-          break;
-        default:
-          console.log("Invalid state '" + state + "'.");
-          return "icon-question-sign"
-        break;
-      }
-    }
-
     return accumulator;
   }
 
-  $scope.renderTask = function(task) {
-    if (!task) {
-      return "<em>Task is null.</em>";
-    }
+  $scope.jitTasks = function(tasks) {
+    var jsonTasks = [];
 
-    if (task.outputs.length > 0) {
-      var template = $('#task-with-children').html();
-    } else {
-      var template = $('#task-leaf').html();
-    }
+    _.each(tasks, function(task) {
+      var adjacencies = [];
+      _.each(task.children, function(child) {
+        var adj = {
+          nodeTo: child.task_spec,
+          nodeFrom: task.task_spec,
+          data: {}        
+        }
+        adjacencies.push(adj);
+      }); 
 
-    return Mustache.render(template, task);
+      var t = {
+        id: task.id,
+        name: task.task_spec,
+        adjacencies: adjacencies,
+        state: $scope.colorize(task.state),
+        data: {
+          "$color": "#83548B",
+          "$type": "circle"
+        }
+      }
+      jsonTasks.push(t);
+    });
+
+    return jsonTasks;
+  }
+
+  /**
+   *  FUTURE    =   1
+   *  LIKELY    =   2
+   *  MAYBE     =   4
+   *  WAITING   =   8
+   *  READY     =  16
+   *  CANCELLED =  32
+   *  COMPLETED =  64
+   *  TRIGGERED = 128
+   *
+   *  TODO: This will be fixed in the API, see:
+   *    https://github.rackspace.com/checkmate/checkmate/issues/45
+   */
+  $scope.iconify = function(state) {
+    switch(state) {
+      case 1:
+        return "icon-fast-forward";
+        break;
+      case 2:
+        return "icon-thumbs-up"
+        break;
+      case 4:
+        return "icon-hand-right";
+        break;
+      case 8:
+        return "icon-pause"
+        break;
+      case 16:
+        return "icon-plus";
+        break;
+      case 32:
+        return "icon-remove";
+        break;
+      case 64:
+        return "icon-ok";
+        break;
+      case 128:
+        return "icon-adjust";
+        break;
+      default:
+        console.log("Invalid state '" + state + "'.");
+        return "icon-question-sign"
+      break;
+    }
+  }
+
+  /**
+   *  See above.
+   *
+   */
+  $scope.colorize = function(state) {
+    switch(state) {
+      case 1:
+      case 2:
+      case 4:
+      case 8:
+        return "alert-waiting";
+        break;
+      case 16:
+      case 128:
+        return "alert-info";
+        break;
+      case 32:
+        return "alert-error";
+        break;
+      case 64:
+        return "alert-success";
+        break;
+      default:
+        console.log("Invalid state '" + state + "'.");
+        return "unkonwn"
+      break;
+    }
   }
 }
 DeploymentStatusCtrl.$inject = ['$scope', '$location', '$http', '$routeParams'];
 
 /**
- *   Deployments
+ *   New Deployment
  */
 
 function DeploymentNewCtrl($scope, $location, $routeParams, $http) {
@@ -358,18 +447,17 @@ function DeploymentNewCtrl($scope, $location, $routeParams, $http) {
   $scope.answers = {};
 
   $scope.updateSettings = function() {
-    $scope.settings = new Array();
+    $scope.settings = [];
     $scope.answers = {};
 
     if ($scope.blueprint) {
-      $scope.settings.push(cm.Settings.getSettingsFromBlueprint($scope.blueprint));
+      $scope.settings = $scope.settings.concat(cm.Settings.getSettingsFromBlueprint($scope.blueprint));
     }
 
     if ($scope.environment) {
-      $scope.settings.push(cm.Settings.getSettingsFromEnvironment($scope.environment));
+      $scope.settings = $scope.settings.concat(cm.Settings.getSettingsFromEnvironment($scope.environment));
     }
 
-    $scope.settings = _.flatten($scope.settings, true); // combine everything to one array
     _.each($scope.settings, function(element, index) {
       if (element && element.id) {
         $scope.answers[element.id] = null;
@@ -400,24 +488,62 @@ function DeploymentNewCtrl($scope, $location, $routeParams, $http) {
       return "<em>" + message + "</em>";
     }
 
-    return template ? Mustache.render(template, setting) : "";
+      return template ? Mustache.render(template, setting) : "";
   }
 
-  $scope.submit = function() {
+  $scope.showSettings = function() {
+    return !($scope.environment && $scope.blueprint);
+  }
+
+  $scope.submit = function(simulate) {
     var deployment = {};
 
     deployment.blueprint = $scope.blueprint;
     deployment.environment = $scope.environment;
     deployment.inputs = {};
-    deployment.inputs.blueprint = $scope.answers;
+    deployment.inputs.blueprint = {};
 
-    cm.Resource.saveOrUpdate($http, 'deployments', deployment)
-      .success(function(data, status) {
-        $location('/deployment/' + data.id);
+    // Have to fix some of the answers so they are in the right format, specifically the select
+    // and checkboxes. This is lame and slow and I should figure out a better way to do this.
+    _.each($scope.answers, function(element, key) {
+      var setting = _.find($scope.settings, function(item) {
+        if (item.id == key) {
+          return item;
+        }
+      });
+
+      if (setting.type === "select") {
+        if ($scope.answers[key] != null) {
+          deployment.inputs.blueprint[key] = $scope.answers[key].value;
+        }         
+      } else if (setting.type === "boolean") {
+        if ($scope.answers[key] === null) {
+          deployment.inputs.blueprint[key] = false;
+        } else {
+          deployment.inputs.blueprint[key] = $scope.answers[key];
+        }
+      } else {
+        deployment.inputs.blueprint[key] = $scope.answers[key];
+      }
+    });
+
+    var resource = 'deployments';
+    if (simulate) {
+      resource = 'deployments/simulate';
+    }
+
+    cm.Resource.saveOrUpdate($http, resource, deployment)
+      .success(function(data, status, headers) {
+        var deploymentId = headers('location').split('/')[3];
+        $location.path('deployments/' + deploymentId);
       })
-      .error(function(data,status) {
+      .error(function(data, status, headers, config) {
         console.log("Error " + status + " creating new deployment.");
         console.log(deployment);
+
+        //TODO: Need to slice out the data we are interested in.
+        $scope.error = data;
+        $('#error_modal').modal('show');
       });
   }
 
@@ -439,3 +565,16 @@ function DeploymentNewCtrl($scope, $location, $routeParams, $http) {
   });
 }
 DeploymentNewCtrl.$inject = ['$scope', '$location', '$routeParams', '$http'];
+
+
+function ProviderListCtrl($scope, $location, $http) {
+
+  cm.Resource.query($http, 'providers')
+    .success(function(data) {
+      $scope.providers = data;
+    });
+
+}
+ProviderListCtrl.$inject = ['$scope', '$location', '$http'];
+  
+

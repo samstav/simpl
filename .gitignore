@@ -18,6 +18,9 @@ checkmate/static-libs/
 
 a Compiled source #
 ###################
+# Sublime project files #
+*.sublime-project
+*.sublime-workspace
 *.com
 *.class
 *.dll

@@ -1,35 +1,28 @@
-<div ng-controller="EnvironmentListCtrl">
-  <div class="span12">
-    <div class="page-header">
-      <h1>Deployment Status
-        <small>({{deployment.id}})</small>
-      </h1>
-    </div>    
+<div class="span12">
+  <div class="page-header">
+    <h1>Deployment Status
+      <small>({{deployment.id}})</small>
+    </h1>
+  </div>
 
-    <ul ng-repeat="spec in task_specs">
-      <li>
-        <i ng-class="iconify(tasks[spec.name].state)"></i>
-        {{spec.name}}, State: {{tasks[spec.name].internal_attributes.estimated_completed_in}}, 
-        ETA: {{tasks[spec.name].internal_attributes.estimated_completed_in}}
-      </li>
-    </ul>
-  </div>  
-
-  <script id="task-leaf" type="text/html">
-    <li>{{name}}</li>
-  </script>
-
-  <script id="task-with-children" type="text/html">
-    <li>{{name}}</li>
-    <ul ng-repeat="task in outputs" compile-html="renderTask(task)">
-    </ul>
-  </script>
-
-  <script type="text/javascript">
-    $(document).ready(function() {
-      $('#nav-elements li').removeClass('active');
-      $('#nav-deployments').addClass('active');      
-    });
-  </script>
+  <div class="well">
+    Stuff goes here.
+  </div>
 </div>
+
+<div id="task_container" style="padding-left: 30px;">
+</div>
+
+<script id="task" type="text/html">
+  <div id="{{id}}" class="alert task span2 {{state}}">
+    {{id}}:{{name}}
+  </div>
+</script>
+
+<script type="text/javascript">
+  $(document).ready(function() {
+    $('#nav-elements li').removeClass('active');
+    $('#nav-deployments').addClass('active');    
+  });
+</script>
 
