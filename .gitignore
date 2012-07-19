@@ -11,8 +11,12 @@ doc/source/modules.rst
 doc/source/checkmate.*
 build/
 dist/
+coverage/
+var/
+checkmate/static-libs/
+/tests/data/environments
 
-# Compiled source #
+a Compiled source #
 ###################
 *.com
 *.class
