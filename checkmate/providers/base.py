@@ -180,8 +180,8 @@ class ProviderBase(ProviderBasePlanningMixIn, ProviderBaseWorkflowMixIn):
         """
         if provider:
             has_valid_data = False
-            for key in provider.keys():
-                if key in ['provides', 'catalog', 'vendor']:
+            for k in provider.keys():
+                if k in ['provides', 'catalog', 'vendor']:
                     has_valid_data = True
                     break
             if not has_valid_data:

@@ -421,7 +421,7 @@ def plan(deployment, context):
                 resource = add_resource(provider, deployment, service,
                         service_name, index + 1, domain,
                         resource_type, component_id=component['id'])
-                resource['debug'] = copy.copy(component.__dict__())
+                #resource['debug'] = copy.copy(component.__dict__())
                 resource_index += 1
 
                 if host:

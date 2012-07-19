@@ -312,9 +312,19 @@ def add_user(context, instance_id, databases, username, password, region,
         api = Provider._connect(context, region)
 
     instance = api.get_instance(instance_id)
-    instance.create_user(username, password, databases)
-    LOG.info('Added user %s to %s on instance %s' % (username, databases,
-            instance_id))
+
+    try:
+        instance.create_user(username, password, databases)
+        LOG.info('Added user %s to %s on instance %s' % (username, databases,
+                instance_id))
+    except clouddb.errors.ResponseError as exc:
+        # This could be '422 Unprocessable Entity', meaning the instance is not
+        # up yet
+        if '422' in exc.message:
+            add_user.retry(exc=exc)
+        else:
+            raise exc
+
     return dict(db_username=username, db_password=password)
 
 

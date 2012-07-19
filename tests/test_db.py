@@ -26,6 +26,7 @@ class TestDatabase(unittest.TestCase):
         self.assertDictEqual(results, body)
 
         results = self.driver.get_component(entity['id'], with_secrets=True)
+        entity['tenantId'] = 'T1000'  # gets added
         self.assertDictEqual(results, entity)
         self.assertIn('credentials', results)
 
@@ -39,6 +40,7 @@ class TestDatabase(unittest.TestCase):
 
         results = self.driver.get_component(entity['id'], with_secrets=False)
         self.assertNotIn('credentials', results)
+        body['tenantId'] = 'T1000'  # gets added
         self.assertDictEqual(results, body)
 
 if __name__ == '__main__':
