@@ -182,6 +182,17 @@ Such an operation cannot be performed by the underlying services alone since the
 
 Note: for additional descriptions of each field see the examples/app.yaml file.
 
+### Options and Inputs
+
+Options can be exposed by blueprints and components. An *option* is the _definition_ of a user-selectable value that can supplied for that blueprint or component.
+
+When launching a deployment, the values selected for options are stored as an *input* to the deployment.
+
+Inputs can be associated with one or more options using *constraints*. See app.yaml for examples of how inputs and options are used.
+
+TODO: remove the word 'setting' from the code and use either option or input.
+
+
 ## Semantic: The API
 The API is a **REST HTTP API**. It supports POST, PUT, GET, DELETE on:
 

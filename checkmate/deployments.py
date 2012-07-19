@@ -924,15 +924,22 @@ class Deployment(ExtensibleDict):
         return results
 
     def on_resource_postback(self, resource_id, contents):
-        """Called to handle contents when a postback with new resource data
+        """Called to merge in contents when a postback with new resource data
         is received."""
         resource = self['resources'][resource_id]
         if not resource:
             raise IndexError("Resource %s not found" % resource_id)
 
         if contents:
-            LOG.debug("Merging %s into %s" % (contents, resource))
-            merge_dictionary(resource, contents)
+            data = {}
+            for key, value in contents.iteritems():
+                canonical = schema.translate(key)
+                if key != canonical:
+                    LOG.debug("Translating '%s' to '%s'" % (key, canonical))
+                data[canonical] = value
+
+            LOG.debug("Merging %s into %s" % (data, resource))
+            merge_dictionary(resource, data)
 
 
 @task
