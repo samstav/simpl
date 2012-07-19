@@ -89,7 +89,8 @@ INTERFACE_SCHEMA = yaml_to_dict("""
 INTERFACE_TYPES = INTERFACE_SCHEMA.keys()
 
 RESOURCE_TYPES = ['compute', 'database', 'wordpress', 'php5', 'load-balancer',
-        'endpoint', 'host', 'application', 'widget']
+        'endpoint', 'host', 'application',
+        'widget', 'gadget']  # last two for testing
 
 RESOURCE_SCHEMA = ['id', 'name', 'provider', 'relations', 'hosted_on', 'hosts',
         'type', 'component', 'dns-name', 'instance', 'flavor', 'image', 'disk',

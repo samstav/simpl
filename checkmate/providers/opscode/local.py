@@ -898,6 +898,7 @@ class Provider(ProviderBase):
         return component
 
     def find_components(self, context, **kwargs):
+        """Special parsing for roles, then defer to superclass"""
         name = kwargs.pop('name', None)
         role = kwargs.pop('role', None)
         if role:

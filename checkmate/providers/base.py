@@ -178,6 +178,15 @@ class ProviderBase(ProviderBasePlanningMixIn, ProviderBaseWorkflowMixIn):
         :param key: optional key used for environment to mark which provider
                 this is
         """
+        if provider:
+            has_valid_data = False
+            for key in provider.keys():
+                if key in ['provides', 'catalog', 'vendor']:
+                    has_valid_data = True
+                    break
+            if not has_valid_data:
+                raise CheckmateInvalidProvider("Invalid provider "
+                        "initialization data: %s" % provider)
         if 'catalog' in provider:
             self.validate_catalog(provider['catalog'])
         self._dict = provider or {}
@@ -253,6 +262,7 @@ class ProviderBase(ProviderBasePlanningMixIn, ProviderBaseWorkflowMixIn):
         component_id = kwargs.pop('id', None)
         resource_type = kwargs.pop('resource_type', kwargs.pop('type', None))
         interface = kwargs.pop('interface', None)
+        kwargs.pop('version', None)  # noise reduction
         if kwargs:
             LOG.debug("Extra kwargs: %s" % kwargs)
 
@@ -262,6 +272,8 @@ class ProviderBase(ProviderBasePlanningMixIn, ProviderBaseWorkflowMixIn):
                 LOG.debug("Found component by id: %s" % component_id)
                 return [Component(component, id=component_id, provider=self)]
 
+        LOG.debug("Searching for component %s:%s in provider '%s'" % (
+                resource_type, interface, self.key))
         catalog = self.get_catalog(context, type_filter=resource_type)
         matches = []
         # Loop through catalog
@@ -269,12 +281,16 @@ class ProviderBase(ProviderBasePlanningMixIn, ProviderBaseWorkflowMixIn):
             if key == 'lists':
                 continue  # ignore lists, we are looking for components
             for id, component in components.iteritems():
-                if interface:
-                    interfaces = [p.values()[0] for p in component.get(
-                            'provides', [])]
-                    if interface not in interfaces:
-                        continue
-                matches.append(Component(component, id=id, provider=self))
+                provides = component.get('provides', [])
+                for entry in provides:
+                    ptype, pinterface = entry.items()[0]
+                    if interface and interface != pinterface:
+                        continue  # Interface specified and does not match
+                    if resource_type and resource_type != ptype:
+                        continue  # Type specified and does not match
+                    LOG.debug("'%s' matches in provider '%s' and provides %s" %
+                            (id, self.key, provides))
+                    matches.append(Component(component, id=id, provider=self))
         return matches
 
 
