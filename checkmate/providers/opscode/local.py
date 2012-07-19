@@ -133,7 +133,7 @@ class Provider(ProviderBase):
         # 2 - Make a call for each component (some have custom code)
         def recursive_load_dependencies(components, component, provider,
                 context):
-            """Get and add dependencies to compoennts list"""
+            """Get and add dependencies to components list"""
             # Skip ones we have already processed
             if component not in components:
                 components.append(component)
@@ -151,9 +151,10 @@ class Provider(ProviderBase):
                         recursive_load_dependencies(components, item,
                                 provider, context)
 
+        LOG.debug("Analyzing dependencies for '%s'" % component_id)
         components = []  # this component comes first
         recursive_load_dependencies(components, component, self, context)
-        LOG.debug("Recursed to get dependencies for %s and found: %s" %
+        LOG.debug("Recursion for dependencies for '%s' found: %s" %
                 (component_id, ', '.join([c['id'] for c in components[1:]])))
 
         # Chef will handle dependencies. We only need to call cook once with
@@ -187,7 +188,9 @@ class Provider(ProviderBase):
             if isinstance(item, basestring):
                 item = self.get_component(context, item)
             if item and item['id'] in special_task_handlers:
-                LOG.debug("Calling special task handler for %s" % item['id'])
+                LOG.debug("Calling special task handler %s for %s" % (
+                        special_task_handlers[item['id']].__name__,
+                        item['id']))
                 special_task_handlers[item['id']](wfspec, item, deployment,
                         key, context, service_name)
             else:
@@ -352,6 +355,7 @@ class Provider(ProviderBase):
             kwargs['roles'] = [name[0:-5]]  # trim the '-role'
         else:
             kwargs['recipes'] = [name]
+        LOG.debug("Component determined to be %s" % kwargs)
 
         # Create the cook task
         configure_task = Celery(wfspec, 'Configure %s:%s' % (component['id'],

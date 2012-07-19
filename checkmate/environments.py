@@ -205,6 +205,10 @@ class Environment():
                     raise CheckmateException("No vendor specified for '%s'" % key)
                 provider_class = get_provider_class(vendor, key)
                 results[key] = provider_class(provider, key=key)
+                LOG.debug("'%s' provides %s" % (key,
+                        ', '.join('%s:%s' % e.items()[0] for e
+                                  in results[key].provides())))
+
             self.providers = results
         return self.providers
 
@@ -275,7 +279,6 @@ class Environment():
         """
         results = {}
         for provider_key, provider in self.get_providers().iteritems():
-            LOG.debug("%s provides %s" % (provider_key, provider.provides()))
             for item in provider.provides():
                 resource_type, interface = item.items()[0]
                 assert resource_type in schema.RESOURCE_TYPES

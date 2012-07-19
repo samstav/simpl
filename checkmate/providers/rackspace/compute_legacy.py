@@ -191,6 +191,8 @@ class Provider(RackspaceComputeProviderBase):
 
         url = find_url(context.catalog)
         api.client.management_url = url
+        LOG.debug("Connected to legacy cloud servers using token of length %s "
+                "and url of %s" % (len(api.client.auth_token), url))
         return api
 
 """

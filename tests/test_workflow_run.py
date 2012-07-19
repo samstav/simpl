@@ -7,6 +7,10 @@ from string import Template
 import unittest2 as unittest
 import uuid
 
+# Init logging before we load the database, 3rd party, and 'noisy' modules
+from checkmate.utils import init_console_logging
+init_console_logging()
+
 from celery.app import default_app
 from celery.result import AsyncResult
 import mox
@@ -834,4 +838,12 @@ class TestDBWorkflow(StubbedWorkflowBase):
 
 
 if __name__ == '__main__':
-    unittest.main()
+    # Run tests. Handle our paramsters separately
+    import sys
+    args = sys.argv[:]
+    # Our --debug means --verbose for unitest
+    if '--debug' in args:
+        args.pop(args.index('--debug'))
+        if '--verbose' not in args:
+            args.insert(1, '--verbose')
+    unittest.main(argv=args)

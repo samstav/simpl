@@ -337,7 +337,7 @@ def plan(deployment, context):
     resources = {}
     resource_index = 0  # counter we use to increment as we create resources
     for service_name, service in services.iteritems():
-        LOG.debug("Gather resources needed for service %s" % service_name)
+        LOG.debug("Gather resources needed for service '%s'" % service_name)
         service_components = components[service_name]
         if not isinstance(service_components, list):
             service_components = [service_components]
@@ -398,7 +398,7 @@ def plan(deployment, context):
                     service['instances'] = []
                 instances = service['instances']
                 instances.append(str(resource_index))
-                LOG.debug("  Adding %s with id %s" % (resources[str(
+                LOG.debug("  Adding a %s resource with id %s" % (resources[str(
                         resource_index)]['type'], resource_index))
                 Resource.validate(resource)
                 return resource
@@ -450,7 +450,7 @@ def plan(deployment, context):
     connections = {}
     LOG.debug("Wiring services and resources")
     for service_name, service_relations in relations.iteritems():
-        LOG.debug("    For %s" % service_name)
+        LOG.debug("  For %s" % service_name)
         service = services[service_name]
         instances = service['instances']
         for name, relation in service_relations.iteritems():
@@ -531,6 +531,7 @@ def plan(deployment, context):
         deployment['resources'] = resources
 
     deployment['status'] = 'PLANNED'
+    LOG.info("Deployment '%s' planning complete" % deployment['id'])
     return deployment
 
 
@@ -789,8 +790,8 @@ class Deployment(ExtensibleDict):
             # Direct, simple entry
             if name in blueprint_inputs:
                 result = blueprint_inputs[name]
-                LOG.debug("Found setting '%s' in inputs/blueprint: %s" %
-                        (name, result))
+                LOG.debug("Found setting '%s' in inputs/blueprint. %s=%s" %
+                        (name, name, result))
                 return result
 
     def _get_input_blueprint_option_constraint(self, name, service_name=None,
@@ -813,14 +814,14 @@ class Deployment(ExtensibleDict):
                             result = self._get_input_simple(key)
                             if result:
                                 LOG.debug("Found setting '%s' from constraint "
-                                        "in blueprint input '%s': %s" % (name,
-                                        key, result))
+                                        "in blueprint input '%s'. %s=%s" % (
+                                        name, key, name, result))
                                 return result
                             if 'default' in option:
                                 result = option['default']
-                                LOG.debug("Found setting '%s' from constraint "
-                                        "in blueprint input '%s': default=%s"
-                                        % (name, key, result))
+                                LOG.debug("Default setting '%s' obtained from "
+                                        "constraint in blueprint input '%s': "
+                                        "default=%s" % (name, key, result))
                                 return result
 
     def constraint_applies(self, constraint, name, resource_type=None,
@@ -867,8 +868,8 @@ class Deployment(ExtensibleDict):
                     if name in options:
                         result = options[name]
                         LOG.debug("Found setting '%s' as service "
-                                "setting in blueprint/services/%s/%s':"
-                                " %s" % (name, service_name, resource_type,
+                                "setting in blueprint/services/%s/%s'. %s=%s"
+                                % (name, service_name, resource_type, name,
                                 result))
                         return result
 
@@ -893,8 +894,8 @@ class Deployment(ExtensibleDict):
                     if options and name in options:
                         result = options[name]
                         LOG.debug("Found setting '%s' as provider "
-                                "setting in blueprint/providers/%s/%s':"
-                                " %s" % (name, provider_key, resource_type,
+                                "setting in blueprint/providers/%s/%s'. %s=%s"
+                                % (name, provider_key, resource_type, name,
                                 result))
                         return result
 
@@ -908,16 +909,17 @@ class Deployment(ExtensibleDict):
         results = {}
         services = self['blueprint'].get('services', {})
         for service_name, service in services.iteritems():
-            LOG.debug("Identifying component for service %s" % service_name)
             service_component = service['component']
+            LOG.debug("Identifying component '%s' for service '%s'" % (
+                    service_component, service_name))
             assert not isinstance(service_component, list)  # deprecated syntax
             component = self.environment().find_component(service_component,
                     context)
             if not component:
                 raise CheckmateException("Could not resolve component '%s'"
                         % service_component)
-            LOG.debug("Component %s identified for service %s" % (
-                    service_component, service_name))
+            LOG.debug("Component '%s' identified as '%s' for service '%s'" % (
+                    service_component, component['id'], service_name))
             results[service_name] = component
         return results
 

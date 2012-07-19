@@ -1,6 +1,9 @@
 #!/usr/bin/env python
 import unittest2 as unittest
 
+# Init logging before we load the database, 3rd party, and 'noisy' modules
+from checkmate.utils import init_console_logging
+init_console_logging()
 
 from checkmate.providers.base import ProviderBase, CheckmateInvalidProvider
 from checkmate.utils import yaml_to_dict
@@ -106,4 +109,12 @@ class TestProviderBase(unittest.TestCase):
 
 
 if __name__ == '__main__':
+    # Run tests. Handle our paramsters separately
+    import sys
+    args = sys.argv[:]
+    # Our --debug means --verbose for unitest
+    if '--debug' in args:
+        args.pop(args.index('--debug'))
+        if '--verbose' not in args:
+            args.insert(1, '--verbose')
     unittest.main()

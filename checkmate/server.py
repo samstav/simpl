@@ -60,6 +60,9 @@ from time import sleep
 from urlparse import urlparse
 import uuid
 
+# Init logging before we load the database, 3rd party, and 'noisy' modules
+from checkmate.utils import init_console_logging
+init_console_logging()
 # pylint: disable=E0611
 from bottle import app, get, post, run, request, response, abort, static_file,\
         HTTPError
@@ -69,41 +72,17 @@ import webob
 import webob.dec
 from webob.exc import HTTPNotFound, HTTPUnauthorized, HTTPFound
 
-
-def get_debug_level():
-    if '--debug' in sys.argv:
-        return logging.DEBUG
-    elif '--verbose' in sys.argv:
-        return logging.DEBUG
-    elif '--quiet' in sys.argv:
-        return logging.WARNING
-    else:
-        return logging.INFO
-
-
-def init_console_logging():
-    # define a Handler which writes messages to the sys.stderr
-    console = logging.StreamHandler()
-    console.setLevel(get_debug_level())
-
-    # set a format which is simpler for console use
-    formatter = logging.Formatter('%(name)-12s: %(levelname)-8s %(message)s')
-    # tell the handler to use this format
-    console.setFormatter(formatter)
-    # add the handler to the root logger
-    logging.getLogger().addHandler(console)
-    logging.getLogger().setLevel(logging.DEBUG)
-
-
 LOG = logging.getLogger(__name__)
-init_console_logging()
+
 
 from checkmate.db import get_driver, any_id_problems, any_tenant_id_problems
 from checkmate.utils import HANDLERS, RESOURCES, STATIC, write_body, read_body
 
+db = get_driver()
+
 
 def init():
-    # Load routes
+    # Load routes (must run before loading routes below)
     from checkmate import simulator
     from checkmate import blueprints, components, deployments, environments, \
             workflows
@@ -112,8 +91,6 @@ def init():
     from checkmate.providers import rackspace, opscode
 
 init()
-
-db = get_driver('checkmate.db.sql.Driver')
 
 
 #

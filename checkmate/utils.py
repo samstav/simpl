@@ -29,6 +29,68 @@ DEFAULT_SENSITIVE_KEYS = ['credentials', 'password', 'apikey', 'token',
         'environment_private_key', 'ssh_priv_key']
 
 
+def get_debug_level():
+    """Get debug settings from arguments.
+
+    --debug: turn on additional debug code/inspection (implies logging.DEBUG)
+    --verbose: turn up logging output (logging.DEBUG)
+    --quiet: turn down logging output (logging.WARNING)
+    default is logging.INFO
+    """
+    if '--debug' in sys.argv:
+        return logging.DEBUG
+    elif '--verbose' in sys.argv:
+        return logging.DEBUG
+    elif '--quiet' in sys.argv:
+        return logging.WARNING
+    else:
+        return logging.INFO
+
+
+def get_debug_formatter():
+    """Get debug formatter based on arguments.
+
+    --debug: log line numbers and file data also
+    --verbose: standard debug
+    --quiet: turn down logging output (logging.WARNING)
+    default is logging.INFO
+    """
+    if '--debug' in sys.argv:
+        return '%(pathname)s:%(lineno)d: %(levelname)-8s %(message)s'
+    elif '--verbose' in sys.argv:
+        return '%(name)-30s: %(levelname)-8s %(message)s'
+    elif '--quiet' in sys.argv:
+        return '%(name)-30s: %(levelname)-8s %(message)s'
+    else:
+        return '%(name)-30s: %(levelname)-8s %(message)s'
+
+
+def find_console_handler(logger):
+    """Returns a stream handler, if it exists"""
+    for handler in logger.handlers:
+        if isinstance(handler, logging.StreamHandler) and \
+                handler.stream == sys.stderr:
+            return handler
+
+
+def init_console_logging():
+    """Log to console"""
+    # define a Handler which writes messages to the sys.stderr
+    console = find_console_handler(logging.getLogger())
+    if not console:
+        logging_level = get_debug_level()
+        console = logging.StreamHandler()
+        console.setLevel(logging_level)
+
+        # set a format which is simpler for console use
+        formatter = logging.Formatter(get_debug_formatter())
+        # tell the handler to use this format
+        console.setFormatter(formatter)
+        # add the handler to the root logger
+        logging.getLogger().addHandler(console)
+        logging.getLogger().setLevel(logging_level)
+
+
 def import_class(import_str):
     """Returns a class from a string including module and class."""
     mod_str, _sep, class_str = import_str.rpartition('.')
