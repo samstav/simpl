@@ -15,6 +15,7 @@ coverage/
 var/
 checkmate/static-libs/
 /tests/data/environments
+/checkmate/providers/opscode/chef-stockton
 
 a Compiled source #
 ###################
