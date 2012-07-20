@@ -56,3 +56,17 @@ ehthumbs.db
 Icon?
 Thumbs.db
 
+# Eclipse Project files #
+#########################
+.project
+.pydevproject
+
+# Generated reports #
+#####################
+coverage.xml
+tests/coverage.xml
+
+# Patches #
+###########
+*.patch
+*.diff
