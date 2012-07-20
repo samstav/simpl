@@ -154,6 +154,14 @@ def process():
             LOG.warn("Unhandled task: %s" % name)
         if result:
             my_task.set_attribute(**result)
+            if my_task.task_spec.call == 'checkmate.providers.rackspace.'\
+                    'database.create_instance':
+                PACKAGE.on_resource_postback(my_task.task_spec.properties[
+                        'resource'], dict(instance=dict(id=result['id'],
+                                name=result['name'],
+                                status=result['status'],
+                                hostname=result['hostname'],
+                                region=result['region'])))
         return True
 
     try_fire = Celery.try_fire

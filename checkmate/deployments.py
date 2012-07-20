@@ -925,18 +925,36 @@ class Deployment(ExtensibleDict):
 
     def on_resource_postback(self, resource_id, contents):
         """Called to merge in contents when a postback with new resource data
-        is received."""
+        is received.
+
+        Translates values to canonical names. Iterates to one level of depth to
+        handle postbacks that write to instance key"""
         resource = self['resources'][resource_id]
         if not resource:
             raise IndexError("Resource %s not found" % resource_id)
 
+        def translate_dict(data):
+            """Translates dictionary keys to caninical checkmate names
+
+            :returns: translated dict
+            """
+            if data:
+                results = {}
+                for key, value in data.iteritems():
+                    canonical = schema.translate(key)
+                    if key != canonical:
+                        LOG.debug("Translating '%s' to '%s'" % (key, canonical))
+                    results[canonical] = value
+                return results
+
         if contents:
+            contents = translate_dict(contents)
             data = {}
             for key, value in contents.iteritems():
-                canonical = schema.translate(key)
-                if key != canonical:
-                    LOG.debug("Translating '%s' to '%s'" % (key, canonical))
-                data[canonical] = value
+                if isinstance(value, dict):
+                    data[key] = translate_dict(value)
+                else:
+                    data[key] = value
 
             LOG.debug("Merging %s into %s" % (data, resource))
             merge_dictionary(resource, data)

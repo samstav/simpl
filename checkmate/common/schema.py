@@ -20,7 +20,7 @@ INTERFACE_SCHEMA = yaml_to_dict("""
           password:
             type: string
             required: true
-          hostname:
+          host:
             type: string
             required: true
           port:
@@ -100,7 +100,7 @@ RESOURCE_SCHEMA = ['id', 'name', 'provider', 'relations', 'hosted_on', 'hosts',
         'region']
 
 DEPLOYMENT_SCHEMA = ['id', 'name', 'blueprint', 'environment', 'inputs',
-        'includes', 'resources', 'settings']
+        'includes', 'resources', 'settings', 'workflow', 'status', 'created']
 
 COMPONENT_SCHEMA = ['id', 'options', 'requires', 'provides', 'summary',
         'dependencies', 'version', 'is', 'role']
@@ -142,26 +142,29 @@ def validate(obj, schema):
 # - full names (ex. database, not db). Except for id.
 
 ALIASES = {
-        'username': ['user'],
+        'authentication': ['auth'],
+        'database': ['db'],
+        'description': ['desc'],
+        'destination': ['dest'],
+        'directory': ['dir'],
+        'configuration': ['conf'],
+        'certificate': ['cert'],
+        'host': ['hostname'],
+        'id': [],
+        'instance': [],
+        'key': [],
+        'memory': ['mem'],
+        'name': [],
+        'nonce': [],
+        'operating_system': ['os'],
+        'path': [],
         'password': ['pass'],
         'private': ['priv'],
         'public': ['pub'],
-        'key': [],
-        'nonce': [],
-        'path': [],
-        'server': ['srv', 'srvr'],
-        'host': ['hostname'],
-        'authentication': ['auth'],
-        'directory': ['dir'],
-        'destination': ['dest'],
-        'database': ['db'],
-        'configuration': ['conf'],
-        'certificate': ['cert'],
-        'memory': ['mem'],
-        'id': [],
-        'status': [],
         'region': [],
-        'operating_system': ['os'],
+        'server': ['srv', 'srvr'],
+        'status': [],
+        'username': ['user'],
     }
 
 
