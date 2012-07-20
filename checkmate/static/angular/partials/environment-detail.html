@@ -31,7 +31,7 @@
           <label class="control-label capitalize" for="{{provider.id}}">{{provider.label}}</label>
           <div class="controls">
             <select id="{{provider.id}}" ng-model="selectedProviders[provider.id]"
-                    ng-options="o as o.name for o in provider.options" required>
+                    ng-options="o.label for o in provider.options" required>
             </select>
           </div>
         </div>

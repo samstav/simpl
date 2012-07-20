@@ -40,7 +40,25 @@ EnvironmentListCtrl.$inject = ['$scope', '$location', '$http'];
 function EnvironmentDetailCtrl($scope, $location, $http, $routeParams) {
   cm.Resource.query($http, 'providers')
     .success(function(data) {
-      $scope.providers = data;
+      $scope.providers = {};
+
+      _.each(data, function(provider) {   
+        _.each(provider.provides, function(provides) {
+          var name = _.first(_.keys(provides));
+          if (name != null) {
+            if ($scope.providers[name] == null) {
+              $scope.providers[name] = {label:name, options: []};
+            }
+
+            var listElement = {
+              label: this.name + ' (' + provides[name] + ')',
+              value: this.vendor + '.' + this.name
+            }
+
+            $scope.providers[name].options.push(listElement);
+          }
+        }, provider);
+      });
     });
 
   if ($routeParams.environmentId != "new") {
