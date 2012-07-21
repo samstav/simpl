@@ -11,9 +11,17 @@ doc/source/modules.rst
 doc/source/checkmate.*
 build/
 dist/
+coverage/
+var/
+checkmate/static-libs/
+/tests/data/environments
+/checkmate/providers/opscode/chef-stockton
 
-# Compiled source #
+a Compiled source #
 ###################
+# Sublime project files #
+*.sublime-project
+*.sublime-workspace
 *.com
 *.class
 *.dll
@@ -49,3 +57,17 @@ ehthumbs.db
 Icon?
 Thumbs.db
 
+# Eclipse Project files #
+#########################
+.project
+.pydevproject
+
+# Generated reports #
+#####################
+coverage.xml
+tests/coverage.xml
+
+# Patches #
+###########
+*.patch
+*.diff

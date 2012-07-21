@@ -5,8 +5,11 @@ interfaces, and such. The intent is to broaden it once we have stab lized the
 schema.
 
 """
+import logging
+
 from checkmate.utils import yaml_to_dict
 
+LOG = logging.getLogger(__name__)
 
 INTERFACE_SCHEMA = yaml_to_dict("""
       mysql:
@@ -17,7 +20,7 @@ INTERFACE_SCHEMA = yaml_to_dict("""
           password:
             type: string
             required: true
-          hostname:
+          host:
             type: string
             required: true
           port:
@@ -89,14 +92,15 @@ INTERFACE_SCHEMA = yaml_to_dict("""
 INTERFACE_TYPES = INTERFACE_SCHEMA.keys()
 
 RESOURCE_TYPES = ['compute', 'database', 'wordpress', 'php5', 'load-balancer',
-        'endpoint', 'host', 'application', 'widget']
+        'endpoint', 'host', 'application',
+        'widget', 'gadget']  # last two for testing
 
 RESOURCE_SCHEMA = ['id', 'name', 'provider', 'relations', 'hosted_on', 'hosts',
         'type', 'component', 'dns-name', 'instance', 'flavor', 'image', 'disk',
         'region']
 
 DEPLOYMENT_SCHEMA = ['id', 'name', 'blueprint', 'environment', 'inputs',
-        'includes', 'resources', 'settings']
+        'includes', 'resources', 'settings', 'workflow', 'status', 'created']
 
 COMPONENT_SCHEMA = ['id', 'options', 'requires', 'provides', 'summary',
         'dependencies', 'version', 'is', 'role']
@@ -128,3 +132,75 @@ def validate(obj, schema):
                     errors.append("'%s' not a valid value. Only %s allowed" %
                             (key, ', '.join(schema)))
     return errors
+
+# The list of 'allowed' names in options, resources, and relations in checkmate
+# and the other possible aliases for them. Checkmate will convert aliases into
+# the canonical name
+# Naming conventions being used now:
+# - use underscores for separtors
+# - all lowercase
+# - full names (ex. database, not db). Except for id.
+
+ALIASES = {
+        'authentication': ['auth'],
+        'database': ['db'],
+        'description': ['desc'],
+        'destination': ['dest'],
+        'directory': ['dir'],
+        'configuration': ['conf'],
+        'certificate': ['cert'],
+        'host': ['hostname'],
+        'id': [],
+        'instance': [],
+        'key': [],
+        'memory': ['mem'],
+        'name': [],
+        'nonce': [],
+        'operating_system': ['os'],
+        'path': [],
+        'password': ['pass'],
+        'private': ['priv'],
+        'public': ['pub'],
+        'region': [],
+        'server': ['srv', 'srvr'],
+        'status': [],
+        'username': ['user'],
+    }
+
+
+def translate(name):
+    """Convert any aliases to the canonical names as per ALIASES map
+
+    Canonicalizes composite names to be separated by underscores.
+    Keeps path separators intack (name/alias becomes name/canonical_name)
+    """
+    # Check if is already canonical
+    if name in ALIASES or not name:
+        return name
+    # Check if exists as-is in aliases
+    for canonical, alternatives in ALIASES.iteritems():
+        if name in alternatives:
+            return canonical
+
+    # Check if path
+    path_separator = '/'
+    path_seps = '/'
+    if any((c in name) for c in path_seps):
+        chars = list(name)
+        segments = ''.join([' ' if o in path_seps else o for o in chars]
+                ).split(' ')
+        for index, segment in enumerate(segments):
+            segments[index] = translate(segment) or ''
+        return path_separator.join(segments)
+
+    # Check if composite (made up of a number of words together)
+    word_seps = '.-_'
+    if any((c in name) for c in word_seps):
+        chars = list(name)
+        words = ''.join([' ' if o in word_seps else o for o in chars]
+                ).split(' ')
+        for index, word in enumerate(words):
+            words[index] = translate(word) or ''
+        return '_'.join(words)
+
+    LOG.info("Unrecognized name: %s" % name)

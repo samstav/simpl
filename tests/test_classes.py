@@ -21,6 +21,7 @@ class TestExtensibleDict(unittest.TestCase):
         self.assertEqual(jsonized, '{"key": 1}')
 
     def test_basic_operations(self):
+        """Test basic dictionary-type operations"""
         ed = ExtensibleDict(key='value')
         self.assertIn('key', ed)
         self.assertEqual(ed['key'], 'value')
@@ -32,6 +33,20 @@ class TestExtensibleDict(unittest.TestCase):
 
         del ed['new']
         self.assertNotIn('new', ed)
+
+    def test_empty_args(self):
+        ed = ExtensibleDict(key='value')
+        self.assertDictEqual(ed.__dict__(), dict(key='value'))
+
+    def test_empty_kwargs(self):
+        template = dict(key='value')
+        ed = ExtensibleDict(template)
+        self.assertDictEqual(ed.__dict__(), template)
+
+    def test_empty_args_and_kwargs(self):
+        ed = ExtensibleDict()
+        self.assertDictEqual(ed.__dict__(), {})
+
 
 if __name__ == '__main__':
     unittest.main()

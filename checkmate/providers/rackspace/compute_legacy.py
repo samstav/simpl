@@ -28,23 +28,26 @@ class Provider(RackspaceComputeProviderBase):
         image = deployment.get_setting('os', resource_type=resource_type,
                 service_name=service, provider_key=self.key, default=119)
         if isinstance(image, int):
-            pass
-        else:
+            image = str(image)
+        if not image.isdigit():
+            # Assume it is an OS name and find it
             for key, value in catalog['lists']['types'].iteritems():
                 if image == value['name']:
                     LOG.debug("Mapping image from '%s' to '%s'" % (image, key))
                     image = key
                     break
 
-        if not isinstance(image, int):
+        if image not in catalog['lists']['types']:
             raise CheckmateNoMapping("No image mapping for '%s' in '%s'" % (
                     image, self.name))
 
         flavor = deployment.get_setting('memory', resource_type=resource_type,
                 service_name=service, provider_key=self.key, default=1)
         if isinstance(flavor, int):
-            pass
-        else:
+            flavor = str(flavor)
+        if not flavor.isdigit():
+            # Assume it is a memory amount
+            #FIXME: handle units (Gb or Mb)
             number = flavor.split(' ')[0]
             for key, value in catalog['lists']['sizes'].iteritems():
                 if number == str(value['memory']):
@@ -52,7 +55,7 @@ class Provider(RackspaceComputeProviderBase):
                             key))
                     flavor = key
                     break
-        if not isinstance(flavor, int):
+        if flavor not in catalog['lists']['sizes']:
             raise CheckmateNoMapping("No flavor mapping for '%s' in '%s'" % (
                     flavor, self.key))
 
@@ -69,7 +72,7 @@ class Provider(RackspaceComputeProviderBase):
         TODO: use environment keys instead of private key
         """
 
-        create_server_task = Celery(wfspec, 'Create Server:%s' % key,
+        create_server_task = Celery(wfspec, 'Create Server %s' % key,
                'checkmate.providers.rackspace.compute_legacy.create_server',
                call_args=[context.get_queued_task_dict(),
                resource.get('dns-name')],
@@ -83,7 +86,7 @@ class Provider(RackspaceComputeProviderBase):
                             task_tags=['create']),
                properties={'estimated_duration': 20})
 
-        build_wait_task = Celery(wfspec, 'Wait for server build:%s'
+        build_wait_task = Celery(wfspec, 'Wait for Server %s build'
                 % key, 'checkmate.providers.rackspace.compute_legacy.'
                         'wait_on_build',
                 call_args=[context.get_queued_task_dict(), Attrib('id')],
@@ -101,7 +104,7 @@ class Provider(RackspaceComputeProviderBase):
         if getattr(self, 'prep_task', None):
             wait_on.append(self.prep_task)
         join = wait_for(wfspec, create_server_task, wait_on,
-                name="Server Wait on:%s" % key,
+                name="Server %s Wait on Prerequisites" % key,
                 defines=dict(resource=key,
                              provider=self.key,
                              task_tags=['root']))
@@ -121,7 +124,7 @@ class Provider(RackspaceComputeProviderBase):
             # We have a prexisting or overridecatalog stored
             return results
 
-        # build a live catalog ()this would be the on_get_catalog called if no
+        # build a live catalog this should be the on_get_catalog called if no
         # stored/override existed
         api = self._connect(context)
 
@@ -144,7 +147,7 @@ class Provider(RackspaceComputeProviderBase):
             if 'lists' not in results:
                 results['lists'] = {}
             results['lists']['types'] = {
-                    i.id: {
+                    str(i.id): {
                         'name': i.name,
                         'os': i.name,
                         } for i in images if int(i.id) < 1000}
@@ -153,7 +156,7 @@ class Provider(RackspaceComputeProviderBase):
             if 'lists' not in results:
                 results['lists'] = {}
             results['lists']['images'] = {
-                    i.id: {
+                    str(i.id): {
                         'name': i.name
                         } for i in images if int(i.id) > 1000}
         if type_filter is None or type_filter == 'size':
@@ -161,7 +164,7 @@ class Provider(RackspaceComputeProviderBase):
             if 'lists' not in results:
                 results['lists'] = {}
             results['lists']['sizes'] = {
-                f.id: {
+                str(f.id): {
                     'name': f.name,
                     'memory': f.ram,
                     'disk': f.disk,
@@ -191,6 +194,8 @@ class Provider(RackspaceComputeProviderBase):
 
         url = find_url(context.catalog)
         api.client.management_url = url
+        LOG.debug("Connected to legacy cloud servers using token of length %s "
+                "and url of %s" % (len(api.client.auth_token), url))
         return api
 
 """

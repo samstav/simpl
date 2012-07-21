@@ -182,6 +182,17 @@ Such an operation cannot be performed by the underlying services alone since the
 
 Note: for additional descriptions of each field see the examples/app.yaml file.
 
+### Options and Inputs
+
+Options can be exposed by blueprints and components. An *option* is the _definition_ of a user-selectable value that can supplied for that blueprint or component.
+
+When launching a deployment, the values selected for options are stored as an *input* to the deployment.
+
+Inputs can be associated with one or more options using *constraints*. See app.yaml for examples of how inputs and options are used.
+
+TODO: remove the word 'setting' from the code and use either option or input.
+
+
 ## Semantic: The API
 The API is a **REST HTTP API**. It supports POST, PUT, GET, DELETE on:
 
@@ -307,7 +318,15 @@ To execute deployments, checkmate uses a message queue. You need to have celery 
 
 The following environment variables can be set to configure checkmate:
 
-**CHECKMATE_CONNECTION_STRING**: a sql-alchemy connection string pointing to the database store for checkmate.
+**CHECKMATE_CONNECTION_STRING**: a sql-alchemy or mongodb connection string pointing to the database store for checkmate. Examples:
+
+    sqlite:////var/checkmate/data/db.sqlite
+
+    mongodb://localhost/checkmate
+
+Note: to connect to mongodb, also install the pymongo client library:
+
+    $ pip install pymongo  # you probably need to sudo this
 
 **CHECKMATE_DOMAIN**: a default DNS domain to use for resources created.
 
@@ -329,10 +348,15 @@ The following environment variables can be set to configure checkmate:
 
 **CHECKMATE_BROKER_PORT**: the port to use to connect to the message queue server
 
-**CHECKMATE_BROKER_URL**: Alternatively, a full url with username and password can be supplied. This *overrides* the previous four settings.
-    Checkmate server and queue listener will report out what settings they are using when they start up.
+**CHECKMATE_BROKER_URL**: Alternatively, a full url with username and password can be supplied. This *overrides* the previous four settings. Checkmate server and queue listener will report out what settings they are using when they start up.
 
-**CELERY_CONFIG_MODULE**: use checkmate.celeryconfig by default. See celery instructions for more detail.
+Note: all CHECKMATE_BROKER_* values are picked up from checkmate.celeryconfig. If you use an alternate config file, these variable may be ignored. See **CELERY_CONFIG_MODULE**.
+
+**CHECKMATE_RESULT_BACKEND**: default is 'database'. Checkmate needs to query task results and status. [tested with 'database' only]. This value is picked up from checkmate.celeryconfig. If you use an alternate config file, this variable may be ignored. See **CELERY_CONFIG_MODULE**.
+
+**CHECKMATE_RESULT_DBURI**: defaults to 'sqlite://../data/celerydb.sqlite' under the checkmate directory. Use this to set an alternate location for the celery result store. This value is picked up from checkmate.celeryconfig. If you use an alternate config file, this variable may be ignored. See **CELERY_CONFIG_MODULE**.
+
+**CELERY_CONFIG_MODULE**: use checkmate.celeryconfig by default. See celery instructions for more detail. THis module also picks up the values from some of the other environment variables. If you use a different config module, the other checkmate variables may get ignored.
 
 **CELERYD_FORCE_EXECV**: See celery instructions for more detail. This setting can prevent queue listeners hanging on some OSes (seen frequently on developer Macs)
 
@@ -523,6 +547,8 @@ setting resolves issues with workers hanging::
 
 ### Dependencies
 
+Checkmate has code that is python 2.7 specific. It won't work on earlier versions.
+
 Some of checkmate's more significant dependencies are::
 
 - celeryd: integrates with a message queue (ex. RabbitMQ)
@@ -539,6 +565,21 @@ the development branch from this fork:
     $ cd SpiffWorkflow
     $ sudo python setup.py install
 
+#### python-novacalient
+Necessary patches to python-novacalient are not yet in the source repo, so install
+the development branch from this fork:
+
+    $ git clone -b master https://github.rackspace.com/checkmate/python-novacalient
+    $ cd python-novacalient
+    $ sudo python setup.py install
+
+#### python-clouddb
+Necessary patches to python-clouddb are not yet in the source repo, so install
+the development branch from this fork:
+
+    $ git clone -b master https://github.rackspace.com/checkmate/python-clouddb
+    $ cd python-clouddb
+    $ sudo python setup.py install
 
 #### Celery
 

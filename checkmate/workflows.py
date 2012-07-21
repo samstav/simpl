@@ -26,7 +26,7 @@ from checkmate.utils import write_body, read_body, extract_sensitive_data,\
         merge_dictionary, with_tenant
 from checkmate import orchestrator
 
-db = get_driver('checkmate.db.sql.Driver')
+db = get_driver()
 
 LOG = logging.getLogger(__name__)
 

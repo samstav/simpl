@@ -5,14 +5,20 @@
               <thead>
                 <tr>
                   <th>ID</th>
+                  <th>Blueprint</th>
                   <th>Tenant</th>
+                  <th>Status</th>
+                  <th>Date</th>
                 </tr>
               </thead>
               <tbody>
               {% for key, value in data.iteritems() %}
                 <tr>
                   <td><a href="{{tenant_id|prepend}}/deployments/{{key}}"><i class="icon-picture"></i> {{key}}</a></td>
+                  <td>{{value['blueprint']['name'] if value['blueprint'] is defined}}</td>
                   <td>{{value['tenantId']}}</td>
+                  <td>{{value['status']}}</td>
+                  <td>{{value['created']}}</td>
                 </tr>
               {% endfor %}
               </tbody>

@@ -17,7 +17,7 @@ from checkmate.utils import read_body, write_body, extract_sensitive_data,\
         with_tenant
 
 LOG = logging.getLogger(__name__)
-db = get_driver('checkmate.db.sql.Driver')
+db = get_driver()
 
 
 #
@@ -167,7 +167,8 @@ def get_component(environment_id, provider_id, component_id, tenant_id=None):
 def get_providers(tenant_id=None):
     results = {}
     for key, provider in PROVIDER_CLASSES.iteritems():
-        results[key] = dict(vendor=provider.vendor, name=provider.name)
+        results[key] = dict(vendor=provider.vendor, name=provider.name,
+                provides=provider({}).provides())
     return write_body(results, request, response)
 
 
@@ -206,6 +207,10 @@ class Environment():
                     raise CheckmateException("No vendor specified for '%s'" % key)
                 provider_class = get_provider_class(vendor, key)
                 results[key] = provider_class(provider, key=key)
+                LOG.debug("'%s' provides %s" % (key,
+                        ', '.join('%s:%s' % e.items()[0] for e
+                                  in results[key].provides())))
+
             self.providers = results
         return self.providers
 
@@ -278,7 +283,6 @@ class Environment():
         """
         results = {}
         for provider_key, provider in self.get_providers().iteritems():
-            LOG.debug("%s provides %s" % (provider_key, provider.provides()))
             for item in provider.provides():
                 resource_type, interface = item.items()[0]
                 assert resource_type in schema.RESOURCE_TYPES

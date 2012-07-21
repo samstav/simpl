@@ -25,7 +25,7 @@ from checkmate.utils import write_body, read_body, extract_sensitive_data,\
         merge_dictionary, with_tenant, is_ssh_key, get_time_string
 
 LOG = logging.getLogger(__name__)
-db = get_driver('checkmate.db.sql.Driver')
+db = get_driver()
 
 
 #
@@ -338,7 +338,7 @@ def plan(deployment, context):
     resources = {}
     resource_index = 0  # counter we use to increment as we create resources
     for service_name, service in services.iteritems():
-        LOG.debug("Gather resources needed for service %s" % service_name)
+        LOG.debug("Gather resources needed for service '%s'" % service_name)
         service_components = components[service_name]
         if not isinstance(service_components, list):
             service_components = [service_components]
@@ -399,7 +399,7 @@ def plan(deployment, context):
                     service['instances'] = []
                 instances = service['instances']
                 instances.append(str(resource_index))
-                LOG.debug("  Adding %s with id %s" % (resources[str(
+                LOG.debug("  Adding a %s resource with id %s" % (resources[str(
                         resource_index)]['type'], resource_index))
                 Resource.validate(resource)
                 return resource
@@ -422,7 +422,7 @@ def plan(deployment, context):
                 resource = add_resource(provider, deployment, service,
                         service_name, index + 1, domain,
                         resource_type, component_id=component['id'])
-                resource['debug'] = copy.copy(component.__dict__())
+                #resource['debug'] = copy.copy(component.__dict__())
                 resource_index += 1
 
                 if host:
@@ -451,7 +451,7 @@ def plan(deployment, context):
     connections = {}
     LOG.debug("Wiring services and resources")
     for service_name, service_relations in relations.iteritems():
-        LOG.debug("    For %s" % service_name)
+        LOG.debug("  For %s" % service_name)
         service = services[service_name]
         instances = service['instances']
         for name, relation in service_relations.iteritems():
@@ -532,6 +532,7 @@ def plan(deployment, context):
         deployment['resources'] = resources
 
     deployment['status'] = 'PLANNED'
+    LOG.info("Deployment '%s' planning complete" % deployment['id'])
     return deployment
 
 
@@ -703,19 +704,23 @@ class Deployment(ExtensibleDict):
         results = {}
 
         #TODO: make this smarter
-        creds = [p['credentials'][0] for key, p in
-                        self['environment']['providers'].iteritems()
-                        if key == 'common']
-        if creds:
-            creds = creds[0]
-            results['username'] = creds['username']
-            if 'apikey' in creds:
-                results['apikey'] = creds['apikey']
-            if 'password' in creds:
-                results['password'] = creds['password']
-        else:
+        try:
+            creds = [p['credentials'][0] for key, p in
+                            self['environment']['providers'].iteritems()
+                            if key == 'common']
+            if creds:
+                creds = creds[0]
+                results['username'] = creds['username']
+                if 'apikey' in creds:
+                    results['apikey'] = creds['apikey']
+                if 'password' in creds:
+                    results['password'] = creds['password']
+            else:
+                LOG.debug("No credentials supplied in environment/common/"
+                        "credentials")
+        except Exception as exc:
             LOG.debug("No credentials supplied in environment/common/"
-                    "credentials")
+                        "credentials")
 
         inputs = self.inputs()
         results['region'] = inputs.get('blueprint', {}).get('region')
@@ -786,8 +791,8 @@ class Deployment(ExtensibleDict):
             # Direct, simple entry
             if name in blueprint_inputs:
                 result = blueprint_inputs[name]
-                LOG.debug("Found setting '%s' in inputs/blueprint: %s" %
-                        (name, result))
+                LOG.debug("Found setting '%s' in inputs/blueprint. %s=%s" %
+                        (name, name, result))
                 return result
 
     def _get_input_blueprint_option_constraint(self, name, service_name=None,
@@ -810,14 +815,14 @@ class Deployment(ExtensibleDict):
                             result = self._get_input_simple(key)
                             if result:
                                 LOG.debug("Found setting '%s' from constraint "
-                                        "in blueprint input '%s': %s" % (name,
-                                        key, result))
+                                        "in blueprint input '%s'. %s=%s" % (
+                                        name, key, name, result))
                                 return result
                             if 'default' in option:
                                 result = option['default']
-                                LOG.debug("Found setting '%s' from constraint "
-                                        "in blueprint input '%s': default=%s"
-                                        % (name, key, result))
+                                LOG.debug("Default setting '%s' obtained from "
+                                        "constraint in blueprint input '%s': "
+                                        "default=%s" % (name, key, result))
                                 return result
 
     def constraint_applies(self, constraint, name, resource_type=None,
@@ -864,8 +869,8 @@ class Deployment(ExtensibleDict):
                     if name in options:
                         result = options[name]
                         LOG.debug("Found setting '%s' as service "
-                                "setting in blueprint/services/%s/%s':"
-                                " %s" % (name, service_name, resource_type,
+                                "setting in blueprint/services/%s/%s'. %s=%s"
+                                % (name, service_name, resource_type, name,
                                 result))
                         return result
 
@@ -890,8 +895,8 @@ class Deployment(ExtensibleDict):
                     if options and name in options:
                         result = options[name]
                         LOG.debug("Found setting '%s' as provider "
-                                "setting in blueprint/providers/%s/%s':"
-                                " %s" % (name, provider_key, resource_type,
+                                "setting in blueprint/providers/%s/%s'. %s=%s"
+                                % (name, provider_key, resource_type, name,
                                 result))
                         return result
 
@@ -905,29 +910,55 @@ class Deployment(ExtensibleDict):
         results = {}
         services = self['blueprint'].get('services', {})
         for service_name, service in services.iteritems():
-            LOG.debug("Identifying component for service %s" % service_name)
             service_component = service['component']
+            LOG.debug("Identifying component '%s' for service '%s'" % (
+                    service_component, service_name))
             assert not isinstance(service_component, list)  # deprecated syntax
             component = self.environment().find_component(service_component,
                     context)
             if not component:
                 raise CheckmateException("Could not resolve component '%s'"
                         % service_component)
-            LOG.debug("Component %s identified for service %s" % (
-                    service_component, service_name))
+            LOG.debug("Component '%s' identified as '%s' for service '%s'" % (
+                    service_component, component['id'], service_name))
             results[service_name] = component
         return results
 
     def on_resource_postback(self, resource_id, contents):
-        """Called to handle contents when a postback with new resource data
-        is received."""
+        """Called to merge in contents when a postback with new resource data
+        is received.
+
+        Translates values to canonical names. Iterates to one level of depth to
+        handle postbacks that write to instance key"""
         resource = self['resources'][resource_id]
         if not resource:
             raise IndexError("Resource %s not found" % resource_id)
 
+        def translate_dict(data):
+            """Translates dictionary keys to caninical checkmate names
+
+            :returns: translated dict
+            """
+            if data:
+                results = {}
+                for key, value in data.iteritems():
+                    canonical = schema.translate(key)
+                    if key != canonical:
+                        LOG.debug("Translating '%s' to '%s'" % (key, canonical))
+                    results[canonical] = value
+                return results
+
         if contents:
-            LOG.debug("Merging %s into %s" % (contents, resource))
-            merge_dictionary(resource, contents)
+            contents = translate_dict(contents)
+            data = {}
+            for key, value in contents.iteritems():
+                if isinstance(value, dict):
+                    data[key] = translate_dict(value)
+                else:
+                    data[key] = value
+
+            LOG.debug("Merging %s into %s" % (data, resource))
+            merge_dictionary(resource, data)
 
 
 @task

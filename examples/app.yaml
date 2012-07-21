@@ -433,7 +433,7 @@ includes:
       "prefix":
         required: true
         type: string
-        #default: =generate()
+        default: wp
         label: Prefix
         description: "The application ID (and wordpress table prefix)."
         help: |
@@ -514,9 +514,9 @@ includes:
         - service: web
           resource_type: application
           setting: "varnish/enabled"
-      "instance_flavor": &instance_flavor
+      "web_server_size": &instance_flavor
         default: 1024
-        label: Instance Size
+        label: Web Server Size
         description: The size of the instance in MB of RAM.
         type: select
         options:
@@ -527,7 +527,7 @@ includes:
         - value: 1024
           name: 1 Gb
         constrains: [{service: web, resource_type: compute, setting: size},{service: master, resource_type: compute, setting: size}]
-      "instance_os":
+      "os":
         default: Ubuntu 11.10
         type: select
         options:
@@ -535,13 +535,13 @@ includes:
         - Ubuntu 12.04
         - CentOS
         - RHEL 6
-        label: Instance OS
+        label: Operating System
         description: The operating system for the web servers.
         constrains: [{service: web, resource_type: compute, setting: os},{service: web, resource_type: compute, setting: os}]
-      "instance_count":
+      "web_server_count":
         type: number
-        label: Number of Instances
-        description: The number of instances for the specified task.
+        label: Number of Web Servers
+        description: The number of WordPress servers (minimum two).
         default: 2
         constrains:
         - {service: web, resource_type: compute, setting: count}
@@ -565,7 +565,7 @@ includes:
         - {service: backend, resource_type: database, setting: memory}
       "database_volume_size":
         default: 1
-        label: Database Volume Size
+        label: Database Disk Size
         description: The hard drive space available for the database instance in GB.
         type: int  #1-10, units in Gb
         constrains:
@@ -666,7 +666,10 @@ includes:
         - 'compute': linux
         - 'compute': windows
 
-        #SAMPLE DATA: only showing this as demo. These get pulled in real time from providers
+        #SAMPLE DATA: used for:
+        # - easy viewing in this file
+        # - used by tests that call this file (so they don't have to call the provider)
+        # If not provided in this file, this is pulled in real time from the provider
         catalog:
           compute:
             linux_instance:
@@ -684,118 +687,73 @@ includes:
               73487664:
                 name: my_custom_image
             sizes:
-              1:
+              '1':
                 disk: 10
                 name: 256 server
                 memory: 256
-              2:
+              '2':
                 disk: 20
                 name: 512 server
                 memory: 512
-              3:
+              '3':
                 disk: 40
                 name: 1GB server
                 memory: 1024
-              4:
+              '4':
                 disk: 80
                 name: 2GB server
                 memory: 2048
-              5:
+              '5':
                 disk: 160
                 name: 4GB server
                 memory: 4096
-              6:
+              '6':
                 disk: 320
                 name: 8GB server
                 memory: 8192
-              7:
+              '7':
                 disk: 620
                 name: 15.5GB server
                 memory: 15872
-              8:
+              '8':
                 disk: 1200
                 name: 30GB server
                 memory: 30720
             types:
-              24:
+              '24':
                 name: Windows Server 2008 SP2 (64-bit)
                 os: Windows Server 2008 SP2 (64-bit)
-              31:
+              '31':
                 name: Windows Server 2008 SP2 (32-bit)
                 os: Windows Server 2008 SP2 (32-bit)
-              56:
+              '56':
                 name: Windows Server 2008 SP2 (32-bit) + SQL Server 2008 R2 Standard
                 os: Windows Server 2008 SP2 (32-bit) + SQL Server 2008 R2 Standard
-              57:
-                name: Windows Server 2008 SP2 (64-bit) + SQL Server 2008 R2 Standard
-                os: Windows Server 2008 SP2 (64-bit) + SQL Server 2008 R2 Standard
-              85:
-                name: Windows Server 2008 R2 (64-bit)
-                os: Windows Server 2008 R2 (64-bit)
-              86:
-                name: Windows Server 2008 R2 + SQL Server 2008 R2 Standard
-                os: Windows Server 2008 R2 + SQL Server 2008 R2 Standard
-              89:
-                name: Windows Server 2008 R2 + SQL Server 2008 R2 Web
-                os: Windows Server 2008 R2 + SQL Server 2008 R2 Web
-              91:
-                name: Windows Server 2008 R2 + SQL Server 2012 Standard
-                os: Windows Server 2008 R2 + SQL Server 2012 Standard
-              92:
-                name: Windows Server 2008 R2 + SQL Server 2012 Web
-                os: Windows Server 2008 R2 + SQL Server 2012 Web
-              100:
-                name: Arch 2011.10
-                os: Arch 2011.10
-              103:
-                name: Debian 5 (Lenny)
-                os: Debian 5 (Lenny)
-              104:
-                name: Debian 6 (Squeeze)
-                os: Debian 6 (Squeeze)
-              108:
-                name: Gentoo 11.0
-                os: Gentoo 11.0
-              109:
-                name: openSUSE 12
-                os: openSUSE 12
-              110:
-                name: Red Hat Enterprise Linux 5.5
-                os: Red Hat Enterprise Linux 5.5
-              111:
-                name: Red Hat Enterprise Linux 6
-                os: Red Hat Enterprise Linux 6
-              112:
-                name: Ubuntu 10.04 LTS
-                os: Ubuntu 10.04 LTS
-              114:
-                name: CentOS 5.6
-                os: CentOS 5.6
-              115:
+              '115':
                 name: Ubuntu 11.04
                 os: Ubuntu 11.04
-              116:
+              '116':
                 name: Fedora 15
                 os: Fedora 15
-              118:
+              '118':
                 name: CentOS 6.0
                 os: CentOS 6.0
-              119:
+              '119':
                 name: Ubuntu 11.10
                 os: Ubuntu 11.10
-              120:
+              '120':
                 name: Fedora 16
                 os: Fedora 16
-              121:
+              '121':
                 name: CentOS 5.8
                 os: CentOS 5.8
-              122:
+              '122':
                 name: CentOS 6.2
                 os: CentOS 6.2
-              125:
+              '125':
                 name: Ubuntu 12.04 LTS
                 os: Ubuntu 12.04 LTS
-              126:
+              '126':
                 name: Fedora 17
                 os: Fedora 17
 
@@ -803,6 +761,11 @@ includes:
         vendor: 'rackspace'
         provides:
         - 'load-balancer': http
+
+        #SAMPLE DATA: used for:
+        # - easy viewing in this file
+        # - used by tests that call this file (so they don't have to call the provider)
+        # If not provided in this file, this is pulled in real time from the provider
         catalog:
           lists:
             regions:
@@ -829,7 +792,10 @@ includes:
         provides:
         - 'database': mysql
 
-        # SAMPLE DATA
+        #SAMPLE DATA: used for:
+        # - easy viewing in this file
+        # - used by tests that call this file (so they don't have to call the provider)
+        # If not provided in this file, this is pulled in real time from the provider
         catalog:
           database:
             mysql_instance:
@@ -842,16 +808,16 @@ includes:
               DFW: https://dfw.databases.api.rackspacecloud.com/v1.0/${CHECKMATE_CLIENT_TENANT}
               ORD: https://ord.databases.api.rackspacecloud.com/v1.0/${CHECKMATE_CLIENT_TENANT}
             sizes:
-              1:
+              '1':
                 memory: 512
                 name: m1.tiny
-              2:
+              '2':
                 memory: 1024
                 name: m1.small
-              3:
+              '3':
                 memory: 2048
                 name: m1.medium
-              4:
+              '4':
                 memory: 4096
                 name: m1.large
 
@@ -859,10 +825,10 @@ includes:
         vendor: rackspace
 
         #PROVISIONAL: do we need these? Or should we use the live token (what about deserializing a workflow?)
-        credentials:
-        - rackspace:
-          username: ${CHECKMATE_CLIENT_USERNAME}
-          apikey: ${CHECKMATE_CLIENT_APIKEY}
+        #credentials:
+        #- rackspace:
+        #  username: ${CHECKMATE_CLIENT_USERNAME}
+        #  apikey: ${CHECKMATE_CLIENT_APIKEY}
         #- ssh:
         #  public_key: =generate()
         #PROTOTYPING:
@@ -917,7 +883,7 @@ inputs: # Answers to or values for blueprint/provider options & settings.
     "prefix": CM-BLOG
     "domain": ${CHECKMATE_CLIENT_DOMAIN}
     "path": '/blog'
-    "username": joe
+    "username": ${USER}
     "password":
     "ssl": required  # no port 80
     "ssl_certificate": skldjfhalkjsdfhasd
@@ -939,7 +905,7 @@ inputs: # Answers to or values for blueprint/provider options & settings.
       'compute':
         #'os': Ubuntu 12.04 LTS
 
-#### For sample Output, see simulatior.json in tests directory
+#### For sample Output, see simulator.json in tests directory
 
 #
 # This documentation written to generate HTML by Docco.

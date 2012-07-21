@@ -39,14 +39,14 @@ class Provider(ProviderBase):
                 service_name=service, provider_key=self.key) or 512
 
         # Find same or next largest size and get flavor ID
-        size = 512
-        flavor = 1
+        size = '512'
+        flavor = '1'
         number = str(memory).split(' ')[0]
         for key, value in catalog['lists']['sizes'].iteritems():
-            if number <= str(value['memory']):
+            if int(number) <= int(value['memory']):
                 if key > size:
-                    size = value['memory']
-                    flavor = key
+                    size = str(value['memory'])
+                    flavor = str(key)
 
         # Get volume size
         volume = deployment.get_setting('disk', resource_type=resource_type,
@@ -119,7 +119,7 @@ class Provider(ProviderBase):
                             provider=self.key,
                             task_tags=['create']),
                properties={'estimated_duration': 80})
-        create_db_user = Celery(wfspec, "Add DB User:%s" % username,
+        create_db_user = Celery(wfspec, "Add DB User: %s" % username,
                'checkmate.providers.rackspace.database.add_user',
                call_args=[context.get_queued_task_dict(),
                         Attrib('id'), [db_name],
@@ -185,7 +185,7 @@ class Provider(ProviderBase):
             if 'lists' not in results:
                 results['lists'] = {}
             results['lists']['sizes'] = {
-                f.id: {
+                str(f.id): {
                     'name': f.name,
                     'memory': f.ram
                     } for f in flavors}
@@ -262,8 +262,8 @@ def create_instance(context, instance_name, size, flavor, databases, region,
             "Databases = %s" % (instance_name, instance.id, size, flavor,
             databases))
 
-    results = dict(id=instance.id, name=instance.name, status=instance.status,
-            hostname=instance.hostname, region=region)
+    results = dict(instance=dict(id=instance.id, name=instance.name,
+            status=instance.status, hostname=instance.hostname, region=region))
 
     # Send data back to deployment
     resource_postback.delay(context['deployment'], context['resource'],
@@ -312,9 +312,19 @@ def add_user(context, instance_id, databases, username, password, region,
         api = Provider._connect(context, region)
 
     instance = api.get_instance(instance_id)
-    instance.create_user(username, password, databases)
-    LOG.info('Added user %s to %s on instance %s' % (username, databases,
-            instance_id))
+
+    try:
+        instance.create_user(username, password, databases)
+        LOG.info('Added user %s to %s on instance %s' % (username, databases,
+                instance_id))
+    except clouddb.errors.ResponseError as exc:
+        # This could be '422 Unprocessable Entity', meaning the instance is not
+        # up yet
+        if '422' in exc.message:
+            add_user.retry(exc=exc)
+        else:
+            raise exc
+
     return dict(db_username=username, db_password=password)
 
 

@@ -14,9 +14,9 @@ try:
 except ImportError:
     from migrate import exceptions as versioning_exceptions
 
+from checkmate.classes import ExtensibleDict
 from checkmate.db import migration
 from checkmate.db.common import *
-from checkmate.classes import ExtensibleDict
 from checkmate.exceptions import CheckmateDatabaseMigrationError
 from checkmate.utils import merge_dictionary
 
@@ -187,14 +187,16 @@ class Driver(DbBase):
     def get_object(self, klass, id, with_secrets=None):
         results = Session.query(klass).filter_by(id=id)
         if results and results.count() > 0:
+            first = results.first()
+            body = first.body
+            body['tenantId'] = first.tenant_id
             if with_secrets == True:
-                first = results.first()
                 if first.secrets:
-                    return merge_dictionary(first.body, first.secrets)
+                    return merge_dictionary(body, first.secrets)
                 else:
-                    return first.body
+                    return body
             else:
-                return results.first().body
+                return body
 
     def get_objects(self, klass, tenant_id=None, with_secrets=None):
         results = Session.query(klass)
