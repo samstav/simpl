@@ -80,8 +80,9 @@ function EnvironmentDetailCtrl($scope, $location, $http, $routeParams) {
 
     //build the providers    
     var newProviders = {};
-    _.each($scope.selectedProviders, function(provider, key) {          
-      newProviders[provider] = $scope.apiProviders[provider];
+    _.each($scope.selectedProviders, function(provider, key) {  
+      var n = provider.split('.')[1];   // TODO: This feels like an ugly hack.        
+      newProviders[n] = $scope.apiProviders[provider];
     });
 
     $scope.environment["providers"] = newProviders;
