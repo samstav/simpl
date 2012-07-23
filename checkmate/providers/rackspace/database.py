@@ -262,8 +262,8 @@ def create_instance(context, instance_name, size, flavor, databases, region,
             "Databases = %s" % (instance_name, instance.id, size, flavor,
             databases))
 
-    results = dict(id=instance.id, name=instance.name, status=instance.status,
-            hostname=instance.hostname, region=region)
+    results = dict(instance=dict(id=instance.id, name=instance.name,
+            status=instance.status, hostname=instance.hostname, region=region))
 
     # Send data back to deployment
     resource_postback.delay(context['deployment'], context['resource'],
