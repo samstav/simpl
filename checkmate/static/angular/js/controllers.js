@@ -38,28 +38,9 @@ EnvironmentListCtrl.$inject = ['$scope', '$location', '$http'];
  */
 
 function EnvironmentDetailCtrl($scope, $location, $http, $routeParams) {
-  cm.Resource.query($http, 'providers')
-    .success(function(data) {
-      $scope.providers = {};
-
-      _.each(data, function(provider) {   
-        _.each(provider.provides, function(provides) {
-          var name = _.first(_.keys(provides));
-          if (name != null) {
-            if ($scope.providers[name] == null) {
-              $scope.providers[name] = {label:name, options: []};
-            }
-
-            var listElement = {
-              label: this.name + ' (' + provides[name] + ')',
-              value: this.vendor + '.' + this.name
-            }
-
-            $scope.providers[name].options.push(listElement);
-          }
-        }, provider);
-      });
-    });
+  $scope.providers = {};
+  $scope.selectedProviders = {};
+  $scope.apiProviders = null;
 
   if ($routeParams.environmentId != "new") {
     cm.Resource.get($http, 'environments', $routeParams.environmentId).success(function(data, status) {
@@ -69,14 +50,41 @@ function EnvironmentDetailCtrl($scope, $location, $http, $routeParams) {
     $scope.environment = {};
   }
 
+  cm.Resource.query($http, 'providers')
+    .success(function(data) {
+      $scope.apiProviders = data;
+
+      _.each(data, function(provider) {   
+        _.each(provider.provides, function(provides) {
+          var name = _.first(_.keys(provides));
+          if (name != null) {
+            if ($scope.providers[name] == null) {
+              $scope.providers[name] = {label:name, options: []};
+              $scope.selectedProviders[name] = this.vendor + '.' + this.name;
+            }
+
+            var listElement = {
+              label: this.name + ' (' + provides[name] + ')',
+              value: this.vendor + '.' + this.name
+            }
+            $scope.providers[name].options.push(listElement);
+          }
+        }, provider);
+      });
+    });
+
+  
+
   $scope.update = function(environment) {
     $scope.environment = angular.copy(environment);
 
     //build the providers    
-    $scope.environment.providers = {};
-    _.each($scope.selectedProviders, function(provider, key) {
-      $scope.environment.providers[key] = provider;
+    var newProviders = {};
+    _.each($scope.selectedProviders, function(provider, key) {          
+      newProviders[provider] = $scope.apiProviders[provider];
     });
+
+    $scope.environment["providers"] = newProviders;
 
     cm.Resource.saveOrUpdate($http, 'environments', $scope.environment).success(function(data, status) {
       $location.path('/environments');

@@ -28,10 +28,10 @@
         <legend>Providers</legend>
 
         <div class="control-group" ng-repeat="provider in providers">
-          <label class="control-label capitalize" for="{{provider.id}}">{{provider.label}}</label>
+          <label class="control-label capitalize" for="{{provider.label}}">{{provider.label}}</label>
           <div class="controls">
-            <select id="{{provider.id}}" ng-model="selectedProviders[provider.id]"
-                    ng-options="o.label for o in provider.options" required>
+            <select id="{{provider.label}}" ng-model="selectedProviders[provider.label]"
+                    ng-options="o.value as o.label for o in provider.options" required>
             </select>
           </div>
         </div>
