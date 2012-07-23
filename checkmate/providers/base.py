@@ -102,7 +102,7 @@ class ProviderBaseWorkflowMixIn():
                         match = False
                         break
 
-                    # Don't match if the task is ted toa relation and no
+                    # Don't match if the task is tied to a relation and no
                     # relation key was provided
                     if 'relation' not in kwargs and \
                             task.get_property('relation'):

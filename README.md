@@ -350,7 +350,7 @@ Options:
         --quiet:    turn down logging to WARN (default is INFO)
         --verbose:  turn up logging to DEBUG (default is INFO)
         --debug:    turn on additional debugging inspection and output
-                    including full HTTP requests and responses
+                    including full HTTP requests and responses. Log output includes source file path and line numbers.
 
 Once up, you can issue curl commands (or point your browser at it if you started the server --with-ui) to use checkmate.
 

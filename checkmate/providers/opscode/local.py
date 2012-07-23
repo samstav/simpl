@@ -19,6 +19,7 @@ from Crypto.Random import atfork
 from SpiffWorkflow.operators import Attrib
 from SpiffWorkflow.specs import Celery, Transform, Merge
 
+from checkmate.common import schema
 from checkmate.components import Component
 from checkmate.exceptions import CheckmateException, \
         CheckmateCalledProcessError, CheckmateNoMapping
@@ -504,7 +505,10 @@ class Provider(ProviderBase):
 
             # Holds code for the task
             def get_slave_ip_code(my_task):
-                options = my_task.get_attribute('lsync_bag')
+                attribute = my_task.get_attribute('lsync_bag')
+                if 'lsyncd' not in attribute:
+                    attribute['lsyncd'] = {}
+                options = attribute['lsyncd']
                 if 'slaves' not in options:
                     options['slaves'] = []
                 options['slaves'].append(my_task.get_attribute('private_ip'))
@@ -719,7 +723,7 @@ class Provider(ProviderBase):
         results = ProviderBase.get_catalog(self, context,
             type_filter=type_filter)
         if results:
-            # We have a prexisting or overridecatalog stored
+            # We have a prexisting or injected catalog stored. Use it.
             return results
 
         # build a live catalog ()this would be the on_get_catalog called if no
