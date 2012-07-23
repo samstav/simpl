@@ -1228,13 +1228,6 @@ def download_cookbooks(environment, path=None, cookbooks=None,
     # Find/get cookbook source
     repo_path = _get_repo_path()
 
-    if not os.path.exists(repo_path):
-        git.Repo.clone_from('git://github.rackspace.com/checkmate/'
-                'chef-stockton.git', repo_path)
-        LOG.info("Cloned chef-stockton to %s" % repo_path)
-    else:
-        LOG.debug("Getting cookbooks from %s" % repo_path)
-
     if use_site:
         cookbook_subdir = 'site-cookbooks'
     else:
@@ -1670,4 +1663,8 @@ def _get_repo_path():
         path = os.path.join(os.path.dirname(__file__), 'chef-stockton')
         LOG.warning("No CHECKMATE_CHEF_REPO variable set. Defaulting to %s" %
                 path)
+        if not os.path.exists(path):
+            git.Repo.clone_from('git://github.rackspace.com/checkmate/'
+                    'chef-stockton.git', path)
+            LOG.info("Cloned chef-stockton to %s" % path)
     return path
