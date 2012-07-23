@@ -1,14 +1,24 @@
 #!/usr/bin/env python
 import __builtin__
 import json
+import logging
 import mox
 import os
 import shutil
 import unittest2 as unittest
 import uuid
 
+# Init logging before we load the database, 3rd party, and 'noisy' modules
+from checkmate.utils import init_console_logging
+init_console_logging()
+LOG = logging.getLogger(__name__)
+
+from checkmate.deployments import Deployment
 from checkmate.exceptions import CheckmateException
+from checkmate.providers.base import PROVIDER_CLASSES, ProviderBase
 from checkmate.providers.opscode import local
+from checkmate.test import StubbedWorkflowBase
+from checkmate.utils import yaml_to_dict
 
 
 class TestChefLocal(unittest.TestCase):
@@ -160,5 +170,78 @@ class TestChefLocal(unittest.TestCase):
                 'test_env', bag, 'test', original)
 
 
+class TestWorkflowLogic(StubbedWorkflowBase):
+    """ Test Basic Workflow code """
+
+    def test_workflow_option_flow(self):
+        self.deployment = Deployment(yaml_to_dict("""
+                id: test
+                blueprint:
+                  name: test bp
+                  services:
+                    one:
+                      component:
+                        type: widget
+                        interface: foo
+                    two:
+                      component:
+                        id: big_widget
+                environment:
+                  name: environment
+                  providers:
+                    base:
+                      provides:
+                      - widget: foo
+                      - widget: bar
+                      vendor: test
+                      catalog:
+                        widget:
+                          small_widget:
+                            is: widget
+                            provides:
+                            - widget: foo
+                            options:
+                              global_input:
+                              blueprint_input:
+                              service_input:
+                              provider_input:
+                              widget/configuration_file:
+                                type: string
+                                provider_field_name: conf_file
+                          big_widget:
+                            is: widget
+                            provides:
+                            - widget: bar
+                inputs:
+                  global_input: g
+                  blueprint:
+                    blueprint_input: b
+                    services:
+                      one:
+                        service_input: s1
+                    providers:
+                      base:
+                        widget:
+                          provider_input: p1
+            """))
+        PROVIDER_CLASSES['test.base'] = ProviderBase
+
+        workflow = self._get_stubbed_out_workflow()
+
+        self.mox.ReplayAll()
+
+        workflow.complete_all()
+        self.assertTrue(workflow.is_completed())
+        self.assertEqual(len(workflow.get_tasks()), 3)
+
+
 if __name__ == '__main__':
-    unittest.main()
+    # Run tests. Handle our paramsters separately
+    import sys
+    args = sys.argv[:]
+    # Our --debug means --verbose for unitest
+    if '--debug' in args:
+        args.pop(args.index('--debug'))
+        if '--verbose' not in args:
+            args.insert(1, '--verbose')
+    unittest.main(argv=args)
