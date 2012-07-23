@@ -205,6 +205,7 @@ from celery.task import task
 import openstack.compute
 
 from checkmate.ssh import test_connection
+from monitoring import initialize_monitoring
 
 
 """ Celeryd tasks """
@@ -348,7 +349,7 @@ def wait_on_build(context, id, ip_address_type='public',
                 password=password, identity_file=identity_file, port=port)
         if up:
             LOG.info("Server %s is up" % id)
-	    create_entity.delay(driver=None,ip=ip,data=None,name=id,context=context)
+	    initialize_monitoring.delay(ip=ip,name=id,context=context,resource="node")
             if prefix:
                 # Add each value back in with the prefix
                 results.update({'%s.%s' % (prefix, key): value for key, value
