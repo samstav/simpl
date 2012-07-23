@@ -533,7 +533,8 @@ def wait_for(wf_spec, task, wait_list, name=None, **kwargs):
             join = Merge(wf_spec, name, **kwargs)
             task.follow(join)
             for t in wait_list:
-                t.connect(join)
+                if t not in join.ancestors():
+                    t.connect(join)
             return join
         else:
             task.follow(wait_list[0])
