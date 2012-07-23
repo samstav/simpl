@@ -27,7 +27,7 @@ INTERFACE_SCHEMA = yaml_to_dict("""
             type: int
             required: true
             default: 3306
-          database:
+          database_name:
             type: string
             required: false
       mssql:
@@ -95,9 +95,9 @@ RESOURCE_TYPES = ['compute', 'database', 'wordpress', 'php5', 'load-balancer',
         'endpoint', 'host', 'application',
         'widget', 'gadget']  # last two for testing
 
-RESOURCE_SCHEMA = ['id', 'name', 'provider', 'relations', 'hosted_on', 'hosts',
-        'type', 'component', 'dns-name', 'instance', 'flavor', 'image', 'disk',
-        'region']
+RESOURCE_SCHEMA = ['id', 'index', 'name', 'provider', 'relations', 'hosted_on',
+        'hosts', 'type', 'component', 'dns-name', 'instance', 'flavor',
+        'image', 'disk', 'region']
 
 DEPLOYMENT_SCHEMA = ['id', 'name', 'blueprint', 'environment', 'inputs',
         'includes', 'resources', 'settings', 'workflow', 'status', 'created']
@@ -133,6 +133,66 @@ def validate(obj, schema):
                             (key, ', '.join(schema)))
     return errors
 
+
+def validate_inputs(deployment):
+    """Validates deployment inputs"""
+    errors = []
+    if deployment:
+        inputs = deployment.get('inputs', {})
+        for key, value in inputs.iteritems():
+            if key == 'blueprint':
+                for k, v in value.iteritems():
+                    errors.extend(validate_input(k, v))
+            elif key == 'services':
+                for service_name, service_input in value.iteritems():
+                    if service_name not in deployment['blueprint']['services']:
+                        errors.append("Invalid service name in inputs: %s" %
+                                service_name)
+                    errors.extend(validate_type_inputs(service_input))
+            elif key == 'providers':
+                for provider_key, provider_input in value.iteritems():
+                    if provider_key not in deployment['environment'][\
+                            'providers']:
+                        errors.append("Invalid provider key in inputs: %s" %
+                                provider_key)
+                    errors.extend(validate_type_inputs(provider_input))
+            else:
+                errors.extend(validate_input(key, value))  # global input
+
+    return errors
+
+
+def validate_type_inputs(inputs):
+    """Validates deployment inputs in a type hierarchy
+
+    This is the structure under inputs/services and inputs/providers"""
+    errors = []
+    if inputs:
+        if isinstance(inputs, dict):
+            for key, value in inputs.iteritems():
+                if key not in RESOURCE_TYPES:
+                    errors.append("Invalid type '%s' in inputs" % key)
+                else:
+                    if isinstance(value, dict):
+                        for k, v in value.iteritems():
+                            errors.extend(validate_input(k, v))
+                    else:
+                        errors.append("Input '%s' is not a key/value pair" %
+                                value)
+        else:
+            errors.append("Input '%s' is not a key/value pair" % inputs)
+    return errors
+
+
+def validate_input(key, value):
+    """Validates a deployment input"""
+    errors = []
+    if value:
+        if isinstance(value, dict):
+            errors.append("Option '%s' should be a scalar" % key)
+
+    return errors
+
 # The list of 'allowed' names in options, resources, and relations in checkmate
 # and the other possible aliases for them. Checkmate will convert aliases into
 # the canonical name
@@ -164,7 +224,11 @@ ALIASES = {
         'region': [],
         'server': ['srv', 'srvr'],
         'status': [],
-        'username': ['user'],
+        'username': [],
+        'user': [],
+        'apache': [],
+        'prefork': [],
+        'worker': [],
     }
 
 
@@ -204,3 +268,19 @@ def translate(name):
         return '_'.join(words)
 
     LOG.info("Unrecognized name: %s" % name)
+    return name
+
+
+def translate_dict(data):
+    """Translates dictionary keys to canonical checkmate names
+
+    :returns: translated dict
+    """
+    if data:
+        results = {}
+        for key, value in data.iteritems():
+            canonical = translate(key)
+            if key != canonical:
+                LOG.debug("Translating '%s' to '%s'" % (key, canonical))
+            results[canonical] = value
+        return results

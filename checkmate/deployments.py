@@ -393,6 +393,7 @@ def plan(deployment, context):
                     resource['component'] = component_id
                 # Add it to resources
                 resources[str(resource_index)] = resource
+                resource['index'] = str(resource_index)
                 # Link resource to service
                 if 'instances' not in service:
                     service['instances'] = []
@@ -504,7 +505,8 @@ def plan(deployment, context):
             connection_name = "%s-%s" % (service_name, target_service_name)
             if connection_name in connections:
                 connection_name = "%s-%s" % (connection_name, len(connections))
-            connections[connection_name] = {}
+            connections[connection_name] = dict(
+                    interface=relation['interface'])
             for source_instance in source_instances:
                 if 'relations' not in resources[source_instance]:
                     resources[source_instance]['relations'] = {}
@@ -677,6 +679,7 @@ class Deployment(ExtensibleDict):
     @classmethod
     def validate(cls, obj):
         errors = schema.validate(obj, schema.DEPLOYMENT_SCHEMA)
+        errors.extend(schema.validate_inputs(obj))
         if errors:
             raise CheckmateValidationException("Invalid %s: %s" % (
                     cls.__name__, '\n'.join(errors)))
@@ -780,7 +783,20 @@ class Deployment(ExtensibleDict):
         if result:
             return result
 
+        result = self._get_input_global(name)
+        if result:
+            return result
+
         return default
+
+    def _get_input_global(self, name):
+        """Get a setting directly under inputs"""
+        inputs = self.inputs()
+        if name in inputs:
+            result = inputs[name]
+            LOG.debug("Found setting '%s' in inputs. %s=%s" %
+                    (name, name, result))
+            return result
 
     def _get_input_simple(self, name):
         """Get a setting directly from inputs/blueprint"""
@@ -933,26 +949,12 @@ class Deployment(ExtensibleDict):
         if not resource:
             raise IndexError("Resource %s not found" % resource_id)
 
-        def translate_dict(data):
-            """Translates dictionary keys to caninical checkmate names
-
-            :returns: translated dict
-            """
-            if data:
-                results = {}
-                for key, value in data.iteritems():
-                    canonical = schema.translate(key)
-                    if key != canonical:
-                        LOG.debug("Translating '%s' to '%s'" % (key, canonical))
-                    results[canonical] = value
-                return results
-
         if contents:
-            contents = translate_dict(contents)
+            contents = schema.translate_dict(contents)
             data = {}
             for key, value in contents.iteritems():
                 if isinstance(value, dict):
-                    data[key] = translate_dict(value)
+                    data[key] = schema.translate_dict(value)
                 else:
                     data[key] = value
 

@@ -200,10 +200,10 @@ class StubbedWorkflowBase(unittest.TestCase):
                     item_name not in self.outcome['data_bags'][bag_name]:
                 self.outcome['data_bags'][bag_name][item_name] = contents
             else:
-                merge_dictionary(self.outcome['data_bags'][bag_name][item_name],
-                        contents)
+                merge_dictionary(self.outcome['data_bags'][bag_name]
+                        [item_name], contents)
 
-    def _get_stubbed_out_workflow(self):
+    def _get_stubbed_out_workflow(self, expected_calls=None):
         """Returns a workflow of self.deployment with mocks attached to all
         celery calls
         """
@@ -212,6 +212,37 @@ class StubbedWorkflowBase(unittest.TestCase):
                 catalog=CATALOG)
         plan(self.deployment, context)
         workflow = create_workflow(self.deployment, context)
+
+        if not expected_calls:
+            expected_calls = self._get_expected_calls()
+
+       #Mock out celery calls
+        self.mock_tasks = {}
+        self.mox.StubOutWithMock(default_app, 'send_task')
+        self.mox.StubOutWithMock(default_app, 'AsyncResult')
+        for call in expected_calls:
+            async_mock = self.mox.CreateMock(AsyncResult)
+            async_mock.task_id = "MOCK%s" % uuid.uuid4().hex
+            async_mock.result = call['result']
+            async_mock.state = 'SUCCESS'
+            self.mock_tasks[async_mock.task_id] = async_mock
+
+            # Task is called
+            default_app.send_task(call['call'], args=call['args'],
+                    kwargs=call['kwargs']).InAnyOrder()\
+                    .WithSideEffects(self.result_postback).AndReturn(
+                            async_mock)
+
+            # State is checked
+            async_mock.ready().AndReturn(True)
+
+            # Data is retrieved
+            default_app.AsyncResult.__call__(async_mock.task_id).AndReturn(
+                    async_mock)
+
+        return workflow
+
+    def _get_expected_calls(self):
 
         # Prepare expected call names, args, and returns for mocking
         def is_good_context(context):
@@ -256,14 +287,17 @@ class StubbedWorkflowBase(unittest.TestCase):
         expected_calls = [{
                 # Create Chef Environment
                 'call': 'checkmate.providers.opscode.local.create_environment',
-                'args': ['DEP-ID-1000'],
+                'args': [self.deployment['id']],
                 'kwargs': And(ContainsKeyValue('private_key', IgnoreArg()),
                         ContainsKeyValue('secret_key', IgnoreArg()),
                         ContainsKeyValue('public_key_ssh', IgnoreArg())),
-                'result': {'environment': '/var/tmp/DEP-ID-1000/',
-                    'kitchen': '/var/tmp/DEP-ID-1000/kitchen',
-                    'private_key_path': '/var/tmp/DEP-ID-1000/private.pem',
-                    'public_key_path': '/var/tmp/DEP-ID-1000/checkmate.pub',
+                'result': {
+                    'environment': '/var/tmp/%s/' % self.deployment['id'],
+                    'kitchen': '/var/tmp/%s/kitchen' % self.deployment['id'],
+                    'private_key_path': '/var/tmp/%s/private.pem' %
+                            self.deployment['id'],
+                    'public_key_path': '/var/tmp/%s/checkmate.pub' %
+                            self.deployment['id'],
                     'public_key': ENV_VARS['CHECKMATE_CLIENT_PUBLIC_KEY']}
             },
             {
@@ -281,8 +315,10 @@ class StubbedWorkflowBase(unittest.TestCase):
                     ).lower() in ['true', '1', 'yes']:
             expected_calls.append({
                     'call': 'checkmate.providers.opscode.local.manage_databag',
-                    'args': ['DEP-ID-1000', 'DEP-ID-1000',
-                            'webapp_wordpress_%s' % self.deployment.get_setting('prefix'),
+                    'args': [self.deployment['id'],
+                            self.deployment['id'],
+                            'webapp_wordpress_%s' %
+                                    self.deployment.get_setting('prefix'),
                             Func(is_good_data_bag)],
                     'kwargs': And(ContainsKeyValue('secret_file',
                             'certificates/chef.pem'), ContainsKeyValue('merge',
@@ -292,7 +328,7 @@ class StubbedWorkflowBase(unittest.TestCase):
         else:
             expected_calls.append({
                     'call': 'checkmate.providers.opscode.local.manage_role',
-                    'args': ['wordpress-web', 'DEP-ID-1000'],
+                    'args': ['wordpress-web', self.deployment['id']],
                     'kwargs': {'override_attributes': {'wordpress': {'db': {
                             'host': 'verylong.rackspaceclouddb.com',
                             'password': IsA(basestring),
@@ -388,50 +424,59 @@ class StubbedWorkflowBase(unittest.TestCase):
                     })
                 # Bootstrap Server with Chef
                 expected_calls.append({
-                        'call': 'checkmate.providers.opscode.local.register_node',
-                        'args': ["4.4.4.%s" % ip, 'DEP-ID-1000'],
+                        'call': 'checkmate.providers.opscode.local.'
+                                'register_node',
+                        'args': ["4.4.4.%s" % ip, self.deployment['id']],
                         'kwargs': In('password'),
                         'result': None
                     })
                 # build-essential and then role
                 expected_calls.append({
                         'call': 'checkmate.providers.opscode.local.cook',
-                        'args': ["4.4.4.%s" % ip, 'DEP-ID-1000'],
-                        'kwargs': And(In('password'), ContainsKeyValue('recipes',
-                                ['build-essential']),
-                                ContainsKeyValue('identity_file',
-                                    '/var/tmp/DEP-ID-1000/private.pem')),
+                        'args': ["4.4.4.%s" % ip, self.deployment['id']],
+                        'kwargs': And(In('password'),
+                                        ContainsKeyValue('recipes',
+                                            ['build-essential']),
+                                        ContainsKeyValue('identity_file',
+                                                '/var/tmp/%s/private.pem' %
+                                                self.deployment['id'])),
                         'result': None
                     })
                 expected_calls.append(
                     {
                         'call': 'checkmate.providers.opscode.local.cook',
-                        'args': ["4.4.4.%s" % ip, 'DEP-ID-1000'],
+                        'args': ["4.4.4.%s" % ip, self.deployment['id']],
                         'kwargs': And(In('password'), ContainsKeyValue('roles',
                                 ["wordpress-%s" % role]),
                                 ContainsKeyValue('identity_file',
-                                    '/var/tmp/DEP-ID-1000/private.pem')),
+                                        '/var/tmp/%s/private.pem' %
+                                        self.deployment['id'])),
                         'result': None
                     })
                 if role == 'master':
                     expected_calls.append({
-                        'call': 'checkmate.providers.opscode.local.manage_databag',
-                        'args': ['DEP-ID-1000', 'DEP-ID-1000',
-                                'webapp_wordpress_%s' % self.deployment.get_setting('prefix'),
+                        'call': 'checkmate.providers.opscode.local.'
+                                'manage_databag',
+                        'args': [self.deployment['id'],
+                                self.deployment['id'],
+                                'webapp_wordpress_%s' %
+                                        self.deployment.get_setting('prefix'),
                                 And(IsA(dict), In('lsyncd'))],
                         'kwargs': And(ContainsKeyValue('secret_file',
-                                'certificates/chef.pem'), ContainsKeyValue('merge',
-                                True)),
+                                        'certificates/chef.pem'),
+                                        ContainsKeyValue('merge', True)),
                         'result': None
                     })
                     expected_calls.append(
                         {
                             'call': 'checkmate.providers.opscode.local.cook',
-                            'args': ["4.4.4.%s" % ip, 'DEP-ID-1000'],
-                            'kwargs': And(In('password'), ContainsKeyValue('recipes',
+                            'args': ["4.4.4.%s" % ip, self.deployment['id']],
+                            'kwargs': And(In('password'),
+                                    ContainsKeyValue('recipes',
                                     ['lsyncd::install']),
                                     ContainsKeyValue('identity_file',
-                                        '/var/tmp/DEP-ID-1000/private.pem')),
+                                            '/var/tmp/%s/private.pem' %
+                                            self.deployment['id'])),
                             'result': None
                         })
 
@@ -439,17 +484,24 @@ class StubbedWorkflowBase(unittest.TestCase):
                     expected_calls.append(
                         {
                             'call': 'checkmate.providers.opscode.local.cook',
-                            'args': ["4.4.4.%s" % ip, 'DEP-ID-1000'],
-                            'kwargs': And(In('password'), ContainsKeyValue('recipes',
+                            'args': ["4.4.4.%s" % ip, self.deployment['id']],
+                            'kwargs': And(In('password'),
+                                    ContainsKeyValue('recipes',
                                     ["lsyncd::install_keys"]),
                                     ContainsKeyValue('identity_file',
-                                        '/var/tmp/DEP-ID-1000/private.pem')),
+                                            '/var/tmp/%s/private.pem' %
+                                            self.deployment['id'])),
                             'result': None
                         })
                 expected_calls.append({
-                        'call': 'checkmate.providers.rackspace.loadbalancer.add_node',
-                        'args': [Func(is_good_context), 20001, "10.1.2.%s" % ip,
-                                80, self.deployment.get_setting('region', default='testonia')],
+                        'call': 'checkmate.providers.rackspace.loadbalancer.'
+                                'add_node',
+                        'args': [Func(is_good_context),
+                                20001,
+                                "10.1.2.%s" % ip,
+                                80,
+                                self.deployment.get_setting('region',
+                                        default='testonia')],
                         'kwargs': None,
                         'result': None
                     })
@@ -464,8 +516,11 @@ class StubbedWorkflowBase(unittest.TestCase):
                                 'create_instance',
                         'args': [Func(is_good_context),
                                 IsA(basestring),
-                                1, '1', [{'name': 'db1'}],
-                                 self.deployment.get_setting('region', default='testonia')],
+                                1,
+                                '1',
+                                [{'name': 'db1'}],
+                                self.deployment.get_setting('region',
+                                        default='testonia')],
                         'kwargs': IgnoreArg(),
                         'result': {
                                 'id': 'db-inst-1',
@@ -476,46 +531,29 @@ class StubbedWorkflowBase(unittest.TestCase):
                     })
                 expected_calls.append({
                         # Create Database User
-                        'call': 'checkmate.providers.rackspace.database.add_user',
+                        'call': 'checkmate.providers.rackspace.database.'
+                                'add_user',
                         'args': [Func(is_good_context),
-                                'db-inst-1', ['db1'], username,
+                                'db-inst-1',
+                                ['db1'],
+                                username,
                                 IsA(basestring),
-                                 self.deployment.get_setting('region', default='testonia')],
+                                self.deployment.get_setting('region',
+                                        default='testonia')],
                         'kwargs': None,
                         'result': {'username': username, 'password': 'DbPxWd'}
                     })
                 expected_calls.append({
-                        'call': 'checkmate.providers.opscode.local.manage_databag',
-                        'args': ['DEP-ID-1000', 'DEP-ID-1000',
-                                'webapp_wordpress_%s' % self.deployment.get_setting('prefix'),
+                        'call': 'checkmate.providers.opscode.local.'
+                                'manage_databag',
+                        'args': [self.deployment['id'],
+                                self.deployment['id'],
+                                'webapp_wordpress_%s' %
+                                        self.deployment.get_setting('prefix'),
                                 IsA(dict)],
                         'kwargs': And(ContainsKeyValue('secret_file',
-                                'certificates/chef.pem'), ContainsKeyValue('merge',
-                                True)),
+                                'certificates/chef.pem'),
+                                ContainsKeyValue('merge', True)),
                         'result': None
                     })
-
-       #Mock out celery calls
-        self.mock_tasks = {}
-        self.mox.StubOutWithMock(default_app, 'send_task')
-        self.mox.StubOutWithMock(default_app, 'AsyncResult')
-        for call in expected_calls:
-            async_mock = self.mox.CreateMock(AsyncResult)
-            async_mock.task_id = "MOCK%s" % uuid.uuid4().hex
-            async_mock.result = call['result']
-            async_mock.state = 'SUCCESS'
-            self.mock_tasks[async_mock.task_id] = async_mock
-
-            # Task is called
-            default_app.send_task(call['call'], args=call['args'],
-                    kwargs=call['kwargs']).InAnyOrder()\
-                    .WithSideEffects(self.result_postback).AndReturn(async_mock)
-
-            # State is checked
-            async_mock.ready().AndReturn(True)
-
-            # Data is retrieved
-            default_app.AsyncResult.__call__(async_mock.task_id).AndReturn(
-                    async_mock)
-
-        return workflow
+        return expected_calls

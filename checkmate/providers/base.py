@@ -138,6 +138,23 @@ class ProviderBaseWorkflowMixIn():
                                          tag=['final'])
         return relation_final
 
+    def get_relation_final_tasks(self, wfspec, resource):
+        """Get all 'final' tasks  for relations where this resource is a source
+
+        :param wfspec: the SpiffWorkflow WorkflowSpec we are building
+        :param resource: the resource dict from the deployment
+        """
+        tasks = []
+        for key, relation in resource.get('relations', {}).iteritems():
+            if 'target' in relation:
+                relation_final = self.find_tasks(wfspec,
+                        resource=resource['index'],
+                        relation=key,
+                        tag=['final'])
+                if relation_final:
+                    tasks.extend(relation_final)
+        return tasks
+
 
 class ProviderBasePlanningMixIn():
     """The methods used by the deployment planning code (i.e. they need a

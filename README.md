@@ -184,13 +184,61 @@ Note: for additional descriptions of each field see the examples/app.yaml file.
 
 ### Options and Inputs
 
-Options can be exposed by blueprints and components. An *option* is the _definition_ of a user-selectable value that can supplied for that blueprint or component.
+Options can be exposed by blueprints and components. An *option* is the _definition_ of a user-selectable value that can supplied for that blueprint or a component.
 
-When launching a deployment, the values selected for options are stored as an *input* to the deployment.
+When launching a deployment, the values selected for options are stored as an *input* to the deployment under the 'inputs' key. Inputs can be applied at multiple levels in the deployment hierarchy as follows:
 
-Inputs can be associated with one or more options using *constraints*. See app.yaml for examples of how inputs and options are used.
+- Global inputs (apply to everything):
 
-TODO: remove the word 'setting' from the code and use either option or input.
+  inputs:
+    domain: mydomain.com
+
+- Blueprint inputs (apply to a setting on the blueprint):
+
+  inputs:
+    blueprint:
+      domain: mydomain.com
+
+- Service inputs (apply to a particular service in the blueprint):
+
+  inputs:
+    services:
+      "backend":
+        use_encryption: true
+
+- Provider inputs (apply to a provider and any resourcers that provider provides):
+
+  inputs:
+    providers:
+      'legacy':
+        region: dallas
+
+- Resource type inputs. These can be applied under services or providers as follows:
+
+  inputs:
+    services:
+      "backend":
+        'database':
+          'memory': 512 Mb
+    providers:
+      'nova':
+        'compute':
+          'operating-system': Ubuntu 12.04 LTS
+
+
+Options can be associated with one or more options using *constraints*. Example:
+
+  blueprint:
+    options:
+      "my_setting":
+        default: 1
+        constrains: [{service: web, resource_type: compute, setting: foo}]
+
+The above setting would apply to (constrains) any setting called 'foo' under a 'compute' resource in the 'web' service of the blueprint. See app.yaml for more examples of how inputs and options are used.
+
+More precisely scoped options will override broader options. For example, a service or provider option will override a global option.
+
+TODO: fix terminology. 'setting', 'option' and/or 'input'. And update code, schema, and docsa accordingly
 
 
 ## Semantic: The API

@@ -26,6 +26,7 @@ class TestProviderBase(unittest.TestCase):
         self.assertRaises(CheckmateInvalidProvider, ProviderBase, data)
 
     def test_provider_catalog_override(self):
+        """Test that an injected catalog works"""
         data = yaml_to_dict("""
                   provides:
                   - widget: foo

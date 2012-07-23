@@ -3,6 +3,8 @@ import __builtin__
 import json
 import logging
 import mox
+from mox import IsA, In, And, Or, IgnoreArg, ContainsKeyValue, Func, \
+        StrContains
 import os
 import shutil
 import unittest2 as unittest
@@ -15,9 +17,9 @@ LOG = logging.getLogger(__name__)
 
 from checkmate.deployments import Deployment
 from checkmate.exceptions import CheckmateException
-from checkmate.providers.base import PROVIDER_CLASSES, ProviderBase
+from checkmate.providers.base import PROVIDER_CLASSES
 from checkmate.providers.opscode import local
-from checkmate.test import StubbedWorkflowBase
+from checkmate.test import StubbedWorkflowBase, ENV_VARS
 from checkmate.utils import yaml_to_dict
 
 
@@ -173,7 +175,34 @@ class TestChefLocal(unittest.TestCase):
 class TestWorkflowLogic(StubbedWorkflowBase):
     """ Test Basic Workflow code """
 
+    def test_provider_catalog_override(self):
+        """Test that an injected catalog gets applied"""
+        data = yaml_to_dict("""
+                  provides:
+                  - widget: foo
+                  - widget: bar
+                  vendor: test
+                  catalog:
+                    widget:
+                      small_widget:
+                        is: widget
+                        provides:
+                        - widget: foo
+                      big_widget:
+                        is: widget
+                        provides:
+                        - widget: bar
+            """)
+        base = local.Provider(data, key='base')
+        self.assertDictEqual(base.get_catalog(None), data['catalog'])
+
     def test_workflow_option_flow(self):
+        """Test that options get routed to data bag/overrides
+
+        - tests global, blueprint, service, and provider options
+        - tests that options get mapped to provider field name
+        - tests that options named like paths get expanded to dicts
+        """
         self.deployment = Deployment(yaml_to_dict("""
                 id: test
                 blueprint:
@@ -183,16 +212,12 @@ class TestWorkflowLogic(StubbedWorkflowBase):
                       component:
                         type: widget
                         interface: foo
-                    two:
-                      component:
-                        id: big_widget
                 environment:
                   name: environment
                   providers:
                     base:
                       provides:
                       - widget: foo
-                      - widget: bar
                       vendor: test
                       catalog:
                         widget:
@@ -200,40 +225,118 @@ class TestWorkflowLogic(StubbedWorkflowBase):
                             is: widget
                             provides:
                             - widget: foo
-                            options:
+                            options: &options
                               global_input:
+                                type: string
                               blueprint_input:
+                                type: string
                               service_input:
+                                type: string
                               provider_input:
+                                type: string
                               widget/configuration_file:
                                 type: string
-                                provider_field_name: conf_file
-                          big_widget:
-                            is: widget
-                            provides:
-                            - widget: bar
+                                provider_field_name: widget/conf_file
                 inputs:
+                  prefix: T
                   global_input: g
                   blueprint:
                     blueprint_input: b
-                    services:
-                      one:
+                  services:
+                    one:
+                      widget:
                         service_input: s1
-                    providers:
-                      base:
-                        widget:
-                          provider_input: p1
+                  providers:
+                    base:
+                      widget:
+                        provider_input: p1
             """))
-        PROVIDER_CLASSES['test.base'] = ProviderBase
+        PROVIDER_CLASSES['test.base'] = local.Provider
 
-        workflow = self._get_stubbed_out_workflow()
+        expected_calls = [{
+                # Create Chef Environment
+                'call': 'checkmate.providers.opscode.local.create_environment',
+                'args': [self.deployment['id']],
+                'kwargs': And(ContainsKeyValue('private_key', IgnoreArg()),
+                        ContainsKeyValue('secret_key', IgnoreArg()),
+                        ContainsKeyValue('public_key_ssh', IgnoreArg())),
+                'result': {
+                        'environment': '/var/tmp/%s/' %
+                                self.deployment['id'],
+                        'kitchen': '/var/tmp/%s/kitchen',
+                        'private_key_path': '/var/tmp/%s/private.pem' %
+                                self.deployment['id'],
+                        'public_key_path': '/var/tmp/%s/checkmate.pub' %
+                                self.deployment['id'],
+                        'public_key': ENV_VARS['CHECKMATE_CLIENT_PUBLIC_KEY']}
+            }, {
+                'call': 'checkmate.providers.opscode.local.manage_databag',
+                'args': [self.deployment['id'], self.deployment['id'],
+                        IgnoreArg(),
+                        {'small_widget':
+                                {
+                                'global_input': 'g',
+                                'provider_input': 'p1',
+                                'service_input': 's1',
+                                'blueprint_input': 'b',
+                                'widget': {
+                                        'conf_file': 'F'
+                                    },
+                            }
+                        }
+                        ],
+                'kwargs': And(ContainsKeyValue('secret_file',
+                        'certificates/chef.pem'), ContainsKeyValue('merge',
+                        True)),
+                'result': None
+            }, {
+                'call': 'checkmate.providers.opscode.local.cook',
+                'args': [None, self.deployment['id']],
+                'kwargs': And(In('password'), ContainsKeyValue('recipes',
+                        ['small_widget']),
+                        ContainsKeyValue('identity_file',
+                                '/var/tmp/%s/private.pem' %
+                                self.deployment['id'])),
+                'result': None
+            }, {
+                'call': 'checkmate.providers.opscode.local.cook',
+                'args': [None, self.deployment['id']],
+                'kwargs': And(In('password'), ContainsKeyValue('recipes',
+                        ['big_widget']),
+                        ContainsKeyValue('identity_file',
+                                '/var/tmp/%s/private.pem' %
+                                self.deployment['id'])),
+                'result': None
+            }]
 
+        workflow = self._get_stubbed_out_workflow(
+                expected_calls=expected_calls)
+        workflow.get_task(2).set_attribute(
+                **{'widget/configuration_file': 'F'})
         self.mox.ReplayAll()
-
         workflow.complete_all()
         self.assertTrue(workflow.is_completed())
-        self.assertEqual(len(workflow.get_tasks()), 3)
+        self.assertEqual(len(workflow.get_tasks()), 9)
+        self.assertDictEqual(self.outcome,
+                {
+                  'data_bags': {
+                    'test': {
+                      'webapp_small_widget_T': {
+                        'small_widget': {
+                          'global_input': 'g',
+                          'provider_input': 'p1',
+                          'widget': {
+                            'conf_file': 'F'
+                          },
+                          'service_input': 's1',
+                          'blueprint_input': 'b'
+                        }
+                      }
+                    }
+                  }
+                }
 
+            )
 
 if __name__ == '__main__':
     # Run tests. Handle our paramsters separately

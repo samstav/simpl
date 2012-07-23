@@ -7,6 +7,7 @@ import clouddb
 from SpiffWorkflow.operators import Attrib
 from SpiffWorkflow.specs import Celery
 
+from checkmate.common import schema
 from checkmate.deployments import Deployment, resource_postback
 from checkmate.exceptions import CheckmateException, CheckmateNoMapping, \
         CheckmateNoTokenError
@@ -85,15 +86,16 @@ class Provider(ProviderBase):
             password = '%s%s' % (random.choice(start_with),
                 ''.join(random.choice(start_with + string.digits + '@?#_')
                 for x in range(11)))
-            deployment.settings()['db_password'] = password
+        resource['database_password'] = password
 
         # Database name
-        db_name = deployment.get_setting('db_name',
+        db_name = deployment.get_setting('database_name',
                 resource_type=resource.get('type'), provider_key=self.key,
                 service_name=service_name)
         if not db_name:
             db_name = 'db1'
-            deployment.settings()['db_name'] = db_name
+        deployment.settings()['database_name'] = db_name
+        resource['database_name'] = db_name
 
         # User name
         username = deployment.get_setting('username',
@@ -101,7 +103,7 @@ class Provider(ProviderBase):
                 service_name=service_name)
         if not username:
             username = 'wp_user_%s' % db_name
-            deployment.settings()['db_username'] = username
+        resource['database_username'] = username
 
         create_instance_task = Celery(wfspec, 'Create Database Instance',
                'checkmate.providers.rackspace.database.create_instance',
@@ -121,7 +123,9 @@ class Provider(ProviderBase):
                properties={'estimated_duration': 80})
         create_db_user = Celery(wfspec, "Add DB User: %s" % username,
                'checkmate.providers.rackspace.database.add_user',
-               call_args=[context.get_queued_task_dict(),
+               call_args=[context.get_queued_task_dict(
+                                deployment=deployment['id'],
+                                resource=key),
                         Attrib('id'), [db_name],
                         username, password,
                         resource['region'],
@@ -262,12 +266,13 @@ def create_instance(context, instance_name, size, flavor, databases, region,
             "Databases = %s" % (instance_name, instance.id, size, flavor,
             databases))
 
-    results = dict(instance=dict(id=instance.id, name=instance.name,
-            status=instance.status, hostname=instance.hostname, region=region))
+    results = schema.translate_dict(dict(id=instance.id,
+            name=instance.name, status=instance.status,
+            host=instance.hostname, region=region))
 
     # Send data back to deployment
     resource_postback.delay(context['deployment'], context['resource'],
-            results)
+            dict(instance=results))
 
     # Add a uniqueness prefix to any results if requested
     if prefix:
@@ -301,7 +306,7 @@ def add_databases(context, instance_id, databases, region, api=None):
     instance = api.get_instance(instance_id)
     instance.create_databases(databases)
     LOG.info('Added database(s) %s to instance %s' % (dbnames, instance_id))
-    return dict(databases=dbnames)
+    return dict(database_names=dbnames)
 
 
 @task(default_retry_delay=10, max_retries=10)
@@ -325,7 +330,12 @@ def add_user(context, instance_id, databases, username, password, region,
         else:
             raise exc
 
-    return dict(db_username=username, db_password=password)
+    results = dict(username=username, password=password)
+    # Send data back to deployment
+    resource_postback.delay(context['deployment'], context['resource'],
+            dict(instance=results))
+
+    return results
 
 
 @task(default_retry_delay=10, max_retries=10)
