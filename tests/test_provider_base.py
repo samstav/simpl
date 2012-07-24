@@ -1,5 +1,7 @@
 #!/usr/bin/env python
+import logging
 import unittest2 as unittest
+
 
 # Init logging before we load the database, 3rd party, and 'noisy' modules
 from checkmate.utils import init_console_logging
@@ -7,6 +9,8 @@ init_console_logging()
 
 from checkmate.providers.base import ProviderBase, CheckmateInvalidProvider
 from checkmate.utils import yaml_to_dict
+
+LOG = logging.getLogger(__name__)
 
 
 class TestProviderBase(unittest.TestCase):
@@ -22,6 +26,7 @@ class TestProviderBase(unittest.TestCase):
         self.assertRaises(CheckmateInvalidProvider, ProviderBase, data)
 
     def test_provider_catalog_override(self):
+        """Test that an injected catalog works"""
         data = yaml_to_dict("""
                   provides:
                   - widget: foo

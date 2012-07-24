@@ -3,8 +3,7 @@ CHEF-LOCAL ARCHITECTURE
 
 Chef-local is a multi-tenant, push solution for Chef which does not require a chef server.
 
-Checkmate can use Chef as a configuration provider for configuring clients. It can use a Chef server if one is available. However, for simplicity and to address complete isolation between tenants, this design was developed that only uses
-chef-solo (i.e. no need to install and manage a chef server).
+Checkmate can use Chef as a configuration provider for configuring clients. It can use a Chef server if one is available. However, for simplicity and to address complete isolation between tenants, this design was developed that only uses chef-solo (i.e. no need to install and manage a chef server).
 
 Clients (systems managed by chef) will still get chef-client installed on them.
 
@@ -173,3 +172,14 @@ Operations (in environment folder)
     knife cook root@108.166.87.62 -i ../private.pem -c solo.rb
     # browse to http://108.166.87.62 to see your wordpress site
 
+
+OPTIONS, INPUTS & ATTRIBUTES
+============================
+
+See the Checkmate README file for a description of options and inputs.
+
+Chef attributes from cookbooks and recipes are exposed as options. The mapping between options and attributes is performed by the chef provider.
+
+Within chef, attributes are defined using a path syntax (ex. wordpress/db/user). When such an attribute is used in overrides or node attributes, it is expanded into a json hierarchy (ex. {"wordpress": {"db": {"user: ..."}}}).
+
+Use the 'rake metadata' command to generate the metadata.json file for each cookbook. Checkmate uses that file to expose cookbooks as components.
