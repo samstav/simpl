@@ -367,7 +367,8 @@ class Provider(ProviderBase):
 
         # Get component/role or recipe name
         kwargs = {}
-        LOG.debug("Determining component from dict: %s" % component)
+        LOG.debug("Determining component from dict: %s" % component.get('id'),
+                extra=component)
         if 'role' in component:
             name = '%s::%s' % (component['id'], component['role'])
         else:
