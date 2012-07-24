@@ -1,0 +1,8 @@
+graft checkmate/static
+graft examples
+include setup.py
+include README.md
+include checkmate/db/repository/migrate.cfg
+global-exclude *.pyc *.sdx *.log *.db *.swp
+
+
