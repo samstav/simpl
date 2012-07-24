@@ -8,7 +8,7 @@ init_console_logging()
 LOG = logging.getLogger(__name__)
 
 from SpiffWorkflow import Workflow
-from SpiffWorkflow.specs import WorkflowSpec, Simple
+from SpiffWorkflow.specs import WorkflowSpec, Simple, Merge, Join
 
 from checkmate.workflows import wait_for
 
@@ -121,6 +121,21 @@ class TestWorkflowTools(unittest.TestCase):
       10/0: Task of After 2,3,4 run 5 State: FUTURE Children: 1
         11/0: Task of B State: FUTURE Children: 0"""
         self.assertEqual(workflow.get_dump(), expected.strip())
+
+    def test_wait_for_merge_exists(self):
+        """Test that adding a wait_for task works"""
+        wf_spec = WorkflowSpec()
+        A = Simple(wf_spec, 'A')
+        B = Simple(wf_spec, 'B')
+        C = Simple(wf_spec, 'C')
+        M = Merge(wf_spec, 'M')
+        wf_spec.start.connect(M)
+        A.follow(M)
+        B.connect(M)
+
+        wait_for(wf_spec, A, [C])
+        self.assertListEqual(A.inputs, [M])
+
 
 if __name__ == '__main__':
     # Run tests. Handle our paramsters separately
