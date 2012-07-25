@@ -175,12 +175,6 @@ function AuthCtrl($scope, $location) {
     key: ''
   };
 
-  if ($location.host() == "localhost") {
-    $scope.auth.username = "rackcloudtech";
-    $scope.auth.key = "a1207b3b4eb8638d02cdb1c4f3f36644";
-  }
-
-
   var modal = $('#auth_modal');
   modal.modal({
     keyboard: false,
