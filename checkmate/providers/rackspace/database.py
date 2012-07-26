@@ -1,3 +1,4 @@
+import copy
 import logging
 import random
 import string
@@ -116,7 +117,6 @@ class Provider(ProviderBase):
                         [{'name': db_name}],
                         resource['region'],
                     ],
-               prefix=key,
                defines=dict(resource=key,
                             provider=self.key,
                             task_tags=['create']),
@@ -247,7 +247,7 @@ class Provider(ProviderBase):
 #
 @task(default_retry_delay=10, max_retries=2)
 def create_instance(context, instance_name, size, flavor, databases, region,
-        prefix=None, api=None):
+        api=None):
     """Creates a Cloud Database instance with optional initial databases.
 
     :param databases: an array of dictionaries with keys to set the database
@@ -263,24 +263,47 @@ def create_instance(context, instance_name, size, flavor, databases, region,
     instance = api.create_instance(instance_name, size, flavor,
                                           databases=databases)
     LOG.info("Created database instance %s (%s). Size %s, Flavor %s. "
-            "Databases = %s" % (instance_name, instance.id, size, flavor,
+            "Databases = %s" % (instance.name, instance.id, size, flavor,
             databases))
 
-    results = schema.translate_dict(dict(id=instance.id,
-            name=instance.name, status=instance.status,
-            host=instance.hostname, region=region))
+    # Return instance and its interfaces
+    results = {
+            'id': instance.id,  # here for compatiblity only. We should remove
+            #this once we figure out how to map attributes in Spiff workflow
+            #with depth (i.e. not just key, but subkeys)
+            'instance':  {
+                    'id': instance.id,
+                    'name': instance.name,
+                    'status': instance.status,
+                    'region': region,
+                    'interfaces': {
+                            'mysql': {
+                                    'host': instance.hostname,
+                                },
+                        },
+                    'databases': {}
+                },
+        }
+
+    # Return created databases and their interfaces
+    db_results = results['instance']['databases']
+    for database in databases:
+        data = copy.copy(database)
+        data['interfaces'] = {
+                'mysql': {
+                        'host': instance.hostname,
+                        'database_name': database['name'],
+                    },
+            }
+        db_results[database['name']] = data
+
+    canonicalized_results = schema.translate_dict(results)
 
     # Send data back to deployment
     resource_postback.delay(context['deployment'], context['resource'],
-            dict(instance=results))
+            canonicalized_results)
 
-    # Add a uniqueness prefix to any results if requested
-    if prefix:
-        # Add each value back in with the prefix
-        results.update({'%s.%s' % (prefix, key): value for key, value in
-                results.iteritems()})
-
-    return results
+    return canonicalized_results
 
 
 @task(default_retry_delay=10, max_retries=10)

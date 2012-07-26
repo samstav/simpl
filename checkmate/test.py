@@ -524,10 +524,32 @@ class StubbedWorkflowBase(unittest.TestCase):
                         'kwargs': IgnoreArg(),
                         'result': {
                                 'id': 'db-inst-1',
-                                'name': 'dbname.domain.local',
-                                'status': 'BUILD',
-                                'host': 'verylong.rackspaceclouddb.com',
-                                'region': 'testonia'}
+                                'instance':  {
+                                    'id': 'db-inst-1',
+                                    'name': 'dbname.domain.local',
+                                    'status': 'BUILD',
+                                    'region': 'testonia',
+                                    'interfaces': {
+                                        'mysql': {
+                                            'host': 'verylong.rackspaceclouddb'
+                                                    '.com',
+                                            },
+                                        },
+                                    'databases': {
+                                        'db1': {
+                                            'name': 'db1',
+                                            'interfaces': {
+                                                'mysql': {
+                                                    'host': 'verylong.'
+                                                            'rackspaceclouddb'
+                                                            '.com',
+                                                    'database_name': 'db1',
+                                                    },
+                                                }
+                                            }
+                                        }
+                                    },
+                            }
                     })
                 expected_calls.append({
                         # Create Database User
