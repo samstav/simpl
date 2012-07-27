@@ -562,8 +562,10 @@ class BrowserMiddleware(object):
         @get('/static/<path:path>')
         def wire(path):
             """Expose static files"""
-            return static_file(path,
-                    root=os.path.join(os.path.dirname(__file__), 'static'))
+            root = os.path.join(os.path.dirname(__file__), 'static')
+            if path.endswith('.css'):
+                return static_file(path, root=root, mimetype='text/css')
+            return static_file(path, root=root)
 
         @get('/')
         def root():
