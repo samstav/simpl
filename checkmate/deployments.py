@@ -258,9 +258,6 @@ def plan(deployment, context):
     # Load providers
     providers = environment.get_providers()
 
-    # Load interface/provider/resource_types map
-    available = environment.get_interface_map()
-
     #Identify component providers and get the resolved components
     components = deployment.get_components(context)
 
@@ -289,17 +286,6 @@ def plan(deployment, context):
                     requirements[interface].append(service_name)
                 else:
                     requirements[interface] = [service_name]
-
-    # Quick check that at least each interface is provided
-    for required_interface in requirements.keys():
-        if required_interface not in provided.values() and required_interface \
-                not in available:
-            msg = "Cannot satisfy requirement '%s' in deployment %s" % (
-                    required_interface, deployment['id'])
-            LOG.info(msg)
-            abort(406, msg)
-        # TODO: check that interfaces match between requirement and provider
-    LOG.debug("Requirements quick check did not identify missing resources")
 
     # Collect relations and verify service for relation exists
     LOG.debug("Analyzing relations")
@@ -366,14 +352,28 @@ def plan(deployment, context):
                     if value.get('relation', 'reference') == 'host':
                         LOG.debug("Host needed for %s" % component['id'])
                         host = key
+                        host_type = key if key != 'host' else None
                         host_interface = value['interface']
+                        host_provider = environment.select_provider(
+                                resource=host_type, interface=host_interface)
+                        found = host_provider.find_components(context,
+                                resource=host_type, interface=host_interface)
+                        if found:
+                            if len(found) == 1:
+                                host_component = found[0]
+                                host_type = host_component['is']
+                            else:
+                                raise CheckmateException("More than one "
+                                        "component offers '%s:%s' in provider "
+                                        "%s: %s" % (host_type, host_interface,
+                                        host_provider.key, ', '.join([c['id']
+                                        for c in found])))
+                        else:
+                            raise CheckmateException("No components found that "
+                                        "offer '%s:%s' in provider %s" % (
+                                        host_type, host_interface,
+                                        host_provider.key))
                         break
-            if host:
-                host_provider_key = available[host_interface].keys()[0]
-                host_provider = providers[host_provider_key]
-                host_type = available[host_interface].values()[0][0]
-                host_component = environment.find_component(dict(
-                        interface=host_interface), context)
 
             provider = component.provider()
             if not provider:

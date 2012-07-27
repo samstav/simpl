@@ -178,13 +178,17 @@ class Environment():
         self.dict = environment
         self.providers = None
 
-    def select_provider(self, resource=None):
+    def select_provider(self, resource=None, interface=None):
         providers = self.get_providers()
         for p in providers.values():
             for entry in p.provides():
-                if resource in entry:
+                if resource and resource in entry:
+                    if interface is None or interface == entry[resource]:
+                        return p
+                if not resource and interface in entry.values():
                     return p
-        LOG.debug("No '%s' providers found in: %s" % (resource, self.dict))
+        LOG.debug("No '%s:%s' providers found in: %s" % (resource, interface,
+                self.dict))
         return None
 
     def get_providers(self):

@@ -787,16 +787,49 @@ includes:
         # - used by tests that call this file (so they don't have to call the provider)
         # If not provided in this file, this is pulled in real time from the provider
         catalog:
-          database:
+          compute:
             mysql_instance:
               id: mysql_instance
+              is: compute
+              options:
+                disk:
+                  choice:
+                  - 1
+                  - 2
+                  - 3
+                  - 4
+                  - 5
+                  - 6
+                  - 7
+                  - 8
+                  - 9
+                  - 10
+                  type: int
+                  unit: Gb
+                memory:
+                  choice:
+                  - 512
+                  - 1024
+                  - 2048
+                  - 4096
+                  type: int
+                  unit: Mb
+              provides:
+              - compute: mysql
+          database:
+            mysql_database:
+              id: mysql_database
               is: database
               provides:
               - database: mysql
+              requires:
+              - compute:
+                  relation: host
+                  interface: mysql
           lists:
             regions:
-              DFW: https://dfw.databases.api.rackspacecloud.com/v1.0/${CHECKMATE_CLIENT_TENANT}
-              ORD: https://ord.databases.api.rackspacecloud.com/v1.0/${CHECKMATE_CLIENT_TENANT}
+              DFW: https://dfw.databases.api.rackspacecloud.com/v1.0/557366
+              ORD: https://ord.databases.api.rackspacecloud.com/v1.0/557366
             sizes:
               '1':
                 memory: 512

@@ -3,7 +3,9 @@ import logging
 from checkmate import utils
 from checkmate.common import schema
 from checkmate.components import Component
-from checkmate.exceptions import CheckmateValidationException
+from checkmate.exceptions import CheckmateException, CheckmateNoMapping,\
+        CheckmateValidationException
+from checkmate.workflows import wait_for
 
 LOG = logging.getLogger(__name__)
 PROVIDER_CLASSES = {}
@@ -51,6 +53,38 @@ class ProviderBaseWorkflowMixIn():
         """
         LOG.debug("%s.%s.add_resource_tasks called, but was not implemented" %
                 (self.vendor, self.name))
+
+    def _add_resource_tasks_helper(self, resource, key, wfspec, deployment,
+                context, wait_on):
+        """Common algoprithm for all providers. Gets service_name, finds
+        component, and adds any hosting wait tasks"""
+        if wait_on is None:
+            wait_on = []
+        # 1 - Wait on host to be ready
+        # Find final task(s) of 'host' relationship
+        tasks = self.get_hosting_relation_final_tasks(wfspec, key)
+        if not tasks:
+            # If no relation tasks, make sure host is ready
+            tasks = self.get_host_ready_tasks(resource, wfspec, deployment)
+        if tasks:
+            wait_on.extend(tasks)
+
+        # Get component
+        component_id = resource['component']
+        component = self.get_component(context, component_id)
+        if not component:
+            raise CheckmateNoMapping("Component '%s' not found" % component_id)
+
+        # Get service
+        service_name = None
+        for name, service in deployment['blueprint']['services'].iteritems():
+            if key in service.get('instances', []):
+                service_name = name
+                break
+        if not service_name:
+            raise CheckmateException("Service not found for resource %s" %
+                    key)
+        return wait_on, service_name, component
 
     def add_connection_tasks(self, resource, key, relation, relation_key,
             wfspec, deployment, context):
@@ -277,7 +311,8 @@ class ProviderBase(ProviderBasePlanningMixIn, ProviderBaseWorkflowMixIn):
               called resource_type in much of the code. Combine the two params.
         """
         component_id = kwargs.pop('id', None)
-        resource_type = kwargs.pop('resource_type', kwargs.pop('type', None))
+        resource_type = kwargs.pop('resource_type', kwargs.pop('type',
+                kwargs.pop('resource', None)))
         interface = kwargs.pop('interface', None)
         kwargs.pop('version', None)  # noise reduction
         if kwargs:

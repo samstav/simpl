@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 """File with testing primitives for use in tests and external providers"""
+import json
 import logging
 import os
 import unittest2 as unittest
@@ -8,8 +9,7 @@ import uuid
 from celery.app import default_app
 from celery.result import AsyncResult
 import mox
-from mox import IsA, In, And, Or, IgnoreArg, ContainsKeyValue, Func, \
-        StrContains
+from mox import IsA, In, And, IgnoreArg, ContainsKeyValue, Func, StrContains
 
 # Init logging before we load the database, 3rd party, and 'noisy' modules
 from checkmate.utils import init_console_logging
@@ -174,12 +174,41 @@ class StubbedWorkflowBase(unittest.TestCase):
             args = kwargs['args']
             context = args[0]
             self.deployment.on_resource_postback(context['resource'],
-                    dict(instance=schema.translate_dict({  # TODO: This is a copy of call results. Consolidate?
+                    {
                         'id': 'db-inst-1',
-                        'name': 'dbname.domain.local',
-                        'status': 'BUILD',
-                        'host': 'verylong.rackspaceclouddb.com',
-                        'region': 'testonia'})))
+                        'instance':  {
+                            'id': 'db-inst-1',
+                            'name': 'dbname.domain.local',
+                            'status': 'BUILD',
+                            'region': 'testonia',
+                            'interfaces': {
+                                'mysql': {
+                                    'host': 'verylong.rackspaceclouddb'
+                                            '.com',
+                                    },
+                                },
+                            'databases': {}
+                            },
+                    })
+        elif args[0] == 'checkmate.providers.rackspace.database.'\
+                'create_database':
+            args = kwargs['args']
+            context = args[0]
+            self.deployment.on_resource_postback(context['resource'],
+                    {
+                            'instance': {
+                                    'name': 'db1',
+                                    'host_instance': 'db-inst-1',
+                                    'host_region': self.deployment.get_setting(
+                                            'region', default='testonia'),
+                                    'interfaces': {
+                                            'mysql': {
+                                                    'host': 'verylong.rackspaceclouddb.com',
+                                                    'database_name': 'db1',
+                                                },
+                                        },
+                                },
+                        })
         elif args[0] == 'checkmate.providers.rackspace.database.add_user':
             args = kwargs['args']
             context = args[0]
@@ -211,6 +240,8 @@ class StubbedWorkflowBase(unittest.TestCase):
         context = RequestContext(auth_token="MOCK_TOKEN", username="MOCK_USER",
                 catalog=CATALOG)
         plan(self.deployment, context)
+        print json.dumps(self.deployment['resources'], indent=2)
+
         workflow = create_workflow(self.deployment, context)
 
         if not expected_calls:
@@ -338,7 +369,7 @@ class StubbedWorkflowBase(unittest.TestCase):
                 })
         # Add repetive calls (per resource)
         for key, resource in self.deployment.get('resources', {}).iteritems():
-            if resource.get('type') == 'compute':
+            if resource.get('type') == 'compute' and 'image' in resource:
                 if 'master' in resource['dns-name']:
                     id = 10000 + int(key)  # legacy format
                     role = 'master'
@@ -505,20 +536,16 @@ class StubbedWorkflowBase(unittest.TestCase):
                         'kwargs': None,
                         'result': None
                     })
-            elif resource.get('type') == 'database':
-                username = self.deployment.get_setting('username',
-                        resource_type=resource.get('type'),
-                        provider_key=resource.get('provider'),
-                        default='wp_user_db1')
+            elif resource.get('type') == 'compute' and 'disk' in resource:
                 expected_calls.append({
-                        # Create Database
+                        # Create Instance
                         'call': 'checkmate.providers.rackspace.database.'
                                 'create_instance',
                         'args': [Func(is_good_context),
                                 IsA(basestring),
                                 1,
                                 '1',
-                                [{'name': 'db1'}],
+                                None,
                                 self.deployment.get_setting('region',
                                         default='testonia')],
                         'kwargs': IgnoreArg(),
@@ -528,28 +555,49 @@ class StubbedWorkflowBase(unittest.TestCase):
                                     'id': 'db-inst-1',
                                     'name': 'dbname.domain.local',
                                     'status': 'BUILD',
-                                    'region': 'testonia',
+                                    'region': self.deployment.get_setting(
+                                            'region', default='testonia'),
                                     'interfaces': {
                                         'mysql': {
                                             'host': 'verylong.rackspaceclouddb'
                                                     '.com',
                                             },
                                         },
-                                    'databases': {
-                                        'db1': {
-                                            'name': 'db1',
-                                            'interfaces': {
-                                                'mysql': {
-                                                    'host': 'verylong.'
-                                                            'rackspaceclouddb'
-                                                            '.com',
-                                                    'database_name': 'db1',
-                                                    },
-                                                }
-                                            }
-                                        }
+                                    'databases': {}
                                     },
                             }
+                    })
+            elif resource.get('type') == 'database':
+                username = self.deployment.get_setting('username',
+                        resource_type=resource.get('type'),
+                        provider_key=resource.get('provider'),
+                        default='wp_user_db1')
+                expected_calls.append({
+                        # Create Database
+                        'call': 'checkmate.providers.rackspace.database.'
+                                'create_database',
+                        'args': [Func(is_good_context),
+                                'db1',
+                                self.deployment.get_setting('region',
+                                        default='testonia'),
+                                ],
+                        'kwargs': ContainsKeyValue('instance_id', 'db-inst-1'),
+                        'result': {
+                                'instance': {
+                                    'name': 'db1',
+                                    'host_instance': 'db-inst-1',
+                                    'host_region': self.deployment.get_setting(
+                                            'region', default='testonia'),
+                                    'interfaces': {
+                                        'mysql': {
+                                            'host': 'verylong.'
+                                                    'rackspaceclouddb'
+                                                    '.com',
+                                            'database_name': 'db1',
+                                            },
+                                        }
+                                    }
+                                },
                     })
                 expected_calls.append({
                         # Create Database User
