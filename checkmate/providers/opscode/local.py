@@ -795,6 +795,7 @@ class Provider(ProviderBase):
         component = {'is': 'application'}
         with file(metadata_json_path, 'r') as f:
             data = json.load(f)
+
         component['id'] = data['name']
         component['summary'] = data.get('description')
         component['version'] = data.get('version')
@@ -812,18 +813,15 @@ class Provider(ProviderBase):
                 requires = [dict(host='linux')]
                 component['requires'] = requires
 
-        # Tweaks we apply for each cookbook
-        mapping = {
-                'apache2': {
-                        'provides': [{'application': 'http'}],
-                    },
-                'wordpress': {
-                        'provides': [{'application': 'http'}],
-                    },
-            }
-        if component['id'] in mapping:
-            component.update(mapping[component['id']])
-        # Add hosting relationship
+        # Look for optional checkmate.json file
+        checkmate_json_file = os.path.join(os.path.dirname(metadata_json_path),
+                'checkmate.json')
+        if os.path.exists(checkmate_json_file):
+            with file(checkmate_json_file, 'r') as f:
+                checkmate_data = json.load(f)
+            merge_dictionary(component, checkmate_data)
+
+        # Add hosting relationship (we're assuming we always need it for chef)
         if 'requires' in component:
             found = False
             for entry in component['requires']:
