@@ -965,7 +965,8 @@ class Deployment(ExtensibleDict):
                 else:
                     data[key] = value
 
-            LOG.debug("Merging postback data %s into %s" % (data, resource))
+            LOG.debug("Merging postback data for resource %s: %s" % (
+                    resource_id, data), extra=dict(data=resource))
             merge_dictionary(resource, data)
 
 

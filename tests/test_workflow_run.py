@@ -321,13 +321,24 @@ class TestDBWorkflow(StubbedWorkflowBase):
                       vendor: rackspace
                       provides:
                       - database: mysql
+                      - compute: mysql
                       catalog:  # override so we don't need a token to connect
                         database:
                           mysql_instance:
                             id: mysql_instance
+                            is: compute
+                            provides:
+                            - compute: mysql
+                        compute:
+                          mysql_database:
+                            id: mysql_database
                             is: database
                             provides:
                             - database: mysql
+                            requires:
+                            - compute:
+                                relation: host
+                                interface: mysql
                         lists:
                           regions:
                             DFW: https://dfw.databases.api.rackspacecloud.com/v1.0/T1000

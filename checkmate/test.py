@@ -180,7 +180,8 @@ class StubbedWorkflowBase(unittest.TestCase):
                             'id': 'db-inst-1',
                             'name': 'dbname.domain.local',
                             'status': 'BUILD',
-                            'region': 'testonia',
+                            'region': self.deployment.get_setting(
+                                            'region', default='testonia'),
                             'interfaces': {
                                 'mysql': {
                                     'host': 'verylong.rackspaceclouddb'
