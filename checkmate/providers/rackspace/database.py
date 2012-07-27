@@ -113,6 +113,7 @@ class Provider(ProviderBase):
                             PathAttrib('instance/region'),
                         ],
                    instance_id=PathAttrib('instance/id'),
+                   merge_results=True,
                    defines=dict(resource=key,
                                 provider=self.key,
                                 task_tags=['create']),
@@ -127,6 +128,7 @@ class Provider(ProviderBase):
                             username, password,
                             PathAttrib('instance/host_region'),
                             ],
+                   merge_results=True,
                    defines=dict(resource=key,
                                 provider=self.key,
                                 task_tags=['final']),
@@ -459,10 +461,11 @@ def add_user(context, instance_id, databases, username, password, region,
         else:
             raise exc
 
-    results = dict(username=username, password=password)
+    results = dict(instance=results, interfaces=dict(mysql=dict(
+            username=username, password=password)))
     # Send data back to deployment
     resource_postback.delay(context['deployment'], context['resource'],
-            dict(instance=results))
+            results)
 
     return results
 

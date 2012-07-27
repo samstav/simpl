@@ -2,9 +2,6 @@
 import __builtin__
 import json
 import logging
-import mox
-from mox import IsA, In, And, Or, IgnoreArg, ContainsKeyValue, Func, \
-        StrContains
 import os
 import shutil
 import unittest2 as unittest
@@ -14,6 +11,10 @@ import uuid
 from checkmate.utils import init_console_logging
 init_console_logging()
 LOG = logging.getLogger(__name__)
+
+import mox
+from mox import IsA, In, And, Or, IgnoreArg, ContainsKeyValue, Func, \
+        StrContains
 
 from checkmate.deployments import Deployment
 from checkmate.exceptions import CheckmateException

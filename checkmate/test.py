@@ -213,10 +213,18 @@ class StubbedWorkflowBase(unittest.TestCase):
         elif args[0] == 'checkmate.providers.rackspace.database.add_user':
             args = kwargs['args']
             context = args[0]
-            self.deployment.on_resource_postback(context['resource'],
-                    dict(instance=schema.translate_dict({  # TODO: This is a copy of call results. Consolidate?
-                        'username': args[3],
-                        'password': args[4]})))
+            self.deployment.on_resource_postback(context['resource'], {
+                    'instance': {
+                            'username': args[3],
+                            'password': args[4],
+                            'interfaces': {
+                                    'mysql': {
+                                            'username': args[3],
+                                            'password': args[4],
+                                        }
+                                }
+                        }
+                })
         elif args[0] == 'checkmate.providers.opscode.local.manage_databag':
             args = kwargs['args']
             bag_name = args[1]
@@ -241,14 +249,14 @@ class StubbedWorkflowBase(unittest.TestCase):
         context = RequestContext(auth_token="MOCK_TOKEN", username="MOCK_USER",
                 catalog=CATALOG)
         plan(self.deployment, context)
-        print json.dumps(self.deployment['resources'], indent=2)
+        LOG.debug(json.dumps(self.deployment.get('resources', {}), indent=2))
 
         workflow = create_workflow(self.deployment, context)
 
         if not expected_calls:
             expected_calls = self._get_expected_calls()
 
-       #Mock out celery calls
+        #Mock out celery calls
         self.mock_tasks = {}
         self.mox.StubOutWithMock(default_app, 'send_task')
         self.mox.StubOutWithMock(default_app, 'AsyncResult')
@@ -582,7 +590,8 @@ class StubbedWorkflowBase(unittest.TestCase):
                                 self.deployment.get_setting('region',
                                         default='testonia'),
                                 ],
-                        'kwargs': ContainsKeyValue('instance_id', 'db-inst-1'),
+                        'kwargs': And(ContainsKeyValue('instance_id',
+                                'db-inst-1')),
                         'result': {
                                 'instance': {
                                     'name': 'db1',
@@ -612,7 +621,18 @@ class StubbedWorkflowBase(unittest.TestCase):
                                 self.deployment.get_setting('region',
                                         default='testonia')],
                         'kwargs': None,
-                        'result': {'username': username, 'password': 'DbPxWd'}
+                        'result': {
+                                'instance': {
+                                        'username': username,
+                                        'password': 'DbPxWd',
+                                        'interfaces': {
+                                                'mysql': {
+                                                        'username': username,
+                                                        'password': 'DbPxWd',
+                                                    }
+                                            }
+                                    }
+                            }
                     })
                 expected_calls.append({
                         'call': 'checkmate.providers.opscode.local.'

@@ -32,11 +32,7 @@ class TestWorkflowStubbing(StubbedWorkflowBase):
                   services: {}
                 environment:
                   name: environment
-                  providers:
-                    common:
-                      credentials:
-                      - password: secret
-                        username: tester
+                  providers: {}
                 """))
 
         workflow = self._get_stubbed_out_workflow()
@@ -135,7 +131,7 @@ class TestWorkflow(StubbedWorkflowBase):
         simulation = self.workflow.serialize(serializer)
         simulation['id'] = 'simulate'
         result = json.dumps(simulation, indent=2)
-        LOG.debug(result)
+        #LOG.debug(result)
 
         # Update simulator (since this test was successful)
         simulator_file_path = os.path.join(os.path.dirname(__file__),
@@ -165,11 +161,17 @@ class TestWorkflow(StubbedWorkflowBase):
                 if 'private_key_path' in value:
                     result = result.replace(value['private_key_path'],
                             '/var/tmp/DEP-ID-1000/key.pem')
+        # Save it to simulator.json
         try:
             with file(simulator_file_path, 'w') as f:
                 f.write(result)
         except:
             pass
+
+        LOG.debug("RESOURCES:")
+        LOG.debug(json.dumps(self.deployment['resources'], indent=2))
+        LOG.debug("\nOUTCOME:")
+        LOG.debug(json.dumps(self.outcome, indent=2))
 
 
 class TestWordpressWorkflow(StubbedWorkflowBase):
