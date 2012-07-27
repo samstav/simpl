@@ -20,9 +20,6 @@ class Provider(ProviderBase):
     name = 'load-balancer'
     vendor = 'rackspace'
 
-    def provides(self, resource_type=None, interface=None):
-        return [{'load-balancer': 'http'}]
-
     def generate_template(self, deployment, resource_type, service, context,
             name=None):
         template = ProviderBase.generate_template(self,

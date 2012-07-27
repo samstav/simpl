@@ -782,6 +782,7 @@ includes:
         vendor: 'rackspace'
         provides:
         - 'database': mysql
+        - 'compute': mysql
 
         #SAMPLE DATA: used for:
         # - easy viewing in this file

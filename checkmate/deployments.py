@@ -256,7 +256,7 @@ def plan(deployment, context):
     _verify_required_blueprint_options_supplied(deployment)
 
     # Load providers
-    providers = environment.get_providers()
+    providers = environment.get_providers(context)
 
     #Identify component providers and get the resolved components
     components = deployment.get_components(context)
@@ -354,7 +354,7 @@ def plan(deployment, context):
                         host = key
                         host_type = key if key != 'host' else None
                         host_interface = value['interface']
-                        host_provider = environment.select_provider(
+                        host_provider = environment.select_provider(context,
                                 resource=host_type, interface=host_interface)
                         found = host_provider.find_components(context,
                                 resource=host_type, interface=host_interface)

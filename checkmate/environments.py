@@ -110,10 +110,12 @@ def get_environment_provider(environment_id, provider_id, tenant_id=None):
     if not entity:
         abort(404, 'No environment with id %s' % environment_id)
 
-    providers = entity.get('providers', {})
-    provider = providers.get(provider_id, {})
+    environment = Environment(entity)
+    provider = environment.get_provider(provider_id)
+    if 'provides' not in provider._dict:
+        provider.provides(request.context)
 
-    return write_body(provider, request, response)
+    return write_body(provider._dict, request, response)
 
 
 @get('/environments/<environment_id>/providers/<provider_id>/catalog')
@@ -166,7 +168,7 @@ def get_providers(tenant_id=None):
     results = {}
     for key, provider in PROVIDER_CLASSES.iteritems():
         results[key] = dict(vendor=provider.vendor, name=provider.name,
-                provides=provider({}).provides())
+                provides=provider({}).provides(request.context))
     return write_body(results, request, response)
 
 
@@ -178,10 +180,11 @@ class Environment():
         self.dict = environment
         self.providers = None
 
-    def select_provider(self, resource=None, interface=None):
-        providers = self.get_providers()
+    def select_provider(self, context, resource=None, interface=None):
+        providers = self.get_providers(context)
         for p in providers.values():
-            for entry in p.provides():
+            for entry in p.provides(context, resource_type=resource,
+                    interface=interface):
                 if resource and resource in entry:
                     if interface is None or interface == entry[resource]:
                         return p
@@ -191,7 +194,7 @@ class Environment():
                 self.dict))
         return None
 
-    def get_providers(self):
+    def get_providers(self, context):
         """ Returns provider class instances for this environment """
         if not self.providers:
             providers = self.dict.get('providers', None)
@@ -211,7 +214,7 @@ class Environment():
                 results[key] = provider_class(provider, key=key)
                 LOG.debug("'%s' provides %s" % (key,
                         ', '.join('%s:%s' % e.items()[0] for e
-                                  in results[key].provides())))
+                                  in results[key].provides(context))))
 
             self.providers = results
         return self.providers
@@ -246,10 +249,10 @@ class Environment():
         """
         resource_type = blueprint_entry.get('type')
         interface = blueprint_entry.get('interface')
-        for provider in self.get_providers().values():
+        for provider in self.get_providers(context).values():
             matches = []
             if resource_type or interface:
-                if provider.provides(resource_type=resource_type,
+                if provider.provides(context, resource_type=resource_type,
                     interface=interface):  # we can narrow down search
                     # normalize 'type' to 'resource_type'
                     params = {}
@@ -267,41 +270,6 @@ class Environment():
                 else:
                     LOG.warning("Ambiguous component %s matches: %s" %
                             (blueprint_entry, matches))
-
-    def get_interface_map(self):
-        """Get interfaces available from environment and providers that
-        provide them
-
-        :returns: dict of {interface={provider_key=[resource list]}}
-        example:
-        {
-            'mysql': {
-                    'databases': ['database'],
-                    'chef-local': ['database'],
-                }
-            }
-        """
-        results = {}
-        for provider_key, provider in self.get_providers().iteritems():
-            for item in provider.provides():
-                resource_type, interface = item.items()[0]
-                assert resource_type in schema.RESOURCE_TYPES
-                if interface in results:
-                    interface_entry = results[interface]
-                    if provider_key in interface_entry:
-                        provider_entry = interface_entry[provider_key]
-                        if resource_type not in provider_entry:
-                            provider_entry.append(resource_type)
-                    else:
-                        provider_entry = [resource_type]
-                    interface_entry[provider_key] = provider_entry
-
-                    if len(interface_entry) > 1:
-                        LOG.warning("More than one provider for '%s': %s" % (
-                                interface, results[interface]))
-                else:
-                    results[interface] = {provider_key: [resource_type]}
-        return results
 
     def generate_key_pair(self, bits=2048):
         """Generates a private/public key pair.

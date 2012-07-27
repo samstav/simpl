@@ -24,9 +24,6 @@ class RackspaceComputeProviderBase(ProviderBase):
         ProviderBase.__init__(self, provider, key=key)
         self._kwargs = {}
 
-    def provides(self, resource_type=None, interface=None):
-        return [dict(compute='linux'), dict(compute='windows')]
-
     def prep_environment(self, wfspec, deployment, context):
         keys = set()
         for key, value in deployment.settings().get('keys', {}).iteritems():

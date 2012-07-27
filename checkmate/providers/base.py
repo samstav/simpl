@@ -232,7 +232,7 @@ class ProviderBase(ProviderBasePlanningMixIn, ProviderBaseWorkflowMixIn):
         if provider:
             has_valid_data = False
             for k in provider.keys():
-                if k in ['provides', 'catalog', 'vendor']:
+                if k in ['provides', 'catalog', 'vendor', 'endpoint']:
                     has_valid_data = True
                     break
             if not has_valid_data:
@@ -246,7 +246,7 @@ class ProviderBase(ProviderBasePlanningMixIn, ProviderBaseWorkflowMixIn):
             LOG.debug("Vendor value being overwridden for %s to %s" % (
                     self.key, provider['vendor']))
 
-    def provides(self, resource_type=None, interface=None):
+    def provides(self, context, resource_type=None, interface=None):
         """Returns a list of resources that this provider can provide or
         validates that a specific type of resource or interface is provided.
 
@@ -262,7 +262,21 @@ class ProviderBase(ProviderBasePlanningMixIn, ProviderBaseWorkflowMixIn):
             if provider.provides(resources_type='database'):
                 print "We have databases!"
         """
-        results = self._dict.get('provides', [])
+        results = []
+        if 'provides' in self._dict:
+            results = self._dict['provides']
+        else:
+            data = self.get_catalog(context)
+            for key, value in data.iteritems():
+                if key == 'lists':
+                    continue
+                for id, component in value.iteritems():
+                    if 'provides' in component:
+                        for entry in component['provides']:
+                            if entry not in results:
+                                results.append(entry)
+            self._dict['provides'] = results  # cache this
+
         filtered = []
         for entry in results:
             item_type, item_interface = entry.items()[0]

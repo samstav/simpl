@@ -39,9 +39,6 @@ class Provider(ProviderBase):
         ProviderBase.__init__(self, provider, key=key)
         self.prep_task = None
 
-    def provides(self, resource_type=None, interface=None):
-        return [dict(application='http'), dict(database='mysql')]
-
     def prep_environment(self, wfspec, deployment, context):
         if self.prep_task:
             return  # already prepped
@@ -901,9 +898,13 @@ class Provider(ProviderBase):
                 dependency = self.get_component(context, name)
                 if dependency:
                     if 'provides' in dependency:
-                        provides.extend(dependency['provides'])
+                        for entry in dependency['provides']:
+                            if entry not in provides:
+                                provides.append(entry)
                     if 'requires' in dependency:
-                        requires.extend(dependency['requires'])
+                        for entry in dependency['requires']:
+                            if entry not in requires:
+                                requires.append(entry)
                     if 'options' in dependency:
                         # Mark options as coming from another component
                         for key, option in dependency['options'].iteritems():
