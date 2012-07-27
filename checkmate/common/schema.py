@@ -202,6 +202,7 @@ def validate_input(key, value):
 # - full names (ex. database, not db). Except for id.
 
 ALIASES = {
+        'apache': ['apache2'],
         'authentication': ['auth'],
         'database': ['db'],
         'description': ['desc'],
@@ -214,20 +215,22 @@ ALIASES = {
         'instance': [],
         'key': [],
         'memory': ['mem'],
+        'mysql': [],
         'name': [],
         'nonce': [],
         'operating_system': ['os'],
         'path': [],
         'password': ['pass'],
+        'prefork': [],
         'private': ['priv'],
         'public': ['pub'],
         'region': [],
         'server': ['srv', 'srvr'],
+        'source': ['src'],
         'status': [],
         'username': [],
         'user': [],
-        'apache': [],
-        'prefork': [],
+        'wordpress': [],
         'worker': [],
     }
 

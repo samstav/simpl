@@ -1,4 +1,4 @@
-""" Utility CLasses """
+""" Utility Classes """
 import collections
 import json
 

@@ -156,7 +156,7 @@ includes:
         descriptiion: explanatioj of the option
         required: optional # optional or required
         source: component_id # this option comes from a dependenct/included component
-      'wordpress/checksum':
+      'checksum':
         calculated: false
         choice: []
         default: 7342627f4a3dca44886c5aca6834cc88671dbd3aa2760182d2fcb9a330807
@@ -165,7 +165,7 @@ includes:
         recipes: []
         required: optional
         type: string
-      'wordpress/db/database':
+      'db/database':
         maps-to: wordpress/database/password
         calculated: false
         choice: []
@@ -175,7 +175,7 @@ includes:
         recipes: []
         required: optional
         type: string
-      'wordpress/db/password':
+      'db/password':
         calculated: false
         choice: []
         default: randomly generated
@@ -184,7 +184,7 @@ includes:
         recipes: []
         required: optional
         type: string
-      'wordpress/db/user':
+      'db/user':
         calculated: false
         choice: []
         default: wordpressuser
@@ -193,7 +193,7 @@ includes:
         recipes: []
         required: optional
         type: string
-      'wordpress/dir':
+      'dir':
         calculated: false
         choice: []
         default: /var/www
@@ -202,7 +202,7 @@ includes:
         recipes: []
         required: optional
         type: string
-      'wordpress/keys/auth':
+      'keys/auth':
         calculated: false
         choice: []
         default: randomly generated
@@ -211,7 +211,7 @@ includes:
         recipes: []
         required: optional
         type: string
-      'wordpress/keys/logged_in':
+      'keys/logged_in':
         calculated: false
         choice: []
         default: randomly generated
@@ -220,7 +220,7 @@ includes:
         recipes: []
         required: optional
         type: string
-      'wordpress/keys/nonce':
+      'keys/nonce':
         calculated: false
         choice: []
         default: randomly generated
@@ -229,7 +229,7 @@ includes:
         recipes: []
         required: optional
         type: string
-      'wordpress/keys/secure_auth':
+      'keys/secure_auth':
         calculated: false
         choice: []
         default: randomly generated
@@ -238,7 +238,7 @@ includes:
         recipes: []
         required: false
         type: string
-      'wordpress/server_aliases':
+      'server_aliases':
         calculated: false
         choice: []
         default: FQDN
@@ -247,7 +247,7 @@ includes:
         recipes: []
         required: false
         type: string
-      'wordpress/version':
+      'version':
         calculated: false
         choice: []
         default: 3.0.4
@@ -256,7 +256,7 @@ includes:
         recipes: []
         required: false
         type: string
-      "wordpress/database/user":
+      "database/user":
         regex:
         type: string
         required: false
@@ -366,6 +366,7 @@ includes:
     #Services are similar to tiers. The names are arbitrary keys to be chosen by the blueprint author.
     # components: the type of component used in the service.
     # relations: connections to other services. The syntax can be short (service:interface) or long (name:{map})
+    # relations are a hint or predefinition of how to satisfy a requirement (ex. which service to satisfy it from)
     services:
       "lb":
         component:
@@ -396,7 +397,7 @@ includes:
           - 'wordpress/version': '3.0.4'  # fix blueprint to a predicatabl version
         relations:
           "master": 'http'
-          #NEW: Long format example. For when we need to identify more than service & interface
+          #Long format example. For when we need to identify more than service & interface
           "db": # Long syntax includes a name for the relation, since we need to manage the relationships later (drain, stop, start, check, etc...)
             interface: 'mysql'
             service: "backend"
@@ -429,7 +430,7 @@ includes:
         constrains:
         - service: web
           resource_type: application
-          setting: "wordpress/prefix"
+          setting: "prefix"
         - service: web
           resource_type: application
           setting: "user/name"
@@ -491,7 +492,7 @@ includes:
           setting: "apache2/path"
         - service: web
           resource_type: application
-          setting: "wordpress/path"
+          setting: "path"
       "register-dns":
         default: false
         type: boolean

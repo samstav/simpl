@@ -10,7 +10,7 @@ import logging
 import uuid
 
 try:
-    from SpiffWorkflow.specs import WorkflowSpec, Merge, Simple
+    from SpiffWorkflow.specs import WorkflowSpec, Merge, Simple, Join
 except ImportError:
     #TODO(zns): remove this when Spiff incorporates the code in it
     print "Get SpiffWorkflow with the Celery spec in it from here: "\
