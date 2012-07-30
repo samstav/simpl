@@ -240,6 +240,16 @@ class StubbedWorkflowBase(unittest.TestCase):
             else:
                 merge_dictionary(self.outcome['data_bags'][bag_name]
                         [item_name], contents)
+        elif args[0] == 'checkmate.providers.rackspace.loadbalancer.'\
+                'create_loadbalancer':
+            args = kwargs['args']
+            context = args[0]
+            self.deployment.on_resource_postback(context['resource'], {
+                    'instance': {
+                            'public_ip': "200.1.1.1",
+                            'id': 20001,
+                        }
+                })
 
     def _get_stubbed_out_workflow(self, expected_calls=None):
         """Returns a workflow of self.deployment with mocks attached to all

@@ -1,9 +1,11 @@
 import logging
 
 from SpiffWorkflow.operators import Attrib
-from SpiffWorkflow.specs import Celery, Transform
+from SpiffWorkflow.specs import Celery
 
 
+from checkmate.common import schema
+from checkmate.deployments import resource_postback
 from checkmate.exceptions import CheckmateException, CheckmateNoTokenError
 from checkmate.providers import ProviderBase
 from checkmate.workflows import wait_for
@@ -40,12 +42,14 @@ class Provider(ProviderBase):
         create_lb = Celery(wfspec, 'Create Loadbalancer',
                 'checkmate.providers.rackspace.loadbalancer.'
                         'create_loadbalancer',
-                call_args=[context.get_queued_task_dict(),
+                call_args=[context.get_queued_task_dict(
+                                deployment=deployment['id'],
+                                resource=key),
                         resource.get('dns-name'), 'PUBLIC', 'HTTP', 80,
                         resource['region']],
                 defines=dict(resource=key,
-                    provider=self.key,
-                    task_tags=['create', 'root', 'final']),
+                        provider=self.key,
+                        task_tags=['create', 'root', 'final']),
                 properties={'estimated_duration': 30})
 
         return dict(root=create_lb, final=create_lb)
@@ -56,6 +60,7 @@ class Provider(ProviderBase):
 
         if interface == 'http':
             # Get all tasks we need to precede the LB Add Node task
+            #raise Exception(relation)
             finals = self.find_tasks(wfspec, resource=relation['target'],
                     tag='final')
             create_lb = self.find_tasks(wfspec, resource=key,
@@ -225,6 +230,13 @@ def create_loadbalancer(context, name, type, protocol, port, region,
     set_monitor.delay(context, lb.id, monitor_type, region, monitor_path,
                       monitor_delay, monitor_timeout, monitor_attempts,
                       monitor_body, monitor_status)
+
+    results = {'instance': {'id': lb.id, 'public_ip': vip}}
+
+    canonicalized_results = schema.translate_dict(results)
+    # Send data back to deployment
+    resource_postback.delay(context['deployment'], context['resource'],
+            canonicalized_results)
 
     return {'id': lb.id, 'vip': vip, 'lbid': lb.id}
 
