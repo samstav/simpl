@@ -237,7 +237,7 @@ class TestWorkflowLogic(StubbedWorkflowBase):
                                 type: string
                               widget/configuration_file:
                                 type: string
-                                provider_field_name: widget/conf_file
+                                source_field_name: widget/conf_file
                 inputs:
                   prefix: T
                   global_input: g

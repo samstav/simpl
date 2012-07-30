@@ -145,7 +145,7 @@ includes:
     # relationship between them. It can be used  y checkmate to flow information
     # to these components in a generic fashion
     dependencies:
-    - *apache2
+    - *apache
     - *mysql-client
     - *lsyncd
     provides:
@@ -461,7 +461,7 @@ includes:
             -----BEGIN CERTIFICATE-----
             Encoded Certificate
             -----END CERTIFICATE-----
-        constrains: [{service: web, resource_type: application, setting: "apache2/ssl_certificate"}]
+        constrains: [{service: web, resource_type: application, setting: "apache/ssl_certificate"}]
       "ssl_private_key":
         label: SSL Certificate Private Key
         type: string #certificate-PEM
@@ -469,7 +469,7 @@ includes:
             -----BEGIN PRIVATE KEY-----
             Encoded key
             -----END PRIVATE KEY-----
-        constrains: [{service: web, resource_type: application, setting: "apache2/ssl_private_key"}]
+        constrains: [{service: web, resource_type: application, setting: "apache/ssl_private_key"}]
       "domain":
         type: string
         regex: '^(([a-zA-Z]|[a-zA-Z][a-zA-Z0-9\-]*[a-zA-Z0-9])\.)*([A-Za-z]|[A-Za-z][A-Za-z0-9\-]*[A-Za-z0-9])$'
@@ -479,7 +479,7 @@ includes:
         constrains:
         - service: web
           resource_type: application
-          setting: "apache2/domain_name"
+          setting: "apache/domain_name"
       "path":
         type: string
         default: /
@@ -489,7 +489,7 @@ includes:
         constrains:
         - service: web
           resource_type: application
-          setting: "apache2/path"
+          setting: "apache/path"
         - service: web
           resource_type: application
           setting: "path"

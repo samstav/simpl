@@ -33,6 +33,10 @@ class CheckmateNoMapping(CheckmateException):
     pass
 
 
+class CheckmateIndexError(CheckmateException):
+    pass
+
+
 class CheckmateCalledProcessError(CheckmateException):
     def __init__(self, returncode, cmd, output=None):
         self.returncode = returncode

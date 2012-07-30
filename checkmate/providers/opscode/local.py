@@ -21,7 +21,7 @@ from SpiffWorkflow.specs import Celery, Transform, Merge
 
 from checkmate.common import schema
 from checkmate.components import Component
-from checkmate.exceptions import CheckmateException, \
+from checkmate.exceptions import CheckmateException, CheckmateIndexError,\
         CheckmateCalledProcessError, CheckmateNoMapping
 from checkmate.providers import ProviderBase
 from checkmate.utils import get_source_body, merge_dictionary
@@ -206,12 +206,12 @@ class Provider(ProviderBase):
             if 'source' in option and option['source'] != component['id']:
                 # comes form somewhere else. Let the 'somewhere else' handle it
                 continue
-            option_maps.append((name, option.get('provider_field_name', name)))
+            option_maps.append((name, option.get('source_field_name', name)))
 
         # Set the options if they are available now (at planning time) and mark
         # ones we need to get at run-time
         planning_time_options = {}
-        run_time_options = []  # (name, provider_field_name) tuples
+        run_time_options = []  # (name, source_field_name) tuples
         for name, mapped_name in option_maps:
             value = deployment.get_setting(name, provider_key=self.key,
                     resource_type=resource['type'], service_name=service_name)
@@ -267,6 +267,9 @@ class Provider(ProviderBase):
                         current[part] = value
                     else:
                         results[key] = value
+                # Flatten duplicate component_id
+                if component_id in results:
+                    results.update(results.pop(component_id))
                 data[component_id] = results
 
             # And write chef options under this component's key
@@ -726,19 +729,25 @@ class Provider(ProviderBase):
         if '::' in id:
             id, role = id.split('::')[0:2]
 
-        cookbook = self._get_cookbook(id, site_cookbook=True)
-        if cookbook:
-            if role:
-                cookbook['role'] = role
-            Component.validate(cookbook)
-            return cookbook
+        try:
+            cookbook = self._get_cookbook(id, site_cookbook=True)
+            if cookbook:
+                if role:
+                    cookbook['role'] = role
+                Component.validate(cookbook)
+                return cookbook
+        except CheckmateIndexError:
+            pass
 
-        cookbook = self._get_cookbook(id, site_cookbook=False)
-        if cookbook:
-            if role:
-                cookbook['role'] = role
-            Component.validate(cookbook)
+        try:
+            cookbook = self._get_cookbook(id, site_cookbook=False)
+            if cookbook:
+                if role:
+                    cookbook['role'] = role
+                Component.validate(cookbook)
             return cookbook
+        except CheckmateIndexError:
+            pass
 
         chef_role = self._get_role(id, context)
         if chef_role:
@@ -752,6 +761,20 @@ class Provider(ProviderBase):
     def _get_cookbooks(self, site_cookbooks=False):
         """Get all cookbooks as Checkmate components"""
         results = {}
+        # Get cookbook names (with source if translated)
+        cookbooks = self._get_cookbook_names(site_cookbooks=site_cookbooks)
+        # Load individual cookbooks
+        for name, cookbook in cookbooks.iteritems():
+            data = self._get_cookbook(cookbooks.get('source_name', name),
+                    site_cookbook=site_cookbooks)
+            if data:
+                results[data['id']] = data
+        return results
+
+    def _get_cookbook_names(self, site_cookbooks=False):
+        """Get all cookbooks names (as dict with source_name if canonicalized)
+        """
+        results = {}
         repo_path = _get_repo_path()
         if site_cookbooks:
             path = os.path.join(repo_path, 'site-cookbooks')
@@ -764,22 +787,27 @@ class Provider(ProviderBase):
             break
 
         for name in names:
-            data = self._get_cookbook(name, site_cookbook=site_cookbooks)
-            if data:
-                results[data['id']] = data
+            canonical_name = schema.translate(name)
+            results[canonical_name] = dict(id=canonical_name)
+            if canonical_name != name:
+                results[canonical_name]['source_name'] = name
         return results
 
     def _get_cookbook(self, id, site_cookbook=False):
-        """Get a cookbook as a CheckMate component"""
+        """Get a cookbook as a Checkmate component"""
         assert id, 'Blank cookbook ID requested from _get_cookbook'
-        cookbook = {}
+        # Get cookbook names (with source if translated)
+        cookbooks = self._get_cookbook_names(site_cookbooks=site_cookbook)
+        if id not in cookbooks:
+            raise CheckmateIndexError("Cookbook '%s' not found" % id)
+        cookbook = cookbooks[id]
         repo_path = _get_repo_path()
         if site_cookbook:
-            meta_path = os.path.join(repo_path, 'site-cookbooks', id,
-                    'metadata.json')
+            meta_path = os.path.join(repo_path, 'site-cookbooks',
+                    cookbook.get('source_name', id), 'metadata.json')
         else:
-            meta_path = os.path.join(repo_path, 'cookbooks', id,
-                    'metadata.json')
+            meta_path = os.path.join(repo_path, 'cookbooks',
+                    cookbook.get('source_name', id), 'metadata.json')
         if os.path.exists(meta_path):
             cookbook = self._parse_cookbook_metadata(meta_path)
         return cookbook
@@ -793,7 +821,10 @@ class Provider(ProviderBase):
         with file(metadata_json_path, 'r') as f:
             data = json.load(f)
 
-        component['id'] = data['name']
+        canonical_name = schema.translate(data['name'])
+        component['id'] = canonical_name
+        if data['name'] != canonical_name:
+            component['source_name'] = data['name']
         component['summary'] = data.get('description')
         component['version'] = data.get('version')
         if 'attributes' in data:
@@ -802,7 +833,8 @@ class Provider(ProviderBase):
         if 'dependencies' in data:
             dependencies = []
             for key, value in data['dependencies'].iteritems():
-                dependencies.append(dict(id=key, version=value))
+                dependencies.append(dict(id=schema.translate(key),
+                        version=value))
             component['dependencies'] = dependencies
         if 'platforms' in data:
             #TODO: support multiple options
@@ -924,7 +956,7 @@ class Provider(ProviderBase):
     def translate_options(self, native_options, component_id):
         """Translate native provider options to canonical, checkmate options
 
-        :param native_options: dict coming from metada.json
+        :param native_options: dict coming from metadata.json
         :component_id: the cookbook id which should be removed from the
         translated name
         """
@@ -932,8 +964,11 @@ class Provider(ProviderBase):
         for key, option in native_options.iteritems():
             canonical = schema.translate(key)
             if canonical.startswith(component_id) and \
-                    canonical[len(component_id) + 1] in ['/', '_']:
-                canonical = canonical[len(component_id) + 2:]
+                    len(canonical) > len(component_id) and \
+                    canonical[len(component_id)] in ['/', '_']:
+                LOG.debug("Parse option '%s' into '%s'" % (key,
+                        canonical[len(component_id) + 2:]))
+                canonical = canonical[len(component_id) + 1:]
             translated = {}
             if 'display_name' in option:
                 translated['label'] = option['display_name']
@@ -947,11 +982,11 @@ class Provider(ProviderBase):
                 translated['type'] = option['type']
             if 'source' in option:
                 translated['source'] = option['source']
-            if 'provider_field_name' in option:
-                translated['provider_field_name'] = \
-                        option['provider_field_name']
+            if 'source_field_name' in option:
+                translated['source_field_name'] = \
+                        option['source_field_name']
             if canonical != key:
-                translated['provider_field_name'] = key
+                translated['source_field_name'] = key
             options[canonical] = translated
         return options
 
