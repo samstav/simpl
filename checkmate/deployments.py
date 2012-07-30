@@ -6,7 +6,7 @@ import sys
 import uuid
 
 # pylint: disable=E0611
-from bottle import get, post, put, request, response, abort
+from bottle import get, post, put, delete, request, response, abort
 from celery.app import app_or_default
 from celery.task import task
 from SpiffWorkflow.storage import DictionarySerializer
@@ -193,6 +193,53 @@ def get_deployment_status(id, tenant_id=None):
     results['resources'] = resources
 
     return write_body(results, request, response)
+
+@put('deployments/<depid>/scale/<service>/<amount:int>')
+@delete('deployments/<depid>/scale/<service>/<amount:int>')
+def scale_deployment(depid, service, amount):
+    """ Scale a checkmate deployment service
+        by the specified number of nodes
+        
+        :param id: checkmate deployment id
+        :param service: the service to scale
+        :param amount: the number of nodes to add
+    """
+    if any_id_problems(depid):
+        abort(406, any_id_problems(depid))
+    
+    deployment = db.get_deployment(depid)
+    
+    if not deployment:
+        abort(404, 'No deployment with id %s' % depid)
+    
+    if not amount or 0 > amount:
+        abort(406, "Invalid scale amount")
+    if not service:
+        abort(406, "Must specify a valid service entry to scale.")
+    
+    if "inputs" in deployment and "services" in deployment['inputs'] \
+    and service in deployment["inputs"]['services']:
+        # validate that we conform to the appropriate limits on number of nodes
+        if 'blueprint' in deployment and 'services' in deployment['blueprint'] and service in deployment['blueprint']['services']:
+            bpService = deployment['blueprint']['services'][service]
+            minInst = 0
+            maxInst = sys.maxint
+            if 'constraints' in bpService:
+                minInst = bpService['constraints'].get("min-instances", min)
+                maxInst = bpService['constraints'].get("max-instances", max)
+            if "DELETE" == request.method():
+                amount = -1 * amount
+            current = len(bpService.get("instances", []))
+            if not minInst <= current + amount <= maxInst:
+                abort(406, "Cannot scale service %s for deployment %s to less than %s or more than %s nodes" % (service, depid, minInst, maxInst))
+        else:
+            abort(400, "Service %s in deployment %s does not have a matching service definition in the specified blueprint" % (service, depid))
+        # FIXME: need to add the actual scaling logic here
+        ret = {"message": "This is a stub. Need to implement deployment modifcation and workflow planning.",
+               "deployment": deployment}
+        return write_body(ret, request, response)
+    else:
+        abort(406, 'No service %s defined for deployment %s' % (service, depid))
 
 
 def execute(id, timeout=180, tenant_id=None):

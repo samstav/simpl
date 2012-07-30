@@ -2,11 +2,15 @@
 import copy
 import unittest2 as unittest
 
-from checkmate.deployments import Deployment, plan
+from checkmate.deployments import Deployment, plan, scale_deployment
 from checkmate.exceptions import CheckmateValidationException
 from checkmate.providers.base import PROVIDER_CLASSES, ProviderBase
 from checkmate.server import RequestContext
 from checkmate.utils import yaml_to_dict
+from bottle import HTTPError
+import mox
+from checkmate.db.sql import Driver
+import checkmate.db
 
 
 class TestDeployments(unittest.TestCase):
@@ -85,7 +89,6 @@ class TestDeployments(unittest.TestCase):
         self.assertEqual(len(services['back']['instances']), 1)
         #import json
         #print json.dumps(parsed, indent=2)
-
 
 class TestComponentSearch(unittest.TestCase):
     """ Test code that finds components """
@@ -345,6 +348,67 @@ class TestDeploymentSettings(unittest.TestCase):
                         memory: 2 Gb
                         number-only-test: 512
             """))
+
+class TestScaleDeployment(unittest.TestCase):
+    """ Tests deployment scaling API methods """
+    
+    def __init__(self, methodName='runTest'):
+        self._mox = mox.Mox()
+        unittest.TestCase.__init__(self, methodName)
+    
+    def test_bad_dep_id(self):
+        """ Test that we get the expected exception with a bad deployment id """
+        self.assertRaises(HTTPError, scale_deployment, None, None, 0)
+        self.assertRaises(HTTPError, scale_deployment,"#1!_", None, 0)
+        self.assertRaisesRegexp(HTTPError, "404", scale_deployment,"DEP-113a-test", None, 0)
+    
+    def test_missing_service(self):
+        """ Test that a bad service throws up """
+        self._mox.StubOutWithMock(checkmate.deployments, "db")
+        checkmate.deployments.db.get_deployment("DEP-113a-test").AndReturn(Deployment({
+          'id' : "DEP-113a-test",
+          'status':'PLANNED',
+          'created':'2012-07-3019:54:34+0000',
+          'inputs':{
+              'services':{
+                  'testservice':{
+                    'widget':{
+                       'count':4
+                    }
+                  }
+              }
+          },
+          'blueprint':{
+             'services':{
+                'testservice':{
+                    'instances':[
+                       '0'
+                    ],
+                   'component':{
+                       'interface':'foo',
+                       'type':'widget',
+                       'id':'widget'
+                   }
+                }
+            }
+           }
+        }))
+        self._mox.ReplayAll()
+        
+        try:
+            scale_deployment("DEP-113a-test", "notaservice", 3)
+        except HTTPError as err:
+            self._mox.VerifyAll()
+            self.assertTrue(err.output, "Missing expected error output")
+            self.assertRegexpMatches(err.output, "No service notaservice defined for deployment DEP-113a-test")
+        
+    def test_invalid_scale(self):
+        """ Test that we get an exception if we try to scale more or less than allowed """
+        self.fail("Not implemented")
+    
+    def test_happy_path(self):
+        """ Test that we get a valid looking deployment back if everything looks good """
+        self.fail("Not implemented")
 
 if __name__ == '__main__':
     unittest.main()
