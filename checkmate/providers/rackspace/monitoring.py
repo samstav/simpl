@@ -1,12 +1,6 @@
-from celery import Celery
-celery = Celery()
-
-import celeryconfig
-celery.config_from_object(celeryconfig)
-
 import logging
 
-#from checkmate.providers import ProviderBase
+from checkmate.providers import ProviderBase
 
 
 LOG = logging.getLogger(__name__)
@@ -47,7 +41,7 @@ def initialize_monitoring(driver=None,ip=None,name=None,context=None,resource=No
 		entity = driver.create_entity(label=name,ip_addresses={'default':ip})
 	except Exception, exc:
 		LOG.debug("Failed to create entity for %s" % ip)
-		#initialize_monitoring.retry(exc=exc)
+		initialize_monitoring.retry(exc=exc)
 	LOG.debug("Successfully created entity %s for %s" % (name,ip))
 
 	

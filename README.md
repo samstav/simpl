@@ -472,6 +472,9 @@ Install SpiffWorkflow fork:
     python setup.py install
     cd ..
 
+Decide what broker you're going to use for Celery. If you choose to use Mongo, please refer to the installation and run-time instructions found on the [wiki](https://github.rackspace.com/checkmate/checkmate/wiki/Setup-for-MongoDB-Broker). If you choose to use RabbitMQ, use the following installation and run-time instructions.
+
+
 Install, configure, and start rabbitmq.
 
     $ sudo apt-get -y install rabbitmq-server python-dev python-setuptools
