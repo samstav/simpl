@@ -199,22 +199,27 @@ class Provider(ProviderBase):
         resource = deployment['resources'][key]
 
         # Get list of options
-        option_maps = []  # stores option names and provider's field name
+        option_maps = []  # keep option names, source field name, and default
         for name, option in component.get('options', {}).iteritems():
-            #if option.get('default'):
-            #    continue
             if 'source' in option and option['source'] != component['id']:
                 # comes form somewhere else. Let the 'somewhere else' handle it
                 continue
-            option_maps.append((name, option.get('source_field_name', name)))
+            option_maps.append((name, option.get('source_field_name', name),
+                    option.get('default')))
 
         # Set the options if they are available now (at planning time) and mark
         # ones we need to get at run-time
         planning_time_options = {}
         run_time_options = []  # (name, source_field_name) tuples
-        for name, mapped_name in option_maps:
+        for name, mapped_name, default in option_maps:
             value = deployment.get_setting(name, provider_key=self.key,
                     resource_type=resource['type'], service_name=service_name)
+            if not value and default and isinstance(default, basestring):
+                if default.startswith('=generate'):
+                    value = self.evaluate(default[1:])
+                else:
+                    # Let chef handle it
+                    continue
             if value:
                 planning_time_options[mapped_name] = value
             else:
@@ -299,7 +304,7 @@ class Provider(ProviderBase):
             contents_param = Attrib('chef_options')  # eval at run-time
         else:
             contents_param = planning_time_options  # no run-time eval needed
-            collect_data.follows(self.prep_task)  # no need to wait
+            collect_data.follow(self.prep_task)  # no need to wait
         if write_separately:
             if str(os.environ.get('CHECKMATE_CHEF_USE_DATA_BAGS', True)
                         ).lower() in ['true', '1', 'yes']:
@@ -549,12 +554,13 @@ class Provider(ProviderBase):
             #provider = self.key
 
         if pre_cook:
-            configure_task = Celery(wfspec, 'Configure lsyncd on %s' % server_id,
-               'checkmate.providers.opscode.local.cook',
+            configure_task = Celery(wfspec,
+                'Configure lsyncd on %s' % server_id,
+                'checkmate.providers.opscode.local.cook',
                 call_args=[Attrib('ip'), deployment['id']],
                 password=Attrib('password'),
                 identity_file=Attrib('private_key_path'),
-                description="Push and apply Chef recipes on the server",
+                description="Push and apply lsyncd Chef recipe on the server",
                 defines=dict(resource=key,
                             provider=self.key),
                 properties={'estimated_duration': 100},
@@ -629,7 +635,7 @@ class Provider(ProviderBase):
                                 fields=fields_with_path,
                                 task_tags=['final']))
             # When target is ready, compile data
-            compile_override.follow(target_final)
+            wait_for(wfspec, compile_override, [target_final])
             # Feed data into collection task
             tasks = [self.collect_data_tasks['root']]
             #tasks = self.find_tasks(wfspec, provider=resource['provider'],

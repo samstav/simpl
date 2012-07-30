@@ -1,11 +1,13 @@
 import logging
+import random
+import string
+import uuid
 
 from checkmate import utils
 from checkmate.common import schema
 from checkmate.components import Component
 from checkmate.exceptions import CheckmateException, CheckmateNoMapping,\
         CheckmateValidationException
-from checkmate.workflows import wait_for
 
 LOG = logging.getLogger(__name__)
 PROVIDER_CLASSES = {}
@@ -358,6 +360,23 @@ class ProviderBase(ProviderBasePlanningMixIn, ProviderBaseWorkflowMixIn):
                             (id, self.key, provides))
                     matches.append(Component(component, id=id, provider=self))
         return matches
+
+    def evaluate(self, function_string):
+        """Evaluate an option value.
+
+        Understands the following functions:
+        - generate('uuid')
+        """
+        if function_string.startswith('generate_uuid('):
+            return uuid.uuid4().hex
+        if function_string.startswith('generate_password('):
+            # Defaults to 8 chars, alphanumeric
+            start_with = string.ascii_uppercase + string.ascii_lowercase
+            password = '%s%s' % (random.choice(start_with),
+                ''.join(random.choice(start_with + string.digits)
+                for x in range(7)))
+            return password
+        raise CheckmateException("Unsupported function: %s" % function_string)
 
 
 def register_providers(providers):

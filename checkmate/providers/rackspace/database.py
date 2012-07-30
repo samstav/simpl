@@ -91,15 +91,13 @@ class Provider(ProviderBase):
             password = deployment.get_setting('password',
                     resource_type=resource.get('type'), provider_key=self.key,
                     service_name=service_name)
-            start_with = string.ascii_uppercase + string.ascii_lowercase
+            if password.startswith('=generate'):
+                password = self.evaluate(password[1:])
             if password:
+                start_with = string.ascii_uppercase + string.ascii_lowercase
                 if password[0] not in start_with:
                     raise CheckmateException("Database password must start with "
                             "one of '%s'" % start_with)
-            else:
-                password = '%s%s' % (random.choice(start_with),
-                    ''.join(random.choice(start_with + string.digits + '@?#_')
-                    for x in range(11)))
 
             create_database_task = Celery(wfspec, 'Create Database',
                    'checkmate.providers.rackspace.database.create_database',
@@ -230,6 +228,16 @@ class Provider(ProviderBase):
 
         self.validate_catalog(results)
         return results
+
+    def evaluate(self, function_string):
+        """Overrides base for generate_password"""
+        if function_string.startswith('generate_password('):
+            start_with = string.ascii_uppercase + string.ascii_lowercase
+            password = '%s%s' % (random.choice(start_with),
+                ''.join(random.choice(start_with + string.digits + '@?#_')
+                for x in range(11)))
+            return password
+        return ProviderBase.evaluate(self, function_string)
 
     @staticmethod
     def _connect(context, region=None):

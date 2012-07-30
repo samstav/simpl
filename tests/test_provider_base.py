@@ -1,12 +1,14 @@
 #!/usr/bin/env python
 import logging
-import unittest2 as unittest
+import uuid
 
+import unittest2 as unittest
 
 # Init logging before we load the database, 3rd party, and 'noisy' modules
 from checkmate.utils import init_console_logging
 init_console_logging()
 
+from checkmate.exceptions import CheckmateException
 from checkmate.providers.base import ProviderBase, CheckmateInvalidProvider
 from checkmate.utils import yaml_to_dict
 
@@ -112,6 +114,13 @@ class TestProviderBase(unittest.TestCase):
         self.assertEqual(len(found), 1)
         self.assertEqual(found[0]['id'], 'small_widget',)
 
+    def test_evaluate(self):
+        provider = ProviderBase({})
+        self.assertIsInstance(uuid.UUID(provider.evaluate("generate_uuid())")),
+                uuid.UUID)
+        self.assertEqual(len(provider.evaluate("generate_password()")), 8)
+        self.assertRaises(CheckmateException, provider.evaluate,
+                "unknown()")
 
 if __name__ == '__main__':
     # Run tests. Handle our paramsters separately
