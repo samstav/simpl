@@ -34,7 +34,8 @@
           <th></th>
           <th>Name</th>
           <th>Environment</th>
-          <th>Providers</th>
+          <th>Status</th>
+          <th>Created</th>
         </tr>
       </thead>
       <tbody>
@@ -52,9 +53,10 @@
           </td>
           <td ng-click="navigate(deployment.id)">{{deployment.blueprint.name}}</td>
           <td ng-click="navigate(deployment.id)">{{deployment.environment.name}}</td>
-          <td style="text-align: center;" ng-click="navigate(deployment.id)">xxx</td>
+          <td style="text-align: center; width:75px" ng-click="navigate(deployment.id)">{{deployment.status}}</td>
+          <td style="text-align: center; width:100px" ng-click="navigate(deployment.id)">{{deployment.created}}</td>
         </tr>
-      </tbody>      
+      </tbody>
     </table>
   </div>
 
