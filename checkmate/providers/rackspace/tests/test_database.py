@@ -10,8 +10,10 @@ LOG = logging.getLogger(__name__)
 from checkmate.providers.rackspace import database
 import mox
 
-from checkmate.common import schema
-from checkmate.deployments import resource_postback
+from checkmate.deployments import Deployment, resource_postback
+from checkmate.providers.base import PROVIDER_CLASSES
+from checkmate.test import StubbedWorkflowBase, TestProvider
+from checkmate.utils import yaml_to_dict
 
 
 class TestDatabase(unittest.TestCase):
@@ -46,8 +48,7 @@ class TestDatabase(unittest.TestCase):
                 databases=[{'name': 'db1'}]).AndReturn(instance)
 
         expected = {
-                'id': instance.id,
-                'instance':  {
+                'instance:1':  {
                     'id': instance.id,
                     'name': instance.name,
                     'status': instance.status,
@@ -70,11 +71,10 @@ class TestDatabase(unittest.TestCase):
                         }
                     },
             }
-        canonicalized_results = schema.translate_dict(expected)
 
         context = dict(deployment='DEP', resource='1')
-        resource_postback.delay(context['deployment'], context['resource'],
-                canonicalized_results).AndReturn(True)
+        resource_postback.delay(context['deployment'], expected).AndReturn(
+                True)
 
         self.mox.ReplayAll()
         results = database.create_instance(context, instance.name,  1,  '1',
@@ -82,6 +82,95 @@ class TestDatabase(unittest.TestCase):
 
         self.assertDictEqual(results, expected)
         self.mox.VerifyAll()
+
+
+class TestDBWorkflow(StubbedWorkflowBase):
+    """ Test MySQL and DBaaS Resource Creation Workflow """
+
+    def setUp(self):
+        StubbedWorkflowBase.setUp(self)
+        PROVIDER_CLASSES['test.base'] = TestProvider
+        self.deployment = Deployment(yaml_to_dict("""
+                id: 'DEP-ID-1000'
+                blueprint:
+                  name: test db
+                  services:
+                    db:
+                      component:
+                        id: mysql
+                        is: database
+                        type: database
+                        requires:
+                          "server":
+                            relation: host
+                            interface: 'linux'
+                environment:
+                  name: test
+                  providers:
+                    database:
+                      vendor: rackspace
+                      provides:
+                      - database: mysql
+                      - compute: mysql
+                      catalog:  # override so we don't need a token to connect
+                        database:
+                          mysql_instance:
+                            id: mysql_instance
+                            is: compute
+                            provides:
+                            - compute: mysql
+                        compute:
+                          mysql_database:
+                            id: mysql_database
+                            is: database
+                            provides:
+                            - database: mysql
+                            requires:
+                            - compute:
+                                relation: host
+                                interface: mysql
+                        lists:
+                          regions:
+                            DFW: https://dfw.databases.api.rackspacecloud.com/v1.0/T1000
+                            ORD: https://ord.databases.api.rackspacecloud.com/v1.0/T1000
+                          sizes:
+                            1:
+                              memory: 512
+                              name: m1.tiny
+                            2:
+                              memory: 1024
+                              name: m1.small
+                            3:
+                              memory: 2048
+                              name: m1.medium
+                            4:
+                              memory: 4096
+                              name: m1.large
+                    base:
+                      vendor: test
+                      provides:
+                      - compute: linux
+                      catalog:
+                        compute:
+                          linux_instance:
+                            id: linux_instance
+                            is: compute
+                            provides:
+                            - compute: linux
+                inputs:
+                  blueprint:
+                    region: DFW
+            """))
+        self.workflow = self._get_stubbed_out_workflow()
+
+    def test_workflow_completion(self):
+        """Verify workflow sequence and data flow"""
+
+        self.mox.ReplayAll()
+
+        self.workflow.complete_all()
+        self.assertTrue(self.workflow.is_completed(), "Workflow did not "
+                "complete")
 
 
 if __name__ == '__main__':
