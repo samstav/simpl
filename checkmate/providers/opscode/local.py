@@ -16,7 +16,7 @@ import os
 
 from Crypto.PublicKey import RSA  # pip install pycrypto
 from Crypto.Random import atfork
-from SpiffWorkflow.operators import Attrib
+from SpiffWorkflow.operators import Attrib, PathAttrib
 from SpiffWorkflow.specs import Celery, Transform, Merge
 
 from checkmate.common import schema
@@ -377,11 +377,16 @@ class Provider(ProviderBase):
         LOG.debug("Component determined to be %s" % kwargs)
 
         # Create the cook task
+        resource = deployment['resources'][key]
         configure_task = Celery(wfspec, 'Configure %s: %s' % (component['id'],
                 key),
                'checkmate.providers.opscode.local.cook',
-                call_args=[Attrib('ip'), deployment['id']],
-                password=Attrib('password'),
+                call_args=[
+                        PathAttrib('instance:%s/ip' %
+                                resource.get('hosted_on', key)),
+                        deployment['id']],
+                password=PathAttrib('instance:%s/password' %
+                        resource.get('hosted_on', key)),
                 identity_file=Attrib('private_key_path'),
                 description="Push and apply Chef recipes on the server",
                 defines=dict(resource=key,
@@ -396,7 +401,6 @@ class Provider(ProviderBase):
             dependencies.append(options_ready)
 
         # Wait for relations to complete
-        resource = deployment['resources'][key]
         for relation_key, relation in resource.get('relations', {}).iteritems():
             tasks = self.find_tasks(wfspec,
                     resource=key,
@@ -457,6 +461,13 @@ class Provider(ProviderBase):
             kwargs['recipes'] = [name]
 
         resource = deployment['resources'][key]
+
+        # Save server resource ID
+        if 'hosted_on' in resource:
+            server_id = resource['hosted_on']
+        else:
+            server_id = key
+
         pre_cook = None  # the task to wire the cook command to
         if role == 'master':
             # Init the array with existing resource IPs from deployment
@@ -508,7 +519,19 @@ class Provider(ProviderBase):
                 options = attribute['lsyncd']
                 if 'slaves' not in options:
                     options['slaves'] = []
-                options['slaves'].append(my_task.get_attribute('private_ip'))
+                field = my_task.task_spec.get_property('attribute_key',
+                        'private_ip')
+                parts = field.split('/')
+                current = my_task.attributes
+                for part in parts:
+                    if part not in current:
+                        current = None
+                        break
+                    current = current[part]
+                if current:
+                    options['slaves'].append(current)
+                else:
+                    LOG.debug("Slave IP '%s' not found" % field)
 
             build_bag = Transform(wfspec, "Get Slave IP from Server %s" % key,
                     transforms=[get_source_body(get_slave_ip_code)],
@@ -516,6 +539,7 @@ class Provider(ProviderBase):
                             "and place it in a structure ready for "
                             "storage in a databag",
                     defines=dict(provider=self.key,
+                            attribute_key='instance:%s/private_ip' % server_id,
                             task_tags='get_slave_ip'))
             # Connect it to host completion tasks (so we have the IP)
             host_tasks = self.get_host_ready_tasks(resource, wfspec,
@@ -546,19 +570,13 @@ class Provider(ProviderBase):
                             name="Write lsyncd Data Bag")
             pre_cook = host_task  # can go ahead pretty early
 
-        if 'hosted_on' in deployment['resources'][key]:
-            server_id = deployment['resources'][key]['hosted_on']
-            #provider = deployment['resources'][server_id]['provider']
-        else:
-            server_id = key
-            #provider = self.key
-
         if pre_cook:
             configure_task = Celery(wfspec,
                 'Configure lsyncd on %s' % server_id,
                 'checkmate.providers.opscode.local.cook',
-                call_args=[Attrib('ip'), deployment['id']],
-                password=Attrib('password'),
+                call_args=[PathAttrib('instance:%s/ip' % server_id),
+                        deployment['id']],
+                password=PathAttrib('instance:%s/password' % server_id),
                 identity_file=Attrib('private_key_path'),
                 description="Push and apply lsyncd Chef recipe on the server",
                 defines=dict(resource=key,
@@ -583,11 +601,16 @@ class Provider(ProviderBase):
             # Get the fields this interface defines
             fields = interface_schema.get('fields', {}).keys()
             if not fields:
+                LOG.debug("No fields defined for interface '%s', so nothing "
+                    "to do for connection '%s'" % (interface,
+                    relation_key))
                 return  # nothing to do
+
+            # Build full path to 'instance:id/interfaces/:interface/:field_name'
             fields_with_path = []
             for field in fields:
-                fields_with_path.append('instance/interfaces/%s/%s' % (
-                        interface, field))
+                fields_with_path.append('instance:%s/interfaces/%s/%s' % (
+                    relation['target'], interface, field))
 
             # Get the final task for the target
             target_final = self.find_tasks(wfspec, provider=target['provider'],
@@ -655,8 +678,11 @@ class Provider(ProviderBase):
             register_node_task = Celery(wfspec,
                     'Register Server %s' % relation['target'],
                     'checkmate.providers.opscode.local.register_node',
-                    call_args=[Attrib('ip'), deployment['id']],
-                    password=Attrib('password'),
+                    call_args=[
+                            PathAttrib('instance:%s/ip' % relation['target']),
+                            deployment['id']],
+                    password=PathAttrib('instance:%s/password' %
+                            relation['target']),
                     omnibus_version="0.10.10-1",
                     identity_file=Attrib('private_key_path'),
                     attributes={'deployment': {'id': deployment['id']}},
@@ -670,9 +696,12 @@ class Provider(ProviderBase):
             bootstrap_task = Celery(wfspec,
                     'Pre-Configure Server %s' % relation['target'],
                     'checkmate.providers.opscode.local.cook',
-                    call_args=[Attrib('ip'), deployment['id']],
+                    call_args=[
+                            PathAttrib('instance:%s/ip' % relation['target']),
+                            deployment['id']],
                     recipes=['build-essential'],
-                    password=Attrib('password'),
+                    password=PathAttrib('instance:%s/password' %
+                            relation['target']),
                     identity_file=Attrib('private_key_path'),
                     description="Install build-essentials on server",
                     defines=dict(resource=key,
