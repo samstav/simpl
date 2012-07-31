@@ -1,4 +1,4 @@
-'use strict'
+'use strict';
 
 /**
  *   environments
@@ -12,24 +12,24 @@ function EnvironmentListCtrl($scope, $location, $http) {
   });
 
   $scope.provider_count = function(environment) {
-    if (environment.providers == null) {
+    if (environment.providers === null) {
       return 0;
     } else {
-      return Object.keys(environment.providers).length
+      return Object.keys(environment.providers).length;
     }
-  }
+  };
 
   $scope.delete = function(environment) {
     environment.$delete();
-  }
+  };
 
   $scope.create = function() {
     $location.path('/environments/new');
-  }
+  };
 
   $scope.navigate = function(environmentId) {
     $location.path('/environments/' + environmentId);
-  }
+  };
 }
 EnvironmentListCtrl.$inject = ['$scope', '$location', '$http'];
 
@@ -54,11 +54,11 @@ function EnvironmentDetailCtrl($scope, $location, $http, $routeParams) {
     .success(function(data) {
       $scope.apiProviders = data;
 
-      _.each(data, function(provider) {   
+      _.each(data, function(provider) {
         _.each(provider.provides, function(provides) {
           var name = _.first(_.keys(provides));
-          if (name != null) {
-            if ($scope.providers[name] == null) {
+          if (name !== null) {
+            if ($scope.providers[name] === null) {
               $scope.providers[name] = {label:name, options: []};
               $scope.selectedProviders[name] = this.vendor + '.' + this.name;
             }
@@ -66,21 +66,21 @@ function EnvironmentDetailCtrl($scope, $location, $http, $routeParams) {
             var listElement = {
               label: this.name + ' (' + provides[name] + ')',
               value: this.vendor + '.' + this.name
-            }
+            };
             $scope.providers[name].options.push(listElement);
           }
         }, provider);
       });
     });
 
-  
+
 
   $scope.update = function(environment) {
     $scope.environment = angular.copy(environment);
 
-    //build the providers    
+    //build the providers
     var newProviders = {};
-    _.each($scope.selectedProviders, function(provider, key) {  
+    _.each($scope.selectedProviders, function(provider, key) {
       var n = provider.split('.')[1];   // TODO: This feels like an ugly hack.        
       newProviders[n] = $scope.apiProviders[provider];
     });
@@ -90,13 +90,13 @@ function EnvironmentDetailCtrl($scope, $location, $http, $routeParams) {
     cm.Resource.saveOrUpdate($http, 'environments', $scope.environment).success(function(data, status) {
       $location.path('/environments');
     });
-  }
+  };
 
   $scope.reset = function() {
     $scope.environment = Environment.get({
       environmentId: $routeParams.environmentId
     });
-  }
+  };
 }
 EnvironmentDetailCtrl.$inject = ['$scope', '$location', '$http', '$routeParams'];
 
@@ -112,20 +112,20 @@ function BlueprintListCtrl($scope, $location, $http) {
 
   $scope.serviceList = function(blueprint) {
     return blueprint.services ? Object.keys(blueprint.services).join(', ') : 0;
-  }
+  };
 
   $scope.detail = function(blueprintId) {
     $location.path('/blueprints/' + blueprintId);
-  }
+  };
 
   $scope.newDeployment = function(blueprintId) {
     $location.path('/deployments/new').search({
       blueprintId: blueprintId
     });
-  }
+  };
 
 }
-BlueprintListCtrl.$inject = ['$scope', '$location', '$http']
+BlueprintListCtrl.$inject = ['$scope', '$location', '$http'];
 
 /**
  *   blueprints
@@ -144,24 +144,24 @@ function BlueprintDetailCtrl($scope, $location, $http, $routeParams) {
     });
 
   $scope.update = function(blueprint) {
-    $scope.blueprint = angular.copy(JSON.parse(scope.stringify))
+    $scope.blueprint = angular.copy(JSON.parse(scope.stringify));
 
-    if ($scope.blueprint.id == null) {
+    if ($scope.blueprint.id === null) {
       $scope.blueprint.$save();
     } else {
       $scope.blueprint.$update();
     }
 
     $location.path('/blueprints');
-  }
+  };
 
   $scope.reset = function() {
     $scope.blueprint = Blueprint.get({
       blueprintId: $routeParams.blueprintId
     });
-  }
+  };
 }
-BlueprintDetailCtrl.$inject = ['$scope', '$location', '$http', '$routeParams']
+BlueprintDetailCtrl.$inject = ['$scope', '$location', '$http', '$routeParams'];
 
 /**
  *   Authentication
@@ -172,7 +172,8 @@ function AuthCtrl($scope, $location) {
 
   $scope.auth = {
     username: '',
-    key: ''
+    key: '',
+    password: ''
   };
 
   var modal = $('#auth_modal');
@@ -187,15 +188,16 @@ function AuthCtrl($scope, $location) {
 
   $scope.authenticated = function() {
     return cm.auth.isAuthenticated();
-  }
+  };
 
   $scope.signOut = function() {
     $scope.auth.username = '';
     $scope.auth.key = '';
+    $scope.auth.password = '';
     $scope.auth.catalog = null;
     $location('/');
     $('#auth_modal').modal('show');
-  }
+  };
 
   $scope.authenticate = function() {
     var location = "https://identity.api.rackspacecloud.com/v2.0/tokens";
@@ -203,14 +205,26 @@ function AuthCtrl($scope, $location) {
       location = "https://lon.identity.api.rackspacecloud.com/v2.0/tokens";
     }
 
-    var data = JSON.stringify({
-      "auth": {
-        "RAX-KSKEY:apiKeyCredentials": {
-          "username": $scope.auth.username,
-          "apiKey": $scope.auth.key
+    var data;
+    if ($scope.auth.key) {
+       data = JSON.stringify({
+        "auth": {
+          "RAX-KSKEY:apiKeyCredentials": {
+            "username": $scope.auth.username,
+            "apiKey": $scope.auth.key
+          }
         }
-      }
-    });
+      });
+     } else if ($scope.auth.password) {
+       data = JSON.stringify({
+          "auth": {
+            "passwordCredentials": {
+              "username": $scope.auth.username,
+              "password": $scope.auth.password
+            }
+          }
+        });
+     }
 
     return $.ajax({
       type: "POST",
@@ -220,7 +234,7 @@ function AuthCtrl($scope, $location) {
       },
       dataType: "json",
       url: "/authproxy",
-      data: data,
+      data: data
     }).always(function(json) {
       cm.auth.setServiceCatalog(json);
     }).success(function() {
@@ -229,9 +243,9 @@ function AuthCtrl($scope, $location) {
       $("#auth_error_text").html("Something bad happened");
       $("#auth_error").show();
     });
-  }
+  };
 }
-AuthCtrl.$inject = ['$scope', '$location']
+AuthCtrl.$inject = ['$scope', '$location'];
 
 /**
  *   Profile
@@ -255,15 +269,15 @@ function DeploymentListCtrl($scope, $location, $http) {
     cm.Resource.del($http, 'deployments', deployment).success(function(data, status) {
       $location.path('/deployments');
     });
-  }
+  };
 
   $scope.create = function() {
     $location.path('/deployments/new');
-  }
+  };
 
   $scope.navigate = function(deploymentId) {
     $location.path('/deployments/' + deploymentId);
-  }
+  };
 
 }
 DeploymentListCtrl.$inject = ['$scope', '$location', '$http'];
@@ -298,7 +312,6 @@ function DeploymentStatusCtrl($scope, $location, $http, $routeParams) {
     for(var i = 0; i < Math.floor(tasks.length/4); i++) {
       var div = $('<div class="row">');
       var row = tasks.slice(i*4, (i+1)*4);
-      
       _.each(row, function(task) {
 
         div.append(Mustache.render(template, task));
@@ -317,7 +330,7 @@ function DeploymentStatusCtrl($scope, $location, $http, $routeParams) {
         $(this).removeClass('hovering');
       }
     );
-  }
+  };
 
   $scope.showConnections = function(task_div) {
     jsPlumb.Defaults.Container = "task_container";
@@ -329,7 +342,7 @@ function DeploymentStatusCtrl($scope, $location, $http, $routeParams) {
     });
 
     jsPlumb.addEndpoint(selectedTask.id);
-    _.each(selectedTask.children, function(child) {    
+    _.each(selectedTask.children, function(child) {
       jsPlumb.addEndpoint(child.id);
 
       jsPlumb.connect({
@@ -337,7 +350,7 @@ function DeploymentStatusCtrl($scope, $location, $http, $routeParams) {
         target: child.id
       });
     });
-  }
+  };
 
   $scope.flattenTasks = function(accumulator, tree) {
     accumulator[tree.task_spec] = tree;
@@ -349,7 +362,7 @@ function DeploymentStatusCtrl($scope, $location, $http, $routeParams) {
     }
 
     return accumulator;
-  }
+  };
 
   $scope.jitTasks = function(tasks) {
     var jsonTasks = [];
@@ -360,10 +373,10 @@ function DeploymentStatusCtrl($scope, $location, $http, $routeParams) {
         var adj = {
           nodeTo: child.task_spec,
           nodeFrom: task.task_spec,
-          data: {}        
-        }
+          data: {}
+        };
         adjacencies.push(adj);
-      }); 
+      });
 
       var t = {
         id: task.id,
@@ -374,12 +387,12 @@ function DeploymentStatusCtrl($scope, $location, $http, $routeParams) {
           "$color": "#83548B",
           "$type": "circle"
         }
-      }
+      };
       jsonTasks.push(t);
     });
 
     return jsonTasks;
-  }
+  };
 
   /**
    *  FUTURE    =   1
@@ -398,34 +411,25 @@ function DeploymentStatusCtrl($scope, $location, $http, $routeParams) {
     switch(state) {
       case 1:
         return "icon-fast-forward";
-        break;
       case 2:
-        return "icon-thumbs-up"
-        break;
+        return "icon-thumbs-up";
       case 4:
         return "icon-hand-right";
-        break;
       case 8:
-        return "icon-pause"
-        break;
+        return "icon-pause";
       case 16:
         return "icon-plus";
-        break;
       case 32:
         return "icon-remove";
-        break;
       case 64:
         return "icon-ok";
-        break;
       case 128:
         return "icon-adjust";
-        break;
       default:
         console.log("Invalid state '" + state + "'.");
-        return "icon-question-sign"
-      break;
+        return "icon-question-sign";
     }
-  }
+  };
 
   /**
    *  See above.
