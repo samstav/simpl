@@ -411,9 +411,15 @@ includes:
         - service: web
           resource_type: application
           setting: "user/name"
+        - service: web
+          resource_type: application
+          setting: "apache/user/name"
+        - service: web
+          resource_type: application
+          setting: "lsyncd/user/name"
         - service: backend
           resource_type: database
-          setting: "database/database"  # would be nice if the cookbook called this database/name
+          setting: "database/name"  # would be nice if the cookbook called this database/name
         - service: backend
           resource_type: database
           setting: "database/username"
@@ -553,15 +559,6 @@ includes:
         uri: /T1000/providers/...?type=type  #preferred; relative URI (no CORS needed) looks better. Let checkmate.provider handle the code. Keep it simple for client.
         label: Instance OS
         description: The operating system of web servers.
-      "username":
-        type: string
-        regex: xxx
-        label: Admin
-        description: "The user name used to access all resources in this deployment"
-        #TBD: do we need to list what settings this applies to here?
-        #constraint:
-        #- copy:database/username  # hard-code the copying for now
-        #- copy:database/username
       "high_availability": &high_availability
         type: boolean
         label: High Availability
