@@ -1,4 +1,4 @@
-"""Custome Exceptions for CheckMate
+"""Custome Exceptions for Checkmate
 
 To be serialization-friendly, call the Exception __init__ with any extra
 attributes:

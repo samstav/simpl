@@ -1,5 +1,5 @@
 # Checkmate
-![CheckMate](https://github.rackspace.com/checkmate/checkmate/raw/master/checkmate/static/checkmate.png)
+![Checkmate](https://github.rackspace.com/checkmate/checkmate/raw/master/checkmate/static/checkmate.png)
 
 ## Overview
 Checkmate stores and controls your cloud configurations. Use it to deploy and manage complete application stacks.
@@ -549,7 +549,7 @@ In the third window, run these commands to simulate a client call:
 ### Authentication
 
 
-CheckMate supports multiple authentication protocols and endpoints simultaneously. If it is started with a web UI (using the --with-ui) option, it will also support basic auth for browser friendliness.
+Checkmate supports multiple authentication protocols and endpoints simultaneously. If it is started with a web UI (using the --with-ui) option, it will also support basic auth for browser friendliness.
 
 #### Authenticating through a Browser
 
@@ -642,5 +642,7 @@ distributing tasks and retrying those that fail.
 
 
 
+## Why the name checkmate?
 
+My intention for this product is be a deployment _verification_ and management service, and not just a deployment automation service. So it will be used to CHECK configurations and autoMATE, not only the deployment, but the repair of live deployments as well. It also conveniently abbreviates to 'cm' which could also stand for configuration management, aludes to this being a killer app, appeals to my inner strategist, it has a 'k' sound in it which I am told by branding experts makes it sticky, and, above all, it sounds cool.
 

@@ -1,7 +1,7 @@
 """ Workflow handling
 
 This module uses SpiffWorkflow to create, manage, and run workflows for
-CheckMate
+Checkmate
 """
 # pylint: disable=E0611
 from bottle import get, post, put, request, response, abort
@@ -370,7 +370,7 @@ def get_SpiffWorkflow_status(workflow):
 
 
 def create_workflow(deployment, context):
-    """Creates a SpiffWorkflow from a CheckMate deployment dict
+    """Creates a SpiffWorkflow from a Checkmate deployment dict
 
     :returns: SpiffWorkflow.Workflow"""
     LOG.info("Creating workflow for deployment '%s'" % deployment['id'])

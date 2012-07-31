@@ -1,9 +1,9 @@
-# **CheckMate** is a configuration management REST service written in python.
+# **Checkmate** is a configuration management REST service written in python.
 # The source can be found [here](http://github.com/ziadsawalha/checkmate)
 #
 # This sample configuration file can be used to deploy a wordpress application
 # to the cloud. It also currently serves as the main reference for the
-# CheckMate configuration syntax.
+# Checkmate configuration syntax.
 #
 # ${VARIABLE} can be replaced by with your local variables
 # before posting it to checkmate like this:
@@ -180,7 +180,7 @@ environment: &rackspace-nova-test
 
 # Actual deployment instances. These are our live, running systems
 deployment:                                                                     #IMPLEMENTED - checkmate looks for this
-  name: My WordPress by CheckMate
+  name: My WordPress by Checkmate
   prefix: CM-WP-
   blueprint: *wp-multi
   environment: *rackspace-nova-test

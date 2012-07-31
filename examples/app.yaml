@@ -1,9 +1,9 @@
-# **CheckMate** is a configuration management REST service written in python.
+# **Checkmate** is a configuration management REST service written in python.
 # The source can be found [here](http://github.com/ziadsawalha/checkmate)
 #
 # This sample configuration file can be used to deploy a wordpress application
 # to the cloud. It also currently serves as the main reference for the
-# CheckMate configuration syntax and schema.
+# Checkmate configuration syntax and schema.
 #
 # Notes about this file:
 #
@@ -870,7 +870,7 @@ includes:
 # - we don't set them in the blueprint or environment so we can reference those (read only)
 # - we don't use paths for options (use a hierachy) so we don't have to parse the key values
 # - therefore, we provide options selected under 'inputs' as a hierarchy that mirrors the blueprint or environment
-name: My WordPress by CheckMate
+name: My WordPress by Checkmate
 blueprint: *wp-multi
 environment: *rackspace-legacy-cloud-test
 inputs: # Answers to or values for blueprint/provider options & settings.

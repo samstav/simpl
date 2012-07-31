@@ -361,7 +361,7 @@ class PAMAuthMiddleware(object):
         def callback(status, headers, exc_info=None):
             # Add our headers to response
             headers.append(('WWW-Authenticate',
-                    'Basic realm="CheckMate PAM Module"'))
+                    'Basic realm="Checkmate PAM Module"'))
             # Call upstream start_response
             start_response(status, headers, exc_info)
         return callback

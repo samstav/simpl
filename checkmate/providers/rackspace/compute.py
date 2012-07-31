@@ -306,7 +306,7 @@ def create_server(deployment, name, region, api_object=None, flavor="1",
     :param files: a list of files to inject
     :type files: dict
     :param prefix: a string to prepend to any results. Used by Spiff and
-            CheckMate
+            Checkmate
     :Example:
 
     {
@@ -360,7 +360,7 @@ def wait_on_build(deployment, id, ip_address_type='public',
     :param ip_adress_type: the type of IP addresss to return as 'ip' in the
         response
     :param prefix: a string to prepend to any results. Used by Spiff and
-            CheckMate
+            Checkmate
     :returns: False when build not ready. Dict with ip addresses when done.
     """
     if api_object is None:

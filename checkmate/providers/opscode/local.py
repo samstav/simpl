@@ -922,7 +922,7 @@ class Provider(ProviderBase):
         return results
 
     def _get_role(self, id, context):
-        """Get a role as a CheckMate component"""
+        """Get a role as a Checkmate component"""
         assert id, 'Blank role ID requested from _get_role'
         role = {}
         repo_path = _get_repo_path()
@@ -1568,7 +1568,7 @@ def manage_role(name, environment, path=None, desc=None,
     the_ruby = os.path.join(kitchen_path, 'roles', '%s.rb' % name)
     if os.path.exists(the_ruby):
         raise CheckmateException("Encountered a chef role in Ruby. Only JSON "
-                "roles can be manipulated by CheckMate: %s" % the_ruby)
+                "roles can be manipulated by Checkmate: %s" % the_ruby)
 
     role_path = os.path.join(kitchen_path, 'roles', '%s.json' % name)
 
