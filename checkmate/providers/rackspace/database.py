@@ -99,15 +99,18 @@ class Provider(ProviderBase):
                     raise CheckmateException("Database password must start with "
                             "one of '%s'" % start_with)
 
+            # Create resource tasks
             create_database_task = Celery(wfspec, 'Create Database',
                    'checkmate.providers.rackspace.database.create_database',
                    call_args=[context.get_queued_task_dict(
                                     deployment=deployment['id'],
                                     resource=key),
                             db_name,
-                            PathAttrib('instance/region'),
+                            PathAttrib('instance:%s/region' %
+                                    resource['hosted_on']),
                         ],
-                   instance_id=PathAttrib('instance/id'),
+                   instance_id=PathAttrib('instance:%s/id' %
+                            resource['hosted_on']),
                    merge_results=True,
                    defines=dict(resource=key,
                                 provider=self.key,
@@ -118,10 +121,10 @@ class Provider(ProviderBase):
                    call_args=[context.get_queued_task_dict(
                                     deployment=deployment['id'],
                                     resource=key),
-                            PathAttrib('instance/host_instance'),
+                            PathAttrib('instance:%s/host_instance' % key),
                             [db_name],
                             username, password,
-                            PathAttrib('instance/host_region'),
+                            PathAttrib('instance:%s/host_region' % key),
                             ],
                    merge_results=True,
                    defines=dict(resource=key,
@@ -310,10 +313,7 @@ def create_instance(context, instance_name, size, flavor, databases, region,
 
     # Return instance and its interfaces
     results = {
-            'id': instance.id,  # here for compatiblity only. We should remove
-            #this once we figure out how to map attributes in Spiff workflow
-            #with depth (i.e. not just key, but subkeys)
-            'instance':  {
+            'instance:%s' % context['resource']:  {
                     'id': instance.id,
                     'name': instance.name,
                     'status': instance.status,
@@ -328,7 +328,7 @@ def create_instance(context, instance_name, size, flavor, databases, region,
         }
 
     # Return created databases and their interfaces
-    db_results = results['instance']['databases']
+    db_results = results['instance:%s' % context['resource']]['databases']
     for database in databases:
         data = copy.copy(database)
         data['interfaces'] = {
@@ -339,13 +339,10 @@ def create_instance(context, instance_name, size, flavor, databases, region,
             }
         db_results[database['name']] = data
 
-    canonicalized_results = schema.translate_dict(results)
-
     # Send data back to deployment
-    resource_postback.delay(context['deployment'], context['resource'],
-            canonicalized_results)
+    resource_postback.delay(context['deployment'], results)
 
-    return canonicalized_results
+    return results
 
 
 @task(default_retry_delay=10, max_retries=10)
@@ -388,18 +385,19 @@ def create_database(context, name, region, character_set=None, collate=None,
 
         instance = create_instance(context, instance_name, size, flavor,
             databases, region, api=api)
+        instance_key = 'instance:%s' % context['resource']
         results = {
-                'instance': instance['instance']['databases'][name]
+                instance_key: instance['instance']['databases'][name]
             }
-        results['instance']['host_instance'] = instance['id']
-        results['instance']['host_region'] = instance['region']
+        results[instance_key]['host_instance'] = instance['id']
+        results[instance_key]['host_region'] = instance['region']
         return results
 
     instance = api.get_instance(instance_id)
 
     instance.create_databases(databases)
     results = {
-            'instance': {
+            instance_key: {
                     'name': name,
                     'host_instance': instance_id,
                     'host_region': region,
@@ -414,8 +412,7 @@ def create_database(context, name, region, character_set=None, collate=None,
     LOG.info('Created database(s) %s on instance %s' % ([db['name'] for db in
             databases], instance_id))
     # Send data back to deployment
-    resource_postback.delay(context['deployment'], context['resource'],
-            results)
+    resource_postback.delay(context['deployment'], results)
     return results
 
 
@@ -469,8 +466,7 @@ def add_user(context, instance_id, databases, username, password, region,
     results = dict(instance=results, interfaces=dict(mysql=dict(
             username=username, password=password)))
     # Send data back to deployment
-    resource_postback.delay(context['deployment'], context['resource'],
-            results)
+    resource_postback.delay(context['deployment'], results)
 
     return results
 
