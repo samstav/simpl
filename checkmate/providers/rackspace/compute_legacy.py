@@ -253,14 +253,14 @@ def create_server(context, name, api_object=None, flavor=2, files=None,
                   image, flavor, name, files))
 
     # Check image and flavor IDs (better descriptions if we error here)
-    image_object = api_object.images.find(id=image)
+    image_object = api_object.images.find(id=int(image))
     LOG.debug("Image id %s found. Name=%s" % (image, image_object.name))
-    flavor_object = api_object.flavors.find(id=flavor)
+    flavor_object = api_object.flavors.find(id=int(flavor))
     LOG.debug("Flavor id %s found. Name=%s" % (flavor, flavor_object.name))
 
     try:
-        server = api_object.servers.create(image=image, flavor=flavor,
-                                           name=name, files=files)
+        server = api_object.servers.create(image=int(image),
+                flavor=int(flavor), name=name, files=files)
         create_server.update_state(state="PROGRESS",
                                    meta={"server.id": server.id})
         LOG.debug(

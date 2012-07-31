@@ -1424,11 +1424,14 @@ def register_node(host, environment, path=None, password=None,
         lock = threading.Lock()
         lock.acquire()
         try:
-            with file(node_path, 'r+') as f:
+            node = {'run_list': []}  # default
+            with file(node_path, 'r') as f:
                 node = json.load(f)
-                node.update(attributes)
+            node.update(attributes)
+            with file(node_path, 'w') as f:
                 json.dump(node, f)
-            LOG.info("Node attributes written in %s" % node_path)
+            LOG.info("Node attributes written in %s" % node_path, extra=dict(
+                    data=node))
         except StandardError, exc:
             raise exc
         finally:

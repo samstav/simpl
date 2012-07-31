@@ -100,7 +100,8 @@ RESOURCE_SCHEMA = ['id', 'index', 'name', 'provider', 'relations', 'hosted_on',
         'image', 'disk', 'region']
 
 DEPLOYMENT_SCHEMA = ['id', 'name', 'blueprint', 'environment', 'inputs',
-        'includes', 'resources', 'settings', 'workflow', 'status', 'created']
+        'includes', 'resources', 'settings', 'workflow', 'status', 'created',
+        'tenantId']
 
 COMPONENT_SCHEMA = ['id', 'options', 'requires', 'provides', 'summary',
         'dependencies', 'version', 'is', 'role', 'source_name']
@@ -217,6 +218,7 @@ ALIASES = {
         'certificate': ['cert'],
         'host': ['hostname'],
         'id': [],
+        'ip': [],
         'instance': [],
         'key': [],
         'memory': ['mem'],
@@ -275,7 +277,7 @@ def translate(name):
             words[index] = translate(word) or ''
         return '_'.join(words)
 
-    LOG.info("Unrecognized name: %s" % name)
+    LOG.debug("Unrecognized name: %s" % name)
     return name
 
 

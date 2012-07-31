@@ -339,16 +339,17 @@ def create_instance(context, instance_name, size, flavor, databases, region,
         }
 
     # Return created databases and their interfaces
-    db_results = results['instance:%s' % context['resource']]['databases']
-    for database in databases:
-        data = copy.copy(database)
-        data['interfaces'] = {
-                'mysql': {
-                        'host': instance.hostname,
-                        'database_name': database['name'],
-                    },
-            }
-        db_results[database['name']] = data
+    if databases:
+        db_results = results['instance:%s' % context['resource']]['databases']
+        for database in databases:
+            data = copy.copy(database)
+            data['interfaces'] = {
+                    'mysql': {
+                            'host': instance.hostname,
+                            'database_name': database['name'],
+                        },
+                }
+            db_results[database['name']] = data
 
     # Send data back to deployment
     resource_postback.delay(context['deployment'], results)
@@ -384,6 +385,7 @@ def create_database(context, name, region, character_set=None, collate=None,
     if not api:
         api = Provider._connect(context, region)
 
+    instance_key = 'instance:%s' % context['resource']
     if not instance_id:
         # Create instance & database
         instance_name = '%s_instance' % name
@@ -396,7 +398,6 @@ def create_database(context, name, region, character_set=None, collate=None,
 
         instance = create_instance(context, instance_name, size, flavor,
             databases, region, api=api)
-        instance_key = 'instance:%s' % context['resource']
         results = {
                 instance_key: instance['instance']['databases'][name]
             }
@@ -474,8 +475,9 @@ def add_user(context, instance_id, databases, username, password, region,
         else:
             raise exc
 
-    results = dict(instance=results, interfaces=dict(mysql=dict(
-            username=username, password=password)))
+    instance_key = 'instance:%s' % context['resource']
+    results = {instance_key: dict(interfaces=dict(mysql=dict(
+            username=username, password=password)))}
     # Send data back to deployment
     resource_postback.delay(context['deployment'], results)
 

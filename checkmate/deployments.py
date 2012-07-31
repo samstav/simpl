@@ -9,6 +9,7 @@ import uuid
 from bottle import get, post, put, request, response, abort
 from celery.app import app_or_default
 from celery.task import task
+from SpiffWorkflow import Workflow, Task
 from SpiffWorkflow.storage import DictionarySerializer
 
 from checkmate import orchestrator
@@ -117,9 +118,10 @@ def parse_deployment():
     return write_body(results, request, response)
 
 
+@post('/deployments/<id>')
 @put('/deployments/<id>')
 @with_tenant
-def put_deployment(id, tenant_id=None):
+def update_deployment(id, tenant_id=None):
     entity = read_body(request)
     if 'deployment' in entity:
         entity = entity['deployment']
@@ -1041,7 +1043,7 @@ def resource_postback(deployment_id, contents):
     deployment.on_resource_postback(contents)
 
     body, secrets = extract_sensitive_data(deployment)
-    db.save_deployment(id, body, secrets)
+    db.save_deployment(deployment_id, body, secrets)
 
     LOG.debug("Updated deployment %s with post-back" % deployment_id,
             extra=dict(data=contents))
