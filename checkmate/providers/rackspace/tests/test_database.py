@@ -31,9 +31,7 @@ class TestDatabase(unittest.TestCase):
 
     def test_create_instance(self):
         #Mock instance
-        class Instance(object):
-            pass
-        instance = Instance()
+        instance = self.mox.CreateMockAnything()
         instance.id = 'fake_instance_id'
         instance.name = 'fake_instance'
         instance.status = 'BUILD'
@@ -79,6 +77,50 @@ class TestDatabase(unittest.TestCase):
         self.mox.ReplayAll()
         results = database.create_instance(context, instance.name,  1,  '1',
                 [{'name': 'db1'}], 'NORTH', api=clouddb_api_mock)
+
+        self.assertDictEqual(results, expected)
+        self.mox.VerifyAll()
+
+    def test_create_database(self):
+        #Mock instance
+        instance = self.mox.CreateMockAnything()
+        instance.id = 'fake_instance_id'
+        instance.name = 'fake_instance'
+        instance.status = 'BUILD'
+        instance.hostname = 'fake.cloud.local'
+
+        #Stub out postback call
+        self.mox.StubOutWithMock(resource_postback, 'delay')
+
+        #Create clouddb mock
+        clouddb_api_mock = self.mox.CreateMockAnything()
+        clouddb_api_mock.get_instance(instance.id).AndReturn(instance)
+        instance.create_databases([{'name': 'db1'}]).AndReturn(True)
+
+        expected = {
+            'instance:1': {
+                    'databases': {
+                            'db1': {
+                                    'host_instance': instance.id,
+                                    'host_region': 'NORTH',
+                                    'interfaces': {
+                                            'mysql': {
+                                                    'host': instance.hostname,
+                                                    'database_name': 'db1',
+                                                },
+                                        },
+                                },
+                        },
+                },
+        }
+
+        context = dict(deployment='DEP', resource='1')
+        resource_postback.delay(context['deployment'], expected).AndReturn(
+                True)
+
+        self.mox.ReplayAll()
+        results = database.create_database(context, 'db1', 'NORTH',
+                instance_id=instance.id, api=clouddb_api_mock)
 
         self.assertDictEqual(results, expected)
         self.mox.VerifyAll()

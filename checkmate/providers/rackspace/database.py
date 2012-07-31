@@ -410,13 +410,16 @@ def create_database(context, name, region, character_set=None, collate=None,
     instance.create_databases(databases)
     results = {
             instance_key: {
-                    'name': name,
-                    'host_instance': instance_id,
-                    'host_region': region,
-                    'interfaces': {
-                            'mysql': {
-                                    'host': instance.hostname,
-                                    'database_name': name,
+                    'databases': {
+                            name: {
+                                    'host_instance': instance_id,
+                                    'host_region': region,
+                                    'interfaces': {
+                                            'mysql': {
+                                                    'host': instance.hostname,
+                                                    'database_name': name,
+                                                },
+                                        },
                                 },
                         },
                 },
