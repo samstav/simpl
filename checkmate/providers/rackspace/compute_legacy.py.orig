@@ -351,12 +351,18 @@ def wait_on_build(context, id, ip_address_type='public',
                 password=password, identity_file=identity_file, port=port)
         if up:
             LOG.info("Server %s is up" % id)
+<<<<<<< HEAD
+	    initialize_monitoring.delay(ip=ip,name=id,context=context,resource="node")
+            if prefix:
+                # Add each value back in with the prefix
+                results.update({'%s.%s' % (prefix, key): value for key, value
+                        in results.iteritems()})
+=======
             instance_key = 'instance:%s' % context['resource']
             results = {instance_key: results}
-	    initialize_monitoring.delay(ip=ip,name="Entity for %s" % id,context=context['deployment'],
-	     	resource="node")
             # Send data back to deployment
             resource_postback.delay(context['deployment'], results)
+>>>>>>> f702cbeea737e928808293522f353bd759c5bdb1
             return results
         return wait_on_build.retry(exc=CheckmateException("Server "
                 "%s not ready yet" % id))

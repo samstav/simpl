@@ -9,6 +9,7 @@ import uuid
 from bottle import get, post, put, request, response, abort
 from celery.app import app_or_default
 from celery.task import task
+from SpiffWorkflow import Workflow, Task
 from SpiffWorkflow.storage import DictionarySerializer
 
 from checkmate import orchestrator
@@ -117,9 +118,10 @@ def parse_deployment():
     return write_body(results, request, response)
 
 
+@post('/deployments/<id>')
 @put('/deployments/<id>')
 @with_tenant
-def put_deployment(id, tenant_id=None):
+def update_deployment(id, tenant_id=None):
     entity = read_body(request)
     if 'deployment' in entity:
         entity = entity['deployment']
@@ -256,10 +258,7 @@ def plan(deployment, context):
     _verify_required_blueprint_options_supplied(deployment)
 
     # Load providers
-    providers = environment.get_providers()
-
-    # Load interface/provider/resource_types map
-    available = environment.get_interface_map()
+    providers = environment.get_providers(context)
 
     #Identify component providers and get the resolved components
     print "CONTEXT: %s" % context
@@ -290,17 +289,6 @@ def plan(deployment, context):
                     requirements[interface].append(service_name)
                 else:
                     requirements[interface] = [service_name]
-
-    # Quick check that at least each interface is provided
-    for required_interface in requirements.keys():
-        if required_interface not in provided.values() and required_interface \
-                not in available:
-            msg = "Cannot satisfy requirement '%s' in deployment %s" % (
-                    required_interface, deployment['id'])
-            LOG.info(msg)
-            abort(406, msg)
-        # TODO: check that interfaces match between requirement and provider
-    LOG.debug("Requirements quick check did not identify missing resources")
 
     # Collect relations and verify service for relation exists
     LOG.debug("Analyzing relations")
@@ -367,14 +355,28 @@ def plan(deployment, context):
                     if value.get('relation', 'reference') == 'host':
                         LOG.debug("Host needed for %s" % component['id'])
                         host = key
+                        host_type = key if key != 'host' else None
                         host_interface = value['interface']
+                        host_provider = environment.select_provider(context,
+                                resource=host_type, interface=host_interface)
+                        found = host_provider.find_components(context,
+                                resource=host_type, interface=host_interface)
+                        if found:
+                            if len(found) == 1:
+                                host_component = found[0]
+                                host_type = host_component['is']
+                            else:
+                                raise CheckmateException("More than one "
+                                        "component offers '%s:%s' in provider "
+                                        "%s: %s" % (host_type, host_interface,
+                                        host_provider.key, ', '.join([c['id']
+                                        for c in found])))
+                        else:
+                            raise CheckmateException("No components found that "
+                                        "offer '%s:%s' in provider %s" % (
+                                        host_type, host_interface,
+                                        host_provider.key))
                         break
-            if host:
-                host_provider_key = available[host_interface].keys()[0]
-                host_provider = providers[host_provider_key]
-                host_type = available[host_interface].values()[0][0]
-                host_component = environment.find_component(dict(
-                        interface=host_interface), context)
 
             provider = component.provider()
             if not provider:
@@ -615,11 +617,11 @@ def get_keys(inputs, environment):
 
     # Get 'environment' keys
     private_key = inputs.get('environment_private_key')
-    if private_key is None or private_key == '=generate()':
+    if private_key is None or private_key.startswith('=generate_private_key('):
         private, public = environment.generate_key_pair()
         keys['environment'] = dict(public_key=public['PEM'],
                 public_key_ssh=public['ssh'], private_key=private['PEM'])
-        if private_key == '=generate()':
+        if not private_key or private_key.startswith('=generate_private_key('):
             inputs['environment_private_key'] = private['PEM']
     else:
         # Private key was supplied, make sure we have or can get a public key
@@ -947,49 +949,102 @@ class Deployment(ExtensibleDict):
             results[service_name] = component
         return results
 
-    def on_resource_postback(self, resource_id, contents):
+    def on_resource_postback(self, contents):
         """Called to merge in contents when a postback with new resource data
         is received.
 
         Translates values to canonical names. Iterates to one level of depth to
         handle postbacks that write to instance key"""
-        resource = self['resources'][resource_id]
-        if not resource:
-            raise IndexError("Resource %s not found" % resource_id)
-
         if contents:
-            contents = schema.translate_dict(contents)
-            data = {}
-            for key, value in contents.iteritems():
-                if isinstance(value, dict):
-                    data[key] = schema.translate_dict(value)
-                else:
-                    data[key] = value
+            if not isinstance(contents, dict):
+                raise CheckmateException("Postback value was not a dictionary")
 
-            LOG.debug("Merging %s into %s" % (data, resource))
-            merge_dictionary(resource, data)
+            # Find targets and merge in values appropriately
+            for key, value in contents.iteritems():
+                if key.startswith('instance:'):
+                    # Find the resource
+                    resource_id = key.split(':')[1]
+                    resource = self['resources'][resource_id]
+                    if not resource:
+                        raise IndexError("Resource %s not found" % resource_id)
+                    # Check the value
+                    if not isinstance(value, dict):
+                        raise CheckmateException("Postback value for instance "
+                                "'%s' was not a dictionary" % resource_id)
+                    # Canonicalize it
+                    value = schema.translate_dict(value)
+                    # Merge it in
+                    if 'instance' not in resource:
+                        resource['instance'] = {}
+                    LOG.debug("Merging postback data for resource %s: %s" % (
+                            resource_id, value), extra=dict(data=resource))
+                    merge_dictionary(resource['instance'], value)
+
+                elif key.startswith('connection:'):
+                    # Find the connection
+                    connection_id = key.split(':')[1]
+                    connection = self['connections'][connection_id]
+                    if not connection:
+                        raise IndexError("Connection %s not found" %
+                                connection_id)
+                    # Check the value
+                    if not isinstance(value, dict):
+                        raise CheckmateException("Postback value for "
+                                "connection '%s' was not a dictionary" %
+                                connection_id)
+                    # Canonicalize it
+                    value = schema.translate_dict(value)
+                    # Merge it in
+                    LOG.debug("Merging postback data for connection %s: %s" % (
+                            connection_id, value), extra=dict(data=connection))
+                    merge_dictionary(connection, value)
+                else:
+                    if isinstance(value, dict):
+                        value = schema.translate_dict(value)
+                    else:
+                        value = schema.translate(value)
+                    raise NotImplementedError("Global post-back values not "
+                            "yet supported: %s" % key)
 
 
 @task
-def resource_postback(deployment_id, resource_id, results):
+def resource_postback(deployment_id, contents):
     """Accepts back results from a remote call and updates the deployment with
     the result data for a specific resource.
 
     The data updated can be:
-    - resource data
-    - resource status
+    - a value: usually not tied to a resource or relation
+    - an instance value (with the instance id appended with a colon):]
+        {'instance:0':
+            {'field_name': value}
+        }
+    - an interface value (under interfaces/interface_name)
+        {'instance:0':
+            {'interfaces':
+                {'mysql':
+                    {'username': 'johnny', ...}
+                }
+            }
+        }
+    - a connection value (under connection\:name):
+        {'connection:web-backend':
+            {'interface': 'mysql',
+            'field_name': value}
+        }
+        Note: connection 'interface' is always included.
+        Note: connection:host always refers to the hosting connection if there
 
-    The contents are a hash (dict)
+    The contents are a hash (dict) of all the above
     """
     deployment = db.get_deployment(deployment_id, with_secrets=True)
     if not deployment:
         raise IndexError("Deployment %s not found" % deployment_id)
 
     deployment = Deployment(deployment)
-    deployment.on_resource_postback(resource_id, results)
+    deployment.on_resource_postback(contents)
 
     body, secrets = extract_sensitive_data(deployment)
-    results = db.save_deployment(id, body, secrets)
+    db.save_deployment(deployment_id, body, secrets)
 
-    LOG.debug("Updated deployment %s resource %s" % (deployment_id,
-            resource_id))
+    LOG.debug("Updated deployment %s with post-back" % deployment_id,
+            extra=dict(data=contents))

@@ -1,9 +1,9 @@
-# **CheckMate** is a configuration management REST service written in python.
+# **Checkmate** is a configuration management REST service written in python.
 # The source can be found [here](http://github.com/ziadsawalha/checkmate)
 #
 # This sample configuration file can be used to deploy a wordpress application
 # to the cloud. It also currently serves as the main reference for the
-# CheckMate configuration syntax and schema.
+# Checkmate configuration syntax and schema.
 #
 # Notes about this file:
 #
@@ -150,128 +150,105 @@ includes:
     - *lsyncd
     provides:
     - 'application': 'http'  # http means a web resource, could be on a shared endpoint
-    options: # The raw (straight from the underlying provider) list of options that can be set on this resource type
-      'example':
-        type: string (one of string, int?)
-        descriptiion: explanatioj of the option
-        required: optional # optional or required
-        source: component_id # this option comes from a dependenct/included component
-      'wordpress/checksum':
-        calculated: false
-        choice: []
+    options:
+      checksum:
         default: 7342627f4a3dca44886c5aca6834cc88671dbd3aa2760182d2fcb9a330807
         description: Checksum of the tarball for the version specified.
-        display_name: Wordpress tarball checksum
-        recipes: []
+        label: Wordpress tarball checksum
         required: optional
+        source_field_name: wordpress/checksum
         type: string
-      'wordpress/db/database':
-        maps-to: wordpress/database/password
-        calculated: false
-        choice: []
+      database/database:
         default: wordpressdb
         description: Wordpress will use this MySQL database to store its data.
-        display_name: Wordpress MySQL database
-        recipes: []
+        label: Wordpress MySQL database
         required: optional
+        source_field_name: wordpress/db/database
         type: string
-      'wordpress/db/password':
-        calculated: false
-        choice: []
+      database/host:
+        default: localhost
+        description: MySQL database server resolvable name or TCP/IP address.
+        label: Wordpress MySQL Database Host
+        required: optional
+        source_field_name: wordpress/db/host
+        type: string
+      database/password:
         default: randomly generated
         description: Password for the Wordpress MySQL user.
-        display_name: Wordpress MySQL password
-        recipes: []
+        label: Wordpress MySQL password
         required: optional
+        source_field_name: wordpress/db/password
         type: string
-      'wordpress/db/user':
-        calculated: false
-        choice: []
+      database/prefix:
+        default: wp_
+        description: The table prefix to use for the tables created for wordpress.
+        label: Wordpress database table prefix
+        required: optional
+        source_field_name: wordpress/db/prefix
+        type: string
+      database/username:
         default: wordpressuser
         description: Wordpress will connect to MySQL using this user.
-        display_name: Wordpress MySQL user
-        recipes: []
+        label: Wordpress MySQL user
         required: optional
+        source_field_name: wordpress/db/username
         type: string
-      'wordpress/dir':
-        calculated: false
-        choice: []
+      directory:
         default: /var/www
         description: Location to place wordpress files.
-        display_name: Wordpress installation directory
-        recipes: []
+        label: Wordpress installation directory
         required: optional
+        source_field_name: wordpress/dir
         type: string
-      'wordpress/keys/auth':
-        calculated: false
-        choice: []
-        default: randomly generated
+      keys/authentication:
+        default: =generate_uuid()
         description: Wordpress auth key.
-        display_name: Wordpress auth key
-        recipes: []
+        label: Wordpress auth key
         required: optional
+        source_field_name: wordpress/keys/auth
         type: string
-      'wordpress/keys/logged_in':
-        calculated: false
-        choice: []
+      keys/logged_in:
         default: randomly generated
         description: Wordpress logged-in key.
-        display_name: Wordpress logged-in key
-        recipes: []
+        label: Wordpress logged-in key
         required: optional
+        source_field_name: wordpress/keys/logged_in
         type: string
-      'wordpress/keys/nonce':
-        calculated: false
-        choice: []
-        default: randomly generated
+      keys/nonce:
+        default: =generate_uuid()
         description: Wordpress nonce key.
-        display_name: Wordpress nonce key
-        recipes: []
+        label: Wordpress nonce key
         required: optional
+        source_field_name: wordpress/keys/nonce
         type: string
-      'wordpress/keys/secure_auth':
-        calculated: false
-        choice: []
-        default: randomly generated
+      keys/secure_authentication:
+        default: =generate_uuid()
         description: Wordpress secure auth key.
-        display_name: Wordpress secure auth key
-        recipes: []
-        required: false
+        label: Wordpress secure auth key
+        required: optional
+        source_field_name: wordpress/keys/secure_auth
         type: string
-      'wordpress/server_aliases':
-        calculated: false
-        choice: []
+      path:
+        default: /
+        description: URL to use after the main domain name.
+        label: Wordpress URL path
+        required: optional
+        source_field_name: wordpress/path
+        type: string
+      server_aliases:
         default: FQDN
         description: Wordpress Server Aliases
-        display_name: Wordpress Server Aliases
-        recipes: []
-        required: false
+        label: Wordpress Server Aliases
+        required: optional
+        source_field_name: wordpress/server_aliases
         type: string
-      'wordpress/version':
-        calculated: false
-        choice: []
+      version:
         default: 3.0.4
         description: Version of Wordpress to download from the Wordpress site.
-        display_name: Wordpress download version
-        recipes: []
-        required: false
+        label: Wordpress download version
+        required: optional
+        source_field_name: wordpress/version
         type: string
-      "wordpress/database/user":
-        regex:
-        type: string
-        required: false
-      "domain":
-        type: String
-        default: localhost
-        required: true
-        description: the url to use to host your blog on
-      "instance/flavor":
-        default: 1  # flavor=256mb. TODO: or maybe something more generic
-        description: the type (and size) of instance to use
-        type: {1: "256Mb", 2: "512Mb"} # TODO: How do we link this to a list of images?
-      "instance/os":
-        default: Ubuntu 11.10  # Translated to image 119 by Rax provider.
-        description: the operating system and version to use
   - &mysql
     id: mysql
     version: 1
@@ -282,7 +259,7 @@ includes:
     options:
       password:
         type: String
-        default: =generate()  # TODO: think about how best to represent this.
+        default: =generate_password()  # IMPLEMENTED, but open to more elegant approach...
         description: the password for the database
 
     #PROTOTYPING:
@@ -305,7 +282,7 @@ includes:
     options:
       password:
         type: String
-        default: =generate()  # TODO: think about how best to represent this.
+        default: =generate_password()
         description: the password for the database
   - &loadbalancer
     id: loadbalancer
@@ -366,6 +343,7 @@ includes:
     #Services are similar to tiers. The names are arbitrary keys to be chosen by the blueprint author.
     # components: the type of component used in the service.
     # relations: connections to other services. The syntax can be short (service:interface) or long (name:{map})
+    # relations are a hint or predefinition of how to satisfy a requirement (ex. which service to satisfy it from)
     services:
       "lb":
         component:
@@ -396,7 +374,7 @@ includes:
           - 'wordpress/version': '3.0.4'  # fix blueprint to a predicatabl version
         relations:
           "master": 'http'
-          #NEW: Long format example. For when we need to identify more than service & interface
+          #Long format example. For when we need to identify more than service & interface
           "db": # Long syntax includes a name for the relation, since we need to manage the relationships later (drain, stop, start, check, etc...)
             interface: 'mysql'
             service: "backend"
@@ -429,13 +407,19 @@ includes:
         constrains:
         - service: web
           resource_type: application
-          setting: "wordpress/prefix"
+          setting: "database/prefix"
         - service: web
           resource_type: application
           setting: "user/name"
+        - service: web
+          resource_type: application
+          setting: "apache/user/name"
+        - service: web
+          resource_type: application
+          setting: "lsyncd/user/name"
         - service: backend
           resource_type: database
-          setting: "database/database"  # would be nice if the cookbook called this database/name
+          setting: "database/name"  # would be nice if the cookbook called this database/name
         - service: backend
           resource_type: database
           setting: "database/username"
@@ -460,7 +444,7 @@ includes:
             -----BEGIN CERTIFICATE-----
             Encoded Certificate
             -----END CERTIFICATE-----
-        constrains: [{service: web, resource_type: application, setting: "apache2/ssl_certificate"}]
+        constrains: [{service: web, resource_type: application, setting: "apache/ssl_certificate"}]
       "ssl_private_key":
         label: SSL Certificate Private Key
         type: string #certificate-PEM
@@ -468,7 +452,7 @@ includes:
             -----BEGIN PRIVATE KEY-----
             Encoded key
             -----END PRIVATE KEY-----
-        constrains: [{service: web, resource_type: application, setting: "apache2/ssl_private_key"}]
+        constrains: [{service: web, resource_type: application, setting: "apache/ssl_private_key"}]
       "domain":
         type: string
         regex: '^(([a-zA-Z]|[a-zA-Z][a-zA-Z0-9\-]*[a-zA-Z0-9])\.)*([A-Za-z]|[A-Za-z][A-Za-z0-9\-]*[A-Za-z0-9])$'
@@ -478,7 +462,7 @@ includes:
         constrains:
         - service: web
           resource_type: application
-          setting: "apache2/domain_name"
+          setting: "apache/domain_name"
       "path":
         type: string
         default: /
@@ -488,10 +472,10 @@ includes:
         constrains:
         - service: web
           resource_type: application
-          setting: "apache2/path"
+          setting: "apache/path"
         - service: web
           resource_type: application
-          setting: "wordpress/path"
+          setting: "path"
       "register-dns":
         default: false
         type: boolean
@@ -575,15 +559,6 @@ includes:
         uri: /T1000/providers/...?type=type  #preferred; relative URI (no CORS needed) looks better. Let checkmate.provider handle the code. Keep it simple for client.
         label: Instance OS
         description: The operating system of web servers.
-      "username":
-        type: string
-        regex: xxx
-        label: Admin
-        description: "The user name used to access all resources in this deployment"
-        #TBD: do we need to list what settings this applies to here?
-        #constraint:
-        #- copy:database/username  # hard-code the copying for now
-        #- copy:database/username
       "high_availability": &high_availability
         type: boolean
         label: High Availability
@@ -781,22 +756,56 @@ includes:
         vendor: 'rackspace'
         provides:
         - 'database': mysql
+        - 'compute': mysql
 
         #SAMPLE DATA: used for:
         # - easy viewing in this file
         # - used by tests that call this file (so they don't have to call the provider)
         # If not provided in this file, this is pulled in real time from the provider
         catalog:
-          database:
+          compute:
             mysql_instance:
               id: mysql_instance
+              is: compute
+              options:
+                disk:
+                  choice:
+                  - 1
+                  - 2
+                  - 3
+                  - 4
+                  - 5
+                  - 6
+                  - 7
+                  - 8
+                  - 9
+                  - 10
+                  type: int
+                  unit: Gb
+                memory:
+                  choice:
+                  - 512
+                  - 1024
+                  - 2048
+                  - 4096
+                  type: int
+                  unit: Mb
+              provides:
+              - compute: mysql
+          database:
+            mysql_database:
+              id: mysql_database
               is: database
               provides:
               - database: mysql
+              requires:
+              - compute:
+                  relation: host
+                  interface: mysql
           lists:
             regions:
-              DFW: https://dfw.databases.api.rackspacecloud.com/v1.0/${CHECKMATE_CLIENT_TENANT}
-              ORD: https://ord.databases.api.rackspacecloud.com/v1.0/${CHECKMATE_CLIENT_TENANT}
+              DFW: https://dfw.databases.api.rackspacecloud.com/v1.0/557366
+              ORD: https://ord.databases.api.rackspacecloud.com/v1.0/557366
             sizes:
               '1':
                 memory: 512
@@ -820,7 +829,7 @@ includes:
         #  username: ${CHECKMATE_CLIENT_USERNAME}
         #  apikey: ${CHECKMATE_CLIENT_APIKEY}
         #- ssh:
-        #  public_key: =generate()
+        #  public_key: =generate_public_key() # function not yet supported
         #PROTOTYPING:
         constraints:
         - region: chicago
@@ -861,14 +870,14 @@ includes:
 # - we don't set them in the blueprint or environment so we can reference those (read only)
 # - we don't use paths for options (use a hierachy) so we don't have to parse the key values
 # - therefore, we provide options selected under 'inputs' as a hierarchy that mirrors the blueprint or environment
-name: My WordPress by CheckMate
+name: My WordPress by Checkmate
 blueprint: *wp-multi
 environment: *rackspace-legacy-cloud-test
 inputs: # Answers to or values for blueprint/provider options & settings.
   # Provide an additional public key to be added to all hosts
   client_public_key_ssh: ${CHECKMATE_CLIENT_PUBLIC_KEY}
   # Optionally specify an environment private key
-  environment_private_key: =generate()  # Optional, since default is =generate(). This will also write to public_key and public_key_ssh
+  environment_private_key: =generate_private_key()  # Optional, since default is to generate one. This will also write to public_key and public_key_ssh
   blueprint:
     "prefix": CM-BLOG
     "domain": ${CHECKMATE_CLIENT_DOMAIN}
@@ -893,7 +902,7 @@ inputs: # Answers to or values for blueprint/provider options & settings.
   providers:
     'legacy':
       'compute':
-        'os': Ubuntu 11.04
+        'os': Ubuntu 11.10
 
 #### For sample Output, see simulator.json in tests directory
 

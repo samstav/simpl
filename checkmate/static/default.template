@@ -1,7 +1,7 @@
 <!DOCTYPE HTML PUBLIC "-//IETF//DTD HTML 2.0//EN">
 <html>
     <head>
-        <title>{% block title %}CheckMate{% endblock %}</title>
+        <title>{% block title %}Checkmate{% endblock %}</title>
 
         <meta charset="utf-8" />
         <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
@@ -94,7 +94,7 @@
                     </ul>
                   </li>
                   <li class="divider-vertical"></li>
-                  <li><a href="/">{{tenant_id|prepend('Tenant: ')}}</a></li>
+                  <li><a href="/api.html">{{tenant_id|prepend('Tenant: ')}}</a></li>
                 </ul>
               </div>
             </div>
@@ -122,7 +122,7 @@
     <script src="/static/bootstrap/js/bootstrap-collapse.js"></script>
     <script src="/static/bootstrap/js/bootstrap-carousel.js"></script>
     <script src="/static/bootstrap/js/bootstrap-typeahead.js"></script>
-    <!-- CheckMate Extensions and converntions -->
+    <!-- Checkmate Extensions and converntions -->
     <script type="text/javascript" >
             $(".cmpop").popover();  //anything with a 'cmpop' class will attempt to pop over using the data-content and title attributes
             $(".cmtip").tooltip();  //anything with a 'cmtip' class will attempt to show a tooltip of the title attribute

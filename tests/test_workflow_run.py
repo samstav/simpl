@@ -32,11 +32,7 @@ class TestWorkflowStubbing(StubbedWorkflowBase):
                   services: {}
                 environment:
                   name: environment
-                  providers:
-                    common:
-                      credentials:
-                      - password: secret
-                        username: tester
+                  providers: {}
                 """))
 
         workflow = self._get_stubbed_out_workflow()
@@ -135,7 +131,7 @@ class TestWorkflow(StubbedWorkflowBase):
         simulation = self.workflow.serialize(serializer)
         simulation['id'] = 'simulate'
         result = json.dumps(simulation, indent=2)
-        LOG.debug(result)
+        #LOG.debug(result)
 
         # Update simulator (since this test was successful)
         simulator_file_path = os.path.join(os.path.dirname(__file__),
@@ -165,11 +161,17 @@ class TestWorkflow(StubbedWorkflowBase):
                 if 'private_key_path' in value:
                     result = result.replace(value['private_key_path'],
                             '/var/tmp/DEP-ID-1000/key.pem')
+        # Save it to simulator.json
         try:
             with file(simulator_file_path, 'w') as f:
                 f.write(result)
         except:
             pass
+
+        LOG.debug("RESOURCES:")
+        LOG.debug(json.dumps(self.deployment['resources'], indent=2))
+        LOG.debug("\nOUTCOME:")
+        LOG.debug(json.dumps(self.outcome, indent=2))
 
 
 class TestWordpressWorkflow(StubbedWorkflowBase):
@@ -295,85 +297,11 @@ class TestWordpressWorkflow(StubbedWorkflowBase):
         self.assertIn('mysql', item)
 
 
-class TestDBWorkflow(StubbedWorkflowBase):
-    """ Test MySQL and DBaaS Workflow """
-
-    def setUp(self):
-        StubbedWorkflowBase.setUp(self)
-        self.deployment = Deployment(yaml_to_dict("""
-                id: 'DEP-ID-1000'
-                blueprint:
-                  name: test db
-                  services:
-                    db:
-                      component:
-                        id: my_sql
-                        is: database
-                        type: database
-                        requires:
-                          "server":
-                            relation: host
-                            interface: 'linux'
-                environment:
-                  name: test
-                  providers:
-                    database:
-                      vendor: rackspace
-                      provides:
-                      - database: mysql
-                      catalog:  # override so we don't need a token to connect
-                        database:
-                          mysql_instance:
-                            id: mysql_instance
-                            is: database
-                            provides:
-                            - database: mysql
-                        lists:
-                          regions:
-                            DFW: https://dfw.databases.api.rackspacecloud.com/v1.0/T1000
-                            ORD: https://ord.databases.api.rackspacecloud.com/v1.0/T1000
-                          sizes:
-                            1:
-                              memory: 512
-                              name: m1.tiny
-                            2:
-                              memory: 1024
-                              name: m1.small
-                            3:
-                              memory: 2048
-                              name: m1.medium
-                            4:
-                              memory: 4096
-                              name: m1.large
-                    chef-local:
-                      vendor: opscode
-                      provides:
-                      - database: mysql
-                inputs:
-                  blueprint:
-                    region: DFW
-            """))
-        self.workflow = self._get_stubbed_out_workflow()
-
-    def test_workflow_completion(self):
-        """Verify workflow sequence and data flow"""
-
-        self.mox.ReplayAll()
-
-        self.workflow.complete_all()
-        self.assertTrue(self.workflow.is_completed(), "Workflow did not "
-                "complete")
-
-        serializer = DictionarySerializer()
-        simulation = self.workflow.serialize(serializer)
-        simulation['id'] = 'simulate'
-
-
 if __name__ == '__main__':
-    # Run tests. Handle our paramsters separately
+    # Run tests. Handle our parameters separately
     import sys
     args = sys.argv[:]
-    # Our --debug means --verbose for unitest
+    # Our --debug means --verbose for unittest
     if '--debug' in args:
         args.pop(args.index('--debug'))
         if '--verbose' not in args:

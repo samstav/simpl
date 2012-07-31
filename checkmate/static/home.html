@@ -13,8 +13,8 @@
   <link href="/static/marketing/customers.css" media="screen" rel="stylesheet" type="text/css">
 
   <link href="http://fonts.googleapis.com/css?family=Open+Sans:400,300,700,600" rel="stylesheet">
-  <link href="/static/marketing/css" rel="stylesheet" type="text/css">
-  <link href="/static/marketing/css(1)" rel="stylesheet" type="text/css">
+  <link href="/static/marketing/css.css" rel="stylesheet" type="text/css">
+  <link href="/static/marketing/css1.css" rel="stylesheet" type="text/css">
 
   <!-- HTML5 shim, for IE6-8 support of HTML5 elements -->
   <!--[if lt IE 9]>
@@ -39,7 +39,7 @@
   <nav class="navbar">
     <div class="navbar-inner">
       <div class="container">
-        <a href="/static/marketing/home.html" class="brand">CheckMate Demos </a>early prototype
+        <a href="/" class="brand">Checkmate Preview </a> v0.2
       </div>
     </div>
   </nav>
@@ -53,9 +53,9 @@
 
 <div class="container">
 
-
   <div class="row pricing">
     <div class="span3 offset1">
+      <div class="spot">Public<br> view</div>
       <div class="well">
         <h3>Customer</h3>
         <a href="/static/customer.html">
@@ -64,7 +64,7 @@
     </div>
 
     <div class="span3 offset1">
-      <div class="spot">Rackers<br> rock!</div>
+      <div class="spot">Racker<br> view</div>
       <div class="well highlighted">
         <h3>Racker</h3>
         <a href="/static/racker.html">
@@ -85,8 +85,7 @@
   <div class="row">
     <div class="span12 center graded">
       <h2>
-        This is an early <strong>proof of concept</strong>, but please feel free to try it out. Click one of the
-        roles above to get started
+        This is an <strong>early release</strong>, but please feel free to try it out. Click one of the roles above to get started
       </h2>
     </div>
   </div>
@@ -110,7 +109,7 @@
         <p></p>
 
       </div>
-      <div class="span4">
+      <div class="span4 hidden">
 
         <form id="news-form" class="form-horizontal">
           <h4>Sign up to the newsletter</h4>
@@ -128,8 +127,8 @@
     <div class="row footer">
       <div class="span12">
         <ul class="links">
-          <li><a href="#"><img src="/static/marketing/twitter.png" alt="twitter"></a></li>
-          <li><a href="#"><img src="/static/marketing/facebook.png" alt="fb"></a></li>
+          <!--<li><a href="#"><img src="/static/marketing/twitter.png" alt="twitter"></a></li>
+          <li><a href="#"><img src="/static/marketing/facebook.png" alt="fb"></a></li>-->
           <li><a href="http://rackspace.com/">Support</a></li>
           <li><a href="http://www.rackspace.com/information/legal/privacystatement/">Privacy Policy</a></li>
           <li><a href="http://jobs.rackspace.com/">Jobs</a></li>
@@ -169,7 +168,7 @@
   <script type="text/javascript">
     $(document).ready(function() {
       var hi = $('#hacker-image');
-      hi.popover({placement: 'top', title: 'Danger!', content: 'The hacker interface is only for Checkmate developers. You have been warned!'});
+      hi.popover({placement: 'top', title: 'Disclaimer!', content: 'The hacker interface is intended for use by Checkmate developers. Incorrect use may cause uncontrolled spinning up of costly cloud resources!'});
 
       $(".pricing img").hover(
         function() {

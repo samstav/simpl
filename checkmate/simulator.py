@@ -154,14 +154,17 @@ def process():
             LOG.warn("Unhandled task: %s" % name)
         if result:
             my_task.set_attribute(**result)
-            if my_task.task_spec.call == 'checkmate.providers.rackspace.'\
-                    'database.create_instance':
-                PACKAGE.on_resource_postback(my_task.task_spec.properties[
-                        'resource'], dict(instance=dict(id=result['id'],
-                                name=result['name'],
-                                status=result['status'],
-                                hostname=result['hostname'],
-                                region=result['region'])))
+            if my_task.task_spec.call.startswith('checkmate.providers.'
+                    'rackspace.'):
+                data = {}
+                for k, v in result.iteritems():
+                    if k.startswith('instance:'):
+                        data[k] = v
+                    elif k.startswith('connection:'):
+                        data[k] = v
+
+                if data:
+                    PACKAGE.on_resource_postback(data)
         return True
 
     try_fire = Celery.try_fire

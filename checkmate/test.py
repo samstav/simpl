@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 """File with testing primitives for use in tests and external providers"""
+import json
 import logging
 import os
 import unittest2 as unittest
@@ -8,16 +9,15 @@ import uuid
 from celery.app import default_app
 from celery.result import AsyncResult
 import mox
-from mox import IsA, In, And, Or, IgnoreArg, ContainsKeyValue, Func, \
-        StrContains
+from mox import IsA, In, And, IgnoreArg, ContainsKeyValue, Func, StrContains
+from SpiffWorkflow.specs import Celery, Transform
 
 # Init logging before we load the database, 3rd party, and 'noisy' modules
 from checkmate.utils import init_console_logging
 init_console_logging()
 LOG = logging.getLogger(__name__)
 
-from checkmate.common import schema
-from checkmate.deployments import Deployment
+from checkmate.deployments import Deployment, plan
 
 os.environ['CHECKMATE_DATA_PATH'] = os.path.join(os.path.dirname(__file__),
                                               'data')
@@ -30,10 +30,12 @@ os.environ['CHECKMATE_BROKER_HOST'] = os.environ.get('CHECKMATE_BROKER_HOST',
 os.environ['CHECKMATE_BROKER_PORT'] = os.environ.get('CHECKMATE_BROKER_PORT',
         '5672')
 
+from checkmate.common import schema
+from checkmate.exceptions import CheckmateException
+from checkmate.providers.base import ProviderBase
 from checkmate.server import RequestContext  # also enables logging
-from checkmate.deployments import plan
-from checkmate.utils import is_ssh_key, merge_dictionary
-from checkmate.workflows import create_workflow
+from checkmate.utils import is_ssh_key, get_source_body, merge_dictionary
+from checkmate.workflows import create_workflow, wait_for
 
 # Environment variables and safe alternatives
 ENV_VARS = {
@@ -169,25 +171,20 @@ class StubbedWorkflowBase(unittest.TestCase):
         # obj = inspect.stack()[3][0].f_locals['self']
         # print obj.name
 
-        if args[0] == 'checkmate.providers.rackspace.database.'\
-                'create_instance':
-            args = kwargs['args']
-            context = args[0]
-            self.deployment.on_resource_postback(context['resource'],
-                    dict(instance=schema.translate_dict({  # TODO: This is a copy of call results. Consolidate?
-                        'id': 'db-inst-1',
-                        'name': 'dbname.domain.local',
-                        'status': 'BUILD',
-                        'host': 'verylong.rackspaceclouddb.com',
-                        'region': 'testonia'})))
-        elif args[0] == 'checkmate.providers.rackspace.database.add_user':
-            args = kwargs['args']
-            context = args[0]
-            self.deployment.on_resource_postback(context['resource'],
-                    dict(instance=schema.translate_dict({  # TODO: This is a copy of call results. Consolidate?
-                        'username': args[3],
-                        'password': args[4]})))
-        elif args[0] == 'checkmate.providers.opscode.local.manage_databag':
+        for call in self.expected_calls:
+            if args[0] == call['call']:
+                if 'resource' in call and isinstance(kwargs['args'][0], dict):
+                    if call['resource'] != kwargs['args'][0]['resource']:
+                        continue
+                if 'post_back' in call:
+                    self.deployment.on_resource_postback(call['post_back'])
+                    return
+                elif 'post_back_result' in call:
+                    assert call['result']
+                    self.deployment.on_resource_postback(call['result'])
+                    return
+
+        if args[0] == 'checkmate.providers.opscode.local.manage_databag':
             args = kwargs['args']
             bag_name = args[1]
             item_name = args[2]
@@ -202,6 +199,8 @@ class StubbedWorkflowBase(unittest.TestCase):
             else:
                 merge_dictionary(self.outcome['data_bags'][bag_name]
                         [item_name], contents)
+        else:
+            LOG.debug("No postback for %s" % args[0])
 
     def _get_stubbed_out_workflow(self, expected_calls=None):
         """Returns a workflow of self.deployment with mocks attached to all
@@ -211,12 +210,15 @@ class StubbedWorkflowBase(unittest.TestCase):
         context = RequestContext(auth_token="MOCK_TOKEN", username="MOCK_USER",
                 catalog=CATALOG)
         plan(self.deployment, context)
+        LOG.debug(json.dumps(self.deployment.get('resources', {}), indent=2))
+
         workflow = create_workflow(self.deployment, context)
 
         if not expected_calls:
             expected_calls = self._get_expected_calls()
+        self.expected_calls = expected_calls
 
-       #Mock out celery calls
+        #Mock out celery calls
         self.mock_tasks = {}
         self.mox.StubOutWithMock(default_app, 'send_task')
         self.mox.StubOutWithMock(default_app, 'AsyncResult')
@@ -299,16 +301,6 @@ class StubbedWorkflowBase(unittest.TestCase):
                     'public_key_path': '/var/tmp/%s/checkmate.pub' %
                             self.deployment['id'],
                     'public_key': ENV_VARS['CHECKMATE_CLIENT_PUBLIC_KEY']}
-            },
-            {
-                # Create Load Balancer
-                'call': 'checkmate.providers.rackspace.loadbalancer.'
-                        'create_loadbalancer',
-                'args': [Func(is_good_context), IsA(basestring), 'PUBLIC',
-                        'HTTP', 80,  self.deployment.get_setting('region',
-                                                        default='testonia')],
-                'kwargs': IgnoreArg(),
-                'result': {'id': 20001, 'vip': "200.1.1.1", 'lbid': 20001}
             }]
 
         if str(os.environ.get('CHECKMATE_CHEF_USE_DATA_BAGS', True)
@@ -338,7 +330,7 @@ class StubbedWorkflowBase(unittest.TestCase):
                 })
         # Add repetive calls (per resource)
         for key, resource in self.deployment.get('resources', {}).iteritems():
-            if resource.get('type') == 'compute':
+            if resource.get('type') == 'compute' and 'image' in resource:
                 if 'master' in resource['dns-name']:
                     id = 10000 + int(key)  # legacy format
                     role = 'master'
@@ -360,16 +352,17 @@ class StubbedWorkflowBase(unittest.TestCase):
                             StrContains(name)],
                     'kwargs': And(ContainsKeyValue('image', image),
                             ContainsKeyValue('flavor', flavor),
-                            ContainsKeyValue('prefix', key),
                             ContainsKeyValue('ip_address_type', 'public')),
-                    'result': {'id': id,
-                            'ip': "4.4.4.%s" % ip,
-                            'private_ip': "10.1.1.%s" % ip,
-                            'password': "shecret",
-                            '%s.id' % index: id,
-                            '%s.ip' % index: "4.4.4.%s" % ip,
-                            '%s.private_ip' % index: "10.1.1.%s" % ip,
-                            '%s.password' % index: "shecret"}
+                    'result': {
+                            'instance:%s' % key: {
+                                'id': id,
+                                'ip': "4.4.4.%s" % ip,
+                                'private_ip': "10.1.1.%s" % ip,
+                                'password': "shecret",
+                                }
+                            },
+                    'post_back_result': True,
+                    'resource': key,
                     })
                 expected_calls.append({
                     # Wait for Server Build
@@ -378,49 +371,32 @@ class StubbedWorkflowBase(unittest.TestCase):
                     'args': [Func(is_good_context), id],
                     'kwargs': And(In('password')),
                     'result': {
-                            'status': "ACTIVE",
-                            '%s.status' % index: "ACTIVE",
-                            'ip': '4.4.4.%s' % ip,
-                            '%s.ip' % index: '4.4.4.%s' % ip,
-                            'private_ip': '10.1.2.%s' % ip,
-                            '%s.private_ip' % index: '10.1.2.%s' % ip,
-                            'addresses': {
-                              'public': [
-                                {
-                                  "version": 4,
-                                  "addr": "4.4.4.%s" % ip,
-                                },
-                                {
-                                  "version": 6,
-                                  "addr": "2001:babe::ff04:36c%s" % index,
+                            'instance:%s' % key: {
+                                'status': "ACTIVE",
+                                'ip': '4.4.4.%s' % ip,
+                                'private_ip': '10.1.2.%s' % ip,
+                                'addresses': {
+                                  'public': [
+                                    {
+                                      "version": 4,
+                                      "addr": "4.4.4.%s" % ip,
+                                    },
+                                    {
+                                      "version": 6,
+                                      "addr": "2001:babe::ff04:36c%s" % index,
+                                    }
+                                  ],
+                                  'private': [
+                                    {
+                                      "version": 4,
+                                      "addr": "10.1.2.%s" % ip,
+                                    }
+                                  ]
                                 }
-                              ],
-                              'private': [
-                                {
-                                  "version": 4,
-                                  "addr": "10.1.2.%s" % ip,
-                                }
-                              ]
-                            },
-                            '%s.addresses' % index: {
-                              'public': [
-                                {
-                                  "version": 4,
-                                  "addr": "4.4.4.%s" % ip,
-                                },
-                                {
-                                  "version": 6,
-                                  "addr": "2001:babe::ff04:36c%s" % index,
-                                }
-                              ],
-                              'private': [
-                                {
-                                  "version": 4,
-                                  "addr": "10.1.2.%s" % ip,
-                                }
-                              ]
                             }
-                        }
+                        },
+                    'post_back_result': True,
+                    'resource': key,
                     })
                 # Bootstrap Server with Chef
                 expected_calls.append({
@@ -428,7 +404,8 @@ class StubbedWorkflowBase(unittest.TestCase):
                                 'register_node',
                         'args': ["4.4.4.%s" % ip, self.deployment['id']],
                         'kwargs': In('password'),
-                        'result': None
+                        'result': None,
+                        'resource': key,
                     })
                 # build-essential and then role
                 expected_calls.append({
@@ -440,7 +417,8 @@ class StubbedWorkflowBase(unittest.TestCase):
                                         ContainsKeyValue('identity_file',
                                                 '/var/tmp/%s/private.pem' %
                                                 self.deployment['id'])),
-                        'result': None
+                        'result': None,
+                        'resource': key,
                     })
                 expected_calls.append(
                     {
@@ -451,7 +429,8 @@ class StubbedWorkflowBase(unittest.TestCase):
                                 ContainsKeyValue('identity_file',
                                         '/var/tmp/%s/private.pem' %
                                         self.deployment['id'])),
-                        'result': None
+                        'result': None,
+                        'resource': key,
                     })
                 if role == 'master':
                     expected_calls.append({
@@ -465,7 +444,8 @@ class StubbedWorkflowBase(unittest.TestCase):
                         'kwargs': And(ContainsKeyValue('secret_file',
                                         'certificates/chef.pem'),
                                         ContainsKeyValue('merge', True)),
-                        'result': None
+                        'result': None,
+                        'resource': key,
                     })
                     expected_calls.append(
                         {
@@ -477,7 +457,8 @@ class StubbedWorkflowBase(unittest.TestCase):
                                     ContainsKeyValue('identity_file',
                                             '/var/tmp/%s/private.pem' %
                                             self.deployment['id'])),
-                            'result': None
+                            'result': None,
+                            'resource': key,
                         })
 
                 else:
@@ -491,7 +472,8 @@ class StubbedWorkflowBase(unittest.TestCase):
                                     ContainsKeyValue('identity_file',
                                             '/var/tmp/%s/private.pem' %
                                             self.deployment['id'])),
-                            'result': None
+                            'result': None,
+                            'resource': key,
                         })
                 expected_calls.append({
                         'call': 'checkmate.providers.rackspace.loadbalancer.'
@@ -503,7 +485,41 @@ class StubbedWorkflowBase(unittest.TestCase):
                                 self.deployment.get_setting('region',
                                         default='testonia')],
                         'kwargs': None,
-                        'result': None
+                        'result': None,
+                        'resource': key,
+                    })
+            elif resource.get('type') == 'compute' and 'disk' in resource:
+                expected_calls.append({
+                        # Create Instance
+                        'call': 'checkmate.providers.rackspace.database.'
+                                'create_instance',
+                        'args': [Func(is_good_context),
+                                IsA(basestring),
+                                1,
+                                '1',
+                                None,
+                                self.deployment.get_setting('region',
+                                        default='testonia')],
+                        'kwargs': IgnoreArg(),
+                        'result': {
+                                #'id': 'db-inst-1',
+                                'instance:%s' % key:  {
+                                    'id': 'db-inst-1',
+                                    'name': 'dbname.domain.local',
+                                    'status': 'BUILD',
+                                    'region': self.deployment.get_setting(
+                                            'region', default='testonia'),
+                                    'interfaces': {
+                                        'mysql': {
+                                            'host': 'verylong.rackspaceclouddb'
+                                                    '.com',
+                                            },
+                                        },
+                                    'databases': {}
+                                    },
+                            },
+                        'post_back_result': True,
+                        'resource': key,
                     })
             elif resource.get('type') == 'database':
                 username = self.deployment.get_setting('username',
@@ -513,21 +529,32 @@ class StubbedWorkflowBase(unittest.TestCase):
                 expected_calls.append({
                         # Create Database
                         'call': 'checkmate.providers.rackspace.database.'
-                                'create_instance',
+                                'create_database',
                         'args': [Func(is_good_context),
-                                IsA(basestring),
-                                1,
-                                '1',
-                                [{'name': 'db1'}],
+                                'db1',
                                 self.deployment.get_setting('region',
-                                        default='testonia')],
-                        'kwargs': IgnoreArg(),
+                                        default='testonia'),
+                                ],
+                        'kwargs': And(ContainsKeyValue('instance_id',
+                                'db-inst-1')),
                         'result': {
-                                'id': 'db-inst-1',
-                                'name': 'dbname.domain.local',
-                                'status': 'BUILD',
-                                'host': 'verylong.rackspaceclouddb.com',
-                                'region': 'testonia'}
+                                'instance:%s' % key: {
+                                    'name': 'db1',
+                                    'host_instance': 'db-inst-1',
+                                    'host_region': self.deployment.get_setting(
+                                            'region', default='testonia'),
+                                    'interfaces': {
+                                        'mysql': {
+                                            'host': 'verylong.'
+                                                    'rackspaceclouddb'
+                                                    '.com',
+                                            'database_name': 'db1',
+                                            },
+                                        }
+                                    }
+                                },
+                        'post_back_result': True,
+                        'resource': key,
                     })
                 expected_calls.append({
                         # Create Database User
@@ -541,7 +568,20 @@ class StubbedWorkflowBase(unittest.TestCase):
                                 self.deployment.get_setting('region',
                                         default='testonia')],
                         'kwargs': None,
-                        'result': {'username': username, 'password': 'DbPxWd'}
+                        'result': {
+                                'instance:%s' % key: {
+                                        'username': username,
+                                        'password': 'DbPxWd',
+                                        'interfaces': {
+                                                'mysql': {
+                                                        'username': username,
+                                                        'password': 'DbPxWd',
+                                                    }
+                                            }
+                                    }
+                            },
+                        'post_back_result': True,
+                        'resource': key,
                     })
                 expected_calls.append({
                         'call': 'checkmate.providers.opscode.local.'
@@ -554,6 +594,139 @@ class StubbedWorkflowBase(unittest.TestCase):
                         'kwargs': And(ContainsKeyValue('secret_file',
                                 'certificates/chef.pem'),
                                 ContainsKeyValue('merge', True)),
-                        'result': None
+                        'result': None,
+                        'resource': key,
+                    })
+            elif resource.get('type') == 'load-balancer':
+                expected_calls.append({
+                        # Create Load Balancer
+                        'call': 'checkmate.providers.rackspace.loadbalancer.'
+                                'create_loadbalancer',
+                        'args': [Func(is_good_context), IsA(basestring),
+                                'PUBLIC',
+                                'HTTP', 80,
+                                self.deployment.get_setting('region',
+                                        default='testonia')],
+                        'kwargs': IgnoreArg(),
+                        'result': {
+                                'instance:%s' % key: {
+                                        'id': 20001, 'vip': "200.1.1.1",
+                                        'lbid': 20001
+                                    }
+                            },
+                        'post_back_result': True,
+                        'resource': key,
                     })
         return expected_calls
+
+
+class TestProvider(ProviderBase):
+    """Provider that returns mock responses for testing
+
+    Defers to ProviderBase for most functionality, but implements
+    prep_environment, add_connection_tasks and add_resource_tasks
+    """
+    name = "Test"
+
+    def prep_environment(self, wfspec, deployment, context):
+        pass
+
+    def add_resource_tasks(self, resource, key, wfspec, deployment,
+            context, wait_on=None):
+        wait_on, service_name, component = self._add_resource_tasks_helper(
+                resource, key, wfspec, deployment, context, wait_on)
+
+        create_instance_task = Celery(wfspec, 'Create Resource %s' % key,
+               'checkmate.providers.test.create_resource',
+               call_args=[context.get_queued_task_dict(
+                                deployment=deployment['id'],
+                                resource=key),
+                         resource,
+                    ],
+               defines=dict(resource=key,
+                            provider=self.key,
+                            task_tags=['create', 'final']))
+        root = wait_for(wfspec, create_instance_task, wait_on)
+        if 'task_tags' in root.properties:
+            root.properties['task_tags'].append('root')
+        else:
+            root.properties['task_tags'] = ['root']
+        return dict(root=root, final=create_instance_task)
+
+    def add_connection_tasks(self, resource, key, relation, relation_key,
+            wfspec, deployment, context):
+        target = deployment['resources'][relation['target']]
+        interface = relation['interface']
+
+        if relation_key == 'host':
+            # Wait on host to be ready
+            wait_on = self.get_host_ready_tasks(resource, wfspec,
+                    deployment)
+            if not wait_on:
+                raise CheckmateException("No host")
+
+        # Get the definition of the interface
+        interface_schema = schema.INTERFACE_SCHEMA.get(interface, {})
+        # Get the fields this interface defines
+        fields = interface_schema.get('fields', {}).keys()
+        if not fields:
+            LOG.debug("No fields defined for interface '%s', so nothing "
+                    "to do for connection '%s'" % (interface,
+                    relation_key))
+            return  # nothing to do
+
+        # Build full path to 'instance:id/interfaces/:interface/:field_name'
+        fields_with_path = []
+        for field in fields:
+            fields_with_path.append('instance:%s/interfaces/%s/%s' % (
+                    relation['target'], interface, field))
+
+        # Get the final task for the target
+        target_final = self.find_tasks(wfspec, provider=target['provider'],
+                resource=relation['target'], tag='final')
+        if not target_final:
+            raise CheckmateException("Relation final task not found")
+        if len(target_final) > 1:
+            raise CheckmateException("Multiple relation final tasks "
+                    "found: %s" % [t.name for t in target_final])
+        target_final = target_final[0]
+
+        # Write the task to get the values
+        def get_fields_code(my_task):  # Holds code for the task
+            fields = my_task.get_property('fields', [])
+            data = {}
+            # Get fields by navigating path
+            for field in fields:
+                parts = field.split('/')
+                current = my_task.attributes
+                for part in parts:
+                    if part not in current:
+                        current = None
+                        break
+                    current = current[part]
+                if current:
+                    data[field.split('/')[-1]] = current
+                else:
+                    LOG.warn("Field %s not found" % field,
+                            extra=dict(data=my_task.attributes))
+            merge_dictionary(my_task.attributes, data)
+
+        compile_override = Transform(wfspec, "Get %s values for %s" %
+                (relation_key, key),
+                transforms=[get_source_body(get_fields_code)],
+                description="Get all the variables "
+                        "we need (like database name and password) and "
+                        "compile them into JSON",
+                defines=dict(relation=relation_key,
+                            provider=self.key,
+                            resource=key,
+                            fields=fields_with_path,
+                            task_tags=['final']))
+        # When target is ready, compile data
+        wait_for(wfspec, compile_override, [target_final])
+        # Provide data to 'final' task
+        tasks = self.find_tasks(wfspec, provider=resource['provider'],
+                resource=key, tag='final')
+        if tasks:
+            for task in tasks:
+                wait_for(wfspec, task, [compile_override])

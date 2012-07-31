@@ -1,4 +1,4 @@
-"""Custome Exceptions for CheckMate
+"""Custome Exceptions for Checkmate
 
 To be serialization-friendly, call the Exception __init__ with any extra
 attributes:
@@ -30,6 +30,10 @@ class CheckmateNoTokenError(CheckmateException):
 
 class CheckmateNoMapping(CheckmateException):
     """No mapping found between parameter types"""
+    pass
+
+
+class CheckmateIndexError(CheckmateException):
     pass
 
 

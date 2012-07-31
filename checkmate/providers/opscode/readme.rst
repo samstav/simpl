@@ -183,3 +183,10 @@ Chef attributes from cookbooks and recipes are exposed as options. The mapping b
 Within chef, attributes are defined using a path syntax (ex. wordpress/db/user). When such an attribute is used in overrides or node attributes, it is expanded into a json hierarchy (ex. {"wordpress": {"db": {"user: ..."}}}).
 
 Use the 'rake metadata' command to generate the metadata.json file for each cookbook. Checkmate uses that file to expose cookbooks as components.
+
+CHEKCMATE.JSON
+==============
+
+To add checkmate-specific data to a cookbook's metadata, you can add a checkmate.json file to the root of the cookbook directory. nThat will be merged in to the checkmate component.
+
+The chef-local provider already uses the 'platform' metadata settings to generate a hosting requirement for a cookbook. It also parses the attributes into options. So the checkmate.json file does not need to add those. A good use case for the checkmate.json file is to provide the 'provides' key for a cookbook.

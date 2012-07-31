@@ -100,10 +100,16 @@ RESOURCE_SCHEMA = ['id', 'index', 'name', 'provider', 'relations', 'hosted_on',
         'image', 'disk', 'region']
 
 DEPLOYMENT_SCHEMA = ['id', 'name', 'blueprint', 'environment', 'inputs',
-        'includes', 'resources', 'settings', 'workflow', 'status', 'created']
+        'includes', 'resources', 'settings', 'workflow', 'status', 'created',
+        'tenantId']
 
 COMPONENT_SCHEMA = ['id', 'options', 'requires', 'provides', 'summary',
-        'dependencies', 'version', 'is', 'role']
+        'dependencies', 'version', 'is', 'role', 'source_name']
+
+OPTION_SCHEMA = ['name', 'label', 'default', 'help', 'description', 'source',
+        'source_field_name', 'required', 'type', 'constrains']
+
+OPTION_TYPES = ['string', 'int']
 
 
 def validate_catalog(obj):
@@ -202,6 +208,7 @@ def validate_input(key, value):
 # - full names (ex. database, not db). Except for id.
 
 ALIASES = {
+        'apache': ['apache2'],
         'authentication': ['auth'],
         'database': ['db'],
         'description': ['desc'],
@@ -211,23 +218,26 @@ ALIASES = {
         'certificate': ['cert'],
         'host': ['hostname'],
         'id': [],
+        'ip': [],
         'instance': [],
         'key': [],
         'memory': ['mem'],
+        'mysql': [],
         'name': [],
         'nonce': [],
         'operating_system': ['os'],
         'path': [],
         'password': ['pass'],
+        'prefork': [],
         'private': ['priv'],
         'public': ['pub'],
         'region': [],
         'server': ['srv', 'srvr'],
+        'source': ['src'],
         'status': [],
         'username': [],
         'user': [],
-        'apache': [],
-        'prefork': [],
+        'wordpress': [],
         'worker': [],
     }
 
@@ -239,7 +249,7 @@ def translate(name):
     Keeps path separators intack (name/alias becomes name/canonical_name)
     """
     # Check if is already canonical
-    if name in ALIASES or not name:
+    if name in ALIASES or not name or not isinstance(name, basestring):
         return name
     # Check if exists as-is in aliases
     for canonical, alternatives in ALIASES.iteritems():
@@ -267,7 +277,7 @@ def translate(name):
             words[index] = translate(word) or ''
         return '_'.join(words)
 
-    LOG.info("Unrecognized name: %s" % name)
+    LOG.debug("Unrecognized name: %s" % name)
     return name
 
 

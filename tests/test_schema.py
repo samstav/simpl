@@ -5,6 +5,9 @@ from checkmate.common import schema
 
 
 class TestSchema(unittest.TestCase):
+    def test_translation_apache(self):
+        self.assertEqual(schema.translate('apache2'), 'apache')
+
     def test_translation_exists(self):
         self.assertEqual(schema.translate('username'), 'username')
 
