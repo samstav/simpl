@@ -13,14 +13,13 @@ init_console_logging()
 LOG = logging.getLogger(__name__)
 
 import mox
-from mox import IsA, In, And, Or, IgnoreArg, ContainsKeyValue, Func, \
-        StrContains
+from mox import In, IsA, And, IgnoreArg, ContainsKeyValue
 
 from checkmate.deployments import Deployment
 from checkmate.exceptions import CheckmateException
 from checkmate.providers.base import PROVIDER_CLASSES
 from checkmate.providers.opscode import local
-from checkmate.test import StubbedWorkflowBase, ENV_VARS
+from checkmate.test import StubbedWorkflowBase, ENV_VARS, TestProvider
 from checkmate.utils import yaml_to_dict
 
 
@@ -338,6 +337,127 @@ class TestWorkflowLogic(StubbedWorkflowBase):
                 }
 
             )
+
+
+class TestDBWorkflow(StubbedWorkflowBase):
+    """ Test MySQL Resource Creation Workflow """
+
+    def setUp(self):
+        StubbedWorkflowBase.setUp(self)
+        PROVIDER_CLASSES['test.base'] = TestProvider
+        self.deployment = Deployment(yaml_to_dict("""
+                id: 'DEP-ID-1000'
+                blueprint:
+                  name: test db
+                  services:
+                    db:
+                      component:
+                        id: mysql
+                        is: database
+                        type: database
+                        requires:
+                          "server":
+                            relation: host
+                            interface: 'linux'
+                environment:
+                  name: test
+                  providers:
+                    chef-local:
+                      vendor: opscode
+                      provides:
+                      - database: mysql
+                    base:
+                      vendor: test
+                      provides:
+                      - compute: linux
+                      catalog:
+                        compute:
+                          linux_instance:
+                            id: linux_instance
+                            is: compute
+                            provides:
+                            - compute: linux
+                inputs:
+                  blueprint:
+                    region: DFW
+            """))
+        expected = self._get_expected_calls()
+        expected.append({
+                    'call': 'checkmate.providers.test.create_resource',
+                    'args': [IsA(dict),
+                            {'index': '0', 'component': 'linux_instance',
+                            'dns-name': 'CM-DEP-ID--db1.checkmate.local',
+                            'instance': {}, 'hosts': ['1'], 'provider': 'base',
+                            'type': 'compute'}],
+                    'kwargs': None,
+                    'result': {
+                          'instance:0': {
+                              'name': 'CM-DEP-ID--db1.checkmate.local',
+                              'interfaces': {
+                                'mysql': {
+                                    'username': 'mysql_user',
+                                    'host': 'db.local',
+                                    'database_name': 'dbX',
+                                    'port': 8888,
+                                    'password': 'secret',
+                                  },
+                              }
+                          }
+                      },
+                      'post_back_result': True,
+                })
+        expected.append({
+                'call': 'checkmate.providers.opscode.local.manage_databag',
+                'args': [self.deployment['id'],
+                        self.deployment['id'],
+                        'webapp_mysql_%s' %
+                                self.deployment.get_setting('prefix'),
+                        {'mysql': {}}],
+                'kwargs': And(ContainsKeyValue('secret_file',
+                        'certificates/chef.pem'), ContainsKeyValue('merge',
+                        True)),
+                'result': None
+            })
+        expected.append({
+                    'call': 'checkmate.providers.opscode.local.'
+                            'register_node',
+                    'args': [None, self.deployment['id']],
+                    'kwargs': In('password'),
+                    'result': None,
+                })
+        expected.append({
+                'call': 'checkmate.providers.opscode.local.cook',
+                'args': [None, self.deployment['id']],
+                'kwargs': And(In('password'),
+                                ContainsKeyValue('recipes',
+                                    ['build-essential']),
+                                ContainsKeyValue('identity_file',
+                                        '/var/tmp/%s/private.pem' %
+                                        self.deployment['id'])),
+                'result': None,
+            })
+        expected.append({
+                'call': 'checkmate.providers.opscode.local.cook',
+                'args': [None, self.deployment['id']],
+                'kwargs': And(In('password'),
+                                ContainsKeyValue('recipes',
+                                    ['mysql']),
+                                ContainsKeyValue('identity_file',
+                                        '/var/tmp/%s/private.pem' %
+                                        self.deployment['id'])),
+                'result': None,
+            })
+        self.workflow = self._get_stubbed_out_workflow(expected_calls=expected)
+
+    def test_workflow_completion(self):
+        """Verify workflow sequence and data flow"""
+
+        self.mox.ReplayAll()
+
+        self.workflow.complete_all()
+        self.assertTrue(self.workflow.is_completed(), "Workflow did not "
+                "complete")
+
 
 if __name__ == '__main__':
     # Run tests. Handle our paramsters separately
