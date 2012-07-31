@@ -143,6 +143,14 @@ class Provider(ProviderBase):
                 root.properties['task_tags'] = ['root']
             return dict(root=root, final=create_db_user)
         elif component['is'] == 'compute':
+            # Region
+            if 'region' in resource:
+                region = resource['region']
+            else:
+                region = deployment.get_setting('region',
+                        resource_type=resource.get('type'),
+                        provider_key=self.key, service_name=service_name)
+
             create_instance_task = Celery(wfspec, 'Create Database Server',
                    'checkmate.providers.rackspace.database.create_instance',
                    call_args=[context.get_queued_task_dict(
@@ -152,7 +160,7 @@ class Provider(ProviderBase):
                             resource.get('disk', 1),
                             resource.get('flavor', '1'),
                             None,
-                            resource['region'],
+                            region,
                         ],
                    defines=dict(resource=key,
                                 provider=self.key,
