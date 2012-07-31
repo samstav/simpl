@@ -618,7 +618,7 @@ def get_keys(inputs, environment):
         private, public = environment.generate_key_pair()
         keys['environment'] = dict(public_key=public['PEM'],
                 public_key_ssh=public['ssh'], private_key=private['PEM'])
-        if private_key.startswith('=generate_private_key('):
+        if not private_key or private_key.startswith('=generate_private_key('):
             inputs['environment_private_key'] = private['PEM']
     else:
         # Private key was supplied, make sure we have or can get a public key

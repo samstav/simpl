@@ -91,8 +91,11 @@ class Provider(ProviderBase):
             password = deployment.get_setting('password',
                     resource_type=resource.get('type'), provider_key=self.key,
                     service_name=service_name)
-            if password.startswith('=generate'):
+            if not password:
+                password = self.evaluate("generate_password()")
+            elif password.startswith('=generate'):
                 password = self.evaluate(password[1:])
+
             if password:
                 start_with = string.ascii_uppercase + string.ascii_lowercase
                 if password[0] not in start_with:
