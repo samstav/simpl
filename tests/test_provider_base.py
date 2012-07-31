@@ -1,15 +1,20 @@
 #!/usr/bin/env python
+import json
 import logging
 import uuid
 
+from mox import IsA
 import unittest2 as unittest
 
 # Init logging before we load the database, 3rd party, and 'noisy' modules
 from checkmate.utils import init_console_logging
 init_console_logging()
 
+from checkmate.deployments import Deployment
 from checkmate.exceptions import CheckmateException
-from checkmate.providers.base import ProviderBase, CheckmateInvalidProvider
+from checkmate.providers.base import ProviderBase, PROVIDER_CLASSES,\
+        CheckmateInvalidProvider
+from checkmate.test import StubbedWorkflowBase, TestProvider
 from checkmate.utils import yaml_to_dict
 
 LOG = logging.getLogger(__name__)
@@ -122,13 +127,123 @@ class TestProviderBase(unittest.TestCase):
         self.assertRaises(CheckmateException, provider.evaluate,
                 "unknown()")
 
+
+class TestProviderBaseWorkflow(StubbedWorkflowBase):
+    """ Test Option Data Flow in Workflow """
+
+    def setUp(self):
+        StubbedWorkflowBase.setUp(self)
+        PROVIDER_CLASSES['test.base'] = TestProvider
+        self.deployment = Deployment(yaml_to_dict("""
+                id: 'DEP-ID-1000'
+                blueprint:
+                  name: test mysql connection
+                  services:
+                    web:
+                      component:
+                        id: web_app
+                      relations:
+                        db: mysql
+                    db:
+                      component:
+                        id: database_instance
+                environment:
+                  name: test
+                  providers:
+                    base:
+                      vendor: test
+                      provides:
+                      - application: http
+                      - database: mysql
+                      catalog:
+                        application:
+                          web_app:
+                            id: web_app
+                            is: application
+                            provides:
+                            - application: http
+                            requires:
+                            - database: mysql
+                        database:
+                          database_instance:
+                            id: database_instance
+                            is: database
+                            provides:
+                            - database: mysql
+            """))
+        expected = []
+        expected.append({
+                    'call': 'checkmate.providers.test.create_resource',
+                    'args': [IsA(dict),
+                            {'index': '1', 'component': 'database_instance',
+                            'dns-name': 'CM-DEP-ID--db1.checkmate.local',
+                            'instance': {}, 'provider': 'base',
+                            'type': 'database', 'relations': {
+                                'web-db': {'interface': 'mysql', 'source': '0',
+                                'state': 'planned'}
+                              }}],
+                    'kwargs': None,
+                    'result': {
+                          'instance:0': {
+                              'name': 'CM-DEP-ID--db1.checkmate.local',
+                              'interfaces': {
+                                'mysql': {
+                                    'username': 'mysql_user',
+                                    'host': 'db.local',
+                                    'database_name': 'dbX',
+                                    'port': 8888,
+                                    'password': 'secret',
+                                  },
+                              }
+                          }
+                      },
+                      'post_back_result': True,
+                })
+        expected.append({
+                    'call': 'checkmate.providers.test.create_resource',
+                    'args': [IsA(dict),
+                            {'index': '0', 'component': 'web_app',
+                            'dns-name': 'CM-DEP-ID--web1.checkmate.local',
+                            'instance': {'interfaces': {'mysql': {
+                                'username': 'mysql_user', 'host': 'db.local',
+                                'password': 'secret', 'database_name': 'dbX',
+                                'port': 8888}},
+                                'name': 'CM-DEP-ID--db1.checkmate.local'},
+                            'provider': 'base',
+                            'type': 'application', 'relations': {'web-db': {
+                                'interface': 'mysql', 'state': 'planned',
+                                'target': '1'}}}],
+                    'kwargs': None,
+                    'result': None,
+                })
+        self.workflow = self._get_stubbed_out_workflow(expected_calls=expected)
+
+    def test_workflow_completion(self):
+        """Verify workflow sequence and data flow"""
+
+        self.mox.ReplayAll()
+
+        self.workflow.complete_all()
+        self.assertTrue(self.workflow.is_completed(), "Workflow did not "
+                "complete")
+        self.assertIn('instance:0', self.workflow.get_tasks()[-1].attributes)
+        self.assertIn('mysql', self.workflow.get_tasks()[-1].attributes[
+            'instance:0']['interfaces'])
+
+        LOG.debug("RESOURCES: %s" % json.dumps(self.deployment['resources'],
+                indent=2))
+        last_task = self.workflow.get_tasks()[-1]
+        LOG.debug("DELIVERED to '%s': %s" % (last_task.get_name(), json.dumps(
+                last_task.attributes['instance:0'], indent=2)))
+
+
 if __name__ == '__main__':
-    # Run tests. Handle our paramsters separately
+    # Run tests. Handle our parameters separately
     import sys
     args = sys.argv[:]
-    # Our --debug means --verbose for unitest
+    # Our --debug means --verbose for unittest
     if '--debug' in args:
         args.pop(args.index('--debug'))
         if '--verbose' not in args:
             args.insert(1, '--verbose')
-    unittest.main()
+    unittest.main(argv=args)

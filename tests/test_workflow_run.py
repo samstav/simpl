@@ -298,10 +298,10 @@ class TestWordpressWorkflow(StubbedWorkflowBase):
 
 
 if __name__ == '__main__':
-    # Run tests. Handle our paramsters separately
+    # Run tests. Handle our parameters separately
     import sys
     args = sys.argv[:]
-    # Our --debug means --verbose for unitest
+    # Our --debug means --verbose for unittest
     if '--debug' in args:
         args.pop(args.index('--debug'))
         if '--verbose' not in args:
