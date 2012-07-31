@@ -972,8 +972,8 @@ class Provider(ProviderBase):
             if canonical.startswith(component_id) and \
                     len(canonical) > len(component_id) and \
                     canonical[len(component_id)] in ['/', '_']:
-                LOG.debug("Parse option '%s' into '%s'" % (key,
-                        canonical[len(component_id) + 2:]))
+                LOG.debug("Parsed option '%s' into '%s'" % (key,
+                        canonical[len(component_id) + 1:]))
                 canonical = canonical[len(component_id) + 1:]
             translated = {}
             if 'display_name' in option:
@@ -986,6 +986,9 @@ class Provider(ProviderBase):
                 translated['required'] = option['required']
             if 'type' in option:
                 translated['type'] = option['type']
+                if translated['type'] not in schema.OPTION_TYPES:  # log only
+                    LOG.info("Invalid option type '%s' in '%s'" % (
+                            option['type'], key))
             if 'source' in option:
                 translated['source'] = option['source']
             if 'source_field_name' in option:
@@ -993,6 +996,9 @@ class Provider(ProviderBase):
                         option['source_field_name']
             if canonical != key:
                 translated['source_field_name'] = key
+            violations = schema.validate(translated, schema.OPTION_SCHEMA)
+            if violations:  # log only now
+                LOG.info("Schema violations in '%s': %s" % (violations, key))
             options[canonical] = translated
         return options
 

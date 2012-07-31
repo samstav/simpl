@@ -105,6 +105,11 @@ DEPLOYMENT_SCHEMA = ['id', 'name', 'blueprint', 'environment', 'inputs',
 COMPONENT_SCHEMA = ['id', 'options', 'requires', 'provides', 'summary',
         'dependencies', 'version', 'is', 'role', 'source_name']
 
+OPTION_SCHEMA = ['name', 'label', 'default', 'help', 'description', 'source',
+        'source_field_name', 'required', 'type', 'constrains']
+
+OPTION_TYPES = ['string', 'int']
+
 
 def validate_catalog(obj):
     """Validates provider catalog"""
@@ -242,7 +247,7 @@ def translate(name):
     Keeps path separators intack (name/alias becomes name/canonical_name)
     """
     # Check if is already canonical
-    if name in ALIASES or not name:
+    if name in ALIASES or not name or not isinstance(name, basestring):
         return name
     # Check if exists as-is in aliases
     for canonical, alternatives in ALIASES.iteritems():
