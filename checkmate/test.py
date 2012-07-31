@@ -10,14 +10,14 @@ from celery.app import default_app
 from celery.result import AsyncResult
 import mox
 from mox import IsA, In, And, IgnoreArg, ContainsKeyValue, Func, StrContains
+from SpiffWorkflow.specs import Celery, Transform
 
 # Init logging before we load the database, 3rd party, and 'noisy' modules
 from checkmate.utils import init_console_logging
 init_console_logging()
 LOG = logging.getLogger(__name__)
 
-from checkmate.common import schema
-from checkmate.deployments import Deployment
+from checkmate.deployments import Deployment, plan
 
 os.environ['CHECKMATE_DATA_PATH'] = os.path.join(os.path.dirname(__file__),
                                               'data')
@@ -30,10 +30,12 @@ os.environ['CHECKMATE_BROKER_HOST'] = os.environ.get('CHECKMATE_BROKER_HOST',
 os.environ['CHECKMATE_BROKER_PORT'] = os.environ.get('CHECKMATE_BROKER_PORT',
         '5672')
 
+from checkmate.common import schema
+from checkmate.exceptions import CheckmateException
+from checkmate.providers.base import ProviderBase
 from checkmate.server import RequestContext  # also enables logging
-from checkmate.deployments import plan
-from checkmate.utils import is_ssh_key, merge_dictionary
-from checkmate.workflows import create_workflow
+from checkmate.utils import is_ssh_key, get_source_body, merge_dictionary
+from checkmate.workflows import create_workflow, wait_for
 
 # Environment variables and safe alternatives
 ENV_VARS = {
@@ -658,3 +660,115 @@ class StubbedWorkflowBase(unittest.TestCase):
                         'result': None
                     })
         return expected_calls
+
+
+class TestProvider(ProviderBase):
+    """Provider that returns mock responses for testing
+
+    Defers to ProviderBase for most functionality, but implements
+    prep_environment, add_connection_tasks and add_resource_tasks
+    """
+    name = "Test"
+
+    def prep_environment(self, wfspec, deployment, context):
+        pass
+
+    def add_resource_tasks(self, resource, key, wfspec, deployment,
+            context, wait_on=None):
+        wait_on, service_name, component = self._add_resource_tasks_helper(
+                resource, key, wfspec, deployment, context, wait_on)
+
+        create_instance_task = Celery(wfspec, 'Create Resource %s' % key,
+               'checkmate.providers.test.create_resource',
+               call_args=[context.get_queued_task_dict(
+                                deployment=deployment['id'],
+                                resource=key),
+                         resource,
+                    ],
+               defines=dict(resource=key,
+                            provider=self.key,
+                            task_tags=['create', 'final']))
+        root = wait_for(wfspec, create_instance_task, wait_on)
+        if 'task_tags' in root.properties:
+            root.properties['task_tags'].append('root')
+        else:
+            root.properties['task_tags'] = ['root']
+        return dict(root=root, final=create_instance_task)
+
+    def add_connection_tasks(self, resource, key, relation, relation_key,
+            wfspec, deployment, context):
+        target = deployment['resources'][relation['target']]
+        interface = relation['interface']
+
+        if relation_key == 'host':
+            # Wait on host to be ready
+            wait_on = self.get_host_ready_tasks(resource, wfspec,
+                    deployment)
+            if not wait_on:
+                raise CheckmateException("No host")
+
+        # Get the definition of the interface
+        interface_schema = schema.INTERFACE_SCHEMA.get(interface, {})
+        # Get the fields this interface defines
+        fields = interface_schema.get('fields', {}).keys()
+        if not fields:
+            LOG.debug("No fields defined for interface '%s', so nothing "
+                    "to do for connection '%s'" % (interface,
+                    relation_key))
+            return  # nothing to do
+
+        # Build full path to 'instance:id/interfaces/:interface/:field_name'
+        fields_with_path = []
+        for field in fields:
+            fields_with_path.append('instance:%s/interfaces/%s/%s' % (
+                    relation['target'], interface, field))
+
+        # Get the final task for the target
+        target_final = self.find_tasks(wfspec, provider=target['provider'],
+                resource=relation['target'], tag='final')
+        if not target_final:
+            raise CheckmateException("Relation final task not found")
+        if len(target_final) > 1:
+            raise CheckmateException("Multiple relation final tasks "
+                    "found: %s" % [t.name for t in target_final])
+        target_final = target_final[0]
+
+        # Write the task to get the values
+        def get_fields_code(my_task):  # Holds code for the task
+            fields = my_task.get_property('fields', [])
+            data = {}
+            # Get fields by navigating path
+            for field in fields:
+                parts = field.split('/')
+                current = my_task.attributes
+                for part in parts:
+                    if part not in current:
+                        current = None
+                        break
+                    current = current[part]
+                if current:
+                    data[field.split('/')[-1]] = current
+                else:
+                    LOG.warn("Field %s not found" % field,
+                            extra=dict(data=my_task.attributes))
+            merge_dictionary(my_task.attributes, data)
+
+        compile_override = Transform(wfspec, "Get %s values for %s" %
+                (relation_key, key),
+                transforms=[get_source_body(get_fields_code)],
+                description="Get all the variables "
+                        "we need (like database name and password) and "
+                        "compile them into JSON",
+                defines=dict(relation=relation_key,
+                            provider=self.key,
+                            resource=key,
+                            fields=fields_with_path,
+                            task_tags=['final']))
+        # When target is ready, compile data
+        wait_for(wfspec, compile_override, [target_final])
+        # Provide data to 'final' task
+        tasks = self.find_tasks(wfspec, provider=resource['provider'],
+                resource=key, tag='final')
+        if tasks:
+            for task in tasks:
+                wait_for(wfspec, task, [compile_override])
