@@ -171,63 +171,20 @@ class StubbedWorkflowBase(unittest.TestCase):
         # obj = inspect.stack()[3][0].f_locals['self']
         # print obj.name
 
-        if args[0] == 'checkmate.providers.rackspace.database.'\
-                'create_instance':
-            args = kwargs['args']
-            context = args[0]
-            self.deployment.on_resource_postback(context['resource'],
-                    {
-                        'id': 'db-inst-1',
-                        'instance':  {
-                            'id': 'db-inst-1',
-                            'name': 'dbname.domain.local',
-                            'status': 'BUILD',
-                            'region': self.deployment.get_setting(
-                                            'region', default='testonia'),
-                            'interfaces': {
-                                'mysql': {
-                                    'host': 'verylong.rackspaceclouddb'
-                                            '.com',
-                                    },
-                                },
-                            'databases': {}
-                            },
-                    })
-        elif args[0] == 'checkmate.providers.rackspace.database.'\
-                'create_database':
-            args = kwargs['args']
-            context = args[0]
-            self.deployment.on_resource_postback(context['resource'],
-                    {
-                            'instance': {
-                                    'name': 'db1',
-                                    'host_instance': 'db-inst-1',
-                                    'host_region': self.deployment.get_setting(
-                                            'region', default='testonia'),
-                                    'interfaces': {
-                                            'mysql': {
-                                                    'host': 'verylong.rackspaceclouddb.com',
-                                                    'database_name': 'db1',
-                                                },
-                                        },
-                                },
-                        })
-        elif args[0] == 'checkmate.providers.rackspace.database.add_user':
-            args = kwargs['args']
-            context = args[0]
-            self.deployment.on_resource_postback(context['resource'], {
-                    'instance': {
-                            'username': args[3],
-                            'password': args[4],
-                            'interfaces': {
-                                    'mysql': {
-                                            'username': args[3],
-                                            'password': args[4],
-                                        }
-                                }
-                        }
-                })
-        elif args[0] == 'checkmate.providers.opscode.local.manage_databag':
+        for call in self.expected_calls:
+            if args[0] == call['call']:
+                if 'resource' in call and isinstance(kwargs['args'][0], dict):
+                    if call['resource'] != kwargs['args'][0]['resource']:
+                        continue
+                if 'post_back' in call:
+                    self.deployment.on_resource_postback(call['post_back'])
+                    return
+                elif 'post_back_result' in call:
+                    assert call['result']
+                    self.deployment.on_resource_postback(call['result'])
+                    return
+
+        if args[0] == 'checkmate.providers.opscode.local.manage_databag':
             args = kwargs['args']
             bag_name = args[1]
             item_name = args[2]
@@ -242,16 +199,8 @@ class StubbedWorkflowBase(unittest.TestCase):
             else:
                 merge_dictionary(self.outcome['data_bags'][bag_name]
                         [item_name], contents)
-        elif args[0] == 'checkmate.providers.rackspace.loadbalancer.'\
-                'create_loadbalancer':
-            args = kwargs['args']
-            context = args[0]
-            self.deployment.on_resource_postback(context['resource'], {
-                    'instance': {
-                            'public_ip': "200.1.1.1",
-                            'id': 20001,
-                        }
-                })
+        else:
+            LOG.debug("No postback for %s" % args[0])
 
     def _get_stubbed_out_workflow(self, expected_calls=None):
         """Returns a workflow of self.deployment with mocks attached to all
@@ -267,6 +216,7 @@ class StubbedWorkflowBase(unittest.TestCase):
 
         if not expected_calls:
             expected_calls = self._get_expected_calls()
+        self.expected_calls = expected_calls
 
         #Mock out celery calls
         self.mock_tasks = {}
@@ -351,16 +301,6 @@ class StubbedWorkflowBase(unittest.TestCase):
                     'public_key_path': '/var/tmp/%s/checkmate.pub' %
                             self.deployment['id'],
                     'public_key': ENV_VARS['CHECKMATE_CLIENT_PUBLIC_KEY']}
-            },
-            {
-                # Create Load Balancer
-                'call': 'checkmate.providers.rackspace.loadbalancer.'
-                        'create_loadbalancer',
-                'args': [Func(is_good_context), IsA(basestring), 'PUBLIC',
-                        'HTTP', 80,  self.deployment.get_setting('region',
-                                                        default='testonia')],
-                'kwargs': IgnoreArg(),
-                'result': {'id': 20001, 'vip': "200.1.1.1", 'lbid': 20001}
             }]
 
         if str(os.environ.get('CHECKMATE_CHEF_USE_DATA_BAGS', True)
@@ -412,16 +352,17 @@ class StubbedWorkflowBase(unittest.TestCase):
                             StrContains(name)],
                     'kwargs': And(ContainsKeyValue('image', image),
                             ContainsKeyValue('flavor', flavor),
-                            ContainsKeyValue('prefix', key),
                             ContainsKeyValue('ip_address_type', 'public')),
-                    'result': {'id': id,
-                            'ip': "4.4.4.%s" % ip,
-                            'private_ip': "10.1.1.%s" % ip,
-                            'password': "shecret",
-                            '%s.id' % index: id,
-                            '%s.ip' % index: "4.4.4.%s" % ip,
-                            '%s.private_ip' % index: "10.1.1.%s" % ip,
-                            '%s.password' % index: "shecret"}
+                    'result': {
+                            'instance:%s' % key: {
+                                'id': id,
+                                'ip': "4.4.4.%s" % ip,
+                                'private_ip': "10.1.1.%s" % ip,
+                                'password': "shecret",
+                                }
+                            },
+                    'post_back_result': True,
+                    'resource': key,
                     })
                 expected_calls.append({
                     # Wait for Server Build
@@ -430,49 +371,32 @@ class StubbedWorkflowBase(unittest.TestCase):
                     'args': [Func(is_good_context), id],
                     'kwargs': And(In('password')),
                     'result': {
-                            'status': "ACTIVE",
-                            '%s.status' % index: "ACTIVE",
-                            'ip': '4.4.4.%s' % ip,
-                            '%s.ip' % index: '4.4.4.%s' % ip,
-                            'private_ip': '10.1.2.%s' % ip,
-                            '%s.private_ip' % index: '10.1.2.%s' % ip,
-                            'addresses': {
-                              'public': [
-                                {
-                                  "version": 4,
-                                  "addr": "4.4.4.%s" % ip,
-                                },
-                                {
-                                  "version": 6,
-                                  "addr": "2001:babe::ff04:36c%s" % index,
+                            'instance:%s' % key: {
+                                'status': "ACTIVE",
+                                'ip': '4.4.4.%s' % ip,
+                                'private_ip': '10.1.2.%s' % ip,
+                                'addresses': {
+                                  'public': [
+                                    {
+                                      "version": 4,
+                                      "addr": "4.4.4.%s" % ip,
+                                    },
+                                    {
+                                      "version": 6,
+                                      "addr": "2001:babe::ff04:36c%s" % index,
+                                    }
+                                  ],
+                                  'private': [
+                                    {
+                                      "version": 4,
+                                      "addr": "10.1.2.%s" % ip,
+                                    }
+                                  ]
                                 }
-                              ],
-                              'private': [
-                                {
-                                  "version": 4,
-                                  "addr": "10.1.2.%s" % ip,
-                                }
-                              ]
-                            },
-                            '%s.addresses' % index: {
-                              'public': [
-                                {
-                                  "version": 4,
-                                  "addr": "4.4.4.%s" % ip,
-                                },
-                                {
-                                  "version": 6,
-                                  "addr": "2001:babe::ff04:36c%s" % index,
-                                }
-                              ],
-                              'private': [
-                                {
-                                  "version": 4,
-                                  "addr": "10.1.2.%s" % ip,
-                                }
-                              ]
                             }
-                        }
+                        },
+                    'post_back_result': True,
+                    'resource': key,
                     })
                 # Bootstrap Server with Chef
                 expected_calls.append({
@@ -480,7 +404,8 @@ class StubbedWorkflowBase(unittest.TestCase):
                                 'register_node',
                         'args': ["4.4.4.%s" % ip, self.deployment['id']],
                         'kwargs': In('password'),
-                        'result': None
+                        'result': None,
+                        'resource': key,
                     })
                 # build-essential and then role
                 expected_calls.append({
@@ -492,7 +417,8 @@ class StubbedWorkflowBase(unittest.TestCase):
                                         ContainsKeyValue('identity_file',
                                                 '/var/tmp/%s/private.pem' %
                                                 self.deployment['id'])),
-                        'result': None
+                        'result': None,
+                        'resource': key,
                     })
                 expected_calls.append(
                     {
@@ -503,7 +429,8 @@ class StubbedWorkflowBase(unittest.TestCase):
                                 ContainsKeyValue('identity_file',
                                         '/var/tmp/%s/private.pem' %
                                         self.deployment['id'])),
-                        'result': None
+                        'result': None,
+                        'resource': key,
                     })
                 if role == 'master':
                     expected_calls.append({
@@ -517,7 +444,8 @@ class StubbedWorkflowBase(unittest.TestCase):
                         'kwargs': And(ContainsKeyValue('secret_file',
                                         'certificates/chef.pem'),
                                         ContainsKeyValue('merge', True)),
-                        'result': None
+                        'result': None,
+                        'resource': key,
                     })
                     expected_calls.append(
                         {
@@ -529,7 +457,8 @@ class StubbedWorkflowBase(unittest.TestCase):
                                     ContainsKeyValue('identity_file',
                                             '/var/tmp/%s/private.pem' %
                                             self.deployment['id'])),
-                            'result': None
+                            'result': None,
+                            'resource': key,
                         })
 
                 else:
@@ -543,7 +472,8 @@ class StubbedWorkflowBase(unittest.TestCase):
                                     ContainsKeyValue('identity_file',
                                             '/var/tmp/%s/private.pem' %
                                             self.deployment['id'])),
-                            'result': None
+                            'result': None,
+                            'resource': key,
                         })
                 expected_calls.append({
                         'call': 'checkmate.providers.rackspace.loadbalancer.'
@@ -555,7 +485,8 @@ class StubbedWorkflowBase(unittest.TestCase):
                                 self.deployment.get_setting('region',
                                         default='testonia')],
                         'kwargs': None,
-                        'result': None
+                        'result': None,
+                        'resource': key,
                     })
             elif resource.get('type') == 'compute' and 'disk' in resource:
                 expected_calls.append({
@@ -571,8 +502,8 @@ class StubbedWorkflowBase(unittest.TestCase):
                                         default='testonia')],
                         'kwargs': IgnoreArg(),
                         'result': {
-                                'id': 'db-inst-1',
-                                'instance':  {
+                                #'id': 'db-inst-1',
+                                'instance:%s' % key:  {
                                     'id': 'db-inst-1',
                                     'name': 'dbname.domain.local',
                                     'status': 'BUILD',
@@ -586,7 +517,9 @@ class StubbedWorkflowBase(unittest.TestCase):
                                         },
                                     'databases': {}
                                     },
-                            }
+                            },
+                        'post_back_result': True,
+                        'resource': key,
                     })
             elif resource.get('type') == 'database':
                 username = self.deployment.get_setting('username',
@@ -605,7 +538,7 @@ class StubbedWorkflowBase(unittest.TestCase):
                         'kwargs': And(ContainsKeyValue('instance_id',
                                 'db-inst-1')),
                         'result': {
-                                'instance': {
+                                'instance:%s' % key: {
                                     'name': 'db1',
                                     'host_instance': 'db-inst-1',
                                     'host_region': self.deployment.get_setting(
@@ -620,6 +553,8 @@ class StubbedWorkflowBase(unittest.TestCase):
                                         }
                                     }
                                 },
+                        'post_back_result': True,
+                        'resource': key,
                     })
                 expected_calls.append({
                         # Create Database User
@@ -634,7 +569,7 @@ class StubbedWorkflowBase(unittest.TestCase):
                                         default='testonia')],
                         'kwargs': None,
                         'result': {
-                                'instance': {
+                                'instance:%s' % key: {
                                         'username': username,
                                         'password': 'DbPxWd',
                                         'interfaces': {
@@ -644,7 +579,9 @@ class StubbedWorkflowBase(unittest.TestCase):
                                                     }
                                             }
                                     }
-                            }
+                            },
+                        'post_back_result': True,
+                        'resource': key,
                     })
                 expected_calls.append({
                         'call': 'checkmate.providers.opscode.local.'
@@ -657,7 +594,28 @@ class StubbedWorkflowBase(unittest.TestCase):
                         'kwargs': And(ContainsKeyValue('secret_file',
                                 'certificates/chef.pem'),
                                 ContainsKeyValue('merge', True)),
-                        'result': None
+                        'result': None,
+                        'resource': key,
+                    })
+            elif resource.get('type') == 'load-balancer':
+                expected_calls.append({
+                        # Create Load Balancer
+                        'call': 'checkmate.providers.rackspace.loadbalancer.'
+                                'create_loadbalancer',
+                        'args': [Func(is_good_context), IsA(basestring),
+                                'PUBLIC',
+                                'HTTP', 80,
+                                self.deployment.get_setting('region',
+                                        default='testonia')],
+                        'kwargs': IgnoreArg(),
+                        'result': {
+                                'instance:%s' % key: {
+                                        'id': 20001, 'vip': "200.1.1.1",
+                                        'lbid': 20001
+                                    }
+                            },
+                        'post_back_result': True,
+                        'resource': key,
                     })
         return expected_calls
 
