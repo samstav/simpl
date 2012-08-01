@@ -108,21 +108,6 @@ includes:
   #         a requirement named 'host' is assumed to be a hosting relationship (ex. host: linux)
   # - reference: another component that is needed for this one to operate (but not for creation)
   # - is (see above): 'is' is a type of relationship also.
-  - &apache2
-    id: 'apache2:app'
-    options:
-      domain:
-        type: String
-      path:
-        type: String
-      ssl_certificate:
-        type: String
-      ssl_private_key:
-        type: String
-    requires:
-    - host: linux # 'host' means this is a hosting relationship
-    provides:
-    - application: http
   - &lsyncd
     id: 'lsyncd'
     options:
@@ -302,10 +287,10 @@ includes:
 
     #PROTOTYPING:
     outputs:
-    - 'db_username'
-    - 'db_name'
-    - 'db_password'
-    - 'hostname': db_hostname  # copy/alias/map that return to this name
+    - 'database_username'
+    - 'database_name'
+    - 'database_password'
+    - 'host': hostname  # copy/alias/map that return to this name
   - &mysql-instance
     id: mysql-master-role
     version: 1
@@ -345,7 +330,7 @@ includes:
         interface: 'linux' #PROPOSAL: os or distro as an interface (it has a protocol to interact with it)
         constraint: #PROTOTYPING
         - 'os': ['debian', 'redhat']
-  - &wordpress-web-master-role
+  - &wordpress-web-master-role2
     id: 'wordpress-web-master-role'
     version: 0.8.8  # revisions track multiple versions of a component definition. This comes from Chef cookbook in this case
     summary: "Managed Cloud Install of Wordpress Master Node" # a short description of the component
@@ -354,7 +339,7 @@ includes:
     - 'application': http
     requires:
     - host: 'linux'
-  - &wordpress-web-role
+  - &wordpress-web-role2
     id: 'wordpress-web'
     version: 0.8.8  # revisions track multiple versions of a component definition. This comes from Chef cookbook in this case
     summary: "Managed Cloud Install of Wordpress" # a short description of the component
@@ -407,6 +392,8 @@ includes:
           type: application
           name: wordpress
           role: web
+          options:
+          - 'wordpress/version': '3.0.4'  # fix blueprint to a predicatabl version
         relations:
           "master": 'http'
           #NEW: Long format example. For when we need to identify more than service & interface
@@ -448,7 +435,10 @@ includes:
           setting: "user/name"
         - service: backend
           resource_type: database
-          setting: "database/name"
+          setting: "database/database"  # would be nice if the cookbook called this database/name
+        - service: backend
+          resource_type: database
+          setting: "database/username"
       "region":
         label: Region
         type: select
@@ -470,7 +460,7 @@ includes:
             -----BEGIN CERTIFICATE-----
             Encoded Certificate
             -----END CERTIFICATE-----
-        constrains: [{service: web, resource_type: application, setting: "apache/ssl_cert"}]
+        constrains: [{service: web, resource_type: application, setting: "apache2/ssl_certificate"}]
       "ssl_private_key":
         label: SSL Certificate Private Key
         type: string #certificate-PEM
@@ -478,7 +468,7 @@ includes:
             -----BEGIN PRIVATE KEY-----
             Encoded key
             -----END PRIVATE KEY-----
-        constrains: [{service: web, resource_type: application, setting: "apache/ssl_key"}]
+        constrains: [{service: web, resource_type: application, setting: "apache2/ssl_private_key"}]
       "domain":
         type: string
         regex: '^(([a-zA-Z]|[a-zA-Z][a-zA-Z0-9\-]*[a-zA-Z0-9])\.)*([A-Za-z]|[A-Za-z][A-Za-z0-9\-]*[A-Za-z0-9])$'
@@ -488,7 +478,7 @@ includes:
         constrains:
         - service: web
           resource_type: application
-          setting: "apache/domain_name"
+          setting: "apache2/domain_name"
       "path":
         type: string
         default: /
@@ -498,7 +488,7 @@ includes:
         constrains:
         - service: web
           resource_type: application
-          setting: "apache/path"
+          setting: "apache2/path"
         - service: web
           resource_type: application
           setting: "wordpress/path"
@@ -655,11 +645,11 @@ includes:
         # The catalog is what is available using the env/provider//catalog call.
         # but does not actually need to be populated
         # resource types available
-        catalog:
+        #catalog:
 
           #PROTOTYPING: do we need to add other lists (not just resource templates)?
-          'application': #This is the resource type
-            'wordpress': *wordpress1 # This is a list of resources types (flavors) available of that type
+          #'application': #This is the resource type
+            #'wordpress': *wordpress1 # This is a list of resources types (flavors) available of that type
       'legacy': &rax-cloud-servers-slice
         vendor: 'rackspace'
         provides:
@@ -903,7 +893,7 @@ inputs: # Answers to or values for blueprint/provider options & settings.
   providers:
     'legacy':
       'compute':
-        #'os': Ubuntu 12.04 LTS
+        'os': Ubuntu 11.04
 
 #### For sample Output, see simulator.json in tests directory
 

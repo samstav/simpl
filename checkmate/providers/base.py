@@ -102,7 +102,7 @@ class ProviderBaseWorkflowMixIn():
                         match = False
                         break
 
-                    # Don't match if the task is ted toa relation and no
+                    # Don't match if the task is tied to a relation and no
                     # relation key was provided
                     if 'relation' not in kwargs and \
                             task.get_property('relation'):
@@ -137,6 +137,23 @@ class ProviderBaseWorkflowMixIn():
                                          provider=self.key,
                                          tag=['final'])
         return relation_final
+
+    def get_relation_final_tasks(self, wfspec, resource):
+        """Get all 'final' tasks  for relations where this resource is a source
+
+        :param wfspec: the SpiffWorkflow WorkflowSpec we are building
+        :param resource: the resource dict from the deployment
+        """
+        tasks = []
+        for key, relation in resource.get('relations', {}).iteritems():
+            if 'target' in relation:
+                relation_final = self.find_tasks(wfspec,
+                        resource=resource['index'],
+                        relation=key,
+                        tag=['final'])
+                if relation_final:
+                    tasks.extend(relation_final)
+        return tasks
 
 
 class ProviderBasePlanningMixIn():

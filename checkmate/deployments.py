@@ -266,8 +266,8 @@ def plan(deployment, context):
 
     # Collect all requirements from components
     for service_name, component in components.iteritems():
-        LOG.debug("Analyzing component %s in service %s" % (component['id'],
-                service_name))
+        LOG.debug("Analyzing component %s requirements and needs in service %s"
+                % (component['id'], service_name))
 
         # Save list of interfaces provided by which service
         if 'provides' in component:
@@ -299,8 +299,10 @@ def plan(deployment, context):
             LOG.info(msg)
             abort(406, msg)
         # TODO: check that interfaces match between requirement and provider
+    LOG.debug("Requirements quick check did not identify missing resources")
 
     # Collect relations and verify service for relation exists
+    LOG.debug("Analyzing relations")
     for service_name, service in services.iteritems():
         if 'relations' in service:
             # Check that they all connect to valid service
@@ -330,6 +332,7 @@ def plan(deployment, context):
                             }
                     expanded[relation_name] = expanded_relation
             relations[service_name] = expanded
+    LOG.debug("All relations successfully matched with target services")
 
     #
     # Build needed resource list
@@ -393,13 +396,15 @@ def plan(deployment, context):
                     resource['component'] = component_id
                 # Add it to resources
                 resources[str(resource_index)] = resource
+                resource['index'] = str(resource_index)
                 # Link resource to service
                 if 'instances' not in service:
                     service['instances'] = []
                 instances = service['instances']
                 instances.append(str(resource_index))
-                LOG.debug("  Adding a %s resource with id %s" % (resources[str(
-                        resource_index)]['type'], resource_index))
+                LOG.debug("  Adding a %s resource with resource key %s" % (
+                        resources[str(resource_index)]['type'],
+                        resource_index))
                 Resource.validate(resource)
                 return resource
 
@@ -411,6 +416,8 @@ def plan(deployment, context):
             for index in range(count):
                 if host:
                     # Obtain resource to host this one on
+                    LOG.debug("Creating %s resource to host %s/%s" % (
+                            host_type, service_name, component['id']))
                     host_resource = add_resource(host_provider, deployment,
                             service, service_name, index + 1,
                             domain, host_type,
@@ -421,7 +428,6 @@ def plan(deployment, context):
                 resource = add_resource(provider, deployment, service,
                         service_name, index + 1, domain,
                         resource_type, component_id=component['id'])
-                #resource['debug'] = copy.copy(component.__dict__())
                 resource_index += 1
 
                 if host:
@@ -445,6 +451,8 @@ def plan(deployment, context):
                         host_resource['hosts'].append(str(resource_index - 1))
                     else:
                         host_resource['hosts'] = [str(resource_index - 1)]
+                    LOG.debug("Created hosting relation from %s to %s:%s" % (
+                            resource_index - 1, host_index, host_interface))
 
     # Create connections between components
     connections = {}
@@ -456,7 +464,7 @@ def plan(deployment, context):
         for name, relation in service_relations.iteritems():
             # Find what interface is needed
             target_interface = relation['interface']
-            LOG.debug("  Looking for a provider supporting %s for the %s "
+            LOG.debug("  Looking for a provider supporting '%s' for the '%s' "
                     "service" % (target_interface, service_name))
             target_service_name = relation['service']
             target_service = services[target_service_name]
@@ -490,21 +498,21 @@ def plan(deployment, context):
             # Get list of source instances
             source_instances = {index: resources[index] for index in
                                 instances}
-            LOG.debug("    These instances need '%s' from the '%s' service: %s"
-                    % (target_interface, target_service_name,
-                    instances))
+            LOG.debug("    Instances %s need '%s' from the '%s' service"
+                    % (instances, target_interface, target_service_name))
 
             # Get list of target instances
             target_instances = [i for i in target_service.get('instances', [])
                     if resources[i].get('component') in target_component_ids]
-            LOG.debug("    These instances provide %s: %s" % (target_interface,
-                    target_instances))
+            LOG.debug("    Instances %s provide %s" % (target_instances,
+                    target_interface))
 
             # Wire them up (create relation entries under resources)
             connection_name = "%s-%s" % (service_name, target_service_name)
             if connection_name in connections:
                 connection_name = "%s-%s" % (connection_name, len(connections))
-            connections[connection_name] = {}
+            connections[connection_name] = dict(
+                    interface=relation['interface'])
             for source_instance in source_instances:
                 if 'relations' not in resources[source_instance]:
                     resources[source_instance]['relations'] = {}
@@ -519,10 +527,10 @@ def plan(deployment, context):
                     resources[target_instance]['relations'][connection_name] \
                             = dict(state='planned', source=source_instance,
                                 interface=target_interface)
-                    LOG.debug("    New connection from %s:%s to %s:%s "
-                            "created: %s" % (service_name, source_instance,
-                            target_service_name, target_instance,
-                            connection_name))
+                    LOG.debug("    New connection '%s' from %s:%s to %s:%s "
+                            "created" % (connection_name, service_name,
+                            source_instance, target_service_name,
+                            target_instance))
 
     #Write resources and connections to deployment
     if connections:
@@ -531,7 +539,8 @@ def plan(deployment, context):
         deployment['resources'] = resources
 
     deployment['status'] = 'PLANNED'
-    LOG.info("Deployment '%s' planning complete" % deployment['id'])
+    LOG.info("Deployment '%s' planning complete and status changed to %s" %
+            (deployment['id'], deployment['status']))
     return deployment
 
 
@@ -677,6 +686,7 @@ class Deployment(ExtensibleDict):
     @classmethod
     def validate(cls, obj):
         errors = schema.validate(obj, schema.DEPLOYMENT_SCHEMA)
+        errors.extend(schema.validate_inputs(obj))
         if errors:
             raise CheckmateValidationException("Invalid %s: %s" % (
                     cls.__name__, '\n'.join(errors)))
@@ -780,7 +790,20 @@ class Deployment(ExtensibleDict):
         if result:
             return result
 
+        result = self._get_input_global(name)
+        if result:
+            return result
+
         return default
+
+    def _get_input_global(self, name):
+        """Get a setting directly under inputs"""
+        inputs = self.inputs()
+        if name in inputs:
+            result = inputs[name]
+            LOG.debug("Found setting '%s' in inputs. %s=%s" %
+                    (name, name, result))
+            return result
 
     def _get_input_simple(self, name):
         """Get a setting directly from inputs/blueprint"""
@@ -933,26 +956,12 @@ class Deployment(ExtensibleDict):
         if not resource:
             raise IndexError("Resource %s not found" % resource_id)
 
-        def translate_dict(data):
-            """Translates dictionary keys to caninical checkmate names
-
-            :returns: translated dict
-            """
-            if data:
-                results = {}
-                for key, value in data.iteritems():
-                    canonical = schema.translate(key)
-                    if key != canonical:
-                        LOG.debug("Translating '%s' to '%s'" % (key, canonical))
-                    results[canonical] = value
-                return results
-
         if contents:
-            contents = translate_dict(contents)
+            contents = schema.translate_dict(contents)
             data = {}
             for key, value in contents.iteritems():
                 if isinstance(value, dict):
-                    data[key] = translate_dict(value)
+                    data[key] = schema.translate_dict(value)
                 else:
                     data[key] = value
 
