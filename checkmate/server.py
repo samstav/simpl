@@ -1081,10 +1081,16 @@ class AuthTokenRouterMiddleware():
             self.last_exc_info = exc_info
         return callback
 
-#
-# Main function
-#
-if __name__ == '__main__':
+# Keep this at end so it picks up any remaining calls after all other routes
+# have been added (and some routes are added in the __main__ code)
+@get('<path:path>')
+def extensions(path):
+    """Catch-all unmatched paths (so we know we got the request, but didn't
+       match it)"""
+    abort(404, "Path '%s' not recognized" % path)
+
+#if __name__ == '__main__':
+def main_func():
     # Build WSGI Chain:
     next = app()  # This is the main checkmate app
     next = AuthorizationMiddleware(next, anonymous_paths=STATIC)
@@ -1129,21 +1135,19 @@ if __name__ == '__main__':
     # Pick up IP/port from last param
     ip = '127.0.0.1'
     port = 8080
-    supplied = sys.argv[-1]
-    if len([c for c in supplied if c in '%s:.' % string.digits]) == \
-            len(supplied):
-        if ':' in supplied:
-            ip, port = supplied.split(':')
-        else:
-            ip = supplied
+    if len(sys.argv)>0:
+        supplied = sys.argv[-1]
+        if len([c for c in supplied if c in '%s:.' % string.digits]) == \
+                len(supplied):
+            if ':' in supplied:
+                ip, port = supplied.split(':')
+            else:
+                ip = supplied
     run(app=next, host=ip, port=port, reloader=True,
             server='wsgiref')
 
-
-# Keep this at end so it picks up any remaining calls after all other routes
-# have been added (and some routes are added in the __main__ code)
-@get('<path:path>')
-def extensions(path):
-    """Catch-all unmatched paths (so we know we got the request, but didn't
-       match it)"""
-    abort(404, "Path '%s' not recognized" % path)
+#
+# Main function
+#
+if __name__ == '__main__':
+    main_func()
