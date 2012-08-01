@@ -194,15 +194,16 @@ def get_deployment_status(id, tenant_id=None):
 
     return write_body(results, request, response)
 
-@put('deployments/<depid>/scale/<service>/<amount:int>')
-@delete('deployments/<depid>/scale/<service>/<amount:int>')
-def scale_deployment(depid, service, amount):
+@post('deployments/<depid>/services/<service>/+scale')
+@with_tenant
+def scale_deployment(depid, service, tenant_id=None, amount=None):
     """ Scale a checkmate deployment service
         by the specified number of nodes
         
-        :param id: checkmate deployment id
+        :param depid: checkmate deployment id
         :param service: the service to scale
-        :param amount: the number of nodes to add
+        :param amount: (required query param) the ammount to scale
+        :param tenant_id: (optional tenant id) the vector of the specified service to scale
     """
     if any_id_problems(depid):
         abort(406, any_id_problems(depid))
@@ -212,8 +213,18 @@ def scale_deployment(depid, service, amount):
     if not deployment:
         abort(404, 'No deployment with id %s' % depid)
     
-    if not amount or 0 > amount:
-        abort(406, "Invalid scale amount")
+    if not amount:
+        amount = request.query.amount or 1
+    try:
+        amount = int(amount)
+    except ValueError:
+        abort(406, 'Invalid amount %s' % amount)
+    # TODO: in the future, we want to support scaling different aspects of a service
+    # i.e. container memory, volume size, etc. For now, we only support adding nodes
+    # scale_what = request.query.name or "count"
+    scale_what = "count"
+    if not scale_what:
+        abort(406, "Invalid scale vector %s" % scale_what)
     if not service:
         abort(406, "Must specify a valid service entry to scale.")
     
@@ -222,22 +233,20 @@ def scale_deployment(depid, service, amount):
         # validate that we conform to the appropriate limits on number of nodes
         if 'blueprint' in deployment and 'services' in deployment['blueprint'] and service in deployment['blueprint']['services']:
             bpService = deployment['blueprint']['services'][service]
-            minInst = 0
-            maxInst = sys.maxint
+            minscale = 0
+            maxscale = sys.maxint
             if 'constraints' in bpService:
-                minInst = bpService['constraints'].get("min-instances", min)
-                maxInst = bpService['constraints'].get("max-instances", max)
-            if "DELETE" == request.method():
-                amount = -1 * amount
+                minscale = bpService['constraints'].get("min-%s" % scale_what, minscale)
+                maxscale = bpService['constraints'].get("max-%s" % scale_what, maxscale)
+            # TODO: Move the validation below into the providers when we support more scaling vectors
             current = len(bpService.get("instances", []))
-            if not minInst <= current + amount <= maxInst:
-                abort(406, "Cannot scale service %s for deployment %s to less than %s or more than %s nodes" % (service, depid, minInst, maxInst))
+            if not minscale <= (current + amount) <= maxscale:
+                abort(406, "Cannot scale service %s for deployment %s to less than %s or more than %s nodes" % (service, depid, minscale, maxscale))
         else:
             abort(400, "Service %s in deployment %s does not have a matching service definition in the specified blueprint" % (service, depid))
         # FIXME: need to add the actual scaling logic here
-        ret = {"message": "This is a stub. Need to implement deployment modifcation and workflow planning.",
-               "deployment": deployment}
-        return write_body(ret, request, response)
+        deployment["message"] = "This is a stub. Need to implement deployment modifcation and workflow planning."
+        return write_body(deployment, request, response)
     else:
         abort(406, 'No service %s defined for deployment %s' % (service, depid))
 
