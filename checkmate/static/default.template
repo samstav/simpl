@@ -79,7 +79,7 @@
               <div class="nav-collapse">
                 <ul class="nav">
                   <li class="divider-vertical"></li>
-                  <li><a href="/">Home</a></li>
+                  <li><a href="/admin">Home</a></li>
                   <li><a href="{{tenant_id|prepend}}/environments/">Environments</a></li>
                   <li><a href="{{tenant_id|prepend}}/deployments/">Deployments</a></li>
                   <li><a href="{{tenant_id|prepend}}/blueprints/">Blueprints</a></li>
@@ -94,8 +94,18 @@
                     </ul>
                   </li>
                   <li class="divider-vertical"></li>
-                  <li><a href="/api.html">{{tenant_id|prepend('Tenant: ')}}</a></li>
+                  <li><a href="/{{tenant_id}}/admin">{{tenant_id|prepend('Tenant: ')}}</a></li>
                 </ul>
+                <!-- User Control -->
+                <div class="btn-group pull-right">
+                  <a class="btn dropdown-toggle" data-toggle="dropdown" href="#">
+                    <i class="icon-user"></i> {{context.username}}
+                    <span class="caret"></span>
+                  </a>
+                  <ul class="dropdown-menu">
+                    <li><a href="/{{tenant_id}}/admin">{{tenant_id|prepend('Tenant: ')}}</a></li>
+                  </ul>
+                </div>
               </div>
             </div>
           </div>

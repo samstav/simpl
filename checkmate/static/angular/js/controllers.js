@@ -7,7 +7,7 @@
 function EnvironmentListCtrl($scope, $location, $http) {
 
   // Get the environments
-  cm.Resource.query($http, 'environments').success(function(data, status) {
+  cm.Resource.query($http, $scope, 'environments').success(function(data, status) {
     $scope.environments = data;
   });
 
@@ -43,14 +43,14 @@ function EnvironmentDetailCtrl($scope, $location, $http, $routeParams) {
   $scope.apiProviders = null;
 
   if ($routeParams.environmentId != "new") {
-    cm.Resource.get($http, 'environments', $routeParams.environmentId).success(function(data, status) {
+    cm.Resource.get($http, $scope, 'environments', $routeParams.environmentId).success(function(data, status) {
       $scope.environment = data;
     });
   } else {
     $scope.environment = {};
   }
 
-  cm.Resource.query($http, 'providers')
+  cm.Resource.query($http, $scope, 'providers')
     .success(function(data) {
       $scope.apiProviders = data;
 
@@ -87,7 +87,7 @@ function EnvironmentDetailCtrl($scope, $location, $http, $routeParams) {
 
     $scope.environment["providers"] = newProviders;
 
-    cm.Resource.saveOrUpdate($http, 'environments', $scope.environment).success(function(data, status) {
+    cm.Resource.saveOrUpdate($http, $scope, 'environments', $scope.environment).success(function(data, status) {
       $location.path('/environments');
     });
   };
@@ -106,7 +106,7 @@ EnvironmentDetailCtrl.$inject = ['$scope', '$location', '$http', '$routeParams']
 
 function BlueprintListCtrl($scope, $location, $http) {
   //$scope.blueprints = Blueprint.query();
-  cm.Resource.query($http, 'blueprints').success(function(data, status) {
+  cm.Resource.query($http, $scope, 'blueprints').success(function(data, status) {
     $scope.blueprints = data;
   });
 
@@ -132,7 +132,7 @@ BlueprintListCtrl.$inject = ['$scope', '$location', '$http'];
  */
 
 function BlueprintDetailCtrl($scope, $location, $http, $routeParams) {
-  cm.Resource.get($http, 'blueprints', $routeParams.blueprintId)
+  cm.Resource.get($http, $scope, 'blueprints', $routeParams.blueprintId)
     .success(function(data) {
       $scope.blueprint = data;
       $scope.stringify = JSON.stringify($scope.blueprint, null, '\t');
@@ -176,15 +176,19 @@ function AuthCtrl($scope, $location) {
     password: ''
   };
 
-  var modal = $('#auth_modal');
-  modal.modal({
-    keyboard: false,
-    show: true
-  });
+  // Call any time to ensure client is authentication
+  $scope.signIn = function() {
+    if (!cm.auth.isAuthenticated()) {
+      var modal = $('#auth_modal');
+      modal.modal({
+        keyboard: false,
+        show: true
+      });
 
-  if (!cm.auth.isAuthenticated()) {
-    modal.modal('show');
-  }
+      modal.modal('show');
+    }
+    return cm.auth.isAuthenticated();
+  };
 
   $scope.authenticated = function() {
     return cm.auth.isAuthenticated();
@@ -261,12 +265,12 @@ ProfileCtrl.$inject = ['$scope', '$location'];
  */
 
 function DeploymentListCtrl($scope, $location, $http) {
-  cm.Resource.query($http, 'deployments').success(function(data, status) {
+  cm.Resource.query($http, $scope, 'deployments').success(function(data, status) {
     $scope.deployments = data;
   });
 
   $scope.delete = function(deployment) {
-    cm.Resource.del($http, 'deployments', deployment).success(function(data, status) {
+    cm.Resource.del($http, $scope, 'deployments', deployment).success(function(data, status) {
       $location.path('/deployments');
     });
   };
@@ -288,12 +292,12 @@ DeploymentListCtrl.$inject = ['$scope', '$location', '$http'];
  */
 
 function DeploymentStatusCtrl($scope, $location, $http, $routeParams) {
-  cm.Resource.get($http, 'deployments', $routeParams.deploymentId)
+  cm.Resource.get($http, $scope, 'deployments', $routeParams.deploymentId)
     .success(function(deployment) {
       $scope.deployment = deployment;
 
       // TODO: Do some magic to get the workflow id
-      cm.Resource.get($http, 'workflows', deployment.id)
+      cm.Resource.get($http, $scope, 'workflows', deployment.id)
         .success(function(workflow) {
           $scope.workflow = workflow;
           $scope.task_specs = workflow.wf_spec.task_specs;
@@ -442,33 +446,42 @@ function DeploymentStatusCtrl($scope, $location, $http, $routeParams) {
       case 4:
       case 8:
         return "alert-waiting";
-        break;
       case 16:
       case 128:
         return "alert-info";
-        break;
       case 32:
         return "alert-error";
-        break;
       case 64:
         return "alert-success";
-        break;
       default:
         console.log("Invalid state '" + state + "'.");
-        return "unkonwn"
-      break;
+        return "unkonwn";
     }
-  }
+  };
 }
 DeploymentStatusCtrl.$inject = ['$scope', '$location', '$http', '$routeParams'];
 
 /**
  *   New Deployment
  */
-
 function DeploymentNewCtrl($scope, $location, $routeParams, $http) {
-  $scope.environment = null;
-  $scope.blueprint = null;
+  var ctrl = new DeploymentInitCtrl($scope, $location, $routeParams, $http);
+  return ctrl;
+}
+DeploymentNewCtrl.$inject = ['$scope', '$location', '$routeParams', '$http'];
+
+function DeploymentTryCtrl($scope, $location, $routeParams, $http) {
+  $scope.environments = [WPENV];
+  $scope.blueprints = [WPBP];
+  var ctrl = new DeploymentInitCtrl($scope, $location, $routeParams, $http, WPBP, WPENV);
+  $scope.updateSettings();
+  return ctrl;
+}
+DeploymentTryCtrl.$inject = ['$scope', '$location', '$routeParams', '$http'];
+
+function DeploymentInitCtrl($scope, $location, $routeParams, $http, blueprint, environment) {
+  $scope.environment = environment;
+  $scope.blueprint = blueprint;
   $scope.answers = {};
 
   $scope.updateSettings = function() {
@@ -488,7 +501,7 @@ function DeploymentNewCtrl($scope, $location, $routeParams, $http) {
         $scope.answers[element.id] = null;
       }
     });
-  }
+  };
 
   $scope.renderSetting = function(setting) {
     if (!setting) {
@@ -498,27 +511,25 @@ function DeploymentNewCtrl($scope, $location, $routeParams, $http) {
     }
 
     if (!setting.type || !_.isString(setting.type)) {
-      var message = "The requested setting '" + setting.id + "' has no type or the type is not a string."
+      var message = "The requested setting '" + setting.id + "' has no type or the type is not a string.";
       console.log(message);
       return "<em>" + message + "</em>";
-    } else {
-      var lowerType = setting.type.toLowerCase().trim();
     }
-
+    var lowerType = setting.type.toLowerCase().trim();
     var template = $('#setting-' + lowerType).html();
 
-    if (template == null) {
-      var message = "No template for setting type '" + setting.type + "'."
+    if (template === null) {
+      var message = "No template for setting type '" + setting.type + "'.";
       console.log(message);
       return "<em>" + message + "</em>";
     }
 
       return template ? Mustache.render(template, setting) : "";
-  }
+  };
 
   $scope.showSettings = function() {
     return !($scope.environment && $scope.blueprint);
-  }
+  };
 
   $scope.submit = function(simulate) {
     var deployment = {};
@@ -538,9 +549,9 @@ function DeploymentNewCtrl($scope, $location, $routeParams, $http) {
       });
 
       if (setting.type === "select") {
-        if ($scope.answers[key] != null) {
+        if ($scope.answers[key] !== null) {
           deployment.inputs.blueprint[key] = $scope.answers[key].value;
-        }         
+        }
       } else if (setting.type === "boolean") {
         if ($scope.answers[key] === null) {
           deployment.inputs.blueprint[key] = false;
@@ -557,7 +568,7 @@ function DeploymentNewCtrl($scope, $location, $routeParams, $http) {
       resource = 'deployments/simulate';
     }
 
-    cm.Resource.saveOrUpdate($http, resource, deployment)
+    cm.Resource.saveOrUpdate($http, $scope, resource, deployment)
       .success(function(data, status, headers) {
         var deploymentId = headers('location').split('/')[3];
         $location.path('deployments/' + deploymentId);
@@ -570,36 +581,39 @@ function DeploymentNewCtrl($scope, $location, $routeParams, $http) {
         $scope.error = data;
         $('#error_modal').modal('show');
       });
-  }
+  };
 
   // Load blueprints
-  cm.Resource.query($http, 'blueprints').success(function(data) {
-    $scope.blueprints = data;
+  if (!blueprint) {
+    $scope.signIn();
+    cm.Resource.query($http, $scope, 'blueprints').success(function(data) {
+      $scope.blueprints = data;
 
-    if ($routeParams.blueprintId) {
-      $scope.blueprint = _.find($scope.blueprints, function(bp) {
-        return bp.id == $routeParams.blueprintId
-      });
-      $scope.updateSettings();
-    }
-  });
+      if ($routeParams.blueprintId) {
+        $scope.blueprint = _.find($scope.blueprints, function(bp) {
+          return bp.id == $routeParams.blueprintId;
+        });
+        $scope.updateSettings();
+      }
+    });
+  }
 
   // Load the environments
-  cm.Resource.query($http, 'environments').success(function(data) {
-    $scope.environments = data;
-  });
+  if (!environment) {
+    $scope.signIn();
+    cm.Resource.query($http, $scope, 'environments').success(function(data) {
+      $scope.environments = data;
+    });
+  }
 }
-DeploymentNewCtrl.$inject = ['$scope', '$location', '$routeParams', '$http'];
-
+DeploymentInitCtrl.$inject = ['$scope', '$location', '$routeParams', '$http'];
 
 function ProviderListCtrl($scope, $location, $http) {
 
-  cm.Resource.query($http, 'providers')
+  cm.Resource.query($http, $scope, 'providers')
     .success(function(data) {
       $scope.providers = data;
     });
 
 }
 ProviderListCtrl.$inject = ['$scope', '$location', '$http'];
-  
-

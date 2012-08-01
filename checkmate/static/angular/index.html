@@ -55,7 +55,7 @@
               <li><a ng-click="signOut()">Sign Out</a></li>
             </ul>
           </div>
-          <div class="nav-collapse">
+          <div class="nav-collapse" ng-hide="authenticated">
             <ul id="nav-elements" class="nav">
               <li id="nav-environments"><a href="#/environments">Environments</a></li>
               <li id="nav-blueprints"><a href="#/blueprints">Blueprints</a></li>
@@ -90,7 +90,7 @@
       <form class="form-horizontal">
         <div class="modal-body">
           <div id="auth_error" class="alert alert-error hide">
-            <strong>Authetication Failed!</strong> <span id="auth_error_text"></span>.
+            <strong>Authentication Failed!</strong> <span id="auth_error_text"></span>.
           </div>
           <fieldset>
             <div class="control-group">
