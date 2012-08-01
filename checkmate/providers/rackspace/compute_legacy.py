@@ -4,9 +4,10 @@ import os
 from novaclient.exceptions import EndpointNotFound, AmbiguousEndpoints
 from novaclient.v1_1 import client
 import openstack.compute
-from SpiffWorkflow.operators import Attrib
+from SpiffWorkflow.operators import Attrib, PathAttrib
 from SpiffWorkflow.specs import Celery, Transform
 
+from checkmate.deployments import Deployment, resource_postback
 from checkmate.exceptions import CheckmateNoTokenError, CheckmateNoMapping, \
         CheckmateServerBuildFailed
 from checkmate.providers.rackspace.compute import RackspaceComputeProviderBase
@@ -42,7 +43,7 @@ class Provider(RackspaceComputeProviderBase):
                     image, self.name))
 
         flavor = deployment.get_setting('memory', resource_type=resource_type,
-                service_name=service, provider_key=self.key, default=1)
+                service_name=service, provider_key=self.key, default=2)
         if isinstance(flavor, int):
             flavor = str(flavor)
         if not flavor.isdigit():
@@ -74,13 +75,14 @@ class Provider(RackspaceComputeProviderBase):
 
         create_server_task = Celery(wfspec, 'Create Server %s' % key,
                'checkmate.providers.rackspace.compute_legacy.create_server',
-               call_args=[context.get_queued_task_dict(),
-               resource.get('dns-name')],
+               call_args=[context.get_queued_task_dict(
+                                deployment=deployment['id'],
+                                resource=key),
+                        resource.get('dns-name')],
                image=resource.get('image', 119),
-               flavor=resource.get('flavor', 1),
+               flavor=resource.get('flavor', 2),
                files=self._kwargs.get('files', None),
                ip_address_type='public',
-               prefix=key,
                defines=dict(resource=key,
                             provider=self.key,
                             task_tags=['create']),
@@ -89,10 +91,12 @@ class Provider(RackspaceComputeProviderBase):
         build_wait_task = Celery(wfspec, 'Wait for Server %s build'
                 % key, 'checkmate.providers.rackspace.compute_legacy.'
                         'wait_on_build',
-                call_args=[context.get_queued_task_dict(), Attrib('id')],
+                call_args=[context.get_queued_task_dict(
+                                deployment=deployment['id'],
+                                resource=key),
+                        PathAttrib('instance:%s/id' % key)],
                 password=Attrib('password'),
                 identity_file=Attrib('private_key_path'),
-                prefix=key,
                 properties={'estimated_duration': 150},
                 defines=dict(resource=key,
                              provider=self.key,
@@ -211,8 +215,8 @@ from checkmate.ssh import test_connection
 
 
 @task
-def create_server(context, name, api_object=None, flavor=1, files=None,
-            image=119, ip_address_type='public', prefix=None):
+def create_server(context, name, api_object=None, flavor=2, files=None,
+            image=119, ip_address_type='public'):
     """Create a Rackspace Cloud server.
 
     :param context: the context information
@@ -223,8 +227,7 @@ def create_server(context, name, api_object=None, flavor=1, files=None,
     :param flavor: the size of the server
     :param files: a list of files to inject
     :type files: dict
-    :param prefix: a string to prepend to any results. Used by Spiff and
-            CheckMate
+
     :Example:
 
     {
@@ -250,14 +253,14 @@ def create_server(context, name, api_object=None, flavor=1, files=None,
                   image, flavor, name, files))
 
     # Check image and flavor IDs (better descriptions if we error here)
-    image_object = api_object.images.find(id=image)
+    image_object = api_object.images.find(id=int(image))
     LOG.debug("Image id %s found. Name=%s" % (image, image_object.name))
-    flavor_object = api_object.flavors.find(id=flavor)
+    flavor_object = api_object.flavors.find(id=int(flavor))
     LOG.debug("Flavor id %s found. Name=%s" % (flavor, flavor_object.name))
 
     try:
-        server = api_object.servers.create(image=image, flavor=flavor,
-                                           name=name, files=files)
+        server = api_object.servers.create(image=int(image),
+                flavor=int(flavor), name=name, files=files)
         create_server.update_state(state="PROGRESS",
                                    meta={"server.id": server.id})
         LOG.debug(
@@ -277,19 +280,18 @@ def create_server(context, name, api_object=None, flavor=1, files=None,
     ip_address = str(server.addresses[ip_address_type][0])
     private_ip_address = str(server.addresses['private'][0])
 
-    results = dict(id=server.id, ip=ip_address, password=server.adminPass,
-            private_ip=private_ip_address)
-    if prefix:
-        # Add each value back in with the prefix
-        results.update({'%s.%s' % (prefix, key): value for key, value in
-                results.iteritems()})
+    instance_key = 'instance:%s' % context['resource']
+    results = {instance_key: dict(id=server.id, ip=ip_address,
+            password=server.adminPass, private_ip=private_ip_address)}
+    # Send data back to deployment
+    resource_postback.delay(context['deployment'], results)
     return results
 
 
 @task(default_retry_delay=10, max_retries=18)  # ~3 minute wait
 def wait_on_build(context, id, ip_address_type='public',
             check_ssh=True, username='root', timeout=10, password=None,
-            identity_file=None, port=22, api_object=None, prefix=None):
+            identity_file=None, port=22, api_object=None):
     """Checks build is complete and. optionally, that SSH is working.
 
     :param ip_adress_type: the type of IP addresss to return as 'ip' in the
@@ -306,7 +308,7 @@ def wait_on_build(context, id, ip_address_type='public',
             }
 
     if server.status == 'ERROR':
-        raise StocktonServerBuildFailed("Server %s build failed" % id)
+        raise CheckmateServerBuildFailed("Server %s build failed" % id)
 
     ip = None
     if server.addresses:
@@ -342,18 +344,18 @@ def wait_on_build(context, id, ip_address_type='public',
                 "Assuming it is active" % (id, server.status))
 
     if not ip:
-        raise StocktonException("Could not find IP of server %s" % (id))
+        raise CheckmateException("Could not find IP of server %s" % (id))
     else:
         up = test_connection(context, ip, username, timeout=timeout,
                 password=password, identity_file=identity_file, port=port)
         if up:
             LOG.info("Server %s is up" % id)
-            if prefix:
-                # Add each value back in with the prefix
-                results.update({'%s.%s' % (prefix, key): value for key, value
-                        in results.iteritems()})
+            instance_key = 'instance:%s' % context['resource']
+            results = {instance_key: results}
+            # Send data back to deployment
+            resource_postback.delay(context['deployment'], results)
             return results
-        return wait_on_build.retry(exc=StocktonException("Server "
+        return wait_on_build.retry(exc=CheckmateException("Server "
                 "%s not ready yet" % id))
 
 

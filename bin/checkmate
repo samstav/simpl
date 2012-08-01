@@ -2,7 +2,7 @@
 import os
 
 print """
-*** CheckMate Command-Line Client Utility ***
+*** Checkmate Command-Line Client Utility ***
 
 This tool is not ready yet. This file is being used to
 reserve the name 'checkmate' as a command-line client

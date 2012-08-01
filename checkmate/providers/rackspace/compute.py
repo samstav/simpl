@@ -4,9 +4,10 @@ import os
 from novaclient.exceptions import EndpointNotFound, AmbiguousEndpoints
 from novaclient.v1_1 import client
 import openstack.compute
-from SpiffWorkflow.operators import Attrib
+from SpiffWorkflow.operators import Attrib, PathAttrib
 from SpiffWorkflow.specs import Celery, Transform
 
+from checkmate.deployments import Deployment, resource_postback
 from checkmate.exceptions import CheckmateNoTokenError, CheckmateNoMapping, \
         CheckmateServerBuildFailed
 from checkmate.providers import ProviderBase
@@ -23,9 +24,6 @@ class RackspaceComputeProviderBase(ProviderBase):
     def __init__(self, provider, key=None):
         ProviderBase.__init__(self, provider, key=key)
         self._kwargs = {}
-
-    def provides(self, resource_type=None, interface=None):
-        return [dict(compute='linux'), dict(compute='windows')]
 
     def prep_environment(self, wfspec, deployment, context):
         keys = set()
@@ -93,9 +91,10 @@ class Provider(RackspaceComputeProviderBase):
         """
         create_server_task = Celery(wfspec, 'Create Server:%s' % key,
                'checkmate.providers.rackspace.compute.create_server',
-               call_args=[context.get_queued_task_dict(),
-               resource.get('dns-name'), resource['region']],
-               prefix=key,
+               call_args=[context.get_queued_task_dict(
+                                deployment=deployment['id'],
+                                resource=key),
+                        resource.get('dns-name'), resource['region']],
                image=resource.get('image',
                         '3afe97b2-26dc-49c5-a2cc-a2fc8d80c001'),
                flavor=resource.get('flavor', "1"),
@@ -105,10 +104,12 @@ class Provider(RackspaceComputeProviderBase):
 
         build_wait_task = Celery(wfspec, 'Check that Server is Up:%s'
                 % key, 'checkmate.providers.rackspace.compute.wait_on_build',
-                call_args=[context.get_queued_task_dict(), Attrib('id'),
-                    'root', resource['region']],
+                call_args=[context.get_queued_task_dict(
+                                deployment=deployment['id'],
+                                resource=key),
+                        PathAttrib('instance:%s/id' % key),
+                        'root', resource['region']],
                 password=Attrib('password'),
-                prefix=key,
                 identity_file=Attrib('public_key_path'),
                 properties={'estimated_duration': 150})
         create_server_task.connect(build_wait_task)
@@ -289,8 +290,7 @@ def _get_api_connection(deployment):
 #
 @task
 def create_server(deployment, name, region, api_object=None, flavor="1",
-            files=None, image='3afe97b2-26dc-49c5-a2cc-a2fc8d80c001',
-            prefix=None):
+            files=None, image='3afe97b2-26dc-49c5-a2cc-a2fc8d80c001'):
     """Create a Rackspace Cloud server using novaclient.
 
     Note: Nova server creation requests are asynchronous. The IP address of the
@@ -306,7 +306,7 @@ def create_server(deployment, name, region, api_object=None, flavor="1",
     :param files: a list of files to inject
     :type files: dict
     :param prefix: a string to prepend to any results. Used by Spiff and
-            CheckMate
+            Checkmate
     :Example:
 
     {
@@ -342,24 +342,25 @@ def create_server(deployment, name, region, api_object=None, flavor="1",
                                meta={"server.id": server.id})
     LOG.debug('Created server %s (%s).  Admin pass = %s' % (
             name, server.id, server.adminPass))
-    results = {'id': server.id, 'password': server.adminPass}
-    if prefix:
-        # Add each value back in with the prefix
-        results.update({'%s.%s' % (prefix, key): value for key, value
-                in results.iteritems()})
+    instance_key = 'instance:%s' % context['resource']
+    results = {instance_key: {'id': server.id, 'password': server.adminPass}}
+
+    # Send data back to deployment
+    resource_postback.delay(context['deployment'], results)
+
     return results
 
 
 @task(default_retry_delay=10, max_retries=18)  # ~3 minute wait
 def wait_on_build(deployment, id, ip_address_type='public',
             check_ssh=True, username='root', timeout=10, password=None,
-            identity_file=None, port=22, api_object=None, prefix=None):
+            identity_file=None, port=22, api_object=None):
     """Checks build is complete and. optionally, that SSH is working.
 
     :param ip_adress_type: the type of IP addresss to return as 'ip' in the
         response
     :param prefix: a string to prepend to any results. Used by Spiff and
-            CheckMate
+            Checkmate
     :returns: False when build not ready. Dict with ip addresses when done.
     """
     if api_object is None:
@@ -412,10 +413,10 @@ def wait_on_build(deployment, id, ip_address_type='public',
                 password=password, identity_file=identity_file, port=port)
         if up:
             LOG.info("Server %s is up" % id)
-            if prefix:
-                # Add each value back in with the prefix
-                results.update({'%s.%s' % (prefix, key): value for key, value
-                        in results.iteritems()})
+            instance_key = 'instance:%s' % context['resource']
+            results = {instance_key: results}
+            # Send data back to deployment
+            resource_postback.delay(context['deployment'], results)
             return results
         return wait_on_build.retry(exc=CheckmateException("Server "
                 "%s not ready yet" % id))

@@ -1,5 +1,5 @@
 # Checkmate
-![CheckMate](https://github.rackspace.com/checkmate/checkmate/raw/master/checkmate/static/checkmate.png)
+![Checkmate](https://github.rackspace.com/checkmate/checkmate/raw/master/checkmate/static/checkmate.png)
 
 ## Overview
 Checkmate stores and controls your cloud configurations. Use it to deploy and manage complete application stacks.
@@ -486,6 +486,12 @@ Set the environment variable for your checkmate deployment environments and crea
     $ export CHECKMATE_CHEF_LOCAL_PATH=/var/checkmate/deployments
     $ mkdir -p $CHECKMATE_CHEF_LOCAL_PATH
 
+Clone the chef repository and point checkmate to it:
+
+    $ mkdir -p /var/checkmate/chef/repo
+    $ cd /var/checkmate/chef/repo
+    $ git clone git://github.rackspace.com/checkmate/chef-stockton.git
+
 
 Starting the server processes:
 
@@ -497,6 +503,7 @@ API key). In the first terminal window, start the task queue:
     export CHECKMATE_BROKER_PORT="5672"
     export CHECKMATE_BROKER_HOST="localhost"
     export CELERY_CONFIG_MODULE=checkmate.celeryconfig
+    export CHECKMATE_CHEF_REPO=/var/checkmate/chef/repo/chef-stockton
 
     export CHECKMATE_CONNECTION_STRING=sqlite:////var/checkmate/data/db.sqlite
 
@@ -511,6 +518,7 @@ In the second window, start the checkmate server & REST API:
     export CHECKMATE_BROKER_PASSWORD="password"
     export CHECKMATE_BROKER_PORT="5672"
     export CHECKMATE_BROKER_HOST="localhost"
+    export CHECKMATE_CHEF_REPO=/var/checkmate/chef/repo/chef-stockton
     export CELERY_CONFIG_MODULE=checkmate.celeryconfig
 
     export CHECKMATE_CONNECTION_STRING=sqlite:////var/checkmate/data/db.sqlite
@@ -523,16 +531,14 @@ There are multiple ways to use checkmate. You could browse to http://localhost:8
 
 In the third window, run these commands to simulate a client call:
 
-    # load your cloud credentials in (checkmate by default talks to the Rakcpspce cloud using the OpsnStack Keystone Identity API)
+    # load your cloud credentials in (checkmate by default talks to the Racksapce cloud using the OpenStack Keystone Identity API)
     export CHECKMATE_CLIENT_APIKEY="*your_rax_API_key*"
     export CHECKMATE_CLIENT_REGION="chicago"
     export CHECKMATE_CLIENT_USERNAME="*your_rax_user*"
     export CHECKMATE_CLIENT_DOMAIN=*aworkingRAXdomain.com*
     export CHECKMATE_CLIENT_PUBLIC_KEY=`cat ~/.ssh/id_rsa.pub`
 
-    # Yes, sorry, this is long. It's mostly auth and text template replacement stuff to send a complete deployment to checkmate. That's not how wyou would need to use it *in real life* (this comes from examples/app.yaml)
-
-    CHECKMATE_CLIENT_TENANT=$(curl -H "X-Auth-User: ${CHECKMATE_CLIENT_USERNAME}" -H "X-Auth-Key: ${CHECKMATE_CLIENT_APIKEY}" -I https://identity.api.rackspacecloud.com/v1.0 -v 2> /dev/null | grep "X-Server-Management-Url" | grep -P -o $'(?!.*/).+$'| tr -d '\r') && CHECKMATE_CLIENT_TOKEN=$(curl -H "X-Auth-User: ${CHECKMATE_CLIENT_USERNAME}" -H "X-Auth-Key: ${CHECKMATE_CLIENT_APIKEY}" -I https://identity.api.rackspacecloud.com/v1.0 -v 2> /dev/null | grep "X-Auth-Token:" | awk '/^X-Auth-Token:/ { print $2 }') && awk '{while(match($0,"[$][\\{][^\\}]*\\}")) {var=substr($0,RSTART+2,RLENGTH -3);gsub("[$][{]"var"[}]",ENVIRON[var])}}1' < examples/app.yaml | curl -H "X-Auth-Token: ${CHECKMATE_CLIENT_TOKEN}" -H 'content-type: application/x-yaml' http://localhost:8080/${CHECKMATE_CLIENT_TENANT}/deployments/simulate -v --data-binary @-
+    bin/checkmate-simulate
 
     # this starts a deployment simulation by picking up app.yaml as a template and replacing in a bunch
     # of environment variables. Browse to http://localhost:8080/${CHECKMATE_CLIENT_TENANT}/workflows/simulate to see how the build is progressing (each reload of the page moves the workflow forward one step)
@@ -543,7 +549,7 @@ In the third window, run these commands to simulate a client call:
 ### Authentication
 
 
-CheckMate supports multiple authentication protocols and endpoints simultaneously. If it is started with a web UI (using the --with-ui) option, it will also support basic auth for browser friendliness.
+Checkmate supports multiple authentication protocols and endpoints simultaneously. If it is started with a web UI (using the --with-ui) option, it will also support basic auth for browser friendliness.
 
 #### Authenticating through a Browser
 
@@ -636,5 +642,7 @@ distributing tasks and retrying those that fail.
 
 
 
+## Why the name checkmate?
 
+My intention for this product is be a deployment _verification_ and management service, and not just a deployment automation service. So it will be used to CHECK configurations and autoMATE, not only the deployment, but the repair of live deployments as well. It also conveniently abbreviates to 'cm' which could also stand for configuration management, aludes to this being a killer app, appeals to my inner strategist, it has a 'k' sound in it which I am told by branding experts makes it sticky, and, above all, it sounds cool.
 

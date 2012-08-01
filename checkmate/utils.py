@@ -47,6 +47,17 @@ def get_debug_level():
         return logging.INFO
 
 
+class DebugFormatter(logging.Formatter):
+    """Log formatter that outputs any 'data' values passed in the 'extra'
+    parameter if provided"""
+    def format(self, record):
+        # Print out any 'extra' data provided in logs
+        if hasattr(record, 'data'):
+            return "%s. DEBUG DATA=%s" % (logging.Formatter.format(self,
+                    record), record.__dict__['data'])
+        return logging.Formatter.format(self, record)
+
+
 def get_debug_formatter():
     """Get debug formatter based on arguments.
 
@@ -56,13 +67,15 @@ def get_debug_formatter():
     default is logging.INFO
     """
     if '--debug' in sys.argv:
-        return '%(pathname)s:%(lineno)d: %(levelname)-8s %(message)s'
+        print "Enabling debug extra logging"
+        return DebugFormatter('%(pathname)s:%(lineno)d: %(levelname)-8s '
+                '%(message)s')
     elif '--verbose' in sys.argv:
-        return '%(name)-30s: %(levelname)-8s %(message)s'
+        return logging.Formatter('%(name)-30s: %(levelname)-8s %(message)s')
     elif '--quiet' in sys.argv:
-        return '%(name)-30s: %(levelname)-8s %(message)s'
+        return logging.Formatter('%(name)-30s: %(levelname)-8s %(message)s')
     else:
-        return '%(name)-30s: %(levelname)-8s %(message)s'
+        return logging.Formatter('%(name)-30s: %(levelname)-8s %(message)s')
 
 
 def find_console_handler(logger):
@@ -83,7 +96,7 @@ def init_console_logging():
         console.setLevel(logging_level)
 
         # set a format which is simpler for console use
-        formatter = logging.Formatter(get_debug_formatter())
+        formatter = get_debug_formatter()
         # tell the handler to use this format
         console.setFormatter(formatter)
         # add the handler to the root logger

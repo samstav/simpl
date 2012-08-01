@@ -42,8 +42,8 @@
             <span class="icon-bar"></span>
             <span class="icon-bar"></span>
           </a>
-          <a class="brand" href="#">Checkmate</a>
-          <!-- User Control -->          
+          <a class="brand" href="/">Checkmate</a>
+          <!-- User Control -->
           <div class="btn-group pull-right">
             <a class="btn dropdown-toggle" data-toggle="dropdown" href="#">
               <i class="icon-user"></i> {{auth.username}}
@@ -55,7 +55,7 @@
               <li><a ng-click="signOut()">Sign Out</a></li>
             </ul>
           </div>
-          <div class="nav-collapse">
+          <div class="nav-collapse" ng-hide="authenticated">
             <ul id="nav-elements" class="nav">
               <li id="nav-environments"><a href="#/environments">Environments</a></li>
               <li id="nav-blueprints"><a href="#/blueprints">Blueprints</a></li>
@@ -84,35 +84,46 @@
     <div id="auth_modal" class="modal hide fade">
       <div class="modal-header">
         <button type="button" class="close" data-dismiss="modal">×</button>
-        <h3>Time To Authenticate!</h3>
+        <h3>Log on</h3>
+        <p>Log on to your Rackspace Cloud account. This will work with US and UK accounts. If you'd like to specify a region or use your API key, there are <a href="#" data-toggle="collapse" data-target="#auth_options">More Options</a> available.</p>
       </div>
       <form class="form-horizontal">
         <div class="modal-body">
           <div id="auth_error" class="alert alert-error hide">
-            <strong>Authetication Failed!</strong> <span id="auth_error_text"></span>.
+            <strong>Authentication Failed!</strong> <span id="auth_error_text"></span>.
           </div>
           <fieldset>
             <div class="control-group">
               <label class="control-label" for="username">Username</label>
               <div class="controls">
-                <input type="text" class="input-xlarge" id="username" ng-model="auth.username">
+                <input type="text" class="input-xlarge" id="username" ng-model="auth.username"></i>
               </div>
             </div>
 
             <div class="control-group">
-              <label class="control-label" for="password">API Key</label>
+              <label class="control-label" for="password">Password</label>
               <div class="controls">
-                <input type="password" class="input-xlarge" id="password" ng-model="auth.key">
+                <input type="password" class="input-xlarge" id="password" ng-model="auth.password">
               </div>
             </div>
 
-            <div class="control-group">
-              <label class="control-label" for="location">Location</label>
-              <div class="controls">
-                <select id="location" class="span3" ng-model="location" required>
-                  <option value="us">US</option>
-                  <option value="uk">UK</option>
-                </select>
+            <div id="auth_options" class="collapse out">
+              <span class="span4">or</span>
+              <div class="control-group">
+                <label class="control-label" for="apikey">API Key</label>
+                <div class="controls">
+                  <input type="password" class="input-xlarge" id="apikey" ng-model="auth.key">
+                </div>
+              </div>
+
+              <div class="control-group">
+                <label class="control-label" for="location">Location</label>
+                <div class="controls">
+                  <select id="location" class="span3" ng-model="location" required>
+                    <option value="us">US</option>
+                    <option value="uk">UK</option>
+                  </select>
+                </div>
               </div>
             </div>
           </fieldset>
@@ -121,15 +132,15 @@
           <a href="#" class="btn btn-primary" ng-click="authenticate()">Authenticate!</a>
         </div>
       </form>
-    </div>  
+    </div>
 
     <!-- Le javascript
     ================================================== -->
-    <!-- Placed at the end of the document so the pages load faster -->     
+    <!-- Placed at the end of the document so the pages load faster -->
     <script src="js/lib/jquery-1.7.2.min.js"></script>
     <script src="js/lib/angular-1.0.0.js"></script>
     <script src="js/lib/angular-resource-1.0.0.js"></script>
-    <script src="js/lib/angular-sanitize-1.0.0.js"></script>    
+    <script src="js/lib/angular-sanitize-1.0.0.js"></script>
     <script src="js/lib/bootstrap.min.js"></script>
     <script src="js/lib/bootstrap-popover.js"></script>
     <script src="js/lib/mustache.js"></script>

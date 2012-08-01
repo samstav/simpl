@@ -41,9 +41,9 @@ class TestEnvironments(unittest.TestCase):
         PROVIDER_CLASSES['test.base'] = ProviderBase
 
         environment = Environment(definition)
-        self.assertIn('base', environment.get_providers())
-        self.assertIsInstance(environment.select_provider(resource='widget'),
-                ProviderBase)
+        self.assertIn('base', environment.get_providers(None))
+        self.assertIsInstance(environment.select_provider(None,
+                resource='widget'), ProviderBase)
 
 if __name__ == '__main__':
     unittest.main()

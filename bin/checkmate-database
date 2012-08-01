@@ -9,7 +9,7 @@ if __name__ == '__main__':
     url = os.environ['CHECKMATE_CONNECTION_STRING']
     repo = os.path.normpath(os.path.join(os.path.dirname(__file__), os.pardir,
             'checkmate', 'db', 'repository'))
-    print "*** CheckMate Database Versioning Tool ***\n"
+    print "*** Checkmate Database Versioning Tool ***\n"
     print "DATABASE: %s" % url
     print "REPOSITORY: %s\n" % repo
 

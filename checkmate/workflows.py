@@ -1,7 +1,7 @@
 """ Workflow handling
 
 This module uses SpiffWorkflow to create, manage, and run workflows for
-CheckMate
+Checkmate
 """
 # pylint: disable=E0611
 from bottle import get, post, put, request, response, abort
@@ -10,7 +10,7 @@ import logging
 import uuid
 
 try:
-    from SpiffWorkflow.specs import WorkflowSpec, Merge, Simple
+    from SpiffWorkflow.specs import WorkflowSpec, Merge, Simple, Join
 except ImportError:
     #TODO(zns): remove this when Spiff incorporates the code in it
     print "Get SpiffWorkflow with the Celery spec in it from here: "\
@@ -370,7 +370,7 @@ def get_SpiffWorkflow_status(workflow):
 
 
 def create_workflow(deployment, context):
-    """Creates a SpiffWorkflow from a CheckMate deployment dict
+    """Creates a SpiffWorkflow from a Checkmate deployment dict
 
     :returns: SpiffWorkflow.Workflow"""
     LOG.info("Creating workflow for deployment '%s'" % deployment['id'])
@@ -507,7 +507,8 @@ def wait_for(wf_spec, task, wait_list, name=None, **kwargs):
     complete before proceeding.
 
     If wait_list has more than one task, we'll use a Merge task. If wait_list
-    only contains one task, we'll just wire them up directly.
+    only contains one task, we'll just wire them up directly. If task input is
+    already a join, we'll tap into that.
 
     :param wf_spec: the workflow spec being worked on
     :param task: the task that will be waiting
@@ -517,24 +518,44 @@ def wait_for(wf_spec, task, wait_list, name=None, **kwargs):
     :returns: the final task or the task itself if no waiting needs to happen
     """
     if wait_list:
+        join_task = None
         if task.inputs:
             # Move inputs to join
             for input in task.inputs:
+                # If input is a Join, keep it as an input and use it
+                if isinstance(input, Join):
+                    if join_task:
+                        LOG.warning("Task %s seems to have to Join inputs" %
+                                task.name)
+                    else:
+                        LOG.debug("Using existing Join task %s" % input.name)
+                        join_task = input
+                        continue
                 if input not in wait_list:
                     wait_list.append(input)
                 # remove it from the other tasks outputs
                 input.outputs.remove(task)
-            task.inputs = []
+            if join_task:
+                task.inputs = [join_task]
+            else:
+                task.inputs = []
 
         if len(wait_list) > 1:
-            if not name:
-                name = "After %s run %s" % (",".join([str(t.id)
-                        for t in wait_list]), task.id)
-            join = Merge(wf_spec, name, **kwargs)
-            task.follow(join)
+            if not join_task:
+                # Create a new Merge task since it doesn't exist
+                if not name:
+                    name = "After %s run %s" % (",".join([str(t.id)
+                            for t in wait_list]), task.id)
+                join_task = Merge(wf_spec, name, **kwargs)
+            if task not in join_task.outputs:
+                task.follow(join_task)
             for t in wait_list:
-                t.connect(join)
-            return join
+                if t not in join_task.ancestors():
+                    t.connect(join_task)
+            return join_task
+        elif join_task:
+            wait_list[0].connect(join_task)
+            return join_task
         else:
             task.follow(wait_list[0])
             return wait_list[0]

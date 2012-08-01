@@ -43,6 +43,7 @@ Notes:
 """
 
 import base64
+import copy
 import httplib
 import json
 import os
@@ -360,7 +361,7 @@ class PAMAuthMiddleware(object):
         def callback(status, headers, exc_info=None):
             # Add our headers to response
             headers.append(('WWW-Authenticate',
-                    'Basic realm="CheckMate PAM Module"'))
+                    'Basic realm="Checkmate PAM Module"'))
             # Call upstream start_response
             start_response(status, headers, exc_info)
         return callback
@@ -561,8 +562,10 @@ class BrowserMiddleware(object):
         @get('/static/<path:path>')
         def wire(path):
             """Expose static files"""
-            return static_file(path,
-                    root=os.path.join(os.path.dirname(__file__), 'static'))
+            root = os.path.join(os.path.dirname(__file__), 'static')
+            if path.endswith('.css'):
+                return static_file(path, root=root, mimetype='text/css')
+            return static_file(path, root=root)
 
         @get('/')
         def root():
@@ -789,9 +792,10 @@ class RequestContext(object):
     the current call, such as scope (which object, resource, etc).
     """
 
-    def __init__(self, auth_token=None, username=None, tenant=None, is_admin=False,
-                 read_only=False, show_deleted=False, authenticated=False,
-                 catalog=None, user_tenants=None, roles=None, domain=None):
+    def __init__(self, auth_token=None, username=None, tenant=None,
+                 is_admin=False, read_only=False, show_deleted=False,
+                 authenticated=False, catalog=None, user_tenants=None,
+                 roles=None, domain=None, **kwargs):
         self.authenticated = authenticated
         self.auth_token = auth_token
         self.catalog = catalog
@@ -803,6 +807,7 @@ class RequestContext(object):
         self.read_only = read_only
         self.show_deleted = show_deleted
         self.domain = domain  # which cloud?
+        self.kwargs = kwargs  # store extra args and retrieve them when needed
 
     def get_queued_task_dict(self, **kwargs):
         """Get a serializable dict of this context for use with remote, queued
@@ -811,12 +816,16 @@ class RequestContext(object):
         :param kwargs: any additional kwargs get added to the context
 
         Only certain fields are needed.
+        Extra kwargs from __init__ are also provided.
         """
+        keyword_args = copy.copy(self.kwargs)
+        if kwargs:
+            keyword_args.update(kwargs)
         result = dict(
                 username=self.username,
                 auth_token=self.auth_token,
                 catalog=self.catalog,
-                **kwargs
+                **keyword_args
             )
         return result
 

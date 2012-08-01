@@ -26,7 +26,7 @@ class Provider(ProviderBase):
         create_environment = Celery(wfspec, 'Create Chef Environment',
                 'checkmate.providers.opscode.server.manage_env',
                 call_args=[Attrib('context'), deployment['id'],
-                        'CheckMate Environment'],
+                        'Checkmate Environment'],
                 properties={'estimated_duration': 10})
         self.prep_task = create_environment
         return {'root': self.prep_task, 'final': self.prep_task}
@@ -103,7 +103,7 @@ class Provider(ProviderBase):
                 "Write Database Settings",
                 'checkmate.providers.opscode.server.manage_env',
                 call_args=[Attrib('context'), deployment['id']],
-                    desc='CheckMate Environment',
+                    desc='Checkmate Environment',
                     override_attributes=Attrib('overrides'),
                 description="Take the JSON prepared earlier and write "
                         "it into the environment overrides. It will "

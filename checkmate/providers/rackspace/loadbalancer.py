@@ -1,9 +1,9 @@
 import logging
 
-from SpiffWorkflow.operators import Attrib
-from SpiffWorkflow.specs import Celery, Transform
+from SpiffWorkflow.operators import PathAttrib
+from SpiffWorkflow.specs import Celery
 
-
+from checkmate.deployments import resource_postback
 from checkmate.exceptions import CheckmateException, CheckmateNoTokenError
 from checkmate.providers import ProviderBase
 from checkmate.workflows import wait_for
@@ -19,9 +19,6 @@ REGION_MAP = {'dallas': 'DFW',
 class Provider(ProviderBase):
     name = 'load-balancer'
     vendor = 'rackspace'
-
-    def provides(self, resource_type=None, interface=None):
-        return [{'load-balancer': 'http'}]
 
     def generate_template(self, deployment, resource_type, service, context,
             name=None):
@@ -43,12 +40,14 @@ class Provider(ProviderBase):
         create_lb = Celery(wfspec, 'Create Loadbalancer',
                 'checkmate.providers.rackspace.loadbalancer.'
                         'create_loadbalancer',
-                call_args=[context.get_queued_task_dict(),
+                call_args=[context.get_queued_task_dict(
+                                deployment=deployment['id'],
+                                resource=key),
                         resource.get('dns-name'), 'PUBLIC', 'HTTP', 80,
                         resource['region']],
                 defines=dict(resource=key,
-                    provider=self.key,
-                    task_tags=['create', 'root', 'final']),
+                        provider=self.key,
+                        task_tags=['create', 'root', 'final']),
                 properties={'estimated_duration': 30})
 
         return dict(root=create_lb, final=create_lb)
@@ -63,13 +62,23 @@ class Provider(ProviderBase):
                     tag='final')
             create_lb = self.find_tasks(wfspec, resource=key,
                     provider=self.key, tag='final')[0]
+            # TODO: Fix this. Must get ip from host iof a hosted resource
+            target_resource = deployment['resources'][relation['target']]
+            if 'hosted_on' in target_resource:
+                target = target_resource['hosted_on']
+            else:
+                target = relation['target']
 
             #Create the add node task
             add_node = Celery(wfspec,
                     "Add LB Node: %s" % relation['target'],
                     'checkmate.providers.rackspace.loadbalancer.add_node',
-                    call_args=[context.get_queued_task_dict(),  Attrib('lbid'),
-                            Attrib('private_ip'), 80,
+                    call_args=[context.get_queued_task_dict(
+                                deployment=deployment['id'],
+                                resource=key),
+                            PathAttrib('instance:%s/id' % key),
+                            PathAttrib('instance:%s/private_ip' % target),
+                            80,
                             resource['region']],
                     defines=dict(relation=relation_key, provider=self.key,
                             task_tags=['final']),
@@ -229,7 +238,13 @@ def create_loadbalancer(context, name, type, protocol, port, region,
                       monitor_delay, monitor_timeout, monitor_attempts,
                       monitor_body, monitor_status)
 
-    return {'id': lb.id, 'vip': vip, 'lbid': lb.id}
+    results = {'instance:%s' % context['resource']: {'id': lb.id,
+            'public_ip': vip}}
+
+    # Send data back to deployment
+    resource_postback.delay(context['deployment'], results)
+
+    return results
 
 
 @task

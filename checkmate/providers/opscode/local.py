@@ -16,12 +16,12 @@ import os
 
 from Crypto.PublicKey import RSA  # pip install pycrypto
 from Crypto.Random import atfork
-from SpiffWorkflow.operators import Attrib
+from SpiffWorkflow.operators import Attrib, PathAttrib
 from SpiffWorkflow.specs import Celery, Transform, Merge
 
 from checkmate.common import schema
 from checkmate.components import Component
-from checkmate.exceptions import CheckmateException, \
+from checkmate.exceptions import CheckmateException, CheckmateIndexError,\
         CheckmateCalledProcessError, CheckmateNoMapping
 from checkmate.providers import ProviderBase
 from checkmate.utils import get_source_body, merge_dictionary
@@ -38,9 +38,6 @@ class Provider(ProviderBase):
     def __init__(self, provider, key=None):
         ProviderBase.__init__(self, provider, key=key)
         self.prep_task = None
-
-    def provides(self, resource_type=None, interface=None):
-        return [dict(application='http'), dict(database='mysql')]
 
     def prep_environment(self, wfspec, deployment, context):
         if self.prep_task:
@@ -76,8 +73,7 @@ class Provider(ProviderBase):
                             Attrib('app_id'), Attrib('chef_options')],
                     secret_file='certificates/chef.pem',
                     merge=True,
-                    defines=dict(provider=self.key,
-                                task_tags=['write_options']),
+                    defines=dict(provider=self.key),
                     properties={'estimated_duration': 5})
         else:
             write_options = Celery(wfspec,
@@ -88,15 +84,21 @@ class Provider(ProviderBase):
                     description="Take the JSON prepared earlier and write "
                             "it into the application role. It will be used "
                             "by the Chef recipe to access global data",
-                    defines=dict(provider=self.key,
-                                task_tags=['write_options']),
+                    defines=dict(provider=self.key),
                     properties={'estimated_duration': 5})
-        # We create this task but don't wire it up. Any other task that needs
-        # it will connect to it and wire it up by default. Otherwise, it is
-        # ignored. That also prevents it from executing before chef_options
+
+        collect = Merge(wfspec,
+                "Collect Chef Data",
+                defines=dict(provider=self.key),
+                )
+        write_options.follow(collect)
+        # We create the collect and write tasks but don't wire them up.
+        # Any other task that needs them will connect to the collect task and
+        # wire it up by default. Otherwise, it is ignored.
+        # That also prevents it from executing before chef_options
         # exists.
-        # Not doing this (see above): write_options.follow(create_environment)
-        self.collect_data_task = write_options
+        # Not doing this (see above): collect.follow(create_environment)
+        self.collect_data_tasks = dict(root=collect, final=write_options)
 
         return dict(root=create_environment, final=create_environment)
 
@@ -110,26 +112,8 @@ class Provider(ProviderBase):
         3 - wait on those tasks
         1 - configure the resource
         """
-        if wait_on is None:
-            wait_on = []
-        # 1 - Wait on host to be ready
-        wait_on.extend(self.get_hosting_relation_final_tasks(wfspec, key))
-
-        # Get component
-        component_id = resource['component']
-        component = self.get_component(context, component_id)
-        if not component:
-            raise CheckmateNoMapping("Component '%s' not found" % component_id)
-
-        # Get service
-        service_name = None
-        for name, service in deployment['blueprint']['services'].iteritems():
-            if key in service.get('instances', []):
-                service_name = name
-                break
-        if not service_name:
-            raise CheckmateException("Service not found for resource %s" %
-                    key)
+        wait_on, service_name, component = self._add_resource_tasks_helper(
+                resource, key, wfspec, deployment, context, wait_on)
 
         # 2 - Make a call for each component (some have custom code)
         def recursive_load_dependencies(components, component, provider,
@@ -152,11 +136,11 @@ class Provider(ProviderBase):
                         recursive_load_dependencies(components, item,
                                 provider, context)
 
-        LOG.debug("Analyzing dependencies for '%s'" % component_id)
+        LOG.debug("Analyzing dependencies for '%s'" % component['id'])
         components = []  # this component comes first
         recursive_load_dependencies(components, component, self, context)
-        LOG.debug("Recursion for dependencies for '%s' found: %s" %
-                (component_id, ', '.join([c['id'] for c in components[1:]])))
+        LOG.debug("Recursion for dependencies for '%s' found: %s" % (
+                component['id'], ', '.join([c['id'] for c in components[1:]])))
 
         # Chef will handle dependencies. We only need to call cook once with
         # the main component. For all others, we just need to call
@@ -201,13 +185,13 @@ class Provider(ProviderBase):
         """Parse options and place them in the workflow. If any options need to
         be picked up at run time, then generate tasks for that.
 
-        By default, this will use the global collect_data_task task created in
-        prepare_environment to write option values out to chef. But if this
+        By default, this will use the global collect_data_tasks tasks created
+        in prepare_environment to write option values out to chef. But if this
         component needs to write its own options, then the write_separately
         parameter creates a separate write task for this component.
 
         :param write_separately: create tasks to write out options separately
-        instead of using the global collect_data_task task.
+        instead of using the global collect_data_tasks tasks.
         :returns: task that completes the option writing (ready to cook)
 
         """
@@ -215,22 +199,27 @@ class Provider(ProviderBase):
         resource = deployment['resources'][key]
 
         # Get list of options
-        option_maps = []  # stores option names and provider's field name
+        option_maps = []  # keep option names, source field name, and default
         for name, option in component.get('options', {}).iteritems():
-            #if option.get('default'):
-            #    continue
             if 'source' in option and option['source'] != component['id']:
                 # comes form somewhere else. Let the 'somewhere else' handle it
                 continue
-            option_maps.append((name, option.get('provider_field_name', name)))
+            option_maps.append((name, option.get('source_field_name', name),
+                    option.get('default')))
 
         # Set the options if they are available now (at planning time) and mark
         # ones we need to get at run-time
         planning_time_options = {}
-        run_time_options = []  # (name, provider_field_name) tuples
-        for name, mapped_name in option_maps:
+        run_time_options = []  # (name, source_field_name) tuples
+        for name, mapped_name, default in option_maps:
             value = deployment.get_setting(name, provider_key=self.key,
                     resource_type=resource['type'], service_name=service_name)
+            if not value and default and isinstance(default, basestring):
+                if default.startswith('=generate'):
+                    value = self.evaluate(default[1:])
+                else:
+                    # Let chef handle it
+                    continue
             if value:
                 planning_time_options[mapped_name] = value
             else:
@@ -249,6 +238,7 @@ class Provider(ProviderBase):
 
         # Collect runtime and planning-time options
         def build_data_code(my_task):  # Holds code for the task
+            LOG.debug("Attributes: %s" % my_task.attributes)
             data = my_task.task_spec.properties['planning_time_options']
             if not data:
                 data = {}
@@ -282,6 +272,9 @@ class Provider(ProviderBase):
                         current[part] = value
                     else:
                         results[key] = value
+                # Flatten duplicate component_id
+                if component_id in results:
+                    results.update(results.pop(component_id))
                 data[component_id] = results
 
             # And write chef options under this component's key
@@ -301,24 +294,17 @@ class Provider(ProviderBase):
                         "place it in a structure ready for storage in a "
                         "databag or role" % component['id'],
                 defines=dict(provider=self.key,
+                        resource=key,
                         run_time_options=run_time_options,
                         component_id=component['id'],
                         planning_time_options=planning_time_options))
-
-        if 'hosted_on' in resource:
-            tasks = self.get_host_ready_tasks(resource, wfspec, deployment)
-            if not tasks:
-                raise CheckmateException("Could not find root task to attach "
-                        "the Collect Data task to")
-            collect_data.follow(tasks[0])
-        else:
-            collect_data.follow(self.prep_task)
 
         # Set the write_option task (find the global one or create our own)
         if run_time_options:
             contents_param = Attrib('chef_options')  # eval at run-time
         else:
             contents_param = planning_time_options  # no run-time eval needed
+            collect_data.follow(self.prep_task)  # no need to wait
         if write_separately:
             if str(os.environ.get('CHECKMATE_CHEF_USE_DATA_BAGS', True)
                         ).lower() in ['true', '1', 'yes']:
@@ -332,7 +318,8 @@ class Provider(ProviderBase):
                         secret_file='certificates/chef.pem',
                         merge=True,
                         defines=dict(provider=self.key, resource=key),
-                        properties={'estimated_duration': 5})
+                        properties={'estimated_duration': 5},
+                        )
             else:
                 write_options = Celery(wfspec,
                         "Write Overrides for %s/%s" % (component['id'], key),
@@ -345,13 +332,22 @@ class Provider(ProviderBase):
                                 "used by the Chef recipe to access global "
                                 "data",
                         defines=dict(provider=self.key, resource=key),
-                        properties={'estimated_duration': 5})
+                        properties={'estimated_duration': 5},
+                        )
         else:
-            write_options = self.collect_data_task
+            write_options = self.collect_data_tasks['root']
+
+        # Write must wait on collect
+        wait_for(wfspec, write_options, [collect_data],
+                name="Feed %s data to Write task for %s" % (component['id'],
+                key))
 
         tasks = self.get_relation_final_tasks(wfspec, resource)
-        tasks.append(collect_data)
-        wait_for(wfspec, write_options, tasks,
+        LOG.debug("Attaching %s to %s" % (write_options.name, ', '.join(
+                        [t.name for t in tasks])))
+        if not tasks:
+            tasks = [self.prep_task]
+        wait_for(wfspec, collect_data, tasks,
                 name="Get %s data: %s" % (component['id'], key),
                 description="Before applying chef recipes, we need to "
                 "know that the server has chef on it and that the "
@@ -367,7 +363,8 @@ class Provider(ProviderBase):
 
         # Get component/role or recipe name
         kwargs = {}
-        LOG.debug("Determining component from dict: %s" % component)
+        LOG.debug("Determining component from dict: %s" % component.get('id'),
+                extra=component)
         if 'role' in component:
             name = '%s::%s' % (component['id'], component['role'])
         else:
@@ -380,11 +377,16 @@ class Provider(ProviderBase):
         LOG.debug("Component determined to be %s" % kwargs)
 
         # Create the cook task
+        resource = deployment['resources'][key]
         configure_task = Celery(wfspec, 'Configure %s: %s' % (component['id'],
                 key),
                'checkmate.providers.opscode.local.cook',
-                call_args=[Attrib('ip'), deployment['id']],
-                password=Attrib('password'),
+                call_args=[
+                        PathAttrib('instance:%s/ip' %
+                                resource.get('hosted_on', key)),
+                        deployment['id']],
+                password=PathAttrib('instance:%s/password' %
+                        resource.get('hosted_on', key)),
                 identity_file=Attrib('private_key_path'),
                 description="Push and apply Chef recipes on the server",
                 defines=dict(resource=key,
@@ -394,12 +396,11 @@ class Provider(ProviderBase):
                 **kwargs)
 
         # Collect dependencies
-        dependencies = [self.prep_task, self.collect_data_task]  # to get private key
+        dependencies = [self.prep_task, self.collect_data_tasks['final']]
         if options_ready:
             dependencies.append(options_ready)
 
         # Wait for relations to complete
-        resource = deployment['resources'][key]
         for relation_key, relation in resource.get('relations', {}).iteritems():
             tasks = self.find_tasks(wfspec,
                     resource=key,
@@ -460,6 +461,13 @@ class Provider(ProviderBase):
             kwargs['recipes'] = [name]
 
         resource = deployment['resources'][key]
+
+        # Save server resource ID
+        if 'hosted_on' in resource:
+            server_id = resource['hosted_on']
+        else:
+            server_id = key
+
         pre_cook = None  # the task to wire the cook command to
         if role == 'master':
             # Init the array with existing resource IPs from deployment
@@ -511,7 +519,19 @@ class Provider(ProviderBase):
                 options = attribute['lsyncd']
                 if 'slaves' not in options:
                     options['slaves'] = []
-                options['slaves'].append(my_task.get_attribute('private_ip'))
+                field = my_task.task_spec.get_property('attribute_key',
+                        'private_ip')
+                parts = field.split('/')
+                current = my_task.attributes
+                for part in parts:
+                    if part not in current:
+                        current = None
+                        break
+                    current = current[part]
+                if current:
+                    options['slaves'].append(current)
+                else:
+                    LOG.debug("Slave IP '%s' not found" % field)
 
             build_bag = Transform(wfspec, "Get Slave IP from Server %s" % key,
                     transforms=[get_source_body(get_slave_ip_code)],
@@ -519,6 +539,7 @@ class Provider(ProviderBase):
                             "and place it in a structure ready for "
                             "storage in a databag",
                     defines=dict(provider=self.key,
+                            attribute_key='instance:%s/private_ip' % server_id,
                             task_tags='get_slave_ip'))
             # Connect it to host completion tasks (so we have the IP)
             host_tasks = self.get_host_ready_tasks(resource, wfspec,
@@ -549,20 +570,15 @@ class Provider(ProviderBase):
                             name="Write lsyncd Data Bag")
             pre_cook = host_task  # can go ahead pretty early
 
-        if 'hosted_on' in deployment['resources'][key]:
-            server_id = deployment['resources'][key]['hosted_on']
-            #provider = deployment['resources'][server_id]['provider']
-        else:
-            server_id = key
-            #provider = self.key
-
         if pre_cook:
-            configure_task = Celery(wfspec, 'Configure lsyncd on %s' % server_id,
-               'checkmate.providers.opscode.local.cook',
-                call_args=[Attrib('ip'), deployment['id']],
-                password=Attrib('password'),
+            configure_task = Celery(wfspec,
+                'Configure lsyncd on %s' % server_id,
+                'checkmate.providers.opscode.local.cook',
+                call_args=[PathAttrib('instance:%s/ip' % server_id),
+                        deployment['id']],
+                password=PathAttrib('instance:%s/password' % server_id),
                 identity_file=Attrib('private_key_path'),
-                description="Push and apply Chef recipes on the server",
+                description="Push and apply lsyncd Chef recipe on the server",
                 defines=dict(resource=key,
                             provider=self.key),
                 properties={'estimated_duration': 100},
@@ -574,6 +590,8 @@ class Provider(ProviderBase):
 
     def add_connection_tasks(self, resource, key, relation, relation_key,
             wfspec, deployment, context):
+        """Write out or Transform data. Provide final task for relation sources
+        to hook into"""
         target = deployment['resources'][relation['target']]
         interface = relation['interface']
 
@@ -583,7 +601,16 @@ class Provider(ProviderBase):
             # Get the fields this interface defines
             fields = interface_schema.get('fields', {}).keys()
             if not fields:
+                LOG.debug("No fields defined for interface '%s', so nothing "
+                    "to do for connection '%s'" % (interface,
+                    relation_key))
                 return  # nothing to do
+
+            # Build full path to 'instance:id/interfaces/:interface/:field_name'
+            fields_with_path = []
+            for field in fields:
+                fields_with_path.append('instance:%s/interfaces/%s/%s' % (
+                    relation['target'], interface, field))
 
             # Get the final task for the target
             target_final = self.find_tasks(wfspec, provider=target['provider'],
@@ -603,13 +630,21 @@ class Provider(ProviderBase):
                 fields = my_task.get_property('fields', [])
                 data = {}
                 for field in fields:
-                    if field in my_task.attributes:
-                        data[field] = my_task.attributes[field]
+                    parts = field.split('/')
+                    current = my_task.attributes
+                    for part in parts:
+                        if part not in current:
+                            current = None
+                            break
+                        current = current[part]
+                    if current:
+                        data[field.split('/')[-1]] = current
                     else:
-                        LOG.warn("Field %s not found in %s" % (field, my_task.attributes))
+                        LOG.warn("Field %s not found" % field,
+                                extra=dict(data=my_task.attributes))
                 my_task.attributes['chef_options'][key] = data
 
-            compile_override = Transform(wfspec, "Prepare Overrides: %s/%s" %
+            compile_override = Transform(wfspec, "Get %s values for %s" %
                     (relation_key, key),
                     transforms=[get_source_body(get_fields_code)],
                     description="Get all the variables "
@@ -620,49 +655,17 @@ class Provider(ProviderBase):
                                 provider=self.key,
                                 resource=key,
                                 chef_root=interface,
-                                fields=fields))
+                                fields=fields_with_path,
+                                task_tags=['final']))
             # When target is ready, compile data
-            target_final.connect(compile_override)
-
-            if str(os.environ.get('CHECKMATE_CHEF_USE_DATA_BAGS', True)
-                        ).lower() in ['true', '1', 'yes']:
-                # Call manage_databag(environment, bagname, itemname, contents)
-                set_overrides = Celery(wfspec,
-                        "Write Data Bag: %s/%s" % (relation_key, key),
-                       'checkmate.providers.opscode.local.manage_databag',
-                        call_args=[deployment['id'], deployment['id'],
-                                Attrib('app_id'), Attrib('chef_options')],
-                        secret_file='certificates/chef.pem',
-                        merge=True,
-                        defines=dict(relation=relation_key,
-                                    provider=self.key,
-                                    resource=key),
-                        properties={'estimated_duration': 5,
-                                'task_tags': ['final']})
-            else:
-                set_overrides = Celery(wfspec,
-                        "Write Database Settings: %s/%s" % (relation_key, key),
-                        'checkmate.providers.opscode.local.manage_role',
-                        call_args=[resource['component'], deployment['id']],
-                        override_attributes=Attrib('chef_options'),
-                        description="Take the JSON prepared earlier and write "
-                                "it into the particular role. It will be used "
-                                "by the Chef recipe to connect to the DB",
-                        defines=dict(relation=relation_key,
-                                    resource=key,
-                                    provider=self.key),
-                        properties={'estimated_duration': 10,
-                                'task_tags': ['final']})
-
-            # Before setting the values...
-            # Wait on resource to be ready
-            wait_on = []
-            wait_on.append(compile_override)  # Wait for values to be ready
-            wait_on.append(self.prep_task)  # Wait for environment to be ready
-
-            wait_for(wfspec, set_overrides, wait_on,
-                    name="Wait on %s %s data for resource %s" % (relation_key,
-                            interface, key))
+            wait_for(wfspec, compile_override, [target_final])
+            # Feed data into collection task
+            tasks = [self.collect_data_tasks['root']]
+            #tasks = self.find_tasks(wfspec, provider=resource['provider'],
+            #        resource=key, tag='final')
+            if tasks:
+                for task in tasks:
+                    wait_for(wfspec, task, [compile_override])
 
         if relation_key == 'host':
             # Wait on host to be ready
@@ -675,8 +678,11 @@ class Provider(ProviderBase):
             register_node_task = Celery(wfspec,
                     'Register Server %s' % relation['target'],
                     'checkmate.providers.opscode.local.register_node',
-                    call_args=[Attrib('ip'), deployment['id']],
-                    password=Attrib('password'),
+                    call_args=[
+                            PathAttrib('instance:%s/ip' % relation['target']),
+                            deployment['id']],
+                    password=PathAttrib('instance:%s/password' %
+                            relation['target']),
                     omnibus_version="0.10.10-1",
                     identity_file=Attrib('private_key_path'),
                     attributes={'deployment': {'id': deployment['id']}},
@@ -690,9 +696,12 @@ class Provider(ProviderBase):
             bootstrap_task = Celery(wfspec,
                     'Pre-Configure Server %s' % relation['target'],
                     'checkmate.providers.opscode.local.cook',
-                    call_args=[Attrib('ip'), deployment['id']],
+                    call_args=[
+                            PathAttrib('instance:%s/ip' % relation['target']),
+                            deployment['id']],
                     recipes=['build-essential'],
-                    password=Attrib('password'),
+                    password=PathAttrib('instance:%s/password' %
+                            relation['target']),
                     identity_file=Attrib('private_key_path'),
                     description="Install build-essentials on server",
                     defines=dict(resource=key,
@@ -755,19 +764,25 @@ class Provider(ProviderBase):
         if '::' in id:
             id, role = id.split('::')[0:2]
 
-        cookbook = self._get_cookbook(id, site_cookbook=True)
-        if cookbook:
-            if role:
-                cookbook['role'] = role
-            Component.validate(cookbook)
-            return cookbook
+        try:
+            cookbook = self._get_cookbook(id, site_cookbook=True)
+            if cookbook:
+                if role:
+                    cookbook['role'] = role
+                Component.validate(cookbook)
+                return cookbook
+        except CheckmateIndexError:
+            pass
 
-        cookbook = self._get_cookbook(id, site_cookbook=False)
-        if cookbook:
-            if role:
-                cookbook['role'] = role
-            Component.validate(cookbook)
+        try:
+            cookbook = self._get_cookbook(id, site_cookbook=False)
+            if cookbook:
+                if role:
+                    cookbook['role'] = role
+                Component.validate(cookbook)
             return cookbook
+        except CheckmateIndexError:
+            pass
 
         chef_role = self._get_role(id, context)
         if chef_role:
@@ -781,6 +796,20 @@ class Provider(ProviderBase):
     def _get_cookbooks(self, site_cookbooks=False):
         """Get all cookbooks as Checkmate components"""
         results = {}
+        # Get cookbook names (with source if translated)
+        cookbooks = self._get_cookbook_names(site_cookbooks=site_cookbooks)
+        # Load individual cookbooks
+        for name, cookbook in cookbooks.iteritems():
+            data = self._get_cookbook(cookbooks.get('source_name', name),
+                    site_cookbook=site_cookbooks)
+            if data:
+                results[data['id']] = data
+        return results
+
+    def _get_cookbook_names(self, site_cookbooks=False):
+        """Get all cookbooks names (as dict with source_name if canonicalized)
+        """
+        results = {}
         repo_path = _get_repo_path()
         if site_cookbooks:
             path = os.path.join(repo_path, 'site-cookbooks')
@@ -793,22 +822,27 @@ class Provider(ProviderBase):
             break
 
         for name in names:
-            data = self._get_cookbook(name, site_cookbook=site_cookbooks)
-            if data:
-                results[data['id']] = data
+            canonical_name = schema.translate(name)
+            results[canonical_name] = dict(id=canonical_name)
+            if canonical_name != name:
+                results[canonical_name]['source_name'] = name
         return results
 
     def _get_cookbook(self, id, site_cookbook=False):
-        """Get a cookbook as a CheckMate component"""
+        """Get a cookbook as a Checkmate component"""
         assert id, 'Blank cookbook ID requested from _get_cookbook'
-        cookbook = {}
+        # Get cookbook names (with source if translated)
+        cookbooks = self._get_cookbook_names(site_cookbooks=site_cookbook)
+        if id not in cookbooks:
+            raise CheckmateIndexError("Cookbook '%s' not found" % id)
+        cookbook = cookbooks[id]
         repo_path = _get_repo_path()
         if site_cookbook:
-            meta_path = os.path.join(repo_path, 'site-cookbooks', id,
-                    'metadata.json')
+            meta_path = os.path.join(repo_path, 'site-cookbooks',
+                    cookbook.get('source_name', id), 'metadata.json')
         else:
-            meta_path = os.path.join(repo_path, 'cookbooks', id,
-                    'metadata.json')
+            meta_path = os.path.join(repo_path, 'cookbooks',
+                    cookbook.get('source_name', id), 'metadata.json')
         if os.path.exists(meta_path):
             cookbook = self._parse_cookbook_metadata(meta_path)
         return cookbook
@@ -821,15 +855,21 @@ class Provider(ProviderBase):
         component = {'is': 'application'}
         with file(metadata_json_path, 'r') as f:
             data = json.load(f)
-        component['id'] = data['name']
+
+        canonical_name = schema.translate(data['name'])
+        component['id'] = canonical_name
+        if data['name'] != canonical_name:
+            component['source_name'] = data['name']
         component['summary'] = data.get('description')
         component['version'] = data.get('version')
         if 'attributes' in data:
-            component['options'] = self.translate_options(data['attributes'])
+            component['options'] = self.translate_options(data['attributes'],
+                    component['id'])
         if 'dependencies' in data:
             dependencies = []
             for key, value in data['dependencies'].iteritems():
-                dependencies.append(dict(id=key, version=value))
+                dependencies.append(dict(id=schema.translate(key),
+                        version=value))
             component['dependencies'] = dependencies
         if 'platforms' in data:
             #TODO: support multiple options
@@ -837,18 +877,15 @@ class Provider(ProviderBase):
                 requires = [dict(host='linux')]
                 component['requires'] = requires
 
-        # Tweaks we apply for each cookbook
-        mapping = {
-                'apache2': {
-                        'provides': [{'application': 'http'}],
-                    },
-                'wordpress': {
-                        'provides': [{'application': 'http'}],
-                    },
-            }
-        if component['id'] in mapping:
-            component.update(mapping[component['id']])
-        # Add hosting relationship
+        # Look for optional checkmate.json file
+        checkmate_json_file = os.path.join(os.path.dirname(metadata_json_path),
+                'checkmate.json')
+        if os.path.exists(checkmate_json_file):
+            with file(checkmate_json_file, 'r') as f:
+                checkmate_data = json.load(f)
+            merge_dictionary(component, checkmate_data)
+
+        # Add hosting relationship (we're assuming we always need it for chef)
         if 'requires' in component:
             found = False
             for entry in component['requires']:
@@ -885,7 +922,7 @@ class Provider(ProviderBase):
         return results
 
     def _get_role(self, id, context):
-        """Get a role as a CheckMate component"""
+        """Get a role as a Checkmate component"""
         assert id, 'Blank role ID requested from _get_role'
         role = {}
         repo_path = _get_repo_path()
@@ -928,9 +965,13 @@ class Provider(ProviderBase):
                 dependency = self.get_component(context, name)
                 if dependency:
                     if 'provides' in dependency:
-                        provides.extend(dependency['provides'])
+                        for entry in dependency['provides']:
+                            if entry not in provides:
+                                provides.append(entry)
                     if 'requires' in dependency:
-                        requires.extend(dependency['requires'])
+                        for entry in dependency['requires']:
+                            if entry not in requires:
+                                requires.append(entry)
                     if 'options' in dependency:
                         # Mark options as coming from another component
                         for key, option in dependency['options'].iteritems():
@@ -947,11 +988,22 @@ class Provider(ProviderBase):
 
         return component
 
-    def translate_options(self, native_options):
-        """Translate native provider options to canonical, checkmate options"""
+    def translate_options(self, native_options, component_id):
+        """Translate native provider options to canonical, checkmate options
+
+        :param native_options: dict coming from metadata.json
+        :component_id: the cookbook id which should be removed from the
+        translated name
+        """
         options = {}
         for key, option in native_options.iteritems():
             canonical = schema.translate(key)
+            if canonical.startswith(component_id) and \
+                    len(canonical) > len(component_id) and \
+                    canonical[len(component_id)] in ['/', '_']:
+                LOG.debug("Parsed option '%s' into '%s'" % (key,
+                        canonical[len(component_id) + 1:]))
+                canonical = canonical[len(component_id) + 1:]
             translated = {}
             if 'display_name' in option:
                 translated['label'] = option['display_name']
@@ -963,13 +1015,19 @@ class Provider(ProviderBase):
                 translated['required'] = option['required']
             if 'type' in option:
                 translated['type'] = option['type']
+                if translated['type'] not in schema.OPTION_TYPES:  # log only
+                    LOG.info("Invalid option type '%s' in '%s'" % (
+                            option['type'], key))
             if 'source' in option:
                 translated['source'] = option['source']
-            if 'provider_field_name' in option:
-                translated['provider_field_name'] = \
-                        option['provider_field_name']
+            if 'source_field_name' in option:
+                translated['source_field_name'] = \
+                        option['source_field_name']
             if canonical != key:
-                translated['provider_field_name'] = key
+                translated['source_field_name'] = key
+            violations = schema.validate(translated, schema.OPTION_SCHEMA)
+            if violations:  # log only now
+                LOG.info("Schema violations in '%s': %s" % (violations, key))
             options[canonical] = translated
         return options
 
@@ -1228,13 +1286,6 @@ def download_cookbooks(environment, path=None, cookbooks=None,
     # Find/get cookbook source
     repo_path = _get_repo_path()
 
-    if not os.path.exists(repo_path):
-        git.Repo.clone_from('git://github.rackspace.com/checkmate/'
-                'chef-stockton.git', repo_path)
-        LOG.info("Cloned chef-stockton to %s" % repo_path)
-    else:
-        LOG.debug("Getting cookbooks from %s" % repo_path)
-
     if use_site:
         cookbook_subdir = 'site-cookbooks'
     else:
@@ -1373,11 +1424,14 @@ def register_node(host, environment, path=None, password=None,
         lock = threading.Lock()
         lock.acquire()
         try:
-            with file(node_path, 'r+') as f:
+            node = {'run_list': []}  # default
+            with file(node_path, 'r') as f:
                 node = json.load(f)
-                node.update(attributes)
+            node.update(attributes)
+            with file(node_path, 'w') as f:
                 json.dump(node, f)
-            LOG.info("Node attributes written in %s" % node_path)
+            LOG.info("Node attributes written in %s" % node_path, extra=dict(
+                    data=node))
         except StandardError, exc:
             raise exc
         finally:
@@ -1517,7 +1571,7 @@ def manage_role(name, environment, path=None, desc=None,
     the_ruby = os.path.join(kitchen_path, 'roles', '%s.rb' % name)
     if os.path.exists(the_ruby):
         raise CheckmateException("Encountered a chef role in Ruby. Only JSON "
-                "roles can be manipulated by CheckMate: %s" % the_ruby)
+                "roles can be manipulated by Checkmate: %s" % the_ruby)
 
     role_path = os.path.join(kitchen_path, 'roles', '%s.json' % name)
 
@@ -1670,4 +1724,8 @@ def _get_repo_path():
         path = os.path.join(os.path.dirname(__file__), 'chef-stockton')
         LOG.warning("No CHECKMATE_CHEF_REPO variable set. Defaulting to %s" %
                 path)
+        if not os.path.exists(path):
+            git.Repo.clone_from('git://github.rackspace.com/checkmate/'
+                    'chef-stockton.git', path)
+            LOG.info("Cloned chef-stockton to %s" % path)
     return path

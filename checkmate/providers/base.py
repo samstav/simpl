@@ -1,9 +1,13 @@
 import logging
+import random
+import string
+import uuid
 
 from checkmate import utils
 from checkmate.common import schema
 from checkmate.components import Component
-from checkmate.exceptions import CheckmateValidationException
+from checkmate.exceptions import CheckmateException, CheckmateNoMapping,\
+        CheckmateValidationException
 
 LOG = logging.getLogger(__name__)
 PROVIDER_CLASSES = {}
@@ -51,6 +55,38 @@ class ProviderBaseWorkflowMixIn():
         """
         LOG.debug("%s.%s.add_resource_tasks called, but was not implemented" %
                 (self.vendor, self.name))
+
+    def _add_resource_tasks_helper(self, resource, key, wfspec, deployment,
+                context, wait_on):
+        """Common algoprithm for all providers. Gets service_name, finds
+        component, and adds any hosting wait tasks"""
+        if wait_on is None:
+            wait_on = []
+        # 1 - Wait on host to be ready
+        # Find final task(s) of 'host' relationship
+        tasks = self.get_hosting_relation_final_tasks(wfspec, key)
+        if not tasks:
+            # If no relation tasks, make sure host is ready
+            tasks = self.get_host_ready_tasks(resource, wfspec, deployment)
+        if tasks:
+            wait_on.extend(tasks)
+
+        # Get component
+        component_id = resource['component']
+        component = self.get_component(context, component_id)
+        if not component:
+            raise CheckmateNoMapping("Component '%s' not found" % component_id)
+
+        # Get service
+        service_name = None
+        for name, service in deployment['blueprint']['services'].iteritems():
+            if key in service.get('instances', []):
+                service_name = name
+                break
+        if not service_name:
+            raise CheckmateException("Service not found for resource %s" %
+                    key)
+        return wait_on, service_name, component
 
     def add_connection_tasks(self, resource, key, relation, relation_key,
             wfspec, deployment, context):
@@ -198,7 +234,7 @@ class ProviderBase(ProviderBasePlanningMixIn, ProviderBaseWorkflowMixIn):
         if provider:
             has_valid_data = False
             for k in provider.keys():
-                if k in ['provides', 'catalog', 'vendor']:
+                if k in ['provides', 'catalog', 'vendor', 'endpoint']:
                     has_valid_data = True
                     break
             if not has_valid_data:
@@ -212,7 +248,7 @@ class ProviderBase(ProviderBasePlanningMixIn, ProviderBaseWorkflowMixIn):
             LOG.debug("Vendor value being overwridden for %s to %s" % (
                     self.key, provider['vendor']))
 
-    def provides(self, resource_type=None, interface=None):
+    def provides(self, context, resource_type=None, interface=None):
         """Returns a list of resources that this provider can provide or
         validates that a specific type of resource or interface is provided.
 
@@ -228,7 +264,21 @@ class ProviderBase(ProviderBasePlanningMixIn, ProviderBaseWorkflowMixIn):
             if provider.provides(resources_type='database'):
                 print "We have databases!"
         """
-        results = self._dict.get('provides', [])
+        results = []
+        if 'provides' in self._dict:
+            results = self._dict['provides']
+        else:
+            data = self.get_catalog(context)
+            for key, value in data.iteritems():
+                if key == 'lists':
+                    continue
+                for id, component in value.iteritems():
+                    if 'provides' in component:
+                        for entry in component['provides']:
+                            if entry not in results:
+                                results.append(entry)
+            self._dict['provides'] = results  # cache this
+
         filtered = []
         for entry in results:
             item_type, item_interface = entry.items()[0]
@@ -277,7 +327,8 @@ class ProviderBase(ProviderBasePlanningMixIn, ProviderBaseWorkflowMixIn):
               called resource_type in much of the code. Combine the two params.
         """
         component_id = kwargs.pop('id', None)
-        resource_type = kwargs.pop('resource_type', kwargs.pop('type', None))
+        resource_type = kwargs.pop('resource_type', kwargs.pop('type',
+                kwargs.pop('resource', None)))
         interface = kwargs.pop('interface', None)
         kwargs.pop('version', None)  # noise reduction
         if kwargs:
@@ -309,6 +360,23 @@ class ProviderBase(ProviderBasePlanningMixIn, ProviderBaseWorkflowMixIn):
                             (id, self.key, provides))
                     matches.append(Component(component, id=id, provider=self))
         return matches
+
+    def evaluate(self, function_string):
+        """Evaluate an option value.
+
+        Understands the following functions:
+        - generate('uuid')
+        """
+        if function_string.startswith('generate_uuid('):
+            return uuid.uuid4().hex
+        if function_string.startswith('generate_password('):
+            # Defaults to 8 chars, alphanumeric
+            start_with = string.ascii_uppercase + string.ascii_lowercase
+            password = '%s%s' % (random.choice(start_with),
+                ''.join(random.choice(start_with + string.digits)
+                for x in range(7)))
+            return password
+        raise CheckmateException("Unsupported function: %s" % function_string)
 
 
 def register_providers(providers):
