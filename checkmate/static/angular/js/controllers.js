@@ -556,11 +556,7 @@ function DeploymentInitCtrl($scope, $location, $routeParams, $http, blueprint, e
         }
       });
 
-      if (setting.type === "select") {
-        if ($scope.answers[key]) {
-          deployment.inputs.blueprint[key] = $scope.answers[key].value;
-        }
-      } else if (setting.type === "boolean") {
+      if (setting.type === "boolean") {
         if ($scope.answers[key] === null) {
           deployment.inputs.blueprint[key] = false;
         } else {

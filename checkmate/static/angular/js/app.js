@@ -749,7 +749,7 @@ WPBP = {
                 "default": "Ubuntu 11.10",
                 "label": "Operating System",
                 "type": "select",
-                "options": [
+                "choice": [
                     "Ubuntu 11.10",
                     "Ubuntu 12.04",
                     "CentOS",
