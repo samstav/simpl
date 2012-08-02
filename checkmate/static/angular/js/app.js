@@ -89,6 +89,14 @@ cm.auth = (function() {
     return serviceCatalog.access.token.tenant.id;
   }
 
+  function getUsername() {
+    if (serviceCatalog === null) {
+      return null;
+    }
+
+    return serviceCatalog.access.user.name;
+  }
+
   function isAuthenticated() {
     if (serviceCatalog === null) {
       return false;
@@ -108,6 +116,7 @@ cm.auth = (function() {
     setServiceCatalog: setServiceCatalog,
     getToken: getToken,
     getTenant: getTenant,
+    getUsername: getUsername,
     isAuthenticated: isAuthenticated
   };
 }());

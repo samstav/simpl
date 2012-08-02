@@ -167,7 +167,7 @@ BlueprintDetailCtrl.$inject = ['$scope', '$location', '$http', '$routeParams'];
  *   Authentication
  */
 
-function AuthCtrl($scope, $location) {
+function AuthCtrl($scope, $location, $cookieStore) {
   $scope.location = 'us';
 
   $scope.auth = {
@@ -175,6 +175,12 @@ function AuthCtrl($scope, $location) {
     key: '',
     password: ''
   };
+
+  var catalog = $cookieStore.get('auth');
+  if (catalog) {
+    cm.auth.setServiceCatalog(catalog);
+    $scope.auth.username = cm.auth.getUsername();
+  }
 
   // Call any time to ensure client is authentication
   $scope.signIn = function() {
@@ -199,8 +205,11 @@ function AuthCtrl($scope, $location) {
     $scope.auth.key = '';
     $scope.auth.password = '';
     $scope.auth.catalog = null;
+    $cookieStore.put('auth', null);
+    $cookieStore.remove('auth');
+    cm.auth.setServiceCatalog(null);
     $location('/');
-    $('#auth_modal').modal('show');
+    //$('#auth_modal').modal('show');
   };
 
   $scope.authenticate = function() {
@@ -241,6 +250,7 @@ function AuthCtrl($scope, $location) {
       data: data
     }).always(function(json) {
       cm.auth.setServiceCatalog(json);
+      $cookieStore.put('auth', json);
     }).success(function() {
       $('#auth_modal').modal('hide');
     }).error(function() {
@@ -249,7 +259,7 @@ function AuthCtrl($scope, $location) {
     });
   };
 }
-AuthCtrl.$inject = ['$scope', '$location'];
+AuthCtrl.$inject = ['$scope', '$location', '$cookieStore'];
 
 /**
  *   Profile
