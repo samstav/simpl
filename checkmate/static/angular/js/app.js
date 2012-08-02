@@ -429,24 +429,6 @@ PROVIDERS = {
 
 WPBP = {
         "description": "uses MC config recipes which support blah...., multiple domains, ....",
-        "artifacts": [
-            {
-                "code/python": "...."
-            },
-            {
-                "code/ruby": "...."
-            },
-            {
-                "image": "...."
-            },
-            {
-                "yaml": "..."
-            }
-        ],
-        "exposes": {
-            "http": 80,
-            "https": 443
-        },
         "services": {
             "lb": {
                 "open-ports": [
@@ -456,9 +438,6 @@ WPBP = {
                     "interface": "http",
                     "type": "load-balancer"
                 },
-                "instances": [
-                    "0"
-                ],
                 "relations": {
                     "web": "http",
                     "master": "http"
@@ -466,10 +445,6 @@ WPBP = {
                 "exposed": true
             },
             "master": {
-                "instances": [
-                    "1",
-                    "2"
-                ],
                 "component": {
                     "type": "application",
                     "role": "master",
@@ -485,10 +460,6 @@ WPBP = {
                 ]
             },
             "web": {
-                "instances": [
-                    "3",
-                    "4"
-                ],
                 "component": {
                     "type": "application",
                     "role": "web",
@@ -508,10 +479,6 @@ WPBP = {
                 }
             },
             "backend": {
-                "instances": [
-                    "5",
-                    "6"
-                ],
                 "component": {
                     "interface": "mysql",
                     "type": "database"
@@ -804,7 +771,7 @@ WPBP = {
     };
 WPENV = {
         "description": "This environment tests legacy cloud servers. It is hard-targetted at chicago\nbecause the rackcloudtech legacy servers account is in chicago\n",
-        "name": "Legacy Cloud Servers Test Environment in ORD",
+        "name": "Legacy Cloud Servers (ORD default)",
         "providers": {
             "legacy": {
                 "catalog": {
@@ -829,11 +796,6 @@ WPENV = {
                         }
                     },
                     "lists": {
-                        "images": {
-                            "73487664": {
-                                "name": "my_custom_image"
-                            }
-                        },
                         "types": {
                             "24": {
                                 "os": "Windows Server 2008 SP2 (64-bit)",
