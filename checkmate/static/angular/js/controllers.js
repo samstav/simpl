@@ -175,6 +175,7 @@ function AuthCtrl($scope, $location, $cookieStore) {
     key: '',
     password: ''
   };
+  $scope.signedIn = false;
 
   var catalog = $cookieStore.get('auth');
   if (catalog) {
@@ -193,11 +194,14 @@ function AuthCtrl($scope, $location, $cookieStore) {
 
       modal.modal('show');
     }
-    return cm.auth.isAuthenticated();
+    return $scope.authenticated();
   };
 
   $scope.authenticated = function() {
-    return cm.auth.isAuthenticated();
+    var latest = cm.auth.isAuthenticated();
+    if ($scope.signedIn != latest)
+      $scope.signedIn = latest;
+    return latest;
   };
 
   $scope.signOut = function() {
@@ -208,7 +212,8 @@ function AuthCtrl($scope, $location, $cookieStore) {
     $cookieStore.put('auth', null);
     $cookieStore.remove('auth');
     cm.auth.setServiceCatalog(null);
-    $location('/');
+    $location.path('/');
+    $scope.signedIn = false;
     //$('#auth_modal').modal('show');
   };
 
@@ -253,6 +258,7 @@ function AuthCtrl($scope, $location, $cookieStore) {
       $cookieStore.put('auth', json);
     }).success(function() {
       $('#auth_modal').modal('hide');
+      $scope.signedIn = true;
     }).error(function() {
       $("#auth_error_text").html("Something bad happened");
       $("#auth_error").show();
