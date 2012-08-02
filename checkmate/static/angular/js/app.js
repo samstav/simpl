@@ -173,7 +173,13 @@ cm.Resource = (function() {
   // Privates
 
   function tenantUri() {
-    return '/' + cm.auth.getTenant() + '/';
+    tenant = cm.auth.getTenant();
+    if (tenant !== null) {
+      tenant = '/' + tenant + '/';
+    } else {
+      tenant = '/';
+    }
+    return tenant;
   }
 
   function getHeaders() {
