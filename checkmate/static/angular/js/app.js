@@ -137,7 +137,14 @@ cm.Resource = (function() {
   }
 
   function saveOrUpdate($http, $scope, resource, instance) {
-    if (instance.id === null) {
+    if (instance.id) {
+      return $http({
+        method: 'PUT',
+        url: tenantUri() + resource + '/' + instance.id,
+        headers: getHeaders(),
+        data: JSON.stringify(instance)
+      });
+    } else {
       if (!$scope.signIn()) {
         throw "Not logged in";
       }
@@ -145,14 +152,6 @@ cm.Resource = (function() {
       return $http({
         method: 'POST',
         url: tenantUri() + resource,
-        headers: getHeaders(),
-        data: JSON.stringify(instance)
-      });
-
-    } else {
-      return $http({
-        method: 'PUT',
-        url: tenantUri() + resource + '/' + instance.id,
         headers: getHeaders(),
         data: JSON.stringify(instance)
       });
