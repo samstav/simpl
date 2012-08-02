@@ -496,13 +496,15 @@ function DeploymentInitCtrl($scope, $location, $routeParams, $http, blueprint, e
       $scope.settings = $scope.settings.concat(cm.Settings.getSettingsFromEnvironment($scope.environment));
     }
 
-    _.each($scope.settings, function(element, index) {
-      if (element && element.id) {
-        $scope.answers[element.id] = null;
-      }
+    _.each($scope.settings, function(setting) {
+      if ('default' in setting) {
+        $scope.answers[setting.id] = setting['default'];
+      } else
+        $scope.answers[setting.id] = null;
     });
   };
 
+  // Display settings using templates for each type
   $scope.renderSetting = function(setting) {
     if (!setting) {
       var message = "The requested setting is null";
@@ -516,6 +518,12 @@ function DeploymentInitCtrl($scope, $location, $routeParams, $http, blueprint, e
       return "<em>" + message + "</em>";
     }
     var lowerType = setting.type.toLowerCase().trim();
+    if (lowerType == "select") {
+      if ("choice" in setting) {
+        if (!_.isString(setting.choice[0]))
+          lowerType = lowerType + "-kv";
+        }
+      }
     var template = $('#setting-' + lowerType).html();
 
     if (template === null) {
@@ -549,7 +557,7 @@ function DeploymentInitCtrl($scope, $location, $routeParams, $http, blueprint, e
       });
 
       if (setting.type === "select") {
-        if ($scope.answers[key] !== null) {
+        if ($scope.answers[key]) {
           deployment.inputs.blueprint[key] = $scope.answers[key].value;
         }
       } else if (setting.type === "boolean") {

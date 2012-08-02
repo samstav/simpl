@@ -529,7 +529,7 @@ WPBP = {
                         "resource_type": "application"
                     }
                 ],
-                "type": "string",
+                "type": "text",
                 "description": "SSL certificate in PEM format. Make sure to include the BEGIN and END certificate lines.",
                 "label": "SSL Certificate"
             },
@@ -556,10 +556,10 @@ WPBP = {
                     }
                 ],
                 "description": "The size of the database instance in MB of RAM.",
-                "default": 312,
+                "default": 512,
                 "label": "Database Size",
                 "type": "select",
-                "options": [
+                "choice": [
                     {
                         "name": "512 Mb",
                         "value": 512
@@ -587,7 +587,7 @@ WPBP = {
                 "required": true,
                 "type": "select",
                 "label": "Region",
-                "options": [{
+                "choice": [{
                     "name": "dallas", "value": "DFW"},
                     {"name": "chicago", "value": "ORD"}
                 ]
@@ -609,7 +609,7 @@ WPBP = {
                 "default": 1024,
                 "label": "Web Server Size",
                 "type": "select",
-                "options": [
+                "choice": [
                     {
                         "name": "256 Mb",
                         "value": 256
@@ -635,7 +635,7 @@ WPBP = {
                 "description": "The number of WordPress servers (minimum two).",
                 "default": 2,
                 "label": "Number of Web Servers",
-                "type": "number",
+                "type": "int",
                 "constraints": [
                     {
                         "greater-than": 1

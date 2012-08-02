@@ -90,14 +90,24 @@
   <script id="setting-string" type="text/html">
     <label class="control-label capitalize {{#required}}required{{/required}}" for="{{id}}">{{label}}</label>
     <div class="controls">
-      <input  type="text" class="input-xlarge ng-model" id="{{id}}" ng-model="answers['{{id}}']"
+      <input type="text" class="input-xlarge ng-model" id="{{id}}" ng-model="answers['{{id}}']"
               {{#required}}required{{/required}} {{#regex}}ng-pattern="{{regex}}"{{/regex}}
-              {{#default}}value="{{default}}"{{/default}}>
+              {{#default}}value="{{default}}"{{/default}}>{{#sample}}<span>Ex. {{sample}}</span>{{/sample}}
       {{#description}}<p class="help-block">{{description}}</p>{{/description}}
     </div>
   </script>
 
-   <script id="setting-number" type="text/html">
+  <script id="setting-text" type="text/html">
+    <label class="control-label capitalize {{#required}}required{{/required}}" for="{{id}}">{{label}}</label>
+    <div class="controls">
+      <textarea cols="80" rolws="20" class="input-xlarge ng-model" id="{{id}}" ng-model="answers['{{id}}']"
+              {{#required}}required{{/required}} {{#regex}}ng-pattern="{{regex}}"{{/regex}}
+              {{#default}}>"{{default}}"{{/default}}</textarea>
+      {{#description}}<p class="help-block">{{description}}</p>{{/description}}
+    </div>
+  </script>
+
+   <script id="setting-int" type="text/html">
     <label class="control-label capitalize {{#required}}required{{/required}}" for="{{id}}">{{label}}</label>
     <div class="controls">
       <input  type="number" class="input-small" id="{{id}}" ng-model="answers['{{id}}']"
@@ -121,8 +131,15 @@
   <script id="setting-select" type="text/html">
     <label class="control-label capitalize {{#required}}required{{/required}}" for="{{id}}">{{label}}</label>
     <div class="controls">
-      <select id="{{id}}" ng-model="answers['{{id}}']" {{#required}}required{{/required}}
-              ng-options="o.name for o in setting.options">
+      <select id="{{id}}" ng-model="answers['{{id}}']" {{#required}}required{{/required}} ng-options="o for o in setting.choice">
+      </select>
+    </div>
+  </script>
+
+  <script id="setting-select-kv" type="text/html">
+    <label class="control-label capitalize {{#required}}required{{/required}}" for="{{id}}">{{label}}</label>
+    <div class="controls">
+      <select id="{{id}}" ng-model="answers['{{id}}']" {{#required}}required{{/required}} ng-options="o.value as o.name for o in setting.choice">
       </select>
     </div>
   </script>
