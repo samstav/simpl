@@ -46,12 +46,22 @@ setup(
                       'sqlalchemy-migrate',
                       'webob',
                       ],
-    scripts=['bin/checkmate', 'bin/checkmate-server', 'bin/checkmate-queue',
-            'bin/checkmate-simulation'],
+    entry_points = {
+        'console_scripts': [
+                            'checkmate-server=checkmate.server:main_func',
+                            'checkmate=checkmate.checkmate_client:main_func',
+                            'checkmate-queue=checkmate.checkmate_queue:main_func',
+                            'checkmate-database=checkmate.checkmate_database:main_func',
+                            'checkmate-simulation=checkmate.sample.checkmate_simulation:main_func',
+        ]
+    },
     tests_require=['nose', 'unittest2', 'mox', 'webtest'],
     packages=find_packages(exclude=['tests', 'bin', 'examples', 'doc',
             'checkmate.openstack.*']),
     include_package_data=True,
+    package_data = {
+        '': ['*.yaml'],
+    },
     license='Apache License (2.0)',
     classifiers=["Programming Language :: Python"],
     url='https://github.com/ziadsawalha/checkmate'
