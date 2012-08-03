@@ -45,6 +45,8 @@ setup(
                       'sqlalchemy',
                       'sqlalchemy-migrate',
                       'webob',
+                      'pam',
+                      'prettytable==0.6',
                       ],
     entry_points = {
         'console_scripts': [
@@ -64,5 +66,5 @@ setup(
     },
     license='Apache License (2.0)',
     classifiers=["Programming Language :: Python"],
-    url='https://github.com/ziadsawalha/checkmate'
+    url='https://rackspace.github.com/checkmate/checkmate'
 )
