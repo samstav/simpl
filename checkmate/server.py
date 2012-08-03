@@ -548,7 +548,7 @@ class BrowserMiddleware(object):
         self.app = app
         HANDLERS['text/html'] = BrowserMiddleware.write_html
         STATIC.extend(['static', 'favicon.ico', 'authproxy', 'marketing',
-                'api'])
+                'admin'])
         self.proxy_endpoints = proxy_endpoints
 
         # Add static routes
@@ -572,9 +572,9 @@ class BrowserMiddleware(object):
             return static_file('home.html',
                     root=os.path.join(os.path.dirname(__file__), 'static'))
 
-        @get('/api')
-        def api():
-            return write_body("Admin API", request, response)
+        @get('/admin')
+        def admin():
+            return write_body(dict(data=[]), request, response)
 
         @get('/marketing/<path:path>')
         def home(path):
@@ -730,12 +730,12 @@ class BrowserMiddleware(object):
         try:
             template = env.get_template("%s.template" % name)
             return template.render(data=data, source=json.dumps(data,
-                    indent=2), tenant_id=tenant_id)
+                    indent=2), tenant_id=tenant_id, context=context)
         except StandardError:
             try:
                 template = env.get_template("default.template")
                 return template.render(data=data, source=json.dumps(data,
-                        indent=2), tenant_id=tenant_id)
+                        indent=2), tenant_id=tenant_id, context=context)
             except StandardError as exc2:
                 LOG.exception(exc2)
                 pass  # fall back to JSON

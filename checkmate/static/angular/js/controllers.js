@@ -167,7 +167,7 @@ BlueprintDetailCtrl.$inject = ['$scope', '$location', '$http', '$routeParams'];
  *   Authentication
  */
 
-function AuthCtrl($scope, $location) {
+function AuthCtrl($scope, $location, $cookieStore) {
   $scope.location = 'us';
 
   $scope.auth = {
@@ -175,6 +175,13 @@ function AuthCtrl($scope, $location) {
     key: '',
     password: ''
   };
+  $scope.signedIn = false;
+
+  var catalog = $cookieStore.get('auth');
+  if (catalog) {
+    cm.auth.setServiceCatalog(catalog);
+    $scope.auth.username = cm.auth.getUsername();
+  }
 
   // Call any time to ensure client is authentication
   $scope.signIn = function() {
@@ -187,11 +194,14 @@ function AuthCtrl($scope, $location) {
 
       modal.modal('show');
     }
-    return cm.auth.isAuthenticated();
+    return $scope.authenticated();
   };
 
   $scope.authenticated = function() {
-    return cm.auth.isAuthenticated();
+    var latest = cm.auth.isAuthenticated();
+    if ($scope.signedIn != latest)
+      $scope.signedIn = latest;
+    return latest;
   };
 
   $scope.signOut = function() {
@@ -199,8 +209,12 @@ function AuthCtrl($scope, $location) {
     $scope.auth.key = '';
     $scope.auth.password = '';
     $scope.auth.catalog = null;
-    $location('/');
-    $('#auth_modal').modal('show');
+    $cookieStore.put('auth', null);
+    $cookieStore.remove('auth');
+    cm.auth.setServiceCatalog(null);
+    $location.path('/');
+    $scope.signedIn = false;
+    //$('#auth_modal').modal('show');
   };
 
   $scope.authenticate = function() {
@@ -241,15 +255,17 @@ function AuthCtrl($scope, $location) {
       data: data
     }).always(function(json) {
       cm.auth.setServiceCatalog(json);
+      $cookieStore.put('auth', json);
     }).success(function() {
       $('#auth_modal').modal('hide');
+      $scope.signedIn = true;
     }).error(function() {
       $("#auth_error_text").html("Something bad happened");
       $("#auth_error").show();
     });
   };
 }
-AuthCtrl.$inject = ['$scope', '$location'];
+AuthCtrl.$inject = ['$scope', '$location', '$cookieStore'];
 
 /**
  *   Profile
@@ -496,13 +512,15 @@ function DeploymentInitCtrl($scope, $location, $routeParams, $http, blueprint, e
       $scope.settings = $scope.settings.concat(cm.Settings.getSettingsFromEnvironment($scope.environment));
     }
 
-    _.each($scope.settings, function(element, index) {
-      if (element && element.id) {
-        $scope.answers[element.id] = null;
-      }
+    _.each($scope.settings, function(setting) {
+      if ('default' in setting) {
+        $scope.answers[setting.id] = setting['default'];
+      } else
+        $scope.answers[setting.id] = null;
     });
   };
 
+  // Display settings using templates for each type
   $scope.renderSetting = function(setting) {
     if (!setting) {
       var message = "The requested setting is null";
@@ -516,6 +534,12 @@ function DeploymentInitCtrl($scope, $location, $routeParams, $http, blueprint, e
       return "<em>" + message + "</em>";
     }
     var lowerType = setting.type.toLowerCase().trim();
+    if (lowerType == "select") {
+      if ("choice" in setting) {
+        if (!_.isString(setting.choice[0]))
+          lowerType = lowerType + "-kv";
+        }
+      }
     var template = $('#setting-' + lowerType).html();
 
     if (template === null) {
@@ -548,11 +572,7 @@ function DeploymentInitCtrl($scope, $location, $routeParams, $http, blueprint, e
         }
       });
 
-      if (setting.type === "select") {
-        if ($scope.answers[key] !== null) {
-          deployment.inputs.blueprint[key] = $scope.answers[key].value;
-        }
-      } else if (setting.type === "boolean") {
+      if (setting.type === "boolean") {
         if ($scope.answers[key] === null) {
           deployment.inputs.blueprint[key] = false;
         } else {

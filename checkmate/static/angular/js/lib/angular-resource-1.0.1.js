@@ -1,5 +1,5 @@
 /**
- * @license AngularJS v1.0.0
+ * @license AngularJS v1.0.1
  * (c) 2010-2012 Google, Inc. http://angularjs.org
  * License: MIT
  */
@@ -368,8 +368,7 @@ angular.module('ngResource', ['ng']).
           $http({
             method: action.method,
             url: route.url(extend({}, extractParams(data), action.params || {}, params)),
-            data: data,
-            headers: extend({}, action.headers || {})
+            data: data
           }).then(function(response) {
               var data = response.data;
 

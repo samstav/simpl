@@ -89,6 +89,14 @@ cm.auth = (function() {
     return serviceCatalog.access.token.tenant.id;
   }
 
+  function getUsername() {
+    if (serviceCatalog === null) {
+      return null;
+    }
+
+    return serviceCatalog.access.user.name;
+  }
+
   function isAuthenticated() {
     if (serviceCatalog === null) {
       return false;
@@ -108,6 +116,7 @@ cm.auth = (function() {
     setServiceCatalog: setServiceCatalog,
     getToken: getToken,
     getTenant: getTenant,
+    getUsername: getUsername,
     isAuthenticated: isAuthenticated
   };
 }());
@@ -137,7 +146,14 @@ cm.Resource = (function() {
   }
 
   function saveOrUpdate($http, $scope, resource, instance) {
-    if (instance.id === null) {
+    if (instance.id) {
+      return $http({
+        method: 'PUT',
+        url: tenantUri() + resource + '/' + instance.id,
+        headers: getHeaders(),
+        data: JSON.stringify(instance)
+      });
+    } else {
       if (!$scope.signIn()) {
         throw "Not logged in";
       }
@@ -145,14 +161,6 @@ cm.Resource = (function() {
       return $http({
         method: 'POST',
         url: tenantUri() + resource,
-        headers: getHeaders(),
-        data: JSON.stringify(instance)
-      });
-
-    } else {
-      return $http({
-        method: 'PUT',
-        url: tenantUri() + resource + '/' + instance.id,
         headers: getHeaders(),
         data: JSON.stringify(instance)
       });
@@ -173,7 +181,13 @@ cm.Resource = (function() {
   // Privates
 
   function tenantUri() {
-    return '/' + cm.auth.getTenant() + '/';
+    tenant = cm.auth.getTenant();
+    if (tenant !== null) {
+      tenant = '/' + tenant + '/';
+    } else {
+      tenant = '/';
+    }
+    return tenant;
   }
 
   function getHeaders() {
@@ -424,24 +438,6 @@ PROVIDERS = {
 
 WPBP = {
         "description": "uses MC config recipes which support blah...., multiple domains, ....",
-        "artifacts": [
-            {
-                "code/python": "...."
-            },
-            {
-                "code/ruby": "...."
-            },
-            {
-                "image": "...."
-            },
-            {
-                "yaml": "..."
-            }
-        ],
-        "exposes": {
-            "http": 80,
-            "https": 443
-        },
         "services": {
             "lb": {
                 "open-ports": [
@@ -451,9 +447,6 @@ WPBP = {
                     "interface": "http",
                     "type": "load-balancer"
                 },
-                "instances": [
-                    "0"
-                ],
                 "relations": {
                     "web": "http",
                     "master": "http"
@@ -461,10 +454,6 @@ WPBP = {
                 "exposed": true
             },
             "master": {
-                "instances": [
-                    "1",
-                    "2"
-                ],
                 "component": {
                     "type": "application",
                     "role": "master",
@@ -480,10 +469,6 @@ WPBP = {
                 ]
             },
             "web": {
-                "instances": [
-                    "3",
-                    "4"
-                ],
                 "component": {
                     "type": "application",
                     "role": "web",
@@ -503,10 +488,6 @@ WPBP = {
                 }
             },
             "backend": {
-                "instances": [
-                    "5",
-                    "6"
-                ],
                 "component": {
                     "interface": "mysql",
                     "type": "database"
@@ -523,7 +504,7 @@ WPBP = {
                         "resource_type": "application"
                     }
                 ],
-                "type": "string",
+                "type": "text",
                 "description": "SSL certificate in PEM format. Make sure to include the BEGIN and END certificate lines.",
                 "label": "SSL Certificate"
             },
@@ -550,10 +531,10 @@ WPBP = {
                     }
                 ],
                 "description": "The size of the database instance in MB of RAM.",
-                "default": 312,
+                "default": 512,
                 "label": "Database Size",
                 "type": "select",
-                "options": [
+                "choice": [
                     {
                         "name": "512 Mb",
                         "value": 512
@@ -581,7 +562,7 @@ WPBP = {
                 "required": true,
                 "type": "select",
                 "label": "Region",
-                "options": [{
+                "choice": [{
                     "name": "dallas", "value": "DFW"},
                     {"name": "chicago", "value": "ORD"}
                 ]
@@ -603,7 +584,7 @@ WPBP = {
                 "default": 1024,
                 "label": "Web Server Size",
                 "type": "select",
-                "options": [
+                "choice": [
                     {
                         "name": "256 Mb",
                         "value": 256
@@ -629,7 +610,7 @@ WPBP = {
                 "description": "The number of WordPress servers (minimum two).",
                 "default": 2,
                 "label": "Number of Web Servers",
-                "type": "number",
+                "type": "int",
                 "constraints": [
                     {
                         "greater-than": 1
@@ -777,7 +758,7 @@ WPBP = {
                 "default": "Ubuntu 11.10",
                 "label": "Operating System",
                 "type": "select",
-                "options": [
+                "choice": [
                     "Ubuntu 11.10",
                     "Ubuntu 12.04",
                     "CentOS",
@@ -799,7 +780,7 @@ WPBP = {
     };
 WPENV = {
         "description": "This environment tests legacy cloud servers. It is hard-targetted at chicago\nbecause the rackcloudtech legacy servers account is in chicago\n",
-        "name": "Legacy Cloud Servers Test Environment in ORD",
+        "name": "Legacy Cloud Servers (ORD default)",
         "providers": {
             "legacy": {
                 "catalog": {
@@ -824,11 +805,6 @@ WPENV = {
                         }
                     },
                     "lists": {
-                        "images": {
-                            "73487664": {
-                                "name": "my_custom_image"
-                            }
-                        },
                         "types": {
                             "24": {
                                 "os": "Windows Server 2008 SP2 (64-bit)",

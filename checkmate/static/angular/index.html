@@ -32,7 +32,7 @@
     <link rel="apple-touch-icon-precomposed" href="img/apple-touch-icon-57-precomposed.png">
   </head>
 
-  <body ng-controller="AuthCtrl" ng-hide="!authenticated">
+  <body ng-controller="AuthCtrl">
 
     <div class="navbar navbar-fixed-top">
       <div class="navbar-inner">
@@ -44,9 +44,9 @@
           </a>
           <a class="brand" href="/">Checkmate</a>
           <!-- User Control -->
-          <div class="btn-group pull-right">
+          <div class="btn-group pull-right" style="display: none;" ng-show="signedIn">
             <a class="btn dropdown-toggle" data-toggle="dropdown" href="#">
-              <i class="icon-user"></i> {{auth.username}}
+              <i class="icon-user"></i> <span ng-bind="auth.username"></span>
               <span class="caret"></span>
             </a>
             <ul class="dropdown-menu">
@@ -55,8 +55,14 @@
               <li><a ng-click="signOut()">Sign Out</a></li>
             </ul>
           </div>
-          <div class="nav-collapse" ng-hide="authenticated">
+          <div class="btn-group pull-right" style="display: none;" ng-hide="signedIn">
+            <a class="btn" href="#" ng-click="signIn()">
+              <i class="icon-user"></i> Sign In
+            </a>
+          </div>
+          <div class="nav-collapse" style="display: none;" ng-show="signedIn">
             <ul id="nav-elements" class="nav">
+              <li id="nav-home"><a href="#/">Home</a></li>
               <li id="nav-environments"><a href="#/environments">Environments</a></li>
               <li id="nav-blueprints"><a href="#/blueprints">Blueprints</a></li>
               <li id="nav-deployments"><a href="#/deployments">Deployments</a></li>
@@ -138,9 +144,10 @@
     ================================================== -->
     <!-- Placed at the end of the document so the pages load faster -->
     <script src="js/lib/jquery-1.7.2.min.js"></script>
-    <script src="js/lib/angular-1.0.0.js"></script>
-    <script src="js/lib/angular-resource-1.0.0.js"></script>
-    <script src="js/lib/angular-sanitize-1.0.0.js"></script>
+    <script src="js/lib/angular-1.0.1.js"></script>
+    <script src="js/lib/angular-cookies-1.0.1.js"></script>
+    <script src="js/lib/angular-resource-1.0.1.js"></script>
+    <script src="js/lib/angular-sanitize-1.0.1.js"></script>
     <script src="js/lib/bootstrap.min.js"></script>
     <script src="js/lib/bootstrap-popover.js"></script>
     <script src="js/lib/mustache.js"></script>

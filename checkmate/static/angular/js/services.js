@@ -1,1 +1,1 @@
-angular.module('checkmateServices', ['ngResource']);
+angular.module('checkmateServices', ['ngResource', 'ngCookies']);

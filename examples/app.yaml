@@ -426,6 +426,7 @@ includes:
       "region":
         label: Region
         type: select
+        # Choice is  always an array. It can be an array of values or of objects with name & value attributes
         choice: [dallas, chicago]
         required: true
       "ssl": &ssl
@@ -493,7 +494,7 @@ includes:
         label: Web Server Size
         description: The size of the instance in MB of RAM.
         type: select
-        options:
+        choice:
         - value: 256
           name: 256 Mb
         - value: 512
@@ -504,7 +505,7 @@ includes:
       "os":
         default: Ubuntu 11.10
         type: select
-        options:
+        choice:
         - Ubuntu 11.10
         - Ubuntu 12.04
         - CentOS
@@ -513,7 +514,7 @@ includes:
         description: The operating system for the web servers.
         constrains: [{service: web, resource_type: compute, setting: os},{service: web, resource_type: compute, setting: os}]
       "web_server_count":
-        type: number
+        type: int
         label: Number of Web Servers
         description: The number of WordPress servers (minimum two).
         default: 2
@@ -526,7 +527,7 @@ includes:
         label: Database Size
         description: The size of the database instance in MB of RAM.
         type: select
-        options:
+        choice:
         - value: 512
           name: 512 Mb
         - value: 1024
