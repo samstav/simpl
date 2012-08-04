@@ -22,18 +22,17 @@ else:
 
 # This would be a message queue only config, but won't work with Checkmate
 # since checkmate needs to query task results and status
-#CELERY_RESULT_BACKEND = "amqp"
+#CELERY_RESULT_BACKEND = os.environ.get('CHECKMATE_RESULT_BACKEND', "database")
 #
 # Use this if we want to track status and let clients query it
 CELERY_RESULT_BACKEND = os.environ.get('CHECKMATE_RESULT_BACKEND', "database")
 
-sql_default = "sqlite:///%s" % os.path.expanduser(os.path.normpath(
-        os.path.join(os.path.dirname(__file__), os.pardir, 'data',
-        'celerydb.sqlite')))
+sql_default = "sqlite:////%s" % os.path.join('var', 'checkmate', 'data',
+        'celerydb.sqlite')
 CELERY_RESULT_DBURI = os.environ.get('CHECKMATE_RESULT_DBURI', sql_default)
 
 # Report out that this file was used for configuration
-LOG.info("celery config loaded from %s" % __file__)
-LOG.info("celery persisting data in %s" % CELERY_RESULT_DBURI)
-LOG.info("celery broker is %s" % BROKER_URL.replace(
-            os.environ.get('CHECKMATE_BROKER_PASSWORD', '*****'), '*****'))
+print "celery config loaded from %s" % __file__
+print "celery persisting data in %s" % CELERY_RESULT_DBURI
+print "celery broker is %s" % BROKER_URL.replace(
+            os.environ.get('CHECKMATE_BROKER_PASSWORD', '*****'), '*****')

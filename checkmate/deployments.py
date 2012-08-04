@@ -261,6 +261,7 @@ def plan(deployment, context):
     providers = environment.get_providers(context)
 
     #Identify component providers and get the resolved components
+    print "CONTEXT: %s" % context
     components = deployment.get_components(context)
 
     # Collect all requirements from components

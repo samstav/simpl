@@ -4,6 +4,8 @@ from subprocess import call
 import sys
 
 if len(sys.argv) > 1 and sys.argv[1] == 'START':
+    from checkmate.utils import init_console_logging
+    init_console_logging()
     path = os.path.normpath(os.path.join(os.path.dirname(__file__), os.pardir,
             'checkmate', 'server.py'))
     params = []

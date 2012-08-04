@@ -1729,3 +1729,4 @@ def _get_repo_path():
                     'chef-stockton.git', path)
             LOG.info("Cloned chef-stockton to %s" % path)
     return path
+
