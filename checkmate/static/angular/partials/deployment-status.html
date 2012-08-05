@@ -5,8 +5,41 @@
     </h1>
   </div>
 
-  <div class="well">
-    Stuff goes here.
+  <div class="span7 well">
+      <table class="table table-condensed">
+        <thead>
+          <tr>
+            <th>State</th>
+            <th>Tasks</th>
+            <th>State</th>
+            <th>Tasks</th>
+          </tr>          
+        </thead>
+        <tbody>
+          <tr>
+            <td class="header">Future</td><td>{{taskStates["future"]}}</td>
+            <td class="header">Likely</td><td>{{taskStates["likely"]}}</td>
+          </tr>
+          <tr>
+            <td class="header">Maybe</td><td>{{taskStates["maybe"]}}</td>
+            <td class="header">Waiting</td><td>{{taskStates["waiting"]}}</td>
+          </tr>
+          <tr>
+            <td class="header">Ready</td><td>{{taskStates["ready"]}}</td>
+            <td class="header">Cancelled</td><td>{{taskStates["cancelled"]}}</td>
+          </tr>
+          <tr>
+            <td class="header">Completed</td><td>{{taskStates["completed"]}}</td>
+            <td class="header">Triggered</td><td>{{taskStates["triggered"]}}</td>
+          </tr>
+        </tbody>        
+      </table>
+  </div>
+
+  <div class="span3 well">
+    <div class="progress progress-striped active">
+      <div class="bar" style="width: {{percentComplete()}}%;"></div>
+    </div>
   </div>
 </div>
 
