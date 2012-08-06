@@ -342,6 +342,7 @@ function DeploymentStatusCtrl($scope, $location, $http, $routeParams) {
         $scope.jit = $scope.jitTasks($scope.tasks);
 
         $scope.renderWorkflow($scope.jit);
+        setTimeout($scope.refresh, 1000);
       });
   }
 
