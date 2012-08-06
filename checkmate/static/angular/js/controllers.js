@@ -334,7 +334,6 @@ function DeploymentStatusCtrl($scope, $location, $http, $routeParams) {
     cm.Resource.get($http, $scope, 'workflows', $scope.deployment.id)
       .success(function(workflow) {
         $scope.workflow = workflow;
-        $scope.task_specs = workflow.wf_spec.task_specs;
         $scope.totalTime = 0;
 
         $scope.tasks = $scope.flattenTasks({}, workflow.task_tree);
@@ -348,7 +347,7 @@ function DeploymentStatusCtrl($scope, $location, $http, $routeParams) {
 
   $scope.renderWorkflow = function(tasks) {
     var template = $('#task').html();
-    var container = $('#task_container');
+    var container = $('#task_container').empty();
 
     for(var i = 0; i < Math.floor(tasks.length/4); i++) {
       var div = $('<div class="row">');
@@ -381,9 +380,9 @@ function DeploymentStatusCtrl($scope, $location, $http, $routeParams) {
       }
     });
 
-    jsPlumb.addEndpoint(selectedTask.id);
+    //jsPlumb.addEndpoint(selectedTask.id);
     _.each(selectedTask.children, function(child) {
-      jsPlumb.addEndpoint(child.id);
+      //jsPlumb.addEndpoint(child.id);
 
       jsPlumb.connect({
         source: selectedTask.id,
