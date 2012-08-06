@@ -37,8 +37,14 @@
   </div>
 
   <div class="span3 well">
+    <div class="fraction">
+      {{}}
+    </div>
     <div class="progress progress-striped active">
       <div class="bar" style="width: {{percentComplete()}}%;"></div>
+    </div>
+    <div style="text-align: center">
+      <button class="btn btn-primary" ng-click="refresh()">Refresh</button>
     </div>
   </div>
 </div>
