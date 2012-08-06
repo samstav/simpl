@@ -1,20 +1,14 @@
-import copy
-import json
 import logging
 import os
 import sys
 import uuid
 
-# pylint: disable=E0611
-from bottle import get, post, put, delete, request, response, abort
-from celery.app import app_or_default
-from celery.task import task
+from bottle import get, post, put, request, response, abort #@UnresolvedImport
 from SpiffWorkflow.storage import DictionarySerializer
 
 from checkmate import orchestrator
 from checkmate.classes import ExtensibleDict
 from checkmate.common import schema
-from checkmate.components import Component
 from checkmate.db import get_driver, any_id_problems
 from checkmate.environments import Environment
 from checkmate.exceptions import CheckmateException,\
@@ -24,9 +18,14 @@ from checkmate.workflows import create_workflow
 from checkmate.utils import write_body, read_body, extract_sensitive_data,\
         merge_dictionary, with_tenant, is_ssh_key, get_time_string
 
+from collections import defaultdict
+
+from SpiffWorkflow import Task, Workflow
+
+from celery.task.base import task
+
 LOG = logging.getLogger(__name__)
 db = get_driver()
-
 
 #
 # Deployments
@@ -56,15 +55,15 @@ def post_deployment(tenant_id=None):
     if 'includes' in deployment:
         del deployment['includes']
 
-    id = str(deployment['id'])
+    _id = str(deployment['id'])
     body, secrets = extract_sensitive_data(deployment)
-    db.save_deployment(id, body, secrets, tenant_id=tenant_id)
+    db.save_deployment(_id, body, secrets, tenant_id=tenant_id)
 
     # Return response (with new resource location in header)
     if tenant_id:
-        response.add_header('Location', "/%s/deployments/%s" % (tenant_id, id))
+        response.add_header('Location', "/%s/deployments/%s" % (tenant_id, _id))
     else:
-        response.add_header('Location', "/deployments/%s" % id)
+        response.add_header('Location', "/deployments/%s" % _id)
 
     #Assess work to be done & resources to be created
     parsed_deployment = plan(deployment, request.context)
@@ -74,17 +73,17 @@ def post_deployment(tenant_id=None):
 
     serializer = DictionarySerializer()
     serialized_workflow = workflow.serialize(serializer)
-    serialized_workflow['id'] = id
-    parsed_deployment['workflow'] = id
+    serialized_workflow['id'] = _id
+    parsed_deployment['workflow'] = _id
 
     body, secrets = extract_sensitive_data(deployment)
-    deployment = db.save_deployment(id, body, secrets, tenant_id=tenant_id)
+    deployment = db.save_deployment(_id, body, secrets, tenant_id=tenant_id)
 
     body, secrets = extract_sensitive_data(serialized_workflow)
-    db.save_workflow(id, body, secrets, tenant_id=tenant_id)
+    db.save_workflow(_id, body, secrets, tenant_id=tenant_id)
 
     #Trigger the workflow
-    async_task = execute(id)
+    execute(_id)
 
     return write_body(deployment, request, response)
 
@@ -109,7 +108,7 @@ def parse_deployment():
 
     results = plan(deployment, request.context)
 
-    workflow = create_workflow(parsed_deployment, request.context)
+    workflow = create_workflow(results, request.context)
     serializer = DictionarySerializer()
     serialized_workflow = workflow.serialize(serializer)
     results['workflow'] = serialized_workflow
@@ -194,16 +193,17 @@ def get_deployment_status(id, tenant_id=None):
 
     return write_body(results, request, response)
 
-@post('deployments/<depid>/services/<service>/+scale')
+@post('deployments/<depid>/services/<service>/<type>/<setting>/+scale')
 @with_tenant
-def scale_deployment(depid, service, tenant_id=None, amount=None):
+def scale_deployment(depid, service, type, setting, tenant_id=None, amount=None):
     """ Scale a checkmate deployment service
         by the specified number of nodes
         
         :param depid: checkmate deployment id
         :param service: the service to scale
-        :param amount: (required query param) the ammount to scale
-        :param tenant_id: (optional tenant id) the vector of the specified service to scale
+        :param type: the aspect of the service to scale
+        :param value: (required query param) how much to scale or what to scale to
+        :param tenant_id: (optional tenant id) the type of the specified service to scale
     """
     if any_id_problems(depid):
         abort(406, any_id_problems(depid))
@@ -211,44 +211,64 @@ def scale_deployment(depid, service, tenant_id=None, amount=None):
     deployment = db.get_deployment(depid)
     
     if not deployment:
-        abort(404, 'No deployment with id %s' % depid)
-    
+        abort(404, 'No deployment with id {}'.format(depid))
+    if not service or not service in deployment['blueprint']['services']:
+        abort(406, "Must specify a valid service entry to scale.")
+    if not type:
+        abort(406, "Invalid scale type {}".format(type))
+    if not setting:
+        abort(406, "Invalid setting {}".format(setting))
     if not amount:
         amount = request.query.amount or 1
-    try:
-        amount = int(amount)
-    except ValueError:
-        abort(406, 'Invalid amount %s' % amount)
-    # TODO: in the future, we want to support scaling different aspects of a service
-    # i.e. container memory, volume size, etc. For now, we only support adding nodes
-    # scale_what = request.query.name or "count"
-    scale_what = "count"
-    if not scale_what:
-        abort(406, "Invalid scale vector %s" % scale_what)
-    if not service:
-        abort(406, "Must specify a valid service entry to scale.")
     
-    if "inputs" in deployment and "services" in deployment['inputs'] \
-    and service in deployment["inputs"]['services']:
-        # validate that we conform to the appropriate limits on number of nodes
-        if 'blueprint' in deployment and 'services' in deployment['blueprint'] and service in deployment['blueprint']['services']:
-            bpService = deployment['blueprint']['services'][service]
-            minscale = 0
-            maxscale = sys.maxint
-            if 'constraints' in bpService:
-                minscale = bpService['constraints'].get("min-%s" % scale_what, minscale)
-                maxscale = bpService['constraints'].get("max-%s" % scale_what, maxscale)
-            # TODO: Move the validation below into the providers when we support more scaling vectors
-            current = len(bpService.get("instances", []))
-            if not minscale <= (current + amount) <= maxscale:
-                abort(406, "Cannot scale service %s for deployment %s to less than %s or more than %s nodes" % (service, depid, minscale, maxscale))
-        else:
-            abort(400, "Service %s in deployment %s does not have a matching service definition in the specified blueprint" % (service, depid))
-        # FIXME: need to add the actual scaling logic here
-        deployment["message"] = "This is a stub. Need to implement deployment modifcation and workflow planning."
-        return write_body(deployment, request, response)
+    key, option, constraint = deployment._get_option_by_constrains(setting, service_name=service, resource_type=type)
+    if not key or not option or not constraint:
+        abort(404, "No setting matches {}/{}/{}".format(service, type, setting))
+    if not constraint.get('scalable'):
+        abort(406, "Setting {} cannot be scaled for {}/{}".format(setting, service, type))
+
+    if "number" == option.get('type','NONE'):
+        try:
+            amount = int(amount)
+        except ValueError:
+            abort(406, 'Invalid amount ({}); must be numeric.'.format(amount))
+        current = len(deployment['blueprint']['services'][service].get("instances", []))
+        minscale = option['constraints'].get('min', 0) if 'constraints' in option else 0
+        maxscale = option['constraints'].get('max', sys.maxint) if 'constraints' in option else sys.maxint
+        if minscale > current + amount > maxscale:
+            abort(406, "{} for {}/{} must be between {} and {} (inclusive).".format(\
+                        setting, service, type, minscale, maxscale))
+        
+        ######################################################################
+        ######################################################################
+        #####                                                            #####
+        ##### FIXME: Roll the settings update into the Deployment object #####
+        #####                                                            #####
+        ######################################################################
+        ######################################################################
+        #||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||#
+        #VVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVV#
+        
+        def recursive_defdict():
+            return defaultdict(recursive_defdict)
+        
+        new_setting = defaultdict(recursive_defdict)
+        new_setting['services'][service][type][setting] = current + amount
+        merge_dictionary(deployment.inputs(), new_setting)
+    elif "select" == option.get('type', 'NONE'):
+        if not 'options' in option:
+            raise CheckmateException('Invalid configuration. No options for constraint {}.'.format(key))
+        val = ''.join([str(n.get('value')) for n in option.get('options', []) if n.get('name', n.get('value')) == amount])
+        if not val:
+            abort(406, "Invalid scale value. Must be one of: {}".format([str(x.get('name', x.get('value'))) for x in option.get('options',[])]))
+        deployment.inputs()['services'][service][type][setting] = val
     else:
-        abort(406, 'No service %s defined for deployment %s' % (service, depid))
+        abort(406, "Scaling settings of type {} is not currently supported.".format(constraint.type))
+        
+    # update the deployment and create the workflow
+    # FIXME: need to add the actual scaling logic here
+    deployment["message"] = "This is a stub. Need to implement deployment modifcation and workflow planning."
+    return write_body(deployment, request, response)
 
 
 def execute(id, timeout=180, tenant_id=None):
@@ -873,35 +893,47 @@ class Deployment(ExtensibleDict):
                         (name, name, result))
                 return result
 
-    def _get_input_blueprint_option_constraint(self, name, service_name=None,
-            resource_type=None):
-        """Get a setting implied through blueprint option constraint
-
+    def _get_option_by_constrains(self, name, service_name=None, resource_type=None):
+        """ 
+        Locate an option by the component settings it constrains
+        
         :param name: the name of the setting
         :param service_name: the name of the service being evaluated
+        :param resource_type: the type of the resource being evaluated 
         """
         blueprint = self['blueprint']
-        if 'options' in blueprint:
-            options = blueprint['options']
-            for key, option in options.iteritems():
+        if 'options' in blueprint: 
+            for key, option in blueprint['options'].iteritems():
                 if 'constrains' in option:  # the verb 'constrains' (not noun)
                     for constraint in option['constrains']:
                         if self.constraint_applies(constraint, name,
                                 service_name=service_name,
                                 resource_type=resource_type):
-                            # Find in inputs or use default if available
-                            result = self._get_input_simple(key)
-                            if result:
-                                LOG.debug("Found setting '%s' from constraint "
-                                        "in blueprint input '%s'. %s=%s" % (
-                                        name, key, name, result))
-                                return result
-                            if 'default' in option:
-                                result = option['default']
-                                LOG.debug("Default setting '%s' obtained from "
-                                        "constraint in blueprint input '%s': "
-                                        "default=%s" % (name, key, result))
-                                return result
+                            return key, option, constraint
+        return (None, None, None)
+    
+    def _get_input_blueprint_option_constraint(self, name, service_name=None,
+            resource_type=None):
+        """Get a setting value implied through blueprint option constraint
+
+        :param name: the name of the setting
+        :param service_name: the name of the service being evaluated
+        :param resource_type: the type of the resource being evaluated
+        """
+        key, option, constraint = self._get_option_by_constrains(name, service_name=service_name, resource_type=resource_type)
+        if key and option and constraint:
+            # Find in inputs or use default if available
+            result = self._get_input_simple(key)
+            if result:
+                LOG.debug("Found setting '%s' from constraint "
+                          "in blueprint input '%s'. %s=%s" % (name, key, name, result))
+                return result
+            if 'default' in option:
+                result = option['default']
+                LOG.debug("Default setting '%s' obtained from "
+                          "constraint in blueprint input '%s': "
+                          "default=%s" % (name, key, result))
+                return result
 
     def constraint_applies(self, constraint, name, resource_type=None,
                 service_name=None):

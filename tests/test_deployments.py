@@ -361,16 +361,37 @@ class TestScaleDeployment(unittest.TestCase):
     
     def setUp(self):
         self._mox.StubOutWithMock(checkmate.deployments, "db")
-        checkmate.deployments.db.get_deployment("DEP-113a-test").MultipleTimes().AndReturn(Deployment({
+        checkmate.deployments.db.get_deployment("DEP-113a-test").MultipleTimes().AndReturn(Deployment(
+        {
+          'includes': { 
+            'components': {
+                'widget': {
+                    'id': "widget",
+                    'is': "application",
+                    'requires':{
+                        'compute':{
+                            'relation': "host"
+                        }
+                    },
+                    'provides': [
+                        {'application': "foo"}
+                    ]
+                }
+            }
+          },
           'id' : "DEP-113a-test",
           'status':'RUNNING',
           'created':'2012-07-3019:54:34+0000',
           'inputs':{
               'services':{
-                  'testservice':{
-                    'widget':{
-                       'count':4
-                    }
+                  'testservice': {
+                      'application':{
+                          'count': 3
+                      },
+                      'compute': {
+                          'os': 'mac',
+                          'size': 'large'
+                      }
                   }
               }
           },
@@ -383,17 +404,40 @@ class TestScaleDeployment(unittest.TestCase):
                        '2'
                     ],
                    'component':{
-                       'interface':'foo',
                        'type':'widget',
-                       'id':'widget'
-                   },
-                   'constraints':{
-                       'min-count' : 1,
-                       'max-count' : 4
+                       'interface':'foo',
+                       'id':'a-widget'
                    }
                 }
-            }
+             },
+             'options':{
+                'instances':{
+                    'required': True,
+                    'type': 'number',
+                    'default': 1,
+                    'description': 'Number of instances to deploy',
+                    'constrains': [{ 'service': 'testservice', 'resource_type': 'application', 'setting': 'count', 'scalable': True}],
+                    'constraints': { 'min': 1, 'max': 4}
+                },
+                'size':{
+                    'required': True,
+                    'type': 'select',
+                    'options': [{'value':1, 'name':'tiny'}, {'value':2, 'name':'small'}, {'value':3, 'name':'big'}, 
+                                {'value':4, 'name':'bigger'}, {'value':5, 'name':'biggest'}],
+                    'default': 'small',
+                    'constrains': [{'service': 'testservice', 'resource_type': 'compute', 'setting': 'size', 'scalable': True}]
+                },
+                'os':{
+                    'required': True,
+                    'type': 'select',
+                    'options': [{'value':'win2008', 'name':'windows'}, {'value': 'linux', 'name':'linux'}, {'name':'macOSXServer','value':'mac'}, 
+                                {'value':'mosix', 'name':'mosix'}],
+                    'default': 'moxix',
+                    'constrains': [{'service': 'testservice', 'resource_type': 'compute', 'setting': 'image'}]
+                }
+              }
            }
+           # omitted environment/providers for simplicity as this is just for testing the scaling part
         }))
         self._mox.ReplayAll()
         unittest.TestCase.setUp(self)
@@ -405,25 +449,28 @@ class TestScaleDeployment(unittest.TestCase):
     def test_bad_dep_id(self):
         """ Test that we get the expected exception with a bad deployment id """
         self._mox.UnsetStubs()
-        self.assertRaises(HTTPError, scale_deployment, None, None, tenant_id="1234", amount=1)
-        self.assertRaises(HTTPError, scale_deployment,"#1!_", None, tenant_id="1234", amount=1)
-        self.assertRaisesRegexp(HTTPError, "404", scale_deployment,"DEP-113a", None, tenant_id="1234", amount=1)
+        self.assertRaises(HTTPError, scale_deployment, None, None, None, None, tenant_id="1234", amount=1)
+        self.assertRaises(HTTPError, scale_deployment,"#1!_", None, None, None, tenant_id="1234", amount=1)
+        self.assertRaisesRegexp(HTTPError, "404", scale_deployment,"DEP-113a", None, None, None, tenant_id="1234", amount=1)
     
     def test_missing_service(self):
         """ Test that a bad service throws up """
         try:
-            scale_deployment("DEP-113a-test", "notaservice", tenant_id="1234", amount=1)
+            scale_deployment("DEP-113a-test", "notaservice", 'application', 'count', tenant_id="1234", amount=1)
         except HTTPError as err:
             self._mox.VerifyAll()
             self.assertTrue(err.output, "Missing expected error output")
             self.assertRegexpMatches(err.output, "No service notaservice defined for deployment DEP-113a-test")
-        
+     
+    def test_invalid_vector(self):
+        self.fail("Not implemented")
+           
     def test_invalid_scale(self):
         """ Test that we get an exception if we try to scale more or less than allowed """
         #bottle.request.bind({"REQUEST_METHOD" : "POST"})
         amount = "abc"
         try:
-            scale_deployment("DEP-113a-test", "testservice", tenant_id="1234", amount=amount)
+            scale_deployment("DEP-113a-test", "testservice", "application", "count", tenant_id="1234", amount=amount)
             self.fail("Should not have accepted the specified amount %s" % amount)
         except HTTPError as err:
             self._mox.VerifyAll()
@@ -431,7 +478,7 @@ class TestScaleDeployment(unittest.TestCase):
             self.assertRegexpMatches(err.output, "^Invalid amount %s$" % amount)
         amount = '-5'
         try:
-            scale_deployment("DEP-113a-test", "testservice", tenant_id="1234", amount=amount)
+            scale_deployment("DEP-113a-test", "testservice", "application", "count", tenant_id="1234", amount=amount)
             self.fail("Should not have accepted the specified amount %s" % amount)
         except HTTPError as err:
             self._mox.VerifyAll()
@@ -439,7 +486,16 @@ class TestScaleDeployment(unittest.TestCase):
             self.assertRegexpMatches(err.output, "less than 1 or more than 4")
         amount = 2
         try:
-            scale_deployment("DEP-113a-test", "testservice", tenant_id="1234", amount=amount)
+            scale_deployment("DEP-113a-test", "testservice", "application", "count", tenant_id="1234", amount=amount)
+            self.fail("Should not have accepted the specified amount %s" % amount)
+        except HTTPError as err:
+            self._mox.VerifyAll()
+            self.assertTrue(err.output, "Missing expected error output")
+            self.assertRegexpMatches(err.output, "less than 1 or more than 4")
+        # test non-scalar scaling
+        amount = "not_an_amount"
+        try:
+            scale_deployment("DEP-113a-test", "testservice", "compute", "size", tenant_id="1234", amount=amount)
             self.fail("Should not have accepted the specified amount %s" % amount)
         except HTTPError as err:
             self._mox.VerifyAll()
@@ -449,7 +505,10 @@ class TestScaleDeployment(unittest.TestCase):
     def test_happy_path(self):
         """ Test that we get a valid looking deployment back if everything looks good """
         bottle.request.bind({})
-        ret = json.loads(scale_deployment("DEP-113a-test", "testservice", tenant_id="1234", amount=1))
+        ret = json.loads(scale_deployment("DEP-113a-test", "testservice", "application", "count", tenant_id="1234", amount=1))
+        # FIXME: this next test should fail once the actual implementation is sorted
+        self.assertIn("message", ret, "Did not find expected message in response.")
+        ret = json.loads(scale_deployment("DEP-113a-test", "testservice", "compute", "size", tenant_id="1234", amount="bigger"))
         # FIXME: this next test should fail once the actual implementation is sorted
         self.assertIn("message", ret, "Did not find expected message in response.")
 

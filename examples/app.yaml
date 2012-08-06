@@ -517,7 +517,7 @@ includes:
           name: 512 Mb
         - value: 1024
           name: 1 Gb
-        constrains: [{service: web, resource_type: compute, setting: size},{service: master, resource_type: compute, setting: size}]
+        constrains: [{service: web, resource_type: compute, setting: size, scalable: True},{service: master, resource_type: compute, setting: size, scalable: True}]
       "os":
         default: Ubuntu 11.10
         type: select
@@ -535,13 +535,14 @@ includes:
         description: The number of WordPress servers (minimum two).
         default: 2
         constrains:
-        - {service: web, resource_type: compute, setting: count}
+        - {service: web, resource_type: compute, setting: count, scalable: True}
         constraints:
-        - greater-than: 1 # this is an HA config
+        - min: 1 # this is an HA config
       "database_memory":
         default: 312
         label: Database Size
         description: The size of the database instance in MB of RAM.
+        scalable: True
         type: select
         options:
         - value: 512
