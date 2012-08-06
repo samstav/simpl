@@ -77,6 +77,7 @@ LOG = logging.getLogger(__name__)
 
 
 from checkmate.db import get_driver, any_id_problems, any_tenant_id_problems
+from checkmate.exceptions import CheckmateException
 from checkmate.utils import HANDLERS, RESOURCES, STATIC, write_body, read_body
 
 db = get_driver()
@@ -124,7 +125,14 @@ def hack():
     dep = Deployment(entity)
     plan(dep, request.context)
 
-    return write_body(dep.settings(), request, response)
+    from checkmate.workflows import create_workflow
+    wf = create_workflow(dep, request.context)
+
+    from SpiffWorkflow.storage import DictionarySerializer
+    serializer = DictionarySerializer()
+    data = serializer._serialize_task_spec(wf.spec.task_specs['Collect apache2 Chef Data: 4'])
+
+    return write_body(data, request, response)
 
 
 @get('/test/async')
@@ -524,9 +532,15 @@ class ExtensionsMiddleware(object):
         self.app = app
 
     def __call__(self, e, h):
-        if e['PATH_INFO'].startswith('/static/'):
-            pass  # staic files have fixed extensions
-        elif e['PATH_INFO'].endswith('.json'):
+        if e['PATH_INFO'] in [None, "", "/"]:
+            return self.app(e, h)
+        else:
+            path_parts = e['PATH_INFO'].split('/')
+            root = path_parts[1]
+            if root in RESOURCES or root in STATIC:
+                return self.app(e, h)
+
+        if e['PATH_INFO'].endswith('.json'):
             webob.Request(e).accept = 'application/json'
             e['PATH_INFO'] = e['PATH_INFO'][0:-5]
         elif e['PATH_INFO'].endswith('.yaml'):
@@ -548,33 +562,61 @@ class BrowserMiddleware(object):
         self.app = app
         HANDLERS['text/html'] = BrowserMiddleware.write_html
         STATIC.extend(['static', 'favicon.ico', 'authproxy', 'marketing',
-                'admin'])
+                'admin', 'ui', 'images', None])
         self.proxy_endpoints = proxy_endpoints
 
         # Add static routes
         @get('/favicon.ico')
         def favicon():
-            """Without this, browsers keep getting a 404 and perceive slow
-            response """
+            """Without this, browsers keep getting a 404 and users perceive
+            slow response """
             return static_file('favicon.ico',
                     root=os.path.join(os.path.dirname(__file__), 'static'))
 
-        @get('/static/<path:path>')
-        def wire(path):
-            """Expose static files"""
-            root = os.path.join(os.path.dirname(__file__), 'static')
+        @get('/ui')
+        @get('/ui/<path:path>')
+        def ui(path=None):
+            """Expose new javascript UI"""
+            root = os.path.join(os.path.dirname(__file__), 'static',
+                                'ui')
+            if not path or not os.path.exists(os.path.join(root, path)):
+                return static_file("index.html", root=root)
+
             if path.endswith('.css'):
                 return static_file(path, root=root, mimetype='text/css')
+            if path.endswith('.html'):
+                if 'partials' in path.split('/'):
+                    return static_file(path, root=root)
+                else:
+                    return static_file("index.html", root=root)
+            return static_file(path, root=root)
+
+        @get('/static/<path:path>')
+        def static(path):
+            """Expose static files (images, css, javascript, etc...)"""
+            root = os.path.join(os.path.dirname(__file__), 'static')
+            # Ensure correct mimetype
+            mimetype = 'auto'
+            if path.endswith('.css'):  # bottle does not write this for css
+                mimetype = 'text/css'
+            return static_file(path, root=root, mimetype=mimetype)
+
+        @get('/images/<path:path>')  # for RackspaceCalculator
+        def images(path):
+            """Expose image files"""
+            root = os.path.join(os.path.dirname(__file__), 'static',
+                    'RackspaceCalculator', 'images')
             return static_file(path, root=root)
 
         @get('/')
         def root():
+            return ui()
             return static_file('home.html',
                     root=os.path.join(os.path.dirname(__file__), 'static'))
 
         @get('/admin')
         def admin():
-            return write_body(dict(data=[]), request, response)
+            return write_body(None, request, response)
 
         @get('/marketing/<path:path>')
         def home(path):
@@ -731,7 +773,8 @@ class BrowserMiddleware(object):
             template = env.get_template("%s.template" % name)
             return template.render(data=data, source=json.dumps(data,
                     indent=2), tenant_id=tenant_id, context=context)
-        except StandardError:
+        except StandardError as exc:
+            print exc
             try:
                 template = env.get_template("default.template")
                 return template.render(data=data, source=json.dumps(data,
@@ -779,6 +822,26 @@ class DebugMiddleware():
             #sys.stdout.flush()
             yield part
         print
+
+
+class ExceptionMiddleware():
+    """Formats errors correctly."""
+
+    def __init__(self, app):
+        self.app = app
+
+    def __call__(self, e, h):
+        try:
+            return self.app(e, h)
+        except CheckmateException as exc:
+            print "*** ERROR ***"
+            resp = webob.Response()
+            resp.status = "500 Server Error"
+            resp.body = {'Error': exc.__str__()}
+            return resp
+        except Exception as exc:
+            print "*** %s ***" % exc
+            raise exc
 
 
 #
@@ -938,7 +1001,10 @@ class BasicAuthMultiCloudMiddleware(object):
             auth = e['HTTP_AUTHORIZATION'].split()
             if len(auth) == 2:
                 if auth[0].lower() == "basic":
-                    uname, passwd = base64.b64decode(auth[1]).split(':')
+                    creds = base64.b64decode(auth[1]).split(':')
+                    if len(creds) != 2:
+                        return HTTPUnauthorized('Invalid credentials')(e, h)
+                    uname, passwd = creds
                     if '\\' in uname:
                         domain, uname = uname.split('\\')
                         LOG.debug('Detected domain authentication: %s' %
@@ -1096,6 +1162,8 @@ class AuthTokenRouterMiddleware():
 if __name__ == '__main__':
     # Build WSGI Chain:
     next = app()  # This is the main checkmate app
+    next.catch_all = False  # Handle errors ourselves so we can format them
+    next = ExceptionMiddleware(next)
     next = AuthorizationMiddleware(next, anonymous_paths=STATIC)
     next = PAMAuthMiddleware(next, all_admins=True)
     endpoints = ['https://identity.api.rackspacecloud.com/v2.0/tokens',

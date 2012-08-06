@@ -1,0 +1,21 @@
+<div class="span12">
+  <div class="page-header">
+    <h1>Task {{task.id}} - {{task.task_spec}}
+      <small>({{task.state}})</small>
+    </h1>
+
+    <div id="{{task.id}}">
+      <form id="{{task.id}}-form" method="POST" action="#/workflows/{{workflow.id}}/tasks/{{task.id}}">
+      <script>
+        var foldFunc = CodeMirror.newFoldFunction(CodeMirror.braceRangeFinder);
+      </script>
+      <textarea ui-codemirror="{theme:'lesser-dark', mode: {name: 'javascript', json: true},
+        lineNumbers: true,
+        onGutterClick: foldFunc,
+        autoFocus: true,
+        lineWrapping: true,
+        dragDrop: false,
+        matchBrackets: true}" name="object" id="{{task.id}}-editor" ng-model="source"></textarea>
+    </form>
+  </div>
+</div>

@@ -1,0 +1,73 @@
+<section class="lcontrols no-select">
+  <div class="tControls">
+    <div class="top">
+      <button ng-click="tasks.markAllRead()" class="btn" title="Run workflow" alt="Run"><i class="icon-play"></i></button>
+      <button ng-click="tasks.markAllRead()" class="btn" title="Open Deployment" alt="Deployment"><i class="icon-list"></i></button>
+    </div>
+    <div class="middle">
+      <button ng-click="tasks.toggleStar()" ng-disabled="!tasks.selected" class="btn">
+        <i ng-class="{'icon-star': tasks.selected.starred, 'icon-star-empty': !tasks.selected.starred}"></i>
+      </button>
+      <button ng-click="tasks.toggleRead()" ng-disabled="!tasks.selected" class="btn">
+        <i ng-class="{'icon-ok-sign': tasks.selected.read, 'icon-ok-circle': !tasks.selected.read}"></i>
+      </button>
+      <button ng-click="tasks.next()" class="btn" ng-disabled="!tasks.hasNext()"><i class="icon-arrow-down"></i></button>
+    </div>
+    <div class="bottom">
+      <button ng-click="tasks.refresh()" class="btn" title="Refresh feeds" alt="Refresh feeds">
+        <i class="icon-refresh"></i>
+      </button>
+    </div>
+  </div>
+</section>
+<section class="summaries">
+  <section class="top well" ng-cloak ng-show="showStatus">
+    <h4>{{name}}</h4>
+    <div class="progress">
+      <div class="bar" style="width: 60%;"></div>
+    </div>
+    <div>
+      <a class="label label-info cmtip" title="Total items" ng-click="showAll()">{{count}}</a> items: 
+      <a class="label label-success cmtip" title="Completed" ng-click="showUnread()">{{count}}</a>
+      <a class="label label-warning cmtip" title="Waiting" ng-click="showStarred()">{{count}}</a>  
+      <a class="label label-important cmtip" title="Errors" ng-click="showRead()">{{count}}</a>
+    </div>
+  </section>
+  <article ng-repeat="item in items | filter: search | orderBy: '-created'" id="{{item.id}}" ng-class="{read: item.read, active: item.selected}" class="well summary" ng-click="selectItem($index)">
+    <div class="row-fluid" >
+      <div class="span6 pub-name">
+        {{item.name}}
+      </div>
+      <div class="span6 pub-date">
+        {{item.created | formattedDate}}
+      </div>
+    </div>
+    <h3 class="pub-title">{{item.name}}</h3>
+  </article>
+</section>
+
+<section class="entries">
+  <article class="well entry" ng-class="{active: selected.selected}" ng-hide="!selected">
+    <div id="entry" class="row-fluid">
+      <div class="span8">{{selected.created | formattedDate}}</div>
+        <div class="span4 actions">
+          <input type="checkbox" class="read" ng-model="selected.read">
+          <input type="checkbox" class="star" ng-model="selected.starred">
+          <a href="{{tasks.selected.id}}"><i class="icon-share"></i></a>
+        </div>
+      </div>
+      <h2>{{selected.name}}</h2>
+      <hr />
+    </div>
+  </article>
+  <div class="nothingSelected" ng-show="!items.length || !selected">
+    <img src="/ui/img/sadpanda.png" alt="Sad Panda" title="Sad Panda">
+    <p>Nothing selected.</p>
+  </div>
+</section>
+<script id="task" type="text/html">
+  <div id="{{id}}" class="alert task span2 {{state}}">
+    {{name}}
+    <a href="#/workflows/{{workflow.spec..id}}/tasks/{{id}}">details</a>
+  </div>
+</script>
