@@ -319,34 +319,35 @@ function DeploymentStatusCtrl($scope, $location, $http, $routeParams) {
     triggered: 0
   };
 
+  cm.Resource.get($http, $scope, 'deployments', $routeParams.deploymentId)
+    .success(function(deployment) {
+      $scope.deployment = deployment;
+      $scope.refresh();
+    });
+
   $scope.percentComplete = function() {
     console.log( (($scope.totalTime - $scope.timeRemaining) / $scope.totalTime) * 100 );
     return (($scope.totalTime - $scope.timeRemaining) / $scope.totalTime) * 100;
   };
 
+  $scope.refresh = function() {
+    cm.Resource.get($http, $scope, 'workflows', $scope.deployment.id)
+      .success(function(workflow) {
+        $scope.workflow = workflow;
+        $scope.totalTime = 0;
 
-  cm.Resource.get($http, $scope, 'deployments', $routeParams.deploymentId)
-    .success(function(deployment) {
-      $scope.deployment = deployment;
+        $scope.tasks = $scope.flattenTasks({}, workflow.task_tree);
+        $scope.timeRemaining = $scope.totalTime;
+        $scope.jit = $scope.jitTasks($scope.tasks);
 
-      // TODO: Do some magic to get the workflow id
-      cm.Resource.get($http, $scope, 'workflows', deployment.id)
-        .success(function(workflow) {
-          $scope.workflow = workflow;
-          $scope.task_specs = workflow.wf_spec.task_specs;
-          $scope.totalTime = 0;
-
-          $scope.tasks = $scope.flattenTasks({}, workflow.task_tree);
-          $scope.timeRemaining = $scope.totalTime;
-          $scope.jit = $scope.jitTasks($scope.tasks);
-
-          $scope.renderWorkflow($scope.jit);
-        });
-    });
+        $scope.renderWorkflow($scope.jit);
+        setTimeout($scope.refresh, 1000);
+      });
+  }
 
   $scope.renderWorkflow = function(tasks) {
     var template = $('#task').html();
-    var container = $('#task_container');
+    var container = $('#task_container').empty();
 
     for(var i = 0; i < Math.floor(tasks.length/4); i++) {
       var div = $('<div class="row">');
@@ -379,9 +380,9 @@ function DeploymentStatusCtrl($scope, $location, $http, $routeParams) {
       }
     });
 
-    jsPlumb.addEndpoint(selectedTask.id);
+    //jsPlumb.addEndpoint(selectedTask.id);
     _.each(selectedTask.children, function(child) {
-      jsPlumb.addEndpoint(child.id);
+      //jsPlumb.addEndpoint(child.id);
 
       jsPlumb.connect({
         source: selectedTask.id,
