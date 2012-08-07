@@ -213,7 +213,7 @@ def scale_deployment(depid, service, type, setting, tenant_id=None, amount=None)
     if not deployment:
         abort(404, 'No deployment with id {}'.format(depid))
     if not service or not service in deployment['blueprint']['services']:
-        abort(406, "Must specify a valid service entry to scale.")
+        abort(406, "Service '{}' is not defined for deployment {}".format(service, depid))
     if not type:
         abort(406, "Invalid scale type {}".format(type))
     if not setting:
@@ -225,7 +225,7 @@ def scale_deployment(depid, service, type, setting, tenant_id=None, amount=None)
     if not key or not option or not constraint:
         abort(404, "No setting matches {}/{}/{}".format(service, type, setting))
     if not constraint.get('scalable'):
-        abort(406, "Setting {} cannot be scaled for {}/{}".format(setting, service, type))
+        abort(406, "Setting '{}' cannot be scaled for {}/{}".format(setting, service, type))
 
     if "number" == option.get('type','NONE'):
         try:
@@ -235,8 +235,9 @@ def scale_deployment(depid, service, type, setting, tenant_id=None, amount=None)
         current = len(deployment['blueprint']['services'][service].get("instances", []))
         minscale = option['constraints'].get('min', 0) if 'constraints' in option else 0
         maxscale = option['constraints'].get('max', sys.maxint) if 'constraints' in option else sys.maxint
-        if minscale > current + amount > maxscale:
-            abort(406, "{} for {}/{} must be between {} and {} (inclusive).".format(\
+        net_amount = current + amount
+        if minscale > net_amount or net_amount > maxscale:
+            abort(406, "Setting \'{}\' for {}/{} must be between {} and {} (inclusive).".format(\
                         setting, service, type, minscale, maxscale))
         
         ######################################################################
@@ -253,7 +254,7 @@ def scale_deployment(depid, service, type, setting, tenant_id=None, amount=None)
             return defaultdict(recursive_defdict)
         
         new_setting = defaultdict(recursive_defdict)
-        new_setting['services'][service][type][setting] = current + amount
+        new_setting['services'][service][type][setting] = net_amount
         merge_dictionary(deployment.inputs(), new_setting)
     elif "select" == option.get('type', 'NONE'):
         if not 'options' in option:

@@ -390,7 +390,7 @@ class TestScaleDeployment(unittest.TestCase):
                       },
                       'compute': {
                           'os': 'mac',
-                          'size': 'large'
+                          'size': 2
                       }
                   }
               }
@@ -440,6 +440,7 @@ class TestScaleDeployment(unittest.TestCase):
            # omitted environment/providers for simplicity as this is just for testing the scaling part
         }))
         self._mox.ReplayAll()
+        bottle.request.bind({})
         unittest.TestCase.setUp(self)
     
     def tearDown(self):
@@ -460,14 +461,30 @@ class TestScaleDeployment(unittest.TestCase):
         except HTTPError as err:
             self._mox.VerifyAll()
             self.assertTrue(err.output, "Missing expected error output")
-            self.assertRegexpMatches(err.output, "No service notaservice defined for deployment DEP-113a-test")
+            self.assertRegexpMatches(err.output, "is not defined for deployment")
      
     def test_invalid_vector(self):
-        self.fail("Not implemented")
+        """ Test that specifying a non-existant option fails appropriately """
+        try:
+            scale_deployment("DEP-113a-test", "testservice", 'application', 'notfound', tenant_id="1234", amount=1)
+            self.fail('should not have scaled an invalid setting')
+        except HTTPError as err:
+            self._mox.VerifyAll()
+            self.assertTrue(err.output, "Missing expected error output")
+            self.assertRegexpMatches(err.output, "No setting matches")
+    
+    def test_not_scalable_option(self):
+        """ test that you can't scale an option that isn't marked as scalable """
+        try:
+            scale_deployment("DEP-113a-test", "testservice", 'compute', 'image', tenant_id="1234", amount='linux')
+            self.fail('Should not have scaled the os setting')
+        except HTTPError as err:
+            self._mox.VerifyAll()
+            self.assertTrue(err.output, "Missing expected error output")
+            self.assertRegexpMatches(err.output, "cannot be scaled for")
            
     def test_invalid_scale(self):
         """ Test that we get an exception if we try to scale more or less than allowed """
-        #bottle.request.bind({"REQUEST_METHOD" : "POST"})
         amount = "abc"
         try:
             scale_deployment("DEP-113a-test", "testservice", "application", "count", tenant_id="1234", amount=amount)
@@ -475,15 +492,7 @@ class TestScaleDeployment(unittest.TestCase):
         except HTTPError as err:
             self._mox.VerifyAll()
             self.assertTrue(err.output, "Missing expected error output")
-            self.assertRegexpMatches(err.output, "^Invalid amount %s$" % amount)
-        amount = '-5'
-        try:
-            scale_deployment("DEP-113a-test", "testservice", "application", "count", tenant_id="1234", amount=amount)
-            self.fail("Should not have accepted the specified amount %s" % amount)
-        except HTTPError as err:
-            self._mox.VerifyAll()
-            self.assertTrue(err.output, "Missing expected error output")
-            self.assertRegexpMatches(err.output, "less than 1 or more than 4")
+            self.assertRegexpMatches(err.output, "^Invalid amount \\(%s\\).*" % amount)
         amount = 2
         try:
             scale_deployment("DEP-113a-test", "testservice", "application", "count", tenant_id="1234", amount=amount)
@@ -491,7 +500,7 @@ class TestScaleDeployment(unittest.TestCase):
         except HTTPError as err:
             self._mox.VerifyAll()
             self.assertTrue(err.output, "Missing expected error output")
-            self.assertRegexpMatches(err.output, "less than 1 or more than 4")
+            self.assertRegexpMatches(err.output, "between 1 and 4")
         # test non-scalar scaling
         amount = "not_an_amount"
         try:
@@ -500,17 +509,18 @@ class TestScaleDeployment(unittest.TestCase):
         except HTTPError as err:
             self._mox.VerifyAll()
             self.assertTrue(err.output, "Missing expected error output")
-            self.assertRegexpMatches(err.output, "less than 1 or more than 4")
+            self.assertRegexpMatches(err.output, "Must be one of")
     
     def test_happy_path(self):
         """ Test that we get a valid looking deployment back if everything looks good """
-        bottle.request.bind({})
         ret = json.loads(scale_deployment("DEP-113a-test", "testservice", "application", "count", tenant_id="1234", amount=1))
         # FIXME: this next test should fail once the actual implementation is sorted
         self.assertIn("message", ret, "Did not find expected message in response.")
+        self.assertEqual(4, ret['inputs']['services']['testservice']['application']['count'], '"count" setting not updated')
         ret = json.loads(scale_deployment("DEP-113a-test", "testservice", "compute", "size", tenant_id="1234", amount="bigger"))
         # FIXME: this next test should fail once the actual implementation is sorted
         self.assertIn("message", ret, "Did not find expected message in response.")
+        self.assertEqual('4', ret['inputs']['services']['testservice']['compute']['size'], '"os" setting not updated')
 
 if __name__ == '__main__':
     unittest.main()
