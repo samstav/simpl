@@ -5,7 +5,8 @@ import checkmate
 import mox
 
 from checkmate.deployments import Deployment, plan, scale_deployment
-from checkmate.exceptions import CheckmateValidationException
+from checkmate.exceptions import CheckmateValidationException,\
+    CheckmateException
 from checkmate.providers.base import PROVIDER_CLASSES, ProviderBase
 from checkmate.server import RequestContext
 from checkmate.utils import yaml_to_dict
@@ -94,6 +95,7 @@ class TestDeployments(unittest.TestCase):
         #print json.dumps(parsed, indent=2)
 
 class TestComponentSearch(unittest.TestCase):
+    
     """ Test code that finds components """
     def test_component_find_by_type(self):
         deployment = Deployment(yaml_to_dict("""
@@ -206,6 +208,48 @@ class TestComponentSearch(unittest.TestCase):
 
 
 class TestDeploymentSettings(unittest.TestCase):
+    
+    def __init__(self, methodName):
+        unittest.TestCase.__init__(self, methodName)
+        self._dep = None
+        
+        
+    def setUp(self):
+        unittest.TestCase.setUp(self)
+        self._dep = Deployment(yaml_to_dict("""
+                environment:
+                  providers:
+                    base
+
+                blueprint:
+                  services:
+                    web:
+                      component:
+                      type: compute
+                  options:
+                    my_server_type:
+                      constrains:
+                      - type: compute
+                        service: web
+                        setting: os
+                inputs:
+                  blueprint:
+                    domain: example.com
+                    my_server_type: Ubuntu 11.10  # an option with constraint
+                  providers:
+                    base:
+                      compute:
+                        memory: 4 Gb
+                  services:
+                    web:
+                      compute:
+                        case-whitespace-test: 512mb
+                        gigabyte-test: 8 gigabytes
+                        mb-test: 512 Mb
+                        memory: 2 Gb
+                        number-only-test: 512
+            """))
+        
 
     def test_get_setting(self):
         """Test the get_setting function"""
@@ -285,6 +329,84 @@ class TestDeploymentSettings(unittest.TestCase):
                     resource_type=test.get('type'))
             self.assertEquals(value, test['expected'], test['case'])
 
+    def test_basic_setting(self):
+        """ ensures that changing an exisitng blueprint setting works """
+        self.assertNotEqual(self._dep.inputs().get("blueprint",{}).get("domain",""), "changedit.com", "Initial blueprint setting for domain is unexpected.")
+        self._dep.set_setting("domain", value="changedit.com")
+        self.assertEqual(self._dep.inputs().get("blueprint",{}).get("domain",""), "changedit.com", "Blueprint setting 'domain' not changed.")
+    
+    def test_new_basic_setting(self):
+        """ ensures adding a new blueprint setting works """
+        self.assertFalse("testnewsetting" in self._dep.inputs().get("blueprint",{}), "Initial blueprint setting for 'newsetting' is unexpected.")
+        self._dep.set_setting("testnewsetting", value="added this setting")
+        self.assertTrue("testnewsetting" in self._dep.inputs().get("blueprint",{}), "'newsetting' not added.")
+        self.assertEqual(self._dep.inputs().get("blueprint",{}).get("testnewsetting",""), "added this setting", "Blueprint setting 'newsetting' not set.")
+        
+    def test_unset_basic_setting(self):
+        """ ensures we can unset something """
+        self.assertTrue("domain" in self._dep.inputs().get("blueprint",{}), "'domain' not set.")
+        self.assertEqual(self._dep.inputs().get("blueprint",{}).get("domain",""), "example.com", "Blueprint setting 'domain' unexpected initial value.")
+        self._dep.set_setting("domain")
+        self.assertFalse("domain" in self._dep.inputs().get("blueprint",{}), "Blueprint setting 'domain' was not unset")
+    
+    def test_provider_setting(self):
+        """ ensures changing a provider setting works """
+        self.assertNotEqual(self._dep.inputs().get("providers",{}).get("base",{}).get("compute",{}).get("memory", ""), "8 Gb", "Initial provider setting is unexpected.")
+        self._dep.set_setting("memory", provider_key="base", resource_type="compute", value="8 Gb")
+        self.assertEqual(self._dep.inputs().get("providers",{}).get("base",{}).get("compute",{}).get("memory", ""), "8 Gb", "Provider setting 'compute/memory' not changed.")
+    
+    def test_new_provider_setting(self):
+        """ ensures adding a new provider setting works """
+        self.assertFalse("testnew_provider_setting" in self._dep.inputs().get("providers",{}).get("base",{}).get("compute",{}), "Initial provider setting is unexpected.")
+        self._dep.set_setting("testnew_provider_setting", provider_key="base", resource_type="compute", value="added this provider setting")
+        self.assertTrue("testnew_provider_setting" in self._dep.inputs().get("providers",{}).get("base",{}).get("compute",{}), "Provider setting 'compute/testnew_provider_setting' not added.")
+        self.assertEqual(self._dep.inputs().get("providers",{}).get("base",{}).get("compute",{}).get("testnew_provider_setting", ""), "added this provider setting", "Provider setting 'compute/testnew_provider_setting' not set.")
+    
+    def test_unset_provider_setting(self):
+        """ ensures we can unset something """
+        self.assertTrue("memory" in self._dep.inputs().get("providers",{}).get("base",{}).get("compute", {}), "'base/compute/memory' not set.")
+        self.assertEqual(self._dep.inputs().get("providers",{}).get("base",{}).get("compute",{}).get("memory",""), "4 Gb", "Provider setting 'base/compute/memory' unexpected initial value.")
+        self._dep.set_setting("memory", provider_key="base", resource_type="compute")
+        # should get rid of the entire tree
+        self.assertFalse("providers" in self._dep.inputs(), "Providers setting was not unset")
+    
+    def test_service_setting(self):
+        """ ensures changing a service setting works """
+        self.assertNotEqual(self._dep.inputs().get("services",{}).get("web",{}).get("compute",{}).get("memory", ""), "6 Gb", "Initial service setting is unexpected.")
+        self._dep.set_setting("memory", service_name="web", resource_type="compute", value="6 Gb")
+        self.assertEqual(self._dep.inputs().get("services",{}).get("web",{}).get("compute",{}).get("memory", ""), "6 Gb", "Service setting 'web/memory' not changed.")
+    
+    def test_new_service_setting(self):
+        """ ensures adding a new service setting works """
+        self.assertFalse("testnew_service_setting" in self._dep.inputs().get("services",{}).get("web",{}).get("compute",{}), "Initial service setting is unexpected.")
+        self._dep.set_setting("testnew_service_setting", service_name="web", resource_type="compute", value="added this service setting")
+        self.assertTrue("testnew_service_setting" in self._dep.inputs().get("services",{}).get("web",{}).get("compute",{}), "Service setting 'web/compute/testnew_service_setting' not added.")
+        self.assertEqual(self._dep.inputs().get("services",{}).get("web",{}).get("compute",{}).get("testnew_service_setting", ""), "added this service setting", "Service setting 'web/compute/testnew_service_setting' not set.")
+    
+    def test_unset_service_setting(self):
+        """ ensures we can unset something """
+        self.assertTrue("memory" in self._dep.inputs().get("services",{}).get("web",{}).get("compute", {}), "'web/compute/memory' not set.")
+        self.assertEqual(self._dep.inputs().get("services",{}).get("web",{}).get("compute",{}).get("memory",""), "2 Gb", "Service setting 'web/compute/memory' unexpected initial value.")
+        self._dep.set_setting("memory", service_name="web", resource_type="compute")
+        # should get rid of the entire tree
+        self.assertFalse("memory" in self._dep.inputs().get("services",{}).get("web",{}).get("compute",{}), "Service setting was not unset")
+    
+    def test_set_no_name(self):
+        """ test that you must pass a name """
+        self.assertRaisesRegexp(CheckmateException, "Must specify a setting name", self._dep.set_setting, "")
+        self.assertRaisesRegexp(CheckmateException, "Must specify a setting name", self._dep.set_setting, None)
+        
+    def test_set_service_and_provider(self):
+        """ tests that you can't pass both a service and provider """
+        self.assertRaisesRegexp(CheckmateException, "Cannot specify both a service and a provider", self._dep.set_setting, "name", provider_key="nope", service_name="nopenope")
+    
+    def test_set_no_resource_type(self):
+        """ tests that a resource type is required if a provider or
+        service is specified
+        """
+        self.assertRaisesRegexp(CheckmateException, "Must specify a resource type", self._dep.set_setting, "name", provider_key="test")
+        self.assertRaisesRegexp(CheckmateException, "Must specify a resource type", self._dep.set_setting, "name", service_name="test")
+    
     def test_get_input_provider_option(self):
         deployment = Deployment(yaml_to_dict("""
                 environment:

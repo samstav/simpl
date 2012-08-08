@@ -24,6 +24,7 @@ from SpiffWorkflow import Task, Workflow
 
 from celery.task.base import task
 
+
 LOG = logging.getLogger(__name__)
 db = get_driver()
 
@@ -203,7 +204,7 @@ def scale_deployment(depid, service, type, setting, tenant_id=None, amount=None)
         :param service: the service to scale
         :param type: the aspect of the service to scale
         :param value: (required query param) how much to scale or what to scale to
-        :param tenant_id: (optional tenant id) the type of the specified service to scale
+        :param tenant_id: (optional tenant id) account owner of the deployment
     """
     if any_id_problems(depid):
         abort(406, any_id_problems(depid))
@@ -240,29 +241,17 @@ def scale_deployment(depid, service, type, setting, tenant_id=None, amount=None)
             abort(406, "Setting \'{}\' for {}/{} must be between {} and {} (inclusive).".format(\
                         setting, service, type, minscale, maxscale))
         
-        ######################################################################
-        ######################################################################
-        #####                                                            #####
-        ##### FIXME: Roll the settings update into the Deployment object #####
-        #####                                                            #####
-        ######################################################################
-        ######################################################################
-        #||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||#
-        #VVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVV#
+        deployment.set_setting(setting, service_name=service, resource_type=type, value=net_amount)
         
-        def recursive_defdict():
-            return defaultdict(recursive_defdict)
-        
-        new_setting = defaultdict(recursive_defdict)
-        new_setting['services'][service][type][setting] = net_amount
-        merge_dictionary(deployment.inputs(), new_setting)
     elif "select" == option.get('type', 'NONE'):
         if not 'options' in option:
             raise CheckmateException('Invalid configuration. No options for constraint {}.'.format(key))
         val = ''.join([str(n.get('value')) for n in option.get('options', []) if n.get('name', n.get('value')) == amount])
         if not val:
             abort(406, "Invalid scale value. Must be one of: {}".format([str(x.get('name', x.get('value'))) for x in option.get('options',[])]))
-        deployment.inputs()['services'][service][type][setting] = val
+            
+        deployment.set_setting(setting, service_name=service, resource_type=type, value=val)   
+        
     else:
         abort(406, "Scaling settings of type {} is not currently supported.".format(constraint.type))
         
@@ -872,7 +861,79 @@ class Deployment(ExtensibleDict):
             return result
 
         return default
+    
+    def set_setting(self, name, resource_type=None,
+                service_name=None, provider_key=None, value=None):
+        """ Set the value of a deployment setting
+        - if only the name is specified, sets inputs/blueprint/:name = :value
+        - if provider_key and resource_type are specified, sets inputs/providers/:provider_key/:resource_type/:name = :value
+        - if service_name and resource_type are specified, sets inputs/services/:service_name/resource_type/:name = :value
+        - if :value = None, unsets the setting
 
+        :param name: the name of the setting
+        :param resource_type: the type of the resource being evaluated (ex. compute, database)
+        :param service_name: the name of the service being evaluated
+        :param provider_key: the name of the provider being evaluated
+        :param value: the value to set :name to; None to unset the value
+        """
+        
+        if not name:
+            raise CheckmateException("Must specify a setting name.")
+        if service_name and provider_key:
+            raise CheckmateException("Cannot specify both a service and a provider.")
+        if (service_name or provider_key) and not resource_type:
+            raise CheckmateException("Must specify a resource type.")
+        
+        passto = ("inputs",)    
+        if provider_key:
+            passto += ("providers", provider_key, resource_type)
+        elif service_name:
+            passto += ("services", service_name, resource_type)
+        else:
+            passto += ("blueprint",)
+        
+        passto += (name,)
+        
+        self._set_by_path(value, *passto)
+              
+    def _set_by_path(self, value, *args):
+        if not value:
+            self._unset_by_path(*args)
+        else:
+            def recursive_defdict():
+                return defaultdict(recursive_defdict)
+            
+            root = defaultdict(recursive_defdict)
+            current = root
+            parent = None
+            for i in range(len(args)):
+                parent = current
+                current = current[args[i]]
+            parent[args[i]] = value
+            merge_dictionary(self._data, root)
+    
+    def _unset_by_path(self, *args):
+        # iterate down the keys 
+        current = self._data
+        parent = current
+        for arg in args:
+            parent = current
+            if arg in current:
+                current = current[arg]
+        # unset
+        del parent[arg]
+        # go back up and clean up the empty ones
+        for arg in reversed(args):
+            current = self._data
+            for arg1 in args:
+                if arg1 in current:
+                    if arg == arg1:
+                        if not current[arg1]:
+                            del current[arg1]
+                        break
+                    else:
+                        current = current[arg1]
+        
     def _get_input_global(self, name):
         """Get a setting directly under inputs"""
         inputs = self.inputs()
