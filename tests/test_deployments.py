@@ -14,6 +14,7 @@ from bottle import HTTPError, BaseRequest
 import bottle
 from bottle import Request, LocalRequest
 import json
+from mox import IgnoreArg
 
 
 
@@ -479,11 +480,7 @@ class TestScaleDeployment(unittest.TestCase):
     
     def __init__(self, methodName='runTest'):
         self._mox = mox.Mox()
-        unittest.TestCase.__init__(self, methodName)
-    
-    def setUp(self):
-        self._mox.StubOutWithMock(checkmate.deployments, "db")
-        checkmate.deployments.db.get_deployment("DEP-113a-test").MultipleTimes().AndReturn(Deployment(
+        self._dep = Deployment(
         {
           'includes': { 
             'components': {
@@ -560,7 +557,12 @@ class TestScaleDeployment(unittest.TestCase):
               }
            }
            # omitted environment/providers for simplicity as this is just for testing the scaling part
-        }))
+        })
+        unittest.TestCase.__init__(self, methodName)
+    
+    def setUp(self):
+        self._mox.StubOutWithMock(checkmate.deployments, "db")
+        checkmate.deployments.db.get_deployment("DEP-113a-test").MultipleTimes(group_name="query").AndReturn(self._dep)
         self._mox.ReplayAll()
         bottle.request.bind({})
         unittest.TestCase.setUp(self)
@@ -635,13 +637,16 @@ class TestScaleDeployment(unittest.TestCase):
     
     def test_happy_path(self):
         """ Test that we get a valid looking deployment back if everything looks good """
+        self._mox.UnsetStubs()
+        self._mox.StubOutWithMock(checkmate.deployments, "db")
+        checkmate.deployments.db.get_deployment("DEP-113a-test").MultipleTimes().AndReturn(self._dep)
+        checkmate.deployments.db.save_deployment(IgnoreArg(), IgnoreArg(), IgnoreArg(), tenant_id=IgnoreArg()).MultipleTimes().AndReturn(self._dep._data)
+        self._mox.ReplayAll()
         ret = json.loads(scale_deployment("DEP-113a-test", "testservice", "application", "count", tenant_id="1234", amount=1))
         # FIXME: this next test should fail once the actual implementation is sorted
-        self.assertIn("message", ret, "Did not find expected message in response.")
         self.assertEqual(4, ret['inputs']['services']['testservice']['application']['count'], '"count" setting not updated')
         ret = json.loads(scale_deployment("DEP-113a-test", "testservice", "compute", "size", tenant_id="1234", amount="bigger"))
         # FIXME: this next test should fail once the actual implementation is sorted
-        self.assertIn("message", ret, "Did not find expected message in response.")
         self.assertEqual('4', ret['inputs']['services']['testservice']['compute']['size'], '"os" setting not updated')
 
 if __name__ == '__main__':

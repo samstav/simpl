@@ -255,9 +255,10 @@ def scale_deployment(depid, service, type, setting, tenant_id=None, amount=None)
     else:
         abort(406, "Scaling settings of type {} is not currently supported.".format(constraint.type))
         
-    # update the deployment and create the workflow
-    # FIXME: need to add the actual scaling logic here
-    deployment["message"] = "This is a stub. Need to implement deployment modifcation and workflow planning."
+    # save the changes
+    _id = str(deployment['id'])
+    body, secrets = extract_sensitive_data(deployment)
+    db.save_deployment(_id, body, secrets, tenant_id=tenant_id)
     return write_body(deployment, request, response)
 
 
@@ -895,6 +896,7 @@ class Deployment(ExtensibleDict):
         passto += (name,)
         
         self._set_by_path(value, *passto)
+        self['status'] = "updated"
               
     def _set_by_path(self, value, *args):
         if not value:
