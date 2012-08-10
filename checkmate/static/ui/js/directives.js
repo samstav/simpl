@@ -56,17 +56,21 @@ directives.directive('calculator', function factory() {
     compile: function compile(tElement, tAttrs, transclude) {
       return {
         post: function postLink(scope, iElement, iAttrs, controller) {
-          $("#content-wrap").css("top", "40px").insertBefore('.mainContent');
+          //Remove unneeded stuff
+          $("#basement-wrap").remove();
+          $("#footer-wrap").remove();
+          $("#ceiling-wrap").remove();
+          $("#banner-v2-wrap").remove();
+          $('calculator').children('link').remove();
+          $('calculator').children('title').remove();
+
+          $('head').append('<link rel="stylesheet" href="/static/RackspaceCalculator/css/rackspace.min.css">');
+          $('head').append('<link rel="stylesheet" href="/static/RackspaceCalculator/css/styles.css">');
+          $("#page-wrap").insertBefore('.mainContent');
+          $("#content-wrap").css("top", "40px"); //.insertBefore('.mainContent');
           $(".mainContent").css("display", "none");
           $("body").addClass("chrome");
           $(".signup").text("Built It");
-          $('calculator').children('link').remove();
-          $('calculator').children('title').remove();
-          $("#page-wrap").remove();
-          $("#basement-wrap").remove();
-          $("#footer-wrap").remove();
-          $('head').append('<link rel="stylesheet" href="/static/RackspaceCalculator/css/rackspace.min.css">');
-          $('head').append('<link rel="stylesheet" href="/static/RackspaceCalculator/css/styles.css">');
           $('head').append('<script src="/static/RackspaceCalculator/js/jquery-ui-1.8.21.min.js"></script>');
           $('head').append('<script src="/static/RackspaceCalculator/js/lodash.js"></script>');
           $('head').append('<script src="/static/RackspaceCalculator/js/json2.js"></script>');

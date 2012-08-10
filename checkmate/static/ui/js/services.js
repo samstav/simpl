@@ -34,7 +34,8 @@ services.factory('workflow', [function() {
 				id: task.id,
 				name: task.task_spec,
 				adjacencies: adjacencies,
-				state: me.colorize(task.state),
+				state: task.state,
+				state_class: me.colorize(task.state),
 				data: {
 				  "$color": "#83548B",
 				  "$type": "circle"
@@ -131,7 +132,7 @@ services.factory('workflow', [function() {
 			  return "alert-success";
 			default:
 			  console.log("Invalid state '" + state + "'.");
-			  return "unkonwn";
+			  return "unknown";
 		  }
 		}
 	};
@@ -483,8 +484,11 @@ services.value('scroll', {
 		// Need the setTimeout to prevent race condition with item being selected.
 		window.setTimeout(function() {
       var curScrollPos = $('.summaries').scrollTop();
-      var itemTop = $('.summary.active').offset().top - 60;
-      $('.summaries').animate({'scrollTop': curScrollPos + itemTop}, 200);
+	  var item = $('.summary.active').offset();
+	  if (item !== null) {
+		var itemTop = item.top - 60;
+		$('.summaries').animate({'scrollTop': curScrollPos + itemTop}, 200);
+	  };
     }, 0);
 	}
 });

@@ -15,7 +15,7 @@ checkmate.config(['$routeProvider', '$locationProvider', '$httpProvider', functi
     controller: StaticController
   }).
   when('/ui/deployments/default', {
-    templateUrl: '/static/angular/partials/deployment-new.html',
+    templateUrl: '/ui/partials/deployment-new.html',
     controller: DeploymentTryController
   }).
   when('/ui/workflows', {
@@ -69,7 +69,9 @@ function AppController($scope, $http, $cookieStore, $location) {
     };
 
   // Restore login from session
-  var catalog = $cookieStore.get('auth');
+  var catalog = $.cookie('auth');
+  if (catalog != undefined && catalog !== null)
+    catalog = JSON.parse(catalog);
   if (catalog != undefined && catalog !== null && catalog != {} && 'access' in catalog) {
       $scope.auth.catalog = catalog;
       $scope.auth.username = catalog.access.user.name;
@@ -153,8 +155,14 @@ function AppController($scope, $http, $cookieStore, $location) {
       data: data
     }).success(function(json) {
       $('#modalAuth').modal('hide');
-      json.auth_url = auth_url;  // save for later
-      $cookieStore.put('auth', json); //save token and creds in session
+      var keep = {access: {token: json.access.token, user: json.access.user}};
+      keep.auth_url = auth_url;  // save for later
+      //save token and creds in cookie (domain must be set to '' for localhost)
+      if (window.location.hostname == 'localhost' || window.location.hostname == '127.0.0.1') {
+        $.cookie('auth', JSON.stringify(keep), {path: '/', expires: new Date(json.access.token.expires), domain: ''});
+      } else {
+        $.cookie('auth', JSON.stringify(keep), {path: '/', expires: new Date(json.access.token.expires)});
+      }
       $scope.auth.username = username;
       $scope.auth.tenantId = json.access.token.tenant.id;
       $scope.auth.catalog = json;
@@ -184,8 +192,7 @@ function AppController($scope, $http, $cookieStore, $location) {
   $scope.logOut = function() {
     $scope.auth.username = '';
     $scope.auth.catalog = null;
-    $cookieStore.put('auth', {});  //overwrite the data
-    //TODO: bug fix - this does not delete! In fact, it overrides the put! $cookieStore.remove('auth');  //and delete it
+    $.removeCookie('auth', {path: '/'});
     $scope.auth.loggedIn = false;
     delete checkmate.config.header_defaults.headers.common['X-Auth-Token'];
     delete checkmate.config.header_defaults.headers.common['X-Auth-Source'];
@@ -280,6 +287,7 @@ function WorkflowListController($scope, $location, $resource, workflow, items) {
 
 function WorkflowController($scope, $resource, $routeParams, workflow, items, scroll) {
   $scope.showStatus = true;
+  $scope.name = "Tasks";
 
   $scope.items = items.all;
 
@@ -287,6 +295,21 @@ function WorkflowController($scope, $resource, $routeParams, workflow, items, sc
 
   $scope.refresh = function() {
     //items.getTasksFromServer();
+  };
+
+  $scope.taskStates = {
+    future: 0,
+    likely: 0,
+    maybe: 0,
+    waiting: 0,
+    ready: 0,
+    cancelled: 0,
+    completed: 0,
+    triggered: 0
+  };
+
+  $scope.percentComplete = function() {
+    return (($scope.totalTime - $scope.timeRemaining) / $scope.totalTime) * 100;
   };
 
   $scope.selectItem = function(index) {
@@ -315,9 +338,11 @@ function WorkflowController($scope, $resource, $routeParams, workflow, items, sc
       items.data = object;
       items.tasks = workflow.flattenTasks({}, object.task_tree);
       items.all = workflow.jitTasks(items.tasks);
+      $scope.calculateStatistics(items.all);
       items.filtered = items.all;
       $scope.items = items.all;
       $scope.count = items.all.length;
+      setTimeout($scope.load, 2000);
     });
   }
   
@@ -325,6 +350,82 @@ function WorkflowController($scope, $resource, $routeParams, workflow, items, sc
     if (newVal !== null) scroll.toCurrent();
   });
   $scope.load();
+
+  $scope.calculateStatistics = function(tasks) {
+    $scope.totalTime = 0;
+    $scope.timeRemaining  = 0;
+    $scope.taskStates = {
+       future: 0,
+       likely: 0,
+       maybe: 0,
+       waiting: 0,
+       ready: 0,
+       cancelled: 0,
+       completed: 0,
+       triggered: 0
+     };
+    _.each(tasks, function(task) {
+      if ("internal_attributes" in task && "estimated_completed_in" in task["internal_attributes"]) {
+        $scope.totalTime += parseInt(task["internal_attributes"]["estimated_completed_in"], 10);
+      } else {
+        $scope.totalTime += 10;
+      };
+      switch(task.state) {
+        case 1:
+          $scope.taskStates["future"] += 1;
+          break;
+        case 2:
+          $scope.taskStates["likely"] += 1;
+          break;
+        case 4:
+          $scope.taskStates["maybe"] += 1;
+          break;
+        case 8:
+          $scope.taskStates["waiting"] += 1;
+          break;
+        case 16:
+          $scope.taskStates["ready"] += 1;
+          break;
+        case 128:
+          $scope.taskStates["triggered"] += 1;
+          break;
+        case 32:
+          $scope.taskStates["cancelled"] += 1;
+          break;
+        case 64:
+          $scope.taskStates["completed"] += 1;
+          if ("internal_attributes" in task && "estimated_completed_in" in task["internal_attributes"]) {
+            $scope.timeRemaining -= parseInt(task["internal_attributes"]["estimated_completed_in"], 10);
+          } else {
+            $scope.timeRemaining -= 10;
+          }
+          break;
+        default:
+          console.log("Invalid state '" + task.state + "'.");
+      };
+      $scope.timeRemaining += $scope.totalTime;
+    });
+  }
+
+  $scope.showConnections = function(task_div) {
+    jsPlumb.Defaults.Container = "task_container";
+
+    var selectedTask = _.find($scope.tasks, function(task) {
+      if (task.id === parseInt(task_div.attr('id'))) {
+        return task;
+      }
+    });
+
+    //jsPlumb.addEndpoint(selectedTask.id);
+    _.each(selectedTask.children, function(child) {
+      //jsPlumb.addEndpoint(child.id);
+
+      jsPlumb.connect({
+        source: selectedTask.id,
+        target: child.id
+      });
+    });
+  };
 }
 
 /**
@@ -692,6 +793,11 @@ WPBP = {
                 "sample": "/blog",
                 "type": "string"
             },
+            "register-dns": {
+                "default": false,
+                "type": "boolean",
+                "label": "Register DNS Name"
+            },
             "region": {
                 "required": true,
                 "type": "select",
@@ -908,11 +1014,6 @@ WPBP = {
                 ],
                 "type": "string",
                 "label": "SSL Certificate Private Key"
-            },
-            "register-dns": {
-                "default": false,
-                "type": "boolean",
-                "label": "Register DNS Name"
             }
         },
         "name": "Scalable Wordpress (Managed Cloud Config)"
@@ -996,11 +1097,6 @@ WPENV = {
                             }
                         },
                         "sizes": {
-                            "1": {
-                                "disk": 10,
-                                "name": "256 server",
-                                "memory": 256
-                            },
                             "3": {
                                 "disk": 40,
                                 "name": "1GB server",
