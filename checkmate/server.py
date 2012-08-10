@@ -1187,11 +1187,12 @@ def main_func():
     next.catch_all = False  # Handle errors ourselves so we can format them
     next = ExceptionMiddleware(next)
     next = AuthorizationMiddleware(next, anonymous_paths=STATIC)
-    next = PAMAuthMiddleware(next, all_admins=True)
+    #next = PAMAuthMiddleware(next, all_admins=True)
     endpoints = ['https://identity.api.rackspacecloud.com/v2.0/tokens',
             'https://lon.identity.api.rackspacecloud.com/v2.0/tokens']
     next = AuthTokenRouterMiddleware(next, endpoints,
             default='https://identity.api.rackspacecloud.com/v2.0/tokens')
+    """
     if '--with-ui' in sys.argv:
         # With a UI, we use basic auth and route that to cloud auth.
         domains = {
@@ -1208,6 +1209,7 @@ def main_func():
                     },
             }
         next = BasicAuthMultiCloudMiddleware(next, domains=domains)
+    """
 
     next = TenantMiddleware(next)
     next = ContextMiddleware(next)

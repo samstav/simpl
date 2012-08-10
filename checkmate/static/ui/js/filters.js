@@ -14,6 +14,22 @@ filters.filter('formattedFullDate', function() {
   };
 });
 
+filters.filter('secondsETA', function() {
+  return function(d) {
+    if (d == 0) {
+      return "now";
+    } else
+      return d ? moment().add('seconds', d).fromNow() : '';
+  };
+});
+
+filters.filter('prepend', function() {
+  return function(d) {
+    if (d)
+      return "/" + d;
+  };
+});
+
 filters.filter('yaml', function() {
   return function(d) {
     return d ? YAML.encode(d) : '';

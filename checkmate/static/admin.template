@@ -3,31 +3,34 @@
 {% block content %}
 <div class="container">
   <div class="row span12">
-  <div class="hero-unit">
-    <div>
-      <img alt="Checkmate Logo" id="logo" src="/static/img/checkmate.png">
-      <h1>Welcome to Checkmate!</h1>
+    <div class="alert">
+        <button class="close" data-dismiss="alert alert-info">x</button>
+      <strong>Please Note!</strong>
+      You cannot create new objects from this interface. If you're looking for an end-user user interface, please click <a href="/">here</a>.
     </div>
-    <div style="clear:both"></div>
-    <p>
-      You cannot create new objects from this interface. If you're looking for friendly user interface, please click <a href="/">here</a>.
-    </p>
-
-    <p>
-      This is a sessionless html wrapper on top of the REST API. It is intended as a raw, browser-friendly interface for advanced users. If no HTML template exists, the API response will be shown in raw format.
-    </p>
-    <p>
-        There are a number of interfaces being worked on:
-        <ul>
-            <li>Newest User Interface (but not all functions have been ported): <a href="/ui">/ui</a></li>
-            <li>Alternate Interface (with some extra features): <a href="/static/angular/index.html">/static/angular/index.html</a></li>
-            <li>Old v0.1 server interface: <a href="http://checkmate-n01.dev.ord1.ci.rackspace.net/users/sign_in">http://checkmate-n01.dev.ord1.ci.rackspace.net/users/sign_in</a></li>
-            <li>YAML syntax reference: <a href="/static/docs/app.html">/static/docs/app.html</a></li>
-        </ul>
-    </p>
-
+    <div class="hero-unit">
+      <div>
+        <img alt="Checkmate Logo" id="logo" src="/static/img/checkmate.png">
+        <h1>Welcome to Checkmate!</h1>
+      </div>
+      <div style="clear:both">
+          
+      </div>
+  
+      <p>
+        This is a sessionless html wrapper on top of the REST API. It is intended as a raw, browser-friendly interface for advanced users. If no HTML template exists, the API response will be shown in raw format.
+      </p>
+      <p>
+          There are a number of interfaces being worked on:
+          <ul>
+              <li>Newest User Interface (but not all functions have been ported): <a href="/ui">/ui</a></li>
+              <li>Alternate Interface (with some extra features): <a href="/static/angular/index.html">/static/angular/index.html</a></li>
+              <li>Old v0.1 server interface: <a href="http://checkmate-n01.dev.ord1.ci.rackspace.net/users/sign_in">http://checkmate-n01.dev.ord1.ci.rackspace.net/users/sign_in</a></li>
+          </ul>
+      </p>
+  
+    </div>
   </div>
-</div>
 
   <hr>
 

@@ -14,7 +14,7 @@
       <button ng-click="tasks.next()" class="btn" ng-disabled="!tasks.hasNext()"><i class="icon-arrow-down"></i></button>
     </div>
     <div class="bottom">
-      <button ng-click="tasks.refresh()" class="btn" title="Refresh feeds" alt="Refresh feeds">
+      <button ng-click="tasks.load()" class="btn" title="Refresh" alt="Refresh">
         <i class="icon-refresh"></i>
       </button>
     </div>
@@ -24,25 +24,26 @@
   <section class="top well" ng-cloak ng-show="showStatus">
     <h4>{{name}}</h4>
     <div class="progress">
-      <div class="bar" style="width: 60%;"></div>
+      <div class="bar" style="width: {{percentComplete()}}%;"></div>
     </div>
     <div>
       <a class="label label-info cmtip" title="Total items" ng-click="showAll()">{{count}}</a> items: 
-      <a class="label label-success cmtip" title="Completed" ng-click="showUnread()">{{count}}</a>
-      <a class="label label-warning cmtip" title="Waiting" ng-click="showStarred()">{{count}}</a>  
-      <a class="label label-important cmtip" title="Errors" ng-click="showRead()">{{count}}</a>
+      <a class="label label-success cmtip" title="Completed" ng-click="showUnread()">{{taskStates['completed']}}</a>
+      <a class="label label-warning cmtip" title="Waiting" ng-click="showStarred()">{{taskStates['waiting']}}</a>  
+      <a class="label label-important cmtip" title="Errors" ng-click="showRead()">{{0}}</a>
+      <div>Expected to finish {{timeRemaining | secondsETA}}</div>
     </div>
   </section>
   <article ng-repeat="item in items | filter: search | orderBy: '-created'" id="{{item.id}}" ng-class="{read: item.read, active: item.selected}" class="well summary" ng-click="selectItem($index)">
+    <h4 class="pub-title">{{item.name}}</h4>
     <div class="row-fluid" >
       <div class="span6 pub-name">
-        {{item.name}}
+        {{item.description}}
       </div>
       <div class="span6 pub-date">
         {{item.created | formattedDate}}
       </div>
     </div>
-    <h3 class="pub-title">{{item.name}}</h3>
   </article>
 </section>
 
@@ -51,12 +52,20 @@
     <div id="entry" class="row-fluid">
       <div class="span8">{{selected.created | formattedDate}}</div>
         <div class="span4 actions">
-          <input type="checkbox" class="read" ng-model="selected.read">
-          <input type="checkbox" class="star" ng-model="selected.starred">
-          <a href="{{tasks.selected.id}}"><i class="icon-share"></i></a>
+          <a class="accordion-toggle cmcollapse cmtip" title="Edit source" data-toggle="collapse" href="#source" ng-click="init_editor()"><i class="icon-edit"></i></a>
         </div>
       </div>
       <h2>{{selected.name}}</h2>
+      <div id="source" class="cmcollapse collapse out">
+        <form id="code" method="POST" action="{{tenantId | prepend}}/workflows/{{id}}">
+          <div id="entry" class="row-fluid">
+            <div class="actions">
+              <a class="pull-right cmtip" href="#save" title="Save"><i class="icon-ok"></i></a>
+            </div>
+          </div>
+          <textarea name="object" id="editor"></textarea>
+        </form>
+      </div>
       <hr />
     </div>
   </article>
@@ -65,7 +74,7 @@
     <p>Nothing selected.</p>
   </div>
 </section>
-<script id="task" type="text/html">
+<script id="task" type="text/ng-template">
   <div id="{{id}}" class="alert task span2 {{state}}">
     {{name}}
     <a href="#/workflows/{{workflow.spec..id}}/tasks/{{id}}">details</a>

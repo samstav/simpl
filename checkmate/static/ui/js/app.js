@@ -1,6 +1,7 @@
-var checkmate = angular.module('checkmate', ['checkmate.filters', 'checkmate.services', 'checkmate.directives', 'ngResource', 'ngSanitize', 'ngCookies']);
+var checkmate = angular.module('checkmate', ['checkmate.filters', 'checkmate.services', 'checkmate.directives', 'ngResource', 'ngSanitize', 'ngCookies', 'ui']);
 
 checkmate.config(['$routeProvider', '$locationProvider', '$httpProvider', function($routeProvider, $locationProvider, $httpProvider) {
+  // Static Paths
   $routeProvider.
   when('/', {
     templateUrl: '/ui/partials/home.html',
@@ -13,14 +14,36 @@ checkmate.config(['$routeProvider', '$locationProvider', '$httpProvider', functi
   when('/ui/build', {
     templateUrl: '/ui/partials/calculator.html',
     controller: StaticController
+  })
+
+  // Legacy Paths
+  $routeProvider.
+  when('/ui/environments', {
+    controller: LegacyController,
+    template:'<section class="entries" ng-include="templateUrl">Loading...</section>'
   }).
-  when('/ui/deployments/default', {
-    templateUrl: '/static/angular/partials/deployment-new.html',
-    controller: DeploymentTryController
+  when('/ui/environments/:id', {
+    controller: LegacyController,
+    template:'<section class="entries" ng-include="templateUrl">Loading...</section>'
   }).
   when('/ui/workflows', {
-    templateUrl: '/ui/partials/level1.html',
-    controller: WorkflowListController
+    controller: LegacyController,
+    template:'<section class="entries" ng-include="templateUrl">Loading...</section>'
+  }).
+  when('/ui/blueprints', {
+    controller: LegacyController,
+    template:'<section class="entries" ng-include="templateUrl">Loading...</section>'
+  }).
+  when('/ui/deployments', {
+    controller: LegacyController,
+    template:'<section class="entries" ng-include="templateUrl">Loading...</section>'
+  })
+  
+  // New UI
+  $routeProvider.
+  when('/ui/deployments/default', {
+    templateUrl: '/ui/partials/deployment-new.html',
+    controller: DeploymentTryController
   }).
   when('/ui/workflows/:id', {
     templateUrl: '/ui/partials/level2.html',
@@ -29,14 +52,6 @@ checkmate.config(['$routeProvider', '$locationProvider', '$httpProvider', functi
   when('/ui/blueprints/:id', {
     templateUrl: '/ui/partials/level2.html',
     controller: BlueprintListController
-  }).
-  when('/ui/blueprints', {
-    templateUrl: '/ui/partials/level1.html',
-    controller: BlueprintListController
-  }).
-  when('/ui/deployments', {
-    templateUrl: '/ui/partials/level1.html',
-    controller: DeploymentListController
   }).
   when('/ui/deployments/new', {
     templateUrl: '/static/angular/partials/deployment-new.html',
@@ -53,11 +68,32 @@ checkmate.config(['$routeProvider', '$locationProvider', '$httpProvider', functi
   
 }]);
 
+/*
+Scope variables that control the Checkmate UI:
+- angular.element('header').scope().showHeader = true/false
+- angular.element('header').scope().showSearch = true/false
+
+- angular.element('#leftControls').scope().showControls = true/false
+
+- angular.element('.summaries').scope().showSummaries = true
+- angular.element('.summaries').scope().showStatus = true
+
+- angular.element('footer').scope().showFooter = true/false
+
+*/
+
 function StaticController($scope) {
   $scope.showHeader = false;
   $scope.showStatus = false;
 }
 
+function LegacyController($scope, $location) {
+  $scope.showHeader = false;
+  $scope.showStatus = false;
+  path = '/' + $scope.$parent.auth.tenantId + $location.path().substr(3) + '.html';
+  console.log(path);
+  $scope.templateUrl = path;
+}
 
 function AppController($scope, $http, $cookieStore, $location) {
   $scope.showHeader = true;
@@ -69,7 +105,9 @@ function AppController($scope, $http, $cookieStore, $location) {
     };
 
   // Restore login from session
-  var catalog = $cookieStore.get('auth');
+  var catalog = $.cookie('auth');
+  if (catalog != undefined && catalog !== null)
+    catalog = JSON.parse(catalog);
   if (catalog != undefined && catalog !== null && catalog != {} && 'access' in catalog) {
       $scope.auth.catalog = catalog;
       $scope.auth.username = catalog.access.user.name;
@@ -80,10 +118,11 @@ function AppController($scope, $http, $cookieStore, $location) {
       var now = new Date();
       if (expires < now) {
         $scope.auth.expires = 'expired';
+        $scope.auth.loggedIn = false;
       } else {
         $scope.auth.expires = expires - now;
+        $scope.auth.loggedIn = true;
       }
-      $scope.auth.loggedIn = true;
   } else {
     $scope.auth.loggedIn = false;
   }
@@ -153,8 +192,14 @@ function AppController($scope, $http, $cookieStore, $location) {
       data: data
     }).success(function(json) {
       $('#modalAuth').modal('hide');
-      json.auth_url = auth_url;  // save for later
-      $cookieStore.put('auth', json); //save token and creds in session
+      var keep = {access: {token: json.access.token, user: json.access.user}};
+      keep.auth_url = auth_url;  // save for later
+      //save token and creds in cookie (domain must be set to '' for localhost)
+      if (window.location.hostname == 'localhost' || window.location.hostname == '127.0.0.1') {
+        $.cookie('auth', JSON.stringify(keep), {path: '/', expires: new Date(json.access.token.expires), domain: ''});
+      } else {
+        $.cookie('auth', JSON.stringify(keep), {path: '/', expires: new Date(json.access.token.expires)});
+      }
       $scope.auth.username = username;
       $scope.auth.tenantId = json.access.token.tenant.id;
       $scope.auth.catalog = json;
@@ -184,8 +229,7 @@ function AppController($scope, $http, $cookieStore, $location) {
   $scope.logOut = function() {
     $scope.auth.username = '';
     $scope.auth.catalog = null;
-    $cookieStore.put('auth', {});  //overwrite the data
-    //TODO: bug fix - this does not delete! In fact, it overrides the put! $cookieStore.remove('auth');  //and delete it
+    $.removeCookie('auth', {path: '/'});
     $scope.auth.loggedIn = false;
     delete checkmate.config.header_defaults.headers.common['X-Auth-Token'];
     delete checkmate.config.header_defaults.headers.common['X-Auth-Source'];
@@ -280,6 +324,7 @@ function WorkflowListController($scope, $location, $resource, workflow, items) {
 
 function WorkflowController($scope, $resource, $routeParams, workflow, items, scroll) {
   $scope.showStatus = true;
+  $scope.name = "Progress";
 
   $scope.items = items.all;
 
@@ -289,18 +334,36 @@ function WorkflowController($scope, $resource, $routeParams, workflow, items, sc
     //items.getTasksFromServer();
   };
 
+  $scope.taskStates = {
+    future: 0,
+    likely: 0,
+    maybe: 0,
+    waiting: 0,
+    ready: 0,
+    cancelled: 0,
+    completed: 0,
+    triggered: 0
+  };
+
+  $scope.percentComplete = function() {
+    return (($scope.totalTime - $scope.timeRemaining) / $scope.totalTime) * 100;
+  };
+
   $scope.selectItem = function(index) {
     items.selectItem(index);
-    $scope.selected = items.selected;
-
+    $scope.drawWorkflow;
+  };
+  
+  $scope.drawWorkflow = function() {
     // Prepare tasks
     wf = items.data;  //TODO: fix this
     $scope.task_specs = wf.wf_spec.task_specs;
     $scope.tasks = workflow.flattenTasks({}, wf.task_tree);
-    $scope.jit = workflow.jitTasks($scope.tasks);
+    $scope.jit = workflow.parseTasks($scope.tasks, wf.wf_spec.task_specs);
     
     // Render tasks
     workflow.renderWorkflow('.entry', '#task', $scope.jit, $scope);
+    $scope.selected = {name: wf.id, read: true, active: true};
   };
 
   $scope.handleSpace = function() {
@@ -308,16 +371,46 @@ function WorkflowController($scope, $resource, $routeParams, workflow, items, sc
       items.next();
     }
   };
+  
+  $scope.init_editor = function() {
+    if ($scope.Editor !== undefined)
+      return;
+    $("#editor").text(JSON.stringify(items.data, null, "  "));
+    var foldFunc = CodeMirror.newFoldFunction(CodeMirror.braceRangeFinder);
+    $scope.Editor = CodeMirror.fromTextArea(document.getElementById('editor'), {
+      theme: 'lesser-dark',
+      mode: {name: "javascript", json: true},
+      lineNumbers: true,
+      onGutterClick: foldFunc,
+      autoFocus: true,
+      lineWrapping: true,
+      dragDrop: false,
+      matchBrackets: true
+      });
+
+  }
 
   $scope.load = function() {
     this.klass = $resource('/:tenantId/workflows/:id');
-    this.klass.get({tenantId: $scope.auth.tenantId, id: $routeParams['id']}, function(object, getResponseHeaders){
+    this.klass.get({tenantId: $scope.auth.tenantId, id: $routeParams['id']},
+                   function(object, getResponseHeaders){
       items.data = object;
       items.tasks = workflow.flattenTasks({}, object.task_tree);
-      items.all = workflow.jitTasks(items.tasks);
+      items.all = workflow.parseTasks(items.tasks, object.wf_spec.task_specs);
+      $scope.calculateStatistics(items.all);
       items.filtered = items.all;
       $scope.items = items.all;
       $scope.count = items.all.length;
+      $scope.drawWorkflow();
+      if ($scope.Editor !== undefined)
+        Editor.setValue(JSON.stringify(object));
+      if ($scope.taskStates.completed < $scope.count)
+        setTimeout($scope.load, 2000);
+    }, function(error) {
+      console.log("Error " + error.data + "(" + error.status + ") loading workflow.");
+      $scope.$root.error = {data: error.data, status: error.status, title: "Error loading workflow",
+              message: "There was an error loading your workflow:"};
+      $('#modalError').modal('show');
     });
   }
   
@@ -325,6 +418,84 @@ function WorkflowController($scope, $resource, $routeParams, workflow, items, sc
     if (newVal !== null) scroll.toCurrent();
   });
   $scope.load();
+
+  $scope.calculateStatistics = function(tasks) {
+    $scope.totalTime = 0;
+    $scope.timeRemaining  = 0;
+    $scope.taskStates = {
+       future: 0,
+       likely: 0,
+       maybe: 0,
+       waiting: 0,
+       ready: 0,
+       cancelled: 0,
+       completed: 0,
+       triggered: 0
+     };
+    _.each(tasks, function(task) {
+      if ("internal_attributes" in task && "estimated_completed_in" in task["internal_attributes"]) {
+        $scope.totalTime += parseInt(task["internal_attributes"]["estimated_completed_in"], 10);
+      } else {
+        $scope.totalTime += 10;
+      };
+      switch(task.state) {
+        case 1:
+          $scope.taskStates["future"] += 1;
+          break;
+        case 2:
+          $scope.taskStates["likely"] += 1;
+          break;
+        case 4:
+          $scope.taskStates["maybe"] += 1;
+          break;
+        case 8:
+          $scope.taskStates["waiting"] += 1;
+          break;
+        case 16:
+          $scope.taskStates["ready"] += 1;
+          break;
+        case 128:
+          $scope.taskStates["triggered"] += 1;
+          break;
+        case 32:
+          $scope.taskStates["cancelled"] += 1;
+          break;
+        case 64:
+          $scope.taskStates["completed"] += 1;
+          if ("internal_attributes" in task && "estimated_completed_in" in task["internal_attributes"]) {
+            $scope.timeRemaining -= parseInt(task["internal_attributes"]["estimated_completed_in"], 10);
+          } else {
+            $scope.timeRemaining -= 10;
+          }
+          break;
+        default:
+          console.log("Invalid state '" + task.state + "'.");
+      }
+    });
+    $scope.timeRemaining += $scope.totalTime;
+  }
+
+  $scope.showConnections = function(task_div) {
+    jsPlumb.Defaults.Container = "task_container";
+
+    var selectedTask = _.find($scope.tasks, function(task) {
+      if (task.id === parseInt(task_div.attr('id'))) {
+        return task;
+      }
+    });
+    var source = $('#' + selectedTask.id);
+    _.each(selectedTask.children, function(child) {      
+      var target = $('#' + child.id);
+      if (target.length != 1) {
+        console.log("Error finding child " + child.id + " there were " + target.length + " matches.");
+      } else {
+        jsPlumb.connect({
+          source: source,
+          target: target
+        });
+      }    
+     });
+  };
 }
 
 /**
@@ -332,7 +503,7 @@ function WorkflowController($scope, $resource, $routeParams, workflow, items, sc
  */
 function BlueprintListController($scope, $location, $resource, items) {
   //Model: UI
-  $scope.showItemsBar = true;
+  $scope.showSummaries = true;
   $scope.showStatus = false;
 
   $scope.items = items;
@@ -548,20 +719,17 @@ function DeploymentInitController($scope, $location, $routeParams, $resource, bl
     });
 
     if ($scope.auth.loggedIn) {
-      try {
-          deployment.$save(function(returned, getHeaders){
-          var deploymentId = getHeaders('location').split('/')[3];
-          console.log("Posted deployment", deploymentId);
-          $location.path('/ui/workflows/' + deploymentId);
-        });
-      } catch (err) {
-        console.log("Error " + err + " creating new deployment.");
+        deployment.$save(function(returned, getHeaders){
+        var deploymentId = getHeaders('location').split('/')[3];
+        console.log("Posted deployment", deploymentId);
+        $location.path('/ui/workflows/' + deploymentId);
+      }, function(error) {
+        console.log("Error " + error.data + "(" + error.status + ") creating new deployment.");
         console.log(deployment);
-  
-        //TODO: Need to slice out the data we are interested in.
-        $scope.error = err;
-        $('#error_modal').modal('show');
-      }
+        $scope.$root.error = {data: error.data, status: error.status, title: "Error Creating Deployment",
+                message: "There was an error creating your deployment:"};
+        $('#modalError').modal('show');
+      });
     } else {
       $scope.loginPrompt(); //TODO: implement a callback
     }
@@ -692,6 +860,11 @@ WPBP = {
                 "sample": "/blog",
                 "type": "string"
             },
+            "register-dns": {
+                "default": false,
+                "type": "boolean",
+                "label": "Register DNS Name"
+            },
             "region": {
                 "required": true,
                 "type": "select",
@@ -790,16 +963,16 @@ WPBP = {
                 "type": "select",
                 "choice": [
                     {
-                        "name": "256 Mb",
-                        "value": 256
-                    },
-                    {
                         "name": "512 Mb",
                         "value": 512
                     },
                     {
                         "name": "1 Gb",
                         "value": 1024
+                    },
+                    {
+                        "name": "2 Gb",
+                        "value": 2048
                     }
                 ]
             },
@@ -908,19 +1081,14 @@ WPBP = {
                 ],
                 "type": "string",
                 "label": "SSL Certificate Private Key"
-            },
-            "register-dns": {
-                "default": false,
-                "type": "boolean",
-                "label": "Register DNS Name"
             }
         },
-        "name": "Scalable Wordpress (Managed Cloud Config)"
+        "name": "Managed Cloud WordPress"
     };
 //Default Environment
 WPENV = {
         "description": "This environment tests legacy cloud servers. It is hard-targetted at chicago\nbecause the rackcloudtech legacy servers account is in chicago\n",
-        "name": "Legacy Cloud Servers (ORD default)",
+        "name": "Legacy Cloud Servers",
         "providers": {
             "legacy": {
                 "catalog": {
@@ -996,11 +1164,6 @@ WPENV = {
                             }
                         },
                         "sizes": {
-                            "1": {
-                                "disk": 10,
-                                "name": "256 server",
-                                "memory": 256
-                            },
                             "3": {
                                 "disk": 40,
                                 "name": "1GB server",
@@ -1061,12 +1224,7 @@ WPENV = {
                 ]
             },
             "common": {
-                "vendor": "rackspace",
-                "constraints": [
-                    {
-                        "region": "chicago"
-                    }
-                ]
+                "vendor": "rackspace"
             },
             "load-balancer": {
                 "catalog": {

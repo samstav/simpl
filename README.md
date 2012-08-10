@@ -97,7 +97,7 @@ Blueprints can have options that determine the final deployment topology and the
           exposed: true
           open-ports: [80/tcp]
         web:
-          components: *wordpress_reference_id  # wordpress component above
+          component: *wordpress_reference_id  # wordpress component above
           relations: {backend: mysql}
         backend:
           components: *mysql
