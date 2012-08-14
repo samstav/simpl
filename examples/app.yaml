@@ -539,7 +539,8 @@ includes:
           name: 4096 Mb
         constrains:
         - {service: backend, resource_type: database, setting: memory}
-      "database_volume_size":
+BREAKING      
+"database_volume_size":
         default: 1
         label: Database Disk Size
         description: The hard drive space available for the database instance in GB.
