@@ -1,21 +1,22 @@
-import copy
-import json
 import logging
 import os
 import sys
 import uuid
 
+<<<<<<< HEAD
 # pylint: disable=E0611
 from bottle import get, post, put, request, response, abort
 from celery.app import app_or_default
 from celery.task import task
 from SpiffWorkflow import Workflow, Task
+=======
+from bottle import get, post, put, request, response, abort #@UnresolvedImport
+>>>>>>> 4533f1a22f1dd88299168ed703a1881c5f37afcb
 from SpiffWorkflow.storage import DictionarySerializer
 
 from checkmate import orchestrator
 from checkmate.classes import ExtensibleDict
 from checkmate.common import schema
-from checkmate.components import Component
 from checkmate.db import get_driver, any_id_problems
 from checkmate.environments import Environment
 from checkmate.exceptions import CheckmateException,\
@@ -63,15 +64,15 @@ def post_deployment(tenant_id=None):
     if 'includes' in deployment:
         del deployment['includes']
 
-    id = str(deployment['id'])
+    _id = str(deployment['id'])
     body, secrets = extract_sensitive_data(deployment)
-    db.save_deployment(id, body, secrets, tenant_id=tenant_id)
+    db.save_deployment(_id, body, secrets, tenant_id=tenant_id)
 
     # Return response (with new resource location in header)
     if tenant_id:
-        response.add_header('Location', "/%s/deployments/%s" % (tenant_id, id))
+        response.add_header('Location', "/%s/deployments/%s" % (tenant_id, _id))
     else:
-        response.add_header('Location', "/deployments/%s" % id)
+        response.add_header('Location', "/deployments/%s" % _id)
 
     #Assess work to be done & resources to be created
     parsed_deployment = plan(deployment, request.context)
@@ -81,17 +82,17 @@ def post_deployment(tenant_id=None):
 
     serializer = DictionarySerializer()
     serialized_workflow = workflow.serialize(serializer)
-    serialized_workflow['id'] = id
-    parsed_deployment['workflow'] = id
+    serialized_workflow['id'] = _id
+    parsed_deployment['workflow'] = _id
 
     body, secrets = extract_sensitive_data(deployment)
-    deployment = db.save_deployment(id, body, secrets, tenant_id=tenant_id)
+    deployment = db.save_deployment(_id, body, secrets, tenant_id=tenant_id)
 
     body, secrets = extract_sensitive_data(serialized_workflow)
-    db.save_workflow(id, body, secrets, tenant_id=tenant_id)
+    db.save_workflow(_id, body, secrets, tenant_id=tenant_id)
 
     #Trigger the workflow
-    async_task = execute(id)
+    execute(_id)
 
     return write_body(deployment, request, response)
 
@@ -202,25 +203,22 @@ def get_deployment_status(id, tenant_id=None):
 
     return write_body(results, request, response)
 
-@get('/deployments/<depid>/services/<service>/<type>/<setting>/+scale')
+@post('deployments/<depid>/services/<service>/<type>/<setting>/+scale')
 @with_tenant
 def scale_deployment(depid, service, type, setting, tenant_id=None, amount=None):
-    print "Scaling deployment!"
     """ Scale a checkmate deployment service
         by the specified number of nodes
         
         :param depid: checkmate deployment id
         :param service: the service to scale
-        :param type: the aspect of the service to scale (ex. compute, database)
-        :param setting: the aspect of the type to scale (ex. compute - size, count ; db - memory, disk)
+        :param type: the aspect of the service to scale
+        :param value: (required query param) how much to scale or what to scale to
         :param tenant_id: (optional tenant id) account owner of the deployment
-	:param value: (required query param) how much to scale or what to scale to
     """
     if any_id_problems(depid):
         abort(406, any_id_problems(depid))
     
-    deployment_dict = db.get_deployment(depid)
-    deployment = Deployment(deployment_dict)
+    deployment = db.get_deployment(depid)
     
     if not deployment:
         abort(404, 'No deployment with id {}'.format(depid))
@@ -234,33 +232,23 @@ def scale_deployment(depid, service, type, setting, tenant_id=None, amount=None)
         amount = request.query.amount or 1
     
     key, option, constraint = deployment._get_option_by_constrains(setting, service_name=service, resource_type=type)
-    print "key: %s" % key
-    print "option: %s" % option
-    print "constraint: %s" % constraint
-
     if not key or not option or not constraint:
         abort(404, "No setting matches {}/{}/{}".format(service, type, setting))
     if not constraint.get('scalable'):
         abort(406, "Setting '{}' cannot be scaled for {}/{}".format(setting, service, type))
 
-    if "int" == option.get('type','NONE'):
-	print "option type: int"
+    if "number" == option.get('type','NONE'):
         try:
             amount = int(amount)
-	    print "int(amount): %s" % amount
         except ValueError:
             abort(406, 'Invalid amount ({}); must be numeric.'.format(amount))
         current = len(deployment['blueprint']['services'][service].get("instances", []))
-	print "current: %s" % current
-        minimum = option['constraints'].get('greater-than', 0) if 'constraints' in option else 0
-	print "minimum: %s" % minimum
-        maximum = option['constraints'].get('less-than', sys.maxint) if 'constraints' in option else sys.maxint
-	print "maximum: %s" % maximum
+        minscale = option['constraints'].get('min', 0) if 'constraints' in option else 0
+        maxscale = option['constraints'].get('max', sys.maxint) if 'constraints' in option else sys.maxint
         net_amount = current + amount
-	print "net amount: %s" % net_amount
-        if minimum > net_amount or net_amount > maximum:
+        if minscale > net_amount or net_amount > maxscale:
             abort(406, "Setting \'{}\' for {}/{} must be between {} and {} (inclusive).".format(\
-                        setting, service, type, minimum, maximum))
+                        setting, service, type, minscale, maxscale))
         
         deployment.set_setting(setting, service_name=service, resource_type=type, value=net_amount)
         
@@ -280,7 +268,6 @@ def scale_deployment(depid, service, type, setting, tenant_id=None, amount=None)
     _id = str(deployment['id'])
     body, secrets = extract_sensitive_data(deployment)
     db.save_deployment(_id, body, secrets, tenant_id=tenant_id)
-    print "New deployment: %s" % deployment
     return write_body(deployment, request, response)
 
 
@@ -990,12 +977,8 @@ class Deployment(ExtensibleDict):
         blueprint = self['blueprint']
         if 'options' in blueprint: 
             for key, option in blueprint['options'].iteritems():
-	        print "key: %s" % key
-		print "option: %s" % option
                 if 'constrains' in option:  # the verb 'constrains' (not noun)
                     for constraint in option['constrains']:
-			print "constrains: %s" % option['constrains']
-			print "current constraint: %s" % constraint
                         if self.constraint_applies(constraint, name,
                                 service_name=service_name,
                                 resource_type=resource_type):

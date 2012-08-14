@@ -33,6 +33,9 @@ sql_default = "sqlite:///%s" % os.path.expanduser(os.path.normpath(
 CELERY_RESULT_DBURI = os.environ.get('CHECKMATE_RESULT_DBURI', sql_default)
 
 # Report out that this file was used for configuration
+print "Celery config loaded from %s" % __file__
+print "Celery persisting data in %s" % CELERY_RESULT_DBURI
+print "Celery broker is %s" % BROKER_URL
 LOG.info("celery config loaded from %s" % __file__)
 LOG.info("celery persisting data in %s" % CELERY_RESULT_DBURI)
 LOG.info("celery broker is %s" % BROKER_URL.replace(

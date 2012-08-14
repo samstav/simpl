@@ -1298,7 +1298,7 @@ def download_cookbooks(environment, path=None, cookbooks=None,
                     cookbook)):
                 raise CheckmateException("Cookbook '%s' not available in repo:"
                         " %s" % (cookbook, repo_path))
-    else:
+    else:	
         # If none specificed, assume all
         cookbooks = [p for p in os.listdir(os.path.join(repo_path,
                 cookbook_subdir)) if os.path.isdir(os.path.join(repo_path,
