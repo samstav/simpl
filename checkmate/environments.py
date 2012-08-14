@@ -26,8 +26,17 @@ db = get_driver()
 @get('/environments')
 @with_tenant
 def get_environments(tenant_id=None):
-    return write_body(db.get_environments(tenant_id=tenant_id), request,
-            response)
+    if 'with_secrets' in request.query:
+        if request.context.is_admin == True:
+            LOG.info("Administrator accessing environments with secrets: %s" %
+                    request.context.username)
+            results = db.get_environments(tenant_id=tenant_id,
+                    with_secrets=True)
+        else:
+            abort(403, "Administrator privileges needed for this operation")
+    else:
+        results = db.get_environments(tenant_id=tenant_id)
+    return write_body(results, request, response)
 
 
 @post('/environments')
@@ -70,12 +79,21 @@ def put_environment(id, tenant_id=None):
 @get('/environments/<id>')
 @with_tenant
 def get_environment(id, tenant_id=None):
-    if 'with_secrets' in request.query:  # TODO: verify admin-ness
-        entity = db.get_environment(id, with_secrets=True)
+    if 'with_secrets' in request.query:
+        if request.context.is_admin == True:
+            LOG.info("Administrator accessing environment %s secrets: %s" %
+                    (id, request.context.username))
+            entity = db.get_environment(id, with_secrets=True)
+        else:
+            abort(403, "Administrator privileges needed for this operation")
     else:
         entity = db.get_environment(id)
     if not entity:
         abort(404, 'No environment with id %s' % id)
+    if tenant_id is not None and tenant_id != entity.get('tenantId'):
+        LOG.warning("Attempt to access environment %s from wrong tenant %s by "
+                "%s" % (id, tenant_id, request.context.username))
+        abort(404)
     return write_body(entity, request, response)
 
 

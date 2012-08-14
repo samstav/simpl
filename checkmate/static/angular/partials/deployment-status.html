@@ -15,14 +15,15 @@
 
 <script id="task" type="text/html">
   <div id="{{id}}" class="alert task span2 {{state}}">
-    {{id}}:{{name}}
+    {{name}}
+    <a href="#/workflows/{{workflow.spec..id}}/tasks/{{id}}">details</a>
   </div>
 </script>
 
 <script type="text/javascript">
   $(document).ready(function() {
     $('#nav-elements li').removeClass('active');
-    $('#nav-deployments').addClass('active');    
+    $('#nav-deployments').addClass('active');
   });
 </script>
 

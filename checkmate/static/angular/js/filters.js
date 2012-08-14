@@ -1,10 +1,12 @@
-angular.module('checkmateFilters', [])
-  .filter('checkmark', function() {           //this is an example
+var filters = angular.module('checkmateFilters', []);
+
+filters.filter('checkmark', function() {           //this is an example
     return function(input) {
       return input ? '\u2713' : '\u2718';
     }
-  })
-  .filter('truncate', function() {
+  });
+
+filters.filter('truncate', function() {
     return function(input, max_length) {
       if (input == null || input == "") {
         return "...[no name]...";
@@ -17,3 +19,16 @@ angular.module('checkmateFilters', [])
       }
     }
   });
+
+filters.filter('formattedDate', function() {
+  return function(d) {
+    return d ? moment(d).fromNow() : '';
+  };
+});
+
+
+filters.filter('formattedFullDate', function() {
+  return function(d) {
+    return d ? moment(d).format('MMMM Do YYYY, h:mm a') : '';
+  };
+});

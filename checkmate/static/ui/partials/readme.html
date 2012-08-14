@@ -1,0 +1,729 @@
+<section class="summaries">
+  <ul class="nav nav-list">
+      <li class="nav-header">Index</li>
+      <li>Read Me</li>
+      <li class="divider"></li>
+      <li class="nav-header">Links</li>
+      <li><a href="https://one.rackspace.com:8443/display/Checkmate">Wiki</a></li>
+      <li><a href="http://checkmate-n01.dev.ord1.ci.rackspace.net/users/sign_in">v0.1 Server</a></li>
+      <li><a href="https://github.rackspace.com/checkmate">Source (Internal Github)</a></li>
+      <li><a href="mailto:checkmate@lists.rackspace.com">Feedback &amp; Requests</a></li>
+      <li><a href="/static/docs/app.html">YAML syntax reference</a></li>
+      <li class="divider"></li>
+      <li class="nav-header">Brain-stroming</li>
+      <li><a href="/ui/partials/editor.html">Online editor for YAML</a></li>
+      <li><a href="/ui/build">Calculator</a></li>
+  </ul>
+</section>
+<section class="entries">
+  <article class="well entry">
+    <div class="markdown-body entry-content" itemprop="mainContentOfPage"><h1>
+      <a name="checkmate" class="anchor" href="#checkmate"><span class="mini-icon mini-icon-link"></span></a>Checkmate Read Me File</h1>
+      
+      <p><a target="_blank" href="https://github.rackspace.com/checkmate/checkmate/raw/master/checkmate/static/checkmate.png"><img src="/static/img/checkmate.png" alt="Checkmate" style="max-width:100%;"></a></p>
+      
+      <h2>
+      <a name="overview" class="anchor" href="#overview"><span class="mini-icon mini-icon-link"></span></a>Overview</h2>
+      
+      <p>Checkmate stores and controls your cloud configurations. Use it to deploy and manage complete application stacks.</p>
+      
+      <p>It exposes a REST API for manipulating configurations. It uses celery for task queuing and SpiffWorkflow to orchestrate deploying them. It support JSON and YAML interchangeably. It has optional built-in browser support with a UI.</p>
+      
+      <h2>
+      <a name="logic-the-pieces" class="anchor" href="#logic-the-pieces"><span class="mini-icon mini-icon-link"></span></a>Logic: the pieces</h2>
+      
+      <p>In a nutshell:</p>
+      
+      <ol>
+      <li>An expert writes a <code>blueprint</code> for how an app can be deployed.</li>
+      <li>The blueprint contains <code>components</code>, relationships between these components, and options and constraints on how the app works.</li>
+      <li>An end-user defines <code>environments</code> where they want to deploy apps (ex. a laptop, an OpenStack Cloud, a Rackspace US Cloud account)</li>
+      <li>The end-user picks a blueprint (ex. a Scalable Wordpress blueprint) and deploys it to an environment of their choice. That's a <code>deployment</code> and results in a fully built and running, multi-component app.</li>
+      <li>Checkmate knows how to add/remove servers (<strong>scaling</strong>) and can verify the app is running and perform troubleshooting (<strong>configuration management</strong>)</li>
+      </ol><h3>
+      <a name="components" class="anchor" href="#components"><span class="mini-icon mini-icon-link"></span></a>Components</h3>
+      
+      <p>These are the equivalent of Chef recipes or Juju charms. They are the primitive building blocks of an application deployment. These can be supplied as part of a deployment or looked up from the server.</p>
+      
+      <pre><code># Definitions of components used (similar to Juju charm syntax)
+      components:
+      - &amp;wordpress_reference_id
+        id: wordpress
+        revision: 3
+        summary: "A pretty popular blog engine"
+        provides:
+          url:
+            interface: http
+        requires:
+          db:
+           interface: mysql
+          server:
+            relation: host
+            interface: linux
+        options:
+          url:
+            type: String
+            default: wp.test.local
+            description: the url to use to host your blog on
+      
+      - &amp;mysql.1
+        id: mysql
+        revision: 1
+        summary: "A pretty popular database. Note, this is a cloud database and therefore does not need a host"
+        provides:
+          db: mysql
+      </code></pre>
+      
+      <p>Components are defined by 'providers' and come with predefined options supported by the provider.</p>
+      
+      <h3>
+      <a name="environments" class="anchor" href="#environments"><span class="mini-icon mini-icon-link"></span></a>Environments</h3>
+      
+      <p>An environment is a place where you can launch and manage application deployments. It could be your development laptop, a cloud provider, or a combination of cloud providers that you have grouped together to use together as a single environment.
+      Multiple environments can exist in one tenant or account. For example, you could have dev, test, staging, and production environments defined on one Rackspace Cloud account. Checkmate will manage which resources belong in which environment under a tenant using its own database, naming conventions, and tags.</p>
+      
+      <pre><code># Environment
+      environment: &amp;environment_1000_stag
+        name: Rackspace Cloud US - staging
+        providers:
+          nova:
+            vendor: rackspace
+            provides:
+            - compute: linux
+            - compute: windows
+            constraints:
+            - region: ORD
+          load-balancer:
+            vendor: rackspace
+            provides:
+            - loadbalancer: http
+          database:
+            vendor: rackspace
+            provides:
+            - database: mysql
+          chef-local:
+            vendor: opscode
+            provides:
+            - application: http  # see catalog for list of apps like wordpress, drupal, etc...
+            - database: mysql  # this is mysql installed on a host
+      </code></pre>
+      
+      <h3>
+      <a name="blueprints" class="anchor" href="#blueprints"><span class="mini-icon mini-icon-link"></span></a>Blueprints</h3>
+      
+      <p>These define the architecture for an application. The blueprint describes the resources needed to make an application run, how to connect, and how scale them.
+      Blueprints can have options that determine the final deployment topology and the values that go into the individual component options. The blueprint author determines what options to expose and with what constraints to aplpy on the options available to the end user.</p>
+      
+      <pre><code># An wordpress architecture template
+      blueprint: &amp;wp
+        name: Multi-server Wordpress
+        services:
+          lb:
+            component: *loadbalancer
+            relations:
+              web: http
+            exposed: true
+            open-ports: [80/tcp]
+          web:
+            components: *wordpress_reference_id  # wordpress component above
+            relations: {backend: mysql}
+          backend:
+            components: *mysql
+        options:
+          instance_count:
+            type: number
+            label: Number of Instances
+            description: The number of instances for the specified task.
+            default: 2
+            constrains:
+            - {service: web, resource_type: compute, setting: count}
+            constraints:
+            - greater-than: 1 # this is an HA config
+      </code></pre>
+      
+      <h3>
+      <a name="deployments" class="anchor" href="#deployments"><span class="mini-icon mini-icon-link"></span></a>Deployments</h3>
+      
+      <p>A deployment defines and points to a running application and the infrastructure it is running on. It basically says "I took blueprint X and deployed it to environment Y using the following options". It combines a blueprint, an environment to deploy the resources to, and any additional inputs specific to this deployment.</p>
+      
+      <pre><code># Actual running app and the parameters supplied when deploying it
+      deployment:
+        blueprint: *wp
+        environment: *environment_1000_stag
+        inputs:
+          instance_count: 4
+        resources:
+          '0':
+            type: server
+            provider: nova
+            status: up
+            flavor: 1
+            image: 119
+            instance:
+              id: 2098383
+              private_ip: 10.10.1.1
+              public_ip: 2.2.2.18
+            dns-name: srv1.stabletransit.com
+            relations:
+              web-backend:
+                state: up
+          '1':
+            type: server
+            status: up
+            provider: nova
+            flavor: 1
+            image: 119
+            instance:
+              id: 2098387
+              private_ip: 10.10.1.8
+              public_ip: 2.2.2.22
+            dns-name: srv2.stabletransit.com
+            relations:
+              web-backend:
+                state: up
+          '2':
+            type: load-balancer
+            dns-name: CMDEP32ea304-lb1.rackcloudtech.com
+            instance:
+              id: 8668444
+            relations:
+              lb-web:
+                state: up
+          '3':
+            type: database
+            provider: databases
+            dns-name: CMDEP32ea304-db1.rackcloudtech.com
+            flavor: 1
+            disk: 2
+            instance:
+              id: 99958744
+      </code></pre>
+      
+      <p>Once deployed, the live resources running the application are also listed. The intent is for Checkmate to be able to manage the deployment. An example of a management operation would be resizing the servers:</p>
+      
+      <ol>
+      <li>bring down the load-balancer connection for srv1 (knowing srv2 is up)</li>
+      <li>resize srv1</li>
+      <li>bring the load balancer connection back up</li>
+      <li>perform the same on srv1</li>
+      </ol><p>Such an operation cannot be performed by the underlying services alone since they have no knowledge of the full stack like checkmate does.</p>
+      
+      <p>Note: for additional descriptions of each field see the examples/app.yaml file.</p>
+      
+      <h3>
+      <a name="options-and-inputs" class="anchor" href="#options-and-inputs"><span class="mini-icon mini-icon-link"></span></a>Options and Inputs</h3>
+      
+      <p>Options can be exposed by blueprints and components. An <em>option</em> is the <em>definition</em> of a user-selectable value that can supplied for that blueprint or a component.</p>
+      
+      <p>When launching a deployment, the values selected for options are stored as an <em>input</em> to the deployment under the 'inputs' key. Inputs can be applied at multiple levels in the deployment hierarchy as follows:</p>
+      
+      <ul>
+      <li>
+      <p>Global inputs (apply to everything):</p>
+      
+      <p>inputs:
+      domain: mydomain.com</p>
+      </li>
+      <li>
+      <p>Blueprint inputs (apply to a setting on the blueprint):</p>
+      
+      <p>inputs:
+      blueprint:
+        domain: mydomain.com</p>
+      </li>
+      <li>
+      <p>Service inputs (apply to a particular service in the blueprint):</p>
+      
+      <p>inputs:
+      services:
+        "backend":
+          use_encryption: true</p>
+      </li>
+      <li>
+      <p>Provider inputs (apply to a provider and any resourcers that provider provides):</p>
+      
+      <p>inputs:
+      providers:
+        'legacy':
+          region: dallas</p>
+      </li>
+      <li>
+      <p>Resource type inputs. These can be applied under services or providers as follows:</p>
+      
+      <p>inputs:
+      services:
+        "backend":
+          'database':
+            'memory': 512 Mb
+      providers:
+        'nova':
+          'compute':
+            'operating-system': Ubuntu 12.04 LTS</p>
+      </li>
+      </ul><p>Options can be associated with one or more options using <em>constraints</em>. Example:</p>
+      
+      <p>blueprint:
+          options:
+            "my_setting":
+              default: 1
+              constrains: [{service: web, resource_type: compute, setting: foo}]</p>
+      
+      <p>The above setting would apply to (constrains) any setting called 'foo' under a 'compute' resource in the 'web' service of the blueprint. See app.yaml for more examples of how inputs and options are used.</p>
+      
+      <p>More precisely scoped options will override broader options. For example, a service or provider option will override a global option.</p>
+      
+      <p>TODO: fix terminology. 'setting', 'option' and/or 'input'. And update code, schema, and docsa accordingly</p>
+      
+      <h2>
+      <a name="semantic-the-api" class="anchor" href="#semantic-the-api"><span class="mini-icon mini-icon-link"></span></a>Semantic: The API</h2>
+      
+      <p>The API is a <strong>REST HTTP API</strong>. It supports POST, PUT, GET, DELETE on:</p>
+      
+      <ul>
+      <li>/components[/:id]</li>
+      <li>/blueprints[/:id]</li>
+      <li>/environments[/:id]</li>
+      <li>/deployments[/:id]</li>
+      <li>/workflows[/:id]</li>
+      <li>/providers[/:id]</li>
+      </ul><p><em>Note: not all verbs on all paths. DELETE not yet ready</em></p>
+      
+      <h3>
+      <a name="post--put" class="anchor" href="#post--put"><span class="mini-icon mini-icon-link"></span></a>POST &amp; PUT</h3>
+      
+      <p>Sometimes a religious debate, but here are the semantics checkmate uses now. Simply:</p>
+      
+      <ul>
+      <li>
+      <strong>PUT</strong> updates without taking any action.</li>
+      <li>
+      <strong>POST</strong> can trigger actions or have side-effects (like actual server deployments) and can accept partial objects.</li>
+      </ul><p>The <strong>symantics</strong> are:</p>
+      
+      <p><strong>POST /objects</strong> (without ID):</p>
+      
+      <ul>
+      <li>creates a new object. ID is generated by checkmate and returned in the Location header.</li>
+      <li>use it to create objects without fear of ID conflicts</li>
+      </ul><p><strong>POST /objects/:id</strong></p>
+      
+      <ul>
+      <li>Update an existing object. Partial updates are supported (i.e. I can POST only the name to rename the object). Could trigger side effects, like running a workflow.</li>
+      <li>Use it to modify parts of an object.</li>
+      </ul><p><strong>PUT /objects/:id</strong></p>
+      
+      <ul>
+      <li>Overwrites the object completely. Does not trigger side effects, but will validate data (especially id and tenant_id fields).</li>
+      <li>Use it to store something in checkmate (ex. a deployment exported from another instance of checkmate)</li>
+      </ul><p><strong>GET</strong> will sometimes add the object ID and tenant ID if the underlying store does not provide them. This is so that the object can be identified when parsed later.</p>
+      
+      <h3>
+      <a name="json-yaml-and-xml" class="anchor" href="#json-yaml-and-xml"><span class="mini-icon mini-icon-link"></span></a>JSON, YAML, and XML</h3>
+      
+      <p>Objects are returned as JSON by default, but YAML is also supported (content-type: application/x-yaml)
+      HTML output is also supported if the server is started with a <code>--with-ui</code> parameter.</p>
+      
+      <p>XML is not yet supported.</p>
+      
+      <h3>
+      <a name="special-cases-and-considerations" class="anchor" href="#special-cases-and-considerations"><span class="mini-icon mini-icon-link"></span></a>Special cases and considerations</h3>
+      
+      <p>All objects should have a root key with the name of the class. Ex. <code>{"blueprint": {"id": 1}}</code>. However, checkmate will permit objects without the root if they are provided. Example:</p>
+      
+      <pre><code>PUT /blueprints/2 {"id": 2}
+      </code></pre>
+      
+      <p>Checkmate will fill in the id, status, tenant_id, and creation date of posted objects. For puts, these value must be supplied and must be correct (i.e. matching the tenant and id in the URL).</p>
+      
+      <p>YAML supports references within a document. If a deployment is in YAML format and is using references, the references can be provided under a key called 'includes'. This can be used, for example, to create a new deployment passing in all the necessary components, blueprints, environments, etc... (or
+          references to them).</p>
+      
+      <p>Some commands can be issued with a '+command' URL. Example:</p>
+      
+      <pre><code>  /workflows/wf1000/+execute
+      </code></pre>
+      
+      <p>All calls are supported flat off of the root or under a tenant ID. Calls off of the root require administrative privileges and will return all objects from all tenants (ex. /environments vs /T1000/environments)</p>
+      
+      <h3>
+      <a name="list-of-all-calls" class="anchor" href="#list-of-all-calls"><span class="mini-icon mini-icon-link"></span></a>List of all calls</h3>
+      
+      <p><em>:tid</em> is the tenant ID and is optional.</p>
+      
+      <pre><code>GET/POST [/:tid]/environments
+      PUT/GET/POST [/:tid]/environments/:id
+      
+      GET [/:tid]/environments/:id/providers
+      GET [/:tid]/environments/:id/providers/:pid
+      GET [/:tid]/environments/:id/providers/:pid/catalog
+      GET [/:tid]/environments/:id/providers/:pid/catalog/:cid
+      
+      GET/POST [/:tid]/blueprints
+      PUT/GET/POST [/:tid]/blueprints/:id
+      
+      GET/POST [/:tid]/deployments
+      PUT/GET/POST [/:tid]/deployments/:id
+      
+      GET [/:tid]/deployments/:id/status
+      
+      GET/POST [/:tid]/workflows
+      PUT/GET/POST [/:tid]/workflows/:id
+      
+      GET [/:tid]/workflows/:id/status
+      
+      POST [/:tid]/workflows/:id/+execute
+      
+      GET/POST [/:tid]/workflows/:id/tasks/:task_id
+      
+      POST [/:tid]/workflows/:id/tasks/:task_id/+execute
+      POST [/:tid]/workflows/:id/tasks/:task_id/+resubmit
+      
+      GET [/:tid]/providers
+      
+      GET /status/celery
+      GET /status/libraries
+      </code></pre>
+      
+      <h2>
+      <a name="usage" class="anchor" href="#usage"><span class="mini-icon mini-icon-link"></span></a>Usage</h2>
+      
+      <p>To start the checkmate REST API server:</p>
+      
+      <pre><code>$ bin/checkmate-server START [options] [address[:port]]
+      </code></pre>
+      
+      <p>Options:</p>
+      
+      <pre><code>    --with-ui:  enable support for browsers and HTML templates
+          --newrelic: enable newrelic monitoring (place newrelic.ini in your
+                      directory)
+          --quiet:    turn down logging to WARN (default is INFO)
+          --verbose:  turn up logging to DEBUG (default is INFO)
+          --debug:    turn on additional debugging inspection and output
+                      including full HTTP requests and responses. Log output includes source file path and line numbers.
+      </code></pre>
+      
+      <p>Once up, you can issue curl commands (or point your browser at it if you started the server --with-ui) to use checkmate.</p>
+      
+      <p>To execute deployments, checkmate uses a message queue. You need to have celery running with the checkmate tasks loaded:</p>
+      
+      <pre><code>$ bin/checkmate-queue START
+      
+      or, directly using celery:
+      
+      $ celeryd -l info --config=checkmate.celeryconfig -I checkmate.orchestrator,checkmate.ssh,checkmate.providers.rackspace,checkmate.providers.opscode
+      </code></pre>
+      
+      <h3>
+      <a name="settings" class="anchor" href="#settings"><span class="mini-icon mini-icon-link"></span></a>Settings</h3>
+      
+      <p>The following environment variables can be set to configure checkmate:</p>
+      
+      <p><strong>CHECKMATE_CONNECTION_STRING</strong>: a sql-alchemy or mongodb connection string pointing to the database store for checkmate. Examples:</p>
+      
+      <pre><code>sqlite:////var/checkmate/data/db.sqlite
+      
+      mongodb://localhost/checkmate
+      </code></pre>
+      
+      <p>Note: to connect to mongodb, also install the pymongo client library:</p>
+      
+      <pre><code>$ pip install pymongo  # you probably need to sudo this
+      </code></pre>
+      
+      <p><strong>CHECKMATE_DOMAIN</strong>: a default DNS domain to use for resources created.</p>
+      
+      <p><strong>CHECKMATE_PUBLIC_KEY</strong>: a public key string to push to all created servers to allow ssh access to them. If you set this to the contents of your ~/.ssh/id_rsa.pub file you will be able to log on to all checkmate-created servers without having to suply a password.</p>
+      
+      <p><strong>CHECKMATE_CHEF_LOCAL_PATH</strong>: checkmate uses chef to configure applications on servers. Checkmate supports using chef with and without a chef server. When using it without a chef server, checkmate has a provider called chef-local that stores all deployments in a multi-tenant capable and scalable file structure. This setting points to the directory where this structure should be hosted. An example would be /var/checkmate/deployments.</p>
+      
+      <p><strong>CHECKMATE_CHEF_REPO</strong>: This setting points to a directory that contains a chef repository (a directory with cookbooks, roles, environments, site-cookbooks subdirecotries, etc...). You can clone the opscode repo (<a href="https://github.com/opscode-cookbooks/">https://github.com/opscode-cookbooks/</a>) or use your own. This repo is never modified by checkmate. Files from it are copied to the individual deployments.</p>
+      
+      <p><strong>CHECKMATE_CHEF_USE_DATA_BAGS</strong>: when using the chef-local provider, some capabilities of a chef server can be emulated using data bags. Setting this value to True tells checkmate to use data bags instead of normal node, role, and environment overrides to store data for deployments. (default=True).</p>
+      
+      <p><strong>CHECKMATE_CHEF_PATH</strong>: when using checkmate with a server, checkmate needs to know the path for the chef client deployment. This points to that path. The kniofe.rb file should be in there.</p>
+      
+      <p><strong>CHECKMATE_BROKER_USERNAME</strong>: the username to use to connect to the message queue</p>
+      
+      <p><strong>CHECKMATE_BROKER_PASSWORD</strong>: the password to use to connect to the message queue.</p>
+      
+      <p><strong>CHECKMATE_BROKER_HOST</strong>: the IP address or resolveable name of the message queue server</p>
+      
+      <p><strong>CHECKMATE_BROKER_PORT</strong>: the port to use to connect to the message queue server</p>
+      
+      <p><strong>CHECKMATE_BROKER_URL</strong>: Alternatively, a full url with username and password can be supplied. This <em>overrides</em> the previous four settings. Checkmate server and queue listener will report out what settings they are using when they start up.</p>
+      
+      <p>Note: all CHECKMATE<em>BROKER</em>* values are picked up from checkmate.celeryconfig. If you use an alternate config file, these variable may be ignored. See <strong>CELERY_CONFIG_MODULE</strong>.</p>
+      
+      <p><strong>CHECKMATE_RESULT_BACKEND</strong>: default is 'database'. Checkmate needs to query task results and status. [tested with 'database' only]. This value is picked up from checkmate.celeryconfig. If you use an alternate config file, this variable may be ignored. See <strong>CELERY_CONFIG_MODULE</strong>.</p>
+      
+      <p><strong>CHECKMATE_RESULT_DBURI</strong>: defaults to 'sqlite://../data/celerydb.sqlite' under the checkmate directory. Use this to set an alternate location for the celery result store. This value is picked up from checkmate.celeryconfig. If you use an alternate config file, this variable may be ignored. See <strong>CELERY_CONFIG_MODULE</strong>.</p>
+      
+      <p><strong>CELERY_CONFIG_MODULE</strong>: use checkmate.celeryconfig by default. See celery instructions for more detail. THis module also picks up the values from some of the other environment variables. If you use a different config module, the other checkmate variables may get ignored.</p>
+      
+      <p><strong>CELERYD_FORCE_EXECV</strong>: See celery instructions for more detail. This setting can prevent queue listeners hanging on some OSes (seen frequently on developer Macs)</p>
+      
+      <p>Deprecated: not used anymore</p>
+      
+      <p>CHECKMATE_DATA_PATH</p>
+      
+      <p>CHECKMATE_PRIVATE_KEY</p>
+      
+      <h2>
+      <a name="checkmate-installation" class="anchor" href="#checkmate-installation"><span class="mini-icon mini-icon-link"></span></a>Checkmate Installation</h2>
+      
+      <p>Checkmate is mostly a python service. Therefore, most installations can be done with python tools like pip or easy_install. There are two main exceptions to this:</p>
+      
+      <ol>
+      <li><p>Chef: chef is a ruby-based app.</p></li>
+      <li><p>forks: of existing projects are sometimes used to support functionality that is not available for a system like checkmate. For example, checkmate uses OpenStack auth tokens to call OpenStack services. Many of the libraries for OpenStack services are rapidly evolving and designed for command-line use. Another example is the SpiffWorkflow workflow engine. This is a project developed in an academic setting and needed significant patching to work with checkmate. For these projects, we maintain our own forks that need to be deployed with checkmate. All modifications are intended be proposed upstream.</p></li>
+      </ol><h3>
+      <a name="installation" class="anchor" href="#installation"><span class="mini-icon mini-icon-link"></span></a>Installation:</h3>
+      
+      <p>Create and go to the directory you want to install Checkmate in:</p>
+      
+      <p>Install the latest Chef client, knife-solo, and knife-solo_data_bag:</p>
+      
+      <pre><code># Get latest chef code (or see chef install for version 10.12.0):
+      git clone git://github.com/opscode/chef.git  # Get latest chef code
+      cd chef
+      
+      # Install RVM
+      echo insecure &gt;&gt; ~/.curlrc
+      curl -k -L get.rvm.io | bash -s stable
+      source ~/.rvm/scripts/rvm
+      
+      # Install Ruby 1.9.3 locally
+      rvm install 1.9.3-p125
+      rvm use ruby-1.9.3-p125
+      
+      rvm gemset create chef
+      rvm gemset use chef
+      gem install bundler
+      
+      # Build chef
+      rake install
+      </code></pre>
+      
+      <p>Install knife add-ons:</p>
+      
+      <pre><code>gem install knife-solo --version 0.0.10
+      
+      gem install knife-solo_data_bag --version 0.2.1
+      </code></pre>
+      
+      <p>Install Checkmate:</p>
+      
+      <pre><code>git clone http://github.com/ziadsawalha/checkmate.git
+      cd checkmate
+      git checkout master
+      python setup.py install
+      cd ..
+      </code></pre>
+      
+      <p>Install SpiffWorkflow fork:</p>
+      
+      <pre><code>git clone http://github.com/ziadsawalha/SpiffWorkflow.git
+      cd SpiffWorkflow
+      git checkout celery
+      python setup.py install
+      cd ..
+      </code></pre>
+      
+      <p>Install, configure, and start rabbitmq.</p>
+      
+      <pre><code>$ sudo apt-get -y install rabbitmq-server python-dev python-setuptools
+      $ sudo rabbitmqctl delete_user guest
+      $ sudo rabbitmqctl add_vhost checkmate
+      $ sudo rabbitmqctl add_user checkmate &lt;some_password_here&gt;
+      $ sudo rabbitmqctl set_permissions -p checkmate checkmate ".*" ".*" ".*"
+      $ sudo rabbitmq-server -detached
+      </code></pre>
+      
+      <p>Set the environment variable for your checkmate deployment environments and create the directory:</p>
+      
+      <pre><code>$ export CHECKMATE_CHEF_LOCAL_PATH=/var/checkmate/deployments
+      $ mkdir -p $CHECKMATE_CHEF_LOCAL_PATH
+      </code></pre>
+      
+      <p>Clone the chef repository and point checkmate to it:</p>
+      
+      <pre><code>$ mkdir -p /var/checkmate/chef/repo
+      $ cd /var/checkmate/chef/repo
+      $ git clone git://github.rackspace.com/checkmate/chef-stockton.git
+      </code></pre>
+      
+      <p>Starting the server processes:</p>
+      
+      <p>You'll need three terminal windows and Rackspace cloud credentials (username &amp;
+      API key). In the first terminal window, start the task queue:</p>
+      
+      <pre><code>export CHECKMATE_BROKER_USERNAME="checkmate"
+      export CHECKMATE_BROKER_PASSWORD="password"
+      export CHECKMATE_BROKER_PORT="5672"
+      export CHECKMATE_BROKER_HOST="localhost"
+      export CELERY_CONFIG_MODULE=checkmate.celeryconfig
+      export CHECKMATE_CHEF_REPO=/var/checkmate/chef/repo/chef-stockton
+      
+      export CHECKMATE_CONNECTION_STRING=sqlite:////var/checkmate/data/db.sqlite
+      
+      export CHECKMATE_CHEF_LOCAL_PATH=/var/chef
+      
+      bin/checkmate-queue START
+      </code></pre>
+      
+      <p>In the second window, start the checkmate server &amp; REST API:</p>
+      
+      <pre><code>export CHECKMATE_BROKER_USERNAME="checkmate"
+      export CHECKMATE_BROKER_PASSWORD="password"
+      export CHECKMATE_BROKER_PORT="5672"
+      export CHECKMATE_BROKER_HOST="localhost"
+      export CHECKMATE_CHEF_REPO=/var/checkmate/chef/repo/chef-stockton
+      export CELERY_CONFIG_MODULE=checkmate.celeryconfig
+      
+      export CHECKMATE_CONNECTION_STRING=sqlite:////var/checkmate/data/db.sqlite
+      
+      export CHECKMATE_PUBLIC_KEY=`cat ~/.ssh/id_rsa.pub`  # on a mac
+      
+      bin/checkmate-server START --with-ui
+      </code></pre>
+      
+      <p>There are multiple ways to use checkmate. You could browse to http://localhost:8080/ now, but below is how to make a complete deployment call using a sample deployment in simulations mode.</p>
+      
+      <p>In the third window, run these commands to simulate a client call:</p>
+      
+      <pre><code># load your cloud credentials in (checkmate by default talks to the Racksapce cloud using the OpenStack Keystone Identity API)
+      export CHECKMATE_CLIENT_APIKEY="*your_rax_API_key*"
+      export CHECKMATE_CLIENT_REGION="chicago"
+      export CHECKMATE_CLIENT_USERNAME="*your_rax_user*"
+      export CHECKMATE_CLIENT_DOMAIN=*aworkingRAXdomain.com*
+      export CHECKMATE_CLIENT_PUBLIC_KEY=`cat ~/.ssh/id_rsa.pub`
+      
+      bin/checkmate-simulate
+      
+      # this starts a deployment simulation by picking up app.yaml as a template and replacing in a bunch
+      # of environment variables. Browse to http://localhost:8080/${CHECKMATE_CLIENT_TENANT}/workflows/simulate to see how the build is progressing (each reload of the page moves the workflow forward one step)
+      
+      Note: for a real deployment that creates servers, remove the /simulate part of the URL in the call above
+      </code></pre>
+      
+      <h3>
+      <a name="authentication" class="anchor" href="#authentication"><span class="mini-icon mini-icon-link"></span></a>Authentication</h3>
+      
+      <p>Checkmate supports multiple authentication protocols and endpoints simultaneously. If it is started with a web UI (using the --with-ui) option, it will also support basic auth for browser friendliness.</p>
+      
+      <h4>
+      <a name="authenticating-through-a-browser" class="anchor" href="#authenticating-through-a-browser"><span class="mini-icon mini-icon-link"></span></a>Authenticating through a Browser</h4>
+      
+      <p>By default, three authentication domains are enabled. In a browser, if you are prompted for credentials, enter the following:</p>
+      
+      <ul>
+      <li><p>To log in as an administrator: username and password from the machine running Checkmate (uses PAM).</p></li>
+      <li><p>To log in to a Rackspace US Cloud Account: use US\username and password.</p></li>
+      <li><p>To log in to a Rackspace UK Cloud Account: use UK\username and password.</p></li>
+      </ul><h4>
+      <a name="authenticating-using-rest-http-calls" class="anchor" href="#authenticating-using-rest-http-calls"><span class="mini-icon mini-icon-link"></span></a>Authenticating using REST HTTP calls</h4>
+      
+      <p>Checkmate supports standard Rackspace\OpenStack authentication with a token. Get a token from your auth endpoint (US or UK!) and provide it in the X-Auth-Header:</p>
+      
+      <pre><code>curl -H "X-Auth-Token: ccdcd4f9-d72d-5677-8b1a-f329389cc539" http://localhost:8080/4500 -v
+      </code></pre>
+      
+      <p>Checkmate will try the US and then UK endpoints.</p>
+      
+      <p>To avoid hitting the US for each UK call, and to be a good citizen, tell Checkmate which endpoint your token came from using the X-Auth-Source header:</p>
+      
+      <pre><code>curl -H "X-Auth-Source: https://lon.identity.api.rackspacecloud.com/v2.0/tokens" -H "X-Auth-Token: ccdcd4f9-d72d-5677-8b1a-f329389cc539" http://localhost:8080/1000002 -v
+      </code></pre>
+      
+      <p>Note: This is a Checkmate extension to the auth mechanism. This won't work on any other services in OpenStack.</p>
+      
+      <h2>
+      <a name="tools" class="anchor" href="#tools"><span class="mini-icon mini-icon-link"></span></a>Tools</h2>
+      
+      <h3>
+      <a name="monitoring" class="anchor" href="#monitoring"><span class="mini-icon mini-icon-link"></span></a>Monitoring</h3>
+      
+      <p>celery has a tool called celeryev that can monitor running tasks and events. To use it, you need to turn <code>events</code> on when running celeryd using -E or --events:</p>
+      
+      <pre><code>celeryd -l debug --config=checkmate.celeryconfig -I checkmate.orchestrator,checkmate.ssh,checkmate.providers.rackspace,checkmate.providers.opscode --events
+      </code></pre>
+      
+      <p>And then use celeryev from the checkmate directory to watch events and tasks::</p>
+      
+      <pre><code>celeryev --config=checkmate.celeryconfig
+      </code></pre>
+      
+      <h3>
+      <a name="tuning" class="anchor" href="#tuning"><span class="mini-icon mini-icon-link"></span></a>Tuning</h3>
+      
+      <p>The following has been tested to run up to 10 simultaneous workflows using amqp::</p>
+      
+      <pre><code>celeryd --config=checkmate.celeryconfig -I checkmate.orchestrator,checkmate.ssh,checkmate.providers.rackspace,checkmate.providers.opscode --autoscale=10,2
+      </code></pre>
+      
+      <p>On Unix/Linux Systems (including Mac), the following
+      setting resolves issues with workers hanging::</p>
+      
+      <pre><code>export CELERYD_FORCE_EXECV=1
+      </code></pre>
+      
+      <h3>
+      <a name="dependencies" class="anchor" href="#dependencies"><span class="mini-icon mini-icon-link"></span></a>Dependencies</h3>
+      
+      <p>Checkmate has code that is python 2.7 specific. It won't work on earlier versions.</p>
+      
+      <p>Some of checkmate's more significant dependencies are::</p>
+      
+      <ul>
+      <li>celeryd: integrates with a message queue (ex. RabbitMQ)</li>
+      <li>rabbitmq: or another backend for celery (celery even has emulators that can use a database), but rabbit is what we tested on</li>
+      <li>SpiffWorkflow: a python workflow engine</li>
+      <li>chef: OpsCode's chef... you don't need a server, but use with a server is supported.</li>
+      <li>cloud service client libraries: python-novaclient, python-clouddb, etc...</li>
+      </ul><h4>
+      <a name="spiffworkflow" class="anchor" href="#spiffworkflow"><span class="mini-icon mini-icon-link"></span></a>SpiffWorkflow</h4>
+      
+      <p>Necessary additions to SpiffWorkflow are not yet in the source repo, so install
+      the development branch from this fork:</p>
+      
+      <pre><code>$ git clone -b master https://github.rackspace.com/checkmate/SpiffWorkflow
+      $ cd SpiffWorkflow
+      $ sudo python setup.py install
+      </code></pre>
+      
+      <h4>
+      <a name="python-novacalient" class="anchor" href="#python-novacalient"><span class="mini-icon mini-icon-link"></span></a>python-novacalient</h4>
+      
+      <p>Necessary patches to python-novacalient are not yet in the source repo, so install
+      the development branch from this fork:</p>
+      
+      <pre><code>$ git clone -b master https://github.rackspace.com/checkmate/python-novacalient
+      $ cd python-novacalient
+      $ sudo python setup.py install
+      </code></pre>
+      
+      <h4>
+      <a name="python-clouddb" class="anchor" href="#python-clouddb"><span class="mini-icon mini-icon-link"></span></a>python-clouddb</h4>
+      
+      <p>Necessary patches to python-clouddb are not yet in the source repo, so install
+      the development branch from this fork:</p>
+      
+      <pre><code>$ git clone -b master https://github.rackspace.com/checkmate/python-clouddb
+      $ cd python-clouddb
+      $ sudo python setup.py install
+      </code></pre>
+      
+      <h4>
+      <a name="celery" class="anchor" href="#celery"><span class="mini-icon mini-icon-link"></span></a>Celery</h4>
+      
+      <p><a href="http://www.celeryproject.org/">celeryd</a> does the heavy lifting for
+      distributing tasks and retrying those that fail.</p>
+      
+      <h2>
+      <a name="why-the-name-checkmate" class="anchor" href="#why-the-name-checkmate"><span class="mini-icon mini-icon-link"></span></a>Why the name checkmate?</h2>
+      
+      <p>My intention for this product is be a deployment <em>verification</em> and management service, and not just a deployment automation service. So it will be used to CHECK configurations and autoMATE, not only the deployment, but the repair of live deployments as well. It also conveniently abbreviates to 'cm' which could also stand for configuration management, aludes to this being a killer app, appeals to my inner strategist, it has a 'k' sound in it which I am told by branding experts makes it sticky, and, above all, it sounds cool.</p>
+    </div>
+  </article>
+</section>

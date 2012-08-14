@@ -278,16 +278,20 @@ class TestWordpressWorkflow(StubbedWorkflowBase):
                 else:
                     print task.id, "-", id, "    >>>>  DICONNECTED!"
 
-        #pp(self.workflow)
+        pp(self.workflow)
 
         self.workflow.complete_all()
         self.assertTrue(self.workflow.is_completed(), "Workflow did not "
                 "complete")
 
+        LOG.debug("RESOURCES:")
+        LOG.debug(json.dumps(self.deployment['resources'], indent=2))
+        LOG.debug("\nOUTCOME:")
+        LOG.debug(json.dumps(self.outcome, indent=2))
+
         self.assertIn('data_bags', self.outcome)
         self.assertIn('DEP-ID-1000', self.outcome['data_bags'])
 
-        print json.dumps(self.outcome, indent=2)
         databag = self.outcome['data_bags']['DEP-ID-1000']
         self.assertIn('webapp_wordpress_TEST-BLOG', databag)
 

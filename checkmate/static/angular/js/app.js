@@ -1,4 +1,4 @@
-checkmate = angular.module('checkmate', ['checkmateFilters', 'checkmateServices', 'ngSanitize']);
+checkmate = angular.module('checkmate', ['checkmateFilters', 'checkmateServices', 'ngSanitize', 'ui']);
 
 checkmate.config(['$routeProvider', function($routeProvider) {
   $routeProvider.
@@ -38,6 +38,14 @@ checkmate.config(['$routeProvider', function($routeProvider) {
     templateUrl: 'partials/deployment-status.html',
     controller: DeploymentStatusCtrl
   }).
+  when('/workflows/:workflowId/status', {
+    templateUrl: 'partials/workflow-status.html',
+    controller: WorkflowStatusCtrl
+  }).
+  when('/workflows/:workflowId/tasks/:taskId', {
+    templateUrl: 'partials/workflow-task.html',
+    controller: WorkflowTaskCtrl
+  }).
   when('/providers', {
     templateUrl: 'partials/provider-list.html',
     controller: ProviderListCtrl
@@ -46,6 +54,7 @@ checkmate.config(['$routeProvider', function($routeProvider) {
     redirectTo: '/'
   });
 }]);
+
 
 checkmate.directive('compileHtml', function($compile) {
   return {
@@ -57,6 +66,8 @@ checkmate.directive('compileHtml', function($compile) {
 
     link: function(scope, element, attrs) {
       scope.$watch('compileHtml', function(value) {
+        x = $compile(value)(scope.$parent);
+        debugger;
         element.html($compile(value)(scope.$parent));
       });
     }
@@ -436,6 +447,7 @@ PROVIDERS = {
   }
 };
 
+//Initial Wordpress Template
 WPBP = {
         "description": "uses MC config recipes which support blah...., multiple domains, ....",
         "services": {
@@ -778,6 +790,7 @@ WPBP = {
         },
         "name": "Scalable Wordpress (Managed Cloud Config)"
     };
+//Default Environment
 WPENV = {
         "description": "This environment tests legacy cloud servers. It is hard-targetted at chicago\nbecause the rackcloudtech legacy servers account is in chicago\n",
         "name": "Legacy Cloud Servers (ORD default)",

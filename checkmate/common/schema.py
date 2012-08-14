@@ -11,6 +11,25 @@ from checkmate.utils import yaml_to_dict
 
 LOG = logging.getLogger(__name__)
 
+RESOURCE_METADATA = yaml_to_dict("""
+    application:
+      label: Application
+      description: An application that is installed on a compute resource
+      help-text: |
+        sd.jhsdflkgjhsdfg
+        sdfg;kjhsdfg
+        sdfgsdfg
+        sdfgsdfg
+        dfgsdfg
+    compute:
+      label: Servers
+      description: A server
+      help-text: |
+        sd.jhsdflkgjhsdfg
+        sdfg;kjhsdfg
+        sdfgsdfg
+    """)
+
 INTERFACE_SCHEMA = yaml_to_dict("""
       mysql:
         fields:

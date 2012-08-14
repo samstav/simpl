@@ -1,5 +1,141 @@
 'use strict';
 
+// Level2 Menu/Nav Bar
+function NavBarController($scope, tasks) {
+
+  $scope.showAll = function() {
+    tasks.clearFilter();
+  };
+
+  $scope.showComplete = function() {
+    tasks.filterBy('64', false);
+  };
+
+  $scope.showWaiting = function() {
+    tasks.filterBy('8', true);
+  };
+
+  $scope.showError = function() {
+    tasks.filterBy('error', true);
+  };
+}
+
+NavBarController.$inject = ['$scope', 'tasks'];  // For JS compilers.
+
+
+/**
+ *   Authentication
+ */
+
+function AuthCtrl($scope, $location, $cookieStore) {
+  $scope.location = 'us';
+
+  $scope.auth = {
+    username: '',
+    key: '',
+    password: ''
+  };
+
+  var catalog = $cookieStore.get('auth');
+  if (catalog != undefined && catalog !== null && catalog != {} && 'access' in catalog) {
+    cm.auth.setServiceCatalog(catalog);
+    $scope.auth.username = cm.auth.getUsername();
+    $scope.signedIn = true;
+  } else {
+    $scope.signedIn = false;
+  }
+
+  // Call any time to ensure client is authentication
+  $scope.signIn = function() {
+    if (!cm.auth.isAuthenticated()) {
+      var modal = $('#auth_modal');
+      modal.modal({
+        keyboard: false,
+        show: true
+      });
+
+      modal.modal('show');
+    }
+    return $scope.authenticated();
+  };
+
+  $scope.authenticated = function() {
+    return cm.auth.isAuthenticated();
+  };
+
+  $scope.signOut = function() {
+    $scope.auth.username = '';
+    $scope.auth.key = '';
+    $scope.auth.password = '';
+    $scope.auth.catalog = null;
+    $cookieStore.put('auth', null);
+    $cookieStore.remove('auth');
+    cm.auth.setServiceCatalog(null);
+    $location.path('/');
+    $scope.signedIn = false;
+    //$('#auth_modal').modal('show');
+  };
+
+  $scope.authenticate = function() {
+    var location = "https://identity.api.rackspacecloud.com/v2.0/tokens";
+    if ($scope.location == 'uk') {
+      location = "https://lon.identity.api.rackspacecloud.com/v2.0/tokens";
+    }
+
+    var data;
+    if ($scope.auth.key) {
+       data = JSON.stringify({
+        "auth": {
+          "RAX-KSKEY:apiKeyCredentials": {
+            "username": $scope.auth.username,
+            "apiKey": $scope.auth.key
+          }
+        }
+      });
+     } else if ($scope.auth.password) {
+       data = JSON.stringify({
+          "auth": {
+            "passwordCredentials": {
+              "username": $scope.auth.username,
+              "password": $scope.auth.password
+            }
+          }
+        });
+     }
+
+    return $.ajax({
+      type: "POST",
+      contentType: "application/json; charset=utf-8",
+      headers: {
+        "X-Auth-Source": location
+      },
+      dataType: "json",
+      url: "/authproxy",
+      data: data
+    }).always(function(json) {
+      cm.auth.setServiceCatalog(json);
+      $cookieStore.put('auth', json);
+    }).success(function() {
+      $('#auth_modal').modal('hide');
+      $scope.signedIn = true;
+    }).error(function() {
+      $("#auth_error_text").html("Something bad happened");
+      $("#auth_error").show();
+    });
+  };
+}
+AuthCtrl.$inject = ['$scope', '$location', '$cookieStore'];
+
+/**
+ *   Profile
+ */
+
+function ProfileCtrl($scope, $location) {
+
+}
+ProfileCtrl.$inject = ['$scope', '$location'];
+
+
 /**
  *   environments
  */
@@ -164,119 +300,6 @@ function BlueprintDetailCtrl($scope, $location, $http, $routeParams) {
 BlueprintDetailCtrl.$inject = ['$scope', '$location', '$http', '$routeParams'];
 
 /**
- *   Authentication
- */
-
-function AuthCtrl($scope, $location, $cookieStore) {
-  $scope.location = 'us';
-
-  $scope.auth = {
-    username: '',
-    key: '',
-    password: ''
-  };
-  $scope.signedIn = false;
-
-  var catalog = $cookieStore.get('auth');
-  if (catalog) {
-    cm.auth.setServiceCatalog(catalog);
-    $scope.auth.username = cm.auth.getUsername();
-  }
-
-  // Call any time to ensure client is authentication
-  $scope.signIn = function() {
-    if (!cm.auth.isAuthenticated()) {
-      var modal = $('#auth_modal');
-      modal.modal({
-        keyboard: false,
-        show: true
-      });
-
-      modal.modal('show');
-    }
-    return $scope.authenticated();
-  };
-
-  $scope.authenticated = function() {
-    var latest = cm.auth.isAuthenticated();
-    if ($scope.signedIn != latest)
-      $scope.signedIn = latest;
-    return latest;
-  };
-
-  $scope.signOut = function() {
-    $scope.auth.username = '';
-    $scope.auth.key = '';
-    $scope.auth.password = '';
-    $scope.auth.catalog = null;
-    $cookieStore.put('auth', null);
-    $cookieStore.remove('auth');
-    cm.auth.setServiceCatalog(null);
-    $location.path('/');
-    $scope.signedIn = false;
-    //$('#auth_modal').modal('show');
-  };
-
-  $scope.authenticate = function() {
-    var location = "https://identity.api.rackspacecloud.com/v2.0/tokens";
-    if ($scope.location == 'uk') {
-      location = "https://lon.identity.api.rackspacecloud.com/v2.0/tokens";
-    }
-
-    var data;
-    if ($scope.auth.key) {
-       data = JSON.stringify({
-        "auth": {
-          "RAX-KSKEY:apiKeyCredentials": {
-            "username": $scope.auth.username,
-            "apiKey": $scope.auth.key
-          }
-        }
-      });
-     } else if ($scope.auth.password) {
-       data = JSON.stringify({
-          "auth": {
-            "passwordCredentials": {
-              "username": $scope.auth.username,
-              "password": $scope.auth.password
-            }
-          }
-        });
-     }
-
-    return $.ajax({
-      type: "POST",
-      contentType: "application/json; charset=utf-8",
-      headers: {
-        "X-Auth-Source": location
-      },
-      dataType: "json",
-      url: "/authproxy",
-      data: data
-    }).always(function(json) {
-      cm.auth.setServiceCatalog(json);
-      $cookieStore.put('auth', json);
-    }).success(function() {
-      $('#auth_modal').modal('hide');
-      $scope.signedIn = true;
-    }).error(function() {
-      $("#auth_error_text").html("Something bad happened");
-      $("#auth_error").show();
-    });
-  };
-}
-AuthCtrl.$inject = ['$scope', '$location', '$cookieStore'];
-
-/**
- *   Profile
- */
-
-function ProfileCtrl($scope, $location) {
-
-}
-ProfileCtrl.$inject = ['$scope', '$location'];
-
-/**
  *   Deployments
  */
 
@@ -414,6 +437,8 @@ function DeploymentStatusCtrl($scope, $location, $http, $routeParams) {
     return jsonTasks;
   };
 
+
+
   /**
    *  FUTURE    =   1
    *  LIKELY    =   2
@@ -478,7 +503,7 @@ function DeploymentStatusCtrl($scope, $location, $http, $routeParams) {
 DeploymentStatusCtrl.$inject = ['$scope', '$location', '$http', '$routeParams'];
 
 /**
- *   New Deployment
+ *   Deployments
  */
 function DeploymentNewCtrl($scope, $location, $routeParams, $http) {
   var ctrl = new DeploymentInitCtrl($scope, $location, $routeParams, $http);
@@ -547,12 +572,11 @@ function DeploymentInitCtrl($scope, $location, $routeParams, $http, blueprint, e
       console.log(message);
       return "<em>" + message + "</em>";
     }
-
-      return template ? Mustache.render(template, setting) : "";
+    return template ? Mustache.render(template, setting) : "";
   };
 
   $scope.showSettings = function() {
-    return !($scope.environment && $scope.blueprint);
+    return ($scope.environment && $scope.blueprint);
   };
 
   $scope.submit = function(simulate) {
@@ -591,7 +615,7 @@ function DeploymentInitCtrl($scope, $location, $routeParams, $http, blueprint, e
     cm.Resource.saveOrUpdate($http, $scope, resource, deployment)
       .success(function(data, status, headers) {
         var deploymentId = headers('location').split('/')[3];
-        $location.path('deployments/' + deploymentId);
+        $location.path('workflows/' + deploymentId + '/status');
       })
       .error(function(data, status, headers, config) {
         console.log("Error " + status + " creating new deployment.");
@@ -626,7 +650,92 @@ function DeploymentInitCtrl($scope, $location, $routeParams, $http, blueprint, e
     });
   }
 }
-DeploymentInitCtrl.$inject = ['$scope', '$location', '$routeParams', '$http'];
+//DeploymentInitCtrl.$inject = ['$scope', '$location', '$routeParams', '$http'];
+
+/**
+* Workflows
+**/
+function WorkflowStatusCtrl($scope, $location, tasks, $routeParams) {
+  $scope.tasks = tasks;
+  /**
+   *  FUTURE    =   1
+   *  LIKELY    =   2
+   *  MAYBE     =   4
+   *  WAITING   =   8
+   *  READY     =  16
+   *  CANCELLED =  32
+   *  COMPLETED =  64
+   *  TRIGGERED = 128
+   *
+   *  TODO: This will be fixed in the API, see:
+   *    https://github.rackspace.com/checkmate/checkmate/issues/45
+   */
+  $scope.iconify = function(state) {
+    switch(state) {
+      case 1:
+        return "icon-fast-forward";
+      case 2:
+        return "icon-thumbs-up";
+      case 4:
+        return "icon-hand-right";
+      case 8:
+        return "icon-pause";
+      case 16:
+        return "icon-plus";
+      case 32:
+        return "icon-remove";
+      case 64:
+        return "icon-ok";
+      case 128:
+        return "icon-adjust";
+      default:
+        console.log("Invalid state '" + state + "'.");
+        return "icon-question-sign";
+    }
+  };
+
+  /**
+   *  See above.
+   *
+   */
+  $scope.colorize = function(state) {
+    switch(state) {
+      case 1:
+      case 2:
+      case 4:
+      case 8:
+        return "alert-waiting";
+      case 16:
+      case 128:
+        return "alert-info";
+      case 32:
+        return "alert-error";
+      case 64:
+        return "alert-success";
+      default:
+        console.log("Invalid state '" + state + "'.");
+        return "unkonwn";
+    }
+  };
+}
+WorkflowStatusCtrl.$inject = ['$scope', '$location', 'tasks', '$routeParams'];
+
+function WorkflowTaskCtrl($scope, $location, $http, $routeParams) {
+
+  cm.Resource.get($http, $scope, 'workflows/' + $routeParams.workflowId + '/tasks',
+      $routeParams.taskId)
+    .success(function(data) {
+      console.log(data);
+      $scope.task = data;
+      console.log($scope.task);
+    });
+
+  console.log($scope.task);
+  $scope.source = JSON.stringify($scope.task, null, 2);
+
+}
+WorkflowTaskCtrl.$inject = ['$scope', '$location', '$http', '$routeParams'];
+
 
 function ProviderListCtrl($scope, $location, $http) {
 
