@@ -53,11 +53,11 @@ import clouddns
 from clouddns.errors import UnknownDomain, ResponseError, InvalidDomainName
 
 
-def _get_dns_object(context):
+def _get_dns_object(deployment):
     # Until python-clouddns is patched to accept pre-existing API
     # tokens, we'll have to re-auth.
-    return clouddns.connection.Connection(context['username'],
-                                          context['apikey'])
+    return clouddns.connection.Connection(deployment['username'],
+                                          deployment['apikey'])
 
 
 def parse_domain(domain_str):
@@ -68,11 +68,23 @@ def parse_domain(domain_str):
 
 """ Celery tasks """
 
+@task(default_retry_delay=10, max_retries=10)
+def get_domains(deployment,limit=None,offset=None):
+    api = _get_dns_object(deployment)
+    try:
+	DomainResults = api.get_domains(limit=limit,offset=offset)
+	return DomainResults._domains
+	LOG.debug('Successfully retreived domains.')
+    except Exception, exc:
+	LOG.debug('Error retreiving domains. Error: %s. Retrying.' % exc)
+	get_domains.retry(exc=exc)
+
+
 
 @task(default_retry_delay=10, max_retries=10)
-def create_domain(context, domain, email='soa_placeholder@example.com',
-        ttl=300):
-    api = _get_dns_object(context)
+def create_domain(deployment, domain,
+                             email='soa_placeholder@example.com', ttl=300):
+    api = _get_dns_object(deployment)
     try:
         api.create_domain(name=domain, ttl=ttl, emailAddress=email)
         LOG.debug('Domain %s created.' % domain)
@@ -89,22 +101,9 @@ def create_domain(context, domain, email='soa_placeholder@example.com',
         create_domain.retry(exc=exc)
 
 
-@task(default_retry_delay=10, max_retries=10)
-def get_domains(context,limit=None,offset=None):
-    api = _get_dns_object(context)
-    try:
-	DomainResults = api.get_domains(limit=limit,offset=offset)
-	return DomainResults._domains
-	LOG.debug('Successfully retreived domains.')
-    except Exception, exc:
-	LOG.debug('Error retreiving domains. Error: %s. Retrying.' % exc)
-	get_domains.retry(exc=exc)
-	
-
-
 @task
-def delete_domain(context, name):
-    api = _get_dns_object(context)
+def delete_domain(deployment, name):
+    api = _get_dns_object(deployment)
     try:
         domain = api.get_domain(name=name)
     except UnknownDomain, exc:
@@ -130,10 +129,10 @@ def delete_domain(context, name):
 
 
 @task(default_retry_delay=20, max_retries=10)
-def create_record(context, domain, name, dnstype, data,
+def create_record(deployment, domain, name, dnstype, data,
                              ttl=1800, makedomain=False,
                              email='soa_placeholder@example.com'):
-    api = _get_dns_object(context)
+    api = _get_dns_object(deployment)
     try:
         domain_object = api.get_domain(name=domain)
     except UnknownDomain, exc:
@@ -141,7 +140,7 @@ def create_record(context, domain, name, dnstype, data,
             LOG.debug('Cannot create %s record (%s->%s) because %s does not ' \
                     'exist. Creating %s and retrying.' % (
                     dnstype, name, data, domain, domain))
-            create_domain.delay(context, domain, email=email)
+            create_domain.delay(deployment, domain, email=email)
             create_record.retry(exc=exc)
         else:
             LOG.debug('Cannot create %s record (%s->%s) because %s does not ' \
@@ -169,8 +168,8 @@ def create_record(context, domain, name, dnstype, data,
 
 
 @task(default_retry_delay=20, max_retries=10)
-def delete_record(context, domain, name):
-    api = _get_dns_object(context)
+def delete_record(deployment, domain, name):
+    api = _get_dns_object(deployment)
     try:
         domain = api.get_domain(name=domain)
     except UnknownDomain, exc:
@@ -194,3 +193,9 @@ def delete_record(context, domain, name):
         LOG.debug('Error deleting DNS record %s. Error %s. Retrying.' % (
             name, str(exc)))
         delete_record.retry(exc=exc)
+
+
+
+
+
+
