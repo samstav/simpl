@@ -205,7 +205,6 @@ def get_deployment_status(id, tenant_id=None):
 @get('/deployments/<depid>/services/<service>/<type>/<setting>/+scale')
 @with_tenant
 def scale_deployment(depid, service, type, setting, tenant_id=None, amount=None):
-    print "Scaling deployment!"
     """ Scale a checkmate deployment service
         by the specified number of nodes
         
@@ -234,30 +233,30 @@ def scale_deployment(depid, service, type, setting, tenant_id=None, amount=None)
         amount = request.query.amount or 1
     
     key, option, constraint = deployment._get_option_by_constrains(setting, service_name=service, resource_type=type)
-    print "key: %s" % key
-    print "option: %s" % option
-    print "constraint: %s" % constraint
 
     if not key or not option or not constraint:
         abort(404, "No setting matches {}/{}/{}".format(service, type, setting))
-    if not constraint.get('scalable'):
-        abort(406, "Setting '{}' cannot be scaled for {}/{}".format(setting, service, type))
 
     if "int" == option.get('type','NONE'):
-	print "option type: int"
         try:
-            amount = int(amount)
-	    print "int(amount): %s" % amount
-        except ValueError:
-            abort(406, 'Invalid amount ({}); must be numeric.'.format(amount))
-        current = len(deployment['blueprint']['services'][service].get("instances", []))
-	print "current: %s" % current
-        minimum = option['constraints'].get('greater-than', 0) if 'constraints' in option else 0
-	print "minimum: %s" % minimum
-        maximum = option['constraints'].get('less-than', sys.maxint) if 'constraints' in option else sys.maxint
-	print "maximum: %s" % maximum
-        net_amount = current + amount
-	print "net amount: %s" % net_amount
+	    amount = int(amount)
+	except ValueError:
+	    abort(406, 'Invalid amount ({}); must be numeric.'.format(amount))
+	
+	current = len(deployment['blueprint']['services'][service].get("instances",[]))
+	minimum = 0
+	maximum = sys.maxint
+
+	for constraint in option['constraints']:
+	    if 'greater-than' in constraint:
+	        minimum = constraint['greater-than']
+	    if 'less-than' in constraint:
+		maximum = constraint['less-than']
+	    if 'count' in constraint:
+		abort(406, 'Cannot modify number of {}/{}. Count set at {}'.format(service,type,constraint['count']))
+
+	net_amount = current + amount
+
         if minimum > net_amount or net_amount > maximum:
             abort(406, "Setting \'{}\' for {}/{} must be between {} and {} (inclusive).".format(\
                         setting, service, type, minimum, maximum))
@@ -990,12 +989,8 @@ class Deployment(ExtensibleDict):
         blueprint = self['blueprint']
         if 'options' in blueprint: 
             for key, option in blueprint['options'].iteritems():
-	        print "key: %s" % key
-		print "option: %s" % option
                 if 'constrains' in option:  # the verb 'constrains' (not noun)
                     for constraint in option['constrains']:
-			print "constrains: %s" % option['constrains']
-			print "current constraint: %s" % constraint
                         if self.constraint_applies(constraint, name,
                                 service_name=service_name,
                                 resource_type=resource_type):

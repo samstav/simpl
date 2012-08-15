@@ -1,0 +1,915 @@
+# **Checkmate** is a configuration management REST service written in python.
+# The source can be found [here](http://github.com/ziadsawalha/checkmate)
+#
+# This sample configuration file can be used to deploy a wordpress application
+# to the cloud. It also currently serves as the main reference for the
+# Checkmate configuration syntax and schema.
+#
+# Notes about this file:
+#
+#### Field names
+#
+# YAML supports key values with or without quoteation marks around them. In order
+# to differentiate between values that are strictly defined in the schema for the
+# YAML and fields that are user-determined, I've wrapped all user-determined keys
+# in quotes. You are free to rename any of these values.
+# In addition, some values are not part of the schema, but are returned by providers
+# (ex. mysql is an interface understood by the database provider). These values are
+# not defined by the YAML schema, but also are not user-changeable. I've wrapped
+# those with single quotes.
+# For example:
+#  requires:
+#    "db": 'mysql'
+#    "server":
+#      relation: host
+#      interface: 'linux'
+# requires, relation, host, and interface are names that checkmate defines and looks for
+# db and server are names you are free to change to suit your needs
+# mysql and linux are names specified by the underlying providers.
+#
+# Note: YAML does not escape stings in single quotes. There may be some field values with
+# characters that need escaping. Those migt be wrapped in single quotes, but they are not
+# defined strictly. They are exceptions to this rule.
+#
+#### Variables
+#
+# ${VARIABLE} entries are designe to be replaced by with your local environment variables
+# before posting it to checkmate. This command does that:
+#
+#     awk '{while(match($0,"[$][\\{][^\\}]*\\}")) {var=substr($0,RSTART+2,RLENGTH -3);gsub("[$][{]"var"[}]",ENVIRON[var])}}1' < app.yaml
+#
+# To perform the above transform and actually send the output to checkmate:
+#
+#     CHECKMATE_CLIENT_TENANT=$(curl -H "X-Auth-User: ${CHECKMATE_CLIENT_USERNAME}" -H "X-Auth-Key: ${CHECKMATE_CLIENT_APIKEY}" -I https://identity.api.rackspacecloud.com/v1.0 -v 2> /dev/null | grep "X-Server-Management-Url" | grep -P -o $'(?!.*/).+$'| tr -d '\r') && CHECKMATE_CLIENT_TOKEN=$(curl -H "X-Auth-User: ${CHECKMATE_CLIENT_USERNAME}" -H "X-Auth-Key: ${CHECKMATE_CLIENT_APIKEY}" -I https://identity.api.rackspacecloud.com/v1.0 -v 2> /dev/null | grep "X-Auth-Token:" | awk '/^X-Auth-Token:/ { print $2 }') && awk '{while(match($0,"[$][\\{][^\\}]*\\}")) {var=substr($0,RSTART+2,RLENGTH -3);gsub("[$][{]"var"[}]",ENVIRON[var])}}1' < examples/app.yaml | curl -H "X-Auth-Token: ${CHECKMATE_CLIENT_TOKEN}" -H 'content-type: application/x-yaml' http://localhost:8080/${CHECKMATE_CLIENT_TENANT}/deployments/simulate -v --data-binary @-
+#
+# Note: the deployments/simulate URL is used for testing and does not persist anythoing on the server. The deployment resides in memory at the deployments/simulate
+#       URL (i.e. simulate is a fake ID)
+#
+#### Deployment
+#
+# This file defines a wordpress deployment, but also includes all the other items
+# needed for that deployment, such as environments, blueprints, and components under the 'includes' key. This
+# allows for the file to be self-contained and can be posted to a blank checkmate
+# server (no data needs to be set up beforehand). This file is used as reference documentation
+# on the YAML syntax as well. It therefore includes a few extra, unnecessary items
+# (like the extra environments under 'includes:' for documentation's sake. They are
+# not used by the deployment.
+# When submitted to the server the references in this file (see use of & and * in YAML)
+# are resolved and the server stores the final, resolved object. The references and includes
+# entries may be discarded.
+
+#### Components
+# Components define the basic building blocks for checkmate. They are applications or resources
+# used to build systems and applications.
+#
+# Components have interfaces. Here's an example list of component types and interfaces:
+# - compute:
+#     linux (or debian or ubuntu if specificity is needed)
+#     windows
+# - database:
+#     mysql
+#     mssql
+# - load-balancer:
+#     http
+#     https
+# - application:
+#     wordpress
+#     drupal
+# - endpoint: protocols such as http, https, ip (ipv4, ipv6 if specific), ldap
+#     url: an internet resource. url defines protocol://host:port/path (and multiple urls can share the protocol://host:port/)
+#        the protocol may be provided as the interface (ex. http)
+#     http: a url constrained to http/https only
+# Note: checkmate right now constrains the names of interfaces to a supported list in the
+# checkmate.common.schema file. The component names are flexible and defined by the provider, but there is a need to
+# keep them consistent (for example, wordpress should be called wordpress whether it is provided by chef or puppet).
+#
+
+#
+#
+# SAMPLE WORDPRESS DEPLOYMENT
+#
+#
+#### Various includes
+# This is an allowed item on the root so that objects can be placed here and referenced in from the deployment.
+includes:
+#Definitions of components/services used in this file
+#THOUGHTS: these should come from providers. But there should be generik, well-known names like 'wordpress' that are used in blueprints.
+- components: #Items under here are referenced by the blueprints below.
+  # the name of the component and an optional anchor (any unique name preceded by &) which
+  # can be used to reference it from elsewhere in the file
+  # Checkmate manages components using the following set of attributes:
+  # - is: this identifies what type of component this is. Examples are: compute, database, application
+  # - requires: this describes what interfaces this component needs and what the relationship to the components providing these interfaces is
+  # - provides: what interfaces this component provides
+  # for requires and provides, the default syntax is name:interface. In this case, the relationship is assumed to be a reference relationship
+  # for other types of relationships, the syntax is broken out: name: {interface: interface_name, relation: relation_type}
+  # Component relationships can be:
+  # - host: A 'hosting' relationship means the hosted component exists 'in' the host and requires it before creation
+  #         a requirement named 'host' is assumed to be a hosting relationship (ex. host: linux)
+  # - reference: another component that is needed for this one to operate (but not for creation)
+  # - is (see above): 'is' is a type of relationship also.
+  - &lsyncd
+    id: 'lsyncd'
+    options:
+      slaves:
+        type: String Array
+    requires:
+    - host: linux
+  - &mysql-client
+    id: 'mysql::client'
+    options:
+      username:
+        type: String
+      password:
+        type: String
+      database:
+        type: String
+      host:
+        type: String
+  - &wordpress1
+    id: 'wordpress'
+    version: 0.8.8  # revisions track multiple versions of a component definition. This comes from Chef cookbook in this case
+    summary: "A pretty popular blog engine" # a short description of the component
+    is: 'application' # An 'is' relationship describing this component as a type of 'application' (or application)
+    requires:
+      # Here is one in the name:interface syntax
+    - database: 'mysql' #relation: reference (implied)
+      # Here is one in the name:mapping extended syntax (expanded because we have two non-default values)
+    - compute:
+        relation: host
+        interface: 'linux'
+
+    # PROTOTYPING: still considering if 'dependency' is needed
+    #'dependency' is a special type of requirement pointing to other components
+    # that this one depends on. It is mainly informative and does not define the
+    # relationship between them. It can be used  y checkmate to flow information
+    # to these components in a generic fashion
+    dependencies:
+    - *apache2
+    - *mysql-client
+    - *lsyncd
+    provides:
+    - 'application': 'http'  # http means a web resource, could be on a shared endpoint
+    options:
+      checksum:
+        default: 7342627f4a3dca44886c5aca6834cc88671dbd3aa2760182d2fcb9a330807
+        description: Checksum of the tarball for the version specified.
+        label: Wordpress tarball checksum
+        required: optional
+        source_field_name: wordpress/checksum
+        type: string
+      database/database:
+        default: wordpressdb
+        description: Wordpress will use this MySQL database to store its data.
+        label: Wordpress MySQL database
+        required: optional
+        source_field_name: wordpress/db/database
+        type: string
+      database/host:
+        default: localhost
+        description: MySQL database server resolvable name or TCP/IP address.
+        label: Wordpress MySQL Database Host
+        required: optional
+        source_field_name: wordpress/db/host
+        type: string
+      database/password:
+        default: randomly generated
+        description: Password for the Wordpress MySQL user.
+        label: Wordpress MySQL password
+        required: optional
+        source_field_name: wordpress/db/password
+        type: string
+      database/prefix:
+        default: wp_
+        description: The table prefix to use for the tables created for wordpress.
+        label: Wordpress database table prefix
+        required: optional
+        source_field_name: wordpress/db/prefix
+        type: string
+      database/username:
+        default: wordpressuser
+        description: Wordpress will connect to MySQL using this user.
+        label: Wordpress MySQL user
+        required: optional
+        source_field_name: wordpress/db/username
+        type: string
+      directory:
+        default: /var/www
+        description: Location to place wordpress files.
+        label: Wordpress installation directory
+        required: optional
+        source_field_name: wordpress/dir
+        type: string
+      keys/authentication:
+        default: =generate_uuid()
+        description: Wordpress auth key.
+        label: Wordpress auth key
+        required: optional
+        source_field_name: wordpress/keys/auth
+        type: string
+      keys/logged_in:
+        default: randomly generated
+        description: Wordpress logged-in key.
+        label: Wordpress logged-in key
+        required: optional
+        source_field_name: wordpress/keys/logged_in
+        type: string
+      keys/nonce:
+        default: =generate_uuid()
+        description: Wordpress nonce key.
+        label: Wordpress nonce key
+        required: optional
+        source_field_name: wordpress/keys/nonce
+        type: string
+      keys/secure_authentication:
+        default: =generate_uuid()
+        description: Wordpress secure auth key.
+        label: Wordpress secure auth key
+        required: optional
+        source_field_name: wordpress/keys/secure_auth
+        type: string
+      path:
+        default: /
+        description: URL to use after the main domain name.
+        label: Wordpress URL path
+        required: optional
+        source_field_name: wordpress/path
+        type: string
+      server_aliases:
+        default: FQDN
+        description: Wordpress Server Aliases
+        label: Wordpress Server Aliases
+        required: optional
+        source_field_name: wordpress/server_aliases
+        type: string
+      version:
+        default: 3.0.4
+        description: Version of Wordpress to download from the Wordpress site.
+        label: Wordpress download version
+        required: optional
+        source_field_name: wordpress/version
+        type: string
+  - &mysql
+    id: mysql
+    version: 1
+    summary: "A pretty popular database"
+    is: 'database'
+    provides:
+    - 'database': 'mysql'
+    options:
+      password:
+        type: String
+        default: =generate_password()  # IMPLEMENTED, but open to more elegant approach...
+        description: the password for the database
+
+    #PROTOTYPING:
+    outputs:
+    - 'database_username'
+    - 'database_name'
+    - 'database_password'
+    - 'host': hostname  # copy/alias/map that return to this name
+  - &mysql-instance
+    id: mysql-master-role
+    version: 1
+    summary: "mysql running on a compute instance"
+    is: 'database'
+    provides:
+    - 'database': 'mysql'
+    requires:
+    - "compute":
+        relation: host
+        interface: 'linux'
+    options:
+      password:
+        type: String
+        default: =generate_password()
+        description: the password for the database
+  - &loadbalancer
+    id: loadbalancer
+    version: 1
+    summary: Load-balancer as a Service instance
+    is: 'load-balancer'
+    provides:
+    - 'load-balancer': http
+    - 'load-balancer': url
+  - &load-balancer-image
+    id: nginx
+    version: 1
+    summary: Load-balancer software
+    is: load-balancer
+    provides:
+    - 'load-balancer': http
+    - 'load-balancer': url
+    requires:
+    - 'compute':
+        relation: host
+
+        interface: 'linux' #PROPOSAL: os or distro as an interface (it has a protocol to interact with it)
+        constraint: #PROTOTYPING
+        - 'os': ['debian', 'redhat']
+  - &wordpress-web-master-role2
+    id: 'wordpress-web-master-role'
+    version: 0.8.8  # revisions track multiple versions of a component definition. This comes from Chef cookbook in this case
+    summary: "Managed Cloud Install of Wordpress Master Node" # a short description of the component
+    is: 'application' # An 'is' relationship describing this component as a type of 'application' (or application)
+    provides:
+    - 'application': http
+    requires:
+    - host: 'linux'
+  - &wordpress-web-role2
+    id: 'wordpress-web'
+    version: 0.8.8  # revisions track multiple versions of a component definition. This comes from Chef cookbook in this case
+    summary: "Managed Cloud Install of Wordpress" # a short description of the component
+    is: 'application' # An 'is' relationship describing this component as a type of 'application' (or application)
+    dependencies:
+    - *wordpress-web-master-role
+    provides:
+    - application: http
+    requires:
+    - host: 'linux'
+  - &external-reference
+  #- <<: *nosql  # Just to test an unknown reference. Should translate to a local URI.
+
+  #### Blueprints
+
+  # An architecture template
+  # This would be where we define the architecture of an application which would include
+  # all the components, tiers, connections, and scaling rules for that application.
+  # Blueprints contain best practices and 'constrain' the available options in an environment to
+  # those that are architecturally sound.
+- blueprint: &wp-multi
+    name: Scalable Wordpress (Managed Cloud Config)
+    description: uses MC config recipes which support blah...., multiple domains, ....
+    #Services are similar to tiers. The names are arbitrary keys to be chosen by the blueprint author.
+    # components: the type of component used in the service.
+    # relations: connections to other services. The syntax can be short (service:interface) or long (name:{map})
+    # relations are a hint or predefinition of how to satisfy a requirement (ex. which service to satisfy it from)
+    services:
+      "lb":
+        component:
+          type: load-balancer
+          interface: http
+        relations:
+          # Short syntax: service_name:interface (look at web tier for long form example)
+          "web": 'http'
+          "master": 'http'
+        #PROTOTYPING
+        exposed: true
+        open-ports: [80/tcp]
+      "master":
+        component:
+          type: application
+          name: wordpress
+          role: master
+        relations:
+          "backend": 'mysql'
+        constraints:
+        - count: 1
+      "web":
+        component:
+          type: application
+          name: wordpress
+          role: web
+          options:
+          - 'wordpress/version': '3.0.4'  # fix blueprint to a predicatabl version
+        relations:
+          "master": 'http'
+          #Long format example. For when we need to identify more than service & interface
+          "db": # Long syntax includes a name for the relation, since we need to manage the relationships later (drain, stop, start, check, etc...)
+            interface: 'mysql'
+            service: "backend"
+
+        # TO TEST: for multiple configs
+        # take web1, give it lsyncd-master config
+        # all others, give them lsyncd-slave
+      "backend": #TODO: remove hard coding against this name. Think about what these names mean. These are basically tiers...
+        component:
+          type: database
+          interface: mysql
+    # A blueprint author (the architect) provides the list of parameteres for a blueprint in the
+    # blueprint options field.
+    # Blueprints provide constraints (as architectural specs do) and they therefore override and filter
+    # the underlying provider values. Options can exist in blueprints and in provider catalogs. There may be overlap.
+    # For example, a provider may offer Ubuntu, CentOS and RHEL servers, but the blueprint might constrain the list
+    # of allowed options to RHEL.
+    # The API will only validate that a deployment matches blueprint constraints once the deployment is submitted.
+    # The UI could filter available options to what a blueprint allows and perform up-front validation before a deployment is attempted
+    options:
+      "prefix":
+        required: true
+        type: string
+        default: wp
+        label: Prefix
+        description: "The application ID (and wordpress table prefix)."
+        help: |
+          Note that this also the user name, database name, and also identifies this
+          wordpress install from other ones you might add later to the same deployment.
+        constrains:
+        - service: web
+          resource_type: application
+          setting: "database/prefix"
+        - service: web
+          resource_type: application
+          setting: "user/name"
+        - service: web
+          resource_type: application
+          setting: "apache/user/name"
+        - service: web
+          resource_type: application
+          setting: "lsyncd/user/name"
+        - service: backend
+          resource_type: database
+          setting: "database/name"  # would be nice if the cookbook called this database/name
+        - service: backend
+          resource_type: database
+          setting: "database/username"
+      "region":
+        label: Region
+        type: select
+        # Choice is  always an array. It can be an array of values or of objects with name & value attributes
+        choice: [dallas, chicago]
+        required: true
+      "ssl": &ssl
+        label: SSL Enabled
+        default: false
+        type: boolean
+        description: Use SSL to encrypt web traffic.
+        help: |
+          If this option is selected, SSL keys need to be supplied as well. This option is
+          also currently mutually exclusive with the Varnish Caching option.
+      "ssl_certificate":
+        label: SSL Certificate
+        type: string #certificate-PEM
+        description: SSL certificate in PEM format. Make sure to include the BEGIN and END certificate lines.
+        sample: |
+            -----BEGIN CERTIFICATE-----
+            Encoded Certificate
+            -----END CERTIFICATE-----
+        constrains: [{service: web, resource_type: application, setting: "apache/ssl_certificate"}]
+      "ssl_private_key":
+        label: SSL Certificate Private Key
+        type: string #certificate-PEM
+        sample: |
+            -----BEGIN PRIVATE KEY-----
+            Encoded key
+            -----END PRIVATE KEY-----
+        constrains: [{service: web, resource_type: application, setting: "apache/ssl_private_key"}]
+      "domain":
+        type: string
+        regex: '^(([a-zA-Z]|[a-zA-Z][a-zA-Z0-9\-]*[a-zA-Z0-9])\.)*([A-Za-z]|[A-Za-z][A-Za-z0-9\-]*[A-Za-z0-9])$'
+        label: Domain
+        sample: example.com
+        description: "The domain you wish to host your blog on. (ex: example.com)"
+        constrains:
+        - service: web
+          resource_type: application
+          setting: "apache/domain_name"
+      "path":
+        type: string
+        default: /
+        sample: /blog
+        label: Path
+        description: "The path you wish to host your blog on under your domain. (ex: /blog)"
+        constrains:
+        - service: web
+          resource_type: application
+          setting: "apache/path"
+        - service: web
+          resource_type: application
+          setting: "path"
+      "register-dns":
+        default: false
+        type: boolean
+        label: Register DNS Name
+      "varnish":
+        default: false
+        type: boolean
+        label: Varnish Caching
+        constrains:
+        - service: web
+          resource_type: application
+          setting: "varnish/enabled"
+      "web_server_size": &instance_flavor
+        default: 1024
+        label: Web Server Size
+        description: The size of the instance in MB of RAM.
+        type: select
+        choice:
+        - value: 256
+          name: 256 Mb
+        - value: 512
+          name: 512 Mb
+        - value: 1024
+          name: 1 Gb
+        constrains: [{service: web, resource_type: compute, setting: size},{service: master, resource_type: compute, setting: size}]
+      "os":
+        default: Ubuntu 11.10
+        type: select
+        choice:
+        - Ubuntu 11.10
+        - Ubuntu 12.04
+        - CentOS
+        - RHEL 6
+        label: Operating System
+        description: The operating system for the web servers.
+        constrains: [{service: web, resource_type: compute, setting: os},{service: web, resource_type: compute, setting: os}]
+      "web_server_count":
+        type: int
+        label: Number of Web Servers
+        description: The number of WordPress servers (minimum two).
+        default: 2
+        constrains:
+        - {service: web, resource_type: compute, setting: count}
+        constraints:
+        - greater-than: 1 # this is an HA config
+      "database_memory":
+        default: 312
+        label: Database Size
+        description: The size of the database instance in MB of RAM.
+        type: select
+        choice:
+        - value: 512
+          name: 512 Mb
+        - value: 1024
+          name: 1024 Mb
+        - value: 2048
+          name: 2048 Mb
+        - value: 4096
+          name: 4096 Mb
+        constrains:
+        - {service: backend, resource_type: database, setting: memory}
+      "database_volume_size":
+        default: 1
+        label: Database Disk Size
+        description: The hard drive space available for the database instance in GB.
+        type: int  #1-10, units in Gb
+        constrains:
+        - {service: backend, resource_type: database, setting: disk}
+
+      #database_type: DBaaS or compute instance. This should probably be driven by
+      # the fact that two providers in the environment can satisfy this requirement and the providers
+      # have different options.
+
+      #PROTOTYPING
+      "sample":  # just to play with the schema of these options
+        default: Ubuntu 12.04
+        constrains: [{service: web, resource_type: compute, setting: foo}]
+
+        group: advanced
+        type: uri
+        uri: /T1000/providers/...?type=type  #preferred; relative URI (no CORS needed) looks better. Let checkmate.provider handle the code. Keep it simple for client.
+        label: Instance OS
+        description: The operating system of web servers.
+      "high_availability": &high_availability
+        type: boolean
+        label: High Availability
+        description: "Insures your blog has higher uptimes by using redundant hardware (e.g. multuple servers)"
+      "password": &password
+        type: string
+        regex: xxx
+        label: Password
+        description: Password to use for service. Click the generate button to generate a random password.
+      "secure":
+        type: boolean
+        label: secure
+        description: Make this a hardened deployment (you lose some flexibility)
+
+
+    #PROTOTYPING
+    exposes:
+      http: 80
+      https: 443
+    # do we support binaries and other files with the blueprint? Does this introduce the concept of trusted bps (with code)?
+    artifacts:
+    - "code/python": ....
+    - "code/ruby": ....
+    - image: ....
+    - yaml: ...
+
+  #### Environments
+  #
+  # Schema is:
+  # environment:
+  #   name: !!str
+  #   providers:
+  #      id:  &unique-reference  # reference is unique in this environment
+  #        vendor: !!str
+  #        id: !!str
+  #        provides:
+  #        - type: !!enum('compute', 'database', etc..)
+  #        [endpoint: !!uri]
+  #      [common:]  #any values common to all providers
+  # A test environment
+- environment: &rackspace-legacy-cloud-test
+    name: Legacy Cloud Servers Test Environment in ORD
+    description: |
+      This environment tests legacy cloud servers. It is hard-targetted at chicago
+      because the rackcloudtech legacy servers account is in chicago
+
+    # The idea behind providers is that the environment can be configured to use different providers for different types of resources
+    # For example, we could use Cloud Servers or Dedicated Servers as a compute provider.
+    # The intent is that these providers can be extracted automatically from the service catalog when authenticating, but including providers here
+    # means we can pre-determine or hard-code them if we want to.
+    providers:
+      'chef-local': &configurator  # MORE THOUGHT needed...
+        vendor: 'opscode'
+        provides:
+        - 'application': http
+        - 'database': mysql
+
+        #SAMPLE DATA: only showing this as demo. These get pulled in real time from providers
+        # The catalog is what is available using the env/provider//catalog call.
+        # but does not actually need to be populated
+        # resource types available
+        #catalog:
+
+          #PROTOTYPING: do we need to add other lists (not just resource templates)?
+          #'application': #This is the resource type
+            #'wordpress': *wordpress1 # This is a list of resources types (flavors) available of that type
+      'legacy': &rax-cloud-servers-slice
+        vendor: 'rackspace'
+        provides:
+        - 'compute': linux
+        - 'compute': windows
+
+        #SAMPLE DATA: used for:
+        # - easy viewing in this file
+        # - used by tests that call this file (so they don't have to call the provider)
+        # If not provided in this file, this is pulled in real time from the provider
+        catalog:
+          compute:
+            linux_instance:
+              id: linux_instance
+              is: compute
+              provides:
+              - compute: linux
+            windows_instance:
+              id: windows_instance
+              is: compute
+              provides:
+              - compute: windows
+          lists:
+            images:
+              73487664:
+                name: my_custom_image
+            sizes:
+              '1':
+                disk: 10
+                name: 256 server
+                memory: 256
+              '2':
+                disk: 20
+                name: 512 server
+                memory: 512
+              '3':
+                disk: 40
+                name: 1GB server
+                memory: 1024
+              '4':
+                disk: 80
+                name: 2GB server
+                memory: 2048
+              '5':
+                disk: 160
+                name: 4GB server
+                memory: 4096
+              '6':
+                disk: 320
+                name: 8GB server
+                memory: 8192
+              '7':
+                disk: 620
+                name: 15.5GB server
+                memory: 15872
+              '8':
+                disk: 1200
+                name: 30GB server
+                memory: 30720
+            types:
+              '24':
+                name: Windows Server 2008 SP2 (64-bit)
+                os: Windows Server 2008 SP2 (64-bit)
+              '31':
+                name: Windows Server 2008 SP2 (32-bit)
+                os: Windows Server 2008 SP2 (32-bit)
+              '56':
+                name: Windows Server 2008 SP2 (32-bit) + SQL Server 2008 R2 Standard
+                os: Windows Server 2008 SP2 (32-bit) + SQL Server 2008 R2 Standard
+              '115':
+                name: Ubuntu 11.04
+                os: Ubuntu 11.04
+              '116':
+                name: Fedora 15
+                os: Fedora 15
+              '118':
+                name: CentOS 6.0
+                os: CentOS 6.0
+              '119':
+                name: Ubuntu 11.10
+                os: Ubuntu 11.10
+              '120':
+                name: Fedora 16
+                os: Fedora 16
+              '121':
+                name: CentOS 5.8
+                os: CentOS 5.8
+              '122':
+                name: CentOS 6.2
+                os: CentOS 6.2
+              '125':
+                name: Ubuntu 12.04 LTS
+                os: Ubuntu 12.04 LTS
+              '126':
+                name: Fedora 17
+                os: Fedora 17
+
+      'load-balancer': &rax-lbaas
+        vendor: 'rackspace'
+        provides:
+        - 'load-balancer': http
+
+        #SAMPLE DATA: used for:
+        # - easy viewing in this file
+        # - used by tests that call this file (so they don't have to call the provider)
+        # If not provided in this file, this is pulled in real time from the provider
+        catalog:
+          lists:
+            regions:
+              DFW: https://dfw.loadbalancers.api.rackspacecloud.com/v1.0/${CHECKMATE_CLIENT_TENANT}
+              ORD: https://ord.loadbalancers.api.rackspacecloud.com/v1.0/${CHECKMATE_CLIENT_TENANT}
+          load-balancer:
+            http:
+              id: http
+              is: load-balancer
+              options: *id001
+              provides:
+              - load-balancer: http
+            https:
+              id: https
+              is: load-balancer
+              options: *id001
+              provides:
+              - load-balancer: https
+
+        #PROTOTYPING: can we provide override values here (like region or endpoint?)
+        'endpoint': https://lbaas.api.rackpsacecloud.com/loadbalancers/${CHECKMATE_CLIENT_TENANT}
+      'database': &rax-dbaas
+        vendor: 'rackspace'
+        provides:
+        - 'database': mysql
+        - 'compute': mysql
+
+        #SAMPLE DATA: used for:
+        # - easy viewing in this file
+        # - used by tests that call this file (so they don't have to call the provider)
+        # If not provided in this file, this is pulled in real time from the provider
+        catalog:
+          compute:
+            mysql_instance:
+              id: mysql_instance
+              is: compute
+              options:
+                disk:
+                  choice:
+                  - 1
+                  - 2
+                  - 3
+                  - 4
+                  - 5
+                  - 6
+                  - 7
+                  - 8
+                  - 9
+                  - 10
+                  type: int
+                  unit: Gb
+                memory:
+                  choice:
+                  - 512
+                  - 1024
+                  - 2048
+                  - 4096
+                  type: int
+                  unit: Mb
+              provides:
+              - compute: mysql
+          database:
+            mysql_database:
+              id: mysql_database
+              is: database
+              provides:
+              - database: mysql
+              requires:
+              - compute:
+                  relation: host
+                  interface: mysql
+          lists:
+            regions:
+              DFW: https://dfw.databases.api.rackspacecloud.com/v1.0/557366
+              ORD: https://ord.databases.api.rackspacecloud.com/v1.0/557366
+            sizes:
+              '1':
+                memory: 512
+                name: m1.tiny
+              '2':
+                memory: 1024
+                name: m1.small
+              '3':
+                memory: 2048
+                name: m1.medium
+              '4':
+                memory: 4096
+                name: m1.large
+
+      common:
+        vendor: rackspace
+
+        #PROVISIONAL: do we need these? Or should we use the live token (what about deserializing a workflow?)
+        #credentials:
+        #- rackspace:
+        #  username: ${CHECKMATE_CLIENT_USERNAME}
+        #  apikey: ${CHECKMATE_CLIENT_APIKEY}
+        #- ssh:
+        #  public_key: =generate_public_key() # function not yet supported
+        #PROTOTYPING:
+        constraints:
+        - region: chicago
+
+- also: # just examples
+  - blueprint: &wp
+      name: Simple Wordpress
+      services:
+        "wordpress":
+          components: *wordpress1 #Reference in local file
+          exposed: true
+          open-ports: [80/tcp]
+          relations: {"db": mysql}
+        "db": #TODO: remove hard coding against this name. Thinak about what these names mean. These are basically tiers...
+          components: *mysql  #TODO: support local (same server) and remote links like local://components/mysql
+
+    #TBD: toying with the idea of inheriting blueprints and overriding settings or applying constraints
+  - blueprint: &wp1
+      <<: *wp #inherit all values from wp
+      # override inherited values
+      name: OneBox Wordpress
+      # and add constraints
+      constraint:
+        'instance-count': 1
+  - blueprint: &wp-with-varnish
+      <<: *wp-multi
+      # override values
+      name: Super-fast Wordpress
+      services:
+        "wordpress":
+          components: *wordpress1
+
+
+#### Deployment
+
+# Actual deployment instances. These are our live, running systems
+# Design notes on options:
+# - we don't set them in the blueprint or environment so we can reference those (read only)
+# - we don't use paths for options (use a hierachy) so we don't have to parse the key values
+# - therefore, we provide options selected under 'inputs' as a hierarchy that mirrors the blueprint or environment
+name: My WordPress by Checkmate
+blueprint: *wp-multi
+environment: *rackspace-legacy-cloud-test
+inputs: # Answers to or values for blueprint/provider options & settings.
+  # Provide an additional public key to be added to all hosts
+  client_public_key_ssh: ${CHECKMATE_CLIENT_PUBLIC_KEY}
+  # Optionally specify an environment private key
+  environment_private_key: =generate_private_key()  # Optional, since default is to generate one. This will also write to public_key and public_key_ssh
+  blueprint:
+    "prefix": CM-BLOG
+    "domain": ${CHECKMATE_CLIENT_DOMAIN}
+    "path": '/blog'
+    "username": ${USER}
+    "password":
+    "ssl": required  # no port 80
+    "ssl_certificate": skldjfhalkjsdfhasd
+    "ssl_private_key": asdfasdfasdf
+    "region": ${CHECKMATE_CLIENT_REGION}
+    "high-availability": false
+    "requests-per-second": 60
+  services:
+    "backend":
+      'database':
+        'memory': 512 Mb
+    "web":
+      'compute':
+        'memory': 512 Mb
+      'application':
+        'count': 1
+  providers:
+    'legacy':
+      'compute':
+        'os': Ubuntu 11.10
+
+#### For sample Output, see simulator.json in tests directory
+
+#
+# This documentation written to generate HTML by Docco.
+# To regenerate and preview:
+#
+#     docco app.yaml && open docs/app.html
+
