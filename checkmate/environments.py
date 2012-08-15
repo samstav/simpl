@@ -163,7 +163,9 @@ def get_component(environment_id, provider_id, component_id, tenant_id=None):
     entity = db.get_environment(environment_id, with_secrets=True)
     if not entity:
         abort(404, 'No environment with id %s' % environment_id)
+    print "ENTITY: %s" % entity
     environment = Environment(entity)
+    print "ENVIRONMENT: %s" % environment
     try:
         provider = environment.get_provider(provider_id)
     except KeyError:
@@ -265,6 +267,8 @@ class Environment():
           interface: http
         - id: component_id
         """
+	print "BLUEPRINT: %s " % blueprint_entry
+	print "ENVIRONMENT.CONTEXT: %s " % context
         resource_type = blueprint_entry.get('type')
         interface = blueprint_entry.get('interface')
         for provider in self.get_providers(context).values():
@@ -281,7 +285,7 @@ class Environment():
                     matches = provider.find_components(context, **params)
             else:
                 matches = provider.find_components(context, **blueprint_entry)
-
+	    print "MATCHES: %s" % matches
             if matches:
                 if len(matches) == 1:
                     return Component(matches[0], provider=provider)

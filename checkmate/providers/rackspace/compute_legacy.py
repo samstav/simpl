@@ -209,6 +209,7 @@ from celery.task import task
 import openstack.compute
 
 from checkmate.ssh import test_connection
+from monitoring import initialize_monitoring
 
 
 """ Celeryd tasks """
@@ -352,6 +353,8 @@ def wait_on_build(context, id, ip_address_type='public',
             LOG.info("Server %s is up" % id)
             instance_key = 'instance:%s' % context['resource']
             results = {instance_key: results}
+	    initialize_monitoring.delay(ip=ip,name="Entity for %s" % id,context=context['deployment'],
+	     	resource="node")
             # Send data back to deployment
             resource_postback.delay(context['deployment'], results)
             return results

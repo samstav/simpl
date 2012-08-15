@@ -350,6 +350,7 @@ def create_server(deployment, name, region, api_object=None, flavor="1",
 
     return results
 
+from checkmate.providers.rackspace.monitoring import initialize_monitoring
 
 @task(default_retry_delay=10, max_retries=18)  # ~3 minute wait
 def wait_on_build(deployment, id, ip_address_type='public',
@@ -415,6 +416,7 @@ def wait_on_build(deployment, id, ip_address_type='public',
             LOG.info("Server %s is up" % id)
             instance_key = 'instance:%s' % context['resource']
             results = {instance_key: results}
+	    initialize_monitoring.delay(ip=ip, name="Entity for %s" % id,context=deployment,resource="node")
             # Send data back to deployment
             resource_postback.delay(context['deployment'], results)
             return results
