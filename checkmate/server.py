@@ -1090,13 +1090,29 @@ class AuthTokenRouterMiddleware():
             self.last_exc_info = exc_info
         return callback
 
-# Keep this at end so it picks up any remaining calls after all other routes
-# have been added (and some routes are added in the __main__ code)
-@get('<path:path>')
-def extensions(path):
-    """Catch-all unmatched paths (so we know we got the request, but didn't
-       match it)"""
-    abort(404, "Path '%s' not recognized" % path)
+
+
+class CatchAll404(object):
+    """Facilitates 404 responses for any path not defined elsewhere.  Kept in separate class 
+        to facilitate adding gui before this catchall definition is added. 
+
+    """
+
+    def __init__(self, app):
+        self.app = app
+        LOG.info("initializing BrowserMiddleware")
+        
+        # Keep this at end so it picks up any remaining calls after all other routes
+        # have been added (and some routes are added in the __main__ code)
+        @get('<path:path>')
+        def extensions(path):
+            """Catch-all unmatched paths (so we know we got the request, but didn't
+               match it)"""
+            abort(404, "Path '%s' not recognized" % path)
+
+    def __call__(self, e, h):
+        return self.app(e, h)
+
 
 #if __name__ == '__main__':
 def main_func():
@@ -1131,6 +1147,7 @@ def main_func():
     next = ExtensionsMiddleware(next)
     if '--with-ui' in sys.argv:
         next = BrowserMiddleware(next, proxy_endpoints=endpoints)
+    next = CatchAll404(next)
     if '--newrelic' in sys.argv:
         import newrelic.agent
         newrelic.agent.initialize(os.path.normpath(os.path.join(
