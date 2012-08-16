@@ -4,58 +4,65 @@ checkmate.config(['$routeProvider', '$locationProvider', '$httpProvider', functi
   // Static Paths
   $routeProvider.
   when('/', {
-    templateUrl: '/ui/partials/home.html',
+    templateUrl: '/static/ui/partials/home.html',
     controller: StaticController
   }).
-  when('/ui', {
-    templateUrl: '/ui/partials/readme.html',
+  when('/readme', {
+    templateUrl: '/static/ui/partials/readme.html',
     controller: StaticController
   }).
   when('/ui/build', {
-    templateUrl: '/ui/partials/calculator.html',
+    templateUrl: '/static/ui/partials/calculator.html',
     controller: StaticController
   })
 
   // Legacy Paths
   $routeProvider.
-  when('/ui/environments', {
+  when('/:tenantId/environments', {
     controller: LegacyController,
     template:'<section class="entries" ng-include="templateUrl">Loading...</section>'
   }).
-  when('/ui/environments/:id', {
+  when('/:tenantId/environments/:id', {
     controller: LegacyController,
     template:'<section class="entries" ng-include="templateUrl">Loading...</section>'
   }).
-  when('/ui/workflows', {
+  when('/:tenantId/deployments', {
     controller: LegacyController,
     template:'<section class="entries" ng-include="templateUrl">Loading...</section>'
   }).
-  when('/ui/blueprints', {
+  when('/:tenantId/deployments/:id', {
     controller: LegacyController,
     template:'<section class="entries" ng-include="templateUrl">Loading...</section>'
   }).
-  when('/ui/deployments', {
+  when('/:tenantId/blueprints', {
+    controller: LegacyController,
+    template:'<section class="entries" ng-include="templateUrl">Loading...</section>'
+  }).
+  when('/:tenantId/workflows', {
     controller: LegacyController,
     template:'<section class="entries" ng-include="templateUrl">Loading...</section>'
   })
   
-  // New UI
+  // New UI - static pages
   $routeProvider.
-  when('/ui/deployments/default', {
-    templateUrl: '/ui/partials/deployment-new.html',
+  when('/deployments/default', {
+    templateUrl: '/static/ui/partials/deployment-new.html',
     controller: DeploymentTryController
   }).
-  when('/ui/workflows/:id', {
-    templateUrl: '/ui/partials/level2.html',
-    controller: WorkflowController
-  }).
-  when('/ui/blueprints/:id', {
-    templateUrl: '/ui/partials/level2.html',
-    controller: BlueprintListController
-  }).
-  when('/ui/deployments/new', {
+  when('/deployments/new', {
     templateUrl: '/static/angular/partials/deployment-new.html',
     controller: DeploymentNewController
+  })
+
+  // New UI - dynamic, tenant pages
+  $routeProvider.
+  when('/:tenantId/workflows/:id', {
+    templateUrl: '/static/ui/partials/level2.html',
+    controller: WorkflowController
+  }).
+  when('/:tenantId/blueprints/:id', {
+    templateUrl: '/static/ui/partials/level2.html',
+    controller: BlueprintListController
   }).
   otherwise({});  //normal browsing
   
@@ -82,19 +89,28 @@ Scope variables that control the Checkmate UI:
 
 */
 
+//Loads static content
 function StaticController($scope) {
   $scope.showHeader = false;
   $scope.showStatus = false;
 }
 
-function LegacyController($scope, $location) {
+//Loads the old ui (rendered at the server)
+function LegacyController($scope, $location, $routeParams) {
   $scope.showHeader = false;
   $scope.showStatus = false;
-  path = '/' + $scope.$parent.auth.tenantId + $location.path().substr(3) + '.html';
-  console.log(path);
+  console.log($routeParams)
+  console.log(('tenantId' in $routeParams))
+
+  if ('tenantId' in $routeParams) {
+    path = $location.path() + '.html';
+  } else
+    path = '/' + $scope.$parent.auth.tenantId + $location.path() + '.html';
+  console.log($location.path(), path);
   $scope.templateUrl = path;
 }
 
+// Root controller that implements authentication
 function AppController($scope, $http, $cookieStore, $location) {
   $scope.showHeader = true;
   $scope.showStatus = false;
@@ -237,6 +253,7 @@ function AppController($scope, $http, $cookieStore, $location) {
   }
 }
 
+//Not really used now
 function NavBarController() {
 
 }
