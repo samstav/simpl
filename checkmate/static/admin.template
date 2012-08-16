@@ -1,265 +1,39 @@
 {% extends "default.template" %}
-{% block title %}Checkmate - Workflow{% endblock %}
+{% block title %}Checkmate - API Wrapper{% endblock %}
 {% block content %}
-
-<div class="span9">
-    <div class="page-header">
-      <h1>New Managed Cloud WordPress Deployment</h1>
+<div class="container">
+  <div class="row span12">
+  <div class="hero-unit">
+    <div>
+      <img alt="Checkmate Logo" id="logo" src="/static/img/checkmate.png">
+      <h1>Welcome to Checkmate!</h1>
     </div>
+    <div style="clear:both"></div>
     <p>
-      Create a multi-server WordPress deployment on any cloud account using the Chef cookbooks created by the Managed Cloud team.
-    </p>
-    <hr/>
-    <h2>Deployment Parameters</h2>
-    <form accept-charset="UTF-8" action="deployments" class="form-horizontal" id="inputs-form" method="post">
-
-      <table class="table">
-        <thead>
-          <th>protocol</th>
-          <th>domain</th>
-          <th>path</th>
-        </thead>
-        <tbody>
-          <tr>
-            <td>ssl</td>
-            <td>
-            <input class="input-xlarge" id="domain" name="domain" type="text" />
-            <p class="help-block">Enter the domain you want to use.</p>
-          </td>
-            <td>/</td>
-          </tr>
-        </tbody>
-      </table>
-
-
-      <div class="control-group">
-        <label class="control-label" for="domain">Domain</label>
-        <div class="controls">
-          <input class="input-xlarge" id="domain" name="domain" type="text" />
-          <p class="help-block">Enter the domain you want to use.</p>
-        </div>
-      </div>
-
-      <fieldset>
-        <div class="control-group">
-          <label class="control-label" for="wordpress:machine_count">Web Servers</label>
-          <div class="controls"><input class="span2" id="wordpress:machine/count" name="1" size="16" type="number" value="2"></input></div>
-        </div>
-        <div class="control-group">
-          <label class="control-label" for="wordpress:machine_flavor">Web Server RAM (MB)</label>
-          <div class="controls"><select id="wordpress:machine/flavor" name="2" class="span3"><option value="1">256 MB</option><option value="2">512 MB</option><option value="3">1024 MB</option><option value="4">2048 MB</option><option value="5">4096 MB</option><option value="6">8192 MB</option><option value="7">30720 MB</option></select></div>
-        </div>
-        <div class="control-group">
-          <label class="control-label" for="ssl">Enable SSL</label>
-          <div class="controls"><label class="checkbox"><input type="checkbox" id="ssl" name="3" value="true"></input>&nbsp;</label></div>
-        </div>
-        <div class="control-group">
-          <label class="control-label" for="region">Region</label>
-          <div class="controls"><select id="region" name="4" class="span3"><option value="DFW">DFW</option><option value="ORD">ORD</option></select></div>
-        </div>
-        <div class="control-group">
-          <label class="control-label" for="database:machine_flavor">Database RAM (MB)</label>
-          <div class="controls"><select id="database:machine/flavor" name="5" class="span3"><option value="1">256 MB</option><option value="2">512 MB</option><option value="3">1024 MB</option><option value="4">2048 MB</option><option value="5">4096 MB</option><option value="6">8192 MB</option><option value="7">30720 MB</option></select></div>
-        </div>
-
-    </fieldset>
-    <p id="launch_button">
-      <button class="btn btn-primary btn-large" name="button" type="submit">Generate Configuration</button>
+      You cannot create new objects from this interface. If you're looking for friendly user interface, please click <a href="/">here</a>.
     </p>
 
-    </form>
-</div>
-<div class="hidden">
-    
-
-      
-      <form accept-charset="UTF-8" action="/configurations" class="form-horizontal" id="questions-form" method="post">
-        <div style="margin:0;padding:0;display:inline">
-          <input name="utf8" type="hidden" value="&#x2713;" />
-          <input name="authenticity_token" type="hidden" value="uLobf0vQqNemDPpKoIkIAhL/3e6eybVDb3M05RDBLLQ=" />
-        </div>
-        <input id="template_id" name="template_id" type="hidden" value="1" />
-
-
-        <ul id="myTab" class="nav nav-tabs">
-          <li class="active"><a href="#common" data-toggle="tab">Common</a></li>
-          <li><a href="#advanced" data-toggle="tab">Advanced</a></li>
+    <p>
+      This is a sessionless html wrapper on top of the REST API. It is intended as a raw, browser-friendly interface for advanced users. If no HTML template exists, the API response will be shown in raw format.
+    </p>
+    <p>
+        There are a number of interfaces being worked on:
+        <ul>
+            <li>Newest User Interface (but not all functions have been ported): <a href="/ui">/ui</a></li>
+            <li>Alternate Interface (with some extra features): <a href="/static/angular/index.html">/static/angular/index.html</a></li>
+            <li>Old v0.1 server interface: <a href="http://checkmate-n01.dev.ord1.ci.rackspace.net/users/sign_in">http://checkmate-n01.dev.ord1.ci.rackspace.net/users/sign_in</a></li>
+            <li>YAML syntax reference: <a href="/static/docs/app.html">/static/docs/app.html</a></li>
         </ul>
-        <div id="myTabContent" class="tab-content">
-          <div class="tab-pane fade in active" id="common">
-            <div class="row" id="customer-questions">
-              <table class="table table-striped">
-                <thead>
-                  <tr>
-                    <th style="width: 5%;"></th>
-                    <th style="width: 10%;">Name</th>
-                    <th style="width: 75%;">Description</th>
-                    <th style="width: 10%;">Price</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr id="single-box">
-                    <td><span class="badge">Good</span></td>
-                    <td>Single Box</td>
-                    <td>
-                      This configuration is appropriate for a simple installations without strong
-                      load requirements. It is the cheapest option, but will require additional
-                      work to scale.
-                    </td>
-                    <td>
-                      <a href="#" rel="tooltip" title="A single 2GB compute instance to hold everything.">
-                        $87.60/mo
-                      </a>
-                    </td>
-                  </tr>
-                  <tr id="pre-prod">
-                    <td><span class="badge badge-inverse">Better</span></td>
-                    <td>Pre-Production</td>
-                    <td>
-                      This configuration is set up to scale while only provisioning the minimum amount
-                      of resources. It is appropriate for customers without known load requirements or
-                      those that are testing out various options before launching.
-                    </td>
-                    <td>
-                      <a href="#" rel="tooltip" title="2 2GB Web Servers, Load Balancer and 1 2GB Database Server.">
-                        $273.81/mo
-                      </a>
-                    </td>
-                  </tr>
-                  <tr id="full-deployment">
-                    <td><span class="badge badge-success">Best</span></td>
-                    <td>Full Deployment</td>
-                    <td>
-                      This configuration is set up to scale and pre-provisioned with a set of hardware.
-                      It is appropriate for customers that have a good idea of the load they need to
-                      hold as well as the timing of that load.
-                    </td>
-                    <td>
-                      <a href="#" rel="tooltip" title="3 2GB Web Servers, 1 Load Balancer, 1 2GB Cache Server and 2 4GB Database Servers.">
-                        $799.41/mo
-                      </a>
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-          </div>
-          <div class="tab-pane fade" id="advanced">
-              
-          </div>
-        </div>
-  </form>
+    </p>
 
-<fieldset ng-hide="showSettings()" style="">
-        <legend>Settings</legend>        
-        <!-- ngRepeat: setting in settings --><div class="control-group ng-isolate-scope ng-scope" ng-repeat="setting in settings" compile-html="renderSetting(setting)"><label class="control-label capitalize  ng-scope" for="ssl_certificate">SSL Certificate</label><span class="ng-scope">
-    </span><div class="controls ng-scope">
-      <input type="text" class="input-xlarge ng-model ng-pristine ng-valid" id="ssl_certificate" ng-model="answers['ssl_certificate']">
-      <p class="help-block">SSL certificate in PEM format. Make sure to include the BEGIN and END certificate lines.</p>
-    </div></div><div class="control-group ng-isolate-scope ng-scope" ng-repeat="setting in settings" compile-html="renderSetting(setting)"><label class="control-label capitalize  ng-scope" for="domain">Domain</label><span class="ng-scope">
-    </span><div class="controls ng-scope">
-      <input type="text" class="input-xlarge ng-model ng-pristine ng-valid" id="domain" ng-model="answers['domain']">
-      <p class="help-block">The domain you wish to host your blog on. (ex: example.com)</p>
-    </div></div><div class="control-group ng-isolate-scope ng-scope" ng-repeat="setting in settings" compile-html="renderSetting(setting)"><label class="control-label capitalize  ng-scope" for="database_memory">Database Size</label><span class="ng-scope">
-    </span><div class="controls ng-scope">
-      <select id="database_memory" ng-model="answers['database_memory']" ng-options="o.name for o in setting.options" class="ng-pristine ng-valid"><option value="" selected="selected"></option><option value="0">512 Mb</option><option value="1">1024 Mb</option><option value="2">2048 Mb</option><option value="3">4096 Mb</option></select>
-    </div></div><div class="control-group ng-isolate-scope ng-scope" ng-repeat="setting in settings" compile-html="renderSetting(setting)"><label class="control-label capitalize  ng-scope" for="secure">secure</label><span class="ng-scope">
-    </span><div class="controls ng-scope">
-      <label class="checkbox">      
-        <input type="checkbox" class="input-xlarge ng-pristine ng-valid" id="secure" ng-model="answers['secure']">
-        Make this a hardened deployment (you lose some flexibility)
-      </label>
-    </div></div><div class="control-group ng-isolate-scope ng-scope" ng-repeat="setting in settings" compile-html="renderSetting(setting)"><label class="control-label capitalize required ng-scope" for="region">Region</label><span class="ng-scope">
-    </span><div class="controls ng-scope">
-      <select id="region" ng-model="answers['region']" required="" ng-options="o.name for o in setting.options" class="ng-pristine ng-invalid ng-invalid-required"><option value="" selected="selected"></option></select>
-    </div></div><div class="control-group ng-isolate-scope ng-scope" ng-repeat="setting in settings" compile-html="renderSetting(setting)"><label class="control-label capitalize  ng-scope" for="web_server_size">Web Server Size</label><span class="ng-scope">
-    </span><div class="controls ng-scope">
-      <select id="web_server_size" ng-model="answers['web_server_size']" ng-options="o.name for o in setting.options" class="ng-pristine ng-valid"><option value="" selected="selected"></option><option value="0">256 Mb</option><option value="1">512 Mb</option><option value="2">1 Gb</option></select>
-    </div></div><div class="control-group ng-isolate-scope ng-scope" ng-repeat="setting in settings" compile-html="renderSetting(setting)"><label class="control-label capitalize  ng-scope" for="web_server_count">Number of Web Servers</label><span class="ng-scope">
-    </span><div class="controls ng-scope">
-      <input type="number" class="input-small ng-valid ng-valid-number ng-dirty" id="web_server_count" ng-model="answers['web_server_count']" value="2">
-      <p class="help-block">The number of WordPress servers (minimum two).</p>
-    </div></div><div class="control-group ng-isolate-scope ng-scope" ng-repeat="setting in settings" compile-html="renderSetting(setting)"><label class="control-label capitalize  ng-scope" for="varnish">Varnish Caching</label><span class="ng-scope">
-    </span><div class="controls ng-scope">
-      <label class="checkbox">      
-        <input type="checkbox" class="input-xlarge ng-valid ng-dirty" id="varnish" ng-model="answers['varnish']">
-        
-      </label>
-    </div></div><div class="control-group ng-isolate-scope ng-scope" ng-repeat="setting in settings" compile-html="renderSetting(setting)"><em class="ng-scope">No template for setting type 'int'.</em></div><div class="control-group ng-isolate-scope ng-scope" ng-repeat="setting in settings" compile-html="renderSetting(setting)"><label class="control-label capitalize  ng-scope" for="ssl">SSL Enabled</label><span class="ng-scope">
-    </span><div class="controls ng-scope">
-      <label class="checkbox">      
-        <input type="checkbox" class="input-xlarge ng-pristine ng-valid" id="ssl" ng-model="answers['ssl']">
-        Use SSL to encrypt web traffic.
-      </label>
-    </div></div><div class="control-group ng-isolate-scope ng-scope" ng-repeat="setting in settings" compile-html="renderSetting(setting)"><label class="control-label capitalize required ng-scope" for="prefix">Prefix</label><span class="ng-scope">
-    </span><div class="controls ng-scope">
-      <input type="text" class="input-xlarge ng-model ng-pristine ng-invalid ng-invalid-required" id="prefix" ng-model="answers['prefix']" required="" value="wp">
-      <p class="help-block">The application ID (and wordpress table prefix).</p>
-    </div></div><div class="control-group ng-isolate-scope ng-scope" ng-repeat="setting in settings" compile-html="renderSetting(setting)"><label class="control-label capitalize  ng-scope" for="ssl_private_key">SSL Certificate Private Key</label><span class="ng-scope">
-    </span><div class="controls ng-scope">
-      <input type="text" class="input-xlarge ng-model ng-pristine ng-valid" id="ssl_private_key" ng-model="answers['ssl_private_key']">
-      
-    </div></div><div class="control-group ng-isolate-scope ng-scope" ng-repeat="setting in settings" compile-html="renderSetting(setting)"><label class="control-label capitalize  ng-scope" for="path">Path</label><span class="ng-scope">
-    </span><div class="controls ng-scope">
-      <input type="text" class="input-xlarge ng-model ng-pristine ng-valid" id="path" ng-model="answers['path']" value="/">
-      <p class="help-block">The path you wish to host your blog on under your domain. (ex: /blog)</p>
-    </div></div><div class="control-group ng-isolate-scope ng-scope" ng-repeat="setting in settings" compile-html="renderSetting(setting)"><em class="ng-scope">No template for setting type 'uri'.</em></div><div class="control-group ng-isolate-scope ng-scope" ng-repeat="setting in settings" compile-html="renderSetting(setting)"><label class="control-label capitalize  ng-scope" for="os">Operating System</label><span class="ng-scope">
-    </span><div class="controls ng-scope">
-      <select id="os" ng-model="answers['os']" ng-options="o.name for o in setting.options" class="ng-pristine ng-valid"><option value="" selected="selected"></option><option value="0"></option><option value="1"></option><option value="2"></option><option value="3"></option></select>
-    </div></div><div class="control-group ng-isolate-scope ng-scope" ng-repeat="setting in settings" compile-html="renderSetting(setting)"><label class="control-label capitalize  ng-scope" for="register-dns">Register DNS Name</label><span class="ng-scope">
-    </span><div class="controls ng-scope">
-      <label class="checkbox">      
-        <input type="checkbox" class="input-xlarge ng-pristine ng-valid" id="register-dns" ng-model="answers['register-dns']">
-        
-      </label>
-    </div></div><div class="control-group ng-isolate-scope ng-scope" ng-repeat="setting in settings" compile-html="renderSetting(setting)"><label class="control-label capitalize  ng-scope" for="high_availability">High Availability</label><span class="ng-scope">
-    </span><div class="controls ng-scope">
-      <label class="checkbox">      
-        <input type="checkbox" class="input-xlarge ng-pristine ng-valid" id="high_availability" ng-model="answers['high_availability']">
-        Insures your blog has higher uptimes by using redundant hardware (e.g. multuple servers)
-      </label>
-    </div></div>
-
-        <div class="form-actions">
-          <button ng-click="submit(false)" class="btn btn-primary">Build It!</button>
-          <button ng-click="submit(true)" class="btn">Simulate</button>
-        </div>
-      </fieldset>
-
+  </div>
 </div>
-</script>
-  <script type="text/javascript">
-    $(document).ready(function() {
-      $('#template-1').addClass('active');
 
-      $('#single-box').click(function() {
-        $('#wordpress\\:machine\\/count').val(1);
-        $('#wordpress\\:machine\\/flavor').val(3);
-        $('#region').val('ORD');
-        $('#myTab a[href="#advanced"]').tab('show');
-      });
+  <hr>
 
-      $('#pre-prod').click(function() {
-        $('#wordpress\\:machine\\/count').val(2);
-        $('#wordpress\\:machine\\/flavor').val(4);
-        $('#region').val('ORD');
-        $('#myTab a[href="#advanced"]').tab('show');
-      });
+  <footer>
+    <p>&copy; Rackspace Hosting 2012</p>
+  </footer>
+</div>
 
-
-      $('#full-deployment').click(function() {
-        $('#wordpress\\:machine\\/count').val(3);
-        $('#wordpress\\:machine\\/flavor').val(4);
-        $('#region').val('ORD');
-        $('#myTab a[href="#advanced"]').tab('show');
-      });
-
-    });
-  </script>
-
-<script>
-  jQuery(document).ready(function() {
-    jQuery("abbr.timeago").timeago();
-  });
-</script>
 {% endblock %}

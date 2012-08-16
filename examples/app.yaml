@@ -9,7 +9,7 @@
 #
 #### Field names
 #
-# YAML supports key values with or without quoteation marks around them. In order
+# YAML supports key values with or without quotation marks around them. In order
 # to differentiate between values that are strictly defined in the schema for the
 # YAML and fields that are user-determined, I've wrapped all user-determined keys
 # in quotes. You are free to rename any of these values.
@@ -28,12 +28,12 @@
 # mysql and linux are names specified by the underlying providers.
 #
 # Note: YAML does not escape stings in single quotes. There may be some field values with
-# characters that need escaping. Those migt be wrapped in single quotes, but they are not
+# characters that need escaping. Those might be wrapped in single quotes, but they are not
 # defined strictly. They are exceptions to this rule.
 #
 #### Variables
 #
-# ${VARIABLE} entries are designe to be replaced by with your local environment variables
+# ${VARIABLE} entries are designed to be replaced by with your local environment variables
 # before posting it to checkmate. This command does that:
 #
 #     awk '{while(match($0,"[$][\\{][^\\}]*\\}")) {var=substr($0,RSTART+2,RLENGTH -3);gsub("[$][{]"var"[}]",ENVIRON[var])}}1' < app.yaml
@@ -42,7 +42,7 @@
 #
 #     CHECKMATE_CLIENT_TENANT=$(curl -H "X-Auth-User: ${CHECKMATE_CLIENT_USERNAME}" -H "X-Auth-Key: ${CHECKMATE_CLIENT_APIKEY}" -I https://identity.api.rackspacecloud.com/v1.0 -v 2> /dev/null | grep "X-Server-Management-Url" | grep -P -o $'(?!.*/).+$'| tr -d '\r') && CHECKMATE_CLIENT_TOKEN=$(curl -H "X-Auth-User: ${CHECKMATE_CLIENT_USERNAME}" -H "X-Auth-Key: ${CHECKMATE_CLIENT_APIKEY}" -I https://identity.api.rackspacecloud.com/v1.0 -v 2> /dev/null | grep "X-Auth-Token:" | awk '/^X-Auth-Token:/ { print $2 }') && awk '{while(match($0,"[$][\\{][^\\}]*\\}")) {var=substr($0,RSTART+2,RLENGTH -3);gsub("[$][{]"var"[}]",ENVIRON[var])}}1' < examples/app.yaml | curl -H "X-Auth-Token: ${CHECKMATE_CLIENT_TOKEN}" -H 'content-type: application/x-yaml' http://localhost:8080/${CHECKMATE_CLIENT_TENANT}/deployments/simulate -v --data-binary @-
 #
-# Note: the deployments/simulate URL is used for testing and does not persist anythoing on the server. The deployment resides in memory at the deployments/simulate
+# Note: the deployments/simulate URL is used for testing and does not persist anything on the server. The deployment resides in memory at the deployments/simulate
 #       URL (i.e. simulate is a fake ID)
 #
 #### Deployment
@@ -93,7 +93,7 @@
 # This is an allowed item on the root so that objects can be placed here and referenced in from the deployment.
 includes:
 #Definitions of components/services used in this file
-#THOUGHTS: these should come from providers. But there should be generik, well-known names like 'wordpress' that are used in blueprints.
+#THOUGHTS: these should come from providers. But there should be generic, well-known names like 'wordpress' that are used in blueprints.
 - components: #Items under here are referenced by the blueprints below.
   # the name of the component and an optional anchor (any unique name preceded by &) which
   # can be used to reference it from elsewhere in the file
@@ -154,98 +154,98 @@ includes:
       checksum:
         default: 7342627f4a3dca44886c5aca6834cc88671dbd3aa2760182d2fcb9a330807
         description: Checksum of the tarball for the version specified.
-        label: Wordpress tarball checksum
+        label: WordPress tarball checksum
         required: optional
         source_field_name: wordpress/checksum
         type: string
       database/database:
         default: wordpressdb
-        description: Wordpress will use this MySQL database to store its data.
-        label: Wordpress MySQL database
+        description: WordPress will use this MySQL database to store its data.
+        label: WordPress MySQL database
         required: optional
         source_field_name: wordpress/db/database
         type: string
       database/host:
         default: localhost
         description: MySQL database server resolvable name or TCP/IP address.
-        label: Wordpress MySQL Database Host
+        label: WordPress MySQL Database Host
         required: optional
         source_field_name: wordpress/db/host
         type: string
       database/password:
         default: randomly generated
-        description: Password for the Wordpress MySQL user.
-        label: Wordpress MySQL password
+        description: Password for the WordPress MySQL user.
+        label: WordPress MySQL password
         required: optional
         source_field_name: wordpress/db/password
         type: string
       database/prefix:
         default: wp_
         description: The table prefix to use for the tables created for wordpress.
-        label: Wordpress database table prefix
+        label: WordPress database table prefix
         required: optional
         source_field_name: wordpress/db/prefix
         type: string
       database/username:
         default: wordpressuser
-        description: Wordpress will connect to MySQL using this user.
-        label: Wordpress MySQL user
+        description: WordPress will connect to MySQL using this user.
+        label: WordPress MySQL user
         required: optional
         source_field_name: wordpress/db/username
         type: string
       directory:
-        default: /var/www
+        default: /var/WWW
         description: Location to place wordpress files.
-        label: Wordpress installation directory
+        label: WordPress installation directory
         required: optional
         source_field_name: wordpress/dir
         type: string
       keys/authentication:
         default: =generate_uuid()
-        description: Wordpress auth key.
-        label: Wordpress auth key
+        description: WordPress auth key.
+        label: WordPress auth key
         required: optional
         source_field_name: wordpress/keys/auth
         type: string
       keys/logged_in:
         default: randomly generated
-        description: Wordpress logged-in key.
-        label: Wordpress logged-in key
+        description: WordPress logged-in key.
+        label: WordPress logged-in key
         required: optional
         source_field_name: wordpress/keys/logged_in
         type: string
       keys/nonce:
         default: =generate_uuid()
-        description: Wordpress nonce key.
-        label: Wordpress nonce key
+        description: WordPress nonce key.
+        label: WordPress nonce key
         required: optional
         source_field_name: wordpress/keys/nonce
         type: string
       keys/secure_authentication:
         default: =generate_uuid()
-        description: Wordpress secure auth key.
-        label: Wordpress secure auth key
+        description: WordPress secure auth key.
+        label: WordPress secure auth key
         required: optional
         source_field_name: wordpress/keys/secure_auth
         type: string
       path:
         default: /
         description: URL to use after the main domain name.
-        label: Wordpress URL path
+        label: WordPress URL path
         required: optional
         source_field_name: wordpress/path
         type: string
       server_aliases:
         default: FQDN
-        description: Wordpress Server Aliases
-        label: Wordpress Server Aliases
+        description: WordPress Server Aliases
+        label: WordPress Server Aliases
         required: optional
         source_field_name: wordpress/server_aliases
         type: string
       version:
         default: 3.0.4
-        description: Version of Wordpress to download from the Wordpress site.
-        label: Wordpress download version
+        description: Version of WordPress to download from the WordPress site.
+        label: WordPress download version
         required: optional
         source_field_name: wordpress/version
         type: string
@@ -371,7 +371,7 @@ includes:
           name: wordpress
           role: web
           options:
-          - 'wordpress/version': '3.0.4'  # fix blueprint to a predicatabl version
+          - 'wordpress/version': '3.0.4'  # fix blueprint to a predictable version
         relations:
           "master": 'http'
           #Long format example. For when we need to identify more than service & interface
@@ -386,7 +386,7 @@ includes:
         component:
           type: database
           interface: mysql
-    # A blueprint author (the architect) provides the list of parameteres for a blueprint in the
+    # A blueprint author (the architect) provides the list of parameters for a blueprint in the
     # blueprint options field.
     # Blueprints provide constraints (as architectural specs do) and they therefore override and filter
     # the underlying provider values. Options can exist in blueprints and in provider catalogs. There may be overlap.
@@ -563,7 +563,7 @@ includes:
       "high_availability": &high_availability
         type: boolean
         label: High Availability
-        description: "Insures your blog has higher uptimes by using redundant hardware (e.g. multuple servers)"
+        description: "Insures your blog has higher uptimes by using redundant hardware (e.g. multiple servers)"
       "password": &password
         type: string
         regex: xxx
@@ -604,7 +604,8 @@ includes:
     name: Legacy Cloud Servers Test Environment in ORD
     description: |
       This environment tests legacy cloud servers. It is hard-targetted at chicago
-      because the rackcloudtech legacy servers account is in chicago
+      because the our testing account's legacy servers are in chicago (there's no way
+      to detect that from the API!)
 
     # The idea behind providers is that the environment can be configured to use different providers for different types of resources
     # For example, we could use Cloud Servers or Dedicated Servers as a compute provider.
@@ -844,7 +845,7 @@ includes:
           exposed: true
           open-ports: [80/tcp]
           relations: {"db": mysql}
-        "db": #TODO: remove hard coding against this name. Thinak about what these names mean. These are basically tiers...
+        "db": #TODO: remove hard coding against this name. Think about what these names mean. These are basically tiers...
           components: *mysql  #TODO: support local (same server) and remote links like local://components/mysql
 
     #TBD: toying with the idea of inheriting blueprints and overriding settings or applying constraints
@@ -869,7 +870,7 @@ includes:
 # Actual deployment instances. These are our live, running systems
 # Design notes on options:
 # - we don't set them in the blueprint or environment so we can reference those (read only)
-# - we don't use paths for options (use a hierachy) so we don't have to parse the key values
+# - we don't use paths for options (use a hierarchy) so we don't have to parse the key values
 # - therefore, we provide options selected under 'inputs' as a hierarchy that mirrors the blueprint or environment
 name: My WordPress by Checkmate
 blueprint: *wp-multi

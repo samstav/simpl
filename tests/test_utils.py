@@ -131,6 +131,8 @@ class TestUtils(unittest.TestCase):
         self.assertTrue(utils.is_ssh_key(key))
         self.assertTrue(utils.is_ssh_key("%s /n" % key))
         self.assertTrue(utils.is_ssh_key("%s email@domain.com/n" % key))
+        key = """ssh-rsa AAAAB3NzaC1yc2EAAAABIwAAAQEA7TT1qbLElv6tuAaA3Z4tQ752ms0Y7H53yybfFioFHELkp+NRMCKh4AqtqDBFsps1vPzhcXIxn4M4IH0ip7kSx0CSrM/9Vtz8jc+UZwixJdAWwHpum68rGmCQgAsZljI24Q9u8r/hXqjwY6ukTKbC0iy82LHqhcDjh3828+9GyyxbYGm5ND/5G/ZcnHD6HM9YKmc3voz5d/nez3Adlu4I1z4Y1T3lOwOxrP2OqvIeDPvVOZJ9GDmYYRDfqK8OIHDoLAzQx8xu0cvPRDL7gYRXN8nJZ5nOh+51zdPQEl99ACZDSSwTl2biOPNtXtuaGyjB5j8r7dz93JlsN8axeD+ECQ== ziad@sawalha.com"""
+        self.assertTrue(utils.is_ssh_key(key))
 
     def test_get_source_body(self):
         source = utils.get_source_body(self.test_get_source_body)
