@@ -5,6 +5,7 @@ var services = angular.module('checkmate.services', []);
 **/
 services.factory('workflow', [function() {
 	var me = {
+		// Get all tasks from hierarchy and put them in a flat list
 		flattenTasks: function(accumulator, tree) {
 			accumulator[tree.task_spec] = tree;
 		
@@ -16,7 +17,8 @@ services.factory('workflow', [function() {
 		
 			return accumulator;
 		},
-		jitTasks: function(tasks) {
+		// Get all tasks with relationships and put them in a collection
+		parseTasks: function(tasks, specs) {
 			var jsonTasks = [];
 		
 			_.each(tasks, function(task) {
@@ -33,6 +35,7 @@ services.factory('workflow', [function() {
 			  var t = {
 				id: task.id,
 				name: task.task_spec,
+				description: specs[task.task_spec].description,
 				adjacencies: adjacencies,
 				state: task.state,
 				state_class: me.colorize(task.state),
@@ -46,6 +49,7 @@ services.factory('workflow', [function() {
 		
 			return jsonTasks;
 		},
+		// Display the workflow
 		renderWorkflow: function(container_selector, template_selector, tasks, $scope) {
 			var template = $(template_selector).html();
 			var container = $(container_selector);
@@ -72,6 +76,7 @@ services.factory('workflow', [function() {
 			  },
 			  function() {
 				$(this).removeClass('hovering');
+				jsPlumb.detachEveryConnection();
 			  }
 			);
 		},

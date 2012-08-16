@@ -32,9 +32,7 @@
         <p>
           {{blueprint.description}}
         </p>
-        <hr/>
-        <h2>Deployment Parameters</h2>
-    
+        <hr/>    
         <div class="alert alert-info" ng-cloak ng-show="!showSettings()">
           <button type="button" class="close" data-dismiss="alert">&times;</button>
           <strong>Heads up!</strong> You need to select an environment and blueprint before I can
@@ -62,34 +60,20 @@
           </fieldset>
     
           <fieldset ng-hide="!showSettings()">
-            <legend>Settings</legend>
+            <legend>Options</legend>
             <div class="control-group" ng-repeat="setting in settings" compile-html="renderSetting(setting)">
             </div>
     
             <div class="form-actions">
-              <button ng-click="submit(false)" class="btn btn-primary">Build It!</button>
-              <button ng-click="simulate()" class="btn">Simulate It</button>
+              <button ng-click="submit(false)" class="btn btn-primary" ng-disabled="!auth.loggedIn">Build It!</button>
+              <button ng-click="simulate()" class="btn" ng-disabled="!auth.loggedIn">Simulate It</button>
+              <button ng-click="loginPrompt()" class="btn" ng-hide="auth.loggedIn">Log in to execute this workflow</button>
             </div>
           </fieldset>
         </form>
       </div>
     </div>
   </article>
-  <div class="modal hide" id="error_modal">
-    <div class="modal-header">
-      <button type="button" class="close" data-dismiss="modal">×</button>
-      <h3>Error Creating Deployment</h3>
-    </div>
-    <div class="modal-body">
-      <p>
-        There was an error creating your deployment. The error returned from Checkmate is:
-        <pre>{{error}}</pre>
-      </p>
-    </div>
-    <div class="modal-footer">
-      <a href="#" class="btn" data-dismiss="modal">Close</a>
-    </div>
-  </div>
 
   <script type="text/javascript">
     $(document).ready(function() {
@@ -103,7 +87,7 @@
     <div class="controls">
       <input type="text" class="input-xlarge ng-model" id="{{id}}" ng-model="answers['{{id}}']"
               {{#required}}required{{/required}} {{#regex}}ng-pattern="{{regex}}"{{/regex}}
-              {{#default}}value="{{default}}"{{/default}}>{{#sample}}<span>Ex. {{sample}}</span>{{/sample}}
+              {{#default}}value="{{default}}"{{/default}} {{#sample}}placeholder="{{sample}}"{{/sample}}>
       {{#description}}<p class="help-block">{{description}}</p>{{/description}}
     </div>
   </script>
@@ -112,7 +96,7 @@
     <label class="control-label capitalize {{#required}}required{{/required}}" for="{{id}}">{{label}}</label>
     <div class="controls">
       <textarea cols="80" rolws="20" class="input-xlarge ng-model" id="{{id}}" ng-model="answers['{{id}}']"
-              {{#required}}required{{/required}} {{#regex}}ng-pattern="{{regex}}"{{/regex}}>{{#default}}>"{{default}}"{{/default}}</textarea>
+              {{#required}}required{{/required}} {{#regex}}ng-pattern="{{regex}}"{{/regex}} {{#sample}}placeholder="{{sample}}"{{/sample}}>{{#default}}>"{{default}}"{{/default}}</textarea>
       {{#description}}<p class="help-block">{{description}}</p>{{/description}}
     </div>
   </script>

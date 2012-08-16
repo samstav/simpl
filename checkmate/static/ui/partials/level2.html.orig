@@ -31,6 +31,15 @@
       <a class="label label-success cmtip" title="Completed" ng-click="showUnread()">{{taskStates['completed']}}</a>
       <a class="label label-warning cmtip" title="Waiting" ng-click="showStarred()">{{taskStates['waiting']}}</a>  
       <a class="label label-important cmtip" title="Errors" ng-click="showRead()">{{0}}</a>
+<<<<<<< HEAD
+      <div>ETA: {{timeRemaining | formattedDate}}</div>
+    </div>
+  </section>
+  <article ng-repeat="item in items | filter: search | orderBy: '-created'" id="{{item.id}}" ng-class="{read: item.read, active: item.selected}" class="well summary" ng-click="selectItem($index)">
+    <div class="row-fluid" >
+      <div class="span6 pub-name">
+        {{item.name}}
+=======
       <div>Expected to finish {{timeRemaining | secondsETA}}</div>
     </div>
   </section>
@@ -39,11 +48,16 @@
     <div class="row-fluid" >
       <div class="span6 pub-name">
         {{item.description}}
+>>>>>>> 178aeeeead8032e0883aae4c53b55554a7ded003
       </div>
       <div class="span6 pub-date">
         {{item.created | formattedDate}}
       </div>
     </div>
+<<<<<<< HEAD
+    <h3 class="pub-title">{{item.name}}</h3>
+=======
+>>>>>>> 178aeeeead8032e0883aae4c53b55554a7ded003
   </article>
 </section>
 
@@ -52,6 +66,14 @@
     <div id="entry" class="row-fluid">
       <div class="span8">{{selected.created | formattedDate}}</div>
         <div class="span4 actions">
+<<<<<<< HEAD
+          <input type="checkbox" class="read" ng-model="selected.read">
+          <input type="checkbox" class="star" ng-model="selected.starred">
+          <a href="{{tasks.selected.id}}"><i class="icon-share"></i></a>
+        </div>
+      </div>
+      <h2>{{selected.name}}</h2>
+=======
           <a class="accordion-toggle cmcollapse cmtip" title="Edit source" data-toggle="collapse" href="#source" ng-click="init_editor()"><i class="icon-edit"></i></a>
         </div>
       </div>
@@ -66,6 +88,7 @@
           <textarea name="object" id="editor"></textarea>
         </form>
       </div>
+>>>>>>> 178aeeeead8032e0883aae4c53b55554a7ded003
       <hr />
     </div>
   </article>
@@ -74,7 +97,11 @@
     <p>Nothing selected.</p>
   </div>
 </section>
+<<<<<<< HEAD
+<script id="task" type="text/html">
+=======
 <script id="task" type="text/ng-template">
+>>>>>>> 178aeeeead8032e0883aae4c53b55554a7ded003
   <div id="{{id}}" class="alert task span2 {{state}}">
     {{name}}
     <a href="#/workflows/{{workflow.spec..id}}/tasks/{{id}}">details</a>

@@ -104,9 +104,9 @@ class TestUtils(unittest.TestCase):
 
     def test_merge_dictionary(self):
         dst = dict(a=1, b=2, c=dict(ca=31, cc=33, cd=dict(cca=1)), d=4, f=6,
-                g=7)
+                g=7, i=[], k=[3, 4])
         src = dict(b='u2', c=dict(cb='u32', cd=dict(cda=dict(cdaa='u3411',
-                cdab='u3412'))), e='u5', h=dict(i='u4321'))
+                cdab='u3412'))), e='u5', h=dict(i='u4321'), i=[1], j=[1, 2])
         r = utils.merge_dictionary(dst, src)
         assert r is dst
         assert r['a'] == 1 and r['d'] == 4 and r['f'] == 6
@@ -117,6 +117,9 @@ class TestUtils(unittest.TestCase):
         assert r['c']['cd']['cda']['cdab'] == 'u3412'
         assert r['g'] == 7
         assert src['h'] is r['h']
+        assert r['i'] == [1]
+        assert r['j'] == [1, 2]
+        assert r['k'] == [3, 4]
 
     def test_is_ssh_key(self):
         self.assertFalse(utils.is_ssh_key(None))

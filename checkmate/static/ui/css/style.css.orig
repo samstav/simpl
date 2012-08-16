@@ -64,7 +64,11 @@ section.mainContent {
 }
 
 section.mainContent div {
+<<<<<<< HEAD
+  height: 100%;
+=======
     /*height: 100%;*/
+>>>>>>> 178aeeeead8032e0883aae4c53b55554a7ded003
 }
 
 .lcontrols {
