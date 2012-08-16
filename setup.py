@@ -10,7 +10,8 @@ github_projects = [{'project': 'python-clouddns', 'user': 'rackspace'},
                    {'project': 'python-novaclient', 'user': 'openstack'},
                    {'project': 'pychef', 'user': 'calebgroom'},
                    {'project': 'rackspace-monitoring', 'user': 'racker'},
-                   {'project': 'SpiffWorkflow', 'user': 'ziadsawalha','branch': 'celery'}]
+                   {'project': 'SpiffWorkflow', 'user': 'ziadsawalha',
+                      'branch': 'celery'}]
 
 github_urls = []
 for p in github_projects:
@@ -49,20 +50,20 @@ setup(
                       'pam',
                       'prettytable==0.6',
                       ],
-    entry_points = {
+    entry_points={
         'console_scripts': [
-                            'checkmate-server=checkmate.server:main_func',
-                            'checkmate=checkmate.checkmate_client:main_func',
-                            'checkmate-queue=checkmate.checkmate_queue:main_func',
-                            'checkmate-database=checkmate.checkmate_database:main_func',
-                            'checkmate-simulation=checkmate.sample.checkmate_simulation:main_func',
+          'checkmate-server=checkmate.server:main_func',
+          'checkmate=checkmate.checkmate_client:main_func',
+          'checkmate-queue=checkmate.checkmate_queue:main_func',
+          'checkmate-database=checkmate.checkmate_database:main_func',
+          'checkmate-simulation=checkmate.sample.checkmate_simulation:main_func',
         ]
     },
     tests_require=['nose', 'unittest2', 'mox', 'webtest'],
     packages=find_packages(exclude=['tests', 'bin', 'examples', 'doc',
             'checkmate.openstack.*']),
     include_package_data=True,
-    package_data = {
+    package_data={
         '': ['*.yaml'],
     },
     license='Apache License (2.0)',

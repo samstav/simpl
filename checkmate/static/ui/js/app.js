@@ -180,7 +180,7 @@ function AppController($scope, $http, $cookieStore, $location) {
         "auth": {
           "RAX-KSKEY:apiKeyCredentials": {
             "username": username,
-            "apiKey": key
+            "apiKey": apikey
           }
         }
       });

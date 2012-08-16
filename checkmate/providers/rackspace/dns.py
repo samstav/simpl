@@ -72,9 +72,9 @@ def parse_domain(domain_str):
 def get_domains(deployment, limit=None, offset=None):
     api = _get_dns_object(deployment)
     try:
-        DomainResults = api.get_domains(limit=limit, offset=offset)
+        domains = api.list_domains_info(limit=limit, offset=offset)
         LOG.debug('Successfully retreived domains.')
-        return DomainResults._domains
+        return domains
     except Exception, exc:
         LOG.debug('Error retreiving domains. Error: %s. Retrying.' % exc)
         get_domains.retry(exc=exc)
