@@ -371,8 +371,8 @@ def plan(deployment, context):
                                         host_provider.key, ', '.join([c['id']
                                         for c in found])))
                         else:
-                            raise CheckmateException("No components found that "
-                                        "offer '%s:%s' in provider %s" % (
+                            raise CheckmateException("No components found "
+                                        "that offer '%s:%s' in provider %s" % (
                                         host_type, host_interface,
                                         host_provider.key))
                         break

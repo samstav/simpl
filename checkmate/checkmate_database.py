@@ -7,7 +7,7 @@ from migrate.versioning.shell import main
 
 def main_func():
     url = os.environ['CHECKMATE_CONNECTION_STRING']
-    
+
     import checkmate.db.repository
     repo = os.path.dirname(checkmate.db.repository.__file__)
 
