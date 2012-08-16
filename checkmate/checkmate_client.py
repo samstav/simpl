@@ -15,6 +15,7 @@ Too run the server, use one of these:
 Settings:
 """
 
+
 def main_func():
     for key in os.environ:
         if key.startswith('CHECKMATE_CLIENT'):

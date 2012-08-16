@@ -130,7 +130,8 @@ def hack():
 
     from SpiffWorkflow.storage import DictionarySerializer
     serializer = DictionarySerializer()
-    data = serializer._serialize_task_spec(wf.spec.task_specs['Collect apache2 Chef Data: 4'])
+    data = serializer._serialize_task_spec(
+             wf.spec.task_specs['Collect apache2 Chef Data: 4'])
 
     return write_body(data, request, response)
 
@@ -1157,23 +1158,23 @@ class AuthTokenRouterMiddleware():
         return callback
 
 
-
 class CatchAll404(object):
-    """Facilitates 404 responses for any path not defined elsewhere.  Kept in separate class 
-        to facilitate adding gui before this catchall definition is added. 
-
+    """Facilitates 404 responses for any path not defined elsewhere.  Kept in
+       separate class to facilitate adding gui before this catchall definition
+       is added.
     """
 
     def __init__(self, app):
         self.app = app
         LOG.info("initializing BrowserMiddleware")
-        
-        # Keep this at end so it picks up any remaining calls after all other routes
-        # have been added (and some routes are added in the __main__ code)
+
+        # Keep this at end so it picks up any remaining calls after all other
+        # routes have been added (and some routes are added in the __main__
+        # code)
         @get('<path:path>')
         def extensions(path):
-            """Catch-all unmatched paths (so we know we got the request, but didn't
-               match it)"""
+            """Catch-all unmatched paths (so we know we got the request, but
+               didn't match it)"""
             abort(404, "Path '%s' not recognized" % path)
 
     def __call__(self, e, h):
@@ -1231,7 +1232,7 @@ def main_func():
     # Pick up IP/port from last param
     ip = '127.0.0.1'
     port = 8080
-    if len(sys.argv)>0:
+    if len(sys.argv) > 0:
         supplied = sys.argv[-1]
         if len([c for c in supplied if c in '%s:.' % string.digits]) == \
                 len(supplied):
