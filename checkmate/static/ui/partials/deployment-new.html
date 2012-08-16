@@ -1,0 +1,140 @@
+<section class="summaries">
+  <article class="well summary">
+      <ul class="nav nav-list">
+        <li class="nav-header">Limited Options</li>
+        <li>
+          This deployment includes a default environment and blueprint. It has been designed with Managed Cloud defaults
+          incorporated in it.
+        </li>
+        <li class="nav-header">Simulation</li>
+        <li>
+          Checkmate will allow you to run a simulation based on the deployment you have selected.
+          This is mostly used for debugging purposes. The 'SImulate It' button below will do that.
+        </li>
+      </ul>
+  </article>
+  <article class="well summary" style="display: none;">
+      <ul class="nav nav-list">
+        <li class="nav-header">YAML</li>
+        <li>
+          <pre class="prettyprint lang-yaml">{{answers | yaml}}</pre>
+        </li>
+      </ul>
+  </article>
+</section>
+<section class="entries">
+  <article class="entry well">
+    <div class="row-fluid">
+      <div class="span9">
+        <div class="page-header">
+          <h1>{{blueprint.name}}</h1>
+        </div>
+        <p>
+          {{blueprint.description}}
+        </p>
+        <hr/>    
+        <div class="alert alert-info" ng-cloak ng-show="!showSettings()">
+          <button type="button" class="close" data-dismiss="alert">&times;</button>
+          <strong>Heads up!</strong> You need to select an environment and blueprint before I can
+          show you the settings.
+        </div>
+    
+        <form class="form-horizontal">
+          <fieldset>
+            <div class="control-group">
+              <label class="control-label required" for="environment">Environment</label>
+              <div class="controls">
+                <select id="environment" class="span6" ng-model="environment" ng-change="updateSettings()"
+                        ng-options="environment.name for (id,environment) in environments" required>
+                </select>
+              </div>
+            </div>
+            <div class="control-group">
+              <label class="control-label required" for="blueprint">Blueprint</label>
+              <div class="controls">
+                <select id="blueprint" class="span6" ng-model="blueprint" ng-change="updateSettings()"
+                        ng-options="blueprint.name for (id,blueprint) in blueprints" required>
+                </select>
+              </div>
+            </div>
+          </fieldset>
+    
+          <fieldset ng-hide="!showSettings()">
+            <legend>Options</legend>
+            <div class="control-group" ng-repeat="setting in settings" compile-html="renderSetting(setting)">
+            </div>
+    
+            <div class="form-actions">
+              <button ng-click="submit(false)" class="btn btn-primary" ng-disabled="!auth.loggedIn">Build It!</button>
+              <button ng-click="simulate()" class="btn" ng-disabled="!auth.loggedIn">Simulate It</button>
+              <button ng-click="loginPrompt()" class="btn" ng-hide="auth.loggedIn">Log in to execute this workflow</button>
+            </div>
+          </fieldset>
+        </form>
+      </div>
+    </div>
+  </article>
+
+  <script type="text/javascript">
+    $(document).ready(function() {
+      $('#nav-elements li').removeClass('active');
+      $('#nav-deployments').addClass('active');
+    });
+  </script>
+
+  <script id="setting-string" type="text/ng-template">
+    <label class="control-label capitalize {{#required}}required{{/required}}" for="{{id}}">{{label}}</label>
+    <div class="controls">
+      <input type="text" class="input-xlarge ng-model" id="{{id}}" ng-model="answers['{{id}}']"
+              {{#required}}required{{/required}} {{#regex}}ng-pattern="{{regex}}"{{/regex}}
+              {{#default}}value="{{default}}"{{/default}} {{#sample}}placeholder="{{sample}}"{{/sample}}>
+      {{#description}}<p class="help-block">{{description}}</p>{{/description}}
+    </div>
+  </script>
+
+  <script id="setting-text" type="text/html">
+    <label class="control-label capitalize {{#required}}required{{/required}}" for="{{id}}">{{label}}</label>
+    <div class="controls">
+      <textarea cols="80" rolws="20" class="input-xlarge ng-model" id="{{id}}" ng-model="answers['{{id}}']"
+              {{#required}}required{{/required}} {{#regex}}ng-pattern="{{regex}}"{{/regex}} {{#sample}}placeholder="{{sample}}"{{/sample}}>{{#default}}>"{{default}}"{{/default}}</textarea>
+      {{#description}}<p class="help-block">{{description}}</p>{{/description}}
+    </div>
+  </script>
+
+   <script id="setting-int" type="text/html">
+    <label class="control-label capitalize {{#required}}required{{/required}}" for="{{id}}">{{label}}</label>
+    <div class="controls">
+      <input  type="number" class="input-small" id="{{id}}" ng-model="answers['{{id}}']"
+              {{#required}}required{{/required}}
+              {{#default}}value="{{default}}"{{/default}}>
+      {{#description}}<p class="help-block">{{description}}</p>{{/description}}
+    </div>
+  </script>
+
+   <script id="setting-boolean" type="text/html">
+    <label class="control-label capitalize {{#required}}required{{/required}}" for="{{id}}">{{label}}</label>
+    <div class="controls">
+      <label class="checkbox">
+        <input type="checkbox" class="input-xlarge" id="{{id}}" ng-model="answers['{{id}}']"
+              {{#required}}required{{/required}} {{#default}}value="{{default}}"{{/default}}>
+        {{#description}}{{description}}{{/description}}
+      </label>
+    </div>
+  </script>
+
+  <script id="setting-select" type="text/html">
+    <label class="control-label capitalize {{#required}}required{{/required}}" for="{{id}}">{{label}}</label>
+    <div class="controls">
+      <select id="{{id}}" ng-model="answers['{{id}}']" {{#required}}required{{/required}} ng-options="o for o in setting.choice">
+      </select>
+    </div>
+  </script>
+
+  <script id="setting-select-kv" type="text/html">
+    <label class="control-label capitalize {{#required}}required{{/required}}" for="{{id}}">{{label}}</label>
+    <div class="controls">
+      <select id="{{id}}" ng-model="answers['{{id}}']" {{#required}}required{{/required}} ng-options="o.value as o.name for o in setting.choice">
+      </select>
+    </div>
+  </script>
+</section>

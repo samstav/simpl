@@ -37,7 +37,17 @@ LOG = logging.getLogger(__name__)
 @get('/workflows')
 @with_tenant
 def get_workflows(tenant_id=None):
-    return write_body(db.get_workflows(tenant_id=tenant_id), request, response)
+    if 'with_secrets' in request.query:
+        if request.context.is_admin == True:
+            LOG.info("Administrator accessing workflows with secrets: %s" %
+                    request.context.username)
+            results = db.get_workflows(tenant_id=tenant_id,
+                    with_secrets=True)
+        else:
+            abort(403, "Administrator privileges needed for this operation")
+    else:
+        results = db.get_workflows(tenant_id=tenant_id)
+    return write_body(results, request, response)
 
 
 @post('/workflows')
@@ -82,15 +92,22 @@ def save_workflow(id, tenant_id=None):
 @get('/workflows/<id>')
 @with_tenant
 def get_workflow(id, tenant_id=None):
-    if 'with_secrets' in request.query:  # TODO: verify admin-ness
-        entity = db.get_workflow(id, with_secrets=True)
+    if 'with_secrets' in request.query:
+        if request.context.is_admin == True:
+            LOG.info("Administrator accessing workflow %s with secrets: %s" %
+                    (id, request.context.username))
+            results = db.get_workflow(id, with_secrets=True)
+        else:
+            abort(403, "Administrator privileges needed for this operation")
     else:
-        entity = db.get_workflow(id)
-    if not entity:
+        results = db.get_workflow(id)
+    if not results:
         abort(404, 'No workflow with id %s' % id)
-    if 'id' not in entity:
-        entity['id'] = str(id)
-    return write_body(entity, request, response)
+    if 'id' not in results:
+        results['id'] = str(id)
+    assert tenant_id is None or tenant_id == results.get('tenant_id',
+            tenant_id)
+    return write_body(results, request, response)
 
 
 @get('/workflows/<id>/status')

@@ -53,6 +53,18 @@ class TestServer(unittest.TestCase):
     def test_multitenant_blueprint(self):
         self.rest_tenant_exercise('blueprint')
 
+    def test_crosstenant_deployment(self):
+        pass  # self.rest_cross_tenant_exercise('deployment')
+
+    def test_crosstenant_environment(self):
+        pass  # self.rest_cross_tenant_exercise('environment')
+
+    def test_crosstenant_component(self):
+        pass  # self.rest_cross_tenant_exercise('component')
+
+    def test_crosstenant_blueprint(self):
+        pass  # self.rest_cross_tenant_exercise('blueprint')
+
     def rest_exercise(self, model_name):
         #PUT
         entity = "%s: &e1\n    id: 1" % model_name
@@ -122,6 +134,31 @@ class TestServer(unittest.TestCase):
         data = json.loads(res.body)
         self.assertIn('2', data)
         self.assertNotIn('1', data)
+
+    def rest_cross_tenant_exercise(self, model_name):
+        """Make sure tenant ID is respected"""
+        #PUT
+        entity = "%s: &e1\n    id: 1" % model_name
+        res = self.app.put('/T1000/%ss/1' % model_name, entity,
+                            content_type='application/x-yaml')
+        self.assertEqual(res.status, '200 OK')
+        self.assertEqual(res.content_type, 'application/json')
+
+        entity = "%s: &e1\n    id: 2" % model_name
+        res = self.app.put('/T2000/%ss/2' % model_name, entity,
+                            content_type='application/x-yaml')
+
+        #GET (1 from T1000) - OK
+        res = self.app.get('/T1000/%ss/1' % model_name)
+        self.assertEqual(res.status, '200 OK')
+        self.assertEqual(res.content_type, 'application/json')
+
+        #GET (1 from T2000) - SHOULD FAIL
+        res = self.app.get('/T2000/%ss/1' % model_name)
+        self.assertEqual(res.status, '404 Not Found')
+        self.assertEqual(res.content_type, 'application/json')
+
+        #TODO: test posting object with bad tenant_id in it
 
     def test_get_template_name_from_path(self):
         fxn = BrowserMiddleware.get_template_name_from_path

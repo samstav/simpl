@@ -97,7 +97,7 @@ Blueprints can have options that determine the final deployment topology and the
           exposed: true
           open-ports: [80/tcp]
         web:
-          components: *wordpress_reference_id  # wordpress component above
+          component: *wordpress_reference_id  # wordpress component above
           relations: {backend: mysql}
         backend:
           components: *mysql
@@ -455,20 +455,18 @@ Install knife add-ons:
 
     gem install knife-solo_data_bag --version 0.2.1
 
+Install SpiffWorkflow fork:
+
+    git clone http://github.com/ziadsawalha/SpiffWorkflow.git
+    cd SpiffWorkflow
+    python setup.py install
+    cd ..
+
 Install Checkmate:
 
     git clone http://github.com/ziadsawalha/checkmate.git
     cd checkmate
     git checkout master
-    python setup.py install
-    cd ..
-
-
-Install SpiffWorkflow fork:
-
-    git clone http://github.com/ziadsawalha/SpiffWorkflow.git
-    cd SpiffWorkflow
-    git checkout celery
     python setup.py install
     cd ..
 

@@ -1,69 +1,83 @@
-<div>
 
-  <div class="span9">
-    <div class="page-header">
-      <h1>Create a New Deployment</h1>
+<section class="entries">
+  <article class="entry well">
+    <div class="row-fluid">
+      <div class="span9">
+        <div class="page-header">
+          <h1>{{blueprint.name}}</h1>
+        </div>
+        <p>
+          {{blueprint.description}}
+        </p>
+        <hr/>
+        <h2>Deployment Parameters</h2>
+    
+        <div class="alert alert-info" ng-cloak ng-show="!showSettings()">
+          <button type="button" class="close" data-dismiss="alert">&times;</button>
+          <strong>Heads up!</strong> You need to select an environment and blueprint before I can
+          show you the settings.
+        </div>
+    
+        <form class="form-horizontal">
+          <fieldset>
+            <div class="control-group">
+              <label class="control-label required" for="environment">Environment</label>
+              <div class="controls">
+                <select id="environment" class="span3" ng-model="environment" ng-change="updateSettings()"
+                        ng-options="environment.name for (id,environment) in environments" required>
+                </select>
+              </div>
+            </div>
+            <div class="control-group">
+              <label class="control-label required" for="blueprint">Blueprint</label>
+              <div class="controls">
+                <select id="blueprint" class="span3" ng-model="blueprint" ng-change="updateSettings()"
+                        ng-options="blueprint.name for (id,blueprint) in blueprints" required>
+                </select>
+              </div>
+            </div>
+          </fieldset>
+    
+          <fieldset ng-hide="!showSettings()">
+            <legend>Settings</legend>
+            <div class="control-group" ng-repeat="setting in settings" compile-html="renderSetting(setting)">
+            </div>
+    
+            <div class="form-actions">
+              <button ng-click="submit(false)" class="btn btn-primary">Build It!</button>
+              <button ng-click="simulate()" class="btn">Simulate It</button>
+            </div>
+          </fieldset>
+        </form>
+      </div>
+      <div class="span3">
+        <div class="well sidebar-nav">
+          <ul class="nav nav-list">
+            <li class="nav-header">Help</li>
+            <li>
+              This screen allows you to create and launch a deployment. You'll start by selecting
+              an environment and a blueprint. Both of these selections will expose settings that you
+              will need to configure how you want. Once you are happy with everything, click the
+              Build It! button and Checkmate will start provisioning your environment.
+            </li>
+            <li class="nav-header">Simulation</li>
+            <li>
+              Checkmate will allow you to run a simulation based on the deployment you have selected.
+              This is mostly used for debugging purposes.
+            </li>
+          </ul>
+        </div><!--/.well -->
+        <div class="well sidebar-nav hide"><!-- for debugging-->
+          <ul class="nav nav-list">
+            <li class="nav-header">YAML</li>
+            <li>
+              <pre class="prettyprint lang-yaml">{{answers | yaml}}</pre>
+            </li>
+          </ul>
+        </div>
+      </div>
     </div>
-
-    <div class="alert alert-info" ng-hide="!showSettings()">
-      <button type="button" class="close" data-dismiss="alert">&times;</button>
-      <strong>Heads up!</strong> You need to select an environment and blueprint before I can
-      show you the settings.
-    </div>
-
-    <form class="form-horizontal">
-      <fieldset>
-        <div class="control-group">
-          <label class="control-label required" for="environment">Environment</label>
-          <div class="controls">
-            <select id="environment" class="span3" ng-model="environment" ng-change="updateSettings()"
-                    ng-options="environment.name for (id,environment) in environments" required>
-            </select>
-          </div>
-        </div>
-        <div class="control-group">
-          <label class="control-label required" for="blueprint">Blueprint</label>
-          <div class="controls">
-            <select id="blueprint" class="span3" ng-model="blueprint" ng-change="updateSettings()"
-                    ng-options="blueprint.name for (id,blueprint) in blueprints" required>
-            </select>
-          </div>
-        </div>
-      </fieldset>
-
-      <fieldset ng-hide="showSettings()">
-        <legend>Settings</legend>
-        <div class="control-group" ng-repeat="setting in settings"
-             compile-html="renderSetting(setting)">
-        </div>
-
-        <div class="form-actions">
-          <button ng-click="submit(false)" class="btn btn-primary">Build It!</button>
-          <button ng-click="submit(true)" class="btn">Simulate</button>
-        </div>
-      </fieldset>
-    </form>
-  </div>
-
-  <div class="span3">
-    <div class="well sidebar-nav">
-      <ul class="nav nav-list">
-        <li class="nav-header">Help</li>
-        <li>
-          This screen allows you to create and launch a deployment. You'll start by selecting
-          an environment and a blueprint. Both of these selections will expose settings that you
-          will need to configure how you want. Once you are happy with everything, click the
-          Build It! button and Checkmate will start provisioning your environment.
-        </li>
-        <li class="nav-header">Simulation</li>
-        <li>
-          Checkmate will allow you to run a simulation based on the deployment you have selected.
-          This is mostly used for debugging purposes.
-        </li>
-      </ul>
-    </div><!--/.well -->
-  </div>
-
+  </article>
   <div class="modal hide" id="error_modal">
     <div class="modal-header">
       <button type="button" class="close" data-dismiss="modal">×</button>
@@ -87,7 +101,7 @@
     });
   </script>
 
-  <script id="setting-string" type="text/html">
+  <script id="setting-string" type="text/ng-template">
     <label class="control-label capitalize {{#required}}required{{/required}}" for="{{id}}">{{label}}</label>
     <div class="controls">
       <input type="text" class="input-xlarge ng-model" id="{{id}}" ng-model="answers['{{id}}']"
@@ -101,8 +115,7 @@
     <label class="control-label capitalize {{#required}}required{{/required}}" for="{{id}}">{{label}}</label>
     <div class="controls">
       <textarea cols="80" rolws="20" class="input-xlarge ng-model" id="{{id}}" ng-model="answers['{{id}}']"
-              {{#required}}required{{/required}} {{#regex}}ng-pattern="{{regex}}"{{/regex}}
-              {{#default}}>"{{default}}"{{/default}}</textarea>
+              {{#required}}required{{/required}} {{#regex}}ng-pattern="{{regex}}"{{/regex}}>{{#default}}>"{{default}}"{{/default}}</textarea>
       {{#description}}<p class="help-block">{{description}}</p>{{/description}}
     </div>
   </script>
@@ -143,4 +156,4 @@
       </select>
     </div>
   </script>
-</div>
+</section>

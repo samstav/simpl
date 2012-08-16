@@ -31,6 +31,7 @@ setup(
                       'GitPython',
                       'Jinja2',
                       'openstack.compute',
+                      'pam',
                       'paramiko',
                       'pycrypto',
                       'python-clouddb',

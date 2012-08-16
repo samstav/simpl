@@ -104,9 +104,9 @@ class TestUtils(unittest.TestCase):
 
     def test_merge_dictionary(self):
         dst = dict(a=1, b=2, c=dict(ca=31, cc=33, cd=dict(cca=1)), d=4, f=6,
-                g=7)
+                g=7, i=[], k=[3, 4])
         src = dict(b='u2', c=dict(cb='u32', cd=dict(cda=dict(cdaa='u3411',
-                cdab='u3412'))), e='u5', h=dict(i='u4321'))
+                cdab='u3412'))), e='u5', h=dict(i='u4321'), i=[1], j=[1, 2])
         r = utils.merge_dictionary(dst, src)
         assert r is dst
         assert r['a'] == 1 and r['d'] == 4 and r['f'] == 6
@@ -117,6 +117,9 @@ class TestUtils(unittest.TestCase):
         assert r['c']['cd']['cda']['cdab'] == 'u3412'
         assert r['g'] == 7
         assert src['h'] is r['h']
+        assert r['i'] == [1]
+        assert r['j'] == [1, 2]
+        assert r['k'] == [3, 4]
 
     def test_is_ssh_key(self):
         self.assertFalse(utils.is_ssh_key(None))
@@ -131,6 +134,8 @@ class TestUtils(unittest.TestCase):
         self.assertTrue(utils.is_ssh_key(key))
         self.assertTrue(utils.is_ssh_key("%s /n" % key))
         self.assertTrue(utils.is_ssh_key("%s email@domain.com/n" % key))
+        key = """ssh-rsa AAAAB3NzaC1yc2EAAAABIwAAAQEA7TT1qbLElv6tuAaA3Z4tQ752ms0Y7H53yybfFioFHELkp+NRMCKh4AqtqDBFsps1vPzhcXIxn4M4IH0ip7kSx0CSrM/9Vtz8jc+UZwixJdAWwHpum68rGmCQgAsZljI24Q9u8r/hXqjwY6ukTKbC0iy82LHqhcDjh3828+9GyyxbYGm5ND/5G/ZcnHD6HM9YKmc3voz5d/nez3Adlu4I1z4Y1T3lOwOxrP2OqvIeDPvVOZJ9GDmYYRDfqK8OIHDoLAzQx8xu0cvPRDL7gYRXN8nJZ5nOh+51zdPQEl99ACZDSSwTl2biOPNtXtuaGyjB5j8r7dz93JlsN8axeD+ECQ== ziad@sawalha.com"""
+        self.assertTrue(utils.is_ssh_key(key))
 
     def test_get_source_body(self):
         source = utils.get_source_body(self.test_get_source_body)
