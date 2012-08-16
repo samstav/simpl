@@ -455,20 +455,19 @@ Install knife add-ons:
 
     gem install knife-solo_data_bag --version 0.2.1
 
-Install Checkmate:
-
-    git clone http://github.com/ziadsawalha/checkmate.git
-    cd checkmate
-    git checkout master
-    python setup.py install
-    cd ..
-
-
 Install SpiffWorkflow fork:
 
     git clone http://github.com/ziadsawalha/SpiffWorkflow.git
     cd SpiffWorkflow
     git checkout celery
+    python setup.py install
+    cd ..
+
+Install Checkmate:
+
+    git clone http://github.com/ziadsawalha/checkmate.git
+    cd checkmate
+    git checkout master
     python setup.py install
     cd ..
 
