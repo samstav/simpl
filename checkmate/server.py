@@ -556,14 +556,23 @@ class ExtensionsMiddleware(object):
 class BrowserMiddleware(object):
     """Adds support for browser interaction and HTML content
 
-    Includes /authproxy for Ajax clients to authenticate
+    Adds these paths:
+        /favicon.ico - returns Checkmate icon
+        /authproxy for Ajax clients to authenticate (to address CORS)
+        /static to serve static files
+        /images to serve static files for add-ons like RackspaceCalculator
+
+    Handles text/html requests as follows:
+        - authenticated: render using bottle routes and text/html HANDLER
+        - unauthenticated to anonymous route: use normal bottle route
+        - unauthenticated to resource route: render root UI so client can auth
     """
 
     def __init__(self, app, proxy_endpoints=None):
         self.app = app
         HANDLERS['text/html'] = BrowserMiddleware.write_html
         STATIC.extend(['static', 'favicon.ico', 'authproxy', 'marketing',
-                'admin', 'ui', 'images', None])
+                'admin', '', 'images', None])
         self.proxy_endpoints = proxy_endpoints
 
         # Add static routes
@@ -574,8 +583,7 @@ class BrowserMiddleware(object):
             return static_file('favicon.ico',
                     root=os.path.join(os.path.dirname(__file__), 'static'))
 
-        @get('/ui')
-        @get('/ui/<path:path>')
+        @get('/')
         def ui(path=None):
             """Expose new javascript UI"""
             root = os.path.join(os.path.dirname(__file__), 'static',
@@ -608,12 +616,6 @@ class BrowserMiddleware(object):
             root = os.path.join(os.path.dirname(__file__), 'static',
                     'RackspaceCalculator', 'images')
             return static_file(path, root=root)
-
-        @get('/')
-        def root():
-            return ui()
-            return static_file('home.html',
-                    root=os.path.join(os.path.dirname(__file__), 'static'))
 
         @get('/admin')
         def admin():
@@ -684,7 +686,19 @@ class BrowserMiddleware(object):
 
             return write_body(content, request, response)
 
+
     def __call__(self, e, h):
+        if 'text/html' in webob.Request(e).accept:
+            if e['PATH_INFO'] not in [None, "", "/"]:
+                path_parts = e['PATH_INFO'].split('/')
+                if path_parts[1] in STATIC:
+                    pass  # Not a tenant call
+                elif path_parts[1] in RESOURCES:
+                    # If not authenticated, then show UI
+                    context = request.context
+                    if not context.authenticated:
+                        e['PATH_INFO'] = "/"
+
         return self.app(e, h)
 
     @staticmethod
@@ -1191,6 +1205,8 @@ def main_func():
     #next = PAMAuthMiddleware(next, all_admins=True)
     endpoints = ['https://identity.api.rackspacecloud.com/v2.0/tokens',
             'https://lon.identity.api.rackspacecloud.com/v2.0/tokens']
+    if '--with-ui' in sys.argv:
+        next = BrowserMiddleware(next, proxy_endpoints=endpoints)
     next = AuthTokenRouterMiddleware(next, endpoints,
             default='https://identity.api.rackspacecloud.com/v2.0/tokens')
     """
@@ -1216,8 +1232,6 @@ def main_func():
     next = ContextMiddleware(next)
     next = StripPathMiddleware(next)
     next = ExtensionsMiddleware(next)
-    if '--with-ui' in sys.argv:
-        next = BrowserMiddleware(next, proxy_endpoints=endpoints)
     next = CatchAll404(next)
     if '--newrelic' in sys.argv:
         import newrelic.agent

@@ -21,7 +21,7 @@
 
   <link href="/static/libs/bootstrap-2.0.4/css/bootstrap.min.css" rel="stylesheet">
   <link href="/static/libs/google-code-prettify-rev187/prettify.css" rel="stylesheet">
-  <link href="/ui/css/style.css" rel="stylesheet">
+  <link href="/static/ui/css/style.css" rel="stylesheet">
 
   <!-- More ideas for your <head> here: h5bp.com/d/head-Tips -->
 
@@ -85,10 +85,10 @@
           </div>
           <div class="nav-collapse collapse" style="display: none" ng-show="auth.loggedIn">
 			<ul id="nav-elements" class="nav">
-			  <li id="nav-deployments"><a href="/ui/deployments">Deployments</a></li>
-			  <li id="nav-workflows"><a href="/ui/workflows">Workflows</a></li>
-			  <li id="nav-environments"><a href="/ui/environments">Environments</a></li>
-			  <li id="nav-blueprints"><a href="/ui/blueprints">Blueprints</a></li>
+			  <li id="nav-deployments"><a href="/{{auth.tenantId}}/deployments">Deployments</a></li>
+			  <li id="nav-workflows"><a href="/{{auth.tenantId}}/workflows">Workflows</a></li>
+			  <li id="nav-environments"><a href="/{{auth.tenantId}}/environments">Environments</a></li>
+			  <li id="nav-blueprints"><a href="/{{auth.tenantId}}/blueprints">Blueprints</a></li>
               <li class="dropdown">
                 <a href="#"
                       class="dropdown-toggle"
@@ -96,7 +96,11 @@
                       <b class="caret"></b>
                 </a>
                 <ul class="dropdown-menu">
-                  <li id="nav-providers"><a href="/ui/providers">Providers</a></li>
+                  <li id="nav-providers"><a href="/providers">Providers</a></li>
+                  <li class="divider"></li>
+                  <li class="nav-header">Status</li>
+                  <li id="nav-status-celery"><a href="/status/celery">Celery</a></li>
+                  <li id="nav-status-libraries"><a href="/status/libraries">Libraries</a></li>
                 </ul>
               </li>
 			  <li class="divider-vertical"></li>
@@ -253,10 +257,10 @@
   <script src="/static/libs/angular-ui-0.2.0/js/angular-ui-ieshiv.min.js" type="text/javascript"></script>
 
   <!-- Our Angular Implementation-->
-  <script src="/ui/js/app.js" type="text/javascript"></script>
-  <script src="/ui/js/filters.js" type="text/javascript"></script>
-  <script src="/ui/js/services.js" type="text/javascript"></script>
-  <script src="/ui/js/directives.js" type="text/javascript"></script>
+  <script src="/static/ui/js/app.js" type="text/javascript"></script>
+  <script src="/static/ui/js/filters.js" type="text/javascript"></script>
+  <script src="/static/ui/js/services.js" type="text/javascript"></script>
+  <script src="/static/ui/js/directives.js" type="text/javascript"></script>
   <!--<script src="js/plugins.js" type="text/javascript"></script>-->
 
   <!-- Checkmate Extensions and converntions -->
