@@ -459,7 +459,6 @@ Install SpiffWorkflow fork:
 
     git clone http://github.com/ziadsawalha/SpiffWorkflow.git
     cd SpiffWorkflow
-    git checkout celery
     python setup.py install
     cd ..
 
