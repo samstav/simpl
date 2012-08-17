@@ -20,31 +20,31 @@ checkmate.config(['$routeProvider', '$locationProvider', '$httpProvider', functi
   $routeProvider.
   when('/:tenantId/environments', {
     controller: LegacyController,
-    template:'<section class="entries" ng-include="templateUrl">Loading...</section>'
+    template:'<section class="entries" ng-include="templateUrl"><img src="/static/img/ajax-loader-bar.gif" alt="Loading..."/></section>'
   }).
   when('/:tenantId/environments/:id', {
     controller: LegacyController,
-    template:'<section class="entries" ng-include="templateUrl">Loading...</section>'
+    template:'<section class="entries" ng-include="templateUrl"><img src="/static/img/ajax-loader-bar.gif" alt="Loading..."/></section>'
   }).
   when('/:tenantId/deployments', {
     controller: LegacyController,
-    template:'<section class="entries" ng-include="templateUrl">Loading...</section>'
+    template:'<section class="entries" ng-include="templateUrl"><img src="/static/img/ajax-loader-bar.gif" alt="Loading..."/></section>'
   }).
   when('/:tenantId/deployments/:id', {
     controller: LegacyController,
-    template:'<section class="entries" ng-include="templateUrl">Loading...</section>'
+    template:'<section class="entries" ng-include="templateUrl"><img src="/static/img/ajax-loader-bar.gif" alt="Loading..."/></section>'
   }).
   when('/:tenantId/blueprints', {
     controller: LegacyController,
-    template:'<section class="entries" ng-include="templateUrl">Loading...</section>'
+    template:'<section class="entries" ng-include="templateUrl"><img src="/static/img/ajax-loader-bar.gif" alt="Loading..."/></section>'
   }).
   when('/:tenantId/workflows', {
     controller: LegacyController,
-    template:'<section class="entries" ng-include="templateUrl">Loading...</section>'
+    template:'<section class="entries" ng-include="templateUrl"><img src="/static/img/ajax-loader-bar.gif" alt="Loading..."/></section>'
   }).
   when('/:tenantId/workflows/:id', {
     controller: LegacyController,
-    template:'<section class="entries" ng-include="templateUrl">Loading...</section>'
+    template:'<section class="entries" ng-include="templateUrl"><img src="/static/img/ajax-loader-bar.gif" alt="Loading..."/></section>'
   })
   
   // New UI - static pages
