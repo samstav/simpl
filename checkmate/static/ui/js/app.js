@@ -100,18 +100,35 @@ function StaticController($scope) {
 }
 
 //Loads the old ui (rendered at the server)
-function LegacyController($scope, $location, $routeParams) {
+function LegacyController($scope, $location, $routeParams, $resource) {
   $scope.showHeader = false;
   $scope.showStatus = false;
-  console.log($routeParams)
-  console.log(('tenantId' in $routeParams))
 
   if ('tenantId' in $routeParams) {
     path = $location.path() + '.html';
   } else
     path = '/' + $scope.$parent.auth.tenantId + $location.path() + '.html';
-  console.log($location.path(), path);
   $scope.templateUrl = path;
+
+  $scope.save = function() {
+    var klass = $resource($location.path());
+    var thang = new klass(JSON.parse(Editor.getValue()));
+
+    if ($scope.auth.loggedIn) {
+        thang.$save(function(returned, getHeaders){
+          alert('Saved');
+          console.log(returned);
+      }, function(error) {
+        console.log("Error " + error.data + "(" + error.status + ") saving this object.");
+        console.log($("#editor").text());
+        $scope.$root.error = {data: error.data, status: error.status, title: "Error Saving",
+                message: "There was an error saving your JSON:"};
+        $('#modalError').modal('show');
+      });
+    } else {
+      $scope.loginPrompt(); //TODO: implement a callback
+    }
+  };
 }
 
 // Root controller that implements authentication
