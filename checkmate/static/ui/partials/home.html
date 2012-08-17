@@ -152,7 +152,7 @@
       background-image: linear-gradient(top, rgb(188,255,146) 0%, rgb(144,231,91) 5%, rgb(124,202,79) 100%);
       text-shadow:#63a73a 0 -1px 0;
       box-shadow:rgba(0,0,0,0.3) 0 1px 3px;
-      position:absolute;
+      position:relative;
       height:32px;
       padding:16px 0;
       line-height:16px;
@@ -161,7 +161,7 @@
       margin-top:-35px;
       margin-left:-16px;
   }
-  
+
   /*** OTHER BITS ****/
   
   .signup {
@@ -257,14 +257,40 @@
   </div>
   <div class="row pricing">
     <div class="span3">
-      <div class="spot">Start<br> here</div>
+      <div class="spot">Start<br />here</div>
       <div class="well highlighted">
         <a href="/deployments/default" onclick="$('#fanatical').popover('hide');">
-          <img class="center" id="fanatical" alt="Fanatical Support on the Cloud" src="/static/marketing/img/wordpress.png"></a>
+          <img class="center" id="fanatical" alt="Fanatical Support on the Cloud" src="/static/img/applications/wordpress.png"></a>
         <h3>Managed Cloud WordPress</h3>
       </div>
     </div>
     <div class="span3">
+      <div class="spot">Coming<br />soon</div>
+      <div class="well highlighted">
+        <a href="/ui/deployments/default" onclick="$('#fanatical').popover('hide');">
+          <img class="center" id="fanatical" alt="Fanatical Support on the Cloud" src="/static/img/applications/druplicon.small_.png"></a>
+        <h3>Managed Cloud Drupal</h3>
+      </div>
+    </div>
+    <div class="span3">
+      <div class="spot">Q4<br />2012</div>
+      <div class="well highlighted">
+        <a href="/ui/deployments/default" onclick="$('#fanatical').popover('hide');">
+          <img class="center" id="fanatical" alt="Fanatical Support on the Cloud" src="/static/img/applications/magento1-6.png"></a>
+        <h3>Managed Cloud Magento</h3>
+      </div>
+    </div>
+    <div class="span3">
+      <div class="spot">Q4<br />2012</div>
+      <div class="well highlighted">
+        <a href="/ui/deployments/default" onclick="$('#fanatical').popover('hide');">
+          <img class="center" id="fanatical" alt="Fanatical Support on the Cloud" src="/static/img/applications/sugarcrm-logo.jpg"></a>
+        <h3>Managed Cloud SugarCRM</h3>
+      </div>
+    </div>
+  </div>
+  <div class="row pricing">
+    <div class="span4">
       <div class="well">
         <a href="/ui/build">
           <img class="center" alt="Build your own" src="/static/marketing/img/fanatiguy.png">
@@ -272,7 +298,7 @@
         <h3>Build an app</h3>
       </div>
     </div>
-    <div class="span3">
+    <div class="span4">
       <div class="well">
         <a href="/static/marketing/customer.html" onclick="window.location='/static/marketing/customer.html';">
           <img class="center" alt="Learning" id="learning" src="/static/marketing/img/worker-at-cubicle.png">
@@ -280,7 +306,7 @@
         <h3>Learn more</h3>
       </div>
     </div>
-    <div class="span3">
+    <div class="span4">
       <div class="well">
         <a href="/admin" onclick="$('#hacking').popover('hide');window.location='/admin';">
           <img class="center" alt="Gear" id="hacking" src="/static/marketing/img/gear.png" data-original-title="">
