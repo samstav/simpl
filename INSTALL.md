@@ -1,11 +1,43 @@
 # Installing Checkmate
 ![Checkmate](https://github.rackspace.com/checkmate/checkmate/raw/master/checkmate/static/img/checkmate.png)
 
-Checkmate is mostly a python service. Therefore, most installations can be done with python tools like pip or easy_install. There are two main exceptions to this:
+Checkmate is mostly a python service. Therefore, most installations can be
+done with python tools like pip or easy_install. There are two main exceptions
+to this:
 
-1. Chef: chef is a ruby-based app that is used to handle application configuration on servers.
+1. Chef: chef is a ruby-based app that is used to handle application
+configuration on servers.
 
-2. Forks: of existing projects are sometimes used to support functionality that is not available for a system like checkmate. For example, checkmate uses OpenStack auth tokens to call OpenStack services. Many of the libraries for OpenStack services are rapidly evolving and designed for command-line use. Another example is the SpiffWorkflow workflow engine. This is a project developed in an academic setting and needed significant patching to work with checkmate. For these projects, we maintain our own forks that need to be deployed with checkmate. All modifications are intended to be proposed upstream.
+2. Forks: of existing projects are sometimes used to support functionality that
+is not available for a system like checkmate. For example, checkmate uses
+OpenStack auth tokens to call OpenStack services. Many of the libraries for
+OpenStack services are rapidly evolving and designed for command-line use.
+Another example is the SpiffWorkflow workflow engine. This is a project
+developed in an academic setting and needed significant patching to work with
+checkmate. For these projects, we maintain our own forks that need to be
+deployed with checkmate. All modifications are intended to be proposed upstream.
+
+## Optional - Using Python Virtual Environment
+
+A recommended way to keep Python from installing libraries is to use
+virtualenv. virtualenv will create a copy of your Python binary and setup your
+environment so that pip installs are placed in a local directory. This prevents
+developers from needing to escalate to root to run installs.
+
+    $ sudo apt-get install python-virtualenv
+    $ virtualenv ~/venv-checkmate
+    $ source ~/venv-checkmate/bin/activate
+    (venv-checkmate)$
+
+Notice the promt has changed to signify that the virtual environment is active.
+To drop out of the virtual environment use the deactivate command:
+
+    (venv-checkmate)$ deactive
+    $
+
+For the rest of these instructions it is recommended that you stay inside the
+virtual environment so that the setup.py files do not require root permissions
+and place them in your local directory.
 
 ## Install SpiffWorkflow from source
 
