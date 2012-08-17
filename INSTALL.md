@@ -48,7 +48,7 @@ and place them in your local directory.
 
 ## Install Checkmate from source
 
-    $ git://github.rackspace.com/checkmate/checkmate.git
+    $ git clone git://github.rackspace.com/checkmate/checkmate.git
     $ cd checkmate
     $ python setup.py install
     $ cd ..
