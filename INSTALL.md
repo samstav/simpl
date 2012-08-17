@@ -83,8 +83,10 @@ be prepped:
     $ export CHECKMATE_PUBLIC_KEY=`cat ~/.ssh/id_rsa.pub`
 
 Start the queue service:
+
     $ bin/checkmate-queue START
 
 Start the Checkmate API and UI service:
+
     $ bin/checkmate-server START --with-ui
     $ bin/checkmate-server START --with-ui 0.0.0.0:8000 # Specify alternate IP:Port
