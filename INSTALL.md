@@ -41,37 +41,37 @@ and place them in your local directory.
 
 ## Install SpiffWorkflow from source
 
-    git clone http://github.com/ziadsawalha/SpiffWorkflow.git
-    cd SpiffWorkflow
-    python setup.py install
-    cd ..
+    $ git clone http://github.com/ziadsawalha/SpiffWorkflow.git
+    $ cd SpiffWorkflow
+    $ python setup.py install
+    $ cd ..
 
 ## Install Checkmate from source
 
-    git clone http://github.com/checkmate/checkmate.git
-    cd checkmate
-    python setup.py install
-    cd ..
+    $ git://github.rackspace.com/checkmate/checkmate.git
+    $ cd checkmate
+    $ python setup.py install
+    $ cd ..
 
 ## Install Chef
 
 Install the latest Chef client, knife-solo, and knife-solo_data_bag:
 
-    curl chef.rackspacecloud.com/install-alt.sh | bash -s
+    $ curl chef.rackspacecloud.com/install-alt.sh | bash -s
 
     # Install RVM
-    echo insecure >> ~/.curlrc
-    curl -k -L get.rvm.io | bash -s stable
-    source ~/.rvm/scripts/rvm
+    $ echo insecure >> ~/.curlrc
+    $ curl -k -L get.rvm.io | bash -s stable
+    $ source ~/.rvm/scripts/rvm
 
     # Install Ruby 1.9.3 locally
-    rvm install 1.9.3-p125
-    rvm use ruby-1.9.3-p125
-    rvm gemset create chef
-    rvm gemset use chef
-    gem install bundler
-    gem install knife-solo --version 0.0.10
-    gem install knife-solo_data_bag --version 0.2.1
+    $ rvm install 1.9.3-p125
+    $ rvm use ruby-1.9.3-p125
+    $ rvm gemset create chef
+    $ rvm gemset use chef
+    $ gem install bundler
+    $ gem install knife-solo --version 0.0.10
+    $ gem install knife-solo_data_bag --version 0.2.1
 
 ## Rabbitmq Installation
 
