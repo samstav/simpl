@@ -41,6 +41,10 @@ checkmate.config(['$routeProvider', '$locationProvider', '$httpProvider', functi
   when('/:tenantId/workflows', {
     controller: LegacyController,
     template:'<section class="entries" ng-include="templateUrl">Loading...</section>'
+  }).
+  when('/:tenantId/workflows/:id', {
+    controller: LegacyController,
+    template:'<section class="entries" ng-include="templateUrl">Loading...</section>'
   })
   
   // New UI - static pages
@@ -56,7 +60,7 @@ checkmate.config(['$routeProvider', '$locationProvider', '$httpProvider', functi
 
   // New UI - dynamic, tenant pages
   $routeProvider.
-  when('/:tenantId/workflows/:id', {
+  when('/new/:tenantId/workflows/:id', {
     templateUrl: '/static/ui/partials/level2.html',
     controller: WorkflowController
   }).
@@ -409,7 +413,7 @@ function WorkflowController($scope, $resource, $routeParams, workflow, items, sc
 
   $scope.load = function() {
     this.klass = $resource('/:tenantId/workflows/:id');
-    this.klass.get({tenantId: $scope.auth.tenantId, id: $routeParams['id']},
+    this.klass.get($routeParams,
                    function(object, getResponseHeaders){
       items.data = object;
       items.tasks = workflow.flattenTasks({}, object.task_tree);
@@ -739,7 +743,7 @@ function DeploymentInitController($scope, $location, $routeParams, $resource, bl
         deployment.$save(function(returned, getHeaders){
         var deploymentId = getHeaders('location').split('/')[3];
         console.log("Posted deployment", deploymentId);
-        $location.path('/ui/workflows/' + deploymentId);
+        $location.path('/' + $scope.auth.tenantId + '/workflows/' + deploymentId);
       }, function(error) {
         console.log("Error " + error.data + "(" + error.status + ") creating new deployment.");
         console.log(deployment);
