@@ -1,5 +1,5 @@
 # Installing Checkmate
-![Checkmate](https://github.rackspace.com/checkmate/checkmate/raw/master/checkmate/static/checkmate.png)
+![Checkmate](https://github.rackspace.com/checkmate/checkmate/raw/master/checkmate/static/img/checkmate.png)
 
 Checkmate is mostly a python service. Therefore, most installations can be done with python tools like pip or easy_install. There are two main exceptions to this:
 
