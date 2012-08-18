@@ -132,7 +132,7 @@ function LegacyController($scope, $location, $routeParams, $resource) {
 }
 
 // Root controller that implements authentication
-function AppController($scope, $http, $cookieStore, $location) {
+function AppController($scope, $http, $location) {
   $scope.showHeader = true;
   $scope.showStatus = false;
   $scope.auth = {
@@ -142,7 +142,7 @@ function AppController($scope, $http, $cookieStore, $location) {
     };
 
   // Restore login from session
-  var catalog = $.cookie('auth');
+  var catalog = localStorage.getItem('auth');
   if (catalog != undefined && catalog !== null)
     catalog = JSON.parse(catalog);
   if (catalog != undefined && catalog !== null && catalog != {} && 'access' in catalog) {
@@ -231,18 +231,14 @@ function AppController($scope, $http, $cookieStore, $location) {
       $('#modalAuth').modal('hide');
       var keep = {access: {token: json.access.token, user: json.access.user}};
       keep.auth_url = auth_url;  // save for later
-      //save token and creds in cookie (domain must be set to '' for localhost)
-      if (window.location.hostname == 'localhost' || window.location.hostname == '127.0.0.1') {
-        $.cookie('auth', JSON.stringify(keep), {path: '/', expires: new Date(json.access.token.expires), domain: ''});
-      } else {
-        $.cookie('auth', JSON.stringify(keep), {path: '/', expires: new Date(json.access.token.expires)});
-      }
+      var expires = new Date(json.access.token.expires);
+      keep.expires = expires;
+      localStorage.setItem('auth', JSON.stringify(keep));
       $scope.auth.username = username;
       $scope.auth.tenantId = json.access.token.tenant.id;
       $scope.auth.catalog = json;
       checkmate.config.header_defaults.headers.common['X-Auth-Token'] = json.access.token.id;
       checkmate.config.header_defaults.headers.common['X-Auth-Source'] = auth_url;
-      var expires = new Date(json.access.token.expires);
       var now = new Date();
       if (expires < now) {
         $scope.auth.expires = 'expired';
@@ -266,7 +262,7 @@ function AppController($scope, $http, $cookieStore, $location) {
   $scope.logOut = function() {
     $scope.auth.username = '';
     $scope.auth.catalog = null;
-    $.removeCookie('auth', {path: '/'});
+    localStorage.removeItem('auth');
     $scope.auth.loggedIn = false;
     delete checkmate.config.header_defaults.headers.common['X-Auth-Token'];
     delete checkmate.config.header_defaults.headers.common['X-Auth-Source'];
