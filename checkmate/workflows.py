@@ -4,7 +4,7 @@ This module uses SpiffWorkflow to create, manage, and run workflows for
 Checkmate
 """
 # pylint: disable=E0611
-from bottle import get, post, put, request, response, abort
+from bottle import get, post, put, route, request, response, abort
 import copy
 import logging
 import uuid
@@ -69,8 +69,7 @@ def add_workflow(tenant_id=None):
     return write_body(results, request, response)
 
 
-@post('/workflows/<id>')
-@put('/workflows/<id>')
+@route('/workflows/<id>', method=['POST', 'PUT'])
 @with_tenant
 def save_workflow(id, tenant_id=None):
     entity = read_body(request)
@@ -121,7 +120,7 @@ def get_workflow_status(id, tenant_id=None):
     return write_body(get_SpiffWorkflow_status(wf), request, response)
 
 
-@get('/workflows/<id>/+execute')
+@route('/workflows/<id>/+execute', method=['GET', 'POST'])
 @with_tenant
 def execute_workflow(id, tenant_id=None):
     """Process a checkmate deployment workflow
@@ -146,7 +145,7 @@ def execute_workflow(id, tenant_id=None):
 # Workflow Tasks
 #
 
-@get('/workflows/<id>/tasks/<task_id:int>')
+@route('/workflows/<id>/tasks/<task_id:int>', method=['GET', 'POST'])
 @with_tenant
 def get_workflow_task(id, task_id, tenant_id=None):
     """Get a workflow task
@@ -232,7 +231,7 @@ def post_workflow_task(id, task_id, tenant_id=None):
     return write_body(results, request, response)
 
 
-@get('/workflows/<id>/tasks/<task_id:int>/+reset')
+@route('/workflows/<id>/tasks/<task_id:int>/+reset', method=['GET', 'POST'])
 @with_tenant
 def reset_workflow_task(id, task_id, tenant_id=None):
     """Reset a Celery workflow task and retry it
@@ -285,7 +284,7 @@ def reset_workflow_task(id, task_id, tenant_id=None):
     return write_body(body, request, response)
 
 
-@get('/workflows/<id>/tasks/<task_id:int>/+resubmit')
+@route('/workflows/<id>/tasks/<task_id:int>/+resubmit', method=['GET', 'POST'])
 @with_tenant
 def resubmit_workflow_task(id, task_id, tenant_id=None):
     """Reset a Celery workflow task and retry it
@@ -334,7 +333,7 @@ def resubmit_workflow_task(id, task_id, tenant_id=None):
     return write_body(body, request, response)
 
 
-@get('/workflows/<id>/tasks/<task_id:int>/+execute')
+@route('/workflows/<id>/tasks/<task_id:int>/+execute', method=['GET', 'POST'])
 @with_tenant
 def execute_workflow_task(id, task_id, tenant_id=None):
     """Process a checkmate deployment workflow task

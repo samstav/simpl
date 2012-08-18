@@ -469,9 +469,18 @@ services.factory('old_items', ['$http', 'store', 'filterFilter', function($http,
 	return items;
 }]);
 
+services.value('navbar', {
+	highlight: function(menu_name) {
+		$(document).ready(function() {
+			$('#nav-elements li').removeClass('active');
+			$('#nav-' + menu_name).addClass('active');
+		});
+	}
+})
+
 services.value('scroll', {
 	pageDown: function() {
-		var itemHeight = $('.entry.active').height() + 60;
+	  var itemHeight = $('.entry.active').height() + 60;
 	  var winHeight = $(window).height();
 	  var curScroll = $('.entries').scrollTop();
 	  var scroll = curScroll + winHeight;

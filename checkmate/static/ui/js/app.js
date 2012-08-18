@@ -45,6 +45,22 @@ checkmate.config(['$routeProvider', '$locationProvider', '$httpProvider', functi
   when('/:tenantId/workflows/:id', {
     controller: LegacyController,
     template:'<section class="entries" ng-include="templateUrl"><img src="/static/img/ajax-loader-bar.gif" alt="Loading..."/></section>'
+  }).
+  when('/:tenantId/workflows/:id/tasks/:task_id', {
+    controller: LegacyController,
+    template:'<section class="entries" ng-include="templateUrl"><img src="/static/img/ajax-loader-bar.gif" alt="Loading..."/></section>'
+  }).
+  when('/providers', {
+    controller: LegacyController,
+    template:'<section class="entries" ng-include="templateUrl"><img src="/static/img/ajax-loader-bar.gif" alt="Loading..."/></section>'
+  }).
+  when('/status/libraries', {
+    controller: LegacyController,
+    template:'<section class="entries" ng-include="templateUrl"><img src="/static/img/ajax-loader-bar.gif" alt="Loading..."/></section>'
+  }).
+  when('/status/celery', {
+    controller: LegacyController,
+    template:'<section class="entries" ng-include="templateUrl"><img src="/static/img/ajax-loader-bar.gif" alt="Loading..."/></section>'
   })
   
   // New UI - static pages
@@ -100,14 +116,23 @@ function StaticController($scope) {
 }
 
 //Loads the old ui (rendered at the server)
-function LegacyController($scope, $location, $routeParams, $resource) {
+function LegacyController($scope, $location, $routeParams, $resource, navbar, $http) {
   $scope.showHeader = false;
   $scope.showStatus = false;
+  parts = $location.path().split('/')
+  if (parts.length > 1)
+    navbar.highlight(parts[2]);
 
   if ('tenantId' in $routeParams) {
-    path = $location.path() + '.html';
-  } else
-    path = '/' + $scope.$parent.auth.tenantId + $location.path() + '.html';
+    path = $location.path();
+  } else if ($location.path().indexOf('/' + $scope.$parent.auth.tenantId + '/') == 0) {
+    path = $location.path();
+  } else {
+    path = '/' + $scope.$parent.auth.tenantId + $location.path();
+  }
+  if (path.indexOf(".html") == -1 )
+    path += ".html";
+  console.log("Legacy controller loading " + path);
   $scope.templateUrl = path;
 
   $scope.save = function() {
@@ -125,6 +150,20 @@ function LegacyController($scope, $location, $routeParams, $resource) {
                 message: "There was an error saving your JSON:"};
         $('#modalError').modal('show');
       });
+    } else {
+      $scope.loginPrompt(); //TODO: implement a callback
+    }
+  };
+
+  $scope.action = function(action) {
+    if ($scope.auth.loggedIn) {
+      console.log("Executing action " + $location.path() + '/' + action)
+      $http({method: 'POST', url: $location.path() + '/' + action}).
+        success(function(data, status, headers, config) {
+          alert('Saved');
+          // this callback will be called asynchronously
+          // when the response is available
+        });
     } else {
       $scope.loginPrompt(); //TODO: implement a callback
     }
@@ -278,11 +317,12 @@ function NavBarController() {
 /**
  *   workflows
  */
-function WorkflowListController($scope, $location, $resource, workflow, items) {
+function WorkflowListController($scope, $location, $resource, workflow, items, navbar) {
   //Model: UI
   $scope.showItemsBar = true;
   $scope.showStatus = true;
-  $scope.name = "Workflows"; 
+  $scope.name = "Workflows";
+  navbar.highlight("workflows");  
 
   $scope.showConnections = function(task_div) {
     jsPlumb.Defaults.Container = "entry";
