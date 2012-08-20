@@ -45,9 +45,11 @@ def simulate(tenant_id=None):
     global PHASE, PACKAGE
     PHASE = time.time()
     entity = read_body(request)
+    print "ENTITY: %s" % entity
     if 'deployment' in entity:
         entity = entity['deployment']
 
+ 
     if 'id' not in entity:
         entity['id'] = "simulate"
     if any_id_problems(entity['id']):
@@ -63,6 +65,7 @@ def simulate(tenant_id=None):
         response.add_header('Location', "/deployments/simulate")
 
     PACKAGE = deployment
+    print "CONTEXT: %s" % request.context
     results = plan(deployment, request.context)
     PACKAGE = results
 

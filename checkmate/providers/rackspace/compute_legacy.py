@@ -86,7 +86,7 @@ class Provider(RackspaceComputeProviderBase):
                call_args=[context.get_queued_task_dict(
                                 deployment=deployment['id'],
                                 resource=key),
-                        resource.get('dns-name'), resource['region']],
+                        resource.get('dns-name'),
                image=resource.get('image', 119),
                flavor=resource.get('flavor', 2),
                files=self._kwargs.get('files', None),
@@ -103,7 +103,6 @@ class Provider(RackspaceComputeProviderBase):
                                 deployment=deployment['id'],
                                 resource=key),
                         PathAttrib('instance:%s/id' % key),
-                        resource['region']],
                 password=Attrib('password'),
                 identity_file=Attrib('private_key_path'),
                 properties={'estimated_duration': 150},
@@ -141,17 +140,24 @@ class Provider(RackspaceComputeProviderBase):
         # stored/override existed
         api = self._connect(context)
 
-        """
+        
         if type_filter is None or type_filter == 'regions':
             regions = {}
             for service in context.catalog:
-                if service['type'] == 'FIND_ME':
-                    if 'region' in endpoint:
-                        regions[endpoint['region']] = endpoint['publicURL']
+                if service['name'] == 'cloudServers':
+                    endpoints = service['endpoints']
+                    for endpoint in endpoints:
+                        if 'region' in endpoint:
+                            regions[endpoint['region']] = endpoint['publicURL']
+                        else:
+                            region = api.servers.get_region()
+                            endpoint['region'] = region
+                            regions[endpoint['region']] = endpoint['publicURL']
             if 'lists' not in results:
                 results['lists'] = {}
             results['lists']['regions'] = regions
-        """
+            
+        
 
         if type_filter is None or type_filter == 'compute':
             results['compute'] = dict(
@@ -209,14 +215,7 @@ class Provider(RackspaceComputeProviderBase):
             raise CheckmateNoTokenError()
         api = openstack.compute.Compute()
         api.client.auth_token = context.auth_token
-
-        def find_url(catalog):
-            for service in catalog:
-                if service['name'] == 'cloudServers':
-                    endpoints = service['endpoints']
-                    for endpoint in endpoints:
-                        return endpoint['publicURL']
-
+        
         url = find_url(context.catalog)
         api.client.management_url = url
         LOG.debug("Connected to legacy cloud servers using token of length %s "

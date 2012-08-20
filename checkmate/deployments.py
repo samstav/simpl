@@ -48,6 +48,8 @@ def get_deployments(tenant_id=None):
 @post('/deployments')
 @with_tenant
 def post_deployment(tenant_id=None):
+    print "catalog?: %s" % request.context.catalog
+
     entity = read_body(request)
 
     if 'deployment' in entity:
@@ -62,6 +64,7 @@ def post_deployment(tenant_id=None):
     deployment = Deployment(entity)
     if 'includes' in deployment:
         del deployment['includes']
+
 
     id = str(deployment['id'])
     body, secrets = extract_sensitive_data(deployment)
@@ -279,7 +282,6 @@ def scale_deployment(depid, service, type, setting, tenant_id=None, amount=None)
     _id = str(deployment['id'])
     body, secrets = extract_sensitive_data(deployment)
     db.save_deployment(_id, body, secrets, tenant_id=tenant_id)
-    print "New deployment: %s" % deployment
     return write_body(deployment, request, response)
 
 
@@ -347,7 +349,6 @@ def plan(deployment, context):
     providers = environment.get_providers(context)
 
     #Identify component providers and get the resolved components
-    print "CONTEXT: %s" % context
     components = deployment.get_components(context)
 
     # Collect all requirements from components
