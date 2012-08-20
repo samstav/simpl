@@ -94,7 +94,7 @@ the optional CHECKMATE_PREFIX to something like /home/myuser/checkmate.
 
 Clone the chef repository and point checkmate to it:
 
-    $ export CHECKMATE_CHEF_REPO="{$CHECKMATE_PREFIX}/var/checkmate/chef/repo"
+    $ export CHECKMATE_CHEF_REPO="${CHECKMATE_PREFIX}/var/checkmate/chef/repo"
     $ mkdir -p $CHECKMATE_CHEF_REPO
     $ cd $CHECKMATE_CHEF_REPO
     $ git clone git://github.rackspace.com/checkmate/chef-stockton.git
