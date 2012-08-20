@@ -25,6 +25,13 @@ class Provider(RackspaceComputeProviderBase):
         template = RackspaceComputeProviderBase.generate_template(self,
                 deployment, resource_type, service, context, name=name)
 
+        # Get region
+        region = deployment.get_setting('region', resource_type=resource_type,
+                service_name=service, provider_key=self.key)
+        if not region:
+            raise CheckmateException("Could not identify which region to "
+                    "create servers in")
+
         catalog = self.get_catalog(context)
         image = deployment.get_setting('os', resource_type=resource_type,
                 service_name=service, provider_key=self.key, default=119)
@@ -62,6 +69,7 @@ class Provider(RackspaceComputeProviderBase):
 
         template['flavor'] = flavor
         template['image'] = image
+        template['region'] = region
         return template
 
     def add_resource_tasks(self, resource, key, wfspec, deployment, context,
@@ -78,7 +86,7 @@ class Provider(RackspaceComputeProviderBase):
                call_args=[context.get_queued_task_dict(
                                 deployment=deployment['id'],
                                 resource=key),
-                        resource.get('dns-name')],
+                        resource.get('dns-name'), resource['region']],
                image=resource.get('image', 119),
                flavor=resource.get('flavor', 2),
                files=self._kwargs.get('files', None),
@@ -94,7 +102,8 @@ class Provider(RackspaceComputeProviderBase):
                 call_args=[context.get_queued_task_dict(
                                 deployment=deployment['id'],
                                 resource=key),
-                        PathAttrib('instance:%s/id' % key)],
+                        PathAttrib('instance:%s/id' % key),
+                        resource['region']],
                 password=Attrib('password'),
                 identity_file=Attrib('private_key_path'),
                 properties={'estimated_duration': 150},
@@ -131,6 +140,18 @@ class Provider(RackspaceComputeProviderBase):
         # build a live catalog this should be the on_get_catalog called if no
         # stored/override existed
         api = self._connect(context)
+
+        """
+        if type_filter is None or type_filter == 'regions':
+            regions = {}
+            for service in context.catalog:
+                if service['type'] == 'FIND_ME':
+                    if 'region' in endpoint:
+                        regions[endpoint['region']] = endpoint['publicURL']
+            if 'lists' not in results:
+                results['lists'] = {}
+            results['lists']['regions'] = regions
+        """
 
         if type_filter is None or type_filter == 'compute':
             results['compute'] = dict(

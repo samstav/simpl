@@ -1,0 +1,140 @@
+<<<<<<< HEAD
+<!DOCTYPE HTML PUBLIC "-//IETF//DTD HTML 2.0//EN">
+<html>
+    <head>
+        <title>{% block title %}Checkmate{% endblock %}</title>
+
+        <meta charset="utf-8" />
+        <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <meta name="description" content="" />
+        <meta name="author" content="Ziad Sawalha/Rackspace" />
+
+        <!-- *** Bootstrap *** -->
+        <!-- Le styles -->
+        <!-- Bootstrap - compiled into one file-->
+        <link href="/static/libs/bootstrap-2.0.4/css/bootstrap.min.css" rel="stylesheet">
+
+        <style>
+          body {
+            padding-top: 60px; /* 60px to make the container go all the way to the bottom of the topbar */
+          }
+        </style>
+
+        <!-- Le HTML5 shim, for IE6-8 support of HTML5 elements -->
+        <!--[if lt IE 9]>
+          <script src="http://html5shim.googlecode.com/svn/trunk/html5.js"></script>
+        <![endif]-->
+
+        <!-- Le fav and touch icons -->
+        <link rel="shortcut icon" href="/static/favicon.ico" />
+        <link rel="apple-touch-icon-precomposed" sizes="144x144" href="../assets/ico/apple-touch-icon-144-precomposed.png" />
+        <link rel="apple-touch-icon-precomposed" sizes="114x114" href="../assets/ico/apple-touch-icon-114-precomposed.png" />
+        <link rel="apple-touch-icon-precomposed" sizes="72x72" href="../assets/ico/apple-touch-icon-72-precomposed.png" />
+        <link rel="apple-touch-icon-precomposed" href="/static/bootstrap/ico/apple-touch-icon-57-precomposed.png" />
+
+        <!-- *** Google Code Prettify *** -->
+        <link href="/static/libs/google-code-prettify-rev187/prettify.css" rel="stylesheet">
+        <script type="text/javascript" src="/static/libs/google-code-prettify-rev187/prettify.js"></script>
+
+        <!-- *** Code Mirror - code viewer/editor *** -->
+        <link href="/static/libs/code-mirror-2.32/lib/codemirror.css" rel="stylesheet"/>
+        <link href="/static/libs/code-mirror-2.32/theme/lesser-dark.css" rel="stylesheet"/>
+        <script src="/static/libs/code-mirror-2.32/lib/codemirror.js" type="text/javascript"></script>
+        <script src="/static/libs/code-mirror-2.32/mode/javascript/javascript.js" type="text/javascript"></script>
+        <script src="/static/libs/code-mirror-2.32/lib/util/foldcode.js" type="text/javascript"></script>
+        
+        <!-- modal plugin -->
+        <link href="/static/libs/jquery-bootstrap-scripting/css/jquery.dialog2.css" rel="stylesheet"/>
+
+        <!-- Loading jquery and needed libs early so templates can use $ -->
+        <script src="/static/libs/jquery-1.7.2.min.js" type="text/javascript"></script>
+        <script src="/static/libs/jquery.timeago.js" type="text/javascript"></script>
+
+        <style>
+        body {
+            height: 100%;
+            width: 100%;
+            position: absolute;
+        }
+        .container-fluid, .span9, form, .CodeMirror, .row-fluid { height: inherit; }
+        .CodeMirror-scroll { height: 80%; }
+        .CodeMirror pre {
+            line-height: inherit;
+            color: inherit;
+        }
+        </style>
+    </head>
+    <body onload="prettyPrint()">
+        <div class="navbar navbar-fixed-top">
+          <div class="navbar-inner">
+            <div class="container">
+              <!-- .btn-navbar is used as the toggle for collapsed navbar content -->
+              <a class="btn btn-navbar" data-toggle="collapse" data-target=".nav-collapse">
+                <span class="icon-bar"></span>
+                <span class="icon-bar"></span>
+                <span class="icon-bar"></span>
+              </a>
+              <a class="brand" href="/">Checkmate</a>
+              <div class="nav-collapse">
+                <ul class="nav">
+                  <li class="divider-vertical"></li>
+                  <li><a href="/admin">Home</a></li>
+                  <li><a href="{{tenant_id|prepend}}/environments/">Environments</a></li>
+                  <li><a href="{{tenant_id|prepend}}/deployments/">Deployments</a></li>
+                  <li><a href="{{tenant_id|prepend}}/blueprints/">Blueprints</a></li>
+                  <li><a href="{{tenant_id|prepend}}/components/">Components</a></li>
+                  <li><a href="{{tenant_id|prepend}}/workflows/">Workflows</a></li>
+                  <li class="dropdown">
+                    <a href="#" class="dropdown-toggle" data-toggle="dropdown">Status<b class="caret"></b>
+                    </a>
+                    <ul class="dropdown-menu">
+                      <li><a href="/status/celery/">Celery</a></li>
+                      <li><a href="/status/libraries/">Libraries</a></li>
+                    </ul>
+                  </li>
+                  <li class="divider-vertical"></li>
+                  <li><a href="/{{tenant_id}}/admin">{{tenant_id|prepend('Tenant: ')}}</a></li>
+                </ul>
+                <!-- User Control -->
+                <div class="btn-group pull-right">
+                  <a class="btn dropdown-toggle" data-toggle="dropdown" href="#">
+                    <i class="icon-user"></i> {{context.username}}
+                    <span class="caret"></span>
+                  </a>
+                  <ul class="dropdown-menu">
+                    <li><a href="/{{tenant_id}}/admin">{{tenant_id|prepend('Tenant: ')}}</a></li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="container-fluid">
+        {% block content %}
+            <pre class="prettyprint lang-js"><code>{{ source | safe }}</code></pre>
+        {% endblock %}
+        </div><!-- container-fluid -->
+
+    </body>
+    <!-- Le javascript
+    ================================================== -->
+    <!-- Placed at the end of the document so the pages load faster -->
+    
+    <!-- Bootstrap - compiled into one file-->
+    <script src="/static/libs/bootstrap-2.0.4/js/bootstrap.min.js"></script>
+
+    <!-- Checkmate Extensions and converntions -->
+    <script type="text/javascript" >
+            $(".cmpop").popover();  //anything with a 'cmpop' class will attempt to pop over using the data-content and title attributes
+            $(".cmtip").tooltip();  //anything with a 'cmtip' class will attempt to show a tooltip of the title attribute
+            $(".cmcollapse").collapse();  //anything with a 'cmcollapse' class will be collapsible
+    </script>
+</html>
+=======
+<div class="container-fluid">
+{% block content %}
+    <pre class="prettyprint lang-js"><code>{{ source | safe }}</code></pre>
+{% endblock %}
+</div><!-- container-fluid -->
+>>>>>>> 178aeeeead8032e0883aae4c53b55554a7ded003

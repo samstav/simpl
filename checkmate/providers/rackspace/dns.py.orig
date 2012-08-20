@@ -69,12 +69,18 @@ def parse_domain(domain_str):
 
 
 @task(default_retry_delay=10, max_retries=10)
+<<<<<<< HEAD
+def create_domain(context, domain, email='soa_placeholder@example.com',
+        ttl=300):
+    api = _get_dns_object(context)
+=======
 def get_domains(deployment, limit=None, offset=None):
     api = _get_dns_object(deployment)
+>>>>>>> 178aeeeead8032e0883aae4c53b55554a7ded003
     try:
-        domains = api.list_domains_info(limit=limit, offset=offset)
+        DomainResults = api.get_domains(limit=limit, offset=offset)
         LOG.debug('Successfully retreived domains.')
-        return domains
+        return DomainResults._domains
     except Exception, exc:
         LOG.debug('Error retreiving domains. Error: %s. Retrying.' % exc)
         get_domains.retry(exc=exc)
@@ -98,6 +104,19 @@ def create_domain(context, domain, email='soa_placeholder@example.com',
         LOG.debug('Unknown error creating domain %s. Error: %s. Retrying.' % (
                   domain, str(exc)))
         create_domain.retry(exc=exc)
+
+
+@task(default_retry_delay=10, max_retries=10)
+def get_domains(context,limit=None,offset=None):
+    api = _get_dns_object(context)
+    try:
+	DomainResults = api.get_domains(limit=limit,offset=offset)
+	return DomainResults._domains
+	LOG.debug('Successfully retreived domains.')
+    except Exception, exc:
+	LOG.debug('Error retreiving domains. Error: %s. Retrying.' % exc)
+	get_domains.retry(exc=exc)
+	
 
 
 @task

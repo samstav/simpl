@@ -181,6 +181,17 @@ function AppController($scope, $http, $cookieStore, $location) {
     var data;
     if (apikey) {
        data = JSON.stringify({
+<<<<<<< HEAD
+         "auth": {
+           "RAX-KSKEY:apiKeyCredentials": {
+              "username": username,
+              "apiKey": apikey
+           }
+         }
+       });
+       document.getElementById("login-test").innerHTML="here";
+	
+=======
         "auth": {
           "RAX-KSKEY:apiKeyCredentials": {
             "username": username,
@@ -188,6 +199,7 @@ function AppController($scope, $http, $cookieStore, $location) {
           }
         }
       });
+>>>>>>> 6401e6b442931b3c1b15867dfdbac7dda4bb8773
      } else if (password) {
        data = JSON.stringify({
           "auth": {
@@ -200,6 +212,7 @@ function AppController($scope, $http, $cookieStore, $location) {
      } else {
       return false;
      }
+   
 
     return $.ajax({
       type: "POST",

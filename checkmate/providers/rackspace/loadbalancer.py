@@ -176,6 +176,7 @@ class Provider(ProviderBase):
             region = find_a_region(context.catalog) or 'DFW'
 
         #TODO: instead of hacking auth using a token, submit patch upstream
+        print "AUTH CATALOG: %s" % context.catalog
         url = find_url(context.catalog, region)
         if not url:
             raise CheckmateException("Unable to locate region url for LBaaS "
@@ -219,6 +220,8 @@ def create_loadbalancer(context, name, type, protocol, port, region,
     if api is None:
         api = Provider._connect(context, region)
 
+
+    print "CATALOG: %s" % context.catalog
     fakenode = cloudlb.Node(address=PLACEHOLDER_IP, port=80,
             condition="ENABLED")
     vip = cloudlb.VirtualIP(type=type)

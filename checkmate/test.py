@@ -48,108 +48,108 @@ ENV_VARS = {
     }
 
 CATALOG = [{
-                "endpoints": [
-                    {
-                        "publicURL": "https://monitoring.api.rackspacecloud.com/v1.0/T1000",
-                        "tenantId": "T1000"
-                    }
-                ],
-                "name": "cloudMonitoring",
-                "type": "rax:monitor"
-            },
-            {
-                "endpoints": [
-                    {
-                        "publicURL": "https://ord.loadbalancers.api.rackspacecloud.com/v1.0/T1000",
-                        "region": "ORD",
-                        "tenantId": "T1000"
-                    },
-                    {
-                        "publicURL": "https://dfw.loadbalancers.api.rackspacecloud.com/v1.0/T1000",
-                        "region": "DFW",
-                        "tenantId": "T1000"
-                    }
-                ],
-                "name": "cloudLoadBalancers",
-                "type": "rax:load-balancer"
-            },
-            {
-                "endpoints": [
-                    {
-                        "internalURL": "https://snet-storage101.ord1.clouddrive.com/v1/Mosso_T-2000",
-                        "publicURL": "https://storage101.ord1.clouddrive.com/v1/Mosso_T-2000",
-                        "region": "ORD",
-                        "tenantId": "Mossos_T-2000"
-                    }
-                ],
-                "name": "cloudFiles",
-                "type": "object-store"
-            },
-            {
-                "endpoints": [
-                    {
-                        "publicURL": "https://dfw.databases.api.rackspacecloud.com/v1.0/T1000",
-                        "region": "DFW",
-                        "tenantId": "T1000"
-                    },
-                    {
-                        "publicURL": "https://ord.databases.api.rackspacecloud.com/v1.0/T1000",
-                        "region": "ORD",
-                        "tenantId": "T1000"
-                    }
-                ],
-                "name": "cloudDatabases",
-                "type": "rax:database"
-            },
-            {
-                "endpoints": [
-                    {
-                        "publicURL": "https://servers.api.rackspacecloud.com/v1.0/T1000",
-                        "tenantId": "T1000",
-                        "versionId": "1.0",
-                        "versionInfo": "https://servers.api.rackspacecloud.com/v1.0",
-                        "versionList": "https://servers.api.rackspacecloud.com/"
-                    }
-                ],
-                "name": "cloudServers",
-                "type": "compute"
-            },
-            {
-                "endpoints": [
-                    {
-                        "publicURL": "https://dfw.servers.api.rackspacecloud.com/v2/T1000",
-                        "region": "DFW",
-                        "tenantId": "T1000",
-                        "versionId": "2",
-                        "versionInfo": "https://dfw.servers.api.rackspacecloud.com/v2",
-                        "versionList": "https://dfw.servers.api.rackspacecloud.com/"
-                    }
-                ],
-                "name": "cloudServersOpenStack",
-                "type": "compute"
-            },
-            {
-                "endpoints": [
-                    {
-                        "publicURL": "https://dns.api.rackspacecloud.com/v1.0/T1000",
-                        "tenantId": "T1000"
-                    }
-                ],
-                "name": "cloudDNS",
-                "type": "rax:dns"
-            },
-            {
-                "endpoints": [
-                    {
-                        "publicURL": "https://cdn2.clouddrive.com/v1/Mosso_T-2000",
-                        "region": "ORD",
-                        "tenantId": "Mosso_T-2000"
-                    }
-                ],
-                "name": "cloudFilesCDN",
-                "type": "rax:object-cdn"
-            }
-        ]
+  "endpoints": [
+    {
+      "publicURL": "https://monitoring.api.rackspacecloud.com/v1.0/T1000",
+      "tenantId": "T1000"
+    }
+  ],
+  "name": "cloudMonitoring",
+  "type": "rax:monitor"
+ },
+ {
+   "endpoints": [
+     {
+       "publicURL": "https://ord.loadbalancers.api.rackspacecloud.com/v1.0/T1000",
+       "region": "ORD",
+       "tenantId": "T1000"
+      },
+      {
+        "publicURL": "https://dfw.loadbalancers.api.rackspacecloud.com/v1.0/T1000",
+        "region": "DFW",
+        "tenantId": "T1000"
+      }
+    ],
+    "name": "cloudLoadBalancers",
+    "type": "rax:load-balancer"
+  },
+  {
+    "endpoints": [
+      {
+        "internalURL": "https://snet-storage101.ord1.clouddrive.com/v1/Mosso_T-2000",
+        "publicURL": "https://storage101.ord1.clouddrive.com/v1/Mosso_T-2000",
+        "region": "ORD",
+        "tenantId": "Mossos_T-2000"
+      }
+    ],
+    "name": "cloudFiles",
+    "type": "object-store"
+  },
+  {
+    "endpoints": [
+      {
+        "publicURL": "https://dfw.databases.api.rackspacecloud.com/v1.0/T1000",
+        "region": "DFW",
+        "tenantId": "T1000"
+      },
+      {
+        "publicURL": "https://ord.databases.api.rackspacecloud.com/v1.0/T1000",
+        "region": "ORD",
+        "tenantId": "T1000"
+      }
+    ],
+    "name": "cloudDatabases",
+    "type": "rax:database"
+  },
+  {
+    "endpoints": [
+      {
+        "publicURL": "https://servers.api.rackspacecloud.com/v1.0/T1000",
+        "tenantId": "T1000",
+        "versionId": "1.0",
+        "versionInfo": "https://servers.api.rackspacecloud.com/v1.0",
+        "versionList": "https://servers.api.rackspacecloud.com/"
+      }
+    ],
+    "name": "cloudServers",
+    "type": "compute"
+  },
+  {
+    "endpoints": [
+      {
+        "publicURL": "https://dfw.servers.api.rackspacecloud.com/v2/T1000",
+        "region": "DFW",
+        "tenantId": "T1000",
+        "versionId": "2",
+        "versionInfo": "https://dfw.servers.api.rackspacecloud.com/v2",
+        "versionList": "https://dfw.servers.api.rackspacecloud.com/"
+      }
+    ],
+    "name": "cloudServersOpenStack",
+    "type": "compute"
+  },
+  {
+    "endpoints": [
+      {
+        "publicURL": "https://dns.api.rackspacecloud.com/v1.0/T1000",
+        "tenantId": "T1000"
+      }
+    ],
+    "name": "cloudDNS",
+    "type": "rax:dns"
+  },
+  {
+    "endpoints": [
+      {
+        "publicURL": "https://cdn2.clouddrive.com/v1/Mosso_T-2000",
+        "region": "ORD",
+        "tenantId": "Mosso_T-2000"
+      }
+    ],
+    "name": "cloudFilesCDN",
+    "type": "rax:object-cdn"
+  }
+]
 
 
 class StubbedWorkflowBase(unittest.TestCase):
