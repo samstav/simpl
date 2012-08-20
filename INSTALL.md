@@ -82,7 +82,6 @@ Install, configure, and start rabbitmq.
     $ sudo rabbitmqctl add_vhost checkmate
     $ sudo rabbitmqctl add_user checkmate <some_password_here>
     $ sudo rabbitmqctl set_permissions -p checkmate checkmate ".*" ".*" ".*"
-    $ sudo rabbitmq-server -detached
 
 Set the environment variable for your checkmate deployment environments and
 create the directory. If you want your variable settings to look stock, set
