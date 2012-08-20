@@ -642,6 +642,14 @@ the development branch from this fork:
 distributing tasks and retrying those that fail.
 
 
+#### AngularJS
+
+[AngularJS](http://www.angularjs.org/) is a UI framework that we use in
+Checkmate. It provides a Javascript framework that can run from the browser.
+
+[This](http://yearofmoo.com/2012/08/use-angularjs-to-power-your-web-application/) is
+a good intro to AngularJS. It seems to be constantly updated and remains relevant.
+
 
 ## Why the name checkmate?
 
