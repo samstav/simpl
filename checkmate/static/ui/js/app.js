@@ -84,7 +84,10 @@ checkmate.config(['$routeProvider', '$locationProvider', '$httpProvider', functi
     templateUrl: '/static/ui/partials/level2.html',
     controller: BlueprintListController
   }).
-  otherwise({});  //normal browsing
+  otherwise({
+    controller: ExternalController,
+    template:'<section class="entries" ng-include="templateUrl"><img src="/static/img/ajax-loader-bar.gif" alt="Loading..."/></section>'
+    });  //normal browsing
   
   
   $locationProvider.html5Mode(true);
@@ -113,6 +116,12 @@ Scope variables that control the Checkmate UI:
 function StaticController($scope) {
   $scope.showHeader = false;
   $scope.showStatus = false;
+}
+
+//Loads external page
+function ExternalController($window, $location) {
+  console.log("Loading external URL " + $location.absUrl());
+  $window.location.href = $location.absUrl();
 }
 
 //Loads the old ui (rendered at the server)
