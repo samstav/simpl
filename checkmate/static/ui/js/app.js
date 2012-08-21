@@ -76,7 +76,7 @@ checkmate.config(['$routeProvider', '$locationProvider', '$httpProvider', functi
 
   // New UI - dynamic, tenant pages
   $routeProvider.
-  when('/new/:tenantId/workflows/:id', {
+  when('/:tenantId/workflows/:id/status', {
     templateUrl: '/static/ui/partials/level2.html',
     controller: WorkflowController
   }).
@@ -112,8 +112,9 @@ Scope variables that control the Checkmate UI:
 
 */
 
-//Loads static content
-function StaticController($scope) {
+//Loads static content into body
+function StaticController($scope, $location) {
+  console.log("Loading static file " + $location.path());
   $scope.showHeader = false;
   $scope.showStatus = false;
 }
