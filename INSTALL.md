@@ -1,5 +1,12 @@
-# Installing Checkmate
+# Installing Checkmate By Hand
 ![Checkmate](https://github.rackspace.com/checkmate/checkmate/raw/master/checkmate/static/img/checkmate.png)
+
+
+This document explains how to install Checkmate by hand. If you are looking for
+a get a development box up quickly, see
+[VAGRANT.md](https://github.rackspace.com/checkmate/checkmate/blob/master/VAGRANT.md).
+
+## Dependencies
 
 Checkmate is mostly a python service. Therefore, most installations can be
 done with python tools like pip or easy_install. There are two main exceptions
@@ -39,18 +46,11 @@ For the rest of these instructions it is recommended that you stay inside the
 virtual environment so that the setup.py files do not require root permissions
 and place them in your local directory.
 
-## Install SpiffWorkflow from source
-
-    $ git clone http://github.com/ziadsawalha/SpiffWorkflow.git
-    $ cd SpiffWorkflow
-    $ python setup.py install
-    $ cd ..
-
 ## Install Checkmate from source
 
     $ git clone git://github.rackspace.com/checkmate/checkmate.git
     $ cd checkmate
-    $ python setup.py install
+    $ pip install -r pip-requirements.txt
     $ cd ..
 
 ## Install Chef
