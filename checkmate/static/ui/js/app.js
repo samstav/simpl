@@ -1008,14 +1008,14 @@ WPBP = {
                     }
                 ],
                 "description": "The operating system for the web servers.",
-                "default": "Ubuntu 11.10",
+                "default": "Ubuntu 12.04",
                 "label": "Operating System",
                 "type": "select",
                 "choice": [
-                    "Ubuntu 11.10",
+//                    "Ubuntu 11.10",
                     "Ubuntu 12.04",
-                    "CentOS",
-                    "RHEL 6"
+//                    "CentOS",
+//                    "RHEL 6"
                 ]
             },
             "web_server_size": {
