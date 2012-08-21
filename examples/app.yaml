@@ -359,8 +359,7 @@ includes:
       "master":
         component:
           type: application
-          name: wordpress
-          role: master
+          name: wordpress-master-role
         relations:
           "backend": 'mysql'
         constraints:
@@ -368,8 +367,7 @@ includes:
       "web":
         component:
           type: application
-          name: wordpress
-          role: web
+          name: wordpress-web-role
           options:
           - 'wordpress/version': '3.0.4'  # fix blueprint to a predictable version
         relations:
@@ -503,13 +501,10 @@ includes:
           name: 1 Gb
         constrains: [{service: web, resource_type: compute, setting: size},{service: master, resource_type: compute, setting: size}]
       "os":
-        default: Ubuntu 11.10
+        default: Ubuntu 12.04
         type: select
         choice:
-        - Ubuntu 11.10
         - Ubuntu 12.04
-        - CentOS
-        - RHEL 6
         label: Operating System
         description: The operating system for the web servers.
         constrains: [{service: web, resource_type: compute, setting: os},{service: web, resource_type: compute, setting: os}]
@@ -523,7 +518,7 @@ includes:
         constraints:
         - greater-than: 1 # this is an HA config
       "database_memory":
-        default: 312
+        default: 512
         label: Database Size
         description: The size of the database instance in MB of RAM.
         type: select

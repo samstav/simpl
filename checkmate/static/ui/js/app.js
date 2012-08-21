@@ -12,7 +12,7 @@ checkmate.config(['$routeProvider', '$locationProvider', '$httpProvider', functi
     controller: StaticController
   }).
   when('/ui/build', {
-    templateUrl: '/static/ui/partials/calculator.html',
+    template: '<calculator/>',
     controller: StaticController
   })
 
@@ -76,7 +76,7 @@ checkmate.config(['$routeProvider', '$locationProvider', '$httpProvider', functi
 
   // New UI - dynamic, tenant pages
   $routeProvider.
-  when('/new/:tenantId/workflows/:id', {
+  when('/:tenantId/workflows/:id/status', {
     templateUrl: '/static/ui/partials/level2.html',
     controller: WorkflowController
   }).
@@ -84,7 +84,10 @@ checkmate.config(['$routeProvider', '$locationProvider', '$httpProvider', functi
     templateUrl: '/static/ui/partials/level2.html',
     controller: BlueprintListController
   }).
-  otherwise({});  //normal browsing
+  otherwise({
+    controller: ExternalController,
+    template:'<section class="entries" ng-include="templateUrl"><img src="/static/img/ajax-loader-bar.gif" alt="Loading..."/></section>'
+    });  //normal browsing
   
   
   $locationProvider.html5Mode(true);
@@ -109,10 +112,17 @@ Scope variables that control the Checkmate UI:
 
 */
 
-//Loads static content
-function StaticController($scope) {
+//Loads static content into body
+function StaticController($scope, $location) {
+  console.log("Loading static file " + $location.path());
   $scope.showHeader = false;
   $scope.showStatus = false;
+}
+
+//Loads external page
+function ExternalController($window, $location) {
+  console.log("Loading external URL " + $location.absUrl());
+  $window.location.href = $location.absUrl();
 }
 
 //Loads the old ui (rendered at the server)
@@ -208,7 +218,7 @@ function AppController($scope, $http, $location) {
     username: '',
     password: '',
     apikey: '',
-    auth_url: "https://identity.api.rackspacecloud.com/v2.0/tokens"
+    auth_url: "https://identity.api.rackspacecloud.com/v2.0/tokens" //default
   };
   
   $scope.refresh = function() {
@@ -295,12 +305,15 @@ function AppController($scope, $http, $location) {
       return false;
      }
 
-    return $.ajax({
+    if (auth_url === undefined || auth_url === null || auth_url.length == 0) {
+      headers = {};  // Not supported on server, but we should do it
+    } else {
+      headers = {"X-Auth-Source": auth_url};
+
+    }return $.ajax({
       type: "POST",
       contentType: "application/json; charset=utf-8",
-      headers: {
-        "X-Auth-Source": auth_url
-      },
+      headers: headers,
       dataType: "json",
       url: "/authproxy",
       data: data
@@ -330,8 +343,8 @@ function AppController($scope, $http, $location) {
           auth_url: "https://identity.api.rackspacecloud.com/v2.0/tokens"
         };
       $scope.$apply();
-    }).error(function() {
-      $("#auth_error_text").html("Something bad happened");
+    }).error(function(response) {
+      $("#auth_error_text").html(response.statusText + ". Check that you typed in the correct credentials.");
       $("#auth_error").show();
     });
   }

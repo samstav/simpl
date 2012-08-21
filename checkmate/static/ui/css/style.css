@@ -240,7 +240,7 @@ section.mainContent div {
 }
 
 /* code mirror fixes - ZNS */
-.container-fluid, .span9, form, .CodeMirror, .row-fluid { height: inherit; }
+.container-fluid, .span9, .CodeMirror, .row-fluid { height: inherit; }
 .CodeMirror-scroll { height: 80%; }
 .CodeMirror pre {
     line-height: inherit;
