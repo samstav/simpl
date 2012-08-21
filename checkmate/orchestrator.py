@@ -26,9 +26,10 @@ db = get_driver()
 LOG = logging.getLogger(__name__)
 
 try:
-    if current_app.backend.__class__.__name__ != 'DatabaseBackend':
+    if current_app.backend.__class__.__name__ not in ['DatabaseBackend',
+                                                      'MongoBackend']:
         LOG.warning("Celery backend does not seem to be configured for a "
-                "database")
+                "database: %s" % current_app.backend.__class__.__name__)
     if 'checkmate' not in current_app.backend.dburi.split('/'):
         LOG.warning('Celery backend does not seem to be in checkmate folder')
 except:
