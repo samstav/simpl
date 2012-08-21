@@ -306,17 +306,17 @@ class StubbedWorkflowBase(unittest.TestCase):
         if str(os.environ.get('CHECKMATE_CHEF_USE_DATA_BAGS', True)
                     ).lower() in ['true', '1', 'yes']:
             expected_calls.append({
-                    'call': 'checkmate.providers.opscode.local.manage_databag',
-                    'args': [self.deployment['id'],
-                            self.deployment['id'],
-                            'webapp_wordpress_%s' %
-                                    self.deployment.get_setting('prefix'),
-                            Func(is_good_data_bag)],
-                    'kwargs': And(ContainsKeyValue('secret_file',
-                            'certificates/chef.pem'), ContainsKeyValue('merge',
-                            True)),
-                    'result': None
-                })
+                'call': 'checkmate.providers.opscode.local.manage_databag',
+                'args': [self.deployment['id'],
+                        self.deployment['id'],
+                        'webapp_wordpress_%s' %
+                                self.deployment.get_setting('prefix'),
+                        Func(is_good_data_bag)],
+                'kwargs': And(ContainsKeyValue('secret_file',
+                        'certificates/chef.pem'), ContainsKeyValue('merge',
+                        True)),
+                'result': None
+            })
         else:
             expected_calls.append({
                     'call': 'checkmate.providers.opscode.local.manage_role',
