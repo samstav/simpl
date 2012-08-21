@@ -12,7 +12,7 @@ checkmate.config(['$routeProvider', '$locationProvider', '$httpProvider', functi
     controller: StaticController
   }).
   when('/ui/build', {
-    templateUrl: '/static/ui/partials/calculator.html',
+    template: '<calculator/>',
     controller: StaticController
   })
 
