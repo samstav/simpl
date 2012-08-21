@@ -22,18 +22,9 @@ end
   end
 end
 
-git node['checkmate']['spiffworkflow_repo'] do
-  repository "http://github.com/ziadsawalha/SpiffWorkflow.git"
-  reference "master"
-  action :sync
-end
-
-execute "install_spiff" do
-  command "python #{node['checkmate']['spiffworkflow_repo']}/setup.py install"
-end
-
-execute "install_checkmate" do
-  command "python #{node['checkmate']['local_source']}/setup.py install"
+python_pip "#{node['checkmate']['local_source']}/pip-requirements.txt" do
+  options "-r"
+  action :install
 end
 
 rabbitmq_user "guest" do
@@ -67,3 +58,10 @@ git node['checkmate']['chef_repo'] do
   reference "master"
   action :sync
 end
+
+#service "checkmate-queue" do
+#  start_command "checkmate-queue START --with-ui"
+#  stop_command "checkmate-queue STOP"
+#  environment ({ 'CHECKMATE' => '/all/the/things',
+#                 'YOURA' => 'dbag })
+#end

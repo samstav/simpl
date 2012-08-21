@@ -75,6 +75,7 @@ Vagrant::Config.run do |config|
   # end
 
   config.vm.provision :chef_solo do |chef|
+    chef.log_level = :debug
     chef.cookbooks_path = ["vagrant/cookbooks", "vagrant/site-cookbooks"]
   #  chef.roles_path = "vagrant/roles"
   #  chef.data_bags_path = "vagrant/data_bags"
