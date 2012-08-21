@@ -264,12 +264,7 @@ def plan(deployment, context):
     _verify_required_blueprint_options_supplied(deployment)
 
     # Load providers
-    providers = environment.get_providers(context)
-   
-    # If Legacy provider exists, make sure environment region matches
-    if 'legacy' in providers:
-        _verify_region_for_legacy(context, environment, providers['legacy'])
-    
+    providers = environment.get_providers(context)    
 
     #Identify component providers and get the resolved components
     components = deployment.get_components(context)
@@ -572,26 +567,6 @@ def _verify_required_blueprint_options_supplied(deployment):
                 if key not in bp_inputs:
                     abort(406, "Required blueprint input '%s' not supplied" %
                             key)
-
-def _verify_region_for_legacy(context, environment, legacy):
-    common = environment.dict['providers']['common']
-    if 'constraints' in common:
-        constraints = common['constraints']
-        for constraint in constraints:
-            if 'region' in constraint:
-                region = constraint['region']
-    legacy_region_catalog = legacy.get_catalog(context,
-                                               type_filter='regions')
-    legacy_regions = legacy_region_catalog['lists']['regions'] 
-    region = REGION_MAP[region]
-    for legacy_region in legacy_regions:
-        if region in legacy_region:
-            LOG.info("Environment and legacy servers provisioning in %s" % region)
-            return
-        else:
-            abort(406, "Environment provisioning to %s, legacy provider can only \
-                provision in %s" % (region, legacy_region_catalog))
-
 
 def get_os_env_keys():
     """Get keys if they are set in the os_environment"""
