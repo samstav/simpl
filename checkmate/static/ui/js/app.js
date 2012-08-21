@@ -218,7 +218,7 @@ function AppController($scope, $http, $location) {
     username: '',
     password: '',
     apikey: '',
-    auth_url: "https://identity.api.rackspacecloud.com/v2.0/tokens"
+    auth_url: "https://identity.api.rackspacecloud.com/v2.0/tokens" //default
   };
   
   $scope.refresh = function() {
@@ -267,12 +267,15 @@ function AppController($scope, $http, $location) {
       return false;
      }
 
-    return $.ajax({
+    if (auth_url === undefined || auth_url === null || auth_url.length == 0) {
+      headers = {};  // Not supported on server, but we should do it
+    } else {
+      headers = {"X-Auth-Source": auth_url};
+
+    }return $.ajax({
       type: "POST",
       contentType: "application/json; charset=utf-8",
-      headers: {
-        "X-Auth-Source": auth_url
-      },
+      headers: headers,
       dataType: "json",
       url: "/authproxy",
       data: data
@@ -302,8 +305,8 @@ function AppController($scope, $http, $location) {
           auth_url: "https://identity.api.rackspacecloud.com/v2.0/tokens"
         };
       $scope.$apply();
-    }).error(function() {
-      $("#auth_error_text").html("Something bad happened");
+    }).error(function(response) {
+      $("#auth_error_text").html(response.statusText + ". Check that you typed in the correct credentials.");
       $("#auth_error").show();
     });
   }
