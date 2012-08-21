@@ -401,8 +401,6 @@ class TokenAuthMiddleware(object):
                 LOG.exception(exc)
                 return exc(e, h)
             context.set_context(content)
-            print "token middleware content: %s" % content
-
         return self.app(e, h)
 
     def _auth_keystone(self, context, token=None, username=None,

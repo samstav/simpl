@@ -186,7 +186,7 @@ def get_providers(tenant_id=None):
     results = {}
     for key, provider in PROVIDER_CLASSES.iteritems():
         results[key] = dict(vendor=provider.vendor, name=provider.name,
-                provides=provider({}).provides(request.context))
+                            provides=provider({}).provides(request.context))
     return write_body(results, request, response)
 
 
