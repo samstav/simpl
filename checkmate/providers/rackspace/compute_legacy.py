@@ -16,6 +16,10 @@ from checkmate.workflows import wait_for
 
 LOG = logging.getLogger(__name__)
 
+REGION_MAP = {'dallas': 'DFW',
+              'chicago': 'ORD',
+              'london': 'LON'}
+
 
 class Provider(RackspaceComputeProviderBase):
     name = 'legacy'
@@ -26,6 +30,23 @@ class Provider(RackspaceComputeProviderBase):
                 deployment, resource_type, service, context, name=name)
 
         catalog = self.get_catalog(context)
+
+        # Get region
+        region = deployment.get_setting('region', resource_type=resource_type,
+                                        service_name=service,
+                                        provider_key=self.key)
+        region = REGION_MAP[region]
+        if not region:
+            raise CheckmateException("Could not identify which region to "
+                                     "create servers in")
+
+        # Make sure region matches catalog region
+        region_catalog = self.get_catalog(context, type_filter='regions')
+        legacy_region = region_catalog['lists']['regions']
+        if region not in legacy_region:
+            raise CheckmateException("Legacy hard coded to %s. Cannot provision \
+                                     servers in %s" % (legacy_region, region))
+
         image = deployment.get_setting('os', resource_type=resource_type,
                 service_name=service, provider_key=self.key, default=119)
         if isinstance(image, int):

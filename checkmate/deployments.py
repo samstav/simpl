@@ -27,6 +27,7 @@ from checkmate.utils import write_body, read_body, extract_sensitive_data,\
 
 LOG = logging.getLogger(__name__)
 db = get_driver()
+
 # Any names should become airport codes
 REGION_MAP = {'dallas': 'DFW',
               'chicago': 'ORD',
@@ -825,6 +826,11 @@ class Deployment(ExtensibleDict):
         if result:
             return result
 
+        result = self._get_environment_setting(name, provider_key)
+        if result:
+            return result
+
+
         return default
 
     def _get_input_global(self, name):
@@ -952,6 +958,16 @@ class Deployment(ExtensibleDict):
                                 % (name, provider_key, resource_type, name,
                                 result))
                         return result
+
+    def _get_environment_setting(self, name, provider_key):
+        providers = self._environment.dict['providers']
+        if provider_key in providers:
+            settings = providers[provider_key]
+            for setting in settings:
+                if name in setting:
+                    result = setting[name]
+                    LOG.debug("Found setting '%s' in environment" % name)   
+
 
     def get_components(self, context):
         """Collect all requirements from components
