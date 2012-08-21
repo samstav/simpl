@@ -1,0 +1,57 @@
+# Use pip to install these requirements before installing checkmate:
+# pip install -r pip-requirements.txt
+#
+# First things first - list the checkmate repo.  This will actually
+# clone the specific repository shown and use the new cloned repository
+# in the src directory to which pip downloads src.  To use a different
+# src directory (such as the one this pip-requirements.txt file is found)
+# you can run: "pip install -e [path to your checkmate directory]", after the
+# initial installation, or to use the location of this pip-requirements file,
+# adjusting for relative path, simple change the next line to: -e ./
+-e git+https://github.rackspace.com/checkmate/checkmate@master#egg=checkmate
+#
+# Items from internal Enterprise github.rackspace.com
+#Upstream: https://github.com/knipknap/SpiffWorkflow
+-e git+https://github.rackspace.com/checkmate/SpiffWorkflow.git@master#egg=SpiffWorkflow
+#Upstream: https://github.com/rackspace/python-clouddns
+-e git+https://github.rackspace.com/checkmate/python-clouddns.git@master#egg=python-clouddns
+#Upstream: https://github.com/jacobian/openstack.compute
+-e git+https://github.rackspace.com/checkmate/openstack.compute.git@master#egg=openstack.compute
+#Upstream: https://github.com/slizadel/python-clouddb
+-e git+https://github.rackspace.com/checkmate/python-clouddb.git@master#egg=python-clouddb
+#Upstream: https://github.com/openstack/python-novaclient
+-e git+https://github.rackspace.com/checkmate/python-novaclient.git@master#egg=python-novaclient
+#
+# Items from public github
+-e git+https://github.com/openstack/python-keystoneclient.git@master#egg=python-keystoneclient
+-e git+https://github.com/calebgroom/pychef.git@master#egg=PyChef
+-e git+https://github.com/racker/rackspace-monitoring.git@master#egg=rackspace-monitoring
+# Items available on PyPi
+GitPython==0.3.2.RC1
+Jinja2==2.6
+PyYAML==3.10
+SQLAlchemy==0.7.8
+Tempita==0.5.1
+WebOb==1.2.2
+amqplib==1.0.2
+anyjson==0.3.3
+apache-libcloud==0.11.1
+argparse==1.2.1
+async==0.6.1
+billiard==2.7.3.12
+bottle==0.10.11
+celery==3.0.6
+decorator==3.3.3
+gitdb==0.5.4
+httplib2==0.7.4
+kombu==2.4.0
+pam==0.1.4
+paramiko==1.7.7.2
+prettytable==0.6
+pycrypto==2.6
+python-cloudfiles==1.7.10
+python-cloudlb==0.5.1
+python-dateutil==1.5
+simplejson==2.6.1
+smmap==0.8.2
+sqlalchemy-migrate==0.7.2

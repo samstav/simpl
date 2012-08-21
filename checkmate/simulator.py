@@ -19,7 +19,7 @@ try:
 except ImportError:
     #TODO(zns): remove this when Spiff incorporates the code in it
     print "Get SpiffWorkflow with the Celery spec in it from here: "\
-            "https://github.com/ziadsawalha/SpiffWorkflow/tree/celery"
+            "https://github.com/ziadsawalha/SpiffWorkflow/"
     raise
 
 from SpiffWorkflow import Workflow

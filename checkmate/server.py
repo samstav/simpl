@@ -572,7 +572,7 @@ class BrowserMiddleware(object):
         self.app = app
         HANDLERS['text/html'] = BrowserMiddleware.write_html
         STATIC.extend(['static', 'favicon.ico', 'apple-touch-icon.png', 'authproxy', 'marketing',
-                'admin', '', 'images', None])
+                'admin', '', 'images', 'ui', None])
         self.proxy_endpoints = proxy_endpoints
 
         # Add static routes
@@ -590,13 +590,15 @@ class BrowserMiddleware(object):
                     root=os.path.join(os.path.dirname(__file__), 'static'))
 
         @get('/')
+        @get('/ui/<path:path>')
         def ui(path=None):
             """Expose new javascript UI"""
-            root = os.path.join(os.path.dirname(__file__), 'static',
-                                'ui')
+            root = os.path.join(os.path.dirname(__file__), 'static', 'ui')
+            if path and path.startswith('/js/'):
+                root = os.path.join(os.path.dirname(__file__), 'static', 'ui',
+                                    'js')
             if not path or not os.path.exists(os.path.join(root, path)):
                 return static_file("index.html", root=root)
-
             if path.endswith('.css'):
                 return static_file(path, root=root, mimetype='text/css')
             if path.endswith('.html'):

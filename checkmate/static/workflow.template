@@ -24,6 +24,9 @@
                 Navigation
               </li>
               <li>
+                <a href="{{tenant_id|prepend}}/workflows/{{data.id}}/status"><i class="icon-play"></i> Beta UI</a>
+              </li>
+              <li>
                 <a href="{{tenant_id|prepend}}/workflows/{{data.id}}/status"><i class="icon-question-sign"></i> Status</a>
               </li>
               <li class="nav-header">
