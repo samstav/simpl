@@ -1,6 +1,13 @@
 {% extends "default.template" %}
 {% block title %}Checkmate - Workflow{% endblock %}
 {% block content %}
+        <style>
+        .CodeMirror-scroll { height: 600px; }
+        .CodeMirror pre {
+            line-height: inherit;
+            color: inherit;
+        }
+        </style>
         <div class="row-fluid">
           <div class="span4">
             <ul class="nav nav-list">
@@ -8,19 +15,16 @@
                 Commands
               </li>
               <li>
-                <a href="#" onclick="document.forms['workflow'].submit(); return false;" class="tip" title="Save any edits of the JSON. The JSON on the right is editable!"><i class="icon-ok"></i> Save</a>
+                <a href="#" ng-click="save()" class="tip" title="Save any edits of the JSON. The JSON on the right is editable!"><i class="icon-ok"></i> Save</a>
               </li>
               <li>
-                <a href="{{tenant_id|prepend}}/workflows/{{data.id}}/+execute"><i class="icon-play"></i> Run</a>
+                <a href="#" ng-click="action('+execute')"><i class="icon-play"></i> Run</a>
               </li>
               <li class="nav-header">
                 Navigation
               </li>
               <li>
                 <a href="{{tenant_id|prepend}}/workflows/{{data.id}}/status"><i class="icon-question-sign"></i> Status</a>
-              </li>
-              <li>
-                <a href="{{tenant_id|prepend}}/workflows/{{data.id}}/.json"><i class="icon-eye-open"></i> Raw View</a>
               </li>
               <li class="nav-header">
                 Tasks

@@ -20,31 +20,47 @@ checkmate.config(['$routeProvider', '$locationProvider', '$httpProvider', functi
   $routeProvider.
   when('/:tenantId/environments', {
     controller: LegacyController,
-    template:'<section class="entries" ng-include="templateUrl">Loading...</section>'
+    template:'<section class="entries" ng-include="templateUrl"><img src="/static/img/ajax-loader-bar.gif" alt="Loading..."/></section>'
   }).
   when('/:tenantId/environments/:id', {
     controller: LegacyController,
-    template:'<section class="entries" ng-include="templateUrl">Loading...</section>'
+    template:'<section class="entries" ng-include="templateUrl"><img src="/static/img/ajax-loader-bar.gif" alt="Loading..."/></section>'
   }).
   when('/:tenantId/deployments', {
     controller: LegacyController,
-    template:'<section class="entries" ng-include="templateUrl">Loading...</section>'
+    template:'<section class="entries" ng-include="templateUrl"><img src="/static/img/ajax-loader-bar.gif" alt="Loading..."/></section>'
   }).
   when('/:tenantId/deployments/:id', {
     controller: LegacyController,
-    template:'<section class="entries" ng-include="templateUrl">Loading...</section>'
+    template:'<section class="entries" ng-include="templateUrl"><img src="/static/img/ajax-loader-bar.gif" alt="Loading..."/></section>'
   }).
   when('/:tenantId/blueprints', {
     controller: LegacyController,
-    template:'<section class="entries" ng-include="templateUrl">Loading...</section>'
+    template:'<section class="entries" ng-include="templateUrl"><img src="/static/img/ajax-loader-bar.gif" alt="Loading..."/></section>'
   }).
   when('/:tenantId/workflows', {
     controller: LegacyController,
-    template:'<section class="entries" ng-include="templateUrl">Loading...</section>'
+    template:'<section class="entries" ng-include="templateUrl"><img src="/static/img/ajax-loader-bar.gif" alt="Loading..."/></section>'
   }).
   when('/:tenantId/workflows/:id', {
     controller: LegacyController,
-    template:'<section class="entries" ng-include="templateUrl">Loading...</section>'
+    template:'<section class="entries" ng-include="templateUrl"><img src="/static/img/ajax-loader-bar.gif" alt="Loading..."/></section>'
+  }).
+  when('/:tenantId/workflows/:id/tasks/:task_id', {
+    controller: LegacyController,
+    template:'<section class="entries" ng-include="templateUrl"><img src="/static/img/ajax-loader-bar.gif" alt="Loading..."/></section>'
+  }).
+  when('/providers', {
+    controller: LegacyController,
+    template:'<section class="entries" ng-include="templateUrl"><img src="/static/img/ajax-loader-bar.gif" alt="Loading..."/></section>'
+  }).
+  when('/status/libraries', {
+    controller: LegacyController,
+    template:'<section class="entries" ng-include="templateUrl"><img src="/static/img/ajax-loader-bar.gif" alt="Loading..."/></section>'
+  }).
+  when('/status/celery', {
+    controller: LegacyController,
+    template:'<section class="entries" ng-include="templateUrl"><img src="/static/img/ajax-loader-bar.gif" alt="Loading..."/></section>'
   })
   
   // New UI - static pages
@@ -100,22 +116,62 @@ function StaticController($scope) {
 }
 
 //Loads the old ui (rendered at the server)
-function LegacyController($scope, $location, $routeParams) {
+function LegacyController($scope, $location, $routeParams, $resource, navbar, $http) {
   $scope.showHeader = false;
   $scope.showStatus = false;
-  console.log($routeParams)
-  console.log(('tenantId' in $routeParams))
+  parts = $location.path().split('/')
+  if (parts.length > 1)
+    navbar.highlight(parts[2]);
 
   if ('tenantId' in $routeParams) {
-    path = $location.path() + '.html';
-  } else
-    path = '/' + $scope.$parent.auth.tenantId + $location.path() + '.html';
-  console.log($location.path(), path);
+    path = $location.path();
+  } else if ($location.path().indexOf('/' + $scope.$parent.auth.tenantId + '/') == 0) {
+    path = $location.path();
+  } else {
+    path = '/' + $scope.$parent.auth.tenantId + $location.path();
+  }
+  if (path.indexOf(".html") == -1 )
+    path += ".html";
+  console.log("Legacy controller loading " + path);
   $scope.templateUrl = path;
+
+  $scope.save = function() {
+    var klass = $resource($location.path());
+    var thang = new klass(JSON.parse(Editor.getValue()));
+
+    if ($scope.auth.loggedIn) {
+        thang.$save(function(returned, getHeaders){
+          alert('Saved');
+          console.log(returned);
+      }, function(error) {
+        console.log("Error " + error.data + "(" + error.status + ") saving this object.");
+        console.log($("#editor").text());
+        $scope.$root.error = {data: error.data, status: error.status, title: "Error Saving",
+                message: "There was an error saving your JSON:"};
+        $('#modalError').modal('show');
+      });
+    } else {
+      $scope.loginPrompt(); //TODO: implement a callback
+    }
+  };
+
+  $scope.action = function(action) {
+    if ($scope.auth.loggedIn) {
+      console.log("Executing action " + $location.path() + '/' + action)
+      $http({method: 'POST', url: $location.path() + '/' + action}).
+        success(function(data, status, headers, config) {
+          alert('Saved');
+          // this callback will be called asynchronously
+          // when the response is available
+        });
+    } else {
+      $scope.loginPrompt(); //TODO: implement a callback
+    }
+  };
 }
 
 // Root controller that implements authentication
-function AppController($scope, $http, $cookieStore, $location) {
+function AppController($scope, $http, $location) {
   $scope.showHeader = true;
   $scope.showStatus = false;
   $scope.auth = {
@@ -125,7 +181,7 @@ function AppController($scope, $http, $cookieStore, $location) {
     };
 
   // Restore login from session
-  var catalog = $.cookie('auth');
+  var catalog = localStorage.getItem('auth');
   if (catalog != undefined && catalog !== null)
     catalog = JSON.parse(catalog);
   if (catalog != undefined && catalog !== null && catalog != {} && 'access' in catalog) {
@@ -172,6 +228,44 @@ function AppController($scope, $http, $cookieStore, $location) {
     modal.modal('show');
   }
 
+  $scope.generatePassword = function() {
+      if (parseInt(navigator.appVersion) <= 3) {
+          alert("Sorry this only works in 4.0+ browsers");
+          return true;
+      }
+
+      var length=10;
+      var sPassword = "";
+
+      var noPunction = true;
+      for (i=0; i < length; i++) {
+
+          numI = $scope.getPwdRandomNum();
+          //Always have a letter for the first character.
+          while (i==0 && (numI <= 64 || ((numI >=91) && (numI <=96)))) { numI = $scope.getPwdRandomNum(); }
+          //Only allow letters and numbers for all other characters.
+          while (((numI >=58) && (numI <=64)) || ((numI >=91) && (numI <=96))) { numI = $scope.getPwdRandomNum(); }
+
+          sPassword = sPassword + String.fromCharCode(numI);
+      }
+      return sPassword;
+  }
+
+  $scope.getPwdRandomNum = function() {
+
+      // between 0 - 1
+      var rndNum = Math.random()
+
+      // rndNum from 0 - 1000
+      rndNum = parseInt(rndNum * 1000);
+
+      // rndNum from 33 - 127
+      rndNum = (rndNum % 75) + 48;
+
+      return rndNum;
+  }
+
+
   // Log in using credentials delivered through bound_credentials
   $scope.logIn = function() {
     var username = $scope.bound_creds.username;
@@ -214,18 +308,14 @@ function AppController($scope, $http, $cookieStore, $location) {
       $('#modalAuth').modal('hide');
       var keep = {access: {token: json.access.token, user: json.access.user}};
       keep.auth_url = auth_url;  // save for later
-      //save token and creds in cookie (domain must be set to '' for localhost)
-      if (window.location.hostname == 'localhost' || window.location.hostname == '127.0.0.1') {
-        $.cookie('auth', JSON.stringify(keep), {path: '/', expires: new Date(json.access.token.expires), domain: ''});
-      } else {
-        $.cookie('auth', JSON.stringify(keep), {path: '/', expires: new Date(json.access.token.expires)});
-      }
+      var expires = new Date(json.access.token.expires);
+      keep.expires = expires;
+      localStorage.setItem('auth', JSON.stringify(keep));
       $scope.auth.username = username;
       $scope.auth.tenantId = json.access.token.tenant.id;
       $scope.auth.catalog = json;
       checkmate.config.header_defaults.headers.common['X-Auth-Token'] = json.access.token.id;
       checkmate.config.header_defaults.headers.common['X-Auth-Source'] = auth_url;
-      var expires = new Date(json.access.token.expires);
       var now = new Date();
       if (expires < now) {
         $scope.auth.expires = 'expired';
@@ -249,7 +339,7 @@ function AppController($scope, $http, $cookieStore, $location) {
   $scope.logOut = function() {
     $scope.auth.username = '';
     $scope.auth.catalog = null;
-    $.removeCookie('auth', {path: '/'});
+    localStorage.removeItem('auth');
     $scope.auth.loggedIn = false;
     delete checkmate.config.header_defaults.headers.common['X-Auth-Token'];
     delete checkmate.config.header_defaults.headers.common['X-Auth-Source'];
@@ -265,11 +355,12 @@ function NavBarController() {
 /**
  *   workflows
  */
-function WorkflowListController($scope, $location, $resource, workflow, items) {
+function WorkflowListController($scope, $location, $resource, workflow, items, navbar) {
   //Model: UI
   $scope.showItemsBar = true;
   $scope.showStatus = true;
-  $scope.name = "Workflows"; 
+  $scope.name = "Workflows";
+  navbar.highlight("workflows");  
 
   $scope.showConnections = function(task_div) {
     jsPlumb.Defaults.Container = "entry";
@@ -937,7 +1028,7 @@ WPBP = {
                 "description": "The application ID (and wordpress table prefix)."
             },
             "password": {
-                "type": "string",
+                "type": "password",
                 "description": "Password to use for service. Click the generate button to generate a random password.",
                 "label": "Password"
             },
@@ -955,14 +1046,14 @@ WPBP = {
                     }
                 ],
                 "description": "The operating system for the web servers.",
-                "default": "Ubuntu 11.10",
+                "default": "Ubuntu 12.04",
                 "label": "Operating System",
                 "type": "select",
                 "choice": [
-                    "Ubuntu 11.10",
+//                    "Ubuntu 11.10",
                     "Ubuntu 12.04",
-                    "CentOS",
-                    "RHEL 6"
+//                    "CentOS",
+//                    "RHEL 6"
                 ]
             },
             "web_server_size": {

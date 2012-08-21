@@ -571,7 +571,7 @@ class BrowserMiddleware(object):
     def __init__(self, app, proxy_endpoints=None):
         self.app = app
         HANDLERS['text/html'] = BrowserMiddleware.write_html
-        STATIC.extend(['static', 'favicon.ico', 'authproxy', 'marketing',
+        STATIC.extend(['static', 'favicon.ico', 'apple-touch-icon.png', 'authproxy', 'marketing',
                 'admin', '', 'images', None])
         self.proxy_endpoints = proxy_endpoints
 
@@ -581,6 +581,12 @@ class BrowserMiddleware(object):
             """Without this, browsers keep getting a 404 and users perceive
             slow response """
             return static_file('favicon.ico',
+                    root=os.path.join(os.path.dirname(__file__), 'static'))
+
+        @get('/apple-touch-icon.png')
+        def apple_touch():
+            """For iOS devices"""
+            return static_file('apple-touch-icon.png',
                     root=os.path.join(os.path.dirname(__file__), 'static'))
 
         @get('/')

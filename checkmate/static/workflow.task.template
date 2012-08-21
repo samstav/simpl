@@ -8,25 +8,22 @@
                 Commands
               </li>
               <li>
-                <a href="#" onclick="document.forms['task'].submit(); return false;" class="tip" title="Save any edits of the JSON. The JSON on the right is editable!"><i class="icon-ok"></i> Save</a>
+                <a href="#" ng-click="save()" class="tip" title="Save any edits of the JSON. The JSON on the right is editable!"><i class="icon-ok"></i> Save</a>
               </li>
               <li>
-                <a href="{{data.tenantId|prepend}}/workflows/{{data.workflow_id}}/tasks/{{data.id}}/+reset" class="tip" title="Clear the task data and reset it"><i class="icon-repeat"></i> Reset</a>
+                <a href="#" ng-click="action('+reset')" class="tip" title="Clear the task data and reset it"><i class="icon-repeat"></i> Reset</a>
               </li>
               <li>
-                <a href="{{data.tenantId|prepend}}/workflows/{{data.workflow_id}}/tasks/{{data.id}}/+execute" class="tip" title="Attempt to run the task again using current state"><i class="icon-play"></i> Run Task</a>
+                <a href="#" ng-click="action('+execute')" class="tip" title="Attempt to run the task again using current state"><i class="icon-play"></i> Run Task</a>
               </li>
               <li>
-                <a href="{{data.tenantId|prepend}}/workflows/{{data.workflow_id}}/tasks/{{data.id}}/+resubmit" class="tip" title="Clear task data, abort the Celery task, and retrigger it"><i class="icon-retweet"></i> Abort and Resubmit</a>
+                <a href="#" ng-click="action('+resubmit')" class="tip" title="Clear task data, abort the Celery task, and retrigger it"><i class="icon-retweet"></i> Abort and Resubmit</a>
               </li>
               <li class="nav-header">
                 Navigation
               </li>
               <li>
-                <a href=".json"><i class="icon-eye-open"></i> Raw View</a>
-              </li>
-              <li>
-                <a href="{{data.tenantId|prepend}}/workflows/{{data.workflow_id}}/"><i class="icon-tasks"></i> Go To Workflow</a>
+                <a href="{{context.tenant|prepend}}/workflows/{{data.workflow_id}}/"><i class="icon-tasks"></i> Go To Workflow</a>
               </li>
             </ul>
           </div><!-- span2 -->
@@ -54,9 +51,9 @@
             <div id="error-alert" class="alert alert-block alert-error fade in">
               <button class="close" data-dismiss="alert">&times;</button>
               <h4 class="alert-heading">Oh snap! Something didn't work!</h4>
-              <p>This error was reported: {{data.internal_attributes.task_state.info}}. See the code <a class="accordion-toggle cmcollapse" data-toggle="collapse" href="#traceback">traceback</a>.</p><div id="traceback" class="cmcollapse collapse in"><pre>{{data.internal_attributes.task_state.traceback}}</pre></div>
+              <p>This error was reported: {{data.internal_attributes.task_state.info}}. See the code <a class="accordion-toggle cmcollapse" data-toggle="collapse" href="#" data-target="#traceback">traceback</a>.</p><div id="traceback" class="cmcollapse collapse"><pre>{{data.internal_attributes.task_state.traceback}}</pre></div>
               <p>
-                <a class="btn btn-primary" href="{{data.tenantId|prepend}}/workflows/{{data.workflow_id}}/tasks/{{data.id}}/+execute">Just try again</a> <a class="btn btn-danger cmtip" href="{{data.tenantId|prepend}}/workflows/{{data.workflow_id}}/tasks/{{data.id}}/+resubmit" title="Clear task data, abort the Celery task, and retrigger it"><i class="icon-retweet"></i> Abort and Retry</a>
+                <a class="btn btn-primary" href="#" ng-click="action('+execute')">Check status</a> <a class="btn btn-danger cmtip" href="#" ng-click="action('+resubmit')" title="Clear task data, abort the Celery task, and retrigger it"><i class="icon-retweet"></i> Abort and Retry</a>
               </p>
             </div>
             {% elif data.internal_attributes.task_state.state == 'RETRY' and data.state != 64 %}
@@ -75,7 +72,7 @@
               <a class="close" data-dismiss="alert" href="#">×</a>
               Server {{data.attributes.id}} was created with IP address {{data.attributes.ip}}. You can see it in the {% if '-' in data.attributes.id|string %}<a target="_blank" href="https://mycloud.rackspace.com/a/{{data.attributes.username}}/#list/location:Next Generation/">next-gen control panel</a>{% else %}<a target="_blank" href="https://manage.rackspacecloud.com/CloudServers/Overview.do?cloudServerId={{data.attributes.id}}">control panel</a>{% endif %} or connect to it over <a href="ssh://root@{{data.attributes.ip}}">ssh</a>.
             </div>
-            {% elif data.task_spec == 'Create Loadbalancer' and data.attributes.lbid is defined%}
+            {% elif (data.task_spec == 'Create Loadbalancer' or data.task_spec == 'Create LB') and data.attributes.vip is defined%}
             <div class="alert alert-success">
               <a class="close" data-dismiss="alert" href="#">×</a>
               Load balancer {{data.attributes.id}} was created and assigned VIP {{data.attributes.vip}}. See it in the <a target="_blank" href="https://manage.rackspacecloud.com/LoadBalancers/Nodes.do?loadBalancerId={{data.attributes.id}}&amp;datacenter={% if data.attributes.region == 'dallas' %}prod-dfw{% else %}prod-ord{% endif %}">control panel</a> or <a target="_blank" href="http://{{data.attributes.vip}}/">browse</a> the VIP.

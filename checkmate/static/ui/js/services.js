@@ -469,9 +469,18 @@ services.factory('old_items', ['$http', 'store', 'filterFilter', function($http,
 	return items;
 }]);
 
+services.value('navbar', {
+	highlight: function(menu_name) {
+		$(document).ready(function() {
+			$('#nav-elements li').removeClass('active');
+			$('#nav-' + menu_name).addClass('active');
+		});
+	}
+})
+
 services.value('scroll', {
 	pageDown: function() {
-		var itemHeight = $('.entry.active').height() + 60;
+	  var itemHeight = $('.entry.active').height() + 60;
 	  var winHeight = $(window).height();
 	  var curScroll = $('.entries').scrollTop();
 	  var scroll = curScroll + winHeight;
@@ -526,6 +535,45 @@ services.value('settings', {
     return options;
   }
 });
+
+// Captures HTTP requests and responses (including errors)
+services.config(function ($httpProvider) {
+        $httpProvider.responseInterceptors.push('myHttpInterceptor');
+        var startFunction = function (data, headersGetter) {
+            console.log('Started call');
+			if ('requests' in checkmate) {
+				checkmate.requests += 1;
+			} else
+				checkmate.requests = 1;
+			$('#loading').show();
+            return data;
+        };
+        $httpProvider.defaults.transformRequest.push(startFunction);
+    })
+    // register the interceptor as a service, intercepts ALL angular ajax http calls
+    .factory('myHttpInterceptor', function ($q, $window, $rootScope) {
+        return function (promise) {
+            return promise.then(function (response) {
+	            console.log('Call ended successfully');
+				checkmate.requests -= 1;
+				if (checkmate.requests <= 0)
+					$('#loading').hide();
+                return response;
+
+            }, function (response) {
+				checkmate.requests -= 1;
+				if (checkmate.requests <= 0)
+					$('#loading').hide();
+				error = response;
+				$rootScope.error = {data: error.data, status: error.status, title: "Error Saving",
+						message: "There was an error saving your JSON:"};
+				$('#modalError').modal('show');
+                return $q.reject(response);
+            });
+        };
+    })
+
+
 
 /*
  * support functions
