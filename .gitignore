@@ -72,3 +72,10 @@ tests/coverage.xml
 ###########
 *.patch
 *.diff
+
+# Vagrant #
+###########
+.vagrant
+/vagrant/cookbooks
+/vagrant/tmp
+/vagrant/Cheffile.lock
