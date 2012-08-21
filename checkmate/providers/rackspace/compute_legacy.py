@@ -9,7 +9,7 @@ from SpiffWorkflow.specs import Celery, Transform
 
 from checkmate.deployments import Deployment, resource_postback
 from checkmate.exceptions import CheckmateNoTokenError, CheckmateNoMapping, \
-    CheckmateServerBuildFailed
+    CheckmateServerBuildFailed, CheckmateException
 from checkmate.providers.rackspace.compute import RackspaceComputeProviderBase
 from checkmate.utils import get_source_body
 from checkmate.workflows import wait_for
@@ -32,15 +32,26 @@ class Provider(RackspaceComputeProviderBase):
             generate_template(self, deployment, resource_type, service,
                               context, name=name)
 
-        # Get region
+       
+        catalog = self.get_catalog(context)
+
+         # Get 
         region = deployment.get_setting('region', resource_type=resource_type,
                                         service_name=service,
                                         provider_key=self.key)
+        region = REGION_MAP[region]
         if not region:
             raise CheckmateException("Could not identify which region to "
                                      "create servers in")
 
-        catalog = self.get_catalog(context)
+        #Make sure region matches catalog region
+        region_catalog = self.get_catalog(context, type_filter='regions')
+        legacy_region = region_catalog['lists']['regions']
+        if region not in legacy_region:
+            raise CheckmateException("Legacy hard coded to %s. Cannot provision \
+                                     servers in %s" % (legacy_region, region))
+               
+
         image = deployment.get_setting('os', resource_type=resource_type,
                                        service_name=service,
                                        provider_key=self.key, default=119)
@@ -138,9 +149,10 @@ class Provider(RackspaceComputeProviderBase):
         """Return stored/override catalog if it exists, else connect, build,
         and return one"""
         results = {}
-        # TODO: maybe implement this an on_get_catalog so we don't have to do
-        #        this for every provider
+        
         if type_filter != 'regions':
+            # TODO: maybe implement this an on_get_catalog so we don't have to do
+            #        this for every provider
             results = RackspaceComputeProviderBase.get_catalog(self, context, \
                 type_filter=type_filter)
             if results:
