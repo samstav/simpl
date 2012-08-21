@@ -228,6 +228,44 @@ function AppController($scope, $http, $location) {
     modal.modal('show');
   }
 
+  $scope.generatePassword = function() {
+      if (parseInt(navigator.appVersion) <= 3) {
+          alert("Sorry this only works in 4.0+ browsers");
+          return true;
+      }
+
+      var length=10;
+      var sPassword = "";
+
+      var noPunction = true;
+      for (i=0; i < length; i++) {
+
+          numI = $scope.getPwdRandomNum();
+          //Always have a letter for the first character.
+          while (i==0 && (numI <= 64 || ((numI >=91) && (numI <=96)))) { numI = $scope.getPwdRandomNum(); }
+          //Only allow letters and numbers for all other characters.
+          while (((numI >=58) && (numI <=64)) || ((numI >=91) && (numI <=96))) { numI = $scope.getPwdRandomNum(); }
+
+          sPassword = sPassword + String.fromCharCode(numI);
+      }
+      return sPassword;
+  }
+
+  $scope.getPwdRandomNum = function() {
+
+      // between 0 - 1
+      var rndNum = Math.random()
+
+      // rndNum from 0 - 1000
+      rndNum = parseInt(rndNum * 1000);
+
+      // rndNum from 33 - 127
+      rndNum = (rndNum % 75) + 48;
+
+      return rndNum;
+  }
+
+
   // Log in using credentials delivered through bound_credentials
   $scope.logIn = function() {
     var username = $scope.bound_creds.username;
@@ -990,7 +1028,7 @@ WPBP = {
                 "description": "The application ID (and wordpress table prefix)."
             },
             "password": {
-                "type": "string",
+                "type": "password",
                 "description": "Password to use for service. Click the generate button to generate a random password.",
                 "label": "Password"
             },
