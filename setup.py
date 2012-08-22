@@ -27,28 +27,29 @@ setup(
     author='Ziad Sawalha',
     author_email='ziad.sawalha@rackspace.com',
     dependency_links=github_urls,
-    install_requires=['bottle',
-                      'celery',
-                      'GitPython',
-                      'Jinja2',
-                      'openstack.compute',
-                      'pam',
-                      'paramiko',
-                      'pycrypto',
-                      'python-clouddb',
-                      'python-novaclient',
-                      'python-cloudlb',
-                      'python-keystoneclient',
-                      'python-clouddns',
-                      'python-cloudfiles',
-                      'pychef',
-                      'pyyaml',
-                      'SpiffWorkflow',
-                      'sqlalchemy',
-                      'sqlalchemy-migrate',
-                      'webob',
-                      'pam',
+    install_requires=['bottle==0.10.11',
+                      'celery==2.5.5',
+                      'kombu==2.1.8',
+                      'GitPython==0.3.2.RC1'
+                      'Jinja2==2.6'
+                      'openstack.compute==2.0a1',
+                      'pam==0.1.4'
+                      'paramiko==1.7.7.2'
+                      'pycrypto==2.6'
+                      'python-clouddb==.01',
+                      'python-novaclient==2012.2',
+                      'python-cloudlb==0.5.1'
+                      'python-keystoneclient==0.0.0',
+                      'python-clouddns==0.0.0',
+                      'python-cloudfiles==1.7.10'
+                      'PyChef==0.2.dev',
+                      'PyYAML==3.10'
+                      'SpiffWorkflow==0.3.2-rackspace',
+                      'SQLAlchemy==0.7.8'
+                      'sqlalchemy-migrate==0.7.2'
+                      'WebOb==1.2.2'
                       'prettytable==0.6',
+                      'pymongo==2.1.1',
                       ],
     entry_points={
         'console_scripts': [

@@ -26,32 +26,35 @@
 -e git+https://github.com/openstack/python-keystoneclient.git@master#egg=python-keystoneclient
 -e git+https://github.com/calebgroom/pychef.git@master#egg=PyChef
 -e git+https://github.com/racker/rackspace-monitoring.git@master#egg=rackspace-monitoring
-# Items available on PyPi
-GitPython==0.3.2.RC1
-Jinja2==2.6
-PyYAML==3.10
-SQLAlchemy==0.7.8
-Tempita==0.5.1
-WebOb==1.2.2
-amqplib==1.0.2
-anyjson==0.3.3
-apache-libcloud==0.11.1
-argparse==1.2.1
-async==0.6.1
-billiard==2.7.3.12
-bottle==0.10.11
-celery==3.0.6
-decorator==3.3.3
-gitdb==0.5.4
-httplib2==0.7.4
-kombu==2.4.0
-pam==0.1.4
-paramiko==1.7.7.2
-prettytable==0.6
-pycrypto==2.6
-python-cloudfiles==1.7.10
-python-cloudlb==0.5.1
-python-dateutil==1.5
-simplejson==2.6.1
-smmap==0.8.2
-sqlalchemy-migrate==0.7.2
+#
+# Items available on PyPi - commented, will let setup.py of checkmate drive these, just here for reference
+#GitPython==0.3.2.RC1
+#Jinja2==2.6
+#PyYAML==3.10
+#SQLAlchemy==0.7.8
+#Tempita==0.5.1
+#WebOb==1.2.2
+#amqplib==1.0.2
+#anyjson==0.3.3
+#apache-libcloud==0.11.1
+#argparse==1.2.1
+#async==0.6.1
+#billiard==2.7.3.12
+#bottle==0.10.11
+##celery==3.0.6'
+#celery==2.5.5
+#decorator==3.3.3
+#gitdb==0.5.4
+#httplib2==0.7.4
+##kombu==2.4.0
+#kombu==2.1.8
+#pam==0.1.4
+#paramiko==1.7.7.2
+#prettytable==0.6
+#pycrypto==2.6
+#python-cloudfiles==1.7.10
+#python-cloudlb==0.5.1
+#python-dateutil==1.5
+#simplejson==2.6.1
+#smmap==0.8.2
+#sqlalchemy-migrate==0.7.2
