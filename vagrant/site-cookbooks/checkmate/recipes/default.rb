@@ -59,9 +59,28 @@ git node['checkmate']['chef_repo'] do
   action :sync
 end
 
-#service "checkmate-queue" do
-#  start_command "checkmate-queue START --with-ui"
-#  stop_command "checkmate-queue STOP"
-#  environment ({ 'CHECKMATE' => '/all/the/things',
-#                 'YOURA' => 'dbag })
-#end
+ENV['CHECKMATE_BROKER_USERNAME'] = node['checkmate']['broker_username']
+ENV['CHECKMATE_BROKER_PASSWORD'] = node['checkmate']['broker_password']
+ENV['CHECKMATE_BROKER_PORT'] = node['checkmate']['broker_port']
+ENV['CHECKMATE_BROKER_HOST'] = node['checkmate']['broker_host']
+ENV['CELERY_CONFIG_MODULE'] = node['checkmate']['celery_config_module']
+ENV['CHECKMATE_CHEF_REPO'] = node['checkmate']['chef_repo']
+ENV['CHECKMATE_CONNECTION_STRING'] = node['checkmate']['connection_string']
+
+
+template "/etc/init.d/checkmate-queue" do
+  source "checkmate-queue.erb"
+  notifies :reload, "service[checkmate-queue]"
+end
+
+template "/etc/default/checkmate-queue" do
+  source "checkmate-queue.default.erb"
+  owner "root"
+  group "root"
+  mode 0644
+  notifies :reload, "service[checkmate-queue]"
+end
+
+service "checkmate-queue" do
+  action [ :start, :enable ]
+end
