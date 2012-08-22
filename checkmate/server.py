@@ -80,7 +80,7 @@ LOG = logging.getLogger(__name__)
 from checkmate.db import get_driver, any_id_problems, any_tenant_id_problems
 from checkmate.exceptions import CheckmateException, CheckmateNoMapping
 from checkmate.utils import HANDLERS, RESOURCES, STATIC, write_body, \
-        read_body
+        read_body, support_only
 
 db = get_driver()
 
