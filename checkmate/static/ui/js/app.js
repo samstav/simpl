@@ -786,37 +786,10 @@ function DeploymentInitController($scope, $location, $routeParams, $resource, bl
   };
 
   $scope.submit = function(simulate) {
-    var deployment = {};
-
-    deployment.blueprint = $scope.blueprint;
-    deployment.environment = $scope.environment;
-    deployment.inputs = {};
-    deployment.inputs.blueprint = {};
-    deployment.tenantId = $scope.auth.tenantId;
-
-    // Have to fix some of the answers so they are in the right format, specifically the select
-    // and checkboxes. This is lame and slow and I should figure out a better way to do this.
-    _.each($scope.answers, function(element, key) {
-      var setting = _.find($scope.settings, function(item) {
-        if (item.id == key) {
-          return item;
-        }
-      });
-
-      if (setting.type === "boolean") {
-        if ($scope.answers[key] === null) {
-          deployment.inputs.blueprint[key] = false;
-        } else {
-          deployment.inputs.blueprint[key] = $scope.answers[key];
-        }
-      } else {
-        deployment.inputs.blueprint[key] = $scope.answers[key];
-      }
-    });
-  };
-
-  $scope.simulate = function() {
-    var Deployment = $resource('/:tenantId/deployments/simulate', {tenantId: $scope.auth.tenantId});
+    url = '/:tenantId/deployments';
+    if (simulate == true)
+      url += '/simulate';
+    var Deployment = $resource(url, {tenantId: $scope.auth.tenantId});
     var deployment = new Deployment({});
     deployment.blueprint = $scope.blueprint;
     deployment.environment = $scope.environment;
@@ -858,6 +831,10 @@ function DeploymentInitController($scope, $location, $routeParams, $resource, bl
     } else {
       $scope.loginPrompt(); //TODO: implement a callback
     }
+  };
+
+  $scope.simulate = function() {
+    $scope.submit(true);
   };
 
   // Load blueprints
