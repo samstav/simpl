@@ -592,6 +592,10 @@ class BrowserMiddleware(object):
 
         @get('/')
         @get('/ui/<path:path>')
+        #TODO: remove application/json and fix angular to call partials with
+        #  text/html
+        @support_only(['text/html', 'text/css', 'text/javascript',
+                       'application/json'])  # Angular calls template in json
         def ui(path=None):
             """Expose new javascript UI"""
             root = os.path.join(os.path.dirname(__file__), 'static', 'ui')
@@ -610,6 +614,10 @@ class BrowserMiddleware(object):
             return static_file(path, root=root)
 
         @get('/static/<path:path>')
+        #TODO: remove application/json and fix angular to call partials with
+        #  text/html
+        @support_only(['text/html', 'text/css', 'text/javascript',
+                       'application/json'])  # Angular calls template in json
         def static(path):
             """Expose static files (images, css, javascript, etc...)"""
             root = os.path.join(os.path.dirname(__file__), 'static')
@@ -631,12 +639,14 @@ class BrowserMiddleware(object):
             return write_body(None, request, response)
 
         @get('/marketing/<path:path>')
+        @support_only(['text/html', 'text/css', 'text/javascript'])
         def home(path):
             return static_file(path,
                     root=os.path.join(os.path.dirname(__file__), 'static',
                         'marketing'))
 
         @post('/authproxy')
+        @support_only(['application/json', 'application/x-yaml'])
         def authproxy():
             """Proxy Auth Requests
 
