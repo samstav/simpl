@@ -264,7 +264,7 @@ def plan(deployment, context):
     _verify_required_blueprint_options_supplied(deployment)
 
     # Load providers
-    providers = environment.get_providers(context)    
+    providers = environment.get_providers(context)
 
     #Identify component providers and get the resolved components
     components = deployment.get_components(context)
@@ -568,6 +568,7 @@ def _verify_required_blueprint_options_supplied(deployment):
                     abort(406, "Required blueprint input '%s' not supplied" %
                             key)
 
+
 def get_os_env_keys():
     """Get keys if they are set in the os_environment"""
     keys = {}
@@ -801,7 +802,7 @@ class Deployment(ExtensibleDict):
         if result:
             return result
 
-        result = self._get_environment_setting(name, provider_key)
+        result = self._get_environment_setting(name, provider_key, service_name)
         if result:
             return result
 
@@ -934,14 +935,18 @@ class Deployment(ExtensibleDict):
                                 result))
                         return result
 
-    def _get_environment_setting(self, name, provider_key):
-        providers = self._environment.dict['providers']
+    def _get_environment_setting(self, name, provider_key, service_name):
+        environment = self.environment()
+        providers = environment.dict['providers']
         if provider_key in providers:
             settings = providers[provider_key]
-            for setting in settings:
-                if name in setting:
-                    result = setting[name]
-                    LOG.debug("Found setting '%s' in environment" % name)   
+            if service_name in settings:
+                options = settings[service_name]
+                for option in options:
+                    if name in option:
+                        result = option[name]
+                        LOG.debug("Found setting '%s' in environment" % name)   
+                        return result
 
 
     def get_components(self, context):
