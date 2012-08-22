@@ -111,4 +111,5 @@ Vagrant::Config.run do |config|
   # chef-validator, unless you changed the configuration.
   #
   #   chef.validation_client_name = "ORGNAME-validator"
+  config.vm.forward_port 8080, 8080
 end
