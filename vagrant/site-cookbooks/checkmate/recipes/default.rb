@@ -16,6 +16,10 @@ node.set_unless['checkmate']['rabbitmq']['password'] = secure_password
   end
 end
 
+execute "update_gem" do
+  command "gem update --system"
+end
+
 %w{bundler knife-solo knife-solo_data_bag}.each do |pkg|
   gem_package pkg do
     action :upgrade
