@@ -66,7 +66,7 @@ from checkmate.utils import init_console_logging
 init_console_logging()
 # pylint: disable=E0611
 from bottle import app, get, post, run, request, response, abort, static_file,\
-        HTTPError
+        HTTPError, error, HeaderDict
 from Crypto.Hash import MD5
 from jinja2 import BaseLoader, Environment, TemplateNotFound
 import webob
@@ -77,8 +77,9 @@ LOG = logging.getLogger(__name__)
 
 
 from checkmate.db import get_driver, any_id_problems, any_tenant_id_problems
-from checkmate.exceptions import CheckmateException
-from checkmate.utils import HANDLERS, RESOURCES, STATIC, write_body, read_body
+from checkmate.exceptions import CheckmateException, CheckmateNoMapping
+from checkmate.utils import HANDLERS, RESOURCES, STATIC, write_body, \
+        read_body, support_only
 
 db = get_driver()
 
@@ -1188,7 +1189,7 @@ class CatchAll404(object):
 
     def __init__(self, app):
         self.app = app
-        LOG.info("initializing BrowserMiddleware")
+        LOG.info("initializing CatchAll404")
 
         # Keep this at end so it picks up any remaining calls after all other
         # routes have been added (and some routes are added in the __main__
@@ -1202,12 +1203,34 @@ class CatchAll404(object):
     def __call__(self, e, h):
         return self.app(e, h)
 
+@error(code=500)
+def custom_500(error):
+    """Catch 500 errors that originate from a CheckmateExcption and output the
+    Checkmate error information (more useful than a blind 500)"""
+    accept = request.get_header("Accept")
+    if "application/json" in accept:
+        error.headers = HeaderDict({"content-type": "application/json"})
+        error.apply(response)
+    elif "application/x-yaml" in accept:
+        error.headers = HeaderDict({"content-type": "application/x-yaml"})
+        error.apply(response)
+        #error.set_header = lambda s, h, v: LOG.debug(s)
+    if isinstance(error.exception, CheckmateNoMapping):
+        error.status = '406 Bad Request'
+        error.output = error.exception.__str__()
+    elif isinstance(error.exception, CheckmateException):
+        error.status = '406 Bad Request'
+        error.output = json.dumps(error.exception.__str__())
+
+    return error.output #write_body(error, request, response)
+
 
 #if __name__ == '__main__':
 def main_func():
     # Build WSGI Chain:
     next = app()  # This is the main checkmate app
-    next.catch_all = False  # Handle errors ourselves so we can format them
+    app.error_handler = {500: custom_500}
+    next.catch_all = True  # Handle errors ourselves so we can format them
     next = ExceptionMiddleware(next)
     next = AuthorizationMiddleware(next, anonymous_paths=STATIC)
     #next = PAMAuthMiddleware(next, all_admins=True)
