@@ -18,8 +18,8 @@ CELERYD_LOG_FILE="/var/log/celery/%n.log"
 CELERYD_PID_FILE="/var/run/celery/%n.pid"
 
 # Workers should run as an unprivileged user.
-CELERYD_USER="celery"
-CELERYD_GROUP="celery"
+CELERYD_USER="checkmate"
+CELERYD_GROUP="checkmate"
 
 CHECKMATE_BROKER_USERNAME=<%= node['checkmate']['broker_username'] %>
 CHECKMATE_BROKER_PASSWORD=<%= node['checkmate']['broker_password'] %>
