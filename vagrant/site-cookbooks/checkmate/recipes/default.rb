@@ -71,6 +71,9 @@ ENV['CHECKMATE_CONNECTION_STRING'] = node['checkmate']['connection_string']
 template "/etc/init.d/checkmate-queue" do
   source "checkmate-queue.erb"
   notifies :reload, "service[checkmate-queue]"
+  owner "root"
+  group "root"
+  mode 0755
 end
 
 template "/etc/default/checkmate-queue" do
