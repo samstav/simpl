@@ -3,14 +3,18 @@ from setuptools import setup, find_packages
 
 # Provide URLs to Github projects if they're not pip-aware
 gh = 'https://github.com'
-github_projects = [{'project': 'python-clouddns', 'user': 'rackspace'},
-                   {'project': 'python-clouddb', 'user': 'slizadel', 'version': '-.01'},
-                   {'project': 'openstack.compute', 'user': 'jacobian', 'version': '-2.0a1'},
+github_projects = [
                    {'project': 'python-keystoneclient', 'user': 'openstack'},
-                   {'project': 'python-novaclient', 'user': 'openstack'},
                    {'project': 'pychef', 'user': 'calebgroom', 'version': '-0.2.dev'},
                    {'project': 'rackspace-monitoring', 'user': 'racker'},
-                   {'project': 'SpiffWorkflow', 'user': 'ziadsawalha','branch': 'celery', 'version': '-0.3.2-rackspace'}]
+#    The following are shoud be built from the github.rackspace checkmate org, which contains patched code
+#    In stalls this by running pip install -r pip-requirements.txt
+#                   {'project': 'python-novaclient', 'user': 'openstack'},
+#                   {'project': 'python-clouddb', 'user': 'slizadel', 'version': '-.01'},
+#                   {'project': 'openstack.compute', 'user': 'jacobian', 'version': '-2.0a1'},
+#                   {'project': 'python-clouddns', 'user': 'rackspace'},
+#                   {'project': 'SpiffWorkflow', 'user': 'ziadsawalha','branch': 'celery', 'version': '-0.3.2-rackspace'},
+                   ]
 
 github_urls = []
 for p in github_projects:
@@ -36,7 +40,7 @@ setup(
                       'paramiko==1.7.7.2',
                       'pycrypto==2.6',
                       'python-clouddb==.01',
-                      'python-novaclient', #==2012.2
+                      'python-novaclient==2012.2',
                       'python-cloudlb==0.5.1',
                       'python-keystoneclient',
                       'python-clouddns',
