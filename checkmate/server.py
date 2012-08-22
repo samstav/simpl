@@ -65,13 +65,14 @@ import uuid
 from checkmate.utils import init_console_logging
 init_console_logging()
 # pylint: disable=E0611
-from bottle import app, get, post, run, request, response, abort, static_file,\
-        HTTPError, error, HeaderDict
+from bottle import app, get, post, run, request, response, abort, \
+        static_file, HTTPError, error, HeaderDict, redirect
 from Crypto.Hash import MD5
 from jinja2 import BaseLoader, Environment, TemplateNotFound
 import webob
 import webob.dec
-from webob.exc import HTTPNotFound, HTTPUnauthorized, HTTPFound
+from webob.exc import HTTPNotFound, HTTPUnauthorized, HTTPFound, \
+        HTTPTemporaryRedirect
 
 LOG = logging.getLogger(__name__)
 
@@ -429,6 +430,7 @@ class TokenAuthMiddleware(object):
         if context.tenant:
             auth = body['auth']
             auth['tenantId'] = context.tenant
+            LOG.debug("Authenticating to tenant '%s'" % context.tenant)
         headers = {
                 'Content-type': 'application/json',
                 'Accept': 'application/json',
@@ -572,8 +574,8 @@ class BrowserMiddleware(object):
     def __init__(self, app, proxy_endpoints=None):
         self.app = app
         HANDLERS['text/html'] = BrowserMiddleware.write_html
-        STATIC.extend(['static', 'favicon.ico', 'apple-touch-icon.png', 'authproxy', 'marketing',
-                'admin', '', 'images', 'ui', None])
+        STATIC.extend(['static', 'favicon.ico', 'apple-touch-icon.png',
+                'authproxy', 'marketing', 'admin', '', 'images', 'ui', None])
         self.proxy_endpoints = proxy_endpoints
 
         # Add static routes
@@ -592,6 +594,10 @@ class BrowserMiddleware(object):
 
         @get('/')
         @get('/ui/<path:path>')
+        #TODO: remove application/json and fix angular to call partials with
+        #  text/html
+        @support_only(['text/html', 'text/css', 'text/javascript',
+                       'application/json'])  # Angular calls template in json
         def ui(path=None):
             """Expose new javascript UI"""
             root = os.path.join(os.path.dirname(__file__), 'static', 'ui')
@@ -610,6 +616,10 @@ class BrowserMiddleware(object):
             return static_file(path, root=root)
 
         @get('/static/<path:path>')
+        #TODO: remove application/json and fix angular to call partials with
+        #  text/html
+        @support_only(['text/html', 'text/css', 'text/javascript',
+                       'application/json'])  # Angular calls template in json
         def static(path):
             """Expose static files (images, css, javascript, etc...)"""
             root = os.path.join(os.path.dirname(__file__), 'static')
@@ -631,12 +641,14 @@ class BrowserMiddleware(object):
             return write_body(None, request, response)
 
         @get('/marketing/<path:path>')
+        @support_only(['text/html', 'text/css', 'text/javascript'])
         def home(path):
             return static_file(path,
                     root=os.path.join(os.path.dirname(__file__), 'static',
                         'marketing'))
 
         @post('/authproxy')
+        @support_only(['application/json', 'application/x-yaml'])
         def authproxy():
             """Proxy Auth Requests
 
@@ -697,17 +709,26 @@ class BrowserMiddleware(object):
 
 
     def __call__(self, e, h):
-        if 'text/html' in webob.Request(e).accept:
-            if e['PATH_INFO'] not in [None, "", "/"]:
+        """Detect unauthenticated calls and redirect them to root.
+        This gets processed before the bottle routes"""
+        if 'text/html' in webob.Request(e).accept or \
+                e['PATH_INFO'].endswith('.html'):  # Angular requests json
+            if e['PATH_INFO'] not in [None, "", "/", "/authproxy"]:
                 path_parts = e['PATH_INFO'].split('/')
                 if path_parts[1] in STATIC:
-                    pass  # Not a tenant call
+                    # Not a tenant call. Bypass auth and return static content
+                    LOG.debug("Browser middleware stripping creds")
+                    if 'HTTP_X_AUTH_TOKEN' in e:
+                        del e['HTTP_X_AUTH_TOKEN']
+                    if 'HTTP_X_AUTH_SOURCE' in e:
+                        del e['HTTP_X_AUTH_SOURCE']
                 elif path_parts[1] in RESOURCES:
-                    # If not authenticated, then show UI
+                    # If not ajax call, entered in browser address bar
+                    # then return client app
                     context = request.context
-                    if not context.authenticated:
-                        e['PATH_INFO'] = "/"
-
+                    if (not context.authenticated) and \
+                        e.get('HTTP_X_REQUESTED_WITH') != 'XMLHttpRequest':
+                            e['PATH_INFO'] = "/"  # return client app
         return self.app(e, h)
 
     @staticmethod
@@ -1236,8 +1257,6 @@ def main_func():
     #next = PAMAuthMiddleware(next, all_admins=True)
     endpoints = ['https://identity.api.rackspacecloud.com/v2.0/tokens',
             'https://lon.identity.api.rackspacecloud.com/v2.0/tokens']
-    if '--with-ui' in sys.argv:
-        next = BrowserMiddleware(next, proxy_endpoints=endpoints)
     next = AuthTokenRouterMiddleware(next, endpoints,
             default='https://identity.api.rackspacecloud.com/v2.0/tokens')
     """
@@ -1258,7 +1277,8 @@ def main_func():
             }
         next = BasicAuthMultiCloudMiddleware(next, domains=domains)
     """
-
+    if '--with-ui' in sys.argv:
+        next = BrowserMiddleware(next, proxy_endpoints=endpoints)
     next = TenantMiddleware(next)
     next = ContextMiddleware(next)
     next = StripPathMiddleware(next)
