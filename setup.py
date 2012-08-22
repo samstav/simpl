@@ -39,7 +39,9 @@ setup(
                       'pam==0.1.4',
                       'paramiko==1.7.7.2',
                       'pycrypto==2.6',
-                      'python-clouddb==.01',
+                      #Note: python-clouddb would end up being ".01", but that 
+                      #is not valid (with a leading ".") so we exclude it here.
+                      'python-clouddb',
                       'python-novaclient==2012.2',
                       'python-cloudlb==0.5.1',
                       'python-keystoneclient',

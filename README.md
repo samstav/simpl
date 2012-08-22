@@ -477,9 +477,13 @@ Install SpiffWorkflow fork:
 
 Install Checkmate:
 
-    git clone http://github.com/ziadsawalha/checkmate.git
+    git clone https://github.rackspace.com/checkmate/checkmate.git
     cd checkmate
     git checkout master
+    # The pip-requirements.txt file contains references to patches that must be installed
+    # from github.rackspace.com, which is not supported via setup.py.  These must be
+    # installed before running setup.py.
+    pip install -r pip-requirements.txt
     python setup.py install
     cd ..
 
