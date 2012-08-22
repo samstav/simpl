@@ -80,7 +80,6 @@ template "/etc/default/checkmate-queue" do
   owner "root"
   group "root"
   mode 0644
-  notifies :reload, "service[checkmate-queue]"
 end
 
 user "checkmate" do

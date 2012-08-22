@@ -5,7 +5,10 @@ CELERYD_NODES="w1"
 #CELERYD_NODES="w1 w2 w3"
 
 # Where to chdir at start.
-CELERYD_CHDIR="/opt/Myproject/"
+CELERYD_CHDIR="<%= node['checkmate']['path'] %>"
+
+# Daemon command
+CELERYD="-m celery.bin.celeryd_detach"
 
 # Extra arguments to celeryd
 CELERYD_OPTS="--time-limit=300 --concurrency=8"
