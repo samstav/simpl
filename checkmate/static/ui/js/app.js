@@ -1036,12 +1036,12 @@ WPBP = {
                     }
                 ],
                 "description": "The operating system for the web servers.",
-                "default": "Ubuntu 12.04",
+                "default": "Ubuntu 12.04 LTS",
                 "label": "Operating System",
                 "type": "select",
                 "choice": [
 //                    "Ubuntu 11.10",
-                    "Ubuntu 12.04",
+                    "Ubuntu 12.04 LTS",
 //                    "CentOS",
 //                    "RHEL 6"
                 ]
