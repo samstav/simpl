@@ -20,7 +20,7 @@ execute "update_gem" do
   command "gem update --system"
 end
 
-%w{bundler knife-solo knife-solo_data_bag}.each do |pkg|
+%w{json mime-types mixlib-shellout bundler knife-solo knife-solo_data_bag}.each do |pkg|
   gem_package pkg do
     action :upgrade
   end
