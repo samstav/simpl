@@ -26,6 +26,10 @@ end
   end
 end
 
+link "/usr/bin/knife" do
+  to "/opt/vagrant_ruby/bin/knife"
+end
+
 python_pip "#{node['checkmate']['local_source']}/pip-requirements.txt" do
   options "-r"
   action :install
