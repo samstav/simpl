@@ -1,8 +1,8 @@
 # Installing Checkmate Dev Environment via Vagrant
 ![Checkmate](https://github.rackspace.com/checkmate/checkmate/raw/master/checkmate/static/img/checkmate.png)
 
-Follow these instructions to spin up an Ubuntu 12.04 VM with Checkmate
-installed and running.
+Follow these instructions to spin up an Ubuntu 12.04 VM with your current 
+Checkmate code installed and running.
 
 Install [Vagrant](http://vagrantup.com/) and [VirtualBox](https://www.virtualbox.org/),
 then execute these commands:

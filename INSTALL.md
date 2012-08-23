@@ -4,7 +4,7 @@
 
 This document explains how to install Checkmate by hand. If you are looking for
 a get a development box up quickly, see
-[VAGRANT.md](https://github.rackspace.com/checkmate/checkmate/blob/master/VAGRANT.md).
+[vagrant](https://github.rackspace.com/checkmate/checkmate/blob/master/vagrant/README.md).
 
 ## Dependencies
 
