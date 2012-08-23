@@ -23,6 +23,7 @@ end
 %w{json mime-types mixlib-shellout}.each do |pkg|
   gem_package pkg do
     action :purge
+    options "-I -a"
   end
 end
 
