@@ -35,6 +35,10 @@ python_pip "#{node['checkmate']['local_source']}/pip-requirements.txt" do
   action :install
 end
 
+execute "install_local_checkmate" do
+  command "python #{node['checkmate']['local_source']}/setup.py install"
+end
+
 rabbitmq_user "guest" do
   action :delete
 end
@@ -97,5 +101,6 @@ user "checkmate" do
 end
 
 service "checkmate-queue" do
+  supports :reload => true, :start => true, :stop => true, :restart => true, :status => true
   action [ :start, :enable ]
 end
