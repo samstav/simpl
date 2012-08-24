@@ -28,12 +28,6 @@ from checkmate.utils import write_body, read_body, extract_sensitive_data,\
 LOG = logging.getLogger(__name__)
 db = get_driver()
 
-# Any names should become airport codes
-REGION_MAP = {'dallas': 'DFW',
-              'chicago': 'ORD',
-              'london': 'LON'}
-
-
 
 #
 # Deployments

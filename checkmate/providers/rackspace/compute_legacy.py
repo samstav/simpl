@@ -140,16 +140,13 @@ class Provider(RackspaceComputeProviderBase):
     def get_catalog(self, context, type_filter=None):
         """Return stored/override catalog if it exists, else connect, build,
         and return one"""
-
-        results = {}
         # TODO: maybe implement this an on_get_catalog so we don't have to do
         #        this for every provider
-        if type_filter != 'regions':
-            results = RackspaceComputeProviderBase.get_catalog(self, context, \
-                type_filter=type_filter)
-            if results:
-                # We have a prexisting or overridecatalog stored
-                return results
+        results = RackspaceComputeProviderBase.get_catalog(self, context, \
+            type_filter=type_filter)
+        if results:
+            # We have a prexisting or overridecatalog stored
+            return results
        
         # build a live catalog this should be the on_get_catalog called if no
         # stored/override existed
