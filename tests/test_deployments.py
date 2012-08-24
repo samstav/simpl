@@ -205,9 +205,17 @@ class TestDeploymentSettings(unittest.TestCase):
         """Test the get_setting function"""
         deployment = Deployment(yaml_to_dict("""
                 environment:
+                  name: environment
                   providers:
-                    base
-
+                    base:
+                      provides:
+                      - compute: foo
+                        vendor: bar
+                    common:
+                      credentials:
+                      - password: secret
+                      constraints:
+                      - region: place
                 blueprint:
                   services:
                     web:
@@ -256,6 +264,12 @@ class TestDeploymentSettings(unittest.TestCase):
                 'type': 'compute',
                 'expected': "2 Gb",
                 }, {
+                'case': "Set in environments/providers/common",
+                'name': "region",
+                'provider': "common",
+                'service' : "constraints",
+                'expected': "place",
+                },  {
                 'case': "Set in blueprint/providers",
                 'name': "memory",
                 'type': 'compute',

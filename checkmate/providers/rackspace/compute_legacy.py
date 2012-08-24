@@ -16,6 +16,10 @@ from checkmate.workflows import wait_for
 
 LOG = logging.getLogger(__name__)
 
+REGION_MAP = {'dallas': 'DFW',
+              'chicago': 'ORD',
+              'london': 'LON'}
+
 
 class Provider(RackspaceComputeProviderBase):
     name = 'legacy'
@@ -26,6 +30,23 @@ class Provider(RackspaceComputeProviderBase):
                 deployment, resource_type, service, context, name=name)
 
         catalog = self.get_catalog(context)
+
+        # Get region
+        region = deployment.get_setting('region', resource_type=resource_type,
+                                        service_name=service,
+                                        provider_key=self.key)
+        region = REGION_MAP[region]
+        if not region:
+            raise CheckmateException("Could not identify which region to "
+                                     "create servers in")
+
+        # Make sure region matches catalog region
+        region_catalog = self.get_catalog(context, type_filter='regions')
+        legacy_region = region_catalog['lists']['regions']
+        if region not in legacy_region:
+            raise CheckmateException("Legacy hard coded to %s. Cannot provision \
+                                     servers in %s" % (legacy_region, region))
+
         image = deployment.get_setting('os', resource_type=resource_type,
                 service_name=service, provider_key=self.key, default=119)
         if isinstance(image, int):
@@ -119,18 +140,35 @@ class Provider(RackspaceComputeProviderBase):
     def get_catalog(self, context, type_filter=None):
         """Return stored/override catalog if it exists, else connect, build,
         and return one"""
-
         # TODO: maybe implement this an on_get_catalog so we don't have to do
         #        this for every provider
-        results = RackspaceComputeProviderBase.get_catalog(self, context,
+        results = RackspaceComputeProviderBase.get_catalog(self, context, \
             type_filter=type_filter)
         if results:
             # We have a prexisting or overridecatalog stored
             return results
-
+       
         # build a live catalog this should be the on_get_catalog called if no
         # stored/override existed
         api = self._connect(context)
+
+        if type_filter is None or type_filter == 'regions':
+            regions = {}
+            for service in context.catalog:
+                if service['name'] == 'cloudServers':
+                    endpoints = service['endpoints']
+                    for endpoint in endpoints:
+                        tenant_id = endpoint['tenantId']
+                        if 'region' in endpoint:
+                            regions[endpoint['region']] = endpoint['publicURL']
+                        else:
+                            region = api.servers.get_region(tenant_id)
+                            endpoint['region'] = region
+                            regions[endpoint['region']] = endpoint['publicURL']
+            if 'lists' not in results:
+                results['lists'] = {}
+            results['lists']['regions'] = regions
+        
 
         if type_filter is None or type_filter == 'compute':
             results['compute'] = dict(
