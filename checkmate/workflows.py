@@ -168,6 +168,8 @@ def get_workflow_task(id, task_id, tenant_id=None):
         abort(404, 'No task with id %s' % task_id)
     data = serializer._serialize_task(task, skip_children=True)
     data['workflow_id'] = id  # so we know which workflow it came from
+    spec = task.task_spec.serialize(serializer)
+    data['spec'] = spec
     return write_body(data, request, response)
 
 
