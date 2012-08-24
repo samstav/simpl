@@ -170,7 +170,7 @@ function LegacyController($scope, $location, $routeParams, $resource, navbar, $h
       console.log("Executing action " + $location.path() + '/' + action)
       $http({method: 'POST', url: $location.path() + '/' + action}).
         success(function(data, status, headers, config) {
-          alert('Saved');
+          alert(action.replace('+', '') + ' executed');
           // this callback will be called asynchronously
           // when the response is available
         });
