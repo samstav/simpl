@@ -85,6 +85,22 @@
     </div>
   </script>
 
+  <script id="setting-password" type="text/ng-template">
+    <label class="control-label capitalize {{#required}}required{{/required}}" for="{{id}}">{{label}}</label>
+    <div class="controls">
+      <input type="password" class="input-xlarge ng-model" id="{{id}}" ng-model="answers['{{id}}']"
+              {{#required}}required{{/required}} {{#regex}}ng-pattern="{{regex}}"{{/regex}}
+              {{#default}}value="{{default}}"{{/default}} {{#sample}}placeholder="{{sample}}"{{/sample}}>
+        <button ng-click="answers['{{id}}']=generatePassword()" class="btn">Generate</button><br />
+        <label class="checkbox">
+            <input type="checkbox" ng-model="{{id}}.show">
+            Show password
+        </label>
+        <span ng-show="{{id}}.show"><input type="text" class="input-xlarge ng-model" ng-model="answers['{{id}}']" disabled="true"></span>
+      {{#description}}<p class="help-block">{{description}}</p>{{/description}}
+    </div>​
+  </script>
+
   <script id="setting-text" type="text/html">
     <label class="control-label capitalize {{#required}}required{{/required}}" for="{{id}}">{{label}}</label>
     <div class="controls">

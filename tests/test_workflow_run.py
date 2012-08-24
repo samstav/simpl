@@ -23,7 +23,7 @@ from checkmate.utils import resolve_yaml_external_refs
 
 
 class TestWorkflowStubbing(StubbedWorkflowBase):
-    """ Test Basic Server code """
+    """Test workflow stubbing using mox"""
     def test_workflow_run(self):
         self.deployment = Deployment(yaml_to_dict("""
                 id: test
@@ -45,7 +45,7 @@ class TestWorkflowStubbing(StubbedWorkflowBase):
 
 
 class TestWorkflowLogic(StubbedWorkflowBase):
-    """ Test Basic Workflow code """
+    """Test Basic Workflow code"""
     def test_workflow_resource_generation(self):
         self.deployment = Deployment(yaml_to_dict("""
                 id: test
@@ -94,7 +94,7 @@ class TestWorkflowLogic(StubbedWorkflowBase):
 
 
 class TestWorkflow(StubbedWorkflowBase):
-    """ Test Basic Workflow Stubbing works """
+    """Test Workflow Execution (uses app.yaml)"""
 
     @classmethod
     def setUpClass(cls):
@@ -175,7 +175,7 @@ class TestWorkflow(StubbedWorkflowBase):
 
 
 class TestWordpressWorkflow(StubbedWorkflowBase):
-    """ Test WordPress Workflow """
+    """Test WordPress Workflow inputs (uses app.yaml)"""
 
     @classmethod
     def setUpClass(cls):

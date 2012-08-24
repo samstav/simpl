@@ -505,7 +505,7 @@ services.value('scroll', {
 	  };
     }, 0);
 	}
-});
+})
 
 services.value('settings', {
   getSettingsFromBlueprint: function(blueprint) {

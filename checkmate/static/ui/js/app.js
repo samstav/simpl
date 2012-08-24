@@ -12,7 +12,7 @@ checkmate.config(['$routeProvider', '$locationProvider', '$httpProvider', functi
     controller: StaticController
   }).
   when('/ui/build', {
-    templateUrl: '/static/ui/partials/calculator.html',
+    template: '<calculator/>',
     controller: StaticController
   })
 
@@ -76,7 +76,7 @@ checkmate.config(['$routeProvider', '$locationProvider', '$httpProvider', functi
 
   // New UI - dynamic, tenant pages
   $routeProvider.
-  when('/new/:tenantId/workflows/:id', {
+  when('/:tenantId/workflows/:id/status', {
     templateUrl: '/static/ui/partials/level2.html',
     controller: WorkflowController
   }).
@@ -84,7 +84,10 @@ checkmate.config(['$routeProvider', '$locationProvider', '$httpProvider', functi
     templateUrl: '/static/ui/partials/level2.html',
     controller: BlueprintListController
   }).
-  otherwise({});  //normal browsing
+  otherwise({
+    controller: ExternalController,
+    template:'<section class="entries" ng-include="templateUrl"><img src="/static/img/ajax-loader-bar.gif" alt="Loading..."/></section>'
+    });  //normal browsing
   
   
   $locationProvider.html5Mode(true);
@@ -109,10 +112,17 @@ Scope variables that control the Checkmate UI:
 
 */
 
-//Loads static content
-function StaticController($scope) {
+//Loads static content into body
+function StaticController($scope, $location) {
+  console.log("Loading static file " + $location.path());
   $scope.showHeader = false;
   $scope.showStatus = false;
+}
+
+//Loads external page
+function ExternalController($window, $location) {
+  console.log("Loading external URL " + $location.absUrl());
+  $window.location.href = $location.absUrl();
 }
 
 //Loads the old ui (rendered at the server)
@@ -208,7 +218,7 @@ function AppController($scope, $http, $location) {
     username: '',
     password: '',
     apikey: '',
-    auth_url: "https://identity.api.rackspacecloud.com/v2.0/tokens"
+    auth_url: "https://identity.api.rackspacecloud.com/v2.0/tokens" //default
   };
   
   $scope.refresh = function() {
@@ -227,6 +237,44 @@ function AppController($scope, $http, $location) {
 
     modal.modal('show');
   }
+
+  $scope.generatePassword = function() {
+      if (parseInt(navigator.appVersion) <= 3) {
+          alert("Sorry this only works in 4.0+ browsers");
+          return true;
+      }
+
+      var length=10;
+      var sPassword = "";
+
+      var noPunction = true;
+      for (i=0; i < length; i++) {
+
+          numI = $scope.getPwdRandomNum();
+          //Always have a letter for the first character.
+          while (i==0 && (numI <= 64 || ((numI >=91) && (numI <=96)))) { numI = $scope.getPwdRandomNum(); }
+          //Only allow letters and numbers for all other characters.
+          while (((numI >=58) && (numI <=64)) || ((numI >=91) && (numI <=96))) { numI = $scope.getPwdRandomNum(); }
+
+          sPassword = sPassword + String.fromCharCode(numI);
+      }
+      return sPassword;
+  }
+
+  $scope.getPwdRandomNum = function() {
+
+      // between 0 - 1
+      var rndNum = Math.random()
+
+      // rndNum from 0 - 1000
+      rndNum = parseInt(rndNum * 1000);
+
+      // rndNum from 33 - 127
+      rndNum = (rndNum % 75) + 48;
+
+      return rndNum;
+  }
+
 
   // Log in using credentials delivered through bound_credentials
   $scope.logIn = function() {
@@ -257,12 +305,15 @@ function AppController($scope, $http, $location) {
       return false;
      }
 
-    return $.ajax({
+    if (auth_url === undefined || auth_url === null || auth_url.length == 0) {
+      headers = {};  // Not supported on server, but we should do it
+    } else {
+      headers = {"X-Auth-Source": auth_url};
+
+    }return $.ajax({
       type: "POST",
       contentType: "application/json; charset=utf-8",
-      headers: {
-        "X-Auth-Source": auth_url
-      },
+      headers: headers,
       dataType: "json",
       url: "/authproxy",
       data: data
@@ -292,8 +343,8 @@ function AppController($scope, $http, $location) {
           auth_url: "https://identity.api.rackspacecloud.com/v2.0/tokens"
         };
       $scope.$apply();
-    }).error(function() {
-      $("#auth_error_text").html("Something bad happened");
+    }).error(function(response) {
+      $("#auth_error_text").html(response.statusText + ". Check that you typed in the correct credentials.");
       $("#auth_error").show();
     });
   }
@@ -735,37 +786,10 @@ function DeploymentInitController($scope, $location, $routeParams, $resource, bl
   };
 
   $scope.submit = function(simulate) {
-    var deployment = {};
-
-    deployment.blueprint = $scope.blueprint;
-    deployment.environment = $scope.environment;
-    deployment.inputs = {};
-    deployment.inputs.blueprint = {};
-    deployment.tenantId = $scope.auth.tenantId;
-
-    // Have to fix some of the answers so they are in the right format, specifically the select
-    // and checkboxes. This is lame and slow and I should figure out a better way to do this.
-    _.each($scope.answers, function(element, key) {
-      var setting = _.find($scope.settings, function(item) {
-        if (item.id == key) {
-          return item;
-        }
-      });
-
-      if (setting.type === "boolean") {
-        if ($scope.answers[key] === null) {
-          deployment.inputs.blueprint[key] = false;
-        } else {
-          deployment.inputs.blueprint[key] = $scope.answers[key];
-        }
-      } else {
-        deployment.inputs.blueprint[key] = $scope.answers[key];
-      }
-    });
-  };
-
-  $scope.simulate = function() {
-    var Deployment = $resource('/:tenantId/deployments/simulate', {tenantId: $scope.auth.tenantId});
+    url = '/:tenantId/deployments';
+    if (simulate == true)
+      url += '/simulate';
+    var Deployment = $resource(url, {tenantId: $scope.auth.tenantId});
     var deployment = new Deployment({});
     deployment.blueprint = $scope.blueprint;
     deployment.environment = $scope.environment;
@@ -807,6 +831,10 @@ function DeploymentInitController($scope, $location, $routeParams, $resource, bl
     } else {
       $scope.loginPrompt(); //TODO: implement a callback
     }
+  };
+
+  $scope.simulate = function() {
+    $scope.submit(true);
   };
 
   // Load blueprints
@@ -990,7 +1018,7 @@ WPBP = {
                 "description": "The application ID (and wordpress table prefix)."
             },
             "password": {
-                "type": "string",
+                "type": "password",
                 "description": "Password to use for service. Click the generate button to generate a random password.",
                 "label": "Password"
             },
@@ -1008,14 +1036,14 @@ WPBP = {
                     }
                 ],
                 "description": "The operating system for the web servers.",
-                "default": "Ubuntu 11.10",
+                "default": "Ubuntu 12.04 LTS",
                 "label": "Operating System",
                 "type": "select",
                 "choice": [
-                    "Ubuntu 11.10",
-                    "Ubuntu 12.04",
-                    "CentOS",
-                    "RHEL 6"
+//                    "Ubuntu 11.10",
+                    "Ubuntu 12.04 LTS",
+//                    "CentOS",
+//                    "RHEL 6"
                 ]
             },
             "web_server_size": {

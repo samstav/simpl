@@ -392,15 +392,26 @@ Note: to connect to mongodb, also install the pymongo client library:
 
 **CHECKMATE_BROKER_PASSWORD**: the password to use to connect to the message queue.
 
+Note: set this value if you are using the CHECKMATE_BROKER_URL override with a password. Checkmate will use this to replace your password with ***** in logs.
+
 **CHECKMATE_BROKER_HOST**: the IP address or resolveable name of the message queue server
 
 **CHECKMATE_BROKER_PORT**: the port to use to connect to the message queue server
 
 **CHECKMATE_BROKER_URL**: Alternatively, a full url with username and password can be supplied. This *overrides* the previous four settings. Checkmate server and queue listener will report out what settings they are using when they start up.
 
-Note: all CHECKMATE_BROKER_* values are picked up from checkmate.celeryconfig. If you use an alternate config file, these variable may be ignored. See **CELERY_CONFIG_MODULE**.
+To use mongodb as a broker instead of rabbitmq, set this value to your mongodb endpoint (see `Setup for mongodb broker` at end of this document):
+
+    mongodb://localhost/checkmate
+
+Note: all CHECKMATE_BROKER_* values are picked by code in the checkmate.celeryconfig module. If you use an alternate config file, these variable may be ignored. See **CELERY_CONFIG_MODULE**.
 
 **CHECKMATE_RESULT_BACKEND**: default is 'database'. Checkmate needs to query task results and status. [tested with 'database' only]. This value is picked up from checkmate.celeryconfig. If you use an alternate config file, this variable may be ignored. See **CELERY_CONFIG_MODULE**.
+
+In preliminary testing is the "mongodb" setting:
+
+    CELERY_RESULT_BACKEND = "mongodb"
+    CELERY_MONGODB_BACKEND_SETTINGS = {"host": "localhost", "port": 27017, "database": "checkmate", "taskmeta_collection": "celery_task_meta"}
 
 **CHECKMATE_RESULT_DBURI**: defaults to 'sqlite://../data/celerydb.sqlite' under the checkmate directory. Use this to set an alternate location for the celery result store. This value is picked up from checkmate.celeryconfig. If you use an alternate config file, this variable may be ignored. See **CELERY_CONFIG_MODULE**.
 
@@ -417,11 +428,13 @@ CHECKMATE_PRIVATE_KEY
 
 ## Checkmate Installation
 
-Checkmate is mostly a python service. Therefore, most installations can be done with python tools like pip or easy_install. There are two main exceptions to this:
+Checkmate is mostly a python service. Therefore, most installations can be done with python tools like pip or easy_install. There are exceptions to this:
 
 1. Chef: chef is a ruby-based app.
 
 2. forks: of existing projects are sometimes used to support functionality that is not available for a system like checkmate. For example, checkmate uses OpenStack auth tokens to call OpenStack services. Many of the libraries for OpenStack services are rapidly evolving and designed for command-line use. Another example is the SpiffWorkflow workflow engine. This is a project developed in an academic setting and needed significant patching to work with checkmate. For these projects, we maintain our own forks that need to be deployed with checkmate. All modifications are intended be proposed upstream.
+
+3. services: like mongodb or rabbitmq have their own installers.
 
 ### Installation:
 
@@ -464,13 +477,17 @@ Install SpiffWorkflow fork:
 
 Install Checkmate:
 
-    git clone http://github.com/ziadsawalha/checkmate.git
+    git clone https://github.rackspace.com/checkmate/checkmate.git
     cd checkmate
     git checkout master
+    # The pip-requirements.txt file contains references to patches that must be installed
+    # from github.rackspace.com, which is not supported via setup.py.  These must be
+    # installed before running setup.py.
+    pip install -r pip-requirements.txt
     python setup.py install
     cd ..
 
-Install, configure, and start rabbitmq.
+Install, configure, and start rabbitmq (or mongodb  - see `Setup for mongodb broker` at end of this document).
 
     $ sudo apt-get -y install rabbitmq-server python-dev python-setuptools
     $ sudo rabbitmqctl delete_user guest
@@ -496,7 +513,7 @@ Starting the server processes:
 You'll need three terminal windows and Rackspace cloud credentials (username &
 API key). In the first terminal window, start the task queue:
 
-    export CHECKMATE_BROKER_USERNAME="checkmate"
+    export CHECKMATE_BROKER_USERNAME="checkmate"  # for mongodb see `Setup for mongodb broker` at end of this document
     export CHECKMATE_BROKER_PASSWORD="password"
     export CHECKMATE_BROKER_PORT="5672"
     export CHECKMATE_BROKER_HOST="localhost"
@@ -512,7 +529,7 @@ API key). In the first terminal window, start the task queue:
 
 In the second window, start the checkmate server & REST API:
 
-    export CHECKMATE_BROKER_USERNAME="checkmate"
+    export CHECKMATE_BROKER_USERNAME="checkmate"  # for mongodb see `Setup for mongodb broker` at end of this document
     export CHECKMATE_BROKER_PASSWORD="password"
     export CHECKMATE_BROKER_PORT="5672"
     export CHECKMATE_BROKER_HOST="localhost"
@@ -525,7 +542,7 @@ In the second window, start the checkmate server & REST API:
 
     bin/checkmate-server START --with-ui
 
-There are multiple ways to use checkmate. You could browse to http://localhost:8080/ now, but below is how to make a complete deployment call using a sample deployment in simulations mode.
+There are multiple ways to use checkmate. You could browse to http://localhost:8080/ now, but below is how to make a complete deployment call using a sample deployment in simulation mode.
 
 In the third window, run these commands to simulate a client call:
 
@@ -599,12 +616,12 @@ setting resolves issues with workers hanging::
 
 ### Dependencies
 
-Checkmate has code that is python 2.7 specific. It won't work on earlier versions.
+Checkmate has code that is python 2.7.1 specific. It won't work on earlier versions.
 
 Some of checkmate's more significant dependencies are::
 
 - celeryd: integrates with a message queue (ex. RabbitMQ)
-- rabbitmq: or another backend for celery (celery even has emulators that can use a database), but rabbit is what we tested on
+- a message broker (rabbitmq or mognodb): any another backend for celery should work (celery even has emulators that can use a database), but rabbit and mongo are what we tested on
 - SpiffWorkflow: a python workflow engine
 - chef: OpsCode's chef... you don't need a server, but use with a server is supported.
 - cloud service client libraries: python-novaclient, python-clouddb, etc...
@@ -650,5 +667,108 @@ a good intro to AngularJS. It seems to be constantly updated and remains relevan
 
 ## Why the name checkmate?
 
-My intention for this product is be a deployment _verification_ and management service, and not just a deployment automation service. So it will be used to CHECK configurations and autoMATE, not only the deployment, but the repair of live deployments as well. It also conveniently abbreviates to 'cm' which could also stand for configuration management, aludes to this being a killer app, appeals to my inner strategist, it has a 'k' sound in it which I am told by branding experts makes it sticky, and, above all, it sounds cool.
+My intention for this product is be a deployment _verification_ and management service,
+and not just a deployment automation service. So it will be used to CHECK configurations
+and autoMATE, not only the deployment, but the repair of live deployments as well. It
+also conveniently abbreviates to 'cm' which could also stand for configuration management,
+aludes to this being a killer app, appeals to my inner strategist, it has a 'k' sound in
+it which I am told by branding experts makes it sticky, and, above all, it sounds cool.
 
+
+## Setup for mongodb broker
+
+### Celery
+Install celery with all of its mongo-related dependencies. This command will
+install the latest stable version of celery if it has not yet been installed or
+upgraded.
+
+    sudo pip install -U celery-with-mongodb
+
+### Mongo
+Specific instructions for installing MongoDB on your OS can be found
+[here](http://docs.mongodb.org/manual/installation/).
+
+Once you have MongoDB installed, you need to start the **mongod** process.
+Instructions on how to do this can be found at the end of the MongoDB
+installation documentation for each OS. To run mongo from the checkmate
+directory and have it store its database in the data directory:
+
+    mongod --dbpath data
+
+Now that Mongo is installed and running, we need to configure security settings
+and then set up a db to act as our broker.
+
+With **mongod** running, open a new window. Run the following code to open the
+special admin DB that mongo provides.
+
+    mongo localhost/admin
+
+Now that we're logged into the admin DB we need to create a user that is the
+admin for the entire db server process. **Note**: these are NOT the credentials
+we are going to use to connect to the checkmate broker.
+
+    db.addUser("SOME_USERNAME","SOME_PASSWORD")
+    db.auth("SOME_USERNAME","SOME_PASSWORD")
+
+Lastly, we need to create a checkmate DB to act as our broker, and create a
+user that will have read/write access to that DB.
+
+    use checkmate #creates'checkmate' DB
+    db.addUser("checkmate","password") #Gives read/write access to user 'checkmate'
+
+
+### Checkmate
+
+All the following settings require the checkmate celery config module to be
+used by celery:
+
+    export CELERY_CONFIG_MODULE=checkmate.celeryconfig
+
+#### Using mongo as the broker (instead of rabbitmq)
+
+Checkmate's `celeryconfig` file defaults to an amqp broker, so instead of
+exporting each variable (i.e. `CHECKMATE_BROKER_USERNAME`,
+`CHECKMATE_BROKER_PASSWORD`,etc) we need to export one `CHECKMATE_BROKER_URL`
+in the form of `mongodb://username:password@host:port/db_name` that tells
+celery to use mongo.
+
+    export CHECKMATE_BROKER_URL="mongodb://checkmate:password@localhost:27017/checkmate"
+
+#### Using mongo as the result store
+
+To have celery store the task results in mongo, we also need to set the
+backend URI to mongo:
+
+    export CHECKMATE_RESULT_BACKEND="mongodb"
+    export CHECKMATE_MONGODB_BACKEND_SETTINGS='{"host": "localhost", "database": "checkmate", "taskmeta_collection": "celery_task_meta"}'
+
+#### Using mongo as the database for Checkmate:
+
+    export CHECKMATE_CONNECTION_STRING="mongodb://checkmate:password@localhost:27017/checkmate"
+
+
+#### Putting all together:
+
+Start the task queue:
+
+    export CELERY_CONFIG_MODULE=checkmate.celeryconfig
+    export CHECKMATE_BROKER_URL="mongodb://checkmate:password@localhost:27017/checkmate"
+    export CHECKMATE_RESULT_BACKEND="mongodb"
+    export CHECKMATE_MONGODB_BACKEND_SETTINGS='{"host": "localhost", "port": 27017, "user": "checkmate", "password": "password", "database": "checkmate", "taskmeta_collection": "celery_task_meta"}'
+    export CHECKMATE_CONNECTION_STRING="mongodb://checkmate:password@localhost:27017/checkmate"
+    export CHECKMATE_CHEF_REPO=/var/checkmate/chef/repo/chef-stockton
+    export CHECKMATE_CHEF_LOCAL_PATH=/var/chef
+    bin/checkmate-queue START
+
+
+And then start the checkmate server:
+
+    export CELERY_CONFIG_MODULE=checkmate.celeryconfig
+    export CHECKMATE_BROKER_URL="mongodb://checkmate:password@localhost:27017/checkmate"
+    export CHECKMATE_RESULT_BACKEND="mongodb"
+    export CHECKMATE_MONGODB_BACKEND_SETTINGS='{"host": "localhost", "port": 27017, "user": "checkmate", "password": "password", "database": "checkmate", "taskmeta_collection": "celery_task_meta"}'
+    export CHECKMATE_CONNECTION_STRING="mongodb://checkmate:password@localhost:27017/checkmate"
+    export CHECKMATE_CHEF_REPO=/var/checkmate/chef/repo/chef-stockton
+    export CHECKMATE_CHEF_LOCAL_PATH=/var/chef
+    export CHECKMATE_PUBLIC_KEY=`cat ~/.ssh/id_rsa.pub`  # on a mac
+    bin/checkmate-server START --with-ui
