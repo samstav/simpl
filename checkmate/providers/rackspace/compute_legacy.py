@@ -95,7 +95,7 @@ class Provider(RackspaceComputeProviderBase):
                                 deployment=deployment['id'],
                                 resource=key),
                         PathAttrib('instance:%s/id' % key)],
-                password=Attrib('password'),
+                password=PathAttrib('instance:%s/password' % key),
                 identity_file=Attrib('private_key_path'),
                 properties={'estimated_duration': 150},
                 defines=dict(resource=key,
