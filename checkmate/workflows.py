@@ -17,11 +17,14 @@ except ImportError:
             "https://github.com/ziadsawalha/SpiffWorkflow/tree/celery"
     raise
 
-from SpiffWorkflow import Workflow, Task
+from SpiffWorkflow import Workflow as SpiffWorkflow, Task
 from SpiffWorkflow.storage import DictionarySerializer
 
+from checkmate.common import schema
+from checkmate.classes import ExtensibleDict
 from checkmate.db import get_driver, any_id_problems
-from checkmate.exceptions import CheckmateException
+from checkmate.exceptions import CheckmateException, \
+        CheckmateValidationException
 from checkmate.utils import write_body, read_body, extract_sensitive_data,\
         merge_dictionary, with_tenant
 from checkmate import orchestrator
@@ -116,7 +119,7 @@ def get_workflow_status(id, tenant_id=None):
     if not entity:
         abort(404, 'No workflow with id %s' % id)
     serializer = DictionarySerializer()
-    wf = Workflow.deserialize(serializer, entity)
+    wf = SpiffWorkflow.deserialize(serializer, entity)
     return write_body(get_SpiffWorkflow_status(wf), request, response)
 
 
@@ -161,7 +164,7 @@ def get_workflow_task(id, task_id, tenant_id=None):
         abort(404, 'No workflow with id %s' % id)
 
     serializer = DictionarySerializer()
-    wf = Workflow.deserialize(serializer, entity)
+    wf = SpiffWorkflow.deserialize(serializer, entity)
 
     task = wf.get_task(task_id)
     if not task:
@@ -226,7 +229,7 @@ def post_workflow_task(id, task_id, tenant_id=None):
     updated = db.save_workflow(id, body, secrets)
     # Updated does not have secrets, so we deserialize that
     serializer = DictionarySerializer()
-    wf = Workflow.deserialize(serializer, updated)
+    wf = SpiffWorkflow.deserialize(serializer, updated)
     task = wf.get_task(task_id)
     results = serializer._serialize_task(task, skip_children=True)
     results['workflow_id'] = id
@@ -251,7 +254,7 @@ def reset_workflow_task(id, task_id, tenant_id=None):
         abort(404, 'No workflow with id %s' % id)
 
     serializer = DictionarySerializer()
-    wf = Workflow.deserialize(serializer, workflow)
+    wf = SpiffWorkflow.deserialize(serializer, workflow)
 
     task = wf.get_task(task_id)
     if not task:
@@ -303,7 +306,7 @@ def resubmit_workflow_task(id, task_id, tenant_id=None):
         abort(404, 'No workflow with id %s' % id)
 
     serializer = DictionarySerializer()
-    wf = Workflow.deserialize(serializer, workflow)
+    wf = SpiffWorkflow.deserialize(serializer, workflow)
 
     task = wf.get_task(task_id)
     if not task:
@@ -352,7 +355,7 @@ def execute_workflow_task(id, task_id, tenant_id=None):
     entity = db.get_workflow(id)
 
     serializer = DictionarySerializer()
-    wf = Workflow.deserialize(serializer, entity)
+    wf = SpiffWorkflow.deserialize(serializer, entity)
 
     task = wf.get_task(task_id)
     data = serializer._serialize_task(task, skip_children=True)
@@ -493,7 +496,7 @@ def create_workflow(deployment, context):
         LOG.debug("Errors in Workflow: %s" % '\n'.join(results))
         raise CheckmateException('. '.join(results))
 
-    workflow = Workflow(wfspec)
+    workflow = SpiffWorkflow(wfspec)
     #Pass in the initial deployemnt dict (task 2 is the Start task)
     runtime_context = copy.copy(deployment.settings())
     runtime_context['token'] = context.auth_token
@@ -579,3 +582,25 @@ def wait_for(wf_spec, task, wait_list, name=None, **kwargs):
             return wait_list[0]
     else:
         return task
+
+
+class Workflow(ExtensibleDict):
+    """A workflow.
+
+    Acts like a dict. Includes validation, setting logic and other useful
+    methods.
+    Handles persistence, serialization, and managing additional attributes like
+    id, tenantId, etc... which are not part of the normal SpiffWorkflow
+    workflow
+    """
+    def __init__(self, *args, **kwargs):
+        ExtensibleDict.__init__(self, *args, **kwargs)
+        self.id = self.get('id', uuid.uuid4().hex)
+
+    @classmethod
+    def validate(cls, obj):
+        errors = schema.validate(obj, schema.WORKFLOW_SCHEMA)
+        errors.extend(schema.validate_inputs(obj))
+        if errors:
+            raise CheckmateValidationException("Invalid %s: %s" % (
+                    cls.__name__, '\n'.join(errors)))
