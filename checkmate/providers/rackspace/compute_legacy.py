@@ -290,7 +290,7 @@ def create_server(context, name, api_object=None, flavor=2, files=None,
 
 
 @task(default_retry_delay=10, max_retries=18)  # ~3 minute wait
-def wait_on_build(context, id, ip_address_type='public',
+def wait_on_build(context, server_id, ip_address_type='public',
             check_ssh=True, username='root', timeout=10, password=None,
             identity_file=None, port=22, api_object=None):
     """Checks build is complete and. optionally, that SSH is working.
@@ -303,14 +303,16 @@ def wait_on_build(context, id, ip_address_type='public',
     if api_object is None:
         api_object = Provider._connect(context)
 
-    server = api_object.servers.find(id=id)
-    results = {'id': id,
+    assert server_id, "ID must be provided"
+    LOG.debug("Getting server %s" % server_id)
+    server = api_object.servers.find(id=server_id)
+    results = {'id': server_id,
             'status': server.status,
             'addresses': _convert_v1_adresses_to_v2(server.addresses)
             }
 
     if server.status == 'ERROR':
-        raise CheckmateServerBuildFailed("Server %s build failed" % id)
+        raise CheckmateServerBuildFailed("Server %s build failed" % server_id)
 
     ip = None
     if server.addresses:
@@ -337,28 +339,28 @@ def wait_on_build(context, id, ip_address_type='public',
             countdown = 15  # progress is not accurate. Allow at least 15s wait
         wait_on_build.update_state(state='PROGRESS',
                 meta=results)
-        LOG.debug("Server %s progress is %s. Retrying after %s seconds" % (id,
-                server.progress, countdown))
+        LOG.debug("Server %s progress is %s. Retrying after %s seconds" % (
+                server_id, server.progress, countdown))
         return wait_on_build.retry(countdown=countdown)
 
     if server.status != 'ACTIVE':
         LOG.warning("Server %s status is %s, which is not recognized. "
-                "Assuming it is active" % (id, server.status))
+                "Assuming it is active" % (server_id, server.status))
 
     if not ip:
-        raise CheckmateException("Could not find IP of server %s" % (id))
+        raise CheckmateException("Could not find IP of server %s" % server_id)
     else:
         up = test_connection(context, ip, username, timeout=timeout,
                 password=password, identity_file=identity_file, port=port)
         if up:
-            LOG.info("Server %s is up" % id)
+            LOG.info("Server %s is up" % server_id)
             instance_key = 'instance:%s' % context['resource']
             results = {instance_key: results}
             # Send data back to deployment
             resource_postback.delay(context['deployment'], results)
             return results
-        return wait_on_build.retry(exc=CheckmateException("Server "
-                "%s not ready yet" % id))
+        return wait_on_build.retry(exc=CheckmateException("Server %s not "
+                "ready yet" % server_id))
 
 
 def _convert_v1_adresses_to_v2(addresses):
