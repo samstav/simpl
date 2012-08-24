@@ -8,12 +8,15 @@ from celery.task import task
 from celery.task.sets import subtask
 import paramiko
 
+from checkmate.utils import match_celery_logging
+
 LOG = logging.getLogger(__name__)
 
 
 @task(default_retry_delay=10, max_retries=100)
 def test_connection(deployment, ip, username, timeout=10, password=None,
            identity_file=None, port=22, callback=None):
+    match_celery_logging(LOG)
     LOG.debug('Checking for a response from ssh://%s@%s:%d.' % (
         username, ip, port))
     try:
@@ -81,6 +84,7 @@ def execute(ip, command, username, timeout=10, password=None,
     """Executes an ssh command on a remote host and returns a dict with stdin
     and stdout of the call. Tries cert auth first and falls back to password
     auth if password provided"""
+    match_celery_logging(LOG)
     LOG.debug("Executing '%s' on ssh://%s@%s:%d." % (command, username,
         ip, port))
     client = paramiko.SSHClient()

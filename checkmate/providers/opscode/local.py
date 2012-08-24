@@ -29,7 +29,8 @@ from checkmate.components import Component
 from checkmate.exceptions import CheckmateException, CheckmateIndexError,\
         CheckmateCalledProcessError, CheckmateNoMapping
 from checkmate.providers import ProviderBase
-from checkmate.utils import get_source_body, merge_dictionary
+from checkmate.utils import get_source_body, merge_dictionary, \
+        match_celery_logging
 from checkmate.workflows import wait_for
 
 LOG = logging.getLogger(__name__)
@@ -1110,6 +1111,7 @@ def create_environment(name, path=None, private_key=None,
     :param public_key_ssh: SSH-formatted public key
     :param secret_key: used for data bag encryption
     """
+    match_celery_logging(LOG)
     # Get path
     root = _get_root_environments_path(path)
     fullpath = os.path.join(root, name)
@@ -1292,6 +1294,7 @@ def download_cookbooks(environment, path=None, cookbooks=None,
     :param source: the source repos (a github URL)
     :param use_site: use site-cookbooks instead of cookbooks
     :returns: count of cookbooks copied"""
+    match_celery_logging(LOG)
     # Until we figure out a better solution, I'm assuming the chef-stockton
     # repo is cloned as a subfolder under the provider (and cloning it if
     # not) and we copy the cookbooks from there
@@ -1348,6 +1351,7 @@ def download_roles(environment, path=None, roles=None, source=None):
     :param roles: the names of the roles to download (blank=all)
     :param source: the source repos (a github URL)
     :returns: count of roles copied"""
+    match_celery_logging(LOG)
     # Until we figure out a better solution, I'm assuming the chef-stockton
     # repo is cloned as a subfolder under python-stockton (and cloning it if
     # not) and we copy the roles from there
@@ -1414,6 +1418,7 @@ def register_node(host, environment, path=None, password=None,
     :param attributes: attributes to set on node (dict)
     :param identity_file: private key file to use to connect to the node
     """
+    match_celery_logging(LOG)
     # Get path
     root = _get_root_environments_path(path)
     kitchen_path = os.path.join(root, environment, 'kitchen')
@@ -1525,6 +1530,7 @@ def _run_kitchen_command(kitchen_path, params, lock=True):
 def cook(host, environment, recipes=None, roles=None, path=None,
             username='root', password=None, identity_file=None, port=22):
     """Apply recipes/roles to a server"""
+    match_celery_logging(LOG)
     root = _get_root_environments_path(path)
     kitchen_path = os.path.join(root, environment, 'kitchen')
     if not os.path.exists(kitchen_path):
@@ -1585,6 +1591,7 @@ def manage_role(name, environment, path=None, desc=None,
         run_list=None, default_attributes=None, override_attributes=None,
         env_run_lists=None):
     """Write/Update role"""
+    match_celery_logging(LOG)
     root = _get_root_environments_path(path)
     kitchen_path = os.path.join(root, environment, 'kitchen')
     if not os.path.exists(kitchen_path):
@@ -1640,6 +1647,7 @@ def manage_databag(environment, bagname, itemname, contents,
     :param merge: if True, the data will be merged in. If not, it will be
             completely overwritten
     """
+    match_celery_logging(LOG)
     root = _get_root_environments_path(path)
     kitchen_path = os.path.join(root, environment, 'kitchen')
     databags_root = os.path.join(kitchen_path, 'data_bags')

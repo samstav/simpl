@@ -20,10 +20,10 @@ from SpiffWorkflow.operators import Attrib
 from SpiffWorkflow.storage import DictionarySerializer
 
 from checkmate.db import get_driver
-from checkmate.utils import extract_sensitive_data
+from checkmate.utils import extract_sensitive_data, match_celery_logging
 
-db = get_driver()
 LOG = logging.getLogger(__name__)
+db = get_driver()
 
 try:
     if current_app.backend.__class__.__name__ not in ['DatabaseBackend',
@@ -56,7 +56,7 @@ def create_simple_server(context, name, image=214, flavor=1,
 
             https://github.com/ziadsawalha/SpiffWorkflow/tree/celery
     """
-
+    match_celery_logging(LOG)
     # Build a workflow spec (the spec is the design of the workflow)
     wfspec = WorkflowSpec(name="Auth and Create Server Workflow")
 
@@ -116,6 +116,7 @@ def create_simple_server(context, name, image=214, flavor=1,
 @task
 def count_seconds(seconds):
     """ just for debugging and testing long-running tasks and updates """
+    match_celery_logging(LOG)
     elapsed = 0
     while elapsed < seconds:
         time.sleep(1)
@@ -144,7 +145,7 @@ class run_workflow(AbortableTask):
         :param wait: how long to wait between runs. Grows without activity
         :returns: True if workflow is complete
         """
-
+        match_celery_logging(LOG)
         # Get the workflow
         db = get_driver('checkmate.db.sql.Driver')
         serializer = DictionarySerializer()
@@ -210,7 +211,7 @@ def run_one_task(workflow_id, task_id, timeout=60):
     """Attempt to complete one task.
 
     returns True/False indicating if task completed"""
-
+    match_celery_logging(LOG)
     serializer = DictionarySerializer()
     workflow = db.get_workflow(workflow_id, with_secrets=True)
     if not workflow:
