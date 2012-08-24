@@ -10,6 +10,11 @@ How do settings flow through:
   before the call)
 - setting that are generated?
 
+Component IDs:
+- they come from cookbooks
+- roles get a '-role' appended to them
+- recipes get added with ::
+
 """
 import logging
 import os
@@ -121,10 +126,20 @@ class Provider(ProviderBase):
             """Get and add dependencies to components list"""
             # Skip ones we have already processed
             if component not in components:
+                if isinstance(component, dict):
+                    found = self.find_components(context, **component)
+                    if found and len(found) == 1:
+                        component = found[0]
+                    elif not found:
+                        raise CheckmateException("Component '%s' not found" %
+                                             component.get('id'))
+                    else:
+                        raise CheckmateException("Component '%s' matches %s "
+                                             "components" % component)
                 components.append(component)
                 for dependency in component.get('dependencies', []):
                     if isinstance(dependency, basestring):
-                        dependency = self.get_component(context, dependency)
+                        dependency = provider.get_component(context, dependency)
                         if dependency:
                             dependency = [dependency]
                     if isinstance(dependency, dict):
@@ -152,8 +167,9 @@ class Provider(ProviderBase):
             }
         default_task_handler = self._process_options  # for all others, just parse options
 
+        assert component in components
         for item in components:
-            if item is component:
+            if item is component or item == component:
                 # Set app ID
                 # TODO: find a more better way to do this
                 prefix = deployment.get_setting('prefix')
@@ -339,8 +355,7 @@ class Provider(ProviderBase):
 
         # Write must wait on collect
         wait_for(wfspec, write_options, [collect_data],
-                name="Feed %s data to Write task for %s" % (component['id'],
-                key))
+                name="Feed data to Write task for %s" % key)
 
         tasks = self.get_relation_final_tasks(wfspec, resource)
         LOG.debug("Attaching %s to %s" % (write_options.name, ', '.join(
@@ -440,14 +455,13 @@ class Provider(ProviderBase):
         options = settings['lsync_bag']['lsyncd']
 
         #TODO: fix the recipes and this code to be generic. Hard-coding here...
-        if component['role'] in ["install", "master"]:
+        if component.get('role') in ["install", "master"]:
             # Mark first one as master
             role = 'master'
-        elif component['role'] in ["install_keys", "slave"]:
+        elif component.get('role') in ["install_keys", "slave"]:
             role = 'slave'
         else:
-            raise CheckmateException("Unrecognized lsyncd role: %s" %
-                    component['role'])
+            role = None  # ignore our role-specific handling
 
         kwargs = {}
         if 'role' in component:
@@ -753,16 +767,22 @@ class Provider(ProviderBase):
     def get_component(self, context, id):
         # Get cookbook
         assert id, 'Blank component ID requested from get_component'
+
+        # Parse recipe out of name (we call that 'role' in checkmate. Not to be
+        # confused with a role in Chef, which is identified by a '-role' at the
+        # end of the name)
+        role = None
+        if '::' in id:
+            id, role = id.split('::')[0:2]
+
         #Try superclass call first if we have an injected or stored catalog
         if self._dict and 'catalog' in self._dict:
             result = ProviderBase.get_component(self, context, id)
             if result:
+                if role:
+                    result['role'] = role
+                Component.validate(result)
                 return result
-
-        # Parse -role out of name
-        role = None
-        if '::' in id:
-            id, role = id.split('::')[0:2]
 
         try:
             cookbook = self._get_cookbook(id, site_cookbook=True)
@@ -1033,21 +1053,23 @@ class Provider(ProviderBase):
 
     def find_components(self, context, **kwargs):
         """Special parsing for roles, then defer to superclass"""
+        cid = kwargs.pop('id', None)
         name = kwargs.pop('name', None)
         role = kwargs.pop('role', None)
-        if role:
-            id = "%s-%s-role" % (name, role)
-        else:
-            id = name
-        if id:
-            result = self.get_component(context, id)
+        if (not cid) and name:
+            if role:
+                cid = "%s::%s" % (name, role)
+            else:
+                cid = name
+        if cid:
+            result = self.get_component(context, cid)
             if result:
                 LOG.debug("'%s' matches in provider '%s' and provides %s" %
-                            (id, self.key, result.get('provides', [])))
-                return [self.get_component(context, id)]
+                            (cid, self.key, result.get('provides', [])))
+                return [self.get_component(context, cid)]
             else:
                 raise CheckmateException("Component id '%s' provided but not "
-                        "found in provider '%s'" % (id, self.key))
+                        "found in provider '%s'" % (cid, self.key))
 
         return ProviderBase.find_components(self, context, **kwargs)
 

@@ -1,3 +1,4 @@
+import json
 import logging
 import os
 
@@ -27,10 +28,26 @@ else:
 # Use this if we want to track status and let clients query it
 CELERY_RESULT_BACKEND = os.environ.get('CHECKMATE_RESULT_BACKEND', "database")
 
-sql_default = "sqlite:///%s" % os.path.expanduser(os.path.normpath(
-        os.path.join(os.path.dirname(__file__), os.pardir, 'data',
-        'celerydb.sqlite')))
-CELERY_RESULT_DBURI = os.environ.get('CHECKMATE_RESULT_DBURI', sql_default)
+if CELERY_RESULT_BACKEND == "database":
+    default_backend_uri = "sqlite:///%s" % os.path.expanduser(os.path.normpath(
+            os.path.join(os.path.dirname(__file__), os.pardir, 'data',
+            'celerydb.sqlite')))
+elif CELERY_RESULT_BACKEND == "mongodb":
+    # Get CHECKMATE settings, fall back to CELERY, and then default
+    CELERY_MONGODB_BACKEND_SETTINGS = json.loads(os.environ.get(
+            'CHECKMATE_MONGODB_BACKEND_SETTINGS',
+            os.environ.get('CELERY_MONGODB_BACKEND_SETTINGS',
+                """{
+                    "host": "localhost",
+                    "database": "checkmate",
+                    "taskmeta_collection": "celery_task_meta"
+                }""")))
+    default_backend_uri = BROKER_URL
+    LOG.debug("CELERY_MONGODB_BACKEND_SETTINGS: %s" %
+              CELERY_MONGODB_BACKEND_SETTINGS)
+
+CELERY_RESULT_DBURI = os.environ.get('CHECKMATE_RESULT_DBURI',
+                                     default_backend_uri)
 
 # Report out that this file was used for configuration
 print "Celery config loaded from %s" % __file__
