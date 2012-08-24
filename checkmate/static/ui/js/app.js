@@ -238,9 +238,20 @@ function AppController($scope, $http, $location) {
     modal.modal('show');
   }
   
-  $scope.getDomains = function(limit, offset){
+  $scope.getDomains = function($scope, limit, offset){
       if ($scope.auth.loggedIn){
           var token = checkmate.config.header_defaults.headers.common['X-Auth-Token'];
+          var api_url = 'ttps://dns.api.rackspacecloud.com/v1.0/' + $scope.auth.tenantId + '/domains?limits='               + limit + '&offset=' + offset;
+          headers = {"X-Auth-Token": token};
+          return $.ajax({
+              type: "GET",
+              contentType: "application/json; charset=utf-8",
+              headers: headers,
+              dataType: "json",
+              url: api_url
+          }).success(function(json) {
+
+          
                     
       }
   }
