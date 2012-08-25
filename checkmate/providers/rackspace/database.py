@@ -401,6 +401,7 @@ def create_database(context, name, region, character_set=None, collate=None,
 
         instance = create_instance(context, instance_name, size, flavor,
             databases, region, api=api)
+        # create_instance calls its own postback
         results = {
                 instance_key: instance['instance']['databases'][name]
             }
@@ -413,16 +414,13 @@ def create_database(context, name, region, character_set=None, collate=None,
     instance.create_databases(databases)
     results = {
             instance_key: {
-                    'databases': {
-                            name: {
-                                    'host_instance': instance_id,
-                                    'host_region': region,
-                                    'interfaces': {
-                                            'mysql': {
-                                                    'host': instance.hostname,
-                                                    'database_name': name,
-                                                },
-                                        },
+                    'name': name,
+                    'host_instance': instance_id,
+                    'host_region': region,
+                    'interfaces': {
+                            'mysql': {
+                                    'host': instance.hostname,
+                                    'database_name': name,
                                 },
                         },
                 },
@@ -466,9 +464,12 @@ def add_user(context, instance_id, databases, username, password, region,
         api=None):
     """Add a database user to an instance for one or more databases"""
     match_celery_logging(LOG)
+
+    assert instance_id, "Instance ID not supplied"
     if not api:
         api = Provider._connect(context, region)
 
+    LOG.debug('Obtaining instance %s' % instance_id)
     instance = api.get_instance(instance_id)
 
     try:
