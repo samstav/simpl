@@ -142,6 +142,8 @@ function LegacyController($scope, $location, $routeParams, $resource, navbar, $h
   }
   if (path.indexOf(".html") == -1 )
     path += ".html";
+  if ($location.url().length > $location.path().length)
+    path += $location.url().substr($location.path().length);
   console.log("Legacy controller loading " + path);
   $scope.templateUrl = path;
 
