@@ -13,7 +13,7 @@ from checkmate.utils import match_celery_logging
 LOG = logging.getLogger(__name__)
 
 
-@task(default_retry_delay=10, max_retries=100)
+@task(default_retry_delay=10, max_retries=36)
 def test_connection(deployment, ip, username, timeout=10, password=None,
            identity_file=None, port=22, callback=None):
     match_celery_logging(LOG)
