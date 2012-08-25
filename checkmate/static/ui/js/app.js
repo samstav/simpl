@@ -148,20 +148,19 @@ function LegacyController($scope, $location, $routeParams, $resource, navbar, $h
   $scope.templateUrl = path;
 
   $scope.save = function() {
-    var klass = $resource($location.path());
-    var thang = new klass(JSON.parse(Editor.getValue()));
-
     if ($scope.auth.loggedIn) {
-        thang.$save(function(returned, getHeaders){
+      var klass = $resource($location.path());
+      var thang = new klass(JSON.parse(Editor.getValue()));
+      thang.$save(function(returned, getHeaders){
           alert('Saved');
           console.log(returned);
-      }, function(error) {
-        console.log("Error " + error.data + "(" + error.status + ") saving this object.");
-        console.log($("#editor").text());
-        $scope.$root.error = {data: error.data, status: error.status, title: "Error Saving",
-                message: "There was an error saving your JSON:"};
-        $('#modalError').modal('show');
-      });
+        }, function(error) {
+          console.log("Error " + error.data + "(" + error.status + ") saving this object.");
+          console.log($("#editor").text());
+          $scope.$root.error = {data: error.data, status: error.status, title: "Error Saving",
+                  message: "There was an error saving your JSON:"};
+          $('#modalError').modal('show');
+        });
     } else {
       $scope.loginPrompt(); //TODO: implement a callback
     }
