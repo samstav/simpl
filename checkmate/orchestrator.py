@@ -171,8 +171,9 @@ class run_workflow(AbortableTask):
 
             if before != after:
                 # We made some progress, so save and prioritize next run
-                workflow = wf.serialize(serializer)
-                body, secrets = extract_sensitive_data(workflow)
+                updated = wf.serialize(serializer)
+                body, secrets = extract_sensitive_data(updated)
+                body['tenantId'] = workflow.get('tenantId')
                 db.save_workflow(id, body, secrets)
                 wait = 1
 
@@ -238,7 +239,8 @@ def run_one_task(workflow_id, task_id, timeout=60):
             workflow_id, result))
     msg = "Saving: %s" % wf.get_dump()
     LOG.debug(msg)
-    workflow = wf.serialize(serializer)
-    body, secrets = extract_sensitive_data(workflow)
+    updated = wf.serialize(serializer)
+    body, secrets = extract_sensitive_data(updated)
+    body['tenantId'] = workflow.get('tenantId')
     db.save_workflow(workflow_id, body, secrets)
     return result

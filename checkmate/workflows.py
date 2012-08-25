@@ -225,8 +225,9 @@ def post_workflow_task(id, task_id, tenant_id=None):
     # Save workflow (with secrets)
     serializer = DictionarySerializer()
     body, secrets = extract_sensitive_data(wf.serialize(serializer))
+    body['tenantId'] = workflow.get('tenantId', tenant_id)
 
-    updated = db.save_workflow(id, body, secrets)
+    updated = db.save_workflow(id, body, secrets, tenant_id=tenant_id)
     # Updated does not have secrets, so we deserialize that
     serializer = DictionarySerializer()
     wf = SpiffWorkflow.deserialize(serializer, updated)
@@ -276,7 +277,8 @@ def reset_workflow_task(id, task_id, tenant_id=None):
     serializer = DictionarySerializer()
     entity = wf.serialize(serializer)
     body, secrets = extract_sensitive_data(entity)
-    db.save_workflow(id, body, secrets)
+    body['tenantId'] = workflow.get('tenantId', tenant_id)
+    db.save_workflow(id, body, secrets, tenant_id=tenant_id)
 
     task = wf.get_task(task_id)
     if not task:
@@ -325,7 +327,8 @@ def resubmit_workflow_task(id, task_id, tenant_id=None):
     serializer = DictionarySerializer()
     entity = wf.serialize(serializer)
     body, secrets = extract_sensitive_data(entity)
-    db.save_workflow(id, body, secrets)
+    body['tenantId'] = workflow.get('tenantId', tenant_id)
+    db.save_workflow(id, body, secrets, tenant_id=tenant_id)
 
     task = wf.get_task(task_id)
     if not task:
