@@ -26,6 +26,12 @@ class Provider(RackspaceComputeProviderBase):
 
     def generate_template(self, deployment, resource_type, service, context,
             name=None):
+
+        print "DEPLOYMENT: %s" % deployment
+        print "RESOURCE_TYPE: %s" % resource_type
+        print "SERVICE: %s" % service
+        print "CONTEXT: %s" % context.__dict__
+        print "NAME: %s" % name
         template = RackspaceComputeProviderBase.generate_template(self,
                 deployment, resource_type, service, context, name=name)
 
@@ -35,19 +41,26 @@ class Provider(RackspaceComputeProviderBase):
         region = deployment.get_setting('region', resource_type=resource_type,
                                         service_name=service,
                                         provider_key=self.key)
-        region = REGION_MAP[region]
         if not region:
-            raise CheckmateException("Could not identify which region to "
-                                     "create servers in")
+            Log.warning("No region specified for Legacy Compute provider in \
+                        deployment.")
+        else:   
+            if region in REGION_MAP:
+                region = REGION_MAP[region]
+            if region not in REGION_MAP.values():
+                raise CheckmateException("No region mapping found for %s" 
+                                         % region)         
 
-        # If legacy region is specified, make sure it matches catalog region
-        region_catalog = self.get_catalog(context, type_filter='regions')
-        if 'regions' in region_catalog['lists']:
-            legacy_region = region_catalog['lists']['regions']
-            if region not in legacy_region:
+            # If legacy region is specified, make sure it matches catalog region
+            region_catalog = self.get_catalog(context, type_filter='regions')
+            legacy_regions = region_catalog.get('lists', {}).get('regions', {})
+            if legacy_regions and region not in legacy_regions:
                 raise CheckmateException("Legacy set to spin up in %s. \
                                          Cannot provision servers in %s." \
                                          % (legacy_region, region))
+            else:
+                LOG.warning("Region %s specified in deployment, but not Legacy \
+                            Compute catalog" % region)
 
         image = deployment.get_setting('os', resource_type=resource_type,
                 service_name=service, provider_key=self.key, default=119)
@@ -85,7 +98,8 @@ class Provider(RackspaceComputeProviderBase):
 
         template['flavor'] = flavor
         template['image'] = image
-        template['region'] = region
+        if region:
+            template['region'] = region
         return template
 
     def add_resource_tasks(self, resource, key, wfspec, deployment, context,

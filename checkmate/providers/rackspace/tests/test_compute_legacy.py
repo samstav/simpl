@@ -70,8 +70,6 @@ class TestLegacyCompute(unittest.TestCase):
                                           name='fake_server',
                                           files=None).AndReturn(server)
 
-        #str(server.addresses[ip_address_type][0]).AndReturn(server.ip)
-
         expected = {
             'instance:1': {
                 'id': server.id,
@@ -94,19 +92,28 @@ class TestLegacyCompute(unittest.TestCase):
         self.assertDictEqual(results, expected)
         self.mox.VerifyAll()
 
-class TestLegacyComputeCatalog(unittest.TestCase):
+class TestLegacyGenerateTemplate(unittest.TestCase):
+    """Test Legacy Compute Provider's region functions"""
 
-
-    catalog = {
+    catalog1 = {
         'compute': {
             'windows_instance': {
-                'is': 'compute',
-                'id': 'windows_instance',
-                'provides': [
-                    {
-                        'compute': 'windows'
-                    }
-                ]
+                'is': 'compute'
+            }
+        },
+        'lists': {
+            'images': {
+                73487664: {
+                    'name': 'my_custom_image'
+                }
+            }
+        }
+    }
+
+    catalog2 = {
+        'compute': {
+            'windows_instance': {
+                'is': 'compute'
             }
         },
         'lists': {
@@ -115,42 +122,63 @@ class TestLegacyComputeCatalog(unittest.TestCase):
                     'name': 'my_custom_image'
                 }
             },
-            'types': {
-                 '119': {
-                     'os': 'Ubuntu11.10',
-                     'name': 'Ubuntu11.10'
-                  }
-            },
-            'sizes': {
-                '1': {
-                    'disk': 10,
-                    'name': '256server',
-                    'memory': 256
-                }
+            'regions': {
+                 'chicago': 'http://some.endpoint'
             }
         }
     }
+
+    
+    inputs = {
+        'blueprint': {
+            'username': 'user', 
+            'domain': None, 
+            'region': 'chicago'
+            }
+        }
       
     REGION_MAP = {'dallas': 'DFW',
               'chicago': 'ORD',
               'london': 'LON'}
 
+    resource_type = 'compute'
+    name = 'compute_name'
 
-    def test_generate_template_without_regions(self):
-        #Stub out non region-related calls
-        self.mox.StubOutWithMock(RackspaceComputeProviderBase, 'generate_template')
+    def setUp(self):
+        self.mox = mox.Mox()
+
+    def tearDown(self):
+        self.mox.UnsetStubs()
+
+
+    def test_catalog_and_deployment_set(self):
+
+        #Mock Providers
+        provider = compute_legacy.Provider({})    
+        RackspaceComputeProviderBase = self.mox.CreateMockAnything()
+
+        template = {
+            'instance': {}, 
+            'dns-name': self.name, 
+            'type': self.resource_type, 
+            'provider': 'legacy'
+        }
         
-        self.get_catalog(context=None).AndReturn(catalog)
-
+        RackspaceComputeProviderBase.generate_template.AndReturn(template)
+        
+       # provider.get_catalog(context=None).AndReturn(self.catalog2)
+ 
         deployment = self.mox.CreateMockAnything()
-        deployment.get_setting('region', resource_type='compute', 
-                               service_name='service', provider_key='key'). \
-                               AndReturn('ORD')
+        deployment.get_setting('region', resource_type='master', service_name='web',
+                               provider_key='legacy').AndReturn('chicago')
+
         
-        #Stub out non region-related calls
-        self.mox.StubOutWithMock(deployment, 'get_setting')
-        self.mox.StubOutWithMock(image, 'is_digit')
         
+
+        self.mox.ReplayAll()
+        provider.generate_template(deployment = 'herp', resource_type = self.resource_type, 
+                                   service = 'derp', name=self.name, context = None)
+               
             
 
 if __name__ == '__main__':
