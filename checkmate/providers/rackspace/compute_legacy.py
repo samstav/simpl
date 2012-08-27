@@ -35,17 +35,19 @@ class Provider(RackspaceComputeProviderBase):
         region = deployment.get_setting('region', resource_type=resource_type,
                                         service_name=service,
                                         provider_key=self.key)
-        region = REGION_MAP[region]
+        # Convert to airpot code if not provided as a name
+        if region in REGION_MAP:
+            region = REGION_MAP[region]
         if not region:
             raise CheckmateException("Could not identify which region to "
                                      "create servers in")
 
         # Make sure region matches catalog region
         region_catalog = self.get_catalog(context, type_filter='regions')
-        legacy_region = region_catalog['lists']['regions']
-        if region not in legacy_region:
-            raise CheckmateException("Legacy hard coded to %s. Cannot provision \
-                                     servers in %s" % (legacy_region, region))
+        legacy_regions = region_catalog.get('lists', {}).get('regions', {})
+        if legacy_regions and region not in legacy_regions:
+            raise CheckmateException("Legacy hard coded to %s. Cannot "
+                    "provision servers in %s" % (legacy_regions, region))
 
         image = deployment.get_setting('os', resource_type=resource_type,
                 service_name=service, provider_key=self.key, default=119)
