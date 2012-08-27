@@ -59,7 +59,7 @@ Vagrant::Config.run do |config|
   #   puppet.manifest_file  = "base.pp"
   # end
 
-  config.vm.provision :shell, :inline => "bash <(wget http://chef.rackspacecloud.com/install-alt.sh -q --tries=10 -O -) -v 10.12.0-1 -r 2>> /dev/null"
+  config.vm.provision :shell, :inline => "if [ \"$(chef-client --version |awk '{print $2}')\" != \"10.12.0\" ]; then bash <(wget http://chef.rackspacecloud.com/install-alt.sh -q --tries=10 -O -) -v 10.12.0-1 -r 2>> /dev/null; fi"
 
   # Enable provisioning with chef solo, specifying a cookbooks path, roles
   # path, and data_bags path (all relative to this Vagrantfile), and adding 
