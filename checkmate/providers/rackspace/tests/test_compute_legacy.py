@@ -94,6 +94,65 @@ class TestLegacyCompute(unittest.TestCase):
         self.assertDictEqual(results, expected)
         self.mox.VerifyAll()
 
+class TestLegacyComputeCatalog(unittest.TestCase):
+
+
+    catalog = {
+        'compute': {
+            'windows_instance': {
+                'is': 'compute',
+                'id': 'windows_instance',
+                'provides': [
+                    {
+                        'compute': 'windows'
+                    }
+                ]
+            }
+        },
+        'lists': {
+            'images': {
+                73487664: {
+                    'name': 'my_custom_image'
+                }
+            },
+            'types': {
+                 '119': {
+                     'os': 'Ubuntu11.10',
+                     'name': 'Ubuntu11.10'
+                  }
+            },
+            'sizes': {
+                '1': {
+                    'disk': 10,
+                    'name': '256server',
+                    'memory': 256
+                }
+            }
+        }
+    }
+      
+    REGION_MAP = {'dallas': 'DFW',
+              'chicago': 'ORD',
+              'london': 'LON'}
+
+
+    def test_generate_template_without_regions(self):
+        #Stub out non region-related calls
+        self.mox.StubOutWithMock(RackspaceComputeProviderBase, 'generate_template')
+        
+        self.get_catalog(context=None).AndReturn(catalog)
+
+        deployment = self.mox.CreateMockAnything()
+        deployment.get_setting('region', resource_type='compute', 
+                               service_name='service', provider_key='key'). \
+                               AndReturn('ORD')
+        
+        #Stub out non region-related calls
+        self.mox.StubOutWithMock(deployment, 'get_setting')
+        self.mox.StubOutWithMock(image, 'is_digit')
+        
+            
+
 if __name__ == '__main__':
     # Run tests. Handle our parameters seprately
     import sys

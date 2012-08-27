@@ -40,12 +40,14 @@ class Provider(RackspaceComputeProviderBase):
             raise CheckmateException("Could not identify which region to "
                                      "create servers in")
 
-        # Make sure region matches catalog region
+        # If legacy region is specified, make sure it matches catalog region
         region_catalog = self.get_catalog(context, type_filter='regions')
-        legacy_region = region_catalog['lists']['regions']
-        if region not in legacy_region:
-            raise CheckmateException("Legacy hard coded to %s. Cannot provision \
-                                     servers in %s" % (legacy_region, region))
+        if 'regions' in region_catalog['lists']:
+            legacy_region = region_catalog['lists']['regions']
+            if region not in legacy_region:
+                raise CheckmateException("Legacy set to spin up in %s. \
+                                         Cannot provision servers in %s." \
+                                         % (legacy_region, region))
 
         image = deployment.get_setting('os', resource_type=resource_type,
                 service_name=service, provider_key=self.key, default=119)
@@ -83,6 +85,7 @@ class Provider(RackspaceComputeProviderBase):
 
         template['flavor'] = flavor
         template['image'] = image
+        template['region'] = region
         return template
 
     def add_resource_tasks(self, resource, key, wfspec, deployment, context,
