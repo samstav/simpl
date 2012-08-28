@@ -35,11 +35,12 @@ class Provider(RackspaceComputeProviderBase):
         region = deployment.get_setting('region', resource_type=resource_type,
                                         service_name=service,
                                         provider_key=self.key)
-        LOG.debug("Region %s found in deployment" % region)
+        airport_region = None
+        
         if not region:
-            Log.warning("No region specified for Legacy Compute provider in \
+            LOG.warning("No region specified for Legacy Compute provider in \
                         deployment.")
-        else:   
+        else:  
             if region in REGION_MAP:
                 airport_region = REGION_MAP[region]
             elif region not in REGION_MAP.values():
@@ -48,7 +49,7 @@ class Provider(RackspaceComputeProviderBase):
 
             # If legacy region is specified, make sure it matches catalog region
             region_catalog = self.get_catalog(context, type_filter='regions')
-            legacy_regions = region_catalog.get('lists', {}).get('regions', {})
+            legacy_regions = region_catalog.get('lists', {}).get('regions', {})   
    
             if legacy_regions and (region or airport_region) not in legacy_regions:
                 raise CheckmateException("Legacy set to spin up in %s. Cannot provision servers in %s."

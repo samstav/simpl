@@ -200,11 +200,194 @@ class TestLegacyGenerateTemplate(unittest.TestCase):
 
 
         self.mox.ReplayAll()
-        self.assertRaises(CheckmateException, provider.generate_template(deployment, 'compute',
-                                             'master', context, name='fake_name'))
+        try:
+            provider.generate_template(deployment, 'compute',
+                                       'master', context, name='fake_name')
+        except CheckmateException:
+            #pass
+            self.mox.VerifyAll()
+        
 
+    def test_no_region(self):
+        """ No region specified in deployment or catalog"""
+        catalog = {
+            'lists': {
+                'sizes': {
+                    '2': {
+                        'disk': 20,
+                        'name': '512server',
+                        'memory': 512
+                    }
+                },
+                'types': {
+                    '119': {
+                        'os': 'Ubuntu11.10',
+                        'name': 'Ubuntu11.10'
+                    }
+                }
+            }
+        }
+        provider = compute_legacy.Provider({})
+       
+        #Mock Base Provider, context and deployment
+        RackspaceComputeProviderBase = self.mox.CreateMockAnything()
+        context = self.mox.CreateMockAnything()
+        deployment = self.mox.CreateMockAnything()
+
+        
+        RackspaceComputeProviderBase.generate_template.AndReturn(True)
+
+        #Stub out provider calls
+        self.mox.StubOutWithMock(provider, 'get_catalog')
+        
+        deployment.get_setting('region', resource_type='compute', service_name='master',
+                               provider_key=provider.key).AndReturn(None)
+        deployment.get_setting('os', resource_type='compute', service_name='master',
+                               provider_key=provider.key, default=119).AndReturn('119')
+        deployment.get_setting('memory', resource_type='compute', service_name='master',
+                               provider_key=provider.key, default=2).AndReturn('2')
+        
+        expected = {
+            'instance': {},
+            'dns-name': 'fake_name',
+            'type': 'compute',
+            'provider': 'rackspace.legacy',
+            'flavor': '2',
+            'image': '119',
+        }
+      
+        provider.get_catalog(context).AndReturn(catalog)
+
+        self.mox.ReplayAll()
+        results = provider.generate_template(deployment, 'compute',
+                                             'master', context, name='fake_name')
+
+        self.assertDictEqual(results, expected)
         self.mox.VerifyAll()
-            
+
+    def test_deployment_region(self):
+        """Region specified in deployment but not catalog"""
+        catalog = {
+            'lists': {
+                'sizes': {
+                    '2': {
+                        'disk': 20,
+                        'name': '512server',
+                        'memory': 512
+                    }
+                },
+                'types': {
+                    '119': {
+                        'os': 'Ubuntu11.10',
+                        'name': 'Ubuntu11.10'
+                    }
+                }
+            }
+        }
+        provider = compute_legacy.Provider({})
+       
+        #Mock Base Provider, context and deployment
+        RackspaceComputeProviderBase = self.mox.CreateMockAnything()
+        context = self.mox.CreateMockAnything()
+        deployment = self.mox.CreateMockAnything()
+
+        
+        RackspaceComputeProviderBase.generate_template.AndReturn(True)
+
+        #Stub out provider calls
+        self.mox.StubOutWithMock(provider, 'get_catalog')
+        
+        deployment.get_setting('region', resource_type='compute', service_name='master',
+                               provider_key=provider.key).AndReturn('chicago')
+        deployment.get_setting('os', resource_type='compute', service_name='master',
+                               provider_key=provider.key, default=119).AndReturn('119')
+        deployment.get_setting('memory', resource_type='compute', service_name='master',
+                               provider_key=provider.key, default=2).AndReturn('2')
+        
+        expected = {
+            'instance': {},
+            'dns-name': 'fake_name',
+            'type': 'compute',
+            'provider': 'rackspace.legacy',
+            'flavor': '2',
+            'image': '119',
+            'region': 'ORD'
+        }
+      
+        provider.get_catalog(context).AndReturn(catalog)
+        provider.get_catalog(context, type_filter="regions").AndReturn(catalog)
+
+
+        self.mox.ReplayAll()
+        results = provider.generate_template(deployment, 'compute',
+                                             'master', context, name='fake_name')
+
+        self.assertDictEqual(results, expected)
+        self.mox.VerifyAll()
+
+
+    def test_region_supplied_as_airport_code(self):
+        """Deployment region listed as airport code"""
+        catalog = {
+            'lists': {
+                'sizes': {
+                    '2': {
+                        'disk': 20,
+                        'name': '512server',
+                        'memory': 512
+                    }
+                },
+                'types': {
+                    '119': {
+                        'os': 'Ubuntu11.10',
+                        'name': 'Ubuntu11.10'
+                    }
+                }
+            }
+        }
+        provider = compute_legacy.Provider({})
+       
+        #Mock Base Provider, context and deployment
+        RackspaceComputeProviderBase = self.mox.CreateMockAnything()
+        context = self.mox.CreateMockAnything()
+        deployment = self.mox.CreateMockAnything()
+
+        
+        RackspaceComputeProviderBase.generate_template.AndReturn(True)
+
+        #Stub out provider calls
+        self.mox.StubOutWithMock(provider, 'get_catalog')
+        
+        deployment.get_setting('region', resource_type='compute', service_name='master',
+                               provider_key=provider.key).AndReturn('chicago')
+        deployment.get_setting('os', resource_type='compute', service_name='master',
+                               provider_key=provider.key, default=119).AndReturn('119')
+        deployment.get_setting('memory', resource_type='compute', service_name='master',
+                               provider_key=provider.key, default=2).AndReturn('2')
+        
+        expected = {
+            'instance': {},
+            'dns-name': 'fake_name',
+            'type': 'compute',
+            'provider': 'rackspace.legacy',
+            'flavor': '2',
+            'image': '119',
+            'region': 'ORD'
+        }
+      
+        provider.get_catalog(context).AndReturn(catalog)
+        provider.get_catalog(context, type_filter="regions").AndReturn(catalog)
+
+
+        self.mox.ReplayAll()
+        results = provider.generate_template(deployment, 'compute',
+                                             'master', context, name='fake_name')
+
+        self.assertDictEqual(results, expected)
+        self.mox.VerifyAll()
+
+
+    
             
 
 
