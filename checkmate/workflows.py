@@ -145,10 +145,44 @@ def execute_workflow(id, tenant_id=None):
 
 
 #
+# Workflow Specs
+#
+@post('/workflows/<workflow_id>/specs/<spec_id>')
+@with_tenant
+def post_workflow_task(workflow_id, spec_id, tenant_id=None):
+    """Update a workflow spec
+
+    :param workflow_id: checkmate workflow id
+    :param spec_id: checkmate workflow spec id (a string)
+    """
+    entity = read_body(request)
+
+    # Extracting with secrets
+    workflow = db.get_workflow(workflow_id, with_secrets=True)
+    if not workflow:
+        abort(404, 'No workflow with id %s' % workflow_id)
+
+    spec = workflow['wf_spec']['task_specs'].get(spec_id)
+    if not spec:
+        abort(404, 'No spec with id %s' % spec_id)
+
+    LOG.debug("Updating spec '%s' in workflow '%s'" % (spec_id, workflow_id),
+            extra=dict(data=dict(old=spec, new=entity)))
+    workflow['wf_spec']['task_specs'][spec_id] = entity
+
+    # Save workflow (with secrets)
+    body, secrets = extract_sensitive_data(workflow)
+    body['tenantId'] = workflow.get('tenantId', tenant_id)
+
+    updated = db.save_workflow(workflow_id, body, secrets, tenant_id=tenant_id)
+
+    return write_body(entity, request, response)
+
+
+#
 # Workflow Tasks
 #
-
-@route('/workflows/<id>/tasks/<task_id:int>', method=['GET', 'POST'])
+@get('/workflows/<id>/tasks/<task_id:int>')
 @with_tenant
 def get_workflow_task(id, task_id, tenant_id=None):
     """Get a workflow task
