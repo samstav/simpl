@@ -9,7 +9,7 @@ from SpiffWorkflow.specs import Celery, Transform
 
 from checkmate.deployments import Deployment, resource_postback
 from checkmate.exceptions import CheckmateNoTokenError, CheckmateNoMapping, \
-        CheckmateServerBuildFailed
+        CheckmateServerBuildFailed, CheckmateException
 from checkmate.providers.rackspace.compute import RackspaceComputeProviderBase
 from checkmate.utils import get_source_body
 from checkmate.workflows import wait_for
@@ -26,12 +26,6 @@ class Provider(RackspaceComputeProviderBase):
 
     def generate_template(self, deployment, resource_type, service, context,
             name=None):
-
-        print "DEPLOYMENT: %s" % deployment
-        print "RESOURCE_TYPE: %s" % resource_type
-        print "SERVICE: %s" % service
-        print "CONTEXT: %s" % context.__dict__
-        print "NAME: %s" % name
         template = RackspaceComputeProviderBase.generate_template(self,
                 deployment, resource_type, service, context, name=name)
 
@@ -41,23 +35,24 @@ class Provider(RackspaceComputeProviderBase):
         region = deployment.get_setting('region', resource_type=resource_type,
                                         service_name=service,
                                         provider_key=self.key)
+        LOG.debug("Region %s found in deployment" % region)
         if not region:
             Log.warning("No region specified for Legacy Compute provider in \
                         deployment.")
         else:   
             if region in REGION_MAP:
-                region = REGION_MAP[region]
-            if region not in REGION_MAP.values():
+                airport_region = REGION_MAP[region]
+            elif region not in REGION_MAP.values():
                 raise CheckmateException("No region mapping found for %s" 
                                          % region)         
 
             # If legacy region is specified, make sure it matches catalog region
             region_catalog = self.get_catalog(context, type_filter='regions')
             legacy_regions = region_catalog.get('lists', {}).get('regions', {})
-            if legacy_regions and region not in legacy_regions:
-                raise CheckmateException("Legacy set to spin up in %s. \
-                                         Cannot provision servers in %s." \
-                                         % (legacy_region, region))
+   
+            if legacy_regions and (region or airport_region) not in legacy_regions:
+                raise CheckmateException("Legacy set to spin up in %s. Cannot provision servers in %s."
+                                         % (legacy_regions, region))
             else:
                 LOG.warning("Region %s specified in deployment, but not Legacy \
                             Compute catalog" % region)
@@ -73,7 +68,6 @@ class Provider(RackspaceComputeProviderBase):
                     LOG.debug("Mapping image from '%s' to '%s'" % (image, key))
                     image = key
                     break
-
         if image not in catalog['lists']['types']:
             raise CheckmateNoMapping("No image mapping for '%s' in '%s'" % (
                     image, self.name))
@@ -98,8 +92,10 @@ class Provider(RackspaceComputeProviderBase):
 
         template['flavor'] = flavor
         template['image'] = image
-        if region:
-            template['region'] = region
+        if airport_region:
+            template['region'] = airport_region
+        elif region:
+            region['region'] = region
         return template
 
     def add_resource_tasks(self, resource, key, wfspec, deployment, context,

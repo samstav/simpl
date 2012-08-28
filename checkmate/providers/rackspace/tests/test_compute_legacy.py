@@ -14,6 +14,7 @@ from checkmate.deployments import Deployment, resource_postback
 from checkmate.providers.base import PROVIDER_CLASSES
 from checkmate.test import StubbedWorkflowBase, TestProvider
 from checkmate.utils import yaml_to_dict
+from checkmate.exceptions import CheckmateException
 
 
 class TestLegacyCompute(unittest.TestCase):
@@ -94,55 +95,10 @@ class TestLegacyCompute(unittest.TestCase):
 
 class TestLegacyGenerateTemplate(unittest.TestCase):
     """Test Legacy Compute Provider's region functions"""
-
-    catalog1 = {
-        'compute': {
-            'windows_instance': {
-                'is': 'compute'
-            }
-        },
-        'lists': {
-            'images': {
-                73487664: {
-                    'name': 'my_custom_image'
-                }
-            }
-        }
-    }
-
-    catalog2 = {
-        'compute': {
-            'windows_instance': {
-                'is': 'compute'
-            }
-        },
-        'lists': {
-            'images': {
-                73487664: {
-                    'name': 'my_custom_image'
-                }
-            },
-            'regions': {
-                 'chicago': 'http://some.endpoint'
-            }
-        }
-    }
-
     
-    inputs = {
-        'blueprint': {
-            'username': 'user', 
-            'domain': None, 
-            'region': 'chicago'
-            }
-        }
-      
     REGION_MAP = {'dallas': 'DFW',
               'chicago': 'ORD',
               'london': 'LON'}
-
-    resource_type = 'compute'
-    name = 'compute_name'
 
     def setUp(self):
         self.mox = mox.Mox()
@@ -151,33 +107,109 @@ class TestLegacyGenerateTemplate(unittest.TestCase):
         self.mox.UnsetStubs()
 
 
-    def test_catalog_and_deployment_set(self):
-
-        #Mock Providers
-        provider = compute_legacy.Provider({})    
-        RackspaceComputeProviderBase = self.mox.CreateMockAnything()
-
-        template = {
-            'instance': {}, 
-            'dns-name': self.name, 
-            'type': self.resource_type, 
-            'provider': 'legacy'
+    def test_catalog_and_deployment_same(self):
+        """Catalog and Deployment have matching regions"""
+        catalog = {
+            'lists': {
+                'sizes': {
+                    '2': {
+                        'disk': 20,
+                        'name': '512server',
+                        'memory': 512
+                    }
+                },
+                'types': {
+                    '119': {
+                        'os': 'Ubuntu11.10',
+                        'name': 'Ubuntu11.10'
+                    }
+                },
+                'regions': {
+                    'chicago': 'http://some.endpoint'
+                }
+            }
         }
-        
-        RackspaceComputeProviderBase.generate_template.AndReturn(template)
-        
-       # provider.get_catalog(context=None).AndReturn(self.catalog2)
- 
+        provider = compute_legacy.Provider({})
+       
+        #Mock Base Provider, context and deployment
+        RackspaceComputeProviderBase = self.mox.CreateMockAnything()
+        context = self.mox.CreateMockAnything()
         deployment = self.mox.CreateMockAnything()
-        deployment.get_setting('region', resource_type='master', service_name='web',
-                               provider_key='legacy').AndReturn('chicago')
 
         
+        RackspaceComputeProviderBase.generate_template.AndReturn(True)
+
+        #Stub out provider calls
+        self.mox.StubOutWithMock(provider, 'get_catalog')
         
+        deployment.get_setting('region', resource_type='compute', service_name='master',
+                               provider_key=provider.key).AndReturn('chicago')
+        deployment.get_setting('os', resource_type='compute', service_name='master',
+                               provider_key=provider.key, default=119).AndReturn('119')
+        deployment.get_setting('memory', resource_type='compute', service_name='master',
+                               provider_key=provider.key, default=2).AndReturn('2')
+        
+        expected = {
+            'instance': {},
+            'dns-name': 'fake_name',
+            'type': 'compute',
+            'provider': 'rackspace.legacy',
+            'flavor': '2',
+            'image': '119',
+            'region': 'ORD'
+        }
+      
+        provider.get_catalog(context).AndReturn(catalog)
+        provider.get_catalog(context, type_filter="regions").AndReturn(catalog)
+
 
         self.mox.ReplayAll()
-        provider.generate_template(deployment = 'herp', resource_type = self.resource_type, 
-                                   service = 'derp', name=self.name, context = None)
+        results = provider.generate_template(deployment, 'compute',
+                                             'master', context, name='fake_name')
+
+        self.assertDictEqual(results, expected)
+        self.mox.VerifyAll()
+
+
+    def test_catalog_and_deployment_diff(self):
+        """Catalog and Deployment have different regions"""
+        catalog = {
+            'lists': {
+                'regions': {
+                    'chicago': 'http://some.endpoint'
+                }
+            }
+        }
+        provider = compute_legacy.Provider({})
+       
+        #Mock Base Provider, context and deployment
+        RackspaceComputeProviderBase = self.mox.CreateMockAnything()
+        context = self.mox.CreateMockAnything()
+        deployment = self.mox.CreateMockAnything()
+ 
+        RackspaceComputeProviderBase.generate_template.AndReturn(True)
+
+        #Stub out provider calls
+        self.mox.StubOutWithMock(provider, 'get_catalog')
+        
+        deployment.get_setting('region', resource_type='compute', service_name='master',
+                               provider_key=provider.key).AndReturn('dallas')
+
+        provider.get_catalog(context).AndReturn(catalog)
+        provider.get_catalog(context, type_filter="regions").AndReturn(catalog)
+
+
+        self.mox.ReplayAll()
+        self.assertRaises(CheckmateException, provider.generate_template(deployment, 'compute',
+                                             'master', context, name='fake_name'))
+
+        self.mox.VerifyAll()
+            
+            
+
+
+
+
                
             
 
