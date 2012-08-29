@@ -342,7 +342,11 @@ class TestLegacyGenerateTemplate(unittest.TestCase):
                         'os': 'Ubuntu11.10',
                         'name': 'Ubuntu11.10'
                     }
+                },
+                'regions': {
+                    'chicago': 'http://some.endpoint'
                 }
+
             }
         }
         provider = compute_legacy.Provider({})
@@ -359,7 +363,7 @@ class TestLegacyGenerateTemplate(unittest.TestCase):
         self.mox.StubOutWithMock(provider, 'get_catalog')
         
         deployment.get_setting('region', resource_type='compute', service_name='master',
-                               provider_key=provider.key).AndReturn('chicago')
+                               provider_key=provider.key).AndReturn('ORD')
         deployment.get_setting('os', resource_type='compute', service_name='master',
                                provider_key=provider.key, default=119).AndReturn('119')
         deployment.get_setting('memory', resource_type='compute', service_name='master',
@@ -386,15 +390,6 @@ class TestLegacyGenerateTemplate(unittest.TestCase):
         self.assertDictEqual(results, expected)
         self.mox.VerifyAll()
 
-
-    
-            
-
-
-
-
-               
-            
 
 if __name__ == '__main__':
     # Run tests. Handle our parameters seprately

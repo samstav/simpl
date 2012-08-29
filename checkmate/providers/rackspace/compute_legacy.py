@@ -19,6 +19,9 @@ LOG = logging.getLogger(__name__)
 REGION_MAP = {'dallas': 'DFW',
               'chicago': 'ORD',
               'london': 'LON'}
+REVERSE_MAP = {'DFW': 'dallas',
+               'ORD': 'chicago',
+               'LON': 'london'}
 
 
 class Provider(RackspaceComputeProviderBase):
@@ -43,7 +46,10 @@ class Provider(RackspaceComputeProviderBase):
         else:  
             if region in REGION_MAP:
                 airport_region = REGION_MAP[region]
-            elif region not in REGION_MAP.values():
+            elif region in REVERSE_MAP:
+                airport_region = region
+                region = REVERSE_MAP[region]
+            else:
                 raise CheckmateException("No region mapping found for %s" 
                                          % region)         
 
@@ -95,8 +101,6 @@ class Provider(RackspaceComputeProviderBase):
         template['image'] = image
         if airport_region:
             template['region'] = airport_region
-        elif region:
-            region['region'] = region
         return template
 
     def add_resource_tasks(self, resource, key, wfspec, deployment, context,
