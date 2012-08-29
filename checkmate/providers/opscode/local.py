@@ -51,9 +51,9 @@ class Provider(ProviderBase):
         create_environment = Celery(wfspec, 'Create Chef Environment',
                 'checkmate.providers.opscode.local.create_environment',
                 call_args=[deployment['id']],
-                public_key_ssh=Attrib('public_key_ssh'),
-                private_key=Attrib('private_key'),
-                secret_key=Attrib('secret_key'),
+                public_key_ssh=PathAttrib('keys/environment/public_key_ssh'),
+                private_key=PathAttrib('keys/environment/private_key'),
+                secret_key=PathAttrib('secret_key'),
                 defines=dict(provider=self.key,
                             task_tags=['root']),
                 properties={'estimated_duration': 10})
