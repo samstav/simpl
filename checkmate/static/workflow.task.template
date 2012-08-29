@@ -62,7 +62,7 @@
               <h4 class="alert-heading">Something might be up! But we haven't given up yet...</h4>
               <p>This task is being retried. See the code <a class="accordion-toggle cmcollapse" data-toggle="collapse" href="#traceback">traceback</a>.</p><div id="traceback" class="cmcollapse collapse in"><pre>{{data.internal_attributes.task_state.traceback}}</pre></div>
               <p>
-                If you don't think this task is going to succeed you could <a class="btn btn-danger cmtip" href="{{data.tenantId|prepend}}/workflows/{{data.workflow_id}}/tasks/{{data.id}}/+resubmit" title="Clear task data, abort the Celery task, and retrigger it"><i class="icon-retweet"></i> Abort and Retry</a>, but please choose this carefully so we don't end up with duplicate resources!
+                If you don't think this task is going to succeed you could <a class="btn btn-danger cmtip" href="#" ng-click="action('+resubmit')" title="Clear task data, abort the Celery task, and retrigger it"><i class="icon-retweet"></i> Abort and Retry</a>, but please choose this carefully so we don't end up with duplicate resources!
               </p>
             </div>
               {% endif %}

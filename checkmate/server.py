@@ -100,11 +100,6 @@ init()
 #
 # Making life easy - calls that are handy but will not be in final API
 #
-@get('/test/dump')
-def get_everything():
-    return write_body(db.dump(), request, response)
-
-
 @post('/test/parse')
 def parse():
     """ For debugging only """

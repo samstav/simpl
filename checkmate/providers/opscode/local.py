@@ -51,9 +51,9 @@ class Provider(ProviderBase):
         create_environment = Celery(wfspec, 'Create Chef Environment',
                 'checkmate.providers.opscode.local.create_environment',
                 call_args=[deployment['id']],
-                public_key_ssh=Attrib('public_key_ssh'),
-                private_key=Attrib('private_key'),
-                secret_key=Attrib('secret_key'),
+                public_key_ssh=PathAttrib('keys/environment/public_key_ssh'),
+                private_key=PathAttrib('keys/environment/private_key'),
+                secret_key=PathAttrib('secret_key'),
                 defines=dict(provider=self.key,
                             task_tags=['root']),
                 properties={'estimated_duration': 10})
@@ -698,7 +698,7 @@ class Provider(ProviderBase):
                             deployment['id']],
                     password=PathAttrib('instance:%s/password' %
                             relation['target']),
-                    omnibus_version="0.10.10-1",
+                    omnibus_version="10.12.0-1",
                     identity_file=Attrib('private_key_path'),
                     attributes={'deployment': {'id': deployment['id']}},
                     defines=dict(resource=key,
@@ -1202,18 +1202,11 @@ encrypted_data_bag_secret "%s"
             os.path.join(kitchen_path, 'roles'),
             os.path.join(kitchen_path, 'data_bags'),
             secret_key_path)
+    # knife kitchen creates a default solo.rb, so the file already exists
     solo_file = os.path.join(kitchen_path, 'solo.rb')
-    if os.path.exists(solo_file):
-        with file(solo_file, 'r') as f:
-            data = f.read()
-            if config != data:
-                raise CheckmateException("Solo.rb exists and does not match "
-                        "expected configuration")
-        LOG.debug("Solo file already exists and matches: %s" % solo_file)
-    else:
-        with file(solo_file, 'w') as f:
-            f.write(config)
-        LOG.debug("Created solo file: %s" % solo_file)
+    with file(solo_file, 'w') as f:
+        f.write(config)
+    LOG.debug("Created solo file: %s" % solo_file)
 
     # Create certificates folder
     certs_path = os.path.join(kitchen_path, 'certificates')
@@ -1285,6 +1278,8 @@ def _create_environment_keys(environment_path, private_key=None,
             params = ['openssl', 'genrsa', '-out', private_key_path, '2048']
             result = check_output(params)
             LOG.debug(result)
+            LOG.debug("Generated environment private key: %s" %
+                      private_key_path)
 
     # Secure private key
     os.chmod(private_key_path, 0600)
@@ -1301,6 +1296,7 @@ def _create_environment_keys(environment_path, private_key=None,
         if not public_key_ssh:
             params = ['ssh-keygen', '-y', '-f', private_key_path]
             public_key_ssh = check_output(params)
+            LOG.debug("Generated environment public key: %s" % public_key_path)
         # Write it to environment
         with file(public_key_path, 'w') as f:
             f.write(public_key_ssh)
@@ -1472,7 +1468,8 @@ def register_node(host, environment, path=None, password=None,
 
     # Rsync problem with creating path (missing -p so adding it ourselves) and
     # doing this before the complex prepare work
-    ssh_execute(host, "mkdir -p %s" % kitchen_path, 'root', password=password)
+    ssh_execute(host, "mkdir -p %s" % kitchen_path, 'root', password=password,
+            identity_file=identity_file)
 
     # Calculate node path and check for prexistance
     node_path = os.path.join(kitchen_path, 'nodes', '%s.json' % host)

@@ -231,7 +231,7 @@ def post_workflow_task(id, task_id, tenant_id=None):
         abort(404, 'No workflow with id %s' % id)
 
     serializer = DictionarySerializer()
-    wf = Workflow.deserialize(serializer, workflow)
+    wf = SpiffWorkflow.deserialize(serializer, workflow)
 
     task = wf.get_task(task_id)
     if not task:
