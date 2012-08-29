@@ -42,14 +42,6 @@ python_virtualenv "#{node['checkmate']['venv_path']}" do
   action :create
 end
 
-=begin
-python_pip "#{node['checkmate']['local_source']}/pip-requirements.txt" do
-  virtualenv "#{node['checkmate']['venv_path']}"
-  options "-r"
-  action :install
-end
-=end
-
 git "#{node['checkmate']['local_source']}" do
   repository /vagrant
   reference "master"
