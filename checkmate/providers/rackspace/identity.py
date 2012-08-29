@@ -7,6 +7,8 @@ from celery.task import task
 import cloudlb
 from keystoneclient.v2_0 import client
 
+from checkmate.utils import match_celery_logging
+
 LOG = logging.getLogger(__name__)
 
 
@@ -24,6 +26,7 @@ def _get_ddi(context, tenants):
 # Celeryd functions
 @task
 def get_token(context):
+    match_celery_logging(LOG)
     LOG.debug('Auth %s' % (context['username']))
     if 'apikey' in context:
         LOG.debug("Using cloudlb to handle APIKEY aurthentication")

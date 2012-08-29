@@ -25,20 +25,9 @@ from checkmate.workflows import create_workflow
 from checkmate.utils import write_body, read_body, extract_sensitive_data,\
         merge_dictionary, with_tenant, is_ssh_key, get_time_string
 
-from collections import defaultdict
-
-from SpiffWorkflow import Task, Workflow
-
-from celery.task.base import task
-
-
 LOG = logging.getLogger(__name__)
-# Any names should become airport codes
-REGION_MAP = {'dallas': 'DFW',
-              'chicago': 'ORD',
-              'london': 'LON'}
-
 db = get_driver()
+
 
 #
 # Deployments
@@ -67,7 +56,6 @@ def post_deployment(tenant_id=None):
     deployment = Deployment(entity)
     if 'includes' in deployment:
         del deployment['includes']
-
 
     id = str(deployment['id'])
     body, secrets = extract_sensitive_data(deployment)
@@ -122,7 +110,7 @@ def parse_deployment():
 
     results = plan(deployment, request.context)
 
-    workflow = create_workflow(results, request.context)
+    workflow = create_workflow(parsed_deployment, request.context)
     serializer = DictionarySerializer()
     serialized_workflow = workflow.serialize(serializer)
     results['workflow'] = serialized_workflow
@@ -208,85 +196,6 @@ def get_deployment_status(id, tenant_id=None):
 
     return write_body(results, request, response)
 
-@get('/deployments/<depid>/services/<service>/<type>/<setting>/+scale')
-@with_tenant
-def scale_deployment(depid, service, type, setting, tenant_id=None, amount=None):
-    """ Scale a checkmate deployment service
-        by the specified number of nodes
-        
-        :param depid: checkmate deployment id
-        :param service: the service to scale
-        :param type: the aspect of the service to scale (ex. compute, database)
-        :param setting: the aspect of the type to scale (ex. compute - size, count ; db - memory, disk)
-        :param tenant_id: (optional tenant id) account owner of the deployment
-	:param value: (required query param) how much to scale or what to scale to
-    """
-    if any_id_problems(depid):
-        abort(406, any_id_problems(depid))
-    
-    deployment_dict = db.get_deployment(depid)
-    deployment = Deployment(deployment_dict)
-    
-    if not deployment:
-        abort(404, 'No deployment with id {}'.format(depid))
-    if not service or not service in deployment['blueprint']['services']:
-        abort(406, "Service '{}' is not defined for deployment {}".format(service, depid))
-    if not type:
-        abort(406, "Invalid scale type {}".format(type))
-    if not setting:
-        abort(406, "Invalid setting {}".format(setting))
-    if not amount:
-        amount = request.query.amount or 1
-    
-    key, option, constraint = deployment._get_option_by_constrains(setting, service_name=service, resource_type=type)
-
-    if not key or not option or not constraint:
-        abort(404, "No setting matches {}/{}/{}".format(service, type, setting))
-
-    if "int" == option.get('type','NONE'):
-        try:
-	    amount = int(amount)
-	except ValueError:
-	    abort(406, 'Invalid amount ({}); must be numeric.'.format(amount))
-	
-	current = len(deployment['blueprint']['services'][service].get("instances",[]))
-	minimum = 0
-	maximum = sys.maxint
-
-	for constraint in option['constraints']:
-	    if 'greater-than' in constraint:
-	        minimum = constraint['greater-than']
-	    if 'less-than' in constraint:
-		maximum = constraint['less-than']
-	    if 'count' in constraint:
-		abort(406, 'Cannot modify number of {}/{}. Count set at {}'.format(service,type,constraint['count']))
-
-	net_amount = current + amount
-
-        if minimum > net_amount or net_amount > maximum:
-            abort(406, "Setting \'{}\' for {}/{} must be between {} and {} (inclusive).".format(\
-                        setting, service, type, minimum, maximum))
-        
-        deployment.set_setting(setting, service_name=service, resource_type=type, value=net_amount)
-        
-    elif "select" == option.get('type', 'NONE'):
-        if not 'options' in option:
-            raise CheckmateException('Invalid configuration. No options for constraint {}.'.format(key))
-        val = ''.join([str(n.get('value')) for n in option.get('options', []) if n.get('name', n.get('value')) == amount])
-        if not val:
-            abort(406, "Invalid scale value. Must be one of: {}".format([str(x.get('name', x.get('value'))) for x in option.get('options',[])]))
-            
-        deployment.set_setting(setting, service_name=service, resource_type=type, value=val)   
-        
-    else:
-        abort(406, "Scaling settings of type {} is not currently supported.".format(constraint.type))
-        
-    # save the changes
-    _id = str(deployment['id'])
-    body, secrets = extract_sensitive_data(deployment)
-    db.save_deployment(_id, body, secrets, tenant_id=tenant_id)
-    return write_body(deployment, request, response)
-
 
 def execute(id, timeout=180, tenant_id=None):
     """Process a checkmate deployment workflow
@@ -350,7 +259,7 @@ def plan(deployment, context):
 
     # Load providers
     providers = environment.get_providers(context)
-    
+
     #Identify component providers and get the resolved components
     components = deployment.get_components(context)
 
@@ -652,6 +561,8 @@ def _verify_required_blueprint_options_supplied(deployment):
                 if key not in bp_inputs:
                     abort(406, "Required blueprint input '%s' not supplied" %
                             key)
+
+
 def get_os_env_keys():
     """Get keys if they are set in the os_environment"""
     keys = {}
@@ -852,8 +763,6 @@ class Deployment(ExtensibleDict):
         - start with the deployment inputs where the paths are:
             inputs/blueprint
             inputs/providers/:provider
-        - look at the provider options in the environment
-            also default to anything in the common entry
         - finally look at the component defaults
 
         :param name: the name of the setting
@@ -887,86 +796,13 @@ class Deployment(ExtensibleDict):
         if result:
             return result
 
-        result = self._get_environment_setting(name, provider_key)
+        result = self._get_environment_setting(name, provider_key, service_name)
         if result:
             return result
 
 
         return default
-    
-    def set_setting(self, name, resource_type=None,
-                service_name=None, provider_key=None, value=None):
-        """ Set the value of a deployment setting
-        - if only the name is specified, sets inputs/blueprint/:name = :value
-        - if provider_key and resource_type are specified, sets inputs/providers/:provider_key/:resource_type/:name = :value
-        - if service_name and resource_type are specified, sets inputs/services/:service_name/resource_type/:name = :value
-        - if :value = None, unsets the setting
 
-        :param name: the name of the setting
-        :param resource_type: the type of the resource being evaluated (ex. compute, database)
-        :param service_name: the name of the service being evaluated
-        :param provider_key: the name of the provider being evaluated
-        :param value: the value to set :name to; None to unset the value
-        """
-        
-        if not name:
-            raise CheckmateException("Must specify a setting name.")
-        if service_name and provider_key:
-            raise CheckmateException("Cannot specify both a service and a provider.")
-        if (service_name or provider_key) and not resource_type:
-            raise CheckmateException("Must specify a resource type.")
-        
-        passto = ("inputs",)    
-        if provider_key:
-            passto += ("providers", provider_key, resource_type)
-        elif service_name:
-            passto += ("services", service_name, resource_type)
-        else:
-            passto += ("blueprint",)
-        
-        passto += (name,)
-        
-        self._set_by_path(value, *passto)
-        self['status'] = "updated"
-              
-    def _set_by_path(self, value, *args):
-        if not value:
-            self._unset_by_path(*args)
-        else:
-            def recursive_defdict():
-                return defaultdict(recursive_defdict)
-            
-            root = defaultdict(recursive_defdict)
-            current = root
-            parent = None
-            for i in range(len(args)):
-                parent = current
-                current = current[args[i]]
-            parent[args[i]] = value
-            merge_dictionary(self._data, root)
-    
-    def _unset_by_path(self, *args):
-        # iterate down the keys 
-        current = self._data
-        parent = current
-        for arg in args:
-            parent = current
-            if arg in current:
-                current = current[arg]
-        # unset
-        del parent[arg]
-        # go back up and clean up the empty ones
-        for arg in reversed(args):
-            current = self._data
-            for arg1 in args:
-                if arg1 in current:
-                    if arg == arg1:
-                        if not current[arg1]:
-                            del current[arg1]
-                        break
-                    else:
-                        current = current[arg1]
-        
     def _get_input_global(self, name):
         """Get a setting directly under inputs"""
         inputs = self.inputs()
@@ -988,47 +824,35 @@ class Deployment(ExtensibleDict):
                         (name, name, result))
                 return result
 
-    def _get_option_by_constrains(self, name, service_name=None, resource_type=None):
-        """ 
-        Locate an option by the component settings it constrains
-        
+    def _get_input_blueprint_option_constraint(self, name, service_name=None,
+            resource_type=None):
+        """Get a setting implied through blueprint option constraint
+
         :param name: the name of the setting
         :param service_name: the name of the service being evaluated
-        :param resource_type: the type of the resource being evaluated 
         """
         blueprint = self['blueprint']
-        if 'options' in blueprint: 
-            for key, option in blueprint['options'].iteritems():
+        if 'options' in blueprint:
+            options = blueprint['options']
+            for key, option in options.iteritems():
                 if 'constrains' in option:  # the verb 'constrains' (not noun)
                     for constraint in option['constrains']:
                         if self.constraint_applies(constraint, name,
                                 service_name=service_name,
                                 resource_type=resource_type):
-                            return key, option, constraint
-        return (None, None, None)
-    
-    def _get_input_blueprint_option_constraint(self, name, service_name=None,
-            resource_type=None):
-        """Get a setting value implied through blueprint option constraint
-
-        :param name: the name of the setting
-        :param service_name: the name of the service being evaluated
-        :param resource_type: the type of the resource being evaluated
-        """
-        key, option, constraint = self._get_option_by_constrains(name, service_name=service_name, resource_type=resource_type)
-        if key and option and constraint:
-            # Find in inputs or use default if available
-            result = self._get_input_simple(key)
-            if result:
-                LOG.debug("Found setting '%s' from constraint "
-                          "in blueprint input '%s'. %s=%s" % (name, key, name, result))
-                return result
-            if 'default' in option:
-                result = option['default']
-                LOG.debug("Default setting '%s' obtained from "
-                          "constraint in blueprint input '%s': "
-                          "default=%s" % (name, key, result))
-                return result
+                            # Find in inputs or use default if available
+                            result = self._get_input_simple(key)
+                            if result:
+                                LOG.debug("Found setting '%s' from constraint "
+                                        "in blueprint input '%s'. %s=%s" % (
+                                        name, key, name, result))
+                                return result
+                            if 'default' in option:
+                                result = option['default']
+                                LOG.debug("Default setting '%s' obtained from "
+                                        "constraint in blueprint input '%s': "
+                                        "default=%s" % (name, key, result))
+                                return result
 
     def constraint_applies(self, constraint, name, resource_type=None,
                 service_name=None):
@@ -1105,15 +929,19 @@ class Deployment(ExtensibleDict):
                                 result))
                         return result
 
-    def _get_environment_setting(self, name, provider_key):
-        providers = self._environment.dict['providers']
+    def _get_environment_setting(self, name, provider_key, service_name):
+        environment = self.environment()
+        providers = environment.dict['providers']
         if provider_key in providers:
             settings = providers[provider_key]
-            for setting in settings:
-                if name in setting:
-                    result = setting[name]
-                    LOG.debug("Found setting '%s' in environment" % name)    
-        
+            if service_name in settings:
+                options = settings[service_name]
+                for option in options:
+                    if name in option:
+                        result = option[name]
+                        LOG.debug("Found setting '%s' in environment" % name)   
+                        return result
+
 
     def get_components(self, context):
         """Collect all requirements from components

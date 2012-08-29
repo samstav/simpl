@@ -1,22 +1,21 @@
+import copy
+import json
 import logging
 import os
 import sys
 import uuid
 
-<<<<<<< HEAD
 # pylint: disable=E0611
 from bottle import get, post, put, request, response, abort
 from celery.app import app_or_default
 from celery.task import task
 from SpiffWorkflow import Workflow, Task
-=======
-from bottle import get, post, put, request, response, abort #@UnresolvedImport
->>>>>>> 4533f1a22f1dd88299168ed703a1881c5f37afcb
 from SpiffWorkflow.storage import DictionarySerializer
 
 from checkmate import orchestrator
 from checkmate.classes import ExtensibleDict
 from checkmate.common import schema
+from checkmate.components import Component
 from checkmate.db import get_driver, any_id_problems
 from checkmate.environments import Environment
 from checkmate.exceptions import CheckmateException,\
@@ -34,6 +33,11 @@ from celery.task.base import task
 
 
 LOG = logging.getLogger(__name__)
+# Any names should become airport codes
+REGION_MAP = {'dallas': 'DFW',
+              'chicago': 'ORD',
+              'london': 'LON'}
+
 db = get_driver()
 
 #
@@ -64,15 +68,16 @@ def post_deployment(tenant_id=None):
     if 'includes' in deployment:
         del deployment['includes']
 
-    _id = str(deployment['id'])
+
+    id = str(deployment['id'])
     body, secrets = extract_sensitive_data(deployment)
-    db.save_deployment(_id, body, secrets, tenant_id=tenant_id)
+    db.save_deployment(id, body, secrets, tenant_id=tenant_id)
 
     # Return response (with new resource location in header)
     if tenant_id:
-        response.add_header('Location', "/%s/deployments/%s" % (tenant_id, _id))
+        response.add_header('Location', "/%s/deployments/%s" % (tenant_id, id))
     else:
-        response.add_header('Location', "/deployments/%s" % _id)
+        response.add_header('Location', "/deployments/%s" % id)
 
     #Assess work to be done & resources to be created
     parsed_deployment = plan(deployment, request.context)
@@ -82,17 +87,17 @@ def post_deployment(tenant_id=None):
 
     serializer = DictionarySerializer()
     serialized_workflow = workflow.serialize(serializer)
-    serialized_workflow['id'] = _id
-    parsed_deployment['workflow'] = _id
+    serialized_workflow['id'] = id
+    parsed_deployment['workflow'] = id
 
     body, secrets = extract_sensitive_data(deployment)
-    deployment = db.save_deployment(_id, body, secrets, tenant_id=tenant_id)
+    deployment = db.save_deployment(id, body, secrets, tenant_id=tenant_id)
 
     body, secrets = extract_sensitive_data(serialized_workflow)
-    db.save_workflow(_id, body, secrets, tenant_id=tenant_id)
+    db.save_workflow(id, body, secrets, tenant_id=tenant_id)
 
     #Trigger the workflow
-    execute(_id)
+    async_task = execute(id)
 
     return write_body(deployment, request, response)
 
@@ -203,7 +208,7 @@ def get_deployment_status(id, tenant_id=None):
 
     return write_body(results, request, response)
 
-@post('deployments/<depid>/services/<service>/<type>/<setting>/+scale')
+@get('/deployments/<depid>/services/<service>/<type>/<setting>/+scale')
 @with_tenant
 def scale_deployment(depid, service, type, setting, tenant_id=None, amount=None):
     """ Scale a checkmate deployment service
@@ -211,14 +216,16 @@ def scale_deployment(depid, service, type, setting, tenant_id=None, amount=None)
         
         :param depid: checkmate deployment id
         :param service: the service to scale
-        :param type: the aspect of the service to scale
-        :param value: (required query param) how much to scale or what to scale to
+        :param type: the aspect of the service to scale (ex. compute, database)
+        :param setting: the aspect of the type to scale (ex. compute - size, count ; db - memory, disk)
         :param tenant_id: (optional tenant id) account owner of the deployment
+	:param value: (required query param) how much to scale or what to scale to
     """
     if any_id_problems(depid):
         abort(406, any_id_problems(depid))
     
-    deployment = db.get_deployment(depid)
+    deployment_dict = db.get_deployment(depid)
+    deployment = Deployment(deployment_dict)
     
     if not deployment:
         abort(404, 'No deployment with id {}'.format(depid))
@@ -232,23 +239,33 @@ def scale_deployment(depid, service, type, setting, tenant_id=None, amount=None)
         amount = request.query.amount or 1
     
     key, option, constraint = deployment._get_option_by_constrains(setting, service_name=service, resource_type=type)
+
     if not key or not option or not constraint:
         abort(404, "No setting matches {}/{}/{}".format(service, type, setting))
-    if not constraint.get('scalable'):
-        abort(406, "Setting '{}' cannot be scaled for {}/{}".format(setting, service, type))
 
-    if "number" == option.get('type','NONE'):
+    if "int" == option.get('type','NONE'):
         try:
-            amount = int(amount)
-        except ValueError:
-            abort(406, 'Invalid amount ({}); must be numeric.'.format(amount))
-        current = len(deployment['blueprint']['services'][service].get("instances", []))
-        minscale = option['constraints'].get('min', 0) if 'constraints' in option else 0
-        maxscale = option['constraints'].get('max', sys.maxint) if 'constraints' in option else sys.maxint
-        net_amount = current + amount
-        if minscale > net_amount or net_amount > maxscale:
+	    amount = int(amount)
+	except ValueError:
+	    abort(406, 'Invalid amount ({}); must be numeric.'.format(amount))
+	
+	current = len(deployment['blueprint']['services'][service].get("instances",[]))
+	minimum = 0
+	maximum = sys.maxint
+
+	for constraint in option['constraints']:
+	    if 'greater-than' in constraint:
+	        minimum = constraint['greater-than']
+	    if 'less-than' in constraint:
+		maximum = constraint['less-than']
+	    if 'count' in constraint:
+		abort(406, 'Cannot modify number of {}/{}. Count set at {}'.format(service,type,constraint['count']))
+
+	net_amount = current + amount
+
+        if minimum > net_amount or net_amount > maximum:
             abort(406, "Setting \'{}\' for {}/{} must be between {} and {} (inclusive).".format(\
-                        setting, service, type, minscale, maxscale))
+                        setting, service, type, minimum, maximum))
         
         deployment.set_setting(setting, service_name=service, resource_type=type, value=net_amount)
         
@@ -333,7 +350,7 @@ def plan(deployment, context):
 
     # Load providers
     providers = environment.get_providers(context)
-
+    
     #Identify component providers and get the resolved components
     components = deployment.get_components(context)
 
@@ -445,8 +462,8 @@ def plan(deployment, context):
                                         host_provider.key, ', '.join([c['id']
                                         for c in found])))
                         else:
-                            raise CheckmateException("No components found that "
-                                        "offer '%s:%s' in provider %s" % (
+                            raise CheckmateException("No components found "
+                                        "that offer '%s:%s' in provider %s" % (
                                         host_type, host_interface,
                                         host_provider.key))
                         break
@@ -635,8 +652,6 @@ def _verify_required_blueprint_options_supplied(deployment):
                 if key not in bp_inputs:
                     abort(406, "Required blueprint input '%s' not supplied" %
                             key)
-
-
 def get_os_env_keys():
     """Get keys if they are set in the os_environment"""
     keys = {}
@@ -837,6 +852,8 @@ class Deployment(ExtensibleDict):
         - start with the deployment inputs where the paths are:
             inputs/blueprint
             inputs/providers/:provider
+        - look at the provider options in the environment
+            also default to anything in the common entry
         - finally look at the component defaults
 
         :param name: the name of the setting
@@ -869,6 +886,15 @@ class Deployment(ExtensibleDict):
         result = self._get_input_global(name)
         if result:
             return result
+
+<<<<<<< HEAD
+        result = self._get_environment_setting(name, provider_key)
+=======
+        result = self._get_environment_setting(name, provider_key, service_name)
+>>>>>>> e44c19dd8af76ea9280a818f5ef8bee6b22ce516
+        if result:
+            return result
+
 
         return default
     
@@ -1082,6 +1108,32 @@ class Deployment(ExtensibleDict):
                                 % (name, provider_key, resource_type, name,
                                 result))
                         return result
+
+<<<<<<< HEAD
+    def _get_environment_setting(self, name, provider_key):
+        providers = self._environment.dict['providers']
+        if provider_key in providers:
+            settings = providers[provider_key]
+            for setting in settings:
+                if name in setting:
+                    result = setting[name]
+                    LOG.debug("Found setting '%s' in environment" % name)    
+        
+=======
+    def _get_environment_setting(self, name, provider_key, service_name):
+        environment = self.environment()
+        providers = environment.dict['providers']
+        if provider_key in providers:
+            settings = providers[provider_key]
+            if service_name in settings:
+                options = settings[service_name]
+                for option in options:
+                    if name in option:
+                        result = option[name]
+                        LOG.debug("Found setting '%s' in environment" % name)   
+                        return result
+
+>>>>>>> e44c19dd8af76ea9280a818f5ef8bee6b22ce516
 
     def get_components(self, context):
         """Collect all requirements from components

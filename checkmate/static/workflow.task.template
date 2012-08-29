@@ -67,25 +67,31 @@
             </div>
               {% endif %}
             {% endif %}
-            {% if data.task_spec[0:13] == 'Create Server' and data.attributes.id is defined %}
-            <div class="alert alert-success">
-              <a class="close" data-dismiss="alert" href="#">×</a>
-              Server {{data.attributes.id}} was created with IP address {{data.attributes.ip}}. You can see it in the {% if '-' in data.attributes.id|string %}<a target="_blank" href="https://mycloud.rackspace.com/a/{{data.attributes.username}}/#list/location:Next Generation/">next-gen control panel</a>{% else %}<a target="_blank" href="https://manage.rackspacecloud.com/CloudServers/Overview.do?cloudServerId={{data.attributes.id}}">control panel</a>{% endif %} or connect to it over <a href="ssh://root@{{data.attributes.ip}}">ssh</a>.
-            </div>
-            {% elif (data.task_spec == 'Create Loadbalancer' or data.task_spec == 'Create LB') and data.attributes.vip is defined%}
-            <div class="alert alert-success">
-              <a class="close" data-dismiss="alert" href="#">×</a>
-              Load balancer {{data.attributes.id}} was created and assigned VIP {{data.attributes.vip}}. See it in the <a target="_blank" href="https://manage.rackspacecloud.com/LoadBalancers/Nodes.do?loadBalancerId={{data.attributes.id}}&amp;datacenter={% if data.attributes.region == 'dallas' %}prod-dfw{% else %}prod-ord{% endif %}">control panel</a> or <a target="_blank" href="http://{{data.attributes.vip}}/">browse</a> the VIP.
-            </div>
-            {% elif data.task_spec[0:9] == 'Create DB' %}
-            <div class="alert alert-success">
-              <a class="close" data-dismiss="alert" href="#">×</a>
-              Database {{data.attributes.id}} was created on host {{data.attributes.hostname}}. Install the <a target="_blank" href="https://github.rackspace.com/zachary-schneider/clouddb-client">Cloud DB Client</a> to see it <a target="_blank" href="chrome-extension://pnpkkmloheblphhafpehdabejjckbbaj/index.html#">here</a>.
-            </div>
-            {% endif %}
+            {% for key in data.attributes.keys() if key[0:8] == 'instance' %}
+              {% set current_instance = key %}
+              {% if data.task_spec[0:13] == 'Create Server' and data.attributes[current_instance] is defined %}
+              <div class="alert alert-success">
+                <a class="close" data-dismiss="alert" href="#">×</a>
+                Server {{data.attributes[current_instance].id}} was created with IP address {{data.attributes[current_instance].ip}}. You can see it in the {% if '-' in data.attributes[current_instance].id|string %}<a target="_blank" href="https://mycloud.rackspace.com/a/{{data.attributes.username}}/#list/location:Next Generation/">next-gen control panel</a>{% else %}<a target="_blank" href="https://manage.rackspacecloud.com/CloudServers/Overview.do?cloudServerId={{data.attributes[current_instance].id}}">control panel</a>{% endif %} or connect to it over <a href="ssh://root@{{data.attributes[current_instance].ip}}">ssh</a>.
+              </div>
+              {% elif (data.task_spec == 'Create Loadbalancer' or data.task_spec == 'Create LB') and data.attributes[current_instance] is defined %}
+              <div class="alert alert-success">
+                <a class="close" data-dismiss="alert" href="#">×</a>
+                Load balancer {{data.attributes[current_instance].id}} was created and assigned VIP {{data.attributes[current_instance].vip}}. See it in the <a target="_blank" href="https://manage.rackspacecloud.com/LoadBalancers/Nodes.do?loadBalancerId={{data.attributes[current_instance].id}}&amp;datacenter=prod-{{data.attributes.region|lower}}">control panel</a> or <a target="_blank" href="http://{{data.attributes[current_instance].public_ip}}/">browse</a> the VIP.
+              </div>
+              {% elif (data.task_spec[0:9] == 'Create DB' or data.task_spec[0:15] == 'Create Database') %}
+              <div class="alert alert-success">
+                <a class="close" data-dismiss="alert" href="#">×</a>
+                Database {{data.attributes[current_instance].id}} was created on host {{data.attributes[current_instance].hostname}}. Install the <a target="_blank" href="https://github.rackspace.com/zachary-schneider/clouddb-client">Cloud DB Client</a> to see it <a target="_blank" href="chrome-extension://pnpkkmloheblphhafpehdabejjckbbaj/index.html#">here</a>.
+              </div>
+              {% endif %}
+            {% endfor%}
+
             <form id="task" method="POST" action="{{data.tenantId|prepend}}/workflows/{{data.workflow_id}}/tasks/{{data.id}}">
               <textarea name="object" id="editor">{{ source | safe }}</textarea>
             </form>
+            <div class="alert">If your updates include any 'secret' values (like password or private keys) and you have not opened this screen with a ?with_secrets query parameter, then any existing secrets will be overwritten and lost</div>
+
             <script>
               var foldFunc = CodeMirror.newFoldFunction(CodeMirror.braceRangeFinder);
               var Editor = CodeMirror.fromTextArea(document.getElementById('editor'), {

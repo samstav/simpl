@@ -67,7 +67,7 @@ directives.directive('calculator', function factory() {
           $("#content-wrap").css("top", "40px"); //.insertBefore('.mainContent');
           $(".mainContent").css("display", "none");
           $("body").addClass("chrome");
-          $(".signup").text("Built It");
+          $(".signup").text("Build It");
           $('head').append('<script src="/static/RackspaceCalculator/js/jquery-ui-1.8.21.min.js"></script>');
           $('head').append('<script src="/static/RackspaceCalculator/js/lodash.js"></script>');
           $('head').append('<script src="/static/RackspaceCalculator/js/json2.js"></script>');

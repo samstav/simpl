@@ -7,6 +7,7 @@ from checkmate.deployments import resource_postback
 from checkmate.exceptions import CheckmateException, CheckmateNoTokenError
 from checkmate.providers import ProviderBase
 from checkmate.workflows import wait_for
+from checkmate.utils import match_celery_logging
 
 LOG = logging.getLogger(__name__)
 
@@ -176,7 +177,6 @@ class Provider(ProviderBase):
             region = find_a_region(context.catalog) or 'DFW'
 
         #TODO: instead of hacking auth using a token, submit patch upstream
-        print "AUTH CATALOG: %s" % context.catalog
         url = find_url(context.catalog, region)
         if not url:
             raise CheckmateException("Unable to locate region url for LBaaS "
@@ -191,14 +191,10 @@ class Provider(ProviderBase):
   Celery tasks to manipulate Rackspace Cloud Load Balancers
 """
 import cloudlb
-import logging
 from celery.task import task
 
 from checkmate.providers.rackspace.dns import create_record,\
         parse_domain
-from checkmate.providers.rackspace.monitoring import initialize_monitoring
-
-LOG = logging.getLogger(__name__)
 
 # Cloud Load Balancers needs an IP for all load balancers. To create one we
 # sometimes need a dummy node. This is the IP address we use for the dummy
@@ -217,11 +213,10 @@ def create_loadbalancer(context, name, type, protocol, port, region,
                                    monitor_delay=10, monitor_timeout=10,
                                    monitor_attempts=3, monitor_body='(.*)',
                                    monitor_status='^[234][0-9][0-9]$'):
+    match_celery_logging(LOG)
     if api is None:
         api = Provider._connect(context, region)
 
-
-    print "CATALOG: %s" % context.catalog
     fakenode = cloudlb.Node(address=PLACEHOLDER_IP, port=80,
             condition="ENABLED")
     vip = cloudlb.VirtualIP(type=type)
@@ -236,8 +231,6 @@ def create_loadbalancer(context, name, type, protocol, port, region,
     if dns:
         create_record.delay(context, parse_domain(name), name,
                                        'A', vip, region, ttl=300)
-
-    initialize_monitoring.delay(ip=vip,name=lb.id,context=context['deployment'],resource="lb")
 
     set_monitor.delay(context, lb.id, monitor_type, region, monitor_path,
                       monitor_delay, monitor_timeout, monitor_attempts,
@@ -254,6 +247,7 @@ def create_loadbalancer(context, name, type, protocol, port, region,
 
 @task
 def delete_loadbalancer(context, lbid, region, api=None):
+    match_celery_logging(LOG)
     if api is None:
         api = Provider._connect(context, region)
 
@@ -264,6 +258,7 @@ def delete_loadbalancer(context, lbid, region, api=None):
 
 @task(default_retry_delay=10, max_retries=10)
 def add_node(context, lbid, ip, port, region, api=None):
+    match_celery_logging(LOG)
     if api is None:
         api = Provider._connect(context, region)
 
@@ -343,6 +338,7 @@ def add_node(context, lbid, ip, port, region, api=None):
 
 @task(default_retry_delay=10, max_retries=10)
 def delete_node(context, lbid, ip, port, region, api=None):
+    match_celery_logging(LOG)
     if api is None:
         api = Provider._connect(context, region)
 
@@ -379,6 +375,7 @@ def delete_node(context, lbid, ip, port, region, api=None):
 def set_monitor(context, lbid, type, region, path='/', delay=10,
                            timeout=10, attempts=3, body='(.*)',
                            status='^[234][0-9][0-9]$', api=None):
+    match_celery_logging(LOG)
     if api is None:
         api = Provider._connect(context, region)
 

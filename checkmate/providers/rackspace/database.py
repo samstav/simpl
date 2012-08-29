@@ -13,6 +13,7 @@ from checkmate.deployments import Deployment, resource_postback
 from checkmate.exceptions import CheckmateException, CheckmateNoMapping, \
         CheckmateNoTokenError
 from checkmate.providers import ProviderBase
+from checkmate.utils import match_celery_logging
 from checkmate.workflows import wait_for
 
 LOG = logging.getLogger(__name__)
@@ -313,6 +314,7 @@ def create_instance(context, instance_name, size, flavor, databases, region,
                    {'name': 'db2', 'character_set': 'latin5',
                     'collate': 'latin5_turkish_ci'}]
     """
+    match_celery_logging(LOG)
     if not api:
         api = Provider._connect(context, region)
 
@@ -375,6 +377,7 @@ def create_database(context, name, region, character_set=None, collate=None,
     :param instance_attributes: kwargs used to create the instance (used if
             instance_id not supplied)
     """
+    match_celery_logging(LOG)
     database = {'name': name}
     if character_set:
         database['character_set'] = character_set
@@ -398,6 +401,7 @@ def create_database(context, name, region, character_set=None, collate=None,
 
         instance = create_instance(context, instance_name, size, flavor,
             databases, region, api=api)
+        # create_instance calls its own postback
         results = {
                 instance_key: instance['instance']['databases'][name]
             }
@@ -410,16 +414,13 @@ def create_database(context, name, region, character_set=None, collate=None,
     instance.create_databases(databases)
     results = {
             instance_key: {
-                    'databases': {
-                            name: {
-                                    'host_instance': instance_id,
-                                    'host_region': region,
-                                    'interfaces': {
-                                            'mysql': {
-                                                    'host': instance.hostname,
-                                                    'database_name': name,
-                                                },
-                                        },
+                    'name': name,
+                    'host_instance': instance_id,
+                    'host_region': region,
+                    'interfaces': {
+                            'mysql': {
+                                    'host': instance.hostname,
+                                    'database_name': name,
                                 },
                         },
                 },
@@ -444,6 +445,7 @@ def add_databases(context, instance_id, databases, region, api=None):
                     'collate': 'latin5_turkish_ci'}]
         databases = [{'name': 'mydb3'}, {'name': 'mydb4'}]
     """
+    match_celery_logging(LOG)
     if not api:
         api = Provider._connect(context, region)
 
@@ -461,9 +463,13 @@ def add_databases(context, instance_id, databases, region, api=None):
 def add_user(context, instance_id, databases, username, password, region,
         api=None):
     """Add a database user to an instance for one or more databases"""
+    match_celery_logging(LOG)
+
+    assert instance_id, "Instance ID not supplied"
     if not api:
         api = Provider._connect(context, region)
 
+    LOG.debug('Obtaining instance %s' % instance_id)
     instance = api.get_instance(instance_id)
 
     try:
@@ -492,6 +498,7 @@ def delete_instance(context, instance_id, region, api=None):
     """Deletes a database server instance and its associated databases and
     users.
     """
+    match_celery_logging(LOG)
     if not api:
         api = Provider._connect(context, region)
 
@@ -502,6 +509,7 @@ def delete_instance(context, instance_id, region, api=None):
 @task(default_retry_delay=10, max_retries=10)
 def delete_database(context, instance_id, db, region, api=None):
     """Delete a database from an instance"""
+    match_celery_logging(LOG)
     if not api:
         api = Provider._connect(context, region)
 
@@ -513,6 +521,7 @@ def delete_database(context, instance_id, db, region, api=None):
 @task(default_retry_delay=10, max_retries=10)
 def delete_user(context, instance_id, username, region, api=None):
     """Delete a database user from an instance."""
+    match_celery_logging(LOG)
     if api is None:
         api = Provider._connect(context, region)
 
