@@ -8,6 +8,7 @@ import base64
 import inspect
 import json
 import logging
+import os
 import struct
 import sys
 from time import gmtime, strftime
@@ -102,6 +103,14 @@ def init_console_logging():
         # add the handler to the root logger
         logging.getLogger().addHandler(console)
         logging.getLogger().setLevel(logging_level)
+        global LOG
+        LOG = logging.getLogger(__name__)  # reset
+
+
+def match_celery_logging(logger):
+    """Match celery log level"""
+    if logger.level < int(os.environ.get('CELERY_LOG_LEVEL', logger.level)):
+        logger.setLevel(int(os.environ.get('CELERY_LOG_LEVEL')))
 
 
 def import_class(import_str):

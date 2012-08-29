@@ -9,9 +9,9 @@ from SpiffWorkflow.specs import Celery, Transform
 
 from checkmate.deployments import Deployment, resource_postback
 from checkmate.exceptions import CheckmateNoTokenError, CheckmateNoMapping, \
-        CheckmateServerBuildFailed
+        CheckmateServerBuildFailed, CheckmateException
 from checkmate.providers import ProviderBase
-from checkmate.utils import get_source_body
+from checkmate.utils import get_source_body, match_celery_logging
 from checkmate.workflows import wait_for
 
 LOG = logging.getLogger(__name__)
@@ -324,6 +324,7 @@ def create_server(deployment, name, region, api_object=None, flavor="1",
     }
 
     """
+    match_celery_logging(LOG)
     if api_object is None:
         api_object = Provider._connect(context, region)
 
@@ -363,6 +364,7 @@ def wait_on_build(deployment, id, ip_address_type='public',
             Checkmate
     :returns: False when build not ready. Dict with ip addresses when done.
     """
+    match_celery_logging(LOG)
     if api_object is None:
         api_object = _get_api_connection(deployment)
 

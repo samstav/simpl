@@ -7,10 +7,11 @@ from checkmate.utils import init_console_logging
 init_console_logging()
 LOG = logging.getLogger(__name__)
 
-from SpiffWorkflow import Workflow
+from SpiffWorkflow import Workflow as SpiffWorkflow
+from SpiffWorkflow.storage import DictionarySerializer
 from SpiffWorkflow.specs import WorkflowSpec, Simple, Merge, Join
 
-from checkmate.workflows import wait_for
+from checkmate.workflows import wait_for, Workflow
 
 
 class TestWorkflowTools(unittest.TestCase):
@@ -32,7 +33,7 @@ class TestWorkflowTools(unittest.TestCase):
 
         wait_for(wf_spec, A, [B])
         wf_spec.start.connect(B)
-        workflow = Workflow(wf_spec)
+        workflow = SpiffWorkflow(wf_spec)
         expected = """
 1/0: Task of Root State: COMPLETED Children: 1
   2/0: Task of Start State: READY Children: 2
@@ -55,7 +56,7 @@ class TestWorkflowTools(unittest.TestCase):
         wf_spec.start.connect(B)
 
         wait_for(wf_spec, A, [B])
-        workflow = Workflow(wf_spec)
+        workflow = SpiffWorkflow(wf_spec)
         expected = """
 1/0: Task of Root State: COMPLETED Children: 1
   2/0: Task of Start State: READY Children: 1
@@ -74,7 +75,7 @@ class TestWorkflowTools(unittest.TestCase):
         B = Simple(wf_spec, 'B')
         wf_spec.start.connect(wait_for(wf_spec, B, [A]))
 
-        workflow = Workflow(wf_spec)
+        workflow = SpiffWorkflow(wf_spec)
         expected = """
 1/0: Task of Root State: COMPLETED Children: 1
   2/0: Task of Start State: READY Children: 1
@@ -88,7 +89,7 @@ class TestWorkflowTools(unittest.TestCase):
         A = Simple(wf_spec, 'A')
         wf_spec.start.connect(wait_for(wf_spec, A, None))
 
-        workflow = Workflow(wf_spec)
+        workflow = SpiffWorkflow(wf_spec)
         expected = """
 1/0: Task of Root State: COMPLETED Children: 1
   2/0: Task of Start State: READY Children: 1
@@ -107,7 +108,7 @@ class TestWorkflowTools(unittest.TestCase):
         B = Simple(wf_spec, 'B')
         wait_for(wf_spec, B, [A1, A2, A3])
 
-        workflow = Workflow(wf_spec)
+        workflow = SpiffWorkflow(wf_spec)
         expected = """
 1/0: Task of Root State: COMPLETED Children: 1
   2/0: Task of Start State: READY Children: 3
@@ -135,6 +136,30 @@ class TestWorkflowTools(unittest.TestCase):
 
         wait_for(wf_spec, A, [C])
         self.assertListEqual(A.inputs, [M])
+
+
+class TestWorkflow(unittest.TestCase):
+    """Test Checkmate Workflow class"""
+    def test_instantiation(self):
+        workflow = Workflow()
+        self.assertDictEqual(workflow._data, {})
+
+    def test_SpiffSerialization(self):
+        wf_spec = WorkflowSpec(name="Test")
+        A = Simple(wf_spec, 'A')
+        wf_spec.start.connect(A)
+        wf = SpiffWorkflow(wf_spec)
+
+        # Serialize into Checkmate Workflow (dict)
+        serializer = DictionarySerializer()
+        workflow = Workflow(wf.serialize(serializer))
+        expected_keys = ['wf_spec', 'last_task', 'success', 'workflow',
+                         'attributes', 'task_tree']
+        self.assertListEqual(workflow._data.keys(), expected_keys)
+
+        # Deserialize from Checkmate Workflow (dict)
+        new = SpiffWorkflow.deserialize(serializer, workflow)
+        self.assertIsInstance(new, SpiffWorkflow)
 
 
 if __name__ == '__main__':
