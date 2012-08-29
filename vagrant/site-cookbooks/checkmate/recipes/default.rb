@@ -43,8 +43,9 @@ python_virtualenv "#{node['checkmate']['venv_path']}" do
 end
 
 git "#{node['checkmate']['local_source']}" do
-  repository /vagrant
-  reference "master"
+  repository "git://github.rackspace.com/cgroom/checkmate.git"
+  reference "vagrant"
+  revision "vagrant"
   action :sync
   user "checkmate"
   group "checkmate"
@@ -53,9 +54,9 @@ end
 script "checkmate-setup.py" do
   interpreter "bash"
   user "checkmate"
-  cwd "/var/checkmate/src"
+  cwd "#{node['checkmate']['local_source']}"
   code <<-EOH
-  . /var/checkmate/venv/bin/activate
+  . #{node['checkmate']['venv_path']}/bin/activate
   python setup.py install
   EOH
 end
