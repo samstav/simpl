@@ -1468,7 +1468,8 @@ def register_node(host, environment, path=None, password=None,
 
     # Rsync problem with creating path (missing -p so adding it ourselves) and
     # doing this before the complex prepare work
-    ssh_execute(host, "mkdir -p %s" % kitchen_path, 'root', password=password)
+    ssh_execute(host, "mkdir -p %s" % kitchen_path, 'root', password=password,
+            identity_file=identity_file)
 
     # Calculate node path and check for prexistance
     node_path = os.path.join(kitchen_path, 'nodes', '%s.json' % host)
