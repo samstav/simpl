@@ -1202,18 +1202,11 @@ encrypted_data_bag_secret "%s"
             os.path.join(kitchen_path, 'roles'),
             os.path.join(kitchen_path, 'data_bags'),
             secret_key_path)
+    # knife kitchen creates a default solo.rb, so the file already exists
     solo_file = os.path.join(kitchen_path, 'solo.rb')
-    if os.path.exists(solo_file):
-        with file(solo_file, 'r') as f:
-            data = f.read()
-            if config != data:
-                raise CheckmateException("Solo.rb exists and does not match "
-                        "expected configuration")
-        LOG.debug("Solo file already exists and matches: %s" % solo_file)
-    else:
-        with file(solo_file, 'w') as f:
-            f.write(config)
-        LOG.debug("Created solo file: %s" % solo_file)
+    with file(solo_file, 'w') as f:
+        f.write(config)
+    LOG.debug("Created solo file: %s" % solo_file)
 
     # Create certificates folder
     certs_path = os.path.join(kitchen_path, 'certificates')
@@ -1285,6 +1278,8 @@ def _create_environment_keys(environment_path, private_key=None,
             params = ['openssl', 'genrsa', '-out', private_key_path, '2048']
             result = check_output(params)
             LOG.debug(result)
+            LOG.debug("Generated environment private key: %s" %
+                      private_key_path)
 
     # Secure private key
     os.chmod(private_key_path, 0600)
@@ -1301,6 +1296,7 @@ def _create_environment_keys(environment_path, private_key=None,
         if not public_key_ssh:
             params = ['ssh-keygen', '-y', '-f', private_key_path]
             public_key_ssh = check_output(params)
+            LOG.debug("Generated environment public key: %s" % public_key_path)
         # Write it to environment
         with file(public_key_path, 'w') as f:
             f.write(public_key_ssh)
