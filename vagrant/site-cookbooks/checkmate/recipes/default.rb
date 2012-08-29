@@ -8,7 +8,14 @@
 #
 ::Chef::Recipe.send(:include, Opscode::OpenSSL::Password)
 
-node.set_unless['checkmate']['rabbitmq']['password'] = secure_password
+node.set_unless['checkmate']['broker']['password'] = secure_password
+
+user "checkmate" do
+  comment "Checkmate"
+  shell "/bin/bash"
+  home "/home/checkmate"
+  supports :manage_home => true
+end
 
 %w{git python-setuptools python2.7-dev python-dev vim}.each do |pkg|
   package pkg do
@@ -22,31 +29,65 @@ end
   end
 end
 
+directory "#{node['checkmate']['path']}" do
+  owner "checkmate"
+  group "checkmate"
+  mode "0755"
+  action :create
+end
+
+python_virtualenv "#{node['checkmate']['venv_path']}" do
+  owner "checkmate"
+  group "checkmate"
+  action :create
+end
+
+=begin
 python_pip "#{node['checkmate']['local_source']}/pip-requirements.txt" do
+  virtualenv "#{node['checkmate']['venv_path']}"
   options "-r"
   action :install
+end
+=end
+
+git "#{node['checkmate']['local_source']}" do
+  repository /vagrant
+  reference "master"
+  action :sync
+  user "checkmate"
+  group "checkmate"
+end
+
+script "checkmate-setup.py" do
+  interpreter "bash"
+  user "checkmate"
+  cwd "/var/checkmate/src"
+  code <<-EOH
+  . /var/checkmate/venv/bin/activate
+  python setup.py install
+  EOH
 end
 
 rabbitmq_user "guest" do
   action :delete
 end
 
-rabbitmq_vhost node['checkmate']['rabbitmq']['vhost'] do
+rabbitmq_vhost node['checkmate']['broker']['vhost'] do
   action :add
 end
 
-rabbitmq_user node['checkmate']['rabbitmq']['user'] do
-  password node['checkmate']['rabbitmq']['password']
+rabbitmq_user node['checkmate']['broker']['username'] do
+  password node['checkmate']['broker']['password']
   action :add
 end
 
-rabbitmq_user node['checkmate']['rabbitmq']['user'] do
-  vhost node['checkmate']['rabbitmq']['vhost']
+rabbitmq_user node['checkmate']['broker']['username'] do
+  vhost node['checkmate']['broker']['vhost']
   permissions "\".*\" \".*\" \".*\""
   action :set_permissions
 end
 
-directory node['checkmate']['local_path'] do
+directory node['checkmate']['path'] do
   recursive true
 end
 directory node['checkmate']['chef_repo'] do
@@ -59,35 +100,20 @@ git node['checkmate']['chef_repo'] do
   action :sync
 end
 
-ENV['CHECKMATE_BROKER_USERNAME'] = node['checkmate']['broker_username']
-ENV['CHECKMATE_BROKER_PASSWORD'] = node['checkmate']['broker_password']
-ENV['CHECKMATE_BROKER_PORT'] = node['checkmate']['broker_port']
-ENV['CHECKMATE_BROKER_HOST'] = node['checkmate']['broker_host']
-ENV['CELERY_CONFIG_MODULE'] = node['checkmate']['celery_config_module']
-ENV['CHECKMATE_CHEF_REPO'] = node['checkmate']['chef_repo']
-ENV['CHECKMATE_CONNECTION_STRING'] = node['checkmate']['connection_string']
-
-template "/etc/init.d/checkmate-queue" do
-  source "checkmate-queue.erb"
-  notifies :reload, "service[checkmate-queue]"
+remote_file "/etc/init.d/checkmate-q" do
+  source "https://github.rackspace.com/cgroom/checkmate-deb/raw/master/noarch/etc/init.d/checkmate-q"
   owner "root"
   group "root"
   mode 0755
 end
 
-template "/etc/default/checkmate-queue" do
-  source "checkmate-queue.default.erb"
+template "/etc/default/checkmate" do
+  source "checkmate.default.erb"
   owner "root"
   group "root"
   mode 0644
 end
 
-user "checkmate" do
-  comment "Checkmate"
-  system true
-  shell "/bin/false"
-end
-
-service "checkmate-queue" do
+service "checkmate-q" do
   action [ :start, :enable ]
 end
