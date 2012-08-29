@@ -9,12 +9,19 @@ from SpiffWorkflow.specs import Celery, Transform
 
 from checkmate.deployments import Deployment, resource_postback
 from checkmate.exceptions import CheckmateNoTokenError, CheckmateNoMapping, \
-        CheckmateServerBuildFailed
+        CheckmateServerBuildFailed, CheckmateException
 from checkmate.providers.rackspace.compute import RackspaceComputeProviderBase
-from checkmate.utils import get_source_body
+from checkmate.utils import get_source_body, match_celery_logging
 from checkmate.workflows import wait_for
 
 LOG = logging.getLogger(__name__)
+
+REGION_MAP = {'dallas': 'DFW',
+              'chicago': 'ORD',
+              'london': 'LON'}
+REVERSE_MAP = {'DFW': 'dallas',
+               'ORD': 'chicago',
+               'LON': 'london'}
 
 
 class Provider(RackspaceComputeProviderBase):
@@ -26,6 +33,37 @@ class Provider(RackspaceComputeProviderBase):
                 deployment, resource_type, service, context, name=name)
 
         catalog = self.get_catalog(context)
+
+        # Get region
+        region = deployment.get_setting('region', resource_type=resource_type,
+                                        service_name=service,
+                                        provider_key=self.key)
+        airport_region = None
+        
+        if not region:
+            LOG.warning("No region specified for Legacy Compute provider in \
+                        deployment.")
+        else:  
+            if region in REGION_MAP:
+                airport_region = REGION_MAP[region]
+            elif region in REVERSE_MAP:
+                airport_region = region
+                region = REVERSE_MAP[region]
+            else:
+                raise CheckmateException("No region mapping found for %s" 
+                                         % region)         
+
+            # If legacy region is specified, make sure it matches catalog region
+            region_catalog = self.get_catalog(context, type_filter='regions')
+            legacy_regions = region_catalog.get('lists', {}).get('regions', {})   
+   
+            if legacy_regions and (region or airport_region) not in legacy_regions:
+                raise CheckmateException("Legacy set to spin up in %s. Cannot provision servers in %s."
+                                         % (legacy_regions, region))
+            else:
+                LOG.warning("Region %s specified in deployment, but not Legacy \
+                            Compute catalog" % region)
+
         image = deployment.get_setting('os', resource_type=resource_type,
                 service_name=service, provider_key=self.key, default=119)
         if isinstance(image, int):
@@ -37,7 +75,6 @@ class Provider(RackspaceComputeProviderBase):
                     LOG.debug("Mapping image from '%s' to '%s'" % (image, key))
                     image = key
                     break
-
         if image not in catalog['lists']['types']:
             raise CheckmateNoMapping("No image mapping for '%s' in '%s'" % (
                     image, self.name))
@@ -62,6 +99,8 @@ class Provider(RackspaceComputeProviderBase):
 
         template['flavor'] = flavor
         template['image'] = image
+        if airport_region:
+            template['region'] = airport_region
         return template
 
     def add_resource_tasks(self, resource, key, wfspec, deployment, context,
@@ -95,7 +134,7 @@ class Provider(RackspaceComputeProviderBase):
                                 deployment=deployment['id'],
                                 resource=key),
                         PathAttrib('instance:%s/id' % key)],
-                password=Attrib('password'),
+                password=PathAttrib('instance:%s/password' % key),
                 identity_file=Attrib('private_key_path'),
                 properties={'estimated_duration': 150},
                 defines=dict(resource=key,
@@ -119,18 +158,35 @@ class Provider(RackspaceComputeProviderBase):
     def get_catalog(self, context, type_filter=None):
         """Return stored/override catalog if it exists, else connect, build,
         and return one"""
-
         # TODO: maybe implement this an on_get_catalog so we don't have to do
         #        this for every provider
-        results = RackspaceComputeProviderBase.get_catalog(self, context,
+        results = RackspaceComputeProviderBase.get_catalog(self, context, \
             type_filter=type_filter)
         if results:
             # We have a prexisting or overridecatalog stored
             return results
-
+       
         # build a live catalog this should be the on_get_catalog called if no
         # stored/override existed
         api = self._connect(context)
+
+        if type_filter is None or type_filter == 'regions':
+            regions = {}
+            for service in context.catalog:
+                if service['name'] == 'cloudServers':
+                    endpoints = service['endpoints']
+                    for endpoint in endpoints:
+                        tenant_id = endpoint['tenantId']
+                        if 'region' in endpoint:
+                            regions[endpoint['region']] = endpoint['publicURL']
+                        else:
+                            region = api.servers.get_region(tenant_id)
+                            endpoint['region'] = region
+                            regions[endpoint['region']] = endpoint['publicURL']
+            if 'lists' not in results:
+                results['lists'] = {}
+            results['lists']['regions'] = regions
+        
 
         if type_filter is None or type_filter == 'compute':
             results['compute'] = dict(
@@ -246,6 +302,7 @@ def create_server(context, name, api_object=None, flavor=2, files=None,
     }
 
     """
+    match_celery_logging(LOG)
     if api_object is None:
         api_object = Provider._connect(context)
 
@@ -289,7 +346,7 @@ def create_server(context, name, api_object=None, flavor=2, files=None,
 
 
 @task(default_retry_delay=10, max_retries=18)  # ~3 minute wait
-def wait_on_build(context, id, ip_address_type='public',
+def wait_on_build(context, server_id, ip_address_type='public',
             check_ssh=True, username='root', timeout=10, password=None,
             identity_file=None, port=22, api_object=None):
     """Checks build is complete and. optionally, that SSH is working.
@@ -298,17 +355,20 @@ def wait_on_build(context, id, ip_address_type='public',
         response
     :returns: False when build not ready. Dict with ip addresses when done.
     """
+    match_celery_logging(LOG)
     if api_object is None:
         api_object = Provider._connect(context)
 
-    server = api_object.servers.find(id=id)
-    results = {'id': id,
+    assert server_id, "ID must be provided"
+    LOG.debug("Getting server %s" % server_id)
+    server = api_object.servers.find(id=server_id)
+    results = {'id': server_id,
             'status': server.status,
             'addresses': _convert_v1_adresses_to_v2(server.addresses)
             }
 
     if server.status == 'ERROR':
-        raise CheckmateServerBuildFailed("Server %s build failed" % id)
+        raise CheckmateServerBuildFailed("Server %s build failed" % server_id)
 
     ip = None
     if server.addresses:
@@ -335,28 +395,28 @@ def wait_on_build(context, id, ip_address_type='public',
             countdown = 15  # progress is not accurate. Allow at least 15s wait
         wait_on_build.update_state(state='PROGRESS',
                 meta=results)
-        LOG.debug("Server %s progress is %s. Retrying after %s seconds" % (id,
-                server.progress, countdown))
+        LOG.debug("Server %s progress is %s. Retrying after %s seconds" % (
+                server_id, server.progress, countdown))
         return wait_on_build.retry(countdown=countdown)
 
     if server.status != 'ACTIVE':
         LOG.warning("Server %s status is %s, which is not recognized. "
-                "Assuming it is active" % (id, server.status))
+                "Assuming it is active" % (server_id, server.status))
 
     if not ip:
-        raise CheckmateException("Could not find IP of server %s" % (id))
+        raise CheckmateException("Could not find IP of server %s" % server_id)
     else:
         up = test_connection(context, ip, username, timeout=timeout,
                 password=password, identity_file=identity_file, port=port)
         if up:
-            LOG.info("Server %s is up" % id)
+            LOG.info("Server %s is up" % server_id)
             instance_key = 'instance:%s' % context['resource']
             results = {instance_key: results}
             # Send data back to deployment
             resource_postback.delay(context['deployment'], results)
             return results
-        return wait_on_build.retry(exc=CheckmateException("Server "
-                "%s not ready yet" % id))
+        return wait_on_build.retry(exc=CheckmateException("Server %s not "
+                "ready yet" % server_id))
 
 
 def _convert_v1_adresses_to_v2(addresses):
@@ -403,6 +463,7 @@ def _convert_v1_adresses_to_v2(addresses):
 
 @task
 def delete_server(context, serverid, api_object=None):
+    match_celery_logging(LOG)
     if api_object is None:
         api_object = Provider._connect(context)
     api_object.servers.delete(serverid)

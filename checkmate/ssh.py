@@ -8,12 +8,15 @@ from celery.task import task
 from celery.task.sets import subtask
 import paramiko
 
+from checkmate.utils import match_celery_logging
+
 LOG = logging.getLogger(__name__)
 
 
-@task(default_retry_delay=10, max_retries=100)
+@task(default_retry_delay=10, max_retries=36)
 def test_connection(deployment, ip, username, timeout=10, password=None,
            identity_file=None, port=22, callback=None):
+    match_celery_logging(LOG)
     LOG.debug('Checking for a response from ssh://%s@%s:%d.' % (
         username, ip, port))
     try:
@@ -43,9 +46,10 @@ def test_connection(deployment, ip, username, timeout=10, password=None,
         if isinstance(exc, paramiko.PasswordRequiredException):
             #Looks like we have cert issues, so try password auth if we can
             if password:
+                LOG.debug("Retrying with password credentials")
                 if test_connection(deployment, ip, username, timeout=timeout,
-                    password=password, identity_file=None, port=port,
-                    callback=callback):
+                        password=password, identity_file=None, port=port,
+                        callback=callback):
                     LOG.debug("Authentication for ssh://%s@%s:%d using "
                             "password succeeded" % (username, ip, port))
                     return True
@@ -53,23 +57,23 @@ def test_connection(deployment, ip, username, timeout=10, password=None,
         LOG.debug('Authentication for ssh://%s@%s:%d failed. Type: %s' %
                 (username, ip, port, auth_type))
         if test_connection.request.id:
-            test_connection.retry(exc=exc)
+            #TODO: figure out why retry without args/kwargs fails!
+            test_connection.retry(args=[deployment, ip, username], kwargs=dict(
+                    timeout=timeout, password=password, identity_file=None,
+                    port=port, callback=callback), exc=exc)
     except paramiko.BadHostKeyException, exc:
         msg = ("ssh://%s@%s:%d failed:  %s. You might have a bad key "
                 "entry on your server, but this is a security issue and won't "
                 "be handled automatically. To fix this you can remove the "
                 "host entry for this host from the /.ssh/known_hosts file" % (
                     username, ip, port, exc))
-        print msg
         LOG.debug(msg)
         if test_connection.request.id:
             test_connection.update_state(state='FAILURE', meta={'Message':
                     msg})
         raise exc
     except Exception, exc:
-        print exc
-        LOG.debug('ssh://%s@%s:%d failed.  %s' % (
-            username, ip, port, exc))
+        LOG.debug('ssh://%s@%s:%d failed.  %s' % (username, ip, port, exc))
         if test_connection.request.id:
             test_connection.retry(exc=exc)
     return False
@@ -81,6 +85,7 @@ def execute(ip, command, username, timeout=10, password=None,
     """Executes an ssh command on a remote host and returns a dict with stdin
     and stdout of the call. Tries cert auth first and falls back to password
     auth if password provided"""
+    match_celery_logging(LOG)
     LOG.debug("Executing '%s' on ssh://%s@%s:%d." % (command, username,
         ip, port))
     client = paramiko.SSHClient()

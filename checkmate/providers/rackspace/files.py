@@ -1,6 +1,7 @@
 import logging
 
 from checkmate.providers import ProviderBase
+from checkmate.utils import match_celery_logging
 
 LOG = logging.getLogger(__name__)
 
@@ -40,6 +41,7 @@ def _connect(deployment):
 @task
 def create_container(deployment, name, api=None):
     """Creates a new container"""
+    match_celery_logging(LOG)
     if api is None:
         api = _connect(deployment)
 
@@ -57,6 +59,7 @@ def create_container(deployment, name, api=None):
 @task
 def delete_container(deployment, name, api=None):
     """Deletes a container"""
+    match_celery_logging(LOG)
     if api is None:
         api = _connect(deployment)
 

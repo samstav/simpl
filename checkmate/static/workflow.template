@@ -47,10 +47,10 @@
                   {% if data.wf_spec.task_specs[task.task_spec].description %} cmtip{% endif %}"
                   {% if data.wf_spec.task_specs[task.task_spec].description %} title="{{data.wf_spec.task_specs[task.task_spec].description}}"{% endif %}> {{ task.task_spec }}</span></a>
                   {% if task.state != 64 %}
-                  <a href="#" id="run-task-{{task.id}}" class="cmtip" title="Run this task"><i class="icon-play"></i></a>
+                  <a href="#" id="run-task-{{task.id}}" class="cmtip" title="Run this task" ng-click="target_action('{{tenant_id|prepend}}/workflows/{{data.id}}/tasks/{{task.id|e}}/+execute.json')"><i class="icon-play"></i></a>
                   <script type="text/javascript">
                       $(function() {
-                          $("#run-task-{{task.id}}").click(function(event) {
+                          $("#XXrun-task-{{task.id}}").click(function(event) {
                               $('<div/>').dialog2({
                                   title: "Execute Task {{task.id}}",
                                   content: "{{tenant_id|prepend}}/workflows/{{data.id}}/tasks/{{task.id|e}}/+execute.json",
@@ -61,9 +61,10 @@
                           });
                       });
 
-                      $(document).delegate(".modal", "dialog2.ajax-complete", function() {
+                      $(document).delegate(".modal", "dialog2.ajax-complete", function(data) {
                            // Reload when call complete
-                            location.reload();
+                           console.log(data);
+                           //location.reload();
                       });
                     </script>
                     {% endif %}
@@ -79,6 +80,7 @@
             <form id="workflow" method="POST" action="{{tenant_id|prepend}}/workflows/{{data.id}}">
               <textarea name="object" id="editor">{{ source | safe }}</textarea>
             </form>
+            <div class="alert">If your updates include any 'secret' values (like password or private keys) and you have not opened this screen with a ?with_secrets query parameter, then any existing secrets will be overwritten and lost</div>
 
             <script>
               var foldFunc = CodeMirror.newFoldFunction(CodeMirror.braceRangeFinder);

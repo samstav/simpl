@@ -8,6 +8,7 @@ import base64
 import inspect
 import json
 import logging
+import os
 import struct
 import sys
 from time import gmtime, strftime
@@ -102,6 +103,14 @@ def init_console_logging():
         # add the handler to the root logger
         logging.getLogger().addHandler(console)
         logging.getLogger().setLevel(logging_level)
+        global LOG
+        LOG = logging.getLogger(__name__)  # reset
+
+
+def match_celery_logging(logger):
+    """Match celery log level"""
+    if logger.level < int(os.environ.get('CELERY_LOG_LEVEL', logger.level)):
+        logger.setLevel(int(os.environ.get('CELERY_LOG_LEVEL')))
 
 
 def import_class(import_str):
@@ -402,8 +411,8 @@ def get_source_body(function):
 
 
 def with_tenant(fn):
-    """A function decorator that a context tenant_id is passed in to the
-    decorated function as a kwarg"""
+    """A function decorator that ensures a context tenant_id is passed in to
+    the decorated function as a kwarg"""
     def wrapped(*args, **kwargs):
         if kwargs and kwargs.get('tenant_id'):
             # Tenant ID is being passed in
@@ -412,6 +421,20 @@ def with_tenant(fn):
             return fn(*args, tenant_id=request.context.tenant, **kwargs)
     return wrapped
 
+def support_only(types):
+    """A function decorator that ensures the route is only accepted if the
+    content type is in the list of types supplied"""
+    def wrap(fn):
+        def wrapped(*args, **kwargs):
+            accept = request.get_header("Accept", [])
+            if accept == "*/*":
+                return fn(*args, **kwargs)
+            for content_type in types:
+                if content_type in accept:
+                    return fn(*args, **kwargs)
+            raise abort(415, "Unsupported media type")
+        return wrapped
+    return wrap
 
 def get_time_string():
     """Central function that returns time (UTC in ISO format) as a string

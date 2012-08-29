@@ -4,6 +4,7 @@ from SpiffWorkflow.operators import Attrib
 from SpiffWorkflow.specs import Celery
 
 from checkmate.providers import ProviderBase
+from checkmate.utils import match_celery_logging
 
 LOG = logging.getLogger(__name__)
 
@@ -70,6 +71,7 @@ def parse_domain(domain_str):
 
 @task(default_retry_delay=10, max_retries=10)
 def get_domains(deployment, limit=None, offset=None):
+    match_celery_logging(LOG)
     api = _get_dns_object(deployment)
     try:
         domains = api.list_domains_info(limit=limit, offset=offset)
@@ -83,6 +85,7 @@ def get_domains(deployment, limit=None, offset=None):
 @task(default_retry_delay=10, max_retries=10)
 def create_domain(context, domain, email='soa_placeholder@example.com',
         ttl=300):
+    match_celery_logging(LOG)
     api = _get_dns_object(context)
     try:
         api.create_domain(name=domain, ttl=ttl, emailAddress=email)
@@ -102,6 +105,7 @@ def create_domain(context, domain, email='soa_placeholder@example.com',
 
 @task
 def delete_domain(context, name):
+    match_celery_logging(LOG)
     api = _get_dns_object(context)
     try:
         domain = api.get_domain(name=name)
@@ -131,6 +135,7 @@ def delete_domain(context, name):
 def create_record(context, domain, name, dnstype, data,
                              ttl=1800, makedomain=False,
                              email='soa_placeholder@example.com'):
+    match_celery_logging(LOG)
     api = _get_dns_object(context)
     try:
         domain_object = api.get_domain(name=domain)
@@ -169,6 +174,7 @@ def create_record(context, domain, name, dnstype, data,
 
 @task(default_retry_delay=20, max_retries=10)
 def delete_record(context, domain, name):
+    match_celery_logging(LOG)
     api = _get_dns_object(context)
     try:
         domain = api.get_domain(name=domain)
