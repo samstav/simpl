@@ -29,7 +29,8 @@ from checkmate.components import Component
 from checkmate.exceptions import CheckmateException, CheckmateIndexError,\
         CheckmateCalledProcessError, CheckmateNoMapping
 from checkmate.providers import ProviderBase
-from checkmate.utils import get_source_body, merge_dictionary
+from checkmate.utils import get_source_body, merge_dictionary, \
+        match_celery_logging
 from checkmate.workflows import wait_for
 
 LOG = logging.getLogger(__name__)
@@ -50,9 +51,9 @@ class Provider(ProviderBase):
         create_environment = Celery(wfspec, 'Create Chef Environment',
                 'checkmate.providers.opscode.local.create_environment',
                 call_args=[deployment['id']],
-                public_key_ssh=Attrib('public_key_ssh'),
-                private_key=Attrib('private_key'),
-                secret_key=Attrib('secret_key'),
+                public_key_ssh=PathAttrib('keys/environment/public_key_ssh'),
+                private_key=PathAttrib('keys/environment/private_key'),
+                secret_key=PathAttrib('secret_key'),
                 defines=dict(provider=self.key,
                             task_tags=['root']),
                 properties={'estimated_duration': 10})
@@ -697,7 +698,7 @@ class Provider(ProviderBase):
                             deployment['id']],
                     password=PathAttrib('instance:%s/password' %
                             relation['target']),
-                    omnibus_version="0.10.10-1",
+                    omnibus_version="10.12.0-1",
                     identity_file=Attrib('private_key_path'),
                     attributes={'deployment': {'id': deployment['id']}},
                     defines=dict(resource=key,
@@ -1110,15 +1111,16 @@ def create_environment(name, path=None, private_key=None,
     :param public_key_ssh: SSH-formatted public key
     :param secret_key: used for data bag encryption
     """
+    match_celery_logging(LOG)
     # Get path
     root = _get_root_environments_path(path)
     fullpath = os.path.join(root, name)
     if os.path.exists(fullpath):
-        raise CheckmateException("Environment already exists: %s" % fullpath)
-
-    # Create environment
-    os.mkdir(fullpath, 0770)
-    LOG.debug("Created environment directory: %s" % fullpath)
+        LOG.warning("Environment already exists: %s" % fullpath)
+    else:
+        # Create environment
+        os.mkdir(fullpath, 0770)
+        LOG.debug("Created environment directory: %s" % fullpath)
     results = {"environment": fullpath}
 
     key_data = _create_environment_keys(fullpath, private_key=private_key,
@@ -1175,8 +1177,14 @@ def _create_kitchen(name, path, secret_key=None):
         os.mkdir(kitchen_path, 0770)
         LOG.debug("Created kitchen directory: %s" % kitchen_path)
 
-    params = ['knife', 'kitchen', '.']
-    _run_kitchen_command(kitchen_path, params)
+    nodes_path = os.path.join(kitchen_path, 'nodes')
+    if os.path.exists(nodes_path):
+        if any((f.endswith('.json') for f in os.listdir(nodes_path))):
+            raise CheckmateException("Kitchen already exists and seems to "
+                    "have nodes defined in it: %s" % nodes_path)
+    else:
+        params = ['knife', 'kitchen', '.']
+        _run_kitchen_command(kitchen_path, params)
 
     secret_key_path = os.path.join(kitchen_path, 'certificates', 'chef.pem')
     config = """# knife -c knife.rb
@@ -1194,6 +1202,7 @@ encrypted_data_bag_secret "%s"
             os.path.join(kitchen_path, 'roles'),
             os.path.join(kitchen_path, 'data_bags'),
             secret_key_path)
+    # knife kitchen creates a default solo.rb, so the file already exists
     solo_file = os.path.join(kitchen_path, 'solo.rb')
     with file(solo_file, 'w') as f:
         f.write(config)
@@ -1201,27 +1210,43 @@ encrypted_data_bag_secret "%s"
 
     # Create certificates folder
     certs_path = os.path.join(kitchen_path, 'certificates')
-    os.mkdir(certs_path, 0770)
-    LOG.debug("Created certs directory: %s" % certs_path)
+    if os.path.exists(certs_path):
+        LOG.debug("Certs directory exists: %s" % certs_path)
+    else:
+        os.mkdir(certs_path, 0770)
+        LOG.debug("Created certs directory: %s" % certs_path)
 
     # Store (generate if necessary) the secrets file
-    if not secret_key:
-        # celery runs os.fork(). We need to reset the random number generator
-        # before generating a key. See atfork.__doc__
-        atfork()
-        key = RSA.generate(2048)
-        secret_key = key.exportKey('PEM')
-        LOG.debug("Generated secrets private key")
-    with file(secret_key_path, 'w') as f:
-        f.write(secret_key)
-    LOG.debug("Stored secrets file: %s" % secret_key_path)
+    if os.path.exists(secret_key_path):
+        if secret_key:
+            with file(secret_key_path, 'r') as f:
+                data = f.read(secret_key)
+            if data != secret_key:
+                raise CheckmateException("Kitchen secrets key file '%s' "
+                        "already exists and does not match the provided value"
+                        % secret_key_path)
+        LOG.debug("Stored secrets file exists: %s" % secret_key_path)
+    else:
+        if not secret_key:
+            # celery runs os.fork(). We need to reset the random number
+            # generator before generating a key. See atfork.__doc__
+            atfork()
+            key = RSA.generate(2048)
+            secret_key = key.exportKey('PEM')
+            LOG.debug("Generated secrets private key")
+        with file(secret_key_path, 'w') as f:
+            f.write(secret_key)
+        LOG.debug("Stored secrets file: %s" % secret_key_path)
 
     # Knife defaults to knife.rb, but knife-solo looks for solo.rb, so we link
     # both files so that knife and knife-solo commands will work and anyone
     # editing one will also change the other
     knife_file = os.path.join(path, name, 'knife.rb')
-    os.link(solo_file, knife_file)
-    LOG.debug("Linked knife.rb: %s" % knife_file)
+    if os.path.exists(knife_file):
+        LOG.debug("Knife.rb already exists: %s" % knife_file)
+    else:
+        os.link(solo_file, knife_file)
+        LOG.debug("Linked knife.rb: %s" % knife_file)
 
     LOG.debug("Finished creating kitchen: %s" % kitchen_path)
     return {"kitchen": kitchen_path}
@@ -1235,30 +1260,47 @@ def _create_environment_keys(environment_path, private_key=None,
     """
     # Create private key
     private_key_path = os.path.join(environment_path, 'private.pem')
-    if private_key:
-        with file(private_key_path, 'w') as f:
-            f.write(private_key)
-        LOG.debug("Wrote environment private key: %s" % private_key_path)
+    if os.path.exists(private_key_path):
+        # Already exists.
+        if private_key:
+            with file(private_key_path, 'r') as f:
+                data = f.read()
+            if data != private_key:
+                raise CheckmateException("A private key already exists in "
+                        "environment %s and does not match the value provided "
+                        % environment_path)
     else:
-        params = ['openssl', 'genrsa', '-out', private_key_path, '2048']
-        result = check_output(params)
-        LOG.debug(result)
+        if private_key:
+            with file(private_key_path, 'w') as f:
+                f.write(private_key)
+            LOG.debug("Wrote environment private key: %s" % private_key_path)
+        else:
+            params = ['openssl', 'genrsa', '-out', private_key_path, '2048']
+            result = check_output(params)
+            LOG.debug(result)
+            LOG.debug("Generated environment private key: %s" %
+                      private_key_path)
 
     # Secure private key
     os.chmod(private_key_path, 0600)
     LOG.debug("Private cert permissions set: chmod 0600 %s" %
             private_key_path)
 
-    # Generate public key
-    if not public_key_ssh:
-        params = ['ssh-keygen', '-y', '-f', private_key_path]
-        public_key_ssh = check_output(params)
-
-    # Write it to environment
+    # Get or Generate public key
     public_key_path = os.path.join(environment_path, 'checkmate.pub')
-    with file(public_key_path, 'w') as f:
-        f.write(public_key_ssh)
-    LOG.debug("Wrote environment public key: %s" % public_key_path)
+    if os.path.exists(public_key_path):
+        LOG.debug("Public key exists. Retrieving it from %s" % public_key_path)
+        with file(public_key_path, 'r') as f:
+            public_key_ssh = f.read()
+    else:
+        if not public_key_ssh:
+            params = ['ssh-keygen', '-y', '-f', private_key_path]
+            public_key_ssh = check_output(params)
+            LOG.debug("Generated environment public key: %s" % public_key_path)
+        # Write it to environment
+        with file(public_key_path, 'w') as f:
+            f.write(public_key_ssh)
+        LOG.debug("Wrote environment public key: %s" % public_key_path)
     return dict(public_key_ssh=public_key_ssh, public_key_path=public_key_path,
             private_key_path=private_key_path)
 
@@ -1292,6 +1334,7 @@ def download_cookbooks(environment, path=None, cookbooks=None,
     :param source: the source repos (a github URL)
     :param use_site: use site-cookbooks instead of cookbooks
     :returns: count of cookbooks copied"""
+    match_celery_logging(LOG)
     # Until we figure out a better solution, I'm assuming the chef-stockton
     # repo is cloned as a subfolder under the provider (and cloning it if
     # not) and we copy the cookbooks from there
@@ -1348,6 +1391,7 @@ def download_roles(environment, path=None, roles=None, source=None):
     :param roles: the names of the roles to download (blank=all)
     :param source: the source repos (a github URL)
     :returns: count of roles copied"""
+    match_celery_logging(LOG)
     # Until we figure out a better solution, I'm assuming the chef-stockton
     # repo is cloned as a subfolder under python-stockton (and cloning it if
     # not) and we copy the roles from there
@@ -1414,6 +1458,7 @@ def register_node(host, environment, path=None, password=None,
     :param attributes: attributes to set on node (dict)
     :param identity_file: private key file to use to connect to the node
     """
+    match_celery_logging(LOG)
     # Get path
     root = _get_root_environments_path(path)
     kitchen_path = os.path.join(root, environment, 'kitchen')
@@ -1423,7 +1468,8 @@ def register_node(host, environment, path=None, password=None,
 
     # Rsync problem with creating path (missing -p so adding it ourselves) and
     # doing this before the complex prepare work
-    ssh_execute(host, "mkdir -p %s" % kitchen_path, 'root', password=password)
+    ssh_execute(host, "mkdir -p %s" % kitchen_path, 'root', password=password,
+            identity_file=identity_file)
 
     # Calculate node path and check for prexistance
     node_path = os.path.join(kitchen_path, 'nodes', '%s.json' % host)
@@ -1525,6 +1571,7 @@ def _run_kitchen_command(kitchen_path, params, lock=True):
 def cook(host, environment, recipes=None, roles=None, path=None,
             username='root', password=None, identity_file=None, port=22):
     """Apply recipes/roles to a server"""
+    match_celery_logging(LOG)
     root = _get_root_environments_path(path)
     kitchen_path = os.path.join(root, environment, 'kitchen')
     if not os.path.exists(kitchen_path):
@@ -1585,6 +1632,7 @@ def manage_role(name, environment, path=None, desc=None,
         run_list=None, default_attributes=None, override_attributes=None,
         env_run_lists=None):
     """Write/Update role"""
+    match_celery_logging(LOG)
     root = _get_root_environments_path(path)
     kitchen_path = os.path.join(root, environment, 'kitchen')
     if not os.path.exists(kitchen_path):
@@ -1640,6 +1688,7 @@ def manage_databag(environment, bagname, itemname, contents,
     :param merge: if True, the data will be merged in. If not, it will be
             completely overwritten
     """
+    match_celery_logging(LOG)
     root = _get_root_environments_path(path)
     kitchen_path = os.path.join(root, environment, 'kitchen')
     databags_root = os.path.join(kitchen_path, 'data_bags')

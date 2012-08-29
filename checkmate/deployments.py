@@ -796,6 +796,11 @@ class Deployment(ExtensibleDict):
         if result:
             return result
 
+        result = self._get_environment_setting(name, provider_key, service_name)
+        if result:
+            return result
+
+
         return default
 
     def _get_input_global(self, name):
@@ -923,6 +928,20 @@ class Deployment(ExtensibleDict):
                                 % (name, provider_key, resource_type, name,
                                 result))
                         return result
+
+    def _get_environment_setting(self, name, provider_key, service_name):
+        environment = self.environment()
+        providers = environment.dict['providers']
+        if provider_key in providers:
+            settings = providers[provider_key]
+            if service_name in settings:
+                options = settings[service_name]
+                for option in options:
+                    if name in option:
+                        result = option[name]
+                        LOG.debug("Found setting '%s' in environment" % name)   
+                        return result
+
 
     def get_components(self, context):
         """Collect all requirements from components

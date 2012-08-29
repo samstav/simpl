@@ -130,6 +130,8 @@ OPTION_SCHEMA = ['name', 'label', 'default', 'help', 'description', 'source',
 
 OPTION_TYPES = ['string', 'int']
 
+WORKFLOW_SCHEMA = ['id', 'attributes', 'last_task', 'task_tree', 'workflow',
+        'success', 'wf_spec', 'tenantId']
 
 def validate_catalog(obj):
     """Validates provider catalog"""

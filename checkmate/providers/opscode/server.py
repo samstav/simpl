@@ -6,6 +6,7 @@ from SpiffWorkflow.specs import Celery, Merge, Transform
 
 from checkmate.providers import ProviderBase
 from checkmate.workflows import wait_for
+from checkmate.utils import match_celery_logging
 
 LOG = logging.getLogger(__name__)
 
@@ -163,6 +164,7 @@ def create_role_recipe_string(roles=None, recipes=None):
 @task
 def register_node(deployment, name, runlist=None, attributes=None,
                              environment=None):
+    match_celery_logging(LOG)
     try:
         api = chef.autoconfigure(
                 base_path=os.environ.get('STOCKTON_CHEF_PATH'))
@@ -191,6 +193,7 @@ def bootstrap(deployment, name, ip, username='root', password=None,
                          port=22, identity_file=None, run_roles=None,
                          run_recipes=None, distro='chef-full',
                          environment=None):
+    match_celery_logging(LOG)
     LOG.debug('Bootstraping %s (%s:%d)' % (name, ip, port))
     run_roles_recipes = create_role_recipe_string(roles=run_roles,
                                                   recipes=run_recipes)
@@ -224,6 +227,7 @@ def bootstrap(deployment, name, ip, username='root', password=None,
 
 @task
 def manage_databag(deployment, bagname, itemname, contents):
+    match_celery_logging(LOG)
     try:
         api = chef.autoconfigure(
                 base_path=os.environ.get('CHECKMATE_CHEF_PATH'))
@@ -249,6 +253,7 @@ def manage_databag(deployment, bagname, itemname, contents):
 def manage_role(deployment, name, desc=None, run_list=None,
                 default_attributes=None, override_attributes=None,
                 env_run_lists=None):
+    match_celery_logging(LOG)
     try:
         api = chef.autoconfigure(
                 base_path=os.environ.get('CHECKMATE_CHEF_PATH'))
@@ -280,6 +285,7 @@ def manage_role(deployment, name, desc=None, run_list=None,
 @task
 def manage_env(deployment, name, desc=None, versions=None,
                default_attributes=None, override_attributes=None):
+    match_celery_logging(LOG)
     try:
         api = chef.autoconfigure(
                 base_path=os.environ.get('CHECKMATE_CHEF_PATH'))
