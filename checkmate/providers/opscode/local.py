@@ -698,7 +698,7 @@ class Provider(ProviderBase):
                             deployment['id']],
                     password=PathAttrib('instance:%s/password' %
                             relation['target']),
-                    omnibus_version="0.10.10-1",
+                    omnibus_version="10.12.0-1",
                     identity_file=Attrib('private_key_path'),
                     attributes={'deployment': {'id': deployment['id']}},
                     defines=dict(resource=key,
