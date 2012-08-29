@@ -80,7 +80,61 @@ services.factory('workflow', [function() {
 			  }
 			);
 		},
-		
+		calculateStatistics: function($scope, tasks) {
+		  $scope.totalTime = 0;
+		  $scope.timeRemaining  = 0;
+		  $scope.taskStates = {
+			 future: 0,
+			 likely: 0,
+			 maybe: 0,
+			 waiting: 0,
+			 ready: 0,
+			 cancelled: 0,
+			 completed: 0,
+			 triggered: 0
+		   };
+		  _.each(tasks, function(task) {
+			if ("internal_attributes" in task && "estimated_completed_in" in task["internal_attributes"]) {
+			  $scope.totalTime += parseInt(task["internal_attributes"]["estimated_completed_in"], 10);
+			} else {
+			  $scope.totalTime += 10;
+			};
+			switch(task.state) {
+			  case 1:
+				$scope.taskStates["future"] += 1;
+				break;
+			  case 2:
+				$scope.taskStates["likely"] += 1;
+				break;
+			  case 4:
+				$scope.taskStates["maybe"] += 1;
+				break;
+			  case 8:
+				$scope.taskStates["waiting"] += 1;
+				break;
+			  case 16:
+				$scope.taskStates["ready"] += 1;
+				break;
+			  case 128:
+				$scope.taskStates["triggered"] += 1;
+				break;
+			  case 32:
+				$scope.taskStates["cancelled"] += 1;
+				break;
+			  case 64:
+				$scope.taskStates["completed"] += 1;
+				if ("internal_attributes" in task && "estimated_completed_in" in task["internal_attributes"]) {
+				  $scope.timeRemaining -= parseInt(task["internal_attributes"]["estimated_completed_in"], 10);
+				} else {
+				  $scope.timeRemaining -= 10;
+				}
+				break;
+			  default:
+				console.log("Invalid state '" + task.state + "'.");
+			}
+		  });
+		  $scope.timeRemaining += $scope.totalTime;
+		},
 		/**
 		 *  FUTURE    =   1
 		 *  LIKELY    =   2
@@ -117,9 +171,37 @@ services.factory('workflow', [function() {
 			  return "icon-question-sign";
 		  }
 		},
+		classify: function(task) {
+		  label_class = "label";
+		  if (typeof task != 'undefined') {
+			switch(task.state) {
+			case -1:
+				label_class += " label-important";
+			case 1:
+			case 2:
+			case 4:
+			  return label_class;
+			case 8:
+			  if ('internal_attributes' in  task && 'task_state' in task.internal_attributes && task.internal_attributes.task_state.state == 'FAILURE')
+				label_class += " label-important"
+			  else
+				label_class += " label-warning";
+			  return label_class;
+			case 16:
+			  return label_class + " label-info";
+			case 32:
+			case 64:
+			  return label_class + " label-success";
+			case 128:
+			default:
+			  console.log("Invalid state '" + task.state + "'.");
+			  return label_class + " label-inverse";
+			}
+		  return label_class;
+		  }
+		},
 		/**
 		 *  See above.
-		 *
 		 */
 		colorize: function(state) {
 		  switch(state) {
@@ -138,6 +220,31 @@ services.factory('workflow', [function() {
 			default:
 			  console.log("Invalid state '" + state + "'.");
 			  return "unknown";
+		  }
+		},
+		state_name: function(state) {
+		  switch(state) {
+			case -1:
+				return "Error";
+			case 1:
+				return "Future";
+			case 2:
+				return "Likely";
+			case 4:
+				return "Maybe";
+			case 8:
+			  return "Waiting";
+			case 16:
+				return "Ready";
+			case 128:
+				return "Triggered";
+			case 32:
+				return "Cancelled";
+			case 64:
+				return "Completed";
+			default:
+				console.log("Invalid state '" + state + "'.");
+				return "unknown";
 		  }
 		}
 	};
