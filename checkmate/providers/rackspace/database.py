@@ -411,25 +411,29 @@ def create_database(context, name, region, character_set=None, collate=None,
 
     instance = api.get_instance(instance_id)
 
-    instance.create_databases(databases)
-    results = {
-            instance_key: {
-                    'name': name,
-                    'host_instance': instance_id,
-                    'host_region': region,
-                    'interfaces': {
-                            'mysql': {
-                                    'host': instance.hostname,
-                                    'database_name': name,
-                                },
-                        },
-                },
-        }
-    LOG.info('Created database(s) %s on instance %s' % ([db['name'] for db in
-            databases], instance_id))
-    # Send data back to deployment
-    resource_postback.delay(context['deployment'], results)
-    return results
+    try:
+        instance.create_databases(databases)
+        results = {
+                instance_key: {
+                        'name': name,
+                        'host_instance': instance_id,
+                        'host_region': region,
+                        'interfaces': {
+                                'mysql': {
+                                        'host': instance.hostname,
+                                        'database_name': name,
+                                    },
+                            },
+                    },
+            }
+        LOG.info('Created database(s) %s on instance %s' % ([db['name'] for db in
+                databases], instance_id))
+        # Send data back to deployment
+        resource_postback.delay(context['deployment'], results)
+        return results
+    except clouddb.errors.ResponseError as exc:
+        # Expected while instance is being created. So retry
+        return create_database.retry(exc=exc)
 
 
 @task(default_retry_delay=10, max_retries=10)
