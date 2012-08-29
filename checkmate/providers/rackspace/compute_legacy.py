@@ -19,6 +19,9 @@ LOG = logging.getLogger(__name__)
 REGION_MAP = {'dallas': 'DFW',
               'chicago': 'ORD',
               'london': 'LON'}
+REVERSE_MAP = {'DFW': 'dallas',
+               'ORD': 'chicago',
+               'LON': 'london'}
 
 
 class Provider(RackspaceComputeProviderBase):
@@ -35,19 +38,31 @@ class Provider(RackspaceComputeProviderBase):
         region = deployment.get_setting('region', resource_type=resource_type,
                                         service_name=service,
                                         provider_key=self.key)
-        # Convert to airpot code if not provided as a name
-        if region in REGION_MAP:
-            region = REGION_MAP[region]
+        airport_region = None
+        
         if not region:
-            raise CheckmateException("Could not identify which region to "
-                                     "create servers in")
+            LOG.warning("No region specified for Legacy Compute provider in \
+                        deployment.")
+        else:  
+            if region in REGION_MAP:
+                airport_region = REGION_MAP[region]
+            elif region in REVERSE_MAP:
+                airport_region = region
+                region = REVERSE_MAP[region]
+            else:
+                raise CheckmateException("No region mapping found for %s" 
+                                         % region)         
 
-        # Make sure region matches catalog region
-        region_catalog = self.get_catalog(context, type_filter='regions')
-        legacy_regions = region_catalog.get('lists', {}).get('regions', {})
-        if legacy_regions and region not in legacy_regions:
-            raise CheckmateException("Legacy hard coded to %s. Cannot "
-                    "provision servers in %s" % (legacy_regions, region))
+            # If legacy region is specified, make sure it matches catalog region
+            region_catalog = self.get_catalog(context, type_filter='regions')
+            legacy_regions = region_catalog.get('lists', {}).get('regions', {})   
+   
+            if legacy_regions and (region or airport_region) not in legacy_regions:
+                raise CheckmateException("Legacy set to spin up in %s. Cannot provision servers in %s."
+                                         % (legacy_regions, region))
+            else:
+                LOG.warning("Region %s specified in deployment, but not Legacy \
+                            Compute catalog" % region)
 
         image = deployment.get_setting('os', resource_type=resource_type,
                 service_name=service, provider_key=self.key, default=119)
@@ -60,7 +75,6 @@ class Provider(RackspaceComputeProviderBase):
                     LOG.debug("Mapping image from '%s' to '%s'" % (image, key))
                     image = key
                     break
-
         if image not in catalog['lists']['types']:
             raise CheckmateNoMapping("No image mapping for '%s' in '%s'" % (
                     image, self.name))
@@ -85,6 +99,8 @@ class Provider(RackspaceComputeProviderBase):
 
         template['flavor'] = flavor
         template['image'] = image
+        if airport_region:
+            template['region'] = airport_region
         return template
 
     def add_resource_tasks(self, resource, key, wfspec, deployment, context,
