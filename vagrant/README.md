@@ -19,6 +19,8 @@ Once you are in the virtual machine, the checkmate repo is mounted at /vagrant.
 Note that any changes to /vagrant will be reflected in your cloned copy of
 checkmate.
 
+You can also browse directly to the web interface at http://localhost:8080
+
 To shutdown the VM:
 
     $ vagrant halt
