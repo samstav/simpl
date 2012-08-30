@@ -595,8 +595,10 @@ function AppController($scope, $http, $location) {
     modal.modal('show');
   }
   
-  $scope.getDomains = function($scope, limit, offset){
+
+    $scope.getDomains = function(limit, offset){
       if ($scope.auth.loggedIn){
+          var domain_names = [];
           var token = checkmate.config.header_defaults.headers.common['X-Auth-Token'];
           var api_url = 'ttps://dns.api.rackspacecloud.com/v1.0/' + $scope.auth.tenantId + '/domains?limits='               + limit + '&offset=' + offset;
           headers = {"X-Auth-Token": token};
@@ -607,13 +609,20 @@ function AppController($scope, $http, $location) {
               dataType: "json",
               url: api_url
           }).success(function(json) {
-
-          
-                    
+              var domains = json.domains;
+              var domain_names=[];
+              for(var i=0; i < domains.length; i++){
+                  domain_names.push(domains[i].name);
+              }
+              return domain_names;
+          }).error(function(response) {
+              return [];
+          });
       }
+    return [];
   }
 
-  $scope.generatePassword = function() {
+   $scope.generatePassword = function() {
       if (parseInt(navigator.appVersion) <= 3) {
           alert("Sorry this only works in 4.0+ browsers");
           return true;
@@ -1168,6 +1177,7 @@ function DeploymentInitController($scope, $location, $routeParams, $resource, bl
     $scope.submit(true);
   };
 
+  
   // Load blueprints
   if (!blueprint) {
     $scope.signIn();
@@ -1199,6 +1209,7 @@ document.addEventListener('DOMContentLoaded', function(e) {
   //On mobile devices, hide the address bar
   window.scrollTo(0);
 }, false);
+
 
 //Initial Wordpress Template
 WPBP = {
