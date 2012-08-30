@@ -107,14 +107,14 @@ git node['checkmate']['chef_repo'] do
 end
 
 remote_file "/etc/init.d/checkmate-q" do
-  source "https://github.rackspace.com/cgroom/checkmate-deb/raw/master/noarch/etc/init.d/checkmate-q"
+  source "https://github.rackspace.com/checkmate/checkmate-deb/raw/master/noarch/etc/init.d/checkmate-q"
   owner "root"
   group "root"
   mode 0755
 end
 
 remote_file "/etc/init.d/checkmate-svr" do
-  source "https://github.rackspace.com/cgroom/checkmate-deb/raw/master/noarch/etc/init.d/checkmate-svr"
+  source "https://github.rackspace.com/checkmate/checkmate-deb/raw/master/noarch/etc/init.d/checkmate-svr"
   owner "root"
   group "root"
   mode 0755
