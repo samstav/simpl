@@ -47,7 +47,7 @@ python_virtualenv "#{node['checkmate']['venv_path']}" do
 end
 
 git "#{node['checkmate']['local_source']}" do
-  repository "git://github.rackspace.com/cgroom/checkmate.git"
+  repository "/vagrant"
   reference "vagrant"
   revision "vagrant"
   action :sync
@@ -55,18 +55,23 @@ git "#{node['checkmate']['local_source']}" do
   group "checkmate"
 end
 
-script "checkmate-setup.py" do
+script "checkmate_deps" do
   interpreter "bash"
   user "checkmate"
-  cwd "#{node['checkmate']['local_source']}"
   code <<-EOH
-  . #{node['checkmate']['venv_path']}/bin/activate
-  python setup.py install
+    . #{node['checkmate']['venv_path']}/bin/activate
+    pip install -r #{node['checkmate']['local_source']}/pip-requirements.txt
   EOH
 end
 
-execute "install_local_checkmate" do
-  command "python #{node['checkmate']['local_source']}/setup.py install"
+script "checkmate-setup.py" do
+  interpreter "bash"
+  user "checkmate"
+  cwd node['checkmate']['local_source']
+  code <<-EOH
+    . #{node['checkmate']['venv_path']}/bin/activate
+    python setup.py install
+  EOH
 end
 
 rabbitmq_user "guest" do
