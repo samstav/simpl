@@ -1657,6 +1657,19 @@ WPENV = {
                 ]
             },
             "chef-local": {
+                "catalog": {
+                    "application": {
+                        "wordpress": {
+                            "is": "application",
+                            "id": "wordpress",
+                            "provides": [
+                                {
+                                    "application": "http"
+                                }
+                            ]
+                        }
+                    }
+                },
                 "vendor": "opscode",
                 "provides": [
                     {

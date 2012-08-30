@@ -31,8 +31,7 @@ setup(
     author_email='ziad.sawalha@rackspace.com',
     dependency_links=github_urls,
     install_requires=['bottle==0.10.11',
-                      'celery==2.5.5',
-                      'kombu==2.1.8',
+                      'celery-with-mongodb==3.0',
                       'GitPython==0.3.2.RC1',
                       'Jinja2==2.6',
                       'openstack.compute==2.0a1',
@@ -55,7 +54,6 @@ setup(
                       'sqlalchemy-migrate==0.7.2',
                       'WebOb==1.2.2',
                       'prettytable==0.6',
-                      'pymongo==2.1.1',
                       ],
     entry_points={
         'console_scripts': [
