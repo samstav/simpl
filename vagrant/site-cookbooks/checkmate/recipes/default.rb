@@ -113,6 +113,13 @@ remote_file "/etc/init.d/checkmate-q" do
   mode 0755
 end
 
+remote_file "/etc/init.d/checkmate-svr" do
+  source "https://github.rackspace.com/cgroom/checkmate-deb/raw/master/noarch/etc/init.d/checkmate-svr"
+  owner "root"
+  group "root"
+  mode 0755
+end
+
 template "/etc/default/checkmate" do
   source "checkmate.default.erb"
   owner "root"
@@ -121,6 +128,11 @@ template "/etc/default/checkmate" do
 end
 
 service "checkmate-q" do
+  supports :reload => true, :start => true, :stop => true, :restart => true, :status => true
+  action [ :start, :enable ]
+end
+
+service "checkmate-svr" do
   supports :reload => true, :start => true, :stop => true, :restart => true, :status => true
   action [ :start, :enable ]
 end
