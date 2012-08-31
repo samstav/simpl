@@ -40,7 +40,7 @@ directory "#{node['checkmate']['path']}" do
   action :create
 end
 
-python_virtualenv "#{node['checkmate']['venv_path']}" do
+python_virtualenv "#{node['checkmate']['path']}" do
   owner "checkmate"
   group "checkmate"
   action :create
@@ -59,7 +59,7 @@ script "checkmate_deps" do
   interpreter "bash"
   user "checkmate"
   code <<-EOH
-    . #{node['checkmate']['venv_path']}/bin/activate
+    . #{node['checkmate']['path']}/bin/activate
     pip install -r #{node['checkmate']['local_source']}/pip-requirements.txt
   EOH
 end
@@ -69,7 +69,7 @@ script "checkmate-setup.py" do
   user "checkmate"
   cwd node['checkmate']['local_source']
   code <<-EOH
-    . #{node['checkmate']['venv_path']}/bin/activate
+    . #{node['checkmate']['path']}/bin/activate
     python setup.py install
   EOH
 end
