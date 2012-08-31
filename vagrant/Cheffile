@@ -13,7 +13,7 @@ cookbook 'rabbitmq',
 cookbook 'mongodb'
 
 cookbook 'checkmate',
-  :git => 'https://github.rackspace.com/checkmate/checkmate-vagrant'
+  :git => 'https://github.rackspace.com/checkmate/checkmate-cookbook'
 
 # cookbook 'apache2', '>= 1.0.0'
 
