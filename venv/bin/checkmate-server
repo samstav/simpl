@@ -1,0 +1,9 @@
+#!/Users/jess4318/Desktop/Checkmate_Proj/Checkmate/checkmate/venv/bin/python
+# EASY-INSTALL-ENTRY-SCRIPT: 'checkmate==0.2','console_scripts','checkmate-server'
+__requires__ = 'checkmate==0.2'
+import sys
+from pkg_resources import load_entry_point
+
+sys.exit(
+   load_entry_point('checkmate==0.2', 'console_scripts', 'checkmate-server')()
+)

@@ -612,6 +612,13 @@ includes:
         provides:
         - 'application': http
         - 'database': mysql
+       catalog: 
+           application:
+               wordpress:
+                   is: 'application'
+                   id: 'wordpress'
+                   provides:
+                   - application: 'http'
 
         #SAMPLE DATA: only showing this as demo. These get pulled in real time from providers
         # The catalog is what is available using the env/provider//catalog call.

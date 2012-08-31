@@ -73,4 +73,13 @@ tests/coverage.xml
 *.patch
 *.diff
 
+<<<<<<< HEAD
 scratch.json
+=======
+# Vagrant #
+###########
+.vagrant
+/vagrant/cookbooks
+/vagrant/tmp
+/vagrant/Cheffile.lock
+>>>>>>> fc6f41e275f2ae7321195fb3e3a8305d781f5ac0

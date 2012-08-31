@@ -1057,6 +1057,7 @@ class Provider(ProviderBase):
         cid = kwargs.pop('id', None)
         name = kwargs.pop('name', None)
         role = kwargs.pop('role', None)
+        print "STUFF: %s , %s , %s" % (cid, name, role)
         if (not cid) and name:
             if role:
                 cid = "%s::%s" % (name, role)
