@@ -86,6 +86,7 @@ Vagrant::Config.run do |config|
     chef.add_recipe "build-essential"
     chef.add_recipe "python"
     chef.add_recipe "rabbitmq"
+  #  chef.add_recipe "mongodb"
     chef.add_recipe "checkmate"
   end
 
