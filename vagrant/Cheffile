@@ -12,6 +12,9 @@ cookbook 'rabbitmq',
   :git => 'https://github.com/opscode-cookbooks/rabbitmq'
 cookbook 'mongodb'
 
+cookbook 'checkmate',
+  :git => 'https://github.rackspace.com/checkmate/checkmate-cookbook'
+
 # cookbook 'apache2', '>= 1.0.0'
 
 cookbook 'rvm',
