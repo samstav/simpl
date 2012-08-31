@@ -1,0 +1,21 @@
+export CHECKMATE_DIR=<%= node['checkmate']['venv_path'] %>
+export CHECKMATE_SERVER_DAEMON=${CHECKMATE_DIR}/bin/checkmate-server
+export CHECKMATE_QUEUE_DAEMON=${CHECKMATE_DIR}/bin/checkmate-queue
+export CHECKMATE_DB_DIR=<%= node['checkmate']['data_path'] %>
+export CHECKMATE_CONNECTION_STRING=<%= node['checkmate']['connection_string'] %>
+export CHECKMATE_RESULT_DBURI=<%= node['checkmate']['connection_string_results']  %>
+export CHECKMATE_DOMAIN=<%= node['checkmate']['domain'] %>
+export CHECKMATE_PUBLIC_KEY=<%= node['checkmate']['public_key'] %>
+export CHECKMATE_CHEF_LOCAL_PATH=<%= node['checkmate']['chef_local_path'] %>
+export CHECKMATE_CHEF_PATH=<%= node['checkmate']['chef_path'] %>
+export CHECKMATE_CHEF_REPO=<%= node['checkmate']['chef_repo'] %>
+export CHECKMATE_CHEF_USE_DATA_BAGS=<%= node['checkmate']['use_data_bags'] %>
+export CHECKMATE_BROKER_USERNAME=<%= node['checkmate']['broker']['username'] %>
+export CHECKMATE_BROKER_PASSWORD=<%= node['checkmate']['broker']['password'] %>
+export CHECKMATE_BROKER_HOST=<%= node['checkmate']['broker']['host'] %>
+export CHECKMATE_BROKER_PORT=<%= node['checkmate']['broker']['port'] %>
+export CHECKMATE_BROKER_URL=<%= node['checkmate']['broker']['url'] %>
+export CELERY_CONFIG_MODULE=<%= node['checkmate']['celery']['module'] %>
+export CELERYD_FORCE_EXECV=<%= node['checkmate']['celery']['force_execv'] %>
+
+if [ ! -e $CHECKMATE_DB_DIR ]; then mkdir -p $CHECKMATE_DB_DIR; fi
