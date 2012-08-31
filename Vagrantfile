@@ -78,7 +78,7 @@ Vagrant::Config.run do |config|
 
   config.vm.provision :chef_solo do |chef|
     chef.log_level = :debug
-    chef.cookbooks_path = ["vagrant/cookbooks", "vagrant/site-cookbooks"]
+    chef.cookbooks_path = ["vagrant/cookbooks"]
   #  chef.roles_path = "vagrant/roles"
   #  chef.data_bags_path = "vagrant/data_bags"
     chef.add_recipe "apt"
@@ -88,6 +88,14 @@ Vagrant::Config.run do |config|
     chef.add_recipe "rabbitmq"
   #  chef.add_recipe "mongodb"
     chef.add_recipe "checkmate"
+
+    chef.json = ({
+      :checkmate => {
+        :git => {
+          :src => "/vagrant",
+          :reference => "master",
+          :revision => "master"
+    }}})
   end
 
   # Enable provisioning with chef server, specifying the chef server URL,
