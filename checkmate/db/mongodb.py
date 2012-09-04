@@ -137,6 +137,7 @@ class Driver(DbBase):
 
         if tenant_id:
             body['tenantId'] = tenant_id
+        assert tenant_id or 'tenantId' in body, "tenantId must be specified"
         body['_id'] = id
         _DB[klass].update({'_id': id}, body, True, False)
         body['_id'] = id

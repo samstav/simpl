@@ -236,6 +236,7 @@ class Driver(DbBase):
             e.body = body
             if tenant_id:
                 e.tenant_id = tenant_id
+            assert tenant_id or e.tenant_id, "tenantId must be specified"
             if secrets is not None:
                 if not secrets:
                     LOG.warning("Clearing secrets for %s:%s" % (klass.__name__,
@@ -244,6 +245,8 @@ class Driver(DbBase):
                     raise Exception("CLEARING CREDS! Why?!!!!")
                 e.secrets = secrets
         else:
+            assert tenant_id or 'tenantId' in body, \
+                    "tenantId must be specified"
             e = klass(id=id, body=body, tenant_id=tenant_id,
                     secrets=secrets)
         Session.add(e)
