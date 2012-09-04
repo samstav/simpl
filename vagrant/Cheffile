@@ -1,0 +1,25 @@
+#!/usr/bin/env ruby
+#^syntax detection
+
+site 'http://community.opscode.com/api/v1'
+
+cookbook 'apt'
+cookbook 'yum'
+cookbook 'python'
+cookbook 'openssl'
+cookbook 'build-essential'
+cookbook 'rabbitmq',
+  :git => 'https://github.com/opscode-cookbooks/rabbitmq'
+cookbook 'mongodb'
+
+cookbook 'checkmate',
+  :git => 'https://github.rackspace.com/checkmate/checkmate-cookbook'
+
+# cookbook 'apache2', '>= 1.0.0'
+
+cookbook 'rvm',
+  :git => 'https://github.com/fnichol/chef-rvm'
+
+# cookbook 'postgresql',
+#   :git => 'https://github.com/findsyou/cookbooks',
+#   :ref => 'postgresql-improvements'
