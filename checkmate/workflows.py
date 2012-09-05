@@ -206,7 +206,7 @@ def get_workflow_task(id, task_id, tenant_id=None):
     data = serializer._serialize_task(task, skip_children=True)
     data['workflow_id'] = id  # so we know which workflow it came from
     spec = task.task_spec.serialize(serializer)
-    data['spec'] = spec
+    data['spec'] = spec  # include a copy of the spec
     return write_body(data, request, response)
 
 

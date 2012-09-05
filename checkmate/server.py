@@ -151,7 +151,7 @@ def async():
 
 
 #
-# Status and Sytem Information
+# Status and System Information
 #
 @get('/status/celery')
 def get_celery_worker_status():

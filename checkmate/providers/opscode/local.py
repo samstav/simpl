@@ -280,12 +280,12 @@ class Provider(ProviderBase):
                 results = {}
                 for key, value in values.iteritems():
                     if '/' in key:
-                        next = results
+                        next_one = results
                         for part in key.split('/'):
-                            current = next
+                            current = next_one
                             if part not in current:
                                 current[part] = {}
-                            next = current[part]
+                            next_one = current[part]
                         current[part] = value
                     else:
                         results[key] = value

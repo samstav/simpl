@@ -47,7 +47,7 @@ class TestLegacyCompute(unittest.TestCase):
         server.ip = '1.2.3.4'
         server.private_ip = '5.6.7.8'
         server.adminPass = 'password'
- 
+
         #Mock image
         image = self.mox.CreateMockAnything()
         image.id = 119
@@ -64,7 +64,7 @@ class TestLegacyCompute(unittest.TestCase):
         openstack_api_mock.servers = self.mox.CreateMockAnything()
         openstack_api_mock.images = self.mox.CreateMockAnything()
         openstack_api_mock.flavors = self.mox.CreateMockAnything()
-        
+
         openstack_api_mock.images.find(id=image.id).AndReturn(image)
         openstack_api_mock.flavors.find(id=flavor.id).AndReturn(flavor)
         openstack_api_mock.servers.create(image=119, flavor=2,
@@ -136,19 +136,19 @@ class TestLegacyGenerateTemplate(unittest.TestCase):
         context = self.mox.CreateMockAnything()
         deployment = self.mox.CreateMockAnything()
 
-        
+
         RackspaceComputeProviderBase.generate_template.AndReturn(True)
 
         #Stub out provider calls
         self.mox.StubOutWithMock(provider, 'get_catalog')
-        
+
         deployment.get_setting('region', resource_type='compute', service_name='master',
                                provider_key=provider.key).AndReturn('chicago')
         deployment.get_setting('os', resource_type='compute', service_name='master',
                                provider_key=provider.key, default=119).AndReturn('119')
         deployment.get_setting('memory', resource_type='compute', service_name='master',
                                provider_key=provider.key, default=2).AndReturn('2')
-        
+
         expected = {
             'instance': {},
             'dns-name': 'fake_name',
@@ -158,14 +158,14 @@ class TestLegacyGenerateTemplate(unittest.TestCase):
             'image': '119',
             'region': 'ORD'
         }
-      
+
         provider.get_catalog(context).AndReturn(catalog)
         provider.get_catalog(context, type_filter="regions").AndReturn(catalog)
 
 
         self.mox.ReplayAll()
-        results = provider.generate_template(deployment, 'compute',
-                                             'master', context, name='fake_name')
+        results = provider.generate_template(deployment, 'compute', 'master',
+                                             context, name='fake_name')
 
         self.assertDictEqual(results, expected)
         self.mox.VerifyAll()
@@ -186,18 +186,18 @@ class TestLegacyGenerateTemplate(unittest.TestCase):
         RackspaceComputeProviderBase = self.mox.CreateMockAnything()
         context = self.mox.CreateMockAnything()
         deployment = self.mox.CreateMockAnything()
- 
+
         RackspaceComputeProviderBase.generate_template.AndReturn(True)
 
         #Stub out provider calls
         self.mox.StubOutWithMock(provider, 'get_catalog')
-        
-        deployment.get_setting('region', resource_type='compute', service_name='master',
+
+        deployment.get_setting('region', resource_type='compute',
+                               service_name='master',
                                provider_key=provider.key).AndReturn('dallas')
 
         provider.get_catalog(context).AndReturn(catalog)
         provider.get_catalog(context, type_filter="regions").AndReturn(catalog)
-
 
         self.mox.ReplayAll()
         try:
@@ -206,7 +206,7 @@ class TestLegacyGenerateTemplate(unittest.TestCase):
         except CheckmateException:
             #pass
             self.mox.VerifyAll()
-        
+
 
     def test_no_region(self):
         """ No region specified in deployment or catalog"""
@@ -228,25 +228,24 @@ class TestLegacyGenerateTemplate(unittest.TestCase):
             }
         }
         provider = compute_legacy.Provider({})
-       
+
         #Mock Base Provider, context and deployment
         RackspaceComputeProviderBase = self.mox.CreateMockAnything()
         context = self.mox.CreateMockAnything()
         deployment = self.mox.CreateMockAnything()
 
-        
         RackspaceComputeProviderBase.generate_template.AndReturn(True)
 
         #Stub out provider calls
         self.mox.StubOutWithMock(provider, 'get_catalog')
-        
+
         deployment.get_setting('region', resource_type='compute', service_name='master',
                                provider_key=provider.key).AndReturn(None)
         deployment.get_setting('os', resource_type='compute', service_name='master',
                                provider_key=provider.key, default=119).AndReturn('119')
         deployment.get_setting('memory', resource_type='compute', service_name='master',
                                provider_key=provider.key, default=2).AndReturn('2')
-        
+
         expected = {
             'instance': {},
             'dns-name': 'fake_name',
@@ -255,12 +254,12 @@ class TestLegacyGenerateTemplate(unittest.TestCase):
             'flavor': '2',
             'image': '119',
         }
-      
+
         provider.get_catalog(context).AndReturn(catalog)
 
         self.mox.ReplayAll()
-        results = provider.generate_template(deployment, 'compute',
-                                             'master', context, name='fake_name')
+        results = provider.generate_template(deployment, 'compute', 'master',
+                                             context, name='fake_name')
 
         self.assertDictEqual(results, expected)
         self.mox.VerifyAll()
@@ -285,19 +284,20 @@ class TestLegacyGenerateTemplate(unittest.TestCase):
             }
         }
         provider = compute_legacy.Provider({})
-       
+
         #Mock Base Provider, context and deployment
         RackspaceComputeProviderBase = self.mox.CreateMockAnything()
         context = self.mox.CreateMockAnything()
         deployment = self.mox.CreateMockAnything()
 
-        
+
         RackspaceComputeProviderBase.generate_template.AndReturn(True)
 
         #Stub out provider calls
         self.mox.StubOutWithMock(provider, 'get_catalog')
-        
-        deployment.get_setting('region', resource_type='compute', service_name='master',
+
+        deployment.get_setting('region', resource_type='compute',
+                               service_name='master',
                                provider_key=provider.key).AndReturn('chicago')
         deployment.get_setting('os', resource_type='compute', service_name='master',
                                provider_key=provider.key, default=119).AndReturn('119')
@@ -314,9 +314,9 @@ class TestLegacyGenerateTemplate(unittest.TestCase):
             'region': 'ORD'
         }
       
+
         provider.get_catalog(context).AndReturn(catalog)
         provider.get_catalog(context, type_filter="regions").AndReturn(catalog)
-
 
         self.mox.ReplayAll()
         results = provider.generate_template(deployment, 'compute',
@@ -362,12 +362,17 @@ class TestLegacyGenerateTemplate(unittest.TestCase):
         #Stub out provider calls
         self.mox.StubOutWithMock(provider, 'get_catalog')
         
-        deployment.get_setting('region', resource_type='compute', service_name='master',
+        deployment.get_setting('region', resource_type='compute',
+                               service_name='master',
                                provider_key=provider.key).AndReturn('ORD')
-        deployment.get_setting('os', resource_type='compute', service_name='master',
-                               provider_key=provider.key, default=119).AndReturn('119')
-        deployment.get_setting('memory', resource_type='compute', service_name='master',
-                               provider_key=provider.key, default=2).AndReturn('2')
+        deployment.get_setting('os', resource_type='compute',
+                               service_name='master',
+                               provider_key=provider.key, default=119).\
+                               AndReturn('119')
+        deployment.get_setting('memory', resource_type='compute',
+                               service_name='master',
+                               provider_key=provider.key, default=2).\
+                               AndReturn('2')
         
         expected = {
             'instance': {},
@@ -384,8 +389,8 @@ class TestLegacyGenerateTemplate(unittest.TestCase):
 
 
         self.mox.ReplayAll()
-        results = provider.generate_template(deployment, 'compute',
-                                             'master', context, name='fake_name')
+        results = provider.generate_template(deployment, 'compute', 'master',
+                                             context, name='fake_name')
 
         self.assertDictEqual(results, expected)
         self.mox.VerifyAll()

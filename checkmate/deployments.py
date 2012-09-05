@@ -1,13 +1,9 @@
-import copy
-import json
 import logging
 import os
-import sys
 import uuid
 
 # pylint: disable=E0611
-from bottle import get, post, put, request, response, abort
-from celery.app import app_or_default
+from bottle import get, post, put, request, response, route, abort
 from celery.task import task
 from SpiffWorkflow import Workflow, Task
 from SpiffWorkflow.storage import DictionarySerializer
@@ -18,11 +14,11 @@ from checkmate.common import schema
 from checkmate.components import Component
 from checkmate.db import get_driver, any_id_problems
 from checkmate.environments import Environment
-from checkmate.exceptions import CheckmateException,\
+from checkmate.exceptions import CheckmateException, \
         CheckmateValidationException
 from checkmate.providers import ProviderBase
 from checkmate.workflows import create_workflow
-from checkmate.utils import write_body, read_body, extract_sensitive_data,\
+from checkmate.utils import write_body, read_body, extract_sensitive_data, \
         merge_dictionary, with_tenant, is_ssh_key, get_time_string
 
 LOG = logging.getLogger(__name__)
@@ -57,15 +53,16 @@ def post_deployment(tenant_id=None):
     if 'includes' in deployment:
         del deployment['includes']
 
-    id = str(deployment['id'])
+    oid = str(deployment['id'])
     body, secrets = extract_sensitive_data(deployment)
-    db.save_deployment(id, body, secrets, tenant_id=tenant_id)
+    db.save_deployment(oid, body, secrets, tenant_id=tenant_id)
 
     # Return response (with new resource location in header)
     if tenant_id:
-        response.add_header('Location', "/%s/deployments/%s" % (tenant_id, id))
+        response.add_header('Location', "/%s/deployments/%s" % (tenant_id,
+                                                                oid))
     else:
-        response.add_header('Location', "/deployments/%s" % id)
+        response.add_header('Location', "/deployments/%s" % oid)
 
     #Assess work to be done & resources to be created
     parsed_deployment = plan(deployment, request.context)
@@ -75,17 +72,17 @@ def post_deployment(tenant_id=None):
 
     serializer = DictionarySerializer()
     serialized_workflow = workflow.serialize(serializer)
-    serialized_workflow['id'] = id
-    parsed_deployment['workflow'] = id
+    serialized_workflow['id'] = oid
+    parsed_deployment['workflow'] = oid
 
     body, secrets = extract_sensitive_data(deployment)
-    deployment = db.save_deployment(id, body, secrets, tenant_id=tenant_id)
+    deployment = db.save_deployment(oid, body, secrets, tenant_id=tenant_id)
 
     body, secrets = extract_sensitive_data(serialized_workflow)
-    db.save_workflow(id, body, secrets, tenant_id=tenant_id)
+    db.save_workflow(oid, body, secrets, tenant_id=tenant_id)
 
     #Trigger the workflow
-    async_task = execute(id)
+    async_task = execute(oid)
 
     return write_body(deployment, request, response)
 
@@ -110,7 +107,7 @@ def parse_deployment():
 
     results = plan(deployment, request.context)
 
-    workflow = create_workflow(parsed_deployment, request.context)
+    workflow = create_workflow(results, request.context)
     serializer = DictionarySerializer()
     serialized_workflow = workflow.serialize(serializer)
     results['workflow'] = serialized_workflow
@@ -118,46 +115,45 @@ def parse_deployment():
     return write_body(results, request, response)
 
 
-@post('/deployments/<id>')
-@put('/deployments/<id>')
+@route('/deployment/<id>', method=['POST', 'PUT'])
 @with_tenant
-def update_deployment(id, tenant_id=None):
+def update_deployment(oid, tenant_id=None):
     entity = read_body(request)
     if 'deployment' in entity:
         entity = entity['deployment']
 
-    if any_id_problems(id):
-        abort(406, any_id_problems(id))
+    if any_id_problems(oid):
+        abort(406, any_id_problems(oid))
     if 'id' not in entity:
-        entity['id'] = str(id)
+        entity['id'] = str(oid)
 
     # Validate syntax
     deployment = Deployment(entity)
 
     body, secrets = extract_sensitive_data(deployment)
-    results = db.save_deployment(id, body, secrets, tenant_id=tenant_id)
+    results = db.save_deployment(oid, body, secrets, tenant_id=tenant_id)
 
     return write_body(results, request, response)
 
 
 @get('/deployments/<id>')
 @with_tenant
-def get_deployment(id, tenant_id=None):
+def get_deployment(oid, tenant_id=None):
     if 'with_secrets' in request.query:  # TODO: verify admin-ness
-        entity = db.get_deployment(id, with_secrets=True)
+        entity = db.get_deployment(oid, with_secrets=True)
     else:
-        entity = db.get_deployment(id)
+        entity = db.get_deployment(o)
     if not entity:
-        abort(404, 'No deployment with id %s' % id)
+        abort(404, 'No deployment with id %s' % oid)
     return write_body(entity, request, response)
 
 
 @get('/deployments/<id>/status')
 @with_tenant
-def get_deployment_status(id, tenant_id=None):
-    deployment = db.get_deployment(id)
+def get_deployment_status(oid, tenant_id=None):
+    deployment = db.get_deployment(oid)
     if not deployment:
-        abort(404, 'No deployment with id %s' % id)
+        abort(404, 'No deployment with id %s' % oid)
 
     resources = deployment.get('resources', {})
     results = {}
@@ -197,7 +193,7 @@ def get_deployment_status(id, tenant_id=None):
     return write_body(results, request, response)
 
 
-def execute(id, timeout=180, tenant_id=None):
+def execute(oid, timeout=180, tenant_id=None):
     """Process a checkmate deployment workflow
 
     Executes and moves the workflow forward.
@@ -207,14 +203,14 @@ def execute(id, timeout=180, tenant_id=None):
     :param id: checkmate deployment id
     :returns: the async task
     """
-    if any_id_problems(id):
-        abort(406, any_id_problems(id))
+    if any_id_problems(oid):
+        abort(406, any_id_problems(oid))
 
-    deployment = db.get_deployment(id)
+    deployment = db.get_deployment(oid)
     if not deployment:
-        abort(404, 'No deployment with id %s' % id)
+        abort(404, 'No deployment with id %s' % oid)
 
-    result = orchestrator.run_workflow.delay(id, timeout=900)
+    result = orchestrator.run_workflow.delay(oid, timeout=900)
     return result
 
 
