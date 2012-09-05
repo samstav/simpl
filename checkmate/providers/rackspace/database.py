@@ -318,6 +318,9 @@ def create_instance(context, instance_name, size, flavor, databases, region,
     if not api:
         api = Provider._connect(context, region)
 
+    if databases is None:
+        databases=[]
+
     instance = api.create_instance(instance_name, size, flavor,
                                           databases=databases)
     LOG.info("Created database instance %s (%s). Size %s, Flavor %s. "
