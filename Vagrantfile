@@ -23,7 +23,7 @@ Vagrant::Config.run do |config|
     chef.add_recipe "rabbitmq"
     chef.add_recipe "mongodb::10gen_repo"
     chef.add_recipe "mongodb"
-    chef.add_recipe "checkmate::broker-rabbitmq"
+    chef.add_recipe "checkmate::broker"
     chef.add_recipe "checkmate::worker"
     chef.add_recipe "checkmate::webui"
 
@@ -55,7 +55,11 @@ Vagrant::Config.run do |config|
         :broker => {
           :type => "amqp",
         }
-    }})
+      },
+      :build_essential => {
+        :compiletime => true
+      }
+    })
   end
 
   config.vm.forward_port 8080, 8080
