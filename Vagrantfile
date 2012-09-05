@@ -1,6 +1,14 @@
+# -*- mode: ruby -*-
+# vi: set ft=ruby :
+
 Vagrant::Config.run do |config|
+  # Lets lower the memory consumption some
+  config.vm.customize ["modifyvm", :id, "--memory", 256]
+
+  # Every Vagrant virtual environment requires a box to build off of.
   config.vm.box = "precise"
   config.vm.box_url = "http://files.vagrantup.com/precise64.box"
+
   config.vm.provision :shell, :inline => "if [ \"$(chef-client --version |awk '{print $2}')\" != \"10.12.0\" ]; then bash <(wget http://chef.rackspacecloud.com/install-alt.sh -q --tries=10 -O -) -v 10.12.0-1 -r 2>> /dev/null; fi"
 
   config.vm.provision :chef_solo do |chef|
@@ -13,10 +21,11 @@ Vagrant::Config.run do |config|
     chef.add_recipe "build-essential"
     chef.add_recipe "python"
     chef.add_recipe "rabbitmq"
-    #chef.add_recipe "mongodb"
-    chef.add_recipe "checkmate::webui"
+    chef.add_recipe "mongodb::10gen_repo"
+    chef.add_recipe "mongodb"
+    chef.add_recipe "checkmate::broker"
     chef.add_recipe "checkmate::worker"
-    chef.add_recipe "checkmate::broker-rabbitmq"
+    chef.add_recipe "checkmate::webui"
 
     chef.json = ({
       :checkmate => {
@@ -25,9 +34,30 @@ Vagrant::Config.run do |config|
           :reference => "master",
           :revision => "master"
         },
+        :amqp => {
+          :username => "checkmate",
+          :password => "Ch3ckm4te!",
+          :host => "localhost",
+          :port => 5672,
+          :vhost => "checkmate"
+        },
+        :mongodb => {
+          :username => "checkmate",
+          :password => "Ch3ckm4te!",
+          :host => "localhost",
+          :port => 27017,
+          :vhost => "checkmate"
+        },
+        :datastore => {
+          :type => "sqlite",
+          :mongodb_backend_settings => '{"host": "localhost", "database": "checkmate", "taskmeta_collection": "celery_task_meta"}'
+        },
         :broker => {
-          :password => "password"
+          :type => "amqp",
         }
+      },
+      :build_essential => {
+        :compiletime => true
       }
     })
   end
