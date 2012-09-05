@@ -1287,7 +1287,8 @@ def main_func():
         next = newrelic.agent.wsgi_application()(next)
     if '--debug' in sys.argv:
         next = DebugMiddleware(next)
-        LOG.debug("Routes: %s" % [r.rule for r in app().routes])
+        LOG.debug("Routes: %s" % ['%s %s' % (r.method, r.rule) for r in
+                                  app().routes])
 
     # Pick up IP/port from last param
     ip = '127.0.0.1'
