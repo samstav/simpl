@@ -97,13 +97,11 @@ class Provider(ProviderBase):
                 "Collect Chef Data",
                 defines=dict(provider=self.key),
                 )
+        # We need to make sure the environment exists before writing options.
+        collect.follow(create_environment)
         write_options.follow(collect)
-        # We create the collect and write tasks but don't wire them up.
-        # Any other task that needs them will connect to the collect task and
-        # wire it up by default. Otherwise, it is ignored.
-        # That also prevents it from executing before chef_options
-        # exists.
-        # Not doing this (see above): collect.follow(create_environment)
+        # Any tasks that need to be collected will wire themselves into this
+        # task
         self.collect_data_tasks = dict(root=collect, final=write_options)
 
         return dict(root=create_environment, final=create_environment)
