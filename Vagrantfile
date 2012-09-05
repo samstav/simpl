@@ -1,3 +1,6 @@
+# -*- mode: ruby -*-
+# vi: set ft=ruby :
+
 Vagrant::Config.run do |config|
   # Lets lower the memory consumption some
   config.vm.customize ["modifyvm", :id, "--memory", 256]
