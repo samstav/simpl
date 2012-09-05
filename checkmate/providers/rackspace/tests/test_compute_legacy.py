@@ -95,10 +95,6 @@ class TestLegacyCompute(unittest.TestCase):
 
 class TestLegacyGenerateTemplate(unittest.TestCase):
     """Test Legacy Compute Provider's region functions"""
-    
-    REGION_MAP = {'dallas': 'DFW',
-              'chicago': 'ORD',
-              'london': 'LON'}
 
     def setUp(self):
         self.mox = mox.Mox()
@@ -156,7 +152,7 @@ class TestLegacyGenerateTemplate(unittest.TestCase):
             'provider': 'rackspace.legacy',
             'flavor': '2',
             'image': '119',
-            'region': 'ORD'
+            'region': 'chicago'
         }
 
         provider.get_catalog(context).AndReturn(catalog)
@@ -299,30 +295,14 @@ class TestLegacyGenerateTemplate(unittest.TestCase):
         deployment.get_setting('region', resource_type='compute',
                                service_name='master',
                                provider_key=provider.key).AndReturn('chicago')
-        deployment.get_setting('os', resource_type='compute', service_name='master',
-                               provider_key=provider.key, default=119).AndReturn('119')
-        deployment.get_setting('memory', resource_type='compute', service_name='master',
-                               provider_key=provider.key, default=2).AndReturn('2')
-        
-        expected = {
-            'instance': {},
-            'dns-name': 'fake_name',
-            'type': 'compute',
-            'provider': 'rackspace.legacy',
-            'flavor': '2',
-            'image': '119',
-            'region': 'ORD'
-        }
-      
 
         provider.get_catalog(context).AndReturn(catalog)
         provider.get_catalog(context, type_filter="regions").AndReturn(catalog)
 
         self.mox.ReplayAll()
-        results = provider.generate_template(deployment, 'compute',
-                                             'master', context, name='fake_name')
 
-        self.assertDictEqual(results, expected)
+        self.assertRaises(CheckmateException, provider.generate_template,
+                deployment, 'compute', 'master', context, name='fake_name')
         self.mox.VerifyAll()
 
 
@@ -381,7 +361,7 @@ class TestLegacyGenerateTemplate(unittest.TestCase):
             'provider': 'rackspace.legacy',
             'flavor': '2',
             'image': '119',
-            'region': 'ORD'
+            'region': 'chicago'
         }
       
         provider.get_catalog(context).AndReturn(catalog)

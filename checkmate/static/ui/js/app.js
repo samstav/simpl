@@ -1506,117 +1506,6 @@ WPENV = {
         "name": "Legacy Cloud Servers",
         "providers": {
             "legacy": {
-                "catalog": {
-                    "compute": {
-                        "windows_instance": {
-                            "is": "compute",
-                            "id": "windows_instance",
-                            "provides": [
-                                {
-                                    "compute": "windows"
-                                }
-                            ]
-                        },
-                        "linux_instance": {
-                            "is": "compute",
-                            "id": "linux_instance",
-                            "provides": [
-                                {
-                                    "compute": "linux"
-                                }
-                            ]
-                        }
-                    },
-                    "lists": {
-                        "types": {
-                            "24": {
-                                "os": "Windows Server 2008 SP2 (64-bit)",
-                                "name": "Windows Server 2008 SP2 (64-bit)"
-                            },
-                            "115": {
-                                "os": "Ubuntu 11.04",
-                                "name": "Ubuntu 11.04"
-                            },
-                            "31": {
-                                "os": "Windows Server 2008 SP2 (32-bit)",
-                                "name": "Windows Server 2008 SP2 (32-bit)"
-                            },
-                            "56": {
-                                "os": "Windows Server 2008 SP2 (32-bit) + SQL Server 2008 R2 Standard",
-                                "name": "Windows Server 2008 SP2 (32-bit) + SQL Server 2008 R2 Standard"
-                            },
-                            "120": {
-                                "os": "Fedora 16",
-                                "name": "Fedora 16"
-                            },
-                            "121": {
-                                "os": "CentOS 5.8",
-                                "name": "CentOS 5.8"
-                            },
-                            "122": {
-                                "os": "CentOS 6.2",
-                                "name": "CentOS 6.2"
-                            },
-                            "116": {
-                                "os": "Fedora 15",
-                                "name": "Fedora 15"
-                            },
-                            "125": {
-                                "os": "Ubuntu 12.04 LTS",
-                                "name": "Ubuntu 12.04 LTS"
-                            },
-                            "126": {
-                                "os": "Fedora 17",
-                                "name": "Fedora 17"
-                            },
-                            "119": {
-                                "os": "Ubuntu 11.10",
-                                "name": "Ubuntu 11.10"
-                            },
-                            "118": {
-                                "os": "CentOS 6.0",
-                                "name": "CentOS 6.0"
-                            }
-                        },
-                        "sizes": {
-                            "3": {
-                                "disk": 40,
-                                "name": "1GB server",
-                                "memory": 1024
-                            },
-                            "2": {
-                                "disk": 20,
-                                "name": "512 server",
-                                "memory": 512
-                            },
-                            "5": {
-                                "disk": 160,
-                                "name": "4GB server",
-                                "memory": 4096
-                            },
-                            "4": {
-                                "disk": 80,
-                                "name": "2GB server",
-                                "memory": 2048
-                            },
-                            "7": {
-                                "disk": 620,
-                                "name": "15.5GB server",
-                                "memory": 15872
-                            },
-                            "6": {
-                                "disk": 320,
-                                "name": "8GB server",
-                                "memory": 8192
-                            },
-                            "8": {
-                                "disk": 1200,
-                                "name": "30GB server",
-                                "memory": 30720
-                            }
-                        }
-                    }
-                },
                 "vendor": "rackspace",
                 "provides": [
                     {
@@ -1637,6 +1526,10 @@ WPENV = {
                                 {
                                     "application": "http"
                                 }
+                            ],
+                            "requires": [
+                              {"database": "mysql"},
+                              {"host": "linux"}
                             ]
                         }
                     }
@@ -1658,8 +1551,8 @@ WPENV = {
                 "catalog": {
                     "lists": {
                         "regions": {
-                            "DFW": "https://dfw.loadbalancers.api.rackspacecloud.com/v1.0/",
-                            "ORD": "https://ord.loadbalancers.api.rackspacecloud.com/v1.0/"
+                            "dallas": "https://dfw.loadbalancers.api.rackspacecloud.com/v1.0/",
+                            "chicago": "https://ord.loadbalancers.api.rackspacecloud.com/v1.0/"
                         }
                     },
                     "load-balancer": {
@@ -1736,8 +1629,8 @@ WPENV = {
                     },
                     "lists": {
                         "regions": {
-                            "DFW": "https://dfw.databases.api.rackspacecloud.com/v1.0/557366",
-                            "ORD": "https://ord.databases.api.rackspacecloud.com/v1.0/557366"
+                            "dallas": "https://dfw.databases.api.rackspacecloud.com/v1.0/557366",
+                            "chicago": "https://ord.databases.api.rackspacecloud.com/v1.0/557366"
                         },
                         "sizes": {
                             "1": {

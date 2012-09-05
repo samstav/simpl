@@ -16,12 +16,10 @@ from checkmate.workflows import wait_for
 
 LOG = logging.getLogger(__name__)
 
-REGION_MAP = {'dallas': 'DFW',
-              'chicago': 'ORD',
-              'london': 'LON'}
-REVERSE_MAP = {'DFW': 'dallas',
-               'ORD': 'chicago',
-               'LON': 'london'}
+# In all poroviders, we convert airport codes into city names
+REGION_MAP = {'DFW': 'dallas',
+              'ORD': 'chicago',
+              'LON': 'london'}
 
 
 class Provider(RackspaceComputeProviderBase):
@@ -38,31 +36,27 @@ class Provider(RackspaceComputeProviderBase):
         region = deployment.get_setting('region', resource_type=resource_type,
                                         service_name=service,
                                         provider_key=self.key)
-        airport_region = None
-        
-        if not region:
-            LOG.warning("No region specified for Legacy Compute provider in \
-                        deployment.")
-        else:  
-            if region in REGION_MAP:
-                airport_region = REGION_MAP[region]
-            elif region in REVERSE_MAP:
-                airport_region = region
-                region = REVERSE_MAP[region]
-            else:
-                raise CheckmateException("No region mapping found for %s" 
-                                         % region)         
 
-            # If legacy region is specified, make sure it matches catalog region
+        if not region:
+            LOG.warning("No region specified for Legacy Compute provider in "
+                        "deployment.")
+        else:
+            # Convert to and use city codes
+            if region in REGION_MAP:
+                region = REGION_MAP[region]
+
+            # If legacy region is specified, make sure it matches catalog
+            # region
             region_catalog = self.get_catalog(context, type_filter='regions')
-            legacy_regions = region_catalog.get('lists', {}).get('regions', {})   
-   
-            if legacy_regions and (region or airport_region) not in legacy_regions:
-                raise CheckmateException("Legacy set to spin up in %s. Cannot provision servers in %s."
-                                         % (legacy_regions, region))
+            legacy_regions = region_catalog.get('lists', {}).get('regions', {})
+
+            if region not in legacy_regions:
+                raise CheckmateException("Legacy set to spin up in '%s'. "
+                                         "Cannot provision servers in '%s'." %
+                                        (legacy_regions.keys()[0], region))
             else:
-                LOG.warning("Region %s specified in deployment, but not Legacy \
-                            Compute catalog" % region)
+                LOG.warning("Region %s specified in deployment, but not in "
+                            "Legacy Compute catalog" % region)
 
         image = deployment.get_setting('os', resource_type=resource_type,
                 service_name=service, provider_key=self.key, default=119)
@@ -99,8 +93,8 @@ class Provider(RackspaceComputeProviderBase):
 
         template['flavor'] = flavor
         template['image'] = image
-        if airport_region:
-            template['region'] = airport_region
+        if region:
+            template['region'] = region
         return template
 
     def add_resource_tasks(self, resource, key, wfspec, deployment, context,
@@ -165,7 +159,7 @@ class Provider(RackspaceComputeProviderBase):
         if results:
             # We have a prexisting or overridecatalog stored
             return results
-       
+
         # build a live catalog this should be the on_get_catalog called if no
         # stored/override existed
         api = self._connect(context)
@@ -178,15 +172,20 @@ class Provider(RackspaceComputeProviderBase):
                     for endpoint in endpoints:
                         tenant_id = endpoint['tenantId']
                         if 'region' in endpoint:
+                            if endpoint['region'] in REGION_MAP:
+                                endpoint['region'] = REGION_MAP[endpoint[
+                                        'region']]
                             regions[endpoint['region']] = endpoint['publicURL']
                         else:
                             region = api.servers.get_region(tenant_id)
                             endpoint['region'] = region
+                            if endpoint['region'] in REGION_MAP:
+                                endpoint['region'] = REGION_MAP[endpoint[
+                                        'region']]
                             regions[endpoint['region']] = endpoint['publicURL']
             if 'lists' not in results:
                 results['lists'] = {}
             results['lists']['regions'] = regions
-        
 
         if type_filter is None or type_filter == 'compute':
             results['compute'] = dict(
