@@ -1,15 +1,9 @@
-# -*- mode: ruby -*-
-# vi: set ft=ruby :
-
 Vagrant::Config.run do |config|
   # Lets lower the memory consumption some
   config.vm.customize ["modifyvm", :id, "--memory", 256]
 
   # Every Vagrant virtual environment requires a box to build off of.
   config.vm.box = "precise"
-
-  # The url from where the 'config.vm.box' box will be fetched if it
-  # doesn't already exist on the user's system.
   config.vm.box_url = "http://files.vagrantup.com/precise64.box"
 
   config.vm.provision :shell, :inline => "if [ \"$(chef-client --version |awk '{print $2}')\" != \"10.12.0\" ]; then bash <(wget http://chef.rackspacecloud.com/install-alt.sh -q --tries=10 -O -) -v 10.12.0-1 -r 2>> /dev/null; fi"
@@ -17,8 +11,8 @@ Vagrant::Config.run do |config|
   config.vm.provision :chef_solo do |chef|
     chef.log_level = :debug
     chef.cookbooks_path = ["vagrant/cookbooks"]
-  #  chef.roles_path = "vagrant/roles"
-  #  chef.data_bags_path = "vagrant/data_bags"
+    #chef.roles_path = "vagrant/roles"
+    #chef.data_bags_path = "vagrant/data_bags"
     chef.add_recipe "apt"
     chef.add_recipe "openssl"
     chef.add_recipe "build-essential"
