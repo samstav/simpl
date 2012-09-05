@@ -1,3 +1,6 @@
+# -*- mode: ruby -*-
+# vi: set ft=ruby :
+
 Vagrant::Config.run do |config|
   # Lets lower the memory consumption some
   config.vm.customize ["modifyvm", :id, "--memory", 256]
@@ -23,7 +26,9 @@ Vagrant::Config.run do |config|
     chef.add_recipe "rabbitmq"
     chef.add_recipe "mongodb::10gen_repo"
     chef.add_recipe "mongodb"
-    chef.add_recipe "checkmate"
+    chef.add_recipe "checkmate::broker-rabbitmq"
+    chef.add_recipe "checkmate::worker"
+    chef.add_recipe "checkmate::webui"
 
     chef.json = ({
       :checkmate => {
@@ -47,11 +52,11 @@ Vagrant::Config.run do |config|
           :vhost => "checkmate"
         },
         :datastore => {
-          :type => "mongodb",
+          :type => "sqlite",
           :mongodb_backend_settings => '{"host": "localhost", "database": "checkmate", "taskmeta_collection": "celery_task_meta"}'
         },
         :broker => {
-          :type => "mongodb",
+          :type => "amqp",
         }
     }})
   end
