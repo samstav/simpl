@@ -290,12 +290,14 @@ class Provider(ProviderBase):
                 # Flatten duplicate component_id
                 if component_id in results:
                     results.update(results.pop(component_id))
-                data[component_id] = results
+                if results:
+                    data[component_id] = results
 
             # And write chef options under this component's key
             if 'chef_options' not in my_task.attributes:
                 my_task.attributes['chef_options'] = {}
-            my_task.attributes['chef_options'].update(data)
+            if data and data.get(component_id):
+                my_task.attributes['chef_options'].update(data)
 
         LOG.debug("Creating task to collect run-time options %s for %s" % (
                 ', '.join([m for n, m in run_time_options]),
