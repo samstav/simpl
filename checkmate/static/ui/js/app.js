@@ -1250,7 +1250,6 @@ WPBP = {
             "master": {
                 "component": {
                     "type": "application",
-                    "role": "master",
                     "name": "wordpress"
                 },
                 "relations": {
@@ -1265,8 +1264,7 @@ WPBP = {
             "web": {
                 "component": {
                     "type": "application",
-                    "role": "web",
-                    "name": "wordpress",
+                    "name": "wordpress-web-role",
                     "options": [
                         {
                             "wordpress/version": "3.0.4"
@@ -1552,17 +1550,7 @@ WPENV = {
         "description": "This environment tests legacy cloud servers. It is hard-targetted at chicago\nbecause the rackcloudtech legacy servers account is in chicago\n",
         "name": "Legacy Cloud Servers",
         "providers": {
-            "legacy": {
-                "vendor": "rackspace",
-                "provides": [
-                    {
-                        "compute": "linux"
-                    },
-                    {
-                        "compute": "windows"
-                    }
-                ]
-            },
+            "legacy": {},
             "chef-local": {
                 "catalog": {
                     "application": {
@@ -1594,139 +1582,7 @@ WPENV = {
             "common": {
                 "vendor": "rackspace"
             },
-            "load-balancer": {
-                "catalog": {
-                    "lists": {
-                        "regions": {
-                            "dallas": "https://dfw.loadbalancers.api.rackspacecloud.com/v1.0/",
-                            "chicago": "https://ord.loadbalancers.api.rackspacecloud.com/v1.0/"
-                        }
-                    },
-                    "load-balancer": {
-                        "http": {
-                            "is": "load-balancer",
-                            "id": "http",
-                            "provides": [
-                                {
-                                    "load-balancer": "http"
-                                }
-                            ],
-                            "options": "ref://id001"
-                        },
-                        "https": {
-                            "is": "load-balancer",
-                            "id": "https",
-                            "provides": [
-                                {
-                                    "load-balancer": "https"
-                                }
-                            ],
-                            "options": "ref://id001"
-                        }
-                    }
-                },
-                "endpoint": "https://lbaas.api.rackpsacecloud.com/loadbalancers/",
-                "vendor": "rackspace",
-                "provides": [
-                    {
-                        "load-balancer": "http"
-                    }
-                ]
-            },
-            "database": {
-                "catalog": {
-                    "compute": {
-                        "mysql_instance": {
-                            "is": "compute",
-                            "id": "mysql_instance",
-                            "provides": [
-                                {
-                                    "compute": "mysql"
-                                }
-                            ],
-                            "options": {
-                                "disk": {
-                                    "type": "int",
-                                    "unit": "Gb",
-                                    "choice": [
-                                        1,
-                                        2,
-                                        3,
-                                        4,
-                                        5,
-                                        6,
-                                        7,
-                                        8,
-                                        9,
-                                        10
-                                    ]
-                                },
-                                "memory": {
-                                    "type": "int",
-                                    "unit": "Mb",
-                                    "choice": [
-                                        512,
-                                        1024,
-                                        2048,
-                                        4096
-                                    ]
-                                }
-                            }
-                        }
-                    },
-                    "lists": {
-                        "regions": {
-                            "dallas": "https://dfw.databases.api.rackspacecloud.com/v1.0/557366",
-                            "chicago": "https://ord.databases.api.rackspacecloud.com/v1.0/557366"
-                        },
-                        "sizes": {
-                            "1": {
-                                "name": "m1.tiny",
-                                "memory": 512
-                            },
-                            "3": {
-                                "name": "m1.medium",
-                                "memory": 2048
-                            },
-                            "2": {
-                                "name": "m1.small",
-                                "memory": 1024
-                            },
-                            "4": {
-                                "name": "m1.large",
-                                "memory": 4096
-                            }
-                        }
-                    },
-                    "database": {
-                        "mysql_database": {
-                            "is": "database",
-                            "requires": [
-                                {
-                                    "compute": {
-                                        "interface": "mysql",
-                                        "relation": "host"
-                                    }
-                                }
-                            ],
-                            "id": "mysql_database",
-                            "provides": [
-                                {
-                                    "database": "mysql"
-                                }
-                            ]
-                        }
-                    }
-                },
-                "vendor": "rackspace",
-                "provides": [
-                    {
-                        "database": "mysql"
-                    },
-                    {
-                        "compute": "mysql"
-                    }
-                ]
-            }
+            "load-balancer": {},
+            "database": {}
         }
     };
