@@ -9,16 +9,25 @@ from checkmate.utils import merge_dictionary
 
 LOG = logging.getLogger(__name__)
 
-CONNECTION_STRING = os.environ.get('CHECKMATE_CONNECTION_STRING',
+CONNECTION_STRING = None
+_CONNECTION = None
+DB_NAME = None
+_DB = None
+
+
+def init():
+    """Initializes globals for this driver"""
+    global CONNECTION_STRING, _CONNECTION, DB_NAME, _DB
+    CONNECTION_STRING = os.environ.get('CHECKMATE_CONNECTION_STRING',
         'mongodb://localhost')
+    _CONNECTION = pymongo.Connection(CONNECTION_STRING)
+    DB_NAME = pymongo.uri_parser.parse_uri(CONNECTION_STRING).get('database',
+            'checkmate')
+    _DB = _CONNECTION[DB_NAME]
+    LOG.info("Connected to mongodb on %s (database=%s)" % (CONNECTION_STRING,
+            DB_NAME))
 
-_CONNECTION = pymongo.Connection(CONNECTION_STRING)
-
-DB_NAME = pymongo.uri_parser.parse_uri(CONNECTION_STRING).get('database',
-        'checkmate')
-_DB = _CONNECTION[DB_NAME]
-LOG.info("Connected to mongodb on %s (database=%s)" % (CONNECTION_STRING,
-        DB_NAME))
+init()
 
 
 class Driver(DbBase):
@@ -113,7 +122,6 @@ class Driver(DbBase):
                         response[e['id']] = e
             else:
                 for e in results:
-                    print e
                     response[e['id']] = e
             return response
         else:
@@ -127,7 +135,8 @@ class Driver(DbBase):
         """
         if isinstance(body, ExtensibleDict):
             body = body.__dict__()
-        assert isinstance(body, dict), "dict required by sqlalchemy backend"
+        assert isinstance(body, dict), "dict required by backend"
+        assert 'id' in body, "id required to be in body by backend"
 
         if secrets is not None:
             if not secrets:
@@ -138,8 +147,6 @@ class Driver(DbBase):
         if tenant_id:
             body['tenantId'] = tenant_id
         assert tenant_id or 'tenantId' in body, "tenantId must be specified"
-        body['_id'] = id
-        _DB[klass].update({'_id': id}, body, True, False)
         body['_id'] = id
         _DB[klass].update({'_id': id}, body, True, False)
         if secrets:
