@@ -19,7 +19,7 @@
 #pocket-wrap #pocket-supportnumber .content,
 #pocket-wrap #pocket-salesnumber
 .content{position:relative;top:1px;left:5px;float:left}.pocketitemButton,.pocketitemButtonHover{position:relative;top:0px;left:0px;height:23px;color:#FFF;padding:7px
-25px 0px 12px;float:left;cursor:pointer}.pocketitemButton{background:url('/images/sprites/global_backgrounds.png') 0px -103px repeat-x}.pocketitemButtonHover{background:url('/images/sprites/global_repeatable_backgrounds.png') 0px -136px repeat-x}.pocketitemButton .side,
+25px 0px 12px;float:left;cursor:pointer}.pocketitemButton{background:url('/images/sprites/global_repeatable_backgrounds.png') 0px -103px repeat-x}.pocketitemButtonHover{background:url('/images/sprites/global_repeatable_backgrounds.png') 0px -136px repeat-x}.pocketitemButton .side,
 .pocketitemButtonHover
 .side{position:absolute;width:2px;height:30px;background-image:url('/images/sprites/global_header.png')}.pocketitemButton .left,
 .pocketitemButtonHover
