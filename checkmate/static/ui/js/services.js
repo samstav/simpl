@@ -617,12 +617,11 @@ services.value('scroll', {
 services.value('settings', {
   getSettingsFromBlueprint: function(blueprint) {
     var options = []; // The accumulating array
-
     var opts = blueprint.options;
     _.each(opts, function(option, key) {
       options.push($.extend({
         id: key
-      }, option));
+      }, option));     
     });
 
     _.each(options, function(option) {

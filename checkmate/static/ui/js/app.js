@@ -1098,7 +1098,6 @@ function DeploymentInitController($scope, $location, $routeParams, $resource, bl
       console.log(message);
       return "<em>" + message + "</em>";
     }
-
     if (!setting.type || !_.isString(setting.type)) {
       var message = "The requested setting '" + setting.id + "' has no type or the type is not a string.";
       console.log(message);
@@ -1109,8 +1108,8 @@ function DeploymentInitController($scope, $location, $routeParams, $resource, bl
       if ("choice" in setting) {
         if (!_.isString(setting.choice[0]))
           lowerType = lowerType + "-kv";
-        }
       }
+    }
     var template = $('#setting-' + lowerType).html();
 
     if (template === null) {
@@ -1140,8 +1139,10 @@ function DeploymentInitController($scope, $location, $routeParams, $resource, bl
     // and checkboxes. This is lame and slow and I should figure out a better way to do this.
     _.each($scope.answers, function(element, key) {
       var setting = _.find($scope.settings, function(item) {
-        if (item.id == key)
+        if (item.id == key){
           return item;
+          console.log("ITEM: "+item);
+        }
         return null;
       });
 
@@ -1271,6 +1272,12 @@ WPBP = {
             }
         },
         "options": {
+            "override": {
+                "description": "Enter a blueprint to override all options",
+                "label": "Override",
+                "type": "text",
+                "sample": "BLUEPRINT"
+            },
             "domain": {
                 "regex": "^(([a-zA-Z]|[a-zA-Z][a-zA-Z0-9\\-]*[a-zA-Z0-9])\\.)*([A-Za-z]|[A-Za-z][A-Za-z0-9\\-]*[A-Za-z0-9])$",
                 "constrains": [
@@ -1283,7 +1290,19 @@ WPBP = {
                 "description": "The domain you wish to host your blog on. (ex: example.com)",
                 "label": "Domain",
                 "sample": "example.com",
-                "type": "string"
+                "type": "combo",
+                "choice": [
+                    {
+                        "name":"DNS-1",
+                        "value": 0
+                    }, {
+                        "name":"DNS-2",
+                        "value": 1
+                    }, {
+                        "name":"New Domain",
+                        "value":"other"
+                    }
+                ]
             },
             "path": {
                 "constrains": [
