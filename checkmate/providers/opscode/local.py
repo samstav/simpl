@@ -97,13 +97,11 @@ class Provider(ProviderBase):
                 "Collect Chef Data",
                 defines=dict(provider=self.key),
                 )
+        # We need to make sure the environment exists before writing options.
+        collect.follow(create_environment)
         write_options.follow(collect)
-        # We create the collect and write tasks but don't wire them up.
-        # Any other task that needs them will connect to the collect task and
-        # wire it up by default. Otherwise, it is ignored.
-        # That also prevents it from executing before chef_options
-        # exists.
-        # Not doing this (see above): collect.follow(create_environment)
+        # Any tasks that need to be collected will wire themselves into this
+        # task
         self.collect_data_tasks = dict(root=collect, final=write_options)
 
         return dict(root=create_environment, final=create_environment)
@@ -280,24 +278,26 @@ class Provider(ProviderBase):
                 results = {}
                 for key, value in values.iteritems():
                     if '/' in key:
-                        next = results
+                        next_one = results
                         for part in key.split('/'):
-                            current = next
+                            current = next_one
                             if part not in current:
                                 current[part] = {}
-                            next = current[part]
+                            next_one = current[part]
                         current[part] = value
                     else:
                         results[key] = value
                 # Flatten duplicate component_id
                 if component_id in results:
                     results.update(results.pop(component_id))
-                data[component_id] = results
+                if results:
+                    data[component_id] = results
 
             # And write chef options under this component's key
             if 'chef_options' not in my_task.attributes:
                 my_task.attributes['chef_options'] = {}
-            my_task.attributes['chef_options'].update(data)
+            if data and data.get(component_id):
+                my_task.attributes['chef_options'].update(data)
 
         LOG.debug("Creating task to collect run-time options %s for %s" % (
                 ', '.join([m for n, m in run_time_options]),

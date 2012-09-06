@@ -3,6 +3,7 @@ graft examples
 include setup.py
 include README.md
 include checkmate/db/repository/migrate.cfg
+include tests/data/simulator.json
 global-exclude *.pyc *.sdx *.log *.db *.swp
 
 

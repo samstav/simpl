@@ -338,8 +338,8 @@ includes:
   # Blueprints contain best practices and 'constrain' the available options in an environment to
   # those that are architecturally sound.
 - blueprint: &wp-multi
-    name: Scalable Wordpress (Managed Cloud Config)
-    description: uses MC config recipes which support blah...., multiple domains, ....
+    name: "Scalable Wordpress (Managed Cloud Config)"
+    description: "uses MC config recipes which support blah...., multiple domains, ...."
     #Services are similar to tiers. The names are arbitrary keys to be chosen by the blueprint author.
     # components: the type of component used in the service.
     # relations: connections to other services. The syntax can be short (service:interface) or long (name:{map})
@@ -725,6 +725,8 @@ includes:
               '126':
                 name: Fedora 17
                 os: Fedora 17
+            regions:
+              chicago: https://servers.api.rackspacecloud.com/v1.0/{tenantId}
 
       'load-balancer': &rax-lbaas
         vendor: 'rackspace'
@@ -738,8 +740,8 @@ includes:
         catalog:
           lists:
             regions:
-              DFW: https://dfw.loadbalancers.api.rackspacecloud.com/v1.0/${CHECKMATE_CLIENT_TENANT}
-              ORD: https://ord.loadbalancers.api.rackspacecloud.com/v1.0/${CHECKMATE_CLIENT_TENANT}
+              dallas: https://dfw.loadbalancers.api.rackspacecloud.com/v1.0/${CHECKMATE_CLIENT_TENANT}
+              chicago: https://ord.loadbalancers.api.rackspacecloud.com/v1.0/${CHECKMATE_CLIENT_TENANT}
           load-balancer:
             http:
               id: http
@@ -808,8 +810,8 @@ includes:
                   interface: mysql
           lists:
             regions:
-              DFW: https://dfw.databases.api.rackspacecloud.com/v1.0/557366
-              ORD: https://ord.databases.api.rackspacecloud.com/v1.0/557366
+              dallas: https://dfw.databases.api.rackspacecloud.com/v1.0/557366
+              chicago: https://ord.databases.api.rackspacecloud.com/v1.0/557366
             sizes:
               '1':
                 memory: 512
@@ -874,7 +876,7 @@ includes:
 # - we don't set them in the blueprint or environment so we can reference those (read only)
 # - we don't use paths for options (use a hierarchy) so we don't have to parse the key values
 # - therefore, we provide options selected under 'inputs' as a hierarchy that mirrors the blueprint or environment
-name: My WordPress by Checkmate
+name: "My WordPress by Checkmate"
 blueprint: *wp-multi
 environment: *rackspace-legacy-cloud-test
 inputs: # Answers to or values for blueprint/provider options & settings.
@@ -909,7 +911,6 @@ inputs: # Answers to or values for blueprint/provider options & settings.
         'os': Ubuntu 11.10
 
 #### For sample Output, see simulator.json in tests directory
-
 #
 # This documentation written to generate HTML by Docco.
 # To regenerate and preview:

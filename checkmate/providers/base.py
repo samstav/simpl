@@ -231,6 +231,10 @@ class ProviderBase(ProviderBasePlanningMixIn, ProviderBaseWorkflowMixIn):
         :param key: optional key used for environment to mark which provider
                 this is
         """
+        self.key = key or "%s.%s" % (self.vendor, self.name)
+        if 'vendor' in provider and provider['vendor'] != self.vendor:
+            LOG.debug("Vendor value being overwridden for %s to %s" % (
+                    self.key, provider['vendor']))
         if provider:
             has_valid_data = False
             for k in provider.keys():
@@ -242,11 +246,9 @@ class ProviderBase(ProviderBasePlanningMixIn, ProviderBaseWorkflowMixIn):
                         "initialization data: %s" % provider)
         if 'catalog' in provider:
             self.validate_catalog(provider['catalog'])
+            LOG.debug("Initializing provider %s with catalog" % self.key,
+                      extra=dict(data=provider['catalog']))
         self._dict = provider or {}
-        self.key = key or "%s.%s" % (self.vendor, self.name)
-        if 'vendor' in provider and provider['vendor'] != self.vendor:
-            LOG.debug("Vendor value being overwridden for %s to %s" % (
-                    self.key, provider['vendor']))
 
     def provides(self, context, resource_type=None, interface=None):
         """Returns a list of resources that this provider can provide or

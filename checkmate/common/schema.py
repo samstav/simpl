@@ -1,7 +1,7 @@
 """ This files contains initial schema validation and utilities
 
-It is currently used for debugging and so is limited to known reqoiurce types,
-interfaces, and such. The intent is to broaden it once we have stab lized the
+It is currently used for debugging and so is limited to known resource types,
+interfaces, and such. The intent is to broaden it once we have stabilized the
 schema.
 
 """

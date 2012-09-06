@@ -83,6 +83,8 @@ def simulate(tenant_id=None):
 @with_tenant
 def display(tenant_id=None):
     global PHASE, PACKAGE
+    if not PACKAGE:
+        abort(404, "No simulated deployment exists")
     return write_body(PACKAGE, request, response)
 
 
@@ -90,7 +92,9 @@ def display(tenant_id=None):
 @with_tenant
 def workflow_state(tenant_id=None):
     """Return slightly updated workflow each time"""
-    global PHASE
+    global PHASE, PACKAGE
+    if not PACKAGE:
+        abort(404, "No simulated deployment exists")
 
     results = process()
 
@@ -100,7 +104,9 @@ def workflow_state(tenant_id=None):
 @get('/workflows/simulate/status')
 def workflow_status():
     """Return simulated workflow status"""
-    global PHASE
+    global PHASE, PACKAGE
+    if not PACKAGE:
+        abort(404, "No simulated deployment exists")
 
     result = workflow_state()  # progress and return workflow
     entity = json.loads(result)
@@ -117,7 +123,9 @@ def get_workflow_task(task_id, tenant_id=None):
 
     :param task_id: checkmate workflow task id
     """
-    global PHASE
+    global PHASE, PACKAGE
+    if not PACKAGE:
+        abort(404, "No simulated deployment exists")
 
     serializer = DictionarySerializer()
     wf = Workflow.deserialize(serializer, PACKAGE['workflow'])
@@ -147,14 +155,17 @@ def process():
         name = my_task.get_name()
         result = None
         if name in template.spec.task_specs:
-            template_task = template.get_task(my_task.id)
+            template_task = None  # template.get_task(my_task.id)
             for task in template.get_tasks():
                 if task.get_name() == name:
                     template_task = task
                     break
-            result = template_task.attributes
+            if template_task:
+                result = template_task.attributes
+            else:
+                LOG.warn("Task not found in simulator.json: %s" % name)
         else:
-            LOG.warn("Unhandled task: %s" % name)
+            LOG.warn("Spec not found in simulator.json: %s" % name)
         if result:
             my_task.set_attribute(**result)
             if my_task.task_spec.call.startswith('checkmate.providers.'

@@ -162,10 +162,15 @@
   display: none; }
 .container_calculator .item-list .itemized, .container_calculator .cart-list .itemized {
   display: block; }
-.container_calculator .item-list.empty .description, .container_calculator .cart-list.empty .description {
-  display: block; }
-.container_calculator .item-list.empty .itemized, .container_calculator .cart-list.empty .itemized {
-  display: none; }
+.container_calculator .item-list.empty, .container_calculator .cart-list.empty {
+  background-image: none; }
+  .container_calculator .item-list.empty .description, .container_calculator .cart-list.empty .description {
+    display: block; }
+  .container_calculator .item-list.empty .itemized, .container_calculator .cart-list.empty .itemized {
+    display: none; }
+.container_calculator .item-list {
+  background-position: 2px center;
+  background-repeat: repeat-x; }
 .container_calculator .preset-wrap {
   height: 78px; }
 .container_calculator .calculator-wrap .item-list {
@@ -308,65 +313,63 @@
       padding: 0 25px;
       line-height: 1.75; }
 
-.server-cart {
-  width: 192px; }
-  .server-cart .upper {
-    background-color: white;
-    border-radius: 4px 4px 0 0; }
-  .server-cart .itemized {
-    list-style-type: none;
-    padding: 30px 16px;
-    height: 285px;
-    overflow-x: hidden;
-    overflow-y: scroll; }
-    .server-cart .itemized .item {
-      margin-bottom: 14px; }
-    .server-cart .itemized input.quantity {
-      vertical-align: top;
-      width: 35px; }
-    .server-cart .itemized label.quantity {
-      display: none; }
-    .server-cart .itemized .desc {
-      display: inline-block;
-      margin-left: 8px; }
-    .server-cart .itemized .price {
-      color: #36c4f8;
-      display: block; }
-  .server-cart .total {
-    color: white;
-    font-weight: bold;
-    line-height: 38px;
-    margin: 20px auto 5px;
-    position: relative; }
-    .server-cart .total .amount {
-      font-size: 32px; }
-    .server-cart .total .currency, .server-cart .total .tag {
-      background-color: #62687b;
-      border-radius: 12px;
-      display: block;
-      font-size: 14px;
-      line-height: 25px;
-      left: 12px;
-      height: 24px;
-      margin-top: -12px;
+.server-cart .upper {
+  background-color: white;
+  border-radius: 4px 4px 0 0; }
+.server-cart .itemized {
+  list-style-type: none;
+  padding: 30px 16px;
+  height: 285px;
+  overflow-x: hidden;
+  overflow-y: scroll; }
+  .server-cart .itemized .item {
+    margin-bottom: 14px; }
+  .server-cart .itemized input.quantity {
+    vertical-align: top;
+    width: 35px; }
+  .server-cart .itemized label.quantity {
+    display: none; }
+  .server-cart .itemized .desc {
+    display: inline-block;
+    margin-left: 8px; }
+  .server-cart .itemized .price {
+    color: #36c4f8;
+    display: block; }
+.server-cart .total {
+  color: white;
+  font-weight: bold;
+  line-height: 38px;
+  margin: 20px auto 5px;
+  position: relative; }
+  .server-cart .total .amount {
+    font-size: 32px; }
+  .server-cart .total .currency, .server-cart .total .tag {
+    background-color: #62687b;
+    border-radius: 12px;
+    display: block;
+    font-size: 14px;
+    line-height: 25px;
+    left: 12px;
+    height: 24px;
+    margin-top: -12px;
+    position: absolute;
+    top: 50%;
+    width: 24px; }
+  .server-cart .total .tag {
+    border-radius: 0 2px 2px 0;
+    left: auto;
+    font-size: 11px;
+    right: -22px;
+    text-transform: uppercase;
+    width: 40px; }
+    .server-cart .total .tag:before {
+      content: "";
       position: absolute;
-      top: 50%;
-      width: 24px; }
-    .server-cart .total .tag {
-      border-radius: 0 2px 2px 0;
-      left: auto;
-      font-size: 11px;
-      right: -22px;
-      text-transform: uppercase;
-      width: 40px; }
-      .server-cart .total .tag:before {
-        content: "";
-        position: absolute;
-        left: -24px;
-        border: 12px solid transparent;
-        border-right-color: #62687b; }
-  .server-cart .managed .left {
-    width: 90px; }
+      left: -24px;
+      border: 12px solid transparent;
+      border-right-color: #62687b; }
+.server-cart .managed .left {
+  width: 90px; }
 
 .toggle {
   -webkit-user-select: none;
@@ -419,6 +422,15 @@
     border: 0;
     margin-right: 0;
     padding-right: 0; }
+  .server-config .item-list.split .itemized, .server-config .item-list.split .itemized-left {
+    width: 50%;
+    left: 0; }
+    .server-config .item-list.split .itemized .item, .server-config .item-list.split .itemized-left .item {
+      height: 70px;
+      background-size: 120%; }
+  .server-config .item-list.split .itemized {
+    left: auto;
+    right: 0; }
 .server-config #load_balancer .item {
   background-image: url(data:image/svg+xml;base64,PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0idXRmLTgiPz4NCjwhLS0gR2VuZXJhdG9yOiBBZG9iZSBJbGx1c3RyYXRvciAxNS4wLjIsIFNWRyBFeHBvcnQgUGx1Zy1JbiAuIFNWRyBWZXJzaW9uOiA2LjAwIEJ1aWxkIDApICAtLT4NCjwhRE9DVFlQRSBzdmcgUFVCTElDICItLy9XM0MvL0RURCBTVkcgMS4xLy9FTiIgImh0dHA6Ly93d3cudzMub3JnL0dyYXBoaWNzL1NWRy8xLjEvRFREL3N2ZzExLmR0ZCI+DQo8c3ZnIHZlcnNpb249IjEuMSIgaWQ9IkxheWVyXzEiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyIgeG1sbnM6eGxpbms9Imh0dHA6Ly93d3cudzMub3JnLzE5OTkveGxpbmsiIHg9IjBweCIgeT0iMHB4Ig0KCSB3aWR0aD0iMTUwcHgiIGhlaWdodD0iMTUwcHgiIHZpZXdCb3g9IjAgMCAxNTAgMTUwIiBlbmFibGUtYmFja2dyb3VuZD0ibmV3IDAgMCAxNTAgMTUwIiB4bWw6c3BhY2U9InByZXNlcnZlIj4NCjxnPg0KCTxwYXRoIGZpbGw9IiNGRkZGRkYiIHN0cm9rZT0iI0IxQjFCMSIgc3Ryb2tlLXdpZHRoPSIyIiBzdHJva2UtbWl0ZXJsaW1pdD0iMTAiIGQ9Ik0yNSw3NS4xNSIvPg0KCTxwYXRoIGZpbGw9IiNGRkZGRkYiIHN0cm9rZT0iI0IxQjFCMSIgc3Ryb2tlLXdpZHRoPSIyIiBzdHJva2UtbWl0ZXJsaW1pdD0iMTAiIGQ9Ik0yNSw1Ny44MjFjMC0xLjcyOSwxLjQwMi0zLjEyNywzLjEyOC0zLjEyNw0KCQloOTMuNzQ1YzEuNzI1LDAsMy4xMjcsMS4zOTksMy4xMjcsMy4xMjd2MzQuMzU3aC0wLjAwMmMwLDEuNzI5LTEuNDAxLDMuMTI5LTMuMTI2LDMuMTI5SDI4LjEyOGMtMS43MjcsMC0zLjEyOC0xLjQtMy4xMjgtMy4xMjkNCgkJVjU3LjgyMXoiLz4NCgk8cGF0aCBmaWxsPSJub25lIiBzdHJva2U9IiNCMUIxQjEiIHN0cm9rZS13aWR0aD0iMiIgc3Ryb2tlLW1pdGVybGltaXQ9IjEwIiBkPSJNMjUsNzYuMTV2LTAuMzYzYzAtMS43MjYsMS40MDItMy4xMjUsMy4xMjgtMy4xMjUNCgkJaDkzLjc0NWMxLjcyNSwwLDMuMTI3LDEuMzk5LDMuMTI3LDMuMTI1Ii8+DQoJPGxpbmUgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjQjFCMUIxIiBzdHJva2Utd2lkdGg9IjIiIHN0cm9rZS1taXRlcmxpbWl0PSIxMCIgeDE9IjM0LjU5OSIgeTE9Ijg0LjAxOSIgeDI9Ijk5LjY4NyIgeTI9Ijg0LjAxOSIvPg0KCTxjaXJjbGUgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjQjFCMUIxIiBzdHJva2Utd2lkdGg9IjIiIHN0cm9rZS1taXRlcmxpbWl0PSIxMCIgY3g9IjExMi4wNzQiIGN5PSI4NC4wMiIgcj0iMi4yMiIvPg0KPC9nPg0KPC9zdmc+DQo=);
   height: 60px; }
@@ -434,9 +446,9 @@
   margin-top: -26px; }
   .server-config #database .item:hover {
     background-image: url(data:image/svg+xml;base64,PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0idXRmLTgiPz4NCjwhLS0gR2VuZXJhdG9yOiBBZG9iZSBJbGx1c3RyYXRvciAxNS4wLjIsIFNWRyBFeHBvcnQgUGx1Zy1JbiAuIFNWRyBWZXJzaW9uOiA2LjAwIEJ1aWxkIDApICAtLT4NCjwhRE9DVFlQRSBzdmcgUFVCTElDICItLy9XM0MvL0RURCBTVkcgMS4xLy9FTiIgImh0dHA6Ly93d3cudzMub3JnL0dyYXBoaWNzL1NWRy8xLjEvRFREL3N2ZzExLmR0ZCI+DQo8c3ZnIHZlcnNpb249IjEuMSIgaWQ9IkxheWVyXzEiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyIgeG1sbnM6eGxpbms9Imh0dHA6Ly93d3cudzMub3JnLzE5OTkveGxpbmsiIHg9IjBweCIgeT0iMHB4Ig0KCSB3aWR0aD0iMTUwcHgiIGhlaWdodD0iMTUwcHgiIHZpZXdCb3g9IjAgMCAxNTAgMTUwIiBlbmFibGUtYmFja2dyb3VuZD0ibmV3IDAgMCAxNTAgMTUwIiB4bWw6c3BhY2U9InByZXNlcnZlIj4NCjxwYXRoIG9wYWNpdHk9IjAuNSIgZmlsbD0iIzU3QzJGNiIgZW5hYmxlLWJhY2tncm91bmQ9Im5ldyAgICAiIGQ9Ik03NSwxMTYuNzVjLTIwLjkwNywwLTM3LjkxNy03LjkwOS0zNy45MTctMTcuNjI5VjU4LjgwNA0KCWMwLTkuNjgsMTcuMDEtMTcuNTU0LDM3LjkxNy0xNy41NTRzMzcuOTE3LDcuODkxLDM3LjkxNywxNy41OTF2NDAuMzE4QzExMi45MTcsMTA4Ljg1Niw5NS45MDcsMTE2Ljc1LDc1LDExNi43NXoiLz4NCjxnPg0KCTxwYXRoIGZpbGw9IiNGRkZGRkYiIGQ9Ik00MC45MzgsNTkuNzQzQzQwLjkzOCw1MS42MDEsNTYuMTg4LDQ1LDc1LDQ1YzE4LjgxMiwwLDM0LjA2Miw2LjYwMSwzNC4wNjIsMTQuNzQzdjM2Ljc3OHYxLjczMg0KCQlDMTA5LjA2MiwxMDYuMzk4LDkzLjgxMiwxMTMsNzUsMTEzYy0xOC44MTIsMC0zNC4wNjItNi42MDItMzQuMDYyLTE0Ljc0NFY1OS43NDN6Ii8+DQoJPHBhdGggZmlsbD0ibm9uZSIgc3Ryb2tlPSIjQjFCMUIxIiBzdHJva2Utd2lkdGg9IjIiIHN0cm9rZS1taXRlcmxpbWl0PSIxMCIgZD0iTTQwLjkzOCw1OS43NDNDNDAuOTM4LDUxLjYwMSw1Ni4xODgsNDUsNzUsNDUNCgkJYzE4LjgxMiwwLDM0LjA2Miw2LjYwMSwzNC4wNjIsMTQuNzQzdjM4LjUxMkMxMDkuMDYyLDEwNi4zOTgsOTMuODEyLDExMyw3NSwxMTNjLTE4LjgxMiwwLTM0LjA2Mi02LjYwMi0zNC4wNjItMTQuNzQ0VjU5Ljc0M3oiLz4NCgk8cGF0aCBmaWxsPSJub25lIiBzdHJva2U9IiNCMUIxQjEiIHN0cm9rZS13aWR0aD0iMiIgc3Ryb2tlLW1pdGVybGltaXQ9IjEwIiBkPSJNMTA5LjA2Miw1OS43NDMNCgkJYzAsOC4xNDQtMTUuMjUsMTQuNzQ0LTM0LjA2MiwxNC43NDRjLTE4LjgxMiwwLTM0LjA2Mi02LjYwMy0zNC4wNjItMTQuNzQ0Ii8+DQoJPHBhdGggZmlsbD0ibm9uZSIgc3Ryb2tlPSIjQjFCMUIxIiBzdHJva2Utd2lkdGg9IjIiIHN0cm9rZS1taXRlcmxpbWl0PSIxMCIgZD0iTTEwOS4wNjIsNzguODI0DQoJCWMwLDguMTQyLTE1LjI1LDE0Ljc0Mi0zNC4wNjIsMTQuNzQyYy0xOC44MTIsMC0zNC4wNjItNi42MDMtMzQuMDYyLTE0Ljc0MiIvPg0KCTxsaW5lIGZpbGw9Im5vbmUiIHN0cm9rZT0iI0IxQjFCMSIgc3Ryb2tlLXdpZHRoPSIyIiBzdHJva2UtbWl0ZXJsaW1pdD0iMTAiIHgxPSIxMDAuNzE0IiB5MT0iOTMuODk1IiB4Mj0iMTAwLjcxNCIgeTI9IjEwMi44MzEiLz4NCgk8bGluZSBmaWxsPSJub25lIiBzdHJva2U9IiNCMUIxQjEiIHN0cm9rZS13aWR0aD0iMiIgc3Ryb2tlLW1pdGVybGltaXQ9IjEwIiB4MT0iMTAwLjcxNCIgeTE9Ijc0LjQ4OSIgeDI9IjEwMC43MTQiIHkyPSI4My40MjUiLz4NCjwvZz4NCjwvc3ZnPg0K); }
-.server-config #storage .item {
+.server-config #add_on .item {
   background-image: url(data:image/svg+xml;base64,PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0idXRmLTgiPz4NCjwhLS0gR2VuZXJhdG9yOiBBZG9iZSBJbGx1c3RyYXRvciAxNS4wLjIsIFNWRyBFeHBvcnQgUGx1Zy1JbiAuIFNWRyBWZXJzaW9uOiA2LjAwIEJ1aWxkIDApICAtLT4NCjwhRE9DVFlQRSBzdmcgUFVCTElDICItLy9XM0MvL0RURCBTVkcgMS4xLy9FTiIgImh0dHA6Ly93d3cudzMub3JnL0dyYXBoaWNzL1NWRy8xLjEvRFREL3N2ZzExLmR0ZCI+DQo8c3ZnIHZlcnNpb249IjEuMSIgaWQ9IkxheWVyXzEiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyIgeG1sbnM6eGxpbms9Imh0dHA6Ly93d3cudzMub3JnLzE5OTkveGxpbmsiIHg9IjBweCIgeT0iMHB4Ig0KCSB3aWR0aD0iMTUwcHgiIGhlaWdodD0iMTUwcHgiIHZpZXdCb3g9IjAgMCAxNTAgMTUwIiBlbmFibGUtYmFja2dyb3VuZD0ibmV3IDAgMCAxNTAgMTUwIiB4bWw6c3BhY2U9InByZXNlcnZlIj4NCjxnPg0KCTxwYXRoIGZpbGw9IiNGRkZGRkYiIHN0cm9rZT0iI0IxQjFCMSIgc3Ryb2tlLXdpZHRoPSIyIiBzdHJva2UtbWl0ZXJsaW1pdD0iMTAiIGQ9Ik03Ni4wOSwzNi4wNDVINDkuNzE5DQoJCWMtMi4zNzIsMC00LjMwMiwxLjkyNy00LjMwMiw0LjMwNHY2OS4zNDljMCwyLjM3NywxLjkzMSw0LjMwMiw0LjMwMiw0LjMwMmg1MC41NjJjMi4zNzcsMCw0LjMwMi0xLjkyNiw0LjMwMi00LjMwMlY2NC43MDciLz4NCgk8cGF0aCBmaWxsPSIjRkZGRkZGIiBzdHJva2U9IiNCMUIxQjEiIHN0cm9rZS13aWR0aD0iMiIgc3Ryb2tlLW1pdGVybGltaXQ9IjEwIiBkPSJNNzguOTQyLDY1LjY1YzcuNTMsMCwyNC42MDEsMCwyNC42MDEsMA0KCQljMC43MTcsMCwxLjY1NS0wLjg5MSwwLjQ5LTEuOTY0YzAuNDc4LDAuNTEyLTI2LjM2My0yNy40MTMtMjYuMzYzLTI3LjQxM1M3NSwzNC43MDMsNzUsMzkuMDk2YzAsNS42NTgsMCwxNy42NTIsMCwyMi41MDQNCgkJQzc1LjAwMSw2NC43MzksNzYuNTI0LDY1LjY1LDc4Ljk0Miw2NS42NXoiLz4NCjwvZz4NCjwvc3ZnPg0K); }
-  .server-config #storage .item:hover {
+  .server-config #add_on .item:hover {
     background-image: url(data:image/svg+xml;base64,PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0idXRmLTgiPz4NCjwhLS0gR2VuZXJhdG9yOiBBZG9iZSBJbGx1c3RyYXRvciAxNS4wLjIsIFNWRyBFeHBvcnQgUGx1Zy1JbiAuIFNWRyBWZXJzaW9uOiA2LjAwIEJ1aWxkIDApICAtLT4NCjwhRE9DVFlQRSBzdmcgUFVCTElDICItLy9XM0MvL0RURCBTVkcgMS4xLy9FTiIgImh0dHA6Ly93d3cudzMub3JnL0dyYXBoaWNzL1NWRy8xLjEvRFREL3N2ZzExLmR0ZCI+DQo8c3ZnIHZlcnNpb249IjEuMSIgaWQ9IkxheWVyXzEiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyIgeG1sbnM6eGxpbms9Imh0dHA6Ly93d3cudzMub3JnLzE5OTkveGxpbmsiIHg9IjBweCIgeT0iMHB4Ig0KCSB3aWR0aD0iMTUwcHgiIGhlaWdodD0iMTUwcHgiIHZpZXdCb3g9IjAgMCAxNTAgMTUwIiBlbmFibGUtYmFja2dyb3VuZD0ibmV3IDAgMCAxNTAgMTUwIiB4bWw6c3BhY2U9InByZXNlcnZlIj4NCjxwYXRoIG9wYWNpdHk9IjAuNSIgZmlsbD0iIzU3QzJGNiIgZW5hYmxlLWJhY2tncm91bmQ9Im5ldyAgICAiIGQ9Ik0xMDEuODU0LDExNy40NjdINDcuNzc0Yy0zLjM3OCwwLTUuOTYxLTIuNzQ4LTUuOTYxLTYuMTI2DQoJVjM4LjY5NWMwLTMuMzY0LDIuOTE0LTYuMTAyLDYuMjkyLTYuMTAyaDMwLjI5NGMwLjM4MiwwLDAuNzQ3LDAuMTU3LDEuMDExLDAuNDMzbDI4LjIwOSwyOS4yMzdjMC4yNDgsMC4yNiwwLjM3MywwLjYwNCwwLjM3MywwLjk2Mw0KCXY0OC4xMTVDMTA3Ljk5MiwxMTQuNzE5LDEwNS4yMzEsMTE3LjQ2NywxMDEuODU0LDExNy40Njd6Ii8+DQo8Zz4NCgk8cGF0aCBmaWxsPSIjRkZGRkZGIiBzdHJva2U9IiNCMUIxQjEiIHN0cm9rZS13aWR0aD0iMiIgc3Ryb2tlLW1pdGVybGltaXQ9IjEwIiBkPSJNNzYuMDksMzYuMDQ1SDQ5LjcxOQ0KCQljLTIuMzcyLDAtNC4zMDIsMS45MjctNC4zMDIsNC4zMDR2NjkuMzQ5YzAsMi4zNzcsMS45MzEsNC4zMDIsNC4zMDIsNC4zMDJoNTAuNTYyYzIuMzc3LDAsNC4zMDItMS45MjYsNC4zMDItNC4zMDJWNjQuNzA3Ii8+DQoJPHBhdGggZmlsbD0iI0ZGRkZGRiIgc3Ryb2tlPSIjQjFCMUIxIiBzdHJva2Utd2lkdGg9IjIiIHN0cm9rZS1taXRlcmxpbWl0PSIxMCIgZD0iTTc4Ljk0MSw2NS42NWM3LjUzMSwwLDI0LjYwMiwwLDI0LjYwMiwwDQoJCWMwLjcxNywwLDEuNjU1LTAuODkxLDAuNDktMS45NjRjMC40NzgsMC41MTItMjYuMzYzLTI3LjQxMy0yNi4zNjMtMjcuNDEzUzc1LDM0LjcwMyw3NSwzOS4wOTZjMCw1LjY1OCwwLDE3LjY1MiwwLDIyLjUwNA0KCQlDNzUuMDAxLDY0LjczOSw3Ni41MjMsNjUuNjUsNzguOTQxLDY1LjY1eiIvPg0KPC9nPg0KPC9zdmc+DQo=); }
 .server-config .itemized, .server-config .itemized-left {
   list-style: none;
@@ -451,34 +463,46 @@
     background-repeat: no-repeat;
     position: relative;
     width: 100%; }
-  .server-config .itemized input.quantity, .server-config .itemized .desc, .server-config .itemized-left input.quantity, .server-config .itemized-left .desc {
-    display: none; }
-  .server-config .itemized label.quantity, .server-config .itemized-left label.quantity {
-    background-color: #36c4f8;
-    border-radius: 12px;
-    color: white;
-    display: inline-block;
-    line-height: 24px;
-    font-weight: bold;
-    margin-top: -12px;
-    position: absolute;
-    top: 50%;
-    text-align: center;
-    width: 24px; }
-  .server-config .itemized .desc, .server-config .itemized-left .desc {
-    border-radius: 2px;
-    font-size: 11px;
-    line-height: 18px;
-    padding: 0 6px;
-    right: 0;
-    width: auto; }
-.server-config .split .item {
-  height: 70px;
-  width: 50%;
-  background-size: 120%; }
-  .server-config .split .item:nth-child(-n+5) {
-    float: right;
-    clear: both; }
+    .server-config .itemized .item.desc:hover:after, .server-config .itemized .item.many:before, .server-config .itemized-left .item.desc:hover:after, .server-config .itemized-left .item.many:before {
+      color: white;
+      position: absolute;
+      top: 50%;
+      line-height: 24px;
+      margin-top: -12px;
+      text-align: center;
+      text-transform: uppercase; }
+    .server-config .itemized .item.desc:hover:after, .server-config .itemized-left .item.desc:hover:after {
+      background-color: rgba(83, 89, 106, 0.8);
+      border-radius: 3px;
+      content: attr(data-desc);
+      font-size: 12px;
+      width: auto;
+      right: 5px;
+      padding: 0 10px;
+      margin-left: -50px; }
+    .server-config .itemized .item.many:before, .server-config .itemized-left .item.many:before {
+      background-color: #36c4f8;
+      border-radius: 12px;
+      content: attr(data-quantity);
+      font-weight: bold;
+      top: 50%;
+      left: 10px;
+      width: 24px; }
+.server-config #add_on .calc-modal {
+  top: -76px;
+  left: -165px;
+  position: absolute; }
+  .server-config #add_on .calc-modal li {
+    font-size: 14px;
+    margin: 0 10px;
+    border-bottom: 1px solid #dddddd; }
+    .server-config #add_on .calc-modal li:last-child {
+      border-bottom: 0; }
+    .server-config #add_on .calc-modal li a {
+      color: #333333;
+      display: block;
+      padding: 14px 20px;
+      text-align: left; }
 .server-config .description {
   position: relative; }
   .server-config .description:before {
@@ -533,6 +557,16 @@
   position: absolute;
   top: 2px;
   right: 80px; }
+  .server-config .slider:before {
+    background-image: url("/images/bandwidth-points.png");
+    background-position: center;
+    background-repeat: no-repeat;
+    content: "";
+    display: block;
+    position: absolute;
+    top: -12px;
+    width: 100%;
+    height: 8px; }
 
 .ui-slider, .toggle .on, .toggle .off {
   background-color: #eeeeee;
@@ -618,7 +652,7 @@
     .calculator-actions ul.secondary .save:before {
       background-position: -60px -1px; }
 
-.calc_tooltip {
+.tooltip:after, .calc_tooltip {
   -webkit-border-radius: 2px;
   -moz-border-radius: 2px;
   border-radius: 2px;
@@ -629,14 +663,45 @@
   -webkit-box-shadow: 0 0 0 4px rgba(170, 170, 170, 0.3);
   -moz-box-shadow: 0 0 0 4px rgba(170, 170, 170, 0.3);
   box-shadow: 0 0 0 4px rgba(170, 170, 170, 0.3);
-  margin-left: -100px;
-  padding: 12px 20px 12px 15px;
-  position: relative;
-  width: 235px;
+  padding: 12px 15px;
+  position: absolute;
   z-index: 999; }
+
+.tooltip {
+  background-image: url("/images/tooltip-help.png");
+  background-position: center;
+  background-repeat: no-repeat;
+  color: white;
+  position: relative;
+  width: 12px;
+  height: 12px;
+  top: 1px;
+  display: inline-block; }
+  .tooltip.right {
+    width: 12px !important;
+    float: none; }
+  .tooltip:after {
+    display: none;
+    right: 0;
+    top: 0;
+    width: 320px; }
+  .tooltip.right:after {
+    left: 0;
+    right: auto; }
+  .tooltip:hover:after {
+    display: block;
+    content: attr(data-tip); }
+
+.calc_tooltip {
+  margin-left: -170px;
+  padding: 12px 20px 12px 15px;
+  left: 50%;
+  top: 50px;
+  width: 245px; }
   .calc_tooltip a.close-btn {
     background-color: transparent;
     color: white;
+    cursor: pointer;
     font-size: 18px;
     position: absolute;
     top: 5px;
@@ -651,11 +716,11 @@
     text-align: left;
     text-transform: none; }
 
-form#edit_modal, form#edit_modal button {
+.calc-modal, .calc-modal button {
   font-family: "proxima-nova", "Helvetica Neue", helvetica, sans-serif;
   font-size: 11px; }
 
-form#edit_modal {
+.calc-modal {
   background-color: rgba(0, 0, 0, 0.1);
   border-radius: 5px;
   padding: 4px;
@@ -663,7 +728,7 @@ form#edit_modal {
   text-align: left;
   width: 210px;
   z-index: 99; }
-  form#edit_modal:before {
+  .calc-modal:before {
     background-image: url("/images/modal-right.png");
     background-repeat: no-repeat;
     content: "";
@@ -672,43 +737,44 @@ form#edit_modal {
     right: -15px;
     height: 109px;
     width: 20px; }
-  form#edit_modal a.close-btn {
+  .calc-modal a.close-btn {
     font-size: 17px;
     color: #333333;
+    cursor: pointer;
     position: absolute;
     right: -14px;
     text-decoration: none;
     top: 7px;
     width: 18px;
     height: 18px; }
-  form#edit_modal.on-right a.close-btn {
+  .calc-modal.on-right a.close-btn {
     right: auto;
     left: -7px; }
-  form#edit_modal.on-right:before {
+  .calc-modal.on-right:before {
     background-image: url("/images/modal-left.png");
     left: -15px;
     right: auto; }
-  form#edit_modal i {
+  .calc-modal i {
     font-style: normal; }
-  form#edit_modal h3 {
+  .calc-modal h3 {
     color: #36c4f8;
     font-size: 16px;
     font-weight: 400;
     text-align: center;
     margin: 10px 0; }
-  form#edit_modal > .wrap {
+  .calc-modal > .wrap {
     background-position: top right;
     background-color: #f1f1f2;
     border-radius: 2px;
     position: relative;
     width: 100%; }
-  form#edit_modal fieldset {
+  .calc-modal fieldset {
     margin: 20px 0;
     padding: 0 15px; }
-  form#edit_modal input, form#edit_modal select {
+  .calc-modal input, .calc-modal select {
     float: right;
     select: 60px; }
-  form#edit_modal input {
+  .calc-modal input {
     border: 1px solid #96979a;
     border-radius: 3px;
     box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2) inset, 0 1px 0 rgba(255, 255, 255, 0.5);
@@ -716,20 +782,27 @@ form#edit_modal {
     padding: 6px 2px;
     text-align: center;
     width: 50px; }
-  form#edit_modal label {
+  .calc-modal label {
     display: inline-block;
     margin: 0 0 6px;
     max-width: 100px; }
-  form#edit_modal button {
+    .calc-modal label.full {
+      max-width: 100%; }
+      .calc-modal label.full input {
+        float: none;
+        margin-right: 5px;
+        vertical-align: middle;
+        width: auto; }
+  .calc-modal button {
     background: #f1f1f2;
     border: 1px solid #c5c5c6;
     border-radius: 3px;
     cursor: pointer;
     padding: 5px 5px 4px;
     width: 46%; }
-    form#edit_modal button:last-child {
+    .calc-modal button:last-child {
       float: right; }
-    form#edit_modal button:before {
+    .calc-modal button:before {
       background-image: url("/images/icon-sprite.png");
       background-position: -60px -1px;
       background-repeat: no-repeat;
@@ -739,32 +812,23 @@ form#edit_modal {
       margin-right: 4px;
       width: 18px;
       vertical-align: middle; }
-    form#edit_modal button.delete:before {
+    .calc-modal button.delete:before {
       background-position: -98px -1px; }
-  form#edit_modal .toggle {
+  .calc-modal .toggle {
     display: inline-block;
     vertical-align: top;
     float: right; }
-  form#edit_modal .advanced {
+  .calc-modal .advanced {
     background-color: #36c4f8;
     color: white;
     padding: 15px 0;
     margin: 36px 0;
     position: relative; }
-    form#edit_modal .advanced fieldset {
+    .calc-modal .advanced fieldset {
       margin: 12px 0; }
-    form#edit_modal .advanced.open a.toggle-advanced {
-      background-color: #cccccc;
-      color: transparent;
-      left: 50%;
-      font: 0/0 a;
-      margin-left: -15px;
-      top: -15px;
-      border-radius: 18px;
-      height: 30px;
-      width: 30px;
-      z-index: 2; }
-  form#edit_modal a.toggle-advanced {
+    .calc-modal .advanced.open a.toggle-advanced:after {
+      background-image: url("/images/white-arrow-up.png"); }
+  .calc-modal a.toggle-advanced {
     color: white;
     cursor: pointer;
     display: block;
@@ -777,15 +841,22 @@ form#edit_modal {
     text-transform: uppercase;
     width: 100%;
     z-index: 2; }
-  form#edit_modal .ui-slider {
+    .calc-modal a.toggle-advanced:after {
+      background-image: url("/images/white-arrow-down.png");
+      content: "";
+      display: inline-block;
+      margin-left: 5px;
+      height: 8px;
+      width: 15px; }
+  .calc-modal .ui-slider {
     height: 14px;
     width: 70%;
     display: inline-block; }
-    form#edit_modal .ui-slider .ui-slider-handle {
+    .calc-modal .ui-slider .ui-slider-handle {
       width: 18px;
       height: 18px;
       margin-left: -9px; }
-    form#edit_modal .ui-slider + i {
+    .calc-modal .ui-slider + i {
       float: right; }
 
 @media print {
