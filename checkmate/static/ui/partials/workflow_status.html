@@ -1,0 +1,30 @@
+<div class="container">
+  <div class="row-fluid">
+    <section class="span6 offset3">
+        <h4>{{data.wf_spec.name}}</h4>
+        <div class="row-fluid" ng-cloak ng-show="!timeRemaining">
+          <div class="alert alert-success"><strong>Congratulations! Your deployment is complete.</strong>
+            &nbsp;
+              <p>Access your Wordpress site from <a>example.com/blog</a>.</p>
+              <p>The username and password are <strong>jsmith/paxwd</strong>.</p>
+          </div>
+        </div>
+        <div class="row-fluid" ng-cloak ng-show="timeRemaining">
+            <p>Your deployment is in progress. You can access an <a href=".">advanced</a> view of
+            the workflow to manage any errors or hack at the workflow.</p>
+            Progress: <div class="progress">
+              <div class="bar" style="width: {{percentComplete()}}%;"></div>
+            </div>
+            <div>
+              <a class="label label-info cmtip" title="Total items" ng-click="showAll()">{{count}}</a> tasks: 
+              <a class="label label-success cmtip" title="Completed" ng-click="showUnread()">{{taskStates['completed']}}</a> completed, 
+              <a class="label label-warning cmtip" title="Waiting" ng-click="showStarred()">{{taskStates['waiting']}}</a> waiting, and 
+              <a class="label label-important cmtip" title="Errors" ng-click="showRead()">{{0}}</a> errored out.
+            </div>
+            &nbsp;
+            <div>Expected to finish {{timeRemaining | secondsETA}}</div>
+            &nbsp;
+        </div>
+      </section>
+  </div>
+</div>

@@ -77,8 +77,8 @@ checkmate.config(['$routeProvider', '$locationProvider', '$httpProvider', functi
   // New UI - dynamic, tenant pages
   $routeProvider.
   when('/:tenantId/workflows/:id/status', {
-    templateUrl: '/static/ui/partials/level2.html',
-    controller: OldWorkflowController
+    templateUrl: '/static/ui/partials/workflow_status.html',
+    controller: WorkflowController
   }).
   when('/:tenantId/workflows/:id', {
     templateUrl: '/static/ui/partials/workflow.html',
@@ -87,6 +87,10 @@ checkmate.config(['$routeProvider', '$locationProvider', '$httpProvider', functi
   when('/:tenantId/blueprints/:id', {
     templateUrl: '/static/ui/partials/level2.html',
     controller: BlueprintListController
+  }).
+  when('/:tenantId/workflows/:id/level2', {
+    templateUrl: '/static/ui/partials/level2.html',
+    controller: OldWorkflowController
   }).
   otherwise({
     controller: ExternalController,
@@ -130,7 +134,13 @@ function WorkflowController($scope, $resource, $http, $routeParams, $location, $
       items.all = workflow.parseTasks(items.tasks, object.wf_spec.task_specs);
       $scope.count = items.all.length;
       workflow.calculateStatistics($scope, items.all);
-      $scope.selectSpec(Object.keys(object.wf_spec.task_specs)[0]);
+      if ($location.path().split('/').slice(-1)[0] == 'status') {
+        if ($scope.taskStates.completed < $scope.count) {
+          setTimeout($scope.load, 2000);
+        }
+      } else
+        $scope.selectSpec(Object.keys(object.wf_spec.task_specs)[0]);
+
       //$scope.play();
     }, function(error) {
       console.log("Error " + error.data + "(" + error.status + ") loading workflow.");
@@ -1133,7 +1143,7 @@ function DeploymentInitController($scope, $location, $routeParams, $resource, bl
         deployment.$save(function(returned, getHeaders){
         var deploymentId = getHeaders('location').split('/')[3];
         console.log("Posted deployment", deploymentId);
-        $location.path('/' + $scope.auth.tenantId + '/workflows/' + deploymentId);
+        $location.path('/' + $scope.auth.tenantId + '/workflows/' + deploymentId + '/status');
       }, function(error) {
         console.log("Error " + error.data + "(" + error.status + ") creating new deployment.");
         console.log(deployment);
