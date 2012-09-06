@@ -27,7 +27,7 @@ Vagrant::Config.run do |config|
     chef.add_recipe "checkmate::worker"
     chef.add_recipe "checkmate::webui"
 
-    chef.json = ({
+    chef.json = {
       :checkmate => {
         :git => {
           :src => "/vagrant",
@@ -59,7 +59,7 @@ Vagrant::Config.run do |config|
       :build_essential => {
         :compiletime => true
       }
-    })
+    }
   end
 
   config.vm.forward_port 8080, 8080
