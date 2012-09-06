@@ -613,7 +613,7 @@ class BrowserMiddleware(object):
         @get('/static/<path:path>')
         #TODO: remove application/json and fix angular to call partials with
         #  text/html
-        @support_only(['text/html', 'text/css', 'text/javascript',
+        @support_only(['text/html', 'text/css', 'text/javascript', 'image/*',
                        'application/json'])  # Angular calls template in json
         def static(path):
             """Expose static files (images, css, javascript, etc...)"""
