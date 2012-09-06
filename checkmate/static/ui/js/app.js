@@ -107,345 +107,6 @@ checkmate.config(['$routeProvider', '$locationProvider', '$httpProvider', functi
 }]);
 
 /*
- * Workflow Status UI (Work in progress)
- */
-function WorkflowController($scope, $resource, $http, $routeParams, $location, $window, workflow, items, scroll) {
-  //Scope variables
-  $scope.showStatus = true;
-  $scope.showHeader = true;
-  $scope.showSearch = true;
-  $scope.taskStates = {
-    future: 0,
-    likely: 0,
-    maybe: 0,
-    waiting: 0,
-    ready: 0,
-    cancelled: 0,
-    completed: 0,
-    triggered: 0
-  };
-  
-  $scope.load = function() {
-    this.klass = $resource('/:tenantId/workflows/:id');
-    this.klass.get($routeParams,
-                   function(object, getResponseHeaders){
-      $scope.data = object;
-      items.tasks = workflow.flattenTasks({}, object.task_tree);
-      items.all = workflow.parseTasks(items.tasks, object.wf_spec.task_specs);
-      $scope.count = items.all.length;
-      workflow.calculateStatistics($scope, items.all);
-      if ($location.path().split('/').slice(-1)[0] == 'status') {
-        if ($scope.taskStates.completed < $scope.count) {
-          setTimeout($scope.load, 2000);
-        }
-      } else
-        $scope.selectSpec(Object.keys(object.wf_spec.task_specs)[0]);
-
-      //$scope.play();
-    }, function(error) {
-      console.log("Error " + error.data + "(" + error.status + ") loading workflow.");
-      $scope.$root.error = {data: error.data, status: error.status, title: "Error loading workflow",
-              message: "There was an error loading your workflow:"};
-      $('#modalError').modal('show');
-    });
-  }
-  
-  $scope.percentComplete = function() {
-    return (($scope.totalTime - $scope.timeRemaining) / $scope.totalTime) * 100;
-  };
-
-  $scope.selectSpec = function(spec_id) {
-    $scope.current_spec_index = spec_id;
-    $scope.current_spec = $scope.data.wf_spec.task_specs[$scope.current_spec_index];
-    $scope.current_spec_json = JSON.stringify($scope.current_spec, null, 2);
-
-    alltasks = items.tasks;
-    var tasks = _.filter(alltasks, function(task, key) {
-        return task.task_spec == spec_id;
-      })
-    $scope.current_spec_tasks = tasks;
-    tasks = $scope.spec_tasks(spec_id);
-    if (tasks)
-      $scope.selectTask(tasks[0].id);
-    $scope.toCurrent();
-  };
-
-  $scope.toCurrent = function() {
-		// Need the setTimeout to prevent race condition with item being selected.
-		window.setTimeout(function() {
-      var curScrollPos = $('#spec_list').scrollTop();
-	  var item = $('.summary.active').offset();
-	  if (item !== null) {
-		var itemTop = item.top - 250;
-		$('.summaries').animate({'scrollTop': curScrollPos + itemTop}, 200);
-	  };
-    }, 0);
-  }
-  
-  $scope.state_class = function(task) {
-    return workflow.classify(task);
-  }
-
-  $scope.state_name = function(state) {
-    return workflow.state_name(state);
-  }
-  
-  $scope.save_spec = function() {
-    var editor = _.find($('.CodeMirror'), function(c) {
-      return c.CodeMirror.getTextArea().id == 'spec_source';
-      });
-
-    if ($scope.auth.loggedIn) {
-      var klass = $resource('/:tenantId/workflows/:id/specs/' + $scope.current_spec_index);
-      var thang = new klass(JSON.parse(editor.CodeMirror.getValue()));
-      thang.$save($routeParams, function(returned, getHeaders){
-          // Update model
-          for (var attr in returned) {
-            if (returned.hasOwnProperty(attr))
-              $scope.current_spec[attr] = returned[attr];
-          };
-          alert('Saved');
-        }, function(error) {
-          console.log("Error " + error.data + "(" + error.status + ") saving this object.");
-          console.log($("#editor").text());
-          $scope.$root.error = {data: error.data, status: error.status, title: "Error Saving",
-                  message: "There was an error saving your JSON:"};
-          $('#modalError').modal('show');
-        });
-    } else {
-      $scope.loginPrompt(this, function() {console.log("Failed");}); //TODO: implement a callback
-    }
-  };
-
-  $scope.selectTask = function(task_id) {
-    $scope.current_task_index = task_id;
-    var alltasks = workflow.flattenTasks({}, $scope.data.task_tree);
-    $scope.current_task = _.find(alltasks, function(task){ return task.id == task_id;});
-    // Make copy with no children
-    var copy = {};
-    var obj = $scope.current_task;
-    for (var attr in obj) {
-      if (['children', "$$hashKey"].indexOf(attr) == -1 && obj.hasOwnProperty(attr))
-        copy[attr] = obj[attr];
-    }
-    $scope.current_task_json = JSON.stringify(copy, null, 2);
-    try {
-      $scope.$apply();
-    } catch(err) {};
-    // Refresh CodeMirror since it might have been hidden
-    $('.CodeMirror')[1].CodeMirror.refresh();
-  };
-
-  $scope.save_task = function() {
-    var editor = _.find($('.CodeMirror'), function(c) {
-      return c.CodeMirror.getTextArea().id == 'task_source';
-      });
-
-    if ($scope.auth.loggedIn) {
-      var klass = $resource('/:tenantId/workflows/:id/tasks/' + $scope.current_task_index);
-      var thang = new klass(JSON.parse(editor.CodeMirror.getValue()));
-      thang.$save($routeParams, function(returned, getHeaders){
-          // Update model
-          for (var attr in returned) {
-            if (['workflow_id', "tenantId"].indexOf(attr) == -1 && returned.hasOwnProperty(attr))
-              $scope.current_task[attr] = returned[attr];
-          };
-          alert('Saved');
-        }, function(error) {
-          console.log("Error " + error.data + "(" + error.status + ") saving this object.");
-          console.log($("#editor").text());
-          $scope.$root.error = {data: error.data, status: error.status, title: "Error Saving",
-                  message: "There was an error saving your JSON:"};
-          $('#modalError').modal('show');
-        });
-    } else {
-      $scope.loginPrompt(this); //TODO: implement a callback
-    }
-  };
-
-  //Return all tasks for a spec
-  $scope.spec_tasks = function(spec_id) {
-    return _.filter(items.tasks || [], function(task, key) {
-        return task.task_spec == spec_id;
-      });
-  };
-
-  //Return count of tasks for a spec
-  $scope.task_count = function(spec_id) {
-    return $scope.spec_tasks(spec_id).length;
-  };
-
-  //Return net status for a spec
-  $scope.spec_status = function(spec_id) {
-    var tasks = $scope.spec_tasks(spec_id);
-    var status = 64;
-    _.each(tasks, function(task){
-      if (task.state < status)
-        status = task.state;
-        if ('internal_attributes' in task && 'task_state' in task.internal_attributes && task.internal_attributes.task_state.state == 'FAILURE')
-          status = -1;
-    });
-    return status;
-  };
-
-  $scope.task_action = function(task_id, action) {
-    if ($scope.auth.loggedIn) {
-      console.log("Executing '" + action + " on " + task_id);
-      $http({method: 'POST', url: $location.path() + '/tasks/' + task_id + '/+' + action}).
-        success(function(data, status, headers, config) {
-          alert("Command '" + action + "' executed");
-          // this callback will be called asynchronously
-          // when the response is available
-          $window.location.reload();
-        });
-    } else {
-      $scope.loginPrompt(); //TODO: implement a callback
-    }
-  };
-  
-  $scope.resubmit_task = function() {
-    return $scope.task_action($scope.current_task.id, 'resubmit');
-  }
-  
-  $scope.execute_task = function() {
-    return $scope.task_action($scope.current_task.id, 'execute');
-  }
-  
-  $scope.was_server_created = function() {
-    if (typeof $scope.current_task != 'undefined' && $scope.current_task.task_spec.indexOf("Create Server") == 0 &&
-        $scope.resource($scope.current_task) !== null)
-      return true;
-    return false;
-  }
-
-  $scope.was_database_created = function() {
-    if (typeof $scope.current_task != 'undefined' && $scope.current_task.task_spec.indexOf("Create Database") == 0 &&
-        $scope.resource($scope.current_task) !== null)
-      return true;
-    return false;
-  }
-
-  $scope.was_loadbalancer_created = function() {
-    if (typeof $scope.current_task != 'undefined' && $scope.current_task.task_spec.indexOf("Create L") == 0 &&
-        $scope.resource($scope.current_task) !== null)
-      return true;
-    return false;
-  }
-
-  $scope.resource = function(task) {
-    if (typeof task == 'undefined')
-      return null;
-    try {
-      var res = _.find(task.attributes, function(obj, attr) {
-        if (attr.indexOf("instance:") == 0)
-          return true;
-        return false;
-      });
-  
-      if (typeof res != "undefined")
-        return res;
-      return null;
-    } catch(err) {
-      console.log("Error in WorkflowController.resource: " + err);
-    }
-  }
-
-  //Init
-  if (!$scope.auth.loggedIn) {
-      $scope.loginPrompt($scope.load);
-  } else
-    $scope.load();
-
-  //Not real code. Just testing stuff
-  $scope.play = function() {
-    var w = 960,
-    h = 500
-
-    var vis = d3.select(".entries").append("svg:svg")
-        .attr("width", w)
-        .attr("height", h);
-    var links = _.each($scope.data.wf_spec.task_specs, function(t, k) {return {"source": k, "target": "Root"};});
-    var nodes = _.each($scope.data.wf_spec.task_specs, function(t, k) {return t;});
-    console.log(nodes, links);
-    
-    var force = self.force = d3.layout.force()
-        .nodes(nodes)
-        .links(links)
-        .gravity(.05)
-        .distance(100)
-        .charge(-100)
-        .size([w, h])
-        .start();
-
-    var link = vis.selectAll("line.link")
-        .data(links)
-        .enter().append("svg:line")
-        .attr("class", "link")
-        .attr("x1", function(d) { return d.source.x; })
-        .attr("y1", function(d) { return d.source.y; })
-        .attr("x2", function(d) { return d.target.x; })
-        .attr("y2", function(d) { return d.target.y; });
-
-    var node_drag = d3.behavior.drag()
-        .on("dragstart", dragstart)
-        .on("drag", dragmove)
-        .on("dragend", dragend);
-
-    function dragstart(d, i) {
-        force.stop() // stops the force auto positioning before you start dragging
-    }
-
-    function dragmove(d, i) {
-        d.px += d3.event.dx;
-        d.py += d3.event.dy;
-        d.x += d3.event.dx;
-        d.y += d3.event.dy; 
-        tick(); // this is the key to make it work together with updating both px,py,x,y on d !
-    }
-
-    function dragend(d, i) {
-        d.fixed = true; // of course set the node to fixed so the force doesn't include the node in its auto positioning stuff
-        tick();
-        force.resume();
-    }
-
-
-    var node = vis.selectAll("g.node")
-        .data(json.nodes)
-      .enter().append("svg:g")
-        .attr("class", "node")
-        .call(node_drag);
-
-    node.append("svg:image")
-        .attr("class", "circle")
-        .attr("xlink:href", "https://d3nwyuy0nl342s.cloudfront.net/images/icons/public.png")
-        .attr("x", "-8px")
-        .attr("y", "-8px")
-        .attr("width", "16px")
-        .attr("height", "16px");
-
-    node.append("svg:text")
-        .attr("class", "nodetext")
-        .attr("dx", 12)
-        .attr("dy", ".35em")
-        .text(function(d) { return d.name });
-
-    force.on("tick", tick);
-
-    function tick() {
-      link.attr("x1", function(d) { return d.source.x; })
-          .attr("y1", function(d) { return d.source.y; })
-          .attr("x2", function(d) { return d.target.x; })
-          .attr("y2", function(d) { return d.target.y; });
-
-      node.attr("transform", function(d) { return "translate(" + d.x + "," + d.y + ")"; });
-    };
-
-  }
-}
-
-
-/*
 Scope variables that control the Checkmate UI:
 - angular.element('header').scope().showHeader = true/false
 - angular.element('header').scope().showSearch = true/false
@@ -824,6 +485,382 @@ function WorkflowListController($scope, $location, $resource, workflow, items, n
 
   $scope.load();
 }
+
+function WorkflowController($scope, $resource, $http, $routeParams, $location, $window, workflow, items, scroll) {
+  //Scope variables
+  $scope.showStatus = true;
+  $scope.showHeader = true;
+  $scope.showSearch = true;
+  $scope.taskStates = {
+    future: 0,
+    likely: 0,
+    maybe: 0,
+    waiting: 0,
+    ready: 0,
+    cancelled: 0,
+    completed: 0,
+    triggered: 0
+  };
+  
+  $scope.load = function() {
+    this.klass = $resource('/:tenantId/workflows/:id');
+    this.klass.get($routeParams,
+                   function(object, getResponseHeaders){
+      $scope.data = object;
+      items.tasks = workflow.flattenTasks({}, object.task_tree);
+      items.all = workflow.parseTasks(items.tasks, object.wf_spec.task_specs);
+      $scope.count = items.all.length;
+      workflow.calculateStatistics($scope, items.all);
+      if ($location.path().split('/').slice(-1)[0] == 'status') {
+        if ($scope.taskStates.completed < $scope.count) {
+          setTimeout($scope.load, 2000);
+        } else {
+          var d = $resource('/:tenantId/deployments/:id');
+          d.get($routeParams,
+                         function(object, getResponseHeaders){
+            console.log(object);
+            var domain = null;
+            //Find domain in inputs
+            try {
+              domain = object.inputs.blueprint.domain;
+            }
+            catch (error) {
+              console.log(error);
+            }
+            //If no domain, use load-balancer VIP
+            if (domain === null) {
+              try {
+                var lb = _.find(object.resources, function(r, k) { return r.type == 'load-balancer';});
+                if ('instance' in lb) {
+                  domain = lb.instance.vip;
+                }
+              }
+              catch (error) {
+                console.log(error);
+              }
+            }
+            //Find path in inputs
+            var path = "/";
+            try {
+              path = object.inputs.blueprint.path;
+            }
+            catch (error) {
+              console.log(error);
+            }
+            $scope.data.output = {};
+            $scope.data.output.path = "http://" + domain + path;
+            }, function(error) {
+              console.log("Error " + error.data + "(" + error.status + ") loading deployment.");
+              $scope.$root.error = {data: error.data, status: error.status, title: "Error loading deployment",
+                      message: "There was an error loading your deployment:"};
+              $('#modalError').modal('show');
+            });
+        }
+      } else
+        $scope.selectSpec(Object.keys(object.wf_spec.task_specs)[0]);
+      //$scope.play();
+    }, function(error) {
+      console.log("Error " + error.data + "(" + error.status + ") loading workflow.");
+      $scope.$root.error = {data: error.data, status: error.status, title: "Error loading workflow",
+              message: "There was an error loading your workflow:"};
+      $('#modalError').modal('show');
+    });
+  }
+  
+  $scope.percentComplete = function() {
+    return (($scope.totalTime - $scope.timeRemaining) / $scope.totalTime) * 100;
+  };
+
+  $scope.selectSpec = function(spec_id) {
+    $scope.current_spec_index = spec_id;
+    $scope.current_spec = $scope.data.wf_spec.task_specs[$scope.current_spec_index];
+    $scope.current_spec_json = JSON.stringify($scope.current_spec, null, 2);
+
+    alltasks = items.tasks;
+    var tasks = _.filter(alltasks, function(task, key) {
+        return task.task_spec == spec_id;
+      })
+    $scope.current_spec_tasks = tasks;
+    tasks = $scope.spec_tasks(spec_id);
+    if (tasks)
+      $scope.selectTask(tasks[0].id);
+    $scope.toCurrent();
+  };
+
+  $scope.toCurrent = function() {
+		// Need the setTimeout to prevent race condition with item being selected.
+		window.setTimeout(function() {
+      var curScrollPos = $('#spec_list').scrollTop();
+	  var item = $('.summary.active').offset();
+	  if (item !== null) {
+		var itemTop = item.top - 250;
+		$('.summaries').animate({'scrollTop': curScrollPos + itemTop}, 200);
+	  };
+    }, 0);
+  }
+  
+  $scope.state_class = function(task) {
+    return workflow.classify(task);
+  }
+
+  $scope.state_name = function(state) {
+    return workflow.state_name(state);
+  }
+  
+  $scope.save_spec = function() {
+    var editor = _.find($('.CodeMirror'), function(c) {
+      return c.CodeMirror.getTextArea().id == 'spec_source';
+      });
+
+    if ($scope.auth.loggedIn) {
+      var klass = $resource('/:tenantId/workflows/:id/specs/' + $scope.current_spec_index);
+      var thang = new klass(JSON.parse(editor.CodeMirror.getValue()));
+      thang.$save($routeParams, function(returned, getHeaders){
+          // Update model
+          for (var attr in returned) {
+            if (returned.hasOwnProperty(attr))
+              $scope.current_spec[attr] = returned[attr];
+          };
+          alert('Saved');
+        }, function(error) {
+          console.log("Error " + error.data + "(" + error.status + ") saving this object.");
+          console.log($("#editor").text());
+          $scope.$root.error = {data: error.data, status: error.status, title: "Error Saving",
+                  message: "There was an error saving your JSON:"};
+          $('#modalError').modal('show');
+        });
+    } else {
+      $scope.loginPrompt(this, function() {console.log("Failed");}); //TODO: implement a callback
+    }
+  };
+
+  $scope.selectTask = function(task_id) {
+    $scope.current_task_index = task_id;
+    var alltasks = workflow.flattenTasks({}, $scope.data.task_tree);
+    $scope.current_task = _.find(alltasks, function(task){ return task.id == task_id;});
+    // Make copy with no children
+    var copy = {};
+    var obj = $scope.current_task;
+    for (var attr in obj) {
+      if (['children', "$$hashKey"].indexOf(attr) == -1 && obj.hasOwnProperty(attr))
+        copy[attr] = obj[attr];
+    }
+    $scope.current_task_json = JSON.stringify(copy, null, 2);
+    try {
+      $scope.$apply();
+    } catch(err) {};
+    // Refresh CodeMirror since it might have been hidden
+    $('.CodeMirror')[1].CodeMirror.refresh();
+  };
+
+  $scope.save_task = function() {
+    var editor = _.find($('.CodeMirror'), function(c) {
+      return c.CodeMirror.getTextArea().id == 'task_source';
+      });
+
+    if ($scope.auth.loggedIn) {
+      var klass = $resource('/:tenantId/workflows/:id/tasks/' + $scope.current_task_index);
+      var thang = new klass(JSON.parse(editor.CodeMirror.getValue()));
+      thang.$save($routeParams, function(returned, getHeaders){
+          // Update model
+          for (var attr in returned) {
+            if (['workflow_id', "tenantId"].indexOf(attr) == -1 && returned.hasOwnProperty(attr))
+              $scope.current_task[attr] = returned[attr];
+          };
+          alert('Saved');
+        }, function(error) {
+          console.log("Error " + error.data + "(" + error.status + ") saving this object.");
+          console.log($("#editor").text());
+          $scope.$root.error = {data: error.data, status: error.status, title: "Error Saving",
+                  message: "There was an error saving your JSON:"};
+          $('#modalError').modal('show');
+        });
+    } else {
+      $scope.loginPrompt(this); //TODO: implement a callback
+    }
+  };
+
+  //Return all tasks for a spec
+  $scope.spec_tasks = function(spec_id) {
+    return _.filter(items.tasks || [], function(task, key) {
+        return task.task_spec == spec_id;
+      });
+  };
+
+  //Return count of tasks for a spec
+  $scope.task_count = function(spec_id) {
+    return $scope.spec_tasks(spec_id).length;
+  };
+
+  //Return net status for a spec
+  $scope.spec_status = function(spec_id) {
+    var tasks = $scope.spec_tasks(spec_id);
+    var status = 64;
+    _.each(tasks, function(task){
+      if (task.state < status)
+        status = task.state;
+        if ('internal_attributes' in task && 'task_state' in task.internal_attributes && task.internal_attributes.task_state.state == 'FAILURE')
+          status = -1;
+    });
+    return status;
+  };
+
+  $scope.task_action = function(task_id, action) {
+    if ($scope.auth.loggedIn) {
+      console.log("Executing '" + action + " on " + task_id);
+      $http({method: 'POST', url: $location.path() + '/tasks/' + task_id + '/+' + action}).
+        success(function(data, status, headers, config) {
+          alert("Command '" + action + "' executed");
+          // this callback will be called asynchronously
+          // when the response is available
+          $window.location.reload();
+        });
+    } else {
+      $scope.loginPrompt(); //TODO: implement a callback
+    }
+  };
+  
+  $scope.resubmit_task = function() {
+    return $scope.task_action($scope.current_task.id, 'resubmit');
+  }
+  
+  $scope.execute_task = function() {
+    return $scope.task_action($scope.current_task.id, 'execute');
+  }
+  
+  $scope.was_server_created = function() {
+    if (typeof $scope.current_task != 'undefined' && $scope.current_task.task_spec.indexOf("Create Server") == 0 &&
+        $scope.resource($scope.current_task) !== null)
+      return true;
+    return false;
+  }
+
+  $scope.was_database_created = function() {
+    if (typeof $scope.current_task != 'undefined' && $scope.current_task.task_spec.indexOf("Create Database") == 0 &&
+        $scope.resource($scope.current_task) !== null)
+      return true;
+    return false;
+  }
+
+  $scope.was_loadbalancer_created = function() {
+    if (typeof $scope.current_task != 'undefined' && $scope.current_task.task_spec.indexOf("Create L") == 0 &&
+        $scope.resource($scope.current_task) !== null)
+      return true;
+    return false;
+  }
+
+  $scope.resource = function(task) {
+    if (typeof task == 'undefined')
+      return null;
+    try {
+      var res = _.find(task.attributes, function(obj, attr) {
+        if (attr.indexOf("instance:") == 0)
+          return true;
+        return false;
+      });
+  
+      if (typeof res != "undefined")
+        return res;
+      return null;
+    } catch(err) {
+      console.log("Error in WorkflowController.resource: " + err);
+    }
+  }
+
+  //Init
+  if (!$scope.auth.loggedIn) {
+      $scope.loginPrompt($scope.load);
+  } else
+    $scope.load();
+
+  //Not real code. Just testing stuff
+  $scope.play = function() {
+    var w = 960,
+    h = 500
+
+    var vis = d3.select(".entries").append("svg:svg")
+        .attr("width", w)
+        .attr("height", h);
+    var links = _.each($scope.data.wf_spec.task_specs, function(t, k) {return {"source": k, "target": "Root"};});
+    var nodes = _.each($scope.data.wf_spec.task_specs, function(t, k) {return t;});
+    console.log(nodes, links);
+    
+    var force = self.force = d3.layout.force()
+        .nodes(nodes)
+        .links(links)
+        .gravity(.05)
+        .distance(100)
+        .charge(-100)
+        .size([w, h])
+        .start();
+
+    var link = vis.selectAll("line.link")
+        .data(links)
+        .enter().append("svg:line")
+        .attr("class", "link")
+        .attr("x1", function(d) { return d.source.x; })
+        .attr("y1", function(d) { return d.source.y; })
+        .attr("x2", function(d) { return d.target.x; })
+        .attr("y2", function(d) { return d.target.y; });
+
+    var node_drag = d3.behavior.drag()
+        .on("dragstart", dragstart)
+        .on("drag", dragmove)
+        .on("dragend", dragend);
+
+    function dragstart(d, i) {
+        force.stop() // stops the force auto positioning before you start dragging
+    }
+
+    function dragmove(d, i) {
+        d.px += d3.event.dx;
+        d.py += d3.event.dy;
+        d.x += d3.event.dx;
+        d.y += d3.event.dy; 
+        tick(); // this is the key to make it work together with updating both px,py,x,y on d !
+    }
+
+    function dragend(d, i) {
+        d.fixed = true; // of course set the node to fixed so the force doesn't include the node in its auto positioning stuff
+        tick();
+        force.resume();
+    }
+
+
+    var node = vis.selectAll("g.node")
+        .data(json.nodes)
+      .enter().append("svg:g")
+        .attr("class", "node")
+        .call(node_drag);
+
+    node.append("svg:image")
+        .attr("class", "circle")
+        .attr("xlink:href", "https://d3nwyuy0nl342s.cloudfront.net/images/icons/public.png")
+        .attr("x", "-8px")
+        .attr("y", "-8px")
+        .attr("width", "16px")
+        .attr("height", "16px");
+
+    node.append("svg:text")
+        .attr("class", "nodetext")
+        .attr("dx", 12)
+        .attr("dy", ".35em")
+        .text(function(d) { return d.name });
+
+    force.on("tick", tick);
+
+    function tick() {
+      link.attr("x1", function(d) { return d.source.x; })
+          .attr("y1", function(d) { return d.source.y; })
+          .attr("x2", function(d) { return d.target.x; })
+          .attr("y2", function(d) { return d.target.y; });
+
+      node.attr("transform", function(d) { return "translate(" + d.x + "," + d.y + ")"; });
+    };
+
+  }
+}
+
 
 function OldWorkflowController($scope, $resource, $routeParams, workflow, items, scroll) {
   $scope.showStatus = true;
