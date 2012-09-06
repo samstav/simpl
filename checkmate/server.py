@@ -603,7 +603,7 @@ class BrowserMiddleware(object):
                 return static_file("index.html", root=root)
             if path.endswith('.css'):
                 return static_file(path, root=root, mimetype='text/css')
-            if path.endswith('.html'):
+            elif path.endswith('.html'):
                 if 'partials' in path.split('/'):
                     return static_file(path, root=root)
                 else:
