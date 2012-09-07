@@ -115,7 +115,7 @@ def parse_deployment():
     return write_body(results, request, response)
 
 
-@route('/deployment/<id>', method=['POST', 'PUT'])
+@route('/deployment/<oid>', method=['POST', 'PUT'])
 @with_tenant
 def update_deployment(oid, tenant_id=None):
     entity = read_body(request)
@@ -136,19 +136,19 @@ def update_deployment(oid, tenant_id=None):
     return write_body(results, request, response)
 
 
-@get('/deployments/<id>')
+@get('/deployments/<oid>')
 @with_tenant
 def get_deployment(oid, tenant_id=None):
     if 'with_secrets' in request.query:  # TODO: verify admin-ness
         entity = db.get_deployment(oid, with_secrets=True)
     else:
-        entity = db.get_deployment(o)
+        entity = db.get_deployment(oid)
     if not entity:
         abort(404, 'No deployment with id %s' % oid)
     return write_body(entity, request, response)
 
 
-@get('/deployments/<id>/status')
+@get('/deployments/<oid>/status')
 @with_tenant
 def get_deployment_status(oid, tenant_id=None):
     deployment = db.get_deployment(oid)
