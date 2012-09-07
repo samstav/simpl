@@ -425,7 +425,7 @@ includes:
         label: Region
         type: select
         # Choice is  always an array. It can be an array of values or of objects with name & value attributes
-        choice: [dallas, chicago]
+        choice: [DFW, ORD]
         required: true
       "ssl": &ssl
         label: SSL Enabled
@@ -478,7 +478,7 @@ includes:
       "register-dns":
         default: false
         type: boolean
-        label: Register DNS Name
+        label: Create DNS Records
       "varnish":
         default: false
         type: boolean
@@ -719,7 +719,7 @@ includes:
                 name: Fedora 17
                 os: Fedora 17
             regions:
-              chicago: https://servers.api.rackspacecloud.com/v1.0/{tenantId}
+              ORD: https://servers.api.rackspacecloud.com/v1.0/{tenantId}
 
       'load-balancer': &rax-lbaas
         vendor: 'rackspace'
@@ -733,8 +733,8 @@ includes:
         catalog:
           lists:
             regions:
-              dallas: https://dfw.loadbalancers.api.rackspacecloud.com/v1.0/${CHECKMATE_CLIENT_TENANT}
-              chicago: https://ord.loadbalancers.api.rackspacecloud.com/v1.0/${CHECKMATE_CLIENT_TENANT}
+              DFW: https://dfw.loadbalancers.api.rackspacecloud.com/v1.0/${CHECKMATE_CLIENT_TENANT}
+              ORD: https://ord.loadbalancers.api.rackspacecloud.com/v1.0/${CHECKMATE_CLIENT_TENANT}
           load-balancer:
             http:
               id: http
@@ -803,8 +803,8 @@ includes:
                   interface: mysql
           lists:
             regions:
-              dallas: https://dfw.databases.api.rackspacecloud.com/v1.0/557366
-              chicago: https://ord.databases.api.rackspacecloud.com/v1.0/557366
+              DFW: https://dfw.databases.api.rackspacecloud.com/v1.0/557366
+              ORD: https://ord.databases.api.rackspacecloud.com/v1.0/557366
             sizes:
               '1':
                 memory: 512
@@ -831,7 +831,7 @@ includes:
         #  public_key: =generate_public_key() # function not yet supported
         #PROTOTYPING:
         constraints:
-        - region: chicago
+        - region: ORD
 
 - also: # just examples
   - blueprint: &wp

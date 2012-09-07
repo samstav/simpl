@@ -1331,8 +1331,8 @@ WPBP = {
                 "default": "DFW",
                 "label": "Region",
                 "choice": [{
-                    "name": "dallas", "value": "DFW"},
-                    {"name": "chicago", "value": "ORD"}
+                    "name": "DFW", "value": "DFW"},
+                    {"name": "ORD", "value": "ORD"}
                 ]
             },
             "prefix": {
