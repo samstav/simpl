@@ -8,8 +8,7 @@ cookbook 'yum'
 cookbook 'python'
 cookbook 'openssl'
 cookbook 'build-essential'
-cookbook 'rabbitmq',
-  :git => 'https://github.com/opscode-cookbooks/rabbitmq'
+cookbook 'rabbitmq'
 cookbook 'mongodb'
 
 cookbook 'checkmate',
