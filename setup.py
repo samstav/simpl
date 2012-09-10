@@ -71,7 +71,7 @@ setup(
     package_data={
         '': ['*.yaml'],
     },
-    data_files=[('simulator', ['tests/data/simulator.json'])],
+    data_files=[('tests/data', ['tests/data/simulator.json'])],
     license='Apache License (2.0)',
     classifiers=["Programming Language :: Python"],
     url='https://rackspace.github.com/checkmate/checkmate'
