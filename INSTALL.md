@@ -64,6 +64,7 @@ and place them in your local directory.
     $ git clone git://github.rackspace.com/checkmate/checkmate.git
     $ cd checkmate
     $ pip install -r pip-requirements.txt
+    $ python setup.py install
     $ cd ..
 
 ## Install Chef
