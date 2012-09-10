@@ -1,0 +1,126 @@
+{
+    "name": "Checkmate",
+    "description": "Deployment tool.",
+    "devops_version": "1.0",
+    "devopsJSON_URL": "https://github.rackspace.com/blob/master/devops.json",
+    "tags": [
+        "python",
+        "rabbitmq",
+        "mongodb",
+        "ruby"
+    ],
+    "contacts": [
+        {
+            "team_name": "Product",
+            "members": [
+                {
+                    "name": "Keith Bray",
+                    "sso": "keith.bray",
+                    "github": "keith-bray",
+                    "mailto": "keith.bray@rackspace.com",
+                    "ircnick": "kebray"
+                },
+                {
+                    "name": "Betsy Luzader",
+                    "sso": "betsy.luzader",
+                    "mailto": "betsy.luzader@rackspace.com"
+                },
+                {
+                    "name": "Chris Spencer",
+                    "sso": "Christopher Spencer",
+                    "mailto": "christopher.spencer@rackspace.com"
+                }
+            ]
+        },
+        {
+            "team_name": "Dev",
+            "members": [
+                {
+                    "name": "Ziad Sawalha",
+                    "sso": "ziad.sawalha",
+                    "github": "ziad-sawalha",
+                    "mailto": "ziad.sawalha@rackspace.com",
+                    "ircnick": "ziad"
+                },
+                {
+                    "name": "Randall Burt",
+                    "sso": "randall.burt",
+                    "github": "randall-burt",
+                    "mailto": "randall.burt@rackspace.com",
+                    "ircnick": "RandallBurt"
+                },
+                {
+                    "name": "Craig Cobb",
+                    "sso": "craig.cobb",
+                    "github": "craig-cobb",
+                    "mailto": "craig.cobb@rackspace.com",
+                    "ircnick": "CCobbster"
+                },
+                {
+                    "name": "Jessica Lucci",
+                    "sso": "jess4318",
+                    "github": "jess4318",
+                    "mailto": "jessica.lucci@rackspace.com"
+                }
+            ]
+        },
+        {
+            "team_name": "Platform DevOps",
+            "members": [
+                {
+                    "name": "Konstantin Ivanov",
+                    "sso": "kons4110",
+                    "github": "kons4110",
+                    "mailto": "konstantin.ivanov@rackspace.com",
+                    "ircnick": "Konstantin"
+                },
+                {
+                    "name": "Wayne Carroll",
+                    "sso": "wayne.carroll",
+                    "github": "wayne-carroll",
+                    "mailto": "wayne.carroll@rackspace.com",
+                    "ircnick": "Wayne"
+                }
+            ]
+        },
+        {
+            "team_name": "Support DevOps",
+            "members": [
+                {
+                    "name": "BK Box",
+                    "sso": "bk.box",
+                    "github": "bk-box",
+                    "mailto": "bk.box@rackspace.com",
+                    "ircnick": "BK"
+                },
+                {
+                    "name": "Ryan Walker",
+                    "sso": "ryan.walker",
+                    "github": "ryan-walker",
+                    "mailto": "ryan.walker@rackspace.com",
+                    "ircnick": "walker"
+                },
+                {
+                    "name": "Caleb Groom",
+                    "sso": "cgroom",
+                    "github": "cgroom",
+                    "mailto": "cgroom@rackspace.com",
+                    "ircnick": "cgroom"
+                }
+            ]
+        }
+    ],
+    "links": {
+        "Chat": "irc://irc.intra.rackspace.com:4986/checkmate",
+        "Email List": "checkmate@lists.rackspace.com",
+        "Code": "https://github.rackspace.com/checkmate/checkmate",
+        "Ticketing": "https://www15.v1host.com/RACKSPCE/",
+        "Bug Tracker": "https://github.rackspace.com/checkmate/checkmate/issues"
+    },
+    "dependent_services": [
+        "https://github.rackspace.com/GlobalServices/GlobalAuth/raw/master/devops.json",
+        "https://github.rackspace.com/resources/devops.json-files/raw/master/next_gen_servers.json",
+        "https://github.rackspace.com/resources/devops.json-files/raw/master/lbaas.json",
+        "https://github.rackspace.com/resources/devops.json-files/raw/master/dbaas.json"
+    ]
+}
