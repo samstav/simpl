@@ -1433,6 +1433,22 @@ WPBP = {
                     {
                         "name": "2 Gb",
                         "value": 2048
+                    },
+                    {
+                        "name": "4 Gb",
+                        "value": 4096
+                    },
+                    {
+                        "name": "8 Gb",
+                        "value": 8092
+                    },
+                    {
+                        "name": "16 Gb",
+                        "value": 16384
+                    },
+                    {
+                        "name": "30 Gb",
+                        "value": 30720
                     }
                 ]
             },
