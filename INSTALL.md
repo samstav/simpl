@@ -44,12 +44,12 @@ virtualenv. virtualenv will create a copy of your Python binary and setup your
 environment so that pip installs are placed in a local directory. This prevents
 developers from needing to escalate to root to run installs.
 
-    $ sudo apt-get install python-virtualenv
+    $ sudo easy_install virtualenv
     $ virtualenv ~/venv-checkmate
     $ source ~/venv-checkmate/bin/activate
     (venv-checkmate)$
 
-Notice the promt has changed to signify that the virtual environment is active.
+Notice the prompt has changed to signify that the virtual environment is active.
 To drop out of the virtual environment use the deactivate command:
 
     (venv-checkmate)$ deactive
