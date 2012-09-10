@@ -50,10 +50,17 @@ class Provider(RackspaceComputeProviderBase):
             region_catalog = self.get_catalog(context, type_filter='regions')
             legacy_regions = region_catalog.get('lists', {}).get('regions', {})
 
-            if region not in legacy_regions:
-                raise CheckmateException("Legacy set to spin up in '%s'. "
+            if not region:
+                pass  # region not specified. Assume blueprint does not care.
+            elif region not in legacy_regions:
+                if legacy_regions:
+                    raise CheckmateException("Legacy set to spin up in '%s'. "
                                          "Cannot provision servers in '%s'." %
                                         (legacy_regions.keys()[0], region))
+                else:
+                    LOG.warning("Region %s specified in deployment, but no "
+                            "regions are specified in the Legacy Compute "
+                            "catalog" % region)
             else:
                 LOG.warning("Region %s specified in deployment, but not in "
                             "Legacy Compute catalog" % region)
@@ -65,7 +72,7 @@ class Provider(RackspaceComputeProviderBase):
         if not image.isdigit():
             # Assume it is an OS name and find it
             for key, value in catalog['lists']['types'].iteritems():
-                if image == value['name']:
+                if image == value['name'] or image == value['os']:
                     LOG.debug("Mapping image from '%s' to '%s'" % (image, key))
                     image = key
                     break
@@ -208,8 +215,9 @@ class Provider(RackspaceComputeProviderBase):
             results['lists']['types'] = {
                     str(i.id): {
                         'name': i.name,
-                        'os': i.name,
-                        } for i in images if int(i.id) < 1000}
+                        'os': i.name.split(' - ')[0].replace(' LTS', ''),
+                        } for i in images if int(i.id) < 1000 and 'LAMP' not in
+                                i.name}
         if type_filter is None or type_filter == 'image':
             images = api.images.list()
             if 'lists' not in results:

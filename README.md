@@ -331,6 +331,9 @@ All calls are supported flat off of the root or under a tenant ID. Calls off of 
     POST [/:tid]/workflows/:id/tasks/:task_id/+resubmit
 
     GET [/:tid]/providers
+    GET [/:tid]/providers/:pid
+    GET [/:tid]/providers/:pid/catalog
+    GET [/:tid]/providers/:pid/catalog/:cid
 
     GET /status/celery
     GET /status/libraries
