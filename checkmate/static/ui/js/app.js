@@ -1323,7 +1323,7 @@ WPBP = {
             "register-dns": {
                 "default": false,
                 "type": "boolean",
-                "label": "Register DNS Name"
+                "label": "Add DNS Records"
             },
             "region": {
                 "required": true,
