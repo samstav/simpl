@@ -125,6 +125,10 @@
         "name": "RACKSPCE",
         "project": [151713],
         "auth": "cloud-platform-ci:L5PCOZe9NuH1"
+      },
+      "highscores": {
+        "url": "localhost",
+        "port": 3000
       }
     },
     "dependent_services": [
