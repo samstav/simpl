@@ -1106,9 +1106,9 @@ function DeploymentNewController($scope, $location, $routeParams, $resource, set
 }
 
 function DeploymentTryController($scope, $location, $routeParams, $resource, settings) {
-  $scope.environments = [WPENV];
+  $scope.environments = ENVIRONMENTS;
   $scope.blueprints = [WPBP];
-  var ctrl = new DeploymentInitController($scope, $location, $routeParams, $resource, WPBP, WPENV, settings);
+  var ctrl = new DeploymentInitController($scope, $location, $routeParams, $resource, WPBP, ENVIRONMENTS['next-gen'], settings);
   $scope.updateSettings();
   return ctrl;
 }
@@ -1594,8 +1594,9 @@ WPBP = {
         "name": "Managed Cloud WordPress"
     };
 //Default Environment
-WPENV = {
-        "description": "This environment tests legacy cloud servers. It is hard-targetted at chicago\nbecause the rackcloudtech legacy servers account is in chicago\n",
+ENVIRONMENTS = {
+    "legacy": {
+        "description": "This environment tests legacy cloud servers.",
         "name": "Legacy Cloud Servers",
         "providers": {
             "legacy": {},
@@ -1633,4 +1634,45 @@ WPENV = {
             "load-balancer": {},
             "database": {}
         }
-    };
+    },
+    "next-gen": {
+        "description": "This environment tests next-gen cloud servers.",
+        "name": "Next-Gen Open Cloud",
+        "providers": {
+            "nova": {},
+            "chef-local": {
+                "catalog": {
+                    "application": {
+                        "wordpress": {
+                            "is": "application",
+                            "id": "wordpress",
+                            "provides": [
+                                {
+                                    "application": "http"
+                                }
+                            ],
+                            "requires": [
+                              {"database": "mysql"},
+                              {"host": "linux"}
+                            ]
+                        }
+                    }
+                },
+                "vendor": "opscode",
+                "provides": [
+                    {
+                        "application": "http"
+                    },
+                    {
+                        "database": "mysql"
+                    }
+                ]
+            },
+            "common": {
+                "vendor": "rackspace"
+            },
+            "load-balancer": {},
+            "database": {}
+        }
+    }
+  };

@@ -147,21 +147,25 @@
     </div>
   </script>
 
+
   <script id="setting-combo" type="text/html">
     <label class="control-label capitalize {{#required}}required{{/required}}" for="{{id}}">{{label}}</label>
     <div class="controls">
-      <select id="{{id}}" ng-model="answers['{{id}}']" {{#required}}required{{/required}} onchange="proccess_choice(this,document.demoform.choicetext)" ng-options="o.value as o.name for o in setting.choice">
+      <select id="{{id}}" ng-model="answers['{{id}}']" {{#required}}required{{/required}} onchange="proccess_choice(this,document.setting-combo.choicetext)" ng-options="o.value as o.name for o in setting.choice">
       </select>
     </div>
+  <noscript>
+    <input type="text" name="choicetext">
+  </noscript>
   </script>
-<!--
+
 <script type="text/javascript" language="JavaScript">
   disa = ' disabled';
   if(last_choice(document.demoform.menu)) disa = '';
     document.write('<input type="text" name="choicetext"'+disa+' onfocus="check_choice()">');
   if(disa && document.styleSheets)
    document.demoform.choicetext.style.visibility  = 'hidden';
-</script>--!>
+</script>
 
   
 </section>
