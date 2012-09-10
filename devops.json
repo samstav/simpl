@@ -2,7 +2,7 @@
     "name": "Checkmate",
     "description": "Deployment tool.",
     "devops_version": "1.0",
-    "devopsJSON_URL": "https://github.rackspace.com/blob/master/devops.json",
+    "devopsJSON_URL": "https://github.rackspace.com/checkmate/checkmate/blob/master/devops.json",
     "tags": [
         "python",
         "rabbitmq",
