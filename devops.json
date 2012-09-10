@@ -2,7 +2,7 @@
     "name": "Checkmate",
     "description": "Deployment tool.",
     "devops_version": "1.0",
-    "devopsJSON_URL": "https://github.rackspace.com/blob/master/devops.json",
+    "devopsJSON_URL": "https://github.rackspace.com/checkmate/checkmate/blob/master/devops.json",
     "tags": [
         "python",
         "rabbitmq",
@@ -115,7 +115,21 @@
         "Email List": "checkmate@lists.rackspace.com",
         "Code": "https://github.rackspace.com/checkmate/checkmate",
         "Ticketing": "https://www15.v1host.com/RACKSPCE/",
-        "Bug Tracker": "https://github.rackspace.com/checkmate/checkmate/issues"
+        "Bug Tracker": "https://github.rackspace.com/checkmate/checkmate/issues",
+        "Jenkins": "http://cimaster-n01.cloudplatform.rackspace.net:8080/view/Checkmate/"
+    },
+    "related_apis": {
+      "version_one": {
+        "host": "www15.v1host.com",
+        "port": 443,
+        "name": "RACKSPCE",
+        "project": [151713],
+        "auth": "cloud-platform-ci:L5PCOZe9NuH1"
+      },
+      "highscores": {
+        "url": "localhost",
+        "port": 3000
+      }
     },
     "dependent_services": [
         "https://github.rackspace.com/GlobalServices/GlobalAuth/raw/master/devops.json",
