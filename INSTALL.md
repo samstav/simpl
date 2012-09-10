@@ -24,6 +24,19 @@ developed in an academic setting and needed significant patching to work with
 checkmate. For these projects, we maintain our own forks that need to be
 deployed with checkmate. All modifications are intended to be proposed upstream.
 
+## Requirements for Mac OSX
+
+You need:
+
+- python 2.7.1 with easy_install (available by default on OSX)
+- [git](http://git-scm.com/download) for source control
+- access to Rackspace internal github, so you must be on the Rackspace network
+  or on VPN.
+- a c-compiler (on Mac, install X-Code from the App Store and then install the
+  `Command Line tools` from XCode preferences/downloads). There is a separate
+  download also available here
+  https://developer.apple.com/downloads/index.action.
+
 ## Optional - Using Python Virtual Environment
 
 A recommended way to keep Python from installing libraries is to use
