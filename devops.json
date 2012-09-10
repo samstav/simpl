@@ -117,6 +117,15 @@
         "Ticketing": "https://www15.v1host.com/RACKSPCE/",
         "Bug Tracker": "https://github.rackspace.com/checkmate/checkmate/issues"
     },
+    "related_apis": {
+      "version_one": {
+        "host": "www15.v1host.com",
+        "port": 443,
+        "name": "RACKSPCE",
+        "project": [151713],
+        "auth": "cloud-platform-ci:L5PCOZe9NuH1"
+      }
+    },
     "dependent_services": [
         "https://github.rackspace.com/GlobalServices/GlobalAuth/raw/master/devops.json",
         "https://github.rackspace.com/resources/devops.json-files/raw/master/next_gen_servers.json",
