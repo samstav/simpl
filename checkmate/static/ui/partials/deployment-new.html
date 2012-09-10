@@ -151,21 +151,14 @@
   <script id="setting-combo" type="text/html">
     <label class="control-label capitalize {{#required}}required{{/required}}" for="{{id}}">{{label}}</label>
     <div class="controls">
-      <select id="{{id}}" ng-model="answers['{{id}}']" {{#required}}required{{/required}} onchange="proccess_choice(this,document.setting-combo.choicetext)" ng-options="o.value as o.name for o in setting.choice">
-      </select>
+       <input type="text" name="state" class="input-xlarge ng-model" id="{{id}}" ng-model="answers['{{id}}']"
+              {{#required}}required{{/required}} {{#regex}}ng-pattern="{{regex}}"{{/regex}}
+              {{#default}}value="{{default}}"{{/default}} {{#sample}}placeholder="{{sample}}"{{/sample}} />
+       <br />
+       <select name="s" id="{{id}}" ng-model="answers['{{id}}']" {{#required}}required{{/required}} ng-options="o for o in setting.choice" onchange="document.ex.state.value=document.ex.s.options[document.ex.s.selectedindex].value;document.ex.s.value=""><option value="" selected="selected">
+       </select>
     </div>
-  <noscript>
-    <input type="text" name="choicetext">
-  </noscript>
-  </script>
-
-<script type="text/javascript" language="JavaScript">
-  disa = ' disabled';
-  if(last_choice(document.demoform.menu)) disa = '';
-    document.write('<input type="text" name="choicetext"'+disa+' onfocus="check_choice()">');
-  if(disa && document.styleSheets)
-   document.demoform.choicetext.style.visibility  = 'hidden';
-</script>
-
+   </script>
+ 
   
 </section>

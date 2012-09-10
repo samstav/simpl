@@ -4,7 +4,9 @@ from SpiffWorkflow.operators import Attrib
 from SpiffWorkflow.specs import Celery
 
 from checkmate.providers import ProviderBase
-from checkmate.utils import match_celery_logging
+from checkmate.utils import match_celery_logging, with_tenant
+
+from bottle import get, request, response, route, abort
 
 LOG = logging.getLogger(__name__)
 
@@ -66,11 +68,11 @@ def parse_domain(domain_str):
     chunks = domain_str.split('.')
     return chunks[-2] + '.' + chunks[-1]
 
-""" Celery tasks """
 
-
-@task(default_retry_delay=10, max_retries=10)
-def get_domains(deployment, limit=None, offset=None):
+@get('/domains')
+@with_tenant
+def get_domains(tenant_id=None, limit=None, offset=None):
+    entity = read_body(request)
     match_celery_logging(LOG)
     api = _get_dns_object(deployment)
     try:
@@ -80,6 +82,11 @@ def get_domains(deployment, limit=None, offset=None):
     except Exception, exc:
         LOG.debug('Error retreiving domains. Error: %s. Retrying.' % exc)
         get_domains.retry(exc=exc)
+
+
+""" Celery tasks """
+
+
 
 
 @task(default_retry_delay=10, max_retries=10)

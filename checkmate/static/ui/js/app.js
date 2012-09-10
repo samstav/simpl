@@ -267,32 +267,6 @@ function AppController($scope, $http, $location) {
   }
   
 
-    $scope.getDomains = function(limit, offset){
-      if ($scope.auth.loggedIn){
-          var domain_names = [];
-          var token = checkmate.config.header_defaults.headers.common['X-Auth-Token'];
-          var api_url = 'ttps://dns.api.rackspacecloud.com/v1.0/' + $scope.auth.tenantId + '/domains?limits='               + limit + '&offset=' + offset;
-          headers = {"X-Auth-Token": token};
-          return $.ajax({
-              type: "GET",
-              contentType: "application/json; charset=utf-8",
-              headers: headers,
-              dataType: "json",
-              url: api_url
-          }).success(function(json) {
-              var domains = json.domains;
-              var domain_names=[];
-              for(var i=0; i < domains.length; i++){
-                  domain_names.push(domains[i].name);
-              }
-              return domain_names;
-          }).error(function(response) {
-              return [];
-          });
-      }
-    return [];
-  }
-
    $scope.generatePassword = function() {
       if (parseInt(navigator.appVersion) <= 3) {
           alert("Sorry this only works in 4.0+ browsers");
@@ -1138,6 +1112,35 @@ function DeploymentInitController($scope, $location, $routeParams, $resource, bl
     });
   };
 
+  //Retrieve existing domains
+  
+    $scope.getDomains = function(limit, offset){
+      if ($scope.auth.loggedIn){
+          console.log("LOGGED IN");
+          var domain_names = [];
+          var token = checkmate.config.header_defaults.headers.common['X-Auth-Token'];
+          var api_url = 'https://dns.api.rackspacecloud.com/v1.0/' + $scope.auth.tenantId + '/domains?limits='               + limit + '&offset=' + offset;
+          headers = {"X-Auth-Token": token};
+          return $.ajax({
+              type: "GET",
+              contentType: "application/json; charset=utf-8",
+              headers: headers,
+              dataType: "json",
+              url: api_url
+          }).success(function(json) {
+              var domains = json.domains;
+              var domain_names=[];
+              for(var i=0; i < domains.length; i++){
+                  domain_names.push(domains[i].name);
+              }
+              return domain_names;
+          }).error(function(response) {
+              return [];
+          });
+      }
+    return [];
+  }
+
   // Display settings using templates for each type
   $scope.renderSetting = function(setting) {
     if (!setting) {
@@ -1151,6 +1154,9 @@ function DeploymentInitController($scope, $location, $routeParams, $resource, bl
       return "<em>" + message + "</em>";
     }
     var lowerType = setting.type.toLowerCase().trim();
+    if (lowerType == "combo") {
+        setting.choice = $scope.getDomains(0,1);
+    }
     if (lowerType == "select") {
       if ("choice" in setting) {
         if (!_.isString(setting.choice[0]))
@@ -1188,7 +1194,6 @@ function DeploymentInitController($scope, $location, $routeParams, $resource, bl
       var setting = _.find($scope.settings, function(item) {
         if (item.id == key){
           return item;
-          console.log("ITEM: "+item);
         }
         return null;
       });
@@ -1249,6 +1254,7 @@ function DeploymentInitController($scope, $location, $routeParams, $resource, bl
     });
   }
 }
+
 
 /*
  * other stuff
@@ -1317,12 +1323,6 @@ WPBP = {
             }
         },
         "options": {
-            "override": {
-                "description": "Enter a blueprint to override all options",
-                "label": "Override",
-                "type": "text",
-                "sample": "BLUEPRINT"
-            },
             "domain": {
                 "regex": "^(([a-zA-Z]|[a-zA-Z][a-zA-Z0-9\\-]*[a-zA-Z0-9])\\.)*([A-Za-z]|[A-Za-z][A-Za-z0-9\\-]*[A-Za-z0-9])$",
                 "constrains": [
@@ -1337,16 +1337,6 @@ WPBP = {
                 "sample": "example.com",
                 "type": "combo",
                 "choice": [
-                    {
-                        "name":"DNS-1",
-                        "value": 0
-                    }, {
-                        "name":"DNS-2",
-                        "value": 1
-                    }, {
-                        "name":"New Domain",
-                        "value":"other"
-                    }
                 ]
             },
             "path": {
