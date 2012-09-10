@@ -115,7 +115,8 @@
         "Email List": "checkmate@lists.rackspace.com",
         "Code": "https://github.rackspace.com/checkmate/checkmate",
         "Ticketing": "https://www15.v1host.com/RACKSPCE/",
-        "Bug Tracker": "https://github.rackspace.com/checkmate/checkmate/issues"
+        "Bug Tracker": "https://github.rackspace.com/checkmate/checkmate/issues",
+        "Jenkins": "http://cimaster-n01.cloudplatform.rackspace.net:8080/view/Checkmate/"
     },
     "related_apis": {
       "version_one": {
