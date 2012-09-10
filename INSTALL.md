@@ -28,7 +28,7 @@ deployed with checkmate. All modifications are intended to be proposed upstream.
 
 You need:
 
-- python 2.7.1 with easy_install (available by default on OSX)
+- python 2.7.1 or greater with easy_install (available by default on OSX)
 - [git](http://git-scm.com/download) for source control
 - access to Rackspace internal github, so you must be on the Rackspace network
   or on VPN.
