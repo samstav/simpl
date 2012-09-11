@@ -66,4 +66,5 @@ Vagrant::Config.run do |config|
   end
 
   config.vm.forward_port 8080, 8080
+  config.vm.forward_port 8008, 8008
 end
