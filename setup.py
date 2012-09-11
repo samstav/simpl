@@ -53,7 +53,7 @@ setup(
                       'SQLAlchemy==0.7.8',
                       'sqlalchemy-migrate==0.7.2',
                       'WebOb==1.2.2',
-                      'prettytable==0.6',
+                      'prettytable>=0.6',
                       ],
     entry_points={
         'console_scripts': [
