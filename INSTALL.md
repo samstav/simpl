@@ -24,6 +24,19 @@ developed in an academic setting and needed significant patching to work with
 checkmate. For these projects, we maintain our own forks that need to be
 deployed with checkmate. All modifications are intended to be proposed upstream.
 
+## Requirements for Mac OSX
+
+You need:
+
+- python 2.7.1 or greater with easy_install (available by default on OSX)
+- [git](http://git-scm.com/download) for source control
+- access to Rackspace internal github, so you must be on the Rackspace network
+  or on VPN.
+- a c-compiler (on Mac, install X-Code from the App Store and then install the
+  `Command Line tools` from XCode preferences/downloads). There is a separate
+  download also available here
+  https://developer.apple.com/downloads/index.action.
+
 ## Optional - Using Python Virtual Environment
 
 A recommended way to keep Python from installing libraries is to use
@@ -31,12 +44,12 @@ virtualenv. virtualenv will create a copy of your Python binary and setup your
 environment so that pip installs are placed in a local directory. This prevents
 developers from needing to escalate to root to run installs.
 
-    $ sudo apt-get install python-virtualenv
+    $ sudo easy_install virtualenv
     $ virtualenv ~/venv-checkmate
     $ source ~/venv-checkmate/bin/activate
     (venv-checkmate)$
 
-Notice the promt has changed to signify that the virtual environment is active.
+Notice the prompt has changed to signify that the virtual environment is active.
 To drop out of the virtual environment use the deactivate command:
 
     (venv-checkmate)$ deactive
@@ -51,6 +64,7 @@ and place them in your local directory.
     $ git clone git://github.rackspace.com/checkmate/checkmate.git
     $ cd checkmate
     $ pip install -r pip-requirements.txt
+    $ python setup.py install
     $ cd ..
 
 ## Install Chef
@@ -120,4 +134,12 @@ Start the queue service:
 Start the Checkmate API and UI service:
 
     $ bin/checkmate-server START --with-ui
-    $ bin/checkmate-server START --with-ui 0.0.0.0:8000 # Specify alternate IP:Port
+    # To specify an alternate IP:Port
+    $ bin/checkmate-server START --with-ui 0.0.0.0:8000
+
+
+Note: A shortcut for creating the environment and running a checkmate server
+using only an in-memory database and broker is:
+
+    $ python tools/install_venv.py
+    $ tools/with_venv.sh bin/checkmate-server START --with-ui
