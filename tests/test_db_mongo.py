@@ -5,7 +5,7 @@ import unittest2 as unittest
 import uuid
 
 from pymongo import Connection
-from pymongo.errors import AutoReconnect
+from pymongo.errors import AutoReconnect, InvalidURI
 
 # Init logging before we load the database, 3rd party, and 'noisy' modules
 from checkmate.utils import init_console_logging
@@ -15,11 +15,17 @@ LOG = logging.getLogger(__name__)
 from checkmate import db
 
 SKIP = False
+REASON = ""
 try:
     from checkmate.db import mongodb
 except AutoReconnect:
     LOG.warn("Could not connect to mongodb. Skipping mongodb tests")
     SKIP = True
+    REASON = "Could not connect to mongodb"
+except InvalidURI:
+    LOG.warn("Not configured for mongodb. Skipping mongodb tests")
+    SKIP = True
+    REASON = "Configured to connect to non-mongo URI"
 from checkmate.utils import extract_sensitive_data
 
 
@@ -43,7 +49,7 @@ class TestDatabase(unittest.TestCase):
             LOG.error("Error deleting test mongodb '%s': %s" % (self.db_name,
                                                               exc))
 
-    @unittest.skipIf(SKIP, "Could not connect to mongodb")
+    @unittest.skipIf(SKIP, REASON)
     def test_components(self):
         entity = {'id': 1,
                   'name': 'My Component',
@@ -79,7 +85,7 @@ class TestDatabase(unittest.TestCase):
         self.assertEqual(results.keys(), [1])
         self.assertDictEqual(results.values()[0], body)
 
-    @unittest.skipIf(SKIP, "Could not connect to mongodb")
+    @unittest.skipIf(SKIP, REASON)
     def test_hex_id(self):
         id = uuid.uuid4().hex
         results = self.driver.save_component(id, dict(id=id), None,
@@ -88,13 +94,13 @@ class TestDatabase(unittest.TestCase):
         self.assertNotIn('_id', results, "Backend field '_id' should not be "
                          "exposed outside of driver")
 
-    @unittest.skipIf(SKIP, "Could not connect to mongodb")
+    @unittest.skipIf(SKIP, REASON)
     def test_no_id_in_body(self):
         id = uuid.uuid4().hex
         self.assertRaises(Exception, self.driver.save_component, id, {}, None,
             tenant_id='T1000')
 
-    @unittest.skipIf(SKIP, "Could not connect to mongodb")
+    @unittest.skipIf(SKIP, REASON)
     def test_multiple_objects(self):
         expected = {}
         for i in range(4):

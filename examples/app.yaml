@@ -499,16 +499,16 @@ includes:
           name: 512 Mb
         - value: 1024
           name: 1 Gb
-	- value: 2048
-	  name: 2 Gb
-	- value: 4096
-	  name: 4 Gb
-	- value: 8192
-	  name: 8 Gb
-	- value: 16384
-	  name: 16 Gb
-	- value: 30720
-	  name: 30 Gb
+        - value: 2048
+          name: 2 Gb
+        - value: 4096
+          name: 4 Gb
+        - value: 8192
+          name: 8 Gb
+        - value: 16384
+          name: 16 Gb
+        - value: 30720
+          name: 30 Gb
         constrains: [{service: web, resource_type: compute, setting: size},{service: master, resource_type: compute, setting: size}]
       "os":
         default: Ubuntu 12.04
