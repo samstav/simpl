@@ -1301,8 +1301,11 @@ def main_func():
                 ip, port = supplied.split(':')
             else:
                 ip = supplied
+    server = 'wsgiref'
+    if '--eventlet' in sys.argv:
+        server = 'eventlet'
     run(app=next, host=ip, port=port, reloader=True,
-            server='wsgiref')
+            server=server)
 
 #
 # Main function

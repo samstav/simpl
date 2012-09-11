@@ -350,6 +350,7 @@ Options:
         --with-ui:  enable support for browsers and HTML templates
         --newrelic: enable newrelic monitoring (place newrelic.ini in your
                     directory)
+        --eventlet: use the eventlet server (recommended in production)
         --quiet:    turn down logging to WARN (default is INFO)
         --verbose:  turn up logging to DEBUG (default is INFO)
         --debug:    turn on additional debugging inspection and output
