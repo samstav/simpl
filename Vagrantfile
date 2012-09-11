@@ -23,6 +23,7 @@ Vagrant::Config.run do |config|
     chef.add_recipe "rabbitmq"
     chef.add_recipe "mongodb::10gen_repo"
     chef.add_recipe "mongodb"
+    chef.add_recipe "checkmate"
     chef.add_recipe "checkmate::broker"
     chef.add_recipe "checkmate::worker"
     chef.add_recipe "checkmate::webui"
@@ -66,5 +67,5 @@ Vagrant::Config.run do |config|
   end
 
   config.vm.forward_port 8080, 8080
-  config.vm.forward_port 8008, 8008
+  config.vm.forward_port 5555, 5555
 end
