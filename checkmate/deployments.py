@@ -115,7 +115,7 @@ def parse_deployment():
     return write_body(results, request, response)
 
 
-@route('/deployment/<oid>', method=['POST', 'PUT'])
+@route('/deployments/<oid>', method=['POST', 'PUT'])
 @with_tenant
 def update_deployment(oid, tenant_id=None):
     entity = read_body(request)
