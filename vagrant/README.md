@@ -4,7 +4,7 @@
 Follow these instructions to spin up an Ubuntu 12.04 VM with your current 
 Checkmate code installed and running.
 
-Install [Vagrant](http://vagrantup.com/) and [VirtualBox](https://www.virtualbox.org/),
+Install [Vagrant](http://vagrantup.com/) (make sure you have version >= v1.0.3) and [VirtualBox](https://www.virtualbox.org/),
 then execute these commands:
 
     $ gem install librarian
