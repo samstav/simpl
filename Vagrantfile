@@ -38,6 +38,9 @@ Vagrant::Config.run do |config|
         :server => {
           :args => '--with-ui --debug 0.0.0.0:8080',
         },
+        :celeryd => {
+           :loglevel => 'DEBUG',
+        },
         :amqp => {
           :username => "checkmate",
           :password => "Ch3ckm4te!",
