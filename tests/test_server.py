@@ -10,14 +10,6 @@ from checkmate.server import TenantMiddleware, ContextMiddleware, \
 
 os.environ['CHECKMATE_DATA_PATH'] = os.path.join(os.path.dirname(__file__),
                                               'data')
-os.environ['CHECKMATE_BROKER_USERNAME'] = os.environ.get(
-        'CHECKMATE_BROKER_USERNAME', 'checkmate')
-os.environ['CHECKMATE_BROKER_PASSWORD'] = os.environ.get(
-        'CHECKMATE_BROKER_PASSWORD', 'password')
-os.environ['CHECKMATE_BROKER_HOST'] = os.environ.get('CHECKMATE_BROKER_HOST',
-        'localhost')
-os.environ['CHECKMATE_BROKER_PORT'] = os.environ.get('CHECKMATE_BROKER_PORT',
-        '5672')
 
 
 class TestServer(unittest.TestCase):
@@ -28,18 +20,6 @@ class TestServer(unittest.TestCase):
         tenant = TenantMiddleware(root_app)
         context = ContextMiddleware(tenant)
         self.app = TestApp(context)
-
-    def test_REST_deployment(self):
-        self.rest_exercise('deployment')
-
-    def test_REST_environment(self):
-        self.rest_exercise('environment')
-
-    def test_REST_component(self):
-        self.rest_exercise('component')
-
-    def test_REST_blueprint(self):
-        self.rest_exercise('blueprint')
 
     def test_multitenant_deployment(self):
         self.rest_tenant_exercise('deployment')
