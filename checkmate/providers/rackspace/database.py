@@ -362,7 +362,7 @@ def create_instance(context, instance_name, size, flavor, databases, region,
     return results
 
 
-@task(default_retry_delay=10, max_retries=10)
+@task(default_retry_delay=10, max_retries=50)
 def create_database(context, name, region, character_set=None, collate=None,
         instance_id=None, instance_attributes=None, api=None):
     """Create a database resource.
@@ -413,7 +413,8 @@ def create_database(context, name, region, character_set=None, collate=None,
         return results
 
     instance = api.get_instance(instance_id)
-
+    if instance.status != "ACTIVE":
+        create_database.retry()
     try:
         instance.create_databases(databases)
         results = {
