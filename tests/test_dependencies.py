@@ -10,7 +10,7 @@ LOG = logging.getLogger(__name__)
 
 class TestDependencies(unittest.TestCase):
     """Test critical and unusual dependencies
-    
+
     Unusual = forks of public projects, depedencies that need complicated
               libraries (like openssh), etc...
     """
@@ -36,13 +36,13 @@ class TestDependencies(unittest.TestCase):
         """Test that we can instantiate PAM"""
         import pam
 
-
     def test_celery_version(self):
         """Test that we can instantiate YAML"""
         import celery
         version = [int(part) for part in celery.__version__.split(".")]
         self.assertGreaterEqual(version, [3, 0, 9], "Checkmate expects celery "
                                 "version 3.0.9 or later")
+
     def test_yaml_version(self):
         """Test that we can instantiate YAML"""
         import yaml
@@ -60,6 +60,7 @@ class TestDependencies(unittest.TestCase):
         version = [int(part) for part in version.split(".")]
         self.assertGreaterEqual(version, [0, 3, 2], "Checkmate expects "
                                 "SpiffWorkflow version 0.3.2 or later")
+
 
 if __name__ == '__main__':
     # Run tests. Handle our paramsters separately
