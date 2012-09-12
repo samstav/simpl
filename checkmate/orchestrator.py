@@ -87,6 +87,8 @@ def create_simple_server(context, name, image=214, flavor=1,
     wf.get_task(3).set_attribute(context=context)
 
     serializer = DictionarySerializer()
+    body=wf.serialize(serializer)
+    body['id']=create_simple_server.request.id
     db.save_workflow(create_simple_server.request.id,
                      wf.serialize(serializer))
 
@@ -174,6 +176,7 @@ class run_workflow(AbortableTask):
                 updated = wf.serialize(serializer)
                 body, secrets = extract_sensitive_data(updated)
                 body['tenantId'] = workflow.get('tenantId')
+                body['id'] = id
                 db.save_workflow(id, body, secrets)
                 wait = 1
 
