@@ -432,16 +432,16 @@ CHECKMATE_PRIVATE_KEY
 
 ## Checkmate Installation
 
-See (install.md)[INSTALL.md] for installing Checkmate as a production service or
+See the INSTALL.md file for installing Checkmate as a production service or
 for development.
 
 
-### Authentication
+## Authentication
 
 
 Checkmate supports multiple authentication protocols and endpoints simultaneously. If it is started with a web UI (using the --with-ui) option, it will also support basic auth for browser friendliness.
 
-#### Authenticating through a Browser
+### Authenticating through a Browser
 
 By default, three authentication domains are enabled. In a browser, if you are prompted for credentials, enter the following:
 
@@ -451,7 +451,7 @@ By default, three authentication domains are enabled. In a browser, if you are p
 
 - To log in to a Rackspace UK Cloud Account: use UK\username and password.
 
-#### Authenticating using REST HTTP calls
+### Authenticating using REST HTTP calls
 
 Checkmate supports standard Rackspace\OpenStack authentication with a token. Get a token from your auth endpoint (US or UK!) and provide it in the X-Auth-Header:
 
