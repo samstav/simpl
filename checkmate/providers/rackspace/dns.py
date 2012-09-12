@@ -3,6 +3,7 @@ import logging
 from SpiffWorkflow.operators import Attrib
 from SpiffWorkflow.specs import Celery
 
+from checkmate.exceptions import CheckmateException, CheckmateNoTokenError
 from checkmate.providers import ProviderBase
 from checkmate.utils import match_celery_logging
 
@@ -44,6 +45,42 @@ class Provider(ProviderBase):
 
         return results
 
+    @staticmethod
+    def _connect(context):
+        """Use context info to connect to API and return api object"""
+        #FIXME: figure out better serialization/deserialization scheme
+        if isinstance(context, dict):
+            from checkmate.server import RequestContext
+            context = RequestContext(**context)
+        if not context.auth_token:
+            raise CheckmateNoTokenError()
+
+        class CloudDNS_Auth_Proxy():
+            """We pass this class to clouddns for it to use instead of its own
+            auth mechanism"""
+            def __init__(self, url, token):
+                self.url = url
+                self.token = token
+
+            def authenticate(self):
+                """Called by clouddns. Expects back a url and token"""
+                return (self.url, self.token)
+
+        def find_url(catalog):
+            for service in catalog:
+                if service['name'] == 'cloudDNS':
+                    endpoints = service['endpoints']
+                    for endpoint in endpoints:
+                        return endpoint['publicURL']
+
+        url = find_url(context.catalog)
+        token = context.auth_token
+        proxy = CloudDNS_Auth_Proxy(url=url, token=token)
+        api = clouddns.connection.Connection(auth=proxy)
+        LOG.debug("Connected to cloud DNS using token of length %s "
+                  "and url of %s" % (len(token), url))
+        return api
+
 
 """
   Celery tasks to manipulate Rackspace Cloud DNS
@@ -54,10 +91,7 @@ from clouddns.errors import UnknownDomain, ResponseError, InvalidDomainName
 
 
 def _get_dns_object(context):
-    # Until python-clouddns is patched to accept pre-existing API
-    # tokens, we'll have to re-auth.
-    return clouddns.connection.Connection(context['username'],
-                                          context['apikey'])
+    return Provider._connect(context)
 
 
 def parse_domain(domain_str):
