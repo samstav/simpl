@@ -24,6 +24,7 @@ Vagrant::Config.run do |config|
     chef.add_recipe "mongodb::10gen_repo"
     chef.add_recipe "mongodb"
     chef.add_recipe "checkmate"
+    chef.add_recipe "checkmate::vagrant"
     chef.add_recipe "checkmate::broker"
     chef.add_recipe "checkmate::worker"
     chef.add_recipe "checkmate::webui"
@@ -36,7 +37,7 @@ Vagrant::Config.run do |config|
           :revision => "master"
         },
         :server => {
-          :args => '--with-ui --debug 0.0.0.0:8080',
+          :args => '--with-ui --eventlet --debug 0.0.0.0:8080',
         },
         :celeryd => {
            :loglevel => 'DEBUG',
