@@ -100,8 +100,8 @@ class Provider(ProviderBase):
             if password:
                 start_with = string.ascii_uppercase + string.ascii_lowercase
                 if password[0] not in start_with:
-                    raise CheckmateException("Database password must start with "
-                            "one of '%s'" % start_with)
+                    raise CheckmateException("Database password must start "
+                            "with one of '%s'" % start_with)
 
             # Create resource tasks
             create_database_task = Celery(wfspec, 'Create Database',

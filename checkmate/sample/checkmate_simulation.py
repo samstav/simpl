@@ -8,7 +8,7 @@ print """
 *** Checkmate Server Simulator ***
 
 Executes examples/app.yaml in simulation mode. This is for testing
-and learning about CheckMate
+and learning about Checkmate
 
 Usage:
 

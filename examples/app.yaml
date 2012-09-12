@@ -380,7 +380,7 @@ includes:
         # TO TEST: for multiple configs
         # take web1, give it lsyncd-master config
         # all others, give them lsyncd-slave
-      "backend": #TODO: remove hard coding against this name. Think about what these names mean. These are basically tiers...
+      "backend":
         component:
           type: database
           interface: mysql
