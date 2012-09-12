@@ -8,16 +8,20 @@ if 'CHECKMATE_BROKER_URL' in os.environ:
     BROKER_URL = os.environ['CHECKMATE_BROKER_URL']
 elif 'CHECKMATE_BROKER_HOST' in os.environ:
     broker = {
-     'username': os.environ.get('CHECKMATE_BROKER_USERNAME'),
-     'password': os.environ.get('CHECKMATE_BROKER_PASSWORD'),
-     'host': os.environ('CHECKMATE_BROKER_HOST', 'localhost'),
-     'port': os.environ('CHECKMATE_BROKER_PORT')
-    }
+            'username': os.environ.get('CHECKMATE_BROKER_USERNAME'),
+            'password': os.environ.get('CHECKMATE_BROKER_PASSWORD'),
+            'host': os.environ('CHECKMATE_BROKER_HOST', 'localhost'),
+            'port': os.environ('CHECKMATE_BROKER_PORT')
+        }
+    BROKER_URL = "amqp://%s:%s@%s:%s/checkmate" % (broker['username'],
+                                              broker['password'],
+                                              broker['host'],
+                                              broker['port'])
 else:
     # Only use this for development
-    LOG.warning('An in-memory database is being used as a broker. Only se this'
-                ' in testing')
-    BROKER_URL="sqla+sqlite://"
+    LOG.warning("An in-memory database is being used as a broker. Only use "
+                " this setting when testing or during development")
+    BROKER_URL = "sqla+sqlite://"
 
 # This would be a message queue only config, but won't work with Checkmate
 # since checkmate needs to query task results and status
