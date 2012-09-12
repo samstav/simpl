@@ -1409,9 +1409,9 @@ def download_roles(environment, path=None, roles=None, source=None):
     repo_path = _get_repo_path()
 
     if not os.path.exists(repo_path):
-        git.Repo.clone_from('git://github.rackspace.com/ManagedCloud/'
-                'chef-stockton.git', repo_path)
-        LOG.info("Cloned chef-stockton to %s" % repo_path)
+        rax_repo = 'git://github.rackspace.com/ManagedCloud/chef-stockton.git'
+        git.Repo.clone_from(rax_repo, repo_path)
+        LOG.info("Cloned chef-stockton from %s to %s" % (rax_repo, repo_path))
     else:
         LOG.debug("Getting roles from %s" % repo_path)
 
