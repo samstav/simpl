@@ -52,12 +52,25 @@ developers from needing to escalate to root to run installs.
 Notice the prompt has changed to signify that the virtual environment is active.
 To drop out of the virtual environment use the deactivate command:
 
-    (venv-checkmate)$ deactive
+    (venv-checkmate)$ deactivate
     $
 
 For the rest of these instructions it is recommended that you stay inside the
 virtual environment so that the setup.py files do not require root permissions
 and place them in your local directory.
+
+If you do not wish to use a virtual environment and want to develop using your
+system python, you can set up all requirements using the following commands:
+
+    # Install forks and other non-standard dependencies
+    $ sudo pip install -r pip-requirements.txt
+
+    # Install dependencies for running tests
+    $ sudo pip install -r tools/test-requirements.txt
+
+    # Point your system's python to your source code for checkmate libraries
+    $ sudo python setup.py develop
+
 
 ## Install Checkmate from source
 
