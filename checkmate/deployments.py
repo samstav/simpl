@@ -89,8 +89,30 @@ def post_deployment(tenant_id=None):
 
 @post('/deployments/+parse')
 @with_tenant
-def parse_deployment():
-    """ Use this to preview a request """
+def parse_deployment(tenant_id=None):
+    """Parse a deployment and return the parsed response"""
+    entity = read_body(request)
+    if 'deployment' in entity:
+        entity = entity['deployment']
+
+    if 'id' not in entity:
+        entity['id'] = uuid.uuid4().hex
+    if any_id_problems(entity['id']):
+        abort(406, any_id_problems(entity['id']))
+
+    # Validate syntax
+    deployment = Deployment(entity)
+    if 'includes' in deployment:
+        del deployment['includes']
+
+    results = plan(deployment, request.context)
+    return write_body(results, request, response)
+
+
+@post('/deployments/+preview')
+@with_tenant
+def preview_deployment(tenant_id=None):
+    """Parse and preview a deployment and its workflow"""
     entity = read_body(request)
     if 'deployment' in entity:
         entity = entity['deployment']

@@ -315,6 +315,8 @@ All calls are supported flat off of the root or under a tenant ID. Calls off of 
 
     GET/POST [/:tid]/deployments
     PUT/GET/POST [/:tid]/deployments/:id
+    POST [/:tid]/deployments/+parse
+    POST [/:tid]/deployments/+preview
 
     GET [/:tid]/deployments/:id/status
 
