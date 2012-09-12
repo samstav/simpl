@@ -380,6 +380,9 @@ class ProviderBase(ProviderBasePlanningMixIn, ProviderBaseWorkflowMixIn):
             return password
         raise CheckmateException("Unsupported function: %s" % function_string)
 
+    def proxy(self, path, request, tenant_id=None):
+        """Proxy request through to provider"""
+        raise CheckmateException("Provider does not support call")
 
 def register_providers(providers):
     """Add provider classes to list of available providers"""

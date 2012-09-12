@@ -45,6 +45,26 @@ class Provider(ProviderBase):
 
         return results
 
+    def proxy(self, path, request, tenant_id=None):
+        """Proxy request through to provider"""
+        if not path:
+            raise CheckmateException("Provider expects "
+                                     "{version}/{tenant}/{path}")
+        parts = path.split("/")
+        if len(parts) < 2:
+            raise CheckmateException("Provider expects "
+                                     "{version}/{tenant}/{path}")
+        version = parts[0]
+        tenant_id = parts[1]
+        resource = parts[2]
+        if resource == "domains":
+            api = _get_dns_object(request.context)
+            domains = api.list_domains_info()
+            return domains
+
+        raise CheckmateException("Provider does not support the resource "
+                                 "'%s'" % resource)
+
     @staticmethod
     def _connect(context):
         """Use context info to connect to API and return api object"""

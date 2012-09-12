@@ -232,6 +232,10 @@ def get_provider_component(provider_id, component_id, tenant_id=None):
         abort(404, "Component %s not found or not available under this "
                 "provider (%s)" % (component_id, provider_id))
 
+#
+# @route('/providers/<provider_id>/proxy/<path:path>') is added by the
+# BrowserMiddleware to support proxy calls to providers from the UI
+#
 
 #
 # Environment Code
