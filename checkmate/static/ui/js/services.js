@@ -646,7 +646,7 @@ services.value('settings', {
 services.config(function ($httpProvider) {
         $httpProvider.responseInterceptors.push('myHttpInterceptor');
         var startFunction = function (data, headersGetter) {
-            console.log('Started call');
+             console.log('Started call');
 			if ('requests' in checkmate) {
 				checkmate.requests += 1;
 			} else

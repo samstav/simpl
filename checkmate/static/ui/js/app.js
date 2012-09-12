@@ -101,6 +101,7 @@ checkmate.config(['$routeProvider', '$locationProvider', '$httpProvider', functi
   $locationProvider.html5Mode(true);
   // Hack to get access to them later
   checkmate.config.header_defaults = $httpProvider.defaults;
+  console.log("defaults: "+$httpProvider.defaults);
   $httpProvider.defaults.headers.common['Accept'] = "application/json";
   $httpProvider.defaults.headers.post['Content-Type'] = "application/json;charset=utf-8";
   
@@ -156,10 +157,14 @@ function LegacyController($scope, $location, $routeParams, $resource, navbar, $w
   $scope.templateUrl = path;
 
   $scope.save = function() {
+    console.log("This function?");
     if ($scope.auth.loggedIn) {
       var klass = $resource($location.path());
+      console.log("klass: "+klass);
       var thang = new klass(JSON.parse(Editor.getValue()));
+      console.log("thang: "+thang);
       thang.$save(function(returned, getHeaders){
+          console.log("thang saving");
           alert('Saved');
           console.log(returned);
         }, function(error) {
@@ -1112,32 +1117,23 @@ function DeploymentInitController($scope, $location, $routeParams, $resource, bl
     });
   };
 
-  //Retrieve existing domains
-  
-    $scope.getDomains = function(limit, offset){
-      if ($scope.auth.loggedIn){
-          console.log("LOGGED IN");
-          var domain_names = [];
-          var token = checkmate.config.header_defaults.headers.common['X-Auth-Token'];
-          var api_url = 'https://dns.api.rackspacecloud.com/v1.0/' + $scope.auth.tenantId + '/domains?limits='               + limit + '&offset=' + offset;
-          headers = {"X-Auth-Token": token};
-          return $.ajax({
-              type: "GET",
-              contentType: "application/json; charset=utf-8",
-              headers: headers,
-              dataType: "json",
-              url: api_url
-          }).success(function(json) {
-              var domains = json.domains;
-              var domain_names=[];
-              for(var i=0; i < domains.length; i++){
-                  domain_names.push(domains[i].name);
-              }
-              return domain_names;
-          }).error(function(response) {
-              return [];
-          });
-      }
+  //Retrieve existing domains  
+  $scope.getDomains = function(limit, offset){
+    if ($scope.auth.loggedIn){
+      console.log("getting domains");
+      url = '/:tenantId/../../providers/rackspace/dns/domains';
+      var Creds = $resource(url, {tenantId: $scope.auth.tenantId});
+      var creds = new Creds({});
+      creds.token = $scope.auth.catalog.access.token.id;
+      console.log("token: "+creds.token);
+      creds.query(function(returned, getHeaders) {
+        var domains = returned;
+        return domains;
+      }, function(error) {
+           console.log("Error retrieving domains");
+           return [];
+      });
+    }
     return [];
   }
 
@@ -1154,6 +1150,7 @@ function DeploymentInitController($scope, $location, $routeParams, $resource, bl
       return "<em>" + message + "</em>";
     }
     var lowerType = setting.type.toLowerCase().trim();
+    // Might eventually have more than one combo option - update if statement to check for "domains" id
     if (lowerType == "combo") {
         setting.choice = $scope.getDomains(0,1);
     }
@@ -1183,6 +1180,7 @@ function DeploymentInitController($scope, $location, $routeParams, $resource, bl
       url += '/simulate';
     var Deployment = $resource(url, {tenantId: $scope.auth.tenantId});
     var deployment = new Deployment({});
+    console.log("deployment: "+deployment);
     deployment.blueprint = $scope.blueprint;
     deployment.environment = $scope.environment;
     deployment.inputs = {};

@@ -55,11 +55,13 @@ import clouddns
 from clouddns.errors import UnknownDomain, ResponseError, InvalidDomainName
 
 
-def _get_dns_object(context):
+def _get_dns_object(context, tenant_id=None):
     # Until python-clouddns is patched to accept pre-existing API
     # tokens, we'll have to re-auth.
-    return clouddns.connection.Connection(context['username'],
-                                          context['apikey'])
+    if tenant_id:
+        return clouddns.connection.Connection(token=context['token'], tenant_id=tenant_id)
+    return clouddns.connection.Connection(username=context['username'],
+                                          api_key=context['apikey'])
 
 
 def parse_domain(domain_str):
@@ -72,9 +74,13 @@ def parse_domain(domain_str):
 @get('/domains')
 @with_tenant
 def get_domains(tenant_id=None, limit=None, offset=None):
-    entity = read_body(request)
-    match_celery_logging(LOG)
-    api = _get_dns_object(deployment)
+    print "we got hit!!"
+    creds = read_body(request)
+    print "creds: %s" % creds
+    if tenant_id:
+        api = _get_dns_object(creds,tenant_id)
+    else:
+        api = _get_dns_object(creds)
     try:
         domains = api.list_domains_info(limit=limit, offset=offset)
         LOG.debug('Successfully retreived domains.')
