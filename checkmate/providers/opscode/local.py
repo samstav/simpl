@@ -1774,28 +1774,33 @@ def check_all_output(params):
         t.start()
         return t
 
-    def consume(infile, output):
+    def consume(infile, output, errors):
         for line in iter(infile.readline, ''):
             output(line)
+            if 'FATAL' in line:
+                errors(line)
         infile.close()
 
     p = Popen(params, stdout=PIPE, stderr=PIPE, bufsize=1, close_fds=ON_POSIX)
 
     # preserve last N lines of stdout and stderr
     N = 100
-    queue = deque(maxlen=N)
+    queue = deque(maxlen=N)  # will capture output
+    errors = deque(maxlen=N)  # will capture Knife errors (contain 'FATAL')
     threads = [start_thread(consume, *args)
-                for args in (p.stdout, queue.append), (p.stderr, queue.append)]
+                for args in (p.stdout, queue.append, errors.append),
+                (p.stderr, queue.append, errors.append)]
     for t in threads:
         t.join()  # wait for IO completion
 
     retcode = p.wait()
 
     if retcode == 0:
-        return ''.join(queue)
+        return '%s%s' % (''.join(errors), ''.join(queue))
     else:
+        # Raise CalledProcessError, but include the Knife-specifc errors
         raise CheckmateCalledProcessError(retcode, ' '.join(params),
-                output='\n'.join(queue))
+                output='\n'.join(queue), error_info='\n'.join(errors))
 
 
 def _get_repo_path():
