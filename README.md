@@ -542,6 +542,19 @@ Checkmate. It provides a Javascript framework that can run from the browser.
 a good intro to AngularJS. It seems to be constantly updated and remains relevant.
 
 
+#### Mox
+
+This is a library used for testing. The source code includes some highly useful
+updates which have not yet made it into the published binaries. While the public
+library will work fine, I recommend doing the following:
+
+    # Get the latest source code
+    svn checkout http://pymox.googlecode.com/svn/trunk/ pymox-read-only
+    # Install it
+    cd pymox-read-only
+    sudo python setup.py install
+
+
 ## Why the name checkmate?
 
 My intention for this product is be a deployment _verification_ and management service,
