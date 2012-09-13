@@ -911,7 +911,7 @@ inputs: # Answers to or values for blueprint/provider options & settings.
   providers:
     'legacy':
       'compute':
-        'os': Ubuntu 11.10
+        'os': Ubuntu 12.04
 
 #### For sample Output, see simulator.json in tests directory
 #

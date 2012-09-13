@@ -248,7 +248,7 @@ class TestWordpressWorkflow(StubbedWorkflowBase):
                 providers:
                   'legacy':
                     'compute':
-                      'os': Ubuntu 12.04 LTS
+                      'os': Ubuntu 12.04
                       """ % ENV_VARS['CHECKMATE_CLIENT_PUBLIC_KEY'])
         app['inputs'] = inputs
         cls.deployment = Deployment(app)
