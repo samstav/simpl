@@ -66,9 +66,10 @@ from checkmate.utils import init_console_logging
 init_console_logging()
 # pylint: disable=E0611
 from bottle import app, get, post, run, request, response, abort, \
-        static_file, HTTPError, error, HeaderDict, redirect
+        static_file, HTTPError, error, HeaderDict, route
 from Crypto.Hash import MD5
-from jinja2 import BaseLoader, Environment, TemplateNotFound
+from jinja2 import BaseLoader, Environment as jinjaEnvironment, \
+        TemplateNotFound
 import webob
 import webob.dec
 from webob.exc import HTTPNotFound, HTTPUnauthorized, HTTPFound, \
@@ -78,9 +79,10 @@ LOG = logging.getLogger(__name__)
 
 
 from checkmate.db import get_driver, any_id_problems, any_tenant_id_problems
+from checkmate.environments import Environment
 from checkmate.exceptions import CheckmateException, CheckmateNoMapping
 from checkmate.utils import HANDLERS, RESOURCES, STATIC, write_body, \
-        read_body, support_only
+        read_body, support_only, with_tenant
 
 db = get_driver()
 
@@ -702,6 +704,22 @@ class BrowserMiddleware(object):
 
             return write_body(content, request, response)
 
+        @route('/providers/<provider_id>/proxy/<path:path>')
+        @with_tenant
+        def provider_proxy(provider_id, tenant_id=None, path=None):
+            vendor = None
+            if "." in provider_id:
+                vendor = provider_id.split(".")[0]
+                provider_id = provider_id.split(".")[1]
+            environment = Environment(dict(providers={provider_id:
+                    dict(vendor=vendor)}))
+            try:
+                provider = environment.get_provider(provider_id)
+            except KeyError:
+                abort(404, "Invalid provider: %s" % provider_id)
+            results = provider.proxy(path, request, tenant_id=tenant_id)
+
+            return write_body(results, request, response)
 
     def __call__(self, e, h):
         """Detect unauthenticated calls and redirect them to root.
@@ -787,7 +805,7 @@ class BrowserMiddleware(object):
                 with file(path) as f:
                     source = f.read().decode('utf-8')
                 return source, path, lambda: mtime == os.path.getmtime(path)
-        env = Environment(loader=MyLoader(os.path.join(os.path.dirname(
+        env = jinjaEnvironment(loader=MyLoader(os.path.join(os.path.dirname(
             __file__), 'static')))
 
         def do_prepend(value, param='/'):

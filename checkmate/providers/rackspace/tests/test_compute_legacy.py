@@ -6,15 +6,15 @@ from checkmate.utils import init_console_logging
 init_console_logging()
 LOG = logging.getLogger(__name__)
 
-from checkmate.providers.rackspace import compute_legacy
 import mox
 import openstack.compute
 
+from checkmate.exceptions import CheckmateException
 from checkmate.deployments import Deployment, resource_postback
 from checkmate.providers.base import PROVIDER_CLASSES
+from checkmate.providers.rackspace import compute_legacy
 from checkmate.test import StubbedWorkflowBase, TestProvider
 from checkmate.utils import yaml_to_dict
-from checkmate.exceptions import CheckmateException
 
 
 class TestLegacyCompute(unittest.TestCase):
@@ -121,7 +121,7 @@ class TestLegacyGenerateTemplate(unittest.TestCase):
                     }
                 },
                 'regions': {
-                    'chicago': 'http://some.endpoint'
+                    'ORD': 'http://some.endpoint'
                 }
             }
         }
@@ -139,7 +139,7 @@ class TestLegacyGenerateTemplate(unittest.TestCase):
         self.mox.StubOutWithMock(provider, 'get_catalog')
 
         deployment.get_setting('region', resource_type='compute', service_name='master',
-                               provider_key=provider.key).AndReturn('chicago')
+                               provider_key=provider.key).AndReturn('ORD')
         deployment.get_setting('os', resource_type='compute', service_name='master',
                                provider_key=provider.key, default=119).AndReturn('119')
         deployment.get_setting('memory', resource_type='compute', service_name='master',
@@ -152,7 +152,7 @@ class TestLegacyGenerateTemplate(unittest.TestCase):
             'provider': 'rackspace.legacy',
             'flavor': '2',
             'image': '119',
-            'region': 'chicago'
+            'region': 'ORD'
         }
 
         provider.get_catalog(context).AndReturn(catalog)
@@ -172,7 +172,7 @@ class TestLegacyGenerateTemplate(unittest.TestCase):
         catalog = {
             'lists': {
                 'regions': {
-                    'chicago': 'http://some.endpoint'
+                    'ORD': 'http://some.endpoint'
                 }
             }
         }
@@ -294,7 +294,7 @@ class TestLegacyGenerateTemplate(unittest.TestCase):
 
         deployment.get_setting('region', resource_type='compute',
                 service_name='master', provider_key=provider.key).AndReturn(
-                'chicago')
+                'ORD')
         deployment.get_setting('os', resource_type='compute',
                 service_name='master', provider_key=provider.key,
                 default=119).AndReturn('119')
@@ -309,7 +309,7 @@ class TestLegacyGenerateTemplate(unittest.TestCase):
             'provider': 'rackspace.legacy',
             'flavor': '2',
             'image': '119',
-            'region': 'chicago'
+            'region': 'ORD'
         }
 
 
@@ -342,7 +342,7 @@ class TestLegacyGenerateTemplate(unittest.TestCase):
                     }
                 },
                 'regions': {
-                    'chicago': 'http://some.endpoint'
+                    'ORD': 'http://some.endpoint'
                 }
 
             }
@@ -379,7 +379,7 @@ class TestLegacyGenerateTemplate(unittest.TestCase):
             'provider': 'rackspace.legacy',
             'flavor': '2',
             'image': '119',
-            'region': 'chicago'
+            'region': 'ORD'
         }
       
         provider.get_catalog(context).AndReturn(catalog)

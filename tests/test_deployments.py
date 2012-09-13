@@ -273,7 +273,7 @@ class TestDeploymentSettings(unittest.TestCase):
                 'case': "Set in environments/providers/common",
                 'name': "region",
                 'provider': "common",
-                'service' : "constraints",
+                'service': "constraints",
                 'expected': "place",
                 },  {
                 'case': "Set in blueprint/providers",

@@ -38,12 +38,25 @@ class CheckmateIndexError(CheckmateException):
 
 
 class CheckmateCalledProcessError(CheckmateException):
-    def __init__(self, returncode, cmd, output=None):
+    """Wraps CalledProcessError but supports passing in specific error_info"""
+    def __init__(self, returncode, cmd, output=None, error_info=None):
         self.returncode = returncode
         self.cmd = cmd
         self.output = output
+        self.error_info = error_info
         super(CheckmateException, self).__init__(returncode, cmd, output)
 
+    def __repr__(self):
+        if self.error_info:
+            return self.error_info
+        else:
+            return super(CheckmateException, self).__repr__()
+
+    def __str__(self):
+        if self.error_info:
+            return self.error_info
+        else:
+            return super(CheckmateException, self).__str__()
 
 class CheckmateServerBuildFailed(CheckmateException):
     pass

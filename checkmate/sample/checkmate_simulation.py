@@ -2,13 +2,13 @@
 
 import os
 from pkg_resources import resource_filename
-
+import sys
 
 print """
 *** Checkmate Server Simulator ***
 
 Executes examples/app.yaml in simulation mode. This is for testing
-and learning about CheckMate
+and learning about Checkmate
 
 Usage:
 
@@ -17,6 +17,12 @@ Usage:
 
 Settings:
 """
+
+if 'CHECKMATE_CLIENT_USERNAME' not in os.environ:
+    sys.exit("CHECKMATE_CLIENT_USERNAME not set in environment")
+
+if 'CHECKMATE_CLIENT_APIKEY' not in os.environ:
+    sys.exit("CHECKMATE_CLIENT_APIKEY not set in environment")
 
 def main_func():
     for key in os.environ:

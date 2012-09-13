@@ -11,7 +11,6 @@ at a time.
 import json
 import logging
 import os
-import time
 
 from bottle import get, post, request, response, abort
 try:
@@ -31,10 +30,7 @@ from checkmate.deployments import plan, Deployment
 from checkmate.workflows import get_SpiffWorkflow_status, create_workflow
 from checkmate.utils import write_body, read_body, with_tenant
 
-
-PHASE = time.time()
-PACKAGE = None
-
+PACKAGE = {}
 LOG = logging.getLogger(__name__)
 
 
@@ -42,8 +38,7 @@ LOG = logging.getLogger(__name__)
 @with_tenant
 def simulate(tenant_id=None):
     """ Run a simulation """
-    global PHASE, PACKAGE
-    PHASE = time.time()
+    global PACKAGE
     entity = read_body(request)
     if 'deployment' in entity:
         entity = entity['deployment']
@@ -62,16 +57,16 @@ def simulate(tenant_id=None):
     else:
         response.add_header('Location', "/deployments/simulate")
 
-    PACKAGE = deployment
+    PACKAGE[tenant_id] = deployment
     results = plan(deployment, request.context)
-    PACKAGE = results
+    PACKAGE[tenant_id] = results
 
     serializer = DictionarySerializer()
     workflow = create_workflow(deployment, request.context)
     serialized_workflow = workflow.serialize(serializer)
     results['workflow'] = serialized_workflow
     results['workflow']['id'] = 'simulate'
-    PACKAGE = results
+    PACKAGE[tenant_id] = results
 
     return write_body(results, request, response)
 
@@ -79,33 +74,34 @@ def simulate(tenant_id=None):
 @get('/deployments/simulate')
 @with_tenant
 def display(tenant_id=None):
-    global PHASE, PACKAGE
-    if not PACKAGE:
-        abort(404, "No simulated deployment exists")
-    return write_body(PACKAGE, request, response)
+    global PACKAGE
+    if not PACKAGE.get(tenant_id):
+        abort(404, "No simulated deployment exists for %s" % tenant_id)
+    return write_body(PACKAGE[tenant_id], request, response)
 
 
 @get('/workflows/simulate')
 @with_tenant
 def workflow_state(tenant_id=None):
     """Return slightly updated workflow each time"""
-    global PHASE, PACKAGE
-    if not PACKAGE:
-        abort(404, "No simulated deployment exists")
+    global PACKAGE
+    if not PACKAGE.get(tenant_id):
+        abort(404, "No simulated deployment exists for %s" % tenant_id)
 
-    results = process()
+    results = process(tenant_id)
 
     return write_body(results, request, response)
 
 
 @get('/workflows/simulate/status')
-def workflow_status():
+@with_tenant
+def workflow_status(tenant_id=None):
     """Return simulated workflow status"""
-    global PHASE, PACKAGE
-    if not PACKAGE:
+    global PACKAGE
+    if not PACKAGE.get(tenant_id):
         abort(404, "No simulated deployment exists")
 
-    result = workflow_state()  # progress and return workflow
+    result = workflow_state(tenant_id)  # progress and return workflow
     entity = json.loads(result)
 
     serializer = DictionarySerializer()
@@ -120,12 +116,12 @@ def get_workflow_task(task_id, tenant_id=None):
 
     :param task_id: checkmate workflow task id
     """
-    global PHASE, PACKAGE
-    if not PACKAGE:
-        abort(404, "No simulated deployment exists")
+    global PACKAGE
+    if not PACKAGE.get(tenant_id):
+        abort(404, "No simulated deployment exists for %s" % tenant_id)
 
     serializer = DictionarySerializer()
-    wf = Workflow.deserialize(serializer, PACKAGE['workflow'])
+    wf = Workflow.deserialize(serializer, PACKAGE[tenant_id]['workflow'])
 
     task = wf.get_task(task_id)
     if not task:
@@ -135,7 +131,7 @@ def get_workflow_task(task_id, tenant_id=None):
     return write_body(data, request, response)
 
 
-def process():
+def process(tenant_id):
     """Process one task at a time. Patch Celery class to not make real calls"""
     path = os.path.normpath(os.path.join(os.path.dirname(__file__), os.pardir,
             'tests', 'data', 'simulator.json'))
@@ -144,8 +140,8 @@ def process():
         data = json.load(f)
         template = Workflow.deserialize(serializer, data)
 
-    global PHASE, PACKAGE
-    workflow = Workflow.deserialize(serializer, PACKAGE['workflow'])
+    global PACKAGE
+    workflow = Workflow.deserialize(serializer, PACKAGE[tenant_id]['workflow'])
 
     def hijacked_try_fire(self, my_task, force=False):
         """We patch this in to intercept calls that would go to celery"""
@@ -175,7 +171,7 @@ def process():
                         data[k] = v
 
                 if data:
-                    PACKAGE.on_resource_postback(data)
+                    PACKAGE[tenant_id].on_resource_postback(data)
         return True
 
     try_fire = Celery.try_fire
@@ -187,5 +183,5 @@ def process():
 
     results = workflow.serialize(serializer)
     results['id'] = 'simulate'
-    PACKAGE['workflow'] = results
+    PACKAGE[tenant_id]['workflow'] = results
     return results

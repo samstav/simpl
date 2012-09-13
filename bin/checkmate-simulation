@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 import os
+import sys
 
 
 print """
@@ -18,6 +19,12 @@ Settings:
 for key in os.environ:
     if key.startswith('CHECKMATE_CLIENT'):
         print key, '=', os.environ[key]
+
+if 'CHECKMATE_CLIENT_USERNAME' not in os.environ:
+    sys.exit("CHECKMATE_CLIENT_USERNAME not set in environment")
+
+if 'CHECKMATE_CLIENT_APIKEY' not in os.environ:
+    sys.exit("CHECKMATE_CLIENT_APIKEY not set in environment")
 
 path = os.path.normpath(os.path.join(os.path.dirname(__file__), os.pardir,
         'examples', 'app.yaml'))

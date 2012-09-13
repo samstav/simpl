@@ -98,21 +98,18 @@ class TestDatabase(unittest.TestCase):
         instance.create_databases([{'name': 'db1'}]).AndReturn(True)
 
         expected = {
-            'instance:1': {
-                    'databases': {
-                            'db1': {
-                                    'host_instance': instance.id,
-                                    'host_region': 'NORTH',
-                                    'interfaces': {
-                                            'mysql': {
-                                                    'host': instance.hostname,
-                                                    'database_name': 'db1',
-                                                },
-                                        },
-                                },
-                        },
-                },
-        }
+                'instance:1': {
+                        'host_instance': instance.id,
+                        'interfaces': {
+                                'mysql': {
+                                        'host': instance.hostname,
+                                        'database_name': 'db1'
+                                    }
+                            },
+                        'name': 'db1',
+                        'host_region': 'NORTH'
+                    }
+            }
 
         context = dict(deployment='DEP', resource='1')
         resource_postback.delay(context['deployment'], expected).AndReturn(

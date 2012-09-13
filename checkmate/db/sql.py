@@ -44,6 +44,8 @@ else:
 
 def _init_version_control():
     """Verify the state of the database"""
+    if CONNECTION_STRING == "sqlite://":
+        return
     repo_path = migration.get_migrate_repo_path()
 
     try:

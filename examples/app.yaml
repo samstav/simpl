@@ -380,7 +380,7 @@ includes:
         # TO TEST: for multiple configs
         # take web1, give it lsyncd-master config
         # all others, give them lsyncd-slave
-      "backend": #TODO: remove hard coding against this name. Think about what these names mean. These are basically tiers...
+      "backend":
         component:
           type: database
           interface: mysql
@@ -729,7 +729,7 @@ includes:
                 name: Fedora 17
                 os: Fedora 17
             regions:
-              ORD: https://servers.api.rackspacecloud.com/v1.0/{tenantId}
+              ORD: https://servers.api.rackspacecloud.com/v1.0/${CHECKMATE_CLIENT_TENANT}
 
       'load-balancer': &rax-lbaas
         vendor: 'rackspace'
@@ -813,8 +813,8 @@ includes:
                   interface: mysql
           lists:
             regions:
-              DFW: https://dfw.databases.api.rackspacecloud.com/v1.0/557366
-              ORD: https://ord.databases.api.rackspacecloud.com/v1.0/557366
+              DFW: https://dfw.databases.api.rackspacecloud.com/v1.0/${CHECKMATE_CLIENT_TENANT}
+              ORD: https://ord.databases.api.rackspacecloud.com/v1.0/${CHECKMATE_CLIENT_TENANT}
             sizes:
               '1':
                 memory: 512
@@ -911,7 +911,7 @@ inputs: # Answers to or values for blueprint/provider options & settings.
   providers:
     'legacy':
       'compute':
-        'os': Ubuntu 11.10
+        'os': Ubuntu 12.04
 
 #### For sample Output, see simulator.json in tests directory
 #

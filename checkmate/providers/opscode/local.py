@@ -16,6 +16,7 @@ Component IDs:
 - recipes get added with ::
 
 """
+import errno
 import logging
 import os
 
@@ -1176,6 +1177,8 @@ def _create_kitchen(name, path, secret_key=None):
     if not os.path.exists(kitchen_path):
         os.mkdir(kitchen_path, 0770)
         LOG.debug("Created kitchen directory: %s" % kitchen_path)
+    else:
+        LOG.debug("Kitchen directory exists: %s" % kitchen_path)
 
     nodes_path = os.path.join(kitchen_path, 'nodes')
     if os.path.exists(nodes_path):
@@ -1409,9 +1412,9 @@ def download_roles(environment, path=None, roles=None, source=None):
     repo_path = _get_repo_path()
 
     if not os.path.exists(repo_path):
-        git.Repo.clone_from('git://github.rackspace.com/ManagedCloud/'
-                'chef-stockton.git', repo_path)
-        LOG.info("Cloned chef-stockton to %s" % repo_path)
+        rax_repo = 'git://github.rackspace.com/ManagedCloud/chef-stockton.git'
+        git.Repo.clone_from(rax_repo, repo_path)
+        LOG.info("Cloned chef-stockton from %s to %s" % (rax_repo, repo_path))
     else:
         LOG.debug("Getting roles from %s" % repo_path)
 
@@ -1524,6 +1527,15 @@ def _run_kitchen_command(kitchen_path, params, lock=True):
         try:
             os.chdir(kitchen_path)
             result = check_all_output(params)  # check_output(params)
+        except OSError as exc:
+            if exc.errno == errno.ENOENT:
+                # Check if knife installed
+                try:
+                    output = check_output(['knife', '-v'])
+                except Exception as exc:
+                    raise CheckmateException("Chef Knife is not installed or "
+                                             "not accessible on the server")
+            raise exc
         except CalledProcessError, exc:
             # Reraise pickleable exception
             raise CheckmateCalledProcessError(exc.returncode, exc.cmd,
@@ -1764,28 +1776,33 @@ def check_all_output(params):
         t.start()
         return t
 
-    def consume(infile, output):
+    def consume(infile, output, errors):
         for line in iter(infile.readline, ''):
             output(line)
+            if 'FATAL' in line:
+                errors(line)
         infile.close()
 
     p = Popen(params, stdout=PIPE, stderr=PIPE, bufsize=1, close_fds=ON_POSIX)
 
     # preserve last N lines of stdout and stderr
     N = 100
-    queue = deque(maxlen=N)
+    queue = deque(maxlen=N)  # will capture output
+    errors = deque(maxlen=N)  # will capture Knife errors (contain 'FATAL')
     threads = [start_thread(consume, *args)
-                for args in (p.stdout, queue.append), (p.stderr, queue.append)]
+                for args in (p.stdout, queue.append, errors.append),
+                (p.stderr, queue.append, errors.append)]
     for t in threads:
         t.join()  # wait for IO completion
 
     retcode = p.wait()
 
     if retcode == 0:
-        return ''.join(queue)
+        return '%s%s' % (''.join(errors), ''.join(queue))
     else:
+        # Raise CalledProcessError, but include the Knife-specifc errors
         raise CheckmateCalledProcessError(retcode, ' '.join(params),
-                output='\n'.join(queue))
+                output='\n'.join(queue), error_info='\n'.join(errors))
 
 
 def _get_repo_path():
