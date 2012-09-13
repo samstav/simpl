@@ -108,7 +108,7 @@ class Provider(ProviderBase):
         return dict(root=create_environment, final=create_environment)
 
     def add_resource_tasks(self, resource, key, wfspec, deployment, context,
-                wait_on=None):
+                           wait_on=None):
         """Create and write data_bag, generate run_list, and call cook
 
         Steps:
@@ -121,51 +121,55 @@ class Provider(ProviderBase):
                 resource, key, wfspec, deployment, context, wait_on)
 
         # 2 - Make a call for each component (some have custom code)
-        def recursive_load_dependencies(components, component, provider,
-                context):
-            """Get and add dependencies to components list"""
+        def recursive_load_dependencies(stack, current, provider, context):
+            """Get and add dependencies to components list recursively"""
             # Skip ones we have already processed
-            if component not in components:
-                if isinstance(component, dict):
-                    found = self.find_components(context, **component)
+            if current not in stack:
+                if type(current) is dict:  # not Component
+                    found = self.find_components(context, **current)
                     if found and len(found) == 1:
-                        component = found[0]
+                        current = found[0]
                     elif not found:
                         raise CheckmateException("Component '%s' not found" %
-                                             component.get('id'))
+                                                 current.get('id'))
                     else:
                         raise CheckmateException("Component '%s' matches %s "
-                                             "components" % component)
-                components.append(component)
-                for dependency in component.get('dependencies', []):
+                                                 "components" % current)
+                stack.append(current)
+                for dependency in current.get('dependencies', []):
                     if isinstance(dependency, basestring):
-                        dependency = provider.get_component(context, dependency)
+                        dependency = provider.get_component(context,
+                                                            dependency)
                         if dependency:
                             dependency = [dependency]
                     if isinstance(dependency, dict):
                         dependency = provider.find_components(context,
-                            **dependency) or []
+                                **dependency) or []
                     for item in dependency:
-                        if item in components:
+                        if item in stack:
+                            LOG.debug("Component '%s' encountered more than "
+                                      "once" % item['id'])
                             continue
-                        recursive_load_dependencies(components, item,
-                                provider, context)
+                        recursive_load_dependencies(stack, item, provider,
+                                                    context)
 
         LOG.debug("Analyzing dependencies for '%s'" % component['id'])
         components = []  # this component comes first
         recursive_load_dependencies(components, component, self, context)
         LOG.debug("Recursion for dependencies for '%s' found: %s" % (
-                component['id'], ', '.join([c['id'] for c in components[1:]])))
+                  component['id'],
+                  ', '.join([c['id'] for c in components[1:]])))
 
         # Chef will handle dependencies. We only need to call cook once with
         # the main component. For all others, we just need to call
         # _process_options to load their attributes in to the right key.
         # Any exceptions, like lsyncd which needs to run again after all slaves
-        # have been configured, we have a special entry we use call
+        # have been configured, we have a special entry we call
         special_task_handlers = {
                 'lsyncd': self._add_lsyncd_tasks,
             }
-        default_task_handler = self._process_options  # for all others, just parse options
+        # for all others, just parse options
+        default_task_handler = self._process_options
 
         assert component in components
         for item in components:
@@ -174,25 +178,24 @@ class Provider(ProviderBase):
                 # TODO: find a more better way to do this
                 prefix = deployment.get_setting('prefix')
                 app_id = "webapp_%s_%s" % (component['id'].split('-')[0],
-                        prefix)
+                                           prefix)
                 deployment.settings()['app_id'] = app_id
                 # This is our main recipe which we should cook with
                 self._add_component_tasks(wfspec, item, deployment, key,
-                        context, service_name)
+                                          context, service_name)
                 continue
-
             if isinstance(item, basestring):
                 item = self.get_component(context, item)
             if item and item['id'] in special_task_handlers:
                 LOG.debug("Calling special task handler %s for %s" % (
-                        special_task_handlers[item['id']].__name__,
-                        item['id']))
+                          special_task_handlers[item['id']].__name__,
+                          item['id']))
                 special_task_handlers[item['id']](wfspec, item, deployment,
-                        key, context, service_name)
+                                                  key, context, service_name)
             else:
                 LOG.debug("Calling default task handler for %s" % item['id'])
-                default_task_handler(wfspec, item, deployment, key,
-                        context, service_name)
+                default_task_handler(wfspec, item, deployment, key, context,
+                                     service_name)
 
         return {}  # TODO: do we need dict(root=root, final=final)?
 
@@ -465,16 +468,11 @@ class Provider(ProviderBase):
         else:
             role = None  # ignore our role-specific handling
 
-        kwargs = {}
         if 'role' in component:
             name = '%s::%s' % (component['id'], component['role'])
         else:
             name = component['id']
-
-        if component['id'].endswith('-role'):
-            kwargs['roles'] = [name[0:-5]]  # trim the '-role'
-        else:
-            kwargs['recipes'] = [name]
+        kwargs = dict(recipes=[name])
 
         resource = deployment['resources'][key]
 
@@ -783,16 +781,14 @@ class Provider(ProviderBase):
             if result:
                 if role:
                     result['role'] = role
-                Component.validate(result)
-                return result
+                return Component(**result)
 
         try:
             cookbook = self._get_cookbook(id, site_cookbook=True)
             if cookbook:
                 if role:
                     cookbook['role'] = role
-                Component.validate(cookbook)
-                return cookbook
+                return Component(**cookbook)
         except CheckmateIndexError:
             pass
 
@@ -801,8 +797,7 @@ class Provider(ProviderBase):
             if cookbook:
                 if role:
                     cookbook['role'] = role
-                Component.validate(cookbook)
-            return cookbook
+                return Component(**cookbook)
         except CheckmateIndexError:
             pass
 
@@ -810,8 +805,7 @@ class Provider(ProviderBase):
         if chef_role:
             if role:
                 chef_role['role'] = role
-            Component.validate(chef_role)
-            return chef_role
+            return Component(**chef_role)
 
         LOG.debug("Component '%s' not found" % id)
 
@@ -1810,7 +1804,7 @@ def _get_repo_path():
     path = os.environ.get('CHECKMATE_CHEF_REPO')
     if not path:
         path = os.path.join(os.path.dirname(__file__), 'chef-stockton')
-        LOG.warning("No CHECKMATE_CHEF_REPO variable set. Defaulting to %s" %
+        LOG.warning("CHECKMATE_CHEF_REPO variable not set. Defaulting to %s" %
                 path)
         if not os.path.exists(path):
             git.Repo.clone_from('git://github.rackspace.com/checkmate/'
