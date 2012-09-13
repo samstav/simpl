@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 import logging
+import sys
 import unittest2 as unittest
 
 # Init logging before we load the database, 3rd party, and 'noisy' modules
