@@ -783,16 +783,14 @@ class Provider(ProviderBase):
             if result:
                 if role:
                     result['role'] = role
-                Component.validate(result)
-                return result
+                return Component(**result)
 
         try:
             cookbook = self._get_cookbook(id, site_cookbook=True)
             if cookbook:
                 if role:
                     cookbook['role'] = role
-                Component.validate(cookbook)
-                return cookbook
+                return Component(**cookbook)
         except CheckmateIndexError:
             pass
 
@@ -801,8 +799,7 @@ class Provider(ProviderBase):
             if cookbook:
                 if role:
                     cookbook['role'] = role
-                Component.validate(cookbook)
-            return cookbook
+                return Component(**cookbook)
         except CheckmateIndexError:
             pass
 
@@ -810,8 +807,7 @@ class Provider(ProviderBase):
         if chef_role:
             if role:
                 chef_role['role'] = role
-            Component.validate(chef_role)
-            return chef_role
+            return Component(**chef_role)
 
         LOG.debug("Component '%s' not found" % id)
 
