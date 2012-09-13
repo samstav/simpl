@@ -82,7 +82,11 @@ system python, you can set up all requirements using the following commands:
 
 ## Install Chef
 
-Install the latest Chef client, knife-solo, and knife-solo_data_bag:
+We'll document two configs. The latest, bleeding edge config for hacking and the
+last known good (LKG) config.
+
+Bleeding Edge: To install the latest Chef client, knife-solo, and
+knife-solo_data_bag:
 
     $ curl chef.rackspacecloud.com/install-alt.sh | bash -s
     # Note: on a Mac, use sudo to start bash:
@@ -101,6 +105,34 @@ Install the latest Chef client, knife-solo, and knife-solo_data_bag:
     $ gem install bundler
     $ gem install knife-solo --version 0.0.10
     $ gem install knife-solo_data_bag --version 0.2.1
+
+LKG: To install the last known good and tested config of chef for the Checkmate
+server:
+
+    # Install RVM
+    echo insecure >> ~/.curlrc
+    curl -k -L get.rvm.io | bash -s stable
+    source ~/.rvm/scripts/rvm
+
+    # Install Ruby 1.9.3 locally
+    rvm install 1.9.3-p125
+    rvm use ruby-1.9.3-p125
+
+    # Exit and delete any existing gemset (makes this idempotent)
+    rvm gemset use global
+    rvm --force gemset delete checkmate
+    # Create a checkmate gemset
+    rvm gemset create checkmate
+    # Switch to it
+    rvm gemset use checkmate
+    # Install know good versions
+    gem install bundler --no-rdoc --no-ri
+    gem install chef --version 10.12.0 --no-rdoc --no-ri
+    gem install knife-solo --version 0.0.13 --no-rdoc --no-ri
+    gem install knife-solo_data_bag --version 0.2.1 --no-rdoc --no-ri
+    # Verify
+    knife -v  # should show '10.12.0'
+    gem list knife  # should show solo=0.0.13 and data_bag=0.2.1
 
 ## Rabbitmq Installation
 
