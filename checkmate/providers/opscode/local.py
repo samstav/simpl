@@ -16,6 +16,7 @@ Component IDs:
 - recipes get added with ::
 
 """
+import errno
 import logging
 import os
 
@@ -1524,6 +1525,15 @@ def _run_kitchen_command(kitchen_path, params, lock=True):
         try:
             os.chdir(kitchen_path)
             result = check_all_output(params)  # check_output(params)
+        except OSError as exc:
+            if exc.errno == errno.ENOENT:
+                # Check if knife installed
+                try:
+                    output = check_output(['knife', '-v'])
+                except Exception as exc:
+                    raise CheckmateException("Chef Knife is not installed or "
+                                             "not accessible on the server")
+            raise exc
         except CalledProcessError, exc:
             # Reraise pickleable exception
             raise CheckmateCalledProcessError(exc.returncode, exc.cmd,
