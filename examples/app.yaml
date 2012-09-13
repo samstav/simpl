@@ -724,7 +724,7 @@ includes:
                 os: CentOS 6.2
               '125':
                 name: Ubuntu 12.04 LTS
-                os: Ubuntu 12.04 LTS
+                os: Ubuntu 12.04
               '126':
                 name: Fedora 17
                 os: Fedora 17
