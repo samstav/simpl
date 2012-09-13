@@ -1177,6 +1177,8 @@ def _create_kitchen(name, path, secret_key=None):
     if not os.path.exists(kitchen_path):
         os.mkdir(kitchen_path, 0770)
         LOG.debug("Created kitchen directory: %s" % kitchen_path)
+    else:
+        LOG.debug("Kitchen directory exists: %s" % kitchen_path)
 
     nodes_path = os.path.join(kitchen_path, 'nodes')
     if os.path.exists(nodes_path):
