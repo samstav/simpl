@@ -442,7 +442,8 @@ includes:
       "region":
         label: Region
         type: select
-        choice: [dallas, chicago]
+        # Choice is  always an array. It can be an array of values or of objects with name & value attributes
+        choice: [DFW, ORD]
         required: true
       "ssl": &ssl
         label: SSL Enabled
@@ -746,6 +747,8 @@ includes:
               '126':
                 name: Fedora 17
                 os: Fedora 17
+            regions:
+              ORD: https://servers.api.rackspacecloud.com/v1.0/${CHECKMATE_CLIENT_TENANT}
 
       'load-balancer': &rax-lbaas
         vendor: 'rackspace'
@@ -823,7 +826,7 @@ includes:
         #  public_key: =generate()
         #PROTOTYPING:
         constraints:
-        - region: chicago
+        - region: ORD
 
 - also: # just examples
   - blueprint: &wp

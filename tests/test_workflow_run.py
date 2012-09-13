@@ -234,7 +234,7 @@ class TestWordpressWorkflow(StubbedWorkflowBase):
                   "ssl": true
                   "ssl_certificate": SSLCERT
                   "ssl_private_key": SSLKEY
-                  "region": chicago
+                  "region": 'ORD'
                   "high-availability": true
                   "requests-per-second": 60
                 services:

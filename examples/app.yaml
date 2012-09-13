@@ -729,7 +729,7 @@ includes:
                 name: Fedora 17
                 os: Fedora 17
             regions:
-              ORD: https://servers.api.rackspacecloud.com/v1.0/{tenantId}
+              ORD: https://servers.api.rackspacecloud.com/v1.0/${CHECKMATE_CLIENT_TENANT}
 
       'load-balancer': &rax-lbaas
         vendor: 'rackspace'
@@ -813,8 +813,8 @@ includes:
                   interface: mysql
           lists:
             regions:
-              DFW: https://dfw.databases.api.rackspacecloud.com/v1.0/557366
-              ORD: https://ord.databases.api.rackspacecloud.com/v1.0/557366
+              DFW: https://dfw.databases.api.rackspacecloud.com/v1.0/${CHECKMATE_CLIENT_TENANT}
+              ORD: https://ord.databases.api.rackspacecloud.com/v1.0/${CHECKMATE_CLIENT_TENANT}
             sizes:
               '1':
                 memory: 512
