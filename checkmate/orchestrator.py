@@ -90,7 +90,7 @@ def create_simple_server(context, name, image=214, flavor=1,
     body=wf.serialize(serializer)
     body['id']=create_simple_server.request.id
     db.save_workflow(create_simple_server.request.id,
-                     wf.serialize(serializer))
+                     body)
 
     # Loop through trying to complete the workflow and periodically send
     # status updates
