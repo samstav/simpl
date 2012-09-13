@@ -1330,10 +1330,7 @@ WPBP = {
                 "type": "select",
                 "default": "DFW",
                 "label": "Region",
-                "choice": [{
-                    "name": "DFW", "value": "DFW"},
-                    {"name": "ORD", "value": "ORD"}
-                ]
+                "choice": ["DFW", "ORD"]
             },
             "prefix": {
                 "constrains": [
