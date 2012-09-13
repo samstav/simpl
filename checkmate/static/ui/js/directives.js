@@ -82,9 +82,10 @@ directives.directive('calculator', function factory() {
   return calculator;
 });
 
-directives.directive('compat', function factory() {
+directives.directive('compat', function factory($scope) {
+  var tenantId = $scope.auth.tenantId;
   var compat = {
-    templateUrl: '/557366/workflows/simulate.html',
+    templateUrl: '/' + tenantId + '/workflows/simulate.html',
     replace: false,
     transclude: false,
     restrict: 'E',
