@@ -176,7 +176,7 @@ class TestWorkflow(StubbedWorkflowBase):
 
 
 class TestWordpressWorkflow(StubbedWorkflowBase):
-    """Test WordPress Workflow inputs (uses app.yaml)"""
+    """Test WordPress Workflow inputs (modifies app.yaml)"""
 
     @classmethod
     def setUpClass(cls):
@@ -244,6 +244,7 @@ class TestWordpressWorkflow(StubbedWorkflowBase):
                   "web":
                     'compute':
                       'memory': 2048 Mb
+                    'application':
                       'count': 2
                 providers:
                   'legacy':
@@ -300,6 +301,24 @@ class TestWordpressWorkflow(StubbedWorkflowBase):
         self.assertIn('wordpress', item)
         self.assertIn('lsyncd', item)
         self.assertIn('mysql', item)
+        self.assertEqual(len(self.deployment['blueprint']['services']['web']\
+                             ['instances']), 4)  # 2 hosts + 2 apps
+        count = 0
+        for resource in self.deployment['resources'].values():
+            if resource.get('provider') == 'legacy':
+                self.assertEquals(resource['image'], "125")
+                count += 1
+        for key in self.deployment['blueprint']['services']['web']\
+                ['instances']:
+            resource = self.deployment['resources'][key]
+            if resource['provider'] == 'legacy':
+                self.assertEquals(resource['flavor'], "4")  # 2Gb for web
+        for key in self.deployment['blueprint']['services']['master']\
+                ['instances']:
+            resource = self.deployment['resources'][key]
+            if resource['provider'] == 'legacy':
+                self.assertEquals(resource['flavor'], "2")  # 1Gb for master
+        self.assertEqual(count, 3)  # 1 master, 2 webs
 
 
 if __name__ == '__main__':

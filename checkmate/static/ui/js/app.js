@@ -1457,7 +1457,7 @@ WPBP = {
                     {
                         "setting": "count",
                         "service": "web",
-                        "resource_type": "compute"
+                        "resource_type": "application"
                     }
                 ],
                 "description": "The number of WordPress servers (minimum two).",

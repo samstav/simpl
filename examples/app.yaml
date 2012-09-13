@@ -493,8 +493,6 @@ includes:
         description: The size of the instance in MB of RAM.
         type: select
         choice:
-        - value: 256
-          name: 256 Mb
         - value: 512
           name: 512 Mb
         - value: 1024
@@ -509,7 +507,7 @@ includes:
           name: 16 Gb
         - value: 30720
           name: 30 Gb
-        constrains: [{service: web, resource_type: compute, setting: size},{service: master, resource_type: compute, setting: size}]
+        constrains: [{service: web, resource_type: compute, setting: size}, {service: master, resource_type: compute, setting: size}]
       "os":
         default: Ubuntu 12.04
         type: select
@@ -524,7 +522,7 @@ includes:
         description: The number of WordPress servers (minimum two).
         default: 2
         constrains:
-        - {service: web, resource_type: compute, setting: count}
+        - {service: web, resource_type: application, setting: count}
         constraints:
         - greater-than: 1 # this is an HA config
       "database_memory":
@@ -659,10 +657,6 @@ includes:
               73487664:
                 name: my_custom_image
             sizes:
-              '1':
-                disk: 10
-                name: 256 server
-                memory: 256
               '2':
                 disk: 20
                 name: 512 server
@@ -899,13 +893,12 @@ inputs: # Answers to or values for blueprint/provider options & settings.
     "region": ${CHECKMATE_CLIENT_REGION}
     "high-availability": false
     "requests-per-second": 60
+    "web_server_size": 512
   services:
     "backend":
       'database':
         'memory': 512 Mb
     "web":
-      'compute':
-        'memory': 512 Mb
       'application':
         'count': 1
   providers:
