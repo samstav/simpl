@@ -85,6 +85,8 @@ system python, you can set up all requirements using the following commands:
 Install the latest Chef client, knife-solo, and knife-solo_data_bag:
 
     $ curl chef.rackspacecloud.com/install-alt.sh | bash -s
+    # Note: on a Mac, use sudo to start bash:
+    # curl chef.rackspacecloud.com/install-alt.sh | sudo bash -s
 
     # Install RVM
     $ echo insecure >> ~/.curlrc
