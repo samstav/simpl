@@ -28,9 +28,13 @@ class TestChefLocal(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
-        os.environ['CHECKMATE_CHEF_LOCAL_PATH'] = '/tmp/checkmate/test'
-        if not os.path.exists(os.environ['CHECKMATE_CHEF_LOCAL_PATH']):
-            shutil.os.makedirs(os.environ['CHECKMATE_CHEF_LOCAL_PATH'])
+        local_path = '/tmp/checkmate/test'
+        os.environ['CHECKMATE_CHEF_LOCAL_PATH'] = local_path
+        if not os.path.exists(local_path):
+            shutil.os.makedirs(local_path)
+            LOG.info("Created '%s'" % local_path)
+        test_path = os.path.join(local_path, 'test_env', 'kitchen', 'roles')
+        if not os.path.exists(test_path):
             local.create_environment('test_env')
 
     def setUp(self):
@@ -316,7 +320,18 @@ class TestWorkflowLogic(StubbedWorkflowBase):
         self.mox.ReplayAll()
         workflow.complete_all()
         self.assertTrue(workflow.is_completed())
-        self.assertEqual(len(workflow.get_tasks()), 9)
+        expected_tasks = ['Root',
+                          'Start',
+                          'Create Chef Environment',
+                          'Feed data to Write task for 0',
+                          'Collect small_widget Chef Data: 0',
+                          'Feed data to Write task for 0',
+                          'Collect Chef Data',
+                          'Write Data Bag',
+                          'After server 0 is registered and options are ready',
+                          'Configure small_widget: 0',
+                          'After server 0 is registered and options are ready']
+        self.assertEqual(len(workflow.get_tasks()), len(expected_tasks))
         self.assertDictEqual(self.outcome,
                 {
                   'data_bags': {
