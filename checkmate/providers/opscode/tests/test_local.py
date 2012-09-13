@@ -427,7 +427,7 @@ class TestDBWorkflow(StubbedWorkflowBase):
                         self.deployment['id'],
                         'webapp_mysql_%s' %
                                 self.deployment.get_setting('prefix'),
-                        {'mysql': {}}],
+                        {}],
                 'kwargs': And(ContainsKeyValue('secret_file',
                         'certificates/chef.pem'), ContainsKeyValue('merge',
                         True)),
