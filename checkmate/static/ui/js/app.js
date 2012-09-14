@@ -705,9 +705,24 @@ function WorkflowController($scope, $resource, $http, $routeParams, $location, $
     return status;
   };
 
+  $scope.workflow_action = function(workflow_id, action) {
+    if ($scope.auth.loggedIn) {
+      console.log("Executing '" + action + " on workflow " + workflow_id);
+      $http({method: 'GET', url: $location.path() + '/+' + action}).
+        success(function(data, status, headers, config) {
+          alert("Command '" + action + "' executed");
+          // this callback will be called asynchronously
+          // when the response is available
+          $window.location.reload();
+        });
+    } else {
+      $scope.loginPrompt(); //TODO: implement a callback
+    }
+  };
+  
   $scope.task_action = function(task_id, action) {
     if ($scope.auth.loggedIn) {
-      console.log("Executing '" + action + " on " + task_id);
+      console.log("Executing '" + action + " on task " + task_id);
       $http({method: 'POST', url: $location.path() + '/tasks/' + task_id + '/+' + action}).
         success(function(data, status, headers, config) {
           alert("Command '" + action + "' executed");

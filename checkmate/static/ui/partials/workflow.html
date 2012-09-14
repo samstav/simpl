@@ -4,21 +4,28 @@
       <div class="row-fluid" style="height: 200px">
         <section class="summaries">
           <section class="top well" ng-cloak ng-show="showStatus">
+            <div class="row-fluid" style="height: 20px;">
+                <div class="span10 actions">Workflow</div>
+                <div class="span2 actions">
+                    <a clas="cmtip" title="Check status" href="{{data.id}}/status"><i class="icon-heart"></i></a>
+                    <a clas="cmtip" title="Run workflow" href="#" ng-click="workflow_action(data.id, 'execute')"><i class="icon-play"></i></a>
+                </div>
+            </div>
             <h4>{{data.wf_spec.name}}</h4>
-            <div class="progress">
+            <div class="progress" style="height: 10px;">
               <div class="bar" style="width: {{percentComplete()}}%;"></div>
             </div>
+            <div>Expected to finish {{timeRemaining | secondsETA}}</div>
             <div>
               <a class="label label-info cmtip" title="Total items" ng-click="showAll()">{{count}}</a> tasks: 
               <a class="label label-success cmtip" title="Completed" ng-click="showUnread()">{{taskStates['completed']}}</a>
               <a class="label label-warning cmtip" title="Waiting" ng-click="showStarred()">{{taskStates['waiting']}}</a>  
               <a class="label label-important cmtip" title="Errors" ng-click="showRead()">{{0}}</a>
-              <div>Expected to finish {{timeRemaining | secondsETA}}</div>
             </div>
           </section>
         </section>
       </div>
-      <div class="row-fluid" style="max-height: 75%">
+      <div class="row-fluid" style="max-height: 70%">
         <section id="spec_list" class="summaries" style="max-height: inherit">
           <!--<article class="well summary">
             Testing <img src="/static/img/cloud-server-icon.png">
