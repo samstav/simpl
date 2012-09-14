@@ -173,7 +173,7 @@ def post_workflow_task(workflow_id, spec_id, tenant_id=None):
     # Save workflow (with secrets)
     body, secrets = extract_sensitive_data(workflow)
     body['tenantId'] = workflow.get('tenantId', tenant_id)
-
+    body['id'] = id
     updated = db.save_workflow(workflow_id, body, secrets, tenant_id=tenant_id)
 
     return write_body(entity, request, response)
@@ -260,6 +260,7 @@ def post_workflow_task(id, task_id, tenant_id=None):
     serializer = DictionarySerializer()
     body, secrets = extract_sensitive_data(wf.serialize(serializer))
     body['tenantId'] = workflow.get('tenantId', tenant_id)
+    body['id'] = id
 
     updated = db.save_workflow(id, body, secrets, tenant_id=tenant_id)
     # Updated does not have secrets, so we deserialize that
@@ -312,6 +313,7 @@ def reset_workflow_task(id, task_id, tenant_id=None):
     entity = wf.serialize(serializer)
     body, secrets = extract_sensitive_data(entity)
     body['tenantId'] = workflow.get('tenantId', tenant_id)
+    body['id'] = id
     db.save_workflow(id, body, secrets, tenant_id=tenant_id)
 
     task = wf.get_task(task_id)
@@ -362,6 +364,7 @@ def resubmit_workflow_task(id, task_id, tenant_id=None):
     entity = wf.serialize(serializer)
     body, secrets = extract_sensitive_data(entity)
     body['tenantId'] = workflow.get('tenantId', tenant_id)
+    body['id'] = id
     db.save_workflow(id, body, secrets, tenant_id=tenant_id)
 
     task = wf.get_task(task_id)

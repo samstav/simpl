@@ -103,10 +103,10 @@ knife-solo_data_bag:
     $ rvm gemset create chef
     $ rvm gemset use chef
     $ gem install bundler
-    $ gem install knife-solo --version 0.0.10
-    $ gem install knife-solo_data_bag --version 0.2.1
+    $ gem install knife-solo
+    $ gem install knife-solo_data_bag
 
-LKG: To install the last known good and tested config of chef for the Checkmate
+LKG: To install the last known good and tested config of Chef for the Checkmate
 server:
 
     # Install RVM
@@ -132,7 +132,25 @@ server:
     gem install knife-solo_data_bag --version 0.2.1 --no-rdoc --no-ri
     # Verify
     knife -v  # should show '10.12.0'
-    gem list knife  # should show solo=0.0.13 and data_bag=0.2.1
+    gem list knife  # should show solo at 0.0.13 and data_bag at 0.2.1
+
+## MongoDB Installation
+
+Installing and starting MongoDB 2.0.6 on OSX:
+
+    curl http://downloads.mongodb.org/osx/mongodb-osx-x86_64-2.0.6.tgz > mongo.tgz
+    tar -zxvf mongo.tgz
+    sudo mv mongodb-osx-x86_64-2.0.6 /opt/local/mongodb
+    sudo mkdir /var/log/mongodb
+    sudo chown -R root /opt/local/mongodb
+    sudo sh -c 'echo "export PATH=\$PATH:/opt/local/mongodb/bin"' >> ~/.bash_profile
+    source ~/.base_profile
+
+    # Create a data directory and start the server
+    # In the checkmate directory:
+    sudo mkdir data
+    sudo chown -R `id -u` data
+    mongod --dbpath data
 
 ## Rabbitmq Installation
 
