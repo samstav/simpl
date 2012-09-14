@@ -245,5 +245,6 @@ def run_one_task(workflow_id, task_id, timeout=60):
     updated = wf.serialize(serializer)
     body, secrets = extract_sensitive_data(updated)
     body['tenantId'] = workflow.get('tenantId')
+    body['id'] = workflow_id
     db.save_workflow(workflow_id, body, secrets)
     return result
