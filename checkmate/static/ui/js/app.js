@@ -137,10 +137,11 @@ function ExternalController($window, $location) {
 function LegacyController($scope, $location, $routeParams, $resource, navbar, $window, $http) {
   $scope.showHeader = false;
   $scope.showStatus = false;
-  parts = $location.path().split('/')
+  var parts = $location.path().split('/')
   if (parts.length > 1)
     navbar.highlight(parts[2]);
 
+  var path;
   if ('tenantId' in $routeParams) {
     path = $location.path();
   } else if ($location.path().indexOf('/' + $scope.$parent.auth.tenantId + '/') == 0) {
@@ -278,7 +279,7 @@ function AppController($scope, $http, $location) {
       var noPunction = true;
       for (i=0; i < length; i++) {
 
-          numI = $scope.getPwdRandomNum();
+          var numI = $scope.getPwdRandomNum();
           //Always have a letter for the first character.
           while (i==0 && (numI <= 64 || ((numI >=91) && (numI <=96)))) { numI = $scope.getPwdRandomNum(); }
           //Only allow letters and numbers for all other characters.
@@ -448,7 +449,7 @@ function WorkflowListController($scope, $location, $resource, workflow, items, n
     $scope.selected = items.selected;
 
     // Prepare tasks
-    wf = items.data[items.selected.id];
+    var wf = items.data[items.selected.id];
     $scope.task_specs = wf.wf_spec.task_specs;
     $scope.tasks = workflow.flattenTasks({}, wf.task_tree);
     $scope.jit = workflow.jitTasks($scope.tasks);
@@ -576,7 +577,7 @@ function WorkflowController($scope, $resource, $http, $routeParams, $location, $
     $scope.current_spec = $scope.data.wf_spec.task_specs[$scope.current_spec_index];
     $scope.current_spec_json = JSON.stringify($scope.current_spec, null, 2);
 
-    alltasks = items.tasks;
+    var alltasks = items.tasks;
     var tasks = _.filter(alltasks, function(task, key) {
         return task.task_spec == spec_id;
       })
@@ -911,7 +912,7 @@ function OldWorkflowController($scope, $resource, $routeParams, workflow, items,
   
   $scope.drawWorkflow = function() {
     // Prepare tasks
-    wf = items.data;  //TODO: fix this
+    var wf = items.data;  //TODO: fix this
     $scope.task_specs = wf.wf_spec.task_specs;
     $scope.tasks = workflow.flattenTasks({}, wf.task_tree);
     $scope.jit = workflow.parseTasks($scope.tasks, wf.wf_spec.task_specs);
@@ -1161,7 +1162,7 @@ function DeploymentInitController($scope, $location, $routeParams, $resource, bl
   };
 
   $scope.submit = function(simulate) {
-    url = '/:tenantId/deployments';
+    var url = '/:tenantId/deployments';
     if (simulate == true)
       url += '/simulate';
     var Deployment = $resource(url, {tenantId: $scope.auth.tenantId});

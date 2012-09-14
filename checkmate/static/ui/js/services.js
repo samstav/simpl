@@ -172,7 +172,7 @@ services.factory('workflow', [function() {
 		  }
 		},
 		classify: function(task) {
-		  label_class = "label";
+		  var label_class = "label";
 		  if (typeof task != 'undefined') {
 			switch(task.state) {
 			case -1:
@@ -671,7 +671,7 @@ services.config(function ($httpProvider) {
 				checkmate.requests -= 1;
 				if (checkmate.requests <= 0)
 					$('#loading').hide();
-				error = response;
+				var error = response;
 				$rootScope.error = {data: error.data, status: error.status, title: "Error Saving",
 						message: "There was an error saving your JSON:"};
 				$('#modalError').modal('show');
