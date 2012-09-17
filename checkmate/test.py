@@ -25,7 +25,7 @@ os.environ['CHECKMATE_DATA_PATH'] = os.path.join(os.path.dirname(__file__),
 from checkmate.common import schema
 from checkmate.exceptions import CheckmateException
 from checkmate.providers.base import ProviderBase
-from checkmate.server import RequestContext  # also enables logging
+from checkmate.middleware import RequestContext  # also enables logging
 from checkmate.utils import is_ssh_key, get_source_body, merge_dictionary
 from checkmate.workflows import create_workflow, wait_for
 

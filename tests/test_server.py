@@ -1,11 +1,12 @@
 #!/usr/bin/env python
-import bottle
 import json
 import os
+
+from bottle import default_app, load
 import unittest2 as unittest
 from webtest import TestApp
 
-from checkmate.server import TenantMiddleware, ContextMiddleware, \
+from checkmate.middleware import TenantMiddleware, ContextMiddleware, \
         BrowserMiddleware
 
 os.environ['CHECKMATE_DATA_PATH'] = os.path.join(os.path.dirname(__file__),
@@ -16,7 +17,12 @@ class TestServer(unittest.TestCase):
     """ Test Basic Server code """
 
     def setUp(self):
-        root_app = bottle.app()
+        load('checkmate.blueprints')
+        load('checkmate.components')
+        load('checkmate.deployments')
+        load('checkmate.environments')
+        load('checkmate.workflows')
+        root_app = default_app()
         tenant = TenantMiddleware(root_app)
         context = ContextMiddleware(tenant)
         self.app = TestApp(context)

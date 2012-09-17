@@ -11,7 +11,7 @@ LOG = logging.getLogger(__name__)
 from checkmate.deployments import Deployment, plan
 from checkmate.exceptions import CheckmateValidationException
 from checkmate.providers.base import PROVIDER_CLASSES, ProviderBase
-from checkmate.server import RequestContext
+from checkmate.middleware import RequestContext
 from checkmate.utils import yaml_to_dict
 
 
