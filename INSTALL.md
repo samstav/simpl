@@ -198,13 +198,13 @@ Start the queue service:
 
 Start the Checkmate API and UI service:
 
-    $ bin/checkmate-server START --with-ui
+    $ bin/checkmate-server START --with-ui --with-simulator
     # To specify an alternate IP:Port
-    $ bin/checkmate-server START --with-ui 0.0.0.0:8000
+    $ bin/checkmate-server START --with-ui --with-simulator 0.0.0.0:8000
 
 
 Note: A shortcut for creating the environment and running a checkmate server
 using only an in-memory database and broker is:
 
     $ python tools/install_venv.py
-    $ tools/with_venv.sh bin/checkmate-server START --with-ui
+    $ tools/with_venv.sh bin/checkmate-server START --with-ui --with-simulator

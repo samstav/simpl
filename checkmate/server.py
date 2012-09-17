@@ -47,6 +47,8 @@ def main_func():
     # Load routes from other modules
     LOG.info("Loading API")
     load("checkmate.api")
+    if '--with-simulator' in sys.argv:
+        load("checkmate.simulator")
 
     # Register built-in providers
     from checkmate.providers import rackspace, opscode
