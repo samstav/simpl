@@ -82,7 +82,8 @@ checkmate.config(['$routeProvider', '$locationProvider', '$httpProvider', functi
   }).
   when('/:tenantId/workflows/:id', {
     templateUrl: '/static/ui/partials/workflow.html',
-    controller: WorkflowController
+    controller: WorkflowController,
+    reloadOnSearch: false
   }).
   when('/:tenantId/blueprints/:id', {
     templateUrl: '/static/ui/partials/level2.html',
@@ -94,7 +95,8 @@ checkmate.config(['$routeProvider', '$locationProvider', '$httpProvider', functi
   }).
   otherwise({
     controller: ExternalController,
-    template:'<section class="entries" ng-include="templateUrl"><img src="/static/img/ajax-loader-bar.gif" alt="Loading..."/></section>'
+    template:'<section class="entries" ng-include="templateUrl"><img src="/static/img/ajax-loader-bar.gif" alt="Loading..."/></section>',
+    reloadOnSearch: false
     });  //normal browsing
   
   
@@ -557,6 +559,8 @@ function WorkflowController($scope, $resource, $http, $routeParams, $location, $
               $('#modalError').modal('show');
             });
         }
+      } else if ($location.hash().length > 1) {
+        $scope.selectSpec($location.hash());
       } else
         $scope.selectSpec(Object.keys(object.wf_spec.task_specs)[0]);
       //$scope.play();
@@ -586,6 +590,8 @@ function WorkflowController($scope, $resource, $http, $routeParams, $location, $
     if (tasks)
       $scope.selectTask(tasks[0].id);
     $scope.toCurrent();
+    console.log(spec_id);
+    $location.hash(spec_id);
   };
 
   $scope.toCurrent = function() {
@@ -646,9 +652,8 @@ function WorkflowController($scope, $resource, $http, $routeParams, $location, $
       if (['children', "$$hashKey"].indexOf(attr) == -1 && obj.hasOwnProperty(attr))
         copy[attr] = obj[attr];
     }
-    $scope.current_task_json = JSON.stringify(copy, null, 2);
     try {
-      $scope.$apply();
+        $scope.$apply($scope.current_task_json = JSON.stringify(copy, null, 2));
     } catch(err) {};
     // Refresh CodeMirror since it might have been hidden
     $('.CodeMirror')[1].CodeMirror.refresh();

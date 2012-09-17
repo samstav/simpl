@@ -27,18 +27,17 @@
       </div>
       <div class="row-fluid" style="max-height: 70%">
         <section id="spec_list" class="summaries" style="max-height: inherit">
-          <!--<article class="well summary">
-            Testing <img src="/static/img/cloud-server-icon.png">
-          </article>-->
           <section class="top">
-            <article class="well summary" ng-repeat="(key, spec) in data.wf_spec.task_specs" ng-click="selectSpec(key)" ng-class="{active: current_spec_index == key}" >
-              <div class="row-fluid">
-                <h6>{{spec.name}} <span ng-class="state_class({state: spec_status(key)})"> {{task_count(key)}} tasks</span></h6>
-              </div>
-              <div class="row-fluid">
-                {{spec.description}}
-              </div>
-            </article>
+            <a href="#{{key}}" ng-repeat="(key, spec) in data.wf_spec.task_specs" class="nohover">
+              <article class="well summary" ng-click="selectSpec(key)" ng-class="{active: current_spec_index == key}" >
+                <div class="row-fluid">
+                  <h6>{{spec.name}} <span ng-class="state_class({state: spec_status(key)})"> {{task_count(key)}} tasks</span></h6>
+                </div>
+                <div class="row-fluid">
+                  {{spec.description}}
+                </div>
+              </article>
+            </a>
           </section>
         </section>
       </div>
@@ -56,9 +55,9 @@
             <a href="#" ng-click="save_spec()" class="tip" title="Save any edits of the JSON. The JSON on the right is editable!"><i class="icon-ok"></i> Save</a>
           </li>
           <li class="nav-header">Inputs</li>
-          <li ng-repeat="input in current_spec.inputs"><a href="#" ng-click="selectSpec(input)">{{input}}</a></li>
+          <li ng-repeat="input in current_spec.inputs"><a href="#{{input}}" ng-click="selectSpec(input)">{{input}}</a></li>
           <li class="nav-header">Outputs</li>
-          <li ng-repeat="output in current_spec.outputs"><a href="#" ng-click="selectSpec(output)">{{output}}</a></li>
+          <li ng-repeat="output in current_spec.outputs"><a href="#{{output}}" ng-click="selectSpec(output)">{{output}}</a></li>
         </ul>
        </div>
        <div class="span9">
@@ -108,7 +107,7 @@
           <div id="error-alert" class="alert alert-block alert-error fade in" ng-cloak ng-show="current_task.internal_attributes.task_state.state == 'FAILURE'">
             <button type="button" class="close" data-dismiss="alert">&times;</button>
             <h4 class="alert-heading">Oh snap! Something didn't work!</h4>
-            <p>This error was reported: {{current_task.internal_attributes.task_state.info}}. See the code <a class="accordion-toggle cmcollapse" data-toggle="collapse" href="#" data-target="#traceback">traceback</a>.</p><div id="traceback" class="cmcollapse collapse">
+            <p>This error was reported: {{current_task.internal_attributes.task_state.info}}. See the code <a class="accordion-toggle cmcollapse" data-toggle="collapse" data-target="#traceback">traceback</a>.</p><div id="traceback" class="cmcollapse collapse">
               <pre>{{current_task.internal_attributes.task_state.traceback}}</pre></div>
             <p>
               <a class="btn btn-primary" href="#" ng-click="execute_task()">Run Task</a> <a class="btn btn-danger cmtip" href="#" ng-click="resubmit_task()" title="Clear task data, abort the Celery task, and retrigger it"><i class="icon-retweet"></i> Abort and Retry</a>
@@ -117,7 +116,7 @@
           <div id="error-alert" class="alert alert-block fade in" ng-cloak ng-show="current_task.internal_attributes.task_state.state == 'RETRY' && current_task.state != 64">
             <button type="button" class="close" data-dismiss="alert">&times;</button>
             <h4 class="alert-heading">Something might be up! But we haven't given up yet...</h4>
-            <p>This task is being retried. See the code <a class="accordion-toggle cmcollapse" data-toggle="collapse" href="#" data-target="#traceback2">traceback</a>.</p><div id="traceback2" class="cmcollapse collapse"><pre>{{current_task.internal_attributes.task_state.traceback}}</pre></div>
+            <p>This task is being retried. See the code <a class="accordion-toggle cmcollapse" data-toggle="collapse" data-target="#traceback2">traceback</a>.</p><div id="traceback2" class="cmcollapse collapse"><pre>{{current_task.internal_attributes.task_state.traceback}}</pre></div>
             <p>
               If you don't think this task is going to succeed you could <a class="btn btn-danger cmtip" href="#" ng-click="resubmit_task()" title="Clear task data, abort the Celery task, and retrigger it"><i class="icon-retweet"></i> Abort and Retry</a>, but please choose this carefully so we don't end up with duplicate resources!
             </p>
