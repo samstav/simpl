@@ -3,7 +3,7 @@
     <div class="span3" style="height: inherit">
       <div class="row-fluid" style="height: 200px">
         <section class="summaries">
-          <section class="top well" ng-cloak ng-show="showStatus">
+          <section class="top well" ng-cloak ng-show="showStatus" style="height: 140px;">
             <div class="row-fluid" style="height: 20px;">
                 <div class="span10 actions">Workflow</div>
                 <div class="span2 actions">
@@ -18,9 +18,11 @@
             <div>Expected to finish {{timeRemaining | secondsETA}}</div>
             <div>
               <a class="label label-info cmtip" title="Total items" ng-click="showAll()">{{count}}</a> tasks: 
-              <a class="label label-success cmtip" title="Completed" ng-click="showUnread()">{{taskStates['completed']}}</a>
+              <a class="label label-success cmtip" title="Completed" ng-click="showUnread()">{{taskStates['completed'] + taskStates['ready']}}</a>
               <a class="label label-warning cmtip" title="Waiting" ng-click="showStarred()">{{taskStates['waiting']}}</a>  
-              <a class="label label-important cmtip" title="Errors" ng-click="showRead()">{{0}}</a>
+              <a class="label label-important cmtip" title="Errors" ng-click="showRead()">{{taskStates['error']}}</a>, and 
+              <a class="label cmtip" title="Other" ng-click="showRead()">{{taskStates['future'] + taskStates['likely'] +
+              taskStates['maybe']}}</a>
             </div>
           </section>
         </section>
@@ -89,7 +91,7 @@
             <a href="#" ng-click="reset_task()" class="tip" title="Clear the task data and reset it"><i class="icon-repeat"></i> Reset</a>
           </li>
           <li>
-            <a href="#" ng-click="execute_task()" class="tip" title="Execute task"><i class="icon-play"></i> Run Task</a>
+            <a href="#" ng-click="execute_task()" class="tip" title="Run task"><i class="icon-play"></i> Run Task</a>
           </li>
           <li>
             <a href="#" ng-click="resubmit_task()" class="tip" title="Clear task data, abort the Celery task, and retrigger it"><i class="icon-retweet"></i> Abort and Resubmit</a>

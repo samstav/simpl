@@ -91,7 +91,8 @@ services.factory('workflow', [function() {
 			 ready: 0,
 			 cancelled: 0,
 			 completed: 0,
-			 triggered: 0
+			 triggered: 0,
+                         error: 0
 		   };
 		  _.each(tasks, function(task) {
 			if ("internal_attributes" in task && "estimated_completed_in" in task["internal_attributes"]) {
@@ -99,8 +100,11 @@ services.factory('workflow', [function() {
 			} else {
 			  $scope.totalTime += 10;
 			};
-			switch(task.state) {
-			  case 1:
+			switch(parseInt(task.state, 0)) {
+			  case -1:
+				$scope.taskStates["error"] += 1;
+				break;
+                          case 1:
 				$scope.taskStates["future"] += 1;
 				break;
 			  case 2:
@@ -149,22 +153,22 @@ services.factory('workflow', [function() {
 		 *    https://github.rackspace.com/checkmate/checkmate/issues/45
 		 */
 		iconify: function(state) {
-		  switch(state) {
-			case 1:
+		  switch(parseInt(state, 0)) {
+			case 1: //FUTURE
 			  return "icon-fast-forward";
-			case 2:
+			case 2: //LIKELY
 			  return "icon-thumbs-up";
-			case 4:
+			case 4: //MAYBE
 			  return "icon-hand-right";
-			case 8:
+			case 8: //WAITING
 			  return "icon-pause";
-			case 16:
+			case 16: //READY
 			  return "icon-plus";
-			case 32:
+			case 32: //CANCELLED
 			  return "icon-remove";
-			case 64:
+			case 64: //COMPLETED
 			  return "icon-ok";
-			case 128:
+			case 128: //TRIGGERED
 			  return "icon-adjust";
 			default:
 			  console.log("Invalid state '" + state + "'.");
@@ -174,31 +178,34 @@ services.factory('workflow', [function() {
 		classify: function(task) {
 		  var label_class = "label";
 		  if (typeof task != 'undefined') {
-			switch(task.state) {
+		      switch(parseInt(task.state, 0)) {
 			case -1:
-				label_class += " label-important";
+			    label_class += " label-important";
+                            break;
 			case 1:
 			case 2:
 			case 4:
-			  return label_class;
+                            break;
 			case 8:
-			  if ('internal_attributes' in  task && 'task_state' in task.internal_attributes && task.internal_attributes.task_state.state == 'FAILURE')
+			    if ('internal_attributes' in  task && 'task_state' in task.internal_attributes && task.internal_attributes.task_state.state == 'FAILURE')
 				label_class += " label-important"
-			  else
+			    else
 				label_class += " label-warning";
-			  return label_class;
+                            break;
 			case 16:
-			  return label_class + " label-info";
+			    label_class += " label-info";
+                            break;
 			case 32:
 			case 64:
-			  return label_class + " label-success";
+			    label_class += " label-success";
+                            break;
 			case 128:
 			default:
-			  console.log("Invalid state '" + task.state + "'.");
-			  return label_class + " label-inverse";
+			  console.log("Invalid task state '" + task.state + "'.");
+			  label_class += " label-inverse";
 			}
-		  return label_class;
 		  }
+		  return label_class;
 		},
 		/**
 		 *  See above.
@@ -233,7 +240,7 @@ services.factory('workflow', [function() {
 			case 4:
 				return "Maybe";
 			case 8:
-			  return "Waiting";
+			        return "Waiting";
 			case 16:
 				return "Ready";
 			case 128:
