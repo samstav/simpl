@@ -163,7 +163,7 @@ function LegacyController($scope, $location, $routeParams, $resource, navbar, $w
       var klass = $resource($location.path());
       var thang = new klass(JSON.parse(Editor.getValue()));
       thang.$save(function(returned, getHeaders){
-          alert('Saved');
+          $scope.notify('Saved');
           console.log(returned);
         }, function(error) {
           console.log("Error " + error.data + "(" + error.status + ") saving this object.");
@@ -182,7 +182,7 @@ function LegacyController($scope, $location, $routeParams, $resource, navbar, $w
       console.log("Executing action " + $location.path() + '/' + action)
       $http({method: 'POST', url: $location.path() + '/' + action}).
         success(function(data, status, headers, config) {
-          alert("Command '" + action.replace('+', '') + "' executed");
+          $scope.notify("Command '" + action.replace('+', '') + "' executed");
           // this callback will be called asynchronously
           // when the response is available
           $window.location.reload();
@@ -197,7 +197,7 @@ function LegacyController($scope, $location, $routeParams, $resource, navbar, $w
       console.log("Executing action " + target)
       $http({method: 'POST', url: target}).
         success(function(data, status, headers, config) {
-          alert("Command '" + _.last(target.split("/")).replace('+', '') + "' executed");
+          $scope.notify("Command '" + _.last(target.split("/")).replace('+', '') + "' executed");
           // this callback will be called asynchronously
           // when the response is available
           $window.location.reload();
@@ -218,6 +218,13 @@ function AppController($scope, $http, $location) {
       tenantId: '',
       expires: ''
     };
+
+  $scope.notify = function(message) {
+    $('.bottom-right').notify({
+        message: { text: message }, fadeOut: {enabled: true, delay: 5000},
+        type: 'bangTidy'
+      }).show();
+  }
 
   // Restore login from session
   var catalog = localStorage.getItem('auth');
@@ -271,7 +278,7 @@ function AppController($scope, $http, $location) {
 
   $scope.generatePassword = function() {
       if (parseInt(navigator.appVersion) <= 3) {
-          alert("Sorry this only works in 4.0+ browsers");
+          $scope.notify("Sorry this only works in 4.0+ browsers");
           return true;
       }
 
@@ -628,7 +635,7 @@ function WorkflowController($scope, $resource, $http, $routeParams, $location, $
             if (returned.hasOwnProperty(attr))
               $scope.current_spec[attr] = returned[attr];
           };
-          alert('Saved');
+          $scope.notify('Saved');
         }, function(error) {
           console.log("Error " + error.data + "(" + error.status + ") saving this object.");
           console.log($("#editor").text());
@@ -673,7 +680,7 @@ function WorkflowController($scope, $resource, $http, $routeParams, $location, $
             if (['workflow_id', "tenantId"].indexOf(attr) == -1 && returned.hasOwnProperty(attr))
               $scope.current_task[attr] = returned[attr];
           };
-          alert('Saved');
+          $scope.notify('Saved');
         }, function(error) {
           console.log("Error " + error.data + "(" + error.status + ") saving this object.");
           console.log($("#editor").text());
@@ -716,7 +723,7 @@ function WorkflowController($scope, $resource, $http, $routeParams, $location, $
       console.log("Executing '" + action + " on workflow " + workflow_id);
       $http({method: 'GET', url: $location.path() + '/+' + action}).
         success(function(data, status, headers, config) {
-          alert("Command '" + action + "' executed");
+          $scope.notify("Command '" + action + "' executed");
           // this callback will be called asynchronously
           // when the response is available
           $window.location.reload();
@@ -731,7 +738,7 @@ function WorkflowController($scope, $resource, $http, $routeParams, $location, $
       console.log("Executing '" + action + " on task " + task_id);
       $http({method: 'POST', url: $location.path() + '/tasks/' + task_id + '/+' + action}).
         success(function(data, status, headers, config) {
-          alert("Command '" + action + "' executed");
+          $scope.notify("Command '" + action + "' executed");
           // this callback will be called asynchronously
           // when the response is available
           $window.location.reload();
