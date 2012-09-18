@@ -24,6 +24,7 @@ Vagrant::Config.run do |config|
     chef.add_recipe "mongodb::10gen_repo"
     chef.add_recipe "mongodb"
     chef.add_recipe "checkmate"
+    chef.add_recipe "rvm"
     chef.add_recipe "checkmate::vagrant"
     chef.add_recipe "checkmate::broker"
     chef.add_recipe "checkmate::worker"
