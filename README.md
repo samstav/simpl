@@ -349,14 +349,17 @@ To start the checkmate REST API server:
 
 Options:
 
-        --with-ui:  enable support for browsers and HTML templates
-        --newrelic: enable newrelic monitoring (place newrelic.ini in your
-                    directory)
-        --eventlet: use the eventlet server (recommended in production)
-        --quiet:    turn down logging to WARN (default is INFO)
-        --verbose:  turn up logging to DEBUG (default is INFO)
-        --debug:    turn on additional debugging inspection and output
-                    including full HTTP requests and responses. Log output includes source file path and line numbers.
+        --with-ui:        enable support for browsers and HTML templates
+        --with-simulator: enable support for the workflow simulator
+        --newrelic:       enable newrelic monitoring (place newrelic.ini in
+                          your directory)
+        --eventlet:       use the eventlet server (recommended in production)
+        --quiet:          turn down logging to WARN (default is INFO)
+        --verbose:        turn up logging to DEBUG (default is INFO)
+        --debug:          turn on additional debugging inspection and output
+                          including full HTTP requests and responses. Log
+                          output includes source file path and line numbers.
+
 
 Once up, you can issue curl commands (or point your browser at it if you started the server --with-ui) to use checkmate.
 
@@ -661,4 +664,4 @@ And then start the checkmate server:
     export CHECKMATE_CHEF_REPO=/var/checkmate/chef/repo/chef-stockton
     export CHECKMATE_CHEF_LOCAL_PATH=/var/chef
     export CHECKMATE_PUBLIC_KEY=`cat ~/.ssh/id_rsa.pub`  # on a mac
-    bin/checkmate-server START --with-ui
+    bin/checkmate-server START --with-ui --with-simulator
