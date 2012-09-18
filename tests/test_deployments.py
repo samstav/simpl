@@ -5,10 +5,18 @@ import unittest2 as unittest
 
 # Init logging before we load the database, 3rd party, and 'noisy' modules
 from checkmate.utils import init_console_logging
+from mox import Mox
+import mox
+import checkmate
+from bottle import Bottle
+import bottle
+import json
+from celery.app.task import Context
+import os
 init_console_logging()
 LOG = logging.getLogger(__name__)
 
-from checkmate.deployments import Deployment, plan
+from checkmate.deployments import Deployment, plan, get_deployments_count, get_deployments_by_bp_count
 from checkmate.exceptions import CheckmateValidationException
 from checkmate.providers.base import PROVIDER_CLASSES, ProviderBase
 from checkmate.server import RequestContext
@@ -365,6 +373,59 @@ class TestDeploymentSettings(unittest.TestCase):
                         memory: 2 Gb
                         number-only-test: 512
             """))
+
+class TestDeploymentCounts(unittest.TestCase):
+    """ Tests getting deployment numbers """
+    
+    def __init__(self, methodName="runTest"):
+        self._mox = mox.Mox()
+        self._deploymets = {}
+        unittest.TestCase.__init__(self, methodName)
+        
+    def setUp(self):
+        self._deploymets = json.load(open(os.path.join(os.path.dirname(__file__),'data', 'deployments.json')))
+        self._mox.StubOutWithMock(checkmate.deployments, "db")
+        bottle.request.bind({})
+        bottle.request.context = Context()
+        bottle.request.context.tenant = None
+        unittest.TestCase.setUp(self)
+        
+    def tearDown(self):
+        self._mox.UnsetStubs()
+        unittest.TestCase.tearDown(self)
+    
+    def test_get_count_all(self):
+        checkmate.deployments.db.get_deployments(tenant_id=mox.IgnoreArg()).AndReturn(self._deploymets)
+        self._mox.ReplayAll()
+        self._assert_good_count(json.loads(get_deployments_count()), 3)
+    
+    def test_get_count_tenant(self):
+        # remove the extra deployment
+        self._deploymets.pop("3fgh")
+        checkmate.deployments.db.get_deployments(tenant_id="12345").AndReturn(self._deploymets)
+        self._mox.ReplayAll()
+        self._assert_good_count(json.loads(get_deployments_count(tenant_id="12345")), 2)
+        
+    def test_get_count_deployment(self):
+        checkmate.deployments.db.get_deployments(tenant_id=None).AndReturn(self._deploymets)
+        self._mox.ReplayAll()
+        self._assert_good_count(json.loads(get_deployments_by_bp_count("blp-123-aabc-efg")), 2)
+    
+    def test_get_count_deployment_and_tenant(self):
+        raw_deployments = self._deploymets.copy()
+        raw_deployments.pop("3fgh")
+        self._deploymets.pop("2def")
+        self._deploymets.pop("1abc")
+        checkmate.deployments.db.get_deployments(tenant_id="854673").AndReturn(self._deploymets)
+        checkmate.deployments.db.get_deployments(tenant_id="12345").AndReturn(raw_deployments)
+        self._mox.ReplayAll()
+        self._assert_good_count(json.loads(get_deployments_by_bp_count("blp-123-aabc-efg", tenant_id="854673")), 1)
+        self._assert_good_count(json.loads(get_deployments_by_bp_count("blp123avc", tenant_id="12345")), 1)
+
+    def _assert_good_count(self, ret, expected_count):
+        self.assertIsNotNone(ret, "No count returned")
+        self.assertIn("count", ret, "Return does not contain count")
+        self.assertEqual(expected_count, ret.get("count", -1), "Wrong count returned")
 
 if __name__ == '__main__':
     # Run tests. Handle our paramsters separately

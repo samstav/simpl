@@ -25,6 +25,10 @@ chef/
 .venv
 venv-checkmate
 
+# scratch files
+scratch.json
+scratch.xml
+
 # Compiled source #
 ###################
 *.com
