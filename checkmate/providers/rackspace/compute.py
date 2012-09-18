@@ -199,7 +199,7 @@ class Provider(RackspaceComputeProviderBase):
         """Use context info to connect to API and return api object"""
         #FIXME: figure out better serialization/deserialization scheme
         if isinstance(context, dict):
-            from checkmate.server import RequestContext
+            from checkmate.middleware import RequestContext
             context = RequestContext(**context)
         #TODO: Hard-coded to Rax auth for now
         if not context.auth_token:
