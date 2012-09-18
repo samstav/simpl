@@ -12,6 +12,8 @@ build/
 dist/
 coverage/
 var/
+src/
+data/
 checkmate/static-libs/
 checkmate/openstack
 /tests/data/environments
