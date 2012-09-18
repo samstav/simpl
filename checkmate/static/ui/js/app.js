@@ -1247,7 +1247,7 @@ function DeploymentInitController($scope, $location, $routeParams, $resource, bl
  */
 document.addEventListener('DOMContentLoaded', function(e) {
   //On mobile devices, hide the address bar
-  window.scrollTo(0);
+  window.scrollTo(0, 0);
 }, false);
 
 //Initial Wordpress Template

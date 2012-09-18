@@ -53,19 +53,18 @@ body {
   text-align: center;
 }
 
-section.mainContent {
-  display: -webkit-box;
+.mainContent {
+  /*display: -webkit-box;*/
   -webkit-box-orient: horizontal;
   overflow: hidden;
   height: 100%;
   width: 100%;
   box-sizing: border-box;
   padding-bottom: 0px;
+  padding-left: 0px;
+  padding-right: 0px;
 }
 
-section.mainContent div {
-    /*height: 100%;*/
-}
 
 .lcontrols {
   box-sizing: border-box;
@@ -118,18 +117,33 @@ section.mainContent div {
   -webkit-box-align: end;
 }
 
+
+.summaryBar {
+  box-sizing: border-box;
+  width: 300px;
+  background: #eee;
+  margin-left: 0px;
+  height: inherit;
+}
+
 .summaries {
   box-sizing: border-box;
   padding: 10px;
   overflow-y: scroll;
-  width: 300px;
   -webkit-overflow-scrolling: touch;
-  background: #eee;
+  margin-left: 0px;
+  height: 100%;
+  padding-bottom: 200px; /*TODO: hack to make bottom item show up*/
 }
 
 .summary {
   color: #222;
   box-shadow: 5px 5px 5px rgba(210, 210, 210, 0.6);
+}
+
+.summaryHeader {
+  margin: 10px;
+  color: #222;
 }
 
 .summary.read {
@@ -160,6 +174,8 @@ section.mainContent div {
   overflow-y: scroll;
   padding-left: 10px;
   -webkit-overflow-scrolling: touch;
+  margin-left: 0px;
+  height: 100%;
 }
 
 .entry {
@@ -240,7 +256,7 @@ section.mainContent div {
 }
 
 /* code mirror fixes - ZNS */
-.container-fluid, .span9, .CodeMirror, .row-fluid { height: inherit; }
+.CodeMirror { height: inherit; }
 .CodeMirror-scroll { height: 80%; }
 .CodeMirror pre {
     line-height: inherit;
