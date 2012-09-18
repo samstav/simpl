@@ -132,7 +132,7 @@ class PAMAuthMiddleware(object):
         context = request.context
 
         if 'HTTP_AUTHORIZATION' in e:
-            if getattr(context, 'authenticated', False) == True:
+            if getattr(context, 'authenticated', False) is True:
                 return self.app(e, h)
 
             auth = e['HTTP_AUTHORIZATION'].split()
@@ -287,7 +287,7 @@ class AuthorizationMiddleware(object):
 
         context = request.context
 
-        if context.is_admin == True:
+        if context.is_admin is True:
             # Allow all admin calls
             return self.app(e, h)
         elif context.tenant:
@@ -536,8 +536,8 @@ class BrowserMiddleware(object):
                     # then return client app
                     context = request.context
                     if (not context.authenticated) and \
-                        e.get('HTTP_X_REQUESTED_WITH') != 'XMLHttpRequest':
-                            e['PATH_INFO'] = "/"  # return client app
+                            e.get('HTTP_X_REQUESTED_WITH') != 'XMLHttpRequest':
+                        e['PATH_INFO'] = "/"  # return client app
         return self.app(e, h)
 
     @staticmethod
@@ -1032,4 +1032,3 @@ class CatchAll404(object):
 
     def __call__(self, e, h):
         return self.app(e, h)
-

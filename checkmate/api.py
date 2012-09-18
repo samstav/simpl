@@ -59,7 +59,7 @@ from checkmate.utils import write_body
 # Load modules containing APIs
 # pylint: disable=W0611
 from checkmate import blueprints, components, deployments, environments, \
-    workflows 
+    workflows
 
 
 #
