@@ -24,13 +24,30 @@ Vagrant::Config.run do |config|
     chef.add_recipe "mongodb::10gen_repo"
     chef.add_recipe "mongodb"
     chef.add_recipe "checkmate"
-    chef.add_recipe "rvm"
+    chef.add_recipe "rvm::user"
     chef.add_recipe "checkmate::vagrant"
     chef.add_recipe "checkmate::broker"
     chef.add_recipe "checkmate::worker"
     chef.add_recipe "checkmate::webui"
 
     chef.json = {
+      :rvm => {
+        :user_installs => [{
+          :user => 'checkmate',
+          :user_default_ruby => '1.9.3-p125@checkmate',
+          :user_gems => {
+            :checkmate => [
+              { 'name' => 'bundler' },
+              { 'name' => 'chef',
+                'version' => '10.12.0' },
+              { 'name' => 'knife-solo',
+                'version' => '0.0.13' },
+              { 'name' => 'knife-solo_data_bag',
+                'version' => '0.2.1' }
+            ]
+          }
+        }]
+      },
       :checkmate => {
         :git => {
           :src => "/vagrant",
