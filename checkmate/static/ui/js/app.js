@@ -501,6 +501,7 @@ function WorkflowController($scope, $resource, $http, $routeParams, $location, $
   $scope.showStatus = true;
   $scope.showHeader = true;
   $scope.showSearch = true;
+  $scope.showControls = true;
   $scope.taskStates = {
     future: 0,
     likely: 0,
@@ -741,7 +742,7 @@ function WorkflowController($scope, $resource, $http, $routeParams, $location, $
           $scope.notify("Command '" + action + "' executed");
           // this callback will be called asynchronously
           // when the response is available
-          $window.location.reload();
+          $scope.load();
         });
     } else {
       $scope.loginPrompt(); //TODO: implement a callback
