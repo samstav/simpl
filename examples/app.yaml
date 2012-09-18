@@ -338,6 +338,7 @@ includes:
   # Blueprints contain best practices and 'constrain' the available options in an environment to
   # those that are architecturally sound.
 - blueprint: &wp-multi
+    id: "d8fcfc17-b515-473a-9fe1-6d4e3356ef8d"
     name: "Scalable Wordpress (Managed Cloud Config)"
     description: "uses MC config recipes which support blah...., multiple domains, ...."
     #Services are similar to tiers. The names are arbitrary keys to be chosen by the blueprint author.
@@ -839,6 +840,7 @@ includes:
 
 - also: # just examples
   - blueprint: &wp
+      id: "6fcc7f31-08f8-4664-90e3-58fffc71f773"
       name: Simple Wordpress
       services:
         "wordpress":
@@ -853,6 +855,7 @@ includes:
   - blueprint: &wp1
       <<: *wp #inherit all values from wp
       # override inherited values
+      id: "c7a1efdb-7066-4d7a-b0b4-5335f6d4a023"
       name: OneBox Wordpress
       # and add constraints
       constraint:
@@ -860,6 +863,7 @@ includes:
   - blueprint: &wp-with-varnish
       <<: *wp-multi
       # override values
+      id: "15899293-44e7-492b-a88b-56781413adf8"
       name: Super-fast Wordpress
       services:
         "wordpress":

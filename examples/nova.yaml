@@ -111,6 +111,7 @@ components:
 # This would be where we define the architecture of an application which would include
 # all the components, tiers, connections, and scaling rules for that application
 blueprint: &wp
+  id: "6fcc7f31-08f8-4664-90e3-58fffc71f773"
   name: Simple Wordpress
   services:
     wordpress:
@@ -122,12 +123,14 @@ blueprint: &wp
       config: *mysql  #TODO: support local (same server) and remote links like local://components/mysql
 
 blueprint: &wp1
+  id: "c7a1efdb-7066-4d7a-b0b4-5335f6d4a023"
   name: OneBox Wordpress
   inherit: *wp
   constraint:
     instance-count: 1
 
 blueprint: &wp-multi
+  id: "d8fcfc17-b515-473a-9fe1-6d4e3356ef8d"
   name: Scalable Wordpress
   services:
     loadbalancer:

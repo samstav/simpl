@@ -88,6 +88,7 @@ Blueprints can have options that determine the final deployment topology and the
 
     # An wordpress architecture template
     blueprint: &wp
+      id: "6fcc7f31-08f8-4664-90e3-58fffc71f773"
       name: Multi-server Wordpress
       services:
         lb:
