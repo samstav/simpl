@@ -69,10 +69,11 @@ body {
 .lcontrols {
   box-sizing: border-box;
   padding: 5px;
-  width: 50px;
+  width: 40px;
   background-color: black;
   margin: 0;
   height: 100%;
+  float: left;
 
   background-color: #2c2c2c;
   background-image: -moz-linear-gradient(bottom, #333333, #222222);
@@ -85,15 +86,17 @@ body {
 }
 
 .lcontrols .btn {
-  width: 40px;
-  height: 40px;
+  width: 30px;
+  height: 30px;
   margin-top: 5px;
+  padding-left: 8px;
 }
 
 
 .tControls {
   display: -webkit-box;
   -webkit-box-orient: vertical;
+  height: 100%;
 }
 
 .lcontrols div.top {
@@ -142,8 +145,13 @@ body {
 }
 
 .summaryHeader {
-  margin: 10px;
+  margin: 0px;
+  padding: 10px;
   color: #222;
+}
+
+.summaryHeader .well {
+  margin-bottom: 0px;
 }
 
 .summary.read {

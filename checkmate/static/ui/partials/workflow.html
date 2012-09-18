@@ -1,6 +1,6 @@
 <div class="span3 summaryBar">
   <div class="summaryHeader">
-    <div class="top well" ng-cloak="" ng-show="showStatus">
+    <div class="top well" ng-cloak ng-show="showStatus">
       <div class="row-fluid" style="height: 20px;">
         <div class="span10 actions">
           Workflow
@@ -75,28 +75,31 @@
       </div>
     </div>
 
+
     <div class="row-fluid">
       <div class="span3">
-        <ul class="nav nav-list" ng-cloak="" ng-show="current_task_index">
+        <ul class="nav nav-list" ng-cloak ng-show="current_task_index">
           <li class="nav-header">Task</li>
 
-          <li><a href="#" ng-click="save_task()" class="tip" title="Save any edits of the JSON. The JSON on the right is editable!">Save</a></li>
+          <li><a ng-href="#{{current_task.task_spec}}" ng-click="save_task()" class="tip" title="Save any edits of the JSON. The JSON on the right is editable!"><i class="icon-ok"></i> Save</a></li>
 
-          <li><a href="#" ng-click="reset_task()" class="tip" title="Clear the task data and reset it">Reset</a></li>
+          <li><a ng-href="#{{current_task.task_spec}}" ng-click="reset_task()" class="tip" title="Clear the task data and reset it"><i class="icon-repeat"></i> Reset</a></li>
 
-          <li><a href="#" ng-click="execute_task()" class="tip" title="Run task">Run Task</a></li>
+          <li><a ng-href="#{{current_task.task_spec}}" ng-click="execute_task()" class="tip" title="Run task"><i class="icon-play"></i> Run Task</a></li>
 
-          <li><a href="#" ng-click="resubmit_task()" class="tip" title="Clear task data, abort the Celery task, and retrigger it">Abort and Resubmit</a></li>
+          <li><a ng-href="#"{{current_task.task_spec}} ng-click="resubmit_task()" class="tip" title="Clear task data, abort the Celery task, and retrigger it"><i class="icon-retweet"></i> Abort and Resubmit</a></li>
 
-          <li><a ng-href="{{data.id}}/tasks/{{current_task.id}}">Legacy UI</a></li>
+          <li><a ng-href="{{data.id}}/tasks/{{current_task.id}}"><i class="icon-time"></i> Legacy UI</a></li>
         </ul>
       </div>
 
       <div class="span9">
-        <ul class="nav nav-tabs"></ul>
+        <ul class="nav nav-tabs">
+          <li ng-repeat="task in current_spec_tasks" ng-include="'task.html'" ng-class="{active: task.id==current_task_index}"></li>
+        </ul>
 
-        <div ng-cloak="" ng-show="current_task_index">
-          <div id="error-alert" class="alert alert-block alert-error fade in" ng-cloak="" ng-show="current_task.internal_attributes.task_state.state == 'FAILURE'">
+        <div ng-cloak ng-show="current_task_index">
+          <div id="error-alert" class="alert alert-block alert-error fade in" ng-cloak ng-show="current_task.internal_attributes.task_state.state == 'FAILURE'">
             <button type="button" class="close" data-dismiss="alert">&times;</button>
 
             <h4 class="alert-heading">Oh snap! Something didn't work!</h4>
@@ -112,7 +115,7 @@
             <p><a class="btn btn-primary" href="#" ng-click="execute_task()">Run Task</a> <a class="btn btn-danger cmtip" href="#" ng-click="resubmit_task()" title="Clear task data, abort the Celery task, and retrigger it"> Abort and Retry</a></p>
           </div>
 
-          <div id="error-alert" class="alert alert-block fade in" ng-cloak="" ng-show="current_task.internal_attributes.task_state.state == 'RETRY' &amp;&amp; current_task.state != 64">
+          <div id="error-alert" class="alert alert-block fade in" ng-cloak ng-show="current_task.internal_attributes.task_state.state == 'RETRY' &amp;&amp; current_task.state != 64">
             <button type="button" class="close" data-dismiss="alert">&times;</button>
 
             <h4 class="alert-heading">Something might be up! But we haven't given up yet...</h4>
@@ -128,15 +131,15 @@
             <p>If you don't think this task is going to succeed you could <a class="btn btn-danger cmtip" href="#" ng-click="resubmit_task()" title="Clear task data, abort the Celery task, and retrigger it"> Abort and Retry</a>, but please choose this carefully so we don't end up with duplicate resources!</p>
           </div>
 
-          <div class="alert alert-success" ng-cloak="" ng-show="was_server_created()">
-            <button type="button" class="close" data-dismiss="alert">&times;</button> Server <a ng-cloak="" ng-show="resource(current_task).id.indexOf('-')" target="_blank" href="https://mycloud.rackspace.com/a/{{auth.username}}/#compute%2CcloudServersOpenStack%2C{{current_task.attributes.region}}/{{resource(current_task).id}}">{{resource(current_task).id}}</a> <a ng-hide="resource(current_task).id.indexOf('-')" target="_blank" href="https://mycloud.rackspace.com/a/{{auth.username}}/#compute%2CcloudServers/{{resource(current_task).id}}">{{resource(current_task).id}}</a> was created with IP address {{resource(current_task).ip}}. Connect to it over <a href="ssh://root@{{resource(current_task).ip}}">ssh</a>.
+          <div class="alert alert-success" ng-cloak ng-show="was_server_created()">
+            <button type="button" class="close" data-dismiss="alert">&times;</button> Server <a ng-cloak ng-show="resource(current_task).id.indexOf('-')" target="_blank" href="https://mycloud.rackspace.com/a/{{auth.username}}/#compute%2CcloudServersOpenStack%2C{{current_task.attributes.region}}/{{resource(current_task).id}}">{{resource(current_task).id}}</a> <a ng-hide="resource(current_task).id.indexOf('-')" target="_blank" href="https://mycloud.rackspace.com/a/{{auth.username}}/#compute%2CcloudServers/{{resource(current_task).id}}">{{resource(current_task).id}}</a> was created with IP address {{resource(current_task).ip}}. Connect to it over <a href="ssh://root@{{resource(current_task).ip}}">ssh</a>.
           </div>
 
-          <div class="alert alert-success" ng-cloak="" ng-show="was_loadbalancer_created()">
+          <div class="alert alert-success" ng-cloak ng-show="was_loadbalancer_created()">
             <button type="button" class="close" data-dismiss="alert">&times;</button> Load balancer <a target="_blank" href="https://mycloud.rackspace.com/a/{{auth.username}}/load_balancers#rax%3Aload-balancer%2CcloudLoadBalancers%2C{{current_task.attributes.region}}/{{resource(current_task).id}}">{{resource(current_task).id}}</a>was created and assigned the public virtual IP (VIP) <a target="_blank" href="http://{{resource(current_task).public_ip}}/">{{resource(current_task).public_ip}}</a>.
           </div>
 
-          <div class="alert alert-success" ng-cloak="" ng-show="was_database_created()">
+          <div class="alert alert-success" ng-cloak ng-show="was_database_created()">
             <button type="button" class="close" data-dismiss="alert">&times;</button> Database instance <a target="_blank" href="https://mycloud.rackspace.com/a/{{auth.username}}/database#rax%3Adatabase%2CcloudDatabases%2C{{current_task.attributes.region}}/{{resource(current_task).id}}">{{resource(current_task).id}}</a> was created on host {{resource(current_task).interfaces.mysql.host}}.
           </div>
           <textarea id="task_source" ui-codemirror="{ theme: 'lesser-dark', mode: {name: 'javascript', json: true}, lineNumbers: true, autoFocus: true, lineWrapping: true, dragDrop: false, matchBrackets: true }" ng-model="current_task_json">
