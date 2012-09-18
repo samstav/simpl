@@ -34,6 +34,33 @@ def get_deployments(tenant_id=None):
     return write_body(db.get_deployments(tenant_id=tenant_id), request,
             response)
 
+@get('/deployments/count')
+@with_tenant
+def get_deployments_count(tenant_id=None):
+    """
+    Get the number of deployments. May limit response to include all deployments
+    for a particular tenant and/or blueprint
+    
+    :param:tenant_id: the (optional) tenant
+    """ 
+    return write_body({"count": len(db.get_deployments(tenant_id=tenant_id))}, request, response)
+
+@get("/deployments/count/<blueprint_id>")
+@with_tenant
+def get_deployments_by_bp_count(blueprint_id, tenant_id=None):
+    ret = {"count": 0}
+    deployments = db.get_deployments(tenant_id=tenant_id)
+    if not deployments:
+        LOG.debug("No deployments")
+    for dep_id, dep in deployments.items():
+        if "blueprint" in dep:
+            LOG.debug("Found blueprint {} in deployment {}".format(dep.get("blueprint"), dep_id))
+            if (blueprint_id == dep["blueprint"]) or \
+            ("id" in dep["blueprint"] and blueprint_id == dep["blueprint"]["id"]):
+                ret["count"] += 1
+        else:
+            LOG.debug("No blueprint defined in deployment {}".format(dep_id))
+    return write_body(ret, request, response)
 
 @post('/deployments')
 @with_tenant
