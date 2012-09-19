@@ -1151,7 +1151,7 @@ def _get_root_environments_path(path=None):
     """Build the path using provided inputs and using any environment variables
     or configuration settings"""
     root = path or os.environ.get("CHECKMATE_CHEF_LOCAL_PATH",
-            os.path.dirname(__file__))
+            "/var/local/checkmate/deployments")
     if not os.path.exists(root):
         raise CheckmateException("Invalid root path: %s" % root)
     return root
