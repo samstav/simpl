@@ -1,8 +1,17 @@
+"""This is where celery picks up its settings"""
 import json
 import logging
 import os
 
+
 LOG = logging.getLogger(__name__)
+
+# For debugging, thise makes all calls synchronous
+CELERY_ALWAYS_EAGER = os.environ.get("CELERY_ALWAYS_EAGER", "false").lower() \
+        in ["true", "1"]
+if CELERY_ALWAYS_EAGER:
+    LOG.warning("Celery is running synchronously because the "
+                "CELERY_ALWAYS_EAGER setting is true")
 
 if 'CHECKMATE_BROKER_URL' in os.environ:
     BROKER_URL = os.environ['CHECKMATE_BROKER_URL']

@@ -438,9 +438,11 @@ In preliminary testing is the "mongodb" setting:
 
 **CELERY_CONFIG_MODULE**: use checkmate.celeryconfig by default. See celery instructions for more detail. THis module also picks up the values from some of the other environment variables. If you use a different config module, the other checkmate variables may get ignored.
 
-**CELERYD_FORCE_EXECV**: See celery instructions for more detail. This setting can prevent queue listeners hanging on some OSes (seen frequently on developer Macs)
+**CELERY_ALWAYS_EAGER**: forces celery to run synchronously, in-process instead of using the message queue. May be useful for debugging, development, and troubleshooting.
 
 Deprecated: not used anymore
+
+CELERYD_FORCE_EXECV (as of celery 3.x)
 
 CHECKMATE_DATA_PATH
 
