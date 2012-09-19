@@ -63,22 +63,22 @@ If you do not wish to use a virtual environment and want to develop using your
 system python, you can set up all requirements using the following commands:
 
     # Install forks and other non-standard dependencies
-    $ sudo pip install -r pip-requirements.txt
+    sudo pip install -r pip-requirements.txt
 
     # Install dependencies for running tests
-    $ sudo pip install -r tools/test-requirements.txt
+    sudo pip install -r tools/test-requirements.txt
 
     # Point your system's python to your source code for checkmate libraries
-    $ sudo python setup.py develop
+    sudo python setup.py develop
 
 
 ## Install Checkmate from source
 
-    $ git clone git://github.rackspace.com/checkmate/checkmate.git
-    $ cd checkmate
-    $ pip install -r pip-requirements.txt
-    $ python setup.py install
-    $ cd ..
+    git clone git://github.rackspace.com/checkmate/checkmate.git
+    cd checkmate
+    pip install -r pip-requirements.txt
+    python setup.py install
+    cd ..
 
 ## Install Chef
 
@@ -88,23 +88,23 @@ last known good (LKG) config.
 Bleeding Edge: To install the latest Chef client, knife-solo, and
 knife-solo_data_bag:
 
-    $ curl chef.rackspacecloud.com/install-alt.sh | bash -s
+    curl chef.rackspacecloud.com/install-alt.sh | bash -s
     # Note: on a Mac, use sudo to start bash:
     # curl chef.rackspacecloud.com/install-alt.sh | sudo bash -s
 
     # Install RVM
-    $ echo insecure >> ~/.curlrc
-    $ curl -k -L get.rvm.io | bash -s stable
-    $ source ~/.rvm/scripts/rvm
+    echo insecure >> ~/.curlrc
+    curl -k -L get.rvm.io | bash -s stable
+    source ~/.rvm/scripts/rvm
 
     # Install Ruby 1.9.3 locally
-    $ rvm install 1.9.3-p125
-    $ rvm use ruby-1.9.3-p125
-    $ rvm gemset create chef
-    $ rvm gemset use chef
-    $ gem install bundler
-    $ gem install knife-solo
-    $ gem install knife-solo_data_bag
+    rvm install 1.9.3-p125
+    rvm use ruby-1.9.3-p125
+    rvm gemset create chef
+    rvm gemset use chef
+    gem install bundler
+    gem install knife-solo
+    gem install knife-solo_data_bag
 
 LKG: To install the last known good and tested config of Chef for the Checkmate
 server:
@@ -156,55 +156,66 @@ Installing and starting MongoDB 2.0.6 on OSX:
 
 Install, configure, and start rabbitmq.
 
-    $ sudo apt-get -y install rabbitmq-server python-dev python-setuptools
-    $ sudo rabbitmqctl delete_user guest
-    $ sudo rabbitmqctl add_vhost checkmate
-    $ sudo rabbitmqctl add_user checkmate <some_password_here>
-    $ sudo rabbitmqctl set_permissions -p checkmate checkmate ".*" ".*" ".*"
+    sudo apt-get -y install rabbitmq-server python-dev python-setuptools
+    sudo rabbitmqctl delete_user guest
+    sudo rabbitmqctl add_vhost checkmate
+    sudo rabbitmqctl add_user checkmate <some_password_here>
+    sudo rabbitmqctl set_permissions -p checkmate checkmate ".*" ".*" ".*"
 
 Set the environment variable for your checkmate deployment environments and
 create the directory. If you want your variable settings to look stock, set
 the optional CHECKMATE_PREFIX to something like /home/myuser/checkmate.
 
-    $ export CHECKMATE_PREFIX=""
-    $ export CHECKMATE_CHEF_LOCAL_PATH="${CHECKMATE_PREFIX}/var/checkmate/chef"
-    $ mkdir -p $CHECKMATE_CHEF_LOCAL_PATH
+    export CHECKMATE_PREFIX=""
+    export CHECKMATE_CHEF_LOCAL_PATH="${CHECKMATE_PREFIX}/var/checkmate/chef"
+    mkdir -p $CHECKMATE_CHEF_LOCAL_PATH
 
 Clone the chef repository and point checkmate to it:
 
-    $ export CHECKMATE_CHEF_REPO="${CHECKMATE_PREFIX}/var/checkmate/chef/repo"
-    $ mkdir -p $CHECKMATE_CHEF_REPO
-    $ cd $CHECKMATE_CHEF_REPO
-    $ git clone git://github.rackspace.com/checkmate/chef-stockton.git
+    export CHECKMATE_CHEF_REPO="${CHECKMATE_PREFIX}/var/checkmate/chef/repo"
+    mkdir -p $CHECKMATE_CHEF_REPO
+    cd $CHECKMATE_CHEF_REPO
+    git clone git://github.rackspace.com/checkmate/chef-stockton.git
 
 ## Starting the Checkmate services
 
 Before you start one of the Checkmate services, the shell environment needs to
 be prepped:
 
-    $ export CHECKMATE_BROKER_USERNAME="checkmate"
-    $ export CHECKMATE_BROKER_PASSWORD="password"
-    $ export CHECKMATE_BROKER_PORT="5672"
-    $ export CHECKMATE_BROKER_HOST="localhost"
-    $ export CELERY_CONFIG_MODULE=checkmate.celeryconfig
-    $ export CHECKMATE_CHEF_REPO="${CHECKMATE_PREFIX}/var/checkmate/chef/repo/chef-stockton"
-    $ export CHECKMATE_CONNECTION_STRING="sqlite:///${CHECKMATE_PREFIX}/var/checkmate/data/db.sqlite"
-    $ export CHECKMATE_CHEF_LOCAL_PATH="${CHECKMATE_PREFIX}/var/checkmate/chef"
-    $ export CHECKMATE_PUBLIC_KEY=`cat ~/.ssh/id_rsa.pub`
+    # If you're using RabbitMQ + sqlite
+    export CHECKMATE_BROKER_USERNAME="checkmate"
+    export CHECKMATE_BROKER_PASSWORD="password"
+    export CHECKMATE_BROKER_PORT="5672"
+    export CHECKMATE_BROKER_HOST="localhost"
+    export CHECKMATE_CONNECTION_STRING="sqlite:///${CHECKMATE_PREFIX}/var/checkmate/data/db.sqlite"
+    
+    # If you're using MongoDB
+    export CHECKMATE_BROKER_URL="mongodb://checkmate:secret@localhost:27017/checkmate"
+    export CHECKMATE_RESULT_BACKEND="mongodb"
+    export CHECKMATE_MONGODB_BACKEND_SETTINGS='{"host": "localhost", "port": 27017, "user": "checkmate", "password": "secret", "database": "checkmate", "taskmeta_collection": "celery_task_meta"}'
+    export CHECKMATE_CONNECTION_STRING="mongodb://checkmate:secret@localhost:27017/checkmate"
+
+    # If you're using the chef provider (currently the only application provider)
+    export CHECKMATE_CHEF_REPO="/var/local/checkmate/chef/repo/chef-stockton"
+    export CHECKMATE_CHEF_LOCAL_PATH="/var/local/checkmate/chef-stockton"
+
+    # Always
+    export CELERY_CONFIG_MODULE=checkmate.celeryconfig
+    export CHECKMATE_PUBLIC_KEY=`cat ~/.ssh/id_rsa.pub`
 
 Start the queue service:
 
-    $ bin/checkmate-queue START
+    bin/checkmate-queue START
 
 Start the Checkmate API and UI service:
 
-    $ bin/checkmate-server START --with-ui --with-simulator
-    # To specify an alternate IP:Port
-    $ bin/checkmate-server START --with-ui --with-simulator 0.0.0.0:8000
+    bin/checkmate-server START --with-ui --with-simulator
+    # Or, to specify an alternate IP:Port
+    bin/checkmate-server START --with-ui --with-simulator 0.0.0.0:8000
 
 
 Note: A shortcut for creating the environment and running a checkmate server
 using only an in-memory database and broker is:
 
-    $ python tools/install_venv.py
-    $ tools/with_venv.sh bin/checkmate-server START --with-ui --with-simulator
+    python tools/install_venv.py
+    tools/with_venv.sh bin/checkmate-server START --with-ui --with-simulator
