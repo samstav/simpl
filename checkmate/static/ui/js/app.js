@@ -356,7 +356,7 @@ function AppController($scope, $http, $location) {
       url: "/authproxy",
       data: data
     }).success(function(json) {
-      $('#modalAuth').hide();
+      $('#modalAuth').modal('hide');
       var keep = {access: {token: json.access.token, user: json.access.user}};
       keep.auth_url = auth_url;  // save for later
       var expires = new Date(json.access.token.expires);
@@ -380,12 +380,13 @@ function AppController($scope, $http, $location) {
           apikey: '',
           auth_url: "https://identity.api.rackspacecloud.com/v2.0/tokens"
         };
-      $scope.$apply();
       if (typeof $('#modalAuth')[0].success_callback == 'function') {
           $('#modalAuth')[0].success_callback();
           delete $('#modalAuth')[0].success_callback;
           delete $('#modalAuth')[0].failure_callback;
         }
+      else
+        $scope.$apply();
     }).error(function(response) {
       if (typeof $('#modalAuth')[0].failure_callback == 'function') {
           $('#modalAuth')[0].failure_callback();
