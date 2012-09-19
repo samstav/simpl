@@ -619,8 +619,8 @@ function WorkflowController($scope, $resource, $http, $routeParams, $location, $
     return workflow.classify(task);
   }
 
-  $scope.state_name = function(state) {
-    return workflow.state_name(state);
+  $scope.state_name = function(task) {
+    return workflow.state_name(task);
   }
   
   $scope.save_spec = function() {
