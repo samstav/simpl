@@ -595,11 +595,11 @@ function WorkflowController($scope, $resource, $http, $routeParams, $location, $
       })
     $scope.current_spec_tasks = tasks;
     tasks = $scope.spec_tasks(spec_id);
-    if (tasks)
+    if (tasks && !(_.include(tasks, $scope.current_task))) 
       $scope.selectTask(tasks[0].id);
     $scope.toCurrent();
-    console.log(spec_id);
-    $location.hash(spec_id);
+    if ($location.hash() != spec_id)
+        $location.hash(spec_id);
   };
 
   $scope.toCurrent = function() {
@@ -724,10 +724,10 @@ function WorkflowController($scope, $resource, $http, $routeParams, $location, $
       console.log("Executing '" + action + " on workflow " + workflow_id);
       $http({method: 'GET', url: $location.path() + '/+' + action}).
         success(function(data, status, headers, config) {
-          $scope.notify("Command '" + action + "' executed");
+          $scope.notify("Command '" + action + "' workflow executed");
           // this callback will be called asynchronously
           // when the response is available
-          $window.location.reload();
+          $scope.load();
         });
     } else {
       $scope.loginPrompt(); //TODO: implement a callback
@@ -739,7 +739,7 @@ function WorkflowController($scope, $resource, $http, $routeParams, $location, $
       console.log("Executing '" + action + " on task " + task_id);
       $http({method: 'POST', url: $location.path() + '/tasks/' + task_id + '/+' + action}).
         success(function(data, status, headers, config) {
-          $scope.notify("Command '" + action + "' executed");
+          $scope.notify("Command '" + action + "' task executed");
           // this callback will be called asynchronously
           // when the response is available
           $scope.load();

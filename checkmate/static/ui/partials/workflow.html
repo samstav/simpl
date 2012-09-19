@@ -113,34 +113,22 @@
         <div ng-cloak ng-show="current_task_index">
           <div id="error-alert" class="alert alert-block alert-error fade in" ng-cloak ng-show="current_task.internal_attributes.task_state.state == 'FAILURE'">
             <button type="button" class="close" data-dismiss="alert">&times;</button>
-
             <h4 class="alert-heading">Oh snap! Something didn't work!</h4>
-
             <p>This error was reported: {{current_task.internal_attributes.task_state.info}}. See the code <a class="accordion-toggle cmcollapse" data-toggle="collapse" data-target="#traceback">traceback</a>.</p>
-
             <div id="traceback" class="cmcollapse collapse">
-              <pre>
-{{current_task.internal_attributes.task_state.traceback}}
-</pre>
+              <pre>{{current_task.internal_attributes.task_state.traceback}}</pre>
             </div>
-
-            <p><a class="btn btn-primary" href="#" ng-click="execute_task()">Run Task</a> <a class="btn btn-danger cmtip" href="#" ng-click="resubmit_task()" title="Clear task data, abort the Celery task, and retrigger it"> Abort and Retry</a></p>
+            <p><button class="btn btn-primary" ng-click="execute_task()">Run Task</button> <button class="btn btn-danger cmtip" ng-click="resubmit_task()" title="Clear task data, abort the Celery task, and retrigger it"> Abort and Retry</button></p>
           </div>
 
           <div id="error-alert" class="alert alert-block fade in" ng-cloak ng-show="current_task.internal_attributes.task_state.state == 'RETRY' &amp;&amp; current_task.state != 64">
             <button type="button" class="close" data-dismiss="alert">&times;</button>
-
             <h4 class="alert-heading">Something might be up! But we haven't given up yet...</h4>
-
             <p>This task is being retried. See the code <a class="accordion-toggle cmcollapse" data-toggle="collapse" data-target="#traceback2">traceback</a>.</p>
-
             <div id="traceback2" class="cmcollapse collapse">
-              <pre>
-{{current_task.internal_attributes.task_state.traceback}}
-</pre>
+              <pre>{{current_task.internal_attributes.task_state.traceback}}</pre>
             </div>
-
-            <p>If you don't think this task is going to succeed you could <a class="btn btn-danger cmtip" href="#" ng-click="resubmit_task()" title="Clear task data, abort the Celery task, and retrigger it"> Abort and Retry</a>, but please choose this carefully so we don't end up with duplicate resources!</p>
+            <p>If you don't think this task is going to succeed you could <button class="btn btn-danger cmtip" ng-click="resubmit_task()" title="Clear task data, abort the Celery task, and retrigger it"> Abort and Retry</button>, but please choose this carefully so we don't end up with duplicate resources!</p>
           </div>
 
           <div class="alert alert-success" ng-cloak ng-show="was_server_created()">
@@ -154,8 +142,7 @@
           <div class="alert alert-success" ng-cloak ng-show="was_database_created()">
             <button type="button" class="close" data-dismiss="alert">&times;</button> Database instance <a target="_blank" href="https://mycloud.rackspace.com/a/{{auth.username}}/database#rax%3Adatabase%2CcloudDatabases%2C{{current_task.attributes.region}}/{{resource(current_task).id}}">{{resource(current_task).id}}</a> was created on host {{resource(current_task).interfaces.mysql.host}}.
           </div>
-          <textarea id="task_source" ui-codemirror="{ theme: 'lesser-dark', mode: {name: 'javascript', json: true}, lineNumbers: true, autoFocus: true, lineWrapping: true, dragDrop: false, matchBrackets: true }" ng-model="current_task_json">
-</textarea>
+          <textarea id="task_source" ui-codemirror="{ theme: 'lesser-dark', mode: {name: 'javascript', json: true}, lineNumbers: true, autoFocus: true, lineWrapping: true, dragDrop: false, matchBrackets: true }" ng-model="current_task_json"></textarea>
         </div>
       </div>
     </div>
