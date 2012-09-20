@@ -16,10 +16,12 @@ from checkmate.workflows import wait_for
 
 LOG = logging.getLogger(__name__)
 
-# In all poroviders, we convert airport codes into city names
-REGION_MAP = {'DFW': 'dallas',
-              'ORD': 'chicago',
-              'LON': 'london'}
+# This supports translating airport codes to city names. Checkmate expects to
+# deal in the region name as defined in the service catalog, which is in
+# airport codes.
+REGION_MAP = {'dallas': 'DFW',
+              'chicago': 'ORD',
+              'london': 'LON'}
 
 
 class Provider(RackspaceComputeProviderBase):
@@ -41,7 +43,7 @@ class Provider(RackspaceComputeProviderBase):
             LOG.warning("No region specified for Legacy Compute provider in "
                         "deployment.")
         else:
-            # Convert to and use city codes
+            # Convert to and use airport codes
             if region in REGION_MAP:
                 region = REGION_MAP[region]
 
@@ -245,7 +247,7 @@ class Provider(RackspaceComputeProviderBase):
         """Use context info to connect to API and return api object"""
         #FIXME: figure out better serialization/deserialization scheme
         if isinstance(context, dict):
-            from checkmate.server import RequestContext
+            from checkmate.middleware import RequestContext
             context = RequestContext(**context)
         if not context.auth_token:
             raise CheckmateNoTokenError()

@@ -338,6 +338,7 @@ includes:
   # Blueprints contain best practices and 'constrain' the available options in an environment to
   # those that are architecturally sound.
 - blueprint: &wp-multi
+    id: "d8fcfc17-b515-473a-9fe1-6d4e3356ef8d"
     name: "Scalable Wordpress (Managed Cloud Config)"
     description: "uses MC config recipes which support blah...., multiple domains, ...."
     #Services are similar to tiers. The names are arbitrary keys to be chosen by the blueprint author.
@@ -380,7 +381,7 @@ includes:
         # TO TEST: for multiple configs
         # take web1, give it lsyncd-master config
         # all others, give them lsyncd-slave
-      "backend": #TODO: remove hard coding against this name. Think about what these names mean. These are basically tiers...
+      "backend":
         component:
           type: database
           interface: mysql
@@ -493,23 +494,21 @@ includes:
         description: The size of the instance in MB of RAM.
         type: select
         choice:
-        - value: 256
-          name: 256 Mb
         - value: 512
           name: 512 Mb
         - value: 1024
           name: 1 Gb
-	- value: 2048
-	  name: 2 Gb
-	- value: 4096
-	  name: 4 Gb
-	- value: 8192
-	  name: 8 Gb
-	- value: 16384
-	  name: 16 Gb
-	- value: 30720
-	  name: 30 Gb
-        constrains: [{service: web, resource_type: compute, setting: size},{service: master, resource_type: compute, setting: size}]
+        - value: 2048
+          name: 2 Gb
+        - value: 4096
+          name: 4 Gb
+        - value: 8192
+          name: 8 Gb
+        - value: 16384
+          name: 16 Gb
+        - value: 30720
+          name: 30 Gb
+        constrains: [{service: web, resource_type: compute, setting: size}, {service: master, resource_type: compute, setting: size}]
       "os":
         default: Ubuntu 12.04
         type: select
@@ -524,7 +523,7 @@ includes:
         description: The number of WordPress servers (minimum two).
         default: 2
         constrains:
-        - {service: web, resource_type: compute, setting: count}
+        - {service: web, resource_type: application, setting: count}
         constraints:
         - greater-than: 1 # this is an HA config
       "database_memory":
@@ -659,10 +658,6 @@ includes:
               73487664:
                 name: my_custom_image
             sizes:
-              '1':
-                disk: 10
-                name: 256 server
-                memory: 256
               '2':
                 disk: 20
                 name: 512 server
@@ -724,12 +719,12 @@ includes:
                 os: CentOS 6.2
               '125':
                 name: Ubuntu 12.04 LTS
-                os: Ubuntu 12.04 LTS
+                os: Ubuntu 12.04
               '126':
                 name: Fedora 17
                 os: Fedora 17
             regions:
-              ORD: https://servers.api.rackspacecloud.com/v1.0/{tenantId}
+              ORD: https://servers.api.rackspacecloud.com/v1.0/${CHECKMATE_CLIENT_TENANT}
 
       'load-balancer': &rax-lbaas
         vendor: 'rackspace'
@@ -813,8 +808,8 @@ includes:
                   interface: mysql
           lists:
             regions:
-              DFW: https://dfw.databases.api.rackspacecloud.com/v1.0/557366
-              ORD: https://ord.databases.api.rackspacecloud.com/v1.0/557366
+              DFW: https://dfw.databases.api.rackspacecloud.com/v1.0/${CHECKMATE_CLIENT_TENANT}
+              ORD: https://ord.databases.api.rackspacecloud.com/v1.0/${CHECKMATE_CLIENT_TENANT}
             sizes:
               '1':
                 memory: 512
@@ -845,6 +840,7 @@ includes:
 
 - also: # just examples
   - blueprint: &wp
+      id: "6fcc7f31-08f8-4664-90e3-58fffc71f773"
       name: Simple Wordpress
       services:
         "wordpress":
@@ -859,6 +855,7 @@ includes:
   - blueprint: &wp1
       <<: *wp #inherit all values from wp
       # override inherited values
+      id: "c7a1efdb-7066-4d7a-b0b4-5335f6d4a023"
       name: OneBox Wordpress
       # and add constraints
       constraint:
@@ -866,6 +863,7 @@ includes:
   - blueprint: &wp-with-varnish
       <<: *wp-multi
       # override values
+      id: "15899293-44e7-492b-a88b-56781413adf8"
       name: Super-fast Wordpress
       services:
         "wordpress":
@@ -899,19 +897,18 @@ inputs: # Answers to or values for blueprint/provider options & settings.
     "region": ${CHECKMATE_CLIENT_REGION}
     "high-availability": false
     "requests-per-second": 60
+    "web_server_size": 512
   services:
     "backend":
       'database':
         'memory': 512 Mb
     "web":
-      'compute':
-        'memory': 512 Mb
       'application':
         'count': 1
   providers:
     'legacy':
       'compute':
-        'os': Ubuntu 11.10
+        'os': Ubuntu 12.04
 
 #### For sample Output, see simulator.json in tests directory
 #

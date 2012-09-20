@@ -32,6 +32,7 @@ setup(
     dependency_links=github_urls,
     install_requires=['bottle==0.10.11',
                       'celery-with-mongodb==3.0',
+                      'eventlet==0.9.17',
                       'GitPython==0.3.2.RC1',
                       'Jinja2==2.6',
                       'openstack.compute==2.0a1',
@@ -64,7 +65,7 @@ setup(
           'checkmate-simulation=checkmate.sample.checkmate_simulation:main_func',
         ]
     },
-    tests_require=['nose', 'unittest2', 'mox', 'webtest'],
+    tests_require=['nose', 'unittest2', 'mox', 'webtest', 'pep8'],
     packages=find_packages(exclude=['tests', 'bin', 'examples', 'doc',
             'checkmate.openstack.*']),
     include_package_data=True,

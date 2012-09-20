@@ -1,5 +1,4 @@
 *.swp
-.venv
 .tox
 checkmate.egg-info/
 .coverage
@@ -13,16 +12,27 @@ build/
 dist/
 coverage/
 var/
+src/
+data/
 checkmate/static-libs/
 checkmate/openstack
 /tests/data/environments
 /checkmate/providers/opscode/chef-stockton
 
-a Compiled source #
+# possible locations of chef-stockton repo
+checkmate/providers/opscode/chef-stockton
+chef/
+
+# virtual environments
+.venv
+venv-checkmate
+
+# scratch files
+scratch.json
+scratch.xml
+
+# Compiled source #
 ###################
-# Sublime project files #
-*.sublime-project
-*.sublime-workspace
 *.com
 *.class
 *.dll
@@ -79,3 +89,14 @@ tests/coverage.xml
 /vagrant/cookbooks
 /vagrant/tmp
 /vagrant/Cheffile.lock
+
+# Sublime Project Files #
+#########################
+*.sublime-project
+*.sublime-workspace
+
+# Komodo Project Files #
+########################
+*.komodoproject
+
+

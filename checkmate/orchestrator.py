@@ -5,7 +5,6 @@ import logging
 import time
 
 from celery import current_app
-from celery.contrib.abortable import AbortableTask
 from celery.task import task
 
 try:
@@ -87,8 +86,10 @@ def create_simple_server(context, name, image=214, flavor=1,
     wf.get_task(3).set_attribute(context=context)
 
     serializer = DictionarySerializer()
+    body=wf.serialize(serializer)
+    body['id']=create_simple_server.request.id
     db.save_workflow(create_simple_server.request.id,
-                     wf.serialize(serializer))
+                     body)
 
     # Loop through trying to complete the workflow and periodically send
     # status updates
@@ -127,84 +128,86 @@ def count_seconds(seconds):
     return seconds
 
 
-class run_workflow(AbortableTask):
-    track_started = True
-    default_retry_delay = 10
-    max_retries = 300  # We use our own timeout
+@task(default_retry_delay=10, max_retries=300)
+def run_workflow(id, timeout=60, wait=1, counter=1):
+    """Loop through trying to complete the workflow and periodically log
+    status updates. Each time we cycle through, if nothing happens we
+    extend the wait time between cycles so we don't load the system.
 
-    def run(self, id, timeout=60, wait=1, counter=1):
-        """Loop through trying to complete the workflow and periodically log
-        status updates. Each time we cycle through, if nothing happens we
-        extend the wait time between cycles so we don't load the system.
+    This function should not consume time, so the timeout is only counting
+    the number of seconds we wait between runs
 
-        This function should not consume time, so the timeout is only counting
-        the number of seconds we wait between runs
+    :param id: the workflow id
+    :param timeout: the timeout in seconds. Unless we complete before then
+    :param wait: how long to wait between runs. Grows without activity
+    :returns: True if workflow is complete
+    """
+    match_celery_logging(LOG)
+    # Get the workflow
+    serializer = DictionarySerializer()
+    workflow = db.get_workflow(id, with_secrets=True)
+    wf = Workflow.deserialize(serializer, workflow)
+    LOG.debug("Deserialized workflow %s" % id, extra=dict(data=wf.get_dump()))
 
-        :param id: the workflow id
-        :param timeout: the timeout in seconds. Unless we complete before then
-        :param wait: how long to wait between runs. Grows without activity
-        :returns: True if workflow is complete
-        """
-        match_celery_logging(LOG)
-        # Get the workflow
-        db = get_driver('checkmate.db.sql.Driver')
-        serializer = DictionarySerializer()
-        workflow = db.get_workflow(id, with_secrets=True)
-        wf = Workflow.deserialize(serializer, workflow)
-        LOG.debug("Deserialized workflow %s: %s" % (id, wf.get_dump()))
+    # Prepare to run it
+    if wf.is_completed():
+        LOG.debug("Workflow '%s' is already complete. Nothing to do." % id)
+        return True
 
-        # Prepare to run it
-        if wf.is_completed():
-            return True
+    before = wf.get_dump()
 
-        before = wf.get_dump()
+    # Run!
+    try:
+        wf.complete_all()
+    except Exception as exc:
+        LOG.exception(exc)
+        return False
+    finally:
+        # Save any changes, even if we errored out
+        after = wf.get_dump()
 
-        # Run!
-        try:
-            wf.complete_all()
-        except Exception as exc:
-            LOG.exception(exc)
-            return False
-        finally:
-            # Save any changes, even if we errored out
-            after = wf.get_dump()
+        if before != after:
+            # We made some progress, so save and prioritize next run
+            updated = wf.serialize(serializer)
+            body, secrets = extract_sensitive_data(updated)
+            body['tenantId'] = workflow.get('tenantId')
+            body['id'] = id
+            db.save_workflow(id, body, secrets)
+            wait = 1
 
-            if before != after:
-                # We made some progress, so save and prioritize next run
-                updated = wf.serialize(serializer)
-                body, secrets = extract_sensitive_data(updated)
-                body['tenantId'] = workflow.get('tenantId')
-                db.save_workflow(id, body, secrets)
-                wait = 1
-
-                # Report progress
-                total = len(wf.get_tasks(state=Task.ANY_MASK))  # Changes
-                completed = len(wf.get_tasks(state=Task.COMPLETED))
-                LOG.debug("Workflow status: %s/%s (state=%s)" % (completed,
-                        total, "PROGRESS"))
-                self.update_state(state="PROGRESS",
-                        meta={'complete': completed, 'total': total})
-            else:
-                # No progress made. So drop priority (to max of 20s wait)
-                if wait < 20:
-                    wait += 1
-
-        # Assess impact of run
-        if wf.is_completed():
-            return True
-
-        timeout = timeout - wait if timeout > wait else 0
-        if timeout:
-            LOG.debug("Finished run of workflow %s. %is to go. Waiting %i to "
-                    "next run. Retries: %s" % (id, timeout, wait,
-                    counter))
-            retry_kwargs = {'timeout': timeout, 'wait': wait,
-                    'counter': counter + 1}
-            return self.retry([id], kwargs=retry_kwargs, countdown=wait,
-                    Throw=False)
+            # Report progress
+            total = len(wf.get_tasks(state=Task.ANY_MASK))  # Changes
+            completed = len(wf.get_tasks(state=Task.COMPLETED))
+            LOG.debug("Workflow status: %s/%s (state=%s)" % (completed,
+                    total, "PROGRESS"))
+            run_workflow.update_state(state="PROGRESS",
+                    meta={'complete': completed, 'total': total})
         else:
-            LOG.debug("Workflow %s timed out." % id)
-            return False
+            # No progress made. So drop priority (to max of 20s wait)
+            if wait < 20:
+                wait += 1
+            LOG.debug("Workflow '%s' did not make any progress. "
+                      "Deprioritizing it and waiting %s seconds to retry."
+                      % (id, wait))
+
+    # Assess impact of run
+    if wf.is_completed():
+        return True
+
+    timeout = timeout - wait if timeout > wait else 0
+    if timeout:
+        LOG.debug("Finished run of workflow '%s'. %i seconds to go. Waiting "
+                  " %i seconds to next run. Retries done: %s" % (id,
+                                                                 timeout,
+                                                                 wait,
+                                                                 counter))
+        retry_kwargs = {'timeout': timeout, 'wait': wait,
+                'counter': counter + 1}
+        return run_workflow.retry([id], kwargs=retry_kwargs, countdown=wait,
+                Throw=False)
+    else:
+        LOG.debug("Workflow '%s' did not complete (no timeout set)." % id)
+        return False
 
 
 @task
@@ -242,5 +245,6 @@ def run_one_task(workflow_id, task_id, timeout=60):
     updated = wf.serialize(serializer)
     body, secrets = extract_sensitive_data(updated)
     body['tenantId'] = workflow.get('tenantId')
+    body['id'] = workflow_id
     db.save_workflow(workflow_id, body, secrets)
     return result

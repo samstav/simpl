@@ -313,11 +313,11 @@
         "options": [
           {
             "name": "Dallas, TX USA",
-            "value": "dfw2"
+            "value": "DFW"
           },
           {
             "name": "Chicago, IL USA",
-            "value": "ord"
+            "value": "ORD"
 
           }
         ]

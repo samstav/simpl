@@ -15,6 +15,8 @@ from checkmate.providers.base import PROVIDER_CLASSES
 from checkmate.test import StubbedWorkflowBase, TestProvider
 from checkmate.utils import yaml_to_dict
 
+from celery.exceptions import RetryTaskError
+
 
 class TestDatabase(unittest.TestCase):
     """ Test Database Provider """
@@ -82,6 +84,8 @@ class TestDatabase(unittest.TestCase):
         self.mox.VerifyAll()
 
     def test_create_database(self):
+        context = dict(deployment='DEP', resource='1')
+
         #Mock instance
         instance = self.mox.CreateMockAnything()
         instance.id = 'fake_instance_id'
@@ -95,32 +99,50 @@ class TestDatabase(unittest.TestCase):
         #Create clouddb mock
         clouddb_api_mock = self.mox.CreateMockAnything()
         clouddb_api_mock.get_instance(instance.id).AndReturn(instance)
+        self.mox.ReplayAll()
+        try:
+            results = database.create_database(context, 'db1', 'NORTH',
+                instance_id=instance.id, api=clouddb_api_mock)
+        except RetryTaskError:
+            pass #Should throw retry exception when instance.status="BUILD"
+
+        self.mox.UnsetStubs()
+        self.mox.VerifyAll()
+        
+        #Mock instance
+        instance = self.mox.CreateMockAnything()
+        instance.id = 'fake_instance_id'
+        instance.name = 'fake_instance'
+        instance.status = 'ACTIVE'
+        instance.hostname = 'fake.cloud.local'
+
+        #Stub out postback call
+        self.mox.StubOutWithMock(resource_postback, 'delay')
+
+        #Create clouddb mock
+        clouddb_api_mock = self.mox.CreateMockAnything()
+        clouddb_api_mock.get_instance(instance.id).AndReturn(instance)
         instance.create_databases([{'name': 'db1'}]).AndReturn(True)
 
         expected = {
-            'instance:1': {
-                    'databases': {
-                            'db1': {
-                                    'host_instance': instance.id,
-                                    'host_region': 'NORTH',
-                                    'interfaces': {
-                                            'mysql': {
-                                                    'host': instance.hostname,
-                                                    'database_name': 'db1',
-                                                },
-                                        },
-                                },
-                        },
-                },
-        }
-
-        context = dict(deployment='DEP', resource='1')
+                'instance:1': {
+                        'host_instance': instance.id,
+                        'interfaces': {
+                                'mysql': {
+                                        'host': instance.hostname,
+                                        'database_name': 'db1'
+                                    }
+                            },
+                        'name': 'db1',
+                        'host_region': 'NORTH'
+                    }
+            }
         resource_postback.delay(context['deployment'], expected).AndReturn(
                 True)
 
         self.mox.ReplayAll()
         results = database.create_database(context, 'db1', 'NORTH',
-                instance_id=instance.id, api=clouddb_api_mock)
+            instance_id=instance.id, api=clouddb_api_mock)
 
         self.assertDictEqual(results, expected)
         self.mox.VerifyAll()

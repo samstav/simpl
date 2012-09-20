@@ -34,6 +34,33 @@ def get_deployments(tenant_id=None):
     return write_body(db.get_deployments(tenant_id=tenant_id), request,
             response)
 
+@get('/deployments/count')
+@with_tenant
+def get_deployments_count(tenant_id=None):
+    """
+    Get the number of deployments. May limit response to include all deployments
+    for a particular tenant and/or blueprint
+    
+    :param:tenant_id: the (optional) tenant
+    """ 
+    return write_body({"count": len(db.get_deployments(tenant_id=tenant_id))}, request, response)
+
+@get("/deployments/count/<blueprint_id>")
+@with_tenant
+def get_deployments_by_bp_count(blueprint_id, tenant_id=None):
+    ret = {"count": 0}
+    deployments = db.get_deployments(tenant_id=tenant_id)
+    if not deployments:
+        LOG.debug("No deployments")
+    for dep_id, dep in deployments.items():
+        if "blueprint" in dep:
+            LOG.debug("Found blueprint {} in deployment {}".format(dep.get("blueprint"), dep_id))
+            if (blueprint_id == dep["blueprint"]) or \
+            ("id" in dep["blueprint"] and blueprint_id == dep["blueprint"]["id"]):
+                ret["count"] += 1
+        else:
+            LOG.debug("No blueprint defined in deployment {}".format(dep_id))
+    return write_body(ret, request, response)
 
 @post('/deployments')
 @with_tenant
@@ -89,8 +116,30 @@ def post_deployment(tenant_id=None):
 
 @post('/deployments/+parse')
 @with_tenant
-def parse_deployment():
-    """ Use this to preview a request """
+def parse_deployment(tenant_id=None):
+    """Parse a deployment and return the parsed response"""
+    entity = read_body(request)
+    if 'deployment' in entity:
+        entity = entity['deployment']
+
+    if 'id' not in entity:
+        entity['id'] = uuid.uuid4().hex
+    if any_id_problems(entity['id']):
+        abort(406, any_id_problems(entity['id']))
+
+    # Validate syntax
+    deployment = Deployment(entity)
+    if 'includes' in deployment:
+        del deployment['includes']
+
+    results = plan(deployment, request.context)
+    return write_body(results, request, response)
+
+
+@post('/deployments/+preview')
+@with_tenant
+def preview_deployment(tenant_id=None):
+    """Parse and preview a deployment and its workflow"""
     entity = read_body(request)
     if 'deployment' in entity:
         entity = entity['deployment']
@@ -115,7 +164,7 @@ def parse_deployment():
     return write_body(results, request, response)
 
 
-@route('/deployment/<oid>', method=['POST', 'PUT'])
+@route('/deployments/<oid>', method=['POST', 'PUT'])
 @with_tenant
 def update_deployment(oid, tenant_id=None):
     entity = read_body(request)

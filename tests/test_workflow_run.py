@@ -100,7 +100,7 @@ class TestWorkflow(StubbedWorkflowBase):
     def setUpClass(cls):
         # Load app.yaml, substitute variables
         path = os.path.join(os.path.dirname(__file__), '..', 'examples',
-            'app.yaml')
+                            'app.yaml')
         with file(path) as f:
             source = f.read().decode('utf-8')
 
@@ -109,7 +109,7 @@ class TestWorkflow(StubbedWorkflowBase):
         combined.update(os.environ)
         parsed = t.safe_substitute(**combined)
         app = yaml.safe_load(yaml.emit(resolve_yaml_external_refs(parsed),
-                         Dumper=yaml.SafeDumper))
+                             Dumper=yaml.SafeDumper))
         app['id'] = 'DEP-ID-1000'
         cls.deployment = Deployment(app)
 
@@ -134,8 +134,8 @@ class TestWorkflow(StubbedWorkflowBase):
         #LOG.debug(result)
 
         # Update simulator (since this test was successful)
-        simulator_file_path = os.path.join(os.path.dirname(__file__),
-                'data', 'simulator.json')
+        simulator_file_path = os.path.join(os.path.dirname(__file__), 'data',
+                                           'simulator.json')
 
         # Scrub data
         for var_name, safe_value in ENV_VARS.iteritems():
@@ -146,21 +146,22 @@ class TestWorkflow(StubbedWorkflowBase):
             for key, value in keys.iteritems():
                 if 'public_key' in value:
                     result = result.replace(value['public_key'][0:-1],
-                            "-----BEGIN PUBLIC KEY-----\n...\n"
-                            "-----END PUBLIC KEY-----\n")
+                                            "-----BEGIN PUBLIC KEY-----\n...\n"
+                                            "-----END PUBLIC KEY-----\n")
                 if 'public_key_ssh' in value:
                     result = result.replace(value['public_key_ssh'][0:-1],
-                            ENV_VARS['CHECKMATE_PUBLIC_KEY'])
+                                            ENV_VARS['CHECKMATE_PUBLIC_KEY'])
                 if 'public_key_path' in value:
                     result = result.replace(value['public_key_path'],
-                            '/var/tmp/DEP-ID-1000/key.pub')
+                                            '/var/tmp/DEP-ID-1000/key.pub')
                 if 'private_key' in value:
                     result = result.replace(value['private_key'][0:-1],
-                            "-----BEGIN RSA PRIVATE KEY-----\n...\n"
-                            "-----END RSA PRIVATE KEY-----")
+                                            "-----BEGIN RSA PRIVATE KEY-----\n"
+                                            "...\n"
+                                            "-----END RSA PRIVATE KEY-----")
                 if 'private_key_path' in value:
                     result = result.replace(value['private_key_path'],
-                            '/var/tmp/DEP-ID-1000/key.pem')
+                                            '/var/tmp/DEP-ID-1000/key.pem')
         # Save it to simulator.json
         try:
             with file(simulator_file_path, 'w') as f:
@@ -175,13 +176,13 @@ class TestWorkflow(StubbedWorkflowBase):
 
 
 class TestWordpressWorkflow(StubbedWorkflowBase):
-    """Test WordPress Workflow inputs (uses app.yaml)"""
+    """Test WordPress Workflow inputs (modifies app.yaml)"""
 
     @classmethod
     def setUpClass(cls):
         # Load app.yaml, substitute variables
         path = os.path.join(os.path.dirname(__file__), '..', 'examples',
-            'app.yaml')
+                            'app.yaml')
         with file(path) as f:
             source = f.read().decode('utf-8')
 
@@ -190,7 +191,7 @@ class TestWordpressWorkflow(StubbedWorkflowBase):
         combined.update(os.environ)
         parsed = t.safe_substitute(**combined)
         app = yaml.safe_load(yaml.emit(resolve_yaml_external_refs(parsed),
-                         Dumper=yaml.SafeDumper))
+                                       Dumper=yaml.SafeDumper))
         app['id'] = 'DEP-ID-1000'
 
         # WordPress Settings
@@ -233,7 +234,7 @@ class TestWordpressWorkflow(StubbedWorkflowBase):
                   "ssl": true
                   "ssl_certificate": SSLCERT
                   "ssl_private_key": SSLKEY
-                  "region": chicago
+                  "region": 'ORD'
                   "high-availability": true
                   "requests-per-second": 60
                 services:
@@ -243,11 +244,12 @@ class TestWordpressWorkflow(StubbedWorkflowBase):
                   "web":
                     'compute':
                       'memory': 2048 Mb
+                    'application':
                       'count': 2
                 providers:
                   'legacy':
                     'compute':
-                      'os': Ubuntu 12.04 LTS
+                      'os': Ubuntu 12.04
                       """ % ENV_VARS['CHECKMATE_CLIENT_PUBLIC_KEY'])
         app['inputs'] = inputs
         cls.deployment = Deployment(app)
@@ -282,7 +284,7 @@ class TestWordpressWorkflow(StubbedWorkflowBase):
 
         self.workflow.complete_all()
         self.assertTrue(self.workflow.is_completed(), "Workflow did not "
-                "complete")
+                        "complete")
 
         LOG.debug("RESOURCES:")
         LOG.debug(json.dumps(self.deployment['resources'], indent=2))
@@ -299,6 +301,24 @@ class TestWordpressWorkflow(StubbedWorkflowBase):
         self.assertIn('wordpress', item)
         self.assertIn('lsyncd', item)
         self.assertIn('mysql', item)
+        self.assertEqual(len(self.deployment['blueprint']['services']['web']\
+                             ['instances']), 4)  # 2 hosts + 2 apps
+        count = 0
+        for resource in self.deployment['resources'].values():
+            if resource.get('provider') == 'legacy':
+                self.assertEquals(resource['image'], "125")
+                count += 1
+        for key in self.deployment['blueprint']['services']['web']\
+                ['instances']:
+            resource = self.deployment['resources'][key]
+            if resource['provider'] == 'legacy':
+                self.assertEquals(resource['flavor'], "4")  # 2Gb for web
+        for key in self.deployment['blueprint']['services']['master']\
+                ['instances']:
+            resource = self.deployment['resources'][key]
+            if resource['provider'] == 'legacy':
+                self.assertEquals(resource['flavor'], "2")  # 1Gb for master
+        self.assertEqual(count, 3)  # 1 master, 2 webs
 
 
 if __name__ == '__main__':

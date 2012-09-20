@@ -20,20 +20,12 @@ LOG = logging.getLogger(__name__)
 from checkmate.deployments import Deployment, plan
 
 os.environ['CHECKMATE_DATA_PATH'] = os.path.join(os.path.dirname(__file__),
-                                              'data')
-os.environ['CHECKMATE_BROKER_USERNAME'] = os.environ.get(
-        'CHECKMATE_BROKER_USERNAME', 'checkmate')
-os.environ['CHECKMATE_BROKER_PASSWORD'] = os.environ.get(
-        'CHECKMATE_BROKER_PASSWORD', 'password')
-os.environ['CHECKMATE_BROKER_HOST'] = os.environ.get('CHECKMATE_BROKER_HOST',
-        'localhost')
-os.environ['CHECKMATE_BROKER_PORT'] = os.environ.get('CHECKMATE_BROKER_PORT',
-        '5672')
+                                                 'data')
 
 from checkmate.common import schema
 from checkmate.exceptions import CheckmateException
 from checkmate.providers.base import ProviderBase
-from checkmate.server import RequestContext  # also enables logging
+from checkmate.middleware import RequestContext  # also enables logging
 from checkmate.utils import is_ssh_key, get_source_body, merge_dictionary
 from checkmate.workflows import create_workflow, wait_for
 
@@ -44,7 +36,7 @@ ENV_VARS = {
         'CHECKMATE_CLIENT_PUBLIC_KEY': """ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQDtjYYMFbpCJ/ND3izZ1DqNFQHlooXyNcDGWilAqNqcCfz9L+gpGjY2pQlZz/1Hir3R8fz0MS9VY32RYmP3wWygt85kNccEkOpVGGpGyV/aMFaQHZD0h6d0AT+haP0Iig+OrH1YBnpdgVPWx3SbU4eV/KYGpO9Mintj3P54of22lTK4dOwCNvID9P9w+T1kMfdVxGwhqsSL0RxVXnSSkozXQWCNvaZJMUmidm8YA009c5PoksyWjl3EE+rEzZ8ywvtUJf9DvnLCESfhF3hK5lAiEd8z7gyiQnBexn/dXzldGFiJYJgQ5HolYaNMtTF+AQY6R6Qt0okCPyEDJxHJUM7d""",
         'CHECKMATE_CLIENT_PRIVATE_KEY': 'mumble-code',
         'CHECKMATE_CLIENT_DOMAIN': 'test.local',
-        'CHECKMATE_CLIENT_REGION': 'north'
+        'CHECKMATE_CLIENT_REGION': 'chicago'
     }
 
 CATALOG = [{

@@ -1,29 +1,31 @@
-<section class="summaries">
-  <article class="well summary">
-      <ul class="nav nav-list">
-        <li class="nav-header">Limited Options</li>
-        <li>
-          This deployment includes a default environment and blueprint. It has been designed with Managed Cloud defaults
-          incorporated in it.
-        </li>
-        <li class="nav-header">Simulation</li>
-        <li>
-          Checkmate will allow you to run a simulation based on the deployment you have selected.
-          This is mostly used for debugging purposes. The 'SImulate It' button below will do that.
-        </li>
-      </ul>
-  </article>
-  <article class="well summary" style="display: none;">
-      <ul class="nav nav-list">
-        <li class="nav-header">YAML</li>
-        <li>
-          <pre class="prettyprint lang-yaml">{{answers | yaml}}</pre>
-        </li>
-      </ul>
-  </article>
-</section>
-<section class="entries">
-  <article class="entry well">
+<div class="span3 summaryBar">
+    <div class="summaries">
+    <div class="well summary">
+        <ul class="nav nav-list">
+          <li class="nav-header">Limited Options</li>
+          <li>
+            This deployment includes a default environment and blueprint. It has been designed with Managed Cloud defaults
+            incorporated in it.
+          </li>
+          <li class="nav-header">Simulation</li>
+          <li>
+            Checkmate will allow you to run a simulation based on the deployment you have selected.
+            This is mostly used for debugging purposes. The 'SImulate It' button below will do that.
+          </li>
+        </ul>
+    </div>
+    <div class="well summary" style="display: none;">
+        <ul class="nav nav-list">
+          <li class="nav-header">YAML</li>
+          <li>
+            <pre class="prettyprint lang-yaml">{{answers | yaml}}</pre>
+          </li>
+        </ul>
+    </div>
+  </div>
+</div>
+<div class="entries">
+  <div class="entry well">
     <div class="row-fluid">
       <div class="span9">
         <div class="page-header">
@@ -73,7 +75,7 @@
         </form>
       </div>
     </div>
-  </article>
+  </div>
 
   <script id="setting-string" type="text/ng-template">
     <label class="control-label capitalize {{#required}}required{{/required}}" for="{{id}}">{{label}}</label>
@@ -146,4 +148,4 @@
       </select>
     </div>
   </script>
-</section>
+</div>

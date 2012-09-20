@@ -82,7 +82,8 @@ checkmate.config(['$routeProvider', '$locationProvider', '$httpProvider', functi
   }).
   when('/:tenantId/workflows/:id', {
     templateUrl: '/static/ui/partials/workflow.html',
-    controller: WorkflowController
+    controller: WorkflowController,
+    reloadOnSearch: false
   }).
   when('/:tenantId/blueprints/:id', {
     templateUrl: '/static/ui/partials/level2.html',
@@ -94,7 +95,8 @@ checkmate.config(['$routeProvider', '$locationProvider', '$httpProvider', functi
   }).
   otherwise({
     controller: ExternalController,
-    template:'<section class="entries" ng-include="templateUrl"><img src="/static/img/ajax-loader-bar.gif" alt="Loading..."/></section>'
+    template:'<section class="entries" ng-include="templateUrl"><img src="/static/img/ajax-loader-bar.gif" alt="Loading..."/></section>',
+    reloadOnSearch: false
     });  //normal browsing
   
   
@@ -137,10 +139,11 @@ function ExternalController($window, $location) {
 function LegacyController($scope, $location, $routeParams, $resource, navbar, $window, $http) {
   $scope.showHeader = false;
   $scope.showStatus = false;
-  parts = $location.path().split('/')
+  var parts = $location.path().split('/')
   if (parts.length > 1)
     navbar.highlight(parts[2]);
 
+  var path;
   if ('tenantId' in $routeParams) {
     path = $location.path();
   } else if ($location.path().indexOf('/' + $scope.$parent.auth.tenantId + '/') == 0) {
@@ -160,7 +163,7 @@ function LegacyController($scope, $location, $routeParams, $resource, navbar, $w
       var klass = $resource($location.path());
       var thang = new klass(JSON.parse(Editor.getValue()));
       thang.$save(function(returned, getHeaders){
-          alert('Saved');
+          $scope.notify('Saved');
           console.log(returned);
         }, function(error) {
           console.log("Error " + error.data + "(" + error.status + ") saving this object.");
@@ -179,7 +182,7 @@ function LegacyController($scope, $location, $routeParams, $resource, navbar, $w
       console.log("Executing action " + $location.path() + '/' + action)
       $http({method: 'POST', url: $location.path() + '/' + action}).
         success(function(data, status, headers, config) {
-          alert("Command '" + action.replace('+', '') + "' executed");
+          $scope.notify("Command '" + action.replace('+', '') + "' executed");
           // this callback will be called asynchronously
           // when the response is available
           $window.location.reload();
@@ -194,7 +197,7 @@ function LegacyController($scope, $location, $routeParams, $resource, navbar, $w
       console.log("Executing action " + target)
       $http({method: 'POST', url: target}).
         success(function(data, status, headers, config) {
-          alert("Command '" + _.last(target.split("/")).replace('+', '') + "' executed");
+          $scope.notify("Command '" + _.last(target.split("/")).replace('+', '') + "' executed");
           // this callback will be called asynchronously
           // when the response is available
           $window.location.reload();
@@ -215,6 +218,13 @@ function AppController($scope, $http, $location) {
       tenantId: '',
       expires: ''
     };
+
+  $scope.notify = function(message) {
+    $('.bottom-right').notify({
+        message: { text: message }, fadeOut: {enabled: true, delay: 5000},
+        type: 'bangTidy'
+      }).show();
+  }
 
   // Restore login from session
   var catalog = localStorage.getItem('auth');
@@ -268,7 +278,7 @@ function AppController($scope, $http, $location) {
 
   $scope.generatePassword = function() {
       if (parseInt(navigator.appVersion) <= 3) {
-          alert("Sorry this only works in 4.0+ browsers");
+          $scope.notify("Sorry this only works in 4.0+ browsers");
           return true;
       }
 
@@ -278,7 +288,7 @@ function AppController($scope, $http, $location) {
       var noPunction = true;
       for (i=0; i < length; i++) {
 
-          numI = $scope.getPwdRandomNum();
+          var numI = $scope.getPwdRandomNum();
           //Always have a letter for the first character.
           while (i==0 && (numI <= 64 || ((numI >=91) && (numI <=96)))) { numI = $scope.getPwdRandomNum(); }
           //Only allow letters and numbers for all other characters.
@@ -346,7 +356,7 @@ function AppController($scope, $http, $location) {
       url: "/authproxy",
       data: data
     }).success(function(json) {
-      $('#modalAuth').hide();
+      $('#modalAuth').modal('hide');
       var keep = {access: {token: json.access.token, user: json.access.user}};
       keep.auth_url = auth_url;  // save for later
       var expires = new Date(json.access.token.expires);
@@ -370,12 +380,13 @@ function AppController($scope, $http, $location) {
           apikey: '',
           auth_url: "https://identity.api.rackspacecloud.com/v2.0/tokens"
         };
-      $scope.$apply();
       if (typeof $('#modalAuth')[0].success_callback == 'function') {
           $('#modalAuth')[0].success_callback();
           delete $('#modalAuth')[0].success_callback;
           delete $('#modalAuth')[0].failure_callback;
         }
+      else
+        $scope.$apply();
     }).error(function(response) {
       if (typeof $('#modalAuth')[0].failure_callback == 'function') {
           $('#modalAuth')[0].failure_callback();
@@ -448,7 +459,7 @@ function WorkflowListController($scope, $location, $resource, workflow, items, n
     $scope.selected = items.selected;
 
     // Prepare tasks
-    wf = items.data[items.selected.id];
+    var wf = items.data[items.selected.id];
     $scope.task_specs = wf.wf_spec.task_specs;
     $scope.tasks = workflow.flattenTasks({}, wf.task_tree);
     $scope.jit = workflow.jitTasks($scope.tasks);
@@ -491,6 +502,7 @@ function WorkflowController($scope, $resource, $http, $routeParams, $location, $
   $scope.showStatus = true;
   $scope.showHeader = true;
   $scope.showSearch = true;
+  $scope.showControls = true;
   $scope.taskStates = {
     future: 0,
     likely: 0,
@@ -556,6 +568,8 @@ function WorkflowController($scope, $resource, $http, $routeParams, $location, $
               $('#modalError').modal('show');
             });
         }
+      } else if ($location.hash().length > 1) {
+        $scope.selectSpec($location.hash());
       } else
         $scope.selectSpec(Object.keys(object.wf_spec.task_specs)[0]);
       //$scope.play();
@@ -576,15 +590,17 @@ function WorkflowController($scope, $resource, $http, $routeParams, $location, $
     $scope.current_spec = $scope.data.wf_spec.task_specs[$scope.current_spec_index];
     $scope.current_spec_json = JSON.stringify($scope.current_spec, null, 2);
 
-    alltasks = items.tasks;
+    var alltasks = items.tasks;
     var tasks = _.filter(alltasks, function(task, key) {
         return task.task_spec == spec_id;
       })
     $scope.current_spec_tasks = tasks;
     tasks = $scope.spec_tasks(spec_id);
-    if (tasks)
+    if (tasks && !(_.include(tasks, $scope.current_task))) 
       $scope.selectTask(tasks[0].id);
     $scope.toCurrent();
+    if ($location.hash() != spec_id)
+        $location.hash(spec_id);
   };
 
   $scope.toCurrent = function() {
@@ -603,8 +619,8 @@ function WorkflowController($scope, $resource, $http, $routeParams, $location, $
     return workflow.classify(task);
   }
 
-  $scope.state_name = function(state) {
-    return workflow.state_name(state);
+  $scope.state_name = function(task) {
+    return workflow.state_name(task);
   }
   
   $scope.save_spec = function() {
@@ -621,7 +637,7 @@ function WorkflowController($scope, $resource, $http, $routeParams, $location, $
             if (returned.hasOwnProperty(attr))
               $scope.current_spec[attr] = returned[attr];
           };
-          alert('Saved');
+          $scope.notify('Saved');
         }, function(error) {
           console.log("Error " + error.data + "(" + error.status + ") saving this object.");
           console.log($("#editor").text());
@@ -645,9 +661,8 @@ function WorkflowController($scope, $resource, $http, $routeParams, $location, $
       if (['children', "$$hashKey"].indexOf(attr) == -1 && obj.hasOwnProperty(attr))
         copy[attr] = obj[attr];
     }
-    $scope.current_task_json = JSON.stringify(copy, null, 2);
     try {
-      $scope.$apply();
+        $scope.$apply($scope.current_task_json = JSON.stringify(copy, null, 2));
     } catch(err) {};
     // Refresh CodeMirror since it might have been hidden
     $('.CodeMirror')[1].CodeMirror.refresh();
@@ -667,7 +682,7 @@ function WorkflowController($scope, $resource, $http, $routeParams, $location, $
             if (['workflow_id', "tenantId"].indexOf(attr) == -1 && returned.hasOwnProperty(attr))
               $scope.current_task[attr] = returned[attr];
           };
-          alert('Saved');
+          $scope.notify('Saved');
         }, function(error) {
           console.log("Error " + error.data + "(" + error.status + ") saving this object.");
           console.log($("#editor").text());
@@ -705,15 +720,30 @@ function WorkflowController($scope, $resource, $http, $routeParams, $location, $
     return status;
   };
 
-  $scope.task_action = function(task_id, action) {
+  $scope.workflow_action = function(workflow_id, action) {
     if ($scope.auth.loggedIn) {
-      console.log("Executing '" + action + " on " + task_id);
-      $http({method: 'POST', url: $location.path() + '/tasks/' + task_id + '/+' + action}).
+      console.log("Executing '" + action + " on workflow " + workflow_id);
+      $http({method: 'GET', url: $location.path() + '/+' + action}).
         success(function(data, status, headers, config) {
-          alert("Command '" + action + "' executed");
+          $scope.notify("Command '" + action + "' workflow executed");
           // this callback will be called asynchronously
           // when the response is available
-          $window.location.reload();
+          $scope.load();
+        });
+    } else {
+      $scope.loginPrompt(); //TODO: implement a callback
+    }
+  };
+  
+  $scope.task_action = function(task_id, action) {
+    if ($scope.auth.loggedIn) {
+      console.log("Executing '" + action + " on task " + task_id);
+      $http({method: 'POST', url: $location.path() + '/tasks/' + task_id + '/+' + action}).
+        success(function(data, status, headers, config) {
+          $scope.notify("Command '" + action + "' task executed");
+          // this callback will be called asynchronously
+          // when the response is available
+          $scope.load();
         });
     } else {
       $scope.loginPrompt(); //TODO: implement a callback
@@ -896,7 +926,7 @@ function OldWorkflowController($scope, $resource, $routeParams, workflow, items,
   
   $scope.drawWorkflow = function() {
     // Prepare tasks
-    wf = items.data;  //TODO: fix this
+    var wf = items.data;  //TODO: fix this
     $scope.task_specs = wf.wf_spec.task_specs;
     $scope.tasks = workflow.flattenTasks({}, wf.task_tree);
     $scope.jit = workflow.parseTasks($scope.tasks, wf.wf_spec.task_specs);
@@ -1146,7 +1176,7 @@ function DeploymentInitController($scope, $location, $routeParams, $resource, bl
   };
 
   $scope.submit = function(simulate) {
-    url = '/:tenantId/deployments';
+    var url = '/:tenantId/deployments';
     if (simulate == true)
       url += '/simulate';
     var Deployment = $resource(url, {tenantId: $scope.auth.tenantId});
@@ -1226,7 +1256,7 @@ function DeploymentInitController($scope, $location, $routeParams, $resource, bl
  */
 document.addEventListener('DOMContentLoaded', function(e) {
   //On mobile devices, hide the address bar
-  window.scrollTo(0);
+  window.scrollTo(0, 0);
 }, false);
 
 //Initial Wordpress Template
@@ -1330,10 +1360,7 @@ WPBP = {
                 "type": "select",
                 "default": "DFW",
                 "label": "Region",
-                "choice": [{
-                    "name": "DFW", "value": "DFW"},
-                    {"name": "ORD", "value": "ORD"}
-                ]
+                "choice": ["DFW", "ORD"]
             },
             "prefix": {
                 "constrains": [
@@ -1457,7 +1484,7 @@ WPBP = {
                     {
                         "setting": "count",
                         "service": "web",
-                        "resource_type": "compute"
+                        "resource_type": "application"
                     }
                 ],
                 "description": "The number of WordPress servers (minimum two).",

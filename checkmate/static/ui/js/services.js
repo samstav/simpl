@@ -19,35 +19,41 @@ services.factory('workflow', [function() {
 		},
 		// Get all tasks with relationships and put them in a collection
 		parseTasks: function(tasks, specs) {
-			var jsonTasks = [];
+                        var jsonTasks = [];
+    
+                        _.each(tasks, function(task) {
+                          var adjacencies = [];
+                          _.each(task.children, function(child) {
+                                var adj = {
+                                  nodeTo: child.task_spec,
+                                  nodeFrom: task.task_spec,
+                                  data: {}
+                                };
+                                adjacencies.push(adj);
+                          });
+                    
+                        var t = {
+                              id: task.id,
+                              name: task.task_spec,
+                              description: specs[task.task_spec].description,
+                              adjacencies: adjacencies,
+                              state_class: me.colorize(task),
+                              data: {
+                                "$color": "#83548B",
+                                "$type": "circle"
+                              }
+                        };
+                        if (task.state == 8
+                            && 'internal_attributes' in  task
+                            && 'task_state' in task.internal_attributes
+                            && task.internal_attributes.task_state.state == 'FAILURE') {
+                              t.state = -1;
+                        } else
+                          t.state = task.state;
+                        jsonTasks.push(t);
+                    });
 		
-			_.each(tasks, function(task) {
-			  var adjacencies = [];
-			  _.each(task.children, function(child) {
-				var adj = {
-				  nodeTo: child.task_spec,
-				  nodeFrom: task.task_spec,
-				  data: {}
-				};
-				adjacencies.push(adj);
-			  });
-		
-			  var t = {
-				id: task.id,
-				name: task.task_spec,
-				description: specs[task.task_spec].description,
-				adjacencies: adjacencies,
-				state: task.state,
-				state_class: me.colorize(task.state),
-				data: {
-				  "$color": "#83548B",
-				  "$type": "circle"
-				}
-			  };
-			  jsonTasks.push(t);
-			});
-		
-			return jsonTasks;
+                    return jsonTasks;
 		},
 		// Display the workflow
 		renderWorkflow: function(container_selector, template_selector, tasks, $scope) {
@@ -91,7 +97,8 @@ services.factory('workflow', [function() {
 			 ready: 0,
 			 cancelled: 0,
 			 completed: 0,
-			 triggered: 0
+			 triggered: 0,
+                         error: 0
 		   };
 		  _.each(tasks, function(task) {
 			if ("internal_attributes" in task && "estimated_completed_in" in task["internal_attributes"]) {
@@ -99,8 +106,11 @@ services.factory('workflow', [function() {
 			} else {
 			  $scope.totalTime += 10;
 			};
-			switch(task.state) {
-			  case 1:
+			switch(parseInt(task.state, 0)) {
+			  case -1:
+				$scope.taskStates["error"] += 1;
+				break;
+                          case 1:
 				$scope.taskStates["future"] += 1;
 				break;
 			  case 2:
@@ -110,7 +120,11 @@ services.factory('workflow', [function() {
 				$scope.taskStates["maybe"] += 1;
 				break;
 			  case 8:
-				$scope.taskStates["waiting"] += 1;
+                            console.log(task);
+                                if ('internal_attributes' in  task && 'task_state' in task.internal_attributes && task.internal_attributes.task_state.state == 'FAILURE')
+                                    $scope.taskStates["error"] += 1;
+                                else
+                                    $scope.taskStates["waiting"] += 1;
 				break;
 			  case 16:
 				$scope.taskStates["ready"] += 1;
@@ -148,23 +162,26 @@ services.factory('workflow', [function() {
 		 *  TODO: This will be fixed in the API, see:
 		 *    https://github.rackspace.com/checkmate/checkmate/issues/45
 		 */
-		iconify: function(state) {
-		  switch(state) {
-			case 1:
+		iconify: function(task) {
+		  switch(parseInt(task.state, 0)) {
+			case 1: //FUTURE
 			  return "icon-fast-forward";
-			case 2:
+			case 2: //LIKELY
 			  return "icon-thumbs-up";
-			case 4:
+			case 4: //MAYBE
 			  return "icon-hand-right";
-			case 8:
-			  return "icon-pause";
-			case 16:
+			case 8: //WAITING
+                            if ('internal_attributes' in  task && 'task_state' in task.internal_attributes && task.internal_attributes.task_state.state == 'FAILURE')
+                                return "icon-warning-sign";
+                            else
+                                return "icon-pause";
+			case 16: //READY
 			  return "icon-plus";
-			case 32:
+			case 32: //CANCELLED
 			  return "icon-remove";
-			case 64:
+			case 64: //COMPLETED
 			  return "icon-ok";
-			case 128:
+			case 128: //TRIGGERED
 			  return "icon-adjust";
 			default:
 			  console.log("Invalid state '" + state + "'.");
@@ -172,44 +189,50 @@ services.factory('workflow', [function() {
 		  }
 		},
 		classify: function(task) {
-		  label_class = "label";
+		  var label_class = "label";
 		  if (typeof task != 'undefined') {
-			switch(task.state) {
+		      switch(parseInt(task.state, 0)) {
 			case -1:
-				label_class += " label-important";
+			    label_class += " label-important";
+                            break;
 			case 1:
 			case 2:
 			case 4:
-			  return label_class;
+                            break;
 			case 8:
-			  if ('internal_attributes' in  task && 'task_state' in task.internal_attributes && task.internal_attributes.task_state.state == 'FAILURE')
+			    if ('internal_attributes' in  task && 'task_state' in task.internal_attributes && task.internal_attributes.task_state.state == 'FAILURE')
 				label_class += " label-important"
-			  else
+			    else
 				label_class += " label-warning";
-			  return label_class;
+                            break;
 			case 16:
-			  return label_class + " label-info";
+			    label_class += " label-info";
+                            break;
 			case 32:
 			case 64:
-			  return label_class + " label-success";
+			    label_class += " label-success";
+                            break;
 			case 128:
 			default:
-			  console.log("Invalid state '" + task.state + "'.");
-			  return label_class + " label-inverse";
+			  console.log("Invalid task state '" + task.state + "'.");
+			  label_class += " label-inverse";
 			}
-		  return label_class;
 		  }
+		  return label_class;
 		},
 		/**
 		 *  See above.
 		 */
-		colorize: function(state) {
-		  switch(state) {
+		colorize: function(task) {
+		  switch(task.state) {
 			case 1:
 			case 2:
 			case 4:
 			case 8:
-			  return "alert-waiting";
+			    if ('internal_attributes' in  task && 'task_state' in task.internal_attributes && task.internal_attributes.task_state.state == 'FAILURE')
+				return "alert-error";
+			    else
+				return "alert-waiting";
 			case 16:
 			case 128:
 			  return "alert-info";
@@ -222,8 +245,8 @@ services.factory('workflow', [function() {
 			  return "unknown";
 		  }
 		},
-		state_name: function(state) {
-		  switch(state) {
+		state_name: function(task) {
+		  switch(task.state) {
 			case -1:
 				return "Error";
 			case 1:
@@ -233,7 +256,11 @@ services.factory('workflow', [function() {
 			case 4:
 				return "Maybe";
 			case 8:
-			  return "Waiting";
+			case 8:
+			    if ('internal_attributes' in  task && 'task_state' in task.internal_attributes && task.internal_attributes.task_state.state == 'FAILURE')
+				return "Failure";
+			    else
+				return "Waiting";
 			case 16:
 				return "Ready";
 			case 128:
@@ -671,7 +698,7 @@ services.config(function ($httpProvider) {
 				checkmate.requests -= 1;
 				if (checkmate.requests <= 0)
 					$('#loading').hide();
-				error = response;
+				var error = response;
 				$rootScope.error = {data: error.data, status: error.status, title: "Error Saving",
 						message: "There was an error saving your JSON:"};
 				$('#modalError').modal('show');

@@ -23,6 +23,8 @@ Vagrant::Config.run do |config|
     chef.add_recipe "rabbitmq"
     chef.add_recipe "mongodb::10gen_repo"
     chef.add_recipe "mongodb"
+    chef.add_recipe "checkmate"
+    chef.add_recipe "checkmate::vagrant"
     chef.add_recipe "checkmate::broker"
     chef.add_recipe "checkmate::worker"
     chef.add_recipe "checkmate::webui"
@@ -34,7 +36,12 @@ Vagrant::Config.run do |config|
           :reference => "master",
           :revision => "master"
         },
-        :server_args => '--with-ui --debug 0.0.0.0:8080',
+        :server => {
+          :args => '--with-ui --eventlet --debug 0.0.0.0:8080',
+        },
+        :celeryd => {
+           :loglevel => 'DEBUG',
+        },
         :amqp => {
           :username => "checkmate",
           :password => "Ch3ckm4te!",
@@ -64,4 +71,5 @@ Vagrant::Config.run do |config|
   end
 
   config.vm.forward_port 8080, 8080
+  config.vm.forward_port 5555, 5555
 end

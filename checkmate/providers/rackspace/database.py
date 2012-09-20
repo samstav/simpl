@@ -100,8 +100,8 @@ class Provider(ProviderBase):
             if password:
                 start_with = string.ascii_uppercase + string.ascii_lowercase
                 if password[0] not in start_with:
-                    raise CheckmateException("Database password must start with "
-                            "one of '%s'" % start_with)
+                    raise CheckmateException("Database password must start "
+                            "with one of '%s'" % start_with)
 
             # Create resource tasks
             create_database_task = Celery(wfspec, 'Create Database',
@@ -259,7 +259,7 @@ class Provider(ProviderBase):
         """Use context info to connect to API and return api object"""
         #FIXME: figure out better serialization/deserialization scheme
         if isinstance(context, dict):
-            from checkmate.server import RequestContext
+            from checkmate.middleware import RequestContext
             context = RequestContext(**context)
         if not context.auth_token:
             raise CheckmateNoTokenError()
@@ -362,7 +362,7 @@ def create_instance(context, instance_name, size, flavor, databases, region,
     return results
 
 
-@task(default_retry_delay=10, max_retries=10)
+@task(default_retry_delay=10, max_retries=50)
 def create_database(context, name, region, character_set=None, collate=None,
         instance_id=None, instance_attributes=None, api=None):
     """Create a database resource.
@@ -413,7 +413,8 @@ def create_database(context, name, region, character_set=None, collate=None,
         return results
 
     instance = api.get_instance(instance_id)
-
+    if instance.status != "ACTIVE":
+        create_database.retry()
     try:
         instance.create_databases(databases)
         results = {

@@ -1,25 +1,36 @@
+"""This is where celery picks up its settings"""
 import json
 import logging
 import os
 
+
 LOG = logging.getLogger(__name__)
 
-if 'CHECKMATE_BROKER_URL' in os.environ:
-    # Example for debugging that does not need AMQP:
-    # BROKER_URL="sqla+sqlite:////Users/projects/checkmate/data/db.sqlite"
-    BROKER_URL = os.environ['CHECKMATE_BROKER_URL']
-else:
-    broker = {
-     'username': os.environ['CHECKMATE_BROKER_USERNAME'],
-     'password': os.environ['CHECKMATE_BROKER_PASSWORD'],
-     'host': os.environ['CHECKMATE_BROKER_HOST'],
-     'port': os.environ['CHECKMATE_BROKER_PORT']
-    }
+# For debugging, thise makes all calls synchronous
+CELERY_ALWAYS_EAGER = os.environ.get("CELERY_ALWAYS_EAGER", "false").lower() \
+        in ["true", "1"]
+if CELERY_ALWAYS_EAGER:
+    LOG.warning("Celery is running synchronously because the "
+                "CELERY_ALWAYS_EAGER setting is true")
 
+if 'CHECKMATE_BROKER_URL' in os.environ:
+    BROKER_URL = os.environ['CHECKMATE_BROKER_URL']
+elif 'CHECKMATE_BROKER_HOST' in os.environ:
+    broker = {
+            'username': os.environ.get('CHECKMATE_BROKER_USERNAME'),
+            'password': os.environ.get('CHECKMATE_BROKER_PASSWORD'),
+            'host': os.environ('CHECKMATE_BROKER_HOST', 'localhost'),
+            'port': os.environ('CHECKMATE_BROKER_PORT')
+        }
     BROKER_URL = "amqp://%s:%s@%s:%s/checkmate" % (broker['username'],
                                               broker['password'],
                                               broker['host'],
                                               broker['port'])
+else:
+    # Only use this for development
+    LOG.warning("An in-memory database is being used as a broker. Only use "
+                " this setting when testing or during development")
+    BROKER_URL = "sqla+sqlite://"
 
 # This would be a message queue only config, but won't work with Checkmate
 # since checkmate needs to query task results and status
