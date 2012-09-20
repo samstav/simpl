@@ -219,6 +219,10 @@ function AppController($scope, $http, $location) {
       expires: ''
     };
 
+  $scope.navigate = function(url) {
+    $location.path(url);
+  }
+
   $scope.notify = function(message) {
     $('.bottom-right').notify({
         message: { text: message }, fadeOut: {enabled: true, delay: 5000},
