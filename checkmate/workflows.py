@@ -139,7 +139,7 @@ def execute_workflow(id, tenant_id=None):
         abort(404, 'No workflow with id %s' % id)
 
     async_call = orchestrator.run_workflow.delay(id, timeout=10)
-    LOG.debug("Executed run workflow task: %s" % async_call)
+    LOG.debug("Executed a task to run workflow '%s'" % async_call)
     entity = db.get_workflow(id)
     return write_body(entity, request, response)
 
@@ -358,6 +358,13 @@ def resubmit_workflow_task(id, task_id, tenant_id=None):
         abort(406, "You can only reset WAITING tasks. This task is in '%s'" %
             task.get_state_name())
 
+    # Refresh token if it exists in args[0]['auth_token]
+    if task.task_spec.args and len(task.task_spec.args) > 0 and \
+            isinstance(task.task_spec.args[0], dict) and \
+            task.task_spec.args[0].get('auth_token') != \
+            request.context.auth_token:
+        task.task_spec.args[0]['auth_token'] = request.context.auth_token
+        LOG.debug("Updating task auth token with new caller token")
     task.task_spec.retry_fire(task)
 
     serializer = DictionarySerializer()

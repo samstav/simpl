@@ -74,7 +74,7 @@ class Provider(ProviderBase):
         """Use context info to connect to API and return api object"""
         #FIXME: figure out better serialization/deserialization scheme
         if isinstance(context, dict):
-            from checkmate.server import RequestContext
+            from checkmate.middleware import RequestContext
             context = RequestContext(**context)
         if not context.auth_token:
             raise CheckmateNoTokenError()

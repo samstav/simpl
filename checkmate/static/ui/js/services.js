@@ -19,35 +19,41 @@ services.factory('workflow', [function() {
 		},
 		// Get all tasks with relationships and put them in a collection
 		parseTasks: function(tasks, specs) {
-			var jsonTasks = [];
+                        var jsonTasks = [];
+    
+                        _.each(tasks, function(task) {
+                          var adjacencies = [];
+                          _.each(task.children, function(child) {
+                                var adj = {
+                                  nodeTo: child.task_spec,
+                                  nodeFrom: task.task_spec,
+                                  data: {}
+                                };
+                                adjacencies.push(adj);
+                          });
+                    
+                        var t = {
+                              id: task.id,
+                              name: task.task_spec,
+                              description: specs[task.task_spec].description,
+                              adjacencies: adjacencies,
+                              state_class: me.colorize(task),
+                              data: {
+                                "$color": "#83548B",
+                                "$type": "circle"
+                              }
+                        };
+                        if (task.state == 8
+                            && 'internal_attributes' in  task
+                            && 'task_state' in task.internal_attributes
+                            && task.internal_attributes.task_state.state == 'FAILURE') {
+                              t.state = -1;
+                        } else
+                          t.state = task.state;
+                        jsonTasks.push(t);
+                    });
 		
-			_.each(tasks, function(task) {
-			  var adjacencies = [];
-			  _.each(task.children, function(child) {
-				var adj = {
-				  nodeTo: child.task_spec,
-				  nodeFrom: task.task_spec,
-				  data: {}
-				};
-				adjacencies.push(adj);
-			  });
-		
-			  var t = {
-				id: task.id,
-				name: task.task_spec,
-				description: specs[task.task_spec].description,
-				adjacencies: adjacencies,
-				state: task.state,
-				state_class: me.colorize(task.state),
-				data: {
-				  "$color": "#83548B",
-				  "$type": "circle"
-				}
-			  };
-			  jsonTasks.push(t);
-			});
-		
-			return jsonTasks;
+                    return jsonTasks;
 		},
 		// Display the workflow
 		renderWorkflow: function(container_selector, template_selector, tasks, $scope) {
@@ -114,7 +120,11 @@ services.factory('workflow', [function() {
 				$scope.taskStates["maybe"] += 1;
 				break;
 			  case 8:
-				$scope.taskStates["waiting"] += 1;
+                            console.log(task);
+                                if ('internal_attributes' in  task && 'task_state' in task.internal_attributes && task.internal_attributes.task_state.state == 'FAILURE')
+                                    $scope.taskStates["error"] += 1;
+                                else
+                                    $scope.taskStates["waiting"] += 1;
 				break;
 			  case 16:
 				$scope.taskStates["ready"] += 1;
@@ -152,8 +162,8 @@ services.factory('workflow', [function() {
 		 *  TODO: This will be fixed in the API, see:
 		 *    https://github.rackspace.com/checkmate/checkmate/issues/45
 		 */
-		iconify: function(state) {
-		  switch(parseInt(state, 0)) {
+		iconify: function(task) {
+		  switch(parseInt(task.state, 0)) {
 			case 1: //FUTURE
 			  return "icon-fast-forward";
 			case 2: //LIKELY
@@ -161,7 +171,10 @@ services.factory('workflow', [function() {
 			case 4: //MAYBE
 			  return "icon-hand-right";
 			case 8: //WAITING
-			  return "icon-pause";
+                            if ('internal_attributes' in  task && 'task_state' in task.internal_attributes && task.internal_attributes.task_state.state == 'FAILURE')
+                                return "icon-warning-sign";
+                            else
+                                return "icon-pause";
 			case 16: //READY
 			  return "icon-plus";
 			case 32: //CANCELLED
@@ -210,13 +223,16 @@ services.factory('workflow', [function() {
 		/**
 		 *  See above.
 		 */
-		colorize: function(state) {
-		  switch(state) {
+		colorize: function(task) {
+		  switch(task.state) {
 			case 1:
 			case 2:
 			case 4:
 			case 8:
-			  return "alert-waiting";
+			    if ('internal_attributes' in  task && 'task_state' in task.internal_attributes && task.internal_attributes.task_state.state == 'FAILURE')
+				return "alert-error";
+			    else
+				return "alert-waiting";
 			case 16:
 			case 128:
 			  return "alert-info";
@@ -229,8 +245,8 @@ services.factory('workflow', [function() {
 			  return "unknown";
 		  }
 		},
-		state_name: function(state) {
-		  switch(state) {
+		state_name: function(task) {
+		  switch(task.state) {
 			case -1:
 				return "Error";
 			case 1:
@@ -240,7 +256,11 @@ services.factory('workflow', [function() {
 			case 4:
 				return "Maybe";
 			case 8:
-			        return "Waiting";
+			case 8:
+			    if ('internal_attributes' in  task && 'task_state' in task.internal_attributes && task.internal_attributes.task_state.state == 'FAILURE')
+				return "Failure";
+			    else
+				return "Waiting";
 			case 16:
 				return "Ready";
 			case 128:

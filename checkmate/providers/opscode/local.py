@@ -1151,7 +1151,7 @@ def _get_root_environments_path(path=None):
     """Build the path using provided inputs and using any environment variables
     or configuration settings"""
     root = path or os.environ.get("CHECKMATE_CHEF_LOCAL_PATH",
-            os.path.dirname(__file__))
+            "/var/local/checkmate/deployments")
     if not os.path.exists(root):
         raise CheckmateException("Invalid root path: %s" % root)
     return root
@@ -1803,7 +1803,7 @@ def _get_repo_path():
     """Find the master repo path for chef cookbooks"""
     path = os.environ.get('CHECKMATE_CHEF_REPO')
     if not path:
-        path = os.path.join(os.path.dirname(__file__), 'chef-stockton')
+        path = "/var/local/checkmate/chef-stockton"
         LOG.warning("CHECKMATE_CHEF_REPO variable not set. Defaulting to %s" %
                 path)
         if not os.path.exists(path):

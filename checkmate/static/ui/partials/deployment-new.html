@@ -1,29 +1,31 @@
-<section class="summaries">
-  <article class="well summary">
-      <ul class="nav nav-list">
-        <li class="nav-header">Limited Options</li>
-        <li>
-          This deployment includes a default environment and blueprint. It has been designed with Managed Cloud defaults
-          incorporated in it.
-        </li>
-        <li class="nav-header">Simulation</li>
-        <li>
-          Checkmate will allow you to run a simulation based on the deployment you have selected.
-          This is mostly used for debugging purposes. The 'SImulate It' button below will do that.
-        </li>
-      </ul>
-  </article>
-  <article class="well summary" style="display: none;">
-      <ul class="nav nav-list">
-        <li class="nav-header">YAML</li>
-        <li>
-          <pre class="prettyprint lang-yaml">{{answers | yaml}}</pre>
-        </li>
-      </ul>
-  </article>
-</section>
-<section class="entries">
-  <article class="entry well">
+<div class="span3 summaryBar">
+    <div class="summaries">
+    <div class="well summary">
+        <ul class="nav nav-list">
+          <li class="nav-header">Limited Options</li>
+          <li>
+            This deployment includes a default environment and blueprint. It has been designed with Managed Cloud defaults
+            incorporated in it.
+          </li>
+          <li class="nav-header">Simulation</li>
+          <li>
+            Checkmate will allow you to run a simulation based on the deployment you have selected.
+            This is mostly used for debugging purposes. The 'SImulate It' button below will do that.
+          </li>
+        </ul>
+    </div>
+    <div class="well summary" style="display: none;">
+        <ul class="nav nav-list">
+          <li class="nav-header">YAML</li>
+          <li>
+            <pre class="prettyprint lang-yaml">{{answers | yaml}}</pre>
+          </li>
+        </ul>
+    </div>
+  </div>
+</div>
+<div class="entries">
+  <div class="entry well">
     <div class="row-fluid">
       <div class="span9">
         <div class="page-header">
@@ -73,7 +75,7 @@
         </form>
       </div>
     </div>
-  </article>
+  </div>
 
   <script id="setting-string" type="text/ng-template">
     <label class="control-label capitalize {{#required}}required{{/required}}" for="{{id}}">{{label}}</label>
@@ -146,4 +148,20 @@
       </select>
     </div>
   </script>
+
+
+  <script id="setting-combo" type="text/html">
+    <label class="control-label capitalize {{#required}}required{{/required}}" for="{{id}}">{{label}}</label>
+    <div class="controls">
+       <input type="text" name="state" class="input-xlarge ng-model" id="{{id}}" ng-model="answers['{{id}}']"
+              {{#required}}required{{/required}} {{#regex}}ng-pattern="{{regex}}"{{/regex}}
+              {{#default}}value="{{default}}"{{/default}} {{#sample}}placeholder="{{sample}}"{{/sample}} />
+       <br />
+       <select name="s" id="{{id}}" ng-model="answers['{{id}}']" {{#required}}required{{/required}} ng-options="o for o in setting.choice" onchange="document.ex.state.value=document.ex.s.options[document.ex.s.selectedindex].value;document.ex.s.value=""><option value="" selected="selected">
+       </select>
+    </div>
+   </script>
+ 
+  
 </section>
+

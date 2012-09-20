@@ -390,9 +390,20 @@ Note: to connect to mongodb, also install the pymongo client library:
 
 **CHECKMATE_PUBLIC_KEY**: a public key string to push to all created servers to allow ssh access to them. If you set this to the contents of your ~/.ssh/id_rsa.pub file you will be able to log on to all checkmate-created servers without having to suply a password.
 
-**CHECKMATE_CHEF_LOCAL_PATH**: checkmate uses chef to configure applications on servers. Checkmate supports using chef with and without a chef server. When using it without a chef server, checkmate has a provider called chef-local that stores all deployments in a multi-tenant capable and scalable file structure. This setting points to the directory where this structure should be hosted. An example would be /var/checkmate/deployments.
+**CHECKMATE_CHEF_LOCAL_PATH**: checkmate uses chef to configure applications on
+    servers. Checkmate supports using chef with and without a chef server. When
+    using it without a chef server, checkmate has a provider called chef-local
+    that stores all deployments in a multi-tenant capable and scalable file
+    structure. This setting points to the directory where this structure should
+    be hosted.  If not specified, Checkmate will try to default to
+    /var/local/checkmate/deployments.
 
-**CHECKMATE_CHEF_REPO**: This setting points to a directory that contains a chef repository (a directory with cookbooks, roles, environments, site-cookbooks subdirecotries, etc...). You can clone the opscode repo (https://github.com/opscode-cookbooks/) or use your own. This repo is never modified by checkmate. Files from it are copied to the individual deployments.
+**CHECKMATE_CHEF_REPO**: This setting points to a directory that contains a chef
+    repository (a directory with cookbooks, roles, environments, site-cookbooks
+    subdirecotries, etc...). You can clone the opscode repo (https://github.com/opscode-cookbooks/)
+    or use your own. This repo is never modified by checkmate. Files from it are
+    copied to the individual deployments. If not specified, Checkmate will try
+    to default to /var/local/checkmate/chef-stockton.
 
 **CHECKMATE_CHEF_USE_DATA_BAGS**: when using the chef-local provider, some capabilities of a chef server can be emulated using data bags. Setting this value to True tells checkmate to use data bags instead of normal node, role, and environment overrides to store data for deployments. (default=True).
 
@@ -427,9 +438,11 @@ In preliminary testing is the "mongodb" setting:
 
 **CELERY_CONFIG_MODULE**: use checkmate.celeryconfig by default. See celery instructions for more detail. THis module also picks up the values from some of the other environment variables. If you use a different config module, the other checkmate variables may get ignored.
 
-**CELERYD_FORCE_EXECV**: See celery instructions for more detail. This setting can prevent queue listeners hanging on some OSes (seen frequently on developer Macs)
+**CELERY_ALWAYS_EAGER**: forces celery to run synchronously, in-process instead of using the message queue. May be useful for debugging, development, and troubleshooting.
 
 Deprecated: not used anymore
+
+CELERYD_FORCE_EXECV (as of celery 3.x)
 
 CHECKMATE_DATA_PATH
 
