@@ -165,10 +165,10 @@
 	<div class="modal-header">
 	  <button type="button" class="close" data-dismiss="modal">×</button>
 	  <h3>Log In</h3>
-	  <p>Log in to your Rackspace Cloud account. This will work with US and UK accounts. If you'd like to specify a region or use your API key, there are <a href="#" data-toggle="collapse" data-target="#auth_options">More Options</a> available.</p>
+	  <p>Log in to your Rackspace Cloud account.</p>
 	</div>
 	<div class="modal-body">
-	  <form class="form-horizontal">
+	  <form class="form-horizontal" style="margin-bottom: 0px">
 		<div id="auth_error" class="alert alert-error hide">
 		  <strong>Authentication Failed!</strong> <span id="auth_error_text"></span>.
 		</div>
@@ -185,28 +185,26 @@
 			  <input type="password" class="input-xlarge" id="password" ng-model="bound_creds.password">
 			</div>
 		  </div>
-		  <div id="auth_options" class="collapse out">
-			<p>or</p>
-			<div class="control-group">
-			  <label class="control-label" for="apikey">API Key</label>
-			  <div class="controls">
-				<input type="password" class="input-xlarge" id="apikey" ng-model="bound_creds.apikey">
-			  </div>
-			</div>
-            <hr/>
-			<div class="control-group">
-			  <label class="control-label" for="auth_url">Cloud/Region</label>
-			  <div class="controls">
-				<select id="auth_url" class="span3" required ng-model="bound_creds.auth_url">
-				  <option value="https://identity.api.rackspacecloud.com/v2.0/tokens">US Cloud (Rackspace)</option>
-				  <option value="https://lon.identity.api.rackspacecloud.com/v2.0/tokens">UK Cloud (Rackspace)</option>
-				</select>
-			  </div>
-			</div>
-		  </div>
+                    <p style="text-align: center">or</p>
+                    <div class="control-group">
+                      <label class="control-label" for="apikey">API Key</label>
+                      <div class="controls">
+                            <input type="password" class="input-xlarge" id="apikey" ng-model="bound_creds.apikey">
+                      </div>
+                    </div>
+                    <hr/>
+                    <div class="control-group">
+                      <label class="control-label" for="auth_url">Cloud/Region</label>
+                      <div class="controls">
+                            <select id="auth_url" class="span3" required ng-model="bound_creds.auth_url">
+                              <option value="https://identity.api.rackspacecloud.com/v2.0/tokens">Rackspace Cloud - US</option>
+                              <option value="https://lon.identity.api.rackspacecloud.com/v2.0/tokens">Rackspace Cloud - UK</option>
+                            </select>
+                      </div>
+                    </div>
 		</fieldset>
 		<div class="modal-footer">
-		  <a href="#" class="btn btn-primary" ng-click="logIn(username.value, password.value, apikey.value, auth_url.value)">Authenticate!</a>
+		  <button type="submit" class="btn btn-primary" ng-click="logIn(username.value, password.value, apikey.value, auth_url.value)">Authenticate!</button>
 		</div>
 	  </form>
 	</div>
