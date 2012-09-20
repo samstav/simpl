@@ -398,7 +398,7 @@ def execute_workflow_task(id, task_id, tenant_id=None):
         abort(404, 'No workflow with id %s' % id)
 
     #Synchronous call
-    orchestrator.run_one_task(id, task_id, timeout=10)
+    orchestrator.run_one_task(request.context, id, task_id, timeout=10)
     entity = db.get_workflow(id)
 
     serializer = DictionarySerializer()
