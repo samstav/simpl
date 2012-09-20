@@ -148,4 +148,20 @@
       </select>
     </div>
   </script>
-</div>
+
+
+  <script id="setting-combo" type="text/html">
+    <label class="control-label capitalize {{#required}}required{{/required}}" for="{{id}}">{{label}}</label>
+    <div class="controls">
+       <input type="text" name="state" class="input-xlarge ng-model" id="{{id}}" ng-model="answers['{{id}}']"
+              {{#required}}required{{/required}} {{#regex}}ng-pattern="{{regex}}"{{/regex}}
+              {{#default}}value="{{default}}"{{/default}} {{#sample}}placeholder="{{sample}}"{{/sample}} />
+       <br />
+       <select name="s" id="{{id}}" ng-model="answers['{{id}}']" {{#required}}required{{/required}} ng-options="o for o in setting.choice" onchange="document.ex.state.value=document.ex.s.options[document.ex.s.selectedindex].value;document.ex.s.value=""><option value="" selected="selected">
+       </select>
+    </div>
+   </script>
+ 
+  
+</section>
+

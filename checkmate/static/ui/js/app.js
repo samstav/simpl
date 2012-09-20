@@ -1124,6 +1124,24 @@ function DeploymentInitController($scope, $location, $routeParams, $resource, bl
   $scope.environment = environment;
   $scope.blueprint = blueprint;
   $scope.answers = {};
+  $scope.domain_names = [];
+  
+  //Retrieve existing domains  
+  $scope.getDomains = function(){
+    $scope.domain_names = [];
+    if ($scope.auth.loggedIn){
+      var tenant_id = $scope.auth.tenantId;
+      url = '/:tenantId/providers/rackspace.dns/proxy/v1.0/'+tenant_id+'/domains';
+      var Domains = $resource(url, {tenantId: $scope.auth.tenantId});            
+      var domains = Domains.query(function() {
+        var temp
+        for(var i=0; i<domains.length; i++){
+          $scope.domain_names.push(domains[i].name);
+        }
+       });
+    }
+  };  
+  $scope.getDomains();
 
   $scope.updateSettings = function() {
     $scope.settings = [];
@@ -1147,26 +1165,31 @@ function DeploymentInitController($scope, $location, $routeParams, $resource, bl
 
   // Display settings using templates for each type
   $scope.renderSetting = function(setting) {
+    //console.log("RENDERING");
     if (!setting) {
       var message = "The requested setting is null";
       console.log(message);
       return "<em>" + message + "</em>";
     }
-
     if (!setting.type || !_.isString(setting.type)) {
       var message = "The requested setting '" + setting.id + "' has no type or the type is not a string.";
       console.log(message);
       return "<em>" + message + "</em>";
     }
     var lowerType = setting.type.toLowerCase().trim();
+
+    if (setting.label == "Domain") {
+        setting.choice = $scope.domain_names;
+    }
+
     if (lowerType == "select") {
       if ("choice" in setting) {
         if (!_.isString(setting.choice[0]))
           lowerType = lowerType + "-kv";
-        }
       }
+    }
     var template = $('#setting-' + lowerType).html();
-
+    console.log("Template: "+template);
     if (template === null) {
       var message = "No template for setting type '" + setting.type + "'.";
       console.log(message);
@@ -1333,7 +1356,8 @@ WPBP = {
                 "description": "The domain you wish to host your blog on. (ex: example.com)",
                 "label": "Domain",
                 "sample": "example.com",
-                "type": "string"
+                "type": "combo",
+                "choice": []
             },
             "path": {
                 "constrains": [
@@ -1675,3 +1699,4 @@ ENVIRONMENTS = {
         }
     }
   };
+
