@@ -12,7 +12,7 @@ cookbook 'rabbitmq'
 cookbook 'mongodb'
 
 cookbook 'checkmate',
-  :git => 'https://github.rackspace.com/checkmate/checkmate-cookbook'
+  :git => 'https://github.rackspace.com/Cookbooks/checkmate'
 
 cookbook 'rvm',
-  :git => 'https://github.com/fnichol/chef-rvm'
+  :git => 'https://github.com/gondoi/chef-rvm'
