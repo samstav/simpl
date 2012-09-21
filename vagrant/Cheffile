@@ -15,4 +15,4 @@ cookbook 'checkmate',
   :git => 'https://github.rackspace.com/Cookbooks/checkmate'
 
 cookbook 'rvm',
-  :git => 'https://github.com/fnichol/chef-rvm'
+  :git => 'https://github.com/gondoi/chef-rvm'

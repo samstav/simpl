@@ -20,7 +20,7 @@ Vagrant::Config.run do |config|
     chef.add_recipe "openssl"
     chef.add_recipe "build-essential"
     chef.add_recipe "python"
-    chef.add_recipe "rabbitmq"
+    #chef.add_recipe "rabbitmq"
     chef.add_recipe "mongodb::10gen_repo"
     chef.add_recipe "mongodb"
     chef.add_recipe "checkmate"
@@ -34,9 +34,9 @@ Vagrant::Config.run do |config|
       :rvm => {
         :user_installs => [{
           :user => 'checkmate',
-          :user_default_ruby => '1.9.3-p125@checkmate',
-          :user_gems => {
-            :checkmate => [
+          :default_ruby => 'ruby-1.9.3-p125',
+          :gems => {
+            'ruby-1.9.3-p125' => [
               { 'name' => 'bundler' },
               { 'name' => 'chef',
                 'version' => '10.12.0' },
@@ -75,11 +75,11 @@ Vagrant::Config.run do |config|
           :vhost => "checkmate"
         },
         :datastore => {
-          :type => "sqlite",
+          :type => "mongodb",
           :mongodb_backend_settings => '{"host": "localhost", "database": "checkmate", "taskmeta_collection": "celery_task_meta"}'
         },
         :broker => {
-          :type => "amqp",
+          :type => "mongodb",
         }
       },
       :build_essential => {
