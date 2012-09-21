@@ -1573,7 +1573,7 @@ def _run_kitchen_command(kitchen_path, params, lock=True):
     return result
 
 
-@task
+@task(countdown=20, max_retries=3)
 def cook(host, environment, recipes=None, roles=None, path=None,
             username='root', password=None, identity_file=None, port=22):
     """Apply recipes/roles to a server"""
@@ -1585,8 +1585,8 @@ def cook(host, environment, recipes=None, roles=None, path=None,
                 kitchen_path)
     node_path = os.path.join(kitchen_path, 'nodes', '%s.json' % host)
     if not os.path.exists(node_path):
-        raise CheckmateException("Node '%s' is not registered in %s" % (host,
-                kitchen_path))
+        cook.retry(exc=CheckmateException("Node '%s' is not registered in %s" 
+                                          % (host,kitchen_path)))
 
     # Add any missing recipes to node settings
     run_list = []
