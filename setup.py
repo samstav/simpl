@@ -46,7 +46,7 @@ setup(
                       'python-cloudlb',
                       'python-keystoneclient',
                       'python-clouddns',
-                      'python-cloudfiles==1.7.10',
+                      'python-cloudfiles',
                       'rackspace-monitoring',
                       'PyChef==0.2.dev',
                       'PyYAML==3.10',
