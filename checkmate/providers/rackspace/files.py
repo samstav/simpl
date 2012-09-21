@@ -45,8 +45,14 @@ def create_container(deployment, name, api=None):
     if api is None:
         api = _connect(deployment)
 
-    try:
-        api.create_container(name)
+    meta = deployment.get("metadata", None)
+        if meta:
+            new_meta = {}
+            for key in meta:
+                new_meta["x-container-meta-"+key] = meta[key]
+            api.create_container(name, metadata=new_meta)
+        else:
+            api.create_container(name)
         LOG.debug('Created container %s.' % name)
     except cloudfiles.errors.InvalidContainerName as e:
         LOG.error('Invalid container name: %s' % name)
