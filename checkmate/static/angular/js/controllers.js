@@ -331,33 +331,52 @@ DeploymentListCtrl.$inject = ['$scope', '$location', '$http'];
  */
 
 function DeploymentStatusCtrl($scope, $location, $http, $routeParams) {
+  $scope.taskStates = {
+    future: 0,
+    likely: 0,
+    maybe: 0,
+    waiting: 0,
+    ready: 0,
+    cancelled: 0,
+    completed: 0,
+    triggered: 0
+  };
+
   cm.Resource.get($http, $scope, 'deployments', $routeParams.deploymentId)
     .success(function(deployment) {
       $scope.deployment = deployment;
-
-      // TODO: Do some magic to get the workflow id
-      cm.Resource.get($http, $scope, 'workflows', deployment.id)
-        .success(function(workflow) {
-          $scope.workflow = workflow;
-          $scope.task_specs = workflow.wf_spec.task_specs;
-
-          $scope.tasks = $scope.flattenTasks({}, workflow.task_tree);
-          $scope.jit = $scope.jitTasks($scope.tasks);
-
-          $scope.renderWorkflow($scope.jit);
-        });
+      $scope.refresh();
     });
+
+  $scope.percentComplete = function() {
+    console.log( (($scope.totalTime - $scope.timeRemaining) / $scope.totalTime) * 100 );
+    return (($scope.totalTime - $scope.timeRemaining) / $scope.totalTime) * 100;
+  };
+
+  $scope.refresh = function() {
+    cm.Resource.get($http, $scope, 'workflows', $scope.deployment.id)
+      .success(function(workflow) {
+        $scope.workflow = workflow;
+        $scope.totalTime = 0;
+
+        $scope.tasks = $scope.flattenTasks({}, workflow.task_tree);
+        $scope.timeRemaining = $scope.totalTime;
+        $scope.jit = $scope.jitTasks($scope.tasks);
+
+        $scope.renderWorkflow($scope.jit);
+        setTimeout($scope.refresh, 1000);
+      });
+  }
 
   $scope.renderWorkflow = function(tasks) {
     var template = $('#task').html();
-    var container = $('#task_container');
+    var container = $('#task_container').empty();
 
     for(var i = 0; i < Math.floor(tasks.length/4); i++) {
       var div = $('<div class="row">');
       var row = tasks.slice(i*4, (i+1)*4);
       _.each(row, function(task) {
-
-        div.append(Mustache.render(template, task));
+        div.append(Mustache.render(template, task));        
       });
 
       container.append(div);
@@ -384,9 +403,9 @@ function DeploymentStatusCtrl($scope, $location, $http, $routeParams) {
       }
     });
 
-    jsPlumb.addEndpoint(selectedTask.id);
+    //jsPlumb.addEndpoint(selectedTask.id);
     _.each(selectedTask.children, function(child) {
-      jsPlumb.addEndpoint(child.id);
+      //jsPlumb.addEndpoint(child.id);
 
       jsPlumb.connect({
         source: selectedTask.id,
@@ -400,6 +419,7 @@ function DeploymentStatusCtrl($scope, $location, $http, $routeParams) {
 
     if (tree.children.length > 0) {
       _.each(tree.children, function(child, index) {
+        $scope.totalTime += parseInt(child["internal_attributes"]["estimated_completed_in"], 10);
         $.extend(accumulator, $scope.flattenTasks(accumulator, tree.children[index]));
       });
     }
@@ -425,7 +445,7 @@ function DeploymentStatusCtrl($scope, $location, $http, $routeParams) {
         id: task.id,
         name: task.task_spec,
         adjacencies: adjacencies,
-        state: $scope.colorize(task.state),
+        state: $scope.colorize(task),
         data: {
           "$color": "#83548B",
           "$type": "circle"
@@ -480,19 +500,32 @@ function DeploymentStatusCtrl($scope, $location, $http, $routeParams) {
    *  See above.
    *
    */
-  $scope.colorize = function(state) {
-    switch(state) {
+  $scope.colorize = function(task) {
+    switch(task.state) {
       case 1:
+        $scope.taskStates["future"] += 1;
+        return "alert-waiting";        
       case 2:
+        $scope.taskStates["likely"] += 1;
+        return "alert-waiting";
       case 4:
+        $scope.taskStates["maybe"] += 1;
+        return "alert-waiting";
       case 8:
+        $scope.taskStates["waiting"] += 1;
         return "alert-waiting";
       case 16:
+        $scope.taskStates["ready"] += 1;
+        return "alert-info";
       case 128:
+        $scope.taskStates["triggered"] += 1;
         return "alert-info";
       case 32:
+        $scope.taskStates["cancelled"] += 1;
         return "alert-error";
       case 64:
+        $scope.taskStates["completed"] += 1;
+        $scope.timeRemaining -= parseInt(task["internal_attributes"]["estimated_completed_in"], 10);
         return "alert-success";
       default:
         console.log("Invalid state '" + state + "'.");

@@ -644,12 +644,11 @@ services.value('scroll', {
 services.value('settings', {
   getSettingsFromBlueprint: function(blueprint) {
     var options = []; // The accumulating array
-
     var opts = blueprint.options;
     _.each(opts, function(option, key) {
       options.push($.extend({
         id: key
-      }, option));
+      }, option));     
     });
 
     _.each(options, function(option) {
@@ -674,7 +673,7 @@ services.value('settings', {
 services.config(function ($httpProvider) {
         $httpProvider.responseInterceptors.push('myHttpInterceptor');
         var startFunction = function (data, headersGetter) {
-            console.log('Started call');
+             console.log('Started call');
 			if ('requests' in checkmate) {
 				checkmate.requests += 1;
 			} else

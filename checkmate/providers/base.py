@@ -219,7 +219,7 @@ class ProviderBase(ProviderBasePlanningMixIn, ProviderBaseWorkflowMixIn):
     name = 'base'
     vendor = 'checkmate'
 
-    def __init__(self, provider, key=None):
+    def __init__(self, provider, key=None):        
         """Initialize provider
 
         :param provider: an initialization dict (usually from the environment)

@@ -1052,6 +1052,7 @@ class Provider(ProviderBase):
         cid = kwargs.pop('id', None)
         name = kwargs.pop('name', None)
         role = kwargs.pop('role', None)
+        print "STUFF: %s , %s , %s" % (cid, name, role)
         if (not cid) and name:
             if role:
                 cid = "%s::%s" % (name, role)
@@ -1360,7 +1361,7 @@ def download_cookbooks(environment, path=None, cookbooks=None,
                     cookbook)):
                 raise CheckmateException("Cookbook '%s' not available in repo:"
                         " %s" % (cookbook, repo_path))
-    else:
+    else:	
         # If none specificed, assume all
         cookbooks = [p for p in os.listdir(os.path.join(repo_path,
                 cookbook_subdir)) if os.path.isdir(os.path.join(repo_path,
@@ -1811,3 +1812,4 @@ def _get_repo_path():
                     'chef-stockton.git', path)
             LOG.info("Cloned chef-stockton to %s" % path)
     return path
+
