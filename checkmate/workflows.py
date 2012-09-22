@@ -379,7 +379,7 @@ def resubmit_workflow_task(workflow_id, task_id, tenant_id=None):
 
     task = wf.get_task(task_id)
     if not task:
-        abort(404, 'No task with id %s' % task_id)
+        abort(404, "No task with id '%s' found" % task_id)
 
     # Return cleaned data (no credentials)
     data = serializer._serialize_task(task, skip_children=True)
