@@ -365,7 +365,10 @@ def resubmit_workflow_task(workflow_id, task_id, tenant_id=None):
             request.context.auth_token:
         task.task_spec.args[0]['auth_token'] = request.context.auth_token
         LOG.debug("Updating task auth token with new caller token")
-    task.task_spec.retry_fire(task)
+    if task.task_spec.retry_fire(task):
+        LOG.debug("Progressing task '%s' (%s)" % (task_id,
+                                                  task.get_state_name()))
+        task.task_spec._update_state(task)
 
     serializer = DictionarySerializer()
     entity = wf.serialize(serializer)
