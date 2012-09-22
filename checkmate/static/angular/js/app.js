@@ -449,7 +449,7 @@ PROVIDERS = {
 
 //Initial Wordpress Template
 WPBP = {
-		"id": "d8fcfc17-b515-473a-9fe1-6d4e3356ef8d"
+	"id": "d8fcfc17-b515-473a-9fe1-6d4e3356ef8d",
         "description": "uses MC config recipes which support blah...., multiple domains, ....",
         "services": {
             "lb": {
