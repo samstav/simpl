@@ -11,7 +11,7 @@
 </div>
 
 <div class="span3 summaryBar">
-  <div class="summaryHeader">
+  <div class="summaryHeader" ng-cloak ng-show="data">
     <div class="top well" ng-cloak ng-show="showStatus">
       <div class="row-fluid" style="height: 20px;">
         <div class="span10 actions">
@@ -27,7 +27,7 @@
       <h4>{{data.wf_spec.name}}</h4>
 
       <div class="progress" style="height: 10px;">
-        <div class="bar" style="width: {{percentComplete()}}%;"></div>
+        <div class="bar" ng-style="{width: percentComplete() + '%'}"></div>
       </div>
 
       <div>
@@ -58,7 +58,11 @@
 </div>
 
 <div class="entries">
-  <div class="well entry">
+  <div class="nothingSelected" ng-cloak ng-show="!data">
+    <img src="/static/img/sadpanda.png" alt="Sad Panda">
+    <p>Nothing selected.</p>
+  </div>
+  <div class="well entry" ng-cloak ng-show="data">
     <h2>{{current_spec.name}}</h2>
 
     <div class="row-fluid">
