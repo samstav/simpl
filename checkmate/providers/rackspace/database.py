@@ -3,7 +3,7 @@ import logging
 import random
 import string
 
-from celery.task import task
+from celery.task import task, current
 import clouddb
 from SpiffWorkflow.operators import Attrib, PathAttrib
 from SpiffWorkflow.specs import Celery
@@ -414,7 +414,7 @@ def create_database(context, name, region, character_set=None, collate=None,
 
     instance = api.get_instance(instance_id)
     if instance.status != "ACTIVE":
-        create_database.retry()
+        current.retry()
     try:
         instance.create_databases(databases)
         results = {
@@ -436,8 +436,11 @@ def create_database(context, name, region, character_set=None, collate=None,
         resource_postback.delay(context['deployment'], results)
         return results
     except clouddb.errors.ResponseError as exc:
+        LOG.exception(exc)
+        if str(exc) == '400: Bad Request':
+            current.retry(exc=exc, throw=True)  # Do not retry. Will fail.
         # Expected while instance is being created. So retry
-        return create_database.retry(exc=exc)
+        return current.retry(exc=exc)
 
 
 @task(default_retry_delay=10, max_retries=10)
@@ -488,7 +491,7 @@ def add_user(context, instance_id, databases, username, password, region,
         # This could be '422 Unprocessable Entity', meaning the instance is not
         # up yet
         if '422' in exc.message:
-            add_user.retry(exc=exc)
+            current.retry(exc=exc)
         else:
             raise exc
 
