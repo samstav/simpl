@@ -20,16 +20,34 @@ Vagrant::Config.run do |config|
     chef.add_recipe "openssl"
     chef.add_recipe "build-essential"
     chef.add_recipe "python"
-    chef.add_recipe "rabbitmq"
+    #chef.add_recipe "rabbitmq"
     chef.add_recipe "mongodb::10gen_repo"
     chef.add_recipe "mongodb"
     chef.add_recipe "checkmate"
+    chef.add_recipe "rvm::user"
     chef.add_recipe "checkmate::vagrant"
     chef.add_recipe "checkmate::broker"
     chef.add_recipe "checkmate::worker"
     chef.add_recipe "checkmate::webui"
 
     chef.json = {
+      :rvm => {
+        :user_installs => [{
+          :user => 'checkmate',
+          :default_ruby => 'ruby-1.9.3-p125',
+          :gems => {
+            'ruby-1.9.3-p125' => [
+              { 'name' => 'bundler' },
+              { 'name' => 'chef',
+                'version' => '10.12.0' },
+              { 'name' => 'knife-solo',
+                'version' => '0.0.13' },
+              { 'name' => 'knife-solo_data_bag',
+                'version' => '0.2.1' }
+            ]
+          }
+        }]
+      },
       :checkmate => {
         :git => {
           :src => "/vagrant",
@@ -57,11 +75,11 @@ Vagrant::Config.run do |config|
           :vhost => "checkmate"
         },
         :datastore => {
-          :type => "sqlite",
+          :type => "mongodb",
           :mongodb_backend_settings => '{"host": "localhost", "database": "checkmate", "taskmeta_collection": "celery_task_meta"}'
         },
         :broker => {
-          :type => "amqp",
+          :type => "mongodb",
         }
       },
       :build_essential => {

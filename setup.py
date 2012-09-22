@@ -43,7 +43,7 @@ setup(
                       #is not valid (with a leading ".") so we exclude it here.
                       'python-clouddb',
                       'python-novaclient==2012.2',
-                      'python-cloudlb==0.5.1',
+                      'python-cloudlb',
                       'python-keystoneclient',
                       'python-clouddns',
                       'python-cloudfiles==1.7.10',
