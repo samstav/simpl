@@ -384,6 +384,40 @@ class ProviderBase(ProviderBasePlanningMixIn, ProviderBaseWorkflowMixIn):
         """Proxy request through to provider"""
         raise CheckmateException("Provider does not support call")
 
+    @staticmethod
+    def parse_memory_setting(text):
+        """Parses a string and extracts a number in megabytes.
+
+        Unit default is megabyte if not provided.
+        Supported names are megabyte, gigabyte, terabyte with their
+        abbreviations"""
+
+        if not text or (isinstance(text, basestring) and text.strip()) == "":
+            raise CheckmateException("No memory privided")
+        if isinstance(text, int):
+            return text
+        number = ''.join([n for n in text.strip() if n.isdigit()]).strip()
+        unit = ''.join([c for c in text.strip() if c.isalpha()]).strip()
+        result = 0
+        if unit.lower() in ['mb', 'megabyte', 'megabytes']:
+            result = int(number)
+            unit = 'mb'
+        elif unit.lower() in ['gb', 'gigabyte', 'gigabytes']:
+            result = int(number) * 1024
+            unit = 'gb'
+        elif unit.lower() in ['tb', 'terabyte', 'terabytes']:
+            result = int(number) * 1024 * 1024
+            unit = 'tb'
+        elif len(unit):
+            raise CheckmateException("Unrecognized unit of memory: %s" %
+                                     unit)
+        else:
+            result = int(number)
+        LOG.debug("Parsed '%s' as '%s %s', and returned %s megabyte" % (
+                text, number, unit, result))
+        return result
+
+
 def register_providers(providers):
     """Add provider classes to list of available providers"""
     for provider in providers:
