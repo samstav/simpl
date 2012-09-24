@@ -219,6 +219,10 @@ function AppController($scope, $http, $location) {
       expires: ''
     };
 
+  $scope.navigate = function(url) {
+    $location.path(url);
+  }
+
   $scope.notify = function(message) {
     $('.bottom-right').notify({
         message: { text: message }, fadeOut: {enabled: true, delay: 5000},
@@ -750,14 +754,18 @@ function WorkflowController($scope, $resource, $http, $routeParams, $location, $
     }
   };
   
-  $scope.resubmit_task = function() {
-    return $scope.task_action($scope.current_task.id, 'resubmit');
-  }
-  
   $scope.execute_task = function() {
     return $scope.task_action($scope.current_task.id, 'execute');
   }
-  
+
+  $scope.reset_task = function() {
+    return $scope.task_action($scope.current_task.id, 'reset');
+  }
+
+  $scope.resubmit_task = function() {
+    return $scope.task_action($scope.current_task.id, 'resubmit');
+  }
+
   $scope.was_server_created = function() {
     if (typeof $scope.current_task != 'undefined' && $scope.current_task.task_spec.indexOf("Create Server") == 0 &&
         $scope.resource($scope.current_task) !== null)

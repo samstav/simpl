@@ -19,6 +19,7 @@ from SpiffWorkflow.operators import Attrib
 from SpiffWorkflow.storage import DictionarySerializer
 
 from checkmate.db import get_driver
+from checkmate.middleware import RequestContext
 from checkmate.utils import extract_sensitive_data, match_celery_logging
 
 LOG = logging.getLogger(__name__)
@@ -211,7 +212,7 @@ def run_workflow(id, timeout=60, wait=1, counter=1):
 
 
 @task
-def run_one_task(workflow_id, task_id, timeout=60):
+def run_one_task(context, workflow_id, task_id, timeout=60):
     """Attempt to complete one task.
 
     returns True/False indicating if task completed"""
@@ -220,31 +221,46 @@ def run_one_task(workflow_id, task_id, timeout=60):
     workflow = db.get_workflow(workflow_id, with_secrets=True)
     if not workflow:
         raise IndexError("Workflow %s not found" % workflow_id)
-    LOG.debug("Deserializing workflow %s" % workflow_id)
+    LOG.debug("Deserializing workflow '%s'" % workflow_id)
     wf = Workflow.deserialize(serializer, workflow)
     task = wf.get_task(task_id)
+    original = serializer._serialize_task(task, skip_children=True)
     if not task:
-        raise IndexError("Task %s not found in Workflow %s" % (task_id,
+        raise IndexError("Task '%s' not found in Workflow '%s'" % (task_id,
                 workflow_id))
     if task._is_finished():
-        raise ValueError("Task %s is in state '%s' which cannot be executed" %
-            (task_id, task.get_state_name()))
+        raise ValueError("Task '%s' is in state '%s' which cannot be executed"
+                % (task_id.get_name(), task.get_state_name()))
 
     if task._is_predicted() or task._has_state(Task.WAITING):
+        LOG.debug("Progressing task '%s' (%s)" % (task_id,
+                                                  task.get_state_name()))
+        if isinstance(context, dict):
+            context = RequestContext(**context)
+        # Refresh token if it exists in args[0]['auth_token]
+        if task.task_spec.args and len(task.task_spec.args) > 0 and \
+                isinstance(task.task_spec.args[0], dict) and \
+                task.task_spec.args[0].get('auth_token') != \
+                context.auth_token:
+            task.task_spec.args[0]['auth_token'] = context.auth_token
+            LOG.debug("Updating task auth token with new caller token")
         result = task.task_spec._update_state(task)
     elif task._has_state(Task.READY):
+        LOG.debug("Completing task '%s' (%s)" % (task_id,
+                                                  task.get_state_name()))
         result = wf.complete_task_from_id(task_id)
     else:
-        LOG.warn("Task %s in Workflow %s is in state %s and cannot be "
+        LOG.warn("Task '%s' in Workflow '%s' is in state %s and cannot be "
                 "progressed" % (task_id, workflow_id, task.get_state_name()))
         return False
-    LOG.debug("Task %s in Workflow %s completion result: %s" % (task_id,
-            workflow_id, result))
-    msg = "Saving: %s" % wf.get_dump()
-    LOG.debug(msg)
     updated = wf.serialize(serializer)
-    body, secrets = extract_sensitive_data(updated)
-    body['tenantId'] = workflow.get('tenantId')
-    body['id'] = workflow_id
-    db.save_workflow(workflow_id, body, secrets)
+    if original != updated:
+        LOG.debug("Task '%s' in Workflow '%s' completion result: %s" % (
+                task_id, workflow_id, result))
+        msg = "Saving: %s" % wf.get_dump()
+        LOG.debug(msg)
+        body, secrets = extract_sensitive_data(updated)
+        body['tenantId'] = workflow.get('tenantId')
+        body['id'] = workflow_id
+        db.save_workflow(workflow_id, body, secrets)
     return result

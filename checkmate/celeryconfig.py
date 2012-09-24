@@ -19,8 +19,8 @@ elif 'CHECKMATE_BROKER_HOST' in os.environ:
     broker = {
             'username': os.environ.get('CHECKMATE_BROKER_USERNAME'),
             'password': os.environ.get('CHECKMATE_BROKER_PASSWORD'),
-            'host': os.environ('CHECKMATE_BROKER_HOST', 'localhost'),
-            'port': os.environ('CHECKMATE_BROKER_PORT')
+            'host': os.environ.get('CHECKMATE_BROKER_HOST', 'localhost'),
+            'port': os.environ.get('CHECKMATE_BROKER_PORT', '5672')
         }
     BROKER_URL = "amqp://%s:%s@%s:%s/checkmate" % (broker['username'],
                                               broker['password'],
