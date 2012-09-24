@@ -82,23 +82,27 @@ class Provider(RackspaceComputeProviderBase):
             raise CheckmateNoMapping("No image mapping for '%s' in '%s'" % (
                     image, self.name))
 
-        flavor = deployment.get_setting('memory', resource_type=resource_type,
-                service_name=service, provider_key=self.key, default=2)
-        if isinstance(flavor, int):
-            flavor = str(flavor)
-        if not flavor.isdigit():
-            # Assume it is a memory amount
-            #FIXME: handle units (Gb or Mb)
-            number = flavor.split(' ')[0]
-            for key, value in catalog['lists']['sizes'].iteritems():
-                if number == str(value['memory']):
-                    LOG.debug("Mapping flavor from '%s' to '%s'" % (flavor,
-                            key))
-                    flavor = key
-                    break
-        if flavor not in catalog['lists']['sizes']:
+        # Get setting
+        flavor = None
+        memory = self.parse_memory_setting(deployment.get_setting('memory',
+                resource_type=resource_type, service_name=service,
+                provider_key=self.key, default=512))
+
+        # Find the available memory size that satisfies this
+        matches = [e['memory'] for e in catalog['lists']['sizes'].values()
+                     if int(e['memory']) >= memory]
+        if not matches:
+            raise CheckmateNoMapping("No flavor has at least '%s' memory" %
+                                     memory)
+        match = str(min(matches))
+        for key, value in catalog['lists']['sizes'].iteritems():
+            if match == str(value['memory']):
+                LOG.debug("Mapping flavor from '%s' to '%s'" % (memory, key))
+                flavor = key
+                break
+        if not flavor:
             raise CheckmateNoMapping("No flavor mapping for '%s' in '%s'" % (
-                    flavor, self.key))
+                    memory, self.key))
 
         template['flavor'] = flavor
         template['image'] = image
