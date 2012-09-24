@@ -1466,12 +1466,12 @@ WPBP = {
             "web_server_size": {
                 "constrains": [
                     {
-                        "setting": "size",
+                        "setting": "memory",
                         "service": "web",
                         "resource_type": "compute"
                     },
                     {
-                        "setting": "size",
+                        "setting": "memory",
                         "service": "master",
                         "resource_type": "compute"
                     }
