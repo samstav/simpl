@@ -1311,7 +1311,7 @@ WPBP = {
             "master": {
                 "component": {
                     "type": "application",
-                    "name": "wordpress"
+                    "name": "wordpress-master-role"
                 },
                 "relations": {
                     "backend": "mysql"
@@ -1628,23 +1628,6 @@ ENVIRONMENTS = {
         "providers": {
             "legacy": {},
             "chef-local": {
-                "catalog": {
-                    "application": {
-                        "wordpress": {
-                            "is": "application",
-                            "id": "wordpress",
-                            "provides": [
-                                {
-                                    "application": "http"
-                                }
-                            ],
-                            "requires": [
-                              {"database": "mysql"},
-                              {"host": "linux"}
-                            ]
-                        }
-                    }
-                },
                 "vendor": "opscode",
                 "provides": [
                     {
