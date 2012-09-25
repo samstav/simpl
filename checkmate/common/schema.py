@@ -106,6 +106,25 @@ INTERFACE_SCHEMA = yaml_to_dict("""
         description: for testing
       bar:
         description: for testing
+      ftp:
+      sftp:
+      https:
+      ldap:
+      ldaps:
+      smtp:
+      pop3:
+      pop3s:
+      imaps:
+      imapv2:
+      imapv3:
+      imapv4:
+      dns_udp:
+      dns_tcp:
+      rdp:
+      udp:
+      udp_stream:
+      tcp_client_first:
+      tcp:
     """)
 
 INTERFACE_TYPES = INTERFACE_SCHEMA.keys()
