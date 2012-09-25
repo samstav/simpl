@@ -17,7 +17,8 @@ def main_func():
                        '--config=checkmate.celeryconfig', '-I',
                 'checkmate.orchestrator,checkmate.ssh,checkmate.deployments,'
                 'checkmate.providers.rackspace,checkmate.providers.opscode',
-                '--events', '--autoscale=10,2'])
+                '--events', 
+                ])
         if '--verbose' in sys.argv:
             sys.argv.pop(sys.argv.index('--verbose'))
             params.extend(['-l', 'debug'])

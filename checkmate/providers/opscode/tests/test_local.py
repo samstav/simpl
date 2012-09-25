@@ -1,3 +1,4 @@
+"""Tests for chef-local provider"""
 #!/usr/bin/env python
 import __builtin__
 import json
@@ -44,6 +45,7 @@ class TestChefLocal(unittest.TestCase):
         self.mox.UnsetStubs()
 
     def test_cook_missing_role(self):
+        """Test that missing role error is correctly detected and reported"""
         results = """Checking cookbook syntax...
 [Mon, 21 May 2012 17:25:54 +0000] INFO: *** Chef 0.10.10 ***
 [Mon, 21 May 2012 17:25:55 +0000] INFO: Setting the run_list to ["role[build]", "role[wordpress-web]"] from JSON
@@ -95,7 +97,7 @@ class TestChefLocal(unittest.TestCase):
         self.mox.ReplayAll()
         try:
             local.cook('a.b.c.d',  'myEnv', recipes=None,
-                roles=['build', 'wordpress-web'])
+                roles=['build', 'not-a-role'])
         except Exception as exc:
             if 'MissingRole' in exc.__str__():
                 # If got the right error, check that it is correctly formatted
@@ -475,7 +477,7 @@ class TestDBWorkflow(StubbedWorkflowBase):
 
 
 if __name__ == '__main__':
-    # Run tests. Handle our paramsters separately
+    # Run tests. Handle our parameters separately
     import sys
     args = sys.argv[:]
     # Our --debug means --verbose for unitest

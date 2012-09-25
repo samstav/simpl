@@ -1,12 +1,16 @@
-# Installing Checkmate By Hand
+# Installing Checkmate
 ![Checkmate](https://github.rackspace.com/checkmate/checkmate/raw/master/checkmate/static/img/checkmate.png)
 
+This document explains how to install Checkmate
 
-This document explains how to install Checkmate by hand. If you are looking for
-a get a development box up quickly, see
-[vagrant](https://github.rackspace.com/checkmate/checkmate/blob/master/vagrant/README.md).
+## Automated Install Using Vagrant
 
-## Dependencies
+You can install a Checkmate environment automatically using [vagrant](https://github.rackspace.com/checkmate/checkmate/blob/master/vagrant/README.md).
+
+
+## Manual Installation
+
+### Dependencies
 
 Checkmate is mostly a python service. Therefore, most installations can be
 done with python tools like pip or easy_install. There are two main exceptions
@@ -24,7 +28,7 @@ developed in an academic setting and needed significant patching to work with
 checkmate. For these projects, we maintain our own forks that need to be
 deployed with checkmate. All modifications are intended to be proposed upstream.
 
-## Requirements for Mac OSX
+### Requirements for Mac OSX
 
 You need:
 
@@ -37,7 +41,7 @@ You need:
   download also available here
   https://developer.apple.com/downloads/index.action.
 
-## Optional - Using Python Virtual Environment
+### Optional - Using Python Virtual Environment
 
 A recommended way to keep Python from installing libraries is to use
 virtualenv. virtualenv will create a copy of your Python binary and setup your
@@ -72,7 +76,7 @@ system python, you can set up all requirements using the following commands:
     sudo python setup.py develop
 
 
-## Install Checkmate from source
+### Install Checkmate from source
 
     git clone git://github.rackspace.com/checkmate/checkmate.git
     cd checkmate
@@ -80,7 +84,7 @@ system python, you can set up all requirements using the following commands:
     python setup.py install
     cd ..
 
-## Install Chef
+### Install Chef
 
 We'll document two configs. The latest, bleeding edge config for hacking and the
 last known good (LKG) config.
@@ -134,7 +138,7 @@ server:
     knife -v  # should show '10.12.0'
     gem list knife  # should show solo at 0.0.13 and data_bag at 0.2.1
 
-## MongoDB Installation
+### MongoDB Installation
 
 Installing and starting MongoDB 2.0.6 on OSX:
 
@@ -152,7 +156,7 @@ Installing and starting MongoDB 2.0.6 on OSX:
     sudo chown -R `id -u` data
     mongod --dbpath data
 
-## Rabbitmq Installation
+### Rabbitmq Installation
 
 Install, configure, and start rabbitmq.
 
@@ -177,7 +181,7 @@ Clone the chef repository and point checkmate to it:
     cd $CHECKMATE_CHEF_REPO
     git clone git://github.rackspace.com/checkmate/chef-stockton.git
 
-## Starting the Checkmate services
+### Starting the Checkmate services
 
 Before you start one of the Checkmate services, the shell environment needs to
 be prepped:

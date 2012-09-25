@@ -106,6 +106,25 @@ INTERFACE_SCHEMA = yaml_to_dict("""
         description: for testing
       bar:
         description: for testing
+      ftp:
+      sftp:
+      https:
+      ldap:
+      ldaps:
+      smtp:
+      pop3:
+      pop3s:
+      imaps:
+      imapv2:
+      imapv3:
+      imapv4:
+      dns_udp:
+      dns_tcp:
+      rdp:
+      udp:
+      udp_stream:
+      tcp_client_first:
+      tcp:
     """)
 
 INTERFACE_TYPES = INTERFACE_SCHEMA.keys()
@@ -262,6 +281,35 @@ ALIASES = {
         'worker': [],
     }
 
+# Add items we come across frequently just to minimize log noise
+ALIASES.update({
+    'apt': [],
+    'aws': [],
+    'build': [],
+    'essential': [],
+    'checkmate': [],
+    'chef': [],
+    'client': [],
+    'handler': [],
+    'firewall': [],
+    'holland': [],
+    'iptables': [],
+    'lsyncd': [],
+    'memcached': [],
+    'openssl': [],
+    'php': [],
+    'php5': [],
+    'postgresql': [],
+    'runit': [],
+    'suhosin': [],
+    'ufw': [],
+    'varnish': [],
+    'vsftpd': [],
+    'windows': [],
+    'xfs': [],
+    'xml': [],
+    'yum': [],
+    })
 
 def translate(name):
     """Convert any aliases to the canonical names as per ALIASES map
