@@ -2,6 +2,7 @@ import logging
 
 from checkmate.providers import ProviderBase
 from checkmate.utils import match_celery_logging
+from checkmate.exceptions import CheckmateNoTokenError
 
 LOG = logging.getLogger(__name__)
 
@@ -18,11 +19,16 @@ import cloudfiles
 from celery.task import task
 
 
-def _connect(deployment):
+def _connect(context):
+    
+    if isinstance(context, dict):
+        from checkmate.middleware import RequestContext
+        context = RequestContext(**context)
+    if not context.auth_token:
+        raise CheckmateNoTokenError()
     try:
-        api = cloudfiles.get_connection(deployment['username'],
-                                         deployment['apikey'],
-                                         timeout=15)
+        api = cloudfiles.get_connection(context.username,
+                                         context.apikey, timeout=15)
     except cloudfiles.errors.AuthenticationFailed, e:
         LOG.error('Cloud Files authentication failed.')
         raise e
@@ -39,18 +45,18 @@ def _connect(deployment):
 
 
 @task
-def create_container(deployment, name, api=None):
+def create_container(context, name, api=None):
     """Creates a new container"""
     match_celery_logging(LOG)
     if api is None:
-        api = _connect(deployment)
-
-    meta = deployment.get("metadata", None)
+        api = _connect(context)
+    try:
+        meta = deployment.get("metadata", None)
         if meta:
             new_meta = {}
             for key in meta:
                 new_meta["x-container-meta-"+key] = meta[key]
-            api.create_container(name, metadata=new_meta)
+                api.create_container(name, metadata=new_meta)
         else:
             api.create_container(name)
         LOG.debug('Created container %s.' % name)
