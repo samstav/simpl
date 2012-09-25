@@ -143,7 +143,7 @@ class TestLegacyGenerateTemplate(unittest.TestCase):
         deployment.get_setting('os', resource_type='compute', service_name='master',
                                provider_key=provider.key, default=119).AndReturn('119')
         deployment.get_setting('memory', resource_type='compute', service_name='master',
-                               provider_key=provider.key, default=2).AndReturn('2')
+                               provider_key=provider.key, default=512).AndReturn('512')
 
         expected = {
             'instance': {},
@@ -240,7 +240,7 @@ class TestLegacyGenerateTemplate(unittest.TestCase):
         deployment.get_setting('os', resource_type='compute', service_name='master',
                                provider_key=provider.key, default=119).AndReturn('119')
         deployment.get_setting('memory', resource_type='compute', service_name='master',
-                               provider_key=provider.key, default=2).AndReturn('2')
+                               provider_key=provider.key, default=512).AndReturn('512')
 
         expected = {
             'instance': {},
@@ -299,8 +299,8 @@ class TestLegacyGenerateTemplate(unittest.TestCase):
                 service_name='master', provider_key=provider.key,
                 default=119).AndReturn('119')
         deployment.get_setting('memory', resource_type='compute',
-                service_name='master', provider_key=provider.key, default=2
-                ).AndReturn('2')
+                service_name='master', provider_key=provider.key, default=512
+                ).AndReturn('512')
 
         expected = {
             'instance': {},
@@ -369,8 +369,8 @@ class TestLegacyGenerateTemplate(unittest.TestCase):
                                AndReturn('119')
         deployment.get_setting('memory', resource_type='compute',
                                service_name='master',
-                               provider_key=provider.key, default=2).\
-                               AndReturn('2')
+                               provider_key=provider.key, default=512).\
+                               AndReturn('512')
         
         expected = {
             'instance': {},

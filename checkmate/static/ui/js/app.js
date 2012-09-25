@@ -1118,8 +1118,8 @@ function DeploymentNewController($scope, $location, $routeParams, $resource, set
 
 function DeploymentTryController($scope, $location, $routeParams, $resource, settings) {
   $scope.environments = ENVIRONMENTS;
-  $scope.blueprints = [WPBP];
-  var ctrl = new DeploymentInitController($scope, $location, $routeParams, $resource, WPBP, ENVIRONMENTS['next-gen'], settings);
+  $scope.blueprints = WPBP;
+  var ctrl = new DeploymentInitController($scope, $location, $routeParams, $resource, WPBP['MySQL'], ENVIRONMENTS['next-gen'], settings);
   $scope.updateSettings();
   return ctrl;
 }
@@ -1292,6 +1292,8 @@ document.addEventListener('DOMContentLoaded', function(e) {
 
 //Initial Wordpress Template
 WPBP = {
+    "DBaaS": {
+        "id": "d8fcfc17-b515-473a-9fe1-6d4e3356ef8d",
         "description": "Create a multi-server WordPress deployment on any cloud account using the Chef cookbooks created by the Managed Cloud team.",
         "services": {
             "lb": {
@@ -1311,7 +1313,7 @@ WPBP = {
             "master": {
                 "component": {
                     "type": "application",
-                    "name": "wordpress"
+                    "name": "wordpress-master-role"
                 },
                 "relations": {
                     "backend": "mysql"
@@ -1466,12 +1468,12 @@ WPBP = {
             "web_server_size": {
                 "constrains": [
                     {
-                        "setting": "size",
+                        "setting": "memory",
                         "service": "web",
                         "resource_type": "compute"
                     },
                     {
-                        "setting": "size",
+                        "setting": "memory",
                         "service": "master",
                         "resource_type": "compute"
                     }
@@ -1534,7 +1536,7 @@ WPBP = {
                     {
                         "setting": "memory",
                         "service": "backend",
-                        "resource_type": "database"
+                        "resource_type": "compute"
                     }
                 ],
                 "description": "The size of the database instance in MB of RAM.",
@@ -1618,8 +1620,343 @@ WPBP = {
                 "label": "SSL Certificate Private Key"
             }
         },
-        "name": "Managed Cloud WordPress"
-    };
+        "name": "Managed Cloud WordPress w/ Cloud Databases"
+    },
+    "MySQL": {
+        "id": "0255a076c7cf4fd38c69b6727f0b37ea",
+        "description": "Create a multi-server WordPress deployment on any cloud account using the Chef cookbooks created by the Managed Cloud team.",
+        "services": {
+            "lb": {
+                "open-ports": [
+                    "80/tcp"
+                ],
+                "component": {
+                    "interface": "http",
+                    "type": "load-balancer"
+                },
+                "relations": {
+                    "web": "http",
+                    "master": "http"
+                },
+                "exposed": true
+            },
+            "master": {
+                "component": {
+                    "type": "application",
+                    "name": "wordpress-master-role"
+                },
+                "relations": {
+                    "backend": "mysql"
+                },
+                "constraints": [
+                    {
+                        "count": 1
+                    }
+                ]
+            },
+            "web": {
+                "component": {
+                    "type": "application",
+                    "name": "wordpress-web-role",
+                    "options": [
+                        {
+                            "wordpress/version": "3.0.4"
+                        }
+                    ]
+                },
+                "relations": {
+                    "master": "http",
+                    "db": {
+                        "interface": "mysql",
+                        "service": "backend"
+                    }
+                }
+            },
+            "backend": {
+                "component": {
+                    "interface": "mysql",
+                    "type": "compute"
+                }
+            }
+        },
+        "options": {
+            "domain": {
+                "regex": "^(([a-zA-Z]|[a-zA-Z][a-zA-Z0-9\\-]*[a-zA-Z0-9])\\.)*([A-Za-z]|[A-Za-z][A-Za-z0-9\\-]*[A-Za-z0-9])$",
+                "constrains": [
+                    {
+                        "setting": "apache/domain_name",
+                        "service": "web",
+                        "resource_type": "application"
+                    }
+                ],
+                "description": "The domain you wish to host your blog on. (ex: example.com)",
+                "label": "Domain",
+                "sample": "example.com",
+                "type": "combo",
+                "choice": []
+            },
+            "path": {
+                "constrains": [
+                    {
+                        "setting": "apache/path",
+                        "service": "web",
+                        "resource_type": "application"
+                    },
+                    {
+                        "setting": "path",
+                        "service": "web",
+                        "resource_type": "application"
+                    }
+                ],
+                "description": "The path you wish to host your blog on under your domain. (ex: /blog)",
+                "default": "/",
+                "label": "Path",
+                "sample": "/blog",
+                "type": "string"
+            },
+            "register-dns": {
+                "default": false,
+                "type": "boolean",
+                "label": "Register DNS Name"
+            },
+            "region": {
+                "required": true,
+                "type": "select",
+                "default": "DFW",
+                "label": "Region",
+                "choice": ["DFW", "ORD"]
+            },
+            "prefix": {
+                "constrains": [
+                    {
+                        "setting": "database/prefix",
+                        "service": "web",
+                        "resource_type": "application"
+                    },
+                    {
+                        "setting": "user/name",
+                        "service": "web",
+                        "resource_type": "application"
+                    },
+                    {
+                        "setting": "apache/user/name",
+                        "service": "web",
+                        "resource_type": "application"
+                    },
+                    {
+                        "setting": "lsyncd/user/name",
+                        "service": "web",
+                        "resource_type": "application"
+                    },
+                    {
+                        "setting": "database/name",
+                        "service": "backend",
+                        "resource_type": "database"
+                    },
+                    {
+                        "setting": "database/username",
+                        "service": "backend",
+                        "resource_type": "database"
+                    }
+                ],
+                "help": "Note that this also the user name, database name, and also identifies this\nwordpress install from other ones you might add later to the same deployment.\n",
+                "default": "wp",
+                "required": true,
+                "label": "Prefix",
+                "type": "string",
+                "description": "The application ID (and wordpress table prefix)."
+            },
+            "password": {
+                "type": "password",
+                "description": "Password to use for service. Click the generate button to generate a random password.",
+                "label": "Password"
+            },
+            "os": {
+                "constrains": [
+                    {
+                        "setting": "os",
+                        "service": "web",
+                        "resource_type": "compute"
+                    },
+                    {
+                        "setting": "os",
+                        "service": "master",
+                        "resource_type": "compute"
+                    },
+                    {
+                        "setting": "os",
+                        "service": "backend",
+                        "resource_type": "compute"
+                    }
+                ],
+                "description": "The operating system for the all servers.",
+                "default": "Ubuntu 12.04",
+                "label": "Operating System",
+                "type": "select",
+                "choice": [
+//                    "Ubuntu 11.10",
+                    "Ubuntu 12.04",
+//                    "CentOS",
+//                    "RHEL 6"
+                ]
+            },
+            "server_size": {
+                "constrains": [
+                    {
+                        "setting": "memory",
+                        "service": "web",
+                        "resource_type": "compute"
+                    },
+                    {
+                        "setting": "memory",
+                        "service": "master",
+                        "resource_type": "compute"
+                    }
+                ],
+                "description": "The size of the Wordpress server instances in MB of RAM.",
+                "default": 512,
+                "label": "Server Size",
+                "type": "select",
+                "choice": [
+                    {
+                        "name": "512 Mb",
+                        "value": 512
+                    },
+                    {
+                        "name": "1 Gb",
+                        "value": 1024
+                    },
+                    {
+                        "name": "2 Gb",
+                        "value": 2048
+                    },
+                    {
+                        "name": "4 Gb",
+                        "value": 4096
+                    },
+                    {
+                        "name": "8 Gb",
+                        "value": 8092
+                    },
+                    {
+                        "name": "16 Gb",
+                        "value": 16384
+                    },
+                    {
+                        "name": "30 Gb",
+                        "value": 30720
+                    }
+                ]
+            },
+            "web_server_count": {
+                "constrains": [
+                    {
+                        "setting": "count",
+                        "service": "web",
+                        "resource_type": "application"
+                    }
+                ],
+                "description": "The number of WordPress servers (minimum two).",
+                "default": 2,
+                "label": "Number of Web Servers",
+                "type": "int",
+                "constraints": [
+                    {
+                        "greater-than": 1
+                    }
+                ]
+            },
+            "database_size": {
+                "constrains": [
+                    {
+                        "setting": "memory",
+                        "service": "backend",
+                        "resource_type": "compute"
+                    }
+                ],
+                "description": "The size of the database instance in MB of RAM.",
+                "default": 1024,
+                "label": "Database Instance Size",
+                "type": "select",
+                "choice": [
+                    {
+                        "name": "512 Mb (20 Gb disk)",
+                        "value": 512
+                    },
+                    {
+                        "name": "1 Gb (40 Gb disk)",
+                        "value": 1024
+                    },
+                    {
+                        "name": "2 Gb (80 Gb disk)",
+                        "value": 2048
+                    },
+                    {
+                        "name": "4 Gb (160 Gb disk)",
+                        "value": 4096
+                    },
+                    {
+                        "name": "8 Gb (320 Gb disk)",
+                        "value": 8192
+                    },
+                    {
+                        "name": "16 Gb (620 Gb disk)",
+                        "value": 15872
+                    },
+                    {
+                        "name": "30 Gb (1.2 Tb disk)",
+                        "value": 30720
+                    }
+                ]
+            },
+            "varnish": {
+                "default": false,
+                "constrains": [
+                    {
+                        "setting": "varnish/enabled",
+                        "service": "web",
+                        "resource_type": "application"
+                    }
+                ],
+                "type": "boolean",
+                "label": "Varnish Caching"
+            },
+            "ssl": {
+                "default": false,
+                "label": "SSL Enabled",
+                "type": "boolean",
+                "help": "If this option is selected, SSL keys need to be supplied as well. This option is\nalso currently mutually exclusive with the Varnish Caching option.\n",
+                "description": "Use SSL to encrypt web traffic."
+            },
+            "ssl_certificate": {
+                "sample": "-----BEGIN CERTIFICATE-----\nEncoded Certificate\n-----END CERTIFICATE-----\n",
+                "constrains": [
+                    {
+                        "setting": "apache/ssl_certificate",
+                        "service": "web",
+                        "resource_type": "application"
+                    }
+                ],
+                "type": "text",
+                "description": "SSL certificate in PEM format. Make sure to include the BEGIN and END certificate lines.",
+                "label": "SSL Certificate"
+            },
+            "ssl_private_key": {
+                "sample": "-----BEGIN PRIVATE KEY-----\nEncoded key\n-----END PRIVATE KEY-----\n",
+                "constrains": [
+                    {
+                        "setting": "apache/ssl_private_key",
+                        "service": "web",
+                        "resource_type": "application"
+                    }
+                ],
+                "type": "string",
+                "label": "SSL Certificate Private Key"
+            }
+        },
+        "name": "Managed Cloud WordPress (MySQL on VMs)"
+    }
+  };
 //Default Environment
 ENVIRONMENTS = {
     "legacy": {
@@ -1628,23 +1965,6 @@ ENVIRONMENTS = {
         "providers": {
             "legacy": {},
             "chef-local": {
-                "catalog": {
-                    "application": {
-                        "wordpress": {
-                            "is": "application",
-                            "id": "wordpress",
-                            "provides": [
-                                {
-                                    "application": "http"
-                                }
-                            ],
-                            "requires": [
-                              {"database": "mysql"},
-                              {"host": "linux"}
-                            ]
-                        }
-                    }
-                },
                 "vendor": "opscode",
                 "provides": [
                     {

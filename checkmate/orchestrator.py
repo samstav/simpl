@@ -230,7 +230,7 @@ def run_one_task(context, workflow_id, task_id, timeout=60):
                 workflow_id))
     if task._is_finished():
         raise ValueError("Task '%s' is in state '%s' which cannot be executed"
-                % (task_id.get_name(), task.get_state_name()))
+                % (task.get_name(), task.get_state_name()))
 
     if task._is_predicted() or task._has_state(Task.WAITING):
         LOG.debug("Progressing task '%s' (%s)" % (task_id,

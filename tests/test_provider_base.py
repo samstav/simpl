@@ -237,6 +237,65 @@ class TestProviderBaseWorkflow(StubbedWorkflowBase):
                 last_task.attributes['instance:0'], indent=2)))
 
 
+class TestProviderBaseParser(unittest.TestCase):
+    """Test setting parsers"""
+
+    def test_memory_parser(self):
+        """Test parsing of memory strings"""
+        cases = [
+            ["1 megabyte", 1],
+            ["1 gigabyte", 1024],
+            ["1 terabyte", 1024 ** 2],
+
+            # Plural
+            ["10 megabytes", 10],
+            ["100 gigabytes", 100 * 1024],
+            ["1000 terabytes", 1000 * 1024 ** 2],
+
+            # Case
+            ["1 MegaByte", 1],
+            ["1 GigaByte", 1024],
+            ["1 TeraByte", 1024 ** 2],
+
+            # Abbreviations
+            ["1 mB", 1],
+            ["1 Gb", 1024],
+            ["1 TB", 1024 ** 2],
+
+            # Spacing
+            ["1mb", 1],
+            ["10  gb", 10 * 1024],
+            [" 100   tb   ", 100 * (1024 ** 2)],
+
+            # Integers
+            ["10", 10],
+            [10, 10],
+            [" 100 ", 100],
+        ]
+        for case in cases:
+            self.assertEquals(ProviderBase.parse_memory_setting(case[0]),
+                              case[1], "'%s' setting should return %s" %
+                              (case[0], case[1]))
+
+    def test_memory_parser_blanks(self):
+        """Tests that blanks raise errors"""
+        self.assertRaises(CheckmateException,
+                          ProviderBase.parse_memory_setting,
+                          None)
+        self.assertRaises(CheckmateException,
+                          ProviderBase.parse_memory_setting,
+                          "")
+        self.assertRaises(CheckmateException,
+                          ProviderBase.parse_memory_setting,
+                          " ")
+
+    def test_memory_parser_bad_unit(self):
+        """Test that unrecognized units raise errors"""
+        self.assertRaises(CheckmateException,
+                          ProviderBase.parse_memory_setting,
+                          "1 widget")
+
+
 if __name__ == '__main__':
     # Run tests. Handle our parameters separately
     import sys
