@@ -1096,8 +1096,11 @@ function DeploymentListController($scope, $location, $http, $resource, items) {
     this.klass = $resource('/:tenantId/deployments/');
     this.klass.get({tenantId: $scope.auth.tenantId}, function(list, getResponseHeaders){
       console.log("Load returned");
+      items.all = [];
       items.receive(list, function(item) {
-        return {id: item.id, name: item.name, created: item.created, tenantId: item.tenantId}});
+        return {id: item.id, name: item.name, created: item.created, tenantId: item.tenantId,
+                blueprint: item.blueprint, environment: item.environment,
+                status: item.status}});
       $scope.count = items.count;
       console.log("Done loading")
     });
