@@ -95,12 +95,9 @@ def save_workflow(id, tenant_id=None):
 @with_tenant
 def get_workflow(id, tenant_id=None):
     if 'with_secrets' in request.query:
-        if request.context.is_admin == True:
-            LOG.info("Administrator accessing workflow %s with secrets: %s" %
-                    (id, request.context.username))
-            results = db.get_workflow(id, with_secrets=True)
-        else:
-            abort(403, "Administrator privileges needed for this operation")
+        LOG.info("Administrator accessing workflow %s with secrets: %s" %
+                (id, request.context.username))
+        results = db.get_workflow(id, with_secrets=True)
     else:
         results = db.get_workflow(id)
     if not results:
