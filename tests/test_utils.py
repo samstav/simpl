@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 import copy
 import unittest2 as unittest
+import uuid
 
 from checkmate import utils
 
@@ -140,6 +141,20 @@ class TestUtils(unittest.TestCase):
     def test_get_source_body(self):
         source = utils.get_source_body(self.test_get_source_body)
         self.assertTrue(source.startswith("source = utils"))
+
+    def test_isUUID_blanks(self):
+        self.assertFalse(utils.isUUID(None), "None is not a UUID")
+        self.assertFalse(utils.isUUID(""), "Empty string is not a UUID")
+        self.assertFalse(utils.isUUID(" "), "Space is not a UUID")
+
+    def test_isUUID_negatives(self):
+        self.assertFalse(utils.isUUID("12345"), "12345 is not a UUID")
+        self.assertFalse(utils.isUUID(utils), "module is not a UUID")
+
+    def test_isUUID_positives(self):
+        self.assertTrue(utils.isUUID(uuid.uuid4()), "uuid() is a UUID")
+        self.assertTrue(utils.isUUID(uuid.uuid4().hex),
+                        "uuid string is a UUID")
 
 
 if __name__ == '__main__':
