@@ -356,7 +356,8 @@ def resubmit_workflow_task(workflow_id, task_id, tenant_id=None):
             task.get_state_name())
 
     # Refresh token if it exists in args[0]['auth_token]
-    if task.task_spec.args and len(task.task_spec.args) > 0 and \
+    if hasattr(task, 'args') and task.task_spec.args and \
+            len(task.task_spec.args) > 0 and \
             isinstance(task.task_spec.args[0], dict) and \
             task.task_spec.args[0].get('auth_token') != \
             request.context.auth_token:

@@ -238,7 +238,8 @@ def run_one_task(context, workflow_id, task_id, timeout=60):
         if isinstance(context, dict):
             context = RequestContext(**context)
         # Refresh token if it exists in args[0]['auth_token]
-        if task.task_spec.args and len(task.task_spec.args) > 0 and \
+        if hasattr(task, 'args') and task.task_spec.args and \
+                len(task.task_spec.args) > 0 and \
                 isinstance(task.task_spec.args[0], dict) and \
                 task.task_spec.args[0].get('auth_token') != \
                 context.auth_token:
