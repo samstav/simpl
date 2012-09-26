@@ -34,9 +34,9 @@ Vagrant::Config.run do |config|
       :rvm => {
         :user_installs => [{
           :user => 'checkmate',
-          :default_ruby => 'ruby-1.9.3-p125',
+          :default_ruby => 'ruby-1.9.3-p125@checkmate',
           :gems => {
-            'ruby-1.9.3-p125' => [
+            'ruby-1.9.3-p125@checkmate' => [
               { 'name' => 'bundler' },
               { 'name' => 'chef',
                 'version' => '10.12.0' },
@@ -55,7 +55,7 @@ Vagrant::Config.run do |config|
           :revision => "master"
         },
         :server => {
-          :args => '--with-ui --eventlet --debug 0.0.0.0:8080',
+          :args => '--with-ui --with-simulator --eventlet --debug 0.0.0.0:8080',
         },
         :celeryd => {
            :loglevel => 'DEBUG',
