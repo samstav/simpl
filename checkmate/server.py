@@ -49,8 +49,10 @@ def main_func():
     # Load routes from other modules
     LOG.info("Loading API")
     load("checkmate.api")
+    with_simulator=False
     if '--with-simulator' in sys.argv:
         load("checkmate.simulator")
+        with_simulator=True
 
     # Register built-in providers
     from checkmate.providers import rackspace, opscode
@@ -86,7 +88,7 @@ def main_func():
         next = middleware.BasicAuthMultiCloudMiddleware(next, domains=domains)
     """
     if '--with-ui' in sys.argv:
-        next_app = middleware.BrowserMiddleware(next_app, proxy_endpoints=endpoints)
+        next_app = middleware.BrowserMiddleware(next_app, proxy_endpoints=endpoints, with_simulator=with_simulator)
     next_app = middleware.TenantMiddleware(next_app)
     next_app = middleware.ContextMiddleware(next_app)
     next_app = middleware.StripPathMiddleware(next_app)
