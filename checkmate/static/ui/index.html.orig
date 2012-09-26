@@ -204,7 +204,12 @@
                     </div>
 		</fieldset>
 		<div class="modal-footer">
+<<<<<<< HEAD
+		  <a href="#" class="btn btn-primary" ng-click="logIn(username.value, password.value, apikey.value, auth_url.value)">Authenticate!</a>
+		  <p id="login-test"></p>
+=======
 		  <button type="submit" class="btn btn-primary" ng-click="logIn(username.value, password.value, apikey.value, auth_url.value)">Authenticate!</button>
+>>>>>>> 41e53b1a6eafd2f9d47ef24d26d4bc282e680366
 		</div>
 	  </form>
 	</div>

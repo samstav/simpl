@@ -220,7 +220,10 @@ def create_loadbalancer(context, name, type, protocol, port, region,
     fakenode = cloudlb.Node(address=PLACEHOLDER_IP, port=80,
             condition="ENABLED")
     vip = cloudlb.VirtualIP(type=type)
+<<<<<<< HEAD
+=======
     
+>>>>>>> 41e53b1a6eafd2f9d47ef24d26d4bc282e680366
     meta = context.get("metadata",None)
     if meta:
         new_meta = []
@@ -233,8 +236,11 @@ def create_loadbalancer(context, name, type, protocol, port, region,
     else:
         lb = api.loadbalancers.create(name=name, port=port, protocol=protocol,
                                       nodes=[fakenode], virtualIps=[vip])
+<<<<<<< HEAD
+=======
         
 
+>>>>>>> 41e53b1a6eafd2f9d47ef24d26d4bc282e680366
     for ip in lb.virtualIps:
         if ip.ipVersion == 'IPV4':
             vip = ip.address

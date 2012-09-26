@@ -327,9 +327,9 @@ def reset_workflow_task(id, task_id, tenant_id=None):
     return write_body(body, request, response)
 
 
-@route('/workflows/<id>/tasks/<task_id:int>/+resubmit', method=['GET', 'POST'])
+@route('/workflows/<workflow_id>/tasks/<task_id:int>/+resubmit', method=['GET', 'POST'])
 @with_tenant
-def resubmit_workflow_task(id, task_id, tenant_id=None):
+def resubmit_workflow_task(workflow_id, task_id, tenant_id=None):
     """Reset a Celery workflow task and retry it
 
     Checks if task is a celery task in waiting state.
@@ -339,9 +339,9 @@ def resubmit_workflow_task(id, task_id, tenant_id=None):
     :param task_id: checkmate workflow task id
     """
 
-    workflow = db.get_workflow(id, with_secrets=True)
+    workflow = db.get_workflow(workflow_id, with_secrets=True)
     if not workflow:
-        abort(404, 'No workflow with id %s' % id)
+        abort(404, "No workflow with id '%s' found" % workflow_id)
 
     serializer = DictionarySerializer()
     wf = SpiffWorkflow.deserialize(serializer, workflow)
@@ -365,23 +365,26 @@ def resubmit_workflow_task(id, task_id, tenant_id=None):
             request.context.auth_token:
         task.task_spec.args[0]['auth_token'] = request.context.auth_token
         LOG.debug("Updating task auth token with new caller token")
-    task.task_spec.retry_fire(task)
+    if task.task_spec.retry_fire(task):
+        LOG.debug("Progressing task '%s' (%s)" % (task_id,
+                                                  task.get_state_name()))
+        task.task_spec._update_state(task)
 
     serializer = DictionarySerializer()
     entity = wf.serialize(serializer)
     body, secrets = extract_sensitive_data(entity)
     body['tenantId'] = workflow.get('tenantId', tenant_id)
-    body['id'] = id
-    db.save_workflow(id, body, secrets, tenant_id=tenant_id)
+    body['id'] = workflow_id
+    db.save_workflow(workflow_id, body, secrets, tenant_id=tenant_id)
 
     task = wf.get_task(task_id)
     if not task:
-        abort(404, 'No task with id %s' % task_id)
+        abort(404, "No task with id '%s' found" % task_id)
 
     # Return cleaned data (no credentials)
     data = serializer._serialize_task(task, skip_children=True)
     body, secrets = extract_sensitive_data(data)
-    body['workflow_id'] = id  # so we know which workflow it came from
+    body['workflow_id'] = workflow_id  # so we know which workflow it came from
     return write_body(body, request, response)
 
 
@@ -398,7 +401,7 @@ def execute_workflow_task(id, task_id, tenant_id=None):
         abort(404, 'No workflow with id %s' % id)
 
     #Synchronous call
-    orchestrator.run_one_task(id, task_id, timeout=10)
+    orchestrator.run_one_task(request.context, id, task_id, timeout=10)
     entity = db.get_workflow(id)
 
     serializer = DictionarySerializer()

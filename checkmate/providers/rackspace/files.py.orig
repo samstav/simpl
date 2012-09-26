@@ -56,7 +56,11 @@ def create_container(context, name, api=None):
             new_meta = {}
             for key in meta:
                 new_meta["x-container-meta-"+key] = meta[key]
+<<<<<<< HEAD
+            api.create_container(name, metadata=new_meta)
+=======
                 api.create_container(name, metadata=new_meta)
+>>>>>>> 41e53b1a6eafd2f9d47ef24d26d4bc282e680366
         else:
             api.create_container(name)
         LOG.debug('Created container %s.' % name)

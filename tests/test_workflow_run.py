@@ -21,6 +21,8 @@ from checkmate.deployments import get_os_env_keys
 from checkmate.providers.base import PROVIDER_CLASSES, ProviderBase
 from checkmate.utils import resolve_yaml_external_refs
 
+# Register built-in providers
+from checkmate.providers import rackspace, opscode
 
 class TestWorkflowStubbing(StubbedWorkflowBase):
     """Test workflow stubbing using mox"""

@@ -13,6 +13,8 @@
 -e git+https://github.rackspace.com/checkmate/python-clouddns.git@master#egg=python-clouddns
 #Upstream: https://github.com/rackspace/python-cloudlb
 -e git+https://github.rackspace.com/checkmate/python-cloudlb.git@master#egg=python-cloudlb
+#Upstream: https://github.com/rackspace/python-cloudfiles
+-e git+https://github.rackspace.com/checkmate/python-cloudfiles.git@master#egg=python-cloudfiles
 #Upstream: https://github.com/jacobian/openstack.compute
 -e git+https://github.rackspace.com/checkmate/openstack.compute.git@master#egg=openstack.compute-2.0a1
 #Upstream: https://github.com/slizadel/python-clouddb
