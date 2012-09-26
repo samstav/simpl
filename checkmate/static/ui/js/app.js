@@ -767,14 +767,14 @@ function WorkflowController($scope, $resource, $http, $routeParams, $location, $
   }
 
   $scope.was_server_created = function() {
-    if (typeof $scope.current_task != 'undefined' && $scope.current_task.task_spec.indexOf("Create Server") == 0 &&
+    if (typeof $scope.current_task != 'undefined' && ($scope.current_task.task_spec.indexOf("Create Server") == 0 || $scope.current_task.task_spec.indexOf("Wait for Server") == 0) &&
         $scope.resource($scope.current_task) !== null)
       return true;
     return false;
   }
 
   $scope.was_database_created = function() {
-    if (typeof $scope.current_task != 'undefined' && $scope.current_task.task_spec.indexOf("Create Database") == 0 &&
+    if (typeof $scope.current_task != 'undefined' && ($scope.current_task.task_spec.indexOf("Create Database") == 0 || $scope.current_task.task_spec.indexOf("Add DB User") == 0) &&
         $scope.resource($scope.current_task) !== null)
       return true;
     return false;
