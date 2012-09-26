@@ -170,7 +170,7 @@ def post_workflow_task(workflow_id, spec_id, tenant_id=None):
     # Save workflow (with secrets)
     body, secrets = extract_sensitive_data(workflow)
     body['tenantId'] = workflow.get('tenantId', tenant_id)
-    body['id'] = id
+    body['id'] = workflow_id
     updated = db.save_workflow(workflow_id, body, secrets, tenant_id=tenant_id)
 
     return write_body(entity, request, response)
