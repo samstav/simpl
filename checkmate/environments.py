@@ -138,7 +138,8 @@ def get_environment_provider(environment_id, provider_id, tenant_id=None):
 
 @get('/environments/<environment_id>/providers/<provider_id>/catalog')
 @with_tenant
-def get_provider_environment_catalog(environment_id, provider_id, tenant_id=None):
+def get_provider_environment_catalog(environment_id, provider_id,
+                                     tenant_id=None):
     entity = db.get_environment(environment_id, with_secrets=True)
     if not entity:
         abort(404, 'No environment with id %s' % environment_id)
@@ -159,7 +160,8 @@ def get_provider_environment_catalog(environment_id, provider_id, tenant_id=None
 @get('/environments/<environment_id>/providers/<provider_id>/catalog/'
         '<component_id>')
 @with_tenant
-def get_environment_component(environment_id, provider_id, component_id, tenant_id=None):
+def get_environment_component(environment_id, provider_id, component_id,
+                              tenant_id=None):
     entity = db.get_environment(environment_id, with_secrets=True)
     if not entity:
         abort(404, 'No environment with id %s' % environment_id)
@@ -170,7 +172,7 @@ def get_environment_component(environment_id, provider_id, component_id, tenant_
         abort(404, "Invalid provider: %s" % provider_id)
     component = provider.get_component(request.context, component_id)
     if component:
-        return write_body(component, request, response)
+        return write_body(component._data, request, response)
     else:
         abort(404, "Component %s not found or not available under this "
                 "provider and environment (%s/%s)" % (component_id,
@@ -227,7 +229,7 @@ def get_provider_component(provider_id, component_id, tenant_id=None):
         abort(404, "Invalid provider: %s" % provider_id)
     component = provider.get_component(request.context, component_id)
     if component:
-        return write_body(component, request, response)
+        return write_body(component._data, request, response)
     else:
         abort(404, "Component %s not found or not available under this "
                 "provider (%s)" % (component_id, provider_id))
@@ -334,7 +336,7 @@ class Environment():
                 if len(matches) == 1:
                     return Component(matches[0], provider=provider)
                 else:
-                    LOG.warning("Ambiguous component %s matches: %s" %
+                    LOG.warning("Ambiguous component '%s' matches: %s" %
                             (blueprint_entry, matches))
 
     def generate_key_pair(self, bits=2048):
@@ -342,7 +344,7 @@ class Environment():
 
         returns them as a private, public tuple of dicts. The dicts have key,
         and PEM values. The public key also has an ssh value in it"""
-        key = RSA.generate(2048)
+        key = RSA.generate(bits)
         private_string = key.exportKey('PEM')
         public = key.publickey()
         public_string = public.exportKey('PEM')

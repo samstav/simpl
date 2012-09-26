@@ -859,8 +859,9 @@ class Provider(ProviderBase):
         else:
             meta_path = os.path.join(repo_path, 'cookbooks',
                     cookbook.get('source_name', id), 'metadata.json')
-        if os.path.exists(meta_path):
-            cookbook = self._parse_cookbook_metadata(meta_path)
+        cookbook = self._parse_cookbook_metadata(meta_path)
+        if 'id' not in cookbook:
+            cookbook['id'] = id
         return cookbook
 
     def _parse_cookbook_metadata(self, metadata_json_path):
@@ -869,29 +870,30 @@ class Provider(ProviderBase):
         :param metadata_json_path: path to metadata.json file
         """
         component = {'is': 'application'}
-        with file(metadata_json_path, 'r') as f:
-            data = json.load(f)
-
-        canonical_name = schema.translate(data['name'])
-        component['id'] = canonical_name
-        if data['name'] != canonical_name:
-            component['source_name'] = data['name']
-        component['summary'] = data.get('description')
-        component['version'] = data.get('version')
-        if 'attributes' in data:
-            component['options'] = self.translate_options(data['attributes'],
-                    component['id'])
-        if 'dependencies' in data:
-            dependencies = []
-            for key, value in data['dependencies'].iteritems():
-                dependencies.append(dict(id=schema.translate(key),
-                        version=value))
-            component['dependencies'] = dependencies
-        if 'platforms' in data:
-            #TODO: support multiple options
-            if 'ubuntu' in data['platforms'] or 'centos' in data['platforms']:
-                requires = [dict(host='linux')]
-                component['requires'] = requires
+        if os.path.exists(metadata_json_path):
+            with file(metadata_json_path, 'r') as f:
+                data = json.load(f)
+            canonical_name = schema.translate(data['name'])
+            component['id'] = canonical_name
+            if data['name'] != canonical_name:
+                component['source_name'] = data['name']
+            component['summary'] = data.get('description')
+            component['version'] = data.get('version')
+            if 'attributes' in data:
+                component['options'] = self.translate_options(
+                        data['attributes'], component['id'])
+            if 'dependencies' in data:
+                dependencies = []
+                for key, value in data['dependencies'].iteritems():
+                    dependencies.append(dict(id=schema.translate(key),
+                            version=value))
+                component['dependencies'] = dependencies
+            if 'platforms' in data:
+                #TODO: support multiple options
+                if 'ubuntu' in data['platforms'] or 'centos' in \
+                        data['platforms']:
+                    requires = [dict(host='linux')]
+                    component['requires'] = requires
 
         # Look for optional checkmate.json file
         checkmate_json_file = os.path.join(os.path.dirname(metadata_json_path),
