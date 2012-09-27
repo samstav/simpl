@@ -8,18 +8,16 @@ import sys
 
 import checkmate.common.tracer  # @UnusedImport # module runs on import
 
-# Init logging before we load the database, 3rd party, and 'noisy' modules
-from checkmate.utils import init_console_logging
-init_console_logging()
 # pylint: disable=E0611
 from bottle import app, run, request, response, error, HeaderDict, \
         default_app, load
 
-LOG = logging.getLogger(__name__)
 
 from checkmate.exceptions import CheckmateException, CheckmateNoMapping
 from checkmate import middleware
 from checkmate.utils import STATIC
+
+LOG = logging.getLogger(__name__)
 
 
 @error(code=500)
@@ -46,6 +44,11 @@ def custom_500(error):
 
 #if __name__ == '__main__':
 def main_func():
+
+    # Init logging before we load the database, 3rd party, and 'noisy' modules
+    from checkmate.utils import init_logging
+    init_logging(default_config="/etc/default/checkmate-svr-log.conf")
+
     # Register built-in providers
     from checkmate.providers import rackspace, opscode
 

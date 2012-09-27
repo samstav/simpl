@@ -8,6 +8,7 @@ import base64
 import inspect
 import json
 import logging
+import logging.config
 import os
 import struct
 import sys
@@ -19,6 +20,8 @@ import yaml
 from yaml.events import AliasEvent, ScalarEvent
 from yaml.parser import ParserError
 from yaml.composer import ComposerError
+import argparse
+from pip.locations import default_config_file
 
 LOG = logging.getLogger(__name__)
 RESOURCES = ['deployments', 'workflows', 'blueprints', 'environments',
@@ -87,6 +90,18 @@ def find_console_handler(logger):
                 handler.stream == sys.stderr:
             return handler
 
+
+def init_logging(default_config=None):
+    print "In init_logging, default_config=%s"%default_config
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--logconfig')
+    args = parser.parse_known_args()[0]
+    if args.logconfig:
+        logging.config.fileConfig(args.logconfig,disable_existing_loggers=False)
+    elif default_config and os.path.isfile(default_config): 
+        logging.config.fileConfig(default_config,disable_existing_loggers=False)
+    else:
+        init_console_logging()
 
 def init_console_logging():
     """Log to console"""
