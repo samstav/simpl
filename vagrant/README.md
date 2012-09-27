@@ -30,7 +30,7 @@ If any of the addresses above do not load correctly perform the following:
 	
 	$ vagrant ssh
 	$ sudo /etc/init.d/checkmate-q stop && sudo /etc/init.d/checkmate-q start
-	$ sudo /etc/init.d/checkmate-srv stop && sudo /etc/init.d/checkmate-srv start
+	$ sudo /etc/init.d/checkmate-svr stop && sudo /etc/init.d/checkmate-svr start
 
 To login to the VM:
 
