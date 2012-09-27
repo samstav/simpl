@@ -767,14 +767,14 @@ function WorkflowController($scope, $resource, $http, $routeParams, $location, $
   }
 
   $scope.was_server_created = function() {
-    if (typeof $scope.current_task != 'undefined' && $scope.current_task.task_spec.indexOf("Create Server") == 0 &&
+    if (typeof $scope.current_task != 'undefined' && ($scope.current_task.task_spec.indexOf("Create Server") == 0 || $scope.current_task.task_spec.indexOf("Wait for Server") == 0) &&
         $scope.resource($scope.current_task) !== null)
       return true;
     return false;
   }
 
   $scope.was_database_created = function() {
-    if (typeof $scope.current_task != 'undefined' && $scope.current_task.task_spec.indexOf("Create Database") == 0 &&
+    if (typeof $scope.current_task != 'undefined' && ($scope.current_task.task_spec.indexOf("Create Database") == 0 || $scope.current_task.task_spec.indexOf("Add DB User") == 0) &&
         $scope.resource($scope.current_task) !== null)
       return true;
     return false;
@@ -1096,8 +1096,11 @@ function DeploymentListController($scope, $location, $http, $resource, items) {
     this.klass = $resource('/:tenantId/deployments/');
     this.klass.get({tenantId: $scope.auth.tenantId}, function(list, getResponseHeaders){
       console.log("Load returned");
+      items.all = [];
       items.receive(list, function(item) {
-        return {id: item.id, name: item.name, created: item.created, tenantId: item.tenantId}});
+        return {id: item.id, name: item.name, created: item.created, tenantId: item.tenantId,
+                blueprint: item.blueprint, environment: item.environment,
+                status: item.status}});
       $scope.count = items.count;
       console.log("Done loading")
     });
@@ -1988,23 +1991,6 @@ ENVIRONMENTS = {
         "providers": {
             "nova": {},
             "chef-local": {
-                "catalog": {
-                    "application": {
-                        "wordpress": {
-                            "is": "application",
-                            "id": "wordpress",
-                            "provides": [
-                                {
-                                    "application": "http"
-                                }
-                            ],
-                            "requires": [
-                              {"database": "mysql"},
-                              {"host": "linux"}
-                            ]
-                        }
-                    }
-                },
                 "vendor": "opscode",
                 "provides": [
                     {
