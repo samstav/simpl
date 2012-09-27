@@ -46,14 +46,16 @@ def custom_500(error):
 
 #if __name__ == '__main__':
 def main_func():
+    # Register built-in providers
+    from checkmate.providers import rackspace, opscode
+
     # Load routes from other modules
     LOG.info("Loading API")
     load("checkmate.api")
+    with_simulator=False
     if '--with-simulator' in sys.argv:
         load("checkmate.simulator")
-
-    # Register built-in providers
-    from checkmate.providers import rackspace, opscode
+        with_simulator=True
 
     # Build WSGI Chain:
     LOG.info("Loading Application")
@@ -61,7 +63,8 @@ def main_func():
     app.error_handler = {500: custom_500}
     next_app.catch_all = True  # Handle errors ourselves so we can format them
     next_app = middleware.ExceptionMiddleware(next_app)
-    next_app = middleware.AuthorizationMiddleware(next_app, anonymous_paths=STATIC)
+    next_app = middleware.AuthorizationMiddleware(next_app,
+                                                  anonymous_paths=STATIC)
     #next = middleware.PAMAuthMiddleware(next, all_admins=True)
     endpoints = ['https://identity.api.rackspacecloud.com/v2.0/tokens',
             'https://lon.identity.api.rackspacecloud.com/v2.0/tokens']
@@ -86,7 +89,7 @@ def main_func():
         next = middleware.BasicAuthMultiCloudMiddleware(next, domains=domains)
     """
     if '--with-ui' in sys.argv:
-        next_app = middleware.BrowserMiddleware(next_app, proxy_endpoints=endpoints)
+        next_app = middleware.BrowserMiddleware(next_app, proxy_endpoints=endpoints, with_simulator=with_simulator)
     next_app = middleware.TenantMiddleware(next_app)
     next_app = middleware.ContextMiddleware(next_app)
     next_app = middleware.StripPathMiddleware(next_app)

@@ -148,7 +148,7 @@ Installing and starting MongoDB 2.0.6 on OSX:
     sudo mkdir /var/log/mongodb
     sudo chown -R root /opt/local/mongodb
     sudo sh -c 'echo "export PATH=\$PATH:/opt/local/mongodb/bin"' >> ~/.bash_profile
-    source ~/.base_profile
+    source ~/.bash_profile
 
     # Create a data directory and start the server
     # In the checkmate directory:

@@ -45,6 +45,7 @@ class Provider(ProviderBase):
     def __init__(self, provider, key=None):
         ProviderBase.__init__(self, provider, key=key)
         self.prep_task = None
+        self.collect_data_tasks = None
 
     def prep_environment(self, wfspec, deployment, context):
         if self.prep_task:
@@ -686,7 +687,8 @@ class Provider(ProviderBase):
             wait_on = self.get_host_ready_tasks(resource, wfspec,
                     deployment)
             if not wait_on:
-                raise CheckmateException("No host")
+                raise CheckmateException("No host resource found for relation "
+                                         "'%s'" % relation_key)
 
             # Create chef setup tasks
             register_node_task = Celery(wfspec,
@@ -1517,7 +1519,7 @@ def _run_kitchen_command(kitchen_path, params, lock=True):
     However, if code calls in that already has a lock, the optional lock param
     can be set to false so thise code does not lock
     """
-    LOG.debug("Running: %s" % ' '.join(params))
+    LOG.debug("Running: '%s' in path '%s'" % (' '.join(params), kitchen_path))
     if lock:
         path_lock = threading.Lock()
         path_lock.acquire()
