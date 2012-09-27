@@ -363,12 +363,13 @@ class BrowserMiddleware(object):
         - unauthenticated to resource route: render root UI so client can auth
     """
 
-    def __init__(self, app, proxy_endpoints=None):
+    def __init__(self, app, proxy_endpoints=None, with_simulator=False):
         self.app = app
         HANDLERS['text/html'] = BrowserMiddleware.write_html
         STATIC.extend(['static', 'favicon.ico', 'apple-touch-icon.png',
                 'authproxy', 'marketing', 'admin', '', 'images', 'ui', None])
         self.proxy_endpoints = proxy_endpoints
+        self.with_simulator = with_simulator
         from checkmate.environments import Environment  # Loads db abd routes
 
         # Add static routes
@@ -420,7 +421,11 @@ class BrowserMiddleware(object):
             mimetype = 'auto'
             if path.endswith('.css'):  # bottle does not write this for css
                 mimetype = 'text/css'
-            return static_file(path, root=root, mimetype=mimetype)
+            httpResponse=static_file(path, root=root, mimetype=mimetype)
+            if self.with_simulator and path.endswith('deployment-new.html') and isinstance(httpResponse.output, file):
+                httpResponse.output = httpResponse.output.read().replace("<!-- SIMULATE BUTTON PLACEHOLDER - do not cheange this comment, used for substitution!! -->",
+                                          '<button ng-click="simulate()" class="btn" ng-disabled="!auth.loggedIn">Simulate It</button>')
+            return httpResponse
 
         @get('/images/<path:path>')  # for RackspaceCalculator
         def images(path):
