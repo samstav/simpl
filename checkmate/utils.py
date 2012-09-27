@@ -12,6 +12,7 @@ import os
 import struct
 import sys
 from time import gmtime, strftime
+import uuid
 
 from bottle import abort, request
 import yaml
@@ -421,6 +422,7 @@ def with_tenant(fn):
             return fn(*args, tenant_id=request.context.tenant, **kwargs)
     return wrapped
 
+
 def support_only(types):
     """A function decorator that ensures the route is only accepted if the
     content type is in the list of types supplied"""
@@ -436,9 +438,23 @@ def support_only(types):
         return wrapped
     return wrap
 
+
 def get_time_string():
     """Central function that returns time (UTC in ISO format) as a string
 
     Changing this function will change all times that checkmate uses in
     blueprints, deployments, etc..."""
     return strftime("%Y-%m-%d %H:%M:%S +0000", gmtime())
+
+
+def isUUID(value):
+    """Tests if a provided value is a valid uuid"""
+    if not value:
+        return False
+    if isinstance(value, uuid.UUID):
+        return True
+    try:
+        uuid.UUID(value)
+        return True
+    except:
+        return False

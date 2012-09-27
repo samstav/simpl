@@ -46,6 +46,9 @@ def custom_500(error):
 
 #if __name__ == '__main__':
 def main_func():
+    # Register built-in providers
+    from checkmate.providers import rackspace, opscode
+
     # Load routes from other modules
     LOG.info("Loading API")
     load("checkmate.api")
@@ -54,16 +57,14 @@ def main_func():
         load("checkmate.simulator")
         with_simulator=True
 
-    # Register built-in providers
-    from checkmate.providers import rackspace, opscode
-
     # Build WSGI Chain:
     LOG.info("Loading Application")
     next_app = default_app()  # This is the main checkmate app
     app.error_handler = {500: custom_500}
     next_app.catch_all = True  # Handle errors ourselves so we can format them
     next_app = middleware.ExceptionMiddleware(next_app)
-    next_app = middleware.AuthorizationMiddleware(next_app, anonymous_paths=STATIC)
+    next_app = middleware.AuthorizationMiddleware(next_app,
+                                                  anonymous_paths=STATIC)
     #next = middleware.PAMAuthMiddleware(next, all_admins=True)
     endpoints = ['https://identity.api.rackspacecloud.com/v2.0/tokens',
             'https://lon.identity.api.rackspacecloud.com/v2.0/tokens']
