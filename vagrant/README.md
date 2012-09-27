@@ -71,6 +71,7 @@ dependencies every time.
 
 To update the cookbooks, you will need to run the following.
 
+    $ librarian-chef clean
     $ librarian-chef update
 
 If you run into any issues and the above command appears to not update the
