@@ -1390,7 +1390,7 @@ WPBP = {
             "register-dns": {
                 "default": false,
                 "type": "boolean",
-                "label": "Register DNS Name"
+                "label": "Create DNS records"
             },
             "region": {
                 "required": true,
@@ -1720,7 +1720,7 @@ WPBP = {
             "register-dns": {
                 "default": false,
                 "type": "boolean",
-                "label": "Register DNS Name"
+                "label": "Create DNS records"
             },
             "region": {
                 "required": true,
