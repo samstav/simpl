@@ -1991,23 +1991,6 @@ ENVIRONMENTS = {
         "providers": {
             "nova": {},
             "chef-local": {
-                "catalog": {
-                    "application": {
-                        "wordpress": {
-                            "is": "application",
-                            "id": "wordpress",
-                            "provides": [
-                                {
-                                    "application": "http"
-                                }
-                            ],
-                            "requires": [
-                              {"database": "mysql"},
-                              {"host": "linux"}
-                            ]
-                        }
-                    }
-                },
                 "vendor": "opscode",
                 "provides": [
                     {
