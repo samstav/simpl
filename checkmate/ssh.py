@@ -81,7 +81,6 @@ def execute(ip, command, username, timeout=10, password=None,
                       password=password)
         stdin, stdout, stderr = client.exec_command(command)
         results = {'stdout': stdout.read(), 'stderr': stderr.read()}
-        client.close()
         LOG.debug('ssh://%s@%s:%d responded.' % (username, ip, port))
         if callback is not None:
             subtask(callback).delay()
@@ -89,6 +88,9 @@ def execute(ip, command, username, timeout=10, password=None,
     except Exception, exc:
         LOG.debug("ssh://%s@%s:%d failed.  %s" % (username, ip, port, exc))
         execute.retry(exc=exc)
+    finally:
+        if client:
+            client.close()
     return False
 
 
@@ -125,16 +127,14 @@ def _connect(ip, port=22, username="root", timeout=10, identity_file=None,
                     "password succeeded" % (username, ip, port))
         LOG.debug("Connected to ssh://%s@%s:%d." % (username, ip, port))
         return client
-    except (paramiko.AuthenticationException,
-            paramiko.PasswordRequiredException), exc:
-        if isinstance(exc, paramiko.PasswordRequiredException):
-            #Looks like we have cert issues, so try password auth if we can
-            if password:
-                LOG.debug("Retrying with password credentials")
-                return _connect(ip, username=username, timeout=timeout,
-                                password=password, port=port)
-            else:
-                raise exc
+    except paramiko.PasswordRequiredException, exc:
+        #Looks like we have cert issues, so try password auth if we can
+        if password:
+            LOG.debug("Retrying with password credentials")
+            return _connect(ip, username=username, timeout=timeout,
+                            password=password, port=port)
+        else:
+            raise exc
     except paramiko.BadHostKeyException, exc:
         msg = ("ssh://%s@%s:%d failed:  %s. You might have a bad key "
                 "entry on your server, but this is a security issue and won't "
