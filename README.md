@@ -361,7 +361,9 @@ Options:
                            including full HTTP requests and responses. Log
                            output includes source file path and line numbers.
         --trace-calls, -t: display call hierarchy and errors to stdout
-
+        --eager:           all celery (queue) tasks will be executed in-process
+                           Use this for debugging only. There is no need to
+                           start a queue instance when running eager.
 
 Once up, you can issue curl commands (or point your browser at it if you started the server --with-ui) to use checkmate.
 
