@@ -72,7 +72,6 @@ def get_debug_formatter():
     default is logging.INFO
     """
     if '--debug' in sys.argv:
-        print "Enabling debug extra logging"
         return DebugFormatter('%(pathname)s:%(lineno)d: %(levelname)-8s '
                 '%(message)s')
     elif '--verbose' in sys.argv:
@@ -92,7 +91,6 @@ def find_console_handler(logger):
 
 
 def init_logging(default_config=None):
-    print "In init_logging, default_config=%s"%default_config
     parser = argparse.ArgumentParser()
     parser.add_argument('--logconfig')
     args = parser.parse_known_args()[0]
