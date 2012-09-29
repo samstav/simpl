@@ -20,6 +20,8 @@ from yaml.events import AliasEvent, ScalarEvent
 from yaml.parser import ParserError
 from yaml.composer import ComposerError
 
+from checkmate.exceptions import CheckmateNoData, CheckmateValidationException
+
 LOG = logging.getLogger(__name__)
 RESOURCES = ['deployments', 'workflows', 'blueprints', 'environments',
         'components', 'providers', 'test', 'status']
@@ -160,7 +162,7 @@ def read_body(request):
     return it as a dict"""
     data = request.body
     if not data or getattr(data, 'len', -1) == 0:
-        abort(400, 'No data received')
+        raise CheckmateNoData("No data provided")
     content_type = request.get_header('Content-type', 'application/json')
     if ';' in content_type:
         content_type = content_type.split(';')[0]
@@ -169,9 +171,11 @@ def read_body(request):
         try:
             return yaml_to_dict(data)
         except ParserError as exc:
-            abort(406, "Invalid YAML syntax. Check:\n%s" % exc)
+            raise CheckmateValidationException("Invalid YAML syntax. "
+                                               "Check:\n%s" % exc)
         except ComposerError as exc:
-            abort(406, "Invalid YAML structure. Check:\n%s" % exc)
+            raise CheckmateValidationException("Invalid YAML structure. "
+                                               "Check:\n%s" % exc)
 
     elif content_type == 'application/json':
         return json.load(data)
@@ -181,8 +185,9 @@ def read_body(request):
             result = json.loads(obj)
             if result:
                 return result
-        abort(406, "Unable to parse content. Form POSTs only support objects "
-                "in the 'object' field")
+        raise CheckmateValidationException("Unable to parse content. Form "
+                                           "POSTs only support objects in the "
+                                           "'object' field")
     else:
         abort(415, "Unsupported Media Type: %s" % content_type)
 
@@ -434,6 +439,7 @@ def support_only(types):
             for content_type in types:
                 if content_type in accept:
                     return fn(*args, **kwargs)
+            LOG.debug("support_only decorator filtered call")
             raise abort(415, "Unsupported media type")
         return wrapped
     return wrap
