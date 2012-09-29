@@ -26,6 +26,7 @@ from checkmate.utils import STATIC, write_body
 
 def error_formatter(error):
     """Catch errors and output them in the correct format/media-type"""
+    output = {}
     accept = request.get_header("Accept")
     if "application/json" in accept:
         error.headers = HeaderDict({"content-type": "application/json"})
@@ -54,12 +55,15 @@ def error_formatter(error):
     elif isinstance(error.exception, AssertionError):
         error.status = 400
         error.output = error.exception.__str__()
+    else:
+        # For other 500's, provide underlying cause
+        if error.exception:
+            output['reason'] = error.exception.__str__()
 
+    output['description'] = error.output
+    output['code'] = error.status
     response.status = error.status
-    output = {"error": {"description": error.output,
-                        "code": error.status,
-                        }}
-    return write_body(output, request, response)
+    return write_body(dict(error=output), request, response)
 
 
 #if __name__ == '__main__':
