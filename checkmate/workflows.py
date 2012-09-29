@@ -438,8 +438,8 @@ def get_SpiffWorkflow_status(workflow):
     return result
 
 
-def create_workflow(deployment, context):
-    """Creates a SpiffWorkflow from a Checkmate deployment dict
+def create_workflow_deploy(deployment, context):
+    """Creates a SpiffWorkflow for initial deployment of a Checkmate deployment
 
     :returns: SpiffWorkflow.Workflow"""
     LOG.info("Creating workflow for deployment '%s'" % deployment['id'])
