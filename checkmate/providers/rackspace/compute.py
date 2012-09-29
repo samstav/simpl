@@ -351,7 +351,10 @@ def create_server(context, name, region, api_object=None, flavor="2",
             name, server.id, server.adminPass))
 
     instance_key = 'instance:%s' % context['resource']
-    results = {instance_key: {'id': server.id, 'password': server.adminPass}}
+    results = {instance_key: {'id': server.id,
+                              'password': server.adminPass,
+                              'region': api_object.client.region_name,
+                              }}
 
     # Send data back to deployment
     resource_postback.delay(context['deployment'], results)
@@ -379,7 +382,8 @@ def wait_on_build(context, server_id, region, ip_address_type='public',
     server = api_object.servers.find(id=server_id)
     results = {'id': server_id,
             'status': server.status,
-            'addresses': server.addresses
+            'addresses': server.addresses,
+            'region': api_object.client.region_name,
             }
 
     if server.status == 'ERROR':
