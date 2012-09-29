@@ -1,7 +1,12 @@
 #!/usr/bin/env python
 import copy
+import logging
 import unittest2 as unittest
 import uuid
+
+from checkmate.utils import init_console_logging
+init_console_logging()
+LOG = logging.getLogger(__name__)
 
 from checkmate import utils
 
@@ -158,4 +163,12 @@ class TestUtils(unittest.TestCase):
 
 
 if __name__ == '__main__':
-    unittest.main(verbosity=2)
+    # Run tests. Handle our parameters separately
+    import sys
+    args = sys.argv[:]
+    # Our --debug means --verbose for unittest
+    if '--debug' in args:
+        args.pop(args.index('--debug'))
+        if '--verbose' not in args:
+            args.insert(1, '--verbose')
+    unittest.main(argv=args)

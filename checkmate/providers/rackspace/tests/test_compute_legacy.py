@@ -93,6 +93,7 @@ class TestLegacyCompute(unittest.TestCase):
         self.assertDictEqual(results, expected)
         self.mox.VerifyAll()
 
+
 class TestLegacyGenerateTemplate(unittest.TestCase):
     """Test Legacy Compute Provider's region functions"""
 
