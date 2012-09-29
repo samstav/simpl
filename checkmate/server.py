@@ -18,7 +18,8 @@ from bottle import app, run, request, response, error, HeaderDict, \
 LOG = logging.getLogger(__name__)
 
 from checkmate.exceptions import CheckmateException, CheckmateNoMapping, \
-        CheckmateValidationException, CheckmateNoData
+        CheckmateValidationException, CheckmateNoData, CheckmateDoesNotExist, \
+        CheckmateBadState
 from checkmate import middleware
 from checkmate.utils import STATIC, write_body
 
@@ -36,11 +37,17 @@ def error_formatter(error):
     if isinstance(error.exception, CheckmateNoMapping):
         error.status = 406
         error.output = error.exception.__str__()
+    elif isinstance(error.exception, CheckmateDoesNotExist):
+        error.status = 404
+        error.output = error.exception.__str__()
     elif isinstance(error.exception, CheckmateValidationException):
         error.status = 400
         error.output = error.exception.__str__()
     elif isinstance(error.exception, CheckmateNoData):
         error.status = 400
+        error.output = error.exception.__str__()
+    elif isinstance(error.exception, CheckmateBadState):
+        error.status = 409
         error.output = error.exception.__str__()
     elif isinstance(error.exception, CheckmateException):
         error.output = error.exception.__str__()
@@ -73,6 +80,9 @@ def main_func():
     next_app = default_app()  # This is the main checkmate app
     next_app.error_handler = {500: error_formatter,
                               404: error_formatter,
+                              405: error_formatter,
+                              406: error_formatter,
+                              415: error_formatter,
                               }
     next_app.catchall = True
     next_app = middleware.AuthorizationMiddleware(next_app,

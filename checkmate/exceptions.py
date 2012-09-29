@@ -38,6 +38,16 @@ class CheckmateNoData(CheckmateException):
     pass
 
 
+class CheckmateDoesNotExist(CheckmateException):
+    """Object does not exist"""
+    pass
+
+
+class CheckmateBadState(CheckmateException):
+    """Object is not in correct state for the requested operation"""
+    pass
+
+
 class CheckmateIndexError(CheckmateException):
     pass
 
@@ -62,6 +72,7 @@ class CheckmateCalledProcessError(CheckmateException):
             return self.error_info
         else:
             return super(CheckmateException, self).__str__()
+
 
 class CheckmateServerBuildFailed(CheckmateException):
     pass
