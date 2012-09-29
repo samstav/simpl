@@ -33,6 +33,11 @@ class CheckmateNoMapping(CheckmateException):
     pass
 
 
+class CheckmateNoData(CheckmateException):
+    """No data found"""
+    pass
+
+
 class CheckmateIndexError(CheckmateException):
     pass
 

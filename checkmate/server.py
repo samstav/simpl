@@ -17,15 +17,14 @@ from bottle import app, run, request, response, error, HeaderDict, \
 
 LOG = logging.getLogger(__name__)
 
-from checkmate.exceptions import CheckmateException, CheckmateNoMapping
+from checkmate.exceptions import CheckmateException, CheckmateNoMapping, \
+        CheckmateValidationException, CheckmateNoData
 from checkmate import middleware
-from checkmate.utils import STATIC
+from checkmate.utils import STATIC, write_body
 
 
-@error(code=500)
-def custom_500(error):
-    """Catch 500 errors that originate from a CheckmateExcption and output the
-    Checkmate error information (more useful than a blind 500)"""
+def error_formatter(error):
+    """Catch errors and output them in the correct format/media-type"""
     accept = request.get_header("Accept")
     if "application/json" in accept:
         error.headers = HeaderDict({"content-type": "application/json"})
@@ -33,15 +32,27 @@ def custom_500(error):
     elif "application/x-yaml" in accept:
         error.headers = HeaderDict({"content-type": "application/x-yaml"})
         error.apply(response)
-        #error.set_header = lambda s, h, v: LOG.debug(s)
+
     if isinstance(error.exception, CheckmateNoMapping):
-        error.status = '406 Bad Request'
+        error.status = 406
+        error.output = error.exception.__str__()
+    elif isinstance(error.exception, CheckmateValidationException):
+        error.status = 400
+        error.output = error.exception.__str__()
+    elif isinstance(error.exception, CheckmateNoData):
+        error.status = 400
         error.output = error.exception.__str__()
     elif isinstance(error.exception, CheckmateException):
-        error.status = '406 Bad Request'
-        error.output = json.dumps(error.exception.__str__())
+        error.output = error.exception.__str__()
+    elif isinstance(error.exception, AssertionError):
+        error.status = 400
+        error.output = error.exception.__str__()
 
-    return error.output #write_body(error, request, response)
+    response.status = error.status
+    output = {"error": {"description": error.output,
+                        "code": error.status,
+                        }}
+    return write_body(output, request, response)
 
 
 #if __name__ == '__main__':
@@ -60,9 +71,10 @@ def main_func():
     # Build WSGI Chain:
     LOG.info("Loading Application")
     next_app = default_app()  # This is the main checkmate app
-    app.error_handler = {500: custom_500}
-    next_app.catch_all = True  # Handle errors ourselves so we can format them
-    next_app = middleware.ExceptionMiddleware(next_app)
+    next_app.error_handler = {500: error_formatter,
+                              404: error_formatter,
+                              }
+    next_app.catchall = True
     next_app = middleware.AuthorizationMiddleware(next_app,
                                                   anonymous_paths=STATIC)
     #next = middleware.PAMAuthMiddleware(next, all_admins=True)
@@ -89,12 +101,14 @@ def main_func():
         next = middleware.BasicAuthMultiCloudMiddleware(next, domains=domains)
     """
     if '--with-ui' in sys.argv:
-        next_app = middleware.BrowserMiddleware(next_app, proxy_endpoints=endpoints, with_simulator=with_simulator)
+        next_app = middleware.BrowserMiddleware(next_app,
+                                                proxy_endpoints=endpoints,
+                                                with_simulator=with_simulator)
     next_app = middleware.TenantMiddleware(next_app)
     next_app = middleware.ContextMiddleware(next_app)
     next_app = middleware.StripPathMiddleware(next_app)
     next_app = middleware.ExtensionsMiddleware(next_app)
-    next_app = middleware.CatchAll404(next_app)
+    #next_app = middleware.CatchAll404(next_app)
     if '--newrelic' in sys.argv:
         import newrelic.agent
         newrelic.agent.initialize(os.path.normpath(os.path.join(

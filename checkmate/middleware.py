@@ -1,8 +1,9 @@
 import copy
 import httplib
 import json
-import os
 import logging
+import os
+
 # some distros install as PAM (Ubuntu, SuSE)
 # https://bugs.launchpad.net/keystone/+bug/938801
 try:
@@ -988,8 +989,6 @@ class AuthTokenRouterMiddleware():
                     # We got an authorized response
                     LOG.debug("Token Auth Router successfully authorized "
                             "against %s" % source)
-                    h(self.last_status, self.last_headers,
-                        exc_info=self.last_exc_info)
                     return result
 
             # Call default endpoint if not already called and if source was not
@@ -1001,8 +1000,6 @@ class AuthTokenRouterMiddleware():
                     # We got a good hit
                     LOG.debug("Token Auth Router got a successful response "
                             "against %s" % self.default_endpoint)
-                    h(self.last_status, self.last_headers,
-                        exc_info=self.last_exc_info)
                     return result
 
         return self.app(e, h)
@@ -1013,6 +1010,8 @@ class AuthTokenRouterMiddleware():
             self.last_status = status
             self.last_headers = headers
             self.last_exc_info = exc_info
+            if not self.last_status.startswith('401 '):
+                start_response(status, headers, exc_info)
         return callback
 
 
