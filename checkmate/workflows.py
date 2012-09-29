@@ -447,7 +447,7 @@ def create_workflow_deploy(deployment, context):
     environment = deployment.environment()
 
     # Build a workflow spec (the spec is the design of the workflow)
-    wfspec = WorkflowSpec(name="%s Workflow" % blueprint['name'])
+    wfspec = WorkflowSpec(name="Deploy '%s' Workflow" % blueprint['name'])
 
     #
     # Create the tasks that make the async calls
