@@ -5,6 +5,7 @@
 """
 # pylint: disable=E0611
 import base64
+from collections import MutableMapping
 import inspect
 import json
 import logging
@@ -207,6 +208,8 @@ def write_yaml(data, request, response):
     """Write output in yaml"""
     response.set_header('content-type', 'application/x-yaml')
     response.set_header('vary', 'Accept,Accept-Encoding,X-Auth-Token')
+    if isinstance(data, MutableMapping) and hasattr(data, '_data'):
+        return yaml.safe_dump(data._data, default_flow_style=False)
     return yaml.safe_dump(data, default_flow_style=False)
 
 
@@ -214,11 +217,9 @@ def write_json(data, request, response):
     """Write output in json"""
     response.set_header('content-type', 'application/json')
     response.set_header('vary', 'Accept,Accept-Encoding,X-Auth-Token')
-    try:
-        return json.dumps(data, indent=4)
-    except TypeError:
-        #TODO: try json.dumps(data, indent=4, default=lambda o: o.__dict__)
+    if isinstance(data, MutableMapping) and hasattr(data, 'dumps'):
         return data.dumps(indent=4)
+    return json.dumps(data, indent=4)
 
 
 HANDLERS = {
