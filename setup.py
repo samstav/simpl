@@ -65,7 +65,7 @@ setup(
           'checkmate-simulation=checkmate.sample.checkmate_simulation:main_func',
         ]
     },
-    tests_require=['nose', 'unittest2', 'mox', 'webtest', 'pep8'],
+    tests_require=['nose', 'unittest2', 'mox', 'webtest', 'pep8', 'coverage'],
     packages=find_packages(exclude=['tests', 'bin', 'examples', 'doc',
             'checkmate.openstack.*']),
     include_package_data=True,
