@@ -16,7 +16,8 @@ import os
 init_console_logging()
 LOG = logging.getLogger(__name__)
 
-from checkmate.deployments import Deployment, plan, get_deployments_count, get_deployments_by_bp_count
+from checkmate.deployments import Deployment, plan, get_deployments_count, \
+        get_deployments_by_bp_count
 from checkmate.exceptions import CheckmateValidationException
 from checkmate.providers.base import PROVIDER_CLASSES, ProviderBase
 from checkmate.middleware import RequestContext
@@ -426,6 +427,7 @@ class TestDeploymentCounts(unittest.TestCase):
         self.assertIsNotNone(ret, "No count returned")
         self.assertIn("count", ret, "Return does not contain count")
         self.assertEqual(expected_count, ret.get("count", -1), "Wrong count returned")
+
 
 if __name__ == '__main__':
     # Run tests. Handle our paramsters separately
