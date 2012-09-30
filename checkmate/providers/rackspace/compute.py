@@ -147,7 +147,7 @@ class Provider(RackspaceComputeProviderBase):
                         PathAttrib('instance:%s/id' % key),
                         resource['region']],
                 password=PathAttrib('instance:%s/password' % key),
-                identity_file=Attrib('private_key_path'),
+                private_key=PathAttrib('keys/deployment/private_key'),
                 properties={'estimated_duration': 150},
                 defines=dict(resource=key,
                              provider=self.key,
@@ -364,7 +364,7 @@ def create_server(context, name, region, api_object=None, flavor="2",
 @task(default_retry_delay=10, max_retries=18)  # ~3 minute wait
 def wait_on_build(context, server_id, region, ip_address_type='public',
             check_ssh=True, username='root', timeout=10, password=None,
-            identity_file=None, port=22, api_object=None):
+            identity_file=None, port=22, api_object=None, private_key=None):
     """Checks build is complete and. optionally, that SSH is working.
 
     :param ip_adress_type: the type of IP addresss to return as 'ip' in the
@@ -432,7 +432,8 @@ def wait_on_build(context, server_id, region, ip_address_type='public',
         raise CheckmateException("Could not find IP of server %s" % server_id)
     else:
         up = test_connection(context, ip, username, timeout=timeout,
-                password=password, identity_file=identity_file, port=port)
+                password=password, identity_file=identity_file, port=port,
+                private_key=private_key)
         if up:
             LOG.info("Server %s is up" % server_id)
             instance_key = 'instance:%s' % context['resource']
