@@ -47,17 +47,17 @@ class TestDatabase(unittest.TestCase):
             LOG.debug("Deleted test mongodb: %s" % self.db_name)
         except Exception as exc:
             LOG.error("Error deleting test mongodb '%s': %s" % (self.db_name,
-                                                              exc))
+                                                                exc))
 
     @unittest.skipIf(SKIP, REASON)
     def test_components(self):
         entity = {'id': 1,
                   'name': 'My Component',
                   'credentials': ['My Secrets']
-                 }
+                  }
         body, secrets = extract_sensitive_data(entity)
         results = self.driver.save_component(entity['id'], body, secrets,
-            tenant_id='T1000')
+                                             tenant_id='T1000')
         self.assertDictEqual(results, body)
 
         results = self.driver.get_component(entity['id'], with_secrets=True)
@@ -89,7 +89,7 @@ class TestDatabase(unittest.TestCase):
     def test_hex_id(self):
         id = uuid.uuid4().hex
         results = self.driver.save_component(id, dict(id=id), None,
-            tenant_id='T1000')
+                                             tenant_id='T1000')
         self.assertDictEqual(results, dict(id=id, tenantId='T1000'))
         self.assertNotIn('_id', results, "Backend field '_id' should not be "
                          "exposed outside of driver")

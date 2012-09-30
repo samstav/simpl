@@ -167,7 +167,7 @@ Note: more specific inputs override more general ones (see get_setting code in d
 
 **Action Item**: determine the need for global inputs. Do we really need them? Or at least put them in a "globals" category
 
-**Action Item**: do some work on the minimal, canonical deployment (hello world).
+Minimal, canonical deployment (hello world) available [here](https://github.rackspace.com/Blueprints/helloworld/).
  
 **Action Item**: define how we reference blueprints and environments in deployments without including full copies.  Reference UUID?  URL to file in git or local reference? etc.
 

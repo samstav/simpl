@@ -208,7 +208,8 @@ be prepped:
     export CELERY_CONFIG_MODULE=checkmate.celeryconfig
     export CHECKMATE_PUBLIC_KEY=`cat ~/.ssh/id_rsa.pub`
 
-Start the queue service:
+Start the queue service (see `--eager` in checkmate-server parameter for
+development without a queue):
 
     bin/checkmate-queue START
 

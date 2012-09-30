@@ -1,3 +1,4 @@
+import base64
 import copy
 import httplib
 import json
@@ -35,6 +36,7 @@ from checkmate.utils import HANDLERS, RESOURCES, STATIC, write_body, \
 
 
 def generate_response(self, environ, start_response):
+    """A patch for webob.exc.WSGIHTTPException to handle YAML and JSON"""
     if self.content_length is not None:
         del self.content_length
     headerlist = list(self.headerlist)
@@ -272,8 +274,8 @@ class TokenAuthMiddleware(object):
                     headers=headers)
             resp = http.getresponse()
             body = resp.read()
-        except Exception, e:
-            LOG.error('HTTP connection exception: %s' % e)
+        except Exception as exc:
+            LOG.error('HTTP connection exception: %s' % exc)
             raise HTTPUnauthorized('Unable to communicate with keystone')
         finally:
             http.close()
@@ -461,10 +463,15 @@ class BrowserMiddleware(object):
             mimetype = 'auto'
             if path.endswith('.css'):  # bottle does not write this for css
                 mimetype = 'text/css'
-            httpResponse=static_file(path, root=root, mimetype=mimetype)
-            if self.with_simulator and path.endswith('deployment-new.html') and isinstance(httpResponse.output, file):
-                httpResponse.output = httpResponse.output.read().replace("<!-- SIMULATE BUTTON PLACEHOLDER - do not cheange this comment, used for substitution!! -->",
-                                          '<button ng-click="simulate()" class="btn" ng-disabled="!auth.loggedIn">Simulate It</button>')
+            httpResponse = static_file(path, root=root, mimetype=mimetype)
+            if self.with_simulator and \
+                    path.endswith('deployment-new.html') and \
+                    isinstance(httpResponse.output, file):
+                httpResponse.output = httpResponse.output.read().replace(
+                        "<!-- SIMULATE BUTTON PLACEHOLDER - do not cheange "
+                        "this comment, used for substitution!! -->",
+                        '<button ng-click="simulate()" class="btn" '
+                        'ng-disabled="!auth.loggedIn">Simulate It</button>')
             return httpResponse
 
         @get('/images/<path:path>')  # for RackspaceCalculator

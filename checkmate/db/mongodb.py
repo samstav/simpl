@@ -20,8 +20,9 @@ class Driver(DbBase):
         DbBase.__init__(self, *args, **kwargs)
         self.connection_string = os.environ.get('CHECKMATE_CONNECTION_STRING',
                                                 'mongodb://localhost')
-        self.db_name = pymongo.uri_parser.parse_uri(
-                self.connection_string).get('database', 'checkmate')
+        self.db_name = pymongo.uri_parser.parse_uri(self.connection_string
+                                                    ).get('database',
+                                                          'checkmate')
         self._database = None
 
     def database(self):

@@ -257,7 +257,9 @@ The API is a **REST HTTP API**. It supports POST, PUT, GET, DELETE on:
 ### POST & PUT
 Sometimes a religious debate, but here are the semantics checkmate uses now. Simply:
 
-- **PUT** updates without taking any action.
+- **PUT** updates without taking any action or side effects on other resources. The only
+          permitted side-effect is on theresource itsefl (for example, updating
+          a last-modified field).
 - **POST** can trigger actions or have side-effects (like actual server deployments) and can accept partial objects.
 
 The **symantics** are:
