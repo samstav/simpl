@@ -207,7 +207,12 @@ def dict_to_yaml(data):
 def write_yaml(data, request, response):
     """Write output in yaml"""
     response.set_header('content-type', 'application/x-yaml')
-    response.set_header('vary', 'Accept,Accept-Encoding,X-Auth-Token')
+    return to_yaml(data)
+
+
+def to_yaml(data):
+    """Writes out python object to YAML (with special handling for Checkmate
+    objects derived from MutableMapping)"""
     if isinstance(data, MutableMapping) and hasattr(data, '_data'):
         return yaml.safe_dump(data._data, default_flow_style=False)
     return yaml.safe_dump(data, default_flow_style=False)
@@ -216,7 +221,12 @@ def write_yaml(data, request, response):
 def write_json(data, request, response):
     """Write output in json"""
     response.set_header('content-type', 'application/json')
-    response.set_header('vary', 'Accept,Accept-Encoding,X-Auth-Token')
+    return to_json(data)
+
+
+def to_json(data):
+    """Writes out python object to JSON (with special handling for Checkmate
+    objects derived from MutableMapping)"""
     if isinstance(data, MutableMapping) and hasattr(data, 'dumps'):
         return data.dumps(indent=4)
     return json.dumps(data, indent=4)
@@ -235,6 +245,7 @@ def write_body(data, request, response):
     calls that handler. Additional handlers can be added to support Additional
     content types.
     """
+    response.set_header('vary', 'Accept,Accept-Encoding,X-Auth-Token')
     accept = request.get_header('Accept', ['application/json'])
 
     for content_type in HANDLERS:

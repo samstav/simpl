@@ -31,7 +31,44 @@ LOG = logging.getLogger(__name__)
 from checkmate.db import any_tenant_id_problems
 from checkmate.exceptions import CheckmateException
 from checkmate.utils import HANDLERS, RESOURCES, STATIC, write_body, \
-        read_body, support_only, with_tenant
+        read_body, support_only, with_tenant, to_json, to_yaml
+
+
+def generate_response(self, environ, start_response):
+    if self.content_length is not None:
+        del self.content_length
+    headerlist = list(self.headerlist)
+    accept = environ.get('HTTP_ACCEPT', '')
+    if accept and 'html' in accept or '*/*' in accept:
+        content_type = 'text/html'
+        body = self.html_body(environ)
+    elif accept and 'yaml' in accept:
+        content_type = 'application/x-yaml'
+        data = dict(error=dict(explanation=self.__str__(), code=self.code,
+                               description=self.title))
+        body = to_yaml(data)
+    elif accept and 'json' in accept:
+        content_type = 'application/json'
+        data = dict(error=dict(explanation=self.__str__(), code=self.code,
+                               description=self.title))
+        body = to_json(data)
+    else:
+        content_type = 'text/plain'
+        body = self.plain_body(environ)
+    extra_kw = {}
+    if isinstance(body, unicode):
+        extra_kw.update(charset='utf-8')
+    resp = webob.Response(body,
+        status=self.status,
+        headerlist=headerlist,
+        content_type=content_type,
+        **extra_kw
+    )
+    resp.content_type = content_type
+    return resp(environ, start_response)
+
+# Patch webob to support YAML and JSON
+webob.exc.WSGIHTTPException.generate_response = generate_response
 
 
 class TenantMiddleware(object):
@@ -199,8 +236,8 @@ class TokenAuthMiddleware(object):
 
         return self.app(e, h)
 
-    def _auth_keystone(self, context, token=None, username=None,
-                apikey=None, password=None):
+    def _auth_keystone(self, context, token=None, username=None, apikey=None,
+                       password=None):
         url = urlparse(self.endpoint)
         if url.scheme == 'https':
             http_class = httplib.HTTPSConnection
@@ -244,7 +281,8 @@ class TokenAuthMiddleware(object):
         if resp.status != 200:
             LOG.debug('Invalid token for tenant: %s' % resp.reason)
             raise HTTPUnauthorized("Token invalid or not valid for "
-                    "this tenant (%s)" % resp.reason)
+                    "this tenant (%s)" % resp.reason,
+                    [('WWW-Authenticate', 'Keystone %s' % self.endpoint)])
 
         try:
             content = json.loads(body)
@@ -258,8 +296,9 @@ class TokenAuthMiddleware(object):
         """Intercepts upstream start_response and adds our headers"""
         def callback(status, headers, exc_info=None):
             # Add our headers to response
-            headers.append(('WWW-Authenticate',
-                            'Keystone uri="%s"' % self.endpoint))
+            header = ('WWW-Authenticate', 'Keystone uri="%s"' % self.endpoint)
+            if header not in headers:
+                headers.append(header)
             # Call upstream start_response
             start_response(status, headers, exc_info)
         return callback
@@ -634,7 +673,6 @@ class BrowserMiddleware(object):
             return template.render(data=data, source=json.dumps(data,
                     indent=2), tenant_id=tenant_id, context=context)
         except StandardError as exc:
-            print exc
             try:
                 template = env.get_template("default.template")
                 return template.render(data=data, source=json.dumps(data,
