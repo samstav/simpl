@@ -19,7 +19,7 @@ LOG = logging.getLogger(__name__)
 
 from checkmate.exceptions import CheckmateException, CheckmateNoMapping, \
         CheckmateValidationException, CheckmateNoData, CheckmateDoesNotExist, \
-        CheckmateBadState
+        CheckmateBadState, CheckmateDatabaseConnectionError
 from checkmate import middleware
 from checkmate.utils import STATIC, write_body
 
@@ -50,6 +50,10 @@ def error_formatter(error):
     elif isinstance(error.exception, CheckmateBadState):
         error.status = 409
         error.output = error.exception.__str__()
+    elif isinstance(error.exception, CheckmateDatabaseConnectionError):
+        error.status = 500
+        error.output = "Database connection error on server."
+        output['reason'] = error.exception.__str__()
     elif isinstance(error.exception, CheckmateException):
         error.output = error.exception.__str__()
     elif isinstance(error.exception, AssertionError):
