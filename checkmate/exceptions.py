@@ -22,6 +22,11 @@ class CheckmateDatabaseMigrationError(CheckmateException):
     pass
 
 
+class CheckmateDatabaseConnectionError(CheckmateException):
+    """Error connecting to backend database"""
+    pass
+
+
 class CheckmateNoTokenError(CheckmateException):
     """No cloud auth token was available in this session. Try logging on using
     an auth token"""

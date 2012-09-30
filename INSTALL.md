@@ -194,6 +194,7 @@ be prepped:
     export CHECKMATE_CONNECTION_STRING="sqlite:///${CHECKMATE_PREFIX}/var/checkmate/data/db.sqlite"
     
     # If you're using MongoDB
+    # in username and passwords reserved characters like :, /, + and @ must be escaped following RFC 2396.
     export CHECKMATE_BROKER_URL="mongodb://checkmate:secret@localhost:27017/checkmate"
     export CHECKMATE_RESULT_BACKEND="mongodb"
     export CHECKMATE_MONGODB_BACKEND_SETTINGS='{"host": "localhost", "port": 27017, "user": "checkmate", "password": "secret", "database": "checkmate", "taskmeta_collection": "celery_task_meta"}'

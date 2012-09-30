@@ -424,9 +424,11 @@ Note: set this value if you are using the CHECKMATE_BROKER_URL override with a p
 
 **CHECKMATE_BROKER_URL**: Alternatively, a full url with username and password can be supplied. This *overrides* the previous four settings. Checkmate server and queue listener will report out what settings they are using when they start up.
 
-To use mongodb as a broker instead of rabbitmq, set this value to your mongodb endpoint (see `Setup for mongodb broker` at end of this document):
+To use mongodb as a broker instead of rabbitmq, set this value to your [mongodb endpoint](http://www.mongodb.org/display/DOCS/Connections) (see `Setup for mongodb broker` at end of this document):
 
     mongodb://localhost/checkmate
+
+For mongodb, in username and passwords reserved characters like :, /, + and @ must be escaped following RFC 2396.
 
 Note: all CHECKMATE_BROKER_* values are picked by code in the checkmate.celeryconfig module. If you use an alternate config file, these variable may be ignored. See **CELERY_CONFIG_MODULE**.
 
