@@ -8,6 +8,7 @@ from celery.task import task
 from SpiffWorkflow import Workflow, Task
 from SpiffWorkflow.storage import DictionarySerializer
 
+from checkmate import keys
 from checkmate import orchestrator
 from checkmate.classes import ExtensibleDict
 from checkmate.common import schema
@@ -96,6 +97,7 @@ def _deploy(deployment, context):
         raise CheckmateBadState("Deployment '%s' is in '%s' status and must "
                                 "be in 'PLANNED' status to be deployed" %
                                 (deployment['id'], deployment.get('status')))
+    deployment_keys = generate_keys(deployment)
     workflow = _create_deploy_workflow(deployment, context)
     workflow['id'] = deployment['id']  #TODO: need to support multiple workflows
     deployment['workflow'] = workflow['id']
@@ -686,7 +688,7 @@ def _verify_required_blueprint_options_supplied(deployment):
 
 def get_os_env_keys():
     """Get keys if they are set in the os_environment"""
-    keys = {}
+    dkeys = {}
     if ('CHECKMATE_PUBLIC_KEY' in os.environ and
             os.path.exists(os.path.expanduser(
                 os.environ['CHECKMATE_PUBLIC_KEY']))):
@@ -695,10 +697,10 @@ def get_os_env_keys():
             with file(path, 'r') as f:
                 key = f.read()
             if is_ssh_key(key):
-                keys['checkmate'] = {'public_key_ssh': key,
+                dkeys['checkmate'] = {'public_key_ssh': key,
                         'public_key_path': path}
             else:
-                keys['checkmate'] = {'public_key': key,
+                dkeys['checkmate'] = {'public_key': key,
                         'public_key_path': path}
         except IOError as (errno, strerror):
             LOG.error("I/O error reading public key from CHECKMATE_PUBLIC_KEY="
@@ -709,56 +711,64 @@ def get_os_env_keys():
             LOG.error("Error reading public key from CHECKMATE_PUBLIC_KEY="
                     "'%s' environment variable: %s" % (
                             os.environ['CHECKMATE_PUBLIC_KEY'], exc))
-    return keys
+    return dkeys
 
 
-def get_keys(inputs, environment):
-    """Get keys from inputs or generate them if they are not there.
+def get_client_keys(inputs):
+    """Get/generate client-supplied or requested keys keys
 
-    Inputs can supply a 'client' public key to be added to all servers.
-
-    Inputs can also supply environment private/public key pairs. If not, then
-    a pair is generated.
+    Inputs can supply a 'client' public key to be added to all servers or
+    specify a command to generate the keys.
     """
-    keys = {}
-    # Get 'client' keys
+    results = {}
     if 'client_public_key' in inputs:
         if is_ssh_key(inputs['client_public_key']):
-            abort(406, "ssh public key must be in public_key_ssh field, not "
-                    "client_public_key. client_public_key must be in PEM "
-                    "format.")
-        keys['client'] = {'public_key': inputs['client_public_key']}
+            abort(406, "ssh public key must be in client_public_key_ssh "
+                  "field, not client_public_key. client_public_key must be in "
+                  "PEM format.")
+        results['client'] = {'public_key': inputs['client_public_key']}
 
     if 'client_public_key_ssh' in inputs:
         if not is_ssh_key(inputs['client_public_key_ssh']):
             abort(406, "client_public_key_ssh input is not a valid ssh public "
                     "key string: %s" % inputs['client_public_key_ssh'])
-        keys['client'] = {'public_key_ssh': inputs['client_public_key_ssh']}
+        results['client'] = {'public_key_ssh': inputs['client_public_key_ssh']}
+    return results
 
-    # Get 'environment' keys
-    private_key = inputs.get('environment_private_key')
-    if private_key is None or private_key.startswith('=generate_private_key('):
-        private, public = environment.generate_key_pair()
-        keys['environment'] = dict(public_key=public['PEM'],
-                public_key_ssh=public['ssh'], private_key=private['PEM'])
-        if not private_key or private_key.startswith('=generate_private_key('):
-            inputs['environment_private_key'] = private['PEM']
+
+def generate_keys(deployment):
+    """Generates keys for the deployment.
+
+    Generates:
+        private_key
+        public_key
+        public_key_ssh
+    """
+    dkeys = deployment.get('resources', {}).get('keys', {})
+    results = {}
+    private_key = dkeys.get('private_key')
+    if private_key is None:
+        private, public = keys.generate_key_pair()
+        results.update(dict(public_key=public['PEM'],
+                public_key_ssh=public['ssh'], private_key=private['PEM']))
     else:
         # Private key was supplied, make sure we have or can get a public key
-        results = {}
-        if 'environment_public_key' in inputs:
-            results['public_key'] = inputs['environment_public_key']
-        if 'environment_public_key_ssh' in inputs:
-            results['public_key_ssh'] = inputs['environment_public_key_ssh']
-        if 'environment_public_key_ssh' not in results:
-            # Generate public ssh key
-            public_key = environment.get_ssh_public_key(private_key)
+        if 'public_key' not in dkeys:
+            results['public_key'] = keys.get_public_key(private_key)
+        if 'public_key_ssh' not in results:
+            public_key = keys.get_ssh_public_key(private_key)
             results['public_key_ssh'] = public_key
 
         results['private_key'] = private_key
-        keys['environment'] = results
 
-    return keys
+    if results:
+        if 'resources' not in deployment:
+            deployment['resources'] = {}
+        if 'keys' not in deployment['resources']:
+            deployment['resources']['keys'] = {}
+        deployment['resources']['keys'].update(results)
+
+    return results
 
 
 class Resource():
@@ -861,15 +871,18 @@ class Deployment(ExtensibleDict):
         # Read in the public keys to be passed to newly created servers.
         os_keys = get_os_env_keys()
 
-        keys = get_keys(inputs, self.environment())
+        all_keys = get_client_keys(inputs)
         if os_keys:
-            keys.update(os_keys)
+            all_keys.update(os_keys)
+        deployment_keys = self.get('resources', {}).get('keys')
+        if deployment_keys:
+            all_keys['deployment'] = deployment_keys
 
-        if not keys:
+        if not all_keys:
             LOG.warn("No keys supplied. Less secure password auth will be "
                     "used.")
 
-        results['keys'] = keys
+        results['keys'] = all_keys
 
         results['domain'] = inputs.get('domain', os.environ.get(
                     'CHECKMATE_DOMAIN', 'checkmate.local'))
