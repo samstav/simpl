@@ -50,7 +50,7 @@ class Provider(ProviderBase):
     def prep_environment(self, wfspec, deployment, context):
         if self.prep_task:
             return  # already prepped
-        create_environment = Celery(wfspec, 'Create Chef Environment',
+        create_environment_task = Celery(wfspec, 'Create Chef Environment',
                 'checkmate.providers.opscode.local.create_environment',
                 call_args=[deployment['id']],
                 public_key_ssh=PathAttrib('keys/deployment/public_key_ssh'),
@@ -59,7 +59,7 @@ class Provider(ProviderBase):
                 defines=dict(provider=self.key,
                             task_tags=['root']),
                 properties={'estimated_duration': 10})
-        self.prep_task = create_environment
+        self.prep_task = create_environment_task
 
         # Create a global task to write options. This will be fed into and
         # connected to by other tasks as needed. The 'write_options' tag
@@ -100,13 +100,14 @@ class Provider(ProviderBase):
                 defines=dict(provider=self.key),
                 )
         # We need to make sure the environment exists before writing options.
-        collect.follow(create_environment)
+        collect.follow(create_environment_task)
         write_options.follow(collect)
         # Any tasks that need to be collected will wire themselves into this
         # task
         self.collect_data_tasks = dict(root=collect, final=write_options)
 
-        return dict(root=create_environment, final=create_environment)
+        return dict(root=create_environment_task,
+                    final=create_environment_task)
 
     def add_resource_tasks(self, resource, key, wfspec, deployment, context,
                            wait_on=None):
