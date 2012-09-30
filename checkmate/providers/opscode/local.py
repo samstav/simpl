@@ -1715,13 +1715,29 @@ def manage_databag(environment, bagname, itemname, contents,
         raise CheckmateException("Data bags path does not exist: %s" %
                 databags_root)
 
-    databag_path = os.path.join(databags_root, bagname)
-    if not os.path.exists(databag_path):
+    # Check if the bag already exists (create it if not)
+    params = ['knife', 'solo', 'data', 'bag', 'list', '-F', 'json',
+              '-c', os.path.join(kitchen_path, 'solo.rb')]
+    data_bags = _run_kitchen_command(kitchen_path, params)
+    if data_bags:
+        data_bags = json.loads(data_bags)
+    if bagname not in data_bags:
         merge = False  # Nothing to merge if it is new!
         _run_kitchen_command(kitchen_path, ['knife', 'solo', 'data', 'bag',
-                'create', bagname])
-        LOG.debug("Created data bag: %s" % databag_path)
+                'create', bagname,
+                '-c', os.path.join(kitchen_path, 'solo.rb')])
+        LOG.debug("Created data bag '%s' in '%s'" % (bagname, databags_root))
 
+    # Check if the item already exists (create it if not)
+    params = ['knife', 'solo', 'data', 'bag', 'show', bagname, '-F', 'json',
+              '-c', os.path.join(kitchen_path, 'solo.rb')]
+    existing_contents = _run_kitchen_command(kitchen_path, params)
+    if existing_contents:
+        existing_contents = json.loads(existing_contents)
+    if itemname not in existing_contents:
+        merge = False  # Nothing to merge if it is new!
+
+    # Write contents
     if merge:
         params = ['knife', 'solo', 'data', 'bag', 'show', bagname, itemname,
             '-F', 'json', '-c', os.path.join(kitchen_path, 'solo.rb')]
