@@ -1205,6 +1205,7 @@ def _create_kitchen(name, path, secret_key=None):
         LOG.debug("Kitchen directory exists: %s" % kitchen_path)
 
     nodes_path = os.path.join(kitchen_path, 'nodes')
+    _write_knife_config_file(kitchen_path)
     if os.path.exists(nodes_path):
         if any((f.endswith('.json') for f in os.listdir(nodes_path))):
             raise CheckmateException("Kitchen already exists and seems to "
@@ -1225,6 +1226,7 @@ def _create_kitchen(name, path, secret_key=None):
         LOG.debug("Created certs directory: %s" % certs_path)
 
     # Store (generate if necessary) the secrets file
+    secret_key_path = os.path.join(kitchen_path, 'certificates', 'chef.pem')
     if os.path.exists(secret_key_path):
         if secret_key:
             with file(secret_key_path, 'r') as f:
@@ -1253,6 +1255,7 @@ def _create_kitchen(name, path, secret_key=None):
     if os.path.exists(knife_file):
         LOG.debug("Knife.rb already exists: %s" % knife_file)
     else:
+	solo_file = os.path.join(kitchen_path, 'solo.rb')
         os.link(solo_file, knife_file)
         LOG.debug("Linked knife.rb: %s" % knife_file)
 
