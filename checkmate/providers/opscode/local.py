@@ -1531,7 +1531,10 @@ def _run_kitchen_command(kitchen_path, params, lock=True):
         LOG.warning("Knife command called without a '-c' flag. The '-c' flag "
                   "is a strong safeguard in case knife runs in the wrong "
                   "directory. Consider adding it and pointing to solo.rb")
-        params.extend(['-c', os.path.join(kitchen_path, 'solo.rb')])
+        config_file = os.path.join(kitchen_path, 'solo.rb')
+        if os.path.exists(config_file):
+            LOG.debug("Defaulting to config file '%s'" % config_file)
+            params.extend(['-c', config_file])
     if lock:
         path_lock = threading.Lock()
         path_lock.acquire()
