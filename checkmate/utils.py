@@ -5,19 +5,26 @@
 """
 # pylint: disable=E0611
 import base64
+from collections import MutableMapping
 import inspect
 import json
 import logging
+import logging.config
 import os
 import struct
 import sys
 from time import gmtime, strftime
+import uuid
 
 from bottle import abort, request
 import yaml
 from yaml.events import AliasEvent, ScalarEvent
 from yaml.parser import ParserError
 from yaml.composer import ComposerError
+import argparse
+from pip.locations import default_config_file
+
+from checkmate.exceptions import CheckmateNoData, CheckmateValidationException
 
 LOG = logging.getLogger(__name__)
 RESOURCES = ['deployments', 'workflows', 'blueprints', 'environments',
@@ -68,7 +75,6 @@ def get_debug_formatter():
     default is logging.INFO
     """
     if '--debug' in sys.argv:
-        print "Enabling debug extra logging"
         return DebugFormatter('%(pathname)s:%(lineno)d: %(levelname)-8s '
                 '%(message)s')
     elif '--verbose' in sys.argv:
@@ -86,6 +92,17 @@ def find_console_handler(logger):
                 handler.stream == sys.stderr:
             return handler
 
+
+def init_logging(default_config=None):
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--logconfig')
+    args = parser.parse_known_args()[0]
+    if args.logconfig:
+        logging.config.fileConfig(args.logconfig,disable_existing_loggers=False)
+    elif default_config and os.path.isfile(default_config): 
+        logging.config.fileConfig(default_config,disable_existing_loggers=False)
+    else:
+        init_console_logging()
 
 def init_console_logging():
     """Log to console"""
@@ -159,7 +176,7 @@ def read_body(request):
     return it as a dict"""
     data = request.body
     if not data or getattr(data, 'len', -1) == 0:
-        abort(400, 'No data received')
+        raise CheckmateNoData("No data provided")
     content_type = request.get_header('Content-type', 'application/json')
     if ';' in content_type:
         content_type = content_type.split(';')[0]
@@ -168,9 +185,11 @@ def read_body(request):
         try:
             return yaml_to_dict(data)
         except ParserError as exc:
-            abort(406, "Invalid YAML syntax. Check:\n%s" % exc)
+            raise CheckmateValidationException("Invalid YAML syntax. "
+                                               "Check:\n%s" % exc)
         except ComposerError as exc:
-            abort(406, "Invalid YAML structure. Check:\n%s" % exc)
+            raise CheckmateValidationException("Invalid YAML structure. "
+                                               "Check:\n%s" % exc)
 
     elif content_type == 'application/json':
         return json.load(data)
@@ -180,8 +199,9 @@ def read_body(request):
             result = json.loads(obj)
             if result:
                 return result
-        abort(406, "Unable to parse content. Form POSTs only support objects "
-                "in the 'object' field")
+        raise CheckmateValidationException("Unable to parse content. Form "
+                                           "POSTs only support objects in the "
+                                           "'object' field")
     else:
         abort(415, "Unsupported Media Type: %s" % content_type)
 
@@ -200,19 +220,29 @@ def dict_to_yaml(data):
 def write_yaml(data, request, response):
     """Write output in yaml"""
     response.set_header('content-type', 'application/x-yaml')
-    response.set_header('vary', 'Accept,Accept-Encoding,X-Auth-Token')
+    return to_yaml(data)
+
+
+def to_yaml(data):
+    """Writes out python object to YAML (with special handling for Checkmate
+    objects derived from MutableMapping)"""
+    if isinstance(data, MutableMapping) and hasattr(data, '_data'):
+        return yaml.safe_dump(data._data, default_flow_style=False)
     return yaml.safe_dump(data, default_flow_style=False)
 
 
 def write_json(data, request, response):
     """Write output in json"""
     response.set_header('content-type', 'application/json')
-    response.set_header('vary', 'Accept,Accept-Encoding,X-Auth-Token')
-    try:
-        return json.dumps(data, indent=4)
-    except TypeError:
-        #TODO: try json.dumps(data, indent=4, default=lambda o: o.__dict__)
+    return to_json(data)
+
+
+def to_json(data):
+    """Writes out python object to JSON (with special handling for Checkmate
+    objects derived from MutableMapping)"""
+    if isinstance(data, MutableMapping) and hasattr(data, 'dumps'):
         return data.dumps(indent=4)
+    return json.dumps(data, indent=4)
 
 
 HANDLERS = {
@@ -228,6 +258,7 @@ def write_body(data, request, response):
     calls that handler. Additional handlers can be added to support Additional
     content types.
     """
+    response.set_header('vary', 'Accept,Accept-Encoding,X-Auth-Token')
     accept = request.get_header('Accept', ['application/json'])
 
     for content_type in HANDLERS:
@@ -421,6 +452,7 @@ def with_tenant(fn):
             return fn(*args, tenant_id=request.context.tenant, **kwargs)
     return wrapped
 
+
 def support_only(types):
     """A function decorator that ensures the route is only accepted if the
     content type is in the list of types supplied"""
@@ -432,9 +464,11 @@ def support_only(types):
             for content_type in types:
                 if content_type in accept:
                     return fn(*args, **kwargs)
+            LOG.debug("support_only decorator filtered call")
             raise abort(415, "Unsupported media type")
         return wrapped
     return wrap
+
 
 def get_time_string():
     """Central function that returns time (UTC in ISO format) as a string
@@ -442,3 +476,16 @@ def get_time_string():
     Changing this function will change all times that checkmate uses in
     blueprints, deployments, etc..."""
     return strftime("%Y-%m-%d %H:%M:%S +0000", gmtime())
+
+
+def isUUID(value):
+    """Tests if a provided value is a valid uuid"""
+    if not value:
+        return False
+    if isinstance(value, uuid.UUID):
+        return True
+    try:
+        uuid.UUID(value)
+        return True
+    except:
+        return False

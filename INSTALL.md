@@ -148,7 +148,7 @@ Installing and starting MongoDB 2.0.6 on OSX:
     sudo mkdir /var/log/mongodb
     sudo chown -R root /opt/local/mongodb
     sudo sh -c 'echo "export PATH=\$PATH:/opt/local/mongodb/bin"' >> ~/.bash_profile
-    source ~/.base_profile
+    source ~/.bash_profile
 
     # Create a data directory and start the server
     # In the checkmate directory:
@@ -194,6 +194,7 @@ be prepped:
     export CHECKMATE_CONNECTION_STRING="sqlite:///${CHECKMATE_PREFIX}/var/checkmate/data/db.sqlite"
     
     # If you're using MongoDB
+    # in username and passwords reserved characters like :, /, + and @ must be escaped following RFC 2396.
     export CHECKMATE_BROKER_URL="mongodb://checkmate:secret@localhost:27017/checkmate"
     export CHECKMATE_RESULT_BACKEND="mongodb"
     export CHECKMATE_MONGODB_BACKEND_SETTINGS='{"host": "localhost", "port": 27017, "user": "checkmate", "password": "secret", "database": "checkmate", "taskmeta_collection": "celery_task_meta"}'
@@ -207,7 +208,8 @@ be prepped:
     export CELERY_CONFIG_MODULE=checkmate.celeryconfig
     export CHECKMATE_PUBLIC_KEY=`cat ~/.ssh/id_rsa.pub`
 
-Start the queue service:
+Start the queue service (see `--eager` in checkmate-server parameter for
+development without a queue):
 
     bin/checkmate-queue START
 

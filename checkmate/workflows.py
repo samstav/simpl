@@ -95,12 +95,9 @@ def save_workflow(id, tenant_id=None):
 @with_tenant
 def get_workflow(id, tenant_id=None):
     if 'with_secrets' in request.query:
-        if request.context.is_admin == True:
-            LOG.info("Administrator accessing workflow %s with secrets: %s" %
-                    (id, request.context.username))
-            results = db.get_workflow(id, with_secrets=True)
-        else:
-            abort(403, "Administrator privileges needed for this operation")
+        LOG.info("Administrator accessing workflow %s with secrets: %s" %
+                (id, request.context.username))
+        results = db.get_workflow(id, with_secrets=True)
     else:
         results = db.get_workflow(id)
     if not results:
@@ -173,7 +170,7 @@ def post_workflow_task(workflow_id, spec_id, tenant_id=None):
     # Save workflow (with secrets)
     body, secrets = extract_sensitive_data(workflow)
     body['tenantId'] = workflow.get('tenantId', tenant_id)
-    body['id'] = id
+    body['id'] = workflow_id
     updated = db.save_workflow(workflow_id, body, secrets, tenant_id=tenant_id)
 
     return write_body(entity, request, response)
@@ -359,7 +356,8 @@ def resubmit_workflow_task(workflow_id, task_id, tenant_id=None):
             task.get_state_name())
 
     # Refresh token if it exists in args[0]['auth_token]
-    if task.task_spec.args and len(task.task_spec.args) > 0 and \
+    if hasattr(task, 'args') and task.task_spec.args and \
+            len(task.task_spec.args) > 0 and \
             isinstance(task.task_spec.args[0], dict) and \
             task.task_spec.args[0].get('auth_token') != \
             request.context.auth_token:
@@ -440,8 +438,8 @@ def get_SpiffWorkflow_status(workflow):
     return result
 
 
-def create_workflow(deployment, context):
-    """Creates a SpiffWorkflow from a Checkmate deployment dict
+def create_workflow_deploy(deployment, context):
+    """Creates a SpiffWorkflow for initial deployment of a Checkmate deployment
 
     :returns: SpiffWorkflow.Workflow"""
     LOG.info("Creating workflow for deployment '%s'" % deployment['id'])
@@ -449,7 +447,7 @@ def create_workflow(deployment, context):
     environment = deployment.environment()
 
     # Build a workflow spec (the spec is the design of the workflow)
-    wfspec = WorkflowSpec(name="%s Workflow" % blueprint['name'])
+    wfspec = WorkflowSpec(name="Deploy '%s' Workflow" % blueprint['name'])
 
     #
     # Create the tasks that make the async calls
@@ -460,7 +458,8 @@ def create_workflow(deployment, context):
 
     provider_keys = set()
     for key, resource in deployment.get('resources', {}).iteritems():
-        if key != 'connections' and resource['provider'] not in provider_keys:
+        if key not in ['connections', 'keys'] and 'provider' in resource and \
+                  resource['provider'] not in provider_keys:
             provider_keys.add(resource['provider'])
 
     for key in provider_keys:
@@ -490,7 +489,7 @@ def create_workflow(deployment, context):
             sorted_list.append(resource_key)
 
     for key, resource in deployment.get('resources', {}).iteritems():
-        if key != 'connections':
+        if key not in ['connections', 'keys']:
             recursive_add_host(sorted_resources, key, deployment['resources'],
                     [])
 

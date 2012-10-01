@@ -24,6 +24,7 @@ from checkmate.utils import resolve_yaml_external_refs
 # Register built-in providers
 from checkmate.providers import rackspace, opscode
 
+
 class TestWorkflowStubbing(StubbedWorkflowBase):
     """Test workflow stubbing using mox"""
     def test_workflow_run(self):

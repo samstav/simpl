@@ -46,7 +46,7 @@ setup(
                       'python-cloudlb',
                       'python-keystoneclient',
                       'python-clouddns',
-                      'python-cloudfiles==1.7.10',
+                      'python-cloudfiles',
                       'rackspace-monitoring',
                       'PyChef==0.2.dev',
                       'PyYAML==3.10',
@@ -65,7 +65,7 @@ setup(
           'checkmate-simulation=checkmate.sample.checkmate_simulation:main_func',
         ]
     },
-    tests_require=['nose', 'unittest2', 'mox', 'webtest', 'pep8'],
+    tests_require=['nose', 'unittest2', 'mox', 'webtest', 'pep8', 'coverage'],
     packages=find_packages(exclude=['tests', 'bin', 'examples', 'doc',
             'checkmate.openstack.*']),
     include_package_data=True,

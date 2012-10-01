@@ -4,9 +4,6 @@ import uuid
 
 # pylint: disable=E0611
 from bottle import get, post, put, delete, request, response, abort
-from Crypto.PublicKey import RSA  # pip install pycrypto
-from Crypto.Hash import SHA512, MD5
-from Crypto import Random
 
 from checkmate.common import schema
 from checkmate.components import Component
@@ -138,7 +135,8 @@ def get_environment_provider(environment_id, provider_id, tenant_id=None):
 
 @get('/environments/<environment_id>/providers/<provider_id>/catalog')
 @with_tenant
-def get_provider_environment_catalog(environment_id, provider_id, tenant_id=None):
+def get_provider_environment_catalog(environment_id, provider_id,
+                                     tenant_id=None):
     entity = db.get_environment(environment_id, with_secrets=True)
     if not entity:
         abort(404, 'No environment with id %s' % environment_id)
@@ -159,7 +157,8 @@ def get_provider_environment_catalog(environment_id, provider_id, tenant_id=None
 @get('/environments/<environment_id>/providers/<provider_id>/catalog/'
         '<component_id>')
 @with_tenant
-def get_environment_component(environment_id, provider_id, component_id, tenant_id=None):
+def get_environment_component(environment_id, provider_id, component_id,
+                              tenant_id=None):
     entity = db.get_environment(environment_id, with_secrets=True)
     if not entity:
         abort(404, 'No environment with id %s' % environment_id)
@@ -170,7 +169,7 @@ def get_environment_component(environment_id, provider_id, component_id, tenant_
         abort(404, "Invalid provider: %s" % provider_id)
     component = provider.get_component(request.context, component_id)
     if component:
-        return write_body(component, request, response)
+        return write_body(component._data, request, response)
     else:
         abort(404, "Component %s not found or not available under this "
                 "provider and environment (%s/%s)" % (component_id,
@@ -227,7 +226,7 @@ def get_provider_component(provider_id, component_id, tenant_id=None):
         abort(404, "Invalid provider: %s" % provider_id)
     component = provider.get_component(request.context, component_id)
     if component:
-        return write_body(component, request, response)
+        return write_body(component._data, request, response)
     else:
         abort(404, "Component %s not found or not available under this "
                 "provider (%s)" % (component_id, provider_id))
@@ -334,37 +333,7 @@ class Environment():
                 if len(matches) == 1:
                     return Component(matches[0], provider=provider)
                 else:
-                    LOG.warning("Ambiguous component %s matches: %s" %
+                    LOG.warning("Ambiguous component '%s' matches: %s" %
                             (blueprint_entry, matches))
 
-    def generate_key_pair(self, bits=2048):
-        """Generates a private/public key pair.
 
-        returns them as a private, public tuple of dicts. The dicts have key,
-        and PEM values. The public key also has an ssh value in it"""
-        key = RSA.generate(2048)
-        private_string = key.exportKey('PEM')
-        public = key.publickey()
-        public_string = public.exportKey('PEM')
-        ssh = public.exportKey('OpenSSH')
-        return (dict(key=key, PEM=private_string),
-                dict(key=public, PEM=public_string, ssh=ssh))
-
-    def get_ssh_public_key(self, private_key):
-        """Generates an ssh public key from a private key public_string"""
-        key = RSA.importKey(private_key)
-        return key.publickey().exportKey('OpenSSH')
-
-    def HashSHA512(self, value, salt=None):
-        if not salt:
-            salt = Random.get_random_bytes(8).encode('base64').strip()
-        h = SHA512.new(salt)
-        h.update(value)
-        return "$6$%s$%s" % (salt, h.hexdigest())
-
-    def HashMD5(self, value, salt=None):
-        if not salt:
-            salt = Random.get_random_bytes(8).encode('base64').strip()
-        h = MD5.new(salt)
-        h.update(value)
-        return "$1$%s$%s" % (salt, h.hexdigest())

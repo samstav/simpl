@@ -574,13 +574,20 @@ function WorkflowController($scope, $resource, $http, $routeParams, $location, $
         }
       } else if ($location.hash().length > 1) {
         $scope.selectSpec($location.hash());
+        $('#spec_list').css('top', $('.summaryHeader').outerHeight()); // Not sure if this is the right place for this. -Chris.Burrell (chri5089)
       } else
         $scope.selectSpec(Object.keys(object.wf_spec.task_specs)[0]);
       //$scope.play();
-    }, function(error) {
-      console.log("Error " + error.data + "(" + error.status + ") loading workflow.");
-      $scope.$root.error = {data: error.data, status: error.status, title: "Error loading workflow",
-              message: "There was an error loading your workflow:"};
+    }, function(response) {
+        console.log("Error loading workflow.", response);
+        var error = response.data.error;
+        var info = {data: error,
+                    status: response.status,
+                    title: "Error Loading Workflow",
+                    message: "There was an error loading your data:"};
+        if ('description' in error)
+            info.message = error.description;
+        $scope.$root.error = info;
       $('#modalError').modal('show');
     });
   }
@@ -767,14 +774,14 @@ function WorkflowController($scope, $resource, $http, $routeParams, $location, $
   }
 
   $scope.was_server_created = function() {
-    if (typeof $scope.current_task != 'undefined' && $scope.current_task.task_spec.indexOf("Create Server") == 0 &&
+    if (typeof $scope.current_task != 'undefined' && ($scope.current_task.task_spec.indexOf("Create Server") == 0 || $scope.current_task.task_spec.indexOf("Wait for Server") == 0) &&
         $scope.resource($scope.current_task) !== null)
       return true;
     return false;
   }
 
   $scope.was_database_created = function() {
-    if (typeof $scope.current_task != 'undefined' && $scope.current_task.task_spec.indexOf("Create Database") == 0 &&
+    if (typeof $scope.current_task != 'undefined' && ($scope.current_task.task_spec.indexOf("Create Database") == 0 || $scope.current_task.task_spec.indexOf("Add DB User") == 0) &&
         $scope.resource($scope.current_task) !== null)
       return true;
     return false;
@@ -1096,8 +1103,11 @@ function DeploymentListController($scope, $location, $http, $resource, items) {
     this.klass = $resource('/:tenantId/deployments/');
     this.klass.get({tenantId: $scope.auth.tenantId}, function(list, getResponseHeaders){
       console.log("Load returned");
+      items.all = [];
       items.receive(list, function(item) {
-        return {id: item.id, name: item.name, created: item.created, tenantId: item.tenantId}});
+        return {id: item.id, name: item.name, created: item.created, tenantId: item.tenantId,
+                blueprint: item.blueprint, environment: item.environment,
+                status: item.status}});
       $scope.count = items.count;
       console.log("Done loading")
     });
@@ -1316,7 +1326,10 @@ WPBP = {
                     "name": "wordpress-master-role"
                 },
                 "relations": {
-                    "backend": "mysql"
+                	"wordpress/database": {
+                		"interface": "mysql",
+                		"service": "backend"
+                	}
                 },
                 "constraints": [
                     {
@@ -1336,7 +1349,7 @@ WPBP = {
                 },
                 "relations": {
                     "master": "http",
-                    "db": {
+                    "wordpress/database": {
                         "interface": "mysql",
                         "service": "backend"
                     }
@@ -1387,7 +1400,7 @@ WPBP = {
             "register-dns": {
                 "default": false,
                 "type": "boolean",
-                "label": "Add DNS Records"
+                "label": "Create DNS records"
             },
             "region": {
                 "required": true,
@@ -1400,6 +1413,16 @@ WPBP = {
                 "constrains": [
                     {
                         "setting": "database/prefix",
+                        "service": "web",
+                        "resource_type": "application"
+                    },
+                    {
+                        "setting": "database/database_name",
+                        "service": "web",
+                        "resource_type": "application"
+                    },
+                    {
+                        "setting": "database/username",
                         "service": "web",
                         "resource_type": "application"
                     },
@@ -1443,11 +1466,6 @@ WPBP = {
             },
             "os": {
                 "constrains": [
-                    {
-                        "setting": "os",
-                        "service": "web",
-                        "resource_type": "compute"
-                    },
                     {
                         "setting": "os",
                         "service": "web",
@@ -1717,7 +1735,7 @@ WPBP = {
             "register-dns": {
                 "default": false,
                 "type": "boolean",
-                "label": "Register DNS Name"
+                "label": "Create DNS records"
             },
             "region": {
                 "required": true,
@@ -1749,14 +1767,24 @@ WPBP = {
                         "resource_type": "application"
                     },
                     {
-                        "setting": "database/name",
-                        "service": "backend",
-                        "resource_type": "database"
+                        "setting": "database/database_name",
+                        "service": "web",
+                        "resource_type": "application"
                     },
                     {
                         "setting": "database/username",
-                        "service": "backend",
-                        "resource_type": "database"
+                        "service": "web",
+                        "resource_type": "application"
+                    },
+                    {
+                    	"setting": "database_name",
+                    	"service": "backend",
+                    	"resource_type": "database"
+                    },
+                    {
+                    	"setting": "username",
+                    	"service": "backend",
+                    	"resource_type": "database"
                     }
                 ],
                 "help": "Note that this also the user name, database name, and also identifies this\nwordpress install from other ones you might add later to the same deployment.\n",
@@ -1988,23 +2016,6 @@ ENVIRONMENTS = {
         "providers": {
             "nova": {},
             "chef-local": {
-                "catalog": {
-                    "application": {
-                        "wordpress": {
-                            "is": "application",
-                            "id": "wordpress",
-                            "provides": [
-                                {
-                                    "application": "http"
-                                }
-                            ],
-                            "requires": [
-                              {"database": "mysql"},
-                              {"host": "linux"}
-                            ]
-                        }
-                    }
-                },
                 "vendor": "opscode",
                 "provides": [
                     {

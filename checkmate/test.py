@@ -27,7 +27,7 @@ from checkmate.exceptions import CheckmateException
 from checkmate.providers.base import ProviderBase
 from checkmate.middleware import RequestContext  # also enables logging
 from checkmate.utils import is_ssh_key, get_source_body, merge_dictionary
-from checkmate.workflows import create_workflow, wait_for
+from checkmate.workflows import create_workflow_deploy, wait_for
 
 # Environment variables and safe alternatives
 ENV_VARS = {
@@ -204,7 +204,7 @@ class StubbedWorkflowBase(unittest.TestCase):
         plan(self.deployment, context)
         LOG.debug(json.dumps(self.deployment.get('resources', {}), indent=2))
 
-        workflow = create_workflow(self.deployment, context)
+        workflow = create_workflow_deploy(self.deployment, context)
 
         if not expected_calls:
             expected_calls = self._get_expected_calls()

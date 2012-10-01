@@ -6,7 +6,7 @@ import uuid
 from checkmate import utils
 from checkmate.common import schema
 from checkmate.components import Component
-from checkmate.exceptions import CheckmateException, CheckmateNoMapping,\
+from checkmate.exceptions import CheckmateException, CheckmateNoMapping, \
         CheckmateValidationException
 
 LOG = logging.getLogger(__name__)
