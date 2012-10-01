@@ -178,7 +178,8 @@ class TestProviderBaseWorkflow(StubbedWorkflowBase):
                             {'index': '1', 'component': 'database_instance',
                             'dns-name': 'CM-DEP-ID--db1.checkmate.local',
                             'instance': {}, 'provider': 'base',
-                            'type': 'database', 'relations': {
+                            'service': 'db', 'type': 'database',
+                            'relations': {
                                 'web-db': {'interface': 'mysql', 'source': '0',
                                 'state': 'planned'}
                               }}],
@@ -209,7 +210,7 @@ class TestProviderBaseWorkflow(StubbedWorkflowBase):
                                 'password': 'secret', 'database_name': 'dbX',
                                 'port': 8888}},
                                 'name': 'CM-DEP-ID--db1.checkmate.local'},
-                            'provider': 'base',
+                            'provider': 'base', 'service': 'web',
                             'type': 'application', 'relations': {'web-db': {
                                 'interface': 'mysql', 'state': 'planned',
                                 'target': '1'}}}],

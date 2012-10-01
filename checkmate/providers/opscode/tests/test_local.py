@@ -407,7 +407,7 @@ class TestDBWorkflow(StubbedWorkflowBase):
                             {'index': '0', 'component': 'linux_instance',
                             'dns-name': 'CM-DEP-ID--db1.checkmate.local',
                             'instance': {}, 'hosts': ['1'], 'provider': 'base',
-                            'type': 'compute'}],
+                            'type': 'compute', 'service': 'db'}],
                     'kwargs': None,
                     'result': {
                           'instance:0': {

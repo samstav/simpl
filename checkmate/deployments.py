@@ -522,11 +522,6 @@ def plan(deployment, context):
                 # Add it to resources
                 resources[str(resource_index)] = resource
                 resource['index'] = str(resource_index)
-                # Link resource to service
-                if 'instances' not in service:
-                    service['instances'] = []
-                instances = service['instances']
-                instances.append(str(resource_index))
                 LOG.debug("  Adding a %s resource with resource key %s" % (
                         resources[str(resource_index)]['type'],
                         resource_index))
@@ -585,7 +580,6 @@ def plan(deployment, context):
     for service_name, service_relations in relations.iteritems():
         LOG.debug("  For %s" % service_name)
         service = services[service_name]
-        instances = service['instances']
         for name, relation in service_relations.iteritems():
             # Find what interface is needed
             target_interface = relation['interface']
@@ -620,15 +614,20 @@ def plan(deployment, context):
                         target_service_name, target_interface, name,
                         service_name))
 
-            # Get list of source instances
-            source_instances = {index: resources[index] for index in
-                                instances}
+            # Get hash of source instances
+            source_instances = {index: resource
+                                for index, resource in resources.iteritems()
+                                if resource['service'] == service_name}
             LOG.debug("    Instances %s need '%s' from the '%s' service"
-                    % (instances, target_interface, target_service_name))
+                    % (source_instances.keys(), target_interface,
+                       target_service_name))
 
             # Get list of target instances
-            target_instances = [i for i in target_service.get('instances', [])
-                    if resources[i].get('component') in target_component_ids]
+            target_instances = [index for index, resource in
+                                        resources.iteritems()
+                                if resource['service'] == target_service_name
+                                        and resource.get('component')
+                                                in target_component_ids]
             LOG.debug("    Instances %s provide %s" % (target_instances,
                     target_interface))
 
@@ -662,6 +661,13 @@ def plan(deployment, context):
         resources['connections'] = connections
     if resources:
         deployment['resources'] = resources
+    # Link resources to services
+    for index, resource in resources.iteritems():
+        if index not in ['connections', 'keys']:
+            service = blueprint['services'][resource['service']]
+            if 'instances' not in service:
+                service['instances'] = []
+            service['instances'].append(str(index))
 
     deployment['status'] = 'PLANNED'
     LOG.info("Deployment '%s' planning complete and status changed to %s" %
