@@ -78,10 +78,10 @@ def main_func():
     # Load routes from other modules
     LOG.info("Loading API")
     load("checkmate.api")
-    with_simulator=False
+    with_simulator = False
     if '--with-simulator' in sys.argv:
         load("checkmate.simulator")
-        with_simulator=True
+        with_simulator = True
 
     # Build WSGI Chain:
     LOG.info("Loading Application")
