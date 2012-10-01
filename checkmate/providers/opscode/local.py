@@ -1554,6 +1554,8 @@ def _run_kitchen_command(kitchen_path, params, lock=True):
             raise exc
         except CalledProcessError, exc:
             #retry and pass ex
+            # CalledProcessError cannot be serialized using Pickle, so raising it would fail in celery;
+            # we wrap the exception in something Pickle-able.
             raise CheckmateCalledProcessError(exc.returncode, exc.cmd,
                     output=exc.output)
         finally:
@@ -1652,11 +1654,7 @@ def cook(host, environment, recipes=None, roles=None, path=None,
         params.extend(['-P', password])
     if port:
         params.extend(['-p', str(port)])
-    try:
-        _run_kitchen_command(kitchen_path, params)
-    except CheckmateCalledProcessError as ccpe:
-        cook.retry(exc=ccpe)
-
+    _run_kitchen_command(kitchen_path, params)
 
 @task(countdown=20, max_retries=3)
 def manage_role(name, environment, path=None, desc=None,

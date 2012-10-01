@@ -125,8 +125,7 @@ class Provider(ProviderBase):
                                 provider=self.key,
                                 task_tags=['create']),
                    properties={
-                            'estimated_duration': 80,
-                            'database/name': db_name
+                            'estimated_duration': 80
                     })
             create_db_user = Celery(wfspec, "Add DB User: %s" % username,
                    'checkmate.providers.rackspace.database.add_user',
@@ -143,9 +142,7 @@ class Provider(ProviderBase):
                                 provider=self.key,
                                 task_tags=['final']),
                    properties={
-                        'estimated_duration': 20,
-                        'database/username': username,
-                        'database/password': password
+                        'estimated_duration': 20
                     })
 
             create_db_user.follow(create_database_task)
