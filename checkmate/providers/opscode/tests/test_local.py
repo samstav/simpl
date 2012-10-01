@@ -54,7 +54,9 @@ class TestChefLocal(unittest.TestCase):
 [Mon, 21 May 2012 17:25:55 +0000] FATAL: Stacktrace dumped to /tmp/checkmate/environments/myEnv/chef-stacktrace.out
 [Mon, 21 May 2012 17:25:55 +0000] FATAL: Chef::Exceptions::MissingRole: Chef::Exceptions::MissingRole
 """
-        params = ['knife', 'cook', 'root@a.b.c.d', '-p', '22']
+        params = ['knife', 'cook', 'root@a.b.c.d',
+                  '-c', "/tmp/checkmate/test/myEnv/kitchen/solo.rb",
+                  '-p', '22']
 
         #Stub out checks for paths
         self.mox.StubOutWithMock(os.path, 'exists')
@@ -91,13 +93,13 @@ class TestChefLocal(unittest.TestCase):
         os.chdir('/tmp/checkmate/test/myEnv/kitchen').AndReturn(None)
 
         #Stub out process call to knife
-        self.mox.StubOutWithMock(local, 'check_output')
-        local.check_output(params).AndReturn(results)
+        self.mox.StubOutWithMock(local, 'check_all_output')
+        local.check_all_output(params).AndReturn(results)
 
         self.mox.ReplayAll()
         try:
             local.cook('a.b.c.d',  'myEnv', recipes=None,
-                roles=['build', 'not-a-role'])
+                       roles=['build', 'not-a-role'])
         except Exception as exc:
             if 'MissingRole' in exc.__str__():
                 # If got the right error, check that it is correctly formatted
@@ -405,7 +407,7 @@ class TestDBWorkflow(StubbedWorkflowBase):
                             {'index': '0', 'component': 'linux_instance',
                             'dns-name': 'CM-DEP-ID--db1.checkmate.local',
                             'instance': {}, 'hosts': ['1'], 'provider': 'base',
-                            'type': 'compute'}],
+                            'type': 'compute', 'service': 'db'}],
                     'kwargs': None,
                     'result': {
                           'instance:0': {

@@ -350,11 +350,15 @@ if __name__ == '__main__':
             argv.append(x)
     eventlet.patcher.monkey_patch(all=False, socket=True, time=True,
                                   thread=do_monkeypatch)
-    testdir = os.path.abspath(os.path.join("tests"))
+    rootdir = os.path.abspath(os.path.dirname(__file__))
+    providerdir = os.path.abspath(os.path.join(rootdir, "checkmate",
+                                               "providers"))
+    testdir = os.path.abspath(os.path.join(os.path.dirname(__file__), "tests"))
     c = config.Config(stream=sys.stdout,
                       env=os.environ,
                       verbosity=3,
-                      workingDir=testdir,
+                      workingDir=rootdir,
+                      srcDirs=[testdir, providerdir],
                       plugins=core.DefaultPluginManager())
 
     runner = NovaTestRunner(stream=c.stream,

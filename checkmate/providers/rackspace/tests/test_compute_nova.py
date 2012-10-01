@@ -157,6 +157,7 @@ class TestNovaGenerateTemplate(unittest.TestCase):
             'type': 'compute',
             'provider': provider.key,
             'flavor': '2',
+            'service': 'master',
             'image': compute.UBUNTU_12_04_IMAGE_ID,
             'region': 'ORD'
         }

@@ -199,6 +199,8 @@ def process(tenant_id):
         template = Workflow.deserialize(serializer, data)
 
     global PACKAGE
+    if 'workflow' not in PACKAGE[tenant_id]:
+        abort(404, "Workflow does not exist")
     workflow = Workflow.deserialize(serializer, PACKAGE[tenant_id]['workflow'])
 
     def hijacked_try_fire(self, my_task, force=False):
