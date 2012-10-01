@@ -54,7 +54,7 @@
             <div class="control-group">
               <label class="control-label required" for="blueprint">Blueprint</label>
               <div class="controls">
-                <select id="blueprint" class="span6" ng-model="blueprint" ng-change="updateSettings()"
+                <select id="blueprint" class="span6" ng-model="blueprint" ng-change="onBlueprintChange()"
                         ng-options="blueprint.name for (id,blueprint) in blueprints" required>
                 </select>
               </div>

@@ -1130,6 +1130,7 @@ function DeploymentTryController($scope, $location, $routeParams, $resource, set
   $scope.blueprints = WPBP;
   var ctrl = new DeploymentInitController($scope, $location, $routeParams, $resource, WPBP['MySQL'], ENVIRONMENTS['next-gen'], settings);
   $scope.updateSettings();
+  $scope.updateDatabaseProvider();
   return ctrl;
 }
 
@@ -1155,6 +1156,42 @@ function DeploymentInitController($scope, $location, $routeParams, $resource, bl
     }
   };  
   $scope.getDomains();
+  
+  $scope.onBlueprintChange = function() {
+    $scope.updateSettings();
+    $scope.updateDatabaseProvider();
+  }
+
+  $scope.updateDatabaseProvider = function() {
+    if ($scope.blueprint.id == WPBP.MySQL.id) {
+        //Remove DBaaS Provider
+        if ('database' in ENVIRONMENTS.legacy.providers) 
+            delete ENVIRONMENTS.legacy.providers.database;
+        if ('database' in ENVIRONMENTS['next-gen'].providers)
+            delete ENVIRONMENTS['next-gen'].providers.database;
+        //Add database support to chef provider
+        ENVIRONMENTS.legacy.providers['chef-local'].provides[1] = {database: "mysql"};
+        ENVIRONMENTS['next-gen'].providers['chef-local'].provides[1] = {database: "mysql"};
+        ENVIRONMENTS.legacy.providers['chef-local'].provides[2] = {compute: "mysql"};
+        ENVIRONMENTS['next-gen'].providers['chef-local'].provides[2] = {compute: "mysql"};
+
+    } else if ($scope.blueprint.id == WPBP.DBaaS.id) {
+        //Add DBaaS Provider
+        ENVIRONMENTS.legacy.providers.database == {};
+        ENVIRONMENTS['next-gen'].providers.database = {};
+
+        //Remove database support from chef-local
+        if (ENVIRONMENTS.legacy.providers['chef-local'].provides.length > 1)
+            ENVIRONMENTS.legacy.providers['chef-local'].provides.pop(1);
+        if (ENVIRONMENTS.legacy.providers['chef-local'].provides.length > 1)
+            ENVIRONMENTS.legacy.providers['chef-local'].provides.pop(1);
+
+        if (ENVIRONMENTS['next-gen'].providers['chef-local'].provides.length > 1)
+            ENVIRONMENTS['next-gen'].providers['chef-local'].provides.pop(1);
+        if (ENVIRONMENTS['next-gen'].providers['chef-local'].provides.length > 1)
+            ENVIRONMENTS['next-gen'].providers['chef-local'].provides.pop(1);
+    }
+  }
 
   $scope.updateSettings = function() {
     $scope.settings = [];
@@ -1684,7 +1721,7 @@ WPBP = {
             "backend": {
                 "component": {
                     "interface": "mysql",
-                    "type": "compute"
+                    "type": "database"
                 }
             }
         },
@@ -1981,14 +2018,16 @@ ENVIRONMENTS = {
                     },
                     {
                         "database": "mysql"
+                    },
+                    {
+                        "compute": "mysql"
                     }
                 ]
             },
             "common": {
                 "vendor": "rackspace"
             },
-            "load-balancer": {},
-            "database": {}
+            "load-balancer": {}
         }
     },
     "next-gen": {
@@ -2004,14 +2043,16 @@ ENVIRONMENTS = {
                     },
                     {
                         "database": "mysql"
+                    },
+                    {
+                        "compute": "mysql"
                     }
                 ]
             },
             "common": {
                 "vendor": "rackspace"
             },
-            "load-balancer": {},
-            "database": {}
+            "load-balancer": {}
         }
     }
   };
