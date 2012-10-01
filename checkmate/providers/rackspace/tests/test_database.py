@@ -10,6 +10,7 @@ LOG = logging.getLogger(__name__)
 from checkmate.providers.rackspace import database
 import mox
 
+from checkmate.exceptions import CheckmateException
 from checkmate.deployments import Deployment, resource_postback
 from checkmate.providers.base import PROVIDER_CLASSES
 from checkmate.test import StubbedWorkflowBase, TestProvider
@@ -52,6 +53,7 @@ class TestDatabase(unittest.TestCase):
                     'id': instance.id,
                     'name': instance.name,
                     'status': instance.status,
+                    'hostname': 'fake.cloud.local',
                     'region': 'NORTH',
                     'interfaces': {
                         'mysql': {
@@ -83,7 +85,7 @@ class TestDatabase(unittest.TestCase):
         self.assertDictEqual(results, expected)
         self.mox.VerifyAll()
 
-    def test_create_database(self):
+    def test_create_database_fail_building(self):
         context = dict(deployment='DEP', resource='1')
 
         #Mock instance
@@ -100,15 +102,17 @@ class TestDatabase(unittest.TestCase):
         clouddb_api_mock = self.mox.CreateMockAnything()
         clouddb_api_mock.get_instance(instance.id).AndReturn(instance)
         self.mox.ReplayAll()
-        try:
-            results = database.create_database(context, 'db1', 'NORTH',
-                instance_id=instance.id, api=clouddb_api_mock)
-        except RetryTaskError:
-            pass #Should throw retry exception when instance.status="BUILD"
+        #Should throw exception when instance.status="BUILD"
+        self.assertRaises(CheckmateException, database.create_database,
+                          context, 'db1', 'NORTH', instance_id=instance.id,
+                          api=clouddb_api_mock)
 
         self.mox.UnsetStubs()
         self.mox.VerifyAll()
-        
+
+    def test_create_database(self):
+        context = dict(deployment='DEP', resource='1')
+
         #Mock instance
         instance = self.mox.CreateMockAnything()
         instance.id = 'fake_instance_id'
