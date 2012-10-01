@@ -459,7 +459,6 @@ class Provider(ProviderBase):
         settings = deployment.settings()
         if 'lsync_bag' not in settings:
             # get the user keys from the deployment
-            keys = deployment.get_keys()
             settings['lsync_bag'] = {
                 'lsyncd': {},
                 #FIXME: this is specific to the lsync recipe. Needs to be a more elegqnt way to do this
