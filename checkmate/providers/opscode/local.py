@@ -458,14 +458,16 @@ class Provider(ProviderBase):
         
         settings = deployment.settings()
         if 'lsync_bag' not in settings:
+            # get the user keys from the deployment
+            keys = deployment.get_keys()
             settings['lsync_bag'] = {
                 'lsyncd': {},
                 #FIXME: this is specific to the lsync recipe. Needs to be a more elegqnt way to do this
                 #       when we need to add items to a data bag to accommodate a recipe from a dependency
                 'user': {
                     'name': deployment.get_setting("prefix"),
-                    'ssh_pub_key': deployment.get_setting('keys/environment/public_key'),
-                    'ssh_priv_key': deployment.get_setting('keys/environment/private_key')
+                    'ssh_pub_key': deployment.get_setting('keys/deployment/public_key_ssh'),
+                    'ssh_priv_key': deployment.get_setting('keys/deployment/private_key')
                 }
             }
         options = settings['lsync_bag']['lsyncd']
