@@ -574,6 +574,7 @@ function WorkflowController($scope, $resource, $http, $routeParams, $location, $
         }
       } else if ($location.hash().length > 1) {
         $scope.selectSpec($location.hash());
+        $('#spec_list').css('top', $('.summaryHeader').outerHeight()); // Not sure if this is the right place for this. -Chris.Burrell (chri5089)
       } else
         $scope.selectSpec(Object.keys(object.wf_spec.task_specs)[0]);
       //$scope.play();
