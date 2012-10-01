@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 import json
 import os
+import sys
 
 from bottle import default_app, load
 import unittest2 as unittest
@@ -8,6 +9,9 @@ from webtest import TestApp
 
 from checkmate.middleware import TenantMiddleware, ContextMiddleware, \
         BrowserMiddleware
+# Init logging before we load the database, 3rd party, and 'noisy' modules
+from checkmate.utils import init_console_logging
+init_console_logging()
 
 os.environ['CHECKMATE_DATA_PATH'] = os.path.join(os.path.dirname(__file__),
                                               'data')
@@ -23,6 +27,7 @@ class TestServer(unittest.TestCase):
         load('checkmate.environments')
         load('checkmate.workflows')
         root_app = default_app()
+        root_app.catchall = False
         tenant = TenantMiddleware(root_app)
         context = ContextMiddleware(tenant)
         self.app = TestApp(context)
@@ -53,7 +58,7 @@ class TestServer(unittest.TestCase):
 
     def rest_exercise(self, model_name):
         #PUT
-        entity = "%s: &e1\n    id: 1" % model_name
+        entity = "%s: &e1\n    id: '1'" % model_name
         res = self.app.put('/%ss/1' % model_name, entity,
                             content_type='application/x-yaml')
         self.assertEqual(res.status, '200 OK')
@@ -77,13 +82,13 @@ class TestServer(unittest.TestCase):
 
     def rest_tenant_exercise(self, model_name):
         #PUT
-        entity = "%s: &e1\n    id: 1" % model_name
+        entity = "%s: &e1\n    id: '1'" % model_name
         res = self.app.put('/T1000/%ss/1' % model_name, entity,
                             content_type='application/x-yaml')
-        self.assertEqual(res.status, '200 OK')
+        self.assertEqual(res.status, '200 OK', res)
         self.assertEqual(res.content_type, 'application/json')
 
-        entity = "%s: &e1\n    id: 2" % model_name
+        entity = "%s: &e1\n    id: '2'" % model_name
         res = self.app.put('/T2000/%ss/2' % model_name, entity,
                             content_type='application/x-yaml')
 
@@ -170,5 +175,14 @@ class TestServer(unittest.TestCase):
             self.assertEqual(fxn('/T1000%s' % path), template, '%s should '
                     'have returned %s' % (path, template))
 
+
 if __name__ == '__main__':
-    unittest.main(verbosity=2)
+    # Run tests. Handle our paramsters separately
+    import sys
+    args = sys.argv[:]
+    # Our --debug means --verbose for unitest
+    if '--debug' in args:
+        args.pop(args.index('--debug'))
+        if '--verbose' not in args:
+            args.insert(1, '--verbose')
+    unittest.main(argv=args)

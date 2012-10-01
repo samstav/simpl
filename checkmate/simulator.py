@@ -32,7 +32,7 @@ from SpiffWorkflow.storage import DictionarySerializer
 from checkmate.common import schema
 from checkmate.db import any_id_problems
 from checkmate.deployments import plan, Deployment
-from checkmate.workflows import get_SpiffWorkflow_status, create_workflow
+from checkmate.workflows import get_SpiffWorkflow_status, create_workflow_deploy
 from checkmate.utils import write_body, read_body, with_tenant
 
 PACKAGE = {}
@@ -63,7 +63,7 @@ def hack():
     dep = Deployment(entity)
     plan(dep, request.context)
 
-    wf = create_workflow(dep, request.context)
+    wf = create_workflow_deploy(dep, request.context)
 
     serializer = DictionarySerializer()
     data = serializer._serialize_task_spec(
@@ -120,7 +120,7 @@ def simulate(tenant_id=None):
     PACKAGE[tenant_id] = results
 
     serializer = DictionarySerializer()
-    workflow = create_workflow(deployment, request.context)
+    workflow = create_workflow_deploy(deployment, request.context)
     serialized_workflow = workflow.serialize(serializer)
     results['workflow'] = serialized_workflow
     results['workflow']['id'] = 'simulate'

@@ -578,10 +578,16 @@ function WorkflowController($scope, $resource, $http, $routeParams, $location, $
       } else
         $scope.selectSpec(Object.keys(object.wf_spec.task_specs)[0]);
       //$scope.play();
-    }, function(error) {
-      console.log("Error " + error.data + "(" + error.status + ") loading workflow.");
-      $scope.$root.error = {data: error.data, status: error.status, title: "Error loading workflow",
-              message: "There was an error loading your workflow:"};
+    }, function(response) {
+        console.log("Error loading workflow.", response);
+        var error = response.data.error;
+        var info = {data: error,
+                    status: response.status,
+                    title: "Error Loading Workflow",
+                    message: "There was an error loading your data:"};
+        if ('description' in error)
+            info.message = error.description;
+        $scope.$root.error = info;
       $('#modalError').modal('show');
     });
   }
@@ -1320,7 +1326,10 @@ WPBP = {
                     "name": "wordpress-master-role"
                 },
                 "relations": {
-                    "backend": "mysql"
+                	"wordpress/database": {
+                		"interface": "mysql",
+                		"service": "backend"
+                	}
                 },
                 "constraints": [
                     {
@@ -1340,7 +1349,7 @@ WPBP = {
                 },
                 "relations": {
                     "master": "http",
-                    "db": {
+                    "wordpress/database": {
                         "interface": "mysql",
                         "service": "backend"
                     }
@@ -1408,6 +1417,16 @@ WPBP = {
                         "resource_type": "application"
                     },
                     {
+                        "setting": "database/database_name",
+                        "service": "web",
+                        "resource_type": "application"
+                    },
+                    {
+                        "setting": "database/username",
+                        "service": "web",
+                        "resource_type": "application"
+                    },
+                    {
                         "setting": "user/name",
                         "service": "web",
                         "resource_type": "application"
@@ -1447,11 +1466,6 @@ WPBP = {
             },
             "os": {
                 "constrains": [
-                    {
-                        "setting": "os",
-                        "service": "web",
-                        "resource_type": "compute"
-                    },
                     {
                         "setting": "os",
                         "service": "web",
@@ -1753,14 +1767,24 @@ WPBP = {
                         "resource_type": "application"
                     },
                     {
-                        "setting": "database/name",
-                        "service": "backend",
-                        "resource_type": "database"
+                        "setting": "database/database_name",
+                        "service": "web",
+                        "resource_type": "application"
                     },
                     {
                         "setting": "database/username",
-                        "service": "backend",
-                        "resource_type": "database"
+                        "service": "web",
+                        "resource_type": "application"
+                    },
+                    {
+                    	"setting": "database_name",
+                    	"service": "backend",
+                    	"resource_type": "database"
+                    },
+                    {
+                    	"setting": "username",
+                    	"service": "backend",
+                    	"resource_type": "database"
                     }
                 ],
                 "help": "Note that this also the user name, database name, and also identifies this\nwordpress install from other ones you might add later to the same deployment.\n",

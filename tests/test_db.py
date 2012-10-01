@@ -1,8 +1,11 @@
 #!/usr/bin/env python
-import bottle
-import json
+import logging
 import os
 import unittest2 as unittest
+
+from checkmate.utils import init_console_logging
+init_console_logging()
+LOG = logging.getLogger(__name__)
 
 os.environ['CHECKMATE_CONNECTION_STRING'] = 'sqlite://'
 from checkmate import db
@@ -43,5 +46,14 @@ class TestDatabase(unittest.TestCase):
         body['tenantId'] = 'T1000'  # gets added
         self.assertDictEqual(results, body)
 
+
 if __name__ == '__main__':
-    unittest.main(verbosity=2)
+    # Run tests. Handle our parameters seprately
+    import sys
+    args = sys.argv[:]
+    # Our --debug means --verbose for unittest
+    if '--debug' in args:
+        args.pop(args.index('--debug'))
+        if '--verbose' not in args:
+            args.insert(1, '--verbose')
+    unittest.main(argv=args)

@@ -14,6 +14,13 @@ from checkmate.utils import match_celery_logging
 LOG = logging.getLogger(__name__)
 
 
+class AcceptMissingHostKey(paramiko.client.MissingHostKeyPolicy):
+    """ add missing host keys to the client, but do not save in the known_hosts file 
+     since we can easily spin up servers that have recycled ip addresses """
+    
+    def missing_host_key(self, client, hostname, key):
+        client._host_keys.add(hostname, key.get_name(), key)
+
 @task(default_retry_delay=10, max_retries=36)
 def test_connection(context, ip, username, timeout=10, password=None,
            identity_file=None, port=22, callback=None, private_key=None):
@@ -108,7 +115,7 @@ def _connect(ip, port=22, username="root", timeout=10, identity_file=None,
     """
     client = paramiko.SSHClient()
     client.load_system_host_keys()
-    client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+    client.set_missing_host_key_policy(AcceptMissingHostKey())
     try:
         if private_key is not None:
             file_obj = StringIO.StringIO(private_key)

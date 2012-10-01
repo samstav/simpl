@@ -5,6 +5,7 @@
 """
 # pylint: disable=E0611
 import base64
+from collections import MutableMapping
 import inspect
 import json
 import logging
@@ -22,6 +23,8 @@ from yaml.parser import ParserError
 from yaml.composer import ComposerError
 import argparse
 from pip.locations import default_config_file
+
+from checkmate.exceptions import CheckmateNoData, CheckmateValidationException
 
 LOG = logging.getLogger(__name__)
 RESOURCES = ['deployments', 'workflows', 'blueprints', 'environments',
@@ -173,7 +176,7 @@ def read_body(request):
     return it as a dict"""
     data = request.body
     if not data or getattr(data, 'len', -1) == 0:
-        abort(400, 'No data received')
+        raise CheckmateNoData("No data provided")
     content_type = request.get_header('Content-type', 'application/json')
     if ';' in content_type:
         content_type = content_type.split(';')[0]
@@ -182,9 +185,11 @@ def read_body(request):
         try:
             return yaml_to_dict(data)
         except ParserError as exc:
-            abort(406, "Invalid YAML syntax. Check:\n%s" % exc)
+            raise CheckmateValidationException("Invalid YAML syntax. "
+                                               "Check:\n%s" % exc)
         except ComposerError as exc:
-            abort(406, "Invalid YAML structure. Check:\n%s" % exc)
+            raise CheckmateValidationException("Invalid YAML structure. "
+                                               "Check:\n%s" % exc)
 
     elif content_type == 'application/json':
         return json.load(data)
@@ -194,8 +199,9 @@ def read_body(request):
             result = json.loads(obj)
             if result:
                 return result
-        abort(406, "Unable to parse content. Form POSTs only support objects "
-                "in the 'object' field")
+        raise CheckmateValidationException("Unable to parse content. Form "
+                                           "POSTs only support objects in the "
+                                           "'object' field")
     else:
         abort(415, "Unsupported Media Type: %s" % content_type)
 
@@ -214,19 +220,29 @@ def dict_to_yaml(data):
 def write_yaml(data, request, response):
     """Write output in yaml"""
     response.set_header('content-type', 'application/x-yaml')
-    response.set_header('vary', 'Accept,Accept-Encoding,X-Auth-Token')
+    return to_yaml(data)
+
+
+def to_yaml(data):
+    """Writes out python object to YAML (with special handling for Checkmate
+    objects derived from MutableMapping)"""
+    if isinstance(data, MutableMapping) and hasattr(data, '_data'):
+        return yaml.safe_dump(data._data, default_flow_style=False)
     return yaml.safe_dump(data, default_flow_style=False)
 
 
 def write_json(data, request, response):
     """Write output in json"""
     response.set_header('content-type', 'application/json')
-    response.set_header('vary', 'Accept,Accept-Encoding,X-Auth-Token')
-    try:
-        return json.dumps(data, indent=4)
-    except TypeError:
-        #TODO: try json.dumps(data, indent=4, default=lambda o: o.__dict__)
+    return to_json(data)
+
+
+def to_json(data):
+    """Writes out python object to JSON (with special handling for Checkmate
+    objects derived from MutableMapping)"""
+    if isinstance(data, MutableMapping) and hasattr(data, 'dumps'):
         return data.dumps(indent=4)
+    return json.dumps(data, indent=4)
 
 
 HANDLERS = {
@@ -242,6 +258,7 @@ def write_body(data, request, response):
     calls that handler. Additional handlers can be added to support Additional
     content types.
     """
+    response.set_header('vary', 'Accept,Accept-Encoding,X-Auth-Token')
     accept = request.get_header('Accept', ['application/json'])
 
     for content_type in HANDLERS:
@@ -447,6 +464,7 @@ def support_only(types):
             for content_type in types:
                 if content_type in accept:
                     return fn(*args, **kwargs)
+            LOG.debug("support_only decorator filtered call")
             raise abort(415, "Unsupported media type")
         return wrapped
     return wrap

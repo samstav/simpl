@@ -257,7 +257,9 @@ The API is a **REST HTTP API**. It supports POST, PUT, GET, DELETE on:
 ### POST & PUT
 Sometimes a religious debate, but here are the semantics checkmate uses now. Simply:
 
-- **PUT** updates without taking any action.
+- **PUT** updates without taking any action or side effects on other resources. The only
+          permitted side-effect is on theresource itsefl (for example, updating
+          a last-modified field).
 - **POST** can trigger actions or have side-effects (like actual server deployments) and can accept partial objects.
 
 The **symantics** are:
@@ -361,7 +363,9 @@ Options:
                            including full HTTP requests and responses. Log
                            output includes source file path and line numbers.
         --trace-calls, -t: display call hierarchy and errors to stdout
-
+        --eager:           all celery (queue) tasks will be executed in-process
+                           Use this for debugging only. There is no need to
+                           start a queue instance when running eager.
 
 Once up, you can issue curl commands (or point your browser at it if you started the server --with-ui) to use checkmate.
 
@@ -422,9 +426,11 @@ Note: set this value if you are using the CHECKMATE_BROKER_URL override with a p
 
 **CHECKMATE_BROKER_URL**: Alternatively, a full url with username and password can be supplied. This *overrides* the previous four settings. Checkmate server and queue listener will report out what settings they are using when they start up.
 
-To use mongodb as a broker instead of rabbitmq, set this value to your mongodb endpoint (see `Setup for mongodb broker` at end of this document):
+To use mongodb as a broker instead of rabbitmq, set this value to your [mongodb endpoint](http://www.mongodb.org/display/DOCS/Connections) (see `Setup for mongodb broker` at end of this document):
 
     mongodb://localhost/checkmate
+
+For mongodb, in username and passwords reserved characters like :, /, + and @ must be escaped following RFC 2396.
 
 Note: all CHECKMATE_BROKER_* values are picked by code in the checkmate.celeryconfig module. If you use an alternate config file, these variable may be ignored. See **CELERY_CONFIG_MODULE**.
 
