@@ -135,7 +135,7 @@ RESOURCE_TYPES = ['compute', 'database', 'wordpress', 'php5', 'load-balancer',
 
 RESOURCE_SCHEMA = ['id', 'index', 'name', 'provider', 'relations', 'hosted_on',
         'hosts', 'type', 'component', 'dns-name', 'instance', 'flavor',
-        'image', 'disk', 'region']
+        'image', 'disk', 'region', 'service']
 
 DEPLOYMENT_SCHEMA = ['id', 'name', 'blueprint', 'environment', 'inputs',
         'includes', 'resources', 'settings', 'workflow', 'status', 'created',
@@ -152,12 +152,18 @@ OPTION_TYPES = ['string', 'int']
 WORKFLOW_SCHEMA = ['id', 'attributes', 'last_task', 'task_tree', 'workflow',
         'success', 'wf_spec', 'tenantId']
 
+
 def validate_catalog(obj):
     """Validates provider catalog"""
     errors = []
     if obj:
         for key, value in obj.iteritems():
-            if not (key in RESOURCE_TYPES or key == 'lists'):
+            if key == 'lists':
+                pass
+            elif key in RESOURCE_TYPES:
+                for instance in value.values():
+                    errors.extend(validate(instance, COMPONENT_SCHEMA) or [])
+            else:
                 errors.append("'%s' not a valid value. Only %s, 'lists' "
                         "allowed" % (key, ', '.join(RESOURCE_TYPES)))
     return errors
@@ -310,6 +316,7 @@ ALIASES.update({
     'xml': [],
     'yum': [],
     })
+
 
 def translate(name):
     """Convert any aliases to the canonical names as per ALIASES map

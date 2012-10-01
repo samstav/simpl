@@ -445,8 +445,9 @@ def create_database(context, name, region, character_set=None, collate=None,
                         'host_region': region,
                         'interfaces': {
                                 'mysql': {
-                                        'database_name': name
-                                    }
+                                        'host': instance.hostname,
+                                        'database_name': name,
+                                    },
                             }
                     }
             }

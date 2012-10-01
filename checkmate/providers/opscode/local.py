@@ -459,7 +459,6 @@ class Provider(ProviderBase):
         settings = deployment.settings()
         if 'lsync_bag' not in settings:
             # get the user keys from the deployment
-            keys = deployment.get_keys()
             settings['lsync_bag'] = {
                 'lsyncd': {},
                 #FIXME: this is specific to the lsync recipe. Needs to be a more elegqnt way to do this
@@ -772,19 +771,26 @@ class Provider(ProviderBase):
             # We have a prexisting or injected catalog stored. Use it.
             return results
 
-        # build a live catalog ()this would be the on_get_catalog called if no
+        # build a live catalog - this would be the on_get_catalog called if no
         # stored/override existed
-        if type_filter is None or type_filter == 'application':
-            # Get cookbooks
-            cookbooks = self._get_cookbooks(site_cookbooks=False)
-            site_cookbooks = self._get_cookbooks(site_cookbooks=True)
-            roles = self._get_roles(context)
+        # Get cookbooks
+        cookbooks = self._get_cookbooks(site_cookbooks=False)
+        site_cookbooks = self._get_cookbooks(site_cookbooks=True)
+        roles = self._get_roles(context)
 
-            cookbooks.update(roles)
-            cookbooks.update(site_cookbooks)
+        cookbooks.update(roles)
+        cookbooks.update(site_cookbooks)
 
-            results = {'application': cookbooks}
-
+        results = {}
+        for key, cookbook in cookbooks.iteritems():
+            provides = cookbook.get('provides', ['application'])
+            for entry in provides:
+                if isinstance(entry, dict):
+                    entry = entry.keys()[0]
+                    if type_filter is None or type_filter == entry:
+                        if entry not in results:
+                            results[entry] = {}
+                        results[entry][key] = cookbook
         return results
 
     def get_component(self, context, id):
@@ -1074,8 +1080,8 @@ class Provider(ProviderBase):
 
     def find_components(self, context, **kwargs):
         """Special parsing for roles, then defer to superclass"""
-        cid = kwargs.pop('id', None)
-        name = kwargs.pop('name', None)
+        cid = kwargs.get('id', None)
+        name = kwargs.get('name', None)
         role = kwargs.pop('role', None)
         if (not cid) and name:
             if role:
@@ -1091,7 +1097,6 @@ class Provider(ProviderBase):
             else:
                 raise CheckmateException("Component id '%s' provided but not "
                         "found in provider '%s'" % (cid, self.key))
-
         return ProviderBase.find_components(self, context, **kwargs)
 
     def status(self):
@@ -1209,27 +1214,7 @@ def _create_kitchen(name, path, secret_key=None):
                   '-c', os.path.join(kitchen_path, 'solo.rb')]
         _run_kitchen_command(kitchen_path, params)
 
-    secret_key_path = os.path.join(kitchen_path, 'certificates', 'chef.pem')
-    config = """# knife -c knife.rb
-file_cache_path  "%s"
-cookbook_path    ["%s", "%s"]
-role_path  "%s"
-data_bag_path  "%s"
-log_level        :info
-log_location     STDOUT
-ssl_verify_mode  :verify_none
-encrypted_data_bag_secret "%s"
-""" % (kitchen_path,
-            os.path.join(kitchen_path, 'cookbooks'),
-            os.path.join(kitchen_path, 'site-cookbooks'),
-            os.path.join(kitchen_path, 'roles'),
-            os.path.join(kitchen_path, 'data_bags'),
-            secret_key_path)
-    # knife kitchen creates a default solo.rb, so the file already exists
-    solo_file = os.path.join(kitchen_path, 'solo.rb')
-    with file(solo_file, 'w') as f:
-        f.write(config)
-    LOG.debug("Created solo file: %s" % solo_file)
+    _write_knife_config_file(kitchen_path)
 
     # Create certificates folder
     certs_path = os.path.join(kitchen_path, 'certificates')
@@ -1273,6 +1258,31 @@ encrypted_data_bag_secret "%s"
 
     LOG.debug("Finished creating kitchen: %s" % kitchen_path)
     return {"kitchen": kitchen_path}
+
+
+def _write_knife_config_file(kitchen_path):
+    """Writes a solo.rb config file and links a knife.rb file too"""
+    secret_key_path = os.path.join(kitchen_path, 'certificates', 'chef.pem')
+    config = """# knife -c knife.rb
+file_cache_path  "%s"
+cookbook_path    ["%s", "%s"]
+role_path  "%s"
+data_bag_path  "%s"
+log_level        :info
+log_location     STDOUT
+ssl_verify_mode  :verify_none
+encrypted_data_bag_secret "%s"
+""" % (kitchen_path,
+            os.path.join(kitchen_path, 'cookbooks'),
+            os.path.join(kitchen_path, 'site-cookbooks'),
+            os.path.join(kitchen_path, 'roles'),
+            os.path.join(kitchen_path, 'data_bags'),
+            secret_key_path)
+    # knife kitchen creates a default solo.rb, so the file already exists
+    solo_file = os.path.join(kitchen_path, 'solo.rb')
+    with file(solo_file, 'w') as handle:
+        handle.write(config)
+    LOG.debug("Created solo file: %s" % solo_file)
 
 
 def _create_environment_keys(environment_path, private_key=None,
@@ -1546,7 +1556,10 @@ def _run_kitchen_command(kitchen_path, params, lock=True):
         LOG.warning("Knife command called without a '-c' flag. The '-c' flag "
                   "is a strong safeguard in case knife runs in the wrong "
                   "directory. Consider adding it and pointing to solo.rb")
-        params.extend(['-c', os.path.join(kitchen_path, 'solo.rb')])
+        config_file = os.path.join(kitchen_path, 'solo.rb')
+        if os.path.exists(config_file):
+            LOG.debug("Defaulting to config file '%s'" % config_file)
+            params.extend(['-c', config_file])
     if lock:
         path_lock = threading.Lock()
         path_lock.acquire()

@@ -468,7 +468,7 @@ class BrowserMiddleware(object):
                     path.endswith('deployment-new.html') and \
                     isinstance(httpResponse.output, file):
                 httpResponse.output = httpResponse.output.read().replace(
-                        "<!-- SIMULATE BUTTON PLACEHOLDER - do not cheange "
+                        "<!-- SIMULATE BUTTON PLACEHOLDER - do not change "
                         "this comment, used for substitution!! -->",
                         '<button ng-click="simulate()" class="btn" '
                         'ng-disabled="!auth.loggedIn">Simulate It</button>')
