@@ -241,6 +241,16 @@ class TestDeploymentSettings(unittest.TestCase):
                       - type: compute
                         service: web
                         setting: os
+                settings:
+                    keys:
+                        environment:
+                            private: "this is a private key"
+                            public: "this is a public key"
+                            cert: "certificate data"
+                        count: 3
+                    setting_1: "Single value"
+                    setting_2:
+                        compound: "value"
                 inputs:
                   blueprint:
                     domain: example.com
@@ -259,6 +269,36 @@ class TestDeploymentSettings(unittest.TestCase):
                         number-only-test: 512
             """))
         cases = [{
+                  'case': "Path in settings",
+                  'name': "keys/environment/public",
+                  'expected': "this is a public key"
+                },
+                {
+                  'case': "Path in settings 2",
+                  'name': "keys/count",
+                  'expected': 3
+                },
+                {
+                  'case': "Path in settings 3",
+                  'name': "setting_1",
+                  'expected': "Single value"
+                },
+                {
+                  'case': "Not in settings path",
+                  'name': "keys/bob/foo",
+                  'expected': None
+                },
+                {
+                  'case': "Partial path in settings",
+                  'name': "keys/environment/public/his",
+                  'expected': None
+                },
+                {
+                  'case': "Path in settings 4",
+                  'name': "setting_2/compound",
+                  'expected': "value"
+                },
+                {
                 'case': "Set in blueprint/inputs",
                 'name': "domain",
                 'expected': "example.com",

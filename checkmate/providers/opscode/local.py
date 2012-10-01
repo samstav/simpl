@@ -264,7 +264,7 @@ class Provider(ProviderBase):
                 data = {}
             component_id = my_task.task_spec.get_property('component_id')
             if component_id not in data:
-                data[component_id] == {}
+                data[component_id] = {}
             values = data[component_id]
 
             run_time_options = my_task.task_spec.get_property(
@@ -454,10 +454,19 @@ class Provider(ProviderBase):
         #TODO:
         #if str(os.environ.get('CHECKMATE_CHEF_USE_DATA_BAGS', True)
         #            ).lower() in ['true', '1', 'yes']:
-
+        
         settings = deployment.settings()
         if 'lsync_bag' not in settings:
-            settings['lsync_bag'] = {'lsyncd': {}}
+            settings['lsync_bag'] = {
+                'lsyncd': {},
+                #FIXME: this is specific to the lsync recipe. Needs to be a more elegqnt way to do this
+                #       when we need to add items to a data bag to accommodate a recipe from a dependency
+                'user': {
+                    'name': deployment.get_setting("prefix"),
+                    'ssh_pub_key': deployment.get_setting('keys/environment/public_key'),
+                    'ssh_priv_key': deployment.get_setting('keys/environment/private_key')
+                }
+            }
         options = settings['lsync_bag']['lsyncd']
 
         #TODO: fix the recipes and this code to be generic. Hard-coding here...
@@ -641,7 +650,7 @@ class Provider(ProviderBase):
             def get_fields_code(my_task):  # Holds code for the task
                 if 'chef_options' not in my_task.attributes:
                     my_task.attributes['chef_options'] = {}
-                key = my_task.get_property('chef_root')
+                key = my_task.get_property('relation')
                 fields = my_task.get_property('fields', [])
                 data = {}
                 for field in fields:
@@ -657,7 +666,16 @@ class Provider(ProviderBase):
                     else:
                         LOG.warn("Field %s not found" % field,
                                 extra=dict(data=my_task.attributes))
-                my_task.attributes['chef_options'][key] = data
+                
+                cur = my_task.attributes['chef_options']
+                if "/" in key:
+                    keys = key.split("/")
+                    for k in keys:
+                        cur[k] = {}
+                        cur = cur[k]
+                    cur.update(data)
+                else:
+                    cur[key] = data
 
             compile_override = Transform(wfspec, "Get %s values for %s" %
                     (relation_key, key),
@@ -669,9 +687,9 @@ class Provider(ProviderBase):
                     defines=dict(relation=relation_key,
                                 provider=self.key,
                                 resource=key,
-                                chef_root=interface,
                                 fields=fields_with_path,
-                                task_tags=['final']))
+                                task_tags=['final'])
+                    )
             # When target is ready, compile data
             wait_for(wfspec, compile_override, [target_final])
             # Feed data into collection task
@@ -1535,7 +1553,7 @@ def _run_kitchen_command(kitchen_path, params, lock=True):
                                              "not accessible on the server")
             raise exc
         except CalledProcessError, exc:
-            # Reraise pickleable exception
+            #retry and pass ex
             raise CheckmateCalledProcessError(exc.returncode, exc.cmd,
                     output=exc.output)
         finally:
@@ -1634,10 +1652,13 @@ def cook(host, environment, recipes=None, roles=None, path=None,
         params.extend(['-P', password])
     if port:
         params.extend(['-p', str(port)])
-    _run_kitchen_command(kitchen_path, params)
+    try:
+        _run_kitchen_command(kitchen_path, params)
+    except CheckmateCalledProcessError as ccpe:
+        cook.retry(exc=ccpe)
 
 
-@task
+@task(countdown=20, max_retries=3)
 def manage_role(name, environment, path=None, desc=None,
         run_list=None, default_attributes=None, override_attributes=None,
         env_run_lists=None):
@@ -1646,8 +1667,8 @@ def manage_role(name, environment, path=None, desc=None,
     root = _get_root_environments_path(path)
     kitchen_path = os.path.join(root, environment, 'kitchen')
     if not os.path.exists(kitchen_path):
-        raise CheckmateException("Environment does not exist: %s" %
-                kitchen_path)
+        manage_role.retry(exc=CheckmateException("Environment does not exist: %s" %
+                kitchen_path))
     the_ruby = os.path.join(kitchen_path, 'roles', '%s.rb' % name)
     if os.path.exists(the_ruby):
         raise CheckmateException("Encountered a chef role in Ruby. Only JSON "

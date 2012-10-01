@@ -5,7 +5,7 @@ import string
 
 from celery.task import task, current
 import clouddb
-from SpiffWorkflow.operators import Attrib, PathAttrib
+from SpiffWorkflow.operators import PathAttrib, Attrib
 from SpiffWorkflow.specs import Celery
 
 from checkmate.common import schema
@@ -15,6 +15,10 @@ from checkmate.exceptions import CheckmateException, CheckmateNoMapping, \
 from checkmate.providers import ProviderBase
 from checkmate.utils import match_celery_logging
 from checkmate.workflows import wait_for
+from migrate.versioning.config import databases
+from celery._state import current_task
+from celery.app.task import Task
+from SpiffWorkflow.specs.TaskSpec import TaskSpec
 
 LOG = logging.getLogger(__name__)
 
@@ -115,11 +119,15 @@ class Provider(ProviderBase):
                         ],
                    instance_id=PathAttrib('instance:%s/id' %
                             resource['hosted_on']),
+                   
                    merge_results=True,
                    defines=dict(resource=key,
                                 provider=self.key,
                                 task_tags=['create']),
-                   properties={'estimated_duration': 80})
+                   properties={
+                            'estimated_duration': 80,
+                            'database/name': db_name
+                    })
             create_db_user = Celery(wfspec, "Add DB User: %s" % username,
                    'checkmate.providers.rackspace.database.add_user',
                    call_args=[context.get_queued_task_dict(
@@ -134,7 +142,11 @@ class Provider(ProviderBase):
                    defines=dict(resource=key,
                                 provider=self.key,
                                 task_tags=['final']),
-                   properties={'estimated_duration': 20})
+                   properties={
+                        'estimated_duration': 20,
+                        'database/username': username,
+                        'database/password': password
+                    })
 
             create_db_user.follow(create_database_task)
             root = wait_for(wfspec, create_database_task, wait_on)
@@ -163,10 +175,13 @@ class Provider(ProviderBase):
                             None,
                             region,
                         ],
+                   merge_results=True,
                    defines=dict(resource=key,
                                 provider=self.key,
                                 task_tags=['create', 'final']),
-                   properties={'estimated_duration': 80})
+                   properties={
+                        'estimated_duration': 80
+                   })
             root = wait_for(wfspec, create_instance_task, wait_on)
             if 'task_tags' in root.properties:
                 root.properties['task_tags'].append('root')
@@ -199,7 +214,16 @@ class Provider(ProviderBase):
                 'provides': [{'database': 'mysql'}],
                 'requires': [{'compute': dict(relation='host',
                         interface='mysql')}],
-                })
+                'options': {
+                    'database/name':{
+                        'type': 'string',
+                        'default': 'db1'
+                    },
+                    'datbase/username':{
+                        'type': 'string',
+                        'required': "true"
+                    }
+                }})
         if type_filter is None or type_filter == 'compute':
             results['compute'] = dict(mysql_instance={
                 'id': 'mysql_instance',
@@ -333,16 +357,16 @@ def create_instance(context, instance_name, size, flavor, databases, region,
                     'id': instance.id,
                     'name': instance.name,
                     'status': instance.status,
+                    'hostname': instance.hostname,
                     'region': region,
                     'interfaces': {
                             'mysql': {
                                     'host': instance.hostname,
-                                },
+                                }
                         },
                     'databases': {}
-                },
+                }
         }
-
     # Return created databases and their interfaces
     if databases:
         db_results = results['instance:%s' % context['resource']]['databases']
@@ -352,7 +376,7 @@ def create_instance(context, instance_name, size, flavor, databases, region,
                     'mysql': {
                             'host': instance.hostname,
                             'database_name': database['name'],
-                        },
+                        }
                 }
             db_results[database['name']] = data
 
@@ -414,7 +438,7 @@ def create_database(context, name, region, character_set=None, collate=None,
 
     instance = api.get_instance(instance_id)
     if instance.status != "ACTIVE":
-        current.retry()
+        current.retry(exc=CheckmateException("Database instance is not active."))
     try:
         instance.create_databases(databases)
         results = {
@@ -424,11 +448,10 @@ def create_database(context, name, region, character_set=None, collate=None,
                         'host_region': region,
                         'interfaces': {
                                 'mysql': {
-                                        'host': instance.hostname,
-                                        'database_name': name,
-                                    },
-                            },
-                    },
+                                        'database_name': name
+                                    }
+                            }
+                    }
             }
         LOG.info('Created database(s) %s on instance %s' % ([db['name'] for db in
                 databases], instance_id))
@@ -496,8 +519,20 @@ def add_user(context, instance_id, databases, username, password, region,
             raise exc
 
     instance_key = 'instance:%s' % context['resource']
-    results = {instance_key: dict(interfaces=dict(mysql=dict(
-            username=username, password=password)))}
+    results = {
+                instance_key: {
+                        'username': username,
+                        'password': password,
+                        'interfaces': {
+                                'mysql': {
+                                        'host': instance.hostname,
+                                        'database_name': databases[0],
+                                        'username': username,
+                                        'password': password,
+                                    }
+                            }
+                    }
+              }
     # Send data back to deployment
     resource_postback.delay(context['deployment'], results)
 

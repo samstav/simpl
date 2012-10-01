@@ -555,9 +555,9 @@ def plan(deployment, context):
                     target_interface))
 
             # Wire them up (create relation entries under resources)
-            connection_name = "%s-%s" % (service_name, target_service_name)
-            if connection_name in connections:
-                connection_name = "%s-%s" % (connection_name, len(connections))
+            connection_name = name
+            #if connection_name in connections:
+            #    connection_name = "%s-%s" % (connection_name, len(connections))
             connections[connection_name] = dict(
                     interface=relation['interface'])
             for source_instance in source_instances:
@@ -844,10 +844,26 @@ class Deployment(ExtensibleDict):
         result = self._get_environment_setting(name, provider_key, service_name)
         if result:
             return result
-
+        
+        result = self._get_setting_value(name)
+        if result:
+            return result
 
         return default
-
+    
+    def _get_setting_value(self, name):
+        if name:
+            node = self.get("settings", {})
+            for key in name.split("/"):
+                if(key in node):
+                    try:
+                        node = node[key]
+                    except TypeError:
+                        return None
+                else:
+                    return None
+            return node
+            
     def _get_input_global(self, name):
         """Get a setting directly under inputs"""
         inputs = self.inputs()
