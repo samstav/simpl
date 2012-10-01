@@ -1189,27 +1189,7 @@ def _create_kitchen(name, path, secret_key=None):
                   '-c', os.path.join(kitchen_path, 'solo.rb')]
         _run_kitchen_command(kitchen_path, params)
 
-    secret_key_path = os.path.join(kitchen_path, 'certificates', 'chef.pem')
-    config = """# knife -c knife.rb
-file_cache_path  "%s"
-cookbook_path    ["%s", "%s"]
-role_path  "%s"
-data_bag_path  "%s"
-log_level        :info
-log_location     STDOUT
-ssl_verify_mode  :verify_none
-encrypted_data_bag_secret "%s"
-""" % (kitchen_path,
-            os.path.join(kitchen_path, 'cookbooks'),
-            os.path.join(kitchen_path, 'site-cookbooks'),
-            os.path.join(kitchen_path, 'roles'),
-            os.path.join(kitchen_path, 'data_bags'),
-            secret_key_path)
-    # knife kitchen creates a default solo.rb, so the file already exists
-    solo_file = os.path.join(kitchen_path, 'solo.rb')
-    with file(solo_file, 'w') as f:
-        f.write(config)
-    LOG.debug("Created solo file: %s" % solo_file)
+    _write_knife_config_file(kitchen_path)
 
     # Create certificates folder
     certs_path = os.path.join(kitchen_path, 'certificates')
@@ -1253,6 +1233,31 @@ encrypted_data_bag_secret "%s"
 
     LOG.debug("Finished creating kitchen: %s" % kitchen_path)
     return {"kitchen": kitchen_path}
+
+
+def _write_knife_config_file(kitchen_path):
+    """Writes a solo.rb config file and links a knife.rb file too"""
+    secret_key_path = os.path.join(kitchen_path, 'certificates', 'chef.pem')
+    config = """# knife -c knife.rb
+file_cache_path  "%s"
+cookbook_path    ["%s", "%s"]
+role_path  "%s"
+data_bag_path  "%s"
+log_level        :info
+log_location     STDOUT
+ssl_verify_mode  :verify_none
+encrypted_data_bag_secret "%s"
+""" % (kitchen_path,
+            os.path.join(kitchen_path, 'cookbooks'),
+            os.path.join(kitchen_path, 'site-cookbooks'),
+            os.path.join(kitchen_path, 'roles'),
+            os.path.join(kitchen_path, 'data_bags'),
+            secret_key_path)
+    # knife kitchen creates a default solo.rb, so the file already exists
+    solo_file = os.path.join(kitchen_path, 'solo.rb')
+    with file(solo_file, 'w') as handle:
+        handle.write(config)
+    LOG.debug("Created solo file: %s" % solo_file)
 
 
 def _create_environment_keys(environment_path, private_key=None,
