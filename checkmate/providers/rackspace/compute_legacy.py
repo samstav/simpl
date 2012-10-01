@@ -2,6 +2,7 @@
 
 
 """
+import copy
 import logging
 import os
 
@@ -13,18 +14,75 @@ from checkmate.deployments import Deployment, resource_postback
 from checkmate.exceptions import CheckmateNoTokenError, CheckmateNoMapping, \
         CheckmateServerBuildFailed, CheckmateException
 from checkmate.providers.rackspace.compute import RackspaceComputeProviderBase
-from checkmate.utils import get_source_body, match_celery_logging
+from checkmate.utils import get_source_body, match_celery_logging, yaml_to_dict
 from checkmate.workflows import wait_for
 
 LOG = logging.getLogger(__name__)
-
 # This supports translating airport codes to city names. Checkmate expects to
 # deal in the region name as defined in the service catalog, which is in
 # airport codes.
 REGION_MAP = {'dallas': 'DFW',
               'chicago': 'ORD',
               'london': 'LON'}
-
+CATALOG_TEMPLATE = yaml_to_dict("""compute:
+  linux_instance:
+    id: linux_instance
+    is: compute
+    provides:
+    - compute: linux
+    options:
+        'name':
+            type: string
+            required: true
+        'os':
+            source_field_name: image
+            required: true
+            choice: []
+        'memory':
+            default: 512
+            required: true
+            source_field_name: flavor
+            choice: []
+        'personality': &personality
+            type: hash
+            required: false
+            description: File path and contents.
+            sample: |
+                    "personality: [
+                        {
+                            "path" : "/etc/banner.txt",
+                            "contents" : "ICAgICAgDQoiQSBjbG91ZCBkb2VzIG5vdCBrbm93IHdoeSBp dCBtb3ZlcyBpbiBqdXN0IHN1Y2ggYSBkaXJlY3Rpb24gYW5k IGF0IHN1Y2ggYSBzcGVlZC4uLkl0IGZlZWxzIGFuIGltcHVs c2lvbi4uLnRoaXMgaXMgdGhlIHBsYWNlIHRvIGdvIG5vdy4g QnV0IHRoZSBza3kga25vd3MgdGhlIHJlYXNvbnMgYW5kIHRo ZSBwYXR0ZXJucyBiZWhpbmQgYWxsIGNsb3VkcywgYW5kIHlv dSB3aWxsIGtub3csIHRvbywgd2hlbiB5b3UgbGlmdCB5b3Vy c2VsZiBoaWdoIGVub3VnaCB0byBzZWUgYmV5b25kIGhvcml6 b25zLiINCg0KLVJpY2hhcmQgQmFjaA=="
+                        } 
+                    ]
+        'metadata': &metadata
+            type: hash
+            required: false
+            description: Metadata key and value pairs.
+            sample: |
+                    "metadata" : {
+                        "My Server Name" : "API Test Server 1"
+                    }
+  windows_instance:
+    id: windows_instance
+    is: compute
+    provides:
+    - compute: windows
+    options:
+        'name':
+            type: string
+            required: true
+        'metadata': *metadata
+        'personality': *personality
+        'os':
+            required: true
+            source_field_name: image
+            choice: []
+        'memory':
+            required: true
+            default: 1024
+            source_field_name: flavor
+            choice: []
+""")
 
 class Provider(RackspaceComputeProviderBase):
     name = 'legacy'
@@ -176,6 +234,8 @@ class Provider(RackspaceComputeProviderBase):
         # build a live catalog this should be the on_get_catalog called if no
         # stored/override existed
         api = self._connect(context)
+        images = None
+        flavors = None
 
         if type_filter is None or type_filter == 'regions':
             regions = {}
@@ -201,49 +261,74 @@ class Provider(RackspaceComputeProviderBase):
             results['lists']['regions'] = regions
 
         if type_filter is None or type_filter == 'compute':
-            results['compute'] = dict(
-                    linux_instance={
-                            'id': 'linux_instance',
-                            'provides': [{'compute': 'linux'}],
-                            'is': 'compute',
-                        },
-                    windows_instance={
-                            'id': 'windows_instance',
-                            'provides': [{'compute': 'windows'}],
-                            'is': 'compute',
-                        },
-                    )
+            results['compute'] = copy.copy(CATALOG_TEMPLATE['compute'])
+            linux = results['compute']['linux_instance']
+            windows = results['compute']['windows_instance']
+            if not images:
+                images = self._images(api)
+            for image in images.values():
+                choice = dict(name=image['name'], value=image['os'])
+                if 'Windows' in image['os']:
+                    windows['options']['os']['choice'].append(choice)
+                else:
+                    linux['options']['os']['choice'].append(choice)
+
+            if not flavors:
+                flavors = self._flavors(api)
+            for flavor in flavors.values():
+                choice = dict(value=int(flavor['memory']),
+                              name="%s (%s Gb disk)" % (flavor['name'],
+                                                        flavor['disk']))
+                linux['options']['memory']['choice'].append(choice)
+                if flavor['memory'] >= 1024:  # Windows needs min 1Gb
+                    windows['options']['memory']['choice'].append(choice)
 
         if type_filter is None or type_filter == 'type':
-            images = api.images.list()
+            if not images:
+                images = self._images(api)
             if 'lists' not in results:
                 results['lists'] = {}
-            results['lists']['types'] = {
-                    str(i.id): {
-                        'name': i.name,
-                        'os': i.name.split(' - ')[0].replace(' LTS', ''),
-                        } for i in images if int(i.id) < 1000 and 'LAMP' not in
-                                i.name}
+            results['lists']['types'] = images
+        if type_filter is None or type_filter == 'size':
+            if not flavors:
+                flavors = self._flavors(api)
+            if 'lists' not in results:
+                results['lists'] = {}
+            results['lists']['sizes'] = flavors
+
         if type_filter is None or type_filter == 'image':
-            images = api.images.list()
-            if 'lists' not in results:
-                results['lists'] = {}
-            results['lists']['images'] = {
+             if 'lists' not in results:
+                 results['lists'] = {}
+             results['lists']['images'] = {
                     str(i.id): {
                         'name': i.name
-                        } for i in images if int(i.id) > 1000}
-        if type_filter is None or type_filter == 'size':
-            flavors = api.flavors.list()
-            if 'lists' not in results:
-                results['lists'] = {}
-            results['lists']['sizes'] = {
+                        } for i in api.images.list() if int(i.id) > 1000}
+
+        self.validate_catalog(results)
+        return results
+
+    @staticmethod
+    def _images(api):
+        """Gets current tenant's images and formats them in Checkmate format"""
+        images = api.images.list()
+        results = {
+                str(i.id): {
+                    'name': i.name,
+                    'os': i.name.split(' - ')[0].replace(' LTS', ''),
+                    } for i in images if int(i.id) < 1000 and 'LAMP' not in
+                            i.name}
+        return results
+
+    @staticmethod
+    def _flavors(api):
+        """Gets current tenant's flavors and formats them in Checkmate format"""
+        flavors = api.flavors.list()
+        results = {
                 str(f.id): {
                     'name': f.name,
                     'memory': f.ram,
                     'disk': f.disk,
                     } for f in flavors}
-
-        self.validate_catalog(results)
         return results
 
     @staticmethod
