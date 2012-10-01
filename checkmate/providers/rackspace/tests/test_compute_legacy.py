@@ -93,6 +93,7 @@ class TestLegacyCompute(unittest.TestCase):
         self.assertDictEqual(results, expected)
         self.mox.VerifyAll()
 
+
 class TestLegacyGenerateTemplate(unittest.TestCase):
     """Test Legacy Compute Provider's region functions"""
 
@@ -150,6 +151,7 @@ class TestLegacyGenerateTemplate(unittest.TestCase):
             'dns-name': 'fake_name',
             'type': 'compute',
             'provider': 'rackspace.legacy',
+            'service': 'master',
             'flavor': '2',
             'image': '119',
             'region': 'ORD'
@@ -249,6 +251,7 @@ class TestLegacyGenerateTemplate(unittest.TestCase):
             'provider': 'rackspace.legacy',
             'flavor': '2',
             'image': '119',
+            'service': 'master',
         }
 
         provider.get_catalog(context).AndReturn(catalog)
@@ -307,6 +310,7 @@ class TestLegacyGenerateTemplate(unittest.TestCase):
             'dns-name': 'fake_name',
             'type': 'compute',
             'provider': 'rackspace.legacy',
+            'service': 'master',
             'flavor': '2',
             'image': '119',
             'region': 'ORD'
@@ -377,6 +381,7 @@ class TestLegacyGenerateTemplate(unittest.TestCase):
             'dns-name': 'fake_name',
             'type': 'compute',
             'provider': 'rackspace.legacy',
+            'service': 'master',
             'flavor': '2',
             'image': '119',
             'region': 'ORD'

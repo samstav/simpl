@@ -89,10 +89,6 @@ checkmate.config(['$routeProvider', '$locationProvider', '$httpProvider', functi
     templateUrl: '/static/ui/partials/level2.html',
     controller: BlueprintListController
   }).
-  when('/:tenantId/workflows/:id/level2', {
-    templateUrl: '/static/ui/partials/level2.html',
-    controller: OldWorkflowController
-  }).
   otherwise({
     controller: ExternalController,
     template:'<section class="entries" ng-include="templateUrl"><img src="/static/img/ajax-loader-bar.gif" alt="Loading..."/></section>',
@@ -574,13 +570,20 @@ function WorkflowController($scope, $resource, $http, $routeParams, $location, $
         }
       } else if ($location.hash().length > 1) {
         $scope.selectSpec($location.hash());
+        $('#spec_list').css('top', $('.summaryHeader').outerHeight()); // Not sure if this is the right place for this. -Chris.Burrell (chri5089)
       } else
         $scope.selectSpec(Object.keys(object.wf_spec.task_specs)[0]);
       //$scope.play();
-    }, function(error) {
-      console.log("Error " + error.data + "(" + error.status + ") loading workflow.");
-      $scope.$root.error = {data: error.data, status: error.status, title: "Error loading workflow",
-              message: "There was an error loading your workflow:"};
+    }, function(response) {
+        console.log("Error loading workflow.", response);
+        var error = response.data.error;
+        var info = {data: error,
+                    status: response.status,
+                    title: "Error Loading Workflow",
+                    message: "There was an error loading your data:"};
+        if ('description' in error)
+            info.message = error.description;
+        $scope.$root.error = info;
       $('#modalError').modal('show');
     });
   }
@@ -896,107 +899,9 @@ function WorkflowController($scope, $resource, $http, $routeParams, $location, $
       node.attr("transform", function(d) { return "translate(" + d.x + "," + d.y + ")"; });
     };
 
-  }
-}
-
-
-function OldWorkflowController($scope, $resource, $routeParams, workflow, items, scroll) {
-  $scope.showStatus = true;
-  $scope.name = "Progress";
-
-  $scope.items = items.all;
-
-  $scope.selected = items.selected;
-
-  $scope.refresh = function() {
-    //items.getTasksFromServer();
   };
 
-  $scope.taskStates = {
-    future: 0,
-    likely: 0,
-    maybe: 0,
-    waiting: 0,
-    ready: 0,
-    cancelled: 0,
-    completed: 0,
-    triggered: 0
-  };
-
-  $scope.percentComplete = function() {
-    return (($scope.totalTime - $scope.timeRemaining) / $scope.totalTime) * 100;
-  };
-
-  $scope.selectItem = function(index) {
-    items.selectItem(index);
-    $scope.drawWorkflow;
-  };
-  
-  $scope.drawWorkflow = function() {
-    // Prepare tasks
-    var wf = items.data;  //TODO: fix this
-    $scope.task_specs = wf.wf_spec.task_specs;
-    $scope.tasks = workflow.flattenTasks({}, wf.task_tree);
-    $scope.jit = workflow.parseTasks($scope.tasks, wf.wf_spec.task_specs);
-    
-    // Render tasks
-    workflow.renderWorkflow('.entry', '#task', $scope.jit, $scope);
-    $scope.selected = {name: wf.id, read: true, active: true};
-  };
-
-  $scope.handleSpace = function() {
-    if (!scroll.pageDown()) {
-      items.next();
-    }
-  };
-  
-  $scope.init_editor = function() {
-    if ($scope.Editor !== undefined)
-      return;
-    $("#editor").text(JSON.stringify(items.data, null, "  "));
-    var foldFunc = CodeMirror.newFoldFunction(CodeMirror.braceRangeFinder);
-    $scope.Editor = CodeMirror.fromTextArea(document.getElementById('editor'), {
-      theme: 'lesser-dark',
-      mode: {name: "javascript", json: true},
-      lineNumbers: true,
-      onGutterClick: foldFunc,
-      autoFocus: true,
-      lineWrapping: true,
-      dragDrop: false,
-      matchBrackets: true
-      });
-
-  }
-
-  $scope.load = function() {
-    this.klass = $resource('/:tenantId/workflows/:id');
-    this.klass.get($routeParams,
-                   function(object, getResponseHeaders){
-      items.data = object;
-      items.tasks = workflow.flattenTasks({}, object.task_tree);
-      items.all = workflow.parseTasks(items.tasks, object.wf_spec.task_specs);
-      workflow.calculateStatistics($scope, items.all);
-      items.filtered = items.all;
-      $scope.items = items.all;
-      $scope.count = items.all.length;
-      $scope.drawWorkflow();
-      if ($scope.Editor !== undefined)
-        Editor.setValue(JSON.stringify(object));
-      if ($scope.taskStates.completed < $scope.count)
-        setTimeout($scope.load, 2000);
-    }, function(error) {
-      console.log("Error " + error.data + "(" + error.status + ") loading workflow.");
-      $scope.$root.error = {data: error.data, status: error.status, title: "Error loading workflow",
-              message: "There was an error loading your workflow:"};
-      $('#modalError').modal('show');
-    });
-  }
-  
-  $scope.$watch('items.selectedIdx', function(newVal, oldVal, scope) {
-    if (newVal !== null) scroll.toCurrent();
-  });
-  $scope.load();
-
+  // Old code we might reuse
   $scope.showConnections = function(task_div) {
     jsPlumb.Defaults.Container = "task_container";
 
@@ -1019,6 +924,7 @@ function OldWorkflowController($scope, $resource, $routeParams, workflow, items,
      });
   };
 }
+
 
 /**
  *   blueprints
@@ -1124,6 +1030,7 @@ function DeploymentTryController($scope, $location, $routeParams, $resource, set
   $scope.blueprints = WPBP;
   var ctrl = new DeploymentInitController($scope, $location, $routeParams, $resource, WPBP['MySQL'], ENVIRONMENTS['next-gen'], settings);
   $scope.updateSettings();
+  $scope.updateDatabaseProvider();
   return ctrl;
 }
 
@@ -1149,6 +1056,42 @@ function DeploymentInitController($scope, $location, $routeParams, $resource, bl
     }
   };  
   $scope.getDomains();
+  
+  $scope.onBlueprintChange = function() {
+    $scope.updateSettings();
+    $scope.updateDatabaseProvider();
+  }
+
+  $scope.updateDatabaseProvider = function() {
+    if ($scope.blueprint.id == WPBP.MySQL.id) {
+        //Remove DBaaS Provider
+        if ('database' in ENVIRONMENTS.legacy.providers) 
+            delete ENVIRONMENTS.legacy.providers.database;
+        if ('database' in ENVIRONMENTS['next-gen'].providers)
+            delete ENVIRONMENTS['next-gen'].providers.database;
+        //Add database support to chef provider
+        ENVIRONMENTS.legacy.providers['chef-local'].provides[1] = {database: "mysql"};
+        ENVIRONMENTS['next-gen'].providers['chef-local'].provides[1] = {database: "mysql"};
+        ENVIRONMENTS.legacy.providers['chef-local'].provides[2] = {compute: "mysql"};
+        ENVIRONMENTS['next-gen'].providers['chef-local'].provides[2] = {compute: "mysql"};
+
+    } else if ($scope.blueprint.id == WPBP.DBaaS.id) {
+        //Add DBaaS Provider
+        ENVIRONMENTS.legacy.providers.database == {};
+        ENVIRONMENTS['next-gen'].providers.database = {};
+
+        //Remove database support from chef-local
+        if (ENVIRONMENTS.legacy.providers['chef-local'].provides.length > 1)
+            ENVIRONMENTS.legacy.providers['chef-local'].provides.pop(1);
+        if (ENVIRONMENTS.legacy.providers['chef-local'].provides.length > 1)
+            ENVIRONMENTS.legacy.providers['chef-local'].provides.pop(1);
+
+        if (ENVIRONMENTS['next-gen'].providers['chef-local'].provides.length > 1)
+            ENVIRONMENTS['next-gen'].providers['chef-local'].provides.pop(1);
+        if (ENVIRONMENTS['next-gen'].providers['chef-local'].provides.length > 1)
+            ENVIRONMENTS['next-gen'].providers['chef-local'].provides.pop(1);
+    }
+  }
 
   $scope.updateSettings = function() {
     $scope.settings = [];
@@ -1196,7 +1139,6 @@ function DeploymentInitController($scope, $location, $routeParams, $resource, bl
       }
     }
     var template = $('#setting-' + lowerType).html();
-    console.log("Template: "+template);
     if (template === null) {
       var message = "No template for setting type '" + setting.type + "'.";
       console.log(message);
@@ -1316,10 +1258,18 @@ WPBP = {
             "master": {
                 "component": {
                     "type": "application",
-                    "name": "wordpress-master-role"
+                    "name": "wordpress-master-role",
+                    "constraints": [
+                        {
+                            "wordpress/version": "3.0.4"
+                        }
+                    ]
                 },
                 "relations": {
-                    "backend": "mysql"
+                	"wordpress/database": {
+                		"interface": "mysql",
+                		"service": "backend"
+                	}
                 },
                 "constraints": [
                     {
@@ -1331,7 +1281,7 @@ WPBP = {
                 "component": {
                     "type": "application",
                     "name": "wordpress-web-role",
-                    "options": [
+                    "constraints": [
                         {
                             "wordpress/version": "3.0.4"
                         }
@@ -1339,7 +1289,7 @@ WPBP = {
                 },
                 "relations": {
                     "master": "http",
-                    "db": {
+                    "wordpress/database": {
                         "interface": "mysql",
                         "service": "backend"
                     }
@@ -1390,7 +1340,7 @@ WPBP = {
             "register-dns": {
                 "default": false,
                 "type": "boolean",
-                "label": "Register DNS Name"
+                "label": "Create DNS records"
             },
             "region": {
                 "required": true,
@@ -1403,6 +1353,16 @@ WPBP = {
                 "constrains": [
                     {
                         "setting": "database/prefix",
+                        "service": "web",
+                        "resource_type": "application"
+                    },
+                    {
+                        "setting": "database/database_name",
+                        "service": "web",
+                        "resource_type": "application"
+                    },
+                    {
+                        "setting": "database/username",
                         "service": "web",
                         "resource_type": "application"
                     },
@@ -1446,11 +1406,6 @@ WPBP = {
             },
             "os": {
                 "constrains": [
-                    {
-                        "setting": "os",
-                        "service": "web",
-                        "resource_type": "compute"
-                    },
                     {
                         "setting": "os",
                         "service": "web",
@@ -1646,7 +1601,12 @@ WPBP = {
             "master": {
                 "component": {
                     "type": "application",
-                    "name": "wordpress-master-role"
+                    "name": "wordpress-master-role",
+                    "constraints": [
+                        {
+                            "wordpress/version": "3.0.4"
+                        }
+                    ]
                 },
                 "relations": {
                     "backend": "mysql"
@@ -1661,7 +1621,7 @@ WPBP = {
                 "component": {
                     "type": "application",
                     "name": "wordpress-web-role",
-                    "options": [
+                    "constraints": [
                         {
                             "wordpress/version": "3.0.4"
                         }
@@ -1678,7 +1638,7 @@ WPBP = {
             "backend": {
                 "component": {
                     "interface": "mysql",
-                    "type": "compute"
+                    "type": "database"
                 }
             }
         },
@@ -1720,7 +1680,7 @@ WPBP = {
             "register-dns": {
                 "default": false,
                 "type": "boolean",
-                "label": "Register DNS Name"
+                "label": "Create DNS records"
             },
             "region": {
                 "required": true,
@@ -1752,14 +1712,24 @@ WPBP = {
                         "resource_type": "application"
                     },
                     {
-                        "setting": "database/name",
-                        "service": "backend",
-                        "resource_type": "database"
+                        "setting": "database/database_name",
+                        "service": "web",
+                        "resource_type": "application"
                     },
                     {
                         "setting": "database/username",
-                        "service": "backend",
-                        "resource_type": "database"
+                        "service": "web",
+                        "resource_type": "application"
+                    },
+                    {
+                    	"setting": "database_name",
+                    	"service": "backend",
+                    	"resource_type": "database"
+                    },
+                    {
+                    	"setting": "username",
+                    	"service": "backend",
+                    	"resource_type": "database"
                     }
                 ],
                 "help": "Note that this also the user name, database name, and also identifies this\nwordpress install from other ones you might add later to the same deployment.\n",
@@ -1975,14 +1945,16 @@ ENVIRONMENTS = {
                     },
                     {
                         "database": "mysql"
+                    },
+                    {
+                        "compute": "mysql"
                     }
                 ]
             },
             "common": {
                 "vendor": "rackspace"
             },
-            "load-balancer": {},
-            "database": {}
+            "load-balancer": {}
         }
     },
     "next-gen": {
@@ -1998,14 +1970,16 @@ ENVIRONMENTS = {
                     },
                     {
                         "database": "mysql"
+                    },
+                    {
+                        "compute": "mysql"
                     }
                 ]
             },
             "common": {
                 "vendor": "rackspace"
             },
-            "load-balancer": {},
-            "database": {}
+            "load-balancer": {}
         }
     }
   };

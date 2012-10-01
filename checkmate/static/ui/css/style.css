@@ -34,9 +34,25 @@ html {
 
 body {
   height: 100%;
-  padding-top: 40px;
   overflow: hidden;
   box-sizing: border-box;
+  padding-top: 40px;
+}
+
+@media (max-width: 979px) {
+  body {
+   padding-top: 0px !important;
+   overflow: auto !important;
+  }
+  .navbar-fixed-top {
+    margin-bottom: 0px !important;
+  }
+  .mainContent {
+    height: 100%;
+    position: relative !important;
+    top: auto !important;
+    bottom: auto !important;
+  }
 }
 
 .navbar .navbar-inner {
@@ -57,7 +73,9 @@ body {
   /*display: -webkit-box;*/
   -webkit-box-orient: horizontal;
   overflow: hidden;
-  height: 100%;
+  position: absolute;
+  top: 40px;
+  bottom: 0px;
   width: 100%;
   box-sizing: border-box;
   padding-bottom: 0px;
@@ -119,15 +137,16 @@ body {
   display: -webkit-box;
   -webkit-box-align: end;
 }
-
-
 .summaryBar {
   box-sizing: border-box;
   width: 300px;
   background: #eee;
   margin-left: 0px;
-  height: inherit;
+  height: 100%;
+  position: relative;
 }
+
+
 
 .summaries {
   box-sizing: border-box;
@@ -135,13 +154,22 @@ body {
   overflow-y: scroll;
   -webkit-overflow-scrolling: touch;
   margin-left: 0px;
-  height: 100%;
-  padding-bottom: 200px; /*TODO: hack to make bottom item show up*/
+
+}
+#spec_list {
+  position: absolute;
+  top: 230px;
+  bottom: 0px;
 }
 
 .summary {
   color: #222;
   box-shadow: 5px 5px 5px rgba(210, 210, 210, 0.6);
+  padding: 6px 19px;
+}
+.summary h6 {
+  margin-top: 6px;
+  margin-bottom: 6px;
 }
 
 .summaryHeader {
@@ -159,7 +187,7 @@ body {
 }
 
 .summary.active {
-  background-color: #e4e4e4;
+  background-color: #D9EDF7;
   border: 1px solid rgba(0, 0, 0, 0.05); 
   opacity: 1.0;
 }

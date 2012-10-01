@@ -62,3 +62,17 @@ Here are a few quick notes about what you'll find inside the VM:
 * When you SSH into the VM, the vagrant user switches you to the checkmate user, sources /etc/default/checkmate
   and sources the Checkmate virtual environment (typically /opt/checkmate/bin/activate).
 * The checkmate user can sudo without a password.
+
+## Working with librarian
+
+Once you have librarian installed and the cookbooks installed, the versions are
+cached and locked in `Cheffile.lock` to prevent extra work to determine 
+dependencies every time.
+
+To update the cookbooks, you will need to run the following.
+
+    $ librarian-chef clean
+    $ librarian-chef update
+
+If you run into any issues and the above command appears to not update the
+cookbooks, you can remove `Cheffile.lock` and `cookbooks/` manually and then run `librarian-chef install` again.

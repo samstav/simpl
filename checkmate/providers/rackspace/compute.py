@@ -2,6 +2,7 @@
 
 - Supports Rackspace Open CLoud Compute Extensions and Auth
 """
+import copy
 import logging
 import os
 import uuid
@@ -15,12 +16,71 @@ from checkmate.deployments import Deployment, resource_postback
 from checkmate.exceptions import CheckmateNoTokenError, CheckmateNoMapping, \
         CheckmateServerBuildFailed, CheckmateException
 from checkmate.providers import ProviderBase
-from checkmate.utils import get_source_body, match_celery_logging, isUUID
+from checkmate.utils import get_source_body, match_celery_logging, isUUID, \
+        yaml_to_dict
 from checkmate.workflows import wait_for
 
 LOG = logging.getLogger(__name__)
-
 UBUNTU_12_04_IMAGE_ID = "5cebb13a-f783-4f8c-8058-c4182c724ccd"
+CATALOG_TEMPLATE = yaml_to_dict("""compute:
+  linux_instance:
+    id: linux_instance
+    is: compute
+    provides:
+    - compute: linux
+    options:
+        'name':
+            type: string
+            required: true
+        'os':
+            source_field_name: image
+            required: true
+            choice: []
+        'memory':
+            default: 512
+            required: true
+            source_field_name: flavor
+            choice: []
+        'personality': &personality
+            type: hash
+            required: false
+            description: File path and contents.
+            sample: |
+                    "personality: [
+                        {
+                            "path" : "/etc/banner.txt",
+                            "contents" : "ICAgICAgDQoiQSBjbG91ZCBkb2VzIG5vdCBrbm93IHdoeSBp dCBtb3ZlcyBpbiBqdXN0IHN1Y2ggYSBkaXJlY3Rpb24gYW5k IGF0IHN1Y2ggYSBzcGVlZC4uLkl0IGZlZWxzIGFuIGltcHVs c2lvbi4uLnRoaXMgaXMgdGhlIHBsYWNlIHRvIGdvIG5vdy4g QnV0IHRoZSBza3kga25vd3MgdGhlIHJlYXNvbnMgYW5kIHRo ZSBwYXR0ZXJucyBiZWhpbmQgYWxsIGNsb3VkcywgYW5kIHlv dSB3aWxsIGtub3csIHRvbywgd2hlbiB5b3UgbGlmdCB5b3Vy c2VsZiBoaWdoIGVub3VnaCB0byBzZWUgYmV5b25kIGhvcml6 b25zLiINCg0KLVJpY2hhcmQgQmFjaA=="
+                        } 
+                    ]
+        'metadata': &metadata
+            type: hash
+            required: false
+            description: Metadata key and value pairs.
+            sample: |
+                    "metadata" : {
+                        "My Server Name" : "API Test Server 1"
+                    }
+  windows_instance:
+    id: windows_instance
+    is: compute
+    provides:
+    - compute: windows
+    options:
+        'name':
+            type: string
+            required: true
+        'metadata': *metadata
+        'personality': *personality
+        'os':
+            required: true
+            source_field_name: image
+            choice: []
+        'memory':
+            required: true
+            default: 1024
+            source_field_name: flavor
+            choice: []
+""")
 
 
 class RackspaceComputeProviderBase(ProviderBase):
@@ -147,7 +207,7 @@ class Provider(RackspaceComputeProviderBase):
                         PathAttrib('instance:%s/id' % key),
                         resource['region']],
                 password=PathAttrib('instance:%s/password' % key),
-                identity_file=Attrib('private_key_path'),
+                private_key=PathAttrib('keys/deployment/private_key'),
                 properties={'estimated_duration': 150},
                 defines=dict(resource=key,
                              provider=self.key,
@@ -178,6 +238,8 @@ class Provider(RackspaceComputeProviderBase):
         # build a live catalog this would be the on_get_catalog called if no
         # stored/override existed
         api = self._connect(context)
+        images = None
+        flavors = None
 
         if type_filter is None or type_filter == 'regions':
             regions = {}
@@ -192,28 +254,41 @@ class Provider(RackspaceComputeProviderBase):
             results['lists']['regions'] = regions
 
         if type_filter is None or type_filter == 'compute':
-            results['compute'] = dict(
-                    linux_instance={
-                            'id': 'linux_instance',
-                            'provides': [{'compute': 'linux'}],
-                            'is': 'compute',
-                        },
-                    windows_instance={
-                            'id': 'windows_instance',
-                            'provides': [{'compute': 'windows'}],
-                            'is': 'compute',
-                        },
-                    )
+            results['compute'] = copy.copy(CATALOG_TEMPLATE['compute'])
+            linux = results['compute']['linux_instance']
+            windows = results['compute']['windows_instance']
+            if not images:
+                images = self._images(api)
+            for image in images.values():
+                choice = dict(name=image['name'], value=image['os'])
+                if 'Windows' in image['os']:
+                    windows['options']['os']['choice'].append(choice)
+                else:
+                    linux['options']['os']['choice'].append(choice)
+
+            if not flavors:
+                flavors = self._flavors(api)
+            for flavor in flavors.values():
+                choice = dict(value=int(flavor['memory']),
+                              name="%s (%s Gb disk)" % (flavor['name'],
+                                                        flavor['disk']))
+                linux['options']['memory']['choice'].append(choice)
+                if flavor['memory'] >= 1024:  # Windows needs min 1Gb
+                    windows['options']['memory']['choice'].append(choice)
 
         if type_filter is None or type_filter == 'type':
-            images = api.images.list()
+            if not images:
+                images = self._images(api)
             if 'lists' not in results:
                 results['lists'] = {}
-            results['lists']['types'] = {
-                    i.id: {
-                        'name': i.name,
-                        'os': i.name.split(' LTS ')[0].split(' (')[0],
-                        } for i in images}
+            results['lists']['types'] = images
+        if type_filter is None or type_filter == 'size':
+            if not flavors:
+                flavors = self._flavors(api)
+            if 'lists' not in results:
+                results['lists'] = {}
+            results['lists']['sizes'] = flavors
+
         if type_filter is None or type_filter == 'image':
             images = api.images.list()
             if 'lists' not in results:
@@ -222,18 +297,31 @@ class Provider(RackspaceComputeProviderBase):
                     i.id: {
                         'name': i.name
                         } for i in images if False}
-        if type_filter is None or type_filter == 'size':
-            flavors = api.flavors.list()
-            if 'lists' not in results:
-                results['lists'] = {}
-            results['lists']['sizes'] = {
-                f.id: {
+
+        self.validate_catalog(results)
+        return results
+
+    @staticmethod
+    def _images(api):
+        """Gets current tenant's images and formats them in Checkmate format"""
+        images = api.images.list()
+        results = {
+                str(i.id): {
+                    'name': i.name,
+                    'os': i.name.split(' LTS ')[0].split(' (')[0],
+                    } for i in images if 'LAMP' not in i.name}
+        return results
+
+    @staticmethod
+    def _flavors(api):
+        """Gets current tenant's flavors and formats them in Checkmate format"""
+        flavors = api.flavors.list()
+        results = {
+                str(f.id): {
                     'name': f.name,
                     'memory': f.ram,
                     'disk': f.disk,
                     } for f in flavors}
-
-        self.validate_catalog(results)
         return results
 
     @staticmethod
@@ -351,7 +439,10 @@ def create_server(context, name, region, api_object=None, flavor="2",
             name, server.id, server.adminPass))
 
     instance_key = 'instance:%s' % context['resource']
-    results = {instance_key: {'id': server.id, 'password': server.adminPass}}
+    results = {instance_key: {'id': server.id,
+                              'password': server.adminPass,
+                              'region': api_object.client.region_name,
+                              }}
 
     # Send data back to deployment
     resource_postback.delay(context['deployment'], results)
@@ -362,7 +453,7 @@ from checkmate.providers.rackspace.monitoring import initialize_monitoring
 @task(default_retry_delay=10, max_retries=18)  # ~3 minute wait
 def wait_on_build(context, server_id, region, ip_address_type='public',
             check_ssh=True, username='root', timeout=10, password=None,
-            identity_file=None, port=22, api_object=None):
+            identity_file=None, port=22, api_object=None, private_key=None):
     """Checks build is complete and. optionally, that SSH is working.
 
     :param ip_adress_type: the type of IP addresss to return as 'ip' in the
@@ -380,7 +471,8 @@ def wait_on_build(context, server_id, region, ip_address_type='public',
     server = api_object.servers.find(id=server_id)
     results = {'id': server_id,
             'status': server.status,
-            'addresses': server.addresses
+            'addresses': server.addresses,
+            'region': api_object.client.region_name,
             }
 
     if server.status == 'ERROR':
@@ -429,7 +521,8 @@ def wait_on_build(context, server_id, region, ip_address_type='public',
         raise CheckmateException("Could not find IP of server %s" % server_id)
     else:
         up = test_connection(context, ip, username, timeout=timeout,
-                password=password, identity_file=identity_file, port=port)
+                password=password, identity_file=identity_file, port=port,
+                private_key=private_key)
         if up:
             LOG.info("Server %s is up" % server_id)
             instance_key = 'instance:%s' % context['resource']

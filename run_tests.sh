@@ -68,7 +68,7 @@ done
 
 # If enabled, tell nose to collect coverage data
 if [ $coverage -eq 1 ]; then
-    noseopts="$noseopts --with-coverage --cover-package=keystone"
+    noseopts="$noseopts --with-coverage --cover-package=checkmate"
 fi
 
 function run_tests {
@@ -91,14 +91,14 @@ function run_pep8 {
   echo "Running pep8 ..."
   # Opt-out files from pep8
   ignore_scripts="*.sh:"
-  ignore_files="*eventlet-patch:*pip-requires:test.py"
+  ignore_files="*eventlet-patch:*pip-requires:test.py:vcsversion.py"
   ignore_dirs="*ajaxterm*"
   GLOBIGNORE="$ignore_scripts:$ignore_files:$ignore_dirs"
   srcfiles=`find bin -type f ! -name .*.swp`
-  srcfiles+=" checkmate/providers tests"
+  srcfiles+=" checkmate"
   # Just run PEP8 in current environment
   ${wrapper} pep8 --repeat --show-pep8 --show-source \
-    --exclude=vcsversion.py ${srcfiles} | tee pep8.txt
+    --exclude=${GLOBIGNORE} ${srcfiles} | tee pep8.txt
 }
 
 NOSETESTS="python run_tests.py $noseopts $noseargs"

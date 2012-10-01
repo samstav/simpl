@@ -1,12 +1,15 @@
 #!/usr/bin/env python
-import bottle
-import json
+import logging
 import os
 import unittest2 as unittest
 from checkmate.deployments import Deployment
 from uuid import UUID
 import uuid
 import collections
+
+from checkmate.utils import init_console_logging
+init_console_logging()
+LOG = logging.getLogger(__name__)
 
 os.environ['CHECKMATE_CONNECTION_STRING'] = 'sqlite://'
 from checkmate import db
@@ -147,5 +150,14 @@ class TestDatabase(unittest.TestCase):
         self.assertIsNotNone(saved_deployment, "Deployment not found")
         self.assertFalse("application" in saved_deployment.get("inputs",{}).get("services", {}).get("testservice", {}), "application not removed in saved version")
 
+
 if __name__ == '__main__':
-    unittest.main(verbosity=2)
+    # Run tests. Handle our parameters seprately
+    import sys
+    args = sys.argv[:]
+    # Our --debug means --verbose for unittest
+    if '--debug' in args:
+        args.pop(args.index('--debug'))
+        if '--verbose' not in args:
+            args.insert(1, '--verbose')
+    unittest.main(argv=args)

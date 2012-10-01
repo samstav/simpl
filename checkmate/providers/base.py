@@ -201,7 +201,8 @@ class ProviderBasePlanningMixIn():
     def generate_template(self, deployment, resource_type, service, context,
             name=None):
         """Generate a resource dict to be embedded in a deployment"""
-        result = dict(type=resource_type, provider=self.key, instance={})
+        result = dict(type=resource_type, provider=self.key, instance={},
+                      service=service)
         if not name:
             name = 'CM-%s-%s' % (deployment['id'][0:7], resource_type)
         if name:
@@ -287,7 +288,6 @@ class ProviderBase(ProviderBasePlanningMixIn, ProviderBaseWorkflowMixIn):
             if (resource_type is None or resource_type == item_type) and\
                     (interface is None or interface == item_interface):
                 filtered.append(entry)
-
         return filtered
 
     def get_catalog(self, context, type_filter=None):

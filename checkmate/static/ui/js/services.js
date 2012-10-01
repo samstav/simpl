@@ -698,8 +698,13 @@ services.config(function ($httpProvider) {
 				if (checkmate.requests <= 0)
 					$('#loading').hide();
 				var error = response;
-				$rootScope.error = {data: error.data, status: error.status, title: "Error Saving",
-						message: "There was an error saving your JSON:"};
+                                var info = {data: error.data,
+                                            status: error.status,
+                                            title: "Error Saving",
+					    message: "There was an error saving your data:"};
+                                if ('description' in error.data)
+                                    info.message = error.data.description;
+				$rootScope.error = info;
 				$('#modalError').modal('show');
                 return $q.reject(response);
             });

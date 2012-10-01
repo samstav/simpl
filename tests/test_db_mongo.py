@@ -34,10 +34,10 @@ class TestDatabase(unittest.TestCase):
 
     def setUp(self):
         self.db_name = 'checkmate_test_%s' % uuid.uuid4().hex
-        os.environ['CHECKMATE_CONNECTION_STRING'] = 'mongodb://localhost/%s' \
-                % self.db_name
-        mongodb.init()  # reset driver
         self.driver = db.get_driver('checkmate.db.mongodb.Driver')
+        self.driver.connection_string = 'mongodb://localhost/%s' % self.db_name
+        self.driver._connection = self.driver._database = None  # reset driver
+        self.driver.db_name = self.db_name
 
     def tearDown(self):
         LOG.debug("Deleting test mongodb: %s" % self.db_name)
@@ -47,17 +47,17 @@ class TestDatabase(unittest.TestCase):
             LOG.debug("Deleted test mongodb: %s" % self.db_name)
         except Exception as exc:
             LOG.error("Error deleting test mongodb '%s': %s" % (self.db_name,
-                                                              exc))
+                                                                exc))
 
     @unittest.skipIf(SKIP, REASON)
     def test_components(self):
         entity = {'id': 1,
                   'name': 'My Component',
                   'credentials': ['My Secrets']
-                 }
+                  }
         body, secrets = extract_sensitive_data(entity)
         results = self.driver.save_component(entity['id'], body, secrets,
-            tenant_id='T1000')
+                                             tenant_id='T1000')
         self.assertDictEqual(results, body)
 
         results = self.driver.get_component(entity['id'], with_secrets=True)
@@ -89,7 +89,7 @@ class TestDatabase(unittest.TestCase):
     def test_hex_id(self):
         id = uuid.uuid4().hex
         results = self.driver.save_component(id, dict(id=id), None,
-            tenant_id='T1000')
+                                             tenant_id='T1000')
         self.assertDictEqual(results, dict(id=id, tenantId='T1000'))
         self.assertNotIn('_id', results, "Backend field '_id' should not be "
                          "exposed outside of driver")
@@ -98,15 +98,14 @@ class TestDatabase(unittest.TestCase):
     def test_no_id_in_body(self):
         id = uuid.uuid4().hex
         self.assertRaises(Exception, self.driver.save_component, id, {}, None,
-            tenant_id='T1000')
+                          tenant_id='T1000')
 
     @unittest.skipIf(SKIP, REASON)
     def test_multiple_objects(self):
         expected = {}
         for i in range(4):
             expected[i] = dict(id=i, tenantId='T1000')
-            self.driver.save_component(i, dict(id=i), None,
-                    tenant_id='T1000')
+            self.driver.save_component(i, dict(id=i), None, tenant_id='T1000')
         results = self.driver.get_components()
         self.assertDictEqual(results, expected)
         for i in range(4):

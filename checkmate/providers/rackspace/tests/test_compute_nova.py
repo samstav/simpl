@@ -66,16 +66,19 @@ class TestNovaCompute(unittest.TestCase):
         openstack_api_mock.servers = self.mox.CreateMockAnything()
         openstack_api_mock.images = self.mox.CreateMockAnything()
         openstack_api_mock.flavors = self.mox.CreateMockAnything()
+        openstack_api_mock.client = self.mox.CreateMockAnything()
 
         openstack_api_mock.images.find(id=image.id).AndReturn(image)
         openstack_api_mock.flavors.find(id=flavor.id).AndReturn(flavor)
         openstack_api_mock.servers.create('fake_server', image, flavor,
                                           files=None).AndReturn(server)
+        openstack_api_mock.client.region_name = "NORTH"
 
         expected = {
             'instance:1': {
                 'id': server.id,
                 'password': server.adminPass,
+                'region': "NORTH",
             }
         }
 
@@ -154,6 +157,7 @@ class TestNovaGenerateTemplate(unittest.TestCase):
             'type': 'compute',
             'provider': provider.key,
             'flavor': '2',
+            'service': 'master',
             'image': compute.UBUNTU_12_04_IMAGE_ID,
             'region': 'ORD'
         }

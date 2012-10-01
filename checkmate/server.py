@@ -8,24 +8,23 @@ import sys
 
 import checkmate.common.tracer  # @UnusedImport # module runs on import
 
-# Init logging before we load the database, 3rd party, and 'noisy' modules
-from checkmate.utils import init_console_logging
-init_console_logging()
 # pylint: disable=E0611
 from bottle import app, run, request, response, error, HeaderDict, \
         default_app, load
 
+
+from checkmate.exceptions import CheckmateException, CheckmateNoMapping, \
+        CheckmateValidationException, CheckmateNoData, CheckmateDoesNotExist, \
+        CheckmateBadState, CheckmateDatabaseConnectionError
+from checkmate import middleware
+from checkmate.utils import STATIC, write_body
+
 LOG = logging.getLogger(__name__)
 
-from checkmate.exceptions import CheckmateException, CheckmateNoMapping
-from checkmate import middleware
-from checkmate.utils import STATIC
 
-
-@error(code=500)
-def custom_500(error):
-    """Catch 500 errors that originate from a CheckmateExcption and output the
-    Checkmate error information (more useful than a blind 500)"""
+def error_formatter(error):
+    """Catch errors and output them in the correct format/media-type"""
+    output = {}
     accept = request.get_header("Accept")
     if "application/json" in accept:
         error.headers = HeaderDict({"content-type": "application/json"})
@@ -33,36 +32,70 @@ def custom_500(error):
     elif "application/x-yaml" in accept:
         error.headers = HeaderDict({"content-type": "application/x-yaml"})
         error.apply(response)
-        #error.set_header = lambda s, h, v: LOG.debug(s)
-    if isinstance(error.exception, CheckmateNoMapping):
-        error.status = '406 Bad Request'
-        error.output = error.exception.__str__()
-    elif isinstance(error.exception, CheckmateException):
-        error.status = '406 Bad Request'
-        error.output = json.dumps(error.exception.__str__())
 
-    return error.output #write_body(error, request, response)
+    if isinstance(error.exception, CheckmateNoMapping):
+        error.status = 406
+        error.output = error.exception.__str__()
+    elif isinstance(error.exception, CheckmateDoesNotExist):
+        error.status = 404
+        error.output = error.exception.__str__()
+    elif isinstance(error.exception, CheckmateValidationException):
+        error.status = 400
+        error.output = error.exception.__str__()
+    elif isinstance(error.exception, CheckmateNoData):
+        error.status = 400
+        error.output = error.exception.__str__()
+    elif isinstance(error.exception, CheckmateBadState):
+        error.status = 409
+        error.output = error.exception.__str__()
+    elif isinstance(error.exception, CheckmateDatabaseConnectionError):
+        error.status = 500
+        error.output = "Database connection error on server."
+        output['reason'] = error.exception.__str__()
+    elif isinstance(error.exception, CheckmateException):
+        error.output = error.exception.__str__()
+    elif isinstance(error.exception, AssertionError):
+        error.status = 400
+        error.output = error.exception.__str__()
+    else:
+        # For other 500's, provide underlying cause
+        if error.exception:
+            output['reason'] = error.exception.__str__()
+
+    output['description'] = error.output
+    output['code'] = error.status
+    response.status = error.status
+    return write_body(dict(error=output), request, response)
 
 
 #if __name__ == '__main__':
 def main_func():
+
+    # Init logging before we load the database, 3rd party, and 'noisy' modules
+    from checkmate.utils import init_logging
+    init_logging(default_config="/etc/default/checkmate-svr-log.conf")
+
     # Register built-in providers
     from checkmate.providers import rackspace, opscode
 
     # Load routes from other modules
     LOG.info("Loading API")
     load("checkmate.api")
-    with_simulator=False
+    with_simulator = False
     if '--with-simulator' in sys.argv:
         load("checkmate.simulator")
-        with_simulator=True
+        with_simulator = True
 
     # Build WSGI Chain:
     LOG.info("Loading Application")
     next_app = default_app()  # This is the main checkmate app
-    app.error_handler = {500: custom_500}
-    next_app.catch_all = True  # Handle errors ourselves so we can format them
-    next_app = middleware.ExceptionMiddleware(next_app)
+    next_app.error_handler = {500: error_formatter,
+                              404: error_formatter,
+                              405: error_formatter,
+                              406: error_formatter,
+                              415: error_formatter,
+                              }
+    next_app.catchall = True
     next_app = middleware.AuthorizationMiddleware(next_app,
                                                   anonymous_paths=STATIC)
     #next = middleware.PAMAuthMiddleware(next, all_admins=True)
@@ -89,12 +122,14 @@ def main_func():
         next = middleware.BasicAuthMultiCloudMiddleware(next, domains=domains)
     """
     if '--with-ui' in sys.argv:
-        next_app = middleware.BrowserMiddleware(next_app, proxy_endpoints=endpoints, with_simulator=with_simulator)
+        next_app = middleware.BrowserMiddleware(next_app,
+                                                proxy_endpoints=endpoints,
+                                                with_simulator=with_simulator)
     next_app = middleware.TenantMiddleware(next_app)
     next_app = middleware.ContextMiddleware(next_app)
     next_app = middleware.StripPathMiddleware(next_app)
     next_app = middleware.ExtensionsMiddleware(next_app)
-    next_app = middleware.CatchAll404(next_app)
+    #next_app = middleware.CatchAll404(next_app)
     if '--newrelic' in sys.argv:
         import newrelic.agent
         newrelic.agent.initialize(os.path.normpath(os.path.join(
