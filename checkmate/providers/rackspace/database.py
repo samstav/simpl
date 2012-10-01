@@ -354,7 +354,6 @@ def create_instance(context, instance_name, size, flavor, databases, region,
                     'id': instance.id,
                     'name': instance.name,
                     'status': instance.status,
-                    'hostname': instance.hostname,
                     'region': region,
                     'interfaces': {
                             'mysql': {

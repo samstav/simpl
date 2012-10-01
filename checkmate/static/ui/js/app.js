@@ -1609,7 +1609,10 @@ WPBP = {
                     ]
                 },
                 "relations": {
-                    "backend": "mysql"
+                	"wordpress/database": {
+                		"interface": "mysql",
+                		"service": "backend"
+                	}
                 },
                 "constraints": [
                     {
@@ -1629,10 +1632,10 @@ WPBP = {
                 },
                 "relations": {
                     "master": "http",
-                    "db": {
-                        "interface": "mysql",
-                        "service": "backend"
-                    }
+                    "wordpress/database": {
+                		"interface": "mysql",
+                		"service": "backend"
+                	}
                 }
             },
             "backend": {
