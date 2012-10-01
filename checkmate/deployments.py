@@ -3,26 +3,113 @@ import os
 import uuid
 
 # pylint: disable=E0611
-from bottle import get, post, put, request, response, route, abort
+from bottle import get, post, request, response, route, abort
 from celery.task import task
 from SpiffWorkflow import Workflow, Task
 from SpiffWorkflow.storage import DictionarySerializer
 
+from checkmate import keys
 from checkmate import orchestrator
 from checkmate.classes import ExtensibleDict
 from checkmate.common import schema
-from checkmate.components import Component
 from checkmate.db import get_driver, any_id_problems
 from checkmate.environments import Environment
-from checkmate.exceptions import CheckmateException, \
-        CheckmateValidationException
+from checkmate.exceptions import CheckmateException, CheckmateDoesNotExist, \
+        CheckmateValidationException, CheckmateBadState
 from checkmate.providers import ProviderBase
-from checkmate.workflows import create_workflow
+from checkmate.workflows import create_workflow_deploy
 from checkmate.utils import write_body, read_body, extract_sensitive_data, \
         merge_dictionary, with_tenant, is_ssh_key, get_time_string
 
 LOG = logging.getLogger(__name__)
 db = get_driver()
+
+
+def _content_to_deployment(bottle_request, deployment_id=None, tenant_id=None):
+    """Receives request content and puts it in a deployment
+
+    :param bottle_request: the bottlepy request object
+    :param deployment_id: the expected/requested ID
+    :param tenant_id: the tenant ID in the request
+
+    """
+    entity = read_body(bottle_request)
+    if 'deployment' in entity:
+        entity = entity['deployment']  # Unwrap if wrapped
+    if 'id' not in entity:
+        entity['id'] = deployment_id or uuid.uuid4().hex
+    if any_id_problems(entity['id']):
+        raise CheckmateValidationException(any_id_problems(entity['id']))
+    deployment = Deployment(entity)  # Also validates syntax
+    if 'includes' in deployment:
+        del deployment['includes']
+    if 'tenantId' in deployment and tenant_id:
+        assert deployment['tenantId'] == tenant_id, ("tenantId must match "
+                                                     "with current tenant ID")
+    else:
+        assert tenant_id, "Tenant ID must be specified in deployment "
+        deployment['tenantId'] = tenant_id
+    return deployment
+
+
+def _save_deployment(deployment, deployment_id=None, tenant_id=None):
+    """Sync ID and tenant and save deployment
+
+    :returns: saved deployment
+    """
+    if not deployment_id:
+        if 'id' not in deployment:
+            deployment_id = uuid.uuid4().hex
+            deployment['id'] = deployment_id
+        else:
+            deployment_id = deployment['id']
+    else:
+        if 'id' not in deployment:
+            deployment['id'] = deployment_id
+        else:
+            assert deployment_id == deployment['id'], ("Deployment ID does "
+                                                       "not match "
+                                                       "deploymentId")
+    if 'tenantId' in deployment:
+        if tenant_id:
+            assert deployment['tenantId'] == tenant_id, ("tenantId must match "
+                                                     "with current tenant ID")
+        else:
+            tenant_id = deployment['tenantId']
+    else:
+        assert tenant_id, "Tenant ID must be specified in deployment"
+        deployment['tenantId'] = tenant_id
+    body, secrets = extract_sensitive_data(deployment)
+    return db.save_deployment(deployment_id, body, secrets,
+                              tenant_id=tenant_id)
+
+
+def _create_deploy_workflow(deployment, context):
+    workflow = create_workflow_deploy(deployment, context)
+    serializer = DictionarySerializer()
+    serialized_workflow = workflow.serialize(serializer)
+    return serialized_workflow
+
+
+def _deploy(deployment, context):
+    """Deploys a deployment and returns the workflow"""
+    if deployment.get('status') != 'PLANNED':
+        raise CheckmateBadState("Deployment '%s' is in '%s' status and must "
+                                "be in 'PLANNED' status to be deployed" %
+                                (deployment['id'], deployment.get('status')))
+    deployment_keys = generate_keys(deployment)
+    workflow = _create_deploy_workflow(deployment, context)
+    workflow['id'] = deployment['id']  #TODO: need to support multiple workflows
+    deployment['workflow'] = workflow['id']
+    deployment['status'] = "LAUNCHED"
+
+    body, secrets = extract_sensitive_data(workflow)
+    db.save_workflow(workflow['id'], body, secrets,
+                     tenant_id=deployment['tenantId'])
+
+    _save_deployment(deployment)
+
+    return workflow
 
 
 #
@@ -34,16 +121,19 @@ def get_deployments(tenant_id=None):
     return write_body(db.get_deployments(tenant_id=tenant_id), request,
             response)
 
+
 @get('/deployments/count')
 @with_tenant
 def get_deployments_count(tenant_id=None):
     """
-    Get the number of deployments. May limit response to include all deployments
-    for a particular tenant and/or blueprint
-    
+    Get the number of deployments. May limit response to include all
+    deployments for a particular tenant and/or blueprint
+
     :param:tenant_id: the (optional) tenant
-    """ 
-    return write_body({"count": len(db.get_deployments(tenant_id=tenant_id))}, request, response)
+    """
+    return write_body({"count": len(db.get_deployments(tenant_id=tenant_id))},
+            request, response)
+
 
 @get("/deployments/count/<blueprint_id>")
 @with_tenant
@@ -62,28 +152,13 @@ def get_deployments_by_bp_count(blueprint_id, tenant_id=None):
             LOG.debug("No blueprint defined in deployment {}".format(dep_id))
     return write_body(ret, request, response)
 
+
 @post('/deployments')
 @with_tenant
 def post_deployment(tenant_id=None):
-    entity = read_body(request)
-
-    if 'deployment' in entity:
-        entity = entity['deployment']
-
-    if 'id' not in entity:
-        entity['id'] = uuid.uuid4().hex
-    if any_id_problems(entity['id']):
-        abort(406, any_id_problems(entity['id']))
-
-    # Validate syntax
-    deployment = Deployment(entity)
-    if 'includes' in deployment:
-        del deployment['includes']
-
+    deployment = _content_to_deployment(request, tenant_id=tenant_id)
     oid = str(deployment['id'])
-    body, secrets = extract_sensitive_data(deployment)
-    db.save_deployment(oid, body, secrets, tenant_id=tenant_id)
-
+    _save_deployment(deployment, deployment_id=oid, tenant_id=tenant_id)
     # Return response (with new resource location in header)
     if tenant_id:
         response.add_header('Location', "/%s/deployments/%s" % (tenant_id,
@@ -94,44 +169,21 @@ def post_deployment(tenant_id=None):
     #Assess work to be done & resources to be created
     parsed_deployment = plan(deployment, request.context)
 
-    # Create workflow
-    workflow = create_workflow(parsed_deployment, request.context)
+    # Create a 'new deployment' workflow
+    workflow = _deploy(parsed_deployment, request.context)
 
-    serializer = DictionarySerializer()
-    serialized_workflow = workflow.serialize(serializer)
-    serialized_workflow['id'] = oid
-    parsed_deployment['workflow'] = oid
-
-    body, secrets = extract_sensitive_data(deployment)
-    deployment = db.save_deployment(oid, body, secrets, tenant_id=tenant_id)
-
-    body, secrets = extract_sensitive_data(serialized_workflow)
-    db.save_workflow(oid, body, secrets, tenant_id=tenant_id)
-
-    #Trigger the workflow
+    #Trigger the workflow in the queuing service
     async_task = execute(oid)
+    LOG.debug("Triggered workflow (task='%s')" % async_task)
 
-    return write_body(deployment, request, response)
+    return write_body(parsed_deployment, request, response)
 
 
 @post('/deployments/+parse')
 @with_tenant
 def parse_deployment(tenant_id=None):
     """Parse a deployment and return the parsed response"""
-    entity = read_body(request)
-    if 'deployment' in entity:
-        entity = entity['deployment']
-
-    if 'id' not in entity:
-        entity['id'] = uuid.uuid4().hex
-    if any_id_problems(entity['id']):
-        abort(406, any_id_problems(entity['id']))
-
-    # Validate syntax
-    deployment = Deployment(entity)
-    if 'includes' in deployment:
-        del deployment['includes']
-
+    deployment = _content_to_deployment(request, tenant_id=tenant_id)
     results = plan(deployment, request.context)
     return write_body(results, request, response)
 
@@ -140,49 +192,75 @@ def parse_deployment(tenant_id=None):
 @with_tenant
 def preview_deployment(tenant_id=None):
     """Parse and preview a deployment and its workflow"""
-    entity = read_body(request)
-    if 'deployment' in entity:
-        entity = entity['deployment']
-
-    if 'id' not in entity:
-        entity['id'] = uuid.uuid4().hex
-    if any_id_problems(entity['id']):
-        abort(406, any_id_problems(entity['id']))
-
-    # Validate syntax
-    deployment = Deployment(entity)
-    if 'includes' in deployment:
-        del deployment['includes']
-
+    deployment = _content_to_deployment(request, tenant_id=tenant_id)
     results = plan(deployment, request.context)
-
-    workflow = create_workflow(results, request.context)
-    serializer = DictionarySerializer()
-    serialized_workflow = workflow.serialize(serializer)
-    results['workflow'] = serialized_workflow
-
+    workflow = _create_deploy_workflow(results, request.context)
+    results['workflow'] = workflow
     return write_body(results, request, response)
 
 
-@route('/deployments/<oid>', method=['POST', 'PUT'])
+@route('/deployments/<oid>', method=['PUT'])
 @with_tenant
 def update_deployment(oid, tenant_id=None):
-    entity = read_body(request)
-    if 'deployment' in entity:
-        entity = entity['deployment']
+    """Store a deployment on this server"""
+    deployment = _content_to_deployment(request, deployment_id=oid,
+                                        tenant_id=tenant_id)
+    results = _save_deployment(deployment, deployment_id=oid,
+                               tenant_id=tenant_id)
+    # Return response (with new resource location in header)
+    if tenant_id:
+        response.add_header('Location', "/%s/deployments/%s" % (tenant_id,
+                                                                oid))
+    else:
+        response.add_header('Location', "/deployments/%s" % oid)
+    return write_body(results, request, response)
 
+
+@route('/deployments/<oid>/+plan', method=['POST', 'GET'])
+@with_tenant
+def plan_deployment(oid, tenant_id=None):
+    """Plan a NEW deployment and save it as PLANNED"""
     if any_id_problems(oid):
         abort(406, any_id_problems(oid))
-    if 'id' not in entity:
-        entity['id'] = str(oid)
-
-    # Validate syntax
-    deployment = Deployment(entity)
-
-    body, secrets = extract_sensitive_data(deployment)
-    results = db.save_deployment(oid, body, secrets, tenant_id=tenant_id)
-
+    entity = db.get_deployment(oid, with_secrets=True)
+    if not entity:
+        raise CheckmateDoesNotExist('No deployment with id %s' % oid)
+    if entity.get('status', 'NEW') != 'NEW':
+        raise CheckmateBadState("Deployment '%s' is in '%s' status and must "
+                                "be in 'NEW' to be planned" %
+                                (oid, entity.get('status')))
+    deployment = Deployment(entity)  # Also validates syntax
+    planned_deployment = plan(deployment, request.context)
+    results = _save_deployment(planned_deployment, deployment_id=oid,
+                               tenant_id=tenant_id)
     return write_body(results, request, response)
+
+
+@route('/deployments/<oid>/+deploy', method=['POST', 'GET'])
+@with_tenant
+def deploy_deployment(oid, tenant_id=None):
+    """Deploy a NEW or PLANNED deployment and save it as DEPLOYED"""
+    if any_id_problems(oid):
+        raise CheckmateValidationException(any_id_problems(oid))
+    entity = db.get_deployment(oid, with_secrets=True)
+    if not entity:
+        CheckmateDoesNotExist('No deployment with id %s' % oid)
+    deployment = Deployment(entity)  # Also validates syntax
+    if entity.get('status', 'NEW') == 'NEW':
+        deployment = plan(deployment, request.context)
+    if entity.get('status') != 'PLANNED':
+        raise CheckmateBadState("Deployment '%s' is in '%s' status and must "
+                                "be in 'PLANNED' or 'NEW' status to be "
+                                "deployed" % (oid, entity.get('status')))
+
+    # Create a 'new deployment' workflow
+    workflow = _deploy(deployment, request.context)
+
+    #Trigger the workflow
+    async_task = execute(oid)
+    LOG.debug("Triggered workflow (task='%s')" % async_task)
+
+    return write_body(deployment, request, response)
 
 
 @get('/deployments/<oid>')
@@ -193,7 +271,7 @@ def get_deployment(oid, tenant_id=None):
     else:
         entity = db.get_deployment(oid)
     if not entity:
-        abort(404, 'No deployment with id %s' % oid)
+        raise CheckmateDoesNotExist('No deployment with id %s' % oid)
     return write_body(entity, request, response)
 
 
@@ -610,7 +688,7 @@ def _verify_required_blueprint_options_supplied(deployment):
 
 def get_os_env_keys():
     """Get keys if they are set in the os_environment"""
-    keys = {}
+    dkeys = {}
     if ('CHECKMATE_PUBLIC_KEY' in os.environ and
             os.path.exists(os.path.expanduser(
                 os.environ['CHECKMATE_PUBLIC_KEY']))):
@@ -619,10 +697,10 @@ def get_os_env_keys():
             with file(path, 'r') as f:
                 key = f.read()
             if is_ssh_key(key):
-                keys['checkmate'] = {'public_key_ssh': key,
+                dkeys['checkmate'] = {'public_key_ssh': key,
                         'public_key_path': path}
             else:
-                keys['checkmate'] = {'public_key': key,
+                dkeys['checkmate'] = {'public_key': key,
                         'public_key_path': path}
         except IOError as (errno, strerror):
             LOG.error("I/O error reading public key from CHECKMATE_PUBLIC_KEY="
@@ -633,56 +711,64 @@ def get_os_env_keys():
             LOG.error("Error reading public key from CHECKMATE_PUBLIC_KEY="
                     "'%s' environment variable: %s" % (
                             os.environ['CHECKMATE_PUBLIC_KEY'], exc))
-    return keys
+    return dkeys
 
 
-def get_keys(inputs, environment):
-    """Get keys from inputs or generate them if they are not there.
+def get_client_keys(inputs):
+    """Get/generate client-supplied or requested keys keys
 
-    Inputs can supply a 'client' public key to be added to all servers.
-
-    Inputs can also supply environment private/public key pairs. If not, then
-    a pair is generated.
+    Inputs can supply a 'client' public key to be added to all servers or
+    specify a command to generate the keys.
     """
-    keys = {}
-    # Get 'client' keys
+    results = {}
     if 'client_public_key' in inputs:
         if is_ssh_key(inputs['client_public_key']):
-            abort(406, "ssh public key must be in public_key_ssh field, not "
-                    "client_public_key. client_public_key must be in PEM "
-                    "format.")
-        keys['client'] = {'public_key': inputs['client_public_key']}
+            abort(406, "ssh public key must be in client_public_key_ssh "
+                  "field, not client_public_key. client_public_key must be in "
+                  "PEM format.")
+        results['client'] = {'public_key': inputs['client_public_key']}
 
     if 'client_public_key_ssh' in inputs:
         if not is_ssh_key(inputs['client_public_key_ssh']):
             abort(406, "client_public_key_ssh input is not a valid ssh public "
                     "key string: %s" % inputs['client_public_key_ssh'])
-        keys['client'] = {'public_key_ssh': inputs['client_public_key_ssh']}
+        results['client'] = {'public_key_ssh': inputs['client_public_key_ssh']}
+    return results
 
-    # Get 'environment' keys
-    private_key = inputs.get('environment_private_key')
-    if private_key is None or private_key.startswith('=generate_private_key('):
-        private, public = environment.generate_key_pair()
-        keys['environment'] = dict(public_key=public['PEM'],
-                public_key_ssh=public['ssh'], private_key=private['PEM'])
-        if not private_key or private_key.startswith('=generate_private_key('):
-            inputs['environment_private_key'] = private['PEM']
+
+def generate_keys(deployment):
+    """Generates keys for the deployment.
+
+    Generates:
+        private_key
+        public_key
+        public_key_ssh
+    """
+    dkeys = deployment.get('resources', {}).get('keys', {})
+    results = {}
+    private_key = dkeys.get('private_key')
+    if private_key is None:
+        private, public = keys.generate_key_pair()
+        results.update(dict(public_key=public['PEM'],
+                public_key_ssh=public['ssh'], private_key=private['PEM']))
     else:
         # Private key was supplied, make sure we have or can get a public key
-        results = {}
-        if 'environment_public_key' in inputs:
-            results['public_key'] = inputs['environment_public_key']
-        if 'environment_public_key_ssh' in inputs:
-            results['public_key_ssh'] = inputs['environment_public_key_ssh']
-        if 'environment_public_key_ssh' not in results:
-            # Generate public ssh key
-            public_key = environment.get_ssh_public_key(private_key)
+        if 'public_key' not in dkeys:
+            results['public_key'] = keys.get_public_key(private_key)
+        if 'public_key_ssh' not in results:
+            public_key = keys.get_ssh_public_key(private_key)
             results['public_key_ssh'] = public_key
 
         results['private_key'] = private_key
-        keys['environment'] = results
 
-    return keys
+    if results:
+        if 'resources' not in deployment:
+            deployment['resources'] = {}
+        if 'keys' not in deployment['resources']:
+            deployment['resources']['keys'] = {}
+        deployment['resources']['keys'].update(results)
+
+    return results
 
 
 class Resource():
@@ -785,15 +871,18 @@ class Deployment(ExtensibleDict):
         # Read in the public keys to be passed to newly created servers.
         os_keys = get_os_env_keys()
 
-        keys = get_keys(inputs, self.environment())
+        all_keys = get_client_keys(inputs)
         if os_keys:
-            keys.update(os_keys)
+            all_keys.update(os_keys)
+        deployment_keys = self.get('resources', {}).get('keys')
+        if deployment_keys:
+            all_keys['deployment'] = deployment_keys
 
-        if not keys:
+        if not all_keys:
             LOG.warn("No keys supplied. Less secure password auth will be "
                     "used.")
 
-        results['keys'] = keys
+        results['keys'] = all_keys
 
         results['domain'] = inputs.get('domain', os.environ.get(
                     'CHECKMATE_DOMAIN', 'checkmate.local'))
@@ -1002,7 +1091,6 @@ class Deployment(ExtensibleDict):
                         result = option[name]
                         LOG.debug("Found setting '%s' in environment" % name)   
                         return result
-
 
     def get_components(self, context):
         """Collect all requirements from components

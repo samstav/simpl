@@ -1,6 +1,5 @@
 #!/usr/bin/env python
 import logging
-import sys
 import unittest2 as unittest
 
 from checkmate.utils import init_console_logging

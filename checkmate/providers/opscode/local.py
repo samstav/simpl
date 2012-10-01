@@ -50,16 +50,16 @@ class Provider(ProviderBase):
     def prep_environment(self, wfspec, deployment, context):
         if self.prep_task:
             return  # already prepped
-        create_environment = Celery(wfspec, 'Create Chef Environment',
+        create_environment_task = Celery(wfspec, 'Create Chef Environment',
                 'checkmate.providers.opscode.local.create_environment',
                 call_args=[deployment['id']],
-                public_key_ssh=PathAttrib('keys/environment/public_key_ssh'),
-                private_key=PathAttrib('keys/environment/private_key'),
+                public_key_ssh=PathAttrib('keys/deployment/public_key_ssh'),
+                private_key=PathAttrib('keys/deployment/private_key'),
                 secret_key=PathAttrib('secret_key'),
                 defines=dict(provider=self.key,
                             task_tags=['root']),
                 properties={'estimated_duration': 10})
-        self.prep_task = create_environment
+        self.prep_task = create_environment_task
 
         # Create a global task to write options. This will be fed into and
         # connected to by other tasks as needed. The 'write_options' tag
@@ -100,13 +100,14 @@ class Provider(ProviderBase):
                 defines=dict(provider=self.key),
                 )
         # We need to make sure the environment exists before writing options.
-        collect.follow(create_environment)
+        collect.follow(create_environment_task)
         write_options.follow(collect)
         # Any tasks that need to be collected will wire themselves into this
         # task
         self.collect_data_tasks = dict(root=collect, final=write_options)
 
-        return dict(root=create_environment, final=create_environment)
+        return dict(root=create_environment_task,
+                    final=create_environment_task)
 
     def add_resource_tasks(self, resource, key, wfspec, deployment, context,
                            wait_on=None):
@@ -1202,7 +1203,8 @@ def _create_kitchen(name, path, secret_key=None):
             raise CheckmateException("Kitchen already exists and seems to "
                     "have nodes defined in it: %s" % nodes_path)
     else:
-        params = ['knife', 'kitchen', '.']
+        params = ['knife', 'kitchen', '.',
+                  '-c', os.path.join(kitchen_path, 'solo.rb')]
         _run_kitchen_command(kitchen_path, params)
 
     secret_key_path = os.path.join(kitchen_path, 'certificates', 'chef.pem')
@@ -1497,7 +1499,8 @@ def register_node(host, environment, path=None, password=None,
                 node_path)
 
     # Build and execute command 'knife prepare' command
-    params = ['knife', 'prepare', 'root@%s' % host]
+    params = ['knife', 'prepare', 'root@%s' % host,
+              '-c', os.path.join(kitchen_path, 'solo.rb')]
     if password:
         params.extend(['-P', password])
     if omnibus_version:
@@ -1537,6 +1540,11 @@ def _run_kitchen_command(kitchen_path, params, lock=True):
     can be set to false so thise code does not lock
     """
     LOG.debug("Running: '%s' in path '%s'" % (' '.join(params), kitchen_path))
+    if '-c' not in params:
+        LOG.warning("Knife command called without a '-c' flag. The '-c' flag "
+                  "is a strong safeguard in case knife runs in the wrong "
+                  "directory. Consider adding it and pointing to solo.rb")
+        params.extend(['-c', os.path.join(kitchen_path, 'solo.rb')])
     if lock:
         path_lock = threading.Lock()
         path_lock.acquire()
@@ -1647,7 +1655,8 @@ def cook(host, environment, recipes=None, roles=None, path=None,
     # Build and run command
     if not username:
         username = 'root'
-    params = ['knife', 'cook', '%s@%s' % (username, host)]
+    params = ['knife', 'cook', '%s@%s' % (username, host),
+              '-c', os.path.join(kitchen_path, 'solo.rb')]
     if identity_file:
         params.extend(['-i', identity_file])
     if password:
@@ -1725,16 +1734,32 @@ def manage_databag(environment, bagname, itemname, contents,
         raise CheckmateException("Data bags path does not exist: %s" %
                 databags_root)
 
-    databag_path = os.path.join(databags_root, bagname)
-    if not os.path.exists(databag_path):
+    # Check if the bag already exists (create it if not)
+    params = ['knife', 'solo', 'data', 'bag', 'list', '-F', 'json',
+              '-c', os.path.join(kitchen_path, 'solo.rb')]
+    data_bags = _run_kitchen_command(kitchen_path, params)
+    if data_bags:
+        data_bags = json.loads(data_bags)
+    if bagname not in data_bags:
         merge = False  # Nothing to merge if it is new!
         _run_kitchen_command(kitchen_path, ['knife', 'solo', 'data', 'bag',
-                'create', bagname])
-        LOG.debug("Created data bag: %s" % databag_path)
+                'create', bagname,
+                '-c', os.path.join(kitchen_path, 'solo.rb')])
+        LOG.debug("Created data bag '%s' in '%s'" % (bagname, databags_root))
 
+    # Check if the item already exists (create it if not)
+    params = ['knife', 'solo', 'data', 'bag', 'show', bagname, '-F', 'json',
+              '-c', os.path.join(kitchen_path, 'solo.rb')]
+    existing_contents = _run_kitchen_command(kitchen_path, params)
+    if existing_contents:
+        existing_contents = json.loads(existing_contents)
+    if itemname not in existing_contents:
+        merge = False  # Nothing to merge if it is new!
+
+    # Write contents
     if merge:
         params = ['knife', 'solo', 'data', 'bag', 'show', bagname, itemname,
-            '-F', 'json']
+            '-F', 'json', '-c', os.path.join(kitchen_path, 'solo.rb')]
         if secret_file:
             params.extend(['--secret-file', secret_file])
 
@@ -1746,9 +1771,9 @@ def manage_databag(environment, bagname, itemname, contents,
             contents = merge_dictionary(existing, contents)
             if isinstance(contents, dict):
                 contents = json.dumps(contents)
-            params = ['knife', 'solo', 'data',
-                    'bag', 'create', bagname, itemname, '-d', '--json',
-                    contents]
+            params = ['knife', 'solo', 'data', 'bag', 'create', bagname,
+                      itemname, '-c', os.path.join(kitchen_path, 'solo.rb'),
+                      '-d', '--json', contents]
             if secret_file:
                 params.extend(['--secret-file', secret_file])
             result = _run_kitchen_command(kitchen_path, params, lock=False)
@@ -1771,8 +1796,9 @@ def manage_databag(environment, bagname, itemname, contents,
                     itemname))
         if isinstance(contents, dict):
             contents = json.dumps(contents)
-        params = ['knife', 'solo', 'data',
-                'bag', 'create', bagname, itemname, '-d', '--json', contents]
+        params = ['knife', 'solo', 'data', 'bag', 'create', bagname, itemname,
+                  '-d', '-c', os.path.join(kitchen_path, 'solo.rb'),
+                  '--json', contents]
         if secret_file:
             params.extend(['--secret-file', secret_file])
         result = _run_kitchen_command(kitchen_path, params)

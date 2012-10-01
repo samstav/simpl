@@ -22,6 +22,11 @@ class CheckmateDatabaseMigrationError(CheckmateException):
     pass
 
 
+class CheckmateDatabaseConnectionError(CheckmateException):
+    """Error connecting to backend database"""
+    pass
+
+
 class CheckmateNoTokenError(CheckmateException):
     """No cloud auth token was available in this session. Try logging on using
     an auth token"""
@@ -30,6 +35,21 @@ class CheckmateNoTokenError(CheckmateException):
 
 class CheckmateNoMapping(CheckmateException):
     """No mapping found between parameter types"""
+    pass
+
+
+class CheckmateNoData(CheckmateException):
+    """No data found"""
+    pass
+
+
+class CheckmateDoesNotExist(CheckmateException):
+    """Object does not exist"""
+    pass
+
+
+class CheckmateBadState(CheckmateException):
+    """Object is not in correct state for the requested operation"""
     pass
 
 
@@ -57,6 +77,7 @@ class CheckmateCalledProcessError(CheckmateException):
             return self.error_info
         else:
             return super(CheckmateException, self).__str__()
+
 
 class CheckmateServerBuildFailed(CheckmateException):
     pass
