@@ -314,6 +314,7 @@ class Environment():
         """
         resource_type = blueprint_entry.get('type')
         interface = blueprint_entry.get('interface')
+        default = None
         for provider in self.get_providers(context).values():
             matches = []
             if resource_type or interface:
@@ -335,5 +336,9 @@ class Environment():
                 else:
                     LOG.warning("Ambiguous component '%s' matches: %s" %
                             (blueprint_entry, matches))
-
-
+                    if not default:
+                        default = Component(matches[0], provider=provider)
+                        LOG.warning("Will use '%s.%s' as a default if no "
+                                    "match is found" %
+                                    (provider.key, default['id']))
+        return default

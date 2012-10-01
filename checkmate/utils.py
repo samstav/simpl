@@ -22,7 +22,6 @@ from yaml.events import AliasEvent, ScalarEvent
 from yaml.parser import ParserError
 from yaml.composer import ComposerError
 import argparse
-from pip.locations import default_config_file
 
 from checkmate.exceptions import CheckmateNoData, CheckmateValidationException
 
