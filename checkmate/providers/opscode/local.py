@@ -752,19 +752,26 @@ class Provider(ProviderBase):
             # We have a prexisting or injected catalog stored. Use it.
             return results
 
-        # build a live catalog ()this would be the on_get_catalog called if no
+        # build a live catalog - this would be the on_get_catalog called if no
         # stored/override existed
-        if type_filter is None or type_filter == 'application':
-            # Get cookbooks
-            cookbooks = self._get_cookbooks(site_cookbooks=False)
-            site_cookbooks = self._get_cookbooks(site_cookbooks=True)
-            roles = self._get_roles(context)
+        # Get cookbooks
+        cookbooks = self._get_cookbooks(site_cookbooks=False)
+        site_cookbooks = self._get_cookbooks(site_cookbooks=True)
+        roles = self._get_roles(context)
 
-            cookbooks.update(roles)
-            cookbooks.update(site_cookbooks)
+        cookbooks.update(roles)
+        cookbooks.update(site_cookbooks)
 
-            results = {'application': cookbooks}
-
+        results = {}
+        for key, cookbook in cookbooks.iteritems():
+            provides = cookbook.get('provides', ['application'])
+            for entry in provides:
+                if isinstance(entry, dict):
+                    entry = entry.keys()[0]
+                    if type_filter is None or type_filter == entry:
+                        if entry not in results:
+                            results[entry] = {}
+                        results[entry][key] = cookbook
         return results
 
     def get_component(self, context, id):
@@ -1054,8 +1061,8 @@ class Provider(ProviderBase):
 
     def find_components(self, context, **kwargs):
         """Special parsing for roles, then defer to superclass"""
-        cid = kwargs.pop('id', None)
-        name = kwargs.pop('name', None)
+        cid = kwargs.get('id', None)
+        name = kwargs.get('name', None)
         role = kwargs.pop('role', None)
         if (not cid) and name:
             if role:
@@ -1071,7 +1078,6 @@ class Provider(ProviderBase):
             else:
                 raise CheckmateException("Component id '%s' provided but not "
                         "found in provider '%s'" % (cid, self.key))
-
         return ProviderBase.find_components(self, context, **kwargs)
 
     def status(self):
