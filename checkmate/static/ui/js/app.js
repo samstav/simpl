@@ -1077,7 +1077,7 @@ function DeploymentInitController($scope, $location, $routeParams, $resource, bl
 
     } else if ($scope.blueprint.id == WPBP.DBaaS.id) {
         //Add DBaaS Provider
-        ENVIRONMENTS.legacy.providers.database == {};
+        ENVIRONMENTS.legacy.providers.database = {};
         ENVIRONMENTS['next-gen'].providers.database = {};
 
         //Remove database support from chef-local
