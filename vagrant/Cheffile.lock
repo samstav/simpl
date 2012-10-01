@@ -20,7 +20,7 @@ SITE
 GIT
   remote: https://github.com/gondoi/chef-rvm
   ref: master
-  sha: 8bd2a5e614a9afc935325ab19b911f13d43303d6
+  sha: 3d52d4501ac8c56e55a34dc982e6fb5cd55d19ac
   specs:
     rvm (0.9.1)
 
