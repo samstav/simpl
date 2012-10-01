@@ -840,8 +840,8 @@ class Deployment(ExtensibleDict):
 
         Note: this is to be used instead of the old context object
         """
-        if 'settings' in self:
-            return self['settings']
+        if hasattr(self, '_settings'):
+            return getattr(self, '_settings')
 
         results = {}
 
@@ -886,7 +886,7 @@ class Deployment(ExtensibleDict):
 
         results['domain'] = inputs.get('domain', os.environ.get(
                     'CHECKMATE_DOMAIN', 'checkmate.local'))
-        self['settings'] = results
+        self._settings = results
         return results
 
     def get_setting(self, name, resource_type=None,
