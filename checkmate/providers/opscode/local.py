@@ -465,8 +465,8 @@ class Provider(ProviderBase):
                 #       when we need to add items to a data bag to accommodate a recipe from a dependency
                 'user': {
                     'name': deployment.get_setting("prefix"),
-                    'ssh_pub_key': deployment.get_setting('keys/deployment/public_key_ssh'),
-                    'ssh_priv_key': deployment.get_setting('keys/deployment/private_key')
+                    'ssh_pub_key': deployment.get_setting('keys/public_key_ssh'),
+                    'ssh_priv_key': deployment.get_setting('keys/private_key')
                 }
             }
         options = settings['lsync_bag']['lsyncd']

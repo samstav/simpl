@@ -903,6 +903,10 @@ class Deployment(ExtensibleDict):
         - start with the deployment inputs where the paths are:
             inputs/blueprint
             inputs/providers/:provider
+            etc
+        - global inputs
+        - environment settings (generated at planning time)
+        - resources (generated during deployment)
         - finally look at the component defaults
 
         :param name: the name of the setting
@@ -940,11 +944,28 @@ class Deployment(ExtensibleDict):
         if result:
             return result
         
+        result = self._get_resource_setting(name)
+        if result:
+            return result
+        
         result = self._get_setting_value(name)
         if result:
             return result
 
         return default
+
+    def _get_resource_setting(self, name):
+        if name:
+            node = self.get("resources", {})
+            for key in name.split("/"):
+                if(key in node):
+                    try:
+                        node = node[key]
+                    except TypeError:
+                        return None
+                else:
+                    return None
+            return node
     
     def _get_setting_value(self, name):
         if name:
