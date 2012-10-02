@@ -30,8 +30,6 @@ try:
                                                       'MongoBackend']:
         LOG.warning("Celery backend does not seem to be configured for a "
                 "database: %s" % current_app.backend.__class__.__name__)
-    if 'checkmate' not in current_app.backend.dburi.split('/'):
-        LOG.warning('Celery backend does not seem to be in checkmate folder')
 except:
     pass
 
