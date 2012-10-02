@@ -6,6 +6,7 @@ import time
 
 from celery import current_app
 from celery.task import task
+import os
 
 try:
     from SpiffWorkflow.specs import WorkflowSpec, Celery, Transform
@@ -30,6 +31,8 @@ try:
                                                       'MongoBackend']:
         LOG.warning("Celery backend does not seem to be configured for a "
                 "database: %s" % current_app.backend.__class__.__name__)
+    if not os.environ.get('CHECKMATE_RESULT_DBURI'):
+        LOG.warning('ATTENTION!! CHECKMATE_RESULT_DBURI not set.  Was the checkmate environment loaded?')
 except:
     pass
 
