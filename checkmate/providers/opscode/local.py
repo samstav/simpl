@@ -465,8 +465,8 @@ class Provider(ProviderBase):
                 #       when we need to add items to a data bag to accommodate a recipe from a dependency
                 'user': {
                     'name': deployment.get_setting("prefix"),
-                    'ssh_pub_key': deployment.get_setting('keys/deployment/public_key_ssh'),
-                    'ssh_priv_key': deployment.get_setting('keys/deployment/private_key')
+                    'ssh_pub_key': deployment.get_setting('keys/public_key_ssh'),
+                    'ssh_priv_key': deployment.get_setting('keys/private_key')
                 }
             }
         options = settings['lsync_bag']['lsyncd']
@@ -1210,11 +1210,12 @@ def _create_kitchen(name, path, secret_key=None):
             raise CheckmateException("Kitchen already exists and seems to "
                     "have nodes defined in it: %s" % nodes_path)
     else:
-        params = ['knife', 'kitchen', '.',
-                  '-c', os.path.join(kitchen_path, 'solo.rb')]
+        # we don't pass the config file here becasuse we're creating the kitchen
+        # for the first time and knife will overwrite our config file
+        params = ['knife', 'kitchen', '.']
         _run_kitchen_command(kitchen_path, params)
 
-    _write_knife_config_file(kitchen_path)
+    solo_file, secret_key_path = _write_knife_config_file(kitchen_path)
 
     # Create certificates folder
     certs_path = os.path.join(kitchen_path, 'certificates')
@@ -1283,6 +1284,7 @@ encrypted_data_bag_secret "%s"
     with file(solo_file, 'w') as handle:
         handle.write(config)
     LOG.debug("Created solo file: %s" % solo_file)
+    return (solo_file, secret_key_path)
 
 
 def _create_environment_keys(environment_path, private_key=None,
