@@ -20,14 +20,14 @@ SITE
 GIT
   remote: https://github.com/gondoi/chef-rvm
   ref: master
-  sha: 8bd2a5e614a9afc935325ab19b911f13d43303d6
+  sha: 3d52d4501ac8c56e55a34dc982e6fb5cd55d19ac
   specs:
     rvm (0.9.1)
 
 GIT
   remote: https://github.rackspace.com/Cookbooks/checkmate
   ref: master
-  sha: 867707ad444bf51db8b969be34a7424d8dfc6025
+  sha: bc679db7ed78e0db5eff18151d413eddb86cc7cc
   specs:
     checkmate (1.1.0)
       apt (>= 0.0.0)

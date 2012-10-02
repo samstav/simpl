@@ -1077,7 +1077,7 @@ function DeploymentInitController($scope, $location, $routeParams, $resource, bl
 
     } else if ($scope.blueprint.id == WPBP.DBaaS.id) {
         //Add DBaaS Provider
-        ENVIRONMENTS.legacy.providers.database == {};
+        ENVIRONMENTS.legacy.providers.database = {};
         ENVIRONMENTS['next-gen'].providers.database = {};
 
         //Remove database support from chef-local
@@ -1609,7 +1609,10 @@ WPBP = {
                     ]
                 },
                 "relations": {
-                    "backend": "mysql"
+                	"wordpress/database": {
+                		"interface": "mysql",
+                		"service": "backend"
+                	}
                 },
                 "constraints": [
                     {
@@ -1629,10 +1632,10 @@ WPBP = {
                 },
                 "relations": {
                     "master": "http",
-                    "db": {
-                        "interface": "mysql",
-                        "service": "backend"
-                    }
+                    "wordpress/database": {
+                		"interface": "mysql",
+                		"service": "backend"
+                	}
                 }
             },
             "backend": {
