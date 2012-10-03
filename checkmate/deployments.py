@@ -969,7 +969,7 @@ class Deployment(ExtensibleDict):
     
     def _get_setting_value(self, name):
         if name:
-            node = self.get("settings", {})
+            node = self.settings()
             for key in name.split("/"):
                 if(key in node):
                     try:

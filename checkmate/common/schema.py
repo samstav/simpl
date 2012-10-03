@@ -138,7 +138,7 @@ RESOURCE_SCHEMA = ['id', 'index', 'name', 'provider', 'relations', 'hosted_on',
         'image', 'disk', 'region', 'service']
 
 DEPLOYMENT_SCHEMA = ['id', 'name', 'blueprint', 'environment', 'inputs',
-        'includes', 'resources', 'settings', 'workflow', 'status', 'created',
+        'includes', 'resources', 'workflow', 'status', 'created',
         'tenantId']
 
 COMPONENT_SCHEMA = ['id', 'options', 'requires', 'provides', 'summary',
