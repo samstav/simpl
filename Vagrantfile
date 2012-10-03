@@ -3,7 +3,7 @@
 
 Vagrant::Config.run do |config|
   # Lets lower the memory consumption some
-  config.vm.customize ["modifyvm", :id, "--memory", 256]
+  #config.vm.customize ["modifyvm", :id, "--memory", 256]
 
   # Every Vagrant virtual environment requires a box to build off of.
   config.vm.box = "precise"
