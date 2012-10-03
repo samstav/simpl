@@ -20,6 +20,7 @@ class TestBlueprints(unittest.TestCase):
                 'name': 'test',
                 'services': {},
                 'options': {},
+                'resources': {},
                 }
         valid = Blueprint(blueprint)
         self.assertDictEqual(valid._data, blueprint)
