@@ -29,10 +29,11 @@ from webob.exc import HTTPNotFound, HTTPUnauthorized, HTTPFound
 LOG = logging.getLogger(__name__)
 
 
-from checkmate.db import any_tenant_id_problems
+from checkmate.db import any_tenant_id_problems, get_driver
 from checkmate.exceptions import CheckmateException
 from checkmate.utils import HANDLERS, RESOURCES, STATIC, write_body, \
-        read_body, support_only, with_tenant, to_json, to_yaml
+        read_body, support_only, with_tenant, to_json, to_yaml, \
+        get_time_string, import_class
 
 
 def generate_response(self, environ, start_response):
@@ -218,12 +219,19 @@ class TokenAuthMiddleware(object):
         - 401s if invalid
         - Marks authenticated if valid and populates user and catalog data
     """
-    def __init__(self, app, endpoint):
+    def __init__(self, app, endpoint, anonymous_paths=None):
         self.app = app
         self.endpoint = endpoint
+        self.anonymous_paths = anonymous_paths or []
 
     def __call__(self, e, h):
-        # Authenticate calls with X-Auth-Token to the source auth service
+        """Authenticate calls with X-Auth-Token to the source auth service"""
+        path_parts = e['PATH_INFO'].split('/')
+        root = path_parts[1] if len(path_parts) > 1 else None
+        if root in self.anonymous_paths:
+            # Allow test and static calls
+            return self.app(e, h)
+
         h = self.start_response_callback(h)
 
         if 'HTTP_X_AUTH_TOKEN' in e:
@@ -231,6 +239,7 @@ class TokenAuthMiddleware(object):
             try:
                 content = self._auth_keystone(context,
                         token=e['HTTP_X_AUTH_TOKEN'])
+                e['HTTP_X_AUTHORIZED'] = "Confirmed"
             except HTTPUnauthorized as exc:
                 LOG.exception(exc)
                 return exc(e, h)
@@ -409,10 +418,22 @@ class BrowserMiddleware(object):
         self.app = app
         HANDLERS['text/html'] = BrowserMiddleware.write_html
         STATIC.extend(['static', 'favicon.ico', 'apple-touch-icon.png',
-                'authproxy', 'marketing', 'admin', '', 'images', 'ui', None])
+                'authproxy', 'marketing', 'admin', '', 'images', 'ui', None,
+                'feedback'])
         self.proxy_endpoints = proxy_endpoints
         self.with_simulator = with_simulator
-        from checkmate.environments import Environment  # Loads db abd routes
+        self.db = get_driver()
+        connection_string = os.environ.get('CHECKMATE_CONNECTION_STRING',
+                'sqlite://')
+        if connection_string.startswith('mongodb://'):
+            driver_name = 'checkmate.db.feedback.MongoDriver'
+        else:
+            driver_name = 'checkmate.db.feedback.SqlDriver'
+        driver = import_class(driver_name)
+        self.feedback_db = driver()
+        # We need Environment to load providers for the provider proxy calls
+        # Side effect: Loads db and routes
+        from checkmate.environments import Environment
 
         # Add static routes
         @get('/favicon.ico')
@@ -568,6 +589,20 @@ class BrowserMiddleware(object):
             results = provider.proxy(path, request, tenant_id=tenant_id)
 
             return write_body(results, request, response)
+
+        @post('/feedback')
+        @support_only(['application/json'])
+        def feedback():
+            """Accepts feedback from UI"""
+            feedback = read_body(request)
+            if not feedback or 'feedback' not in feedback:
+                abort(406, "Expecting a 'feedback' body in the request")
+            token = request.get_header('X-Auth-Token')
+            if token:
+                feedback['feedback']['token'] = token
+            feedback['feedback']['received'] = get_time_string()
+            self.feedback_db.save_feedback(feedback)
+            return write_body(feedback, request, response)
 
     def __call__(self, e, h):
         """Detect unauthenticated calls and redirect them to root.
@@ -985,7 +1020,7 @@ class AuthTokenRouterMiddleware():
     X-Auth-Source header. If no default is selected, calls are routed to each
     endpoint until a valid response is received
     """
-    def __init__(self, app, endpoints, default=None):
+    def __init__(self, app, endpoints, default=None, anonymous_paths=None):
         """
         :param domains: the hash of domains to authenticate against. Each key
                 is a realm that points to a different cloud. The hash contains
@@ -1002,6 +1037,7 @@ class AuthTokenRouterMiddleware():
                     self.endpoints.append(endpoint)
         self.middleware = {}
         self.default_middleware = None
+        self.anonymous_paths = anonymous_paths or []
 
         self.last_status = None
         self.last_headers = None
@@ -1011,7 +1047,8 @@ class AuthTokenRouterMiddleware():
         # token auth calls. We'll route to it when appropriate
         for endpoint in self.endpoints:
             if endpoint not in self.middleware:
-                middleware = TokenAuthMiddleware(app, endpoint=endpoint)
+                middleware = TokenAuthMiddleware(app, endpoint=endpoint,
+                        anonymous_paths=self.anonymous_paths)
                 self.middleware[endpoint] = middleware
                 if endpoint == self.default_endpoint:
                     self.default_middleware = middleware
@@ -1041,8 +1078,12 @@ class AuthTokenRouterMiddleware():
                         # Unauthorized, let's try next route
                         continue
                     # We got an authorized response
-                    LOG.debug("Token Auth Router successfully authorized "
+                    if e.get('HTTP_X_AUTHORIZED') == "Confirmed":
+                        LOG.debug("Token Auth Router successfully authorized "
                             "against %s" % source)
+                    else:
+                        LOG.debug("Token Auth Router authorized an "
+                                  "unauthenticated call")
                     return result
 
             # Call default endpoint if not already called and if source was not
