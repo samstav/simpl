@@ -776,8 +776,8 @@ class Provider(ProviderBase):
         # build a live catalog - this would be the on_get_catalog called if no
         # stored/override existed
         # Get cookbooks
-        cookbooks = self._get_cookbooks(site_cookbooks=False)
-        site_cookbooks = self._get_cookbooks(site_cookbooks=True)
+        cookbooks = self._get_cookbooks(context, site_cookbooks=False)
+        site_cookbooks = self._get_cookbooks(context, site_cookbooks=True)
         roles = self._get_roles(context)
 
         cookbooks.update(roles)
