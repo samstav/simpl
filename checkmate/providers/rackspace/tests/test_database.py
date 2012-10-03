@@ -157,6 +157,7 @@ class TestDBWorkflow(StubbedWorkflowBase):
     def setUp(self):
         StubbedWorkflowBase.setUp(self)
         PROVIDER_CLASSES['test.base'] = TestProvider
+        PROVIDER_CLASSES['rackspace.database'] = database.Provider
         self.deployment = Deployment(yaml_to_dict("""
                 id: 'DEP-ID-1000'
                 blueprint:

@@ -77,6 +77,8 @@ def main_func():
 
     # Register built-in providers
     from checkmate.providers import rackspace, opscode
+    rackspace.register()
+    opscode.register()
 
     # Load routes from other modules
     LOG.info("Loading API")
