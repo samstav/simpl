@@ -500,7 +500,7 @@ def plan(deployment, context):
                                         host_provider.key))
                         break
 
-            provider = component.provider()
+            provider = component.provider
             if not provider:
                 raise CheckmateException("No provider could be found for the "
                         "'%s' resource in component '%s'" % (resource_type,
