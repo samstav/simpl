@@ -553,6 +553,52 @@ class TestDeploymentSettings(unittest.TestCase):
             """))
 
 
+    def test_get_static_resource_constraint(self):
+        deployment = Deployment(yaml_to_dict("""
+                id: '1'
+                blueprint:
+                  services:
+                    "single":
+                      component:
+                        id: widget
+                  resources:
+                    "myUser":
+                      type: user
+                      name: john
+                      constrains:
+                      - service: single
+                        setting: username
+                        attribute: name
+                      - setting: password
+                        type: widget
+                environment:
+                  providers:
+                    base:
+                      provides:
+                      - widget: foo
+                      vendor: test
+                      catalog:
+                        widget:
+                          small_widget:
+                            is: widget
+                            provides:
+                            - widget: foo
+                          big_widget:
+                            is: widget
+                            provides:
+                            - widget: bar
+            """))
+        PROVIDER_CLASSES['test.base'] = ProviderBase
+        planned = plan(deployment, RequestContext())
+        # Use service and type
+        value = planned.get_setting('username', service_name='single',
+                                    resource_type='widget')
+        self.assertEqual(value, 'john')
+        # Use only type
+        value = planned.get_setting('password', resource_type='widget')
+        self.assertGreater(len(value), 0)
+
+
 class TestDeploymentCounts(unittest.TestCase):
     """ Tests getting deployment numbers """
 

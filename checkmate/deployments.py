@@ -972,6 +972,11 @@ class Deployment(ExtensibleDict):
             if result:
                 return result
 
+        result = self._get_constrained_static_resource_setting(name,
+                service_name=service_name, resource_type=resource_type)
+        if result:
+            return result
+
         result = self._get_input_blueprint_option_constraint(name,
                 service_name=service_name, resource_type=resource_type)
         if result:
@@ -1074,6 +1079,36 @@ class Deployment(ExtensibleDict):
                                 LOG.debug("Default setting '%s' obtained from "
                                         "constraint in blueprint input '%s': "
                                         "default=%s" % (name, key, result))
+                                return result
+
+    def _get_constrained_static_resource_setting(self, name, service_name=None,
+                                             resource_type=None):
+        """Get a setting implied through a static resource constraint
+
+        :param name: the name of the setting
+        :param service_name: the name of the service being evaluated
+        :param resource_type: the type of the resource being evaluated
+        """
+        print name, service_name, resource_type
+        blueprint = self['blueprint']
+        if 'resources' in blueprint:
+            resources = blueprint['resources']
+            print resources
+            for key, resource in resources.iteritems():
+                if 'constrains' in resource:
+                    for constraint in resource['constrains']:
+                        print constraint
+                        if self.constraint_applies(constraint, name,
+                                    service_name=service_name,
+                                    resource_type=resource_type):
+                            # Find the instance, and get the atribute
+                            instance = self['resources'][key]['instance']
+                            result = instance[constraint.get('attribute',
+                                                             name)]
+                            if result:
+                                LOG.debug("Found setting '%s' from constraint "
+                                        "in blueprint resource '%s'. %s=%s" % (
+                                        name, key, name, result))
                                 return result
 
     def constraint_applies(self, constraint, name, resource_type=None,
