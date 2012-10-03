@@ -359,8 +359,7 @@ class Provider(RackspaceComputeProviderBase):
 """
   Celery tasks to manipulate Rackspace Cloud Servers.
 """
-from celery.task import task
-import openstack.compute
+from celery.task import task #@UnresolvedImport
 
 from checkmate.ssh import test_connection
 
@@ -415,7 +414,8 @@ def create_server(context, name, api_object=None, flavor=2, files=None,
 
     try:
         server = api_object.servers.create(image=int(image),
-                flavor=int(flavor), name=name, files=files)
+                flavor=int(flavor), name=name, 
+                meta=context.get("metadata", None), files=files)
         create_server.update_state(state="PROGRESS",
                                    meta={"server.id": server.id})
         LOG.debug(
@@ -439,7 +439,7 @@ def create_server(context, name, api_object=None, flavor=2, files=None,
     results = {instance_key: dict(id=server.id, ip=ip_address,
             password=server.adminPass, private_ip=private_ip_address)}
     # Send data back to deployment
-    resource_postback.delay(context['deployment'], results)
+    resource_postback.delay(context['deployment'], results) #@UndefinedVariable
     return results
 
 
@@ -517,7 +517,7 @@ def wait_on_build(context, server_id, ip_address_type='public',
             instance_key = 'instance:%s' % context['resource']
             results = {instance_key: results}
             # Send data back to deployment
-            resource_postback.delay(context['deployment'], results)
+            resource_postback.delay(context['deployment'], results) #@UndefinedVariable
             return results
         return wait_on_build.retry(exc=CheckmateException("Server %s not "
                 "ready yet" % server_id))

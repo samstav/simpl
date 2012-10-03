@@ -3,6 +3,7 @@ import json
 import logging
 import uuid
 
+import mox
 from mox import IsA
 import unittest2 as unittest
 
@@ -12,13 +13,36 @@ init_console_logging()
 
 from checkmate.deployments import Deployment
 from checkmate.exceptions import CheckmateException
+from checkmate.middleware import RequestContext
 from checkmate.providers.base import ProviderBase, PROVIDER_CLASSES,\
-        CheckmateInvalidProvider
+        CheckmateInvalidProvider, ProviderBasePlanningMixIn
 from checkmate.test import StubbedWorkflowBase, TestProvider
 from checkmate.utils import yaml_to_dict
 
 LOG = logging.getLogger(__name__)
 
+class TestProviderBasePlanningMixIn(unittest.TestCase):
+    
+    def __init__(self, methodName="runTest"):
+        self._mox = mox.Mox()
+        self._prov_planner = ProviderBasePlanningMixIn()
+        self._prov_planner.key = "test_key"
+        unittest.TestCase.__init__(self, methodName=methodName)
+    
+    def test_template(self):
+        req_context = RequestContext()
+        template = self._prov_planner.generate_template({'id':"1234567890"}, "test_type", None, req_context)
+        self.assertIn("type", template, "No type")
+        self.assertEqual("test_type", template.get("type","NONE"), "Type not set")
+        self.assertIn("provider", template, "No provider in template")
+        self.assertEqual("test_key", template.get("provider", "NONE"), "Provider not set")
+        self.assertIn("instance", template, "No instance in template")
+        self.assertIn("dns-name", template, "No dns-name in template")
+        self.assertEqual("CM-1234567-test_type", template.get("dns-name","NONE"), "dns-name not set")
+        req_ctx_dict = req_context.get_queued_task_dict()
+        self.assertIn("metadata", req_ctx_dict, "No metadata in template")
+        self.assertIn("RAX-CHKMT", req_ctx_dict.get("metadata",{}), "No metadata set")
+        LOG.info("RAX-CHKMT: {}".format(req_ctx_dict.get("metadata").get("RAX-CHKMT")))
 
 class TestProviderBase(unittest.TestCase):
     def test_provider_bad_override(self):
