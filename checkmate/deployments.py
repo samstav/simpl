@@ -615,10 +615,11 @@ def plan(deployment, context):
                         target_service_name, target_interface, name,
                         service_name))
 
-            # Get hash of source instances
+            # Get hash of source instances (exclue the hosts we created)
             source_instances = {index: resource
                                 for index, resource in resources.iteritems()
-                                if resource['service'] == service_name}
+                                if resource['service'] == service_name and
+                                        'hosts' not in resource}
             LOG.debug("    Instances %s need '%s' from the '%s' service"
                     % (source_instances.keys(), target_interface,
                        target_service_name))
