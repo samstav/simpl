@@ -363,6 +363,7 @@ class TestDBWorkflow(StubbedWorkflowBase):
 
     def setUp(self):
         StubbedWorkflowBase.setUp(self)
+        PROVIDER_CLASSES['opscode.chef-local'] = local.Provider
         PROVIDER_CLASSES['test.base'] = TestProvider
         self.deployment = Deployment(yaml_to_dict("""
                 id: 'DEP-ID-1000'

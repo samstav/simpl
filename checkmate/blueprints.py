@@ -4,7 +4,10 @@ from bottle import get, post, put, request, response, abort #@UnresolvedImport
 import logging
 import uuid
 
+from checkmate.classes import ExtensibleDict
+from checkmate.common import schema
 from checkmate.db import get_driver, any_id_problems
+from checkmate.exceptions import CheckmateValidationException
 from checkmate.utils import read_body, write_body, extract_sensitive_data,\
         with_tenant
 
@@ -66,3 +69,21 @@ def get_blueprint(id, tenant_id=None):
     if not entity:
         abort(404, 'No blueprint with id %s' % id)
     return write_body(entity, request, response)
+
+
+class Blueprint(ExtensibleDict):
+    """A checkmate blueprint.
+
+    Acts like a dict. Includes validation, setting logic and other useful
+    methods.
+    """
+    def __init__(self, *args, **kwargs):
+        ExtensibleDict.__init__(self, *args, **kwargs)
+
+    @classmethod
+    def validate(cls, obj):
+        errors = schema.validate(obj, schema.BLUEPRINT_SCHEMA)
+        errors.extend(schema.validate_inputs(obj))
+        if errors:
+            raise CheckmateValidationException("Invalid %s: %s" % (
+                    cls.__name__, '\n'.join(errors)))

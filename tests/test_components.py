@@ -30,7 +30,7 @@ class TestComponents(unittest.TestCase):
         class dummy():
             key = 1
         c = Component({}, provider=dummy())
-        self.assertEqual(c.provider().key, 1)
+        self.assertEqual(c.provider.key, 1)
         self.assertNotIn('provider', c)
 
 

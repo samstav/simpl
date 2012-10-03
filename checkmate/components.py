@@ -80,6 +80,7 @@ class Component(ExtensibleDict):
         if 'id' not in self:
             LOG.warning("No id in %s" % self)
 
+    @property
     def provider(self):
         return self._provider
 

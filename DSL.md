@@ -142,6 +142,13 @@ options: KEY piece (don't forget it!). This lists the options (levers or dials) 
       name: 1gig
     - value: 2048
      name: 2GB
+resources: static resources to be created at planning time and shared across the blueprint. For example, users and keys.
+  "my_key":
+    type: key-pair # private/public key pair will be created before deploying the workflow
+    constrains:
+    - service: my_database_thang
+      setting: key
+      attribute: private_key # this will take the private_key value from the generated keys and apply it as the value for 'key' in the my_database_thang component.
 
 Deployments
 ===========
