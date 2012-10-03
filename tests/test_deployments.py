@@ -55,6 +55,8 @@ class TestDeployments(unittest.TestCase):
                 }
         self.assertRaises(CheckmateValidationException, Deployment, deployment)
 
+
+class TestDeploymentParser(unittest.TestCase):
     def test_parser(self):
         """Test the parser works on a minimal deployment"""
         deployment = {
@@ -71,9 +73,10 @@ class TestDeployments(unittest.TestCase):
         parsed = plan(Deployment(deployment), RequestContext())
         del parsed['status']  # we expect this to get added
         del parsed['created']  # we expect this to get added
-        self.assertDictEqual(original, parsed.__dict__())
+        self.assertDictEqual(original, parsed._data)
 
 
+class TestDeploymentDeployer(unittest.TestCase):
     def test_deployer(self):
         """Test the deployer works on a minimal deployment"""
         deployment = {
@@ -95,7 +98,8 @@ class TestDeployments(unittest.TestCase):
         self.assertEqual(parsed['status'], "LAUNCHED")
 
 
-    def test_resource_generator(self):
+class TestDeploymentResourceGenerator(unittest.TestCase):
+    def test_component_resource_generator(self):
         """Test the parser generates the right number of resources"""
         deployment = Deployment(yaml_to_dict("""
                 id: test
@@ -152,6 +156,51 @@ class TestDeployments(unittest.TestCase):
         self.assertEqual(len(services['back']['instances']), 1)
         #import json
         #print json.dumps(parsed, indent=2)
+
+    def test_static_resource_generator(self):
+        """Test the parser generates the right number of static resources"""
+        deployment = Deployment(yaml_to_dict("""
+                id: test
+                blueprint:
+                  name: test bp
+                  services:
+                    "single":
+                      component:
+                        id: widget
+                  resources:
+                    "myResource":  # provided by a provider
+                      type: widget
+                environment:
+                  name: environment
+                  providers:
+                    base:
+                      provides:
+                      - widget: foo
+                      vendor: test
+                      catalog:
+                        widget:
+                          small_widget:
+                            is: widget
+                            provides:
+                            - widget: foo
+                          big_widget:
+                            is: widget
+                            provides:
+                            - widget: bar
+            """))
+
+        PROVIDER_CLASSES['test.base'] = ProviderBase
+
+        parsed = plan(deployment, RequestContext())
+        resources = parsed['resources']
+        self.assertIn("myResource", resources)
+        expected = {'component': 'small_widget',
+                    'dns-name': 'CM-test-sharedmyResource.checkmate.local',
+                    'index': 'myResource',
+                    'instance': {},
+                    'provider': 'base',
+                    'type': 'widget'}
+        self.assertDictEqual(resources['myResource'], expected)
 
 
 class TestComponentSearch(unittest.TestCase):
@@ -468,62 +517,74 @@ class TestDeploymentSettings(unittest.TestCase):
                         number-only-test: 512
             """))
 
+
 class TestDeploymentCounts(unittest.TestCase):
     """ Tests getting deployment numbers """
-    
+
     def __init__(self, methodName="runTest"):
         self._mox = mox.Mox()
         self._deploymets = {}
         unittest.TestCase.__init__(self, methodName)
-        
+
     def setUp(self):
-        self._deploymets = json.load(open(os.path.join(os.path.dirname(__file__),'data', 'deployments.json')))
+        self._deploymets = json.load(open(os.path.join(
+                os.path.dirname(__file__), 'data', 'deployments.json')))
         self._mox.StubOutWithMock(checkmate.deployments, "db")
         bottle.request.bind({})
         bottle.request.context = Context()
         bottle.request.context.tenant = None
         unittest.TestCase.setUp(self)
-        
+
     def tearDown(self):
         self._mox.UnsetStubs()
         unittest.TestCase.tearDown(self)
-    
+
     def test_get_count_all(self):
-        checkmate.deployments.db.get_deployments(tenant_id=mox.IgnoreArg()).AndReturn(self._deploymets)
+        checkmate.deployments.db.get_deployments(tenant_id=mox.IgnoreArg()
+                                                 ).AndReturn(self._deploymets)
         self._mox.ReplayAll()
         self._assert_good_count(json.loads(get_deployments_count()), 3)
-    
+
     def test_get_count_tenant(self):
         # remove the extra deployment
         self._deploymets.pop("3fgh")
-        checkmate.deployments.db.get_deployments(tenant_id="12345").AndReturn(self._deploymets)
+        checkmate.deployments.db.get_deployments(tenant_id="12345").AndReturn(
+                self._deploymets)
         self._mox.ReplayAll()
-        self._assert_good_count(json.loads(get_deployments_count(tenant_id="12345")), 2)
-        
+        self._assert_good_count(json.loads(get_deployments_count(
+                tenant_id="12345")), 2)
+
     def test_get_count_deployment(self):
-        checkmate.deployments.db.get_deployments(tenant_id=None).AndReturn(self._deploymets)
+        checkmate.deployments.db.get_deployments(tenant_id=None).AndReturn(
+                self._deploymets)
         self._mox.ReplayAll()
-        self._assert_good_count(json.loads(get_deployments_by_bp_count("blp-123-aabc-efg")), 2)
-    
+        self._assert_good_count(json.loads(get_deployments_by_bp_count(
+                "blp-123-aabc-efg")), 2)
+
     def test_get_count_deployment_and_tenant(self):
         raw_deployments = self._deploymets.copy()
         raw_deployments.pop("3fgh")
         self._deploymets.pop("2def")
         self._deploymets.pop("1abc")
-        checkmate.deployments.db.get_deployments(tenant_id="854673").AndReturn(self._deploymets)
-        checkmate.deployments.db.get_deployments(tenant_id="12345").AndReturn(raw_deployments)
+        checkmate.deployments.db.get_deployments(tenant_id="854673"
+                                                 ).AndReturn(self._deploymets)
+        checkmate.deployments.db.get_deployments(tenant_id="12345"
+                                                 ).AndReturn(raw_deployments)
         self._mox.ReplayAll()
-        self._assert_good_count(json.loads(get_deployments_by_bp_count("blp-123-aabc-efg", tenant_id="854673")), 1)
-        self._assert_good_count(json.loads(get_deployments_by_bp_count("blp123avc", tenant_id="12345")), 1)
+        self._assert_good_count(json.loads(get_deployments_by_bp_count(
+                "blp-123-aabc-efg", tenant_id="854673")), 1)
+        self._assert_good_count(json.loads(get_deployments_by_bp_count(
+                "blp123avc", tenant_id="12345")), 1)
 
     def _assert_good_count(self, ret, expected_count):
         self.assertIsNotNone(ret, "No count returned")
         self.assertIn("count", ret, "Return does not contain count")
-        self.assertEqual(expected_count, ret.get("count", -1), "Wrong count returned")
+        self.assertEqual(expected_count, ret.get("count", -1),
+                         "Wrong count returned")
 
 
 if __name__ == '__main__':
-    # Run tests. Handle our paramsters separately
+    # Run tests. Handle our parameters separately
     import sys
     args = sys.argv[:]
     # Our --debug means --verbose for unitest

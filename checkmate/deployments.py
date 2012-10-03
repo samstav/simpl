@@ -656,6 +656,26 @@ def plan(deployment, context):
                             source_instance, target_service_name,
                             target_instance))
 
+    # Generate static resources
+    for key, resource in blueprint.get('resources', {}).iteritems():
+        component = environment.find_component(resource, context)
+        if not component:
+            raise CheckmateException("Could not find provider for the '%s' "
+                                     "resource" % key)
+        # Generate a default name
+        name = 'CM-%s-shared%s.%s' % (deployment['id'][0:7], key, domain)
+        # Call provider to give us a resource template
+        resource = provider.generate_template(deployment,
+                resource['type'], None, context, name=name)
+        resource['component'] = component['id']
+        # Add it to resources
+        resources[str(key)] = resource
+        resource['index'] = str(key)
+        LOG.debug("  Adding a %s resource with resource key %s" % (
+                resources[str(key)]['type'],
+                key))
+        Resource.validate(resource)
+
     #Write resources and connections to deployment
     if connections:
         resources['connections'] = connections
@@ -663,7 +683,7 @@ def plan(deployment, context):
         deployment['resources'] = resources
     # Link resources to services
     for index, resource in resources.iteritems():
-        if index not in ['connections', 'keys']:
+        if index not in ['connections', 'keys'] and 'service' in resource:
             service = blueprint['services'][resource['service']]
             if 'instances' not in service:
                 service['instances'] = []

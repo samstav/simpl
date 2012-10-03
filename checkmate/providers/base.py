@@ -204,8 +204,9 @@ class ProviderBasePlanningMixIn():
     def generate_template(self, deployment, resource_type, service, context,
             name=None):
         """Generate a resource dict to be embedded in a deployment"""
-        result = dict(type=resource_type, provider=self.key, instance={},
-                      service=service)
+        result = dict(type=resource_type, provider=self.key, instance={})
+        if service:
+            result['service'] = service
         if not name:
             name = 'CM-%s-%s' % (deployment['id'][0:7], resource_type)
         if name:
