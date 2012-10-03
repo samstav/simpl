@@ -53,7 +53,6 @@ class TestDatabase(unittest.TestCase):
                     'id': instance.id,
                     'name': instance.name,
                     'status': instance.status,
-                    'hostname': 'fake.cloud.local',
                     'region': 'NORTH',
                     'interfaces': {
                         'mysql': {
