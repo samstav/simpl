@@ -6,6 +6,8 @@ Checkmate stores and controls your cloud configurations. Use it to deploy and ma
 
 It exposes a REST API for manipulating configurations. It uses celery for task queuing and SpiffWorkflow to orchestrate deploying them. It support JSON and YAML interchangeably. It has optional built-in browser support with a UI.
 
+Application blueprints are available on [Rackspace github](https://github.rackspace.com/Blueprints).
+
 
 ## Logic: the pieces
 In a nutshell:
@@ -686,3 +688,14 @@ And then start the checkmate server:
     export CHECKMATE_CHEF_LOCAL_PATH=/var/chef
     export CHECKMATE_PUBLIC_KEY=`cat ~/.ssh/id_rsa.pub`  # on a mac
     bin/checkmate-server START --with-ui --with-simulator
+
+
+## Hacking & Contributing:
+
+We're using github and it's fork & pull. There are great instructions on that on [github](https://help.github.com/). Until the project gets open sourced, we're
+using internal [Rackspace github](https://github.rackspace.com/checkmate).
+
+You can run tests using the `run_tests.sh` script or just the plain `nosetests` command. `./run_tests.sh` has more friendly output.
+
+We use VersionOne for tracking our backlog and tasks, but if you don't have access to it you can use github issues. Just let us know if you have an
+urgent issue so we make sure to pick it up.

@@ -628,11 +628,10 @@ class Provider(ProviderBase):
             fields = interface_schema.get('fields', {}).keys()
             if not fields:
                 LOG.debug("No fields defined for interface '%s', so nothing "
-                    "to do for connection '%s'" % (interface,
-                    relation_key))
+                    "to do for connection '%s'" % (interface, relation_key))
                 return  # nothing to do
 
-            # Build full path to 'instance:id/interfaces/:interface/:field_name'
+            # Build full path to 'instance:id/interfaces/:interface/:fieldname'
             fields_with_path = []
             for field in fields:
                 fields_with_path.append('instance:%s/interfaces/%s/%s' % (
@@ -642,7 +641,10 @@ class Provider(ProviderBase):
             target_final = self.find_tasks(wfspec, provider=target['provider'],
                     resource=relation['target'], tag='final')
             if not target_final:
-                raise CheckmateException("Relation final task not found")
+                raise CheckmateException("'Final' task not found for relation "
+                                         "'%s' connecting %s to %s" %
+                                         (relation_key, key,
+                                          relation['target']))
             if len(target_final) > 1:
                 raise CheckmateException("Multiple relation final tasks "
                         "found: %s" % [t.name for t in target_final])
