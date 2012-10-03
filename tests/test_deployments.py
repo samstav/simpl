@@ -202,6 +202,41 @@ class TestDeploymentResourceGenerator(unittest.TestCase):
                     'type': 'widget'}
         self.assertDictEqual(resources['myResource'], expected)
 
+    def test_providerless_static_resource_generator(self):
+        """Test the parser generates providerless static resources"""
+        deployment = Deployment(yaml_to_dict("""
+                id: test
+                blueprint:
+                  name: test bp
+                  resources:
+                    "myUser":  # providerless
+                      type: user
+                      name: test_user
+                      password: secret
+                    "myKey":
+                      type: key-pair
+                environment:
+                  name: environment
+                  providers: {}
+            """))
+
+        parsed = plan(deployment, RequestContext())
+        resources = parsed['resources']
+        # User
+        self.assertIn("myUser", resources)
+        expected = {'index': 'myUser',
+                    'type': 'user',
+                    'instance': {
+                        'name': 'test_user',
+                        'password': 'secret',
+                        }
+                    }
+        self.assertDictEqual(resources['myUser'], expected)
+        # Key pair
+        self.assertIn("myKey", resources)
+        self.assertItemsEqual(resources['myKey']['instance'].keys(),
+                            ["private_key", "public_key", "public_key_ssh"])
+
 
 class TestComponentSearch(unittest.TestCase):
     """ Test code that finds components """

@@ -1,3 +1,4 @@
+import copy
 import logging
 import os
 import uuid
@@ -659,22 +660,46 @@ def plan(deployment, context):
     # Generate static resources
     for key, resource in blueprint.get('resources', {}).iteritems():
         component = environment.find_component(resource, context)
-        if not component:
-            raise CheckmateException("Could not find provider for the '%s' "
-                                     "resource" % key)
-        # Generate a default name
-        name = 'CM-%s-shared%s.%s' % (deployment['id'][0:7], key, domain)
-        # Call provider to give us a resource template
-        resource = provider.generate_template(deployment,
-                resource['type'], None, context, name=name)
-        resource['component'] = component['id']
+        if component:
+            # Generate a default name
+            name = 'CM-%s-shared%s.%s' % (deployment['id'][0:7], key, domain)
+            # Call provider to give us a resource template
+            result = provider.generate_template(deployment,
+                    resource['type'], None, context, name=name)
+            result['component'] = component['id']
+        else:
+            if resource['type'] == 'user':
+                # Fall-back to local loader
+                instance = {}
+                result = dict(type='user', instance=instance)
+                if 'name' not in resource:
+                    raise CheckmateException("Name must be specified for the "
+                                             "'%s' user resource" % key)
+                else:
+                    instance['name'] = resource['name']
+                if 'password' not in resource:
+                    instance['password'] = ProviderBase({}).evaluate(
+                            "generate_password()")
+                else:
+                    instance['password'] = resource['password']
+
+            elif resource['type'] == 'key-pair':
+                # Fall-back to local loader
+                private, public = keys.generate_key_pair()
+                result = dict(type='key-pair',
+                              instance=dict(public_key=public['PEM'],
+                                            public_key_ssh=public['ssh'],
+                                            private_key=private['PEM']))
+            else:
+                raise CheckmateException("Could not find provider for the "
+                                         "'%s' resource" % key)
         # Add it to resources
-        resources[str(key)] = resource
-        resource['index'] = str(key)
+        resources[str(key)] = result
+        result['index'] = str(key)
         LOG.debug("  Adding a %s resource with resource key %s" % (
                 resources[str(key)]['type'],
                 key))
-        Resource.validate(resource)
+        Resource.validate(result)
 
     #Write resources and connections to deployment
     if connections:
