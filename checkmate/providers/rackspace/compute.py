@@ -5,19 +5,20 @@
 import copy
 import logging
 import os
-import uuid
 
-from novaclient.exceptions import EndpointNotFound, AmbiguousEndpoints
 from novaclient.v1_1 import client
-from SpiffWorkflow.operators import Attrib, PathAttrib
-from SpiffWorkflow.specs import Celery, Transform
+from SpiffWorkflow.operators import PathAttrib
+from SpiffWorkflow.specs import Celery
 
-from checkmate.deployments import Deployment, resource_postback
-from checkmate.exceptions import CheckmateNoTokenError, CheckmateNoMapping, \
-        CheckmateServerBuildFailed, CheckmateException
+from checkmate.deployments import resource_postback
+from checkmate.exceptions import CheckmateNoTokenError, \
+                                 CheckmateNoMapping, \
+                                 CheckmateServerBuildFailed, \
+                                 CheckmateException
 from checkmate.providers import ProviderBase
-from checkmate.utils import get_source_body, match_celery_logging, isUUID, \
-        yaml_to_dict
+from checkmate.utils import match_celery_logging, \
+                            isUUID, \
+                            yaml_to_dict
 from checkmate.workflows import wait_for
 
 LOG = logging.getLogger(__name__)
@@ -371,7 +372,7 @@ class Provider(RackspaceComputeProviderBase):
   the Rackspace Cloud.
 """
 
-from celery.task import task
+from celery.task import task #@UnresolvedImport
 
 from checkmate.ssh import test_connection
 
@@ -432,7 +433,7 @@ def create_server(context, name, region, api_object=None, flavor="2",
     LOG.debug("Flavor id %s found. Name=%s" % (flavor, flavor_object.name))
 
     server = api_object.servers.create(name, image_object, flavor_object,
-            files=files)
+            meta=context.get("metadata", None), files=files)
     create_server.update_state(state="PROGRESS",
                                meta={"server.id": server.id})
     LOG.debug('Created server %s (%s).  Admin pass = %s' % (
@@ -445,7 +446,7 @@ def create_server(context, name, region, api_object=None, flavor="2",
                               }}
 
     # Send data back to deployment
-    resource_postback.delay(context['deployment'], results)
+    resource_postback.delay(context['deployment'], results) #@UndefinedVariable
     return results
 
 
@@ -527,7 +528,7 @@ def wait_on_build(context, server_id, region, ip_address_type='public',
             instance_key = 'instance:%s' % context['resource']
             results = {instance_key: results}
             # Send data back to deployment
-            resource_postback.delay(context['deployment'], results)
+            resource_postback.delay(context['deployment'], results) #@UndefinedVariable
             return results
         return wait_on_build.retry(exc=CheckmateException("Server "
                 "%s not ready yet" % server_id))

@@ -2,6 +2,9 @@ import logging
 import random
 import string
 import uuid
+import checkmate
+import os
+import platform
 
 from checkmate import utils
 from checkmate.common import schema
@@ -207,6 +210,9 @@ class ProviderBasePlanningMixIn():
             name = 'CM-%s-%s' % (deployment['id'][0:7], resource_type)
         if name:
             result['dns-name'] = name
+        context.kwargs["metadata"] = {"RAX-CHKMT": "1 {}-{} {} {}".format(
+            checkmate.__version__, checkmate.__release__,
+            deployment["id"], platform.node())}
         return result
 
 

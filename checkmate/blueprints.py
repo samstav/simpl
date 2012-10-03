@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 # pylint: disable=E0611
-from bottle import get, post, put, request, response, abort
+from bottle import get, post, put, request, response, abort #@UnresolvedImport
 import logging
 import uuid
 
