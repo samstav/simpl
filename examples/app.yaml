@@ -393,6 +393,38 @@ includes:
     # of allowed options to RHEL.
     # The API will only validate that a deployment matches blueprint constraints once the deployment is submitted.
     # The UI could filter available options to what a blueprint allows and perform up-front validation before a deployment is attempted
+    resources:
+        "wp user":
+            type: user
+            name: not_used
+            constrains:
+            - service: master
+              resource_type: application
+              attribute: password
+              setting: "user/password"
+            - service: web
+              resource_type: application
+              attribute: password
+              setting: "user/password"
+        "user keys":
+            type: key-pair
+            constrains:
+            - service: master
+              resource_type: application
+              attribute: private_key
+              setting: "user/ssh_priv_key"
+            - service: master
+              resource_type: application
+              attribute: public_key_ssh
+              setting: "user/ssh_pub_key"
+            - service: web
+              resource_type: application
+              attribute: private_key
+              setting: "user/ssh_priv_key"
+            - service: web
+              resource_type: application
+              attribute: public_key_ssh
+              setting: "user/ssh_pub_key"
     options:
       "prefix":
         required: true

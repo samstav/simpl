@@ -461,6 +461,8 @@ def create_workflow_deploy(deployment, context):
         if key not in ['connections', 'keys'] and 'provider' in resource and \
                   resource['provider'] not in provider_keys:
             provider_keys.add(resource['provider'])
+    LOG.debug("Obtained providers from resources: %s" %
+              ', '.join(provider_keys))
 
     for key in provider_keys:
         provider = environment.get_provider(key)
@@ -491,7 +493,8 @@ def create_workflow_deploy(deployment, context):
     for key, resource in deployment.get('resources', {}).iteritems():
         if key not in ['connections', 'keys']:
             recursive_add_host(sorted_resources, key, deployment['resources'],
-                    [])
+                               [])
+    LOG.debug("Ordered resources: %s" % '->'.join(sorted_resources))
 
     # Do resources
     for key in sorted_resources:

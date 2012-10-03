@@ -740,12 +740,21 @@ class ExceptionMiddleware():
             return self.app(e, h)
         except CheckmateException as exc:
             print "*** ERROR ***"
+            LOG.exception(exc)
             resp = webob.Response()
             resp.status = "500 Server Error"
             resp.body = {'Error': exc.__str__()}
             return resp
+        except AssertionError as exc:
+            print "*** %s ***" % exc
+            LOG.exception(exc)
+            resp = webob.Response()
+            resp.status = "406 Bad Request"
+            resp.body = json.dumps({'Error': exc.__str__()})
+            return resp
         except Exception as exc:
             print "*** %s ***" % exc
+            LOG.exception(exc)
             raise exc
 
 
