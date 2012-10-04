@@ -623,16 +623,15 @@ class Provider(ProviderBase):
 
         if relation_key != 'host':
             # Get the definition of the interface
-            interface_schema = schema.INTERFACE_SCHEMA.get(interface, {})
+            interface_schema = schema.INTERFACE_SCHEMA.get(interface, {}) #@UndefinedVariable
             # Get the fields this interface defines
             fields = interface_schema.get('fields', {}).keys()
             if not fields:
                 LOG.debug("No fields defined for interface '%s', so nothing "
-                    "to do for connection '%s'" % (interface,
-                    relation_key))
+                    "to do for connection '%s'" % (interface, relation_key))
                 return  # nothing to do
 
-            # Build full path to 'instance:id/interfaces/:interface/:field_name'
+            # Build full path to 'instance:id/interfaces/:interface/:fieldname'
             fields_with_path = []
             for field in fields:
                 fields_with_path.append('instance:%s/interfaces/%s/%s' % (
@@ -642,7 +641,10 @@ class Provider(ProviderBase):
             target_final = self.find_tasks(wfspec, provider=target['provider'],
                     resource=relation['target'], tag='final')
             if not target_final:
-                raise CheckmateException("Relation final task not found")
+                raise CheckmateException("'Final' task not found for relation "
+                                         "'%s' connecting %s to %s" %
+                                         (relation_key, key,
+                                          relation['target']))
             if len(target_final) > 1:
                 raise CheckmateException("Multiple relation final tasks "
                         "found: %s" % [t.name for t in target_final])
@@ -774,8 +776,8 @@ class Provider(ProviderBase):
         # build a live catalog - this would be the on_get_catalog called if no
         # stored/override existed
         # Get cookbooks
-        cookbooks = self._get_cookbooks(site_cookbooks=False)
-        site_cookbooks = self._get_cookbooks(site_cookbooks=True)
+        cookbooks = self._get_cookbooks(context, site_cookbooks=False)
+        site_cookbooks = self._get_cookbooks(context, site_cookbooks=True)
         roles = self._get_roles(context)
 
         cookbooks.update(roles)
@@ -813,7 +815,7 @@ class Provider(ProviderBase):
                 return Component(**result)
 
         try:
-            cookbook = self._get_cookbook(id, site_cookbook=True)
+            cookbook = self._get_cookbook(context, id, site_cookbook=True)
             if cookbook:
                 if role:
                     cookbook['role'] = role
@@ -822,7 +824,7 @@ class Provider(ProviderBase):
             pass
 
         try:
-            cookbook = self._get_cookbook(id, site_cookbook=False)
+            cookbook = self._get_cookbook(context, id, site_cookbook=False)
             if cookbook:
                 if role:
                     cookbook['role'] = role
@@ -838,14 +840,14 @@ class Provider(ProviderBase):
 
         LOG.debug("Component '%s' not found" % id)
 
-    def _get_cookbooks(self, site_cookbooks=False):
+    def _get_cookbooks(self, context, site_cookbooks=False):
         """Get all cookbooks as Checkmate components"""
         results = {}
         # Get cookbook names (with source if translated)
         cookbooks = self._get_cookbook_names(site_cookbooks=site_cookbooks)
         # Load individual cookbooks
         for name, cookbook in cookbooks.iteritems():
-            data = self._get_cookbook(cookbooks.get('source_name', name),
+            data = self._get_cookbook(context, cookbooks.get('source_name', name),
                     site_cookbook=site_cookbooks)
             if data:
                 results[data['id']] = data
@@ -873,7 +875,7 @@ class Provider(ProviderBase):
                 results[canonical_name]['source_name'] = name
         return results
 
-    def _get_cookbook(self, id, site_cookbook=False):
+    def _get_cookbook(self, context, id, site_cookbook=False):
         """Get a cookbook as a Checkmate component"""
         assert id, 'Blank cookbook ID requested from _get_cookbook'
         # Get cookbook names (with source if translated)
@@ -888,12 +890,12 @@ class Provider(ProviderBase):
         else:
             meta_path = os.path.join(repo_path, 'cookbooks',
                     cookbook.get('source_name', id), 'metadata.json')
-        cookbook = self._parse_cookbook_metadata(meta_path)
+        cookbook = self._parse_cookbook_metadata(context, meta_path)
         if 'id' not in cookbook:
             cookbook['id'] = id
         return cookbook
 
-    def _parse_cookbook_metadata(self, metadata_json_path):
+    def _parse_cookbook_metadata(self, context, metadata_json_path):
         """Get a cookbook's data and format it as a checkmate component
 
         :param metadata_json_path: path to metadata.json file
@@ -948,7 +950,9 @@ class Provider(ProviderBase):
                 component['requires'].append(dict(host='linux'))
         else:
             component['requires'] = [dict(host='linux')]
-
+        
+        self._process_component_deps(context, component)
+        
         return component
 
     def _get_roles(self, context):
@@ -1008,22 +1012,6 @@ class Provider(ProviderBase):
                     dependencies.append("%s-role" % name)
                 else:
                     continue
-
-                dependency = self.get_component(context, name)
-                if dependency:
-                    if 'provides' in dependency:
-                        for entry in dependency['provides']:
-                            if entry not in provides:
-                                provides.append(entry)
-                    if 'requires' in dependency:
-                        for entry in dependency['requires']:
-                            if entry not in requires:
-                                requires.append(entry)
-                    if 'options' in dependency:
-                        # Mark options as coming from another component
-                        for key, option in dependency['options'].iteritems():
-                            option['source'] = dependency['id']
-                        options.update(dependency['options'])
             if dependencies:
                 component['dependencies'] = dependencies
             if provides:
@@ -1032,8 +1020,39 @@ class Provider(ProviderBase):
                 component['requires'] = requires
             if options:
                 component['options'] = options  # already translated
-
+        self._process_component_deps(context, component)
         return component
+    
+    def _process_component_deps(self, context, component):
+        if component:
+            for dep in component.get('dependencies', []):
+                try:
+                    dep_id = dep.get('id', 'UNKNOWN')
+                except AttributeError:
+                    dep_id = dep
+                dependency = self.get_component(context, dep_id)
+                if dependency:
+                    if 'provides' in dependency:
+                        if 'provides' not in component:
+                            component['provides'] = []
+                        for entry in dependency['provides']:
+                            if entry not in component['provides']:
+                                component['provides'].append(entry)
+                    if 'requires' in dependency:
+                        if 'requires' not in component:
+                            component['requires'] = []
+                        for entry in dependency['requires']:
+                            if entry not in component['requires']:
+                                component['requires'].append(entry)
+                    if 'options' in dependency:
+                        if 'options' not in component:
+                            component['options'] = {}
+                        # Mark options as coming from another component
+                        for key, option in dependency['options'].iteritems():
+                            if 'source' not in option:
+                                option['source'] = dependency['id']
+                            if key not in component['options']:
+                                component['options'][key] = option
 
     def translate_options(self, native_options, component_id):
         """Translate native provider options to canonical, checkmate options
@@ -1116,7 +1135,7 @@ from subprocess import check_output, CalledProcessError, Popen, PIPE
 import sys
 import threading
 
-from celery.task import task
+from celery.task import task #@UnresolvedImport
 
 from checkmate.ssh import execute as ssh_execute
 

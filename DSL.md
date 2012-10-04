@@ -128,7 +128,7 @@ services: like tiers, but not restricted to the concept of tiers. Currently, the
           interface: mysql
           service: my_db_thang
 options: KEY piece (don't forget it!). This lists the options (levers or dials) that the blueprint author is exposing to me. SImilar in syntax to component options, but the main difference is in the constraints
-  database_bigness:
+  "database_bigness":
     description: the size of the database
     default: 2GB
     # we need to define the syntax for more complex logic, like greater than, less than, etc....
