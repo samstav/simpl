@@ -68,7 +68,7 @@ Vagrant::Config.run do |config|
           },
         },
         :server => {
-          :args => '--with-ui --with-simulator --eventlet --debug 0.0.0.0:8080',
+          :args => '--with-ui --with-simulator --eventlet --debug --logconfig=/etc/checkmate/server-log.conf 0.0.0.0:8080',
         },
         :celeryd => {
            :loglevel => 'DEBUG',
