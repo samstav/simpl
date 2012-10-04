@@ -491,7 +491,7 @@ def create_workflow_deploy(deployment, context):
             sorted_list.append(resource_key)
 
     for key, resource in deployment.get('resources', {}).iteritems():
-        if key not in ['connections', 'keys']:
+        if key not in ['connections', 'keys'] and 'provider' in resource:
             recursive_add_host(sorted_resources, key, deployment['resources'],
                                [])
     LOG.debug("Ordered resources: %s" % '->'.join(sorted_resources))
