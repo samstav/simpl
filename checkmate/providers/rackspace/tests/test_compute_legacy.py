@@ -11,6 +11,7 @@ import openstack.compute
 
 from checkmate.exceptions import CheckmateException
 from checkmate.deployments import Deployment, resource_postback
+from checkmate.middleware import RequestContext
 from checkmate.providers.base import PROVIDER_CLASSES
 from checkmate.providers.rackspace import compute_legacy
 from checkmate.test import StubbedWorkflowBase, TestProvider
@@ -67,7 +68,7 @@ class TestLegacyCompute(unittest.TestCase):
 
         openstack_api_mock.images.find(id=image.id).AndReturn(image)
         openstack_api_mock.flavors.find(id=flavor.id).AndReturn(flavor)
-        openstack_api_mock.servers.create(image=119, flavor=2,
+        openstack_api_mock.servers.create(image=119, flavor=2, meta=None,
                                           name='fake_server',
                                           files=None).AndReturn(server)
 
@@ -103,7 +104,6 @@ class TestLegacyGenerateTemplate(unittest.TestCase):
     def tearDown(self):
         self.mox.UnsetStubs()
 
-
     def test_catalog_and_deployment_same(self):
         """Catalog and Deployment have matching regions"""
         catalog = {
@@ -132,8 +132,8 @@ class TestLegacyGenerateTemplate(unittest.TestCase):
         RackspaceComputeProviderBase = self.mox.CreateMockAnything()
         context = self.mox.CreateMockAnything()
         deployment = self.mox.CreateMockAnything()
-
-
+        deployment['id'].AndReturn('Mock')
+        context = RequestContext()
         RackspaceComputeProviderBase.generate_template.AndReturn(True)
 
         #Stub out provider calls
@@ -168,7 +168,6 @@ class TestLegacyGenerateTemplate(unittest.TestCase):
         self.assertDictEqual(results, expected)
         self.mox.VerifyAll()
 
-
     def test_catalog_and_deployment_diff(self):
         """Catalog and Deployment have different regions"""
         catalog = {
@@ -182,19 +181,19 @@ class TestLegacyGenerateTemplate(unittest.TestCase):
        
         #Mock Base Provider, context and deployment
         RackspaceComputeProviderBase = self.mox.CreateMockAnything()
-        context = self.mox.CreateMockAnything()
         deployment = self.mox.CreateMockAnything()
-
+        deployment['id'].AndReturn('Mock')
+        context = RequestContext()
         RackspaceComputeProviderBase.generate_template.AndReturn(True)
 
         #Stub out provider calls
         self.mox.StubOutWithMock(provider, 'get_catalog')
+        provider.get_catalog(context).AndReturn(catalog)
 
         deployment.get_setting('region', resource_type='compute',
                                service_name='master',
                                provider_key=provider.key).AndReturn('dallas')
 
-        provider.get_catalog(context).AndReturn(catalog)
         provider.get_catalog(context, type_filter="regions").AndReturn(catalog)
 
         self.mox.ReplayAll()
@@ -204,7 +203,6 @@ class TestLegacyGenerateTemplate(unittest.TestCase):
         except CheckmateException:
             #pass
             self.mox.VerifyAll()
-
 
     def test_no_region(self):
         """ No region specified in deployment or catalog"""
@@ -231,7 +229,8 @@ class TestLegacyGenerateTemplate(unittest.TestCase):
         RackspaceComputeProviderBase = self.mox.CreateMockAnything()
         context = self.mox.CreateMockAnything()
         deployment = self.mox.CreateMockAnything()
-
+        deployment['id'].AndReturn('Mock')
+        context = RequestContext()
         RackspaceComputeProviderBase.generate_template.AndReturn(True)
 
         #Stub out provider calls
@@ -288,8 +287,8 @@ class TestLegacyGenerateTemplate(unittest.TestCase):
         RackspaceComputeProviderBase = self.mox.CreateMockAnything()
         context = self.mox.CreateMockAnything()
         deployment = self.mox.CreateMockAnything()
-
-
+        deployment['id'].AndReturn('Mock')
+        context = RequestContext()
         RackspaceComputeProviderBase.generate_template.AndReturn(True)
 
         #Stub out provider calls
@@ -327,7 +326,6 @@ class TestLegacyGenerateTemplate(unittest.TestCase):
         self.mox.VerifyAll()
         self.assertDictEqual(results, expected)
 
-
     def test_region_supplied_as_airport_code(self):
         """Deployment region listed as airport code"""
         catalog = {
@@ -357,8 +355,8 @@ class TestLegacyGenerateTemplate(unittest.TestCase):
         RackspaceComputeProviderBase = self.mox.CreateMockAnything()
         context = self.mox.CreateMockAnything()
         deployment = self.mox.CreateMockAnything()
-
-        
+        deployment['id'].AndReturn('Mock')
+        context = RequestContext()
         RackspaceComputeProviderBase.generate_template.AndReturn(True)
 
         #Stub out provider calls

@@ -11,6 +11,7 @@ from novaclient.v1_1 import client
 
 from checkmate.exceptions import CheckmateException
 from checkmate.deployments import Deployment, resource_postback
+from checkmate.middleware import RequestContext
 from checkmate.providers.base import PROVIDER_CLASSES
 from checkmate.providers.rackspace import compute
 from checkmate.test import StubbedWorkflowBase, TestProvider
@@ -71,7 +72,8 @@ class TestNovaCompute(unittest.TestCase):
         openstack_api_mock.images.find(id=image.id).AndReturn(image)
         openstack_api_mock.flavors.find(id=flavor.id).AndReturn(flavor)
         openstack_api_mock.servers.create('fake_server', image, flavor,
-                                          files=None).AndReturn(server)
+                                          files=None, meta=None
+                                          ).AndReturn(server)
         openstack_api_mock.client.region_name = "NORTH"
 
         expected = {
@@ -129,10 +131,9 @@ class TestNovaGenerateTemplate(unittest.TestCase):
        
         #Mock Base Provider, context and deployment
         RackspaceComputeProviderBase = self.mox.CreateMockAnything()
-        context = self.mox.CreateMockAnything()
         deployment = self.mox.CreateMockAnything()
-
-
+        deployment['id'].AndReturn('Mock')
+        context = RequestContext()
         RackspaceComputeProviderBase.generate_template.AndReturn(True)
 
         #Stub out provider calls
@@ -198,9 +199,9 @@ class TestNovaGenerateTemplate(unittest.TestCase):
        
         #Mock Base Provider, context and deployment
         RackspaceComputeProviderBase = self.mox.CreateMockAnything()
-        context = self.mox.CreateMockAnything()
         deployment = self.mox.CreateMockAnything()
-
+        deployment['id'].AndReturn('Mock')
+        context = RequestContext()
         RackspaceComputeProviderBase.generate_template.AndReturn(True)
 
         #Stub out provider calls
