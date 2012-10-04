@@ -410,7 +410,40 @@ function AppController($scope, $http, $location) {
 }
 
 //Not really used now
-function NavBarController() {
+function NavBarController($scope, $location) {
+  $scope.feedback = "";
+  $scope.email = "";
+
+  // Send feedback to server
+  $scope.send_feedback = function() {
+    data = JSON.stringify({
+        "feedback": {
+            "request": $scope.feedback,
+            "email": $scope.email,
+            "username": $scope.auth.username,
+            "tenantId": $scope.auth.tenantId,
+            "location": $location.absUrl(),
+            "auth": $scope.auth
+            }
+          });
+    headers = checkmate.config.header_defaults.headers.common;
+    return $.ajax({
+      type: "POST",
+      contentType: "application/json; charset=utf-8",
+      headers: headers,
+      dataType: "json",
+      url: "/feedback",
+      data: data
+    }).success(function(json) {
+        $('.dropdown.open .dropdown-toggle').dropdown('toggle');
+        $scope.notify("Feedback received. Thank you!");
+        $scope.feedback = "";
+        $("#feedback_error").hide();
+    }).error(function(response) {
+      $("#feedback_error_text").html(response.statusText);
+      $("#feedback_error").show();
+    });
+  }
 
 }
 

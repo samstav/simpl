@@ -55,16 +55,16 @@
   <!--[if lt IE 7]><p class=chromeframe>Your browser is <em>ancient!</em> <a href="http://browsehappy.com/">Upgrade to a different browser</a> or <a href="http://www.google.com/chromeframe/?redirect=true">install Google Chrome Frame</a> to experience this site.</p><![endif]-->
 
   <header ng-cloak ng-show="showHeader">
-	<div class="navbar navbar-fixed-top no-select navbar-inverse" ng-controller="NavBarController">
-	  <div class="navbar-inner">
-		<div class="container">
-		  <button type="button" class="btn btn-navbar" data-toggle="collapse" data-target=".nav-collapse">
-			<span class="icon-bar"></span>
-			<span class="icon-bar"></span>
-			<span class="icon-bar"></span>
-		  </button>
-		  <a class="brand" href="/"><img id="loading" src="/static/img/ajax-loader-white.gif" style="display: none;"/> Checkmate</a>
-		  <!--TODO: collapsing not yet clean -->
+    <div class="navbar navbar-fixed-top no-select navbar-inverse" ng-controller="NavBarController">
+      <div class="navbar-inner">
+        <div class="container">
+          <button type="button" class="btn btn-navbar" data-toggle="collapse" data-target=".nav-collapse">
+                <span class="icon-bar"></span>
+                <span class="icon-bar"></span>
+                <span class="icon-bar"></span>
+          </button>
+          <a class="brand" href="/"><img id="loading" src="/static/img/ajax-loader-white.gif" style="display: none;"/> Checkmate</a>
+          <!--TODO: collapsing not yet clean -->
           <div id="user_control" class="nav pull-right">
             <ul class="nav">
               <li class="divider-vertical"></li>
@@ -87,18 +87,43 @@
             </ul>
           </div>
           <div class="nav-collapse collapse" style="display: none" ng-show="auth.loggedIn">
-			<ul id="nav-elements" class="nav">
-			  <li id="nav-deployments"><a href="/{{auth.tenantId}}/deployments">Deployments</a></li>
-			  <li id="nav-workflows"><a href="/{{auth.tenantId}}/workflows">Workflows</a></li>
-			  <li id="nav-environments"><a href="/{{auth.tenantId}}/environments">Environments</a></li>
-			  <li id="nav-blueprints"><a href="/{{auth.tenantId}}/blueprints">Blueprints</a></li>
+            <ul id="nav-elements" class="nav">
+              <li id="nav-deployments"><a href="/{{auth.tenantId}}/deployments">Deployments</a></li>
+              <li id="nav-workflows"><a href="/{{auth.tenantId}}/workflows">Workflows</a></li>
+              <li id="nav-feedback" class="dropdown"><a class="dropdown-toggle" href="#" data-toggle="dropdown"><i class="icon-comment icon-white"></i> Feedback</b></a>
+                <div class="dropdown-menu" style="padding: 15px; padding-bottom: 0px;">
+                  <form id="feedback-form" class="form-horizontal">
+                    <label class="control-label" for="feedback" class="span4" style="text-align: left; width: 100%; color: black;">I wish Checkmate would</label>
+                    <div class="input-append">
+                      <input type="text" id="feedback" name="feedback" class="span3" placeholder="let me log in using OpenID" ng-model="feedback">
+                      <button id="feedback-submit" class="btn" style="margin-top: 0;" ng-click="send_feedback()">Make it happen!</button>
+                    </div>
+                    <div id="feedback_error" class="alert alert-error hide">
+                      <strong>Feedback not captured!</strong> <span id="feedback_error_text"></span>.
+                      <br>You can send your feedback by email to <a style="display: inline; " href="mailto:checkmate@lists.rackspace.com">checkmate@lists.rackspace.com</a>
+                    </div>
+                    <hr>
+                    <div class="input-prepend">
+                      <span class="add-on">
+                        <i class="icon-envelope"></i>
+                      </span><input type="text" id="email" name="email" class="span4" placeholder="Email me with updates on this" ng-model="email">
+                    </div>
+                  </form>
+                </div>
+                <script type="text/javascript">
+                  $(function() {
+                    // Don't close feedback form on click
+                    $('.dropdown input, .dropdown label').click(function(e) {
+                      e.stopPropagation();
+                    });
+                  });
+                </script>
+              </li>
               <li class="dropdown">
-                <a href="#"
-                      class="dropdown-toggle"
-                      data-toggle="dropdown">
-                      <b class="caret"></b>
-                </a>
+                <a href="#" class="dropdown-toggle" data-toggle="dropdown">Other<b class="caret"></b></a>
                 <ul class="dropdown-menu">
+                  <li id="nav-environments"><a href="/{{auth.tenantId}}/environments">Environments</a></li>
+                  <li id="nav-blueprints"><a href="/{{auth.tenantId}}/blueprints">Blueprints</a></li>
                   <li id="nav-providers"><a href="/providers">Providers</a></li>
                   <li class="divider"></li>
                   <li class="nav-header">Status</li>
@@ -106,15 +131,15 @@
                   <li id="nav-status-libraries"><a href="/status/libraries">Libraries</a></li>
                 </ul>
               </li>
-			  <li class="divider-vertical"></li>
+              <li class="divider-vertical"></li>
               <form class="navbar-search" id="navSearch" style="display: none" ng-show="showSearch">
                 <input type="search" ng-model="$parent.search" class="search-query span2" style="height: 15px;" placeholder="Search">
               </form>
             </ul>
-		  </div><!--/.nav-collapse -->
-		</div>
-	  </div>
-	</div>
+          </div><!--/.nav-collapse -->
+        </div>
+      </div>
+    </div>
   </header>
 
   <div class="container-fluid mainContent" ng-view>
@@ -169,43 +194,43 @@
 	</div>
 	<div class="modal-body">
 	  <form class="form-horizontal" style="margin-bottom: 0px">
-		<div id="auth_error" class="alert alert-error hide">
-		  <strong>Authentication Failed!</strong> <span id="auth_error_text"></span>.
-		</div>
-		<fieldset>
-		  <div class="control-group">
-			<label class="control-label" for="username">Username</label>
-			<div class="controls">
-			  <input type="text" class="input-xlarge" id="username" ng-model="bound_creds.username"></i>
-			</div>
-		  </div>
-		  <div class="control-group">
-			<label class="control-label" for="password">Password</label>
-			<div class="controls">
-			  <input type="password" class="input-xlarge" id="password" ng-model="bound_creds.password">
-			</div>
-		  </div>
-                    <p style="text-align: center">or</p>
-                    <div class="control-group">
-                      <label class="control-label" for="apikey">API Key</label>
-                      <div class="controls">
-                            <input type="password" class="input-xlarge" id="apikey" ng-model="bound_creds.apikey">
-                      </div>
-                    </div>
-                    <hr/>
-                    <div class="control-group">
-                      <label class="control-label" for="auth_url">Cloud/Region</label>
-                      <div class="controls">
-                            <select id="auth_url" class="span3" required ng-model="bound_creds.auth_url">
-                              <option value="https://identity.api.rackspacecloud.com/v2.0/tokens">Rackspace Cloud - US</option>
-                              <option value="https://lon.identity.api.rackspacecloud.com/v2.0/tokens">Rackspace Cloud - UK</option>
-                            </select>
-                      </div>
-                    </div>
-		</fieldset>
-		<div class="modal-footer">
-		  <button type="submit" class="btn btn-primary" ng-click="logIn(username.value, password.value, apikey.value, auth_url.value)">Authenticate!</button>
-		</div>
+            <div id="auth_error" class="alert alert-error hide">
+              <strong>Authentication Failed!</strong> <span id="auth_error_text"></span>.
+            </div>
+            <fieldset>
+              <div class="control-group">
+                <label class="control-label" for="username">Username</label>
+                <div class="controls">
+                  <input type="text" class="input-xlarge" id="username" ng-model="bound_creds.username"></i>
+                </div>
+              </div>
+              <div class="control-group">
+                <label class="control-label" for="password">Password</label>
+                <div class="controls">
+                  <input type="password" class="input-xlarge" id="password" ng-model="bound_creds.password">
+                </div>
+              </div>
+                <p style="text-align: center">or</p>
+                <div class="control-group">
+                  <label class="control-label" for="apikey">API Key</label>
+                  <div class="controls">
+                        <input type="password" class="input-xlarge" id="apikey" ng-model="bound_creds.apikey">
+                  </div>
+                </div>
+                <hr/>
+                <div class="control-group">
+                  <label class="control-label" for="auth_url">Cloud/Region</label>
+                  <div class="controls">
+                    <select id="auth_url" class="span3" required ng-model="bound_creds.auth_url">
+                      <option value="https://identity.api.rackspacecloud.com/v2.0/tokens">Rackspace Cloud - US</option>
+                      <option value="https://lon.identity.api.rackspacecloud.com/v2.0/tokens">Rackspace Cloud - UK</option>
+                    </select>
+                  </div>
+                </div>
+            </fieldset>
+            <div class="modal-footer">
+              <button type="submit" class="btn btn-primary" ng-click="logIn(username.value, password.value, apikey.value, auth_url.value)">Authenticate!</button>
+            </div>
 	  </form>
 	</div>
   </div>
