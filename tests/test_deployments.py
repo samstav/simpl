@@ -64,12 +64,15 @@ class TestDeployments(unittest.TestCase):
                 })
         generate_keys(deployment)
         self.assertIn('resources', deployment)
-        self.assertIn('keys', deployment['resources'])
-        self.assertItemsEqual(['deployment'],
-                             deployment['resources']['keys'].keys())
+        self.assertIn('deployment-keys', deployment['resources'])
+        self.assertItemsEqual(['instance', 'type'],
+                             deployment['resources']['deployment-keys'].keys())
         self.assertItemsEqual(['private_key', 'public_key', 'public_key_ssh'],
-                             deployment['resources']['keys']['deployment']\
-                             .keys())
+                             deployment['resources']['deployment-keys']\
+                             ['instance'].keys())
+        self.assertEqual(deployment['resources']['deployment-keys']['type'],
+                         'key-pair')
+
 
     def test_key_generation_public(self):
         """Test that key generation works if a private key is supplied"""
@@ -78,19 +81,21 @@ class TestDeployments(unittest.TestCase):
                 'id': 'test',
                 'name': 'test',
                 'resources': {
-                    'keys': {
-                        'deployment': {
+                    'deployment-keys': {
+                        'instance': {
                             'private_key': private['PEM']
                         }
                     }
                 }
                 })
         generate_keys(deployment)
-        self.assertItemsEqual(['deployment'],
-                             deployment['resources']['keys'].keys())
+        self.assertItemsEqual(['instance', 'type'],
+                             deployment['resources']['deployment-keys'].keys())
         self.assertItemsEqual(['private_key', 'public_key', 'public_key_ssh'],
-                             deployment['resources']['keys']['deployment']\
-                             .keys())
+                             deployment['resources']['deployment-keys']\
+                             ['instance'].keys())
+        self.assertEqual(deployment['resources']['deployment-keys']['type'],
+                         'key-pair')
 
     def test_key_generation_and_settings_sync(self):
         """Test that key generation refreshes settings"""
@@ -99,8 +104,8 @@ class TestDeployments(unittest.TestCase):
                 'id': 'test',
                 'name': 'test',
                 'resources': {
-                    'keys': {
-                        'deployment': {
+                    'deployment-keys': {
+                        'instance': {
                             'private_key': private['PEM']
                         }
                     }
@@ -264,6 +269,7 @@ class TestDeploymentResourceGenerator(unittest.TestCase):
 
     def test_providerless_static_resource_generator(self):
         """Test the parser generates providerless static resources"""
+        private, public = keys.generate_key_pair()
         deployment = Deployment(yaml_to_dict("""
                 id: test
                 blueprint:
@@ -273,12 +279,17 @@ class TestDeploymentResourceGenerator(unittest.TestCase):
                       type: user
                       name: test_user
                       password: secret
+                    "anyKey":
+                      type: key-pair
                     "myKey":
                       type: key-pair
+                      private_key: |
+                        %s
                 environment:
                   name: environment
                   providers: {}
-            """))
+            """ % "\n                        ".join(private['PEM'].split(
+                "\n"))))
 
         parsed = plan(deployment, RequestContext())
         resources = parsed['resources']
@@ -296,7 +307,13 @@ class TestDeploymentResourceGenerator(unittest.TestCase):
         self.assertIn("myKey", resources)
         self.assertItemsEqual(resources['myKey']['instance'].keys(),
                             ["private_key", "public_key", "public_key_ssh"])
+        self.assertEqual(resources['myKey']['instance']['private_key'].strip(
+                         '\n'),
+                         private['PEM'])
 
+        self.assertIn("anyKey", resources)
+        self.assertItemsEqual(resources['anyKey']['instance'].keys(),
+                            ["private_key", "public_key", "public_key_ssh"])
 
 class TestComponentSearch(unittest.TestCase):
     """ Test code that finds components """
