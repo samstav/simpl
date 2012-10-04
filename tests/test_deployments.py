@@ -16,8 +16,9 @@ import os
 init_console_logging()
 LOG = logging.getLogger(__name__)
 
+from checkmate import keys
 from checkmate.deployments import Deployment, plan, get_deployments_count, \
-        get_deployments_by_bp_count, _deploy
+        get_deployments_by_bp_count, _deploy, generate_keys
 from checkmate.exceptions import CheckmateValidationException
 from checkmate.providers.base import PROVIDER_CLASSES, ProviderBase
 from checkmate.middleware import RequestContext
@@ -54,6 +55,65 @@ class TestDeployments(unittest.TestCase):
                 'nope': None
                 }
         self.assertRaises(CheckmateValidationException, Deployment, deployment)
+
+    def test_key_generation_all(self):
+        """Test that key generation works"""
+        deployment = Deployment({
+                'id': 'test',
+                'name': 'test',
+                })
+        generate_keys(deployment)
+        self.assertIn('resources', deployment)
+        self.assertIn('keys', deployment['resources'])
+        self.assertItemsEqual(['deployment'],
+                             deployment['resources']['keys'].keys())
+        self.assertItemsEqual(['private_key', 'public_key', 'public_key_ssh'],
+                             deployment['resources']['keys']['deployment']\
+                             .keys())
+
+    def test_key_generation_public(self):
+        """Test that key generation works if a private key is supplied"""
+        private, public = keys.generate_key_pair()
+        deployment = Deployment({
+                'id': 'test',
+                'name': 'test',
+                'resources': {
+                    'keys': {
+                        'deployment': {
+                            'private_key': private['PEM']
+                        }
+                    }
+                }
+                })
+        generate_keys(deployment)
+        self.assertItemsEqual(['deployment'],
+                             deployment['resources']['keys'].keys())
+        self.assertItemsEqual(['private_key', 'public_key', 'public_key_ssh'],
+                             deployment['resources']['keys']['deployment']\
+                             .keys())
+
+    def test_key_generation_and_settings_sync(self):
+        """Test that key generation refreshes settings"""
+        private, public = keys.generate_key_pair()
+        deployment = Deployment({
+                'id': 'test',
+                'name': 'test',
+                'resources': {
+                    'keys': {
+                        'deployment': {
+                            'private_key': private['PEM']
+                        }
+                    }
+                }
+                })
+        # Should pick up keys
+        settings = deployment.settings()
+        self.assertDictEqual(settings.get('keys', {}).get('deployment', {}),
+                             {'private_key': private['PEM']})
+        generate_keys(deployment)
+        settings = deployment.settings()
+        self.assertItemsEqual(['private_key', 'public_key', 'public_key_ssh'],
+                             settings['keys']['deployment'].keys())
 
 
 class TestDeploymentParser(unittest.TestCase):
