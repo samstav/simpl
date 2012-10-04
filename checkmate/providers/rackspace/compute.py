@@ -92,14 +92,18 @@ class RackspaceComputeProviderBase(ProviderBase):
         ProviderBase.__init__(self, provider, key=key)
         #kwargs aadded to server creation calls (contain things like ssh keys)
         self._kwargs = {}
+        with open(os.path.join(os.path.dirname(__file__),
+                               "managed_cloud",
+                               "delay.sh")) as open_file:
+            self.managed_cloud_script = open_file.read()
+
 
     def prep_environment(self, wfspec, deployment, context):
         keys = set()
-        for value in deployment.settings().get('keys', {}).values():
-            if 'public_key_ssh' in value:
-                keys.add(value['public_key_ssh'])
-            elif 'public_key' in value:
-                assert False, "Code still using public_key without _ssh"
+        for name, key_pair in deployment.settings()['keys'].iteritems():
+            if 'public_key_ssh' in key_pair:
+                LOG.debug("Injecting a '%s' public key" % name)
+                keys.add(key_pair['public_key_ssh'])
         if keys:
             path = '/root/.ssh/authorized_keys'
             if 'files' not in self._kwargs:
@@ -108,6 +112,13 @@ class RackspaceComputeProviderBase(ProviderBase):
                 existing = self._kwargs['files'][path].split('\n')
                 keys.update(existing)
                 self._kwargs['files'][path] = '\n'.join(keys)
+        # Inject managed cloud file to prevent RBA conflicts
+        if 'rax_managed' in context.roles:
+            path = '/etc/rackspace/pre.chef.d/delay.sh'
+            if 'files' not in self._kwargs:
+                self._kwargs['files'] = {path: self.managed_cloud_script}
+            else:
+                self._kwargs['files'][path] = self.managed_cloud_script
 
 
 class Provider(RackspaceComputeProviderBase):
@@ -119,7 +130,6 @@ class Provider(RackspaceComputeProviderBase):
                 deployment, resource_type, service, context, name=name)
 
         catalog = self.get_catalog(context)
-
 
         # Get region
         region = deployment.get_setting('region', resource_type=resource_type,
@@ -208,12 +218,32 @@ class Provider(RackspaceComputeProviderBase):
                         PathAttrib('instance:%s/id' % key),
                         resource['region']],
                 password=PathAttrib('instance:%s/password' % key),
-                private_key=PathAttrib('keys/deployment/private_key'),
+                private_key=deployment.settings().get('keys', {}).get(
+                        'deployment', {}).get('private_key'),
+                merge_results=True,
                 properties={'estimated_duration': 150},
                 defines=dict(resource=key,
                              provider=self.key,
                              task_tags=['final']))
         create_server_task.connect(build_wait_task)
+
+        #If Managed Cloud, add a Completion task to release RBA
+        # other providers may delay this task until they are done
+        if 'rax_managed' in context.roles:
+            touch_complete = Celery(wfspec, 'Mark Server %s Complete'
+                    % key, 'checkmate.ssh.execute',
+                    call_args=[PathAttrib("instance:%s/public_ip" % key),
+                               "mkdir -p /etc/rackspace/checkmate && "
+                               "touch /etc/rackspace/checkmate/.complete",
+                               "root"],
+                    password=PathAttrib('instance:%s/password' % key),
+                    private_key=deployment.settings().get('keys', {}).get(
+                            'deployment', {}).get('private_key'),
+                    properties={'estimated_duration': 10},
+                    defines=dict(resource=key,
+                                 provider=self.key,
+                                 task_tags=['complete']))
+            build_wait_task.connect(touch_complete)
 
         if wait_on is None:
             wait_on = []

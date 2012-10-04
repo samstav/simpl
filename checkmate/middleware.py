@@ -780,7 +780,7 @@ class RequestContext(object):
         self.user_tenants = user_tenants  # all allowed tenants
         self.tenant = tenant  # current tenant
         self.is_admin = is_admin
-        self.roles = roles
+        self.roles = roles or []
         self.read_only = read_only
         self.show_deleted = show_deleted
         self.domain = domain  # which cloud?
@@ -798,12 +798,8 @@ class RequestContext(object):
         keyword_args = copy.copy(self.kwargs)
         if kwargs:
             keyword_args.update(kwargs)
-        result = dict(
-                username=self.username,
-                auth_token=self.auth_token,
-                catalog=self.catalog,
-                **keyword_args
-            )
+        result = dict(**keyword_args)
+        result.update(self.__dict__)
         return result
 
     def allowed_to_access_tenant(self, tenant_id=None):
