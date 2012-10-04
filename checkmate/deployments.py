@@ -4,8 +4,8 @@ import os
 import uuid
 
 # pylint: disable=E0611
-from bottle import get, post, request, response, route, abort
-from celery.task import task
+from bottle import get, post, request, response, route, abort #@UnresolvedImport
+from celery.task import task #@UnresolvedImport
 from SpiffWorkflow import Workflow, Task
 from SpiffWorkflow.storage import DictionarySerializer
 
@@ -338,7 +338,7 @@ def execute(oid, timeout=180, tenant_id=None):
     if not deployment:
         abort(404, 'No deployment with id %s' % oid)
 
-    result = orchestrator.run_workflow.delay(oid, timeout=900)
+    result = orchestrator.run_workflow.delay(oid, timeout=900) #@UndefinedVariable
     return result
 
 
@@ -674,8 +674,10 @@ def plan(deployment, context):
                 instance = {}
                 result = dict(type='user', instance=instance)
                 if 'name' not in resource:
-                    raise CheckmateException("Name must be specified for the "
-                                             "'%s' user resource" % key)
+                    instance['name'] = deployment.get_setting('name', key, None, None, 'admin')
+                    if not instance['name']:
+                        raise CheckmateException("Name must be specified for the "
+                                                 "'%s' user resource" % key)
                 else:
                     instance['name'] = resource['name']
                 if 'password' not in resource:
@@ -683,14 +685,33 @@ def plan(deployment, context):
                             "generate_password()")
                 else:
                     instance['password'] = resource['password']
-
             elif resource['type'] == 'key-pair':
                 # Fall-back to local loader
-                private, public = keys.generate_key_pair()
-                result = dict(type='key-pair',
-                              instance=dict(public_key=public['PEM'],
-                                            public_key_ssh=public['ssh'],
-                                            private_key=private['PEM']))
+                instance = {}
+                private_key = resource.get('private_key')
+                if private_key is None:
+                    # Generate and store all key types
+                    private, public = keys.generate_key_pair()
+                    instance['public_key'] = public['PEM']
+                    instance['public_key_ssh'] = public['ssh']
+                    instance['private_key'] = private['PEM']
+                else:
+                    # Private key was supplied
+                    instance['private_key'] = private_key
+                    #make sure we have or can get a public key
+                    if 'public_key' in resource:
+                        public_key = resource['public_key']
+                    else:
+                        public_key = keys.get_public_key(private_key)
+                    instance['public_key'] = public_key
+                    if 'public_key_ssh' in resource:
+                        public_key_ssh = resource['public_key_ssh']
+                    else:
+                        public_key_ssh = keys.get_ssh_public_key(private_key)
+                    instance['public_key_ssh'] = public_key_ssh
+                if 'instance' in resource:
+                    instance = resource['instance']
+                result = dict(type='key-pair', instance=instance)
             else:
                 raise CheckmateException("Could not find provider for the "
                                          "'%s' resource" % key)
@@ -800,12 +821,14 @@ def generate_keys(deployment):
     """
     if 'resources' not in deployment:
         deployment['resources'] = {}
-    if 'keys' not in deployment['resources']:
-        deployment['resources']['keys'] = {}
-    if 'deployment' not in deployment['resources']['keys']:
-        deployment['resources']['keys']['deployment'] = {}
+    if 'deployment-keys' not in deployment['resources']:
+        deployment['resources']['deployment-keys'] = dict(type='key-pair')
+    elif 'type' not in deployment['resources']['deployment-keys']:
+        deployment['resources']['deployment-keys']['type'] = 'key-pair'
+    if 'instance' not in deployment['resources']['deployment-keys']:
+        deployment['resources']['deployment-keys']['instance'] = {}
 
-    dep_keys = deployment['resources']['keys']['deployment']
+    dep_keys = deployment['resources']['deployment-keys']['instance']
     private_key = dep_keys.get('private_key')
     if private_key is None:
         # Generate and store all key types
@@ -931,8 +954,8 @@ class Deployment(ExtensibleDict):
         all_keys = get_client_keys(inputs)
         if os_keys:
             all_keys.update(os_keys)
-        deployment_keys = self.get('resources', {}).get('keys', {}).get(
-                'deployment')
+        deployment_keys = self.get('resources', {}).get('deployment-keys', {})\
+                .get('instance')
         if deployment_keys:
             all_keys['deployment'] = deployment_keys
 
@@ -1027,9 +1050,9 @@ class Deployment(ExtensibleDict):
             return node
 
     def _get_setting_value(self, name):
-        """Get a value from the settings hierarchy with support for paths"""
+        """Get a value from the deployment hierarchy with support for paths"""
         if name:
-            node = self.settings()
+            node = self._data
             for key in name.split("/"):
                 if key in node:
                     try:
@@ -1136,6 +1159,9 @@ class Deployment(ExtensibleDict):
                 return False
         if 'service' in constraint:
             if service_name is None or constraint['service'] != service_name:
+                return False
+        if 'resource' in constraint:
+            if resource_type is None or constraint['resource'] != resource_type:
                 return False
         LOG.debug("Constraint '%s' for '%s' applied to '%s/%s'" % (
                 constraint, name, service_name, resource_type))
