@@ -72,7 +72,7 @@
 
           <li><a href="#" ng-click="save_spec()" class="tip" title="Save any edits of the JSON. The JSON on the right is editable!"><i class="icon-ok"></i> Save</a></li>
 
-          <li class="nav-header">Proceeding Tasks</li>
+          <li class="nav-header">Preceeding Tasks</li>
 
           <p ng-repeat="input in current_spec.inputs"><a href="#{{input}}" ng-click="selectSpec(input)">{{input}}   </a><span ng-class="state_class({state: spec_status(input)})">{{task_count(input)}} tasks</span>
 </p>
