@@ -462,7 +462,7 @@ def create_server(context, name, api_object=None, flavor=2, files=None,
     return results
 
 
-@task(default_retry_delay=10, max_retries=18)  # ~3 minute wait
+@task(default_retry_delay=15, max_retries=40)  # max 10 minute wait
 def wait_on_build(context, server_id, ip_address_type='public',
             check_ssh=True, username='root', timeout=10, password=None,
             identity_file=None, port=22, api_object=None, private_key=None):
