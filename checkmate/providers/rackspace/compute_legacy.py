@@ -200,12 +200,32 @@ class Provider(RackspaceComputeProviderBase):
                                 resource=key),
                         PathAttrib('instance:%s/id' % key)],
                 password=PathAttrib('instance:%s/password' % key),
-                private_key=PathAttrib('keys/deployment/private_key'),
+                private_key=deployment.settings().get('keys', {}).get(
+                        'deployment', {}).get('private_key'),
+                merge_results=True,
                 properties={'estimated_duration': 150},
                 defines=dict(resource=key,
                              provider=self.key,
                              task_tags=['final']))
         create_server_task.connect(build_wait_task)
+
+        #If Managed Cloud, add a Completion task to release RBA
+        # other providers may delay this task until they are done
+        if 'rax_managed' in context.roles:
+            touch_complete = Celery(wfspec, 'Mark Server %s Complete'
+                    % key, 'checkmate.ssh.execute',
+                    call_args=[PathAttrib("instance:%s/public_ip" % key),
+                               "mkdir -p /etc/rackspace/checkmate && "
+                               "touch /etc/rackspace/checkmate/.complete",
+                               "root"],
+                    password=PathAttrib('instance:%s/password' % key),
+                    private_key=deployment.settings().get('keys', {}).get(
+                            'deployment', {}).get('private_key'),
+                    properties={'estimated_duration': 10},
+                    defines=dict(resource=key,
+                                 provider=self.key,
+                                 task_tags=['complete']))
+            build_wait_task.connect(touch_complete)
 
         if wait_on is None:
             wait_on = []

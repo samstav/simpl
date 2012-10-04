@@ -789,38 +789,43 @@ def get_client_keys(inputs):
 
 
 def generate_keys(deployment):
-    """Generates keys for the deployment.
+    """Generates keys for the deployment and stores them as a resource.
 
     Generates:
         private_key
         public_key
         public_key_ssh
+
+    If a private_key exists, it will be used to generate the public keys
     """
-    dkeys = deployment.get('resources', {}).get('keys', {})
-    results = {}
-    private_key = dkeys.get('private_key')
+    if 'resources' not in deployment:
+        deployment['resources'] = {}
+    if 'keys' not in deployment['resources']:
+        deployment['resources']['keys'] = {}
+    if 'deployment' not in deployment['resources']['keys']:
+        deployment['resources']['keys']['deployment'] = {}
+
+    dep_keys = deployment['resources']['keys']['deployment']
+    private_key = dep_keys.get('private_key')
     if private_key is None:
+        # Generate and store all key types
         private, public = keys.generate_key_pair()
-        results.update(dict(public_key=public['PEM'],
-                public_key_ssh=public['ssh'], private_key=private['PEM']))
+        dep_keys['public_key'] = public['PEM']
+        dep_keys['public_key_ssh'] = public['ssh']
+        dep_keys['private_key'] = private['PEM']
     else:
         # Private key was supplied, make sure we have or can get a public key
-        if 'public_key' not in dkeys:
-            results['public_key'] = keys.get_public_key(private_key)
-        if 'public_key_ssh' not in results:
+        if 'public_key' not in dep_keys:
+            dep_keys['public_key'] = keys.get_public_key(private_key)
+        if 'public_key_ssh' not in dep_keys:
             public_key = keys.get_ssh_public_key(private_key)
-            results['public_key_ssh'] = public_key
+            dep_keys['public_key_ssh'] = public_key
 
-        results['private_key'] = private_key
+    # Make sure next call to settings() will get a fresh copy of the keys
+    if hasattr(deployment, '_settings'):
+        delattr(deployment, '_settings')
 
-    if results:
-        if 'resources' not in deployment:
-            deployment['resources'] = {}
-        if 'keys' not in deployment['resources']:
-            deployment['resources']['keys'] = {}
-        deployment['resources']['keys'].update(results)
-
-    return results
+    return copy.copy(dep_keys)
 
 
 class Resource():
@@ -926,7 +931,8 @@ class Deployment(ExtensibleDict):
         all_keys = get_client_keys(inputs)
         if os_keys:
             all_keys.update(os_keys)
-        deployment_keys = self.get('resources', {}).get('keys')
+        deployment_keys = self.get('resources', {}).get('keys', {}).get(
+                'deployment')
         if deployment_keys:
             all_keys['deployment'] = deployment_keys
 
