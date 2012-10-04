@@ -27,7 +27,7 @@ GIT
 GIT
   remote: https://github.rackspace.com/Cookbooks/checkmate
   ref: master
-  sha: bc679db7ed78e0db5eff18151d413eddb86cc7cc
+  sha: 36b89b86141153ec3cc9f901b2fffde00aa8ff7a
   specs:
     checkmate (1.1.0)
       apt (>= 0.0.0)
