@@ -114,7 +114,7 @@ class RackspaceComputeProviderBase(ProviderBase):
                 self._kwargs['files'][path] = '\n'.join(keys)
         # Inject managed cloud file to prevent RBA conflicts
         if 'rax_managed' in context.roles:
-            path = '/etc/rackspace/delay.sh'
+            path = '/etc/rackspace/pre.chef.d/delay.sh'
             if 'files' not in self._kwargs:
                 self._kwargs['files'] = {path: self.managed_cloud_script}
             else:
@@ -233,8 +233,7 @@ class Provider(RackspaceComputeProviderBase):
             touch_complete = Celery(wfspec, 'Mark Server %s Complete'
                     % key, 'checkmate.ssh.execute',
                     call_args=[PathAttrib("instance:%s/public_ip" % key),
-                               "mkdir -p /etc/rackspace/checkmate && "
-                               "touch /etc/rackspace/checkmate/.complete",
+                               "touch /tmp/checkmate-complete",
                                "root"],
                     password=PathAttrib('instance:%s/password' % key),
                     private_key=deployment.settings().get('keys', {}).get(

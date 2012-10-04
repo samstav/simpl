@@ -215,8 +215,7 @@ class Provider(RackspaceComputeProviderBase):
             touch_complete = Celery(wfspec, 'Mark Server %s Complete'
                     % key, 'checkmate.ssh.execute',
                     call_args=[PathAttrib("instance:%s/public_ip" % key),
-                               "mkdir -p /etc/rackspace/checkmate && "
-                               "touch /etc/rackspace/checkmate/.complete",
+                               "touch /tmp/checkmate-complete",
                                "root"],
                     password=PathAttrib('instance:%s/password' % key),
                     private_key=deployment.settings().get('keys', {}).get(
