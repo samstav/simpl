@@ -492,7 +492,9 @@ class BrowserMiddleware(object):
                         "<!-- SIMULATE BUTTON PLACEHOLDER - do not change "
                         "this comment, used for substitution!! -->",
                         '<button ng-click="simulate()" class="btn" '
-                        'ng-disabled="!auth.loggedIn">Simulate It</button>')
+                        'ng-disabled="!auth.loggedIn">Simulate It</button>'
+                        '<button ng-click="preview()" class="btn" '
+                        'ng-disabled="!auth.loggedIn">Preview It</button>')
             return httpResponse
 
         @get('/images/<path:path>')  # for RackspaceCalculator

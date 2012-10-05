@@ -63,7 +63,7 @@
                 <span class="icon-bar"></span>
                 <span class="icon-bar"></span>
           </button>
-          <a class="brand" href="/"><img id="loading" src="/static/img/ajax-loader-white.gif" style="display: none;"/> Checkmate</a>
+          <a class="brand" href="/"><img id="loading" src="/static/img/blank.gif" style="width: 16px; height: 16px;"/> Checkmate</a>
           <!--TODO: collapsing not yet clean -->
           <div id="user_control" class="nav pull-right">
             <ul class="nav">
@@ -90,35 +90,6 @@
             <ul id="nav-elements" class="nav">
               <li id="nav-deployments"><a href="/{{auth.tenantId}}/deployments">Deployments</a></li>
               <li id="nav-workflows"><a href="/{{auth.tenantId}}/workflows">Workflows</a></li>
-              <li id="nav-feedback" class="dropdown"><a class="dropdown-toggle" href="#" data-toggle="dropdown"><i class="icon-comment icon-white"></i> Feedback</b></a>
-                <div class="dropdown-menu" style="padding: 15px; padding-bottom: 0px;">
-                  <form id="feedback-form" class="form-horizontal">
-                    <label class="control-label" for="feedback" class="span4" style="text-align: left; width: 100%; color: black;">I wish Checkmate would</label>
-                    <div class="input-append">
-                      <input type="text" id="feedback" name="feedback" class="span3" placeholder="let me log in using OpenID" ng-model="feedback">
-                      <button id="feedback-submit" class="btn" style="margin-top: 0;" ng-click="send_feedback()">Make it happen!</button>
-                    </div>
-                    <div id="feedback_error" class="alert alert-error hide">
-                      <strong>Feedback not captured!</strong> <span id="feedback_error_text"></span>.
-                      <br>You can send your feedback by email to <a style="display: inline; " href="mailto:checkmate@lists.rackspace.com">checkmate@lists.rackspace.com</a>
-                    </div>
-                    <hr>
-                    <div class="input-prepend">
-                      <span class="add-on">
-                        <i class="icon-envelope"></i>
-                      </span><input type="text" id="email" name="email" class="span4" placeholder="Email me with updates on this" ng-model="email">
-                    </div>
-                  </form>
-                </div>
-                <script type="text/javascript">
-                  $(function() {
-                    // Don't close feedback form on click
-                    $('.dropdown input, .dropdown label').click(function(e) {
-                      e.stopPropagation();
-                    });
-                  });
-                </script>
-              </li>
               <li class="dropdown">
                 <a href="#" class="dropdown-toggle" data-toggle="dropdown">Other<b class="caret"></b></a>
                 <ul class="dropdown-menu">
@@ -137,6 +108,33 @@
               </form>
             </ul>
           </div><!--/.nav-collapse -->
+          <div class="nav">
+            <ul class="nav">
+              <li id="nav-feedback" class="dropdown"><a class="dropdown-toggle" href="#" data-toggle="dropdown"><i class="icon-comment icon-white"></i> Feedback</b></a>
+                <div class="dropdown-menu" style="padding: 15px; padding-bottom: 0px; color: black;">
+                  <form id="feedback-form" class="form-horizontal">
+                    <h4>Issues or Suggestions?</h4>
+                    <p>Let us know so we can do something about it.</p>
+                    <textarea id="feedback" name="feedback" class="span4" rows="6" placeholder="I would like to be able to log in using OpenID" ng-model="feedback"></textarea>
+                    <div id="feedback_error" class="alert alert-error hide">
+                      <strong>Feedback not captured!</strong> <span id="feedback_error_text"></span>.
+                      <br>You can send your feedback by email to <a style="display: inline; " href="mailto:checkmate@lists.rackspace.com">checkmate@lists.rackspace.com</a>
+                    </div>
+                    <p>If you would like us to send you updates on your issue, let us know which email address to use:</p>
+                    <div class="input-prepend">
+                      <span class="add-on">
+                        <i class="icon-envelope"></i>
+                      </span><input type="text" id="email" name="email" class="span3" ng-model="email">
+                    </div>
+                    <hr>
+                    <div class="modal-footer">
+                        <button id="feedback-submit" class="btn btn-primary" style="margin-top: 0;" ng-click="send_feedback()">Send Feedback</button>
+                    </div>
+                  </form>
+                </div>
+              </li>
+            </ul>
+          </div>
         </div>
       </div>
     </div>
@@ -295,6 +293,12 @@
     } else {
       alert("This browser application requires an HTML5 browser with support for local storage");
     }
+    $(function() {
+      // Don't close feedback form on click
+      $('.dropdown input, .dropdown label').click(function(e) {
+        e.stopPropagation();
+      });
+    });
   </script>
   
   <!-- Asynchronous Google Analytics snippet. -->
