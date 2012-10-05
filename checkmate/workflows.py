@@ -521,6 +521,7 @@ def create_workflow_deploy(deployment, context):
                     LOG.debug("Attaching '%s' to 'Start'" %
                             provider_result['root'].name)
                     wfspec.start.connect(provider_result['root'])
+                
 
     # Do relations
     for key, resource in deployment.get('resources', {}).iteritems():

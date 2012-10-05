@@ -31,6 +31,26 @@ RESOURCE_METADATA = yaml_to_dict("""
     """)
 
 INTERFACE_SCHEMA = yaml_to_dict("""
+      host:
+         fields:
+           id:
+             type: string
+             required: true
+           status:
+             type: string
+             required: true
+           region:
+             type: string
+             required: true
+           ip:
+             type: string
+             required: true
+           private_ip:
+             type: string,
+             required: false
+           public_ip:
+             type: string
+             required: false
       mysql:
         fields:
           username:

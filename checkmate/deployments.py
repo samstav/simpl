@@ -421,7 +421,10 @@ def plan(deployment, context):
             # TODO: check interfaces also match
             for key, relation in service['relations'].iteritems():
                 if isinstance(relation, dict):
-                    target = relation['service']
+                    if 'service' in relation:
+                        target = relation['service']
+                    else:
+                        target = service_name
                 else:
                     target = key
                 if target not in services:
@@ -563,6 +566,10 @@ def plan(deployment, context):
                             CheckmateException("Conflicting relation named "
                                     "'host' exists in service '%s'" %
                                     service_name)
+                        # wire up any information the component wants to get from its host
+                        for relation in resource['relations'].values():
+                            if relation.get('interface', '') == 'host' and 'service' not in relation:
+                                relation['target'] = host_index
                         resource['relations']['host'] = relation
 
                     # Fill in relations on hosting resource
@@ -586,9 +593,10 @@ def plan(deployment, context):
             target_interface = relation['interface']
             LOG.debug("  Looking for a provider supporting '%s' for the '%s' "
                     "service" % (target_interface, service_name))
-            target_service_name = relation['service']
-            target_service = services[target_service_name]
-
+            if 'service' in relation:
+                target_service_name = relation['service']
+            else:
+                target_service_name = service_name
             # Verify target can provide requested interface
             target_components = components[target_service_name]
             if not isinstance(target_components, list):
@@ -596,17 +604,28 @@ def plan(deployment, context):
             target_component_ids = [c['id'] for c in target_components]
             found = []
             for component in target_components:
-                provides = component.get('provides', [])
-                for entry in provides:
-                    if target_interface == entry.values()[0]:
+                if target_interface == 'host':
+                    if 'host' in [k for d in component.get('requires', []) for k in d.keys()]:
                         found.append(component)
+                    else:
+                        raise CheckmateException("%s service does not require a host and cannot "
+                                                 "satisfy relation %s of service %s" % (
+                                                 target_service_name,
+                                                 name,
+                                                 service_name
+                                                ))
+                else:
+                    provides = component.get('provides', [])
+                    for entry in provides:
+                        if target_interface == entry.values()[0]:
+                            found.append(component)
             if not found:
                 raise CheckmateException("'%s' service does not provide a "
                         "resource with an interface of type '%s', which is "
                         "needed by the '%s' relationship to '%s'" % (
                         target_service_name, target_interface, name,
                         service_name))
-            if len(found) > 1:
+            if target_interface != 'host' and len(found) > 1:
                 raise CheckmateException("'%s' has more than one resource "
                         "that provides an interface of type '%s', which is "
                         "needed by the '%s' relationship to '%s'. This causes "
@@ -614,8 +633,8 @@ def plan(deployment, context):
                         "identify which component to connect" % (
                         target_service_name, target_interface, name,
                         service_name))
-
-            # Get hash of source instances (exclue the hosts we created)
+                
+            # Get hash of source instances (exclude the hosts unless its specifically requested)
             source_instances = {index: resource
                                 for index, resource in resources.iteritems()
                                 if resource['service'] == service_name and
@@ -623,13 +642,20 @@ def plan(deployment, context):
             LOG.debug("    Instances %s need '%s' from the '%s' service"
                     % (source_instances.keys(), target_interface,
                        target_service_name))
-
+            
             # Get list of target instances
-            target_instances = [index for index, resource in
-                                        resources.iteritems()
-                                if resource['service'] == target_service_name
-                                        and resource.get('component')
-                                                in target_component_ids]
+            if target_interface == 'host':
+                target_instances = [resource['hosted_on'] for index, resource in
+                                            resources.iteritems()
+                                    if resource['service'] == target_service_name
+                                            and resource.get('component')
+                                                    in target_component_ids]
+            else:
+                target_instances = [index for index, resource in
+                                            resources.iteritems()
+                                    if resource['service'] == target_service_name
+                                            and resource.get('component')
+                                                    in target_component_ids]
             LOG.debug("    Instances %s provide %s" % (target_instances,
                     target_interface))
 
@@ -653,6 +679,11 @@ def plan(deployment, context):
                     resources[target_instance]['relations'][connection_name] \
                             = dict(state='planned', source=source_instance,
                                 interface=target_interface)
+                    if 'attribute' in relation:
+                        resources[source_instance]['relations'][connection_name]\
+                            .update({'attribute': relation['attribute']})
+                        resources[target_instance]['relations'][connection_name] \
+                            .update({'attribute': relation['attribute']})
                     LOG.debug("    New connection '%s' from %s:%s to %s:%s "
                             "created" % (connection_name, service_name,
                             source_instance, target_service_name,
@@ -685,6 +716,7 @@ def plan(deployment, context):
                             "generate_password()")
                 else:
                     instance['password'] = resource['password']
+                instance['hash'] = keys.hash_SHA512(instance['password'])
             elif resource['type'] == 'key-pair':
                 # Fall-back to local loader
                 instance = {}
