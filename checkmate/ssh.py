@@ -82,6 +82,7 @@ def execute(ip, command, username, timeout=10, password=None,
     match_celery_logging(LOG)
     LOG.debug("Executing '%s' on ssh://%s@%s:%d." % (command, username,
         ip, port))
+    client = None
     try:
         client = _connect(ip, port=port, username=username, timeout=timeout,
                       private_key=private_key, identity_file=identity_file,

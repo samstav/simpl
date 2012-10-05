@@ -382,7 +382,7 @@ def create_instance(context, instance_name, size, flavor, databases, region,
     return results
 
 
-@task(default_retry_delay=10, max_retries=50)
+@task(default_retry_delay=15, max_retries=40) # max 10 minute wait
 def create_database(context, name, region, character_set=None, collate=None,
         instance_id=None, instance_attributes=None, api=None):
     """Create a database resource.

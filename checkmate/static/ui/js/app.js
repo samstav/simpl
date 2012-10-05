@@ -1423,6 +1423,10 @@ WPBP = {
                         "setting": "database/username",
                         "service": "backend",
                         "resource_type": "database"
+                    },
+                    {
+                    	"setting": "name",
+                    	"resource": "wp user"
                     }
                 ],
                 "help": "Note that this also the user name, database name, and also identifies this\nwordpress install from other ones you might add later to the same deployment.\n",
@@ -1435,7 +1439,13 @@ WPBP = {
             "password": {
                 "type": "password",
                 "description": "Password to use for service. Click the generate button to generate a random password.",
-                "label": "Password"
+                "label": "Password",
+                "constrains":[
+                    {
+                    	"setting": "password",
+                    	"resource": "password"
+                    }
+                ]
             },
             "os": {
                 "constrains": [
@@ -1610,6 +1620,115 @@ WPBP = {
                 "type": "string",
                 "label": "SSL Certificate Private Key"
             }
+        },
+        "resources":{
+        	"wp keys":{
+        		"type": "key-pair",
+        		"constrains":[
+        		    {
+        		    	"setting": "user/ssh_priv_key",
+        		    	"service": "web",
+        		    	"resource_type": "application",
+        		    	"attribute": "private_key"
+        		    },
+        		    {
+        		    	"setting": "user/ssh_priv_key",
+        		    	"service": "master",
+        		    	"resource_type": "application",
+        		    	"attribute": "private_key"
+        		    },
+        		    {
+        		    	"setting": "user/ssh_pub_key",
+        		    	"service": "web",
+        		    	"resource_type": "application",
+        		    	"attribute": "public_key_ssh"
+        		    },
+        		    {
+        		    	"setting": "user/ssh_pub_key",
+        		    	"service": "master",
+        		    	"resource_type": "application",
+        		    	"attribute": "public_key_ssh"
+        		    }
+                ]
+        	},
+        	"wp user":{
+        		"type": "user",
+        		"constrains": [
+        		    {
+        		    	"setting": "database/username",
+        		    	"service": "web",
+        		    	"resource_type": "application",
+        		    	"attribute": "name"
+        		    },
+        		    {
+        		    	"setting": "database/username",
+        		    	"service": "master",
+        		    	"resource_type": "application",
+        		    	"attribute": "name"
+        		    },
+        		    {
+        		    	"setting": "user/name",
+        		    	"service": "web",
+        		    	"resource_type": "application",
+        		    	"attribute": "name"
+        		    },
+        		    {
+        		    	"setting": "user/name",
+        		    	"service": "master",
+        		    	"resource_type": "application",
+        		    	"attribute": "name"
+        		    },
+        		    {
+        		    	"setting": "user/password",
+        		    	"service": "web",
+        		    	"resource_type": "application",
+        		    	"attribute": "password"
+        		    },
+        		    {
+        		    	"setting": "user/password",
+        		    	"service": "master",
+        		    	"resource_type": "application",
+        		    	"attribute": "password"
+        		    },
+        		    {
+        		    	"setting": "database/password",
+        		    	"service": "master",
+        		    	"resource_type": "application",
+        		    	"attribute": "password"
+        		    },
+        		    {
+        		    	"setting": "database/password",
+        		    	"service": "web",
+        		    	"resource_type": "application",
+        		    	"attribute": "password"
+        		    },
+        		    {
+        		    	"setting": "database/username",
+        		    	"service": "web",
+        		    	"resource_type": "application",
+        		    	"attribute": "password"
+        		    },
+        		    {
+        		    	"setting": "database/username",
+        		    	"service": "master",
+        		    	"resource_type": "application",
+        		    	"attribute": "password"
+        		    },
+        		    {
+        		    	"setting": "username",
+        		    	"interface": "mysql",
+        		    	"service": "backend",
+        		    	"resource_type": "database",
+        		    	"attribute": "name"
+        		    },
+        		    {
+        		    	"setting": "password",
+        		    	"service": "backend",
+        		    	"resource_type": "database",
+        		    	"attribute": "password"
+        		    }
+                ]
+        	}
         },
         "name": "Managed Cloud WordPress w/ Cloud Databases"
     },
