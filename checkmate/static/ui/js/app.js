@@ -1306,6 +1306,10 @@ WPBP = {
                     "varnish/master_backend":{
                         "interface":"host",
                         "attribute":"private_ip"
+                    },
+                    "mysql":{
+                    	"interface":"mysql",
+                    	"service":"backend"
                     }
                 },
                 "constraints":[
@@ -1330,9 +1334,17 @@ WPBP = {
                         "service":"master",
                         "attribute": "private_ip"
                     },
+                    "lsyncd/slaves":{
+                        "interface":"host",
+                        "attribute":"private_ip"
+                    },
                     "wordpress/database":{
                         "interface":"mysql",
                         "service":"backend"
+                    },
+                    "mysql":{
+                    	"interface":"mysql",
+                    	"service":"backend"
                     }
                 }
             },
@@ -1354,26 +1366,6 @@ WPBP = {
                     },
                     {
                         "setting":"apache/domain_name",
-                        "service":"master",
-                        "resource_type":"application"
-                    },
-                    {
-                        "setting":"mysql/database_name",
-                        "service":"web",
-                        "resource_type":"application"
-                    },
-                    {
-                        "setting":"mysql/database_name",
-                        "service":"master",
-                        "resource_type":"application"
-                    },
-                    {
-                        "setting":"wordpress/database/database_name",
-                        "service":"web",
-                        "resource_type":"application"
-                    },
-                    {
-                        "setting":"wordpress/database/database_name",
                         "service":"master",
                         "resource_type":"application"
                     }
@@ -1428,8 +1420,8 @@ WPBP = {
                         "resource_type":"application"
                     },
                     {
-                    	"setting":"wp user/name",
-                    	"resource_type": "user"
+                    	"setting":"name",
+                    	"resource_type": "wp user"
                     }
                 ],
                 "help":"Note that this also the user name, database name, and also identifies this\nwordpress install from other ones you might add later to the same deployment.\n",
@@ -1657,6 +1649,49 @@ WPBP = {
                         "service":"master",
                         "resource_type":"application",
                         "attribute":"name"
+                    },
+                    {
+                        "setting":"mysql/database_name",
+                        "service":"web",
+                        "resource_type":"application",
+                        "attribute":"name"
+                        
+                    },
+                    {
+                        "setting":"mysql/database_name",
+                        "service":"master",
+                        "resource_type":"application",
+                        "attribute":"name"
+                    },
+                    {
+                        "setting":"wordpress/database/database_name",
+                        "service":"web",
+                        "resource_type":"application",
+                        "attribute":"name"
+                    },
+                    {
+                        "setting":"wordpress/database/database_name",
+                        "service":"master",
+                        "resource_type":"application",
+                        "attribute":"name"
+                    },
+                    {
+                        "setting":"database/name",
+                        "service":"backend",
+                        "resource_type":"database",
+                        "attribute":"name"
+                    },
+                    {
+                        "setting":"database/username",
+                        "service":"backend",
+                        "resource_type":"database",
+                        "attribute":"name"
+                    },
+                    {
+                        "setting":"database/password",
+                        "service":"backend",
+                        "resource_type":"database",
+                        "attribute":"password"
                     },
                     {
                         "setting":"mysql/password",

@@ -169,7 +169,7 @@ COMPONENT_SCHEMA = ['id', 'options', 'requires', 'provides', 'summary',
 OPTION_SCHEMA = ['name', 'label', 'default', 'help', 'description', 'source',
         'source_field_name', 'required', 'type', 'constrains']
 
-OPTION_TYPES = ['string', 'int']
+OPTION_TYPES = ['string', 'int', 'array']
 
 WORKFLOW_SCHEMA = ['id', 'attributes', 'last_task', 'task_tree', 'workflow',
         'success', 'wf_spec', 'tenantId']
