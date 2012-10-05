@@ -488,61 +488,74 @@ class Provider(ProviderBase):
             target_final = target_final[0]
             # Write the task to get the values
             
-            def get_attribute_code(my_task):
+            def get_attribute_code(my_task):  # Holds code for the task
                 if 'chef_options' not in my_task.attributes:
                     my_task.attributes['chef_options'] = {}
                 key = my_task.get_property('relation')
                 fields = my_task.get_property('fields', [])
+                val = None
                 if fields:
                     field = fields[0]
                     parts = field.split("/")
-                    val = my_task.attributes;
+                    val = my_task.attributes
                     for part in parts:
                         if part not in val:
-                            LOG.warn("Could not locate {} in task attributes".format(field))
-                            return
+                            LOG.warn("Could not locate {} in task attributes"\
+                                     .format(field))
+                            val = None
+                            break
                         val = val[part]
-                cur = my_task.attributes['chef_options']
-                if "/" in key:
-                    keys = key.split("/")
-                    for k in keys:
-                        cur[k] = {}
-                        cur = cur[k]
-                    cur[k] = val
-                else:
-                    cur[key] = val      
+                if val:
+                    cur = my_task.attributes['chef_options']
+                    if "/" in key:
+                        keys = key.split("/")
+                        cur_key = key
+                        for k in keys:
+                            cur[k] = {}
+                            cur = cur[k]
+                            cur_key = k
+                        LOG.debug("Setting '%s' to '%s'" % (key, val))
+                        cur[cur_key] = val
+                    else:
+                        LOG.debug("Setting '%s' to '%s'" % (key, val))
+                        cur[key] = val
 
             def get_fields_code(my_task):  # Holds code for the task
                 if 'chef_options' not in my_task.attributes:
                     my_task.attributes['chef_options'] = {}
                 key = my_task.get_property('relation')
                 fields = my_task.get_property('fields', [])
-                
+                not_found = False
                 data = {}
                 for field in fields:
                     parts = field.split('/')
                     current = my_task.attributes
                     for part in parts:
                         if part not in current:
-                            LOG.warn("Could not locate {} in task attributes".format(field))
-                            return
+                            LOG.warn("Could not locate {} in task attributes"\
+                                     .format(field))
+                            not_found = True
+                            break
                         current = current[part]
                     data[part] = current
-                
-                cur = my_task.attributes['chef_options']
-                if "/" in key:
-                    keys = key.split("/")
-                    for k in keys:
-                        cur[k] = {}
-                        cur = cur[k]
-                    cur.update(data)
+                if not_found:
+                    pass
                 else:
-                    cur[key] = data
+                    cur = my_task.attributes['chef_options']
+                    if "/" in key:
+                        keys = key.split("/")
+                        for k in keys:
+                            cur[k] = {}
+                            cur = cur[k]
+                        merge_dictionary(data, cur)
+                    else:
+                        cur[key] = data
 
             compile_override = Transform(wfspec, "Get %s values for %s" %
                     (relation_key, key),
                     transforms=[get_source_body(
-                        get_attribute_code if 'attribute' in relation else get_fields_code)],
+                                get_attribute_code if 'attribute' in relation
+                                else get_fields_code)],
                     description="Get all the variables "
                             "we need (like database name and password) and "
                             "compile them into JSON that we can set on the "
