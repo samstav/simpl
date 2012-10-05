@@ -493,6 +493,8 @@ class Provider(ProviderBase):
                     my_task.attributes['chef_options'] = {}
                 key = my_task.get_property('relation')
                 fields = my_task.get_property('fields', [])
+                LOG.debug("Transforming attribute values for relation '%s': "
+                          "'%s'" % (key, fields))
                 val = None
                 if fields:
                     field = fields[0]
@@ -500,8 +502,9 @@ class Provider(ProviderBase):
                     val = my_task.attributes
                     for part in parts:
                         if part not in val:
-                            LOG.warn("Could not locate {} in task attributes"\
-                                     .format(field))
+                            LOG.debug("Could not locate '%s' in task "
+                                      "attributes: '%s' missing" %
+                                      (field, part))
                             val = None
                             break
                         val = val[part]
@@ -525,6 +528,8 @@ class Provider(ProviderBase):
                     my_task.attributes['chef_options'] = {}
                 key = my_task.get_property('relation')
                 fields = my_task.get_property('fields', [])
+                LOG.debug("Transforming field values for relation '%s': '%s'" %
+                          (key, fields))
                 not_found = False
                 data = {}
                 for field in fields:
@@ -532,9 +537,9 @@ class Provider(ProviderBase):
                     current = my_task.attributes
                     for part in parts:
                         if part not in current:
-                            LOG.warn("Could not locate {} in task attributes"\
-                                     .format(field))
                             not_found = True
+                            LOG.debug("Could not locate '%s': '%s' missing" %
+                                      (field, part))
                             break
                         current = current[part]
                     data[part] = current
@@ -547,8 +552,10 @@ class Provider(ProviderBase):
                         for k in keys:
                             cur[k] = {}
                             cur = cur[k]
-                        merge_dictionary(data, cur)
+                        LOG.debug("Merging '%s' into '%s'" % (data, cur))
+                        merge_dictionary(cur, data)
                     else:
+                        LOG.debug("Setting '%s' to '%s'" % (key, data))
                         cur[key] = data
 
             compile_override = Transform(wfspec, "Get %s values for %s" %
