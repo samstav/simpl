@@ -28,12 +28,12 @@ from SpiffWorkflow.specs import Celery, Transform, Merge
 from checkmate.common import schema
 from checkmate.components import Component
 from checkmate.exceptions import CheckmateException, CheckmateIndexError,\
-        CheckmateCalledProcessError, CheckmateNoMapping
+        CheckmateCalledProcessError
+from checkmate.keys import hash_SHA512
 from checkmate.providers import ProviderBase
 from checkmate.utils import get_source_body, merge_dictionary, \
         match_celery_logging
 from checkmate.workflows import wait_for
-from checkmate.deployments import Deployment
 
 LOG = logging.getLogger(__name__)
 
@@ -51,6 +51,7 @@ class Provider(ProviderBase):
     def prep_environment(self, wfspec, deployment, context):
         if self.prep_task:
             return  # already prepped
+        self._hash_all_user_resource_passwords(deployment)
         create_environment_task = Celery(wfspec, 'Create Chef Environment',
                 'checkmate.providers.opscode.local.create_environment',
                 call_args=[deployment['id']],
@@ -111,6 +112,15 @@ class Provider(ProviderBase):
 
         return dict(root=create_environment_task,
                     final=create_environment_task)
+
+    def _hash_all_user_resource_passwords(self, deployment):
+        """Wordpress and/or Chef need passwords to be a hash"""
+        if 'resources' in deployment:
+            for resource in deployment['resources'].values():
+                if resource.get('type') == 'user':
+                    instance = resource.get('instance', {})
+                    if 'password' in instance:
+                        instance['hash'] = hash_SHA512(instance['password'])
 
     def add_resource_tasks(self, resource, key, wfspec, deployment, context,
                            wait_on=None):
@@ -435,24 +445,34 @@ class Provider(ProviderBase):
             wfspec, deployment, context):
         """Write out or Transform data. Provide final task for relation sources
         to hook into"""
-        target = deployment['resources'][relation['target']]
-        interface = relation['interface']
-
+        LOG.debug("Adding connection task  resource: %s, key: %s, relation: %s relation_key: %s" % (resource,key,relation, relation_key))
+        
         if relation_key != 'host':
+            target = deployment['resources'][relation['target']]
+            interface = relation['interface']
             # Get the definition of the interface
             interface_schema = schema.INTERFACE_SCHEMA.get(interface, {}) #@UndefinedVariable
             # Get the fields this interface defines
             fields = interface_schema.get('fields', {}).keys()
+            if 'attribute' in relation:
+                if relation['attribute'] not in fields:
+                    raise CheckmateException('Relation attribute %s is not in interface %s' % (relation['attribute'], interface))
+                fields = [relation['attribute']]
             if not fields:
                 LOG.debug("No fields defined for interface '%s', so nothing "
                     "to do for connection '%s'" % (interface, relation_key))
                 return  # nothing to do
-
+            
             # Build full path to 'instance:id/interfaces/:interface/:fieldname'
             fields_with_path = []
+            
             for field in fields:
-                fields_with_path.append('instance:%s/interfaces/%s/%s' % (
-                    relation['target'], interface, field))
+                if interface != 'host':
+                    fields_with_path.append('instance:%s/interfaces/%s/%s' % (
+                        relation['target'], interface, field))
+                else:
+                    fields_with_path.append('instance:%s/%s' % (
+                        relation['target'], field))
 
             # Get the final task for the target
             target_final = self.find_tasks(wfspec, provider=target['provider'],
@@ -467,40 +487,82 @@ class Provider(ProviderBase):
                         "found: %s" % [t.name for t in target_final])
             target_final = target_final[0]
             # Write the task to get the values
+            
+            def get_attribute_code(my_task):  # Holds code for the task
+                if 'chef_options' not in my_task.attributes:
+                    my_task.attributes['chef_options'] = {}
+                key = my_task.get_property('relation')
+                fields = my_task.get_property('fields', [])
+                LOG.debug("Transforming attribute values for relation '%s': "
+                          "'%s'" % (key, fields))
+                val = None
+                if fields:
+                    field = fields[0]
+                    parts = field.split("/")
+                    val = my_task.attributes
+                    for part in parts:
+                        if part not in val:
+                            LOG.debug("Could not locate '%s' in task "
+                                      "attributes: '%s' missing" %
+                                      (field, part))
+                            val = None
+                            break
+                        val = val[part]
+                if val:
+                    cur = my_task.attributes['chef_options']
+                    if "/" in key:
+                        keys = key.split("/")
+                        cur_key = key
+                        for k in keys:
+                            cur[k] = {}
+                            cur = cur[k]
+                            cur_key = k
+                        LOG.debug("Setting '%s' to '%s'" % (key, val))
+                        cur[cur_key] = val
+                    else:
+                        LOG.debug("Setting '%s' to '%s'" % (key, val))
+                        cur[key] = val
 
             def get_fields_code(my_task):  # Holds code for the task
                 if 'chef_options' not in my_task.attributes:
                     my_task.attributes['chef_options'] = {}
                 key = my_task.get_property('relation')
                 fields = my_task.get_property('fields', [])
+                LOG.debug("Transforming field values for relation '%s': '%s'" %
+                          (key, fields))
+                not_found = False
                 data = {}
                 for field in fields:
                     parts = field.split('/')
                     current = my_task.attributes
                     for part in parts:
                         if part not in current:
-                            current = None
+                            not_found = True
+                            LOG.debug("Could not locate '%s': '%s' missing" %
+                                      (field, part))
                             break
                         current = current[part]
-                    if current:
-                        data[field.split('/')[-1]] = current
-                    else:
-                        LOG.warn("Field %s not found" % field,
-                                extra=dict(data=my_task.attributes))
-                
-                cur = my_task.attributes['chef_options']
-                if "/" in key:
-                    keys = key.split("/")
-                    for k in keys:
-                        cur[k] = {}
-                        cur = cur[k]
-                    cur.update(data)
+                    data[part] = current
+                if not_found:
+                    pass
                 else:
-                    cur[key] = data
+                    cur = my_task.attributes['chef_options']
+                    if "/" in key:
+                        keys = key.split("/")
+                        for k in keys:
+                            cur[k] = {}
+                            cur = cur[k]
+                        LOG.debug("Merging '%s' into '%s'" % (data, cur))
+                        merge_dictionary(cur, data)
+                    else:
+                        LOG.debug("Setting '%s' to '%s'" % (key, data))
+                        cur[key] = data
 
             compile_override = Transform(wfspec, "Get %s values for %s" %
                     (relation_key, key),
-                    transforms=[get_source_body(get_fields_code)],
+                    transforms=[get_source_body(
+                                get_attribute_code if 'attribute' in relation
+                                else get_fields_code)],
                     description="Get all the variables "
                             "we need (like database name and password) and "
                             "compile them into JSON that we can set on the "
@@ -638,7 +700,6 @@ class Provider(ProviderBase):
                 return Component(**cookbook)
         except CheckmateIndexError:
             pass
-
         try:
             cookbook = self._get_cookbook(context, id, site_cookbook=False)
             if cookbook:
@@ -647,7 +708,7 @@ class Provider(ProviderBase):
                 return Component(**cookbook)
         except CheckmateIndexError:
             pass
-
+        
         chef_role = self._get_role(id, context)
         if chef_role:
             if role:
@@ -726,6 +787,7 @@ class Provider(ProviderBase):
                 component['source_name'] = data['name']
             component['summary'] = data.get('description')
             component['version'] = data.get('version')
+            LOG.debug("Parsing attributes from %s" % metadata_json_path)
             if 'attributes' in data:
                 component['options'] = self.translate_options(
                         data['attributes'], component['id'])
@@ -741,7 +803,6 @@ class Provider(ProviderBase):
                         data['platforms']:
                     requires = [dict(host='linux')]
                     component['requires'] = requires
-
         # Look for optional checkmate.json file
         checkmate_json_file = os.path.join(os.path.dirname(metadata_json_path),
                 'checkmate.json')
@@ -751,6 +812,7 @@ class Provider(ProviderBase):
             merge_dictionary(component, checkmate_data)
 
         # Add hosting relationship (we're assuming we always need it for chef)
+        LOG.debug("Parsing requires from %s" % metadata_json_path)
         if 'requires' in component:
             found = False
             for entry in component['requires']:
@@ -766,7 +828,7 @@ class Provider(ProviderBase):
                 component['requires'].append(dict(host='linux'))
         else:
             component['requires'] = [dict(host='linux')]
-        
+        LOG.debug("Processing dependencies for cookbook %s" % component['id'])
         self._process_component_deps(context, component)
         
         return component
@@ -844,7 +906,7 @@ class Provider(ProviderBase):
             for dep in component.get('dependencies', []):
                 try:
                     dep_id = dep.get('id', 'UNKNOWN')
-                except AttributeError:
+                except (AttributeError, TypeError):
                     dep_id = dep
                 dependency = self.get_component(context, dep_id)
                 if dependency:
@@ -880,12 +942,12 @@ class Provider(ProviderBase):
         options = {}
         for key, option in native_options.iteritems():
             canonical = schema.translate(key)
-            if canonical.startswith(component_id) and \
-                    len(canonical) > len(component_id) and \
-                    canonical[len(component_id)] in ['/', '_']:
-                LOG.debug("Parsed option '%s' into '%s'" % (key,
-                        canonical[len(component_id) + 1:]))
-                canonical = canonical[len(component_id) + 1:]
+            #if canonical.startswith(component_id) and \
+            #        len(canonical) > len(component_id) and \
+            #        canonical[len(component_id)] in ['/', '_']:
+            #    LOG.debug("Parsed option '%s' into '%s'" % (key,
+            #            canonical[len(component_id) + 1:]))
+            #    canonical = canonical[len(component_id) + 1:]
             translated = {}
             if 'display_name' in option:
                 translated['label'] = option['display_name']
