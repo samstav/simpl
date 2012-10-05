@@ -7,15 +7,15 @@ services.factory('workflow', [function() {
 	var me = {
 		// Get all tasks from hierarchy and put them in a flat list
 		flattenTasks: function(accumulator, tree) {
+                    if (tree !== undefined) {
 			accumulator[tree.task_spec] = tree;
-		
 			if (tree.children.length > 0) {
 			  _.each(tree.children, function(child, index) {
 				$.extend(accumulator, me.flattenTasks(accumulator, tree.children[index]));
 			  });
 			}
-		
-			return accumulator;
+                    }
+		    return accumulator;
 		},
 		// Get all tasks with relationships and put them in a collection
 		parseTasks: function(tasks, specs) {
