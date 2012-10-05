@@ -110,14 +110,6 @@
                     </div>
                   </form>
                 </div>
-                <script type="text/javascript">
-                  $(function() {
-                    // Don't close feedback form on click
-                    $('.dropdown input, .dropdown label').click(function(e) {
-                      e.stopPropagation();
-                    });
-                  });
-                </script>
               </li>
               <li class="dropdown">
                 <a href="#" class="dropdown-toggle" data-toggle="dropdown">Other<b class="caret"></b></a>
@@ -295,6 +287,12 @@
     } else {
       alert("This browser application requires an HTML5 browser with support for local storage");
     }
+    $(function() {
+      // Don't close feedback form on click
+      $('.dropdown input, .dropdown label').click(function(e) {
+        e.stopPropagation();
+      });
+    });
   </script>
   
   <!-- Asynchronous Google Analytics snippet. -->
