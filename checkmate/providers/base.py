@@ -2,6 +2,9 @@ import logging
 import random
 import string
 import uuid
+import checkmate
+import os
+import platform
 
 from checkmate import utils
 from checkmate.common import schema
@@ -201,12 +204,16 @@ class ProviderBasePlanningMixIn():
     def generate_template(self, deployment, resource_type, service, context,
             name=None):
         """Generate a resource dict to be embedded in a deployment"""
-        result = dict(type=resource_type, provider=self.key, instance={},
-                      service=service)
+        result = dict(type=resource_type, provider=self.key, instance={})
+        if service:
+            result['service'] = service
         if not name:
             name = 'CM-%s-%s' % (deployment['id'][0:7], resource_type)
         if name:
             result['dns-name'] = name
+        context.kwargs["metadata"] = {"RAX-CHKMT": "1 {}-{} {} {}".format(
+            checkmate.__version__, checkmate.__release__,
+            deployment["id"], platform.node())}
         return result
 
 

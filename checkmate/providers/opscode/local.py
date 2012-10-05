@@ -33,6 +33,7 @@ from checkmate.providers import ProviderBase
 from checkmate.utils import get_source_body, merge_dictionary, \
         match_celery_logging
 from checkmate.workflows import wait_for
+from checkmate.deployments import Deployment
 
 LOG = logging.getLogger(__name__)
 
@@ -53,9 +54,11 @@ class Provider(ProviderBase):
         create_environment_task = Celery(wfspec, 'Create Chef Environment',
                 'checkmate.providers.opscode.local.create_environment',
                 call_args=[deployment['id']],
-                public_key_ssh=PathAttrib('keys/deployment/public_key_ssh'),
-                private_key=PathAttrib('keys/deployment/private_key'),
-                secret_key=PathAttrib('secret_key'),
+                public_key_ssh=deployment.settings().get('keys', {}).get(
+                        'deployment', {}).get('public_key_ssh'),
+                private_key=deployment.settings().get('keys', {}).get(
+                        'deployment', {}).get('private_key'),
+                secret_key=deployment.get_setting('secret_key'),
                 defines=dict(provider=self.key,
                             task_tags=['root']),
                 properties={'estimated_duration': 10})
@@ -114,7 +117,7 @@ class Provider(ProviderBase):
         """Create and write data_bag, generate run_list, and call cook
 
         Steps:
-        1 - wait on any host tasks
+        1 - wait on all host tasks
         2 - add tasks for each component/dependency
         3 - wait on those tasks
         1 - configure the resource
@@ -162,15 +165,7 @@ class Provider(ProviderBase):
                   component['id'],
                   ', '.join([c['id'] for c in components[1:]])))
 
-        # Chef will handle dependencies. We only need to call cook once with
-        # the main component. For all others, we just need to call
-        # _process_options to load their attributes in to the right key.
-        # Any exceptions, like lsyncd which needs to run again after all slaves
-        # have been configured, we have a special entry we call
-        special_task_handlers = {
-                'lsyncd': self._add_lsyncd_tasks,
-            }
-        # for all others, just parse options
+        # just parse options
         default_task_handler = self._process_options
 
         assert component in components
@@ -188,12 +183,6 @@ class Provider(ProviderBase):
                 continue
             if isinstance(item, basestring):
                 item = self.get_component(context, item)
-            if item and item['id'] in special_task_handlers:
-                LOG.debug("Calling special task handler %s for %s" % (
-                          special_task_handlers[item['id']].__name__,
-                          item['id']))
-                special_task_handlers[item['id']](wfspec, item, deployment,
-                                                  key, context, service_name)
             else:
                 LOG.debug("Calling default task handler for %s" % item['id'])
                 default_task_handler(wfspec, item, deployment, key, context,
@@ -422,7 +411,7 @@ class Provider(ProviderBase):
         if options_ready:
             dependencies.append(options_ready)
 
-        # Wait for relations to complete
+        # Wait for relations tasks to complete
         for relation_key, relation in resource.get('relations', {}).iteritems():
             tasks = self.find_tasks(wfspec,
                     resource=key,
@@ -430,7 +419,10 @@ class Provider(ProviderBase):
                     tag='final')
             if tasks:
                 dependencies.extend(tasks)
-
+            
+        # Wait for all data from all data to be collected to account for
+        # inter-resource dependencies
+        dependencies.extend(self.find_tasks(wfspec, tag='write_options'))
         server_id = deployment['resources'][key].get('hosted_on', key)
         wait_for(wfspec, configure_task, dependencies,
                 name="After server %s is registered and options are ready" %
@@ -438,181 +430,6 @@ class Provider(ProviderBase):
                 description="Before applying chef recipes, we need to know "
                 "that the server has chef on it and that the overrides "
                 "(ex. database settings) have been applied")
-
-    def _add_lsyncd_tasks(self, wfspec, component, deployment, key, context,
-                service_name):
-        """Configure lsyncd sync between servers.
-
-        lsyncd needs IPs of all servers. This means creating a merge task
-        that wires all server creates and writrs them to the data bag
-
-        1. All existing IPs are placed in context from resources if array does
-           not exist.
-        2. A transform is added to host/final to add IP to array
-        3. A task to write array in bag is added once (add dependency on #2 if
-           it already exists)
-        """
-        #TODO:
-        #if str(os.environ.get('CHECKMATE_CHEF_USE_DATA_BAGS', True)
-        #            ).lower() in ['true', '1', 'yes']:
-        
-        settings = deployment.settings()
-        if 'lsync_bag' not in settings:
-            # get the user keys from the deployment
-            settings['lsync_bag'] = {
-                'lsyncd': {},
-                #FIXME: this is specific to the lsync recipe. Needs to be a more elegqnt way to do this
-                #       when we need to add items to a data bag to accommodate a recipe from a dependency
-                'user': {
-                    'name': deployment.get_setting("prefix"),
-                    'ssh_pub_key': deployment.get_setting('keys/public_key_ssh'),
-                    'ssh_priv_key': deployment.get_setting('keys/private_key')
-                }
-            }
-        options = settings['lsync_bag']['lsyncd']
-
-        #TODO: fix the recipes and this code to be generic. Hard-coding here...
-        if component.get('role') in ["install", "master"]:
-            # Mark first one as master
-            role = 'master'
-        elif component.get('role') in ["install_keys", "slave"]:
-            role = 'slave'
-        else:
-            role = None  # ignore our role-specific handling
-
-        if 'role' in component:
-            name = '%s::%s' % (component['id'], component['role'])
-        else:
-            name = component['id']
-        kwargs = dict(recipes=[name])
-
-        resource = deployment['resources'][key]
-
-        # Save server resource ID
-        if 'hosted_on' in resource:
-            server_id = resource['hosted_on']
-        else:
-            server_id = key
-
-        pre_cook = None  # the task to wire the cook command to
-        if role == 'master':
-            # Init the array with existing resource IPs from deployment
-            slaves = []
-            for instance in deployment['blueprint']['services'][service_name].\
-                    get('instances', []):
-                slave = deployment['resources'][instance]
-                ip = slave.get('instance', {}). get('ip')
-                if ip:
-                    slaves.append(ip)
-            options['slaves'] = slaves
-
-            # Add task to write the databag
-            # Call manage_databag(environment, bagname, itemname, contents)
-            write_bag = Celery(wfspec, "Write lsyncd Slave List:%s" % key,
-                   'checkmate.providers.opscode.local.manage_databag',
-                    call_args=[deployment['id'], deployment['id'],
-                            Attrib('app_id'), Attrib('lsync_bag')],
-                    secret_file='certificates/chef.pem',
-                    merge=True,
-                    defines=dict(provider=self.key,
-                                task_tags=['write_lsync_bag']),
-                    properties={'estimated_duration': 5})
-            # Attach any get_slave_ip tasks and host final task
-            tasks = self.find_tasks(wfspec, provider=self.key, resource=key,
-                    tag='get_slave_ip')
-            # Connect it to host completion tasks (so we have the IP)
-            host_tasks = self.get_host_ready_tasks(resource, wfspec,
-                    deployment)
-            if host_tasks:
-                if len(host_tasks) != 1:
-                    raise CheckmateException("More than one host ready task "
-                            "returned")
-                host_task = host_tasks[0]
-                tasks.append(host_task)
-
-            tasks.append(self.prep_task)
-            wait_for(wfspec, write_bag, tasks, name="Write lsyncd Data Bag")
-            pre_cook = write_bag
-
-        if role == 'slave':
-            # Create Transform task to pick up private_ip and add it to slaves
-
-            # Holds code for the task
-            def get_slave_ip_code(my_task):
-                attribute = my_task.get_attribute('lsync_bag')
-                if 'lsyncd' not in attribute:
-                    attribute['lsyncd'] = {}
-                options = attribute['lsyncd']
-                if 'slaves' not in options:
-                    options['slaves'] = []
-                field = my_task.task_spec.get_property('attribute_key',
-                        'private_ip')
-                parts = field.split('/')
-                current = my_task.attributes
-                for part in parts:
-                    if part not in current:
-                        current = None
-                        break
-                    current = current[part]
-                if current:
-                    options['slaves'].append(current)
-                else:
-                    LOG.debug("Slave IP '%s' not found" % field)
-
-            build_bag = Transform(wfspec, "Get Slave IP from Server %s" % key,
-                    transforms=[get_source_body(get_slave_ip_code)],
-                    description="Get all data needed for our cookbooks "
-                            "and place it in a structure ready for "
-                            "storage in a databag",
-                    defines=dict(provider=self.key,
-                            attribute_key='instance:%s/private_ip' % server_id,
-                            task_tags='get_slave_ip'))
-            # Connect it to host completion tasks (so we have the IP)
-            host_tasks = self.get_host_ready_tasks(resource, wfspec,
-                    deployment)
-            if host_tasks:
-                if len(host_tasks) != 1:
-                    raise CheckmateException("More than one host ready task "
-                            "returned")
-                host_task = host_tasks[0]
-                host_task.connect(build_bag)
-
-            # Attach this to the lsyncd write databag task on the master (if it
-            # exists)
-            tasks = self.find_tasks(wfspec, provider=self.key, resource=key,
-                    tag='write_lsync_bag')
-            if tasks:  # if not, wait for master to pick this task up
-                if len(tasks) != 1:
-                    raise CheckmateException("Found more than one lsync master"
-                            "task")
-                master = tasks[0]
-                for task in master.inputs:
-                    if isinstance(task, Merge):
-                        task.follow(build_bag)
-                        break
-                if not build_bag.outputs:  # not connected
-                    # Create the join
-                    wait_for(wfspec, tasks[0], [build_bag],
-                            name="Write lsyncd Data Bag")
-            pre_cook = host_task  # can go ahead pretty early
-
-        if pre_cook:
-            configure_task = Celery(wfspec,
-                'Configure lsyncd on %s' % server_id,
-                'checkmate.providers.opscode.local.cook',
-                call_args=[PathAttrib('instance:%s/ip' % server_id),
-                        deployment['id']],
-                password=PathAttrib('instance:%s/password' % server_id),
-                identity_file=Attrib('private_key_path'),
-                description="Push and apply lsyncd Chef recipe on the server",
-                defines=dict(resource=key,
-                            provider=self.key),
-                properties={'estimated_duration': 100},
-                **kwargs)
-            #configure_task.follow(pre_cook)
-            wait_for(wfspec, configure_task, [pre_cook, self.prep_task])
-        else:
-            LOG.debug("No lsyncd task generated for resource %s" % key)
 
     def add_connection_tasks(self, resource, key, relation, relation_key,
             wfspec, deployment, context):
@@ -623,16 +440,15 @@ class Provider(ProviderBase):
 
         if relation_key != 'host':
             # Get the definition of the interface
-            interface_schema = schema.INTERFACE_SCHEMA.get(interface, {})
+            interface_schema = schema.INTERFACE_SCHEMA.get(interface, {}) #@UndefinedVariable
             # Get the fields this interface defines
             fields = interface_schema.get('fields', {}).keys()
             if not fields:
                 LOG.debug("No fields defined for interface '%s', so nothing "
-                    "to do for connection '%s'" % (interface,
-                    relation_key))
+                    "to do for connection '%s'" % (interface, relation_key))
                 return  # nothing to do
 
-            # Build full path to 'instance:id/interfaces/:interface/:field_name'
+            # Build full path to 'instance:id/interfaces/:interface/:fieldname'
             fields_with_path = []
             for field in fields:
                 fields_with_path.append('instance:%s/interfaces/%s/%s' % (
@@ -642,7 +458,10 @@ class Provider(ProviderBase):
             target_final = self.find_tasks(wfspec, provider=target['provider'],
                     resource=relation['target'], tag='final')
             if not target_final:
-                raise CheckmateException("Relation final task not found")
+                raise CheckmateException("'Final' task not found for relation "
+                                         "'%s' connecting %s to %s" %
+                                         (relation_key, key,
+                                          relation['target']))
             if len(target_final) > 1:
                 raise CheckmateException("Multiple relation final tasks "
                         "found: %s" % [t.name for t in target_final])
@@ -735,11 +554,10 @@ class Provider(ProviderBase):
                     call_args=[
                             PathAttrib('instance:%s/ip' % relation['target']),
                             deployment['id']],
-                    recipes=['build-essential'],
                     password=PathAttrib('instance:%s/password' %
                             relation['target']),
                     identity_file=Attrib('private_key_path'),
-                    description="Install build-essentials on server",
+                    description="Install basic pre-requisites on %s" % relation['target'],
                     defines=dict(resource=key,
                                  relation=relation_key,
                                  provider=self.key),
@@ -774,8 +592,8 @@ class Provider(ProviderBase):
         # build a live catalog - this would be the on_get_catalog called if no
         # stored/override existed
         # Get cookbooks
-        cookbooks = self._get_cookbooks(site_cookbooks=False)
-        site_cookbooks = self._get_cookbooks(site_cookbooks=True)
+        cookbooks = self._get_cookbooks(context, site_cookbooks=False)
+        site_cookbooks = self._get_cookbooks(context, site_cookbooks=True)
         roles = self._get_roles(context)
 
         cookbooks.update(roles)
@@ -813,7 +631,7 @@ class Provider(ProviderBase):
                 return Component(**result)
 
         try:
-            cookbook = self._get_cookbook(id, site_cookbook=True)
+            cookbook = self._get_cookbook(context, id, site_cookbook=True)
             if cookbook:
                 if role:
                     cookbook['role'] = role
@@ -822,7 +640,7 @@ class Provider(ProviderBase):
             pass
 
         try:
-            cookbook = self._get_cookbook(id, site_cookbook=False)
+            cookbook = self._get_cookbook(context, id, site_cookbook=False)
             if cookbook:
                 if role:
                     cookbook['role'] = role
@@ -838,14 +656,14 @@ class Provider(ProviderBase):
 
         LOG.debug("Component '%s' not found" % id)
 
-    def _get_cookbooks(self, site_cookbooks=False):
+    def _get_cookbooks(self, context, site_cookbooks=False):
         """Get all cookbooks as Checkmate components"""
         results = {}
         # Get cookbook names (with source if translated)
         cookbooks = self._get_cookbook_names(site_cookbooks=site_cookbooks)
         # Load individual cookbooks
         for name, cookbook in cookbooks.iteritems():
-            data = self._get_cookbook(cookbooks.get('source_name', name),
+            data = self._get_cookbook(context, cookbooks.get('source_name', name),
                     site_cookbook=site_cookbooks)
             if data:
                 results[data['id']] = data
@@ -873,7 +691,7 @@ class Provider(ProviderBase):
                 results[canonical_name]['source_name'] = name
         return results
 
-    def _get_cookbook(self, id, site_cookbook=False):
+    def _get_cookbook(self, context, id, site_cookbook=False):
         """Get a cookbook as a Checkmate component"""
         assert id, 'Blank cookbook ID requested from _get_cookbook'
         # Get cookbook names (with source if translated)
@@ -888,12 +706,12 @@ class Provider(ProviderBase):
         else:
             meta_path = os.path.join(repo_path, 'cookbooks',
                     cookbook.get('source_name', id), 'metadata.json')
-        cookbook = self._parse_cookbook_metadata(meta_path)
+        cookbook = self._parse_cookbook_metadata(context, meta_path)
         if 'id' not in cookbook:
             cookbook['id'] = id
         return cookbook
 
-    def _parse_cookbook_metadata(self, metadata_json_path):
+    def _parse_cookbook_metadata(self, context, metadata_json_path):
         """Get a cookbook's data and format it as a checkmate component
 
         :param metadata_json_path: path to metadata.json file
@@ -948,7 +766,9 @@ class Provider(ProviderBase):
                 component['requires'].append(dict(host='linux'))
         else:
             component['requires'] = [dict(host='linux')]
-
+        
+        self._process_component_deps(context, component)
+        
         return component
 
     def _get_roles(self, context):
@@ -1008,22 +828,6 @@ class Provider(ProviderBase):
                     dependencies.append("%s-role" % name)
                 else:
                     continue
-
-                dependency = self.get_component(context, name)
-                if dependency:
-                    if 'provides' in dependency:
-                        for entry in dependency['provides']:
-                            if entry not in provides:
-                                provides.append(entry)
-                    if 'requires' in dependency:
-                        for entry in dependency['requires']:
-                            if entry not in requires:
-                                requires.append(entry)
-                    if 'options' in dependency:
-                        # Mark options as coming from another component
-                        for key, option in dependency['options'].iteritems():
-                            option['source'] = dependency['id']
-                        options.update(dependency['options'])
             if dependencies:
                 component['dependencies'] = dependencies
             if provides:
@@ -1032,8 +836,39 @@ class Provider(ProviderBase):
                 component['requires'] = requires
             if options:
                 component['options'] = options  # already translated
-
+        self._process_component_deps(context, component)
         return component
+    
+    def _process_component_deps(self, context, component):
+        if component:
+            for dep in component.get('dependencies', []):
+                try:
+                    dep_id = dep.get('id', 'UNKNOWN')
+                except AttributeError:
+                    dep_id = dep
+                dependency = self.get_component(context, dep_id)
+                if dependency:
+                    if 'provides' in dependency:
+                        if 'provides' not in component:
+                            component['provides'] = []
+                        for entry in dependency['provides']:
+                            if entry not in component['provides']:
+                                component['provides'].append(entry)
+                    if 'requires' in dependency:
+                        if 'requires' not in component:
+                            component['requires'] = []
+                        for entry in dependency['requires']:
+                            if entry not in component['requires']:
+                                component['requires'].append(entry)
+                    if 'options' in dependency:
+                        if 'options' not in component:
+                            component['options'] = {}
+                        # Mark options as coming from another component
+                        for key, option in dependency['options'].iteritems():
+                            if 'source' not in option:
+                                option['source'] = dependency['id']
+                            if key not in component['options']:
+                                component['options'][key] = option
 
     def translate_options(self, native_options, component_id):
         """Translate native provider options to canonical, checkmate options
@@ -1116,7 +951,7 @@ from subprocess import check_output, CalledProcessError, Popen, PIPE
 import sys
 import threading
 
-from celery.task import task
+from celery.task import task #@UnresolvedImport
 
 from checkmate.ssh import execute as ssh_execute
 
@@ -1163,7 +998,7 @@ def create_environment(name, path=None, private_key=None,
             'checkmate-environment.pub')
     shutil.copy(public_key_path, kitchen_key_path)
     LOG.debug("Wrote environment public key to kitchen: %s" % kitchen_key_path)
-
+    
     _init_cookbook_repo(os.path.join(kitchen_path, 'cookbooks'))
     # Temporary Hack: load all cookbooks and roles from chef-stockton
     # TODO: Undo this and use more git
@@ -1217,6 +1052,13 @@ def _create_kitchen(name, path, secret_key=None):
         _run_kitchen_command(kitchen_path, params)
 
     solo_file, secret_key_path = _write_knife_config_file(kitchen_path)
+    
+    # Copy bootstrap.json to the kitchen
+    repo_path = _get_repo_path()
+    bootstrap_path = os.path.join(repo_path, 'bootstrap.json')
+    if not os.path.exists(bootstrap_path):
+        raise CheckmateException("Invalid master repo. {} not found".format(bootstrap_path))
+    shutil.copy(bootstrap_path, os.path.join(kitchen_path, 'bootstrap.json'))
 
     # Create certificates folder
     certs_path = os.path.join(kitchen_path, 'certificates')
@@ -1670,13 +1512,15 @@ def cook(host, environment, recipes=None, roles=None, path=None,
                     run_list))
     else:
         LOG.debug("No recipes or roles to add. Will just run 'knife cook' for "
-                "%s" % node_path)
+                "%s using bootstrap.json" % node_path)
 
     # Build and run command
     if not username:
         username = 'root'
     params = ['knife', 'cook', '%s@%s' % (username, host),
               '-c', os.path.join(kitchen_path, 'solo.rb')]
+    if not run_list:
+        params.extend(['bootstrap.json'])
     if identity_file:
         params.extend(['-i', identity_file])
     if password:

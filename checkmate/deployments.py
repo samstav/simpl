@@ -1,10 +1,11 @@
+import copy
 import logging
 import os
 import uuid
 
 # pylint: disable=E0611
-from bottle import get, post, request, response, route, abort
-from celery.task import task
+from bottle import get, post, request, response, route, abort #@UnresolvedImport
+from celery.task import task #@UnresolvedImport
 from SpiffWorkflow import Workflow, Task
 from SpiffWorkflow.storage import DictionarySerializer
 
@@ -337,7 +338,7 @@ def execute(oid, timeout=180, tenant_id=None):
     if not deployment:
         abort(404, 'No deployment with id %s' % oid)
 
-    result = orchestrator.run_workflow.delay(oid, timeout=900)
+    result = orchestrator.run_workflow.delay(oid, timeout=900) #@UndefinedVariable
     return result
 
 
@@ -500,7 +501,7 @@ def plan(deployment, context):
                                         host_provider.key))
                         break
 
-            provider = component.provider()
+            provider = component.provider
             if not provider:
                 raise CheckmateException("No provider could be found for the "
                         "'%s' resource in component '%s'" % (resource_type,
@@ -614,10 +615,11 @@ def plan(deployment, context):
                         target_service_name, target_interface, name,
                         service_name))
 
-            # Get hash of source instances
+            # Get hash of source instances (exclue the hosts we created)
             source_instances = {index: resource
                                 for index, resource in resources.iteritems()
-                                if resource['service'] == service_name}
+                                if resource['service'] == service_name and
+                                        'hosts' not in resource}
             LOG.debug("    Instances %s need '%s' from the '%s' service"
                     % (source_instances.keys(), target_interface,
                        target_service_name))
@@ -656,6 +658,71 @@ def plan(deployment, context):
                             source_instance, target_service_name,
                             target_instance))
 
+    # Generate static resources
+    for key, resource in blueprint.get('resources', {}).iteritems():
+        component = environment.find_component(resource, context)
+        if component:
+            # Generate a default name
+            name = 'CM-%s-shared%s.%s' % (deployment['id'][0:7], key, domain)
+            # Call provider to give us a resource template
+            result = provider.generate_template(deployment,
+                    resource['type'], None, context, name=name)
+            result['component'] = component['id']
+        else:
+            if resource['type'] == 'user':
+                # Fall-back to local loader
+                instance = {}
+                result = dict(type='user', instance=instance)
+                if 'name' not in resource:
+                    instance['name'] = deployment.get_setting('name', key, None, None, 'admin')
+                    if not instance['name']:
+                        raise CheckmateException("Name must be specified for the "
+                                                 "'%s' user resource" % key)
+                else:
+                    instance['name'] = resource['name']
+                if 'password' not in resource:
+                    instance['password'] = ProviderBase({}).evaluate(
+                            "generate_password()")
+                else:
+                    instance['password'] = resource['password']
+            elif resource['type'] == 'key-pair':
+                # Fall-back to local loader
+                instance = {}
+                private_key = resource.get('private_key')
+                if private_key is None:
+                    # Generate and store all key types
+                    private, public = keys.generate_key_pair()
+                    instance['public_key'] = public['PEM']
+                    instance['public_key_ssh'] = public['ssh']
+                    instance['private_key'] = private['PEM']
+                else:
+                    # Private key was supplied
+                    instance['private_key'] = private_key
+                    #make sure we have or can get a public key
+                    if 'public_key' in resource:
+                        public_key = resource['public_key']
+                    else:
+                        public_key = keys.get_public_key(private_key)
+                    instance['public_key'] = public_key
+                    if 'public_key_ssh' in resource:
+                        public_key_ssh = resource['public_key_ssh']
+                    else:
+                        public_key_ssh = keys.get_ssh_public_key(private_key)
+                    instance['public_key_ssh'] = public_key_ssh
+                if 'instance' in resource:
+                    instance = resource['instance']
+                result = dict(type='key-pair', instance=instance)
+            else:
+                raise CheckmateException("Could not find provider for the "
+                                         "'%s' resource" % key)
+        # Add it to resources
+        resources[str(key)] = result
+        result['index'] = str(key)
+        LOG.debug("  Adding a %s resource with resource key %s" % (
+                resources[str(key)]['type'],
+                key))
+        Resource.validate(result)
+
     #Write resources and connections to deployment
     if connections:
         resources['connections'] = connections
@@ -663,7 +730,7 @@ def plan(deployment, context):
         deployment['resources'] = resources
     # Link resources to services
     for index, resource in resources.iteritems():
-        if index not in ['connections', 'keys']:
+        if index not in ['connections', 'keys'] and 'service' in resource:
             service = blueprint['services'][resource['service']]
             if 'instances' not in service:
                 service['instances'] = []
@@ -743,38 +810,45 @@ def get_client_keys(inputs):
 
 
 def generate_keys(deployment):
-    """Generates keys for the deployment.
+    """Generates keys for the deployment and stores them as a resource.
 
     Generates:
         private_key
         public_key
         public_key_ssh
+
+    If a private_key exists, it will be used to generate the public keys
     """
-    dkeys = deployment.get('resources', {}).get('keys', {})
-    results = {}
-    private_key = dkeys.get('private_key')
+    if 'resources' not in deployment:
+        deployment['resources'] = {}
+    if 'deployment-keys' not in deployment['resources']:
+        deployment['resources']['deployment-keys'] = dict(type='key-pair')
+    elif 'type' not in deployment['resources']['deployment-keys']:
+        deployment['resources']['deployment-keys']['type'] = 'key-pair'
+    if 'instance' not in deployment['resources']['deployment-keys']:
+        deployment['resources']['deployment-keys']['instance'] = {}
+
+    dep_keys = deployment['resources']['deployment-keys']['instance']
+    private_key = dep_keys.get('private_key')
     if private_key is None:
+        # Generate and store all key types
         private, public = keys.generate_key_pair()
-        results.update(dict(public_key=public['PEM'],
-                public_key_ssh=public['ssh'], private_key=private['PEM']))
+        dep_keys['public_key'] = public['PEM']
+        dep_keys['public_key_ssh'] = public['ssh']
+        dep_keys['private_key'] = private['PEM']
     else:
         # Private key was supplied, make sure we have or can get a public key
-        if 'public_key' not in dkeys:
-            results['public_key'] = keys.get_public_key(private_key)
-        if 'public_key_ssh' not in results:
+        if 'public_key' not in dep_keys:
+            dep_keys['public_key'] = keys.get_public_key(private_key)
+        if 'public_key_ssh' not in dep_keys:
             public_key = keys.get_ssh_public_key(private_key)
-            results['public_key_ssh'] = public_key
+            dep_keys['public_key_ssh'] = public_key
 
-        results['private_key'] = private_key
+    # Make sure next call to settings() will get a fresh copy of the keys
+    if hasattr(deployment, '_settings'):
+        delattr(deployment, '_settings')
 
-    if results:
-        if 'resources' not in deployment:
-            deployment['resources'] = {}
-        if 'keys' not in deployment['resources']:
-            deployment['resources']['keys'] = {}
-        deployment['resources']['keys'].update(results)
-
-    return results
+    return copy.copy(dep_keys)
 
 
 class Resource():
@@ -880,7 +954,8 @@ class Deployment(ExtensibleDict):
         all_keys = get_client_keys(inputs)
         if os_keys:
             all_keys.update(os_keys)
-        deployment_keys = self.get('resources', {}).get('keys')
+        deployment_keys = self.get('resources', {}).get('deployment-keys', {})\
+                .get('instance')
         if deployment_keys:
             all_keys['deployment'] = deployment_keys
 
@@ -895,8 +970,8 @@ class Deployment(ExtensibleDict):
         self._settings = results
         return results
 
-    def get_setting(self, name, resource_type=None,
-                service_name=None, provider_key=None, default=None):
+    def get_setting(self, name, resource_type=None, service_name=None,
+                    provider_key=None, default=None):
         """Find a value that an option was set to.
 
         Look in this order:
@@ -927,6 +1002,11 @@ class Deployment(ExtensibleDict):
             if result:
                 return result
 
+        result = self._get_constrained_static_resource_setting(name,
+                service_name=service_name, resource_type=resource_type)
+        if result:
+            return result
+
         result = self._get_input_blueprint_option_constraint(name,
                 service_name=service_name, resource_type=resource_type)
         if result:
@@ -940,7 +1020,8 @@ class Deployment(ExtensibleDict):
         if result:
             return result
 
-        result = self._get_environment_setting(name, provider_key, service_name)
+        result = self._get_environment_setting(name, provider_key,
+                                               service_name)
         if result:
             return result
         
@@ -955,10 +1036,11 @@ class Deployment(ExtensibleDict):
         return default
 
     def _get_resource_setting(self, name):
+        """Get a value from resources with support for paths"""
         if name:
             node = self.get("resources", {})
             for key in name.split("/"):
-                if(key in node):
+                if key in node:
                     try:
                         node = node[key]
                     except TypeError:
@@ -966,12 +1048,13 @@ class Deployment(ExtensibleDict):
                 else:
                     return None
             return node
-    
+
     def _get_setting_value(self, name):
+        """Get a value from the deployment hierarchy with support for paths"""
         if name:
-            node = self.get("settings", {})
+            node = self._data
             for key in name.split("/"):
-                if(key in node):
+                if key in node:
                     try:
                         node = node[key]
                     except TypeError:
@@ -979,7 +1062,7 @@ class Deployment(ExtensibleDict):
                 else:
                     return None
             return node
-            
+
     def _get_input_global(self, name):
         """Get a setting directly under inputs"""
         inputs = self.inputs()
@@ -1002,7 +1085,7 @@ class Deployment(ExtensibleDict):
                 return result
 
     def _get_input_blueprint_option_constraint(self, name, service_name=None,
-            resource_type=None):
+                                               resource_type=None):
         """Get a setting implied through blueprint option constraint
 
         :param name: the name of the setting
@@ -1031,6 +1114,33 @@ class Deployment(ExtensibleDict):
                                         "default=%s" % (name, key, result))
                                 return result
 
+    def _get_constrained_static_resource_setting(self, name, service_name=None,
+                                             resource_type=None):
+        """Get a setting implied through a static resource constraint
+
+        :param name: the name of the setting
+        :param service_name: the name of the service being evaluated
+        :param resource_type: the type of the resource being evaluated
+        """
+        blueprint = self['blueprint']
+        if 'resources' in blueprint:
+            resources = blueprint['resources']
+            for key, resource in resources.iteritems():
+                if 'constrains' in resource:
+                    for constraint in resource['constrains']:
+                        if self.constraint_applies(constraint, name,
+                                    service_name=service_name,
+                                    resource_type=resource_type):
+                            # Find the instance, and get the atribute
+                            instance = self['resources'][key]['instance']
+                            result = instance[constraint.get('attribute',
+                                                             name)]
+                            if result:
+                                LOG.debug("Found setting '%s' from constraint "
+                                        "in blueprint resource '%s'. %s=%s" % (
+                                        name, key, name, result))
+                                return result
+
     def constraint_applies(self, constraint, name, resource_type=None,
                 service_name=None):
         """Checks if a constraint applies
@@ -1049,6 +1159,9 @@ class Deployment(ExtensibleDict):
                 return False
         if 'service' in constraint:
             if service_name is None or constraint['service'] != service_name:
+                return False
+        if 'resource' in constraint:
+            if resource_type is None or constraint['resource'] != resource_type:
                 return False
         LOG.debug("Constraint '%s' for '%s' applied to '%s/%s'" % (
                 constraint, name, service_name, resource_type))

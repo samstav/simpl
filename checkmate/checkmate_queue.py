@@ -16,7 +16,8 @@ def main_func():
         params.extend(['-m', 'celery.bin.celeryd',
                        '--config=checkmate.celeryconfig', '-I',
                 'checkmate.orchestrator,checkmate.ssh,checkmate.deployments,'
-                'checkmate.providers.rackspace,checkmate.providers.opscode',
+                'checkmate.providers.rackspace,checkmate.providers.opscode,'
+                'checkmate.celeryapp',
                 '--events', 
                 ])
         if '--verbose' in sys.argv:

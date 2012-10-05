@@ -15,7 +15,7 @@ SITE
       apt (>= 1.4.4)
       erlang (>= 0.9)
       yum (>= 0.5.0)
-    yum (0.8.2)
+    yum (1.0.0)
 
 GIT
   remote: https://github.com/gondoi/chef-rvm
@@ -27,7 +27,7 @@ GIT
 GIT
   remote: https://github.rackspace.com/Cookbooks/checkmate
   ref: master
-  sha: 867707ad444bf51db8b969be34a7424d8dfc6025
+  sha: 1a2f82bc2cbe6049def244dd55837255186f15a6
   specs:
     checkmate (1.1.0)
       apt (>= 0.0.0)

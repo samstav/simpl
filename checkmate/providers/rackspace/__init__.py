@@ -34,6 +34,3 @@ def register():
     from checkmate.providers.rackspace.dns import Provider as dns
     from checkmate.providers.rackspace.files import Provider as files
     register_providers([legacy, nova, loadbalancer, database, dns, files])
-
-
-register()

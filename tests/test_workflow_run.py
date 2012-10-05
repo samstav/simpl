@@ -23,7 +23,10 @@ from checkmate.utils import resolve_yaml_external_refs
 
 # Register built-in providers
 from checkmate.providers import rackspace, opscode
-
+if 'rackspace.legacy' not in PROVIDER_CLASSES:
+    rackspace.register()
+if 'opscode.chef-local' not in PROVIDER_CLASSES:
+    opscode.register()
 
 class TestWorkflowStubbing(StubbedWorkflowBase):
     """Test workflow stubbing using mox"""

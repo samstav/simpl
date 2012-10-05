@@ -77,6 +77,8 @@ def main_func():
 
     # Register built-in providers
     from checkmate.providers import rackspace, opscode
+    rackspace.register()
+    opscode.register()
 
     # Load routes from other modules
     LOG.info("Loading API")
@@ -102,7 +104,8 @@ def main_func():
     endpoints = ['https://identity.api.rackspacecloud.com/v2.0/tokens',
             'https://lon.identity.api.rackspacecloud.com/v2.0/tokens']
     next_app = middleware.AuthTokenRouterMiddleware(next_app, endpoints,
-            default='https://identity.api.rackspacecloud.com/v2.0/tokens')
+            default='https://identity.api.rackspacecloud.com/v2.0/tokens',
+                                                  anonymous_paths=STATIC)
     """
     if '--with-ui' in sys.argv:
         # With a UI, we use basic auth and route that to cloud auth.

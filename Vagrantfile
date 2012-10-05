@@ -3,7 +3,7 @@
 
 Vagrant::Config.run do |config|
   # Lets lower the memory consumption some
-  config.vm.customize ["modifyvm", :id, "--memory", 256]
+  #config.vm.customize ["modifyvm", :id, "--memory", 256]
 
   # Every Vagrant virtual environment requires a box to build off of.
   config.vm.box = "precise"
@@ -33,7 +33,7 @@ Vagrant::Config.run do |config|
     chef.json = {
       :rvm => {
         :user_installs => [{
-          :user => 'checkmate',
+          :user => 'vagrant',
           :default_ruby => 'ruby-1.9.3-p125@checkmate',
           :gems => {
             'ruby-1.9.3-p125@checkmate' => [
@@ -49,13 +49,26 @@ Vagrant::Config.run do |config|
         }]
       },
       :checkmate => {
+        :user => {
+          :name => 'vagrant',
+        },
+        :group => {
+          :name => 'vagrant',
+        },
+        :source => {
+          :method => 'develop',
+          :dev_source => '/vagrant'
+        },
         :git => {
-          :src => "/vagrant",
-          :reference => "master",
-          :revision => "master"
+          :src => '/vagrant',
+          :reference => 'master',
+          :revision => 'master',
+          :chef_stockton => {
+            :src => 'git://github.rackspace.com/checkmate/chef-stockton.git',
+          },
         },
         :server => {
-          :args => '--with-ui --with-simulator --eventlet --debug 0.0.0.0:8080',
+          :args => '--with-ui --with-simulator --eventlet --debug --logconfig=/etc/checkmate/server-log.conf 0.0.0.0:8080',
         },
         :celeryd => {
            :loglevel => 'DEBUG',
@@ -68,7 +81,7 @@ Vagrant::Config.run do |config|
           :vhost => "checkmate"
         },
         :mongodb => {
-          :username => "checkmate",
+          :username => "vagrant",
           :password => "Ch3ckm4te!",
           :host => "localhost",
           :port => 27017,

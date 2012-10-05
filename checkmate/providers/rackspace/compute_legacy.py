@@ -200,12 +200,31 @@ class Provider(RackspaceComputeProviderBase):
                                 resource=key),
                         PathAttrib('instance:%s/id' % key)],
                 password=PathAttrib('instance:%s/password' % key),
-                private_key=PathAttrib('keys/deployment/private_key'),
+                private_key=deployment.settings().get('keys', {}).get(
+                        'deployment', {}).get('private_key'),
+                merge_results=True,
                 properties={'estimated_duration': 150},
                 defines=dict(resource=key,
                              provider=self.key,
                              task_tags=['final']))
         create_server_task.connect(build_wait_task)
+
+        #If Managed Cloud, add a Completion task to release RBA
+        # other providers may delay this task until they are done
+        if 'rax_managed' in context.roles:
+            touch_complete = Celery(wfspec, 'Mark Server %s Complete'
+                    % key, 'checkmate.ssh.execute',
+                    call_args=[PathAttrib("instance:%s/public_ip" % key),
+                               "touch /tmp/checkmate-complete",
+                               "root"],
+                    password=PathAttrib('instance:%s/password' % key),
+                    private_key=deployment.settings().get('keys', {}).get(
+                            'deployment', {}).get('private_key'),
+                    properties={'estimated_duration': 10},
+                    defines=dict(resource=key,
+                                 provider=self.key,
+                                 task_tags=['complete']))
+            build_wait_task.connect(touch_complete)
 
         if wait_on is None:
             wait_on = []
@@ -359,8 +378,7 @@ class Provider(RackspaceComputeProviderBase):
 """
   Celery tasks to manipulate Rackspace Cloud Servers.
 """
-from celery.task import task
-import openstack.compute
+from celery.task import task #@UnresolvedImport
 
 from checkmate.ssh import test_connection
 
@@ -415,7 +433,8 @@ def create_server(context, name, api_object=None, flavor=2, files=None,
 
     try:
         server = api_object.servers.create(image=int(image),
-                flavor=int(flavor), name=name, files=files)
+                flavor=int(flavor), name=name, 
+                meta=context.get("metadata", None), files=files)
         create_server.update_state(state="PROGRESS",
                                    meta={"server.id": server.id})
         LOG.debug(
@@ -439,11 +458,11 @@ def create_server(context, name, api_object=None, flavor=2, files=None,
     results = {instance_key: dict(id=server.id, ip=ip_address,
             password=server.adminPass, private_ip=private_ip_address)}
     # Send data back to deployment
-    resource_postback.delay(context['deployment'], results)
+    resource_postback.delay(context['deployment'], results) #@UndefinedVariable
     return results
 
 
-@task(default_retry_delay=10, max_retries=18)  # ~3 minute wait
+@task(default_retry_delay=15, max_retries=40)  # max 10 minute wait
 def wait_on_build(context, server_id, ip_address_type='public',
             check_ssh=True, username='root', timeout=10, password=None,
             identity_file=None, port=22, api_object=None, private_key=None):
@@ -517,7 +536,7 @@ def wait_on_build(context, server_id, ip_address_type='public',
             instance_key = 'instance:%s' % context['resource']
             results = {instance_key: results}
             # Send data back to deployment
-            resource_postback.delay(context['deployment'], results)
+            resource_postback.delay(context['deployment'], results) #@UndefinedVariable
             return results
         return wait_on_build.retry(exc=CheckmateException("Server %s not "
                 "ready yet" % server_id))

@@ -5,19 +5,20 @@
 import copy
 import logging
 import os
-import uuid
 
-from novaclient.exceptions import EndpointNotFound, AmbiguousEndpoints
 from novaclient.v1_1 import client
-from SpiffWorkflow.operators import Attrib, PathAttrib
-from SpiffWorkflow.specs import Celery, Transform
+from SpiffWorkflow.operators import PathAttrib
+from SpiffWorkflow.specs import Celery
 
-from checkmate.deployments import Deployment, resource_postback
-from checkmate.exceptions import CheckmateNoTokenError, CheckmateNoMapping, \
-        CheckmateServerBuildFailed, CheckmateException
+from checkmate.deployments import resource_postback
+from checkmate.exceptions import CheckmateNoTokenError, \
+                                 CheckmateNoMapping, \
+                                 CheckmateServerBuildFailed, \
+                                 CheckmateException
 from checkmate.providers import ProviderBase
-from checkmate.utils import get_source_body, match_celery_logging, isUUID, \
-        yaml_to_dict
+from checkmate.utils import match_celery_logging, \
+                            isUUID, \
+                            yaml_to_dict
 from checkmate.workflows import wait_for
 
 LOG = logging.getLogger(__name__)
@@ -91,14 +92,18 @@ class RackspaceComputeProviderBase(ProviderBase):
         ProviderBase.__init__(self, provider, key=key)
         #kwargs aadded to server creation calls (contain things like ssh keys)
         self._kwargs = {}
+        with open(os.path.join(os.path.dirname(__file__),
+                               "managed_cloud",
+                               "delay.sh")) as open_file:
+            self.managed_cloud_script = open_file.read()
+
 
     def prep_environment(self, wfspec, deployment, context):
         keys = set()
-        for value in deployment.settings().get('keys', {}).values():
-            if 'public_key_ssh' in value:
-                keys.add(value['public_key_ssh'])
-            elif 'public_key' in value:
-                assert False, "Code still using public_key without _ssh"
+        for name, key_pair in deployment.settings()['keys'].iteritems():
+            if 'public_key_ssh' in key_pair:
+                LOG.debug("Injecting a '%s' public key" % name)
+                keys.add(key_pair['public_key_ssh'])
         if keys:
             path = '/root/.ssh/authorized_keys'
             if 'files' not in self._kwargs:
@@ -107,6 +112,13 @@ class RackspaceComputeProviderBase(ProviderBase):
                 existing = self._kwargs['files'][path].split('\n')
                 keys.update(existing)
                 self._kwargs['files'][path] = '\n'.join(keys)
+        # Inject managed cloud file to prevent RBA conflicts
+        if 'rax_managed' in context.roles:
+            path = '/etc/rackspace/pre.chef.d/delay.sh'
+            if 'files' not in self._kwargs:
+                self._kwargs['files'] = {path: self.managed_cloud_script}
+            else:
+                self._kwargs['files'][path] = self.managed_cloud_script
 
 
 class Provider(RackspaceComputeProviderBase):
@@ -118,7 +130,6 @@ class Provider(RackspaceComputeProviderBase):
                 deployment, resource_type, service, context, name=name)
 
         catalog = self.get_catalog(context)
-
 
         # Get region
         region = deployment.get_setting('region', resource_type=resource_type,
@@ -207,12 +218,31 @@ class Provider(RackspaceComputeProviderBase):
                         PathAttrib('instance:%s/id' % key),
                         resource['region']],
                 password=PathAttrib('instance:%s/password' % key),
-                private_key=PathAttrib('keys/deployment/private_key'),
+                private_key=deployment.settings().get('keys', {}).get(
+                        'deployment', {}).get('private_key'),
+                merge_results=True,
                 properties={'estimated_duration': 150},
                 defines=dict(resource=key,
                              provider=self.key,
                              task_tags=['final']))
         create_server_task.connect(build_wait_task)
+
+        #If Managed Cloud, add a Completion task to release RBA
+        # other providers may delay this task until they are done
+        if 'rax_managed' in context.roles:
+            touch_complete = Celery(wfspec, 'Mark Server %s Complete'
+                    % key, 'checkmate.ssh.execute',
+                    call_args=[PathAttrib("instance:%s/public_ip" % key),
+                               "touch /tmp/checkmate-complete",
+                               "root"],
+                    password=PathAttrib('instance:%s/password' % key),
+                    private_key=deployment.settings().get('keys', {}).get(
+                            'deployment', {}).get('private_key'),
+                    properties={'estimated_duration': 10},
+                    defines=dict(resource=key,
+                                 provider=self.key,
+                                 task_tags=['complete']))
+            build_wait_task.connect(touch_complete)
 
         if wait_on is None:
             wait_on = []
@@ -371,7 +401,7 @@ class Provider(RackspaceComputeProviderBase):
   the Rackspace Cloud.
 """
 
-from celery.task import task
+from celery.task import task #@UnresolvedImport
 
 from checkmate.ssh import test_connection
 
@@ -432,7 +462,7 @@ def create_server(context, name, region, api_object=None, flavor="2",
     LOG.debug("Flavor id %s found. Name=%s" % (flavor, flavor_object.name))
 
     server = api_object.servers.create(name, image_object, flavor_object,
-            files=files)
+            meta=context.get("metadata", None), files=files)
     create_server.update_state(state="PROGRESS",
                                meta={"server.id": server.id})
     LOG.debug('Created server %s (%s).  Admin pass = %s' % (
@@ -445,11 +475,11 @@ def create_server(context, name, region, api_object=None, flavor="2",
                               }}
 
     # Send data back to deployment
-    resource_postback.delay(context['deployment'], results)
+    resource_postback.delay(context['deployment'], results) #@UndefinedVariable
     return results
 
 
-@task(default_retry_delay=10, max_retries=18)  # ~3 minute wait
+@task(default_retry_delay=15, max_retries=40)  # max 10 minute wait
 def wait_on_build(context, server_id, region, ip_address_type='public',
             check_ssh=True, username='root', timeout=10, password=None,
             identity_file=None, port=22, api_object=None, private_key=None):
@@ -527,7 +557,7 @@ def wait_on_build(context, server_id, region, ip_address_type='public',
             instance_key = 'instance:%s' % context['resource']
             results = {instance_key: results}
             # Send data back to deployment
-            resource_postback.delay(context['deployment'], results)
+            resource_postback.delay(context['deployment'], results) #@UndefinedVariable
             return results
         return wait_on_build.retry(exc=CheckmateException("Server "
                 "%s not ready yet" % server_id))
