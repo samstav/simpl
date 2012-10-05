@@ -472,7 +472,7 @@ class TestDeploymentSettings(unittest.TestCase):
                         memory: 2 Gb
                         number-only-test: 512
             """))
-        deployment._settings = yaml_to_dict("""
+        deployment._data.update(yaml_to_dict("""
                     keys:
                         environment:
                             private: "this is a private key"
@@ -482,7 +482,7 @@ class TestDeploymentSettings(unittest.TestCase):
                     setting_1: "Single value"
                     setting_2:
                         compound: "value"
-                        """)
+                        """))
         cases = [{
                   'case': "Path in settings",
                   'name': "keys/environment/public",
