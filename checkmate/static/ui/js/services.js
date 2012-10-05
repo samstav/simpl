@@ -679,7 +679,7 @@ services.config(function ($httpProvider) {
 				checkmate.requests += 1;
 			} else
 				checkmate.requests = 1;
-			$('#loading').show();
+			$('#loading').attr('src', '/static/img/ajax-loader-white.gif');
             return data;
         };
         $httpProvider.defaults.transformRequest.push(startFunction);
@@ -691,13 +691,13 @@ services.config(function ($httpProvider) {
 	            console.log('Call ended successfully');
 				checkmate.requests -= 1;
 				if (checkmate.requests <= 0)
-					$('#loading').hide();
+                			$('#loading').attr('src', '/static/img/blank.gif');
                 return response;
 
             }, function (response) {
 				checkmate.requests -= 1;
 				if (checkmate.requests <= 0)
-					$('#loading').hide();
+                                    $('#loading').attr('src', '/static/img/blank.gif');
 				var error = response;
                                 var info = {data: error.data,
                                             status: error.status,
