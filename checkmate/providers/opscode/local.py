@@ -29,6 +29,7 @@ from checkmate.common import schema
 from checkmate.components import Component
 from checkmate.exceptions import CheckmateException, CheckmateIndexError,\
         CheckmateCalledProcessError
+from checkmate.keys import hash_SHA512
 from checkmate.providers import ProviderBase
 from checkmate.utils import get_source_body, merge_dictionary, \
         match_celery_logging
@@ -50,6 +51,7 @@ class Provider(ProviderBase):
     def prep_environment(self, wfspec, deployment, context):
         if self.prep_task:
             return  # already prepped
+        self._hash_all_user_resource_passwords(deployment)
         create_environment_task = Celery(wfspec, 'Create Chef Environment',
                 'checkmate.providers.opscode.local.create_environment',
                 call_args=[deployment['id']],
@@ -110,6 +112,15 @@ class Provider(ProviderBase):
 
         return dict(root=create_environment_task,
                     final=create_environment_task)
+
+    def _hash_all_user_resource_passwords(self, deployment):
+        """Wordpress and/or Chef need passwords to be a hash"""
+        if 'resources' in deployment:
+            for resource in deployment['resources'].values():
+                if resource.get('type') == 'user':
+                    instance = resource.get('instance', {})
+                    if 'password' in instance:
+                        instance['hash'] = hash_SHA512(instance['password'])
 
     def add_resource_tasks(self, resource, key, wfspec, deployment, context,
                            wait_on=None):

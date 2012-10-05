@@ -728,7 +728,6 @@ def plan(deployment, context):
                             "generate_password()")
                 else:
                     instance['password'] = resource['password']
-                instance['hash'] = keys.hash_SHA512(instance['password'])
             elif resource['type'] == 'key-pair':
                 # Fall-back to local loader
                 instance = {}
