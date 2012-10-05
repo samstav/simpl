@@ -18,7 +18,8 @@ from checkmate.environments import Environment
 from checkmate.exceptions import CheckmateException, CheckmateDoesNotExist, \
         CheckmateValidationException, CheckmateBadState
 from checkmate.providers import ProviderBase
-from checkmate.workflows import create_workflow_deploy
+from checkmate.workflows import create_workflow_deploy, \
+        create_workflow_spec_deploy
 from checkmate.utils import write_body, read_body, extract_sensitive_data, \
         merge_dictionary, with_tenant, is_ssh_key, get_time_string
 
@@ -195,8 +196,16 @@ def preview_deployment(tenant_id=None):
     """Parse and preview a deployment and its workflow"""
     deployment = _content_to_deployment(request, tenant_id=tenant_id)
     results = plan(deployment, request.context)
-    workflow = _create_deploy_workflow(results, request.context)
-    results['workflow'] = workflow
+    spec = create_workflow_spec_deploy(results, request.context)
+    serializer = DictionarySerializer()
+    serialized_spec = spec.serialize(serializer)
+    results['workflow'] = dict(wf_spec=serialized_spec)
+
+    # Return any errors found
+    errors = spec.validate()
+    if errors:
+        results['messages'] = errors
+
     return write_body(results, request, response)
 
 
