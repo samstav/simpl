@@ -462,7 +462,24 @@ class Provider(ProviderBase):
                 LOG.debug("No fields defined for interface '%s', so nothing "
                     "to do for connection '%s'" % (interface, relation_key))
                 return  # nothing to do
+            comp = self.get_component(context, resource.get('component','!_!NONE!_!'))
             
+            # see if we need to write lists for merging later
+            aggregate = False
+            if comp:
+                comp_opts = comp.get("options", {})
+                setting = comp_opts.get(relation_key)
+                if setting:
+                    if 'type' in setting and ('array' == setting.get('type')):
+                        aggregate = True
+                # check to see if we're just grabbing the entire interface                   
+                else:
+                    short_keys = [a_name[:len(relation_key)] for a_name in comp_opts.keys()]
+                    LOG.info("Looking for interface relationship {} in short keys {}".format(relation_key, short_keys))
+                    if relation_key not in short_keys:
+                        LOG.warn("Component {} does not have a setting {}".format(comp.get('id', 'UNKNOWN'), relation_key))
+            else:
+                LOG.warn("Could not find component {}".format(resource.get('component','!_!NONE!_!')))  
             # Build full path to 'instance:id/interfaces/:interface/:fieldname'
             fields_with_path = []
             
@@ -488,81 +505,76 @@ class Provider(ProviderBase):
             target_final = target_final[0]
             # Write the task to get the values
             
-            def get_attribute_code(my_task):  # Holds code for the task
+            def get_attribute_code(my_task):
                 if 'chef_options' not in my_task.attributes:
                     my_task.attributes['chef_options'] = {}
                 key = my_task.get_property('relation')
                 fields = my_task.get_property('fields', [])
-                LOG.debug("Transforming attribute values for relation '%s': "
-                          "'%s'" % (key, fields))
-                val = None
+                aggregate = my_task.get_property('aggregate_field', False)
+                part = None
                 if fields:
                     field = fields[0]
                     parts = field.split("/")
-                    val = my_task.attributes
+                    val = my_task.attributes;
                     for part in parts:
                         if part not in val:
-                            LOG.debug("Could not locate '%s' in task "
-                                      "attributes: '%s' missing" %
-                                      (field, part))
+                            LOG.warn("Could not locate {} in task attributes".format(field))
                             val = None
                             break
                         val = val[part]
+                
                 if val:
+                    if aggregate:
+                        val = [val]
                     cur = my_task.attributes['chef_options']
                     if "/" in key:
+                        last = cur
                         keys = key.split("/")
-                        cur_key = key
                         for k in keys:
+                            last = cur
                             cur[k] = {}
                             cur = cur[k]
-                            cur_key = k
-                        LOG.debug("Setting '%s' to '%s'" % (key, val))
-                        cur[cur_key] = val
+                        last[k] = val
                     else:
-                        LOG.debug("Setting '%s' to '%s'" % (key, val))
-                        cur[key] = val
+                        cur[key] = val      
 
             def get_fields_code(my_task):  # Holds code for the task
                 if 'chef_options' not in my_task.attributes:
                     my_task.attributes['chef_options'] = {}
                 key = my_task.get_property('relation')
                 fields = my_task.get_property('fields', [])
-                LOG.debug("Transforming field values for relation '%s': '%s'" %
-                          (key, fields))
-                not_found = False
+                aggregate = my_task.get_property('aggregate_field',[])
                 data = {}
                 for field in fields:
                     parts = field.split('/')
                     current = my_task.attributes
                     for part in parts:
                         if part not in current:
-                            not_found = True
-                            LOG.debug("Could not locate '%s': '%s' missing" %
-                                      (field, part))
-                            break
+                            LOG.warn("Could not locate {} in task attributes".format(field))
+                            current = None
+                            break;
                         current = current[part]
                     data[part] = current
-                if not_found:
-                    pass
-                else:
+                if data:
                     cur = my_task.attributes['chef_options']
                     if "/" in key:
+                        last = cur
                         keys = key.split("/")
                         for k in keys:
+                            last = cur
                             cur[k] = {}
                             cur = cur[k]
-                        LOG.debug("Merging '%s' into '%s'" % (data, cur))
-                        merge_dictionary(cur, data)
+                        if aggregate:
+                            last[k] = [data]
+                        else:
+                            cur.update(data)
                     else:
-                        LOG.debug("Setting '%s' to '%s'" % (key, data))
-                        cur[key] = data
+                        cur[key] = [data] if aggregate else data
 
             compile_override = Transform(wfspec, "Get %s values for %s" %
                     (relation_key, key),
                     transforms=[get_source_body(
-                                get_attribute_code if 'attribute' in relation
-                                else get_fields_code)],
+                        get_attribute_code if 'attribute' in relation else get_fields_code)],
                     description="Get all the variables "
                             "we need (like database name and password) and "
                             "compile them into JSON that we can set on the "
@@ -571,6 +583,7 @@ class Provider(ProviderBase):
                                 provider=self.key,
                                 resource=key,
                                 fields=fields_with_path,
+                                aggregate_field=aggregate,
                                 task_tags=['final'])
                     )
             # When target is ready, compile data

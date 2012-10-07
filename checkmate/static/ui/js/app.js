@@ -551,15 +551,19 @@ function WorkflowController($scope, $resource, $http, $routeParams, $location, $
     this.klass = $resource('/:tenantId/workflows/:id');
     this.klass.get($routeParams,
                    function(object, getResponseHeaders){
-      $scope.parse(object);
+      $scope.data = object;
+      items.tasks = workflow.flattenTasks({}, object.task_tree);
+      items.all = workflow.parseTasks(items.tasks, object.wf_spec.task_specs);
+      $scope.count = items.all.length;
+      workflow.calculateStatistics($scope, items.all);
       if ($location.path().split('/').slice(-1)[0] == 'status') {
         if ($scope.taskStates.completed < $scope.count) {
           setTimeout($scope.load, 2000);
         } else {
-          // Parse out the out parameters
           var d = $resource('/:tenantId/deployments/:id');
           d.get($routeParams,
                          function(object, getResponseHeaders){
+            console.log(object);
             var domain = null;
             //Find domain in inputs
             try {
@@ -1193,7 +1197,7 @@ function DeploymentInitController($scope, $location, $routeParams, $resource, bl
 
   $scope.submit = function(action) {
     var url = '/:tenantId/deployments';
-    if (action !== undefined)
+    if ((action !== undefined) && action)
       url += '/' + action;
     var Deployment = $resource(url, {tenantId: $scope.auth.tenantId});
     var deployment = new Deployment({});
@@ -1322,6 +1326,10 @@ WPBP = {
                     "varnish/master_backend":{
                         "interface":"host",
                         "attribute":"private_ip"
+                    },
+                    "mysql":{
+                        "interface":"mysql",
+                        "service":"backend"
                     }
                 },
                 "constraints":[
@@ -1341,12 +1349,20 @@ WPBP = {
                     ]
                 },
                 "relations":{
-                    "varnish/master_backend": {
+                    "varnish/master_backend":{
                         "interface":"host",
                         "service":"master",
-                        "attribute": "private_ip"
+                        "attribute":"private_ip"
+                    },
+                    "lsyncd/slaves":{
+                        "interface":"host",
+                        "attribute":"private_ip"
                     },
                     "wordpress/database":{
+                        "interface":"mysql",
+                        "service":"backend"
+                    },
+                    "mysql":{
                         "interface":"mysql",
                         "service":"backend"
                     }
@@ -1370,26 +1386,6 @@ WPBP = {
                     },
                     {
                         "setting":"apache/domain_name",
-                        "service":"master",
-                        "resource_type":"application"
-                    },
-                    {
-                        "setting":"mysql/database_name",
-                        "service":"web",
-                        "resource_type":"application"
-                    },
-                    {
-                        "setting":"mysql/database_name",
-                        "service":"master",
-                        "resource_type":"application"
-                    },
-                    {
-                        "setting":"wordpress/database/database_name",
-                        "service":"web",
-                        "resource_type":"application"
-                    },
-                    {
-                        "setting":"wordpress/database/database_name",
                         "service":"master",
                         "resource_type":"application"
                     }
@@ -1444,8 +1440,8 @@ WPBP = {
                         "resource_type":"application"
                     },
                     {
-                    	"setting":"wp user/name",
-                    	"resource_type": "user"
+                        "setting":"name",
+                        "resource_type":"wp user"
                     }
                 ],
                 "help":"Note that this also the user name, database name, and also identifies this\nwordpress install from other ones you might add later to the same deployment.\n",
@@ -1633,31 +1629,30 @@ WPBP = {
                 "type":"key-pair",
                 "constrains":[
                     {
-                        "setting":"lsyncd/user/ssl_priv_key",
+                        "setting":"lsyncd/user/ssh_priv_key",
                         "service":"web",
                         "resource_type":"application",
                         "attribute":"private_key"
                     },
                     {
-                        "setting":"lsyncd/user/ssl_priv_key",
+                        "setting":"lsyncd/user/ssh_priv_key",
                         "service":"master",
                         "resource_type":"application",
                         "attribute":"private_key"
                     },
                     {
-                        "setting":"lsyncd/user/ssl_pub_key",
+                        "setting":"lsyncd/user/ssh_pub_key",
                         "service":"web",
                         "resource_type":"application",
                         "attribute":"public_key_ssh"
                     },
                     {
-                        "setting":"lsyncd/user/ssl_pub_key",
+                        "setting":"lsyncd/user/ssh_pub_key",
                         "service":"master",
                         "resource_type":"application",
                         "attribute":"public_key_ssh"
                     }
                 ]
-                
             },
             "wp user":{
                 "type":"user",
@@ -1675,6 +1670,48 @@ WPBP = {
                         "attribute":"name"
                     },
                     {
+                        "setting":"mysql/database_name",
+                        "service":"web",
+                        "resource_type":"application",
+                        "attribute":"name"
+                    },
+                    {
+                        "setting":"mysql/database_name",
+                        "service":"master",
+                        "resource_type":"application",
+                        "attribute":"name"
+                    },
+                    {
+                        "setting":"wordpress/database/database_name",
+                        "service":"web",
+                        "resource_type":"application",
+                        "attribute":"name"
+                    },
+                    {
+                        "setting":"wordpress/database/database_name",
+                        "service":"master",
+                        "resource_type":"application",
+                        "attribute":"name"
+                    },
+                    {
+                        "setting":"database/name",
+                        "service":"backend",
+                        "resource_type":"database",
+                        "attribute":"name"
+                    },
+                    {
+                        "setting":"database/username",
+                        "service":"backend",
+                        "resource_type":"database",
+                        "attribute":"name"
+                    },
+                    {
+                        "setting":"database/password",
+                        "service":"backend",
+                        "resource_type":"database",
+                        "attribute":"password"
+                    },
+                    {
                         "setting":"mysql/password",
                         "service":"web",
                         "resource_type":"application",
@@ -1759,7 +1796,6 @@ WPBP = {
                         "attribute":"hash"
                     }
                 ]
-                
             }
         },
         "name":"Managed Cloud WordPress w/ Cloud Databases"
