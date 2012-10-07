@@ -1197,7 +1197,7 @@ function DeploymentInitController($scope, $location, $routeParams, $resource, bl
 
   $scope.submit = function(action) {
     var url = '/:tenantId/deployments';
-    if (action !== undefined)
+    if ((action !== undefined) && action)
       url += '/' + action;
     var Deployment = $resource(url, {tenantId: $scope.auth.tenantId});
     var deployment = new Deployment({});
@@ -1328,8 +1328,8 @@ WPBP = {
                         "attribute":"private_ip"
                     },
                     "mysql":{
-                    	"interface":"mysql",
-                    	"service":"backend"
+                        "interface":"mysql",
+                        "service":"backend"
                     }
                 },
                 "constraints":[
@@ -1349,10 +1349,10 @@ WPBP = {
                     ]
                 },
                 "relations":{
-                    "varnish/master_backend": {
+                    "varnish/master_backend":{
                         "interface":"host",
                         "service":"master",
-                        "attribute": "private_ip"
+                        "attribute":"private_ip"
                     },
                     "lsyncd/slaves":{
                         "interface":"host",
@@ -1363,8 +1363,8 @@ WPBP = {
                         "service":"backend"
                     },
                     "mysql":{
-                    	"interface":"mysql",
-                    	"service":"backend"
+                        "interface":"mysql",
+                        "service":"backend"
                     }
                 }
             },
@@ -1440,8 +1440,8 @@ WPBP = {
                         "resource_type":"application"
                     },
                     {
-                    	"setting":"name",
-                    	"resource_type": "wp user"
+                        "setting":"name",
+                        "resource_type":"wp user"
                     }
                 ],
                 "help":"Note that this also the user name, database name, and also identifies this\nwordpress install from other ones you might add later to the same deployment.\n",
@@ -1629,31 +1629,30 @@ WPBP = {
                 "type":"key-pair",
                 "constrains":[
                     {
-                        "setting":"lsyncd/user/ssl_priv_key",
+                        "setting":"lsyncd/user/ssh_priv_key",
                         "service":"web",
                         "resource_type":"application",
                         "attribute":"private_key"
                     },
                     {
-                        "setting":"lsyncd/user/ssl_priv_key",
+                        "setting":"lsyncd/user/ssh_priv_key",
                         "service":"master",
                         "resource_type":"application",
                         "attribute":"private_key"
                     },
                     {
-                        "setting":"lsyncd/user/ssl_pub_key",
+                        "setting":"lsyncd/user/ssh_pub_key",
                         "service":"web",
                         "resource_type":"application",
                         "attribute":"public_key_ssh"
                     },
                     {
-                        "setting":"lsyncd/user/ssl_pub_key",
+                        "setting":"lsyncd/user/ssh_pub_key",
                         "service":"master",
                         "resource_type":"application",
                         "attribute":"public_key_ssh"
                     }
                 ]
-                
             },
             "wp user":{
                 "type":"user",
@@ -1675,7 +1674,6 @@ WPBP = {
                         "service":"web",
                         "resource_type":"application",
                         "attribute":"name"
-                        
                     },
                     {
                         "setting":"mysql/database_name",
@@ -1798,7 +1796,6 @@ WPBP = {
                         "attribute":"hash"
                     }
                 ]
-                
             }
         },
         "name":"Managed Cloud WordPress w/ Cloud Databases"

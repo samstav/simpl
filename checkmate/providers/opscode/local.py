@@ -467,12 +467,17 @@ class Provider(ProviderBase):
             # see if we need to write lists for merging later
             aggregate = False
             if comp:
-                setting = comp.get("options", {}).get(relation_key)
+                comp_opts = comp.get("options", {})
+                setting = comp_opts.get(relation_key)
                 if setting:
                     if 'type' in setting and ('array' == setting.get('type')):
-                        aggregate = True                   
+                        aggregate = True
+                # check to see if we're just grabbing the entire interface                   
                 else:
-                    LOG.warn("Component {} does not have a setting {}".format(comp.get('id', 'UNKNOWN'), relation_key))
+                    short_keys = [a_name[:len(relation_key)] for a_name in comp_opts.keys()]
+                    LOG.info("Looking for interface relationship {} in short keys {}".format(relation_key, short_keys))
+                    if relation_key not in short_keys:
+                        LOG.warn("Component {} does not have a setting {}".format(comp.get('id', 'UNKNOWN'), relation_key))
             else:
                 LOG.warn("Could not find component {}".format(resource.get('component','!_!NONE!_!')))  
             # Build full path to 'instance:id/interfaces/:interface/:fieldname'
@@ -550,7 +555,7 @@ class Provider(ProviderBase):
                             break;
                         current = current[part]
                     data[part] = current
-                if current:
+                if data:
                     cur = my_task.attributes['chef_options']
                     if "/" in key:
                         last = cur
