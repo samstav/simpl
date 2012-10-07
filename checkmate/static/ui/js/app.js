@@ -621,6 +621,15 @@ function WorkflowController($scope, $resource, $http, $routeParams, $location, $
     });
   }
   
+  //Parse loaded workflow
+  $scope.parse = function(object) {
+      $scope.data = object;
+      items.tasks = workflow.flattenTasks({}, object.task_tree);
+      items.all = workflow.parseTasks(items.tasks, object.wf_spec.task_specs);
+      $scope.count = items.all.length;
+      workflow.calculateStatistics($scope, items.all);
+  };
+
   $scope.percentComplete = function() {
     return (($scope.totalTime - $scope.timeRemaining) / $scope.totalTime) * 100;
   };
@@ -644,14 +653,14 @@ function WorkflowController($scope, $resource, $http, $routeParams, $location, $
   };
 
   $scope.toCurrent = function() {
-		// Need the setTimeout to prevent race condition with item being selected.
-		window.setTimeout(function() {
-      var curScrollPos = $('#spec_list').scrollTop();
-	  var item = $('.summary.active').offset();
-	  if (item !== null) {
-		var itemTop = item.top - 250;
-		$('.summaries').animate({'scrollTop': curScrollPos + itemTop}, 200);
-	  };
+    // Need the setTimeout to prevent race condition with item being selected.
+    window.setTimeout(function() {
+        var curScrollPos = $('#spec_list').scrollTop();
+            var item = $('.summary.active').offset();
+            if (item !== null) {
+                  var itemTop = item.top - 250;
+                  $('.summaries').animate({'scrollTop': curScrollPos + itemTop}, 200);
+            };
     }, 0);
   }
   
@@ -844,6 +853,8 @@ function WorkflowController($scope, $resource, $http, $routeParams, $location, $
   //Init
   if (!$scope.auth.loggedIn) {
       $scope.loginPrompt($scope.load);
+  } else if ($location.path().split('/').slice(-1)[0] == '+preview') {
+    $scope.parse(workflow.preview['workflow']);
   } else
     $scope.load();
 
@@ -1053,21 +1064,21 @@ function DeploymentListController($scope, $location, $http, $resource, items) {
   $scope.load();
 }
 
-function DeploymentNewController($scope, $location, $routeParams, $resource, settings) {
-  var ctrl = new DeploymentInitController($scope, $location, $routeParams, $resource, null, null, settings);
+function DeploymentNewController($scope, $location, $routeParams, $resource, settings, workflow) {
+  var ctrl = new DeploymentInitController($scope, $location, $routeParams, $resource, null, null, settings, workflow);
   return ctrl;
 }
 
-function DeploymentTryController($scope, $location, $routeParams, $resource, settings) {
+function DeploymentTryController($scope, $location, $routeParams, $resource, settings, workflow) {
   $scope.environments = ENVIRONMENTS;
   $scope.blueprints = WPBP;
-  var ctrl = new DeploymentInitController($scope, $location, $routeParams, $resource, WPBP['MySQL'], ENVIRONMENTS['next-gen'], settings);
+  var ctrl = new DeploymentInitController($scope, $location, $routeParams, $resource, WPBP['MySQL'], ENVIRONMENTS['next-gen'], settings, workflow);
   $scope.updateSettings();
   $scope.updateDatabaseProvider();
   return ctrl;
 }
 
-function DeploymentInitController($scope, $location, $routeParams, $resource, blueprint, environment, settings) {
+function DeploymentInitController($scope, $location, $routeParams, $resource, blueprint, environment, settings, workflow) {
   $scope.environment = environment;
   $scope.blueprint = blueprint;
   $scope.answers = {};
@@ -1184,10 +1195,10 @@ function DeploymentInitController($scope, $location, $routeParams, $resource, bl
     return ($scope.environment && $scope.blueprint);
   };
 
-  $scope.submit = function(simulate) {
+  $scope.submit = function(action) {
     var url = '/:tenantId/deployments';
-    if (simulate == true)
-      url += '/simulate';
+    if (action !== undefined)
+      url += '/' + action;
     var Deployment = $resource(url, {tenantId: $scope.auth.tenantId});
     var deployment = new Deployment({});
     deployment.blueprint = $scope.blueprint;
@@ -1217,9 +1228,14 @@ function DeploymentInitController($scope, $location, $routeParams, $resource, bl
 
     if ($scope.auth.loggedIn) {
         deployment.$save(function(returned, getHeaders){
-        var deploymentId = getHeaders('location').split('/')[3];
-        console.log("Posted deployment", deploymentId);
-        $location.path('/' + $scope.auth.tenantId + '/workflows/' + deploymentId + '/status');
+        if (action == '+preview') {
+            workflow.preview = returned;
+            $location.path('/' + $scope.auth.tenantId + '/workflows/+preview');
+        } else {
+            var deploymentId = getHeaders('location').split('/')[3];
+            console.log("Posted deployment", deploymentId);
+            $location.path('/' + $scope.auth.tenantId + '/workflows/' + deploymentId + '/status');
+        }
       }, function(error) {
         console.log("Error " + error.data + "(" + error.status + ") creating new deployment.");
         console.log(deployment);
@@ -1233,7 +1249,11 @@ function DeploymentInitController($scope, $location, $routeParams, $resource, bl
   };
 
   $scope.simulate = function() {
-    $scope.submit(true);
+    $scope.submit('simulate');
+  };
+
+  $scope.preview = function() {
+    $scope.submit('+preview');
   };
 
   // Load blueprints

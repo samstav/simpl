@@ -443,6 +443,48 @@ def create_workflow_deploy(deployment, context):
 
     :returns: SpiffWorkflow.Workflow"""
     LOG.info("Creating workflow for deployment '%s'" % deployment['id'])
+    wfspec = create_workflow_spec_deploy(deployment, context)
+    results = wfspec.validate()
+    if results:
+        serializer = DictionarySerializer()
+        serialized_spec = wfspec.serialize(serializer)
+        LOG.debug("Errors in Workflow: %s" % '\n'.join(results),
+                  extra=dict(data=serialized_spec))
+        raise CheckmateException('. '.join(results))
+
+    workflow = SpiffWorkflow(wfspec)
+    #Pass in the initial deployemnt dict (task 2 is the Start task)
+    runtime_context = copy.copy(deployment.settings())
+    runtime_context['token'] = context.auth_token
+    workflow.get_task(2).set_attribute(**runtime_context)
+
+    # Calculate estimated_duration
+    root = workflow.task_tree
+    root._set_internal_attribute(estimated_completed_in=0)
+    tasks = root.children[:]
+    overall = 0
+    while tasks:
+        task = tasks.pop(0)
+        tasks.extend(task.children)
+        expect_to_take = task.parent._get_internal_attribute(
+                'estimated_completed_in') +\
+                task.task_spec.get_property('estimated_duration', 0)
+        if expect_to_take > overall:
+            overall = expect_to_take
+        task._set_internal_attribute(estimated_completed_in=expect_to_take)
+    LOG.debug("Workflow %s estimated duration: %s" % (deployment['id'],
+            overall))
+    workflow.attributes['estimated_duration'] = overall
+
+    return workflow
+
+
+def create_workflow_spec_deploy(deployment, context):
+    """Creates a SpiffWorkflow spec for initial deployment of a Checkmate
+    deployment
+
+    :returns: SpiffWorkflow.WorkflowSpec"""
+    LOG.info("Building workflow spec for deployment '%s'" % deployment['id'])
     blueprint = deployment['blueprint']
     environment = deployment.environment()
 
@@ -543,37 +585,7 @@ def create_workflow_deploy(deployment, context):
     if not wfspec.start.outputs:
         noop = Simple(wfspec, "end")
         wfspec.start.connect(noop)
-
-    results = wfspec.validate()
-    if results:
-        LOG.debug("Errors in Workflow: %s" % '\n'.join(results))
-        raise CheckmateException('. '.join(results))
-
-    workflow = SpiffWorkflow(wfspec)
-    #Pass in the initial deployemnt dict (task 2 is the Start task)
-    runtime_context = copy.copy(deployment.settings())
-    runtime_context['token'] = context.auth_token
-    workflow.get_task(2).set_attribute(**runtime_context)
-
-    # Calculate estimated_duration
-    root = workflow.task_tree
-    root._set_internal_attribute(estimated_completed_in=0)
-    tasks = root.children[:]
-    overall = 0
-    while tasks:
-        task = tasks.pop(0)
-        tasks.extend(task.children)
-        expect_to_take = task.parent._get_internal_attribute(
-                'estimated_completed_in') +\
-                task.task_spec.get_property('estimated_duration', 0)
-        if expect_to_take > overall:
-            overall = expect_to_take
-        task._set_internal_attribute(estimated_completed_in=expect_to_take)
-    LOG.debug("Workflow %s estimated duration: %s" % (deployment['id'],
-            overall))
-    workflow.attributes['estimated_duration'] = overall
-
-    return workflow
+    return wfspec
 
 
 def wait_for(wf_spec, task, wait_list, name=None, **kwargs):
