@@ -31,6 +31,26 @@ RESOURCE_METADATA = yaml_to_dict("""
     """)
 
 INTERFACE_SCHEMA = yaml_to_dict("""
+      host:
+         fields:
+           id:
+             type: string
+             required: true
+           status:
+             type: string
+             required: true
+           region:
+             type: string
+             required: true
+           ip:
+             type: string
+             required: true
+           private_ip:
+             type: string,
+             required: false
+           public_ip:
+             type: string
+             required: false
       mysql:
         fields:
           username:
@@ -149,7 +169,7 @@ COMPONENT_SCHEMA = ['id', 'options', 'requires', 'provides', 'summary',
 OPTION_SCHEMA = ['name', 'label', 'default', 'help', 'description', 'source',
         'source_field_name', 'required', 'type', 'constrains']
 
-OPTION_TYPES = ['string', 'int']
+OPTION_TYPES = ['string', 'int', 'array']
 
 WORKFLOW_SCHEMA = ['id', 'attributes', 'last_task', 'task_tree', 'workflow',
         'success', 'wf_spec', 'tenantId']
