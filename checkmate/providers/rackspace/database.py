@@ -3,22 +3,16 @@ import logging
 import random
 import string
 
-from celery.task import task, current
+from celery.task import task, current #@UnresolvedImport
 import clouddb
-from SpiffWorkflow.operators import PathAttrib, Attrib
+from SpiffWorkflow.operators import PathAttrib
 from SpiffWorkflow.specs import Celery
 
-from checkmate.common import schema
-from checkmate.deployments import Deployment, resource_postback
-from checkmate.exceptions import CheckmateException, CheckmateNoMapping, \
-        CheckmateNoTokenError
+from checkmate.deployments import resource_postback
+from checkmate.exceptions import CheckmateException,  CheckmateNoTokenError
 from checkmate.providers import ProviderBase
 from checkmate.utils import match_celery_logging
 from checkmate.workflows import wait_for
-from migrate.versioning.config import databases
-from celery._state import current_task
-from celery.app.task import Task
-from SpiffWorkflow.specs.TaskSpec import TaskSpec
 
 LOG = logging.getLogger(__name__)
 
@@ -79,21 +73,21 @@ class Provider(ProviderBase):
 
         if component['is'] == 'database':
             # Database name
-            db_name = deployment.get_setting('database_name',
+            db_name = deployment.get_setting('database/name',
                     resource_type=resource.get('type'), provider_key=self.key,
                     service_name=service_name)
             if not db_name:
                 db_name = 'db1'
 
             # User name
-            username = deployment.get_setting('username',
+            username = deployment.get_setting('database/username',
                     resource_type=resource.get('type'), provider_key=self.key,
                     service_name=service_name)
             if not username:
                 username = 'wp_user_%s' % db_name
 
             # Password
-            password = deployment.get_setting('password',
+            password = deployment.get_setting('database/password',
                     resource_type=resource.get('type'), provider_key=self.key,
                     service_name=service_name)
             if not password:
@@ -216,9 +210,13 @@ class Provider(ProviderBase):
                         'type': 'string',
                         'default': 'db1'
                     },
-                    'datbase/username':{
+                    'database/username':{
                         'type': 'string',
                         'required': "true"
+                    },
+                    'database/password':{
+                        'type': 'string',
+                        'required': "false"
                     }
                 }})
         if type_filter is None or type_filter == 'compute':
@@ -271,7 +269,7 @@ class Provider(ProviderBase):
             start_with = string.ascii_uppercase + string.ascii_lowercase
             password = '%s%s' % (random.choice(start_with),
                 ''.join(random.choice(start_with + string.digits + '@?#_')
-                for x in range(11)))
+                for x in range(11))) #@UnusedVariable for randomization?
             return password
         return ProviderBase.evaluate(self, function_string)
 
@@ -357,7 +355,7 @@ def create_instance(context, instance_name, size, flavor, databases, region,
                     'region': region,
                     'interfaces': {
                             'mysql': {
-                                    'host': instance.hostname,
+                                    'host': instance.hostname
                                 }
                         },
                     'databases': {}
@@ -377,7 +375,7 @@ def create_instance(context, instance_name, size, flavor, databases, region,
             db_results[database['name']] = data
 
     # Send data back to deployment
-    resource_postback.delay(context['deployment'], results)
+    resource_postback.delay(context['deployment'], results) #@UndefinedVariable
 
     return results
 
@@ -445,7 +443,7 @@ def create_database(context, name, region, character_set=None, collate=None,
                         'interfaces': {
                                 'mysql': {
                                         'host': instance.hostname,
-                                        'database_name': name,
+                                        'database_name': name
                                     },
                             }
                     }
@@ -453,7 +451,7 @@ def create_database(context, name, region, character_set=None, collate=None,
         LOG.info('Created database(s) %s on instance %s' % ([db['name'] for db in
                 databases], instance_id))
         # Send data back to deployment
-        resource_postback.delay(context['deployment'], results)
+        resource_postback.delay(context['deployment'], results) #@UndefinedVariable
         return results
     except clouddb.errors.ResponseError as exc:
         LOG.exception(exc)
@@ -531,7 +529,7 @@ def add_user(context, instance_id, databases, username, password, region,
                     }
               }
     # Send data back to deployment
-    resource_postback.delay(context['deployment'], results)
+    resource_postback.delay(context['deployment'], results) #@UndefinedVariable
 
     return results
 
