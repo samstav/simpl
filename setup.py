@@ -26,7 +26,7 @@ setup(
     name='checkmate',
     description='Configuration management and orchestration',
     keywords='orchestration configuration automation rackspace openstack',
-    version='0.2.0',
+    version='0.2.1',
     author='Rackspace Cloud',
     author_email='checkmate@lists.rackspace.com',
     dependency_links=github_urls,
