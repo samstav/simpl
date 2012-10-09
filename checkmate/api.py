@@ -65,7 +65,7 @@ from checkmate import blueprints, components, deployments, environments, \
 #
 # Status and System Information
 #
-@get('/status/celery')
+#@get('/status/celery')
 def get_celery_worker_status():
     """ Checking on celery """
     ERROR_KEY = "ERROR"

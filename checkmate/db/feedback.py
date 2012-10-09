@@ -51,6 +51,13 @@ class MongoDriver(DbBase):
         DbBase.__init__(self, *args, **kwargs)
         self.connection_string = os.environ.get('CHECKMATE_CONNECTION_STRING',
                                                 'mongodb://localhost')
+        # Temp hack for production
+        parts = self.connection_string.split('/')
+        if parts[-1] == 'checkmate':
+            parts[-1] = "feedback"
+        self.connection_string = '/'.join(parts)
+        LOG.debug("Feedback connecting to: %s" % self.connection_string)
+
         self.db_name = 'feedback'
         self._database = None
 
