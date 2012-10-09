@@ -9,6 +9,5 @@ gettext.install('checkmate')
 __version__ = '0.2.1'
 __release__ = 'alpha'
 
-
 def version():
     return "%s %s - dev" % (__version__, __release__)

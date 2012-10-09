@@ -409,11 +409,15 @@ function AppController($scope, $http, $location) {
   }
 }
 
-//Not really used now
-function NavBarController($scope, $location) {
+function NavBarController($scope, $location, $resource) {
   $scope.feedback = "";
   $scope.email = "";
-
+  console.log("Getting api version");
+  this.api = $resource('/version');
+  this.api.get(function(data, getResponseHeaders){
+	  $scope.api_version = data.version;
+	  console.log("Got version");
+  });
   // Send feedback to server
   $scope.send_feedback = function() {
     data = JSON.stringify({
@@ -423,7 +427,8 @@ function NavBarController($scope, $location) {
             "username": $scope.auth.username,
             "tenantId": $scope.auth.tenantId,
             "location": $location.absUrl(),
-            "auth": $scope.auth
+            "auth": $scope.auth,
+            "api_version": $scope.api_version
             }
           });
     headers = checkmate.config.header_defaults.headers.common;
