@@ -2168,25 +2168,25 @@ WPBP = {
                 "type":"key-pair",
                 "constrains":[
                     {
-                        "setting":"lsyncd/user/ssl_priv_key",
+                        "setting":"lsyncd/user/ssh_priv_key",
                         "service":"web",
                         "resource_type":"application",
                         "attribute":"private_key"
                     },
                     {
-                        "setting":"lsyncd/user/ssl_priv_key",
+                        "setting":"lsyncd/user/ssh_priv_key",
                         "service":"master",
                         "resource_type":"application",
                         "attribute":"private_key"
                     },
                     {
-                        "setting":"lsyncd/user/ssl_pub_key",
+                        "setting":"lsyncd/user/ssh_pub_key",
                         "service":"web",
                         "resource_type":"application",
                         "attribute":"public_key_ssh"
                     },
                     {
-                        "setting":"lsyncd/user/ssl_pub_key",
+                        "setting":"lsyncd/user/ssh_pub_key",
                         "service":"master",
                         "resource_type":"application",
                         "attribute":"public_key_ssh"

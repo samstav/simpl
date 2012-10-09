@@ -675,37 +675,57 @@ def plan(deployment, context):
                     target_interface))
 
             # Wire them up (create relation entries under resources)
-            connection_name = name
-            #if connection_name in connections:
-            #    connection_name = "%s-%s" % (connection_name,
-            #                                 len(connections))
-            connections[connection_name] = dict(
+            connections[name] = dict(
                     interface=relation['interface'])
-            for source_instance in source_instances:
-                if 'relations' not in resources[source_instance]:
-                    resources[source_instance]['relations'] = {}
-                for target_instance in target_instances:
+            if 'host' == target_interface and "service" not in relation:
+                # relation is from component to its host
+                for source_instance, resource in source_instances.iteritems():
+                    target_instance = resource['hosted_on']
+                    if 'relations' not in resource:
+                        resource['relations'] = {}
+                    resource['relations'][name] =\
+                        dict(state='planned', target=target_instance, 
+                             interface=target_interface, name=name)
                     if 'relations' not in resources[target_instance]:
                         resources[target_instance]['relations'] = {}
-                    # Add forward relation (from source to target)
-                    resources[source_instance]['relations'][connection_name] \
-                            = dict(state='planned', target=target_instance,
-                                interface=target_interface)
-                    # Add relation to target showing incoming from source
-                    resources[target_instance]['relations'][connection_name] \
-                            = dict(state='planned', source=source_instance,
-                                interface=target_interface)
+                    resources[target_instance]['relations'][name] =\
+                        dict(state='planned', source=source_instance, 
+                             interface=target_interface, name=name)
                     if 'attribute' in relation:
                         resources[source_instance]['relations']\
-                                [connection_name].update({'attribute':
+                                [name].update({'attribute':
                                         relation['attribute']})
                         resources[target_instance]['relations']\
-                                [connection_name].update({'attribute':
+                                [name].update({'attribute':
                                         relation['attribute']})
-                    LOG.debug("    New connection '%s' from %s:%s to %s:%s "
-                            "created" % (connection_name, service_name,
-                            source_instance, target_service_name,
-                            target_instance))
+            else:
+                for source_instance in source_instances:
+                    if 'relations' not in resources[source_instance]:
+                        resources[source_instance]['relations'] = {}
+                    source_relation = '-'.join([name, source_instance])
+                    for target_instance in target_instances:
+                        target_relation = '-'.join([name, target_instance])
+                        if 'relations' not in resources[target_instance]:
+                            resources[target_instance]['relations'] = {}
+                        # Add forward relation (from source to target)
+                        resources[source_instance]['relations'][target_relation] \
+                                = dict(state='planned', target=target_instance,
+                                    interface=target_interface, name=name)
+                        # Add relation to target showing incoming from source
+                        resources[target_instance]['relations'][source_relation] \
+                                = dict(state='planned', source=source_instance,
+                                    interface=target_interface, name=name)
+                        if 'attribute' in relation:
+                            resources[source_instance]['relations']\
+                                    [target_relation].update({'attribute':
+                                            relation['attribute']})
+                            resources[target_instance]['relations']\
+                                    [source_relation].update({'attribute':
+                                            relation['attribute']})
+                        LOG.debug("    New connection '%s' from %s:%s to %s:%s "
+                                "created" % (name, service_name,
+                                source_instance, target_service_name,
+                                target_instance))
 
     # Generate static resources
     for key, resource in blueprint.get('resources', {}).iteritems():

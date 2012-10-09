@@ -101,7 +101,7 @@ class Provider(ProviderBase):
 
         collect = Merge(wfspec,
                 "Collect Chef Data",
-                defines=dict(provider=self.key),
+                defines=dict(provider=self.key, extend_lists=True),
                 )
         # We need to make sure the environment exists before writing options.
         collect.follow(create_environment_task)
@@ -449,6 +449,7 @@ class Provider(ProviderBase):
         
         if relation_key != 'host':
             target = deployment['resources'][relation['target']]
+            relation_name = relation['name']
             interface = relation['interface']
             # Get the definition of the interface
             interface_schema = schema.INTERFACE_SCHEMA.get(interface, {}) #@UndefinedVariable
@@ -509,6 +510,7 @@ class Provider(ProviderBase):
                 if 'chef_options' not in my_task.attributes:
                     my_task.attributes['chef_options'] = {}
                 key = my_task.get_property('relation')
+                name = my_task.get_property('relation_name', key)
                 fields = my_task.get_property('fields', [])
                 aggregate = my_task.get_property('aggregate_field', False)
                 part = None
@@ -522,26 +524,41 @@ class Provider(ProviderBase):
                             val = None
                             break
                         val = val[part]
-                
                 if val:
                     if aggregate:
                         val = [val]
                     cur = my_task.attributes['chef_options']
-                    if "/" in key:
+                    if "/" in name:
                         last = cur
-                        keys = key.split("/")
+                        keys = name.split("/")
                         for k in keys:
                             last = cur
-                            cur[k] = {}
+                            if not cur.get(k):
+                                cur[k] = {}
                             cur = cur[k]
+                        if cur and aggregate:
+                            if hasattr(cur, "extend"):
+                                val.extend(cur)
+                            else:
+                                val.append(cur)
+                        LOG.info("Setting {} to {}".format(name, val))
                         last[k] = val
                     else:
-                        cur[key] = val      
+                        if cur.get(name) and aggregate:
+                            if hasattr(cur[name], "extend"):
+                                val.extend(cur[name])
+                            else:
+                                val.append(cur[name])
+                        LOG.info("Setting {} to {}".format(name, val))
+                        cur[name] = val
+                else:
+                    LOG.warn("Could not determine a value to set for {}".format(key))      
 
             def get_fields_code(my_task):  # Holds code for the task
                 if 'chef_options' not in my_task.attributes:
                     my_task.attributes['chef_options'] = {}
                 key = my_task.get_property('relation')
+                name = my_task.get_property('relation_name', key)
                 fields = my_task.get_property('fields', [])
                 aggregate = my_task.get_property('aggregate_field',[])
                 data = {}
@@ -554,22 +571,37 @@ class Provider(ProviderBase):
                             current = None
                             break;
                         current = current[part]
-                    data[part] = current
+                    if current:
+                        data[part] = current
                 if data:
+                    if aggregate:
+                        data = [data]
                     cur = my_task.attributes['chef_options']
-                    if "/" in key:
-                        last = cur
-                        keys = key.split("/")
+                    if "/" in name:
+                        keys = name.split("/")
                         for k in keys:
-                            last = cur
-                            cur[k] = {}
+                            if not cur.get(k):
+                                cur[k] = {}
                             cur = cur[k]
-                        if aggregate:
-                            last[k] = [data]
+                        if cur and aggregate:
+                            if hasattr(cur, "extend"):
+                                data.extend(cur)
+                            else:
+                                data.append(cur)
+                            LOG.info("Setting {} to {}".format(name, data))
                         else:
+                            LOG.info("Setting {} to {}".format(name, data))
                             cur.update(data)
                     else:
-                        cur[key] = [data] if aggregate else data
+                        if cur.get(name) and aggregate:
+                            if hasattr(cur[k], "extend"):
+                                data.extend(cur[k])
+                            else:
+                                data.append(cur[k])
+                        LOG.info("Setting {} to {}".format(name, data))
+                        cur[name] = data
+                else:
+                    LOG.warn("Could not find values to set for {}".format(key))
 
             compile_override = Transform(wfspec, "Get %s values for %s" %
                     (relation_key, key),
@@ -583,6 +615,7 @@ class Provider(ProviderBase):
                                 provider=self.key,
                                 resource=key,
                                 fields=fields_with_path,
+                                relation_name=relation_name,
                                 aggregate_field=aggregate,
                                 task_tags=['final'])
                     )
