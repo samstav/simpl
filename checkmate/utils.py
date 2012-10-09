@@ -28,7 +28,7 @@ from checkmate.exceptions import CheckmateNoData, CheckmateValidationException
 LOG = logging.getLogger(__name__)
 RESOURCES = ['deployments', 'workflows', 'blueprints', 'environments',
         'components', 'providers', 'test', 'status']
-STATIC = ['test']
+STATIC = ['test','version']
 #TODO: make this wildcards (0.password, 1.password, client_private_key,
 # etc... will be returned)
 DEFAULT_SENSITIVE_KEYS = ['credentials', 'password', 'apikey', 'token',
