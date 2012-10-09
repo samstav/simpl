@@ -48,19 +48,24 @@ import sys
 
 # Init logging before we load the database, 3rd party, and 'noisy' modules
 from checkmate.utils import init_console_logging
+import os
+import checkmate
+import io
 init_console_logging()
 LOG = logging.getLogger(__name__)
 
 # pylint: disable=E0611
-from bottle import get, request, response
+from bottle import get, request, response #@UnresolvedImport
 
 from checkmate.utils import write_body
 
 # Load modules containing APIs
 # pylint: disable=W0611
-from checkmate import blueprints, components, deployments, environments, \
-    workflows
+from checkmate import blueprints, components, deployments, environments, workflows #@UnusedImport
 
+
+__version_string__ = None
+__VERSION_INFO_PATH__ = "/opt/checkmate/.version"
 
 #
 # Status and System Information
@@ -85,6 +90,19 @@ def get_celery_worker_status():
         d = {ERROR_KEY: str(e)}
     return write_body(d, request, response)
 
+@get('/version')
+def get_api_version():
+    """ Return api version information """
+    global __version_string__, __VERSION_INFO_PATH__
+    if not __version_string__:
+        if os.path.exists(__VERSION_INFO_PATH__):
+            with file(__VERSION_INFO_PATH__, 'r') as f:
+                __version_string__ = f.readline().rstrip()
+            f.close()
+        else:
+            __version_string__ = "-".join([checkmate.__version__, checkmate.__release__])
+    return write_body({"version": __version_string__}, request, response)
+            
 
 @get('/status/libraries')
 def get_dependency_versions():
