@@ -135,7 +135,7 @@ def execute_workflow(id, tenant_id=None):
     if not entity:
         abort(404, 'No workflow with id %s' % id)
 
-    async_call = orchestrator.run_workflow.delay(id, timeout=10)
+    async_call = orchestrator.run_workflow.delay(id, timeout=1800)
     LOG.debug("Executed a task to run workflow '%s'" % async_call)
     entity = db.get_workflow(id)
     return write_body(entity, request, response)

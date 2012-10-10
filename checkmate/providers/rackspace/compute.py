@@ -479,7 +479,7 @@ def create_server(context, name, region, api_object=None, flavor="2",
     return results
 
 
-@task(default_retry_delay=15, max_retries=40)  # max 10 minute wait
+@task(default_retry_delay=30, max_retries=120)  # max 60 minute wait
 def wait_on_build(context, server_id, region, ip_address_type='public',
             check_ssh=True, username='root', timeout=10, password=None,
             identity_file=None, port=22, api_object=None, private_key=None):
@@ -534,13 +534,20 @@ def wait_on_build(context, server_id, region, ip_address_type='public',
 
     if server.status == 'BUILD':
         results['progress'] = server.progress
-        countdown = 100 - server.progress
-        if countdown <= 0:
-            countdown = 15  # progress is not accurate. Allow at least 15s wait
+        #countdown = 100 - server.progress
+        #if countdown <= 0:
+        #    countdown = 15  # progress is not accurate. Allow at least 15s wait
         wait_on_build.update_state(state='PROGRESS', meta=results)
-        LOG.debug("Server %s progress is %s. Retrying after %s seconds" % (
-                  server_id, server.progress, countdown))
-        return wait_on_build.retry(countdown=countdown)
+        # progress indicate shows percentage, give no inidication of seconds lef to build.  
+        # It often, if not usually takes at least 30 seconds after a server hits 100% before
+        # it will be "ACTIVE".  We used to use % left as a countdown value, but 
+        # reverting to the above configured countdown.
+        LOG.debug("Server %s progress is %s. Retrying after 30 seconds" % (
+                  server_id, server.progress))
+        return wait_on_build.retry()
+
+    if server.status == 'ERROR':
+        CheckmateException("Server %s creation error: %" % (server_id,server.status))
 
     if server.status != 'ACTIVE':
         LOG.warning("Server %s status is %s, which is not recognized. "
