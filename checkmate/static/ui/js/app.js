@@ -1543,13 +1543,13 @@ WPBP = {
                         "resource_type":"application"
                     }
                 ],
-                "description":"The number of WordPress servers (minimum two).",
-                "default":2,
-                "label":"Number of Web Servers",
+                "description":"The number of WordPress servers in addition to the master server.",
+                "default":1,
+                "label":"Additional Web Servers",
                 "type":"int",
                 "constraints":[
                     {
-                        "greater-than":1
+                        "greater-than":0
                     }
                 ]
             },
@@ -2090,13 +2090,13 @@ WPBP = {
                         "resource_type": "application"
                     }
                 ],
-                "description": "The number of WordPress servers (minimum two).",
-                "default": 2,
-                "label": "Number of Web Servers",
+                "description": "The number of WordPress servers in addition to the master server",
+                "default": 1,
+                "label": "Additional Web Servers",
                 "type": "int",
                 "constraints": [
                     {
-                        "greater-than": 1
+                        "greater-than": 0
                     }
                 ]
             },
