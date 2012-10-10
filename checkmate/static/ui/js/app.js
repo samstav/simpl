@@ -1399,6 +1399,7 @@ WPBP = {
                 "label":"Domain",
                 "sample":"example.com",
                 "type":"combo",
+		"required": true,
                 "choice":[
                     
                 ]
@@ -1909,7 +1910,8 @@ WPBP = {
                 "label": "Domain",
                 "sample": "example.com",
                 "type": "combo",
-                "choice": []
+                "choice": [],
+		"required": true
             },
             "path": {
                 "constrains": [
