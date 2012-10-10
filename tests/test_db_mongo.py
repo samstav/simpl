@@ -86,9 +86,11 @@ class TestDatabase(unittest.TestCase):
         result = results.keys()[0]
         if isinstance(result, unicode):
             result = result.encode('utf-8')
-            if isinstance(result, int):
+            try:
                 result = int(result)
-        self.assertEqual(result, 1)
+            except Exception:
+                result = result
+            self.assertEqual(result, 1)
         self.assertDictEqual(results.values()[0], body)
 
     @unittest.skipIf(SKIP, REASON)
@@ -114,8 +116,12 @@ class TestDatabase(unittest.TestCase):
             for key, value in dictionary.iteritems():
                 if isinstance(key, unicode):
                     key = key.encode('utf-8')
-                    if isinstance(key, int):
+                    print "key: %s" % key
+                    try:
+                        print "trying key: %s" % key 
                         key = int(key)
+                    except Exception:
+                        key = key
                 if isinstance(value, unicode):
                     value = value.encode('utf-8')
                     if isinstance(value, int):
