@@ -1595,7 +1595,13 @@ WPBP = {
                 ],
                 "type":"int",
                 "description":"The hard drive space available for the database instance in GB.",
-                "label":"Database Disk Size"
+                "label":"Database Disk Size",
+                "constraints":[
+                    {
+                        "greater-than":0,
+                        "less-than":51
+                    }
+                ]
             },
             "ssl":{
                 "default":false,
