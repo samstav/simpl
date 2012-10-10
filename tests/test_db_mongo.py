@@ -83,7 +83,10 @@ class TestDatabase(unittest.TestCase):
 
         results = self.driver.get_components(with_secrets=False)
         self.assertEqual(len(results), 1)
-        self.assertEqual(results.keys(), [1])
+        result = results.keys()[0]
+        if isinstance(result, int):
+            result = int(result)
+        self.assertEqual(result, 1)
         self.assertDictEqual(results.values()[0], body)
 
     @unittest.skipIf(SKIP, REASON)
@@ -103,29 +106,34 @@ class TestDatabase(unittest.TestCase):
 
     @unittest.skipIf(SKIP, REASON)
     def test_multiple_objects(self):
-       
         #Mongo returns all dictionaries in unicode - need to convert to UTF-8 to compare
         def _decode_dict(dictionary):
-            print "decoding"
             decoded_dict = {}
             for key, value in dictionary.iteritems():
                 if isinstance(key, unicode):
                     key = key.encode('utf-8')
+                    if isinstance(key, int):
+                        key = int(key)
                 if isinstance(value, unicode):
                     value = value.encode('utf-8')
+                    if isinstance(value, int):
+                        value = int(value)
                 elif isinstance (value, dict):
                     value = _decode_dict(value)
                 decoded_dict[key] = value
             return decoded_dict
         
         expected = {}
-        for i in range(4):
+        for i in range(1,5):
+            print "ROUND: %s" % i
             expected[i] = dict(id=i, tenantId='T1000')
-            self.driver.save_component(i, dict(id=i), None, tenant_id='T1000')
+            print "expected: %s" % expected[i]
+            body = self.driver.save_component(i, dict(id=i), None, tenant_id='T1000')
+            print "body: %s" % body
         unicode_results = self.driver.get_components()
         results = _decode_dict(unicode_results)
         self.assertDictEqual(results, expected)
-        for i in range(4):
+        for i in range(1,5):
             self.assertIn(i, results)
             self.assertNotIn('_id', results[i])
             self.assertEqual(results[i]['id'], i)
