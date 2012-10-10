@@ -547,7 +547,7 @@ def wait_on_build(context, server_id, region, ip_address_type='public',
         return wait_on_build.retry()
 
     if server.status == 'ERROR':
-        CheckmateException("Server %s creation error: %" % (server_id,server.status))
+        raise CheckmateException("Server %s creation error: %" % (server_id,server.status))
 
     if server.status != 'ACTIVE':
         LOG.warning("Server %s status is %s, which is not recognized. "
