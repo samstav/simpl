@@ -487,6 +487,7 @@ includes:
         constrains: [{service: web, resource_type: application, setting: "apache/ssl_private_key"}]
       "domain":
         type: string
+        required: true
         regex: '^(([a-zA-Z]|[a-zA-Z][a-zA-Z0-9\-]*[a-zA-Z0-9])\.)*([A-Za-z]|[A-Za-z][A-Za-z0-9\-]*[A-Za-z0-9])$'
         label: Domain
         sample: example.com
