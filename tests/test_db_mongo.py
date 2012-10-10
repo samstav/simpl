@@ -84,8 +84,10 @@ class TestDatabase(unittest.TestCase):
         results = self.driver.get_components(with_secrets=False)
         self.assertEqual(len(results), 1)
         result = results.keys()[0]
-        if isinstance(result, int):
-            result = int(result)
+        if isinstance(result, unicode):
+            result = result.encode('utf-8')
+            if isinstance(result, int):
+                result = int(result)
         self.assertEqual(result, 1)
         self.assertDictEqual(results.values()[0], body)
 
@@ -131,6 +133,7 @@ class TestDatabase(unittest.TestCase):
             body = self.driver.save_component(i, dict(id=i), None, tenant_id='T1000')
             print "body: %s" % body
         unicode_results = self.driver.get_components()
+        print "unicode_results: %s" % unicode_results
         results = _decode_dict(unicode_results)
         self.assertDictEqual(results, expected)
         for i in range(1,5):
