@@ -21,6 +21,19 @@ from checkmate.utils import STATIC, write_body
 
 LOG = logging.getLogger(__name__)
 
+# Check our configuration
+from celery import current_app
+try:
+    if current_app.backend.__class__.__name__ not in ['DatabaseBackend',
+                                                      'MongoBackend']:
+        LOG.warning("Celery backend does not seem to be configured for a "
+                "database: %s" % current_app.backend.__class__.__name__)
+    if not current_app.conf.get("CELERY_RESULT_DBURI"):
+        LOG.warning("ATTENTION!! CELERY_RESULT_DBURI not set.  Was the "
+                    "checkmate environment loaded?")
+except:
+    pass
+
 
 def error_formatter(error):
     """Catch errors and output them in the correct format/media-type"""
