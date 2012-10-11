@@ -194,13 +194,14 @@ class StubbedWorkflowBase(unittest.TestCase):
         else:
             LOG.debug("No postback for %s" % args[0])
 
-    def _get_stubbed_out_workflow(self, expected_calls=None):
+    def _get_stubbed_out_workflow(self, expected_calls=None, context=None):
         """Returns a workflow of self.deployment with mocks attached to all
         celery calls
         """
         assert isinstance(self.deployment, Deployment)
-        context = RequestContext(auth_token="MOCK_TOKEN", username="MOCK_USER",
-                catalog=CATALOG)
+        if not context:
+            context = RequestContext(auth_token="MOCK_TOKEN",
+                                     username="MOCK_USER", catalog=CATALOG)
         if self.deployment.get('status') == 'NEW':
             plan(self.deployment, context)
         LOG.debug(json.dumps(self.deployment.get('resources', {}), indent=2))
