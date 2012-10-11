@@ -211,6 +211,10 @@ class StubbedWorkflowBase(unittest.TestCase):
         if not expected_calls:
             expected_calls = self._get_expected_calls()
         self.expected_calls = expected_calls
+        if not expected_calls:
+            raise CheckmateException("Unable to identify expected calls "
+                                     "which is needed to run a simulated "
+                                     "workflow")
 
         #Mock out celery calls
         self.mock_tasks = {}
@@ -303,8 +307,7 @@ class StubbedWorkflowBase(unittest.TestCase):
                 'call': 'checkmate.providers.opscode.local.manage_databag',
                 'args': [self.deployment['id'],
                         self.deployment['id'],
-                        'webapp_wordpress_%s' %
-                                self.deployment.get_setting('prefix'),
+                        self.deployment.settings().get('app_id'),
                         Func(is_good_data_bag)],
                 'kwargs': And(ContainsKeyValue('secret_file',
                         'certificates/chef.pem'), ContainsKeyValue('merge',
@@ -457,7 +460,8 @@ class StubbedWorkflowBase(unittest.TestCase):
                         'result': None,
                         'resource': key,
                     })
-                # build-essential and then role
+
+                # build-essential (now just cook with bootstrap.json)
                 expected_calls.append({
                         'call': 'checkmate.providers.opscode.local.cook',
                         'args': ["4.4.4.%s" % ip, self.deployment['id']],
@@ -470,6 +474,7 @@ class StubbedWorkflowBase(unittest.TestCase):
                         'result': None,
                         'resource': key,
                     })
+                # Cook with role
                 expected_calls.append(
                     {
                         'call': 'checkmate.providers.opscode.local.cook',
