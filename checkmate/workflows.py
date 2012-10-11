@@ -635,8 +635,9 @@ def wait_for(wf_spec, task, wait_list, name=None, **kwargs):
             if not join_task:
                 # Create a new Merge task since it doesn't exist
                 if not name:
-                    name = "After %s run %s" % (",".join([str(t.id)
-                            for t in wait_list]), task.id)
+                    ids = [str(t.id) for t in wait_set]
+                    ids.sort()
+                    name = "After %s run %s" % (",".join(ids), task.id)
                 join_task = Merge(wf_spec, name, **kwargs)
             if task not in join_task.outputs:
                 task.follow(join_task)

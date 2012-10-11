@@ -37,10 +37,10 @@ class TestWorkflowTools(unittest.TestCase):
         expected = """
 1/0: Task of Root State: COMPLETED Children: 1
   2/0: Task of Start State: READY Children: 2
-    3/0: Task of After 3,1 run 2 State: FUTURE Children: 1
+    3/0: Task of After 1,3 run 2 State: FUTURE Children: 1
       5/0: Task of A State: FUTURE Children: 0
     4/0: Task of B State: FUTURE Children: 1
-      6/0: Task of After 3,1 run 2 State: FUTURE Children: 1
+      6/0: Task of After 1,3 run 2 State: FUTURE Children: 1
         7/0: Task of A State: FUTURE Children: 0"""
         self.assertEqual(workflow.get_dump(), expected.strip())
         self.assertIn(wf_spec.start, A.ancestors())
@@ -61,7 +61,7 @@ class TestWorkflowTools(unittest.TestCase):
 1/0: Task of Root State: COMPLETED Children: 1
   2/0: Task of Start State: READY Children: 1
     3/0: Task of B State: FUTURE Children: 1
-      4/0: Task of After 3,1 run 2 State: FUTURE Children: 1
+      4/0: Task of After 1,3 run 2 State: FUTURE Children: 1
         5/0: Task of A State: FUTURE Children: 0"""
         self.assertEqual(workflow.get_dump(), expected.strip())
         self.assertIn(wf_spec.start, A.ancestors())
