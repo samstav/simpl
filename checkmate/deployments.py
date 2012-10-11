@@ -347,7 +347,7 @@ def execute(oid, timeout=180, tenant_id=None):
     if not deployment:
         abort(404, 'No deployment with id %s' % oid)
 
-    result = orchestrator.run_workflow.delay(oid, timeout=900) #@UndefinedVariable
+    result = orchestrator.run_workflow.delay(oid, timeout=3600) #@UndefinedVariable
     return result
 
 

@@ -131,7 +131,7 @@ def count_seconds(seconds):
 
 
 @task(default_retry_delay=10, max_retries=300)
-def run_workflow(id, timeout=60, wait=1, counter=1):
+def run_workflow(id, timeout=900, wait=1, counter=1):
     """Loop through trying to complete the workflow and periodically log
     status updates. Each time we cycle through, if nothing happens we
     extend the wait time between cycles so we don't load the system.

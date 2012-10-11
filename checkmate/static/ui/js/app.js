@@ -1399,6 +1399,7 @@ WPBP = {
                 "label":"Domain",
                 "sample":"example.com",
                 "type":"combo",
+		"required": true,
                 "choice":[
                     
                 ]
@@ -1542,13 +1543,13 @@ WPBP = {
                         "resource_type":"application"
                     }
                 ],
-                "description":"The number of WordPress servers (minimum two).",
-                "default":2,
-                "label":"Number of Web Servers",
+                "description":"The number of WordPress servers in addition to the master server.",
+                "default":1,
+                "label":"Additional Web Servers",
                 "type":"int",
                 "constraints":[
                     {
-                        "greater-than":1
+                        "greater-than":0
                     }
                 ]
             },
@@ -1594,7 +1595,13 @@ WPBP = {
                 ],
                 "type":"int",
                 "description":"The hard drive space available for the database instance in GB.",
-                "label":"Database Disk Size"
+                "label":"Database Disk Size",
+                "constraints":[
+                    {
+                        "greater-than":0,
+                        "less-than":51
+                    }
+                ]
             },
             "ssl":{
                 "default":false,
@@ -1909,7 +1916,8 @@ WPBP = {
                 "label": "Domain",
                 "sample": "example.com",
                 "type": "combo",
-                "choice": []
+                "choice": [],
+		"required": true
             },
             "path": {
                 "constrains": [
@@ -2082,13 +2090,13 @@ WPBP = {
                         "resource_type": "application"
                     }
                 ],
-                "description": "The number of WordPress servers (minimum two).",
-                "default": 2,
-                "label": "Number of Web Servers",
+                "description": "The number of WordPress servers in addition to the master server",
+                "default": 1,
+                "label": "Additional Web Servers",
                 "type": "int",
                 "constraints": [
                     {
-                        "greater-than": 1
+                        "greater-than": 0
                     }
                 ]
             },
