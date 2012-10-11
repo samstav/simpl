@@ -226,6 +226,7 @@ class Provider(ProviderBase):
                 continue
             option_maps.append((name, option.get('source_field_name', name),
                     option.get('default')))
+            LOG.debug("Processing option %s from component %s" % (option_maps[-1], component.get("id", "UNKNOWN")))
 
         # Set the options if they are available now (at planning time) and mark
         # ones we need to get at run-time
@@ -305,7 +306,7 @@ class Provider(ProviderBase):
                 my_task.attributes['chef_options'].update(data)
 
         LOG.debug("Creating task to collect run-time options %s for %s" % (
-                ', '.join([m for n, m in run_time_options]),
+                ', '.join([m for n, m in run_time_options]), #@UnusedVariable
                 component['id']))
         LOG.debug("Options collected at planning time for %s were: %s" % (
                 component['id'], planning_time_options))
@@ -422,7 +423,7 @@ class Provider(ProviderBase):
             dependencies.append(options_ready)
 
         # Wait for relations tasks to complete
-        for relation_key, relation in resource.get('relations', {}).iteritems():
+        for relation_key in resource.get('relations', {}).keys():
             tasks = self.find_tasks(wfspec,
                     resource=key,
                     relation=relation_key,
@@ -769,7 +770,7 @@ class Provider(ProviderBase):
         # Get cookbook names (with source if translated)
         cookbooks = self._get_cookbook_names(site_cookbooks=site_cookbooks)
         # Load individual cookbooks
-        for name, cookbook in cookbooks.iteritems():
+        for name in cookbooks.keys():
             data = self._get_cookbook(context, cookbooks.get('source_name', name),
                     site_cookbook=site_cookbooks)
             if data:
@@ -787,7 +788,7 @@ class Provider(ProviderBase):
             path = os.path.join(repo_path, 'cookbooks')
 
         names = []
-        for top, dirs, files in os.walk(path):
+        for top, dirs, files in os.walk(path): #@UnusedVariable
             names = [name for name in dirs if name[0] != '.']
             break
 
@@ -886,7 +887,7 @@ class Provider(ProviderBase):
         path = os.path.join(repo_path, 'roles')
 
         names = []
-        for top, dirs, files in os.walk(path):
+        for top, dirs, files in os.walk(path): #@UnusedVariable
             names = [name for name in files if name.endswith('.json')]
             break
 
@@ -988,12 +989,6 @@ class Provider(ProviderBase):
         options = {}
         for key, option in native_options.iteritems():
             canonical = schema.translate(key)
-            #if canonical.startswith(component_id) and \
-            #        len(canonical) > len(component_id) and \
-            #        canonical[len(component_id)] in ['/', '_']:
-            #    LOG.debug("Parsed option '%s' into '%s'" % (key,
-            #            canonical[len(component_id) + 1:]))
-            #    canonical = canonical[len(component_id) + 1:]
             translated = {}
             if 'display_name' in option:
                 translated['label'] = option['display_name']
@@ -1013,6 +1008,7 @@ class Provider(ProviderBase):
             if 'source_field_name' in option:
                 translated['source_field_name'] = \
                         option['source_field_name']
+#             TODO: do we really need to be so strict regarding option names?
             if canonical != key:
                 translated['source_field_name'] = key
             violations = schema.validate(translated, schema.OPTION_SCHEMA)
