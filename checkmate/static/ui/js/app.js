@@ -1077,7 +1077,7 @@ function DeploymentNewController($scope, $location, $routeParams, $resource, set
 function DeploymentTryController($scope, $location, $routeParams, $resource, settings, workflow) {
   $scope.environments = ENVIRONMENTS;
   $scope.blueprints = WPBP;
-  var ctrl = new DeploymentInitController($scope, $location, $routeParams, $resource, WPBP['MySQL'], ENVIRONMENTS['next-gen'], settings, workflow);
+  var ctrl = new DeploymentInitController($scope, $location, $routeParams, $resource, WPBP['DBaaS'], ENVIRONMENTS['next-gen'], settings, workflow);
   $scope.updateSettings();
   $scope.updateDatabaseProvider();
   return ctrl;
@@ -1431,7 +1431,7 @@ WPBP = {
             "region":{
                 "required":true,
                 "type":"select",
-                "default":"DFW",
+                "default":"ORD",
                 "label":"Region",
                 "choice":[
                     "DFW",
@@ -1632,7 +1632,7 @@ WPBP = {
                         "resource_type":"application"
                     }
                 ],
-                "type":"string",
+                "type":"text",
                 "label":"SSL Certificate Private Key"
             }
         },
@@ -1946,7 +1946,7 @@ WPBP = {
             "region": {
                 "required": true,
                 "type": "select",
-                "default": "DFW",
+                "default": "ORD",
                 "label": "Region",
                 "choice": ["DFW", "ORD"]
             },
@@ -2182,7 +2182,7 @@ WPBP = {
                         "resource_type": "application"
                     }
                 ],
-                "type": "string",
+                "type": "text",
                 "label": "SSL Certificate Private Key"
             }
         },
