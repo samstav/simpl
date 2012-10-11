@@ -1919,16 +1919,18 @@ def check_all_output(params):
         raise CheckmateCalledProcessError(retcode, ' '.join(params),
                 output='\n'.join(queue), error_info='\n'.join(errors))
 
-
+CHECKMATE_CHEF_REPO = None
 def _get_repo_path():
     """Find the master repo path for chef cookbooks"""
-    path = os.environ.get('CHECKMATE_CHEF_REPO')
-    if not path:
-        path = "/var/local/checkmate/chef-stockton"
-        LOG.warning("CHECKMATE_CHEF_REPO variable not set. Defaulting to %s" %
-                path)
-        if not os.path.exists(path):
-            git.Repo.clone_from('git://github.rackspace.com/checkmate/'
-                    'chef-stockton.git', path)
-            LOG.info("Cloned chef-stockton to %s" % path)
-    return path
+    global CHECKMATE_CHEF_REPO
+    if not CHECKMATE_CHEF_REPO:
+        CHECKMATE_CHEF_REPO = os.environ.get('CHECKMATE_CHEF_REPO')
+        if not CHECKMATE_CHEF_REPO:
+            CHECKMATE_CHEF_REPO = "/var/local/checkmate/chef-stockton"
+            LOG.warning("CHECKMATE_CHEF_REPO variable not set. Defaulting to "
+                        "%s" % CHECKMATE_CHEF_REPO)
+            if not os.path.exists(CHECKMATE_CHEF_REPO):
+                git.Repo.clone_from('git://github.rackspace.com/checkmate/'
+                        'chef-stockton.git', CHECKMATE_CHEF_REPO)
+                LOG.info("Cloned chef-stockton to %s" % CHECKMATE_CHEF_REPO)
+    return CHECKMATE_CHEF_REPO
