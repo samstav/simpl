@@ -767,7 +767,7 @@ function WorkflowController($scope, $resource, $http, $routeParams, $location, $
     _.each(tasks, function(task){
       if (task.state < status)
         status = task.state;
-        if ('internal_attributes' in task && 'task_state' in task.internal_attributes && task.internal_attributes.task_state.state == 'FAILURE')
+        if ('internal_attributes' in task && 'task_state' in task.internal_attributes && task.internal_attributes.task_state.state == 'FAILURE' && task.state != 64)
           status = -1;
     });
     return status;

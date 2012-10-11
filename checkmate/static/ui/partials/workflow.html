@@ -74,7 +74,7 @@
 
           <li class="nav-header">Preceding Tasks</li>
 
-          <li ng-repeat="input in current_spec.inputs"><span ng-class="state_class({state: spec_status(output)})"><a href="#{{input}}" ng-click="selectSpec(input)" style="color: #fff">{{input}}</a></span></li>
+          <li ng-repeat="input in current_spec.inputs"><span ng-class="state_class({state: spec_status(input)})"><a href="#{{input}}" ng-click="selectSpec(input)" style="color: #fff">{{input}}</a></span></li>
 
           <li class="nav-header">Following Tasks</li>
 
@@ -116,7 +116,7 @@
         </ul>
 
         <div ng-cloak ng-show="current_task_index">
-          <div id="error-alert" class="alert alert-block alert-error fade in" ng-cloak ng-show="current_task.internal_attributes.task_state.state == 'FAILURE'">
+          <div id="error-alert" class="alert alert-block alert-error fade in" ng-cloak ng-show="current_task.internal_attributes.task_state.state == 'FAILURE' && current_task.state != 64">
             <button type="button" class="close" data-dismiss="alert">&times;</button>
             <h4 class="alert-heading">Oh snap! Something didn't work!</h4>
             <p>This error was reported: {{current_task.internal_attributes.task_state.info}}. See the code <a class="accordion-toggle cmcollapse" data-toggle="collapse" data-target="#traceback">traceback</a>.</p>
