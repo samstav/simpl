@@ -11,6 +11,7 @@ from prettytable import PrettyTable
 from SpiffWorkflow import Workflow
 from SpiffWorkflow.specs import Transform, TransMerge
 
+import checkmate.common.tracer  # @UnusedImport # module runs on import
 # Init logging before we load the database, 3rd party, and 'noisy' modules
 from checkmate.utils import init_console_logging
 init_console_logging()
