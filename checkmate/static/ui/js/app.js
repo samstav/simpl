@@ -1641,13 +1641,13 @@ WPBP = {
                 "type":"key-pair",
                 "constrains":[
                     {
-                        "setting":"lsyncd/user/ssh_priv_key",
+                        "setting":"lsyncd/user/ssh_private_key",
                         "service":"web",
                         "resource_type":"application",
                         "attribute":"private_key"
                     },
                     {
-                        "setting":"lsyncd/user/ssh_priv_key",
+                        "setting":"lsyncd/user/ssh_private_key",
                         "service":"master",
                         "resource_type":"application",
                         "attribute":"private_key"
@@ -2154,8 +2154,13 @@ WPBP = {
                 "sample": "-----BEGIN CERTIFICATE-----\nEncoded Certificate\n-----END CERTIFICATE-----\n",
                 "constrains": [
                     {
-                        "setting": "apache/ssl_certificate",
+                        "setting": "apache/ssl_cert",
                         "service": "web",
+                        "resource_type": "application"
+                    },
+                    {
+                        "setting": "apache/ssl_cert",
+                        "service": "master",
                         "resource_type": "application"
                     }
                 ],
@@ -2169,6 +2174,11 @@ WPBP = {
                     {
                         "setting": "apache/ssl_private_key",
                         "service": "web",
+                        "resource_type": "application"
+                    },
+                    {
+                        "setting": "apache/ssl_private_key",
+                        "service": "master",
                         "resource_type": "application"
                     }
                 ],

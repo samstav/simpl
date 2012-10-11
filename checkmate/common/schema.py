@@ -283,7 +283,6 @@ ALIASES = {
         'destination': ['dest'],
         'directory': ['dir'],
         'configuration': ['conf'],
-        'certificate': ['cert'],
         'host': ['hostname'],
         'id': [],
         'ip': [],
@@ -297,8 +296,6 @@ ALIASES = {
         'path': [],
         'password': ['pass'],
         'prefork': [],
-        'private': ['priv'],
-        'public': ['pub'],
         'region': [],
         'server': ['srv', 'srvr'],
         'source': ['src'],
@@ -337,6 +334,11 @@ ALIASES.update({
     'xfs': [],
     'xml': [],
     'yum': [],
+    'private': [],
+    'public': [],
+    'ssl': [],
+    'cert':[],
+    'certificate':[]
     })
 
 
