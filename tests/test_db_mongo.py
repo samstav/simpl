@@ -95,9 +95,28 @@ class TestDatabase(unittest.TestCase):
 
     @unittest.skipIf(SKIP, REASON)
     def test_hex_id(self):
+        """
+        def _decode_dict(dictionary):
+            decoded_dict = {}
+            for key, value in dictionary.iteritems():
+                if isinstance(key, unicode):
+                    key = key.encode('utf-8')
+                if isinstance(value, unicode):
+                    value = value.encode('utf-8')
+                    if isinstance(value, int):
+                        value = int(value)
+                elif isinstance (value, dict):
+                    value = _decode_dict(value)
+                decoded_dict[key] = value
+            return decoded_dict
+            """
+        print "TEST HEX \n\n"
         id = uuid.uuid4().hex
-        results = self.driver.save_component(id, dict(id=id), None,
+        body = self.driver.save_component(id, dict(id=id), None,
                                              tenant_id='T1000')
+        results = self.driver.get_components()
+        #results = _decode_dict(unicode_results)
+        print "results: %s" % results
         self.assertDictEqual(results, dict(id=id, tenantId='T1000'))
         self.assertNotIn('_id', results, "Backend field '_id' should not be "
                          "exposed outside of driver")
@@ -116,9 +135,7 @@ class TestDatabase(unittest.TestCase):
             for key, value in dictionary.iteritems():
                 if isinstance(key, unicode):
                     key = key.encode('utf-8')
-                    print "key: %s" % key
                     try:
-                        print "trying key: %s" % key 
                         key = int(key)
                     except Exception:
                         key = key
@@ -133,11 +150,8 @@ class TestDatabase(unittest.TestCase):
         
         expected = {}
         for i in range(1,5):
-            print "ROUND: %s" % i
             expected[i] = dict(id=i, tenantId='T1000')
-            print "expected: %s" % expected[i]
             body = self.driver.save_component(i, dict(id=i), None, tenant_id='T1000')
-            print "body: %s" % body
         unicode_results = self.driver.get_components()
         print "unicode_results: %s" % unicode_results
         results = _decode_dict(unicode_results)

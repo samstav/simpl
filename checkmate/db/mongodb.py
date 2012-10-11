@@ -114,11 +114,13 @@ class Driver(DbBase):
                 return results
 
     def get_objects(self, klass, tenant_id=None, with_secrets=None):
+        print "GETTING OBJECTS"
         if tenant_id:
             results = self.database()[klass].find({'tenantId': tenant_id},
                     {'_id': 0})
         else:
             results = self.database()[klass].find(None, {'_id': 0})
+            print "results: %s" % results
         if results:
             response = {}
             if with_secrets is True:
@@ -132,7 +134,13 @@ class Driver(DbBase):
                         response[entry['id']] = entry
             else:
                 for entry in results:
+                    print "entry: %s" % entry
                     response[entry['id']] = entry
+            #If only one entry returned, change to 1-entry format
+            if len(response) is 1:
+                key = response.keys()[0]
+                response = response[key]
+            print "returning response: %s" % response
             return response
         else:
             return {}
@@ -143,6 +151,7 @@ class Driver(DbBase):
         overwrite the secrets. To clear the secrets for an object, a non-None
         dict needs to be passed in: ex. {}
         """
+        print "saving object"
         if isinstance(body, ExtensibleDict):
             body = body.__dict__()
         assert isinstance(body, dict), "dict required by backend"
@@ -158,10 +167,12 @@ class Driver(DbBase):
             body['tenantId'] = tenant_id
         assert tenant_id or 'tenantId' in body, "tenantId must be specified"
         body['_id'] = id
+        print "body: %s" % body
         self.database()[klass].update({'_id': id}, body, True, False)
         if secrets:
             secrets['_id'] = id
             self.database()['%s_secrets' % klass].update({'_id': id}, secrets,
                     True, False)
         del body['_id']
+        print "returning body: %s" % body
         return body
