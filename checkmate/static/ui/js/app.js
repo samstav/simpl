@@ -313,7 +313,6 @@ function AppController($scope, $http, $location) {
       return rndNum;
   }
 
-
   // Log in using credentials delivered through bound_credentials
   $scope.logIn = function() {
     var username = $scope.bound_creds.username;
@@ -1088,7 +1087,12 @@ function DeploymentInitController($scope, $location, $routeParams, $resource, bl
   $scope.blueprint = blueprint;
   $scope.answers = {};
   $scope.domain_names = [];
-  
+
+  // Check for a supported account
+  $scope.is_unsupported_account = function() {
+      return _.any($scope.auth.catalog.access.user.roles, function(role) {return role.name == "rack_connect"});
+  }  
+
   //Retrieve existing domains  
   $scope.getDomains = function(){
     $scope.domain_names = [];
