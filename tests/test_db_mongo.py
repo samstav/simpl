@@ -52,6 +52,21 @@ class TestDatabase(unittest.TestCase):
   
     @unittest.skipIf(SKIP, REASON)
     def test_components(self):
+
+        def _decode_dict(dictionary):
+            decoded_dict = {}
+            for key, value in dictionary.iteritems():
+                if isinstance(key, unicode):
+                    key = key.encode('utf-8')
+                if isinstance(value, unicode):
+                    value = value.encode('utf-8')
+                    if isinstance(value, int):
+                        value = int(value)
+                elif isinstance (value, dict):
+                    value = _decode_dict(value)
+                decoded_dict[key] = value
+            return decoded_dict
+
         entity = {'id': 1,
                   'name': 'My Component',
                   'credentials': ['My Secrets']
@@ -68,8 +83,7 @@ class TestDatabase(unittest.TestCase):
 
         body['name'] = 'My Updated Component'
         entity['name'] = 'My Updated Component'
-        results = self.driver.save_component(entity['id'], body)
-
+        results = self.driver.save_component(entity['id'], body, secrets)
         results = self.driver.get_component(entity['id'], with_secrets=True)
         self.assertIn('credentials', results)
         self.assertDictEqual(results, entity)
@@ -82,20 +96,23 @@ class TestDatabase(unittest.TestCase):
                          "exposed outside of driver")
 
         results = self.driver.get_components(with_secrets=False)
-        self.assertEqual(len(results), 1)
-        result = results.keys()[0]
+        wrapper = {} # Needed to test for length of a result with only one returned value
+        wrapper ['results'] = results
+        self.assertEqual(len(wrapper), 1)
+        result = results.values()[0]
+        #Convert id from unicode to integer
         if isinstance(result, unicode):
             result = result.encode('utf-8')
             try:
                 result = int(result)
             except Exception:
                 result = result
-            self.assertEqual(result, 1)
-        self.assertDictEqual(results.values()[0], body)
+        self.assertEqual(result, 1)
+        results = _decode_dict(results)
+        self.assertDictEqual(results, body)
 
     @unittest.skipIf(SKIP, REASON)
     def test_hex_id(self):
-        """
         def _decode_dict(dictionary):
             decoded_dict = {}
             for key, value in dictionary.iteritems():
@@ -109,14 +126,11 @@ class TestDatabase(unittest.TestCase):
                     value = _decode_dict(value)
                 decoded_dict[key] = value
             return decoded_dict
-            """
-        print "TEST HEX \n\n"
         id = uuid.uuid4().hex
         body = self.driver.save_component(id, dict(id=id), None,
                                              tenant_id='T1000')
-        results = self.driver.get_components()
-        #results = _decode_dict(unicode_results)
-        print "results: %s" % results
+        unicode_results = self.driver.get_components()
+        results = _decode_dict(unicode_results)
         self.assertDictEqual(results, dict(id=id, tenantId='T1000'))
         self.assertNotIn('_id', results, "Backend field '_id' should not be "
                          "exposed outside of driver")
@@ -153,7 +167,6 @@ class TestDatabase(unittest.TestCase):
             expected[i] = dict(id=i, tenantId='T1000')
             body = self.driver.save_component(i, dict(id=i), None, tenant_id='T1000')
         unicode_results = self.driver.get_components()
-        print "unicode_results: %s" % unicode_results
         results = _decode_dict(unicode_results)
         self.assertDictEqual(results, expected)
         for i in range(1,5):
