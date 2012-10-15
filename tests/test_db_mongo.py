@@ -7,6 +7,8 @@ import uuid
 from pymongo import Connection
 from pymongo.errors import AutoReconnect, InvalidURI
 
+
+
 # Init logging before we load the database, 3rd party, and 'noisy' modules
 from checkmate.utils import init_console_logging
 init_console_logging()
@@ -38,6 +40,8 @@ class TestDatabase(unittest.TestCase):
 
     
     def setUp(self):
+        global DB
+        DB = None
         self.db_name = 'checkmate_test_%s' % uuid.uuid4().hex
         self.driver = db.get_driver('checkmate.db.mongodb.Driver')
         self.driver.connection_string = 'mongodb://localhost/%s' % self.db_name
