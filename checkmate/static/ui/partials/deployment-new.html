@@ -29,6 +29,9 @@
         <p>
           {{blueprint.description}}
         </p>
+        <p ng-cloak ng-show="is_unsupported_account()" class="alert">
+          This account is a RackConnect account. RackConnect accounts are currently not supported by this Blueprint.
+        </p>
         <hr/>    
         <div class="alert alert-info" ng-cloak ng-show="!showSettings()">
           <button type="button" class="close" data-dismiss="alert">&times;</button>
@@ -62,7 +65,7 @@
             </div>
     
             <div class="form-actions">
-              <button ng-click="submit(false)" class="btn btn-primary" ng-disabled="!auth.loggedIn">Build It!</button>
+              <button ng-click="submit(false)" class="btn btn-primary" ng-disabled="!auth.loggedIn || is_unsupported_account()">Build It!</button>
               <!-- SIMULATE BUTTON PLACEHOLDER - do not change this comment, used for substitution!! -->
               <button ng-click="loginPrompt()" class="btn" ng-hide="auth.loggedIn">Log in to execute this workflow</button>
             </div>
