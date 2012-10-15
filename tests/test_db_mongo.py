@@ -28,14 +28,15 @@ except InvalidURI:
     REASON = "Configured to connect to non-mongo URI"
 from checkmate.utils import extract_sensitive_data
 
+tester = { 'some': 'random',
+               'tenantId': 'T100',
+               'id' : 1 }
+
 
 class TestDatabase(unittest.TestCase):
     """ Test Mongo Database code """
 
-    tester = { 'some': 'random',
-               'thing': 'here'.
-               'id' : 1 }
-
+    
     def setUp(self):
         self.db_name = 'checkmate_test_%s' % uuid.uuid4().hex
         self.driver = db.get_driver('checkmate.db.mongodb.Driver')
@@ -68,7 +69,8 @@ class TestDatabase(unittest.TestCase):
     @unittest.skipIf(SKIP, REASON)
     def test_extract(self):
         results = self.driver.get_components()
-        self.assertIsNone(results) 
+        print results
+        self.assertDictEqual(results, {}) 
 
   
     @unittest.skipIf(SKIP, REASON)
@@ -122,7 +124,6 @@ class TestDatabase(unittest.TestCase):
         self.assertEqual(len(wrapper), 1)
 
         results = _decode_dict(results)
-        print "results: %s" % results
 	self.assertIn('id', results)
         self.assertEqual(results['id'], 1)
         self.assertDictEqual(results, body)
@@ -147,7 +148,6 @@ class TestDatabase(unittest.TestCase):
                                              tenant_id='T1000')
         unicode_results = self.driver.get_components()
         results = _decode_dict(unicode_results)
-        print "results: %s" % results
         self.assertDictEqual(results, dict(id=id, tenantId='T1000'))
         self.assertNotIn('_id', results, "Backend field '_id' should not be "
                          "exposed outside of driver")
