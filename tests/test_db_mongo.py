@@ -31,7 +31,7 @@ from checkmate.utils import extract_sensitive_data
 tester = { 'some': 'random',
                'tenantId': 'T100',
                'id' : 1 }
-
+SKIP = True
 
 class TestDatabase(unittest.TestCase):
     """ Test Mongo Database code """
@@ -55,18 +55,15 @@ class TestDatabase(unittest.TestCase):
                                                                 exc))
 
 
-    @unittest.skipIf(SKIP, REASON)
     def test_stuff(self):
         results = self.driver.save_component(tester['id'], tester)
         self.assertDictEqual(results, tester)
 
-    @unittest.skipIf(SKIP, REASON)
     def test_fail(self):
         tester['id'] = 2
         results = self.driver.save_component(tester['id'], tester)
         self.assertEqual('a','b')
 
-    @unittest.skipIf(SKIP, REASON)
     def test_extract(self):
         results = self.driver.get_components()
         print results
