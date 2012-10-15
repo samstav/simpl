@@ -32,6 +32,10 @@ from checkmate.utils import extract_sensitive_data
 class TestDatabase(unittest.TestCase):
     """ Test Mongo Database code """
 
+    tester = { 'some': 'random',
+               'thing': 'here'.
+               'id' : 1 }
+
     def setUp(self):
         self.db_name = 'checkmate_test_%s' % uuid.uuid4().hex
         self.driver = db.get_driver('checkmate.db.mongodb.Driver')
@@ -48,6 +52,23 @@ class TestDatabase(unittest.TestCase):
         except Exception as exc:
             LOG.error("Error deleting test mongodb '%s': %s" % (self.db_name,
                                                                 exc))
+
+
+    @unittest.skipIf(SKIP, REASON)
+    def test_stuff(self):
+        results = self.driver.save_component(tester['id'], tester)
+        self.assertDictEqual(results, tester)
+
+    @unittest.skipIf(SKIP, REASON)
+    def test_fail(self):
+        tester['id'] = 2
+        results = self.driver.save_component(tester['id'], tester)
+        self.assertEqual('a','b')
+
+    @unittest.skipIf(SKIP, REASON)
+    def test_extract(self):
+        results = self.driver.get_components()
+        self.assertIsNone(results) 
 
   
     @unittest.skipIf(SKIP, REASON)
@@ -101,7 +122,8 @@ class TestDatabase(unittest.TestCase):
         self.assertEqual(len(wrapper), 1)
 
         results = _decode_dict(results)
-
+        print "results: %s" % results
+	self.assertIn('id', results)
         self.assertEqual(results['id'], 1)
         self.assertDictEqual(results, body)
 
