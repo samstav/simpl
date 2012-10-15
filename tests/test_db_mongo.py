@@ -99,16 +99,10 @@ class TestDatabase(unittest.TestCase):
         wrapper = {} # Needed to test for length of a result with only one returned value
         wrapper ['results'] = results
         self.assertEqual(len(wrapper), 1)
-        result = results.values()[0]
-        #Convert id from unicode to integer
-        if isinstance(result, unicode):
-            result = result.encode('utf-8')
-            try:
-                result = int(result)
-            except Exception:
-                result = result
-        self.assertEqual(result, 1)
+
         results = _decode_dict(results)
+
+        self.assertEqual(results['id'], 1)
         self.assertDictEqual(results, body)
 
     @unittest.skipIf(SKIP, REASON)
@@ -131,6 +125,7 @@ class TestDatabase(unittest.TestCase):
                                              tenant_id='T1000')
         unicode_results = self.driver.get_components()
         results = _decode_dict(unicode_results)
+        print "results: %s" % results
         self.assertDictEqual(results, dict(id=id, tenantId='T1000'))
         self.assertNotIn('_id', results, "Backend field '_id' should not be "
                          "exposed outside of driver")
