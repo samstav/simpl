@@ -169,7 +169,7 @@ COMPONENT_SCHEMA = ['id', 'options', 'requires', 'provides', 'summary',
 OPTION_SCHEMA = ['name', 'label', 'default', 'help', 'description', 'source',
         'source_field_name', 'required', 'type', 'constrains']
 
-OPTION_TYPES = ['string', 'int', 'array']
+OPTION_TYPES = ['string', 'int', 'array', 'hash']
 
 WORKFLOW_SCHEMA = ['id', 'attributes', 'last_task', 'task_tree', 'workflow',
         'success', 'wf_spec', 'tenantId']
@@ -347,6 +347,8 @@ def translate(name):
 
     Canonicalizes composite names to be separated by underscores.
     Keeps path separators intack (name/alias becomes name/canonical_name)
+    @deprecated: this prevents us from using third party chef-based 
+                 components without modification
     """
     # Check if is already canonical
     if name in ALIASES or not name or not isinstance(name, basestring):
@@ -368,14 +370,15 @@ def translate(name):
         return path_separator.join(segments)
 
     # Check if composite (made up of a number of words together)
-    word_seps = '.-_'
-    if any((c in name) for c in word_seps):
-        chars = list(name)
-        words = ''.join([' ' if o in word_seps else o for o in chars]
-                ).split(' ')
-        for index, word in enumerate(words):
-            words[index] = translate(word) or ''
-        return '_'.join(words)
+    # this breaks some recipes used in chef components.
+#    word_seps = '.-_'
+#    if any((c in name) for c in word_seps):
+#        chars = list(name)
+#        words = ''.join([' ' if o in word_seps else o for o in chars]
+#                ).split(' ')
+#        for index, word in enumerate(words):
+#            words[index] = translate(word) or ''
+#        return '_'.join(words)
 
     LOG.debug("Unrecognized name: %s" % name)
     return name
