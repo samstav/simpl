@@ -136,6 +136,7 @@
     <div class="controls">
       <select id="{{id}}" ng-model="answers['{{id}}']" {{#required}}required{{/required}} ng-options="o for o in setting.choice">
       </select>
+	  {{#description}}<p class="help-block">{{description}}</p>{{/description}}
     </div>
   </script>
 
@@ -144,6 +145,7 @@
     <div class="controls">
       <select id="{{id}}" ng-model="answers['{{id}}']" {{#required}}required{{/required}} ng-options="o.value as o.name for o in setting.choice">
       </select>
+	  {{#description}}<p class="help-block">{{description}}</p>{{/description}}
     </div>
   </script>
 
@@ -156,6 +158,7 @@
        <br />
        <select name="s" id="{{id}}" ng-model="answers['{{id}}']" ng-options="o for o in setting.choice" onchange="document.ex.state.value=document.ex.s.options[document.ex.s.selectedindex].value;document.ex.s.value=""><option value="" selected="selected">
        </select>
+       {{#description}}<p class="help-block">{{description}}</p>{{/description}}
     </div>
    </script>
 </section>

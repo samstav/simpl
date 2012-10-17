@@ -793,6 +793,7 @@ class Provider(ProviderBase):
             break
 
         for name in names:
+            # hack for now, this prevents un-altered cookbooks from being used
             canonical_name = schema.translate(name)
             results[canonical_name] = dict(id=canonical_name)
             if canonical_name != name:
@@ -827,7 +828,7 @@ class Provider(ProviderBase):
         component = {'is': 'application'}
         if os.path.exists(metadata_json_path):
             with file(metadata_json_path, 'r') as f:
-                data = json.load(f)
+                data = json.load(f)            
             canonical_name = schema.translate(data['name'])
             component['id'] = canonical_name
             if data['name'] != canonical_name:
@@ -875,7 +876,8 @@ class Provider(ProviderBase):
                 component['requires'].append(dict(host='linux'))
         else:
             component['requires'] = [dict(host='linux')]
-        LOG.debug("Processing dependencies for cookbook %s" % component['id'])
+        LOG.debug("Processing dependencies for cookbook %s" % 
+                  os.path.dirname(metadata_json_path).split(os.path.sep)[-1])
         self._process_component_deps(context, component)
         
         return component
@@ -987,7 +989,7 @@ class Provider(ProviderBase):
         translated name
         """
         options = {}
-        for key, option in native_options.iteritems():
+        for key, option in native_options.iteritems():    
             canonical = schema.translate(key)
             translated = {}
             if 'display_name' in option:
