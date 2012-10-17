@@ -145,6 +145,13 @@ INTERFACE_SCHEMA = yaml_to_dict("""
       udp_stream:
       tcp_client_first:
       tcp:
+      proxy:
+        description: A proxy for other protocols; i.e. a load balancer or IDS
+        fields:
+          protocol:
+             type: string
+             description: the protocol being proxied
+             required: true
     """)
 
 INTERFACE_TYPES = INTERFACE_SCHEMA.keys()

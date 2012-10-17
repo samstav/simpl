@@ -1308,8 +1308,13 @@ WPBP = {
                     "80/tcp"
                 ],
                 "component":{
-                    "interface":"http",
-                    "type":"load-balancer"
+                    "interface":"proxy",
+                    "type":"load-balancer",
+                    "constraints":[
+                        {
+                       	    "algorithm": "ROUND_ROBIN"
+                        }
+                    ]
                 },
                 "relations":{
                     "web":"http",
@@ -1403,7 +1408,7 @@ WPBP = {
                 "label":"Domain",
                 "sample":"example.com",
                 "type":"combo",
-		"required": true,
+		        "required": true,
                 "choice":[
                     
                 ]
@@ -1607,12 +1612,45 @@ WPBP = {
                     }
                 ]
             },
-            "ssl":{
-                "default":false,
-                "label":"SSL Enabled",
-                "type":"boolean",
-                "help":"If this option is selected, SSL keys need to be supplied as well. This option is\nalso currently mutually exclusive with the Varnish Caching option.\n",
-                "description":"Use SSL to encrypt web traffic."
+            "web_server_protocol":{
+                "default":'http',
+                "label":"HTTP Protocol",
+                "type":"select",
+                "choice":[
+                    {
+                    	"name": "HTTP Only",
+                    	"value": "http",
+                    	"precludes":[
+                    	    "ssl_certificate",
+                    	    "ssl_private_key"
+                    	]
+                    },
+                    {
+                    	"name": "HTTPS Only",
+                    	"value": "https",
+                    	"requires":[
+                    	    "ssl_certificate",
+                    	    "ssl_private_key"
+                    	]
+                    },
+                    {
+                    	"name": "HTTP and HTTPS",
+                    	"value":"http_and_https",
+                    	"requires":[
+                            "ssl_certificate",
+                            "ssl_private_key"
+                        ]
+                    }
+                ],
+                "help":"Use HTTP, HTTPS (SSL), or both for web traffic. HTTPS requires an SSL certificate and private key.",
+                "description":"Use HTTP, HTTPS (SSL), or both for web traffic. HTTPS requires an SSL certificate and private key.",
+                "constrains":[
+                    {
+                    	"setting": "protocol",
+                    	"service": "lb",
+                    	"resource_type": "load-balancer"
+                    }
+                ]
             },
             "ssl_certificate":{
                 "sample":"-----BEGIN CERTIFICATE-----\nEncoded Certificate\n-----END CERTIFICATE-----\n",
