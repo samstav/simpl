@@ -265,7 +265,7 @@ class Environment():
             if providers:
                 common = providers.get('common', {})
             else:
-                LOG.debug("Environment does not have providers")
+                 LOG.debug("Environment does not have providers")
 
             results = {}
             for key, provider in providers.iteritems():

@@ -26,10 +26,12 @@ class Driver(DbBase):
         self._database = None
 
     def database(self):
+        print 'here'
         """Connects to and returns mongodb database object"""
         if self._database is None:
             if self._connection is None:
                 try:
+                    print "connecting to: %s" % self.connection_string
                     self._connection = pymongo.Connection(
                             self.connection_string)
                 except pymongo.errors.AutoReconnect as exc:

@@ -4,7 +4,7 @@ import os
 import unittest2 as unittest
 import uuid
 
-from pymongo import Connection
+from pymongo import Connection, uri_parser
 from pymongo.errors import AutoReconnect, InvalidURI
 
 
@@ -37,17 +37,16 @@ SKIP = True
 
 class TestDatabase(unittest.TestCase):
     """ Test Mongo Database code """
-
     
     def setUp(self):
-        global DB
-        DB = None
         self.db_name = 'checkmate_test_%s' % uuid.uuid4().hex
         self.driver = db.get_driver('checkmate.db.mongodb.Driver')
-        self.driver.connection_string = 'mongodb://localhost/%s' % self.db_name
+        self.driver.connection_string = 'mongodb://checkmate:%s@mongo-n01.dev.chkmate.rackspace.net:27017/%s' % ('c%403yt1ttttt', self.db_name)
+        print uri_parser.parse_uri(self.driver.connection_string)
         self.driver._connection = self.driver._database = None  # reset driver
         self.driver.db_name = self.db_name
 
+    
     def tearDown(self):
         LOG.debug("Deleting test mongodb: %s" % self.db_name)
         try:
@@ -57,6 +56,7 @@ class TestDatabase(unittest.TestCase):
         except Exception as exc:
             LOG.error("Error deleting test mongodb '%s': %s" % (self.db_name,
                                                                 exc))
+    
 
 
     def test_stuff(self):

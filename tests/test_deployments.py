@@ -290,9 +290,9 @@ class TestDeploymentResourceGenerator(unittest.TestCase):
                   providers: {}
             """ % "\n                        ".join(private['PEM'].split(
                 "\n"))))
-
         parsed = plan(deployment, RequestContext())
         resources = parsed['resources']
+
         # User
         self.assertIn("myUser", resources)
         expected = {'index': 'myUser',
@@ -302,7 +302,10 @@ class TestDeploymentResourceGenerator(unittest.TestCase):
                         'password': 'secret',
                         }
                     }
+        self.assertIn("hash", resources['myUser']['instance']) # Make sure hash value was generated
+        expected['instance']['hash'] = resources['myUser']['instance']['hash'] # Pull hash value into expected
         self.assertDictEqual(resources['myUser'], expected)
+
         # Key pair
         self.assertIn("myKey", resources)
         self.assertItemsEqual(resources['myKey']['instance'].keys(),
