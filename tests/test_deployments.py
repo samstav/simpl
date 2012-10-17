@@ -442,6 +442,10 @@ class TestDeploymentSettings(unittest.TestCase):
                       provides:
                       - compute: foo
                         vendor: bar
+                      constraints:
+                      - type: widget
+                        setting: size
+                        value: big
                     common:
                       credentials:
                       - password: secret
@@ -536,11 +540,16 @@ class TestDeploymentSettings(unittest.TestCase):
                   'type': 'compute',
                   'expected': "2 Gb",
                 }, {
-                  'case': "Set in environments/providers/common",
-                  'name': "region",
-                  'provider': "common",
-                  'service': "constraints",
-                  'expected': "place",
+                'case': "Set in environments/providers/common",
+                'name': "region",
+                'provider': "base",
+                'expected': "place",
+                }, {
+                'case': "Set in environments/providers/...",
+                'name': "size",
+                'provider': "base",
+                'resource_type': "widget",
+                'expected': "big",
                 },  {
                   'case': "Set in blueprint/providers",
                   'name': "memory",
@@ -564,6 +573,57 @@ class TestDeploymentSettings(unittest.TestCase):
                     provider_key=test.get('provider'),
                     resource_type=test.get('type'))
             self.assertEquals(value, test['expected'], test['case'])
+
+    def test_get_setting_static(self):
+        """Test the get_setting function used with static resources"""
+        deployment = Deployment(yaml_to_dict("""
+                id: test
+                inputs:
+                  blueprint:
+                    prefix: bar
+                blueprint:
+                  name: test bp
+                  services:
+                    "single":
+                      component:
+                        id: small_widget
+                  resources:
+                    "myResource":  # provided by a provider
+                      type: widget
+                    "myUser":
+                      type: user
+                  options:
+                    prefix:
+                      constrains:
+                      - setting: resources/myUser/name
+                environment:
+                  name: environment
+                  providers:
+                    base:
+                      provides:
+                      - widget: foo
+                      vendor: test
+                      catalog:
+                        widget:
+                          small_widget:
+                            is: widget
+                            provides:
+                            - widget: foo
+                          big_widget:
+                            is: widget
+                            provides:
+                            - widget: bar
+            """))
+
+        PROVIDER_CLASSES['test.base'] = ProviderBase
+
+        parsed = plan(deployment, RequestContext())
+        resources = parsed['resources']
+        self.assertIn("myResource", resources)
+        self.assertIn("myUser", resources)
+        self.assertEqual(resources['myUser']['instance']['name'], 'bar')
+        self.assertEqual(deployment.get_setting('resources/myUser/name'),
+                         'bar')
 
     def test_get_input_provider_option(self):
         deployment = Deployment(yaml_to_dict("""
@@ -632,7 +692,6 @@ class TestDeploymentSettings(unittest.TestCase):
                         number-only-test: 512
             """))
 
-
     def test_get_static_resource_constraint(self):
         deployment = Deployment(yaml_to_dict("""
                 id: '1'
@@ -640,7 +699,7 @@ class TestDeploymentSettings(unittest.TestCase):
                   services:
                     "single":
                       component:
-                        id: widget
+                        id: big_widget
                   resources:
                     "myUser":
                       type: user

@@ -180,6 +180,8 @@ class TestDBWorkflow(StubbedWorkflowBase):
                       provides:
                       - database: mysql
                       - compute: mysql
+                      constraints:
+                        region: DFW
                       catalog:  # override so we don't need a token to connect
                         database:
                           mysql_instance:
@@ -225,9 +227,6 @@ class TestDBWorkflow(StubbedWorkflowBase):
                             is: compute
                             provides:
                             - compute: linux
-                inputs:
-                  blueprint:
-                    region: DFW
             """))
         self.workflow = self._get_stubbed_out_workflow()
 

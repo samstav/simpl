@@ -86,6 +86,8 @@ providers: the keys are predefined names form the providers. Checkmate identifie
   database:
     vendor: rackspace
     constraints: - optional constraints applied at the provider level (ex. region=DFW)
+        The syntax can follow the normal constraint syntax, but can also be a key:value shorthand
+        For the normal syntax, a 'value' defines what the constraint evaluates to
     catalog: - a way to inject a catalog into the provider (two uses for this are #1 testing, #2 only want to show 1GB instances). So if a catalog is provided, the provider will use that. Otherwise, it could log on and query the underlying service (list images, list flavors, get cookbooks, etc...). You'll see this in app.yaml.
 
 Environment will define what this looks like based on environment providers and constraints. So there is a likelihood that a blueprint will be incompatible with an environment (the environment cannot provide the required resources OR meet the necesary constraints).

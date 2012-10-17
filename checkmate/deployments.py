@@ -746,9 +746,10 @@ def plan(deployment, context):
                 instance = {}
                 result = dict(type='user', instance=instance)
                 if 'name' not in resource:
-                    instance['name'] = deployment.get_setting('name', key,
-                                                              None, None,
-                                                              'admin')
+                    instance['name'] = \
+                        deployment._get_setting_by_resource_path("resources/%s"
+                                                                 "/name" % key,
+                                                                 'admin')
                     if not instance['name']:
                         raise CheckmateException("Name must be specified for "
                                                  "the '%s' user resource" %
@@ -1100,8 +1101,13 @@ class Deployment(ExtensibleDict):
         if result:
             return result
 
-        result = self._get_environment_setting(name, provider_key,
-                                               service_name)
+        result = self._get_environment_provider_constraint(name, provider_key,
+                resource_type=resource_type)
+        if result:
+            return result
+
+        result = self._get_environment_provider_constraint(name, 'common',
+                resource_type=resource_type)
         if result:
             return result
 
@@ -1128,6 +1134,33 @@ class Deployment(ExtensibleDict):
                 else:
                     return None
             return node
+
+    def _get_setting_by_resource_path(self, path, default=None):
+        """Read a setting that constrains a static resource using the name of
+        the setting as a path.
+        The name must be resources/:resource_key/:setting"""
+        #FIXME: we need to confirm if we want this as part of the DSL
+        blueprint = self['blueprint']
+        if 'options' in blueprint:
+            options = blueprint['options']
+            for key, option in options.iteritems():
+                if 'constrains' in option:
+                    for constraint in option['constrains']:
+                        if self.constraint_applies(constraint, path):
+                            # Find in inputs or use default if available
+                            result = self._get_input_simple(key)
+                            if result:
+                                LOG.debug("Found setting '%s' from constraint "
+                                          "by resource path. %s=%s" % (
+                                          path, key, result))
+                                return result
+                            if 'default' in option:
+                                result = option['default']
+                                LOG.debug("Default setting '%s' obtained from "
+                                          "constraint by resource '%s': "
+                                          "default=%s" % (path, key, result))
+                                return result
+        return default
 
     def _get_setting_value(self, name):
         """Get a value from the deployment hierarchy with support for paths"""
@@ -1318,18 +1351,34 @@ class Deployment(ExtensibleDict):
                                 result))
                         return result
 
-    def _get_environment_setting(self, name, provider_key, service_name):
+    def _get_environment_provider_constraint(self, name, provider_key,
+                                             resource_type=None):
+        """Get a setting applied through a provider constraint in the
+        environment
+
+        :param name: the name of the setting
+        :param provider_key: the key of the provider in question
+        :param resource_type: the resource type (ex. compute)
+        """
         environment = self.environment()
         providers = environment.dict['providers']
         if provider_key in providers:
-            settings = providers[provider_key] or {}
-            if service_name in settings:
-                options = settings[service_name]
-                for option in options:
-                    if name in option:
-                        result = option[name]
-                        LOG.debug("Found setting '%s' in environment" % name)
-                        return result
+            provider = providers[provider_key] or {}
+            constraints = provider.get('constraints', [])
+            assert isinstance(constraints, list), ("constraints need to be a "
+                                                   "list or array")
+            for constraint in constraints:
+                if len(constraint) == 1:
+                    # Convert setting:value to full constraint syntax
+                    constraint = dict(setting=constraint.keys()[0],
+                                      value=constraint.values()[0])
+                if self.constraint_applies(constraint, name,
+                                           resource_type=resource_type):
+                    result = constraint['value']
+                    LOG.debug("Found setting '%s' as a provider constraint in "
+                              "the environment for provider '%s'. %s=%s"
+                              % (name, provider_key, name, result))
+                    return result
 
     def get_components(self, context):
         """Collect all requirements from components
