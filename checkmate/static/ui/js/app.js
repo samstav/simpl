@@ -313,7 +313,6 @@ function AppController($scope, $http, $location) {
       return rndNum;
   }
 
-
   // Log in using credentials delivered through bound_credentials
   $scope.logIn = function() {
     var username = $scope.bound_creds.username;
@@ -1077,7 +1076,7 @@ function DeploymentNewController($scope, $location, $routeParams, $resource, set
 function DeploymentTryController($scope, $location, $routeParams, $resource, settings, workflow) {
   $scope.environments = ENVIRONMENTS;
   $scope.blueprints = WPBP;
-  var ctrl = new DeploymentInitController($scope, $location, $routeParams, $resource, WPBP['MySQL'], ENVIRONMENTS['next-gen'], settings, workflow);
+  var ctrl = new DeploymentInitController($scope, $location, $routeParams, $resource, WPBP['DBaaS'], ENVIRONMENTS['next-gen'], settings, workflow);
   $scope.updateSettings();
   $scope.updateDatabaseProvider();
   return ctrl;
@@ -1088,7 +1087,12 @@ function DeploymentInitController($scope, $location, $routeParams, $resource, bl
   $scope.blueprint = blueprint;
   $scope.answers = {};
   $scope.domain_names = [];
-  
+
+  // Check for a supported account
+  $scope.is_unsupported_account = function() {
+      return _.any($scope.auth.catalog.access.user.roles, function(role) {return role.name == "rack_connect"});
+  }  
+
   //Retrieve existing domains  
   $scope.getDomains = function(){
     $scope.domain_names = [];
@@ -1304,8 +1308,13 @@ WPBP = {
                     "80/tcp"
                 ],
                 "component":{
-                    "interface":"http",
-                    "type":"load-balancer"
+                    "interface":"proxy",
+                    "type":"load-balancer",
+                    "constraints":[
+                        {
+                       	    "algorithm": "ROUND_ROBIN"
+                        }
+                    ]
                 },
                 "relations":{
                     "web":"http",
@@ -1399,7 +1408,7 @@ WPBP = {
                 "label":"Domain",
                 "sample":"example.com",
                 "type":"combo",
-		"required": true,
+		        "required": true,
                 "choice":[
                     
                 ]
@@ -1431,7 +1440,7 @@ WPBP = {
             "region":{
                 "required":true,
                 "type":"select",
-                "default":"DFW",
+                "default":"ORD",
                 "label":"Region",
                 "choice":[
                     "DFW",
@@ -1603,12 +1612,45 @@ WPBP = {
                     }
                 ]
             },
-            "ssl":{
-                "default":false,
-                "label":"SSL Enabled",
-                "type":"boolean",
-                "help":"If this option is selected, SSL keys need to be supplied as well. This option is\nalso currently mutually exclusive with the Varnish Caching option.\n",
-                "description":"Use SSL to encrypt web traffic."
+            "web_server_protocol":{
+                "default":'http',
+                "label":"HTTP Protocol",
+                "type":"select",
+                "choice":[
+                    {
+                    	"name": "HTTP Only",
+                    	"value": "http",
+                    	"precludes":[
+                    	    "ssl_certificate",
+                    	    "ssl_private_key"
+                    	]
+                    },
+                    {
+                    	"name": "HTTPS Only",
+                    	"value": "https",
+                    	"requires":[
+                    	    "ssl_certificate",
+                    	    "ssl_private_key"
+                    	]
+                    },
+                    {
+                    	"name": "HTTP and HTTPS",
+                    	"value":"http_and_https",
+                    	"requires":[
+                            "ssl_certificate",
+                            "ssl_private_key"
+                        ]
+                    }
+                ],
+                "help":"Use HTTP, HTTPS (SSL), or both for web traffic. HTTPS requires an SSL certificate and private key.",
+                "description":"Use HTTP, HTTPS (SSL), or both for web traffic. HTTPS requires an SSL certificate and private key.",
+                "constrains":[
+                    {
+                    	"setting": "protocol",
+                    	"service": "lb",
+                    	"resource_type": "load-balancer"
+                    }
+                ]
             },
             "ssl_certificate":{
                 "sample":"-----BEGIN CERTIFICATE-----\nEncoded Certificate\n-----END CERTIFICATE-----\n",
@@ -1632,7 +1674,7 @@ WPBP = {
                         "resource_type":"application"
                     }
                 ],
-                "type":"string",
+                "type":"text",
                 "label":"SSL Certificate Private Key"
             }
         },
@@ -1641,13 +1683,13 @@ WPBP = {
                 "type":"key-pair",
                 "constrains":[
                     {
-                        "setting":"lsyncd/user/ssh_priv_key",
+                        "setting":"lsyncd/user/ssh_private_key",
                         "service":"web",
                         "resource_type":"application",
                         "attribute":"private_key"
                     },
                     {
-                        "setting":"lsyncd/user/ssh_priv_key",
+                        "setting":"lsyncd/user/ssh_private_key",
                         "service":"master",
                         "resource_type":"application",
                         "attribute":"private_key"
@@ -1946,7 +1988,7 @@ WPBP = {
             "region": {
                 "required": true,
                 "type": "select",
-                "default": "DFW",
+                "default": "ORD",
                 "label": "Region",
                 "choice": ["DFW", "ORD"]
             },
@@ -2154,8 +2196,13 @@ WPBP = {
                 "sample": "-----BEGIN CERTIFICATE-----\nEncoded Certificate\n-----END CERTIFICATE-----\n",
                 "constrains": [
                     {
-                        "setting": "apache/ssl_certificate",
+                        "setting": "apache/ssl_cert",
                         "service": "web",
+                        "resource_type": "application"
+                    },
+                    {
+                        "setting": "apache/ssl_cert",
+                        "service": "master",
                         "resource_type": "application"
                     }
                 ],
@@ -2170,9 +2217,14 @@ WPBP = {
                         "setting": "apache/ssl_private_key",
                         "service": "web",
                         "resource_type": "application"
+                    },
+                    {
+                        "setting": "apache/ssl_private_key",
+                        "service": "master",
+                        "resource_type": "application"
                     }
                 ],
-                "type": "string",
+                "type": "text",
                 "label": "SSL Certificate Private Key"
             }
         },

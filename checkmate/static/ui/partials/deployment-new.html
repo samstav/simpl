@@ -29,6 +29,9 @@
         <p>
           {{blueprint.description}}
         </p>
+        <p ng-cloak ng-show="is_unsupported_account()" class="alert">
+          This account is a RackConnect account. RackConnect accounts are currently not supported by this Blueprint.
+        </p>
         <hr/>    
         <div class="alert alert-info" ng-cloak ng-show="!showSettings()">
           <button type="button" class="close" data-dismiss="alert">&times;</button>
@@ -49,7 +52,7 @@
             <div class="control-group">
               <label class="control-label required" for="blueprint">Blueprint</label>
               <div class="controls">
-                <select id="blueprint" class="span6" ng-model="blueprint" ng-change="onBlueprintChange()"
+                <select id="blueprint" class="span6" ng-model="blueprint" ng-change="onBlueprintChange()" style="width:350px"
                         ng-options="blueprint.name for (id,blueprint) in blueprints" required>
                 </select>
               </div>
@@ -62,7 +65,7 @@
             </div>
     
             <div class="form-actions">
-              <button ng-click="submit(false)" class="btn btn-primary" ng-disabled="!auth.loggedIn">Build It!</button>
+              <button ng-click="submit(false)" class="btn btn-primary" ng-disabled="!auth.loggedIn || is_unsupported_account()">Build It!</button>
               <!-- SIMULATE BUTTON PLACEHOLDER - do not change this comment, used for substitution!! -->
               <button ng-click="loginPrompt()" class="btn" ng-hide="auth.loggedIn">Log in to execute this workflow</button>
             </div>
@@ -133,6 +136,7 @@
     <div class="controls">
       <select id="{{id}}" ng-model="answers['{{id}}']" {{#required}}required{{/required}} ng-options="o for o in setting.choice">
       </select>
+	  {{#description}}<p class="help-block">{{description}}</p>{{/description}}
     </div>
   </script>
 
@@ -141,6 +145,7 @@
     <div class="controls">
       <select id="{{id}}" ng-model="answers['{{id}}']" {{#required}}required{{/required}} ng-options="o.value as o.name for o in setting.choice">
       </select>
+	  {{#description}}<p class="help-block">{{description}}</p>{{/description}}
     </div>
   </script>
 
@@ -151,8 +156,9 @@
               {{#required}}required{{/required}} {{#regex}}ng-pattern="{{regex}}"{{/regex}}
               {{#default}}value="{{default}}"{{/default}} {{#sample}}placeholder="{{sample}}"{{/sample}} />
        <br />
-       <select name="s" id="s-{{id}}" ng-options="o for o in setting.choice" onchange="document.ex.state.value=document.ex.s.options[document.ex.s.selectedindex].value;document.ex.s.value=""><option value="" selected="selected">
+       <select name="s" id="{{id}}" ng-model="answers['{{id}}']" ng-options="o for o in setting.choice" onchange="document.ex.state.value=document.ex.s.options[document.ex.s.selectedindex].value;document.ex.s.value=""><option value="" selected="selected">
        </select>
+       {{#description}}<p class="help-block">{{description}}</p>{{/description}}
     </div>
    </script>
 </section>
