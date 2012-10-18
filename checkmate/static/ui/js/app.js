@@ -1118,31 +1118,21 @@ function DeploymentInitController($scope, $location, $routeParams, $resource, bl
   $scope.updateDatabaseProvider = function() {
     if ($scope.blueprint.id == WPBP.MySQL.id) {
         //Remove DBaaS Provider
-        if ('database' in ENVIRONMENTS.legacy.providers) 
-            delete ENVIRONMENTS.legacy.providers.database;
-        if ('database' in ENVIRONMENTS['next-gen'].providers)
-            delete ENVIRONMENTS['next-gen'].providers.database;
+        if ('database' in $scope.environment.providers) 
+            delete $scope.environment.providers.database;
         //Add database support to chef provider
-        ENVIRONMENTS.legacy.providers['chef-local'].provides[1] = {database: "mysql"};
-        ENVIRONMENTS['next-gen'].providers['chef-local'].provides[1] = {database: "mysql"};
-        ENVIRONMENTS.legacy.providers['chef-local'].provides[2] = {compute: "mysql"};
-        ENVIRONMENTS['next-gen'].providers['chef-local'].provides[2] = {compute: "mysql"};
+        $scope.environment.providers['chef-local'].provides[1] = {database: "mysql"};
 
     } else if ($scope.blueprint.id == WPBP.DBaaS.id) {
         //Add DBaaS Provider
-        ENVIRONMENTS.legacy.providers.database = {};
-        ENVIRONMENTS['next-gen'].providers.database = {};
+        $scope.environment.providers.database = {};
 
         //Remove database support from chef-local
-        if (ENVIRONMENTS.legacy.providers['chef-local'].provides.length > 1)
-            ENVIRONMENTS.legacy.providers['chef-local'].provides.pop(1);
-        if (ENVIRONMENTS.legacy.providers['chef-local'].provides.length > 1)
-            ENVIRONMENTS.legacy.providers['chef-local'].provides.pop(1);
+        if ($scope.environment.providers['chef-local'].provides.length > 1)
+            $scope.environment.providers['chef-local'].provides.pop(1);
+        if ($scope.environment.providers['chef-local'].provides.length > 1)
+            $scope.environment.providers['chef-local'].provides.pop(1);
 
-        if (ENVIRONMENTS['next-gen'].providers['chef-local'].provides.length > 1)
-            ENVIRONMENTS['next-gen'].providers['chef-local'].provides.pop(1);
-        if (ENVIRONMENTS['next-gen'].providers['chef-local'].provides.length > 1)
-            ENVIRONMENTS['next-gen'].providers['chef-local'].provides.pop(1);
     }
   }
 
@@ -1312,7 +1302,7 @@ WPBP = {
                     "type":"load-balancer",
                     "constraints":[
                         {
-                       	    "algorithm": "ROUND_ROBIN"
+                            "algorithm":"ROUND_ROBIN"
                         }
                     ]
                 },
@@ -1339,6 +1329,11 @@ WPBP = {
                     },
                     "varnish/master_backend":{
                         "interface":"host",
+                        "attribute":"private_ip"
+                    },
+                    "lsyncd/slaves":{
+                        "interface":"host",
+                        "service":"web",
                         "attribute":"private_ip"
                     },
                     "mysql":{
@@ -1408,7 +1403,7 @@ WPBP = {
                 "label":"Domain",
                 "sample":"example.com",
                 "type":"combo",
-		        "required": true,
+                "required":true,
                 "choice":[
                     
                 ]
@@ -1472,8 +1467,8 @@ WPBP = {
                 "label":"Password",
                 "constrains":[
                     {
-                        "setting":"wp user/password",
-                        "resource_type":"user"
+                        "setting":"password",
+                        "resource_type":"wp user"
                     }
                 ]
             },
@@ -1482,6 +1477,11 @@ WPBP = {
                     {
                         "setting":"os",
                         "service":"web",
+                        "resource_type":"compute"
+                    },
+                    {
+                        "setting":"os",
+                        "service":"master",
                         "resource_type":"compute"
                     }
                 ],
@@ -1618,25 +1618,25 @@ WPBP = {
                 "type":"select",
                 "choice":[
                     {
-                    	"name": "HTTP Only",
-                    	"value": "http",
-                    	"precludes":[
-                    	    "ssl_certificate",
-                    	    "ssl_private_key"
-                    	]
+                        "name":"HTTP Only",
+                        "value":"http",
+                        "precludes":[
+                            "ssl_certificate",
+                            "ssl_private_key"
+                        ]
                     },
                     {
-                    	"name": "HTTPS Only",
-                    	"value": "https",
-                    	"requires":[
-                    	    "ssl_certificate",
-                    	    "ssl_private_key"
-                    	]
+                        "name":"HTTPS Only",
+                        "value":"https",
+                        "requires":[
+                            "ssl_certificate",
+                            "ssl_private_key"
+                        ]
                     },
                     {
-                    	"name": "HTTP and HTTPS",
-                    	"value":"http_and_https",
-                    	"requires":[
+                        "name":"HTTP and HTTPS",
+                        "value":"http_and_https",
+                        "requires":[
                             "ssl_certificate",
                             "ssl_private_key"
                         ]
@@ -1646,9 +1646,9 @@ WPBP = {
                 "description":"Use HTTP, HTTPS (SSL), or both for web traffic. HTTPS requires an SSL certificate and private key.",
                 "constrains":[
                     {
-                    	"setting": "protocol",
-                    	"service": "lb",
-                    	"resource_type": "load-balancer"
+                        "setting":"protocol",
+                        "service":"lb",
+                        "resource_type":"load-balancer"
                     }
                 ]
             },
@@ -1658,6 +1658,11 @@ WPBP = {
                     {
                         "setting":"apache/ssl_cert",
                         "service":"web",
+                        "resource_type":"application"
+                    },
+                    {
+                        "setting":"apache/ssl_cert",
+                        "service":"master",
                         "resource_type":"application"
                     }
                 ],
@@ -1671,6 +1676,11 @@ WPBP = {
                     {
                         "setting":"apache/ssl_private_key",
                         "service":"web",
+                        "resource_type":"application"
+                    },
+                    {
+                        "setting":"apache/ssl_private_key",
+                        "service":"master",
                         "resource_type":"application"
                     }
                 ],
@@ -1855,391 +1865,415 @@ WPBP = {
         "name":"Managed Cloud WordPress w/ Cloud Databases"
     },
     "MySQL": {
-        "id": "0255a076c7cf4fd38c69b6727f0b37ea",
-        "description": "Create a multi-server WordPress deployment on any cloud account using the Chef cookbooks created by the Managed Cloud team.",
-        "services": {
-            "lb": {
-                "open-ports": [
+        "id":"0255a076c7cf4fd38c69b6727f0b37ea",
+        "description":"Create a multi-server WordPress deployment on any cloud account using the Chef cookbooks created by the Managed Cloud team.",
+        "services":{
+            "lb":{
+                "open-ports":[
                     "80/tcp"
                 ],
-                "component": {
-                    "interface": "http",
-                    "type": "load-balancer"
-                },
-                "relations": {
-                    "web": "http",
-                    "master": "http"
-                },
-                "exposed": true
-            },
-            "master": {
-                "component": {
-                    "type": "application",
-                    "name": "wordpress-master-role",
-                    "constraints": [
+                "component":{
+                    "interface":"proxy",
+                    "type":"load-balancer",
+                    "constraints":[
                         {
-                            "wordpress/version": "3.0.4"
+                            "algorithm":"ROUND_ROBIN"
                         }
                     ]
                 },
-                "relations": {
-                	"wordpress/database": {
-                		"interface": "mysql",
-                		"service": "backend"
-                	}
+                "relations":{
+                    "web":"http",
+                    "master":"http"
                 },
-                "constraints": [
+                "exposed":true
+            },
+            "master":{
+                "component":{
+                    "type":"application",
+                    "name":"wordpress-master-role",
+                    "constraints":[
+                        {
+                            "wordpress/version":"3.0.4"
+                        }
+                    ]
+                },
+                "relations":{
+                    "varnish/master_backend":{
+                        "interface":"host",
+                        "attribute":"private_ip"
+                    },
+                    "lsyncd/slaves":{
+                        "interface":"host",
+                        "service":"web",
+                        "attribute":"private_ip"
+                    },
+                    "wordpress/database/host":{
+                        "interface":"host",
+                        "service":"backend",
+                        "attribute":"private_ip"
+                    }
+                },
+                "constraints":[
                     {
-                        "count": 1
+                        "count":1
                     }
                 ]
             },
-            "web": {
-                "component": {
-                    "type": "application",
-                    "name": "wordpress-web-role",
-                    "constraints": [
+            "web":{
+                "component":{
+                    "type":"application",
+                    "name":"wordpress-web-role",
+                    "constraints":[
                         {
-                            "wordpress/version": "3.0.4"
+                            "wordpress/version":"3.0.4"
                         }
                     ]
                 },
-                "relations": {
-                    "master": "http",
-                    "wordpress/database": {
-                		"interface": "mysql",
-                		"service": "backend"
-                	}
+                "relations":{
+                    "varnish/master_backend":{
+                        "interface":"host",
+                        "service":"master",
+                        "attribute":"private_ip"
+                    },
+                    "lsyncd/slaves":{
+                        "interface":"host",
+                        "attribute":"private_ip"
+                    },
+                    "wordpress/database/host":{
+                        "interface":"host",
+                        "service":"backend",
+                        "attribute":"private_ip"
+                    }
                 }
             },
-            "backend": {
-                "component": {
-                    "interface": "mysql",
-                    "type": "database"
+            "backend":{
+                "component":{
+                	"name":"mysql-master-role",
+                    "interface":"mysql",
+                    "type":"database"
+                },
+                "relations":{
+                    "mysql/host":{
+                        "interface":"host",
+                        "attribute":"private_ip"
+                    }
                 }
             }
         },
-        "options": {
-            "domain": {
-                "regex": "^(([a-zA-Z]|[a-zA-Z][a-zA-Z0-9\\-]*[a-zA-Z0-9])\\.)*([A-Za-z]|[A-Za-z][A-Za-z0-9\\-]*[A-Za-z0-9])$",
+        "options":{
+            "domain":{
+                "regex":"^(([a-zA-Z]|[a-zA-Z][a-zA-Z0-9\\-]*[a-zA-Z0-9])\\.)*([A-Za-z]|[A-Za-z][A-Za-z0-9\\-]*[A-Za-z0-9])$",
                 "constrains":[
-                              {
-                                  "setting":"apache/domain_name",
-                                  "service":"web",
-                                  "resource_type":"application"
-                              },
-                              {
-                                  "setting":"apache/domain_name",
-                                  "service":"master",
-                                  "resource_type":"application"
-                              },
-                              {
-                                  "setting":"mysql/database_name",
-                                  "service":"web",
-                                  "resource_type":"application"
-                              },
-                              {
-                                  "setting":"mysql/database_name",
-                                  "service":"master",
-                                  "resource_type":"application"
-                              },
-                              {
-                                  "setting":"wordpress/database/database_name",
-                                  "service":"web",
-                                  "resource_type":"application"
-                              },
-                              {
-                                  "setting":"wordpress/database/database_name",
-                                  "service":"master",
-                                  "resource_type":"application"
-                              }
-                          ],
-                "description": "The domain you wish to host your blog on. (ex: example.com)",
-                "label": "Domain",
-                "sample": "example.com",
-                "type": "combo",
-                "choice": [],
-		"required": true
-            },
-            "path": {
-                "constrains": [
                     {
-                        "setting": "apache/path",
-                        "service": "web",
-                        "resource_type": "application"
+                        "setting":"apache/domain_name",
+                        "service":"web",
+                        "resource_type":"application"
                     },
                     {
-                        "setting": "path",
-                        "service": "web",
-                        "resource_type": "application"
+                        "setting":"apache/domain_name",
+                        "service":"master",
+                        "resource_type":"application"
                     }
                 ],
-                "description": "The path you wish to host your blog on under your domain. (ex: /blog)",
-                "default": "/",
-                "label": "Path",
-                "sample": "/blog",
-                "type": "string"
+                "description":"The domain you wish to host your blog on. (ex: example.com)",
+                "label":"Domain",
+                "sample":"example.com",
+                "type":"combo",
+                "required":true,
+                "choice":[
+                    
+                ]
             },
-            "register-dns": {
-                "default": false,
-                "type": "boolean",
-                "label": "Create DNS records"
-            },
-            "region": {
-                "required": true,
-                "type": "select",
-                "default": "ORD",
-                "label": "Region",
-                "choice": ["DFW", "ORD"]
-            },
-            "prefix": {
-                "constrains": [
+            "path":{
+                "constrains":[
                     {
-                        "setting": "database/prefix",
-                        "service": "web",
-                        "resource_type": "application"
+                        "setting":"wordpress/path",
+                        "service":"web",
+                        "resource_type":"application"
                     },
                     {
-                        "setting": "user/name",
-                        "service": "web",
-                        "resource_type": "application"
-                    },
-                    {
-                        "setting": "apache/user/name",
-                        "service": "web",
-                        "resource_type": "application"
-                    },
-                    {
-                        "setting": "lsyncd/user/name",
-                        "service": "web",
-                        "resource_type": "application"
-                    },
-                    {
-                        "setting": "database/database_name",
-                        "service": "web",
-                        "resource_type": "application"
-                    },
-                    {
-                        "setting": "database/username",
-                        "service": "web",
-                        "resource_type": "application"
-                    },
-                    {
-                    	"setting": "database_name",
-                    	"service": "backend",
-                    	"resource_type": "database"
-                    },
-                    {
-                    	"setting": "username",
-                    	"service": "backend",
-                    	"resource_type": "database"
+                        "setting":"wordpress/path",
+                        "service":"master",
+                        "resource_type":"application"
                     }
                 ],
-                "help": "Note that this also the user name, database name, and also identifies this\nwordpress install from other ones you might add later to the same deployment.\n",
-                "default": "wp",
-                "required": true,
-                "label": "Prefix",
-                "type": "string",
-                "description": "The application ID (and wordpress table prefix)."
+                "description":"The path you wish to host your blog on under your domain. (ex: /blog)",
+                "default":"/",
+                "label":"Path",
+                "sample":"/blog",
+                "type":"string"
             },
-            "password": {
-                "type": "password",
-                "description": "Password to use for service. Click the generate button to generate a random password.",
-                "label": "Password"
+            "register-dns":{
+                "default":false,
+                "type":"boolean",
+                "label":"Create DNS records"
             },
-            "os": {
-                "constrains": [
+            "region":{
+                "required":true,
+                "type":"select",
+                "default":"ORD",
+                "label":"Region",
+                "choice":[
+                    "DFW",
+                    "ORD"
+                ]
+            },
+            "prefix":{
+                "constrains":[
                     {
-                        "setting": "os",
-                        "service": "web",
-                        "resource_type": "compute"
+                        "setting":"wordpress/database/prefix",
+                        "service":"web",
+                        "resource_type":"application"
                     },
                     {
-                        "setting": "os",
-                        "service": "master",
-                        "resource_type": "compute"
-                    },
-                    {
-                        "setting": "os",
-                        "service": "backend",
-                        "resource_type": "compute"
+                        "setting":"name",
+                        "resource_type":"wp user"
                     }
                 ],
-                "description": "The operating system for the all servers.",
-                "default": "Ubuntu 12.04",
-                "label": "Operating System",
-                "type": "select",
-                "choice": [
-//                    "Ubuntu 11.10",
+                "help":"Note that this also the user name, database name, and also identifies this\nwordpress install from other ones you might add later to the same deployment.\n",
+                "default":"wp",
+                "required":true,
+                "label":"Prefix",
+                "type":"string",
+                "description":"The application ID (and wordpress table prefix)."
+            },
+            "password":{
+                "type":"password",
+                "description":"Password to use for service. Click the generate button to generate a random password.",
+                "label":"Password",
+                "constrains":[
+                    {
+                        "setting":"password",
+                        "resource_type":"wp user"
+                    }
+                ]
+            },
+            "os":{
+                "constrains":[
+                    {
+                        "setting":"os",
+                        "service":"web",
+                        "resource_type":"compute"
+                    },
+                    {
+                        "setting":"os",
+                        "service":"master",
+                        "resource_type":"compute"
+                    },
+                    {
+                        "setting":"os",
+                        "service":"backend",
+                        "resource_type":"compute"
+                    }
+                ],
+                "description":"The operating system for the all servers.",
+                "default":"Ubuntu 12.04",
+                "label":"Operating System",
+                "type":"select",
+                "choice":[
+                    //"Ubuntu 11.10",
                     "Ubuntu 12.04",
-//                    "CentOS",
-//                    "RHEL 6"
+                    //"CentOS",
+                    //"RHEL 6"
                 ]
             },
-            "server_size": {
-                "constrains": [
+            "server_size":{
+                "constrains":[
                     {
-                        "setting": "memory",
-                        "service": "web",
-                        "resource_type": "compute"
+                        "setting":"memory",
+                        "service":"web",
+                        "resource_type":"compute"
                     },
                     {
-                        "setting": "memory",
-                        "service": "master",
-                        "resource_type": "compute"
+                        "setting":"memory",
+                        "service":"master",
+                        "resource_type":"compute"
                     }
                 ],
-                "description": "The size of the Wordpress server instances in MB of RAM.",
-                "default": 512,
-                "label": "Server Size",
-                "type": "select",
-                "choice": [
+                "description":"The size of the Wordpress server instances in MB of RAM.",
+                "default":512,
+                "label":"Server Size",
+                "type":"select",
+                "choice":[
                     {
-                        "name": "512 Mb",
-                        "value": 512
+                        "name":"512 Mb",
+                        "value":512
                     },
                     {
-                        "name": "1 Gb",
-                        "value": 1024
+                        "name":"1 Gb",
+                        "value":1024
                     },
                     {
-                        "name": "2 Gb",
-                        "value": 2048
+                        "name":"2 Gb",
+                        "value":2048
                     },
                     {
-                        "name": "4 Gb",
-                        "value": 4096
+                        "name":"4 Gb",
+                        "value":4096
                     },
                     {
-                        "name": "8 Gb",
-                        "value": 8092
+                        "name":"8 Gb",
+                        "value":8092
                     },
                     {
-                        "name": "16 Gb",
-                        "value": 16384
+                        "name":"16 Gb",
+                        "value":16384
                     },
                     {
-                        "name": "30 Gb",
-                        "value": 30720
-                    }
-                ]
-            },
-            "web_server_count": {
-                "constrains": [
-                    {
-                        "setting": "count",
-                        "service": "web",
-                        "resource_type": "application"
-                    }
-                ],
-                "description": "The number of WordPress servers in addition to the master server",
-                "default": 1,
-                "label": "Additional Web Servers",
-                "type": "int",
-                "constraints": [
-                    {
-                        "greater-than": 0
+                        "name":"30 Gb",
+                        "value":30720
                     }
                 ]
             },
-            "database_size": {
-                "constrains": [
+            "web_server_count":{
+                "constrains":[
                     {
-                        "setting": "memory",
-                        "service": "backend",
-                        "resource_type": "compute"
+                        "setting":"count",
+                        "service":"web",
+                        "resource_type":"application"
                     }
                 ],
-                "description": "The size of the database instance in MB of RAM.",
-                "default": 1024,
-                "label": "Database Instance Size",
-                "type": "select",
-                "choice": [
+                "description":"The number of WordPress servers in addition to the master server",
+                "default":1,
+                "label":"Additional Web Servers",
+                "type":"int",
+                "constraints":[
                     {
-                        "name": "512 Mb (20 Gb disk)",
-                        "value": 512
-                    },
-                    {
-                        "name": "1 Gb (40 Gb disk)",
-                        "value": 1024
-                    },
-                    {
-                        "name": "2 Gb (80 Gb disk)",
-                        "value": 2048
-                    },
-                    {
-                        "name": "4 Gb (160 Gb disk)",
-                        "value": 4096
-                    },
-                    {
-                        "name": "8 Gb (320 Gb disk)",
-                        "value": 8192
-                    },
-                    {
-                        "name": "16 Gb (620 Gb disk)",
-                        "value": 15872
-                    },
-                    {
-                        "name": "30 Gb (1.2 Tb disk)",
-                        "value": 30720
+                        "greater-than":0
                     }
                 ]
             },
-            "ssl": {
-                "default": false,
-                "label": "SSL Enabled",
-                "type": "boolean",
-                "help": "If this option is selected, SSL keys need to be supplied as well. This option is\nalso currently mutually exclusive with the Varnish Caching option.\n",
-                "description": "Use SSL to encrypt web traffic."
-            },
-            "ssl_certificate": {
-                "sample": "-----BEGIN CERTIFICATE-----\nEncoded Certificate\n-----END CERTIFICATE-----\n",
-                "constrains": [
+            "database_size":{
+                "constrains":[
                     {
-                        "setting": "apache/ssl_cert",
-                        "service": "web",
-                        "resource_type": "application"
-                    },
-                    {
-                        "setting": "apache/ssl_cert",
-                        "service": "master",
-                        "resource_type": "application"
+                        "setting":"memory",
+                        "service":"backend",
+                        "resource_type":"compute"
                     }
                 ],
-                "type": "text",
-                "description": "SSL certificate in PEM format. Make sure to include the BEGIN and END certificate lines.",
-                "label": "SSL Certificate"
-            },
-            "ssl_private_key": {
-                "sample": "-----BEGIN PRIVATE KEY-----\nEncoded key\n-----END PRIVATE KEY-----\n",
-                "constrains": [
+                "description":"The size of the database instance in MB of RAM.",
+                "default":1024,
+                "label":"Database Instance Size",
+                "type":"select",
+                "choice":[
                     {
-                        "setting": "apache/ssl_private_key",
-                        "service": "web",
-                        "resource_type": "application"
+                        "name":"512 Mb (20 Gb disk)",
+                        "value":512
                     },
                     {
-                        "setting": "apache/ssl_private_key",
-                        "service": "master",
-                        "resource_type": "application"
+                        "name":"1 Gb (40 Gb disk)",
+                        "value":1024
+                    },
+                    {
+                        "name":"2 Gb (80 Gb disk)",
+                        "value":2048
+                    },
+                    {
+                        "name":"4 Gb (160 Gb disk)",
+                        "value":4096
+                    },
+                    {
+                        "name":"8 Gb (320 Gb disk)",
+                        "value":8192
+                    },
+                    {
+                        "name":"16 Gb (620 Gb disk)",
+                        "value":15872
+                    },
+                    {
+                        "name":"30 Gb (1.2 Tb disk)",
+                        "value":30720
+                    }
+                ]
+            },
+            "web_server_protocol":{
+                "default":'http',
+                "label":"HTTP Protocol",
+                "type":"select",
+                "choice":[
+                    {
+                        "name":"HTTP Only",
+                        "value":"http",
+                        "precludes":[
+                            "ssl_certificate",
+                            "ssl_private_key"
+                        ]
+                    },
+                    {
+                        "name":"HTTPS Only",
+                        "value":"https",
+                        "requires":[
+                            "ssl_certificate",
+                            "ssl_private_key"
+                        ]
+                    },
+                    {
+                        "name":"HTTP and HTTPS",
+                        "value":"http_and_https",
+                        "requires":[
+                            "ssl_certificate",
+                            "ssl_private_key"
+                        ]
                     }
                 ],
-                "type": "text",
-                "label": "SSL Certificate Private Key"
+                "help":"Use HTTP, HTTPS (SSL), or both for web traffic. HTTPS requires an SSL certificate and private key.",
+                "description":"Use HTTP, HTTPS (SSL), or both for web traffic. HTTPS requires an SSL certificate and private key.",
+                "constrains":[
+                    {
+                        "setting":"protocol",
+                        "service":"lb",
+                        "resource_type":"load-balancer"
+                    }
+                ]
+            },
+            "ssl_certificate":{
+                "sample":"-----BEGIN CERTIFICATE-----\nEncoded Certificate\n-----END CERTIFICATE-----\n",
+                "constrains":[
+                    {
+                        "setting":"apache/ssl_cert",
+                        "service":"web",
+                        "resource_type":"application"
+                    },
+                    {
+                        "setting":"apache/ssl_cert",
+                        "service":"master",
+                        "resource_type":"application"
+                    }
+                ],
+                "type":"text",
+                "description":"SSL certificate in PEM format. Make sure to include the BEGIN and END certificate lines.",
+                "label":"SSL Certificate"
+            },
+            "ssl_private_key":{
+                "sample":"-----BEGIN PRIVATE KEY-----\nEncoded key\n-----END PRIVATE KEY-----\n",
+                "constrains":[
+                    {
+                        "setting":"apache/ssl_private_key",
+                        "service":"web",
+                        "resource_type":"application"
+                    },
+                    {
+                        "setting":"apache/ssl_private_key",
+                        "service":"master",
+                        "resource_type":"application"
+                    }
+                ],
+                "type":"text",
+                "label":"SSL Certificate Private Key"
             }
         },
         "resources":{
-        	"wp keys":{
+            "wp keys":{
                 "type":"key-pair",
                 "constrains":[
                     {
-                        "setting":"lsyncd/user/ssh_priv_key",
+                        "setting":"lsyncd/user/ssh_private_key",
                         "service":"web",
                         "resource_type":"application",
                         "attribute":"private_key"
                     },
                     {
-                        "setting":"lsyncd/user/ssh_priv_key",
+                        "setting":"lsyncd/user/ssh_private_key",
                         "service":"master",
                         "resource_type":"application",
                         "attribute":"private_key"
@@ -2257,11 +2291,10 @@ WPBP = {
                         "attribute":"public_key_ssh"
                     }
                 ]
-                
             },
-        	"wp user":{
-        		"type": "user",
-        		"constrains":[
+            "wp user":{
+                "type":"user",
+                "constrains":[
                     {
                         "setting":"lsyncd/user/name",
                         "service":"web",
@@ -2273,6 +2306,48 @@ WPBP = {
                         "service":"master",
                         "resource_type":"application",
                         "attribute":"name"
+                    },
+                    {
+                        "setting":"mysql/database_name",
+                        "service":"web",
+                        "resource_type":"application",
+                        "attribute":"name"
+                    },
+                    {
+                        "setting":"mysql/database_name",
+                        "service":"master",
+                        "resource_type":"application",
+                        "attribute":"name"
+                    },
+                    {
+                        "setting":"wordpress/database/database_name",
+                        "service":"web",
+                        "resource_type":"application",
+                        "attribute":"name"
+                    },
+                    {
+                        "setting":"wordpress/database/database_name",
+                        "service":"master",
+                        "resource_type":"application",
+                        "attribute":"name"
+                    },
+                    {
+                        "setting":"mysql/database_name",
+                        "service":"backend",
+                        "resource_type":"database",
+                        "attribute":"name"
+                    },
+                    {
+                        "setting":"mysql/username",
+                        "service":"backend",
+                        "resource_type":"database",
+                        "attribute":"name"
+                    },
+                    {
+                        "setting":"mysql/password",
+                        "service":"backend",
+                        "resource_type":"database",
+                        "attribute":"password"
                     },
                     {
                         "setting":"mysql/password",
@@ -2359,9 +2434,9 @@ WPBP = {
                         "attribute":"hash"
                     }
                 ]
-        	}
+            }
         },
-        "name": "Managed Cloud WordPress (MySQL on VMs)"
+        "name":"Managed Cloud WordPress (MySQLonVMs)"
     }
   };
 //Default Environment
