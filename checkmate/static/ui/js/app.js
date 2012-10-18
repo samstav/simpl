@@ -1105,7 +1105,14 @@ function DeploymentInitController($scope, $location, $routeParams, $resource, bl
         for(var i=0; i<domains.length; i++){
           $scope.domain_names.push(domains[i].name);
         }
-       });
+       },
+       function(response) {
+          console.log(response);
+          if (!('data' in response))
+            response.data = {};
+          response.data.description = "Error loading domain list";
+        }
+      );
     }
   };  
   $scope.getDomains();
