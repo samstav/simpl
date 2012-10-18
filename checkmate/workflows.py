@@ -398,14 +398,19 @@ def execute_workflow_task(id, task_id, tenant_id=None):
     if not entity:
         abort(404, 'No workflow with id %s' % id)
 
+    serializer = DictionarySerializer()
+    workflow = SpiffWorkflow.deserialize(serializer, entity)
+    task = workflow.get_task(task_id)
+    if not task:
+        abort(404, 'No task with id %s' % task_id)
+
     #Synchronous call
     orchestrator.run_one_task(request.context, id, task_id, timeout=10)
     entity = db.get_workflow(id)
 
-    serializer = DictionarySerializer()
-    wf = SpiffWorkflow.deserialize(serializer, entity)
+    workflow = SpiffWorkflow.deserialize(serializer, entity)
 
-    task = wf.get_task(task_id)
+    task = workflow.get_task(task_id)
     data = serializer._serialize_task(task, skip_children=True)
     data['workflow_id'] = id  # so we know which workflow it came from
     return write_body(data, request, response)
