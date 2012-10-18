@@ -289,6 +289,8 @@ class Environment():
             for key, provider in providers.iteritems():
                 if key == 'common':
                     continue
+                if provider is None:
+                    provider = {}
                 vendor = provider.get('vendor', common.get('vendor', None))
                 if not vendor:
                     raise CheckmateException("No vendor specified for '%s'" % \
