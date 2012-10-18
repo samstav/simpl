@@ -1307,7 +1307,7 @@ class Deployment(ExtensibleDict):
         if 'providers' in inputs:
             providers = inputs['providers']
             if provider_key in providers:
-                provider = providers[provider_key]
+                provider = providers[provider_key] or {}
                 if resource_type in provider:
                     options = provider[resource_type]
                     if options and name in options:
@@ -1322,7 +1322,7 @@ class Deployment(ExtensibleDict):
         environment = self.environment()
         providers = environment.dict['providers']
         if provider_key in providers:
-            settings = providers[provider_key]
+            settings = providers[provider_key] or {}
             if service_name in settings:
                 options = settings[service_name]
                 for option in options:
