@@ -913,6 +913,26 @@ class Provider(ProviderBase):
         if os.path.exists(checkmate_json_file):
             with file(checkmate_json_file, 'r') as f:
                 checkmate_data = json.load(f)
+
+            # If fields are mapped, then apply the mappings
+            remove = []
+            if 'options' in checkmate_data:
+                checkmate_fields = checkmate_data.get('options', {})
+                for name, option in checkmate_fields.iteritems():
+                    if 'source_field_name' in option:
+                        translated = schema.translate(option[
+                                                      'source_field_name'])
+                        if translated == name:
+                            continue
+                        mapped = component.get('options', {}).get(translated)
+                        if mapped:
+                            LOG.debug("Removing mapped field '%s'" %
+                                      translated)
+                            updated = merge_dictionary(mapped, option)
+                            option.update(updated)
+                            remove.append(translated)
+            for key in remove:
+                del component['options'][key]
             merge_dictionary(component, checkmate_data, extend_lists=True)
 
         # Add hosting relationship (we're assuming we always need it for chef)
