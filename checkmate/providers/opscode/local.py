@@ -1014,6 +1014,13 @@ class Provider(ProviderBase):
             if options:
                 component['options'] = options  # already translated
         self._process_component_deps(context, component)
+        # FIXME: Hard Coded - until we have a way to block the mysql output for
+        # the wordpress roles (they don't really provide mysql)
+        if component['id'] == "wordpress-master-role":
+            component['provides'] = [dict(application='http'),
+                                     dict(application='ssh'),]
+        elif component['id'] == "wordpress-web-role":
+            component['provides'] = [dict(application='http')]
         return component
 
     def _process_component_deps(self, context, component):
