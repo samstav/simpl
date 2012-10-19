@@ -350,15 +350,15 @@ def create_loadbalancer(context, name, vip_type, protocol, region,
         
     # update our assigned vip
     for ip in lb.virtualIps:
-        if ip.ipVersion == 'IPV4':
+        if ip.ipVersion == 'IPV4' and ip.type == "PUBLIC":
             vip = ip.address
 
     LOG.debug('Load balancer %d created.  VIP = %s' % (lb.id, vip))
     
     #FIXME: This should be handled by the DNS provider, not this one!
     if dns:
-        create_record.delay(context, parse_domain(name), name, #@UndefinedVariable
-                                       'A', vip, region, ttl=300,
+        create_record.delay(context, parse_domain(name), '.'.join(name.split('.')[1:]), #@UndefinedVariable
+                                       'A', vip, rec_ttl=300,
                                        makedomain=True)
     
     # attach an appropriate monitor for our nodes

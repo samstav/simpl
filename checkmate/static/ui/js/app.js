@@ -1435,7 +1435,14 @@ WPBP = {
             "register-dns":{
                 "default":false,
                 "type":"boolean",
-                "label":"Create DNS records"
+                "label":"Create DNS records",
+                "constrains":[
+                    {
+                    	"setting":"create_dns",
+                    	"service":"lb",
+                    	"resource_type":"load-balancer"
+                    }
+                ]
             },
             "region":{
                 "required":true,
