@@ -1893,7 +1893,9 @@ WPBP = {
                     "name":"wordpress-master-role",
                     "constraints":[
                         {
-                            "wordpress/version":"3.0.4"
+                            "wordpress/version":"3.0.4",
+                            "wordpress/database/create_db":"true",
+                            "wordpress/database/create_db_user":"true"
                         }
                     ]
                 },

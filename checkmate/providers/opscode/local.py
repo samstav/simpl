@@ -955,6 +955,8 @@ class Provider(ProviderBase):
         component['id'] = "%s-role" % data['name']
         if data.get('description'):
             component['summary'] = data['description']
+        if 'is' in data:
+            component['is'] = data['is']
         if 'run_list' in data:
             dependencies = []
             for value in data['run_list']:
