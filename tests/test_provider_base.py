@@ -241,11 +241,11 @@ class TestProviderBaseWorkflow(StubbedWorkflowBase):
                     'kwargs': None,
                     'result': None,
                 })
-        self.workflow = self._get_stubbed_out_workflow(expected_calls=expected)
-
+        self.workflow = self._get_stubbed_out_workflow()
+ 
     def test_workflow_completion(self):
         """Verify workflow sequence and data flow"""
-
+	print "workflow: %s" % self.workflow
         self.mox.ReplayAll()
 
         self.workflow.complete_all()

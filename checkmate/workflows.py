@@ -443,6 +443,7 @@ def create_workflow_deploy(deployment, context):
 
     :returns: SpiffWorkflow.Workflow"""
     LOG.info("Creating workflow for deployment '%s'" % deployment['id'])
+    print "catalog: %s" % context.catalog
     wfspec = create_workflow_spec_deploy(deployment, context)
     results = wfspec.validate()
     if results:

@@ -118,11 +118,17 @@ class Provider(ProviderBase):
     
     def _add_node_connection(self,resource, key, relation, relation_key,
             wfspec, deployment, context, interface):
+
         comp = self.find_components(context, id="rsCloudLB")
+
         if not comp:
             raise CheckmateException("Could not locate component for id 'rsCloudLB'")
         else:
             comp = comp[0] # there should be only one
+            print "comp: %s" % comp
+            print "options: %s" % comp.get('options',{})
+            print "protocol: %s" % comp.get('options',{}).get("protocol",{})
+            print "choice: %s" % comp.get('options',{}).get("protocol",{}).get("choice",[])
             if not interface in comp.get('options',{}).get("protocol",{}).get("choice",[]):
                 raise CheckmateException("Invalid relation interface for this provider: {}".format(interface))
                 
