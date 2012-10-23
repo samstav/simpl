@@ -1475,7 +1475,7 @@ WPBP = {
             },
             "password":{
                 "type":"password",
-                "description":"Password to use for service. Click the generate button to generate a random password.",
+                "description":"Password to use for database and system user. Click the generate button to generate a random password.",
                 "label":"Password",
                 "constrains":[
                     {
