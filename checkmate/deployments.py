@@ -1069,6 +1069,10 @@ class Deployment(ExtensibleDict):
             if result:
                 return result
 
+            result = self._get_constrained_service_component_static_setting(name, service_name)
+            if result:
+                return result
+
         if provider_key:
             result = self._get_input_provider_option(name, provider_key,
                     resource_type=resource_type)
@@ -1213,6 +1217,23 @@ class Deployment(ExtensibleDict):
                                         "in blueprint resource '%s'. %s=%s" % (
                                         name, key, name, result))
                                 return result
+
+    def _get_constrained_service_component_static_setting(self, name, service_name):
+        """Get a setting implied through a static resource constraint
+
+        :param name: the name of the setting
+        :param service_name: the name of the service being evaluated
+        :param resource_type: the type of the resource being evaluated
+        """
+        blueprint = self['blueprint']
+        if 'services' in blueprint:
+            services = blueprint['services']
+            service=services[service_name]
+            if 'component' in service:
+                if 'constraints' in service['component']:
+                    constraints=service['component']['constraints']
+                    if name in constraints:
+                        return constraints[name]
 
     def constraint_applies(self, constraint, name, resource_type=None,
                 service_name=None):

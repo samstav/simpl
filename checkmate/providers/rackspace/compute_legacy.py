@@ -177,7 +177,7 @@ class Provider(RackspaceComputeProviderBase):
         :returns: returns the root task in the chain of tasks
         TODO: use environment keys instead of private key
         """
-        create_server_task = Celery(wfspec, 'Create Server %s' % key,
+        create_server_task = Celery(wfspec, 'Create Server %s (%s)' % (key, resource['service']),
                'checkmate.providers.rackspace.compute_legacy.create_server',
                call_args=[context.get_queued_task_dict(
                                 deployment=deployment['id'],
@@ -192,8 +192,8 @@ class Provider(RackspaceComputeProviderBase):
                             task_tags=['create']),
                properties={'estimated_duration': 20})
 
-        build_wait_task = Celery(wfspec, 'Wait for Server %s build'
-                % key, 'checkmate.providers.rackspace.compute_legacy.'
+        build_wait_task = Celery(wfspec, 'Wait for Server %s (%s) build'
+                % (key, resource['service']), 'checkmate.providers.rackspace.compute_legacy.'
                         'wait_on_build',
                 call_args=[context.get_queued_task_dict(
                                 deployment=deployment['id'],
@@ -212,8 +212,8 @@ class Provider(RackspaceComputeProviderBase):
         #If Managed Cloud, add a Completion task to release RBA
         # other providers may delay this task until they are done
         if 'rax_managed' in context.roles:
-            touch_complete = Celery(wfspec, 'Mark Server %s Complete'
-                    % key, 'checkmate.ssh.execute',
+            touch_complete = Celery(wfspec, 'Mark Server %s (%s) Complete'
+                    % (key, resource['service']), 'checkmate.ssh.execute',
                     call_args=[PathAttrib("instance:%s/public_ip" % key),
                                "touch /tmp/checkmate-complete",
                                "root"],
@@ -231,7 +231,7 @@ class Provider(RackspaceComputeProviderBase):
         if getattr(self, 'prep_task', None):
             wait_on.append(self.prep_task)
         join = wait_for(wfspec, create_server_task, wait_on,
-                name="Server %s Wait on Prerequisites" % key,
+                name="Server %s (%s) Wait on Prerequisites" % (key, resource['service']),
                 defines=dict(resource=key,
                              provider=self.key,
                              task_tags=['root']))

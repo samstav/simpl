@@ -51,6 +51,9 @@ INTERFACE_SCHEMA = yaml_to_dict("""
            public_ip:
              type: string
              required: false
+           password:
+             type: string
+             required: false
       mysql:
         fields:
           username:

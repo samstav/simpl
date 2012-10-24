@@ -44,7 +44,7 @@
             <div class="control-group">
               <label class="control-label required" for="environment">Environment</label>
               <div class="controls">
-                <select id="environment" class="span6" ng-model="environment" ng-change="updateSettings()"
+                <select id="environment" class="span6" ng-model="environment" ng-change="onBlueprintChange()"
                         ng-options="environment.name for (id,environment) in environments" required>
                 </select>
               </div>

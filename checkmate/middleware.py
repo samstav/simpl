@@ -758,10 +758,12 @@ class DebugMiddleware():
     def print_generator(app_iter):
         """Iterator that prints the contents of a wrapper string."""
         LOG.debug('%s %s %s', ('*' * 20), 'RESPONSE BODY', ('*' * 20))
+        isimage=response.content_type.startswith("image");
+        if (isimage):
+            LOG.debug("(image)")
         for part in app_iter:
-            #sys.stdout.write(part)
-            LOG.debug(part)
-            #sys.stdout.flush()
+            if (not isimage):
+                LOG.debug(part)
             yield part
         print
 
