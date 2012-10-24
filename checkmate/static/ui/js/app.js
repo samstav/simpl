@@ -1289,7 +1289,7 @@ document.addEventListener('DOMContentLoaded', function(e) {
 
 //Initial Wordpress Template
 WPBP = {
-    "DBaaS": {
+    "DBaaS":{
         "id":"d8fcfc17-b515-473a-9fe1-6d4e3356ef8d",
         "description":"Create a multi-server WordPress deployment on any cloud account using the Chef cookbooks created by the Managed Cloud team.",
         "services":{
@@ -1318,7 +1318,7 @@ WPBP = {
                     "name":"wordpress-master-role",
                     "constraints":[
                         {
-                            "wordpress/version":"3.0.4"
+                            "wordpress/version":"3.4.1"
                         }
                     ]
                 },
@@ -1353,7 +1353,7 @@ WPBP = {
                     "name":"wordpress-web-role",
                     "constraints":[
                         {
-                            "wordpress/version":"3.0.4"
+                            "wordpress/version":"3.4.1"
                         }
                     ]
                 },
@@ -1864,7 +1864,7 @@ WPBP = {
         },
         "name":"Managed Cloud WordPress w/ Cloud Databases"
     },
-    "MySQL": {
+    "MySQL":{
         "id":"0255a076c7cf4fd38c69b6727f0b37ea",
         "description":"Create a multi-server WordPress deployment on any cloud account using the Chef cookbooks created by the Managed Cloud team.",
         "services":{
@@ -1891,15 +1891,27 @@ WPBP = {
                 "component":{
                     "type":"application",
                     "name":"wordpress-master-role",
-                    "constraints":[
-                        {
-                            "wordpress/version":"3.0.4",
-                            "wordpress/database/create_db":"true",
-                            "wordpress/database/create_db_user":"true"
-                        }
-                    ]
+                    "constraints":{
+                        "wordpress/version":"3.4.1",
+                        "wordpress/database/create_db":"true",
+                        "wordpress/database/create_db_user":"true"
+                    }
                 },
                 "relations":{
+                    "wordpress/database":{
+                        "interface":"mysql",
+                        "service":"backend"
+                    },
+                    "wordpress/database/host":{
+                        "interface":"host",
+                        "service":"backend",
+                        "attribute":"private_ip"
+                    },
+                    "wordpress/database/server_root_password":{
+                        "interface":"host",
+                        "service":"backend",
+                        "attribute":"password"
+                    },
                     "varnish/master_backend":{
                         "interface":"host",
                         "attribute":"private_ip"
@@ -1907,11 +1919,6 @@ WPBP = {
                     "lsyncd/slaves":{
                         "interface":"host",
                         "service":"web",
-                        "attribute":"private_ip"
-                    },
-                    "wordpress/database/host":{
-                        "interface":"host",
-                        "service":"backend",
                         "attribute":"private_ip"
                     }
                 },
@@ -1925,11 +1932,9 @@ WPBP = {
                 "component":{
                     "type":"application",
                     "name":"wordpress-web-role",
-                    "constraints":[
-                        {
-                            "wordpress/version":"3.0.4"
+                    "constraints":{
+                            "wordpress/version":"3.4.1"
                         }
-                    ]
                 },
                 "relations":{
                     "varnish/master_backend":{
@@ -1950,7 +1955,7 @@ WPBP = {
             },
             "backend":{
                 "component":{
-                	"name":"mysql-master-role",
+                    "name":"mysql-master-role",
                     "interface":"mysql",
                     "type":"database"
                 },
@@ -1958,6 +1963,10 @@ WPBP = {
                     "mysql/host":{
                         "interface":"host",
                         "attribute":"private_ip"
+                    },
+                    "mysql/server_root_password":{
+                        "interface":"host",
+                        "attribute":"password"
                     }
                 }
             }
@@ -2334,24 +2343,6 @@ WPBP = {
                         "attribute":"name"
                     },
                     {
-                        "setting":"mysql/database_name",
-                        "service":"backend",
-                        "resource_type":"database",
-                        "attribute":"name"
-                    },
-                    {
-                        "setting":"mysql/username",
-                        "service":"backend",
-                        "resource_type":"database",
-                        "attribute":"name"
-                    },
-                    {
-                        "setting":"mysql/password",
-                        "service":"backend",
-                        "resource_type":"database",
-                        "attribute":"password"
-                    },
-                    {
                         "setting":"mysql/password",
                         "service":"web",
                         "resource_type":"application",
@@ -2440,7 +2431,7 @@ WPBP = {
         },
         "name":"Managed Cloud WordPress (MySQLonVMs)"
     }
-  };
+};
 //Default Environment
 ENVIRONMENTS = {
     "legacy": {
@@ -2493,5 +2484,5 @@ ENVIRONMENTS = {
             "load-balancer": {}
         }
     }
-  };
+};
 

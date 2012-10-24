@@ -368,7 +368,7 @@ class Provider(ProviderBase):
                         )
             else:
                 write_options = Celery(wfspec,
-                        "Write Overrides for %s/%s" % (component['id'], key),
+                        "Write Overrides for %s/%s for %s" % (component['id'], key, service_name),
                         'checkmate.providers.opscode.local.manage_role',
                         call_args=[deployment['id'], deployment['id']],
                         kitchen_name=service_name,
@@ -386,15 +386,15 @@ class Provider(ProviderBase):
 
         # Write must wait on collect
         wait_for(wfspec, write_options, [collect_data],
-                name="Feed data to Write task for %s" % key)
+                name="Feed data to Write task for %s (%s)" % (key,service_name))
 
         tasks = self.get_relation_final_tasks(wfspec, resource)
-        LOG.debug("Attaching %s to %s" % (write_options.name, ', '.join(
-                        [t.name for t in tasks])))
+        LOG.debug("Attaching %s to %s (%s)" % (write_options.name, ', '.join(
+                        [t.name for t in tasks]), service_name))
         if not tasks:
             tasks = [self.prep_task[service_name]]
         wait_for(wfspec, collect_data, tasks,
-                name="Get %s data: %s" % (component['id'], key),
+                name="Get %s data: %s (%s)" % (component['id'], key, service_name),
                 description="Before applying chef recipes, we need to "
                 "know that the server has chef on it and that the "
                 "overrides (database settings) have been applied")
@@ -424,8 +424,8 @@ class Provider(ProviderBase):
 
         # Create the cook task
         resource = deployment['resources'][key]
-        configure_task = Celery(wfspec, 'Configure %s: %s' % (component['id'],
-                key),
+        configure_task = Celery(wfspec, 'Configure %s: %s (%s)' % (component['id'],
+                key, service_name),
                'checkmate.providers.opscode.local.cook',
                 call_args=[
                         PathAttrib('instance:%s/ip' %
@@ -461,8 +461,8 @@ class Provider(ProviderBase):
         dependencies.extend(self.find_tasks(wfspec, tag='write_options'))
         server_id = deployment['resources'][key].get('hosted_on', key)
         wait_for(wfspec, configure_task, dependencies,
-                name="After server %s is registered and options are ready" %
-                        server_id,
+                name="After server %s (%s) is registered and options are ready" %
+                        (server_id, service_name),
                 description="Before applying chef recipes, we need to know "
                 "that the server has chef on it and that the overrides "
                 "(ex. database settings) have been applied")
@@ -629,8 +629,8 @@ class Provider(ProviderBase):
                 else:
                     LOG.warn("Could not find values to set for {}".format(key))
 
-            compile_override = Transform(wfspec, "Get %s values for %s" %
-                    (relation_key, key),
+            compile_override = Transform(wfspec, "Get %s values for %s (%s)" %
+                    (relation_key, key, resource['service']),
                     transforms=[get_source_body(
                         get_attribute_code if 'attribute' in relation else get_fields_code)],
                     description="Get all the variables "
@@ -665,7 +665,7 @@ class Provider(ProviderBase):
 
             # Create chef setup tasks
             register_node_task = Celery(wfspec,
-                    'Register Server %s' % relation['target'],
+                    'Register Server %s (%s)' % (relation['target'], resource['service']),
                     'checkmate.providers.opscode.local.register_node',
                     call_args=[
                             PathAttrib('instance:%s/ip' % relation['target']),
@@ -684,7 +684,7 @@ class Provider(ProviderBase):
                     properties=dict(estimated_duration=120))
 
             bootstrap_task = Celery(wfspec,
-                    'Pre-Configure Server %s' % relation['target'],
+                    'Pre-Configure Server %s (%s)' % (relation['target'], resource['service']),
                     'checkmate.providers.opscode.local.cook',
                     call_args=[
                             PathAttrib('instance:%s/ip' % relation['target']),
@@ -704,8 +704,8 @@ class Provider(ProviderBase):
             # Register only when server is up and environment is ready
             wait_on.append(self.prep_task[resource['service']])
             root = wait_for(wfspec, register_node_task, wait_on,
-                    name="After Environment is Ready and Server %s is Up" %
-                            relation['target'],
+                    name="After Environment is Ready and Server %s (%s) is Up" %
+                            (relation['target'], resource['service']),
                     resource=key, relation=relation_key, provider=self.key)
             if 'task_tags' in root.properties:
                 root.properties['task_tags'].append('root')
