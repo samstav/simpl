@@ -4,8 +4,9 @@ import os
 import uuid
 
 # pylint: disable=E0611
-from bottle import get, post, request, response, route, abort #@UnresolvedImport
-from celery.task import task #@UnresolvedImport
+from bottle import request, response, abort, \
+    get, post, route  # @UnresolvedImport
+from celery.task import task  # @UnresolvedImport
 from SpiffWorkflow import Workflow, Task
 from SpiffWorkflow.storage import DictionarySerializer
 
@@ -101,7 +102,7 @@ def _deploy(deployment, context):
                                 (deployment['id'], deployment.get('status')))
     deployment_keys = generate_keys(deployment)
     workflow = _create_deploy_workflow(deployment, context)
-    workflow['id'] = deployment['id']  #TODO: need to support multiple workflows
+    workflow['id'] = deployment['id']  # TODO: need to support multi workflows
     deployment['workflow'] = workflow['id']
     deployment['status'] = "LAUNCHED"
 
@@ -146,9 +147,11 @@ def get_deployments_by_bp_count(blueprint_id, tenant_id=None):
         LOG.debug("No deployments")
     for dep_id, dep in deployments.items():
         if "blueprint" in dep:
-            LOG.debug("Found blueprint {} in deployment {}".format(dep.get("blueprint"), dep_id))
+            LOG.debug("Found blueprint {} in deployment {}"
+                      .format(dep.get("blueprint"), dep_id))
             if (blueprint_id == dep["blueprint"]) or \
-            ("id" in dep["blueprint"] and blueprint_id == dep["blueprint"]["id"]):
+            ("id" in dep["blueprint"] and
+             blueprint_id == dep["blueprint"]["id"]):
                 ret["count"] += 1
         else:
             LOG.debug("No blueprint defined in deployment {}".format(dep_id))
@@ -347,7 +350,8 @@ def execute(oid, timeout=180, tenant_id=None):
     if not deployment:
         abort(404, 'No deployment with id %s' % oid)
 
-    result = orchestrator.run_workflow.delay(oid, timeout=3600) #@UndefinedVariable
+    result = orchestrator.run_workflow.\
+             delay(oid, timeout=3600)  # @UndefinedVariable
     return result
 
 
@@ -645,7 +649,7 @@ def plan(deployment, context):
                         "identify which component to connect" % (
                         target_service_name, target_interface, name,
                         service_name))
-                
+
             # Get hash of source instances (exclude the hosts unless its
             # specifically requested)
             source_instances = {index: resource
@@ -655,7 +659,7 @@ def plan(deployment, context):
             LOG.debug("    Instances %s need '%s' from the '%s' service"
                     % (source_instances.keys(), target_interface,
                        target_service_name))
-            
+
             # Get list of target instances
             if target_interface == 'host':
                 target_instances = [
@@ -684,19 +688,18 @@ def plan(deployment, context):
                     if 'relations' not in resource:
                         resource['relations'] = {}
                     resource['relations'][name] =\
-                        dict(state='planned', target=target_instance, 
+                        dict(state='planned', target=target_instance,
                              interface=target_interface, name=name)
                     if 'relations' not in resources[target_instance]:
                         resources[target_instance]['relations'] = {}
                     resources[target_instance]['relations'][name] =\
-                        dict(state='planned', source=source_instance, 
+                        dict(state='planned', source=source_instance,
                              interface=target_interface, name=name)
                     if 'attribute' in relation:
-                        resources[source_instance]['relations']\
-                                [name].update({'attribute':
-                                        relation['attribute']})
-                        resources[target_instance]['relations']\
-                                [name].update({'attribute':
+                        resources[source_instance]['relations'][name]\
+                                .update({'attribute': relation['attribute']})
+                        resources[target_instance]['relations'][name]\
+                                .update({'attribute':
                                         relation['attribute']})
             else:
                 for source_instance in source_instances:
@@ -708,21 +711,21 @@ def plan(deployment, context):
                         if 'relations' not in resources[target_instance]:
                             resources[target_instance]['relations'] = {}
                         # Add forward relation (from source to target)
-                        resources[source_instance]['relations'][target_relation] \
+                        srcrels = resources[source_instance]['relations']
+                        srcrels[target_relation] \
                                 = dict(state='planned', target=target_instance,
                                     interface=target_interface, name=name)
                         # Add relation to target showing incoming from source
-                        resources[target_instance]['relations'][source_relation] \
+                        trgrels = resources[target_instance]['relations']
+                        trgrels[source_relation] \
                                 = dict(state='planned', source=source_instance,
                                     interface=target_interface, name=name)
                         if 'attribute' in relation:
-                            resources[source_instance]['relations']\
-                                    [target_relation].update({'attribute':
+                            srcrels[target_relation].update({'attribute':
                                             relation['attribute']})
-                            resources[target_instance]['relations']\
-                                    [source_relation].update({'attribute':
+                            trgrels[source_relation].update({'attribute':
                                             relation['attribute']})
-                        LOG.debug("    New connection '%s' from %s:%s to %s:%s "
+                        LOG.debug("  New connection '%s' from %s:%s to %s:%s "
                                 "created" % (name, service_name,
                                 source_instance, target_service_name,
                                 target_instance))
@@ -848,7 +851,7 @@ def get_os_env_keys():
             else:
                 dkeys['checkmate'] = {'public_key': key,
                         'public_key_path': path}
-        except IOError as (errno, strerror):
+        except IOError as(errno, strerror):
             LOG.error("I/O error reading public key from CHECKMATE_PUBLIC_KEY="
                     "'%s' environment variable (%s): %s" % (
                             os.environ['CHECKMATE_PUBLIC_KEY'], errno,
@@ -1069,7 +1072,7 @@ class Deployment(ExtensibleDict):
             if result:
                 return result
 
-            result = self._get_constrained_service_component_static_setting(name, service_name)
+            result = self._get_constrained_svc_cmp_setting(name, service_name)
             if result:
                 return result
 
@@ -1101,11 +1104,11 @@ class Deployment(ExtensibleDict):
                                                service_name)
         if result:
             return result
-        
+
         result = self._get_resource_setting(name)
         if result:
             return result
-        
+
         result = self._get_setting_value(name)
         if result:
             return result
@@ -1218,7 +1221,7 @@ class Deployment(ExtensibleDict):
                                         name, key, name, result))
                                 return result
 
-    def _get_constrained_service_component_static_setting(self, name, service_name):
+    def _get_constrained_svc_cmp_setting(self, name, service_name):
         """Get a setting implied through a static resource constraint
 
         :param name: the name of the setting
@@ -1228,10 +1231,10 @@ class Deployment(ExtensibleDict):
         blueprint = self['blueprint']
         if 'services' in blueprint:
             services = blueprint['services']
-            service=services[service_name]
+            service = services[service_name]
             if 'component' in service:
                 if 'constraints' in service['component']:
-                    constraints=service['component']['constraints']
+                    constraints = service['component']['constraints']
                     if name in constraints:
                         return constraints[name]
 
@@ -1255,7 +1258,8 @@ class Deployment(ExtensibleDict):
             if service_name is None or constraint['service'] != service_name:
                 return False
         if 'resource' in constraint:
-            if resource_type is None or constraint['resource'] != resource_type:
+            if resource_type is None or \
+                    constraint['resource'] != resource_type:
                 return False
         LOG.debug("Constraint '%s' for '%s' applied to '%s/%s'" % (
                 constraint, name, service_name, resource_type))
@@ -1323,7 +1327,7 @@ class Deployment(ExtensibleDict):
                 for option in options:
                     if name in option:
                         result = option[name]
-                        LOG.debug("Found setting '%s' in environment" % name)   
+                        LOG.debug("Found setting '%s' in environment" % name)
                         return result
 
     def get_components(self, context):
