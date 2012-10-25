@@ -33,49 +33,35 @@ from checkmate.utils import extract_sensitive_data
 tester = { 'some': 'random',
                'tenantId': 'T100',
                'id' : 1 }
-SKIP = True
 
 class TestDatabase(unittest.TestCase):
     """ Test Mongo Database code """
     
     def setUp(self):
-        self.db_name = 'checkmate_test_%s' % uuid.uuid4().hex
+        self.collection_name = 'checkmate_test_%s' % uuid.uuid4().hex
         self.driver = db.get_driver('checkmate.db.mongodb.Driver')
-        self.driver.connection_string = 'mongodb://checkmate:%s@mongo-n01.dev.chkmate.rackspace.net:27017/%s' % ('c%403yt1ttttt', self.db_name)
-        print uri_parser.parse_uri(self.driver.connection_string)
+        self.driver.connection_string = 'mongodb://checkmate:%s@mongo-n01.dev.chkmate.rackspace.net:27017/checkmate' % ('c%40m3yt1ttttt',)
+        #self.connection_string = 'localhost'
         self.driver._connection = self.driver._database = None  # reset driver
-        self.driver.db_name = self.db_name
+        self.driver.db_name = 'checkmate'
 
     
     def tearDown(self):
-        LOG.debug("Deleting test mongodb: %s" % self.db_name)
+        LOG.debug("Deleting test mongodb collection: %s" % self.collection_name)
         try:
-            c = Connection()
-            c.drop_database(self.db_name)
-            LOG.debug("Deleted test mongodb: %s" % self.db_name)
+            connection_string = 'mongodb://checkmate:%s@mongo-n01.dev.chkmate.rackspace.net:27017/checkmate' % ('c%40m3yt1ttttt', )
+            #connection_string = 'localhost'
+            c = Connection(connection_string)
+            db = c.checkmate
+            collection_name = self.collection_name
+            db.collection_name.drop()
+            LOG.debug("Deleted test mongodb collection: %s" % self.collection_name)
         except Exception as exc:
-            LOG.error("Error deleting test mongodb '%s': %s" % (self.db_name,
-                                                                exc))
-    
-
-
-    def test_stuff(self):
-        results = self.driver.save_component(tester['id'], tester)
-        self.assertDictEqual(results, tester)
-
-    def test_fail(self):
-        tester['id'] = 2
-        results = self.driver.save_component(tester['id'], tester)
-        self.assertEqual('a','b')
-
-    def test_extract(self):
-        results = self.driver.get_components()
-        print results
-        self.assertDictEqual(results, {}) 
+            LOG.error("Error deleting test mongodb collection '%s': %s" % (self.collection_name,))
 
   
     @unittest.skipIf(SKIP, REASON)
-    def test_components(self):
+    def test_objects(self):
 
         def _decode_dict(dictionary):
             decoded_dict = {}
@@ -96,30 +82,30 @@ class TestDatabase(unittest.TestCase):
                   'credentials': ['My Secrets']
                   }
         body, secrets = extract_sensitive_data(entity)
-        results = self.driver.save_component(entity['id'], body, secrets,
+        results = self.driver.save_object(self.collection_name, entity['id'], body, secrets,
                                              tenant_id='T1000')
         self.assertDictEqual(results, body)
 
-        results = self.driver.get_component(entity['id'], with_secrets=True)
+        results = self.driver.get_object(self.collection_name, entity['id'], with_secrets=True)
         entity['tenantId'] = 'T1000'  # gets added
         self.assertDictEqual(results, entity)
         self.assertIn('credentials', results)
 
         body['name'] = 'My Updated Component'
         entity['name'] = 'My Updated Component'
-        results = self.driver.save_component(entity['id'], body, secrets)
-        results = self.driver.get_component(entity['id'], with_secrets=True)
+        results = self.driver.save_object(self.collection_name, entity['id'], body, secrets)
+        results = self.driver.get_object(self.collection_name, entity['id'], with_secrets=True)
         self.assertIn('credentials', results)
         self.assertDictEqual(results, entity)
 
-        results = self.driver.get_component(entity['id'], with_secrets=False)
+        results = self.driver.get_object(self.collection_name, entity['id'], with_secrets=False)
         self.assertNotIn('credentials', results)
         body['tenantId'] = 'T1000'  # gets added
         self.assertDictEqual(results, body)
         self.assertNotIn('_id', results, "Backend field '_id' should not be "
                          "exposed outside of driver")
 
-        results = self.driver.get_components(with_secrets=False)
+        results = self.driver.get_objects(self.collection_name, with_secrets=False)
         wrapper = {} # Needed to test for length of a result with only one returned value
         wrapper ['results'] = results
         self.assertEqual(len(wrapper), 1)
@@ -145,9 +131,9 @@ class TestDatabase(unittest.TestCase):
                 decoded_dict[key] = value
             return decoded_dict
         id = uuid.uuid4().hex
-        body = self.driver.save_component(id, dict(id=id), None,
+        body = self.driver.save_object(self.collection_name, id, dict(id=id), None,
                                              tenant_id='T1000')
-        unicode_results = self.driver.get_components()
+        unicode_results = self.driver.get_objects(self.collection_name)
         results = _decode_dict(unicode_results)
         self.assertDictEqual(results, dict(id=id, tenantId='T1000'))
         self.assertNotIn('_id', results, "Backend field '_id' should not be "
@@ -156,7 +142,7 @@ class TestDatabase(unittest.TestCase):
     @unittest.skipIf(SKIP, REASON)
     def test_no_id_in_body(self):
         id = uuid.uuid4().hex
-        self.assertRaises(Exception, self.driver.save_component, id, {}, None,
+        self.assertRaises(Exception, self.driver.save_object, id, {}, None,
                           tenant_id='T1000')
 
     @unittest.skipIf(SKIP, REASON)
@@ -183,8 +169,8 @@ class TestDatabase(unittest.TestCase):
         expected = {}
         for i in range(1,5):
             expected[i] = dict(id=i, tenantId='T1000')
-            body = self.driver.save_component(i, dict(id=i), None, tenant_id='T1000')
-        unicode_results = self.driver.get_components()
+            body = self.driver.save_object(self.collection_name, i, dict(id=i), None, tenant_id='T1000')
+        unicode_results = self.driver.get_objects(self.collection_name)
         results = _decode_dict(unicode_results)
         self.assertDictEqual(results, expected)
         for i in range(1,5):
