@@ -34,7 +34,7 @@ class Provider(ProviderBase):
 
     def add_resource_tasks(self, resource, key, wfspec, deployment, context,
                 wait_on=None):
-        register_node_task = Celery(wfspec, 'Register Server:%s' % key,
+        register_node_task = Celery(wfspec, 'Register Server:%s (%s)' % (key, resource['service']),
                         'checkmate.providers.opscode.server.register_node',
                         call_args=[Attrib('context'),
                                resource.get('dns-name'), ['wordpress-web']],
@@ -46,7 +46,7 @@ class Provider(ProviderBase):
                         properties={'estimated_duration': 20})
         self.prep_task.connect(register_node_task)
 
-        ssh_apt_get_task = Celery(wfspec, 'Apt-get Fix:%s' % key,
+        ssh_apt_get_task = Celery(wfspec, 'Apt-get Fix:%s (%s)' % (key, resource['service']),
                            'checkmate.ssh.execute',
                             call_args=[Attrib('ip'),
                                     "sudo apt-get update",
@@ -57,7 +57,7 @@ class Provider(ProviderBase):
         # TODO: stop assuming only one wait_on=create_server_task
         wait_on[0].connect(ssh_apt_get_task)
 
-        bootstrap_task = Celery(wfspec, 'Bootstrap Server:%s' % key,
+        bootstrap_task = Celery(wfspec, 'Bootstrap Server:%s (%s)' % (key, resource['service']),
                            'checkmate.providers.opscode.server.bootstrap',
                             call_args=[Attrib('context'),
                                     resource.get('dns-name'), Attrib('ip')],
@@ -68,7 +68,7 @@ class Provider(ProviderBase):
                             properties={'estimated_duration': 90})
         wait_for(wfspec, bootstrap_task,
                 [ssh_apt_get_task, register_node_task],
-                name="Wait for Server Build:%s" % key)
+                name="Wait for Server Build:%s (%s)" % (key, resource['service']))
         return {'root': register_node_task, 'final': bootstrap_task}
 
     def add_connection_tasks(self, resource, key, relation, relation_key,

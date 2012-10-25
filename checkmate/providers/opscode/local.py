@@ -34,6 +34,7 @@ from checkmate.providers import ProviderBase
 from checkmate.utils import get_source_body, merge_dictionary, \
         match_celery_logging
 from checkmate.workflows import wait_for
+from SpiffWorkflow.specs.Simple import Simple
 
 LOG = logging.getLogger(__name__)
 
@@ -45,73 +46,97 @@ class Provider(ProviderBase):
 
     def __init__(self, provider, key=None):
         ProviderBase.__init__(self, provider, key=key)
-        self.prep_task = None
-        self.collect_data_tasks = None
+        self.prep_task = {}
+        self.collect_data_tasks = {}
+
+    def _get_deployment_local_services(self, deployment, context):
+        servicenames = []
+        allservices = deployment.get('blueprint', {}).get('services')
+        environment = deployment.environment()
+        if allservices:
+            for key, service in allservices.iteritems():
+                component = service.get('component', {})
+                if component:
+                    provider = environment.select_provider(context,
+                                         resource=component.get('type'),
+                                         interface=component.get('interface'))
+                    if self.name == provider.name:
+                        servicenames.append(key)
+        return servicenames
 
     def prep_environment(self, wfspec, deployment, context):
         if self.prep_task:
             return  # already prepped
         self._hash_all_user_resource_passwords(deployment)
-        create_environment_task = Celery(wfspec, 'Create Chef Environment',
-                'checkmate.providers.opscode.local.create_environment',
-                call_args=[deployment['id']],
-                public_key_ssh=deployment.settings().get('keys', {}).get(
-                        'deployment', {}).get('public_key_ssh'),
-                private_key=deployment.settings().get('keys', {}).get(
-                        'deployment', {}).get('private_key'),
-                secret_key=deployment.get_setting('secret_key'),
-                defines=dict(provider=self.key,
-                            task_tags=['root']),
-                properties={'estimated_duration': 10})
-        self.prep_task = create_environment_task
 
-        # Create a global task to write options. This will be fed into and
-        # connected to by other tasks as needed. The 'write_options' tag
-        # identifies it.
-        # relations will determine if resources write to or read from this
-        # task's attributes
-        # apps will read/write to this structure:
-        # {'chef_options': {
-        #       'app_name': {'option1': value, 'option2': value},
-        #       'other_app_name': {'option1': value, 'option2': value}
-        #   }}
-        if str(os.environ.get('CHECKMATE_CHEF_USE_DATA_BAGS', True)
-                    ).lower() in ['true', '1', 'yes']:
-            # Call manage_databag(environment, bagname, itemname, contents)
-            write_options = Celery(wfspec,
-                    "Write Data Bag",
-                   'checkmate.providers.opscode.local.manage_databag',
-                    call_args=[deployment['id'], deployment['id'],
-                            Attrib('app_id'), Attrib('chef_options')],
-                    secret_file='certificates/chef.pem',
-                    merge=True,
-                    defines=dict(provider=self.key),
-                    properties={'estimated_duration': 5})
-        else:
-            write_options = Celery(wfspec,
-                    "Write Overrides",
-                    'checkmate.providers.opscode.local.manage_role',
-                    call_args=[deployment['id'], deployment['id']],
-                    override_attributes=Attrib('chef_options'),
-                    description="Take the JSON prepared earlier and write "
+        simple = Simple(wfspec, 'Create Chef Environments')
+        for service_name in self._get_deployment_local_services(deployment,
+                                                                context):
+            create_environment_task = Celery(wfspec,
+                    'Create Chef Environment for %s' % service_name,
+                    'checkmate.providers.opscode.local.create_environment',
+                    call_args=[deployment['id'], service_name],
+                    public_key_ssh=deployment.settings().get('keys', {}).get(
+                            'deployment', {}).get('public_key_ssh'),
+                    private_key=deployment.settings().get('keys', {}).get(
+                            'deployment', {}).get('private_key'),
+                    secret_key=deployment.get_setting('secret_key'),
+                    defines=dict(provider=self.key,
+                                task_tags=['root']),
+                    properties={'estimated_duration': 10})
+            create_environment_task.follow(simple)
+
+            # Create a global task to write options. This will be fed into and
+            # connected to by other tasks as needed. The 'write_options' tag
+            # identifies it.
+            # relations will determine if resources write to or read from this
+            # task's attributes
+            # apps will read/write to this structure:
+            # {'chef_options': {
+            #       'app_name': {'option1': value, 'option2': value},
+            #       'other_app_name': {'option1': value, 'option2': value}
+            #   }}
+            if str(os.environ.get('CHECKMATE_CHEF_USE_DATA_BAGS', True)
+                        ).lower() in ['true', '1', 'yes']:
+                # Call manage_databag(environment, bagname, itemname, contents)
+                write_options = Celery(wfspec,
+                        "Write Data Bag for %s" % service_name,
+                       'checkmate.providers.opscode.local.manage_databag',
+                        call_args=[deployment['id'], deployment['id'],
+                                Attrib('app_id'), Attrib('chef_options')],
+                        kitchen_name=service_name,
+                        secret_file='certificates/chef.pem',
+                        merge=True,
+                        defines=dict(provider=self.key),
+                        properties={'estimated_duration': 5})
+            else:
+                write_options = Celery(wfspec,
+                        "Write Overrides for %s" % service_name,
+                        'checkmate.providers.opscode.local.manage_role',
+                        call_args=[deployment['id'], deployment['id']],
+                        kitchen_name=service_name,
+                        override_attributes=Attrib('chef_options'),
+                        description="Take the JSON prepared earlier and write "
                             "it into the application role. It will be used "
                             "by the Chef recipe to access global data",
-                    defines=dict(provider=self.key),
-                    properties={'estimated_duration': 5})
+                        defines=dict(provider=self.key),
+                        properties={'estimated_duration': 5})
 
-        collect = Merge(wfspec,
-                "Collect Chef Data",
-                defines=dict(provider=self.key, extend_lists=True),
-                )
-        # We need to make sure the environment exists before writing options.
-        collect.follow(create_environment_task)
-        write_options.follow(collect)
-        # Any tasks that need to be collected will wire themselves into this
-        # task
-        self.collect_data_tasks = dict(root=collect, final=write_options)
+            collect = Merge(wfspec,
+                    "Collect Chef Data for %s" % service_name,
+                    defines=dict(provider=self.key, extend_lists=True),
+                    )
+            # Make sure the environment exists before writing options.
+            collect.follow(create_environment_task)
+            write_options.follow(collect)
+            # Any tasks that need to be collected will wire themselves into
+            # this task
+            self.collect_data_tasks[service_name] = dict(root=collect,
+                                                         final=write_options)
+            self.prep_task[service_name] = create_environment_task
 
-        return dict(root=create_environment_task,
-                    final=create_environment_task)
+        return dict(root=simple,
+                    final=simple)
 
     def _hash_all_user_resource_passwords(self, deployment):
         """Wordpress and/or Chef need passwords to be a hash"""
@@ -226,7 +251,8 @@ class Provider(ProviderBase):
                 continue
             option_maps.append((name, option.get('source_field_name', name),
                     option.get('default')))
-            LOG.debug("Processing option %s from component %s" % (option_maps[-1], component.get("id", "UNKNOWN")))
+            LOG.debug("Processing option %s from component %s" %
+                      (option_maps[-1], component.get("id", "UNKNOWN")))
 
         # Set the options if they are available now (at planning time) and mark
         # ones we need to get at run-time
@@ -305,13 +331,13 @@ class Provider(ProviderBase):
             if data and data.get(component_id):
                 my_task.attributes['chef_options'].update(data)
 
-        LOG.debug("Creating task to collect run-time options %s for %s" % (
-                ', '.join([m for n, m in run_time_options]), #@UnusedVariable
-                component['id']))
-        LOG.debug("Options collected at planning time for %s were: %s" % (
-                component['id'], planning_time_options))
-        collect_data = Transform(wfspec, "Collect %s Chef Data: %s" % (
-                component['id'], key),
+        LOG.debug("Creating task to collect run-time options %s for %s [%s]" %
+            (', '.join([m for n, m in run_time_options]),  # @UnusedVariable
+            service_name, component['id']))
+        LOG.debug("Options collected at planning time for %s [%s] were: %s" % (
+                service_name, component['id'], planning_time_options))
+        collect_data = Transform(wfspec, "Collect %s Chef Data for %s: %s" % (
+                component['id'], service_name, key),
                 transforms=[get_source_body(build_data_code)],
                 description="Get %s data needed for our cookbooks and "
                         "place it in a structure ready for storage in a "
@@ -327,7 +353,7 @@ class Provider(ProviderBase):
             contents_param = Attrib('chef_options')  # eval at run-time
         else:
             contents_param = planning_time_options  # no run-time eval needed
-            collect_data.follow(self.prep_task)  # no need to wait
+            collect_data.follow(self.prep_task[service_name])  # no wait needed
         if write_separately:
             if str(os.environ.get('CHECKMATE_CHEF_USE_DATA_BAGS', True)
                         ).lower() in ['true', '1', 'yes']:
@@ -339,15 +365,18 @@ class Provider(ProviderBase):
                         call_args=[deployment['id'], deployment['id'],
                                 Attrib('app_id'), contents_param],
                         secret_file='certificates/chef.pem',
+                        kitchen_name=service_name,
                         merge=True,
                         defines=dict(provider=self.key, resource=key),
                         properties={'estimated_duration': 5},
                         )
             else:
                 write_options = Celery(wfspec,
-                        "Write Overrides for %s/%s" % (component['id'], key),
+                        "Write Overrides for %s/%s for %s" %
+                        (component['id'], key, service_name),
                         'checkmate.providers.opscode.local.manage_role',
                         call_args=[deployment['id'], deployment['id']],
+                        kitchen_name=service_name,
                         override_attributes=contents_param,
                         merge=True,
                         description="Take the JSON prepared earlier and write "
@@ -358,19 +387,21 @@ class Provider(ProviderBase):
                         properties={'estimated_duration': 5},
                         )
         else:
-            write_options = self.collect_data_tasks['root']
+            write_options = self.collect_data_tasks[service_name]['root']
 
         # Write must wait on collect
         wait_for(wfspec, write_options, [collect_data],
-                name="Feed data to Write task for %s" % key)
+                name="Feed data to Write task for %s (%s)" %
+                    (key, service_name))
 
         tasks = self.get_relation_final_tasks(wfspec, resource)
-        LOG.debug("Attaching %s to %s" % (write_options.name, ', '.join(
-                        [t.name for t in tasks])))
+        LOG.debug("Attaching %s to %s (%s)" % (write_options.name, ', '.join(
+                        [t.name for t in tasks]), service_name))
         if not tasks:
-            tasks = [self.prep_task]
+            tasks = [self.prep_task[service_name]]
         wait_for(wfspec, collect_data, tasks,
-                name="Get %s data: %s" % (component['id'], key),
+                name="Get %s data: %s (%s)" %
+                (component['id'], key, service_name),
                 description="Before applying chef recipes, we need to "
                 "know that the server has chef on it and that the "
                 "overrides (database settings) have been applied")
@@ -400,8 +431,9 @@ class Provider(ProviderBase):
 
         # Create the cook task
         resource = deployment['resources'][key]
-        configure_task = Celery(wfspec, 'Configure %s: %s' % (component['id'],
-                key),
+        configure_task = Celery(wfspec,
+                'Configure %s: %s (%s)' % (component['id'],
+                key, service_name),
                'checkmate.providers.opscode.local.cook',
                 call_args=[
                         PathAttrib('instance:%s/ip' %
@@ -409,6 +441,7 @@ class Provider(ProviderBase):
                         deployment['id']],
                 password=PathAttrib('instance:%s/password' %
                         resource.get('hosted_on', key)),
+                kitchen_name=service_name,
                 identity_file=Attrib('private_key_path'),
                 description="Push and apply Chef recipes on the server",
                 defines=dict(resource=key,
@@ -418,7 +451,8 @@ class Provider(ProviderBase):
                 **kwargs)
 
         # Collect dependencies
-        dependencies = [self.prep_task, self.collect_data_tasks['final']]
+        dependencies = [self.prep_task[service_name],
+                        self.collect_data_tasks[service_name]['final']]
         if options_ready:
             dependencies.append(options_ready)
 
@@ -430,14 +464,14 @@ class Provider(ProviderBase):
                     tag='final')
             if tasks:
                 dependencies.extend(tasks)
-            
+
         # Wait for all data from all data to be collected to account for
         # inter-resource dependencies
         dependencies.extend(self.find_tasks(wfspec, tag='write_options'))
         server_id = deployment['resources'][key].get('hosted_on', key)
         wait_for(wfspec, configure_task, dependencies,
-                name="After server %s is registered and options are ready" %
-                        server_id,
+                name="After server %s (%s) is registered and options are ready"
+                        % (server_id, service_name),
                 description="Before applying chef recipes, we need to know "
                 "that the server has chef on it and that the overrides "
                 "(ex. database settings) have been applied")
@@ -446,45 +480,57 @@ class Provider(ProviderBase):
             wfspec, deployment, context):
         """Write out or Transform data. Provide final task for relation sources
         to hook into"""
-        LOG.debug("Adding connection task  resource: %s, key: %s, relation: %s relation_key: %s" % (resource,key,relation, relation_key))
-        
+        LOG.debug("Adding connection task  resource: %s, key: %s, relation: %s"
+                  " relation_key: %s"
+                  % (resource, key, relation, relation_key))
+
         if relation_key != 'host':
             target = deployment['resources'][relation['target']]
             relation_name = relation['name']
             interface = relation['interface']
             # Get the definition of the interface
-            interface_schema = schema.INTERFACE_SCHEMA.get(interface, {}) #@UndefinedVariable
+            interface_schema = schema.INTERFACE_SCHEMA\
+                                .get(interface, {})  # @UndefinedVariable
             # Get the fields this interface defines
             fields = interface_schema.get('fields', {}).keys()
             if 'attribute' in relation:
                 if relation['attribute'] not in fields:
-                    raise CheckmateException('Relation attribute %s is not in interface %s' % (relation['attribute'], interface))
+                    raise CheckmateException(
+                             'Relation attribute %s is not in interface %s'
+                             % (relation['attribute'], interface))
                 fields = [relation['attribute']]
             if not fields:
                 LOG.debug("No fields defined for interface '%s', so nothing "
                     "to do for connection '%s'" % (interface, relation_key))
                 return  # nothing to do
-            comp = self.get_component(context, resource.get('component','!_!NONE!_!'))
-            
+            comp = self.get_component(context,
+                                      resource.get('component', '!_!NONE!_!'))
+
             # see if we need to write lists for merging later
             aggregate = False
             if comp:
                 comp_opts = comp.get("options", {})
-                setting = comp_opts.get(relation_key)
+                setting = comp_opts.get(relation_name)
                 if setting:
                     if 'type' in setting and ('array' == setting.get('type')):
                         aggregate = True
-                # check to see if we're just grabbing the entire interface                   
+                # check to see if we're just grabbing the entire interface
                 else:
-                    short_keys = [a_name[:len(relation_key)] for a_name in comp_opts.keys()]
-                    LOG.info("Looking for interface relationship {} in short keys {}".format(relation_key, short_keys))
-                    if relation_key not in short_keys:
-                        LOG.warn("Component {} does not have a setting {}".format(comp.get('id', 'UNKNOWN'), relation_key))
+                    short_keys = [a_name[:len(relation_name)] for a_name
+                                  in comp_opts.keys()]
+                    LOG.info("Looking for interface relationship"
+                             " {} in short keys {}"
+                             .format(relation_name, short_keys))
+                    if relation_name not in short_keys:
+                        LOG.warn("Component {} does not have a setting {}"
+                                 .format(comp.get('id', 'UNKNOWN'),
+                                         relation_name))
             else:
-                LOG.warn("Could not find component {}".format(resource.get('component','!_!NONE!_!')))  
+                LOG.warn("Could not find component {}"
+                         .format(resource.get('component', '!_!NONE!_!')))
             # Build full path to 'instance:id/interfaces/:interface/:fieldname'
             fields_with_path = []
-            
+
             for field in fields:
                 if interface != 'host':
                     fields_with_path.append('instance:%s/interfaces/%s/%s' % (
@@ -506,7 +552,7 @@ class Provider(ProviderBase):
                         "found: %s" % [t.name for t in target_final])
             target_final = target_final[0]
             # Write the task to get the values
-            
+
             def get_attribute_code(my_task):
                 if 'chef_options' not in my_task.attributes:
                     my_task.attributes['chef_options'] = {}
@@ -518,10 +564,11 @@ class Provider(ProviderBase):
                 if fields:
                     field = fields[0]
                     parts = field.split("/")
-                    val = my_task.attributes;
+                    val = my_task.attributes
                     for part in parts:
                         if part not in val:
-                            LOG.warn("Could not locate {} in task attributes".format(field))
+                            LOG.warn("Could not locate {} in task attributes"
+                                     .format(field))
                             val = None
                             break
                         val = val[part]
@@ -553,7 +600,8 @@ class Provider(ProviderBase):
                         LOG.info("Setting {} to {}".format(name, val))
                         cur[name] = val
                 else:
-                    LOG.warn("Could not determine a value to set for {}".format(key))      
+                    LOG.warn("Could not determine a value to set for {}"
+                             .format(key))
 
             def get_fields_code(my_task):  # Holds code for the task
                 if 'chef_options' not in my_task.attributes:
@@ -561,16 +609,17 @@ class Provider(ProviderBase):
                 key = my_task.get_property('relation')
                 name = my_task.get_property('relation_name', key)
                 fields = my_task.get_property('fields', [])
-                aggregate = my_task.get_property('aggregate_field',[])
+                aggregate = my_task.get_property('aggregate_field', [])
                 data = {}
                 for field in fields:
                     parts = field.split('/')
                     current = my_task.attributes
                     for part in parts:
                         if part not in current:
-                            LOG.warn("Could not locate {} in task attributes".format(field))
+                            LOG.warn("Could not locate {} in task attributes"
+                                     .format(field))
                             current = None
-                            break;
+                            break
                         current = current[part]
                     if current:
                         data[part] = current
@@ -604,10 +653,11 @@ class Provider(ProviderBase):
                 else:
                     LOG.warn("Could not find values to set for {}".format(key))
 
-            compile_override = Transform(wfspec, "Get %s values for %s" %
-                    (relation_key, key),
+            compile_override = Transform(wfspec, "Get %s values for %s (%s)" %
+                    (relation_key, key, resource['service']),
                     transforms=[get_source_body(
-                        get_attribute_code if 'attribute' in relation else get_fields_code)],
+                        get_attribute_code if 'attribute' in relation
+                        else get_fields_code)],
                     description="Get all the variables "
                             "we need (like database name and password) and "
                             "compile them into JSON that we can set on the "
@@ -623,7 +673,7 @@ class Provider(ProviderBase):
             # When target is ready, compile data
             wait_for(wfspec, compile_override, [target_final])
             # Feed data into collection task
-            tasks = [self.collect_data_tasks['root']]
+            tasks = [self.collect_data_tasks[resource['service']]['root']]
             #tasks = self.find_tasks(wfspec, provider=resource['provider'],
             #        resource=key, tag='final')
             if tasks:
@@ -640,33 +690,38 @@ class Provider(ProviderBase):
 
             # Create chef setup tasks
             register_node_task = Celery(wfspec,
-                    'Register Server %s' % relation['target'],
+                    'Register Server %s (%s)' % (relation['target'],
+                                                 resource['service']),
                     'checkmate.providers.opscode.local.register_node',
                     call_args=[
                             PathAttrib('instance:%s/ip' % relation['target']),
                             deployment['id']],
                     password=PathAttrib('instance:%s/password' %
                             relation['target']),
+                    kitchen_name=resource['service'],
                     omnibus_version="10.12.0-1",
                     identity_file=Attrib('private_key_path'),
                     attributes={'deployment': {'id': deployment['id']}},
                     defines=dict(resource=key,
                                 relation=relation_key,
                                 provider=self.key),
-                    description="Install Chef client on the target machine and "
-                           "register it in the environment",
+                    description="Install Chef client on the target machine "
+                            "and register it in the environment",
                     properties=dict(estimated_duration=120))
 
             bootstrap_task = Celery(wfspec,
-                    'Pre-Configure Server %s' % relation['target'],
+                    'Pre-Configure Server %s (%s)' % (relation['target'],
+                                                      resource['service']),
                     'checkmate.providers.opscode.local.cook',
                     call_args=[
                             PathAttrib('instance:%s/ip' % relation['target']),
                             deployment['id']],
                     password=PathAttrib('instance:%s/password' %
                             relation['target']),
+                    kitchen_name=resource['service'],
                     identity_file=Attrib('private_key_path'),
-                    description="Install basic pre-requisites on %s" % relation['target'],
+                    description="Install basic pre-requisites on %s"
+                                % relation['target'],
                     defines=dict(resource=key,
                                  relation=relation_key,
                                  provider=self.key),
@@ -675,10 +730,10 @@ class Provider(ProviderBase):
             bootstrap_task.follow(register_node_task)
 
             # Register only when server is up and environment is ready
-            wait_on.append(self.prep_task)
+            wait_on.append(self.prep_task[resource['service']])
             root = wait_for(wfspec, register_node_task, wait_on,
-                    name="After Environment is Ready and Server %s is Up" %
-                            relation['target'],
+                    name="After Environment is Ready and Server %s (%s) is Up"
+                            % (relation['target'], resource['service']),
                     resource=key, relation=relation_key, provider=self.key)
             if 'task_tags' in root.properties:
                 root.properties['task_tags'].append('root')
@@ -755,7 +810,7 @@ class Provider(ProviderBase):
                 return Component(**cookbook)
         except CheckmateIndexError:
             pass
-        
+
         chef_role = self._get_role(id, context)
         if chef_role:
             if role:
@@ -771,8 +826,9 @@ class Provider(ProviderBase):
         cookbooks = self._get_cookbook_names(site_cookbooks=site_cookbooks)
         # Load individual cookbooks
         for name in cookbooks.keys():
-            data = self._get_cookbook(context, cookbooks.get('source_name', name),
-                    site_cookbook=site_cookbooks)
+            data = self._get_cookbook(context,
+                                      cookbooks.get('source_name', name),
+                                      site_cookbook=site_cookbooks)
             if data:
                 results[data['id']] = data
         return results
@@ -788,7 +844,7 @@ class Provider(ProviderBase):
             path = os.path.join(repo_path, 'cookbooks')
 
         names = []
-        for top, dirs, files in os.walk(path): #@UnusedVariable
+        for top, dirs, files in os.walk(path):  # @UnusedVariable
             names = [name for name in dirs if name[0] != '.']
             break
 
@@ -828,7 +884,7 @@ class Provider(ProviderBase):
         component = {'is': 'application'}
         if os.path.exists(metadata_json_path):
             with file(metadata_json_path, 'r') as f:
-                data = json.load(f)            
+                data = json.load(f)
             canonical_name = schema.translate(data['name'])
             component['id'] = canonical_name
             if data['name'] != canonical_name:
@@ -876,10 +932,10 @@ class Provider(ProviderBase):
                 component['requires'].append(dict(host='linux'))
         else:
             component['requires'] = [dict(host='linux')]
-        LOG.debug("Processing dependencies for cookbook %s" % 
+        LOG.debug("Processing dependencies for cookbook %s" %
                   os.path.dirname(metadata_json_path).split(os.path.sep)[-1])
         self._process_component_deps(context, component)
-        
+
         return component
 
     def _get_roles(self, context):
@@ -889,7 +945,7 @@ class Provider(ProviderBase):
         path = os.path.join(repo_path, 'roles')
 
         names = []
-        for top, dirs, files in os.walk(path): #@UnusedVariable
+        for top, dirs, files in os.walk(path):  # @UnusedVariable
             names = [name for name in files if name.endswith('.json')]
             break
 
@@ -928,6 +984,8 @@ class Provider(ProviderBase):
         component['id'] = "%s-role" % data['name']
         if data.get('description'):
             component['summary'] = data['description']
+        if 'is' in data:
+            component['is'] = data['is']
         if 'run_list' in data:
             dependencies = []
             for value in data['run_list']:
@@ -949,7 +1007,7 @@ class Provider(ProviderBase):
                 component['options'] = options  # already translated
         self._process_component_deps(context, component)
         return component
-    
+
     def _process_component_deps(self, context, component):
         if component:
             for dep in component.get('dependencies', []):
@@ -989,7 +1047,7 @@ class Provider(ProviderBase):
         translated name
         """
         options = {}
-        for key, option in native_options.iteritems():    
+        for key, option in native_options.iteritems():
             canonical = schema.translate(key)
             translated = {}
             if 'display_name' in option:
@@ -1057,13 +1115,13 @@ from subprocess import check_output, CalledProcessError, Popen, PIPE
 import sys
 import threading
 
-from celery.task import task #@UnresolvedImport
+from celery.task import task  # @UnresolvedImport
 
 from checkmate.ssh import execute as ssh_execute
 
 
 @task
-def create_environment(name, path=None, private_key=None,
+def create_environment(name, service_name, path=None, private_key=None,
         public_key_ssh=None, secret_key=None):
     """Create a knife-solo environment
 
@@ -1094,9 +1152,9 @@ def create_environment(name, path=None, private_key=None,
 
     # Kitchen is created in a /kitchen subfolder since it gets completely
     # rsynced to hosts. We don't want the whole environment rsynced
-    kitchen_data = _create_kitchen('kitchen', fullpath,
+    kitchen_data = _create_kitchen(service_name, fullpath,
             secret_key=secret_key)
-    kitchen_path = os.path.join(fullpath, 'kitchen')
+    kitchen_path = os.path.join(fullpath, service_name)
 
     # Copy environment public key to kitchen certs folder
     public_key_path = os.path.join(fullpath, 'checkmate.pub')
@@ -1104,13 +1162,13 @@ def create_environment(name, path=None, private_key=None,
             'checkmate-environment.pub')
     shutil.copy(public_key_path, kitchen_key_path)
     LOG.debug("Wrote environment public key to kitchen: %s" % kitchen_key_path)
-    
+
     _init_cookbook_repo(os.path.join(kitchen_path, 'cookbooks'))
     # Temporary Hack: load all cookbooks and roles from chef-stockton
     # TODO: Undo this and use more git
-    download_cookbooks(name, path=root)
-    download_cookbooks(name, path=root, use_site=True)
-    download_roles(name, path=root)
+    download_cookbooks(name, service_name, path=root)
+    download_cookbooks(name, service_name, path=root, use_site=True)
+    download_roles(name, service_name, path=root)
 
     results.update(kitchen_data)
     results.update(key_data)
@@ -1151,18 +1209,19 @@ def _create_kitchen(name, path, secret_key=None):
             raise CheckmateException("Kitchen already exists and seems to "
                     "have nodes defined in it: %s" % nodes_path)
     else:
-        # we don't pass the config file here becasuse we're creating the kitchen
-        # for the first time and knife will overwrite our config file
+        # we don't pass the config file here becasuse we're creating the
+        # kitchen for the first time and knife will overwrite our config file
         params = ['knife', 'kitchen', '.']
         _run_kitchen_command(kitchen_path, params)
 
     solo_file, secret_key_path = _write_knife_config_file(kitchen_path)
-    
+
     # Copy bootstrap.json to the kitchen
     repo_path = _get_repo_path()
     bootstrap_path = os.path.join(repo_path, 'bootstrap.json')
     if not os.path.exists(bootstrap_path):
-        raise CheckmateException("Invalid master repo. {} not found".format(bootstrap_path))
+        raise CheckmateException("Invalid master repo. {} not found"
+                                 .format(bootstrap_path))
     shutil.copy(bootstrap_path, os.path.join(kitchen_path, 'bootstrap.json'))
 
     # Create certificates folder
@@ -1306,7 +1365,7 @@ def _init_cookbook_repo(cookbooks_path):
 
 
 @task
-def download_cookbooks(environment, path=None, cookbooks=None,
+def download_cookbooks(environment, service_name, path=None, cookbooks=None,
         source=None, use_site=False):
     """Download cookbooks from a remote repo
     :param environment: the name of the kitchen/environment environment.
@@ -1327,7 +1386,7 @@ def download_cookbooks(environment, path=None, cookbooks=None,
     fullpath = os.path.join(root, environment)
     if not os.path.exists(fullpath):
         raise CheckmateException("Environment does not exist: %s" % fullpath)
-    kitchen_path = os.path.join(fullpath, 'kitchen')
+    kitchen_path = os.path.join(fullpath, service_name)
     if not os.path.exists(kitchen_path):
         raise CheckmateException("Kitchen does not exist: %s" % kitchen_path)
 
@@ -1365,7 +1424,8 @@ def download_cookbooks(environment, path=None, cookbooks=None,
 
 
 @task
-def download_roles(environment, path=None, roles=None, source=None):
+def download_roles(environment, service_name, path=None, roles=None,
+                   source=None):
     """Download roles from a remote repo
     :param environment: the name of the kitchen/environment environment.
         It should have a roles subfolder.
@@ -1384,7 +1444,7 @@ def download_roles(environment, path=None, roles=None, source=None):
     fullpath = os.path.join(root, environment)
     if not os.path.exists(fullpath):
         raise CheckmateException("Environment does not exist: %s" % fullpath)
-    kitchen_path = os.path.join(fullpath, 'kitchen')
+    kitchen_path = os.path.join(fullpath, service_name)
     if not os.path.exists(kitchen_path):
         raise CheckmateException("Kitchen does not exist: %s" % kitchen_path)
 
@@ -1422,7 +1482,8 @@ def download_roles(environment, path=None, roles=None, source=None):
 
 @task
 def register_node(host, environment, path=None, password=None,
-        omnibus_version=None, attributes=None, identity_file=None):
+        omnibus_version=None, attributes=None, identity_file=None,
+        kitchen_name='kitchen'):
     """Register a node in Chef.
 
     Using 'knife prepare' we will:
@@ -1444,7 +1505,7 @@ def register_node(host, environment, path=None, password=None,
     match_celery_logging(LOG)
     # Get path
     root = _get_root_environments_path(path)
-    kitchen_path = os.path.join(root, environment, 'kitchen')
+    kitchen_path = os.path.join(root, environment, kitchen_name)
     if not os.path.exists(kitchen_path):
         raise CheckmateException("Environment kitchen does not exist: %s" %
                 kitchen_path)
@@ -1527,8 +1588,9 @@ def _run_kitchen_command(kitchen_path, params, lock=True):
             raise exc
         except CalledProcessError, exc:
             #retry and pass ex
-            # CalledProcessError cannot be serialized using Pickle, so raising it would fail in celery;
-            # we wrap the exception in something Pickle-able.
+            # CalledProcessError cannot be serialized using Pickle, so raising
+            # it would fail in celery; we wrap the exception in something
+            # Pickle-able.
             raise CheckmateCalledProcessError(exc.returncode, exc.cmd,
                     output=exc.output)
         finally:
@@ -1572,18 +1634,19 @@ def _run_kitchen_command(kitchen_path, params, lock=True):
 
 @task(countdown=20, max_retries=3)
 def cook(host, environment, recipes=None, roles=None, path=None,
-            username='root', password=None, identity_file=None, port=22):
+         username='root', password=None, identity_file=None, port=22,
+         kitchen_name='kitchen'):
     """Apply recipes/roles to a server"""
     match_celery_logging(LOG)
     root = _get_root_environments_path(path)
-    kitchen_path = os.path.join(root, environment, 'kitchen')
+    kitchen_path = os.path.join(root, environment, kitchen_name)
     if not os.path.exists(kitchen_path):
         raise CheckmateException("Environment kitchen does not exist: %s" %
                 kitchen_path)
     node_path = os.path.join(kitchen_path, 'nodes', '%s.json' % host)
     if not os.path.exists(node_path):
-        cook.retry(exc=CheckmateException("Node '%s' is not registered in %s" 
-                                          % (host,kitchen_path)))
+        cook.retry(exc=CheckmateException("Node '%s' is not registered in %s"
+                                          % (host, kitchen_path)))
 
     # Add any missing recipes to node settings
     run_list = []
@@ -1632,17 +1695,19 @@ def cook(host, environment, recipes=None, roles=None, path=None,
         params.extend(['-p', str(port)])
     _run_kitchen_command(kitchen_path, params)
 
+
 @task(countdown=20, max_retries=3)
 def manage_role(name, environment, path=None, desc=None,
         run_list=None, default_attributes=None, override_attributes=None,
-        env_run_lists=None):
+        env_run_lists=None, kitchen_name='kitchen'):
     """Write/Update role"""
     match_celery_logging(LOG)
     root = _get_root_environments_path(path)
-    kitchen_path = os.path.join(root, environment, 'kitchen')
+    kitchen_path = os.path.join(root, environment, kitchen_name)
     if not os.path.exists(kitchen_path):
-        manage_role.retry(exc=CheckmateException("Environment does not exist: %s" %
-                kitchen_path))
+        manage_role.retry(exc=CheckmateException(
+                             "Environment does not exist: %s" %
+                             kitchen_path))
     the_ruby = os.path.join(kitchen_path, 'roles', '%s.rb' % name)
     if os.path.exists(the_ruby):
         raise CheckmateException("Encountered a chef role in Ruby. Only JSON "
@@ -1680,7 +1745,7 @@ def manage_role(name, environment, path=None, desc=None,
 
 @task
 def manage_databag(environment, bagname, itemname, contents,
-        path=None, secret_file=None, merge=True):
+        path=None, secret_file=None, merge=True, kitchen_name='kitchen'):
     """Updates a data_bag or encrypted_data_bag
 
     :param environment: the ID of the environment
@@ -1695,7 +1760,7 @@ def manage_databag(environment, bagname, itemname, contents,
     """
     match_celery_logging(LOG)
     root = _get_root_environments_path(path)
-    kitchen_path = os.path.join(root, environment, 'kitchen')
+    kitchen_path = os.path.join(root, environment, kitchen_name)
     databags_root = os.path.join(kitchen_path, 'data_bags')
     if not os.path.exists(databags_root):
         raise CheckmateException("Data bags path does not exist: %s" %

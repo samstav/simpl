@@ -141,21 +141,23 @@ def get_domains(deployment, limit=None, offset=None):
 
 
 @task(default_retry_delay=10, max_retries=10)
-def create_domain(context, domain, email='soa_placeholder@example.com',
-                  ttl=300):
+def create_domain(context, domain, email=None,
+                  dom_ttl=300):
     match_celery_logging(LOG)
     api = _get_dns_object(context)
+    if not email:
+        email = "admin@%s" % domain
     try:
-        api.create_domain(name=domain, ttl=ttl, emailAddress=email)
+        api.create_domain(name=domain, ttl=dom_ttl, emailAddress=email)
         LOG.debug('Domain %s created.' % domain)
-    except InvalidDomainName, exc:
+    except InvalidDomainName as exc:
         LOG.debug('Domain %s is invalid.  Refusing to retry.' % domain)
-        return
-    except ResponseError, r:
+        raise exc
+    except ResponseError as r:
         LOG.debug('Error creating domain %s.(%s) %s. Retrying.' % (
             domain, r.status, r.reason))
         create_domain.retry(exc=r)
-    except Exception, exc:
+    except Exception as exc:
         LOG.debug('Unknown error creating domain %s. Error: %s. Retrying.' % (
                   domain, str(exc)))
         create_domain.retry(exc=exc)
@@ -191,8 +193,8 @@ def delete_domain(context, name):
 
 @task(default_retry_delay=20, max_retries=10)
 def create_record(context, domain, name, dnstype, data,
-                  ttl=1800, makedomain=False,
-                  email='soa_placeholder@example.com'):
+                  rec_ttl=1800, makedomain=False,
+                  email=None):
     match_celery_logging(LOG)
     api = _get_dns_object(context)
     try:
@@ -202,6 +204,8 @@ def create_record(context, domain, name, dnstype, data,
             LOG.debug('Cannot create %s record (%s->%s) because %s does not '
                       'exist. Creating %s and retrying.' % (
                       dnstype, name, data, domain, domain))
+            if not email:
+                email = "admin@%s" % domain
             create_domain.delay(context, domain, email=email)
             create_record.retry(exc=exc)
         else:
@@ -212,21 +216,21 @@ def create_record(context, domain, name, dnstype, data,
     except Exception, exc:
         LOG.debug('Error finding domain %s.  Wanting to create %s record (%s'
                   '->%s TTL: %s). Error %s. Retrying.' % (
-                  domain, dnstype, name, data, ttl, str(exc)))
+                  domain, dnstype, name, data, rec_ttl, str(exc)))
         create_record.retry(exc=exc)
 
     try:
-        domain_object.create_record(name, data, dnstype, ttl=ttl)
+        domain_object.create_record(name, data, dnstype, ttl=rec_ttl)
         LOG.debug('Created DNS %s record %s -> %s. TTL: %s' % (
-                  dnstype, name, data, ttl))
+                  dnstype, name, data, rec_ttl))
     except ResponseError, r:
         LOG.debug('Error creating DNS %s record %s -> %s. TTL: %s Error: %s '
                   '%s. Retrying.' % (
-                  dnstype, name, data, ttl, r.status, r.reason))
+                  dnstype, name, data, rec_ttl, r.status, r.reason))
         create_record.retry(exc=r)
     except Exception, exc:
         LOG.debug('Error creating DNS %s record %s -> %s. TTL: %s Error: %s.'
-                  ' Retrying.' % (dnstype, name, data, ttl, str(exc)))
+                  ' Retrying.' % (dnstype, name, data, rec_ttl, str(exc)))
         create_record.retry(exc=exc)
 
 

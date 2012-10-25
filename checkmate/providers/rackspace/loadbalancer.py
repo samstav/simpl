@@ -43,7 +43,13 @@ class Provider(ProviderBase):
         proto = deployment.get_setting("protocol", resource_type="load-balancer",
                                        service_name=resource.get('service', None), 
                                        default="HTTP")
+        dns = str(deployment.get_setting("create_dns", resource_type="load-balancer",
+                                       service_name=resource.get('service', None), 
+                                       default="false"))
+        dns = (dns.lower() == 'true' or dns == '1' or dns.lower() == 'yes')
         # handle our custom protocol
+        # TODO: add support for arbitrary combinations of secure and
+        #       unsecure protocols (ftp/ftps for example)
         dual = ("http_and_https" == proto)
         if dual:
             proto = "http"
@@ -61,7 +67,8 @@ class Provider(ProviderBase):
                 defines=dict(resource=key,
                         provider=self.key,
                         task_tags=['create','root','final']),
-                properties={'estimated_duration': 30})
+                properties={'estimated_duration': 30},
+                dns=dns)
         final = create_lb
         if dual:
             resource2 = deepcopy(resource)
@@ -200,10 +207,21 @@ class Provider(ProviderBase):
         if type_filter is None or type_filter == 'load-balancer':
             protocols = api.get_protocols()
             # add our custom protocol for handling both http and https on same vip
+            # TODO: add support for arbitrary combinations of secure and unsecure
+            #       protocols (ftp/ftps for example)
             if not "http_and_https" in protocols:
                 protocols.extend(["http_and_https"])
             algorithms = api.get_algorithms()
-            options = {'algorithm': {'type': 'list', 'choice': algorithms}}
+            options = {
+                'algorithm':{
+                    'type': 'list', 
+                    'choice': algorithms
+                },
+                'create_dns':{
+                    'type': 'boolean',
+                    'default': 'false'
+                }
+             }
             options.update({'protocol':{'type':'list', 'choice': [p.lower() for p in protocols]}})
             
             results['load-balancer'] = {
@@ -338,15 +356,16 @@ def create_loadbalancer(context, name, vip_type, protocol, region,
         
     # update our assigned vip
     for ip in lb.virtualIps:
-        if ip.ipVersion == 'IPV4':
+        if ip.ipVersion == 'IPV4' and ip.type == "PUBLIC":
             vip = ip.address
 
     LOG.debug('Load balancer %d created.  VIP = %s' % (lb.id, vip))
     
     #FIXME: This should be handled by the DNS provider, not this one!
     if dns:
-        create_record.delay(context, parse_domain(name), name, #@UndefinedVariable
-                                       'A', vip, region, ttl=300)
+        create_record.delay(context, parse_domain(name), '.'.join(name.split('.')[1:]), #@UndefinedVariable
+                                       'A', vip, rec_ttl=300,
+                                       makedomain=True)
     
     # attach an appropriate monitor for our nodes
     monitor_type = protocol.upper()
