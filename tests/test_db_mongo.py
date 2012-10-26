@@ -40,6 +40,7 @@ class TestDatabase(unittest.TestCase):
     def setUp(self):
         self.collection_name = 'checkmate_test_%s' % uuid.uuid4().hex
         self.driver = db.get_driver('checkmate.db.mongodb.Driver')
+        print self.driver.__class__
         self.driver.connection_string = 'mongodb://checkmate:%s@mongo-n01.dev.chkmate.rackspace.net:27017/checkmate' % ('c%40m3yt1ttttt',)
         #self.connection_string = 'localhost'
         self.driver._connection = self.driver._database = None  # reset driver

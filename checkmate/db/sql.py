@@ -228,6 +228,7 @@ class Driver(DbBase):
         overwrite the secrets. To clear the secrets for an object, a non-None
         dict needs to be passed in: ex. {}
         """
+        print "HERE"
         if isinstance(body, ExtensibleDict):
             body = body.__dict__()
         assert isinstance(body, dict), "dict required by sqlalchemy backend"
