@@ -39,8 +39,10 @@ def any_id_problems(id):
     return None
 
 
-def get_driver(name=None):
+def get_driver(name=None, DB_reset=False):
     global DB
+    if DB_reset:
+        DB = None
     print "DB: %s" % DB
     print "Name: %s" % name
     if DB is None:
