@@ -517,36 +517,36 @@ class TestDeploymentSettings(unittest.TestCase):
                   'expected': "value"
                 },
                 {
-                'case': "Set in blueprint/inputs",
-                'name': "domain",
-                'expected': "example.com",
+                  'case': "Set in blueprint/inputs",
+                  'name': "domain",
+                  'expected': "example.com",
                 }, {
-                'case': "Set in blueprint/inputs with service/provider scope",
-                'name': "os",
-                'service': "web",
-                'expected': "Ubuntu 11.10",
+                  'case': "Set in blueprint/inputs with service/provider scope",
+                  'name': "os",
+                  'service': "web",
+                  'expected': "Ubuntu 11.10",
                 }, {
-                'case': "Set in blueprint/inputs with no service scope",
-                'name': "os",
-                'expected': None,
+                  'case': "Set in blueprint/inputs with no service scope",
+                  'name': "os",
+                  'expected': None,
                 }, {
-                'case': "Set in blueprint/service under provider/resource",
-                'name': "memory",
-                'service': "web",
-                'type': 'compute',
-                'expected': "2 Gb",
+                  'case': "Set in blueprint/service under provider/resource",
+                  'name': "memory",
+                  'service': "web",
+                  'type': 'compute',
+                  'expected': "2 Gb",
                 }, {
-                'case': "Set in environments/providers/common",
-                'name': "region",
-                'provider': "common",
-                'service': "constraints",
-                'expected': "place",
+                  'case': "Set in environments/providers/common",
+                  'name': "region",
+                  'provider': "common",
+                  'service': "constraints",
+                  'expected': "place",
                 },  {
-                'case': "Set in blueprint/providers",
-                'name': "memory",
-                'type': 'compute',
-                'expected': "4 Gb",
-                'add': """ - FIXME: broken without env providers
+                  'case': "Set in blueprint/providers",
+                  'name': "memory",
+                  'type': 'compute',
+                  'expected': "4 Gb",
+                  'add': """ - FIXME: broken without env providers
                     environment:
                       name: environment
                       providers:

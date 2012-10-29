@@ -41,7 +41,6 @@ class TestDatabase(unittest.TestCase):
         if 'sqlite' in os.environ.get('CHECKMATE_CONNECTION_STRING'):
             #If our test suite is using sqlite, we need to set this particular process (test) to use mongo
             os.environ['CHECKMATE_CONNECTION_STRING'] = 'mongodb://localhost'
-        print "conn_string in test: %s" % os.environ.get('CHECKMATE_CONNECTION_STRING')
         self.collection_name = 'checkmate_test_%s' % uuid.uuid4().hex
         self.driver = db.get_driver('checkmate.db.mongodb.Driver', True)
         self.driver.connection_string = 'mongodb://checkmate:%s@mongo-n01.dev.chkmate.rackspace.net:27017/checkmate' % ('c%40m3yt1ttttt',)

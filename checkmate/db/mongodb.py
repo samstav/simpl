@@ -18,7 +18,6 @@ class Driver(DbBase):
     def __init__(self, *args, **kwargs):
         """Initializes globals for this driver"""
         DbBase.__init__(self, *args, **kwargs)
-        print "conn_string in mongo: %s" % os.environ.get('CHECKMATE_CONNECTION_STRING')
         self.connection_string = os.environ.get('CHECKMATE_CONNECTION_STRING',
                                                 'mongodb://localhost')
         self.db_name = pymongo.uri_parser.parse_uri(self.connection_string
