@@ -8,9 +8,9 @@ import base64
 from collections import MutableMapping
 import inspect
 import json
-import logging
 import logging.config
 import os
+import re
 import struct
 import sys
 from time import gmtime, strftime
@@ -28,12 +28,12 @@ from checkmate.exceptions import CheckmateNoData, CheckmateValidationException
 LOG = logging.getLogger(__name__)
 RESOURCES = ['deployments', 'workflows', 'blueprints', 'environments',
         'components', 'providers', 'test', 'status']
-STATIC = ['test','version']
-#TODO: make this wildcards (0.password, 1.password, client_private_key,
-# etc... will be returned)
-DEFAULT_SENSITIVE_KEYS = ['credentials', 'password', 'apikey', 'token',
-        'authtoken', 'db_password', 'ssh-private-key', 'private_key',
-        'environment_private_key', 'ssh_priv_key']
+STATIC = ['test', 'version']
+
+DEFAULT_SENSITIVE_KEYS = ['credentials', 'apikey',
+        re.compile("(?:(?:auth)|(?:api))?[-_ ]?token$"),
+        re.compile("priv(?:ate)?[-_ ]?key$"),
+        re.compile('password')]
 
 
 def get_debug_level():
@@ -274,7 +274,17 @@ def extract_sensitive_data(data, sensitive_keys=None):
     the sensitive data.
     :param sensitive_keys: a list of keys considered sensitive"""
 
-    def recursive_split(data, sensitive_keys=None):
+    def key_match(key, sensitive_keys):
+        if key in sensitive_keys:
+            return True
+        for reg_expr in [pattern for pattern in sensitive_keys
+                          if hasattr(pattern, "search")
+                          and callable(getattr(pattern, "search"))]:
+            if reg_expr.search(key):
+                return True
+        return False
+
+    def recursive_split(data, sensitive_keys=[]):
         """Returns split of a dict or list if it contains any of the sensitive
         fields"""
         clean = None
@@ -319,7 +329,7 @@ def extract_sensitive_data(data, sensitive_keys=None):
             clean = {}
             sensitive = {}
             for key, value in data.iteritems():
-                if key in sensitive_keys:
+                if key_match(key, sensitive_keys):
                     has_sensitive_data = True
                     sensitive[key] = value
                 elif isinstance(value, dict):
