@@ -48,7 +48,6 @@ def get_driver(name=None):
             if connection_string.startswith('mongodb://'):
                 name = 'checkmate.db.mongodb.Driver'
             else:
-                print "else"
                 name = 'checkmate.db.sql.Driver'
         LOG.debug("Initializing database engine: %s" % name)
         driver = utils.import_class(name)
