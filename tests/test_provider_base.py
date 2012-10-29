@@ -241,7 +241,7 @@ class TestProviderBaseWorkflow(StubbedWorkflowBase):
                     'kwargs': None,
                     'result': None,
                 })
-        self.workflow = self._get_stubbed_out_workflow()
+        self.workflow = self._get_stubbed_out_workflow(expected_calls=expected)
  
     def test_workflow_completion(self):
         """Verify workflow sequence and data flow"""
