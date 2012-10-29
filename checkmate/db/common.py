@@ -41,8 +41,11 @@ def any_id_problems(id):
 
 def get_driver(name=None):
     global DB
+    print "DB: %s" % DB
+    print "name: %s" % name
     if DB is None:
         if not name:
+            print "conn_string in common: %s" % os.environ.get('CHECKMATE_CONNECTION_STRING')
             connection_string = os.environ.get('CHECKMATE_CONNECTION_STRING',
                     'sqlite://')
             if connection_string.startswith('mongodb://'):
