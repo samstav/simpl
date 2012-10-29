@@ -245,7 +245,6 @@ class TestProviderBaseWorkflow(StubbedWorkflowBase):
  
     def test_workflow_completion(self):
         """Verify workflow sequence and data flow"""
-	print "workflow: %s" % self.workflow
         self.mox.ReplayAll()
 
         self.workflow.complete_all()
