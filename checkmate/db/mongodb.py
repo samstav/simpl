@@ -1,12 +1,13 @@
+import pymongo
 import logging
 import os
 
-import pymongo
-
 from checkmate.classes import ExtensibleDict
-from checkmate.db.common import *
+from checkmate.db.common import DbBase
 from checkmate.exceptions import CheckmateDatabaseConnectionError
 from checkmate.utils import merge_dictionary
+from SpiffWorkflow.util import merge_dictionary as collate
+
 
 LOG = logging.getLogger(__name__)
 
@@ -107,11 +108,8 @@ class Driver(DbBase):
                 secrets = self.database()['%s_secrets' % klass].find_one(
                         {'_id': id}, {'_id': 0})
                 if secrets:
-                    return merge_dictionary(results, secrets)
-                else:
-                    return results
-            else:
-                return results
+                    merge_dictionary(results, secrets)
+            return results
 
     def get_objects(self, klass, tenant_id=None, with_secrets=None):
         if tenant_id:
@@ -126,7 +124,7 @@ class Driver(DbBase):
                     secrets = self.database()['%s_secrets' % klass].find_one(
                             {'_id': entry['id']}, {'_id': 0})
                     if secrets:
-                        response[entry['id']] = utils.merge_dictionary(entry,
+                        response[entry['id']] = merge_dictionary(entry,
                                                                        secrets)
                     else:
                         response[entry['id']] = entry
@@ -137,7 +135,7 @@ class Driver(DbBase):
         else:
             return {}
 
-    def save_object(self, klass, id, body, secrets=None, tenant_id=None):
+    def save_object(self, klass, obj_id, body, secrets=None, tenant_id=None):
         """Clients that wish to save the body but do/did not have access to
         secrets will by default send in None for secrets. We must not have that
         overwrite the secrets. To clear the secrets for an object, a non-None
@@ -150,18 +148,23 @@ class Driver(DbBase):
 
         if secrets is not None:
             if not secrets:
-                LOG.warning("Clearing secrets for %s:%s" % (klass, id))
-                #TODO: to catch bugs. We can remove when we're comfortable
+                LOG.warning("Clearing secrets for %s:%s" % (klass, obj_id))
+                # TODO: to catch bugs. We can remove when we're comfortable
                 assert False, "CLEARING CREDS! Is that intended?!!!!"
-
+            else:
+                cur_secrets = self.database()['%s_secrets' % klass].find_one(
+                            {'_id': obj_id}, {'_id': 0})
+                if cur_secrets:
+                    collate(cur_secrets, secrets, extend_lists=True)
+                    secrets = cur_secrets
         if tenant_id:
             body['tenantId'] = tenant_id
         assert tenant_id or 'tenantId' in body, "tenantId must be specified"
-        body['_id'] = id
-        self.database()[klass].update({'_id': id}, body, True, False)
+        body['_id'] = obj_id
+        self.database()[klass].update({'_id': obj_id}, body, True, False)
         if secrets:
-            secrets['_id'] = id
-            self.database()['%s_secrets' % klass].update({'_id': id}, secrets,
-                    True, False)
+            secrets['_id'] = obj_id
+            self.database()['%s_secrets' % klass].update({'_id': obj_id},
+                secrets, True, False)
         del body['_id']
         return body

@@ -7,6 +7,7 @@ from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.pool import StaticPool
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, scoped_session
+from copy import deepcopy
 
 try:
     # pylint: disable=E0611
@@ -19,6 +20,7 @@ from checkmate.db import migration
 from checkmate.db.common import *
 from checkmate.exceptions import CheckmateDatabaseMigrationError
 from checkmate.utils import merge_dictionary
+from SpiffWorkflow.util import merge_dictionary as collate
 
 
 __all__ = ['Base', 'Environment', 'Blueprint', 'Deployment', 'Component',
@@ -191,7 +193,10 @@ class Driver(DbBase):
         if results and results.count() > 0:
             first = results.first()
             body = first.body
-            body['tenantId'] = first.tenant_id
+            if "tenantId" in body:
+                first.tenant_id = body["tenantId"]
+            elif first.tenant_id:
+                body['tenantId'] = first.tenant_id
             if with_secrets == True:
                 if first.secrets:
                     return merge_dictionary(body, first.secrets)
@@ -238,14 +243,21 @@ class Driver(DbBase):
             e.body = body
             if tenant_id:
                 e.tenant_id = tenant_id
+            elif "tenantId" in body:
+                e.tenant_id = body.get("tenantId")
             assert tenant_id or e.tenant_id, "tenantId must be specified"
             if secrets is not None:
                 if not secrets:
                     LOG.warning("Clearing secrets for %s:%s" % (klass.__name__,
                             id))
-                    #TODO: to catch bugs. We can remove when we're comfortable
+                    # TODO: to catch bugs. We can remove when we're comfortable
                     raise Exception("CLEARING CREDS! Why?!!!!")
-                e.secrets = secrets
+                else:
+                    if not e.secrets:
+                        e.secrets = {}
+                    new_secrets = deepcopy(e.secrets)
+                    collate(new_secrets, secrets, extend_lists=True)
+                    e.secrets = new_secrets
         else:
             assert tenant_id or 'tenantId' in body, \
                     "tenantId must be specified"

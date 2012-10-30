@@ -194,6 +194,16 @@ class ProviderBaseWorkflowMixIn():
                     tasks.extend(relation_final)
         return tasks
 
+    def get_host_complete_task(self, wfspec, resource):
+        """
+        Get the task tagged as 'complete' (if any) for the resource's
+        host
+        """
+        tasks = self.find_tasks(wfspec,
+                                resource=resource.get('hosted_on', None),
+                                tag='complete')
+        if tasks:  # should only be one
+            return tasks[0]
 
 class ProviderBasePlanningMixIn():
     """The methods used by the deployment planning code (i.e. they need a

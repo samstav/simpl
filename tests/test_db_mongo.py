@@ -9,6 +9,7 @@ from pymongo.errors import AutoReconnect, InvalidURI
 
 # Init logging before we load the database, 3rd party, and 'noisy' modules
 from checkmate.utils import init_console_logging
+from copy import deepcopy
 init_console_logging()
 LOG = logging.getLogger(__name__)
 
@@ -48,6 +49,87 @@ class TestDatabase(unittest.TestCase):
         except Exception as exc:
             LOG.error("Error deleting test mongodb '%s': %s" % (self.db_name,
                                                                 exc))
+
+    @unittest.skipIf(SKIP, REASON)
+    def test_update_secrets(self):
+        _id = uuid.uuid4()
+        data = {
+            "id": _id,
+            "tenantId": "12345",
+            "employee": {
+                "name": "Bob",
+                "title": "Mr.",
+                "ssh_public_key": "rsa public key",
+                "ssh_private_key": "a private key",
+                "password": "password",
+                "position": "left"
+            },
+            "server": {
+                "access": {
+                    "server_root_password": "password",
+                    "server_privatekey": "private_key",
+                    "server_public_key": "public_key"
+                },
+                "private_ip": "123.45.67.89",
+                "public_ip": "127.0.0.1",
+                "host_name": "server1"
+            },
+            "safe_val": "hithere",
+            "secret_value": "Immasecret"
+        }
+
+        safe = {
+            "id": _id,
+            "tenantId": "12345",
+            "employee": {
+                "name": "Bob",
+                "title": "Mr.",
+                "ssh_public_key": "rsa public key",
+                "position": "left"
+            },
+            "server": {
+                "access": {
+                    "server_public_key": "public_key"
+                },
+                "private_ip": "123.45.67.89",
+                "public_ip": "127.0.0.1",
+                "host_name": "server1"
+            },
+            "safe_val": "hithere",
+            "secret_value": "Immasecret"
+        }
+
+        secret = {
+            "employee": {
+                "ssh_private_key": "a private key",
+                "password": "password",
+            },
+            "server": {
+                "access": {
+                    "server_root_password": "password",
+                    "server_privatekey": "private_key",
+                }
+            }
+        }
+        original = deepcopy(data)
+        body, secrets = extract_sensitive_data(data)
+        self.assertDictEqual(safe, body)
+        self.assertDictEqual(secret, secrets)
+        results = self.driver.save_object("unittest", _id, body,
+                                          secrets=secrets)
+        self.assertDictEqual(results, body)
+        # retrieve the object with secrets to make sure we get them correctly
+        results = self.driver.get_object("unittest", _id, with_secrets=True)
+        self.assertDictEqual(original, results)
+        # use the "safe" version and add a new secret
+        results = self.driver.save_object("unittest", _id, safe,
+                                secrets={"global_password": "password secret"})
+        self.assertDictEqual(safe, results)
+        # update the copy with the new secret
+        original['global_password'] = "password secret"
+        # retrieve with secrets and make sure it was updated correctly
+        results = self.driver.get_object("unittest", _id, with_secrets=True)
+        self.assertDictEqual(original, results)
 
     @unittest.skipIf(SKIP, REASON)
     def test_components(self):
