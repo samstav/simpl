@@ -408,6 +408,17 @@ class Provider(ProviderBase):
 
         return write_options
 
+    def _get_host_complete_task(self, wfspec, resource):
+        """
+        Get the task tagged as 'complete' (if any) for the resource's
+        host
+        """
+        tasks = self.find_tasks(wfspec,
+                                resource=resource.get('hosted_on', None),
+                                tag='complete')
+        if tasks:  # should only be one
+            return tasks[0]
+
     def _add_component_tasks(self, wfspec, component, deployment, key,
             context, service_name):
         # Make sure we've processed and written options
@@ -475,6 +486,14 @@ class Provider(ProviderBase):
                 description="Before applying chef recipes, we need to know "
                 "that the server has chef on it and that the overrides "
                 "(ex. database settings) have been applied")
+
+        # if we have a host task marked 'complete', make that wait on configure
+        host_complete = self._get_host_complete_task(wfspec, resource)
+        if host_complete:
+            wait_for(wfspec, host_complete, [configure_task],
+                     name='Wait for %s to be configured before completing '
+                     'host %s' %
+                     (service_name, resource.get('hosted_on', key)))
 
     def add_connection_tasks(self, resource, key, relation, relation_key,
             wfspec, deployment, context):
