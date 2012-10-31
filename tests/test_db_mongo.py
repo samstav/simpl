@@ -36,11 +36,31 @@ tester = { 'some': 'random',
 
 class TestDatabase(unittest.TestCase):
     """ Test Mongo Database code """
+
+    def _decode_dict(self, dictionary):
+            decoded_dict = {}
+            for key, value in dictionary.iteritems():
+                if isinstance(key, unicode):
+                    key = key.encode('utf-8')
+                    try:
+                        key = int(key)
+                    except Exception:
+                        key = key
+                if isinstance(value, unicode):
+                    value = value.encode('utf-8')
+                    if isinstance(value, int):
+                        value = int(value)
+                elif isinstance (value, dict):
+                    value = self._decode_dict(value)
+                decoded_dict[key] = value
+            return decoded_dict
+
     
     def setUp(self):
-        if 'sqlite' in os.environ.get('CHECKMATE_CONNECTION_STRING'):
-            #If our test suite is using sqlite, we need to set this particular process (test) to use mongo
-            os.environ['CHECKMATE_CONNECTION_STRING'] = 'mongodb://localhost'
+        if os.environ.get('CHECKMATE_CONNECTION_STRING') is not None:
+            if 'sqlite' in os.environ.get('CHECKMATE_CONNECTION_STRING'):
+                #If our test suite is using sqlite, we need to set this particular process (test) to use mongo
+                os.environ['CHECKMATE_CONNECTION_STRING'] = 'mongodb://localhost'
         self.collection_name = 'checkmate_test_%s' % uuid.uuid4().hex
         self.driver = db.get_driver('checkmate.db.mongodb.Driver', True)
         self.driver.connection_string = 'mongodb://checkmate:%s@mongo-n01.dev.chkmate.rackspace.net:27017/checkmate' % ('c%40m3yt1ttttt',)
@@ -65,21 +85,6 @@ class TestDatabase(unittest.TestCase):
   
     @unittest.skipIf(SKIP, REASON)
     def test_objects(self):
-
-        def _decode_dict(dictionary):
-            decoded_dict = {}
-            for key, value in dictionary.iteritems():
-                if isinstance(key, unicode):
-                    key = key.encode('utf-8')
-                if isinstance(value, unicode):
-                    value = value.encode('utf-8')
-                    if isinstance(value, int):
-                        value = int(value)
-                elif isinstance (value, dict):
-                    value = _decode_dict(value)
-                decoded_dict[key] = value
-            return decoded_dict
-
         entity = {'id': 1,
                   'name': 'My Component',
                   'credentials': ['My Secrets']
@@ -109,36 +114,23 @@ class TestDatabase(unittest.TestCase):
                          "exposed outside of driver")
 
         results = self.driver.get_objects(self.collection_name, with_secrets=False)
-        wrapper = {} # Needed to test for length of a result with only one returned value
-        wrapper ['results'] = results
-        self.assertEqual(len(wrapper), 1)
+        results = self._decode_dict(results)
+    
+        #Since object was extraced in get_objects format, need to make sure format of body matches
+        expected_result_body = {1:body} 
 
-        results = _decode_dict(results)
-	self.assertIn('id', results)
-        self.assertEqual(results['id'], 1)
-        self.assertDictEqual(results, body)
+	self.assertIn('id', results[1])
+        self.assertEqual(results[1]['id'], 1)
+        self.assertDictEqual(results, expected_result_body)
 
     @unittest.skipIf(SKIP, REASON)
     def test_hex_id(self):
-        def _decode_dict(dictionary):
-            decoded_dict = {}
-            for key, value in dictionary.iteritems():
-                if isinstance(key, unicode):
-                    key = key.encode('utf-8')
-                if isinstance(value, unicode):
-                    value = value.encode('utf-8')
-                    if isinstance(value, int):
-                        value = int(value)
-                elif isinstance (value, dict):
-                    value = _decode_dict(value)
-                decoded_dict[key] = value
-            return decoded_dict
         id = uuid.uuid4().hex
         body = self.driver.save_object(self.collection_name, id, dict(id=id), None,
                                              tenant_id='T1000')
         unicode_results = self.driver.get_objects(self.collection_name)
-        results = _decode_dict(unicode_results)
-        self.assertDictEqual(results, dict(id=id, tenantId='T1000'))
+        results = self._decode_dict(unicode_results)
+        self.assertDictEqual(results, {id:{"id":id, 'tenantId':'T1000'}})
         self.assertNotIn('_id', results, "Backend field '_id' should not be "
                          "exposed outside of driver")
 
@@ -150,31 +142,12 @@ class TestDatabase(unittest.TestCase):
 
     @unittest.skipIf(SKIP, REASON)
     def test_multiple_objects(self):
-        #Mongo returns all dictionaries in unicode - need to convert to UTF-8 to compare
-        def _decode_dict(dictionary):
-            decoded_dict = {}
-            for key, value in dictionary.iteritems():
-                if isinstance(key, unicode):
-                    key = key.encode('utf-8')
-                    try:
-                        key = int(key)
-                    except Exception:
-                        key = key
-                if isinstance(value, unicode):
-                    value = value.encode('utf-8')
-                    if isinstance(value, int):
-                        value = int(value)
-                elif isinstance (value, dict):
-                    value = _decode_dict(value)
-                decoded_dict[key] = value
-            return decoded_dict
-        
         expected = {}
         for i in range(1,5):
             expected[i] = dict(id=i, tenantId='T1000')
             body = self.driver.save_object(self.collection_name, i, dict(id=i), None, tenant_id='T1000')
         unicode_results = self.driver.get_objects(self.collection_name)
-        results = _decode_dict(unicode_results)
+        results = self._decode_dict(unicode_results)
         self.assertDictEqual(results, expected)
         for i in range(1,5):
             self.assertIn(i, results)

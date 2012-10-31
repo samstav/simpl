@@ -133,10 +133,6 @@ class Driver(DbBase):
             else:
                 for entry in results:
                     response[entry['id']] = entry
-             #If only one entry returned, change to 1-entry format
-            if len(response) is 1:
-                key = response.keys()[0]
-                response = response[key]
             return response
         else:
             return {}

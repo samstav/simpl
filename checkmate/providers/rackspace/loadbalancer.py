@@ -127,7 +127,6 @@ class Provider(ProviderBase):
             wfspec, deployment, context, interface):
 
         comp = self.find_components(context, id="rsCloudLB")
-
         if not comp:
             raise CheckmateException("Could not locate component for id 'rsCloudLB'")
         else:

@@ -122,7 +122,6 @@ class TestWorkflow(StubbedWorkflowBase):
     def setUp(self):
         StubbedWorkflowBase.setUp(self)
         # Parse app.yaml as a deployment
-        self.deployment = TestWorkflow.deployment
         self.workflow = self._get_stubbed_out_workflow()
 
     def test_workflow_completion(self):
