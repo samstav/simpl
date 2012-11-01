@@ -351,6 +351,7 @@ function AppController($scope, $http, $location) {
         }
       else
         $scope.$apply();
+      $scope.$broadcast('logIn');
     }).error(function(response) {
       if (typeof $('#modalAuth')[0].failure_callback == 'function') {
           $('#modalAuth')[0].failure_callback();
@@ -1299,6 +1300,14 @@ function DeploymentInitController($scope, $location, $routeParams, $resource, bl
       $scope.environments = data;
     });
   }
+
+  // Event Listeners
+  $scope.OnLogIn = function(e) {
+    $scope.getDomains();
+    $scope.updateSettings();
+  };
+  $scope.$on('logIn', $scope.OnLogIn);
+
 }
 
 // Other stuff
