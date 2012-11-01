@@ -65,7 +65,7 @@
   <div class="well entry" ng-cloak ng-show="data">
     <h2>{{current_spec.name}}</h2>
 
-    <div class="row-fluid">
+    <div id="spec" class="row-fluid">
       <div class="span3">
         <ul class="nav nav-list">
           <li class="nav-header">Task Spec</li>
@@ -74,11 +74,14 @@
 
           <li class="nav-header">Preceding Tasks</li>
 
-          <li ng-repeat="input in current_spec.inputs"><span ng-class="state_class({state: spec_status(input)})"><a href="#{{input}}" ng-click="selectSpec(input)" style="color: #fff">{{input}}</a></span></li>
+          <li ng-repeat="input in current_spec.inputs">
+            <span><span ng-class="state_class({state: spec_status(input)})">&nbsp;</span>
+                <a href="#{{input}}" ng-click="selectSpec(input)">{{input}}</a></span></li>
 
           <li class="nav-header">Following Tasks</li>
-
-          <li ng-repeat="output in current_spec.outputs" ><span ng-class="state_class({state: spec_status(output)})"><a href="#{{output}}" ng-click="selectSpec(output)" style="color: #fff">{{output}}</a></span></li>
+          <li ng-repeat="output in current_spec.outputs">
+            <span><span ng-class="state_class({state: spec_status(output)})">&nbsp;</span>
+                <a href="#{{output}}" ng-click="selectSpec(output)">{{output}}</a></span></li>
         </ul>
       </div>
 
@@ -93,7 +96,7 @@
     </div>
 
 
-    <div class="row-fluid">
+    <div id="task" class="row-fluid">
       <div class="span3">
         <ul class="nav nav-list" ng-cloak ng-show="current_task_index">
           <li class="nav-header">Task</li>
@@ -106,7 +109,6 @@
 
           <li><a ng-href="#"{{current_task.task_spec}} ng-click="resubmit_task()" class="tip" title="Retries the task. It Aborts an existing task if it is running."><i class="icon-retweet"></i> Retry</a></li>
 
-          <li><a ng-href="{{data.id}}/tasks/{{current_task.id}}"><i class="icon-time"></i> Legacy UI</a></li>
         </ul>
       </div>
 
