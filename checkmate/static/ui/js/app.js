@@ -160,10 +160,7 @@ function LegacyController($scope, $location, $routeParams, $resource, navbar, $w
       var thang = new klass(JSON.parse(Editor.getValue()));
       thang.$save(function(returned, getHeaders){
           $scope.notify('Saved');
-          console.log(returned);
         }, function(error) {
-          console.log("Error " + error.data + "(" + error.status + ") saving this object.");
-          console.log($("#editor").text());
           $scope.$root.error = {data: error.data, status: error.status, title: "Error Saving",
                   message: "There was an error saving your JSON:"};
           $('#modalError').modal('show');
@@ -284,7 +281,6 @@ function AppController($scope, $http, $location) {
     modal[0].failure_callback = failure_callback;
     modal.modal('show');
   }
-
 
   // Log in using credentials delivered through bound_credentials
   $scope.logIn = function() {
@@ -429,7 +425,7 @@ function NavBarController($scope, $location, $resource) {
   this.api = $resource('/version');
   this.api.get(function(data, getResponseHeaders){
 	  $scope.api_version = data.version;
-	  console.log("Got version");
+	  console.log("Got version: " + $scope.api_version);
   });
 
   // Send feedback to server
@@ -580,7 +576,6 @@ function WorkflowController($scope, $resource, $http, $routeParams, $location, $
           var d = $resource('/:tenantId/deployments/:id');
           d.get($routeParams,
                          function(object, getResponseHeaders){
-            console.log(object);
             var domain = null;
             //Find domain in inputs
             try {
@@ -705,8 +700,6 @@ function WorkflowController($scope, $resource, $http, $routeParams, $location, $
           };
           $scope.notify('Saved');
         }, function(error) {
-          console.log("Error " + error.data + "(" + error.status + ") saving this object.");
-          console.log($("#editor").text());
           $scope.$root.error = {data: error.data, status: error.status, title: "Error Saving",
                   message: "There was an error saving your JSON:"};
           $('#modalError').modal('show');
@@ -750,8 +743,6 @@ function WorkflowController($scope, $resource, $http, $routeParams, $location, $
           };
           $scope.notify('Saved');
         }, function(error) {
-          console.log("Error " + error.data + "(" + error.status + ") saving this object.");
-          console.log($("#editor").text());
           $scope.$root.error = {data: error.data, status: error.status, title: "Error Saving",
                   message: "There was an error saving your JSON:"};
           $('#modalError').modal('show');
@@ -885,7 +876,6 @@ function WorkflowController($scope, $resource, $http, $routeParams, $location, $
         .attr("height", h);
     var links = _.each($scope.data.wf_spec.task_specs, function(t, k) {return {"source": k, "target": "Root"};});
     var nodes = _.each($scope.data.wf_spec.task_specs, function(t, k) {return t;});
-    console.log(nodes, links);
     
     var force = self.force = d3.layout.force()
         .nodes(nodes)
@@ -1110,7 +1100,6 @@ function DeploymentInitController($scope, $location, $routeParams, $resource, bl
         }
        },
        function(response) {
-          console.log(response);
           if (!('data' in response))
             response.data = {};
           response.data.description = "Error loading domain list";
@@ -1163,12 +1152,10 @@ function DeploymentInitController($scope, $location, $routeParams, $resource, bl
                     setting.default = $scope.auth.catalog.access.user['RAX-AUTH:defaultRegion'];
                     setting.choice = [setting.default];
                     setting.description = "Your legacy cloud servers region is '" + setting.default + "'. You must deploy to this region";
-                    }
-                });
+                }
+            });
         }
       }
-      console.log($scope.environment, $scope.settings);
-
     }
 
     _.each($scope.settings, function(setting) {
