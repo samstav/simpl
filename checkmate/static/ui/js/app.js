@@ -1118,7 +1118,7 @@ function DeploymentInitController($scope, $location, $routeParams, $resource, bl
     }
   };
   $scope.getDomains();
-  
+
   $scope.onBlueprintChange = function() {
     $scope.updateSettings();
     $scope.updateDatabaseProvider();
@@ -1155,6 +1155,19 @@ function DeploymentInitController($scope, $location, $routeParams, $resource, bl
 
     if ($scope.environment) {
       $scope.settings = $scope.settings.concat(settings.getSettingsFromEnvironment($scope.environment));
+      if ('legacy' in $scope.environment.providers) {
+        if ($scope.settings && $scope.auth.loggedIn == true && 'RAX-AUTH:defaultRegion' in $scope.auth.catalog.access.user) {
+            _.each($scope.settings, function(setting) {
+                if (setting.id == 'region') {
+                    setting.default = $scope.auth.catalog.access.user['RAX-AUTH:defaultRegion'];
+                    setting.choice = [setting.default];
+                    setting.description = "Your legacy cloud servers region is '" + setting.default + "'. You must deploy to this region";
+                    }
+                });
+        }
+      }
+      console.log($scope.environment, $scope.settings);
+
     }
 
     _.each($scope.settings, function(setting) {
@@ -2452,7 +2465,7 @@ WPBP = {
 //Default Environments
 ENVIRONMENTS = {
     "legacy": {
-        "description": "This environment tests legacy cloud servers.",
+        "description": "This environment uses legacy cloud servers.",
         "name": "Legacy Cloud Servers",
         "providers": {
             "legacy": {},
@@ -2477,7 +2490,7 @@ ENVIRONMENTS = {
         }
     },
     "next-gen": {
-        "description": "This environment tests next-gen cloud servers.",
+        "description": "This environment uses next-gen cloud servers.",
         "name": "Next-Gen Open Cloud",
         "providers": {
             "nova": {},
