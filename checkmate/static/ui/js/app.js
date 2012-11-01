@@ -205,7 +205,7 @@ function LegacyController($scope, $location, $routeParams, $resource, navbar, $w
 
 }
 
-// Root controller that implements authentication
+//Root controller that implements authentication
 function AppController($scope, $http, $location) {
   $scope.showHeader = true;
   $scope.showStatus = false;
@@ -226,17 +226,14 @@ function AppController($scope, $http, $location) {
       }).show();
   }
 
-  // Restore login from session
-  var catalog = localStorage.getItem('auth');
-  if (catalog != undefined && catalog !== null)
-    catalog = JSON.parse(catalog);
-  if (catalog != undefined && catalog !== null && catalog != {} && 'access' in catalog) {
-      $scope.auth.catalog = catalog;
-      $scope.auth.username = catalog.access.user.name;
-      $scope.auth.tenantId = catalog.access.token.tenant.id;
-      checkmate.config.header_defaults.headers.common['X-Auth-Token'] = catalog.access.token.id;
-      checkmate.config.header_defaults.headers.common['X-Auth-Source'] = catalog.auth_url;
-      var expires = new Date(catalog.access.token.expires);
+  //Accepts subset of auth data. We user a subset so we can store it locally.
+  $scope.accept_auth_data = function(response) {
+      $scope.auth.catalog = response;
+      $scope.auth.username = response.access.user.name;
+      $scope.auth.tenantId = response.access.token.tenant.id;
+      checkmate.config.header_defaults.headers.common['X-Auth-Token'] = response.access.token.id;
+      checkmate.config.header_defaults.headers.common['X-Auth-Source'] = response.auth_url;
+      var expires = new Date(response.access.token.expires);
       var now = new Date();
       if (expires < now) {
         $scope.auth.expires = 'expired';
@@ -245,6 +242,18 @@ function AppController($scope, $http, $location) {
         $scope.auth.expires = expires - now;
         $scope.auth.loggedIn = true;
       }
+      WPBP.DBaaS.options.region.default = response.access.user['RAX-AUTH:defaultRegion'] || response.access.regions[0];
+      WPBP.DBaaS.options.region.choice = response.access.regions;
+      WPBP.MySQL.options.region.default = WPBP.DBaaS.options.region.default;
+      WPBP.MySQL.options.region.choice = WPBP.DBaaS.options.region.choice;
+  }
+
+  // Restore login from session
+  var auth = localStorage.getItem('auth');
+  if (auth != undefined && auth !== null)
+    auth = JSON.parse(auth);
+  if (auth != undefined && auth !== null && auth != {} && 'access' in auth) {
+      $scope.accept_auth_data(auth);
   } else {
     $scope.auth.loggedIn = false;
   }
@@ -356,23 +365,15 @@ function AppController($scope, $http, $location) {
       data: data
     }).success(function(json) {
       $('#modalAuth').modal('hide');
+      //Parse data. Keep only a subset to store in local storage
       var keep = {access: {token: json.access.token, user: json.access.user}};
       keep.auth_url = auth_url;  // save for later
-      var expires = new Date(json.access.token.expires);
-      keep.expires = expires;
+      regions = _.union.apply(this, _.map(json.access.serviceCatalog, function(o) {return _.map(o.endpoints, function(e) {return e.region;});}));
+      if (regions.indexOf(json.access.user['RAX-AUTH:defaultRegion']) == -1)
+        regions.push(json.access.user['RAX-AUTH:defaultRegion']);
+      keep.access.regions = _.compact(regions);
       localStorage.setItem('auth', JSON.stringify(keep));
-      $scope.auth.username = username;
-      $scope.auth.tenantId = json.access.token.tenant.id;
-      $scope.auth.catalog = json;
-      checkmate.config.header_defaults.headers.common['X-Auth-Token'] = json.access.token.id;
-      checkmate.config.header_defaults.headers.common['X-Auth-Source'] = auth_url;
-      var now = new Date();
-      if (expires < now) {
-        $scope.auth.expires = 'expired';
-      } else {
-        $scope.auth.expires = expires - now;
-      }
-      $scope.auth.loggedIn = true;
+      $scope.accept_auth_data(keep);
       $scope.bound_creds = {
           username: '',
           password: '',
@@ -406,6 +407,7 @@ function AppController($scope, $http, $location) {
     delete checkmate.config.header_defaults.headers.common['X-Auth-Source'];
     $location.path('/');
   }
+
 }
 
 function NavBarController($scope, $location, $resource) {
@@ -451,9 +453,7 @@ function NavBarController($scope, $location, $resource) {
 
 }
 
-/**
- *   workflows
- */
+//Workflow controllers
 function WorkflowListController($scope, $location, $resource, workflow, items, navbar) {
   //Model: UI
   $scope.showItemsBar = true;
@@ -973,10 +973,7 @@ function WorkflowController($scope, $resource, $http, $routeParams, $location, $
   };
 }
 
-
-/**
- *   blueprints
- */
+//Blueprint controllers
 function BlueprintListController($scope, $location, $resource, items) {
   //Model: UI
   $scope.showSummaries = true;
@@ -1013,9 +1010,7 @@ function BlueprintListController($scope, $location, $resource, items) {
 
 }
 
-/**
- *   deployments
- */
+//Deployment controllers
 function DeploymentListController($scope, $location, $http, $resource, items) {
   //Model: UI
   $scope.showItemsBar = true;
@@ -1114,7 +1109,7 @@ function DeploymentInitController($scope, $location, $routeParams, $resource, bl
         }
       );
     }
-  };  
+  };
   $scope.getDomains();
   
   $scope.onBlueprintChange = function() {
@@ -1286,15 +1281,13 @@ function DeploymentInitController($scope, $location, $routeParams, $resource, bl
   }
 }
 
-/*
- * other stuff
- */
+// Other stuff
 document.addEventListener('DOMContentLoaded', function(e) {
   //On mobile devices, hide the address bar
   window.scrollTo(0, 0);
 }, false);
 
-//Initial Wordpress Template
+//Initial Wordpress Templates
 WPBP = {
     "DBaaS":{
         "id":"d8fcfc17-b515-473a-9fe1-6d4e3356ef8d",
@@ -2448,7 +2441,8 @@ WPBP = {
         "name":"Managed Cloud WordPress (MySQLonVMs)"
     }
 };
-//Default Environment
+
+//Default Environments
 ENVIRONMENTS = {
     "legacy": {
         "description": "This environment tests legacy cloud servers.",
