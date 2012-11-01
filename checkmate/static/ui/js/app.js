@@ -1479,7 +1479,7 @@ WPBP = {
                     }
                 ],
                 "help":"Note that this also the user name, database name, and also identifies this\nwordpress install from other ones you might add later to the same deployment.\n",
-                "default":"wp",
+                "default":"wp_",
                 "required":true,
                 "label":"Prefix",
                 "type":"string",
@@ -2067,7 +2067,7 @@ WPBP = {
                     }
                 ],
                 "help":"Note that this also the user name, database name, and also identifies this\nwordpress install from other ones you might add later to the same deployment.\n",
-                "default":"wp",
+                "default":"wp_",
                 "required":true,
                 "label":"Prefix",
                 "type":"string",
