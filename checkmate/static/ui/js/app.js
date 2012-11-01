@@ -1453,7 +1453,8 @@ WPBP = {
                 "label":"Region",
                 "choice":[
                     "DFW",
-                    "ORD"
+                    "ORD",
+                    "LON"
                 ]
             },
             "prefix":{
@@ -2040,7 +2041,8 @@ WPBP = {
                 "label":"Region",
                 "choice":[
                     "DFW",
-                    "ORD"
+                    "ORD",
+                    "LON"
                 ]
             },
             "prefix":{
