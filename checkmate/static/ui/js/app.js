@@ -26,10 +26,6 @@ checkmate.config(['$routeProvider', '$locationProvider', '$httpProvider', functi
     controller: LegacyController,
     template:'<section class="entries" ng-include="templateUrl"><img src="/static/img/ajax-loader-bar.gif" alt="Loading..."/></section>'
   }).
-  when('/:tenantId/deployments', {
-    controller: LegacyController,
-    template:'<section class="entries" ng-include="templateUrl"><img src="/static/img/ajax-loader-bar.gif" alt="Loading..."/></section>'
-  }).
   when('/:tenantId/deployments/:id', {
     controller: LegacyController,
     template:'<section class="entries" ng-include="templateUrl"><img src="/static/img/ajax-loader-bar.gif" alt="Loading..."/></section>'
@@ -89,11 +85,15 @@ checkmate.config(['$routeProvider', '$locationProvider', '$httpProvider', functi
     templateUrl: '/static/ui/partials/level2.html',
     controller: BlueprintListController
   }).
+  when('/:tenantId/deployments', {
+    templateUrl: '/static/ui/partials/deployment-list.html',
+    controller: DeploymentListController
+  }).
   otherwise({
     controller: ExternalController,
     template:'<section class="entries" ng-include="templateUrl"><img src="/static/img/ajax-loader-bar.gif" alt="Loading..."/></section>',
     reloadOnSearch: false
-    });  //normal browsing
+  });  //normal browsing
   
   
   $locationProvider.html5Mode(true);
@@ -1014,7 +1014,7 @@ function BlueprintListController($scope, $location, $resource, items) {
 }
 
 //Deployment controllers
-function DeploymentListController($scope, $location, $http, $resource, items) {
+function DeploymentListController($scope, $location, $http, $resource, scroll, items) {
   //Model: UI
   $scope.showItemsBar = true;
   $scope.showStatus = true;
@@ -1054,6 +1054,7 @@ function DeploymentListController($scope, $location, $http, $resource, items) {
                 blueprint: item.blueprint, environment: item.environment,
                 status: item.status}});
       $scope.count = items.count;
+      $scope.items = items.all;
       console.log("Done loading")
     });
   }
