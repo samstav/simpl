@@ -374,6 +374,15 @@ function AppController($scope, $http, $location) {
 
 
   // Utility Functions
+
+  //Check for a supported account
+  $scope.is_unsupported_account = function() {
+    roles = [];
+    if ($scope.auth.loggedIn === true)
+        $scope.auth.catalog.access.user.roles || []
+    return _.any(roles, function(role) {return role.name == "rack_connect"});
+  }
+
   $scope.generatePassword = function() {
       if (parseInt(navigator.appVersion) <= 3) {
           $scope.notify("Sorry this only works in 4.0+ browsers");
@@ -1085,11 +1094,6 @@ function DeploymentInitController($scope, $location, $routeParams, $resource, bl
   $scope.blueprint = blueprint;
   $scope.answers = {};
   $scope.domain_names = [];
-
-  // Check for a supported account
-  $scope.is_unsupported_account = function() {
-      return _.any($scope.auth.catalog.access.user.roles, function(role) {return role.name == "rack_connect"});
-  }  
 
   //Retrieve existing domains  
   $scope.getDomains = function(){
