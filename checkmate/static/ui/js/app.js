@@ -1399,7 +1399,7 @@ WPBP = {
                         "resource_type":"application"
                     }
                 ],
-                "description":"The domain you wish to host your blog on. (ex: example.com)",
+                "description":"The domain you wish to host your blog on. (ex: example.com)\nYou can either select a previously created domain from the drop-down, or create a new domain in the text box.",
                 "label":"Domain",
                 "sample":"example.com",
                 "type":"combo",
