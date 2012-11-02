@@ -9,7 +9,7 @@
     </thead>
     <tbody>
       <tr ng-repeat="workflow in items | orderBy:'id'" >
-        <td><a ng-href="/{{auth.tenantId}}/workflows/{{workflow.id}}"><i class="icon-picture"></i> {{workflow.id}}</a></td>
+        <td><a ng-href="/{{auth.tenantId}}/workflows/{{workflow.id}}"><i class="icon-tasks"></i> {{workflow.id}}</a></td>
         <td>{{workflow.name}}</td>
         <td>{{workflow.tenantId}}</td>
       </tr>
