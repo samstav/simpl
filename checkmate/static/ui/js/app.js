@@ -16,7 +16,7 @@ checkmate.config(['$routeProvider', '$locationProvider', '$httpProvider', functi
     controller: StaticController
   })
 
-  // Legacy Paths
+  // Legacy Paths - none of these should be in use anymore
   $routeProvider.
   when('/:tenantId/environments/:id', {
     controller: LegacyController,
@@ -1369,7 +1369,7 @@ function DeploymentController($scope, $location, $resource, $routeParams) {
 }
 
 //Provider controllers
-function ProviderListController($scope, $location, $resource, items) {
+function ProviderListController($scope, $location, $resource, items, scroll) {
   //Model: UI
   $scope.showSummaries = true;
   $scope.showStatus = false;
