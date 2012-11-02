@@ -30,10 +30,6 @@ checkmate.config(['$routeProvider', '$locationProvider', '$httpProvider', functi
     controller: LegacyController,
     template:'<section class="entries" ng-include="templateUrl"><img src="/static/img/ajax-loader-bar.gif" alt="Loading..."/></section>'
   }).
-  when('/:tenantId/blueprints', {
-    controller: LegacyController,
-    template:'<section class="entries" ng-include="templateUrl"><img src="/static/img/ajax-loader-bar.gif" alt="Loading..."/></section>'
-  }).
   when('/:tenantId/workflows/:id/legacy', {
     controller: LegacyController,
     template:'<section class="entries" ng-include="templateUrl"><img src="/static/img/ajax-loader-bar.gif" alt="Loading..."/></section>'
@@ -83,6 +79,10 @@ checkmate.config(['$routeProvider', '$locationProvider', '$httpProvider', functi
   }).
   when('/:tenantId/blueprints/:id', {
     templateUrl: '/static/ui/partials/level2.html',
+    controller: BlueprintListController
+  }).
+  when('/:tenantId/blueprints', {
+    templateUrl: '/static/ui/partials/blueprints.html',
     controller: BlueprintListController
   }).
   when('/:tenantId/deployments', {
@@ -984,9 +984,10 @@ function BlueprintListController($scope, $location, $resource, items) {
   $scope.showSummaries = true;
   $scope.showStatus = false;
 
-  $scope.items = items;
-  $scope.name = '';
+  $scope.name = 'Blueprints';
   $scope.count = 0;
+  items.all = [];
+  $scope.items = items.all;  // bind only to shrunken array
 
   $scope.refresh = function() {
   };
@@ -996,11 +997,14 @@ function BlueprintListController($scope, $location, $resource, items) {
   
   $scope.load = function() {
     console.log("Starting load")
-    this.Blueprints = $resource('/:tenantId/blueprints/');
-    this.Blueprints.get({tenantId: 557366}, function(blueprints, getResponseHeaders){
-      $scope.items.receive(blueprints);
-      $scope.name = $scope.items.name;
-      $scope.count = $scope.items.count;
+    this.klass = $resource('/:tenantId/blueprints/');
+    this.klass.get({tenantId: $scope.auth.tenantId}, function(list, getResponseHeaders){
+      console.log("Load returned");
+      console.log(list);
+      items.receive(list, function(item, key) {
+        return {id: key, name: item.name, tenantId: item.tenantId}});
+      $scope.count = items.count;
+      $scope.items = items.all;
       console.log("Done loading")
     });
   }
@@ -1013,6 +1017,12 @@ function BlueprintListController($scope, $location, $resource, items) {
     });
   }
 
+  //Setup
+  $scope.$watch('items.selectedIdx', function(newVal, oldVal, scope) {
+    if (newVal !== null) scroll.toCurrent();
+  });
+
+  $scope.load();
 }
 
 //Deployment controllers
