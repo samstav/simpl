@@ -85,9 +85,6 @@ class TestDatabase(unittest.TestCase):
 
   
     @unittest.skipIf(SKIP, REASON)
-<<<<<<< HEAD
-    def test_objects(self):
-=======
     def test_update_secrets(self):
         _id = uuid.uuid4()
         data = {
@@ -169,8 +166,7 @@ class TestDatabase(unittest.TestCase):
         self.assertDictEqual(original, results)
 
     @unittest.skipIf(SKIP, REASON)
-    def test_components(self):
->>>>>>> 9872dea893eb58361c927fd295e9362bba593e03
+    def test_objects(self):
         entity = {'id': 1,
                   'name': 'My Component',
                   'credentials': ['My Secrets']
