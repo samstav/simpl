@@ -18,10 +18,6 @@ checkmate.config(['$routeProvider', '$locationProvider', '$httpProvider', functi
 
   // Legacy Paths
   $routeProvider.
-  when('/:tenantId/environments', {
-    controller: LegacyController,
-    template:'<section class="entries" ng-include="templateUrl"><img src="/static/img/ajax-loader-bar.gif" alt="Loading..."/></section>'
-  }).
   when('/:tenantId/environments/:id', {
     controller: LegacyController,
     template:'<section class="entries" ng-include="templateUrl"><img src="/static/img/ajax-loader-bar.gif" alt="Loading..."/></section>'
@@ -88,6 +84,10 @@ checkmate.config(['$routeProvider', '$locationProvider', '$httpProvider', functi
   when('/:tenantId/providers', {
     controller: ProviderListController,
     templateUrl: '/static/ui/partials/providers.html'
+  }).
+  when('/:tenantId/environments', {
+    controller: EnvironmentListController,
+    templateUrl: '/static/ui/partials/environments.html'
   }).
   otherwise({
     controller: ExternalController,
@@ -1348,6 +1348,65 @@ function ProviderListController($scope, $location, $resource, items) {
 
   $scope.load();
 }
+
+//Environment controllers
+function EnvironmentListController($scope, $location, $resource, items, scroll) {
+  //Model: UI
+  $scope.showSummaries = true;
+  $scope.showStatus = false;
+
+  $scope.name = 'Environments';
+  $scope.count = 0;
+  items.all = [];
+  $scope.items = items.all;  // bind only to shrunken array
+
+  $scope.refresh = function() {
+  };
+
+  $scope.handleSpace = function() {
+  };
+
+  $scope.load = function() {
+    console.log("Starting load")
+    this.klass = $resource('/:tenantId/environments/.json');
+    this.klass.get({tenantId: $scope.auth.tenantId}, function(list, getResponseHeaders){
+      console.log("Load returned");
+      items.receive(list, function(item, key) {
+        return {id: key, name: item.name, vendor: item.vendor, providers: item.providers}});
+      $scope.count = items.count;
+      $scope.items = items.all;
+      console.log("Done loading")
+    });
+  }
+
+  //Setup
+  $scope.$watch('items.selectedIdx', function(newVal, oldVal, scope) {
+    if (newVal !== null) scroll.toCurrent();
+  });
+
+  $scope.load();
+
+  //Return text describing providers in the environment
+  $scope.provider_list = function(environment) {
+    list = [];
+    if ('providers' in environment) {
+        providers = environment.providers;
+        if ('common' in providers)
+            default_vendor = providers.common.vendor || '[missing vendor]';
+        else
+            default_vendor = '[missing vendor]'
+        _.each(providers, function(provider, key, provider) {
+            if (key == 'common')
+                return;
+            name = provider.vendor || default_vendor;
+            name += '.' + key;
+            list.push(name);
+        });
+    }
+    return list.join(", ");
+  }
+}
+
 
 // Other stuff
 document.addEventListener('DOMContentLoaded', function(e) {
