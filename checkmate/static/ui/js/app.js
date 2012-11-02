@@ -38,10 +38,6 @@ checkmate.config(['$routeProvider', '$locationProvider', '$httpProvider', functi
     controller: LegacyController,
     template:'<section class="entries" ng-include="templateUrl"><img src="/static/img/ajax-loader-bar.gif" alt="Loading..."/></section>'
   }).
-  when('/providers', {
-    controller: LegacyController,
-    template:'<section class="entries" ng-include="templateUrl"><img src="/static/img/ajax-loader-bar.gif" alt="Loading..."/></section>'
-  }).
   when('/status/libraries', {
     controller: LegacyController,
     template:'<section class="entries" ng-include="templateUrl"><img src="/static/img/ajax-loader-bar.gif" alt="Loading..."/></section>'
@@ -88,6 +84,10 @@ checkmate.config(['$routeProvider', '$locationProvider', '$httpProvider', functi
   when('/:tenantId/deployments', {
     templateUrl: '/static/ui/partials/deployments.html',
     controller: DeploymentListController
+  }).
+  when('/:tenantId/providers', {
+    controller: ProviderListController,
+    templateUrl: '/static/ui/partials/providers.html'
   }).
   otherwise({
     controller: ExternalController,
@@ -1000,7 +1000,6 @@ function BlueprintListController($scope, $location, $resource, items) {
     this.klass = $resource('/:tenantId/blueprints/');
     this.klass.get({tenantId: $scope.auth.tenantId}, function(list, getResponseHeaders){
       console.log("Load returned");
-      console.log(list);
       items.receive(list, function(item, key) {
         return {id: key, name: item.name, tenantId: item.tenantId}});
       $scope.count = items.count;
@@ -1310,6 +1309,44 @@ function DeploymentInitController($scope, $location, $routeParams, $resource, bl
   };
   $scope.$on('logIn', $scope.OnLogIn);
 
+}
+
+//Provider controllers
+function ProviderListController($scope, $location, $resource, items) {
+  //Model: UI
+  $scope.showSummaries = true;
+  $scope.showStatus = false;
+
+  $scope.name = 'Providers';
+  $scope.count = 0;
+  items.all = [];
+  $scope.items = items.all;  // bind only to shrunken array
+
+  $scope.refresh = function() {
+  };
+
+  $scope.handleSpace = function() {
+  };
+
+  $scope.load = function() {
+    console.log("Starting load")
+    this.klass = $resource('/:tenantId/providers/');
+    this.klass.get({tenantId: $scope.auth.tenantId}, function(list, getResponseHeaders){
+      console.log("Load returned");
+      items.receive(list, function(item, key) {
+        return {id: key, name: item.name, vendor: item.vendor}});
+      $scope.count = items.count;
+      $scope.items = items.all;
+      console.log("Done loading")
+    });
+  }
+
+  //Setup
+  $scope.$watch('items.selectedIdx', function(newVal, oldVal, scope) {
+    if (newVal !== null) scroll.toCurrent();
+  });
+
+  $scope.load();
 }
 
 // Other stuff
