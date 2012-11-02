@@ -86,7 +86,7 @@ checkmate.config(['$routeProvider', '$locationProvider', '$httpProvider', functi
     controller: BlueprintListController
   }).
   when('/:tenantId/deployments', {
-    templateUrl: '/static/ui/partials/deployment-list.html',
+    templateUrl: '/static/ui/partials/deployments.html',
     controller: DeploymentListController
   }).
   otherwise({
@@ -1016,14 +1016,16 @@ function BlueprintListController($scope, $location, $resource, items) {
 }
 
 //Deployment controllers
-function DeploymentListController($scope, $location, $http, $resource, scroll, items) {
+function DeploymentListController($scope, $location, $http, $resource, scroll, items, navbar) {
   //Model: UI
   $scope.showItemsBar = true;
   $scope.showStatus = true;
   $scope.name = "Deployments";
-  
+  navbar.highlight("deployments");
+
   //Model: data
   $scope.count = 0;
+  items.all = [];
   $scope.items = items.all;  // bind only to shrunken array
   
   $scope.selectedObject = function() {
