@@ -22,10 +22,6 @@ checkmate.config(['$routeProvider', '$locationProvider', '$httpProvider', functi
     controller: LegacyController,
     template:'<section class="entries" ng-include="templateUrl"><img src="/static/img/ajax-loader-bar.gif" alt="Loading..."/></section>'
   }).
-  when('/:tenantId/deployments/:id', {
-    controller: LegacyController,
-    template:'<section class="entries" ng-include="templateUrl"><img src="/static/img/ajax-loader-bar.gif" alt="Loading..."/></section>'
-  }).
   when('/:tenantId/workflows/:id/legacy', {
     controller: LegacyController,
     template:'<section class="entries" ng-include="templateUrl"><img src="/static/img/ajax-loader-bar.gif" alt="Loading..."/></section>'
@@ -80,6 +76,10 @@ checkmate.config(['$routeProvider', '$locationProvider', '$httpProvider', functi
   when('/:tenantId/deployments', {
     templateUrl: '/static/ui/partials/deployments.html',
     controller: DeploymentListController
+  }).
+  when('/:tenantId/deployments/:id', {
+    controller: DeploymentController,
+    templateUrl: '/static/ui/partials/deployment.html'
   }).
   when('/:tenantId/providers', {
     controller: ProviderListController,
@@ -1309,6 +1309,63 @@ function DeploymentInitController($scope, $location, $routeParams, $resource, bl
   };
   $scope.$on('logIn', $scope.OnLogIn);
 
+}
+
+function DeploymentController($scope, $location, $resource, $routeParams) {
+  //Model: UI
+  $scope.showSummaries = true;
+  $scope.showStatus = false;
+
+  $scope.name = 'Deployment';
+  $scope.data = {};
+  $scope.data_json = "";
+
+  $scope.refresh = function() {
+  };
+
+  $scope.handleSpace = function() {
+  };
+  
+  $scope.load = function() {
+    console.log("Starting load")
+    this.klass = $resource('/:tenantId/deployments/:id.json');
+    this.klass.get($routeParams, function(data, getResponseHeaders){
+      console.log("Load returned");
+      $scope.data = data
+      $scope.data_json = JSON.stringify(data, null, 2);
+      console.log("Done loading")
+    });
+  }
+  
+  $scope.save = function() {
+    var editor = _.find($('.CodeMirror'), function(c) {
+      return c.CodeMirror.getTextArea().id == 'source';
+      });
+
+    if ($scope.auth.loggedIn) {
+      var klass = $resource('/:tenantId/deployments/:id/.json', null, {'get': {method:'GET'}, 'save': {method:'PUT'}});
+      var thang = new klass(JSON.parse(editor.CodeMirror.getValue()));
+      thang.$save($routeParams, function(returned, getHeaders){
+          // Update model
+          $scope.data = returned;
+          $scope.data_json = JSON.stringify(returned, null, 2);
+          $scope.notify('Saved');
+        }, function(error) {
+          $scope.$root.error = {data: error.data, status: error.status, title: "Error Saving",
+                  message: "There was an error saving your JSON:"};
+          $('#modalError').modal('show');
+        });
+    } else {
+      $scope.loginPrompt(this, function() {console.log("Failed");}); //TODO: implement a callback
+    }
+  };
+
+  //Setup
+  $scope.$watch('items.selectedIdx', function(newVal, oldVal, scope) {
+    if (newVal !== null) scroll.toCurrent();
+  });
+
+  $scope.load();
 }
 
 //Provider controllers
