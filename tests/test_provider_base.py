@@ -195,8 +195,8 @@ class TestProviderBaseWorkflow(StubbedWorkflowBase):
                             provides:
                             - database: mysql
             """))
-        self.expected = []
-        self.expected.append({
+        expected = []
+        expected.append({
                     'call': 'checkmate.providers.test.create_resource',
                     'args': [IsA(dict),
                             {'index': '1', 'component': 'database_instance',
@@ -224,7 +224,7 @@ class TestProviderBaseWorkflow(StubbedWorkflowBase):
                       },
                       'post_back_result': True,
                 })
-        self.expected.append({
+        expected.append({
                     'call': 'checkmate.providers.test.create_resource',
                     'args': [IsA(dict),
                             {'index': '0', 'component': 'web_app',
@@ -241,7 +241,7 @@ class TestProviderBaseWorkflow(StubbedWorkflowBase):
                     'kwargs': None,
                     'result': None,
                 })
-        self.workflow = self._get_stubbed_out_workflow(expected_calls=self.expected)
+        self.workflow = self._get_stubbed_out_workflow(expected_calls=expected)
  
     def test_workflow_completion(self):
         """Verify workflow sequence and data flow"""
