@@ -11,7 +11,7 @@ def main_func():
     import checkmate.db.repository
     repo = os.path.dirname(checkmate.db.repository.__file__)
 
-    print "*** CheckMate Database Versioning Tool ***\n"
+    print "*** Checkmate Database Versioning Tool ***\n"
     print "DATABASE: %s" % url
     print "REPOSITORY: %s\n" % repo
 
