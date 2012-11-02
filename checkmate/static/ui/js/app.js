@@ -34,10 +34,6 @@ checkmate.config(['$routeProvider', '$locationProvider', '$httpProvider', functi
     controller: LegacyController,
     template:'<section class="entries" ng-include="templateUrl"><img src="/static/img/ajax-loader-bar.gif" alt="Loading..."/></section>'
   }).
-  when('/:tenantId/workflows', {
-    controller: LegacyController,
-    template:'<section class="entries" ng-include="templateUrl"><img src="/static/img/ajax-loader-bar.gif" alt="Loading..."/></section>'
-  }).
   when('/:tenantId/workflows/:id/legacy', {
     controller: LegacyController,
     template:'<section class="entries" ng-include="templateUrl"><img src="/static/img/ajax-loader-bar.gif" alt="Loading..."/></section>'
@@ -80,6 +76,10 @@ checkmate.config(['$routeProvider', '$locationProvider', '$httpProvider', functi
     templateUrl: '/static/ui/partials/workflow.html',
     controller: WorkflowController,
     reloadOnSearch: false
+  }).
+  when('/:tenantId/workflows', {
+    templateUrl: '/static/ui/partials/workflows.html',
+    controller: WorkflowListController,
   }).
   when('/:tenantId/blueprints/:id', {
     templateUrl: '/static/ui/partials/level2.html',
@@ -470,28 +470,9 @@ function WorkflowListController($scope, $location, $resource, workflow, items, n
   $scope.name = "Workflows";
   navbar.highlight("workflows");  
 
-  $scope.showConnections = function(task_div) {
-    jsPlumb.Defaults.Container = "entry";
-
-    var selectedTask = _.find($scope.tasks, function(task) {
-      if (task.id === parseInt(task_div.attr('id')))
-        return task;
-      return null;
-    });
-
-    jsPlumb.addEndpoint(selectedTask.id);
-    _.each(selectedTask.children, function(child) {
-      jsPlumb.addEndpoint(child.id);
-
-      jsPlumb.connect({
-        source: selectedTask.id,
-        target: child.id
-      });
-    });
-  };
-
   //Model: data
   $scope.count = 0;
+  items.all = [];
   $scope.items = items.all;  // bind only to shrunken array
   
   $scope.selectedObject = function() {
@@ -529,8 +510,9 @@ function WorkflowListController($scope, $location, $resource, workflow, items, n
     this.klass.get({tenantId: $scope.auth.tenantId}, function(list, getResponseHeaders){
       console.log("Load returned");
       items.receive(list, function(item, key) {
-        return {id: key, name: item.name, created: item.created, tenantId: item.tenantId}});
+        return {id: key, name: item.wf_spec.name, tenantId: item.tenantId}});
       $scope.count = items.count;
+      $scope.items = items.all;
       console.log("Done loading")
     });
   }
@@ -867,6 +849,26 @@ function WorkflowController($scope, $resource, $http, $routeParams, $location, $
     $scope.load();
 
   //Not real code. Just testing stuff
+  $scope.showConnections = function(task_div) {
+    jsPlumb.Defaults.Container = "entry";
+
+    var selectedTask = _.find($scope.tasks, function(task) {
+      if (task.id === parseInt(task_div.attr('id')))
+        return task;
+      return null;
+    });
+
+    jsPlumb.addEndpoint(selectedTask.id);
+    _.each(selectedTask.children, function(child) {
+      jsPlumb.addEndpoint(child.id);
+
+      jsPlumb.connect({
+        source: selectedTask.id,
+        target: child.id
+      });
+    });
+  };
+
   $scope.play = function() {
     var w = 960,
     h = 500

@@ -1,0 +1,27 @@
+<div class="entries container-fluid">
+  <table class="table table-striped">
+    <thead>
+      <tr>
+        <th>ID</th>
+        <th>Name</th>
+        <th>Tenant</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr ng-repeat="workflow in items | orderBy:'id'" >
+        <td><a ng-href="/{{auth.tenantId}}/workflows/{{workflow.id}}"><i class="icon-picture"></i> {{workflow.id}}</a></td>
+        <td>{{workflow.name}}</td>
+        <td>{{workflow.tenantId}}</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+
+<script type="text/javascript">
+  $(document).ready(function() {
+    $('#nav-elements li').removeClass('active');
+    $('#nav-workflows').addClass('active');
+    $('#workflow-{{workflows.id}}').addClass('active');
+  });
+</script>
