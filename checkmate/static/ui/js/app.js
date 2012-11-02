@@ -506,7 +506,7 @@ function WorkflowListController($scope, $location, $resource, workflow, items, n
 
   $scope.load = function() {
     console.log("Starting load")
-    this.klass = $resource('/:tenantId/workflows/');
+    this.klass = $resource('/:tenantId/workflows/.json');
     this.klass.get({tenantId: $scope.auth.tenantId}, function(list, getResponseHeaders){
       console.log("Load returned");
       items.receive(list, function(item, key) {
@@ -997,7 +997,7 @@ function BlueprintListController($scope, $location, $resource, items) {
   
   $scope.load = function() {
     console.log("Starting load")
-    this.klass = $resource('/:tenantId/blueprints/');
+    this.klass = $resource('/:tenantId/blueprints/.json');
     this.klass.get({tenantId: $scope.auth.tenantId}, function(list, getResponseHeaders){
       console.log("Load returned");
       items.receive(list, function(item, key) {
@@ -1058,7 +1058,7 @@ function DeploymentListController($scope, $location, $http, $resource, scroll, i
 
   $scope.load = function() {
     console.log("Starting load")
-    this.klass = $resource('/:tenantId/deployments/');
+    this.klass = $resource('/:tenantId/deployments/.json');
     this.klass.get({tenantId: $scope.auth.tenantId}, function(list, getResponseHeaders){
       console.log("Load returned");
       items.all = [];
@@ -1330,7 +1330,7 @@ function ProviderListController($scope, $location, $resource, items) {
 
   $scope.load = function() {
     console.log("Starting load")
-    this.klass = $resource('/:tenantId/providers/');
+    this.klass = $resource('/:tenantId/providers/.json');
     this.klass.get({tenantId: $scope.auth.tenantId}, function(list, getResponseHeaders){
       console.log("Load returned");
       items.receive(list, function(item, key) {
