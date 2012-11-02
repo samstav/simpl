@@ -1214,6 +1214,14 @@ function DeploymentInitController($scope, $location, $routeParams, $resource, bl
         return null;
       });
 
+      //Check that all required fields are set
+      if (setting.required === true) {
+        if ($scope.answers[key] === null) {
+          console.log("Required field "+key+" not set. Aborting deployment");
+          throw "exception";
+        }
+      }
+
       if (setting.type === "boolean") {
         if ($scope.answers[key] === null) {
           deployment.inputs.blueprint[key] = false;
@@ -1224,6 +1232,8 @@ function DeploymentInitController($scope, $location, $routeParams, $resource, bl
         deployment.inputs.blueprint[key] = $scope.answers[key];
       }
     });
+
+    
 
     if ($scope.auth.loggedIn) {
         deployment.$save(function(returned, getHeaders){
