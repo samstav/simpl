@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 import copy
 import logging
+import re
 import unittest2 as unittest
 import uuid
 
@@ -29,6 +30,72 @@ class TestUtils(unittest.TestCase):
         self.assertEquals(fxn(combined, sensitive_keys=[]), (combined, None))
         self.assertEquals(fxn(combined, ['password']), (innocuous, secret))
         self.assertDictEqual(combined, original)
+
+    def test_extract_data_expression(self):
+        """Test that we can specify an re as a sensitive key"""
+        data = {
+            "employee": {
+                "name": "Bob",
+                "title": "Mr.",
+                "public_key": "rsa public key",
+                "private_key": "a private key",
+                "password": "password",
+                "position": "left"
+            },
+            "server": {
+                "access": {
+                    "rootpassword": "password",
+                    "server_privatekey": "private_key",
+                    "server_public_key": "public_key"
+                },
+                "private_ip": "123.45.67.89",
+                "public_ip": "127.0.0.1",
+                "host_name": "server1"
+            },
+            "safe_val": "hithere",
+            "secret_value": "Immasecret"
+        }
+
+        safe = {
+            "employee": {
+                "name": "Bob",
+                "title": "Mr.",
+                "public_key": "rsa public key",
+                "position": "left"
+            },
+            "server": {
+                "access": {
+                    "server_public_key": "public_key"
+                },
+                "private_ip": "123.45.67.89",
+                "public_ip": "127.0.0.1",
+                "host_name": "server1"
+            },
+            "safe_val": "hithere",
+        }
+
+        secret = {
+            "employee": {
+                "private_key": "a private key",
+                "password": "password",
+            },
+            "server": {
+                "access": {
+                    "rootpassword": "password",
+                    "server_privatekey": "private_key",
+                }
+            },
+            "secret_value": "Immasecret"
+        }
+
+        original_dict = copy.deepcopy(data)
+        secret_keys = ["secret_value", re.compile("password"),
+                       re.compile("priv(?:ate)?[-_ ]?key$")]
+        body, hidden = utils.extract_sensitive_data(data, secret_keys)
+        self.assertDictEqual(body, safe)
+        self.assertDictEqual(secret, hidden)
+        utils.merge_dictionary(body, hidden)
+        self.assertDictEqual(original_dict, body)
 
     def test_extract_sensitive_data_complex(self):
         """Test hierarchy"""
