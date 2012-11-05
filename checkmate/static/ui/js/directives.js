@@ -145,8 +145,7 @@ directives.directive('clippy', function factory() {
                   if (value) {
                     var clippy_html = '<object classid="clsid:d27cdb6e-ae6d-11cf-96b8-444553540000"\
                                 width="110"\
-                                height="14"\
-                                id="clippy" >\
+                                height="14">\
                         <param name="allowScriptAccess" value="always" />\
                         <param name="quality" value="high" />\
                         <param name="scale" value="noscale" />\

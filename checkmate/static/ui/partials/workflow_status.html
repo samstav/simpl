@@ -1,23 +1,35 @@
 <div class="container entries">
   <div class="row-fluid">
-    <section class="span8 offset2">
+    <section class="span10 offset1">
         <h4>{{data.wf_spec.name}}</h4>
         <div class="row-fluid" ng-cloak ng-show="timeRemaining == 0">
-          <div class="alert alert-success"><h2>Congratulations! Your deployment is complete.</h2>
-              <p><strong>Access your Wordpress site</strong> from <a ng-href="{{data.output.path}}" target="_blank">{{data.output.path}}</a>.</p>
+          <div class="alert alert-success">
+              <clippy style="position:absolute; top:inherit" content="{{all_data}}" bgcolor="#DFF0D8"></clippy>
+              <h2>Congratulations! Your deployment is complete.</h2>
+              <p><strong>Access your Wordpress site</strong> from <a ng-href="{{output.path}}" target="_blank">{{output.path}}</a>.</p>
               <p>Alternatively, enter the IP address in your hosts file if the domain name is not yet accessible:</p>
-              <p><pre>echo "{{data.output.vip}}  {{data.output.domain}}" >> /etc/hosts</pre></p>
+              <p><pre>echo "{{output.vip}}  {{output.domain}}" >> /etc/hosts</pre></p>
               <p>You might need to run this with elevated priviledges:
-                <pre>sudo bash -c 'echo "{{data.output.vip}}  {{data.output.domain}}" >> /etc/hosts'</pre>
+                <pre>sudo bash -c 'echo "{{output.vip}}  {{output.domain}}" >> /etc/hosts'</pre>
               </p>
-              <br>
 
+              <br>
+              <p><strong>Servers</strong> created were:
+              <table class="table table-bordered table-condensed">
+                <thead><tr><th>Name</th><th>Role</th><th>IP</th><th>Root Password</th></tr></thead>
+                <tbody><tr ng-repeat="resource in output.resources | filter:{component:'linux_instance'}">
+                    <td><a target="_blank" href="https://mycloud.rackspace.com/a/{{auth.username}}/#compute%2CcloudServersOpenStack%2C{{resource.region}}/{{resource.instance.id}}">{{resource['dns-name']}}</a></td>
+                    <td>{{resource.service}}</td>
+                    <td>{{resource.instance.public_ip}}</td>
+                    <td>{{resource.instance.password}}</td>
+                </tr></tbody></table>
+              <br>
               <p><strong>Access your servers</strong> using these credentials:
-              <pre>username: {{data.output.username}}<br>password: {{data.output.password}}</pre></p>
-              <p>Alternatively, you can use this private key:<clippy content="{{data.output.private_key}}" bgcolor="#DFF0D8"></clippy>
+              <pre>username: {{output.username}}<br>password: {{output.password}}</pre></p>
+              <p>Alternatively, you can use this private key:<clippy content="{{output.private_key}}" bgcolor="#DFF0D8"></clippy>
               </p>
-              <p><pre>{{data.output.private_key}}</pre></p>
-              <p>The advanced view of the workflow is <a href=".">here</a>.</p>
+              <p><pre>{{output.private_key}}</pre></p>
+              <p>The advanced view of the workflow can still be reached <a href=".">here</a>.</p>
           </div>
         </div>
         <div class="row-fluid" ng-cloak ng-show="timeRemaining">

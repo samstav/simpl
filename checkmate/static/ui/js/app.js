@@ -562,12 +562,12 @@ function WorkflowController($scope, $resource, $http, $routeParams, $location, $
         } else {
           var d = $resource('/:tenantId/deployments/:id.json?with_secrets');
           d.get($routeParams, function(object, getResponseHeaders){
-            $scope.data.output = {};
+            $scope.output = {};
             //Get load balancer IP
             try {
               var lb = _.find(object.resources, function(r, k) { return r.type == 'load-balancer';});
               if ('instance' in lb) {
-                $scope.data.output.vip = lb.instance.public_ip;
+                $scope.output.vip = lb.instance.public_ip;
               }
             }
             catch (error) {
@@ -578,14 +578,14 @@ function WorkflowController($scope, $resource, $http, $routeParams, $location, $
             //Find domain in inputs
             try {
               domain = object.inputs.blueprint.domain;
-              $scope.data.output.domain = domain;
+              $scope.output.domain = domain;
             }
             catch (error) {
               console.log(error);
             }
             //If no domain, use load-balancer VIP
             if (domain === null) {
-              domain = $scope.data.output.vip;
+              domain = $scope.output.vip;
             }
             //Find path in inputs
             var path = "/";
@@ -595,14 +595,14 @@ function WorkflowController($scope, $resource, $http, $routeParams, $location, $
             catch (error) {
               console.log(error);
             }
-            $scope.data.output.path = "http://" + domain + path;
+            $scope.output.path = "http://" + domain + path;
 
             //Get user name/password
             try {
               var user = _.find(object.resources, function(r, k) { return r.type == 'user';});
               if ('instance' in user) {
-                $scope.data.output.username = user.instance.name;
-                $scope.data.output.password = user.instance.password;
+                $scope.output.username = user.instance.name;
+                $scope.output.password = user.instance.password;
               }
             }
             catch (error) {
@@ -613,19 +613,41 @@ function WorkflowController($scope, $resource, $http, $routeParams, $location, $
             try {
               var keypair = _.find(object.resources, function(r, k) { return r.type == 'key-pair';});
               if ('instance' in keypair) {
-                $scope.data.output.private_key = keypair.instance.private_key;
+                $scope.output.private_key = keypair.instance.private_key;
               }
             }
             catch (error) {
               console.log(error);
             }
 
-            }, function(error) {
-              console.log("Error " + error.data + "(" + error.status + ") loading deployment.");
-              $scope.$root.error = {data: error.data, status: error.status, title: "Error loading deployment",
-                      message: "There was an error loading your deployment:"};
-              $('#modalError').modal('show');
+            //Copy resources into output as array (angular filters prefer arrays)
+            $scope.output.resources = _.toArray(object.resources);
+
+            //Copy all data to all_data for clipboard use
+            var all_data = [];
+            all_data.push('From: ' + $location.absUrl());
+            all_data.push('Wordpress URL: ' + $scope.output.path);
+            all_data.push('Wordpress IP: ' +  $scope.output.vip);
+            all_data.push('Servers: ');
+            _.each($scope.output.resources, function(resource) {
+                if (resource.component == 'linux_instance') {
+                    all_data.push('  ' + resource.service + ' server: ' + resource['dns-name']);
+                    all_data.push('    IP:      ' + resource.instance.public_ip);
+                    all_data.push('    Role:    ' + resource.service);
+                    all_data.push('    root pw: ' + resource.instance.password);
+                }
             });
+            all_data.push('User:     ' + $scope.output.username);
+            all_data.push('Password: ' + $scope.output.password);
+            all_data.push('Priv Key: ' + $scope.output.private_key);
+            $scope.all_data = all_data.join('\n');
+            
+          }, function(error) {
+            console.log("Error " + error.data + "(" + error.status + ") loading deployment.");
+            $scope.$root.error = {data: error.data, status: error.status, title: "Error loading deployment",
+                    message: "There was an error loading your deployment:"};
+            $('#modalError').modal('show');
+          });
         }
       } else if ($location.hash().length > 1) {
         $scope.selectSpec($location.hash());
