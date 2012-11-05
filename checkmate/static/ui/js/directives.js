@@ -123,3 +123,54 @@ directives.directive('compat', function factory($scope) {
   };
   return compat;
 });
+
+directives.directive('clippy', function factory() {
+  var directiveDefinitionObject = {
+    priority: 0,
+    template: '<span></span>',
+    controller: function($scope) {
+        $scope.encode = function(data) {
+            return encodeURIComponent(data);
+            }
+    },
+    replace: true,
+    transclude: false,
+    restrict: 'E',
+    scope: {content: '@content', swf: '@swf', bgcolor: '@bgcolor'},
+    compile: function(tElement, tAttrs, transclude) {
+        return {
+            post: function(scope, elm, attrs, ctrl) {
+                // observe changes to interpolated attribute and only add sources when we have data
+                attrs.$observe('content', function(value) {
+                  if (value) {
+                    var clippy_html = '<object classid="clsid:d27cdb6e-ae6d-11cf-96b8-444553540000"\
+                                width="110"\
+                                height="14"\
+                                id="clippy" >\
+                        <param name="allowScriptAccess" value="always" />\
+                        <param name="quality" value="high" />\
+                        <param name="scale" value="noscale" />\
+                        <param name="movie" value="' + (scope.swf || "/static/libs/clippy/clippy.swf") + '">\
+                        <param NAME="FlashVars" value="text=' + encodeURIComponent(scope.content) + '">\
+                        <embed src="' + (scope.swf || "/static/libs/clippy/clippy.swf") + '"\
+                               width="110"\
+                               height="14"\
+                               name="clippy"\
+                               quality="high"\
+                               allowScriptAccess="always"\
+                               type="application/x-shockwave-flash"\
+                               pluginspage="http://www.macromedia.com/go/getflashplayer"\
+                               FlashVars="text=' + encodeURIComponent(scope.content) + '"\
+                               bgcolor="' + scope.bgcolor +'"\
+                        />\
+                        </object>'
+                    elm.children('object').remove();
+                    elm.append(clippy_html);
+                  }
+                });
+            }
+        }
+    }
+  };
+  return directiveDefinitionObject;
+});

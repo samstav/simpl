@@ -416,6 +416,11 @@ function AppController($scope, $http, $location) {
 
       return rndNum;
   }
+
+  $scope.encodeURIComponent = function(data) {
+    return encodeURIComponent(data);
+  }
+
 }
 
 function NavBarController($scope, $location, $resource) {
