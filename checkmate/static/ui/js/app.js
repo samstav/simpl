@@ -1204,6 +1204,7 @@ function DeploymentInitController($scope, $location, $routeParams, $resource, bl
     deployment.environment = $scope.environment;
     deployment.inputs = {};
     deployment.inputs.blueprint = {};
+    break_flag = false;
 
     // Have to fix some of the answers so they are in the right format, specifically the select
     // and checkboxes. This is lame and slow and I should figure out a better way to do this.
@@ -1217,8 +1218,9 @@ function DeploymentInitController($scope, $location, $routeParams, $resource, bl
       //Check that all required fields are set
       if (setting.required === true) {
         if ($scope.answers[key] === null) {
-          console.log("Required field "+key+" not set. Aborting deployment");
-          throw "exception";
+          err_msg = "Required field "+key+" not set. Aborting deployment.";
+          console.log(err_msg);
+          break_flag = true;
         }
       }
 
@@ -1233,6 +1235,9 @@ function DeploymentInitController($scope, $location, $routeParams, $resource, bl
       }
     });
 
+    if (break_flag){
+      return;
+    }
     
 
     if ($scope.auth.loggedIn) {
