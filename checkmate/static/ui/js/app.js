@@ -548,7 +548,7 @@ function WorkflowController($scope, $resource, $http, $routeParams, $location, $
   };
   
   $scope.load = function() {
-    this.klass = $resource('/:tenantId/workflows/:id');
+    this.klass = $resource('/:tenantId/workflows/:id.json');
     this.klass.get($routeParams,
                    function(object, getResponseHeaders){
       $scope.data = object;
@@ -560,28 +560,32 @@ function WorkflowController($scope, $resource, $http, $routeParams, $location, $
         if ($scope.taskStates.completed < $scope.count) {
           setTimeout($scope.load, 2000);
         } else {
-          var d = $resource('/:tenantId/deployments/:id');
-          d.get($routeParams,
-                         function(object, getResponseHeaders){
+          var d = $resource('/:tenantId/deployments/:id.json?with_secrets');
+          d.get($routeParams, function(object, getResponseHeaders){
+            $scope.data.output = {};
+            //Get load balancer IP
+            try {
+              var lb = _.find(object.resources, function(r, k) { return r.type == 'load-balancer';});
+              if ('instance' in lb) {
+                $scope.data.output.vip = lb.instance.public_ip;
+              }
+            }
+            catch (error) {
+              console.log(error);
+            }
+
             var domain = null;
             //Find domain in inputs
             try {
               domain = object.inputs.blueprint.domain;
+              $scope.data.output.domain = domain;
             }
             catch (error) {
               console.log(error);
             }
             //If no domain, use load-balancer VIP
             if (domain === null) {
-              try {
-                var lb = _.find(object.resources, function(r, k) { return r.type == 'load-balancer';});
-                if ('instance' in lb) {
-                  domain = lb.instance.vip;
-                }
-              }
-              catch (error) {
-                console.log(error);
-              }
+              domain = $scope.data.output.vip;
             }
             //Find path in inputs
             var path = "/";
@@ -591,8 +595,31 @@ function WorkflowController($scope, $resource, $http, $routeParams, $location, $
             catch (error) {
               console.log(error);
             }
-            $scope.data.output = {};
             $scope.data.output.path = "http://" + domain + path;
+
+            //Get user name/password
+            try {
+              var user = _.find(object.resources, function(r, k) { return r.type == 'user';});
+              if ('instance' in user) {
+                $scope.data.output.username = user.instance.name;
+                $scope.data.output.password = user.instance.password;
+              }
+            }
+            catch (error) {
+              console.log(error);
+            }
+
+            //Get the private key
+            try {
+              var keypair = _.find(object.resources, function(r, k) { return r.type == 'key-pair';});
+              if ('instance' in keypair) {
+                $scope.data.output.private_key = keypair.instance.private_key;
+              }
+            }
+            catch (error) {
+              console.log(error);
+            }
+
             }, function(error) {
               console.log("Error " + error.data + "(" + error.status + ") loading deployment.");
               $scope.$root.error = {data: error.data, status: error.status, title: "Error loading deployment",

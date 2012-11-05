@@ -1,12 +1,23 @@
-<div class="container">
+<div class="container entries">
   <div class="row-fluid">
-    <section class="span6 offset3">
+    <section class="span8 offset2">
         <h4>{{data.wf_spec.name}}</h4>
         <div class="row-fluid" ng-cloak ng-show="timeRemaining == 0">
-          <div class="alert alert-success"><strong>Congratulations! Your deployment is complete.</strong>
-            &nbsp;
-              <p>Access your Wordpress site from <a>{{data.output.path}}</a>.</p>
-              <p>The username and password are <strong>jsmith/paxwd</strong>.</p>
+          <div class="alert alert-success"><h2>Congratulations! Your deployment is complete.</h2>
+              <p><strong>Access your Wordpress site</strong> from <a ng-href="{{data.output.path}}" target="_blank">{{data.output.path}}</a>.</p>
+              <p>Alternatively, enter the IP address in your hosts file if the domain name is not yet accessible:</p>
+              <p><pre>echo "{{data.output.vip}}  {{data.output.domain}}" >> /etc/hosts</pre></p>
+              <p>You might need to run this with elevated priviledges:
+                <pre>sudo bash -c 'echo "{{data.output.vip}}  {{data.output.domain}}" >> /etc/hosts'</pre>
+              </p>
+              <br>
+
+              <p><strong>Access your servers</strong> using these credentials:
+              <pre>username: {{data.output.username}}<br>password: {{data.output.password}}</pre></p>
+              <p>Alternatively, you can use this private key:<clippy content="{{data.output.private_key}}" bgcolor="#DFF0D8"></clippy>
+              </p>
+              <p><pre>{{data.output.private_key}}</pre></p>
+              <p>The advanced view of the workflow is <a href=".">here</a>.</p>
           </div>
         </div>
         <div class="row-fluid" ng-cloak ng-show="timeRemaining">
