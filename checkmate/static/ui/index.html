@@ -46,7 +46,6 @@
     }
   </style>
 
-  <base target="_blank"> <!-- This amazingness opens all links in a new tab. -->
 </head>
 <body onload="prettyPrint()" ng-controller="AppController" class="ng-cloak" w-down="tasks.next()" w-up="tasks.prev()"
 	  w-read="toggleRead()" w-star="toggleStar()" w-space="handleSpace()">
@@ -95,7 +94,7 @@
                 <ul class="dropdown-menu">
                   <li id="nav-environments"><a href="/{{auth.tenantId}}/environments">Environments</a></li>
                   <li id="nav-blueprints"><a href="/{{auth.tenantId}}/blueprints">Blueprints</a></li>
-                  <li id="nav-providers"><a href="/providers">Providers</a></li>
+                  <li id="nav-providers"><a href="/{{auth.tenantId}}/providers">Providers</a></li>
                   <!--<li class="divider"></li>
                   <li class="nav-header">Status</li>
                   <li id="nav-status-celery"><a href="/status/celery">Celery</a></li>

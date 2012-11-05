@@ -693,7 +693,6 @@ services.config(function ($httpProvider) {
 				if (checkmate.requests <= 0)
                 			$('#loading').attr('src', '/static/img/blank.gif');
                 return response;
-
             }, function (response) {
 				checkmate.requests -= 1;
 				if (checkmate.requests <= 0)
@@ -701,8 +700,8 @@ services.config(function ($httpProvider) {
 				var error = response;
                                 var info = {data: error.data,
                                             status: error.status,
-                                            title: "Error Saving",
-					    message: "There was an error saving your data:"};
+                                            title: "Error",
+					    message: "There was an error executing your request:"};
                                 if ('description' in error.data)
                                     info.message = error.data.description;
 				$rootScope.error = info;
