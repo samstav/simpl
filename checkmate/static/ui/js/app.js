@@ -622,6 +622,10 @@ function WorkflowController($scope, $resource, $http, $routeParams, $location, $
 
             //Copy resources into output as array (angular filters prefer arrays)
             $scope.output.resources = _.toArray(object.resources);
+            //Get master server
+            $scope.output.master_server = _.find($scope.output.resources, function(resource) {
+                return (resource.component == 'linux_instance' && resource.service == 'master');
+            });
 
             //Copy all data to all_data for clipboard use
             var all_data = [];
@@ -637,6 +641,25 @@ function WorkflowController($scope, $resource, $http, $routeParams, $location, $
                     all_data.push('    root pw: ' + resource.instance.password);
                 }
             });
+            all_data.push('Databases: ');
+            _.each($scope.output.resources, function(resource) {
+                if (resource.type == 'database') {
+                    all_data.push('  ' + resource.service + ' database: ' + resource['dns-name']);
+                    all_data.push('    Host:       ' + resource.instance.interfaces.mysql.host);
+                    all_data.push('    Username:   ' + resource.instance.interfaces.mysql.username);
+                    all_data.push('    Password:   ' + resource.instance.interfaces.mysql.password);
+                    all_data.push('    DB Name:    ' + resource.instance.interfaces.mysql.database_name);
+                    all_data.push('    Admin Link: https://' + $scope.output.master_server.instance.public_ip + '/database-admin');
+                }
+            });
+            all_data.push('Load balancers: ');
+            _.each($scope.output.resources, function(resource) {
+                if (resource.type == 'load-balancer') {
+                    all_data.push('  ' + resource.service + ' load-balancer: ' + resource['dns-name']);
+                    all_data.push('    Public VIP:       ' + resource.instance.public_ip);
+                }
+            });
+
             all_data.push('User:     ' + $scope.output.username);
             all_data.push('Password: ' + $scope.output.password);
             all_data.push('Priv Key: ' + $scope.output.private_key);

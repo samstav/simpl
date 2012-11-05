@@ -4,8 +4,8 @@
         <h4>{{data.wf_spec.name}}</h4>
         <div class="row-fluid" ng-cloak ng-show="timeRemaining == 0">
           <div class="alert alert-success">
-              <clippy style="position:absolute; top:inherit" content="{{all_data}}" bgcolor="#DFF0D8"></clippy>
-              <h2>Congratulations! Your deployment is complete.</h2>
+              <clippy style="top:0" content="{{all_data}}" bgcolor="#DFF0D8"></clippy>
+              <h2 style="margin-top: 0;">Congratulations! Your deployment is complete.</h2>
               <p><strong>Access your Wordpress site</strong> from <a ng-href="{{output.path}}" target="_blank">{{output.path}}</a>.</p>
               <p>Alternatively, enter the IP address in your hosts file if the domain name is not yet accessible:</p>
               <p><pre>echo "{{output.vip}}  {{output.domain}}" >> /etc/hosts</pre></p>
@@ -23,7 +23,18 @@
                     <td>{{resource.instance.public_ip}}</td>
                     <td>{{resource.instance.password}}</td>
                 </tr></tbody></table>
-              <br>
+
+              <p><strong>Databases</strong> created:<br>
+              <table class="table table-condensed" ng-repeat="resource in output.resources | filter:{type:'database'}">
+                <tr><td>Name:</td><td><a target="_blank" href=https://mycloud.rackspace.com/a/{{auth.username}}/database#rax%3Adatabase%2CcloudDatabases%2C{{resource.region}}/{{resource.instance.id}}">{{resource['dns-name']}}</a></td></tr>
+                <tr><td>Admin Link:</td><td><a target="_blank" href="https://{{output.master_server.instance.public_ip}}/database-admin">https://{{output.master_server.instance.public_ip}}/database-admin</a></td></tr>
+                <tr><td>Role:</td><td>{{resource.service}}</td></tr>
+                <tr><td>Host:</td><td>{{resource.instance.interfaces.mysql.host}}</td></tr>
+                <tr><td>Database:</td><td>{{resource.instance.interfaces.mysql.database_name}}</td></tr>
+                <tr><td>Username:</td><td>{{resource.instance.interfaces.mysql.username}}</td></tr>
+                <tr><td>Password:</td><td>{{resource.instance.interfaces.mysql.password}}</td></tr>
+              </table>
+
               <p><strong>Access your servers</strong> using these credentials:
               <pre>username: {{output.username}}<br>password: {{output.password}}</pre></p>
               <p>Alternatively, you can use this private key:<clippy content="{{output.private_key}}" bgcolor="#DFF0D8"></clippy>
