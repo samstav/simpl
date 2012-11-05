@@ -1453,20 +1453,34 @@ WPBP = {
                 "constrains":[
                     {
                         "setting":"wordpress/database/prefix",
-                        "service":"web",
+                        "service":"master",
                         "resource_type":"application"
+
                     },
                     {
-                        "setting":"name",
-                        "resource_type":"wp user"
+                        "setting":"wordpress/database/prefix",
+                        "service":"web",
+                        "resource_type":"application"
+
                     }
                 ],
                 "help":"Note that this also the user name, database name, and also identifies this\nwordpress install from other ones you might add later to the same deployment.\n",
-                "default":"wp",
+                "default":"wp_",
                 "required":true,
                 "label":"Prefix",
                 "type":"string",
                 "description":"The application ID (and wordpress table prefix)."
+            },
+            "username":{
+                "type":"string",
+                "description":"Username to use for service.",
+                "label":"Username",
+                "constrains":[
+                	{
+                    	"setting":"name",
+                    	"resource_type":"wp user"
+                	}
+                ]
             },
             "password":{
                 "type":"password",
@@ -2040,16 +2054,17 @@ WPBP = {
                 "constrains":[
                     {
                         "setting":"wordpress/database/prefix",
-                        "service":"web",
+                        "service":"master",
                         "resource_type":"application"
                     },
                     {
-                        "setting":"name",
-                        "resource_type":"wp user"
+                        "setting":"wordpress/database/prefix",
+                        "service":"web",
+                        "resource_type":"application"
                     }
                 ],
                 "help":"Note that this also the user name, database name, and also identifies this\nwordpress install from other ones you might add later to the same deployment.\n",
-                "default":"wp",
+                "default":"wp_",
                 "required":true,
                 "label":"Prefix",
                 "type":"string",
@@ -2064,6 +2079,18 @@ WPBP = {
                         "setting":"password",
                         "resource_type":"wp user"
                     }
+                ]
+            },
+            "username":{
+                "type":"string",
+                "description":"Username to use for service.",
+				"required":true,
+                "label":"Username",
+                "constrains":[
+                	{
+                    	"setting":"name",
+                    	"resource_type":"wp user"
+                	}
                 ]
             },
             "os":{
