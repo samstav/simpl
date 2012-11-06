@@ -893,7 +893,7 @@ function WorkflowController($scope, $resource, $http, $routeParams, $location, $
   }
 
   $scope.was_loadbalancer_created = function() {
-    if (typeof $scope.current_task != 'undefined' && $scope.current_task.task_spec.indexOf("Create L") == 0 &&
+    if (typeof $scope.current_task != 'undefined' && ($scope.current_task.task_spec.indexOf("Load") != -1 || $scope.current_task.task_spec.indexOf("alancer") != -1) &&
         $scope.resource($scope.current_task) !== null)
       return true;
     return false;
