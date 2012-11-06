@@ -649,7 +649,7 @@ function WorkflowController($scope, $resource, $http, $routeParams, $location, $
                     all_data.push('    Username:   ' + resource.instance.interfaces.mysql.username);
                     all_data.push('    Password:   ' + resource.instance.interfaces.mysql.password);
                     all_data.push('    DB Name:    ' + resource.instance.interfaces.mysql.database_name);
-                    all_data.push('    Admin Link: https://' + $scope.output.master_server.instance.public_ip + '/database-admin');
+                    //all_data.push('    Admin Link: https://' + $scope.output.master_server.instance.public_ip + '/database-admin');
                 }
             });
             all_data.push('Load balancers: ');
