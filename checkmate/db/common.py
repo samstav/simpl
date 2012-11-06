@@ -39,8 +39,10 @@ def any_id_problems(id):
     return None
 
 
-def get_driver(name=None):
+def get_driver(name=None, reset=False):
     global DB
+    if reset: #Forces a hard reset of global variable
+        DB = None
     if DB is None:
         if not name:
             connection_string = os.environ.get('CHECKMATE_CONNECTION_STRING',

@@ -1228,6 +1228,7 @@ function DeploymentInitController($scope, $location, $routeParams, $resource, bl
     deployment.environment = $scope.environment;
     deployment.inputs = {};
     deployment.inputs.blueprint = {};
+    break_flag = false;
 
     // Have to fix some of the answers so they are in the right format, specifically the select
     // and checkboxes. This is lame and slow and I should figure out a better way to do this.
@@ -1237,6 +1238,15 @@ function DeploymentInitController($scope, $location, $routeParams, $resource, bl
           return item;
         return null;
       });
+
+      //Check that all required fields are set
+      if (setting.required === true) {
+        if ($scope.answers[key] === null) {
+          err_msg = "Required field "+key+" not set. Aborting deployment.";
+          console.log(err_msg);
+          break_flag = true;
+        }
+      }
 
       if (setting.type === "boolean") {
         if ($scope.answers[key] === null) {
@@ -1248,6 +1258,11 @@ function DeploymentInitController($scope, $location, $routeParams, $resource, bl
         deployment.inputs.blueprint[key] = $scope.answers[key];
       }
     });
+
+    if (break_flag){
+      return;
+    }
+    
 
     if ($scope.auth.loggedIn) {
         deployment.$save(function(returned, getHeaders){
@@ -1583,7 +1598,7 @@ WPBP = {
                         "resource_type":"application"
                     }
                 ],
-                "description":"The domain you wish to host your blog on. (ex: example.com)",
+                "description":"The domain you wish to host your blog on. (ex: example.com)\nYou can either select a previously created domain from the drop-down, or create a new domain in the text box.",
                 "label":"Domain",
                 "sample":"example.com",
                 "type":"combo",

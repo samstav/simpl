@@ -777,7 +777,10 @@ includes:
             http:
               id: http
               is: load-balancer
-              options: *id001
+              options:
+                protocol:
+                  choice: 
+                  - http
               provides:
               - load-balancer: http
             https:

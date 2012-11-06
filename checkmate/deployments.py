@@ -1226,17 +1226,18 @@ class Deployment(ExtensibleDict):
 
         :param name: the name of the setting
         :param service_name: the name of the service being evaluated
-        :param resource_type: the type of the resource being evaluated
         """
         blueprint = self['blueprint']
         if 'services' in blueprint:
             services = blueprint['services']
-            service = services[service_name]
-            if 'component' in service:
-                if 'constraints' in service['component']:
-                    constraints = service['component']['constraints']
-                    if name in constraints:
-                        return constraints[name]
+            service = services.get(service_name, None)
+            if service is not None:
+                if 'component' in service:
+                    if service['component'] is not None:
+                        if 'constraints' in service['component']:
+                            constraints = service['component']['constraints']
+                            if name in constraints:
+                                return constraints[name]
 
     def constraint_applies(self, constraint, name, resource_type=None,
                 service_name=None):

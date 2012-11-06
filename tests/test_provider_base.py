@@ -242,12 +242,10 @@ class TestProviderBaseWorkflow(StubbedWorkflowBase):
                     'result': None,
                 })
         self.workflow = self._get_stubbed_out_workflow(expected_calls=expected)
-
+ 
     def test_workflow_completion(self):
         """Verify workflow sequence and data flow"""
-
         self.mox.ReplayAll()
-
         self.workflow.complete_all()
         self.assertTrue(self.workflow.is_completed(), "Workflow did not "
                 "complete")
