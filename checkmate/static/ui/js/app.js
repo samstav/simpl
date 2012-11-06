@@ -2362,7 +2362,7 @@ WPBP = {
             "username":{
                 "type":"string",
                 "description":"Username to use for service.",
-				"required":true,
+		"required":true,
                 "label":"Username",
                 "constrains":[
                 	{
