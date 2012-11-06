@@ -290,9 +290,9 @@ class TestDeploymentResourceGenerator(unittest.TestCase):
                   providers: {}
             """ % "\n                        ".join(private['PEM'].split(
                 "\n"))))
-
         parsed = plan(deployment, RequestContext())
         resources = parsed['resources']
+
         # User
         self.assertIn("myUser", resources)
         expected = {'index': 'myUser',
@@ -302,7 +302,10 @@ class TestDeploymentResourceGenerator(unittest.TestCase):
                         'password': 'secret',
                         }
                     }
+        self.assertIn("hash", resources['myUser']['instance']) # Make sure hash value was generated
+        expected['instance']['hash'] = resources['myUser']['instance']['hash'] # Pull hash value into expected
         self.assertDictEqual(resources['myUser'], expected)
+
         # Key pair
         self.assertIn("myKey", resources)
         self.assertItemsEqual(resources['myKey']['instance'].keys(),
@@ -514,36 +517,36 @@ class TestDeploymentSettings(unittest.TestCase):
                   'expected': "value"
                 },
                 {
-                'case': "Set in blueprint/inputs",
-                'name': "domain",
-                'expected': "example.com",
+                  'case': "Set in blueprint/inputs",
+                  'name': "domain",
+                  'expected': "example.com",
                 }, {
-                'case': "Set in blueprint/inputs with service/provider scope",
-                'name': "os",
-                'service': "web",
-                'expected': "Ubuntu 11.10",
+                  'case': "Set in blueprint/inputs with service/provider scope",
+                  'name': "os",
+                  'service': "web",
+                  'expected': "Ubuntu 11.10",
                 }, {
-                'case': "Set in blueprint/inputs with no service scope",
-                'name': "os",
-                'expected': None,
+                  'case': "Set in blueprint/inputs with no service scope",
+                  'name': "os",
+                  'expected': None,
                 }, {
-                'case': "Set in blueprint/service under provider/resource",
-                'name': "memory",
-                'service': "web",
-                'type': 'compute',
-                'expected': "2 Gb",
+                  'case': "Set in blueprint/service under provider/resource",
+                  'name': "memory",
+                  'service': "web",
+                  'type': 'compute',
+                  'expected': "2 Gb",
                 }, {
-                'case': "Set in environments/providers/common",
-                'name': "region",
-                'provider': "common",
-                'service': "constraints",
-                'expected': "place",
+                  'case': "Set in environments/providers/common",
+                  'name': "region",
+                  'provider': "common",
+                  'service': "constraints",
+                  'expected': "place",
                 },  {
-                'case': "Set in blueprint/providers",
-                'name': "memory",
-                'type': 'compute',
-                'expected': "4 Gb",
-                'add': """ - FIXME: broken without env providers
+                  'case': "Set in blueprint/providers",
+                  'name': "memory",
+                  'type': 'compute',
+                  'expected': "4 Gb",
+                  'add': """ - FIXME: broken without env providers
                     environment:
                       name: environment
                       providers:

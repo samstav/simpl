@@ -168,3 +168,6 @@ class Driver(DbBase):
                 secrets, True, False)
         del body['_id']
         return body
+
+    def delete_object(self, klass, id, body):
+        result = self.database()[klass].remove(body)

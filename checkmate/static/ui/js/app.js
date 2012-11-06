@@ -416,6 +416,11 @@ function AppController($scope, $http, $location) {
 
       return rndNum;
   }
+
+  $scope.encodeURIComponent = function(data) {
+    return encodeURIComponent(data);
+  }
+
 }
 
 function NavBarController($scope, $location, $resource) {
@@ -543,7 +548,7 @@ function WorkflowController($scope, $resource, $http, $routeParams, $location, $
   };
   
   $scope.load = function() {
-    this.klass = $resource('/:tenantId/workflows/:id');
+    this.klass = $resource('/:tenantId/workflows/:id.json');
     this.klass.get($routeParams,
                    function(object, getResponseHeaders){
       $scope.data = object;
@@ -555,28 +560,32 @@ function WorkflowController($scope, $resource, $http, $routeParams, $location, $
         if ($scope.taskStates.completed < $scope.count) {
           setTimeout($scope.load, 2000);
         } else {
-          var d = $resource('/:tenantId/deployments/:id');
-          d.get($routeParams,
-                         function(object, getResponseHeaders){
+          var d = $resource('/:tenantId/deployments/:id.json?with_secrets');
+          d.get($routeParams, function(object, getResponseHeaders){
+            $scope.output = {};
+            //Get load balancer IP
+            try {
+              var lb = _.find(object.resources, function(r, k) { return r.type == 'load-balancer';});
+              if ('instance' in lb) {
+                $scope.output.vip = lb.instance.public_ip;
+              }
+            }
+            catch (error) {
+              console.log(error);
+            }
+
             var domain = null;
             //Find domain in inputs
             try {
               domain = object.inputs.blueprint.domain;
+              $scope.output.domain = domain;
             }
             catch (error) {
               console.log(error);
             }
             //If no domain, use load-balancer VIP
             if (domain === null) {
-              try {
-                var lb = _.find(object.resources, function(r, k) { return r.type == 'load-balancer';});
-                if ('instance' in lb) {
-                  domain = lb.instance.vip;
-                }
-              }
-              catch (error) {
-                console.log(error);
-              }
+              domain = $scope.output.vip;
             }
             //Find path in inputs
             var path = "/";
@@ -586,14 +595,82 @@ function WorkflowController($scope, $resource, $http, $routeParams, $location, $
             catch (error) {
               console.log(error);
             }
-            $scope.data.output = {};
-            $scope.data.output.path = "http://" + domain + path;
-            }, function(error) {
-              console.log("Error " + error.data + "(" + error.status + ") loading deployment.");
-              $scope.$root.error = {data: error.data, status: error.status, title: "Error loading deployment",
-                      message: "There was an error loading your deployment:"};
-              $('#modalError').modal('show');
+            $scope.output.path = "http://" + domain + path;
+
+            //Get user name/password
+            try {
+              var user = _.find(object.resources, function(r, k) { return r.type == 'user';});
+              if ('instance' in user) {
+                $scope.output.username = user.instance.name;
+                $scope.output.password = user.instance.password;
+              }
+            }
+            catch (error) {
+              console.log(error);
+            }
+
+            //Get the private key
+            try {
+              var keypair = _.find(object.resources, function(r, k) { return r.type == 'key-pair';});
+              if ('instance' in keypair) {
+                $scope.output.private_key = keypair.instance.private_key;
+              }
+            }
+            catch (error) {
+              console.log(error);
+            }
+
+            //Copy resources into output as array (angular filters prefer arrays)
+            $scope.output.resources = _.toArray(object.resources);
+            //Get master server
+            $scope.output.master_server = _.find($scope.output.resources, function(resource) {
+                return (resource.component == 'linux_instance' && resource.service == 'master');
             });
+
+            //Copy all data to all_data for clipboard use
+            var all_data = [];
+            all_data.push('From: ' + $location.absUrl());
+            all_data.push('Wordpress URL: ' + $scope.output.path);
+            all_data.push('Wordpress IP: ' +  $scope.output.vip);
+            all_data.push('Servers: ');
+            _.each($scope.output.resources, function(resource) {
+                if (resource.component == 'linux_instance') {
+                    all_data.push('  ' + resource.service + ' server: ' + resource['dns-name']);
+                    all_data.push('    IP:      ' + resource.instance.public_ip);
+                    all_data.push('    Role:    ' + resource.service);
+                    all_data.push('    root pw: ' + resource.instance.password);
+                }
+            });
+            all_data.push('Databases: ');
+            _.each($scope.output.resources, function(resource) {
+                if (resource.type == 'database') {
+                    all_data.push('  ' + resource.service + ' database: ' + resource['dns-name']);
+                    all_data.push('    Host:       ' + resource.instance.interfaces.mysql.host);
+                    all_data.push('    Username:   ' + resource.instance.interfaces.mysql.username);
+                    all_data.push('    Password:   ' + resource.instance.interfaces.mysql.password);
+                    all_data.push('    DB Name:    ' + resource.instance.interfaces.mysql.database_name);
+                    all_data.push('    Admin Link: https://' + $scope.output.master_server.instance.public_ip + '/database-admin');
+                }
+            });
+            all_data.push('Load balancers: ');
+            _.each($scope.output.resources, function(resource) {
+                if (resource.type == 'load-balancer') {
+                    all_data.push('  ' + resource.service + ' load-balancer: ' + resource['dns-name']);
+                    all_data.push('    Public VIP:       ' + resource.instance.public_ip);
+                }
+            });
+
+            all_data.push('User:     ' + $scope.output.username);
+            all_data.push('Password: ' + $scope.output.password);
+            all_data.push('Priv Key: ' + $scope.output.private_key);
+            $scope.all_data = all_data.join('\n');
+            
+          }, function(error) {
+            console.log("Error " + error.data + "(" + error.status + ") loading deployment.");
+            $scope.$root.error = {data: error.data, status: error.status, title: "Error loading deployment",
+                    message: "There was an error loading your deployment:"};
+            $('#modalError').modal('show');
+          });
         }
       } else if ($location.hash().length > 1) {
         $scope.selectSpec($location.hash());
@@ -1228,6 +1305,7 @@ function DeploymentInitController($scope, $location, $routeParams, $resource, bl
     deployment.environment = $scope.environment;
     deployment.inputs = {};
     deployment.inputs.blueprint = {};
+    break_flag = false;
 
     // Have to fix some of the answers so they are in the right format, specifically the select
     // and checkboxes. This is lame and slow and I should figure out a better way to do this.
@@ -1237,6 +1315,15 @@ function DeploymentInitController($scope, $location, $routeParams, $resource, bl
           return item;
         return null;
       });
+
+      //Check that all required fields are set
+      if (setting.required === true) {
+        if ($scope.answers[key] === null) {
+          err_msg = "Required field "+key+" not set. Aborting deployment.";
+          console.log(err_msg);
+          break_flag = true;
+        }
+      }
 
       if (setting.type === "boolean") {
         if ($scope.answers[key] === null) {
@@ -1248,6 +1335,11 @@ function DeploymentInitController($scope, $location, $routeParams, $resource, bl
         deployment.inputs.blueprint[key] = $scope.answers[key];
       }
     });
+
+    if (break_flag){
+      return;
+    }
+    
 
     if ($scope.auth.loggedIn) {
         deployment.$save(function(returned, getHeaders){
@@ -1583,7 +1675,7 @@ WPBP = {
                         "resource_type":"application"
                     }
                 ],
-                "description":"The domain you wish to host your blog on. (ex: example.com)",
+                "description":"The domain you wish to host your blog on. (ex: example.com)\nYou can either select a previously created domain from the drop-down, or create a new domain in the text box.",
                 "label":"Domain",
                 "sample":"example.com",
                 "type":"combo",

@@ -125,6 +125,7 @@ class Provider(ProviderBase):
     
     def _add_node_connection(self,resource, key, relation, relation_key,
             wfspec, deployment, context, interface):
+
         comp = self.find_components(context, id="rsCloudLB")
         if not comp:
             raise CheckmateException("Could not locate component for id 'rsCloudLB'")
