@@ -43,9 +43,9 @@ def main_func():
             pass
     else:
         print """
-        *** (Opinionated) CheckMate Queue Command-line Utility ***
+        *** (Opinionated) Checkmate Queue Command-line Utility ***
 
-        Starts the CheckMate Celery Queue Listener with some default settings
+        Starts the Checkmate Celery Queue Listener with some default settings
 
         Usage:
 
