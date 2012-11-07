@@ -105,14 +105,14 @@
             <!-- resetWarning -->
             <div id="resetWarning" class="modal hide fade" tabindex="-1" role="dialog" aria-labelledby="myModalLabel" aria-hidden="true">
               <div class="modal-header">
-                <h3 id="myModalLabel">Warning!</h3>
+                <h3 id="myModalLabel" class="alert alert-danger">Warning! Data Destructive Task</h3>
               </div>
               <div class="modal-body">
-                <p>If your updates include any 'secret' values (like password or private keys) and you have not opened this screen with a ?with_secrets query parameter, then any existing secrets will be overwritten and lost</p>
+                <p>Resetting a task will delete all the task history and data in it that references any resources created.</p>
               </div>
               <div class="modal-footer">
-                <button class="btn btn-primary" ng-href="#{{current_task.task_spec}}" ng-click="reset_task()">Reset</button>
-                <button class="btn" data-dismiss="modal" aria-hidden="true">Abort</button>
+                <button class="btn btn-primary" ng-href="#{{current_task.task_spec}}" ng-click="reset_task()">Go ahead and Reset</button>
+                <button class="btn" data-dismiss="modal" aria-hidden="true">Cancel</button>
               </div>
             </div>
           <li><a ng-href="#{{current_task.task_spec}}" ng-click="execute_task()" class="tip" title="Tries to move the task along or checks the latest status if it is pending."><i class="icon-play"></i> Poke</a></li>
