@@ -15,29 +15,6 @@ checkmate.config(['$routeProvider', '$locationProvider', '$httpProvider', functi
     template: '<calculator/>',
     controller: StaticController
   })
-
-  // Legacy Paths - none of these should be in use anymore
-  $routeProvider.
-  when('/:tenantId/environments/:id', {
-    controller: LegacyController,
-    template:'<section class="entries" ng-include="templateUrl"><img src="/static/img/ajax-loader-bar.gif" alt="Loading..."/></section>'
-  }).
-  when('/:tenantId/workflows/:id/legacy', {
-    controller: LegacyController,
-    template:'<section class="entries" ng-include="templateUrl"><img src="/static/img/ajax-loader-bar.gif" alt="Loading..."/></section>'
-  }).
-  when('/:tenantId/workflows/:id/tasks/:task_id', {
-    controller: LegacyController,
-    template:'<section class="entries" ng-include="templateUrl"><img src="/static/img/ajax-loader-bar.gif" alt="Loading..."/></section>'
-  }).
-  when('/status/libraries', {
-    controller: LegacyController,
-    template:'<section class="entries" ng-include="templateUrl"><img src="/static/img/ajax-loader-bar.gif" alt="Loading..."/></section>'
-  }).
-  when('/status/celery', {
-    controller: LegacyController,
-    template:'<section class="entries" ng-include="templateUrl"><img src="/static/img/ajax-loader-bar.gif" alt="Loading..."/></section>'
-  })
   
   // New UI - static pages
   $routeProvider.
@@ -129,77 +106,6 @@ function StaticController($scope, $location) {
 function ExternalController($window, $location) {
   console.log("Loading external URL " + $location.absUrl());
   $window.location.href = $location.absUrl();
-}
-
-//Loads the old ui (rendered at the server)
-function LegacyController($scope, $location, $routeParams, $resource, navbar, $window, $http) {
-  $scope.showHeader = false;
-  $scope.showStatus = false;
-  var parts = $location.path().split('/')
-  if (parts.length > 1)
-    navbar.highlight(parts[2]);
-
-  var path;
-  if ('tenantId' in $routeParams) {
-    path = $location.path();
-  } else if ($location.path().indexOf('/' + $scope.$parent.auth.tenantId + '/') == 0) {
-    path = $location.path();
-  } else {
-    path = '/' + $scope.$parent.auth.tenantId + $location.path();
-  }
-  if (path.indexOf(".html") == -1 )
-    path += ".html";
-  if ($location.url().length > $location.path().length)
-    path += $location.url().substr($location.path().length);
-  console.log("Legacy controller loading " + path);
-  $scope.templateUrl = path;
-
-  $scope.save = function() {
-    if ($scope.auth.loggedIn) {
-      var klass = $resource($location.path());
-      var thang = new klass(JSON.parse(Editor.getValue()));
-      thang.$save(function(returned, getHeaders){
-          $scope.notify('Saved');
-        }, function(error) {
-          $scope.$root.error = {data: error.data, status: error.status, title: "Error Saving",
-                  message: "There was an error saving your JSON:"};
-          $('#modalError').modal('show');
-        });
-    } else {
-      $scope.loginPrompt($scope.save); //TODO: implement a callback
-    }
-  };
-
-  $scope.action = function(action) {
-    if ($scope.auth.loggedIn) {
-      console.log("Executing action " + $location.path() + '/' + action)
-      $http({method: 'POST', url: $location.path() + '/' + action}).
-        success(function(data, status, headers, config) {
-          $scope.notify("Command '" + action.replace('+', '') + "' executed");
-          // this callback will be called asynchronously
-          // when the response is available
-          $window.location.reload();
-        });
-    } else {
-      $scope.loginPrompt(); //TODO: implement a callback
-    }
-  };
-
-  $scope.target_action = function(target) {
-    if ($scope.auth.loggedIn) {
-      console.log("Executing action " + target)
-      $http({method: 'POST', url: target}).
-        success(function(data, status, headers, config) {
-          $scope.notify("Command '" + _.last(target.split("/")).replace('+', '') + "' executed");
-          // this callback will be called asynchronously
-          // when the response is available
-          $window.location.reload();
-        });
-    } else {
-      $scope.loginPrompt(); //TODO: implement a callback
-    }
-  };
-
 }
 
 //Root controller that implements authentication
