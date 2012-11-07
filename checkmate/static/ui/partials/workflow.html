@@ -100,30 +100,23 @@
       <div class="span3">
         <ul class="nav nav-list" ng-cloak ng-show="current_task_index">
           <li class="nav-header">Task</li>
-
           <li><a ng-href="#{{current_task.task_spec}}" ng-click="save_task()" class="tip" title="Save any edits of the JSON. The JSON on the right is editable!"><i class="icon-ok"></i> Save</a></li>
           <li><a ng-href="#resetWarning" ng-click="" class="tip" title="Clear the task data and reset it" data-toggle="modal"><i class="icon-repeat"></i> Reset</a></li>
-
-<!-- resetWarning -->
-<div id="resetWarning" class="modal hide fade" tabindex="-1" role="dialog" aria-labelledby="myModalLabel" aria-hidden="true">
-  <div class="modal-header">
-    <h3 id="myModalLabel">Warning!</h3>
-  </div>
-  <div class="modal-body">
-    <p>If your updates include any 'secret' values (like password or private keys) and you have not opened this screen with a ?with_secrets query parameter, then any existing secrets will be overwritten and lost</p>
-  </div>
-  <div class="modal-footer">
-    <button class="btn btn-primary" ng-href="#{{current_task.task_spec}}" ng-click="reset_task()">Reset</button>
-    <button class="btn" data-dismiss="modal" aria-hidden="true">Abort</button>
-  </div>
-</div>
-
-
-
+            <!-- resetWarning -->
+            <div id="resetWarning" class="modal hide fade" tabindex="-1" role="dialog" aria-labelledby="myModalLabel" aria-hidden="true">
+              <div class="modal-header">
+                <h3 id="myModalLabel">Warning!</h3>
+              </div>
+              <div class="modal-body">
+                <p>If your updates include any 'secret' values (like password or private keys) and you have not opened this screen with a ?with_secrets query parameter, then any existing secrets will be overwritten and lost</p>
+              </div>
+              <div class="modal-footer">
+                <button class="btn btn-primary" ng-href="#{{current_task.task_spec}}" ng-click="reset_task()">Reset</button>
+                <button class="btn" data-dismiss="modal" aria-hidden="true">Abort</button>
+              </div>
+            </div>
           <li><a ng-href="#{{current_task.task_spec}}" ng-click="execute_task()" class="tip" title="Tries to move the task along or checks the latest status if it is pending."><i class="icon-play"></i> Poke</a></li>
-
-          <li><a ng-href="#"{{current_task.task_spec}} ng-click="resubmit_task()" class="tip" title="Retries the task. It Aborts an existing task if it is running."><i class="icon-retweet"></i> Retry</a></li>
-
+          <li><a ng-href="#{{current_task.task_spec}}" ng-click="resubmit_task()" class="tip" title="Retries the task. It Aborts an existing task if it is running."><i class="icon-retweet"></i> Retry</a></li>
         </ul>
       </div>
 

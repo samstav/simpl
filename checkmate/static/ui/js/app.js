@@ -676,7 +676,7 @@ function WorkflowController($scope, $resource, $http, $routeParams, $location, $
         $scope.selectSpec($location.hash());
         $('#spec_list').css('top', $('.summaryHeader').outerHeight()); // Not sure if this is the right place for this. -Chris.Burrell (chri5089)
       } else
-        $scope.selectSpec(Object.keys(object.wf_spec.task_specs)[0]);
+        $scope.selectSpec($scope.current_spec_index || Object.keys(object.wf_spec.task_specs)[0]);
       //$scope.play();
     }, function(response) {
         console.log("Error loading workflow.", response);
