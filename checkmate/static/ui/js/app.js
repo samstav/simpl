@@ -1757,7 +1757,9 @@ WPBP = {
                     	"setting":"name",
                     	"resource_type":"wp user"
                 	}
-                ]
+                ],
+                "default":"wp",
+                "required":true
             },
             "password":{
                 "type":"password",
@@ -2362,14 +2364,16 @@ WPBP = {
             "username":{
                 "type":"string",
                 "description":"Username to use for service.",
-	        "required":true,
+                "required":true,
                 "label":"Username",
                 "constrains":[
                    {
                         "setting":"name",
                     	"resource_type":"wp user"
                    }
-                ]
+                ],
+                "default":"wp",
+                "required":true
             },
             "os":{
                 "constrains":[
