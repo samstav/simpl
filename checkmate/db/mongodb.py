@@ -155,7 +155,7 @@ class Driver(DbBase):
                 cur_secrets = self.database()['%s_secrets' % klass].find_one(
                             {'_id': obj_id}, {'_id': 0})
                 if cur_secrets:
-                    collate(cur_secrets, secrets, extend_lists=True)
+                    collate(cur_secrets, secrets, extend_lists=False)
                     secrets = cur_secrets
         if tenant_id:
             body['tenantId'] = tenant_id
