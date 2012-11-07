@@ -27,7 +27,7 @@
               <p><strong>Databases</strong> created:<br>
               <table class="table table-condensed" ng-repeat="resource in output.resources | filter:{type:'database'}">
                 <tr><td>Name:</td><td><a target="_blank" href=https://mycloud.rackspace.com/a/{{auth.username}}/database#rax%3Adatabase%2CcloudDatabases%2C{{resource.region}}/{{resource.instance.id}}">{{resource['dns-name']}}</a></td></tr>
-                <tr><td>Admin Link:</td><td><a target="_blank" href="https://{{output.master_server.instance.public_ip}}/database-admin">https://{{output.master_server.instance.public_ip}}/database-admin</a></td></tr>
+                <!--<tr><td>Admin Link:</td><td><a target="_blank" href="https://{{output.master_server.instance.public_ip}}/database-admin">https://{{output.master_server.instance.public_ip}}/database-admin</a></td></tr>-->
                 <tr><td>Role:</td><td>{{resource.service}}</td></tr>
                 <tr><td>Host:</td><td>{{resource.instance.interfaces.mysql.host}}</td></tr>
                 <tr><td>Database:</td><td>{{resource.instance.interfaces.mysql.database_name}}</td></tr>

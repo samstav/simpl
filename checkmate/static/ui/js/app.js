@@ -649,7 +649,7 @@ function WorkflowController($scope, $resource, $http, $routeParams, $location, $
                     all_data.push('    Username:   ' + resource.instance.interfaces.mysql.username);
                     all_data.push('    Password:   ' + resource.instance.interfaces.mysql.password);
                     all_data.push('    DB Name:    ' + resource.instance.interfaces.mysql.database_name);
-                    all_data.push('    Admin Link: https://' + $scope.output.master_server.instance.public_ip + '/database-admin');
+                    //all_data.push('    Admin Link: https://' + $scope.output.master_server.instance.public_ip + '/database-admin');
                 }
             });
             all_data.push('Load balancers: ');
@@ -676,7 +676,7 @@ function WorkflowController($scope, $resource, $http, $routeParams, $location, $
         $scope.selectSpec($location.hash());
         $('#spec_list').css('top', $('.summaryHeader').outerHeight()); // Not sure if this is the right place for this. -Chris.Burrell (chri5089)
       } else
-        $scope.selectSpec(Object.keys(object.wf_spec.task_specs)[0]);
+        $scope.selectSpec($scope.current_spec_index || Object.keys(object.wf_spec.task_specs)[0]);
       //$scope.play();
     }, function(response) {
         console.log("Error loading workflow.", response);
@@ -893,7 +893,7 @@ function WorkflowController($scope, $resource, $http, $routeParams, $location, $
   }
 
   $scope.was_loadbalancer_created = function() {
-    if (typeof $scope.current_task != 'undefined' && $scope.current_task.task_spec.indexOf("Create L") == 0 &&
+    if (typeof $scope.current_task != 'undefined' && ($scope.current_task.task_spec.indexOf("Load") != -1 || $scope.current_task.task_spec.indexOf("alancer") != -1) &&
         $scope.resource($scope.current_task) !== null)
       return true;
     return false;
