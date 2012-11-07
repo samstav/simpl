@@ -246,6 +246,7 @@ function AppController($scope, $http, $location) {
           apikey: '',
           auth_url: "https://identity.api.rackspacecloud.com/v2.0/tokens"
         };
+      $scope.notify("Welcome, " + $scope.auth.username + "! You are logged in");
       if (typeof $('#modalAuth')[0].success_callback == 'function') {
           $('#modalAuth')[0].success_callback();
           delete $('#modalAuth')[0].success_callback;
