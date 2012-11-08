@@ -127,7 +127,7 @@ function StaticController($scope, $location) {
 
 //Loads external page
 function ExternalController($window, $location) {
-  console.log("Loading external URL " + $location.absUrl());
+  console.log("changes are working. Loading external URL " + $location.absUrl());
   $window.location.href = $location.absUrl();
 }
 

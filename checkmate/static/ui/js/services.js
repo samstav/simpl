@@ -703,8 +703,13 @@ services.config(function ($httpProvider) {
                                             status: error.status,
                                             title: "Error Saving",
 					    message: "There was an error saving your data:"};
-                                if ('description' in error.data)
-                                    info.message = error.data.description;
+                                console.log("HERE");
+                                if (error.data != ''){
+                                  if ('description' in error.data){
+                                      info.message = error.data.description;
+                                  }
+                                }
+                                console.log("finishing");
 				$rootScope.error = info;
 				$('#modalError').modal('show');
                 return $q.reject(response);
