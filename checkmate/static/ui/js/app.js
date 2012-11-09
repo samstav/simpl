@@ -1095,7 +1095,7 @@ function DeploymentInitController($scope, $location, $routeParams, $resource, bl
         var temp
         for(var i=0; i<domains.length; i++){
           $scope.domain_names.push(domains[i].name);
-        }
+        };
        },
        function(response) {
           if (!('data' in response))
