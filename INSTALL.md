@@ -114,9 +114,11 @@ LKG: To install the last known good and tested config of Chef for the Checkmate
 server:
 
     # Install RVM
-    echo insecure >> ~/.curlrc
-    curl -k -L get.rvm.io | bash -s stable
-    source ~/.rvm/scripts/rvm
+    apt-get --purge remove ruby-rvm
+    rm -rf /usr/share/ruby-rvm /etc/rvmrc /etc/profile.d/rvm.sh
+    echo insecure > ~/.curlrc
+    curl -L get.rvm.io | bash -s stable --auto
+    source /etc/profile.d/rvm.sh
 
     # Install Ruby 1.9.3 locally
     rvm install 1.9.3-p125
