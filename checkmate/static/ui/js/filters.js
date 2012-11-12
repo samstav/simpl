@@ -24,9 +24,10 @@ filters.filter('secondsETA', function() {
 });
 
 filters.filter('prepend', function() {
-  return function(d) {
+  return function(d, p) {
     if (d)
-      return "/" + d;
+      return (p || "/") + d;
+    return false;
   };
 });
 
@@ -61,3 +62,19 @@ filters.filter('truncate', function() {
       }
     }
   });
+
+filters.filter('idIn', function() {
+  return function(d, array) {
+    if (d) {
+        return _.filter(d, function(item){return (array.indexOf(item.id) != -1);});
+    }
+  };
+});
+
+filters.filter('idNotIn', function() {
+  return function(d, array) {
+    if (d) {
+        return _.filter(d, function(item){return (array.indexOf(item.id) == -1);});
+    }
+  };
+});

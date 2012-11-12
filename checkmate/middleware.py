@@ -20,8 +20,6 @@ init_console_logging()
 from bottle import get, post, request, response, abort, \
         static_file, HTTPError, route
 from Crypto.Hash import MD5
-from jinja2 import BaseLoader, Environment as jinjaEnvironment, \
-        TemplateNotFound
 import webob
 import webob.dec
 from webob.exc import HTTPNotFound, HTTPUnauthorized, HTTPFound
@@ -416,9 +414,8 @@ class BrowserMiddleware(object):
 
     def __init__(self, app, proxy_endpoints=None, with_simulator=False):
         self.app = app
-        HANDLERS['text/html'] = BrowserMiddleware.write_html
         STATIC.extend(['static', 'favicon.ico', 'apple-touch-icon.png',
-                'authproxy', 'marketing', 'admin', '', 'images', 'ui', None,
+                'authproxy', 'marketing', '', 'images', 'ui', None,
                 'feedback'])
         self.proxy_endpoints = proxy_endpoints
         self.with_simulator = with_simulator
@@ -503,10 +500,6 @@ class BrowserMiddleware(object):
             root = os.path.join(os.path.dirname(__file__), 'static',
                     'RackspaceCalculator', 'images')
             return static_file(path, root=root)
-
-        @get('/admin')
-        def admin():
-            return write_body(None, request, response)
 
         @get('/marketing/<path:path>')
         @support_only(['text/html', 'text/css', 'text/javascript'])
@@ -628,102 +621,6 @@ class BrowserMiddleware(object):
                             e.get('HTTP_X_REQUESTED_WITH') != 'XMLHttpRequest':
                         e['PATH_INFO'] = "/"  # return client app
         return self.app(e, h)
-
-    @staticmethod
-    def get_template_name_from_path(path):
-        """ Returns template name from request path"""
-        name = 'default'
-        if path:
-            if path[0] == '/':
-                # normalize to always not include first path
-                parts = path[1:].split('/')
-            else:
-                parts = path.split('/')
-            if len(parts) > 0 and parts[0] not in RESOURCES and \
-                    parts[0] not in STATIC:
-                # Assume it is a tenant (and remove it from our evaluation)
-                parts = parts[1:]
-
-            # IDs are 2nd or 4th: /[type]/[id]/[type2|action]/[id2]/action
-            if len(parts) == 1:
-                # Resource
-                name = "%s" % parts[0]
-            elif len(parts) == 2:
-                # Single resource
-                name = "%s" % parts[0][0:-1]  # strip s
-            elif len(parts) == 3:
-                if parts[2].startswith('+'):
-                    # Action
-                    name = "%s.%s" % (parts[0][0:-1], parts[2][1:])
-                elif parts[2] in ['tasks']:
-                    # Subresource
-                    name = "%s.%s" % (parts[0][0:-1], parts[2])
-                else:
-                    # 'status' and the like
-                    name = "%s.%s" % (parts[0][0:-1], parts[2])
-            elif len(parts) > 3:
-                if parts[2] in ['tasks']:
-                    # Subresource
-                    name = "%s.%s" % (parts[0][0:-1], parts[2][0:-1])
-                else:
-                    # 'status' and the like
-                    name = "%s.%s" % (parts[0][0:-1], parts[2])
-        LOG.debug("Template for '%s' returned as '%s'" % (path, name))
-        return name
-
-    @staticmethod
-    def write_html(data, request, response):
-        """Write output in html"""
-        response.add_header('content-type', 'text/html')
-
-        name = BrowserMiddleware.get_template_name_from_path(request.path)
-
-        class MyLoader(BaseLoader):
-            def __init__(self, path):
-                self.path = path
-
-            def get_source(self, environment, template):
-                path = os.path.join(self.path, template)
-                if not os.path.exists(path):
-                    raise TemplateNotFound(template)
-                mtime = os.path.getmtime(path)
-                with file(path) as f:
-                    source = f.read().decode('utf-8')
-                return source, path, lambda: mtime == os.path.getmtime(path)
-        env = jinjaEnvironment(loader=MyLoader(os.path.join(os.path.dirname(
-            __file__), 'static')))
-
-        def do_prepend(value, param='/'):
-            """
-            Prepend a string if the passed in string exists.
-
-            Example:
-            The template '{{ root|prepend('/')}}/path';
-            Called with root undefined renders:
-                /path
-            Called with root defined as 'root' renders:
-                /root/path
-            """
-            if value:
-                return '%s%s' % (param, value)
-            else:
-                return ''
-        env.filters['prepend'] = do_prepend
-        env.json = json
-        context = request.context
-        tenant_id = context.tenant
-        try:
-            template = env.get_template("%s.template" % name)
-            return template.render(data=data, source=json.dumps(data,
-                    indent=2), tenant_id=tenant_id, context=context)
-        except StandardError as exc:
-            try:
-                template = env.get_template("default.template")
-                return template.render(data=data, source=json.dumps(data,
-                        indent=2), tenant_id=tenant_id, context=context)
-            except StandardError as exc2:
-                LOG.exception(exc2)
-                pass  # fall back to JSON
 
 
 class DebugMiddleware():
