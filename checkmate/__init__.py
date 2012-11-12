@@ -6,7 +6,7 @@ import gettext
 # don't need to.
 gettext.install('checkmate')
 
-__version__ = '0.2.1'
+__version__ = '0.2.2'
 __release__ = 'alpha'
 
 def version():
