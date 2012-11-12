@@ -129,7 +129,7 @@ function AppController($scope, $http, $location) {
       }).show();
   }
 
-  //Accepts subset of auth data. We user a subset so we can store it locally.
+  //Accepts subset of auth data. We use a subset so we can store it locally.
   $scope.accept_auth_data = function(response) {
       $scope.auth.catalog = response;
       $scope.auth.username = response.access.user.name;
@@ -1163,6 +1163,27 @@ function DeploymentInitController($scope, $location, $routeParams, $resource, bl
         $scope.answers[setting.id] = null;
     });
   };
+
+  $scope.OnAddressEditorShow = function() {
+    site_address.value = calculated_site_address.innerText;
+  }
+
+  $scope.UpdateSiteAddress = function() {
+    parsed = URI.parse($scope.manual_site_address);
+    if (!('hostname' in parsed)) {
+        $('#site_address_error').text("Domain name or IP address missing");
+        return;
+    };
+    if (!('protocol' in parsed)){
+        $('#site_address_error').text("Protocol (http or https) is missing");
+        return;
+    };
+    $('#site_address_error').text("");
+    $scope.answers['web_server_protocol'] = parsed.protocol;
+    $scope.answers['domain'] = parsed.hostname;
+    $scope.answers['path'] = parsed.path || "/";
+    $('#siteAddressModal').modal('hide');
+  }
 
   // Display settings using templates for each type
   $scope.renderSetting = function(setting) {
