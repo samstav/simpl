@@ -63,6 +63,11 @@
                     <select id="environment" class="span6" ng-model="environment" ng-change="onBlueprintChange()"
                             ng-options="environment.name for (id,environment) in environments" required>
                     </select>
+                    <!-- region -->
+                    <span ng-repeat="setting in settings | filter:{id: 'region'}">
+                        in <select id="region" style="width: 80px;" ng-model="answers['region']" ng-options="o for o in setting.choice"></select>
+                        <span ng-hide="{{!setting.description}}" class="help-block">{{setting.description}}</span>
+                    </span>
                   </div>
                 </div>
             </div>
@@ -181,7 +186,7 @@
                     </div>
                     <div id="collapseOne" class="accordion-body collapse out">
                     <div class="accordion-inner">
-                        <div class="control-group" ng-repeat="setting in settings | idNotIn:['domain', 'web_server_protocol', 'path', 'register-dns', 'ssl_certificate', 'ssl_private_key', 'username']" compile-html="renderSetting(setting)">
+                        <div class="control-group" ng-repeat="setting in settings | idNotIn:['domain', 'web_server_protocol', 'path', 'register-dns', 'ssl_certificate', 'ssl_private_key', 'username', 'region']" compile-html="renderSetting(setting)">
                         </div>
                     </div>
                 </div>

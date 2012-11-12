@@ -1149,7 +1149,7 @@ function DeploymentInitController($scope, $location, $routeParams, $resource, bl
                 if (setting.id == 'region') {
                     setting.default = $scope.auth.catalog.access.user['RAX-AUTH:defaultRegion'];
                     setting.choice = [setting.default];
-                    setting.description = "Your legacy cloud servers region is '" + setting.default + "'. You must deploy to this region";
+                    setting.description = "Your legacy cloud servers region is '" + setting.default + "'. You can only deploy to this region";
                 }
             });
         }
