@@ -125,9 +125,14 @@ def main_func():
         next = middleware.BasicAuthMultiCloudMiddleware(next, domains=domains)
     """
     if '--with-ui' in sys.argv:
-        next_app = middleware.BrowserMiddleware(next_app,
-                                                proxy_endpoints=endpoints,
-                                                with_simulator=with_simulator)
+        try:
+            from rook.middleware import BrowserMiddleware
+            next_app = BrowserMiddleware(next_app, proxy_endpoints=endpoints,
+                                         with_simulator=with_simulator)
+        except ImportError as exc:
+            LOG.exception(exc)
+            LOG.warning("Not loading UI middleware. Make sure rook is "
+                        "installed.")
     next_app = middleware.TenantMiddleware(next_app)
     next_app = middleware.ContextMiddleware(next_app)
     next_app = middleware.StripPathMiddleware(next_app)
