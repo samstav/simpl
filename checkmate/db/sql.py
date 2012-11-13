@@ -256,7 +256,7 @@ class Driver(DbBase):
                     if not e.secrets:
                         e.secrets = {}
                     new_secrets = deepcopy(e.secrets)
-                    collate(new_secrets, secrets, extend_lists=True)
+                    collate(new_secrets, secrets, extend_lists=False)
                     e.secrets = new_secrets
         else:
             assert tenant_id or 'tenantId' in body, \

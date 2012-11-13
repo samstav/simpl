@@ -64,6 +64,10 @@ body {
   width: 100%;
 }
 
+.clickable {
+  cursor: pointer;
+}
+
 .itemCount {
   width: 100px;
   text-align: center;

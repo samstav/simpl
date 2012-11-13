@@ -700,10 +700,22 @@ services.config(function ($httpProvider) {
 				var error = response;
                                 var info = {data: error.data,
                                             status: error.status,
+<<<<<<< HEAD
+                                            title: "Error Saving",
+					    message: "There was an error saving your data:"};
+                                console.log("HERE");
+                                if (error.data != ''){
+                                  if ('description' in error.data){
+                                      info.message = error.data.description;
+                                  }
+                                }
+                                console.log("finishing");
+=======
                                             title: "Error",
 					    message: "There was an error executing your request:"};
                                 if ('description' in error.data)
                                     info.message = error.data.description;
+>>>>>>> 059925e6a2363c7454b94e57eddc4d7d9e486d5f
 				$rootScope.error = info;
 				$('#modalError').modal('show');
                 return $q.reject(response);

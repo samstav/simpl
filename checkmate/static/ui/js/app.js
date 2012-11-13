@@ -16,29 +16,9 @@ checkmate.config(['$routeProvider', '$locationProvider', '$httpProvider', functi
     controller: StaticController
   })
 
-  // Legacy Paths
+  // Legacy Paths - none of these should be in use anymore
   $routeProvider.
-  when('/:tenantId/environments', {
-    controller: LegacyController,
-    template:'<section class="entries" ng-include="templateUrl"><img src="/static/img/ajax-loader-bar.gif" alt="Loading..."/></section>'
-  }).
   when('/:tenantId/environments/:id', {
-    controller: LegacyController,
-    template:'<section class="entries" ng-include="templateUrl"><img src="/static/img/ajax-loader-bar.gif" alt="Loading..."/></section>'
-  }).
-  when('/:tenantId/deployments', {
-    controller: LegacyController,
-    template:'<section class="entries" ng-include="templateUrl"><img src="/static/img/ajax-loader-bar.gif" alt="Loading..."/></section>'
-  }).
-  when('/:tenantId/deployments/:id', {
-    controller: LegacyController,
-    template:'<section class="entries" ng-include="templateUrl"><img src="/static/img/ajax-loader-bar.gif" alt="Loading..."/></section>'
-  }).
-  when('/:tenantId/blueprints', {
-    controller: LegacyController,
-    template:'<section class="entries" ng-include="templateUrl"><img src="/static/img/ajax-loader-bar.gif" alt="Loading..."/></section>'
-  }).
-  when('/:tenantId/workflows', {
     controller: LegacyController,
     template:'<section class="entries" ng-include="templateUrl"><img src="/static/img/ajax-loader-bar.gif" alt="Loading..."/></section>'
   }).
@@ -47,10 +27,6 @@ checkmate.config(['$routeProvider', '$locationProvider', '$httpProvider', functi
     template:'<section class="entries" ng-include="templateUrl"><img src="/static/img/ajax-loader-bar.gif" alt="Loading..."/></section>'
   }).
   when('/:tenantId/workflows/:id/tasks/:task_id', {
-    controller: LegacyController,
-    template:'<section class="entries" ng-include="templateUrl"><img src="/static/img/ajax-loader-bar.gif" alt="Loading..."/></section>'
-  }).
-  when('/providers', {
     controller: LegacyController,
     template:'<section class="entries" ng-include="templateUrl"><img src="/static/img/ajax-loader-bar.gif" alt="Loading..."/></section>'
   }).
@@ -85,15 +61,39 @@ checkmate.config(['$routeProvider', '$locationProvider', '$httpProvider', functi
     controller: WorkflowController,
     reloadOnSearch: false
   }).
+  when('/:tenantId/workflows', {
+    templateUrl: '/static/ui/partials/workflows.html',
+    controller: WorkflowListController,
+  }).
   when('/:tenantId/blueprints/:id', {
     templateUrl: '/static/ui/partials/level2.html',
     controller: BlueprintListController
+  }).
+  when('/:tenantId/blueprints', {
+    templateUrl: '/static/ui/partials/blueprints.html',
+    controller: BlueprintListController
+  }).
+  when('/:tenantId/deployments', {
+    templateUrl: '/static/ui/partials/deployments.html',
+    controller: DeploymentListController
+  }).
+  when('/:tenantId/deployments/:id', {
+    controller: DeploymentController,
+    templateUrl: '/static/ui/partials/deployment.html'
+  }).
+  when('/:tenantId/providers', {
+    controller: ProviderListController,
+    templateUrl: '/static/ui/partials/providers.html'
+  }).
+  when('/:tenantId/environments', {
+    controller: EnvironmentListController,
+    templateUrl: '/static/ui/partials/environments.html'
   }).
   otherwise({
     controller: ExternalController,
     template:'<section class="entries" ng-include="templateUrl"><img src="/static/img/ajax-loader-bar.gif" alt="Loading..."/></section>',
     reloadOnSearch: false
-    });  //normal browsing
+  });  //normal browsing
   
   
   $locationProvider.html5Mode(true);
@@ -160,10 +160,7 @@ function LegacyController($scope, $location, $routeParams, $resource, navbar, $w
       var thang = new klass(JSON.parse(Editor.getValue()));
       thang.$save(function(returned, getHeaders){
           $scope.notify('Saved');
-          console.log(returned);
         }, function(error) {
-          console.log("Error " + error.data + "(" + error.status + ") saving this object.");
-          console.log($("#editor").text());
           $scope.$root.error = {data: error.data, status: error.status, title: "Error Saving",
                   message: "There was an error saving your JSON:"};
           $('#modalError').modal('show');
@@ -205,7 +202,7 @@ function LegacyController($scope, $location, $routeParams, $resource, navbar, $w
 
 }
 
-// Root controller that implements authentication
+//Root controller that implements authentication
 function AppController($scope, $http, $location) {
   $scope.showHeader = true;
   $scope.showStatus = false;
@@ -226,17 +223,14 @@ function AppController($scope, $http, $location) {
       }).show();
   }
 
-  // Restore login from session
-  var catalog = localStorage.getItem('auth');
-  if (catalog != undefined && catalog !== null)
-    catalog = JSON.parse(catalog);
-  if (catalog != undefined && catalog !== null && catalog != {} && 'access' in catalog) {
-      $scope.auth.catalog = catalog;
-      $scope.auth.username = catalog.access.user.name;
-      $scope.auth.tenantId = catalog.access.token.tenant.id;
-      checkmate.config.header_defaults.headers.common['X-Auth-Token'] = catalog.access.token.id;
-      checkmate.config.header_defaults.headers.common['X-Auth-Source'] = catalog.auth_url;
-      var expires = new Date(catalog.access.token.expires);
+  //Accepts subset of auth data. We user a subset so we can store it locally.
+  $scope.accept_auth_data = function(response) {
+      $scope.auth.catalog = response;
+      $scope.auth.username = response.access.user.name;
+      $scope.auth.tenantId = response.access.token.tenant.id;
+      checkmate.config.header_defaults.headers.common['X-Auth-Token'] = response.access.token.id;
+      checkmate.config.header_defaults.headers.common['X-Auth-Source'] = response.auth_url;
+      var expires = new Date(response.access.token.expires);
       var now = new Date();
       if (expires < now) {
         $scope.auth.expires = 'expired';
@@ -245,6 +239,18 @@ function AppController($scope, $http, $location) {
         $scope.auth.expires = expires - now;
         $scope.auth.loggedIn = true;
       }
+      WPBP.DBaaS.options.region.default = response.access.user['RAX-AUTH:defaultRegion'] || response.access.regions[0];
+      WPBP.DBaaS.options.region.choice = response.access.regions;
+      WPBP.MySQL.options.region.default = WPBP.DBaaS.options.region.default;
+      WPBP.MySQL.options.region.choice = WPBP.DBaaS.options.region.choice;
+  }
+
+  // Restore login from session
+  var auth = localStorage.getItem('auth');
+  if (auth != undefined && auth !== null)
+    auth = JSON.parse(auth);
+  if (auth != undefined && auth !== null && auth != {} && 'access' in auth) {
+      $scope.accept_auth_data(auth);
   } else {
     $scope.auth.loggedIn = false;
   }
@@ -274,43 +280,6 @@ function AppController($scope, $http, $location) {
     modal[0].success_callback = success_callback;
     modal[0].failure_callback = failure_callback;
     modal.modal('show');
-  }
-
-  $scope.generatePassword = function() {
-      if (parseInt(navigator.appVersion) <= 3) {
-          $scope.notify("Sorry this only works in 4.0+ browsers");
-          return true;
-      }
-
-      var length=10;
-      var sPassword = "";
-
-      var noPunction = true;
-      for (i=0; i < length; i++) {
-
-          var numI = $scope.getPwdRandomNum();
-          //Always have a letter for the first character.
-          while (i==0 && (numI <= 64 || ((numI >=91) && (numI <=96)))) { numI = $scope.getPwdRandomNum(); }
-          //Only allow letters and numbers for all other characters.
-          while (((numI >=58) && (numI <=64)) || ((numI >=91) && (numI <=96))) { numI = $scope.getPwdRandomNum(); }
-
-          sPassword = sPassword + String.fromCharCode(numI);
-      }
-      return sPassword;
-  }
-
-  $scope.getPwdRandomNum = function() {
-
-      // between 0 - 1
-      var rndNum = Math.random()
-
-      // rndNum from 0 - 1000
-      rndNum = parseInt(rndNum * 1000);
-
-      // rndNum from 33 - 127
-      rndNum = (rndNum % 75) + 48;
-
-      return rndNum;
   }
 
   // Log in using credentials delivered through bound_credentials
@@ -356,23 +325,15 @@ function AppController($scope, $http, $location) {
       data: data
     }).success(function(json) {
       $('#modalAuth').modal('hide');
+      //Parse data. Keep only a subset to store in local storage
       var keep = {access: {token: json.access.token, user: json.access.user}};
       keep.auth_url = auth_url;  // save for later
-      var expires = new Date(json.access.token.expires);
-      keep.expires = expires;
+      regions = _.union.apply(this, _.map(json.access.serviceCatalog, function(o) {return _.map(o.endpoints, function(e) {return e.region;});}));
+      if (regions.indexOf(json.access.user['RAX-AUTH:defaultRegion']) == -1)
+        regions.push(json.access.user['RAX-AUTH:defaultRegion']);
+      keep.access.regions = _.compact(regions);
       localStorage.setItem('auth', JSON.stringify(keep));
-      $scope.auth.username = username;
-      $scope.auth.tenantId = json.access.token.tenant.id;
-      $scope.auth.catalog = json;
-      checkmate.config.header_defaults.headers.common['X-Auth-Token'] = json.access.token.id;
-      checkmate.config.header_defaults.headers.common['X-Auth-Source'] = auth_url;
-      var now = new Date();
-      if (expires < now) {
-        $scope.auth.expires = 'expired';
-      } else {
-        $scope.auth.expires = expires - now;
-      }
-      $scope.auth.loggedIn = true;
+      $scope.accept_auth_data(keep);
       $scope.bound_creds = {
           username: '',
           password: '',
@@ -386,6 +347,7 @@ function AppController($scope, $http, $location) {
         }
       else
         $scope.$apply();
+      $scope.$broadcast('logIn');
     }).error(function(response) {
       if (typeof $('#modalAuth')[0].failure_callback == 'function') {
           $('#modalAuth')[0].failure_callback();
@@ -406,6 +368,59 @@ function AppController($scope, $http, $location) {
     delete checkmate.config.header_defaults.headers.common['X-Auth-Source'];
     $location.path('/');
   }
+
+
+  // Utility Functions
+
+  //Check for a supported account
+  $scope.is_unsupported_account = function() {
+    roles = [];
+    if ($scope.auth.loggedIn === true)
+        $scope.auth.catalog.access.user.roles || []
+    return _.any(roles, function(role) {return role.name == "rack_connect"});
+  }
+
+  $scope.generatePassword = function() {
+      if (parseInt(navigator.appVersion) <= 3) {
+          $scope.notify("Sorry this only works in 4.0+ browsers");
+          return true;
+      }
+
+      var length=10;
+      var sPassword = "";
+
+      var noPunction = true;
+      for (i=0; i < length; i++) {
+
+          var numI = $scope.getPwdRandomNum();
+          //Always have a letter for the first character.
+          while (i==0 && (numI <= 64 || ((numI >=91) && (numI <=96)))) { numI = $scope.getPwdRandomNum(); }
+          //Only allow letters and numbers for all other characters.
+          while (((numI >=58) && (numI <=64)) || ((numI >=91) && (numI <=96))) { numI = $scope.getPwdRandomNum(); }
+
+          sPassword = sPassword + String.fromCharCode(numI);
+      }
+      return sPassword;
+  }
+
+  $scope.getPwdRandomNum = function() {
+
+      // between 0 - 1
+      var rndNum = Math.random()
+
+      // rndNum from 0 - 1000
+      rndNum = parseInt(rndNum * 1000);
+
+      // rndNum from 33 - 127
+      rndNum = (rndNum % 75) + 48;
+
+      return rndNum;
+  }
+
+  $scope.encodeURIComponent = function(data) {
+    return encodeURIComponent(data);
+  }
+
 }
 
 function NavBarController($scope, $location, $resource) {
@@ -415,8 +430,9 @@ function NavBarController($scope, $location, $resource) {
   this.api = $resource('/version');
   this.api.get(function(data, getResponseHeaders){
 	  $scope.api_version = data.version;
-	  console.log("Got version");
+	  console.log("Got version: " + $scope.api_version);
   });
+
   // Send feedback to server
   $scope.send_feedback = function() {
     data = JSON.stringify({
@@ -451,9 +467,7 @@ function NavBarController($scope, $location, $resource) {
 
 }
 
-/**
- *   workflows
- */
+//Workflow controllers
 function WorkflowListController($scope, $location, $resource, workflow, items, navbar) {
   //Model: UI
   $scope.showItemsBar = true;
@@ -461,28 +475,9 @@ function WorkflowListController($scope, $location, $resource, workflow, items, n
   $scope.name = "Workflows";
   navbar.highlight("workflows");  
 
-  $scope.showConnections = function(task_div) {
-    jsPlumb.Defaults.Container = "entry";
-
-    var selectedTask = _.find($scope.tasks, function(task) {
-      if (task.id === parseInt(task_div.attr('id')))
-        return task;
-      return null;
-    });
-
-    jsPlumb.addEndpoint(selectedTask.id);
-    _.each(selectedTask.children, function(child) {
-      jsPlumb.addEndpoint(child.id);
-
-      jsPlumb.connect({
-        source: selectedTask.id,
-        target: child.id
-      });
-    });
-  };
-
   //Model: data
   $scope.count = 0;
+  items.all = [];
   $scope.items = items.all;  // bind only to shrunken array
   
   $scope.selectedObject = function() {
@@ -516,12 +511,13 @@ function WorkflowListController($scope, $location, $resource, workflow, items, n
 
   $scope.load = function() {
     console.log("Starting load")
-    this.klass = $resource('/:tenantId/workflows/');
+    this.klass = $resource('/:tenantId/workflows/.json');
     this.klass.get({tenantId: $scope.auth.tenantId}, function(list, getResponseHeaders){
       console.log("Load returned");
       items.receive(list, function(item, key) {
-        return {id: key, name: item.name, created: item.created, tenantId: item.tenantId}});
+        return {id: key, name: item.wf_spec.name, tenantId: item.tenantId}});
       $scope.count = items.count;
+      $scope.items = items.all;
       console.log("Done loading")
     });
   }
@@ -552,7 +548,7 @@ function WorkflowController($scope, $resource, $http, $routeParams, $location, $
   };
   
   $scope.load = function() {
-    this.klass = $resource('/:tenantId/workflows/:id');
+    this.klass = $resource('/:tenantId/workflows/:id.json');
     this.klass.get($routeParams,
                    function(object, getResponseHeaders){
       $scope.data = object;
@@ -564,29 +560,32 @@ function WorkflowController($scope, $resource, $http, $routeParams, $location, $
         if ($scope.taskStates.completed < $scope.count) {
           setTimeout($scope.load, 2000);
         } else {
-          var d = $resource('/:tenantId/deployments/:id');
-          d.get($routeParams,
-                         function(object, getResponseHeaders){
-            console.log(object);
+          var d = $resource('/:tenantId/deployments/:id.json?with_secrets');
+          d.get($routeParams, function(object, getResponseHeaders){
+            $scope.output = {};
+            //Get load balancer IP
+            try {
+              var lb = _.find(object.resources, function(r, k) { return r.type == 'load-balancer';});
+              if ('instance' in lb) {
+                $scope.output.vip = lb.instance.public_ip;
+              }
+            }
+            catch (error) {
+              console.log(error);
+            }
+
             var domain = null;
             //Find domain in inputs
             try {
               domain = object.inputs.blueprint.domain;
+              $scope.output.domain = domain;
             }
             catch (error) {
               console.log(error);
             }
             //If no domain, use load-balancer VIP
             if (domain === null) {
-              try {
-                var lb = _.find(object.resources, function(r, k) { return r.type == 'load-balancer';});
-                if ('instance' in lb) {
-                  domain = lb.instance.vip;
-                }
-              }
-              catch (error) {
-                console.log(error);
-              }
+              domain = $scope.output.vip;
             }
             //Find path in inputs
             var path = "/";
@@ -596,20 +595,88 @@ function WorkflowController($scope, $resource, $http, $routeParams, $location, $
             catch (error) {
               console.log(error);
             }
-            $scope.data.output = {};
-            $scope.data.output.path = "http://" + domain + path;
-            }, function(error) {
-              console.log("Error " + error.data + "(" + error.status + ") loading deployment.");
-              $scope.$root.error = {data: error.data, status: error.status, title: "Error loading deployment",
-                      message: "There was an error loading your deployment:"};
-              $('#modalError').modal('show');
+            $scope.output.path = "http://" + domain + path;
+
+            //Get user name/password
+            try {
+              var user = _.find(object.resources, function(r, k) { return r.type == 'user';});
+              if ('instance' in user) {
+                $scope.output.username = user.instance.name;
+                $scope.output.password = user.instance.password;
+              }
+            }
+            catch (error) {
+              console.log(error);
+            }
+
+            //Get the private key
+            try {
+              var keypair = _.find(object.resources, function(r, k) { return r.type == 'key-pair';});
+              if ('instance' in keypair) {
+                $scope.output.private_key = keypair.instance.private_key;
+              }
+            }
+            catch (error) {
+              console.log(error);
+            }
+
+            //Copy resources into output as array (angular filters prefer arrays)
+            $scope.output.resources = _.toArray(object.resources);
+            //Get master server
+            $scope.output.master_server = _.find($scope.output.resources, function(resource) {
+                return (resource.component == 'linux_instance' && resource.service == 'master');
             });
+
+            //Copy all data to all_data for clipboard use
+            var all_data = [];
+            all_data.push('From: ' + $location.absUrl());
+            all_data.push('Wordpress URL: ' + $scope.output.path);
+            all_data.push('Wordpress IP: ' +  $scope.output.vip);
+            all_data.push('Servers: ');
+            _.each($scope.output.resources, function(resource) {
+                if (resource.component == 'linux_instance') {
+                    all_data.push('  ' + resource.service + ' server: ' + resource['dns-name']);
+                    all_data.push('    IP:      ' + resource.instance.public_ip);
+                    all_data.push('    Role:    ' + resource.service);
+                    all_data.push('    root pw: ' + resource.instance.password);
+                }
+            });
+            all_data.push('Databases: ');
+            _.each($scope.output.resources, function(resource) {
+                if (resource.type == 'database') {
+                    all_data.push('  ' + resource.service + ' database: ' + resource['dns-name']);
+                    all_data.push('    Host:       ' + resource.instance.interfaces.mysql.host);
+                    all_data.push('    Username:   ' + resource.instance.interfaces.mysql.username);
+                    all_data.push('    Password:   ' + resource.instance.interfaces.mysql.password);
+                    all_data.push('    DB Name:    ' + resource.instance.interfaces.mysql.database_name);
+                    //all_data.push('    Admin Link: https://' + $scope.output.master_server.instance.public_ip + '/database-admin');
+                }
+            });
+            all_data.push('Load balancers: ');
+            _.each($scope.output.resources, function(resource) {
+                if (resource.type == 'load-balancer') {
+                    all_data.push('  ' + resource.service + ' load-balancer: ' + resource['dns-name']);
+                    all_data.push('    Public VIP:       ' + resource.instance.public_ip);
+                }
+            });
+
+            all_data.push('User:     ' + $scope.output.username);
+            all_data.push('Password: ' + $scope.output.password);
+            all_data.push('Priv Key: ' + $scope.output.private_key);
+            $scope.all_data = all_data.join('\n');
+            
+          }, function(error) {
+            console.log("Error " + error.data + "(" + error.status + ") loading deployment.");
+            $scope.$root.error = {data: error.data, status: error.status, title: "Error loading deployment",
+                    message: "There was an error loading your deployment:"};
+            $('#modalError').modal('show');
+          });
         }
       } else if ($location.hash().length > 1) {
         $scope.selectSpec($location.hash());
         $('#spec_list').css('top', $('.summaryHeader').outerHeight()); // Not sure if this is the right place for this. -Chris.Burrell (chri5089)
       } else
-        $scope.selectSpec(Object.keys(object.wf_spec.task_specs)[0]);
+        $scope.selectSpec($scope.current_spec_index || Object.keys(object.wf_spec.task_specs)[0]);
       //$scope.play();
     }, function(response) {
         console.log("Error loading workflow.", response);
@@ -692,8 +759,6 @@ function WorkflowController($scope, $resource, $http, $routeParams, $location, $
           };
           $scope.notify('Saved');
         }, function(error) {
-          console.log("Error " + error.data + "(" + error.status + ") saving this object.");
-          console.log($("#editor").text());
           $scope.$root.error = {data: error.data, status: error.status, title: "Error Saving",
                   message: "There was an error saving your JSON:"};
           $('#modalError').modal('show');
@@ -737,8 +802,6 @@ function WorkflowController($scope, $resource, $http, $routeParams, $location, $
           };
           $scope.notify('Saved');
         }, function(error) {
-          console.log("Error " + error.data + "(" + error.status + ") saving this object.");
-          console.log($("#editor").text());
           $scope.$root.error = {data: error.data, status: error.status, title: "Error Saving",
                   message: "There was an error saving your JSON:"};
           $('#modalError').modal('show');
@@ -767,7 +830,7 @@ function WorkflowController($scope, $resource, $http, $routeParams, $location, $
     _.each(tasks, function(task){
       if (task.state < status)
         status = task.state;
-        if ('internal_attributes' in task && 'task_state' in task.internal_attributes && task.internal_attributes.task_state.state == 'FAILURE')
+        if ('internal_attributes' in task && 'task_state' in task.internal_attributes && task.internal_attributes.task_state.state == 'FAILURE' && task.state != 64)
           status = -1;
     });
     return status;
@@ -830,7 +893,7 @@ function WorkflowController($scope, $resource, $http, $routeParams, $location, $
   }
 
   $scope.was_loadbalancer_created = function() {
-    if (typeof $scope.current_task != 'undefined' && $scope.current_task.task_spec.indexOf("Create L") == 0 &&
+    if (typeof $scope.current_task != 'undefined' && ($scope.current_task.task_spec.indexOf("Load") != -1 || $scope.current_task.task_spec.indexOf("alancer") != -1) &&
         $scope.resource($scope.current_task) !== null)
       return true;
     return false;
@@ -863,6 +926,26 @@ function WorkflowController($scope, $resource, $http, $routeParams, $location, $
     $scope.load();
 
   //Not real code. Just testing stuff
+  $scope.showConnections = function(task_div) {
+    jsPlumb.Defaults.Container = "entry";
+
+    var selectedTask = _.find($scope.tasks, function(task) {
+      if (task.id === parseInt(task_div.attr('id')))
+        return task;
+      return null;
+    });
+
+    jsPlumb.addEndpoint(selectedTask.id);
+    _.each(selectedTask.children, function(child) {
+      jsPlumb.addEndpoint(child.id);
+
+      jsPlumb.connect({
+        source: selectedTask.id,
+        target: child.id
+      });
+    });
+  };
+
   $scope.play = function() {
     var w = 960,
     h = 500
@@ -872,7 +955,6 @@ function WorkflowController($scope, $resource, $http, $routeParams, $location, $
         .attr("height", h);
     var links = _.each($scope.data.wf_spec.task_specs, function(t, k) {return {"source": k, "target": "Root"};});
     var nodes = _.each($scope.data.wf_spec.task_specs, function(t, k) {return t;});
-    console.log(nodes, links);
     
     var force = self.force = d3.layout.force()
         .nodes(nodes)
@@ -973,18 +1055,16 @@ function WorkflowController($scope, $resource, $http, $routeParams, $location, $
   };
 }
 
-
-/**
- *   blueprints
- */
+//Blueprint controllers
 function BlueprintListController($scope, $location, $resource, items) {
   //Model: UI
   $scope.showSummaries = true;
   $scope.showStatus = false;
 
-  $scope.items = items;
-  $scope.name = '';
+  $scope.name = 'Blueprints';
   $scope.count = 0;
+  items.all = [];
+  $scope.items = items.all;  // bind only to shrunken array
 
   $scope.refresh = function() {
   };
@@ -994,11 +1074,13 @@ function BlueprintListController($scope, $location, $resource, items) {
   
   $scope.load = function() {
     console.log("Starting load")
-    this.Blueprints = $resource('/:tenantId/blueprints/');
-    this.Blueprints.get({tenantId: 557366}, function(blueprints, getResponseHeaders){
-      $scope.items.receive(blueprints);
-      $scope.name = $scope.items.name;
-      $scope.count = $scope.items.count;
+    this.klass = $resource('/:tenantId/blueprints/.json');
+    this.klass.get({tenantId: $scope.auth.tenantId}, function(list, getResponseHeaders){
+      console.log("Load returned");
+      items.receive(list, function(item, key) {
+        return {id: key, name: item.name, tenantId: item.tenantId}});
+      $scope.count = items.count;
+      $scope.items = items.all;
       console.log("Done loading")
     });
   }
@@ -1011,19 +1093,25 @@ function BlueprintListController($scope, $location, $resource, items) {
     });
   }
 
+  //Setup
+  $scope.$watch('items.selectedIdx', function(newVal, oldVal, scope) {
+    if (newVal !== null) scroll.toCurrent();
+  });
+
+  $scope.load();
 }
 
-/**
- *   deployments
- */
-function DeploymentListController($scope, $location, $http, $resource, items) {
+//Deployment controllers
+function DeploymentListController($scope, $location, $http, $resource, scroll, items, navbar) {
   //Model: UI
   $scope.showItemsBar = true;
   $scope.showStatus = true;
   $scope.name = "Deployments";
-  
+  navbar.highlight("deployments");
+
   //Model: data
   $scope.count = 0;
+  items.all = [];
   $scope.items = items.all;  // bind only to shrunken array
   
   $scope.selectedObject = function() {
@@ -1047,7 +1135,7 @@ function DeploymentListController($scope, $location, $http, $resource, items) {
 
   $scope.load = function() {
     console.log("Starting load")
-    this.klass = $resource('/:tenantId/deployments/');
+    this.klass = $resource('/:tenantId/deployments/.json');
     this.klass.get({tenantId: $scope.auth.tenantId}, function(list, getResponseHeaders){
       console.log("Load returned");
       items.all = [];
@@ -1056,6 +1144,7 @@ function DeploymentListController($scope, $location, $http, $resource, items) {
                 blueprint: item.blueprint, environment: item.environment,
                 status: item.status}});
       $scope.count = items.count;
+      $scope.items = items.all;
       console.log("Done loading")
     });
   }
@@ -1088,11 +1177,6 @@ function DeploymentInitController($scope, $location, $routeParams, $resource, bl
   $scope.answers = {};
   $scope.domain_names = [];
 
-  // Check for a supported account
-  $scope.is_unsupported_account = function() {
-      return _.any($scope.auth.catalog.access.user.roles, function(role) {return role.name == "rack_connect"});
-  }  
-
   //Retrieve existing domains  
   $scope.getDomains = function(){
     $scope.domain_names = [];
@@ -1105,11 +1189,17 @@ function DeploymentInitController($scope, $location, $routeParams, $resource, bl
         for(var i=0; i<domains.length; i++){
           $scope.domain_names.push(domains[i].name);
         }
-       });
+       },
+       function(response) {
+          if (!('data' in response))
+            response.data = {};
+          response.data.description = "Error loading domain list";
+        }
+      );
     }
-  };  
+  };
   $scope.getDomains();
-  
+
   $scope.onBlueprintChange = function() {
     $scope.updateSettings();
     $scope.updateDatabaseProvider();
@@ -1146,6 +1236,17 @@ function DeploymentInitController($scope, $location, $routeParams, $resource, bl
 
     if ($scope.environment) {
       $scope.settings = $scope.settings.concat(settings.getSettingsFromEnvironment($scope.environment));
+      if ('legacy' in $scope.environment.providers) {
+        if ($scope.settings && $scope.auth.loggedIn == true && 'RAX-AUTH:defaultRegion' in $scope.auth.catalog.access.user) {
+            _.each($scope.settings, function(setting) {
+                if (setting.id == 'region') {
+                    setting.default = $scope.auth.catalog.access.user['RAX-AUTH:defaultRegion'];
+                    setting.choice = [setting.default];
+                    setting.description = "Your legacy cloud servers region is '" + setting.default + "'. You must deploy to this region";
+                }
+            });
+        }
+      }
     }
 
     _.each($scope.settings, function(setting) {
@@ -1292,17 +1393,177 @@ function DeploymentInitController($scope, $location, $routeParams, $resource, bl
       $scope.environments = data;
     });
   }
+
+  // Event Listeners
+  $scope.OnLogIn = function(e) {
+    $scope.getDomains();
+    $scope.updateSettings();
+  };
+  $scope.$on('logIn', $scope.OnLogIn);
+
 }
 
-/*
- * other stuff
- */
+function DeploymentController($scope, $location, $resource, $routeParams) {
+  //Model: UI
+  $scope.showSummaries = true;
+  $scope.showStatus = false;
+
+  $scope.name = 'Deployment';
+  $scope.data = {};
+  $scope.data_json = "";
+
+  $scope.refresh = function() {
+  };
+
+  $scope.handleSpace = function() {
+  };
+  
+  $scope.load = function() {
+    console.log("Starting load")
+    this.klass = $resource('/:tenantId/deployments/:id.json');
+    this.klass.get($routeParams, function(data, getResponseHeaders){
+      console.log("Load returned");
+      $scope.data = data
+      $scope.data_json = JSON.stringify(data, null, 2);
+      console.log("Done loading")
+    });
+  }
+  
+  $scope.save = function() {
+    var editor = _.find($('.CodeMirror'), function(c) {
+      return c.CodeMirror.getTextArea().id == 'source';
+      });
+
+    if ($scope.auth.loggedIn) {
+      var klass = $resource('/:tenantId/deployments/:id/.json', null, {'get': {method:'GET'}, 'save': {method:'PUT'}});
+      var thang = new klass(JSON.parse(editor.CodeMirror.getValue()));
+      thang.$save($routeParams, function(returned, getHeaders){
+          // Update model
+          $scope.data = returned;
+          $scope.data_json = JSON.stringify(returned, null, 2);
+          $scope.notify('Saved');
+        }, function(error) {
+          $scope.$root.error = {data: error.data, status: error.status, title: "Error Saving",
+                  message: "There was an error saving your JSON:"};
+          $('#modalError').modal('show');
+        });
+    } else {
+      $scope.loginPrompt(this, function() {console.log("Failed");}); //TODO: implement a callback
+    }
+  };
+
+  //Setup
+  $scope.$watch('items.selectedIdx', function(newVal, oldVal, scope) {
+    if (newVal !== null) scroll.toCurrent();
+  });
+
+  $scope.load();
+}
+
+//Provider controllers
+function ProviderListController($scope, $location, $resource, items, scroll) {
+  //Model: UI
+  $scope.showSummaries = true;
+  $scope.showStatus = false;
+
+  $scope.name = 'Providers';
+  $scope.count = 0;
+  items.all = [];
+  $scope.items = items.all;  // bind only to shrunken array
+
+  $scope.refresh = function() {
+  };
+
+  $scope.handleSpace = function() {
+  };
+
+  $scope.load = function() {
+    console.log("Starting load")
+    this.klass = $resource('/:tenantId/providers/.json');
+    this.klass.get({tenantId: $scope.auth.tenantId}, function(list, getResponseHeaders){
+      console.log("Load returned");
+      items.receive(list, function(item, key) {
+        return {id: key, name: item.name, vendor: item.vendor}});
+      $scope.count = items.count;
+      $scope.items = items.all;
+      console.log("Done loading")
+    });
+  }
+
+  //Setup
+  $scope.$watch('items.selectedIdx', function(newVal, oldVal, scope) {
+    if (newVal !== null) scroll.toCurrent();
+  });
+
+  $scope.load();
+}
+
+//Environment controllers
+function EnvironmentListController($scope, $location, $resource, items, scroll) {
+  //Model: UI
+  $scope.showSummaries = true;
+  $scope.showStatus = false;
+
+  $scope.name = 'Environments';
+  $scope.count = 0;
+  items.all = [];
+  $scope.items = items.all;  // bind only to shrunken array
+
+  $scope.refresh = function() {
+  };
+
+  $scope.handleSpace = function() {
+  };
+
+  $scope.load = function() {
+    console.log("Starting load")
+    this.klass = $resource('/:tenantId/environments/.json');
+    this.klass.get({tenantId: $scope.auth.tenantId}, function(list, getResponseHeaders){
+      console.log("Load returned");
+      items.receive(list, function(item, key) {
+        return {id: key, name: item.name, vendor: item.vendor, providers: item.providers}});
+      $scope.count = items.count;
+      $scope.items = items.all;
+      console.log("Done loading")
+    });
+  }
+
+  //Setup
+  $scope.$watch('items.selectedIdx', function(newVal, oldVal, scope) {
+    if (newVal !== null) scroll.toCurrent();
+  });
+
+  $scope.load();
+
+  //Return text describing providers in the environment
+  $scope.provider_list = function(environment) {
+    list = [];
+    if ('providers' in environment) {
+        providers = environment.providers;
+        if ('common' in providers)
+            default_vendor = providers.common.vendor || '[missing vendor]';
+        else
+            default_vendor = '[missing vendor]'
+        _.each(providers, function(provider, key, provider) {
+            if (key == 'common')
+                return;
+            name = provider.vendor || default_vendor;
+            name += '.' + key;
+            list.push(name);
+        });
+    }
+    return list.join(", ");
+  }
+}
+
+
+// Other stuff
 document.addEventListener('DOMContentLoaded', function(e) {
   //On mobile devices, hide the address bar
   window.scrollTo(0, 0);
 }, false);
 
-//Initial Wordpress Template
+//Initial Wordpress Templates
 WPBP = {
     "DBaaS":{
         "id":"d8fcfc17-b515-473a-9fe1-6d4e3356ef8d",
@@ -1461,27 +1722,44 @@ WPBP = {
                 "label":"Region",
                 "choice":[
                     "DFW",
-                    "ORD"
+                    "ORD",
+                    "LON"
                 ]
             },
             "prefix":{
                 "constrains":[
                     {
                         "setting":"wordpress/database/prefix",
-                        "service":"web",
+                        "service":"master",
                         "resource_type":"application"
+
                     },
                     {
-                        "setting":"name",
-                        "resource_type":"wp user"
+                        "setting":"wordpress/database/prefix",
+                        "service":"web",
+                        "resource_type":"application"
+
                     }
                 ],
                 "help":"Note that this also the user name, database name, and also identifies this\nwordpress install from other ones you might add later to the same deployment.\n",
-                "default":"wp",
+                "default":"wp_",
                 "required":true,
                 "label":"Prefix",
                 "type":"string",
                 "description":"The application ID (and wordpress table prefix)."
+            },
+            "username":{
+                "type":"string",
+                "description":"Username to use for service.",
+                "label":"Username",
+                "constrains":[
+                	{
+                    	"setting":"name",
+                    	"resource_type":"wp user"
+                	}
+                ],
+                "default":"wp",
+                "required":true
             },
             "password":{
                 "type":"password",
@@ -2048,23 +2326,25 @@ WPBP = {
                 "label":"Region",
                 "choice":[
                     "DFW",
-                    "ORD"
+                    "ORD",
+                    "LON"
                 ]
             },
             "prefix":{
                 "constrains":[
                     {
                         "setting":"wordpress/database/prefix",
-                        "service":"web",
+                        "service":"master",
                         "resource_type":"application"
                     },
                     {
-                        "setting":"name",
-                        "resource_type":"wp user"
+                        "setting":"wordpress/database/prefix",
+                        "service":"web",
+                        "resource_type":"application"
                     }
                 ],
                 "help":"Note that this also the user name, database name, and also identifies this\nwordpress install from other ones you might add later to the same deployment.\n",
-                "default":"wp",
+                "default":"wp_",
                 "required":true,
                 "label":"Prefix",
                 "type":"string",
@@ -2080,6 +2360,20 @@ WPBP = {
                         "resource_type":"wp user"
                     }
                 ]
+            },
+            "username":{
+                "type":"string",
+                "description":"Username to use for service.",
+                "required":true,
+                "label":"Username",
+                "constrains":[
+                   {
+                        "setting":"name",
+                    	"resource_type":"wp user"
+                   }
+                ],
+                "default":"wp",
+                "required":true
             },
             "os":{
                 "constrains":[
@@ -2454,10 +2748,11 @@ WPBP = {
         "name":"Managed Cloud WordPress (MySQLonVMs)"
     }
 };
-//Default Environment
+
+//Default Environments
 ENVIRONMENTS = {
     "legacy": {
-        "description": "This environment tests legacy cloud servers.",
+        "description": "This environment uses legacy cloud servers.",
         "name": "Legacy Cloud Servers",
         "providers": {
             "legacy": {},
@@ -2482,7 +2777,7 @@ ENVIRONMENTS = {
         }
     },
     "next-gen": {
-        "description": "This environment tests next-gen cloud servers.",
+        "description": "This environment uses next-gen cloud servers.",
         "name": "Next-Gen Open Cloud",
         "providers": {
             "nova": {},
