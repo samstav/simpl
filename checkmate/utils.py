@@ -33,7 +33,8 @@ STATIC = ['test', 'version']
 DEFAULT_SENSITIVE_KEYS = ['credentials', 'apikey',
         re.compile("(?:(?:auth)|(?:api))?[-_ ]?token$"),
         re.compile("priv(?:ate)?[-_ ]?key$"),
-        re.compile('password')]
+        re.compile('password$'),
+        re.compile('^password')]
 
 
 def get_debug_level():

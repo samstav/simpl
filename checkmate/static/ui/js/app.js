@@ -15,29 +15,6 @@ checkmate.config(['$routeProvider', '$locationProvider', '$httpProvider', functi
     template: '<calculator/>',
     controller: StaticController
   })
-
-  // Legacy Paths - none of these should be in use anymore
-  $routeProvider.
-  when('/:tenantId/environments/:id', {
-    controller: LegacyController,
-    template:'<section class="entries" ng-include="templateUrl"><img src="/static/img/ajax-loader-bar.gif" alt="Loading..."/></section>'
-  }).
-  when('/:tenantId/workflows/:id/legacy', {
-    controller: LegacyController,
-    template:'<section class="entries" ng-include="templateUrl"><img src="/static/img/ajax-loader-bar.gif" alt="Loading..."/></section>'
-  }).
-  when('/:tenantId/workflows/:id/tasks/:task_id', {
-    controller: LegacyController,
-    template:'<section class="entries" ng-include="templateUrl"><img src="/static/img/ajax-loader-bar.gif" alt="Loading..."/></section>'
-  }).
-  when('/status/libraries', {
-    controller: LegacyController,
-    template:'<section class="entries" ng-include="templateUrl"><img src="/static/img/ajax-loader-bar.gif" alt="Loading..."/></section>'
-  }).
-  when('/status/celery', {
-    controller: LegacyController,
-    template:'<section class="entries" ng-include="templateUrl"><img src="/static/img/ajax-loader-bar.gif" alt="Loading..."/></section>'
-  })
   
   // New UI - static pages
   $routeProvider.
@@ -131,77 +108,6 @@ function ExternalController($window, $location) {
   $window.location.href = $location.absUrl();
 }
 
-//Loads the old ui (rendered at the server)
-function LegacyController($scope, $location, $routeParams, $resource, navbar, $window, $http) {
-  $scope.showHeader = false;
-  $scope.showStatus = false;
-  var parts = $location.path().split('/')
-  if (parts.length > 1)
-    navbar.highlight(parts[2]);
-
-  var path;
-  if ('tenantId' in $routeParams) {
-    path = $location.path();
-  } else if ($location.path().indexOf('/' + $scope.$parent.auth.tenantId + '/') == 0) {
-    path = $location.path();
-  } else {
-    path = '/' + $scope.$parent.auth.tenantId + $location.path();
-  }
-  if (path.indexOf(".html") == -1 )
-    path += ".html";
-  if ($location.url().length > $location.path().length)
-    path += $location.url().substr($location.path().length);
-  console.log("Legacy controller loading " + path);
-  $scope.templateUrl = path;
-
-  $scope.save = function() {
-    if ($scope.auth.loggedIn) {
-      var klass = $resource($location.path());
-      var thang = new klass(JSON.parse(Editor.getValue()));
-      thang.$save(function(returned, getHeaders){
-          $scope.notify('Saved');
-        }, function(error) {
-          $scope.$root.error = {data: error.data, status: error.status, title: "Error Saving",
-                  message: "There was an error saving your JSON:"};
-          $('#modalError').modal('show');
-        });
-    } else {
-      $scope.loginPrompt($scope.save); //TODO: implement a callback
-    }
-  };
-
-  $scope.action = function(action) {
-    if ($scope.auth.loggedIn) {
-      console.log("Executing action " + $location.path() + '/' + action)
-      $http({method: 'POST', url: $location.path() + '/' + action}).
-        success(function(data, status, headers, config) {
-          $scope.notify("Command '" + action.replace('+', '') + "' executed");
-          // this callback will be called asynchronously
-          // when the response is available
-          $window.location.reload();
-        });
-    } else {
-      $scope.loginPrompt(); //TODO: implement a callback
-    }
-  };
-
-  $scope.target_action = function(target) {
-    if ($scope.auth.loggedIn) {
-      console.log("Executing action " + target)
-      $http({method: 'POST', url: target}).
-        success(function(data, status, headers, config) {
-          $scope.notify("Command '" + _.last(target.split("/")).replace('+', '') + "' executed");
-          // this callback will be called asynchronously
-          // when the response is available
-          $window.location.reload();
-        });
-    } else {
-      $scope.loginPrompt(); //TODO: implement a callback
-    }
-  };
-
-}
-
 //Root controller that implements authentication
 function AppController($scope, $http, $location) {
   $scope.showHeader = true;
@@ -223,7 +129,7 @@ function AppController($scope, $http, $location) {
       }).show();
   }
 
-  //Accepts subset of auth data. We user a subset so we can store it locally.
+  //Accepts subset of auth data. We use a subset so we can store it locally.
   $scope.accept_auth_data = function(response) {
       $scope.auth.catalog = response;
       $scope.auth.username = response.access.user.name;
@@ -340,6 +246,7 @@ function AppController($scope, $http, $location) {
           apikey: '',
           auth_url: "https://identity.api.rackspacecloud.com/v2.0/tokens"
         };
+      $scope.notify("Welcome, " + $scope.auth.username + "! You are logged in");
       if (typeof $('#modalAuth')[0].success_callback == 'function') {
           $('#modalAuth')[0].success_callback();
           delete $('#modalAuth')[0].success_callback;
@@ -1188,7 +1095,7 @@ function DeploymentInitController($scope, $location, $routeParams, $resource, bl
         var temp
         for(var i=0; i<domains.length; i++){
           $scope.domain_names.push(domains[i].name);
-        }
+        };
        },
        function(response) {
           if (!('data' in response))
@@ -1242,7 +1149,7 @@ function DeploymentInitController($scope, $location, $routeParams, $resource, bl
                 if (setting.id == 'region') {
                     setting.default = $scope.auth.catalog.access.user['RAX-AUTH:defaultRegion'];
                     setting.choice = [setting.default];
-                    setting.description = "Your legacy cloud servers region is '" + setting.default + "'. You must deploy to this region";
+                    setting.description = "Your legacy cloud servers region is '" + setting.default + "'. You can only deploy to this region";
                 }
             });
         }
@@ -1256,6 +1163,27 @@ function DeploymentInitController($scope, $location, $routeParams, $resource, bl
         $scope.answers[setting.id] = null;
     });
   };
+
+  $scope.OnAddressEditorShow = function() {
+    site_address.value = calculated_site_address.innerText;
+  }
+
+  $scope.UpdateSiteAddress = function() {
+    parsed = URI.parse($scope.manual_site_address);
+    if (!('hostname' in parsed)) {
+        $('#site_address_error').text("Domain name or IP address missing");
+        return;
+    };
+    if (!('protocol' in parsed)){
+        $('#site_address_error').text("Protocol (http or https) is missing");
+        return;
+    };
+    $('#site_address_error').text("");
+    $scope.answers['web_server_protocol'] = parsed.protocol;
+    $scope.answers['domain'] = parsed.hostname;
+    $scope.answers['path'] = parsed.path || "/";
+    $('#siteAddressModal').modal('hide');
+  }
 
   // Display settings using templates for each type
   $scope.renderSetting = function(setting) {
@@ -2317,7 +2245,14 @@ WPBP = {
             "register-dns":{
                 "default":false,
                 "type":"boolean",
-                "label":"Create DNS records"
+                "label":"Create DNS records",
+            	"constrains":[
+                              {
+                              	"setting":"create_dns",
+                              	"service":"lb",
+                              	"resource_type":"load-balancer"
+                              }
+                          ]
             },
             "region":{
                 "required":true,
