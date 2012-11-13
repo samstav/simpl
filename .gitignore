@@ -1,0 +1,93 @@
+*.swp
+.tox
+rook.egg-info/
+.coverage
+covhtml
+pep8.txt
+nosetests.xml
+doc/build
+doc/source/modules.rst
+doc/source/rook.*
+build/
+dist/
+coverage/
+var/
+src/
+data/
+
+# virtual environments
+.venv
+venv-checkmate
+
+# scratch files
+scratch.json
+scratch.xml
+
+# Compiled source #
+###################
+*.com
+*.class
+*.dll
+*.exe
+*.o
+*.so
+*.pyc
+
+# Packages #
+############
+# it's better to unpack these files and commit the raw source
+# git has its own built in compression methods
+*.7z
+*.dmg
+*.gz
+*.iso
+*.jar
+*.rar
+*.tar
+*.zip
+
+# Logs and databases #
+######################
+*.log
+*.sql
+*.sqlite
+*.db
+
+# OS generated files #
+######################
+.DS_Store
+.DS_Store*
+ehthumbs.db
+Icon?
+Thumbs.db
+
+# Eclipse Project files #
+#########################
+.project
+.pydevproject
+
+# Generated reports #
+#####################
+coverage.xml
+tests/coverage.xml
+
+# Patches #
+###########
+*.patch
+*.diff
+
+# Vagrant #
+###########
+.vagrant
+/vagrant/cookbooks
+/vagrant/tmp
+
+# Sublime Project Files #
+#########################
+*.sublime-project
+*.sublime-workspace
+
+# Komodo Project Files #
+########################
+*.komodoproject
+

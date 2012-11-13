@@ -1,0 +1,4 @@
+
+
+class DbBase(object):
+    pass

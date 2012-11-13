@@ -1,0 +1,18 @@
+<div class="entries container-fluid">
+  <table class="table table-striped">
+    <thead>
+      <tr>
+        <th>ID</th>
+        <th>Name</th>
+        <th>Vendor</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr ng-repeat="item in items | orderBy:'name'" >
+        <td>{{item.id}}</td>
+        <td>{{item.name}}</td>
+        <td>{{item.vendor}}</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
