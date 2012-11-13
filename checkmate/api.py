@@ -65,7 +65,7 @@ from checkmate import blueprints, components, deployments, environments, workflo
 
 
 __version_string__ = None
-__VERSION_INFO_PATH__ = "/opt/checkmate/.version"
+
 
 #
 # Status and System Information
@@ -90,17 +90,13 @@ def get_celery_worker_status():
         d = {ERROR_KEY: str(e)}
     return write_body(d, request, response)
 
+
 @get('/version')
 def get_api_version():
     """ Return api version information """
-    global __version_string__, __VERSION_INFO_PATH__
+    global __version_string__
     if not __version_string__:
-        if os.path.exists(__VERSION_INFO_PATH__):
-            with file(__VERSION_INFO_PATH__, 'r') as f:
-                __version_string__ = f.readline().rstrip()
-            f.close()
-        else:
-            __version_string__ = "-".join([checkmate.__version__, checkmate.__release__])
+        __version_string__ = checkmate.version()
     return write_body({"version": __version_string__}, request, response)
             
 
