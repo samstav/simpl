@@ -1,5 +1,0 @@
-<div class="container-fluid">
-{% block content %}
-    <pre class="prettyprint lang-js"><code>{{ source | safe }}</code></pre>
-{% endblock %}
-</div><!-- container-fluid -->
