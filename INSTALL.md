@@ -114,9 +114,11 @@ LKG: To install the last known good and tested config of Chef for the Checkmate
 server:
 
     # Install RVM
-    echo insecure >> ~/.curlrc
-    curl -k -L get.rvm.io | bash -s stable
-    source ~/.rvm/scripts/rvm
+    apt-get --purge remove ruby-rvm
+    rm -rf /usr/share/ruby-rvm /etc/rvmrc /etc/profile.d/rvm.sh
+    echo insecure > ~/.curlrc
+    curl -L get.rvm.io | bash -s stable --auto
+    source /etc/profile.d/rvm.sh
 
     # Install Ruby 1.9.3 locally
     rvm install 1.9.3-p125
@@ -130,6 +132,13 @@ server:
     # Switch to it
     rvm gemset use checkmate
     # Install know good versions
+    gem install bundler --no-rdoc --no-ri
+    gem install chef --version 10.12.0 --no-rdoc --no-ri
+    gem install knife-solo --version 0.0.13 --no-rdoc --no-ri
+    gem install knife-solo_data_bag --version 0.2.1 --no-rdoc --no-ri
+    
+    # Instlal the same gems in global, because root from cron needs them
+    rvm gemset use global
     gem install bundler --no-rdoc --no-ri
     gem install chef --version 10.12.0 --no-rdoc --no-ri
     gem install knife-solo --version 0.0.13 --no-rdoc --no-ri

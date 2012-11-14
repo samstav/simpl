@@ -9,7 +9,6 @@ import re
 # don't need to.
 gettext.install('checkmate')
 
-
 configfile = os.path.join(os.path.dirname(__file__), 'checkmate.cfg')
 config = ConfigParser()
 config.read(configfile)
@@ -37,5 +36,3 @@ load_release()
 def version():
     return "%s-%s" % (__version__, __release__)
 
-
-print(version())

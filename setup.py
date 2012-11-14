@@ -47,7 +47,6 @@ setup(
                       'celery-with-mongodb==3.0',
                       'eventlet==0.9.17',
                       'GitPython==0.3.2.RC1',
-                      'Jinja2==2.6',
                       'openstack.compute==2.0a1',
                       'pam==0.1.4',
                       'paramiko==1.7.7.2',
