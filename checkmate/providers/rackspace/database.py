@@ -3,7 +3,7 @@ import logging
 import random
 import string
 
-from celery.task import task, current #@UnresolvedImport
+from celery.task import task, current  # @UnresolvedImport
 import clouddb
 from SpiffWorkflow.operators import PathAttrib
 from SpiffWorkflow.specs import Celery
@@ -154,6 +154,12 @@ class Provider(ProviderBase):
                 region = deployment.get_setting('region',
                         resource_type=resource.get('type'),
                         provider_key=self.key, service_name=service_name)
+            db_flavor = deployment.get_setting('memory',
+                    resource_type=resource.get('type'), provider_key=self.key,
+                    service_name=service_name, default="1")
+            db_disk = deployment.get_setting('disk',
+                    resource_type=resource.get('type'), provider_key=self.key,
+                    service_name=service_name, default=1)
 
             create_instance_task = Celery(wfspec, 'Create Database Server',
                    'checkmate.providers.rackspace.database.create_instance',
@@ -161,8 +167,8 @@ class Provider(ProviderBase):
                                     deployment=deployment['id'],
                                     resource=key),
                             resource.get('dns-name'),
-                            resource.get('disk', 1),
-                            resource.get('flavor', '1'),
+                            db_flavor,
+                            db_disk,
                             None,
                             region,
                         ],
@@ -322,7 +328,7 @@ class Provider(ProviderBase):
 # Celery tasks
 #
 @task(default_retry_delay=10, max_retries=2)
-def create_instance(context, instance_name, size, flavor, databases, region,
+def create_instance(context, instance_name, flavor, size, databases, region,
         api=None):
     """Creates a Cloud Database instance with optional initial databases.
 
@@ -340,7 +346,7 @@ def create_instance(context, instance_name, size, flavor, databases, region,
     if databases is None:
         databases=[]
 
-    instance = api.create_instance(instance_name, size, flavor,
+    instance = api.create_instance(instance_name, flavor, size,
                                           databases=databases)
     LOG.info("Created database instance %s (%s). Size %s, Flavor %s. "
             "Databases = %s" % (instance.name, instance.id, size, flavor,
