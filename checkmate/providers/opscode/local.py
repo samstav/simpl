@@ -1147,12 +1147,19 @@ def create_environment(name, service_name, path=None, private_key=None,
     # Get path
     root = _get_root_environments_path(path)
     fullpath = os.path.join(root, name)
-    if os.path.exists(fullpath):
-        LOG.warning("Environment already exists: %s" % fullpath)
-    else:
-        # Create environment
+
+    # Create environment
+    try:
         os.mkdir(fullpath, 0770)
         LOG.debug("Created environment directory: %s" % fullpath)
+    except OSError as ose:
+        if ose.errno == errno.EEXIST:
+            LOG.warn("Environment directory % already exists", fullpath,
+                      exc_info=True)
+        else:
+            raise CheckmateException(
+                "Could not create environment %s" % fullpath, ose)
+
     results = {"environment": fullpath}
 
     key_data = _create_environment_keys(fullpath, private_key=private_key,
