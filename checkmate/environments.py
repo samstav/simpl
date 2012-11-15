@@ -3,7 +3,7 @@ import logging
 import uuid
 
 # pylint: disable=E0611
-from bottle import get, post, put, delete, request, response, abort
+from bottle import get, post, put, delete, request, response, abort, route
 
 from checkmate.common import schema
 from checkmate.components import Component
@@ -230,6 +230,24 @@ def get_provider_component(provider_id, component_id, tenant_id=None):
     else:
         abort(404, "Component %s not found or not available under this "
                 "provider (%s)" % (component_id, provider_id))
+
+
+@route('/providers/<provider_id>/proxy/<path:path>')
+@with_tenant
+def provider_proxy(provider_id, tenant_id=None, path=None):
+    vendor = None
+    if "." in provider_id:
+        vendor = provider_id.split(".")[0]
+        provider_id = provider_id.split(".")[1]
+    environment = Environment(dict(providers={provider_id:
+            dict(vendor=vendor)}))
+    try:
+        provider = environment.get_provider(provider_id)
+    except KeyError:
+        abort(404, "Invalid provider: %s" % provider_id)
+    results = provider.proxy(path, request, tenant_id=tenant_id)
+
+    return write_body(results, request, response)
 
 #
 # @route('/providers/<provider_id>/proxy/<path:path>') is added by the
