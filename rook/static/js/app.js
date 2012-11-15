@@ -78,7 +78,8 @@ checkmate.config(['$routeProvider', '$locationProvider', '$httpProvider', functi
     controller: StaticController,
     templateUrl: '/partials/404.html'
   }).otherwise({
-    redirectTo: '/404'
+    controller: StaticController,
+    templateUrl: '/partials/404.html'
   });
   
   
