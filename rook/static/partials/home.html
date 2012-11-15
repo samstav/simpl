@@ -1,6 +1,6 @@
 <style>
   body {
-    background:#fcfcfc url("/static/marketing/img/top.png") top left repeat-x;
+    background:#fcfcfc url("/marketing/img/top.png") top left repeat-x;
     padding:40px 0 0;
     border-top:3px solid #ddd;
   }
@@ -255,7 +255,7 @@
   
   .graded {
       padding-bottom:100px;
-      background:url("/static/marketing/img/graded2.png") bottom center repeat-x;
+      background:url("/marketing/img/graded2.png") bottom center repeat-x;
   }
   
   .drop-shadow {
@@ -291,7 +291,7 @@
 
 </style>
 <a href="http://github.rackspace.com/checkmate">
-  <img style="position: absolute; top: 0px; right: 0; border: 0;" src="/static/img/forkme.png" alt="Fork me on GitHub">
+  <img style="position: absolute; top: 0px; right: 0; border: 0;" src="/img/forkme.png" alt="Fork me on GitHub">
 </a>
 <section class="entries"><article class="entry">
 <div class="container">
@@ -306,28 +306,28 @@
       <div class="spot">Start<br />here</div>
       <div class="well highlighted">
         <a href="/deployments/default">
-          <img class="center" id="fanatical" alt="Managed Cloud Wordpress" src="/static/img/applications/wordpress.png"></a>
+          <img class="center" id="fanatical" alt="Managed Cloud Wordpress" src="/img/applications/wordpress.png"></a>
         <h3>Managed Cloud <strong>WordPress</strong></h3>
       </div>
     </div>
     <div class="span3">
       <div class="spot2">Coming<br />soon</div>
       <div class="well highlighted">
-          <img class="center" style="opacity: .5;" id="fanatical" alt="Managed Cloud Drupal" src="/static/img/applications/druplicon.small_.png">
+          <img class="center" style="opacity: .5;" id="fanatical" alt="Managed Cloud Drupal" src="/img/applications/druplicon.small_.png">
         <h3>Managed Cloud <strong>Drupal</strong></h3>
       </div>
     </div>
     <div class="span3">
       <div class="spot2">Q4<br />2012</div>
       <div class="well highlighted">
-          <img class="center" style="opacity: .5;" id="fanatical" alt="Managed Cloud Magento" src="/static/img/applications/magento1-6.png">
+          <img class="center" style="opacity: .5;" id="fanatical" alt="Managed Cloud Magento" src="/img/applications/magento1-6.png">
         <h3>Managed Cloud <strong>Magento</strong></h3>
       </div>
     </div>
     <div class="span3">
       <div class="spot2">Q4<br />2012</div>
       <div class="well highlighted">
-          <img class="center" style="opacity: .5;" id="fanatical" alt="Managed Cloud SugarCRM" src="/static/img/applications/sugarcrm-box-only.jpg">
+          <img class="center" style="opacity: .5;" id="fanatical" alt="Managed Cloud SugarCRM" src="/img/applications/sugarcrm-box-only.jpg">
         <h3>Managed Cloud <strong>SugarCRM</strong></h3>
       </div>
     </div>
@@ -335,8 +335,8 @@
   <div class="row pricing">
     <div class="span4 offset2">
       <div class="well">
-        <a href="/static/marketing/customer.html" onclick="window.location='/static/marketing/customer.html';">
-          <img class="center" alt="Learning" id="learning" src="/static/marketing/img/worker-at-cubicle.png">
+        <a href="/marketing/customer.html" onclick="window.location='/marketing/customer.html';">
+          <img class="center" alt="Learning" id="learning" src="/marketing/img/worker-at-cubicle.png">
         </a>
         <h3>Learn more</h3>
       </div>
@@ -344,7 +344,7 @@
     <div class="span4">
       <div class="well">
         <a href="#" data-toggle="modal" data-target="#modalSLA">
-          <img class="center" alt="Support" id="hacking" src="/static/marketing/img/fanatiguy.png" data-original-title="">
+          <img class="center" alt="Support" id="hacking" src="/marketing/img/fanatiguy.png" data-original-title="">
         </a>
         <h3>Support</h3>
       </div>
@@ -387,37 +387,15 @@
 </div>
 
 
-<script src="/static/libs/jquery.timeago.js" type="text/javascript"></script>
+<script src="/libs/jquery.timeago.js" type="text/javascript"></script>
 
-<script src="/static/marketing/js/jquery_ujs.js" type="text/javascript"></script>
-<script src="/static/marketing/js/builds.js" type="text/javascript"></script>
-<script src="/static/marketing/js/configurations.js" type="text/javascript"></script>
-<script src="/static/marketing/js/customers.js" type="text/javascript"></script>
-<script src="/static/marketing/js/sessions.js" type="text/javascript"></script>
-<script src="/static/marketing/js/environments.js" type="text/javascript"></script>
-<script src="/static/marketing/js/home.js" type="text/javascript"></script>
-<script src="/static/marketing/js/newsletter.js" type="text/javascript"></script>
-<script src="/static/marketing/js/templates.js" type="text/javascript"></script>
-<script src="/static/marketing/js/application.js" type="text/javascript"></script>
-<script type="text/javascript">
-  $(document).ready(function() {
-    $(".pricing img").hover(
-      function() {
-        $(this).fadeTo(100, 1);
-      },
-      function() {
-        $(this).fadeTo(100, .5);
-    });
-  });
-</script>
-
-<script type="text/javascript">
-  $(document).ready(function() {
-    $('#news-form').submit(function() {
-      $.post('/newsletter/create', $('#news-form').serialize() , function(data) {
-        $('#news-submit').html('Saved!');
-      }, "json");
-      return false;
-    });
-  });
-</script>
+<script src="/marketing/js/jquery_ujs.js" type="text/javascript"></script>
+<script src="/marketing/js/builds.js" type="text/javascript"></script>
+<script src="/marketing/js/configurations.js" type="text/javascript"></script>
+<script src="/marketing/js/customers.js" type="text/javascript"></script>
+<script src="/marketing/js/sessions.js" type="text/javascript"></script>
+<script src="/marketing/js/environments.js" type="text/javascript"></script>
+<script src="/marketing/js/home.js" type="text/javascript"></script>
+<script src="/marketing/js/newsletter.js" type="text/javascript"></script>
+<script src="/marketing/js/templates.js" type="text/javascript"></script>
+<script src="/marketing/js/application.js" type="text/javascript"></script>

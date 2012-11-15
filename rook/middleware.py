@@ -40,9 +40,9 @@ class BrowserMiddleware(object):
 
     def __init__(self, app, proxy_endpoints=None, with_simulator=False):
         self.app = app
-        STATIC.extend(['static', 'favicon.ico', 'apple-touch-icon.png',
-                'authproxy', 'marketing', '', 'images', 'ui', None,
-                'feedback'])
+        STATIC.extend(['favicon.ico', 'apple-touch-icon.png', 'js', 'libs',
+                       'css', 'img', 'authproxy', 'marketing', '', None,
+                       'feedback', 'partials'])
         self.proxy_endpoints = proxy_endpoints
         self.with_simulator = with_simulator
         connection_string = os.environ.get('CHECKMATE_CONNECTION_STRING',
@@ -72,42 +72,20 @@ class BrowserMiddleware(object):
                     root=os.path.join(os.path.dirname(__file__), 'static'))
 
         @get('/')
-        @get('/ui/<path:path>')
-        #TODO: remove application/json and fix angular to call partials with
-        #  text/html
-        @support_only(['text/html', 'text/css', 'text/javascript',
-                       'application/json'])  # Angular calls template in json
-        def ui(path=None):
-            """Expose new javascript UI"""
-            root = os.path.join(os.path.dirname(__file__), 'static', 'ui')
-            if path and path.startswith('/js/'):
-                root = os.path.join(os.path.dirname(__file__), 'static', 'ui',
-                                    'js')
-            if not path or not os.path.exists(os.path.join(root, path)):
-                return static_file("index.html", root=root)
-            if path.endswith('.css'):
-                return static_file(path, root=root, mimetype='text/css')
-            elif path.endswith('.html'):
-                if 'partials' in path.split('/'):
-                    return static_file(path, root=root)
-                else:
-                    return static_file("index.html", root=root)
-            return static_file(path, root=root)
-
-        @get('/static/<path:path>')
+        @get('/<path:path>')
         #TODO: remove application/json and fix angular to call partials with
         #  text/html
         @support_only(['text/html', 'text/css', 'text/javascript', 'image/*',
                        'application/json'])  # Angular calls template in json
-        def static(path):
-            """Expose static files (images, css, javascript, etc...)"""
+        def static(path=None):
+            """Expose UI"""
             root = os.path.join(os.path.dirname(__file__), 'static')
-            # Ensure correct mimetype
+            # Ensure correct mimetype (bottle does not handle css)
             mimetype = 'auto'
-            if path.endswith('.css'):  # bottle does not write this for css
+            if path and path.endswith('.css'):  # bottle does not write this for css
                 mimetype = 'text/css'
-            httpResponse = static_file(path, root=root, mimetype=mimetype)
-            if self.with_simulator and \
+            httpResponse = static_file(path or '/index.html', root=root, mimetype=mimetype)
+            if path and self.with_simulator and \
                     path.endswith('deployment-new.html') and \
                     isinstance(httpResponse.output, file):
                 httpResponse.output = httpResponse.output.read().replace(
@@ -128,7 +106,7 @@ class BrowserMiddleware(object):
 
         @get('/marketing/<path:path>')
         @support_only(['text/html', 'text/css', 'text/javascript'])
-        def home(path):
+        def marketing(path):
             return static_file(path,
                     root=os.path.join(os.path.dirname(__file__), 'static',
                         'marketing'))

@@ -2,7 +2,7 @@ var exp = chrome.experimental;
 
 exp.app.onLaunched.addListener(function() {
   var opts = {
-    url: '../index.html',
+    url: '/index.html',
     width: 900,
     height: 700,
     left: 100,
