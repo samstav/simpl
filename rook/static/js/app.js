@@ -1865,7 +1865,7 @@ WPBP = {
                     {
                         "setting":"disk",
                         "service":"backend",
-                        "resource_type":"database"
+                        "resource_type":"compute"
                     }
                 ],
                 "type":"int",
