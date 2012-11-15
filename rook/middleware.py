@@ -9,8 +9,7 @@ from urlparse import urlparse
 from checkmate.utils import init_console_logging
 init_console_logging()
 # pylint: disable=E0611
-from bottle import get, post, request, response, abort, \
-        static_file, HTTPError, route
+from bottle import get, post, request, response, abort, static_file, HTTPError
 import webob
 import webob.dec
 
@@ -53,9 +52,6 @@ class BrowserMiddleware(object):
             driver_name = 'rook.db.feedback.SqlDriver'
         driver = import_class(driver_name)
         self.feedback_db = driver()
-        # We need Environment to load providers for the provider proxy calls
-        # Side effect: Loads db and routes
-        from checkmate.environments import Environment
 
         # Add static routes
         @get('/favicon.ico')
@@ -170,23 +166,6 @@ class BrowserMiddleware(object):
                 raise HTTPError(401, output=msg)
 
             return write_body(content, request, response)
-
-        @route('/providers/<provider_id>/proxy/<path:path>')
-        @with_tenant
-        def provider_proxy(provider_id, tenant_id=None, path=None):
-            vendor = None
-            if "." in provider_id:
-                vendor = provider_id.split(".")[0]
-                provider_id = provider_id.split(".")[1]
-            environment = Environment(dict(providers={provider_id:
-                    dict(vendor=vendor)}))
-            try:
-                provider = environment.get_provider(provider_id)
-            except KeyError:
-                abort(404, "Invalid provider: %s" % provider_id)
-            results = provider.proxy(path, request, tenant_id=tenant_id)
-
-            return write_body(results, request, response)
 
         @post('/feedback')
         @support_only(['application/json'])
