@@ -21,6 +21,12 @@ REGION_MAP = {'dallas': 'DFW',
               'chicago': 'ORD',
               'london': 'LON'}
 
+MEMORY_FLAVOR_MAP = {512: 1,
+                     1024: 2,
+                     2048: 3,
+                     4096: 4
+                     }
+
 
 class Provider(ProviderBase):
     name = 'database'
@@ -154,7 +160,7 @@ class Provider(ProviderBase):
                 region = deployment.get_setting('region',
                         resource_type=resource.get('type'),
                         provider_key=self.key, service_name=service_name)
-            db_flavor = deployment.get_setting('memory',
+            db_memory = deployment.get_setting('memory',
                     resource_type=resource.get('type'), provider_key=self.key,
                     service_name=service_name, default="1")
             db_disk = deployment.get_setting('disk',
@@ -167,7 +173,7 @@ class Provider(ProviderBase):
                                     deployment=deployment['id'],
                                     resource=key),
                             resource.get('dns-name'),
-                            db_flavor,
+                            MEMORY_FLAVOR_MAP[db_memory],
                             db_disk,
                             None,
                             region,
