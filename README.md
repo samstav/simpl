@@ -1,5 +1,5 @@
 # Checkmate
-![Checkmate](https://github.rackspace.com/checkmate/checkmate/raw/master/checkmate/static/img/checkmate.png)
+![Checkmate](https://github.rackspace.com/checkmate/rook/raw/master/rook/static/img/checkmate.png)
 
 ## Overview
 Checkmate stores and controls your cloud configurations. Use it to deploy and manage complete application stacks.
@@ -354,7 +354,7 @@ To start the checkmate REST API server:
 
 Options:
 
-        --with-ui:         enable support for browsers and HTML templates
+        --with-ui:         enable support for browsers and HTML templates (requires [rook](https://github.rackspace.com/checkmate/rook))
         --with-simulator:  enable support for the workflow simulator
         --newrelic:        enable newrelic monitoring (place newrelic.ini in
                            your directory)
@@ -528,6 +528,7 @@ Some of checkmate's more significant dependencies are::
 - SpiffWorkflow: a python workflow engine
 - chef: OpsCode's chef... you don't need a server, but use with a server is supported.
 - cloud service client libraries: python-novaclient, python-clouddb, etc...
+- rook: a UI middleware that enables checkmate to respond to browser calls in HTML.
 
 #### SpiffWorkflow
 Necessary additions to SpiffWorkflow are not yet in the source repo, so install
@@ -557,16 +558,6 @@ the development branch from this fork:
 
 [celeryd](http://www.celeryproject.org/) does the heavy lifting for
 distributing tasks and retrying those that fail.
-
-
-#### AngularJS
-
-[AngularJS](http://www.angularjs.org/) is a UI framework that we use in
-Checkmate. It provides a Javascript framework that can run from the browser.
-
-[This](http://yearofmoo.com/2012/08/use-angularjs-to-power-your-web-application/) is
-a good intro to AngularJS. It seems to be constantly updated and remains relevant.
-
 
 #### Mox
 

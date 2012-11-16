@@ -1,4 +1,17 @@
 from setuptools import setup, find_packages
+from ConfigParser import ConfigParser
+
+
+def get_config():
+    import os
+    import __main__
+    pwd = os.path.dirname(__file__)
+    configfile = 'checkmate/checkmate.cfg'
+    if pwd:
+        configfile = '%s/%s' % (pwd, configfile)
+    config = ConfigParser()
+    config.read(configfile)
+    return config
 
 
 # Provide URLs to Github projects if they're not pip-aware
@@ -26,7 +39,7 @@ setup(
     name='checkmate',
     description='Configuration management and orchestration',
     keywords='orchestration configuration automation rackspace openstack',
-    version='0.2.2',
+    version=get_config().get("checkmate", "version"),
     author='Rackspace Cloud',
     author_email='checkmate@lists.rackspace.com',
     dependency_links=github_urls,
