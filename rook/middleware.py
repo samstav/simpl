@@ -9,8 +9,7 @@ from urlparse import urlparse
 from checkmate.utils import init_console_logging
 init_console_logging()
 # pylint: disable=E0611
-from bottle import get, post, request, response, abort, \
-        static_file, HTTPError, route
+from bottle import get, post, request, response, abort, static_file, HTTPError
 import webob
 import webob.dec
 
@@ -40,9 +39,9 @@ class BrowserMiddleware(object):
 
     def __init__(self, app, proxy_endpoints=None, with_simulator=False):
         self.app = app
-        STATIC.extend(['static', 'favicon.ico', 'apple-touch-icon.png',
-                'authproxy', 'marketing', '', 'images', 'ui', None,
-                'feedback'])
+        STATIC.extend(['favicon.ico', 'apple-touch-icon.png', 'js', 'libs',
+                       'css', 'img', 'authproxy', 'marketing', '', None,
+                       'feedback', 'partials'])
         self.proxy_endpoints = proxy_endpoints
         self.with_simulator = with_simulator
         connection_string = os.environ.get('CHECKMATE_CONNECTION_STRING',
@@ -53,9 +52,6 @@ class BrowserMiddleware(object):
             driver_name = 'rook.db.feedback.SqlDriver'
         driver = import_class(driver_name)
         self.feedback_db = driver()
-        # We need Environment to load providers for the provider proxy calls
-        # Side effect: Loads db and routes
-        from checkmate.environments import Environment
 
         # Add static routes
         @get('/favicon.ico')
@@ -72,42 +68,20 @@ class BrowserMiddleware(object):
                     root=os.path.join(os.path.dirname(__file__), 'static'))
 
         @get('/')
-        @get('/ui/<path:path>')
-        #TODO: remove application/json and fix angular to call partials with
-        #  text/html
-        @support_only(['text/html', 'text/css', 'text/javascript',
-                       'application/json'])  # Angular calls template in json
-        def ui(path=None):
-            """Expose new javascript UI"""
-            root = os.path.join(os.path.dirname(__file__), 'static', 'ui')
-            if path and path.startswith('/js/'):
-                root = os.path.join(os.path.dirname(__file__), 'static', 'ui',
-                                    'js')
-            if not path or not os.path.exists(os.path.join(root, path)):
-                return static_file("index.html", root=root)
-            if path.endswith('.css'):
-                return static_file(path, root=root, mimetype='text/css')
-            elif path.endswith('.html'):
-                if 'partials' in path.split('/'):
-                    return static_file(path, root=root)
-                else:
-                    return static_file("index.html", root=root)
-            return static_file(path, root=root)
-
-        @get('/static/<path:path>')
+        @get('/<path:path>')
         #TODO: remove application/json and fix angular to call partials with
         #  text/html
         @support_only(['text/html', 'text/css', 'text/javascript', 'image/*',
                        'application/json'])  # Angular calls template in json
-        def static(path):
-            """Expose static files (images, css, javascript, etc...)"""
+        def static(path=None):
+            """Expose UI"""
             root = os.path.join(os.path.dirname(__file__), 'static')
-            # Ensure correct mimetype
+            # Ensure correct mimetype (bottle does not handle css)
             mimetype = 'auto'
-            if path.endswith('.css'):  # bottle does not write this for css
+            if path and path.endswith('.css'):  # bottle does not write this for css
                 mimetype = 'text/css'
-            httpResponse = static_file(path, root=root, mimetype=mimetype)
-            if self.with_simulator and \
+            httpResponse = static_file(path or '/index.html', root=root, mimetype=mimetype)
+            if path and self.with_simulator and \
                     path.endswith('deployment-new.html') and \
                     isinstance(httpResponse.output, file):
                 httpResponse.output = httpResponse.output.read().replace(
@@ -128,7 +102,7 @@ class BrowserMiddleware(object):
 
         @get('/marketing/<path:path>')
         @support_only(['text/html', 'text/css', 'text/javascript'])
-        def home(path):
+        def marketing(path):
             return static_file(path,
                     root=os.path.join(os.path.dirname(__file__), 'static',
                         'marketing'))
@@ -192,23 +166,6 @@ class BrowserMiddleware(object):
                 raise HTTPError(401, output=msg)
 
             return write_body(content, request, response)
-
-        @route('/providers/<provider_id>/proxy/<path:path>')
-        @with_tenant
-        def provider_proxy(provider_id, tenant_id=None, path=None):
-            vendor = None
-            if "." in provider_id:
-                vendor = provider_id.split(".")[0]
-                provider_id = provider_id.split(".")[1]
-            environment = Environment(dict(providers={provider_id:
-                    dict(vendor=vendor)}))
-            try:
-                provider = environment.get_provider(provider_id)
-            except KeyError:
-                abort(404, "Invalid provider: %s" % provider_id)
-            results = provider.proxy(path, request, tenant_id=tenant_id)
-
-            return write_body(results, request, response)
 
         @post('/feedback')
         @support_only(['application/json'])

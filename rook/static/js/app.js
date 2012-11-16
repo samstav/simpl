@@ -1,14 +1,23 @@
+//Support for different URL for checkmate server in chrome extension
+var checkmate_server_base = (chrome && chrome.extension) ? 'http://localhost\\:8080' : '';
+
+//Load AngularJS
 var checkmate = angular.module('checkmate', ['checkmate.filters', 'checkmate.services', 'checkmate.directives', 'ngResource', 'ngSanitize', 'ngCookies', 'ui', 'ngLocale']);
 
+//Load Angular Routes
 checkmate.config(['$routeProvider', '$locationProvider', '$httpProvider', function($routeProvider, $locationProvider, $httpProvider) {
   // Static Paths
   $routeProvider.
   when('/', {
-    templateUrl: '/static/ui/partials/home.html',
+    templateUrl: '/partials/home.html',
+    controller: StaticController
+  }).
+  when('/index.html', {
+    templateUrl: '/partials/home.html',
     controller: StaticController
   }).
   when('/readme', {
-    templateUrl: '/static/ui/partials/readme.html',
+    templateUrl: '/partials/readme.html',
     controller: StaticController
   }).
   when('/ui/build', {
@@ -19,55 +28,55 @@ checkmate.config(['$routeProvider', '$locationProvider', '$httpProvider', functi
   // New UI - static pages
   $routeProvider.
   when('/deployments/default', {
-    templateUrl: '/static/ui/partials/deployment-new.html',
+    templateUrl: '/partials/deployment-new.html',
     controller: DeploymentTryController
   }).
   when('/deployments/new', {
-    templateUrl: '/static/angular/partials/deployment-new.html',
-    controller: DeploymentNewController
+    templateUrl: '/partials/deployment-new.html',
+    controller: DeploymentTryController
   })
 
   // New UI - dynamic, tenant pages
   $routeProvider.
   when('/:tenantId/workflows/:id/status', {
-    templateUrl: '/static/ui/partials/workflow_status.html',
+    templateUrl: '/partials/workflow_status.html',
     controller: WorkflowController
   }).
   when('/:tenantId/workflows/:id', {
-    templateUrl: '/static/ui/partials/workflow.html',
+    templateUrl: '/partials/workflow.html',
     controller: WorkflowController,
     reloadOnSearch: false
   }).
   when('/:tenantId/workflows', {
-    templateUrl: '/static/ui/partials/workflows.html',
+    templateUrl: '/partials/workflows.html',
     controller: WorkflowListController,
   }).
   when('/:tenantId/blueprints/:id', {
-    templateUrl: '/static/ui/partials/level2.html',
+    templateUrl: '/partials/level2.html',
     controller: BlueprintListController
   }).
   when('/:tenantId/blueprints', {
-    templateUrl: '/static/ui/partials/blueprints.html',
+    templateUrl: '/partials/blueprints.html',
     controller: BlueprintListController
   }).
   when('/:tenantId/deployments', {
-    templateUrl: '/static/ui/partials/deployments.html',
+    templateUrl: '/partials/deployments.html',
     controller: DeploymentListController
   }).
   when('/:tenantId/deployments/:id', {
     controller: DeploymentController,
-    templateUrl: '/static/ui/partials/deployment.html'
+    templateUrl: '/partials/deployment.html'
   }).
   when('/:tenantId/providers', {
     controller: ProviderListController,
-    templateUrl: '/static/ui/partials/providers.html'
+    templateUrl: '/partials/providers.html'
   }).
   when('/:tenantId/environments', {
     controller: EnvironmentListController,
-    templateUrl: '/static/ui/partials/environments.html'
+    templateUrl: '/partials/environments.html'
   }).when('/404', {
     controller: StaticController,
-    templateUrl: '/static/ui/partials/404.html'
+    templateUrl: '/partials/404.html'
   }).otherwise({
     redirectTo: '/404'
   });
@@ -227,7 +236,7 @@ function AppController($scope, $http, $location) {
       contentType: "application/json; charset=utf-8",
       headers: headers,
       dataType: "json",
-      url: "/authproxy",
+      url: (chrome && chrome.extension) ? auth_url : "/authproxy",
       data: data
     }).success(function(json) {
       $('#modalAuth').modal('hide');
@@ -334,7 +343,7 @@ function NavBarController($scope, $location, $resource) {
   $scope.feedback = "";
   $scope.email = "";
   console.log("Getting api version");
-  this.api = $resource('/version');
+  this.api = $resource((checkmate_server_base || '') + '/version');
   this.api.get(function(data, getResponseHeaders){
 	  $scope.api_version = data.version;
 	  console.log("Got version: " + $scope.api_version);
@@ -375,7 +384,7 @@ function NavBarController($scope, $location, $resource) {
 }
 
 //Workflow controllers
-function WorkflowListController($scope, $location, $resource, workflow, items, navbar) {
+function WorkflowListController($scope, $location, $resource, workflow, items, navbar, scroll) {
   //Model: UI
   $scope.showItemsBar = true;
   $scope.showStatus = true;
@@ -418,7 +427,7 @@ function WorkflowListController($scope, $location, $resource, workflow, items, n
 
   $scope.load = function() {
     console.log("Starting load")
-    this.klass = $resource('/:tenantId/workflows/.json');
+    this.klass = $resource((checkmate_server_base || '') + '/:tenantId/workflows/.json');
     this.klass.get({tenantId: $scope.auth.tenantId}, function(list, getResponseHeaders){
       console.log("Load returned");
       items.receive(list, function(item, key) {
@@ -455,7 +464,7 @@ function WorkflowController($scope, $resource, $http, $routeParams, $location, $
   };
   
   $scope.load = function() {
-    this.klass = $resource('/:tenantId/workflows/:id.json');
+    this.klass = $resource((checkmate_server_base || '') + '/:tenantId/workflows/:id.json');
     this.klass.get($routeParams,
                    function(object, getResponseHeaders){
       $scope.data = object;
@@ -467,7 +476,7 @@ function WorkflowController($scope, $resource, $http, $routeParams, $location, $
         if ($scope.taskStates.completed < $scope.count) {
           setTimeout($scope.load, 2000);
         } else {
-          var d = $resource('/:tenantId/deployments/:id.json?with_secrets');
+          var d = $resource((checkmate_server_base || '') + '/:tenantId/deployments/:id.json?with_secrets');
           d.get($routeParams, function(object, getResponseHeaders){
             $scope.output = {};
             //Get load balancer IP
@@ -656,7 +665,7 @@ function WorkflowController($scope, $resource, $http, $routeParams, $location, $
       });
 
     if ($scope.auth.loggedIn) {
-      var klass = $resource('/:tenantId/workflows/:id/specs/' + $scope.current_spec_index);
+      var klass = $resource((checkmate_server_base || '') + '/:tenantId/workflows/:id/specs/' + $scope.current_spec_index);
       var thang = new klass(JSON.parse(editor.CodeMirror.getValue()));
       thang.$save($routeParams, function(returned, getHeaders){
           // Update model
@@ -690,7 +699,7 @@ function WorkflowController($scope, $resource, $http, $routeParams, $location, $
         $scope.$apply($scope.current_task_json = JSON.stringify(copy, null, 2));
     } catch(err) {};
     // Refresh CodeMirror since it might have been hidden
-    $('.CodeMirror')[1].CodeMirror.refresh();
+    _.each($('.CodeMirror'), function(inst) { inst.CodeMirror.refresh(); });
   };
 
   $scope.save_task = function() {
@@ -699,7 +708,7 @@ function WorkflowController($scope, $resource, $http, $routeParams, $location, $
       });
 
     if ($scope.auth.loggedIn) {
-      var klass = $resource('/:tenantId/workflows/:id/tasks/' + $scope.current_task_index);
+      var klass = $resource((checkmate_server_base || '') + '/:tenantId/workflows/:id/tasks/' + $scope.current_task_index);
       var thang = new klass(JSON.parse(editor.CodeMirror.getValue()));
       thang.$save($routeParams, function(returned, getHeaders){
           // Update model
@@ -981,7 +990,7 @@ function BlueprintListController($scope, $location, $resource, items) {
   
   $scope.load = function() {
     console.log("Starting load")
-    this.klass = $resource('/:tenantId/blueprints/.json');
+    this.klass = $resource((checkmate_server_base || '') + '/:tenantId/blueprints/.json');
     this.klass.get({tenantId: $scope.auth.tenantId}, function(list, getResponseHeaders){
       console.log("Load returned");
       items.receive(list, function(item, key) {
@@ -993,7 +1002,7 @@ function BlueprintListController($scope, $location, $resource, items) {
   }
 
   $scope.load_one = function() {
-    this.Blueprint = $resource('/:tenantId/blueprints/:id');
+    this.Blueprint = $resource((checkmate_server_base || '') + '/:tenantId/blueprints/:id');
     this.Blueprint.get({tenantId: $scope.auth.tenantId, id: $routeParams['id']}, function(blueprint, getResponseHeaders){
       $scope.items.all = [{id: blueprint.id, name: blueprint.name}];
       $scope.items.filtered = $scope.items.all;
@@ -1042,7 +1051,7 @@ function DeploymentListController($scope, $location, $http, $resource, scroll, i
 
   $scope.load = function() {
     console.log("Starting load")
-    this.klass = $resource('/:tenantId/deployments/.json');
+    this.klass = $resource((checkmate_server_base || '') + '/:tenantId/deployments/.json');
     this.klass.get({tenantId: $scope.auth.tenantId}, function(list, getResponseHeaders){
       console.log("Load returned");
       items.all = [];
@@ -1089,8 +1098,8 @@ function DeploymentInitController($scope, $location, $routeParams, $resource, bl
     $scope.domain_names = [];
     if ($scope.auth.loggedIn){
       var tenant_id = $scope.auth.tenantId;
-      url = '/:tenantId/providers/rackspace.dns/proxy/v1.0/'+tenant_id+'/domains';
-      var Domains = $resource(url, {tenantId: $scope.auth.tenantId});            
+      url = '/:tenantId/providers/rackspace.dns/proxy/v1.0/'+tenant_id+'/domains.json';
+      var Domains = $resource((checkmate_server_base || '') + url, {tenantId: $scope.auth.tenantId});            
       var domains = Domains.query(function() {
         var temp
         for(var i=0; i<domains.length; i++){
@@ -1227,7 +1236,7 @@ function DeploymentInitController($scope, $location, $routeParams, $resource, bl
     var url = '/:tenantId/deployments';
     if ((action !== undefined) && action)
       url += '/' + action;
-    var Deployment = $resource(url, {tenantId: $scope.auth.tenantId});
+    var Deployment = $resource((checkmate_server_base || '') + url, {tenantId: $scope.auth.tenantId});
     var deployment = new Deployment({});
     deployment.blueprint = $scope.blueprint;
     deployment.environment = $scope.environment;
@@ -1348,7 +1357,7 @@ function DeploymentController($scope, $location, $resource, $routeParams) {
   
   $scope.load = function() {
     console.log("Starting load")
-    this.klass = $resource('/:tenantId/deployments/:id.json');
+    this.klass = $resource((checkmate_server_base || '') + '/:tenantId/deployments/:id.json');
     this.klass.get($routeParams, function(data, getResponseHeaders){
       console.log("Load returned");
       $scope.data = data
@@ -1363,7 +1372,7 @@ function DeploymentController($scope, $location, $resource, $routeParams) {
       });
 
     if ($scope.auth.loggedIn) {
-      var klass = $resource('/:tenantId/deployments/:id/.json', null, {'get': {method:'GET'}, 'save': {method:'PUT'}});
+      var klass = $resource((checkmate_server_base || '') + '/:tenantId/deployments/:id/.json', null, {'get': {method:'GET'}, 'save': {method:'PUT'}});
       var thang = new klass(JSON.parse(editor.CodeMirror.getValue()));
       thang.$save($routeParams, function(returned, getHeaders){
           // Update model
@@ -1407,7 +1416,7 @@ function ProviderListController($scope, $location, $resource, items, scroll) {
 
   $scope.load = function() {
     console.log("Starting load")
-    this.klass = $resource('/:tenantId/providers/.json');
+    this.klass = $resource((checkmate_server_base || '') + '/:tenantId/providers/.json');
     this.klass.get({tenantId: $scope.auth.tenantId}, function(list, getResponseHeaders){
       console.log("Load returned");
       items.receive(list, function(item, key) {
@@ -1445,7 +1454,7 @@ function EnvironmentListController($scope, $location, $resource, items, scroll) 
 
   $scope.load = function() {
     console.log("Starting load")
-    this.klass = $resource('/:tenantId/environments/.json');
+    this.klass = $resource((checkmate_server_base || '') + '/:tenantId/environments/.json');
     this.klass.get({tenantId: $scope.auth.tenantId}, function(list, getResponseHeaders){
       console.log("Load returned");
       items.receive(list, function(item, key) {
@@ -1486,10 +1495,47 @@ function EnvironmentListController($scope, $location, $resource, items, scroll) 
 
 
 // Other stuff
+if (Modernizr.localstorage) {
+  // window.localStorage is available!
+} else {
+  alert("This browser application requires an HTML5 browser with support for local storage");
+}
+$(function() {
+  // Don't close feedback form on click
+  $('.dropdown input, .dropdown label').click(function(e) {
+    e.stopPropagation();
+  });
+});
+
 document.addEventListener('DOMContentLoaded', function(e) {
   //On mobile devices, hide the address bar
   window.scrollTo(0, 0);
+
+  //angular.bootstrap(document, ['checkmate']);
+  $(".cmpop").popover();  //anything with a 'cmpop' class will attempt to pop over using the data-content and title attributes
+  $(".cmtip").tooltip();  //anything with a 'cmtip' class will attempt to show a tooltip of the title attribute
+  $(".cmcollapse").collapse();  //anything with a 'cmcollapse' class will be collapsible
 }, false);
+
+$(window).load(function () {
+  //Init Google Code Prettifier
+  prettyPrint();
+
+  // Home page
+  $(".pricing img").hover(
+    function() {
+      $(this).fadeTo(100, 1);
+    },
+    function() {
+      $(this).fadeTo(100, .5);
+  });
+  $('#news-form').submit(function() {
+    $.post('/newsletter/create', $('#news-form').serialize() , function(data) {
+      $('#news-submit').html('Saved!');
+    }, "json");
+    return false;
+  });
+});
 
 //Initial Wordpress Templates
 WPBP = {
