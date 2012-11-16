@@ -78,7 +78,8 @@ checkmate.config(['$routeProvider', '$locationProvider', '$httpProvider', functi
     controller: StaticController,
     templateUrl: '/partials/404.html'
   }).otherwise({
-    redirectTo: '/404'
+    controller: StaticController,
+    templateUrl: '/partials/404.html'
   });
   
   
@@ -1865,7 +1866,7 @@ WPBP = {
                     {
                         "setting":"disk",
                         "service":"backend",
-                        "resource_type":"database"
+                        "resource_type":"compute"
                     }
                 ],
                 "type":"int",
