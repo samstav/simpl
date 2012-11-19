@@ -2,6 +2,7 @@ import httplib
 import json
 import logging
 import os
+import rook
 
 from urlparse import urlparse
 
@@ -20,6 +21,8 @@ from rook.db import get_driver
 from checkmate.utils import HANDLERS, RESOURCES, STATIC, write_body, \
         read_body, support_only, with_tenant, to_json, to_yaml, \
         get_time_string, import_class
+
+__version_string__ = None
 
 
 class BrowserMiddleware(object):
@@ -66,6 +69,16 @@ class BrowserMiddleware(object):
             """For iOS devices"""
             return static_file('apple-touch-icon.png',
                     root=os.path.join(os.path.dirname(__file__), 'static'))
+
+        @get('/ui/version')
+        def get_api_version():
+            """ Return api version information """
+            global __version_string__
+            if not __version_string__:
+                __version_string__ = rook.version()
+            return write_body({"version": __version_string__},
+                              request, response)
+
 
         @get('/')
         @get('/<path:path>')
