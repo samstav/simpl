@@ -1,0 +1,6 @@
+graft rook/static
+include setup.py
+include README.md
+include rook/rook.cfg
+include rook/db/repository/migrate.cfg
+global-exclude *.pyc *.sdx *.log *.db *.swp
