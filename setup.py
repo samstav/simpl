@@ -1,11 +1,25 @@
 from setuptools import setup, find_packages
+from ConfigParser import ConfigParser
+
+
+def get_config():
+    import os
+    import __main__
+    pwd = os.path.dirname(__file__)
+    configfile = 'rook/rook.cfg'
+    if pwd:
+        configfile = '%s/%s' % (pwd, configfile)
+    config = ConfigParser()
+    config.read(configfile)
+    return config
+
 
 setup(
     name='rook',
     description='Checkmate Browser UI',
     keywords=('checkmate orchestration configuration automation rackspace '
               'openstack'),
-    version='0.0.1',
+    version=get_config().get("rook", "version"),
     author='Rackspace Cloud',
     author_email='checkmate@lists.rackspace.com',
     install_requires=['bottle==0.10.11',
