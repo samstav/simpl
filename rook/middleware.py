@@ -70,8 +70,8 @@ class BrowserMiddleware(object):
             return static_file('apple-touch-icon.png',
                     root=os.path.join(os.path.dirname(__file__), 'static'))
 
-        @get('/ui/version')
-        def get_api_version():
+        @get('/rookversion')
+        def get_rook_version():
             """ Return api version information """
             global __version_string__
             if not __version_string__:
