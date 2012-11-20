@@ -348,7 +348,14 @@ function NavBarController($scope, $location, $resource) {
   this.api = $resource((checkmate_server_base || '') + '/version');
   this.api.get(function(data, getResponseHeaders){
 	  $scope.api_version = data.version;
-	  console.log("Got version: " + $scope.api_version);
+	  console.log("Got api version: " + $scope.api_version);
+  });
+
+  console.log("Getting rook version");
+  this.rook = $resource((checkmate_server_base || '') + '/ui/version');
+  this.rook.get(function(rookdata, getResponseHeaders){
+      $scope.rook_version = rookdata.version;
+      console.log("Got rook version: " + $scope.rook_version);
   });
 
   // Send feedback to server
