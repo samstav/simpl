@@ -351,7 +351,7 @@ function NavBarController($scope, $location, $resource) {
   });
 
   console.log("Getting rook version");
-  this.rook = $resource((checkmate_server_base || '') + '/ui/version');
+  this.rook = $resource((checkmate_server_base || '') + '/rookversion');
   this.rook.get(function(rookdata, getResponseHeaders){
       $scope.rook_version = rookdata.version;
       console.log("Got rook version: " + $scope.rook_version);

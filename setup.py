@@ -29,6 +29,7 @@ setup(
                       'pymongo==2.3',
                       ],
     packages=find_packages(exclude=['vagrant', 'tests', 'examples', 'doc']),
+    include_package_data=True,
     license='Apache License (2.0)',
     classifiers=["Programming Language :: Python"],
     url='https://rackspace.github.com/checkmate/rook'
