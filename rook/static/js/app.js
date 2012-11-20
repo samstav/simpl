@@ -1317,29 +1317,6 @@ function DeploymentInitController($scope, $location, $routeParams, $resource, bl
     $scope.submit('+preview');
   };
 
-  // Load blueprints
-  if (!blueprint) {
-    $scope.signIn();
-    cm.Resource.query($http, $scope, 'blueprints').success(function(data) {
-      $scope.blueprints = data;
-
-      if ($routeParams.blueprintId) {
-        $scope.blueprint = _.find($scope.blueprints, function(bp) {
-          return bp.id == $routeParams.blueprintId;
-        });
-        $scope.updateSettings();
-      }
-    });
-  }
-
-  // Load the environments
-  if (!environment) {
-    $scope.signIn();
-    cm.Resource.query($http, $scope, 'environments').success(function(data) {
-      $scope.environments = data;
-    });
-  }
-
   // Event Listeners
   $scope.OnLogIn = function(e) {
     $scope.getDomains();
