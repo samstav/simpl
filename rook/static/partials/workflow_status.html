@@ -31,8 +31,8 @@
                 <tr><td>Role:</td><td>{{resource.service}}</td></tr>
                 <tr><td>Host:</td><td>{{resource.instance.interfaces.mysql.host}}</td></tr>
                 <tr><td>Database:</td><td>{{resource.instance.interfaces.mysql.database_name}}</td></tr>
-                <tr><td>Username:</td><td>{{resource.instance.interfaces.mysql.username}}</td></tr>
-                <tr><td>Password:</td><td>{{resource.instance.interfaces.mysql.password}}</td></tr>
+                <tr><td>Username:</td><td>{{resource.instance.interfaces.mysql.username || output.username}}</td></tr>
+                <tr><td>Password:</td><td>{{resource.instance.interfaces.mysql.password || output.password}}</td></tr>
               </table>
 
               <p><strong>Access your servers</strong> using these credentials:

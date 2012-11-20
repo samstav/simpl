@@ -304,6 +304,15 @@ services.factory('items', [ 'filterFilter', function($resource, filter) {
 		  console.log('Done receiving ' + items.count + ' entries');
 		},
 
+	  clear: function() {
+	    items.data = null;
+	    items.all = [];
+	    items.filtered = [];
+	    items.selected = null;
+	    items.selectedIdx = null;
+	    items.count = 0;
+	  },
+
 	  prev: function() {
 	  	if (items.hasPrev()) {
 	  		items.selectItem(items.selected ? items.selectedIdx - 1 : 0);
@@ -697,15 +706,6 @@ services.config(function ($httpProvider) {
 				checkmate.requests -= 1;
 				if (checkmate.requests <= 0)
                                     $('#loading').attr('src', '/img/blank.gif');
-				var error = response;
-                                var info = {data: error.data,
-                                            status: error.status,
-                                            title: "Error",
-					    message: "There was an error executing your request:"};
-                                if ('description' in error.data)
-                                    info.message = error.data.description;
-				$rootScope.error = info;
-				$('#modalError').modal('show');
                 return $q.reject(response);
             });
         };

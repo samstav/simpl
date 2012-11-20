@@ -19,7 +19,7 @@ LOG = logging.getLogger(__name__)
 
 from rook.db import get_driver
 from checkmate.utils import HANDLERS, RESOURCES, STATIC, write_body, \
-        read_body, support_only, with_tenant, to_json, to_yaml, \
+        read_body, support_only, \
         get_time_string, import_class
 
 __version_string__ = None
@@ -44,7 +44,8 @@ class BrowserMiddleware(object):
         self.app = app
         STATIC.extend(['favicon.ico', 'apple-touch-icon.png', 'js', 'libs',
                        'css', 'img', 'authproxy', 'marketing', '', None,
-                       'feedback', 'partials'])
+                       'feedback', 'partials', 'githubproxy'])
+        HANDLERS['application/vnd.github.v3.raw'] = write_raw
         self.proxy_endpoints = proxy_endpoints
         self.with_simulator = with_simulator
         connection_string = os.environ.get('CHECKMATE_CONNECTION_STRING',
@@ -78,33 +79,6 @@ class BrowserMiddleware(object):
                 __version_string__ = rook.version()
             return write_body({"version": __version_string__},
                               request, response)
-
-
-        @get('/')
-        @get('/<path:path>')
-        #TODO: remove application/json and fix angular to call partials with
-        #  text/html
-        @support_only(['text/html', 'text/css', 'text/javascript', 'image/*',
-                       'application/json'])  # Angular calls template in json
-        def static(path=None):
-            """Expose UI"""
-            root = os.path.join(os.path.dirname(__file__), 'static')
-            # Ensure correct mimetype (bottle does not handle css)
-            mimetype = 'auto'
-            if path and path.endswith('.css'):  # bottle does not write this for css
-                mimetype = 'text/css'
-            httpResponse = static_file(path or '/index.html', root=root, mimetype=mimetype)
-            if path and self.with_simulator and \
-                    path.endswith('deployment-new.html') and \
-                    isinstance(httpResponse.output, file):
-                httpResponse.output = httpResponse.output.read().replace(
-                        "<!-- SIMULATE BUTTON PLACEHOLDER - do not change "
-                        "this comment, used for substitution!! -->",
-                        '<button ng-click="simulate()" class="btn" '
-                        'ng-disabled="!auth.loggedIn">Simulate It</button>'
-                        '<button ng-click="preview()" class="btn" '
-                        'ng-disabled="!auth.loggedIn">Preview It</button>')
-            return httpResponse
 
         @get('/images/<path:path>')  # for RackspaceCalculator
         def images(path):
@@ -180,6 +154,67 @@ class BrowserMiddleware(object):
 
             return write_body(content, request, response)
 
+        @get('/githubproxy/<path:path>')
+        @support_only(['application/json',
+                       'application/vnd.github.v3.raw'])
+        def githubproxy(path=None):
+            """Proxy Github Requests
+
+            The Ajax client cannot talk to remote github servers because of
+            CORS. This function proxies these calls through this server.
+
+            The target server URL should be passed in through the
+            X-Target-Url header.
+            """
+            source = request.get_header('X-Target-Url')
+            if not source:
+                abort(406, "X-Target-Url header not supplied. The header is "
+                        "required and must point to a valid and permitted "
+                        "git endpoint.")
+
+            url = urlparse(source)
+            if url.scheme == 'https':
+                http_class = httplib.HTTPSConnection
+                port = url.port or 443
+            else:
+                http_class = httplib.HTTPConnection
+                port = url.port or 80
+            host = url.hostname
+
+            http = http_class(host, port)
+            headers = {
+                'Accept': request.get_header('Accept', ['application/json']),
+                }
+            body = None
+            try:
+                LOG.debug('Proxying github call to %s' % source)
+                http.request('GET', '/%s' % path, headers=headers)
+                resp = http.getresponse()
+                body = resp.read()
+            except Exception, e:
+                LOG.error('HTTP connection exception: %s' % e)
+                raise HTTPError(401, output='Unable to communicate with '
+                        'github server')
+            finally:
+                http.close()
+
+            if resp.status != 200:
+                LOG.debug('Invalid github call: %s' % resp.reason)
+                raise HTTPError(resp.status, output=resp.reason)
+
+            if 'application/json' in resp.getheader('Content-type'):
+                try:
+                    content = json.loads(body)
+                except ValueError:
+                    msg = 'Github did not return json-encoded body'
+                    LOG.debug(msg)
+                    raise HTTPError(resp.status, output=msg)
+            else:
+                content = body
+
+            return write_body(content, request, response)
+
+
         @post('/feedback')
         @support_only(['application/json'])
         def feedback():
@@ -194,9 +229,25 @@ class BrowserMiddleware(object):
             self.feedback_db.save_feedback(feedback)
             return write_body(feedback, request, response)
 
+        @get('/')
+        @get('/<path:path>')
+        #TODO: remove application/json and fix angular to call partials with
+        #  text/html
+        @support_only(['text/html', 'text/css', 'text/javascript', 'image/*',
+                       'application/json'])  # Angular calls template in json
+        def static(path=None):
+            """Expose UI"""
+            root = os.path.join(os.path.dirname(__file__), 'static')
+            # Ensure correct mimetype (bottle does not handle css)
+            mimetype = 'auto'
+            if path and path.endswith('.css'):  # bottle does not write this for css
+                mimetype = 'text/css'
+            return static_file(path or '/index.html', root=root, mimetype=mimetype)
+
     def __call__(self, e, h):
         """Detect unauthenticated calls and redirect them to root.
         This gets processed before the bottle routes"""
+        h = self.start_response_callback(h)
         if 'text/html' in webob.Request(e).accept or \
                 e['PATH_INFO'].endswith('.html'):  # Angular requests json
             if e['PATH_INFO'] not in [None, "", "/", "/authproxy"]:
@@ -216,3 +267,19 @@ class BrowserMiddleware(object):
                             e.get('HTTP_X_REQUESTED_WITH') != 'XMLHttpRequest':
                         e['PATH_INFO'] = "/"  # return client app
         return self.app(e, h)
+
+    def start_response_callback(self, start_response):
+        """Intercepts upstream start_response and adds our headers"""
+        def callback(status, headers, exc_info=None):
+            # Add our headers to response
+            if self.with_simulator:
+                headers.append(("X-Simulator-Enabled", "True"))
+            # Call upstream start_response
+            start_response(status, headers, exc_info)
+        return callback
+
+
+def write_raw(data, request, response):
+    """Write output in raw format"""
+    response.set_header('content-type', 'application/vnd.github.v3.raw')
+    return data
