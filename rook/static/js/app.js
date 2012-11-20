@@ -1,5 +1,6 @@
 //Support for different URL for checkmate server in chrome extension
-var checkmate_server_base = (chrome && chrome.extension) ? 'http://localhost\\:8080' : '';
+var is_chrome = navigator.userAgent.toLowerCase().indexOf('chrome') > -1;
+var checkmate_server_base = (is_chrome && chrome && chrome.extension) ? 'http://localhost\\:8080' : '';
 
 //Load AngularJS
 var checkmate = angular.module('checkmate', ['checkmate.filters', 'checkmate.services', 'checkmate.directives', 'ngResource', 'ngSanitize', 'ngCookies', 'ui', 'ngLocale']);
