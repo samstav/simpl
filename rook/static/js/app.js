@@ -356,6 +356,8 @@ function NavBarController($scope, $location, $resource) {
   this.rook.get(function(rookdata, getResponseHeaders){
       $scope.rook_version = rookdata.version;
       console.log("Got rook version: " + $scope.rook_version);
+      console.log("Got version: " + $scope.api_version);
+      $scope.$root.simulator = getResponseHeaders("X-Simulator-Enabled");
   });
 
   // Send feedback to server

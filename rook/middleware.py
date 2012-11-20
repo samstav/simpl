@@ -256,9 +256,26 @@ class BrowserMiddleware(object):
             self.feedback_db.save_feedback(feedback)
             return write_body(feedback, request, response)
 
+
+        @get('/')
+        @get('/<path:path>')
+        #TODO: remove application/json and fix angular to call partials with
+        #  text/html
+        @support_only(['text/html', 'text/css', 'text/javascript', 'image/*',
+                       'application/json'])  # Angular calls template in json
+        def static(path=None):
+            """Expose UI"""
+            root = os.path.join(os.path.dirname(__file__), 'static')
+            # Ensure correct mimetype (bottle does not handle css)
+            mimetype = 'auto'
+            if path and path.endswith('.css'):  # bottle does not write this for css
+                mimetype = 'text/css'
+            return static_file(path or '/index.html', root=root, mimetype=mimetype)
+
     def __call__(self, e, h):
         """Detect unauthenticated calls and redirect them to root.
         This gets processed before the bottle routes"""
+        h = self.start_response_callback(h)
         if 'text/html' in webob.Request(e).accept or \
                 e['PATH_INFO'].endswith('.html'):  # Angular requests json
             if e['PATH_INFO'] not in [None, "", "/", "/authproxy"]:
@@ -278,6 +295,16 @@ class BrowserMiddleware(object):
                             e.get('HTTP_X_REQUESTED_WITH') != 'XMLHttpRequest':
                         e['PATH_INFO'] = "/"  # return client app
         return self.app(e, h)
+
+    def start_response_callback(self, start_response):
+        """Intercepts upstream start_response and adds our headers"""
+        def callback(status, headers, exc_info=None):
+            # Add our headers to response
+            if self.with_simulator:
+                headers.append(("X-Simulator-Enabled", "True"))
+            # Call upstream start_response
+            start_response(status, headers, exc_info)
+        return callback
 
 
 def write_raw(data, request, response):
