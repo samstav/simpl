@@ -304,6 +304,15 @@ services.factory('items', [ 'filterFilter', function($resource, filter) {
 		  console.log('Done receiving ' + items.count + ' entries');
 		},
 
+	  clear: function() {
+	    items.data = null;
+	    items.all = [];
+	    items.filtered = [];
+	    items.selected = null;
+	    items.selectedIdx = null;
+	    items.count = 0;
+	  },
+
 	  prev: function() {
 	  	if (items.hasPrev()) {
 	  		items.selectItem(items.selected ? items.selectedIdx - 1 : 0);

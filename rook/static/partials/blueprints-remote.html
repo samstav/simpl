@@ -1,0 +1,76 @@
+<div id="leftControls" class="lcontrols no-select" ng-cloak ng-show="showControls">
+  <div class="tControls">
+    <div class="top">
+    </div>
+    <div class="bottom">
+      <button ng-click="load()" class="btn cmtip" title="Refresh" alt="Refresh"><i class="icon-repeat"></i></button>
+    </div>
+  </div>
+</div>
+
+<div class="span3 summaryBar">
+  <div class="summaryHeader">
+    <div class="top well" ng-cloak ng-show="showStatus">
+      <div class="row-fluid" style="height: 20px;">
+        <div class="span10 actions">
+          Remote Blueprints from
+        </div>
+
+        <div class="span2 actions">
+          <!--<a class="cmtip" title="Check status" href="{{data.id}}/status"><i class="icon-heart"></i></a>
+          <a class="cmtip" title="Run workflow" href="#" ng-click="workflow_action(data.id, 'execute')"><i class="icon-play"></i></a>-->
+        </div>
+      </div>
+
+      <h4>Github <span ng-cloak ng-show="remote_user">User: {{remote_user}}</span><span ng-cloak ng-show="remote_org">Org: {{remote_org}}</span></h4>
+      <div ng-cloak ng-show="remote_server">on {{remote_server}}</div>
+
+      <div class="control-group" style="padding-top: 5px;">
+        <label class="control-label required" for="url">Enter URL to an org or user:</label>
+        <div class="controls">
+          <div class="input-append" ng-init="url_list = ['https://github.rackspace.com/Blueprints']">
+              <input id="url" type="text" class="input" data-provide="typeahead" data-source="{{url_list}}" ng-model="remote_url"></input>
+              <button class="btn dropdown-toggle" type="button" data-toggle="dropdown" data-target="#urls_menu"><b class="caret"></b></button>
+              <div id="urls_menu" class="dropdown">
+                  <ul class="dropdown-menu" role="menu" aria-labelledby="dLabel">
+                    <li ng-repeat="o in url_list"><a href="#" ng-click="$parent.remote_url=o">{{o}}</a></li>
+                  </ul>
+              </div>
+          </div>
+        </div>
+      </div>
+      <div class="row-fluid"><button ng-click="reload_blueprints()" class="btn pull-right btn-primary">Find Blueprints</button></div>
+      
+    </div>
+  </div>
+
+  <div id="spec_list" class="summaries">
+    <div class="top">
+      <div ng-repeat="item in items" class="well summary" ng-click="selectItem($index)" ng-class="{active: item.selected}">
+        <div class="row-fluid">
+          <h6>{{item.name}}</h6>
+        </div>
+
+        <div class="row-fluid">
+          {{item.description}}
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="entries container-fluid">
+  <div class="entry well">
+    <div class="row-fluid">
+      <div class="span12">
+        <div class="page-header">
+          <h1>New Deployment</h1>
+          <p>Select your blueprint, environment, and options to create a new deployment</p>
+        </div>
+
+        <ng-include src="'/partials/new-deployment-form.html'"></ng-include>
+      </div>
+    </div>
+  </div>
+
+</div>

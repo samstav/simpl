@@ -57,8 +57,8 @@ checkmate.config(['$routeProvider', '$locationProvider', '$httpProvider', functi
     controller: BlueprintListController
   }).
   when('/:tenantId/blueprints', {
-    templateUrl: '/partials/blueprints.html',
-    controller: BlueprintListController
+    templateUrl: '/partials/blueprints-remote.html',
+    controller: BlueprintRemoteListController
   }).
   when('/:tenantId/deployments', {
     templateUrl: '/partials/deployments.html',
@@ -1037,6 +1037,148 @@ function BlueprintListController($scope, $location, $resource, items) {
   $scope.$watch('items.selectedIdx', function(newVal, oldVal, scope) {
     if (newVal !== null) scroll.toCurrent();
   });
+
+  $scope.load();
+}
+
+function BlueprintRemoteListController($scope, $location, $http, items, navbar, $routeParams, $resource, settings, workflow) {
+  //Inherit from Deployment Initializer
+  DeploymentInitController($scope, $location, $routeParams, $resource, null, null, settings, workflow);
+  //Model: UI
+  $scope.showSummaries = true;
+  $scope.showStatus = true;
+
+  $scope.name = 'Blueprints';
+  navbar.highlight("blueprints");
+  $scope.remote_url = 'https://github.rackspace.com/Blueprints';
+  $scope.remote_server = 'https://github.rackspace.com/';
+  $scope.remote_org = 'Blueprints';
+  $scope.remote_user = null;
+  $scope.count = 0;
+  items.all = [];
+  $scope.items = items.all;  // bind only to shrunken array
+
+  $scope.parse_url = function(url) {
+    var u = URI(url);
+    $scope.remote_server = u.protocol() + '://' + u.host(); //includes port
+
+    $http({method: 'HEAD', url: (checkmate_server_base || '') + '/githubproxy/api/v3/orgs' + u.path(),
+        headers: {'X-Target-Url': $scope.remote_server, 'accept': 'application/json'}}).
+    success(function(data, status, headers, config) {
+      $scope.remote_org = u.path().substring(1);
+      $scope.remote_user = null;
+      $scope.load();
+    }).
+    error(function(data, status, headers, config) {
+      $scope.remote_org = null;
+      $scope.remote_user = u.path().substring(1);
+      $scope.load();
+    });
+  };
+
+  $scope.refresh = function() {
+  };
+
+  $scope.handleSpace = function() {
+  };
+  
+  $scope.load = function() {
+    console.log("Starting load")
+    var path = (checkmate_server_base || '') + '/githubproxy/api/v3/orgs/' + $scope.remote_org + '/repos'
+    if ($scope.remote_org === null)
+      path = (checkmate_server_base || '') + '/githubproxy/api/v3/users/' + $scope.remote_user + '/repos';
+    console.log("Loading: " + path);
+    $http({method: 'GET', url: path, headers: {'X-Target-Url': $scope.remote_server, 'accept': 'application/json'}}).
+      success(function(data, status, headers, config) {
+        console.log("Load returned");
+        items.receive(data, function(item, key) {
+          return {key: item.id, id: item.html_url, name: item.name, description: item.description, selected: false}});
+        $scope.count = items.count;
+        $scope.items = items.all;
+        console.log("Done loading")
+      }).
+      error(function(data, status, headers, config) {
+        $scope.show_error(data);
+      });
+    }
+  
+  $scope.reload_blueprints = function() {
+    $scope.items = [];
+    items.clear();
+    $scope.parse_url($scope.remote_url);
+  }
+  
+  $scope.get_branches = function(selected) {
+    $http({method: 'GET', url: (checkmate_server_base || '') + '/githubproxy/api/v3/repos/' + ($scope.remote_org || $scope.remote_user) + '/' + selected.name + '/branches',
+        headers: {'X-Target-Url': $scope.remote_server, 'accept': 'application/json'}}).
+    success(function(data, status, headers, config) {
+      $scope.branches = data;
+      if (data.length >= 1) {
+        $scope.remote_branch = data[0].commit.sha;
+        $scope.loadBlueprint();
+      } else
+        $scope.remote_branch = null;
+
+    }).
+    error(function(data, status, headers, config) {
+      $scope.branches = [];
+      $scope.remote_branch = null;
+    });
+  }
+
+  $scope.loadBlueprint = function() {
+    $http({method: 'GET', url: (checkmate_server_base || '') + '/githubproxy/api/v3/repos/' + ($scope.remote_org || $scope.remote_user) + '/' + $scope.selected.name + '/git/trees/' + $scope.remote_branch,
+        headers: {'X-Target-Url': $scope.remote_server, 'accept': 'application/json'}}).
+    success(function(data, status, headers, config) {
+      var checkmate_yaml_file = _.find(data.tree, function(file) {return file.path == "checkmate.yaml";});
+      if (checkmate_yaml_file === undefined) {
+        $scope.notify("No 'checkmate.yaml' found in the repository '" + $scope.selected.name + "'");
+      } else {
+        $http({method: 'GET', url: (checkmate_server_base || '') + '/githubproxy/api/v3/repos/' + ($scope.remote_org || $scope.remote_user) + '/' + $scope.selected.name + '/git/blobs/' + checkmate_yaml_file.sha,
+            headers: {'X-Target-Url': $scope.remote_server, 'Accept': 'application/vnd.github.v3.raw'}}).
+        success(function(data, status, headers, config) {
+          var checkmate_yaml = {};
+          try {
+            checkmate_yaml = YAML.decode(data);
+          } catch(err) {
+            if (err.name == "YamlParseException")
+              $scope.notify("YAML syntax error in line " + err.parsedLine + ". '" + err.snippet + "' caused error '" + err.message + "'");
+          }
+          if ('environment' in checkmate_yaml) {
+            if (!('name' in checkmate_yaml.environment))
+              checkmate_yaml.environment.name = "- not named -";
+            if (!('id' in checkmate_yaml.environment))
+              checkmate_yaml.environment.id = "included";
+              var env_name = checkmate_yaml.environment.name;
+            $scope.environments = {env_name: checkmate_yaml.environment};
+            $scope.environment = checkmate_yaml.environment;
+          } else {
+            //TODO: create from catalog
+            $scope.environments = {};
+            $scope.environment = null;
+          };
+  
+          if ('blueprint' in checkmate_yaml) {
+            $scope.blueprint = checkmate_yaml.blueprint;
+          } else {
+            $scope.blueprint = null;
+          };
+        }).
+        error(function(data, status, headers, config) {
+          
+        });
+      }
+    }).
+    error(function(data, status, headers, config) {
+      $scope.branches = [];
+    });
+  }
+  
+  $scope.selectItem = function(index) {
+    items.selectItem(index);
+    $scope.selected = items.selected;
+    $scope.get_branches(items.selected);
+  };
 
   $scope.load();
 }
