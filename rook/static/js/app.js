@@ -1085,17 +1085,15 @@ function DeploymentListController($scope, $location, $http, $resource, scroll, i
 }
 
 function DeploymentNewController($scope, $location, $routeParams, $resource, settings, workflow) {
-  var ctrl = new DeploymentInitController($scope, $location, $routeParams, $resource, null, null, settings, workflow);
-  return ctrl;
+  DeploymentInitController($scope, $location, $routeParams, $resource, null, null, settings, workflow);
 }
 
 function DeploymentTryController($scope, $location, $routeParams, $resource, settings, workflow) {
   $scope.environments = ENVIRONMENTS;
   $scope.blueprints = WPBP;
-  var ctrl = new DeploymentInitController($scope, $location, $routeParams, $resource, WPBP['DBaaS'], ENVIRONMENTS['next-gen'], settings, workflow);
+  DeploymentInitController($scope, $location, $routeParams, $resource, WPBP['DBaaS'], ENVIRONMENTS['next-gen'], settings, workflow);
   $scope.updateSettings();
   $scope.updateDatabaseProvider();
-  return ctrl;
 }
 
 function DeploymentInitController($scope, $location, $routeParams, $resource, blueprint, environment, settings, workflow) {
