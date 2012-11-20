@@ -140,6 +140,19 @@ function AppController($scope, $http, $location) {
       }).show();
   }
 
+  //Call this with an http response for a generic error message
+  $scope.show_error = function(response) {
+    var error = response;
+    var info = {data: error.data,
+                status: error.status,
+                title: "Error",
+                message: "There was an error executing your request:"};
+    if (typeof error.data == "object" && 'description' in error.data)
+        info.message = error.data.description;
+    $rootScope.error = info;
+    $('#modalError').modal('show');
+  }
+  
   //Accepts subset of auth data. We use a subset so we can store it locally.
   $scope.accept_auth_data = function(response) {
       $scope.auth.catalog = response;
