@@ -1100,7 +1100,8 @@ function DeploymentInitController($scope, $location, $routeParams, $resource, bl
   $scope.environment = environment;
   $scope.blueprint = blueprint;
   $scope.answers = {};
-  $scope.domain_names = [];
+  $scope.domain_names = null;
+  $scope.show_site_address_controls = false;
 
   //Retrieve existing domains  
   $scope.getDomains = function(){
@@ -1123,7 +1124,6 @@ function DeploymentInitController($scope, $location, $routeParams, $resource, bl
       );
     }
   };
-  $scope.getDomains();
 
   $scope.onBlueprintChange = function() {
     $scope.updateSettings();
@@ -1180,6 +1180,9 @@ function DeploymentInitController($scope, $location, $routeParams, $resource, bl
       } else
         $scope.answers[setting.id] = null;
     });
+    if (_.any($scope.settings, function(setting) {return setting.id == 'domain';}) && $scope.domain_names === null)
+      $scope.getDomains();
+
   };
 
   $scope.OnAddressEditorShow = function() {
