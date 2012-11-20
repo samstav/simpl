@@ -80,33 +80,6 @@ class BrowserMiddleware(object):
             return write_body({"version": __version_string__},
                               request, response)
 
-
-        @get('/')
-        @get('/<path:path>')
-        #TODO: remove application/json and fix angular to call partials with
-        #  text/html
-        @support_only(['text/html', 'text/css', 'text/javascript', 'image/*',
-                       'application/json'])  # Angular calls template in json
-        def static(path=None):
-            """Expose UI"""
-            root = os.path.join(os.path.dirname(__file__), 'static')
-            # Ensure correct mimetype (bottle does not handle css)
-            mimetype = 'auto'
-            if path and path.endswith('.css'):  # bottle does not write this for css
-                mimetype = 'text/css'
-            httpResponse = static_file(path or '/index.html', root=root, mimetype=mimetype)
-            if path and self.with_simulator and \
-                    path.endswith('deployment-new.html') and \
-                    isinstance(httpResponse.output, file):
-                httpResponse.output = httpResponse.output.read().replace(
-                        "<!-- SIMULATE BUTTON PLACEHOLDER - do not change "
-                        "this comment, used for substitution!! -->",
-                        '<button ng-click="simulate()" class="btn" '
-                        'ng-disabled="!auth.loggedIn">Simulate It</button>'
-                        '<button ng-click="preview()" class="btn" '
-                        'ng-disabled="!auth.loggedIn">Preview It</button>')
-            return httpResponse
-
         @get('/images/<path:path>')  # for RackspaceCalculator
         def images(path):
             """Expose image files"""
@@ -255,7 +228,6 @@ class BrowserMiddleware(object):
             feedback['feedback']['received'] = get_time_string()
             self.feedback_db.save_feedback(feedback)
             return write_body(feedback, request, response)
-
 
         @get('/')
         @get('/<path:path>')
