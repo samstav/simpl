@@ -44,7 +44,7 @@
             <label ng-cloak ng-show="show_site_address_controls" class="control-label required" for="site_address">Your site's address</label>
             <div class="controls">
               <div class="input-append span12" ng-cloak ng-show="show_site_address_controls" >
-                  <input class="input-xlarge span9" ng-model="manual_site_address" id="site_address" name="site_address" type="url" ng-change="UpdateSiteAddress()" value="{{answers['web_server_protocol']}}://{{answers['domain'] || '[enter or select a domain below]'}}{{answers['path']}}">
+                  <input class="input-xlarge span9" ng-model="manual_site_address" id="site_address" name="site_address" type="url" ng-change="UpdateSiteAddress()" value="{{answers['web_server_protocol']}}://{{answers['domain'] || ''}}{{answers['path']}}">
                   <button class="btn" type="button" ng-class="{'active': builder}" ng-click="builder = !builder">Address Details</button>
               </div>
               <p class="help-block" ng-cloak ng-show="show_site_address_controls" >This also controls the protocol, domain, and path fields below. {{setting.description}}</p>

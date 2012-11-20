@@ -1270,7 +1270,7 @@ function DeploymentInitController($scope, $location, $routeParams, $resource, bl
       if (setting.required === true) {
         if ($scope.answers[key] === null) {
           err_msg = "Required field "+key+" not set. Aborting deployment.";
-          console.log(err_msg);
+          $scope.notify(err_msg);
           break_flag = true;
         }
       }
