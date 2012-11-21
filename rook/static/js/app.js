@@ -1139,7 +1139,7 @@ function BlueprintRemoteListController($scope, $location, $http, items, navbar, 
         success(function(data, status, headers, config) {
           var checkmate_yaml = {};
           try {
-            checkmate_yaml = YAML.decode(data);
+            checkmate_yaml = YAML.parse(data);
           } catch(err) {
             if (err.name == "YamlParseException")
               $scope.notify("YAML syntax error in line " + err.parsedLine + ". '" + err.snippet + "' caused error '" + err.message + "'");
