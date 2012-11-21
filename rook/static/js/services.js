@@ -120,7 +120,6 @@ services.factory('workflow', [function() {
 				$scope.taskStates["maybe"] += 1;
 				break;
 			  case 8:
-                            console.log(task);
                                 if ('internal_attributes' in  task && 'task_state' in task.internal_attributes && task.internal_attributes.task_state.state == 'FAILURE')
                                     $scope.taskStates["error"] += 1;
                                 else
