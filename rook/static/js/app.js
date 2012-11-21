@@ -1164,6 +1164,7 @@ function BlueprintRemoteListController($scope, $location, $http, items, navbar, 
           } else {
             $scope.blueprint = null;
           };
+          $scope.updateSettings();
         }).
         error(function(data, status, headers, config) {
           
@@ -1182,6 +1183,7 @@ function BlueprintRemoteListController($scope, $location, $http, items, navbar, 
   };
 
   $scope.load();
+
 }
 
 //Deployment controllers
@@ -1335,6 +1337,8 @@ function DeploymentInitController($scope, $location, $routeParams, $resource, bl
         $scope.answers[setting.id] = setting['default'];
       } else
         $scope.answers[setting.id] = null;
+      if (setting.id == 'region' && $scope.auth.loggedIn === true)
+        setting.choice = $scope.auth.catalog.access.regions;
     });
     $scope.show_site_address_controls = _.any($scope.settings, function(setting) {return ['domain', 'web_server_protocol'].indexOf(setting.id) > -1;});
     if (_.any($scope.settings, function(setting) {return setting.id == 'domain';}) && $scope.domain_names === null)
