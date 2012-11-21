@@ -1336,7 +1336,7 @@ function DeploymentInitController($scope, $location, $routeParams, $resource, bl
       } else
         $scope.answers[setting.id] = null;
     });
-    $scope.show_site_address_controls = _.any($scope.settings, function(setting) {return ['domain', 'web_server_protocol'].indexOf(setting.id);});
+    $scope.show_site_address_controls = _.any($scope.settings, function(setting) {return ['domain', 'web_server_protocol'].indexOf(setting.id) > -1;});
     if (_.any($scope.settings, function(setting) {return setting.id == 'domain';}) && $scope.domain_names === null)
       $scope.getDomains();
 
