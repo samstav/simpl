@@ -535,7 +535,8 @@ function WorkflowController($scope, $resource, $http, $routeParams, $location, $
             catch (error) {
               console.log(error);
             }
-            $scope.output.path = "http://" + domain + path;
+            if (domain !== undefined && path !== undefined)
+              $scope.output.path = "http://" + domain + path;
 
             //Get user name/password
             try {
