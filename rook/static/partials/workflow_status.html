@@ -6,12 +6,12 @@
           <div class="alert alert-success">
               <clippy style="top:0" content="{{all_data}}" bgcolor="#DFF0D8"></clippy>
               <h2 style="margin-top: 0;">Congratulations! Your deployment is complete.</h2>
-              <p><strong>Access your Wordpress site</strong> from <a ng-href="{{output.path}}" target="_blank">{{output.path}}</a>.</p>
+              <div ng-hide="!output.path"><p><strong>Access your Wordpress site</strong> from <a ng-href="{{output.path}}" target="_blank">{{output.path}}</a>.</p>
               <p>Alternatively, enter the IP address in your hosts file if the domain name is not yet accessible:</p>
               <p><pre>echo "{{output.vip}}  {{output.domain}}" >> /etc/hosts</pre></p>
               <p>You might need to run this with elevated priviledges:
                 <pre>sudo bash -c 'echo "{{output.vip}}  {{output.domain}}" >> /etc/hosts'</pre>
-              </p>
+              </p></div>
 
               <br>
               <p><strong>Servers</strong> created were:

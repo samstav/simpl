@@ -535,7 +535,8 @@ function WorkflowController($scope, $resource, $http, $routeParams, $location, $
             catch (error) {
               console.log(error);
             }
-            $scope.output.path = "http://" + domain + path;
+            if (domain !== undefined && path !== undefined)
+              $scope.output.path = "http://" + domain + path;
 
             //Get user name/password
             try {
@@ -1139,7 +1140,7 @@ function BlueprintRemoteListController($scope, $location, $http, items, navbar, 
         success(function(data, status, headers, config) {
           var checkmate_yaml = {};
           try {
-            checkmate_yaml = YAML.decode(data);
+            checkmate_yaml = YAML.parse(data);
           } catch(err) {
             if (err.name == "YamlParseException")
               $scope.notify("YAML syntax error in line " + err.parsedLine + ". '" + err.snippet + "' caused error '" + err.message + "'");
@@ -1163,6 +1164,7 @@ function BlueprintRemoteListController($scope, $location, $http, items, navbar, 
           } else {
             $scope.blueprint = null;
           };
+          $scope.updateSettings();
         }).
         error(function(data, status, headers, config) {
           
@@ -1181,6 +1183,7 @@ function BlueprintRemoteListController($scope, $location, $http, items, navbar, 
   };
 
   $scope.load();
+
 }
 
 //Deployment controllers
@@ -1334,8 +1337,10 @@ function DeploymentInitController($scope, $location, $routeParams, $resource, bl
         $scope.answers[setting.id] = setting['default'];
       } else
         $scope.answers[setting.id] = null;
+      if (setting.id == 'region' && $scope.auth.loggedIn === true)
+        setting.choice = $scope.auth.catalog.access.regions;
     });
-    $scope.show_site_address_controls = _.any($scope.settings, function(setting) {return ['domain', 'web_server_protocol'].indexOf(setting.id);});
+    $scope.show_site_address_controls = _.any($scope.settings, function(setting) {return ['domain', 'web_server_protocol'].indexOf(setting.id) > -1;});
     if (_.any($scope.settings, function(setting) {return setting.id == 'domain';}) && $scope.domain_names === null)
       $scope.getDomains();
 
