@@ -757,8 +757,13 @@ def plan(deployment, context):
                 else:
                     instance['name'] = resource['name']
                 if 'password' not in resource:
-                    instance['password'] = ProviderBase({}).evaluate(
-                            "generate_password()")
+                    instance['password'] = \
+                        deployment._get_setting_by_resource_path("resources/%s"
+                                                                 "/password" %
+                                                                 key)
+                    if not instance['password']:
+                        instance['password'] = ProviderBase({}).evaluate(
+                                "generate_password()")
                 else:
                     instance['password'] = resource['password']
                 instance['hash'] = keys.hash_SHA512(instance['password'])
