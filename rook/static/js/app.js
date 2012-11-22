@@ -1350,8 +1350,8 @@ function DeploymentInitController($scope, $location, $routeParams, $resource, bl
     site_address.value = calculated_site_address.innerText;
   }
 
-  $scope.UpdateSiteAddress = function() {
-    parsed = URI.parse($scope.manual_site_address);
+  $scope.UpdateSiteAddress = function(new_address) {
+    parsed = URI.parse(new_address);
     if (!('hostname' in parsed)) {
         $('#site_address_error').text("Domain name or IP address missing");
         return;
