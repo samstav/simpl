@@ -1098,6 +1098,8 @@ class Provider(ProviderBase):
                 cid = "%s::%s" % (name, role)
             else:
                 cid = name
+        LOG.debug("Finding components that match: id=%s, name=%s, role=%s, %s"
+                  % (cid, name, role, kwargs))
         if cid:
             result = self.get_component(context, cid)
             if result:
