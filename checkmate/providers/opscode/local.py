@@ -50,19 +50,11 @@ class Provider(ProviderBase):
         self.collect_data_tasks = {}
 
     def _get_deployment_local_services(self, deployment, context):
-        servicenames = []
-        allservices = deployment.get('blueprint', {}).get('services')
-        environment = deployment.environment()
-        if allservices:
-            for key, service in allservices.iteritems():
-                component = service.get('component', {})
-                if component:
-                    provider = environment.select_provider(context,
-                                         resource=component.get('type'),
-                                         interface=component.get('interface'))
-                    if self.name == provider.name:
-                        servicenames.append(key)
-        return servicenames
+        servicenames = set()
+        for resource in deployment.get('resources', {}).values():
+            if resource.get('provider') == self.name:
+                servicenames.add(resource.get('service'))
+        return list(servicenames)
 
     def prep_environment(self, wfspec, deployment, context):
         if self.prep_task:
