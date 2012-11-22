@@ -1872,8 +1872,7 @@ WPBP = {
                 "required": true,
                 "constrains":[
                 	{
-                    	"setting":"name",
-                    	"resource_type":"wp user"
+                    	"setting": "resources/wp user/name"
                 	}
                 ]
             },
@@ -1882,10 +1881,9 @@ WPBP = {
                 "description":"Password to use for database and system user. Click the generate button to generate a random password.",
                 "label":"Password",
                 "constrains":[
-                    {
-                        "setting":"password",
-                        "resource_type":"wp user"
-                    }
+                	{
+                    	"setting": "resources/wp user/password"
+                	}
                 ]
             },
             "os":{
@@ -2471,10 +2469,10 @@ WPBP = {
                 "description":"Password to use for service. Click the generate button to generate a random password.",
                 "label":"Password",
                 "constrains":[
-                    {
-                        "setting":"password",
-                        "resource_type":"wp user"
-                    }
+                   {
+                    "setting": "resources/wp user/password"
+                   }
+
                 ]
             },
             "username":{
@@ -2485,8 +2483,7 @@ WPBP = {
                 "default": "wp_user",
                 "constrains":[
                    {
-                        "setting":"name",
-                    	"resource_type":"wp user"
+                    "setting": "resources/wp user/name"
                    }
                 ]
             },
