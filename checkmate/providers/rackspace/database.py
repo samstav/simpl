@@ -162,7 +162,7 @@ class Provider(ProviderBase):
                         provider_key=self.key, service_name=service_name)
             db_memory = deployment.get_setting('memory',
                     resource_type=resource.get('type'), provider_key=self.key,
-                    service_name=service_name, default="1")
+                    service_name=service_name, default=512)
             db_disk = deployment.get_setting('disk',
                     resource_type=resource.get('type'), provider_key=self.key,
                     service_name=service_name, default=1)
