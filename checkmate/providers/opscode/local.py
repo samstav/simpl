@@ -913,7 +913,7 @@ class Provider(ProviderBase):
         if os.path.exists(checkmate_json_file):
             with file(checkmate_json_file, 'r') as f:
                 checkmate_data = json.load(f)
-            merge_dictionary(component, checkmate_data)
+            merge_dictionary(component, checkmate_data, extend_lists=True)
 
         # Add hosting relationship (we're assuming we always need it for chef)
         LOG.debug("Parsing requires from %s" % metadata_json_path)
