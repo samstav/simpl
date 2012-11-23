@@ -179,7 +179,8 @@ function AppController($scope, $http, $location) {
   var auth = localStorage.getItem('auth');
   if (auth != undefined && auth !== null)
     auth = JSON.parse(auth);
-  if (auth != undefined && auth !== null && auth != {} && 'access' in auth) {
+  if (auth != undefined && auth !== null && auth != {} && 'access' in auth && 'token' in auth.access && auth.access.token.expires > Date()) {
+      auth.loggedIn = true;
       $scope.accept_auth_data(auth);
   } else {
     $scope.auth.loggedIn = false;
@@ -1320,7 +1321,7 @@ function DeploymentInitController($scope, $location, $routeParams, $resource, bl
     if ($scope.environment) {
       $scope.settings = $scope.settings.concat(settings.getSettingsFromEnvironment($scope.environment));
       if ('legacy' in $scope.environment.providers) {
-        if ($scope.settings && $scope.auth.loggedIn == true && 'RAX-AUTH:defaultRegion' in $scope.auth.catalog.access.user) {
+        if ($scope.settings && $scope.auth.loggedIn === true && 'RAX-AUTH:defaultRegion' in $scope.auth.catalog.access.user) {
             _.each($scope.settings, function(setting) {
                 if (setting.id == 'region') {
                     setting.default = $scope.auth.catalog.access.user['RAX-AUTH:defaultRegion'];
