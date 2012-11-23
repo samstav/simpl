@@ -31,7 +31,7 @@
               <!-- region -->
               <span ng-repeat="setting in settings | filter:{id: 'region'}">
                   in <select id="region" style="width: 80px;" ng-model="answers['region']" ng-options="o for o in setting.choice"></select>
-                  <span ng-hide="{{!setting.description}}" class="help-block">{{setting.description}}</span>
+                  <span ng-hide="!setting.description" class="help-block">{{setting.description}}</span>
               </span>
             </div>
           </div>
@@ -58,7 +58,7 @@
                 <label class="control-label required" for="web_server_protocol">{{setting.label}}</label>
                 <div class="controls">
                   <select style="width:150px;" id="web_server_protocol" ng-model="answers['web_server_protocol']" ng-options="o.value as o.name for o in setting.choice"></select>
-                  <p ng-hide="{{!setting.description}}" class="help-block">{{setting.description}}</p>
+                  <p ng-hide="!setting.description" class="help-block">{{setting.description}}</p>
                 </div>
               </div>
           </div>
@@ -79,8 +79,8 @@
                           </ul>
                       </div>
                   </div>
-                  <p ng-hide="{{!setting.description}}" class="help-block">{{setting.description}}</p>
                 </div>
+                <p ng-hide="!setting.description" class="help-block">{{setting.description}}</p>
               </div>
           </div>
 
@@ -90,7 +90,7 @@
                   <label class="control-label required" for="register_dns">{{dns_setting.label}}</label>
                   <div class="controls">
                     <input type="checkbox" class="input-xlarge" id="register_dns" ng-model="answers['register-dns']">
-                    <p ng-hide="{{!dns_setting.description}}" class="help-block">{{dns_setting.description}}</p>
+                    <p ng-hide="!dns_setting.description" class="help-block">{{dns_setting.description}}</p>
                   </div>
               </div>
           </div>
@@ -101,7 +101,7 @@
                 <label class="control-label required" for="path">{{setting.label}}</label>
                 <div class="controls">
                   <input style="width:80px;" type="text" name="path" class="input-xlarge" id="path" ng-model="answers['path']" placeholder="{{setting.sample | prepend:'ex. '}}">
-                  <p ng-hide="{{!setting.description}}" class="help-block">{{setting.description}}</p>
+                  <p ng-hide="!setting.description" class="help-block">{{setting.description}}</p>
                 </div>
               </div>
           </div>
@@ -113,7 +113,7 @@
             <label class="control-label required" for="path">{{setting.label}}</label>
             <div class="controls">
               <input type="text" name="username" class="input-xlarge" id="path" ng-model="answers['username']" placeholder="{{setting.sample | prepend:'ex. '}}">
-              <p ng-hide="{{!setting.description}}" class="help-block">{{setting.description}}</p>
+              <p ng-hide="!setting.description" class="help-block">{{setting.description}}</p>
             </div>
           </div>
       </div>
@@ -135,7 +135,7 @@
               <label class="control-label capitalize" for="ssl_certificate">{{setting.label}}</label>
               <div class="controls">
                   <textarea cols="80" rolws="20" class="input-xlarge" id="ssl_private_key" ng-model="answers['ssl_private_key']" placeholder="{{setting.sample | prepend:'ex. '}}"></textarea>
-                  <p ng-hide="{{!setting.description}}" class="help-block">{{setting.description}}</p>
+                  <p ng-hide="!setting.description" class="help-block">{{setting.description}}</p>
               </div>
           </div>
       </div>
