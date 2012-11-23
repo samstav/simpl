@@ -593,11 +593,15 @@ function WorkflowController($scope, $resource, $http, $routeParams, $location, $
             _.each($scope.output.resources, function(resource) {
                 if (resource.type == 'database') {
                     all_data.push('  ' + resource.service + ' database: ' + resource['dns-name']);
-                    all_data.push('    Host:       ' + resource.instance.interfaces.mysql.host);
-                    all_data.push('    Username:   ' + resource.instance.interfaces.mysql.username);
-                    all_data.push('    Password:   ' + resource.instance.interfaces.mysql.password);
-                    all_data.push('    DB Name:    ' + resource.instance.interfaces.mysql.database_name);
-                    //all_data.push('    Admin Link: https://' + $scope.output.master_server.instance.public_ip + '/database-admin');
+                    try {
+                      all_data.push('    Host:       ' + resource.instance.interfaces.mysql.host);
+                      all_data.push('    Username:   ' + resource.instance.interfaces.mysql.username);
+                      all_data.push('    Password:   ' + resource.instance.interfaces.mysql.password);
+                      all_data.push('    DB Name:    ' + resource.instance.interfaces.mysql.database_name);
+                      //all_data.push('    Admin Link: https://' + $scope.output.master_server.instance.public_ip + '/database-admin');
+                    } catch(err) {
+                      // Do nothing - probably a MySQL on VMs build
+                    }
                 }
             });
             all_data.push('Load balancers: ');
