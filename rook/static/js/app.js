@@ -179,9 +179,15 @@ function AppController($scope, $http, $location) {
   var auth = localStorage.getItem('auth');
   if (auth != undefined && auth !== null)
     auth = JSON.parse(auth);
-  if (auth != undefined && auth !== null && auth != {} && 'access' in auth && 'token' in auth.access && auth.access.token.expires > Date()) {
+  if (auth != undefined && auth !== null && auth != {} && 'access' in auth && 'token' in auth.access) {
+    expires = new Date(auth.access.token.expires);
+    now = new Date();
+    if (expires.getTime() > now.getTime()) {
       auth.loggedIn = true;
       $scope.accept_auth_data(auth);
+    } else {
+      $scope.auth.loggedIn = false;
+    }
   } else {
     $scope.auth.loggedIn = false;
   }
