@@ -7,7 +7,7 @@
               <label class="control-label required" for="blueprint">What to deploy?</label>
               <div class="controls">
                   <!-- Show list if list exists -->
-                  <select ng-cloak ng-show="blueprints" id="blueprint" class="span6" ng-model="blueprint" ng-change="onBlueprintChange()" style="width:350px"
+                  <select ng-cloak ng-show="blueprints" id="blueprint" class="span6" ng-model="blueprint" ng-change="setBlueprint(blueprint)" style="width:350px"
                           ng-options="blueprint.name for (id,blueprint) in blueprints" required>
                   </select>
                   <!-- Show text if only one exists -->

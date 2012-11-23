@@ -1284,9 +1284,10 @@ function DeploymentInitController($scope, $location, $routeParams, $resource, bl
     }
   };
 
-  $scope.onBlueprintChange = function() {
-    $scope.updateSettings();
+  $scope.setBlueprint = function(blueprint) {
+    $scope.blueprint = blueprint;
     $scope.updateDatabaseProvider();
+    $scope.updateSettings();
   }
 
   $scope.updateDatabaseProvider = function() {
