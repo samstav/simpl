@@ -64,24 +64,24 @@
           </div>
 
           <div class="row-fluid">
-              <!-- domain -->
-              <div class="control-group" ng-repeat="setting in settings | filter:{id: 'domain'}">
-                <label class="control-label required" for="domain">{{setting.label}}</label>
-                <div class="controls">
-                  <div class="input-append">
-                      <input id="domain" type="text" class="input" data-provide="typeahead" data-source="{{domain_names}}" ng-model="answers['domain']" placeholder="{{setting.sample | prepend:'ex. '}}"></input>
-                      <button class="btn dropdown-toggle" type="button" data-toggle="dropdown" data-target="#domains_menu"><b class="caret"></b></button>
-                      <div id="domains_menu" class="dropdown">
-                          <ul class="dropdown-menu" role="menu" aria-labelledby="dLabel">
-                            <li ng-hide="auth.loggedIn"><a href="#" ng-click="loginPrompt()">Log in (to see your domains)</a></li>
-                            <li ng-cloak ng-show="domain_names==[]"><i class="icon-question-sign"></i> No domains registered for account {{auth.tenantId}}</li>
-                            <li ng-repeat="o in domain_names"><a href="#" ng-click="answers['domain']=o">{{o}}</a></li>
-                          </ul>
-                      </div>
-                  </div>
+            <!-- domain -->
+            <div class="control-group" ng-repeat="setting in settings | filter:{id: 'domain'}">
+              <label class="control-label required" for="domain">{{setting.label}}</label>
+              <div class="controls">
+                <div class="input-append">
+                    <input id="domain" type="text" class="input" data-provide="typeahead" data-source="{{domain_names}}" ng-model="answers['domain']" placeholder="{{setting.sample | prepend:'ex. '}}"></input>
+                    <button class="btn dropdown-toggle" type="button" data-toggle="dropdown" data-target="#domains_menu"><b class="caret"></b></button>
+                    <div id="domains_menu" class="dropdown">
+                        <ul class="dropdown-menu" role="menu" aria-labelledby="dLabel">
+                          <li ng-hide="auth.loggedIn"><a href="#" ng-click="loginPrompt()">Log in (to see your domains)</a></li>
+                          <li ng-cloak ng-show="domain_names==[]"><i class="icon-question-sign"></i> No domains registered for account {{auth.tenantId}}</li>
+                          <li ng-repeat="o in domain_names"><a href="#" ng-click="answers['domain']=o">{{o}}</a></li>
+                        </ul>
+                    </div>
                 </div>
                 <p ng-hide="!setting.description" class="help-block">{{setting.description}}</p>
               </div>
+            </div>
           </div>
 
           <div class="row-fluid">

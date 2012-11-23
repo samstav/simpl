@@ -417,25 +417,25 @@ services.factory('store', function() {
 
 services.factory('old_items', ['$http', 'store', 'filterFilter', function($http, store, filter) {
 	var items = {
-		all: [],
-		filtered: [],
-		selected: null,
-		selectedIdx: null,
+	  all: [],
+	  filtered: [],
+	  selected: null,
+	  selectedIdx: null,
 
-		addItem: function(item) {
-			// It's already in the data controller, so we won't re-add it.
-			if (items.all.some(function(val) {
-				return val.item_id == item.item_id;
-			})) return false;
+	  addItem: function(item) {
+		  // It's already in the data controller, so we won't re-add it.
+		  if (items.all.some(function(val) {
+			  return val.item_id == item.item_id;
+		  })) return false;
 
-		  // If no results are returned, we insert the new item into the data
-		  // controller in order of publication date
-		  items.all.push(item);
-		  return true;
-		},
+	    // If no results are returned, we insert the new item into the data
+	    // controller in order of publication date
+	    items.all.push(item);
+	    return true;
+	  },
 
 
-		getItemsFromDataStore: function() {
+	  getItemsFromDataStore: function() {
 	    // Get all items from the local data store.
 	    // We're using store.all because store.each returns async, and the
 	    // method will return before we've pulled all the items out.  Then
@@ -523,9 +523,9 @@ services.factory('old_items', ['$http', 'store', 'filterFilter', function($http,
 	      items.selected.selected = false;
 	    }
 
-    	items.selected = items.filtered[idx];
-    	items.selectedIdx = idx;
-    	items.selected.selected = true;
+	    items.selected = items.filtered[idx];
+	    items.selectedIdx = idx;
+	    items.selected.selected = true;
 
 	    items.toggleRead(true);
 	  },
@@ -550,7 +550,7 @@ services.factory('old_items', ['$http', 'store', 'filterFilter', function($http,
 
 
 	  markAllRead: function() {
-	  	items.filtered.forEach(function(item) {
+	    items.filtered.forEach(function(item) {
 	      item.read = true;
 	      store.toggleRead(item.item_id, true);
 	    });
