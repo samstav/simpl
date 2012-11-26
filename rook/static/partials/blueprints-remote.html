@@ -33,7 +33,7 @@
               <button class="btn dropdown-toggle" type="button" data-toggle="dropdown" data-target="#urls_menu"><b class="caret"></b></button>
               <div id="urls_menu" class="dropdown">
                   <ul class="dropdown-menu" role="menu" aria-labelledby="dLabel">
-                    <li ng-repeat="o in url_list"><a href="#" ng-click="$parent.remote_url=o">{{o}}</a></li>
+                    <li ng-repeat="o in url_list"><a href="#" ng-click="$parent.remote_url=o;reload_blueprints();">{{o}}</a></li>
                   </ul>
               </div>
           </div>
