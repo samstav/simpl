@@ -29,12 +29,8 @@ checkmate.config(['$routeProvider', '$locationProvider', '$httpProvider', functi
   // New UI - static pages
   $routeProvider.
   when('/deployments/default', {
-    templateUrl: '/partials/deployment-new.html',
-    controller: DeploymentTryController
-  }).
-  when('/deployments/new', {
-    templateUrl: '/partials/deployment-new.html',
-    controller: DeploymentTryController
+    templateUrl: '/partials/managed-cloud-wordpress.html',
+    controller: DeploymentManagedCloudController
   })
 
   // New UI - dynamic, tenant pages
@@ -1186,6 +1182,7 @@ function BlueprintRemoteListController($scope, $location, $routeParams, $resourc
       //$scope.setBlueprint(items.data[newVal.id]);
     }
   });
+  
   $scope.load();
 
 }
@@ -1246,21 +1243,51 @@ function DeploymentListController($scope, $location, $http, $resource, scroll, i
   $scope.load();
 }
 
-function DeploymentNewController($scope, $location, $routeParams, $resource, settings, workflow) {
-  DeploymentInitController($scope, $location, $routeParams, $resource, null, null, settings, workflow);
-}
+//Hard-coded for Managed Cloud Wordpress
+function DeploymentManagedCloudController($scope, $location, $routeParams, $resource, items, navbar, settings, workflow) {
+  //Show list of supported Managed Cloud blueprints
+  items.clear();
+  //$scope.blueprints = WPBP;
+  BlueprintListController($scope, $location, $routeParams, $resource, items, navbar, settings, workflow,
+                          WPBP, 'MySQL', ENVIRONMENTS, 'next-gen');
+  //$scope.showSummaries = false;
 
-function DeploymentTryController($scope, $location, $routeParams, $resource, settings, workflow) {
-  $scope.environments = ENVIRONMENTS;
-  $scope.blueprints = WPBP;
-  DeploymentInitController($scope, $location, $routeParams, $resource, WPBP['DBaaS'], ENVIRONMENTS['next-gen'], settings, workflow);
+  $scope.updateDatabaseProvider = function() {
+    if ($scope.blueprint.id == WPBP.MySQL.id) {
+        //Remove DBaaS Provider
+        if ('database' in $scope.environment.providers) 
+            delete $scope.environment.providers.database;
+        //Add database support to chef provider
+        $scope.environment.providers['chef-local'].provides[1] = {database: "mysql"};
+
+    } else if ($scope.blueprint.id == WPBP.DBaaS.id) {
+        //Add DBaaS Provider
+        $scope.environment.providers.database = {};
+
+        //Remove database support from chef-local
+        if ($scope.environment.providers['chef-local'].provides.length > 1)
+            $scope.environment.providers['chef-local'].provides.pop(1);
+        if ($scope.environment.providers['chef-local'].provides.length > 1)
+            $scope.environment.providers['chef-local'].provides.pop(1);
+
+    }
+  }
+
   $scope.updateSettings();
   $scope.updateDatabaseProvider();
+
+  //Wire Blueprints to Deployment
+  $scope.$watch('blueprint', function(newVal, oldVal, scope) {
+    if (typeof newVal == 'object') {
+      $scope.updateDatabaseProvider();
+    }
+  });
+
 }
 
-function DeploymentInitController($scope, $location, $routeParams, $resource, blueprint, environment, settings, workflow) {
+// Handles the option setting and deployment launching
+function DeploymentNewController($scope, $location, $routeParams, $resource, settings, workflow, blueprint, environment) {
   $scope.environment = environment;
-  $scope.blueprint = blueprint;
   $scope.settings = [];
   $scope.answers = {};
   $scope.domain_names = null;
@@ -1291,29 +1318,7 @@ function DeploymentInitController($scope, $location, $routeParams, $resource, bl
 
   $scope.setBlueprint = function(blueprint) {
     $scope.blueprint = blueprint;
-    $scope.updateDatabaseProvider();
     $scope.updateSettings();
-  }
-
-  $scope.updateDatabaseProvider = function() {
-    if ($scope.blueprint.id == WPBP.MySQL.id) {
-        //Remove DBaaS Provider
-        if ('database' in $scope.environment.providers) 
-            delete $scope.environment.providers.database;
-        //Add database support to chef provider
-        $scope.environment.providers['chef-local'].provides[1] = {database: "mysql"};
-
-    } else if ($scope.blueprint.id == WPBP.DBaaS.id) {
-        //Add DBaaS Provider
-        $scope.environment.providers.database = {};
-
-        //Remove database support from chef-local
-        if ($scope.environment.providers['chef-local'].provides.length > 1)
-            $scope.environment.providers['chef-local'].provides.pop(1);
-        if ($scope.environment.providers['chef-local'].provides.length > 1)
-            $scope.environment.providers['chef-local'].provides.pop(1);
-
-    }
   }
 
   $scope.updateSettings = function() {
@@ -1485,6 +1490,8 @@ function DeploymentInitController($scope, $location, $routeParams, $resource, bl
   $scope.preview = function() {
     $scope.submit('+preview');
   };
+
+  $scope.setBlueprint(blueprint);
 
   // Event Listeners
   $scope.OnLogIn = function(e) {
