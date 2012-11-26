@@ -1008,49 +1008,49 @@ function WorkflowController($scope, $resource, $http, $routeParams, $location, $
 }
 
 //Blueprint controllers
-function BlueprintListController($scope, $location, $resource, items) {
+function BlueprintListController($scope, $location, $routeParams, $resource, items, navbar, settings, workflow,
+                                 blueprints, initial_blueprint, environments, initial_environment) {
   //Model: UI
   $scope.showSummaries = true;
-  $scope.showStatus = false;
-
+  $scope.showStatus = true;
   $scope.name = 'Blueprints';
-  $scope.count = 0;
-  items.all = [];
-  $scope.items = items.all;  // bind only to shrunken array
+  navbar.highlight("blueprints");
 
-  $scope.refresh = function() {
+  $scope.environments = environments;
+  $scope.environment = (typeof environments == "object" && Object.keys(environments).length >= 0) ? environments[initial_environment || Object.keys(environments)[0]] : null;
+  items.receive(blueprints, function(item, key) {
+    return {key: key, id: item.id, name: item.name, description: item.description, selected: false}});
+  $scope.count = items.count;
+  $scope.items = items.all;
+
+  $scope.selectItem = function(index) {
+    items.selectItem(index);
+    $scope.selected = items.selected;
   };
 
-  $scope.handleSpace = function() {
-  };
-  
-  $scope.load = function() {
-    console.log("Starting load")
-    this.klass = $resource((checkmate_server_base || '') + '/:tenantId/blueprints/.json');
-    this.klass.get({tenantId: $scope.auth.tenantId}, function(list, getResponseHeaders){
-      console.log("Load returned");
-      items.receive(list, function(item, key) {
-        return {id: key, name: item.name, tenantId: item.tenantId}});
-      $scope.count = items.count;
-      $scope.items = items.all;
-      console.log("Done loading")
-    });
+  for (var i=0;i<items.count;i++) { 
+    if (items.all[i].key == initial_blueprint) {
+      console.log('Found and selecting initial blueprint');
+      items.selectItem(i);
+      $scope.selected = items.selected;
+      break;
+    };
+  }
+  if (typeof items.selected != 'object' && $scope.count > 0) {
+    console.log('Selecting first blueprint');
+    items.selectItem(index);
+    $scope.selected = items.selected;
   }
 
-  $scope.load_one = function() {
-    this.Blueprint = $resource((checkmate_server_base || '') + '/:tenantId/blueprints/:id');
-    this.Blueprint.get({tenantId: $scope.auth.tenantId, id: $routeParams['id']}, function(blueprint, getResponseHeaders){
-      $scope.items.all = [{id: blueprint.id, name: blueprint.name}];
-      $scope.items.filtered = $scope.items.all;
-    });
-  }
+  //Inherit from Deployment Initializer
+  DeploymentNewController($scope, $location, $routeParams, $resource, settings, workflow, $scope.selected, $scope.environment);
 
-  //Setup
-  $scope.$watch('items.selectedIdx', function(newVal, oldVal, scope) {
-    if (newVal !== null) scroll.toCurrent();
+  //Wire Blueprints to Deployment
+  $scope.$watch('selected', function(newVal, oldVal, scope) {
+    if (typeof newVal == 'object') {
+       $scope.setBlueprint(blueprints[newVal.key]);
+    }
   });
-
-  $scope.load();
 }
 
 function BlueprintRemoteListController($scope, $location, $http, items, navbar, $routeParams, $resource, settings, workflow) {
