@@ -50,19 +50,11 @@ class Provider(ProviderBase):
         self.collect_data_tasks = {}
 
     def _get_deployment_local_services(self, deployment, context):
-        servicenames = []
-        allservices = deployment.get('blueprint', {}).get('services')
-        environment = deployment.environment()
-        if allservices:
-            for key, service in allservices.iteritems():
-                component = service.get('component', {})
-                if component:
-                    provider = environment.select_provider(context,
-                                         resource=component.get('type'),
-                                         interface=component.get('interface'))
-                    if self.name == provider.name:
-                        servicenames.append(key)
-        return servicenames
+        servicenames = set()
+        for resource in deployment.get('resources', {}).values():
+            if resource.get('provider') == self.name:
+                servicenames.add(resource.get('service'))
+        return list(servicenames)
 
     def prep_environment(self, wfspec, deployment, context):
         if self.prep_task:
@@ -921,7 +913,27 @@ class Provider(ProviderBase):
         if os.path.exists(checkmate_json_file):
             with file(checkmate_json_file, 'r') as f:
                 checkmate_data = json.load(f)
-            merge_dictionary(component, checkmate_data)
+
+            # If fields are mapped, then apply the mappings
+            remove = []
+            if 'options' in checkmate_data:
+                checkmate_fields = checkmate_data.get('options', {})
+                for name, option in checkmate_fields.iteritems():
+                    if 'source_field_name' in option:
+                        translated = schema.translate(option[
+                                                      'source_field_name'])
+                        if translated == name:
+                            continue
+                        mapped = component.get('options', {}).get(translated)
+                        if mapped:
+                            LOG.debug("Removing mapped field '%s'" %
+                                      translated)
+                            updated = merge_dictionary(mapped, option)
+                            option.update(updated)
+                            remove.append(translated)
+            for key in remove:
+                del component['options'][key]
+            merge_dictionary(component, checkmate_data, extend_lists=True)
 
         # Add hosting relationship (we're assuming we always need it for chef)
         LOG.debug("Parsing requires from %s" % metadata_json_path)
@@ -943,6 +955,11 @@ class Provider(ProviderBase):
         LOG.debug("Processing dependencies for cookbook %s" %
                   os.path.dirname(metadata_json_path).split(os.path.sep)[-1])
         self._process_component_deps(context, component)
+
+        # FIXME: Hard Coded - until we have a way to block the mysql output for
+        # wordpress (it doesn't really provide mysql)
+        if component.get('id')  == "wordpress":
+            component['provides'] = [dict(application='http')]
 
         return component
 
@@ -1014,6 +1031,12 @@ class Provider(ProviderBase):
             if options:
                 component['options'] = options  # already translated
         self._process_component_deps(context, component)
+        # FIXME: Hard Coded - until we have a way to block the mysql output for
+        # the wordpress roles (they don't really provide mysql)
+        if component['id'] == "wordpress-master-role":
+            component['provides'] = [dict(application='http')]
+        elif component['id'] == "wordpress-web-role":
+            component['provides'] = [dict(application='http')]
         return component
 
     def _process_component_deps(self, context, component):
@@ -1095,6 +1118,8 @@ class Provider(ProviderBase):
                 cid = "%s::%s" % (name, role)
             else:
                 cid = name
+        LOG.debug("Finding components that match: id=%s, name=%s, role=%s, %s"
+                  % (cid, name, role, kwargs))
         if cid:
             result = self.get_component(context, cid)
             if result:
@@ -1894,16 +1919,18 @@ def check_all_output(params):
         raise CheckmateCalledProcessError(retcode, ' '.join(params),
                 output='\n'.join(queue), error_info='\n'.join(errors))
 
-
+CHECKMATE_CHEF_REPO = None
 def _get_repo_path():
     """Find the master repo path for chef cookbooks"""
-    path = os.environ.get('CHECKMATE_CHEF_REPO')
-    if not path:
-        path = "/var/local/checkmate/chef-stockton"
-        LOG.warning("CHECKMATE_CHEF_REPO variable not set. Defaulting to %s" %
-                path)
-        if not os.path.exists(path):
-            git.Repo.clone_from('git://github.rackspace.com/checkmate/'
-                    'chef-stockton.git', path)
-            LOG.info("Cloned chef-stockton to %s" % path)
-    return path
+    global CHECKMATE_CHEF_REPO
+    if not CHECKMATE_CHEF_REPO:
+        CHECKMATE_CHEF_REPO = os.environ.get('CHECKMATE_CHEF_REPO')
+        if not CHECKMATE_CHEF_REPO:
+            CHECKMATE_CHEF_REPO = "/var/local/checkmate/chef-stockton"
+            LOG.warning("CHECKMATE_CHEF_REPO variable not set. Defaulting to "
+                        "%s" % CHECKMATE_CHEF_REPO)
+            if not os.path.exists(CHECKMATE_CHEF_REPO):
+                git.Repo.clone_from('git://github.rackspace.com/checkmate/'
+                        'chef-stockton.git', CHECKMATE_CHEF_REPO)
+                LOG.info("Cloned chef-stockton to %s" % CHECKMATE_CHEF_REPO)
+    return CHECKMATE_CHEF_REPO

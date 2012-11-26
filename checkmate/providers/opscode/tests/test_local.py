@@ -36,7 +36,7 @@ class TestChefLocal(unittest.TestCase):
             LOG.info("Created '%s'" % local_path)
         test_path = os.path.join(local_path, 'test_env', 'kitchen', 'roles')
         if not os.path.exists(test_path):
-            local.create_environment('test_env')
+            local.create_environment('test_env', 'kitchen')
 
     def setUp(self):
         self.mox = mox.Mox()

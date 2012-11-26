@@ -1,4 +1,5 @@
 """This is where celery picks up its settings"""
+import copy
 import json
 import logging
 import os
@@ -58,8 +59,10 @@ elif CELERY_RESULT_BACKEND == "mongodb":
                                                  celery_setting or
                                                  str(default_settings))
     default_backend_uri = BROKER_URL
-    LOG.debug("CELERY_MONGODB_BACKEND_SETTINGS: %s" %
-              CELERY_MONGODB_BACKEND_SETTINGS)
+    config = copy.copy(CELERY_MONGODB_BACKEND_SETTINGS)
+    if 'password' in config:
+        config['password'] = '*******'
+    LOG.debug("CELERY_MONGODB_BACKEND_SETTINGS: %s" % config)
 
 CELERY_RESULT_DBURI = os.environ.get('CHECKMATE_RESULT_DBURI',
                                      default_backend_uri)
