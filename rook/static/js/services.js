@@ -349,9 +349,9 @@ services.factory('items', [ 'filterFilter', function($resource, filter) {
 	      items.selected.selected = false;
 	    }
 
-    	items.selected = items.filtered[idx];
-    	items.selectedIdx = idx;
-    	items.selected.selected = true;
+	    items.selected = items.filtered[idx];
+	    items.selectedIdx = idx;
+	    items.selected.selected = true;
 
 	  },
 
