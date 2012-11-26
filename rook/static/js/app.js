@@ -1275,8 +1275,10 @@ function DeploymentTryController($scope, $location, $routeParams, $resource, set
 function DeploymentInitController($scope, $location, $routeParams, $resource, blueprint, environment, settings, workflow) {
   $scope.environment = environment;
   $scope.blueprint = blueprint;
+  $scope.settings = [];
   $scope.answers = {};
   $scope.domain_names = null;
+  $scope.manual_site_address = null;
   $scope.show_site_address_controls = false;
 
   //Retrieve existing domains  
@@ -1362,7 +1364,6 @@ function DeploymentInitController($scope, $location, $routeParams, $resource, bl
     $scope.show_site_address_controls = _.any($scope.settings, function(setting) {return ['domain', 'web_server_protocol'].indexOf(setting.id) > -1;});
     if (_.any($scope.settings, function(setting) {return setting.id == 'domain';}) && $scope.domain_names === null)
       $scope.getDomains();
-
   };
 
   $scope.OnAddressEditorShow = function() {
@@ -1468,7 +1469,6 @@ function DeploymentInitController($scope, $location, $routeParams, $resource, bl
     if (break_flag){
       return;
     }
-    
 
     if ($scope.auth.loggedIn) {
         deployment.$save(function(returned, getHeaders){
