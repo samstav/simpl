@@ -33,7 +33,7 @@
               <button class="btn dropdown-toggle" type="button" data-toggle="dropdown" data-target="#urls_menu"><b class="caret"></b></button>
               <div id="urls_menu" class="dropdown">
                   <ul class="dropdown-menu" role="menu" aria-labelledby="dLabel">
-                    <li ng-repeat="o in url_list"><a href="#" ng-click="$parent.remote_url=o">{{o}}</a></li>
+                    <li ng-repeat="o in url_list"><a href="#" ng-click="$parent.remote_url=o;reload_blueprints();">{{o}}</a></li>
                   </ul>
               </div>
           </div>
@@ -46,6 +46,7 @@
 
   <div id="spec_list" class="summaries">
     <div class="top">
+      <div ng-hide="!loading_remote_blueprints" class="well summary"><img src="/static/img/ajax-loader-bar.gif" alt="Loading..."/></div>
       <div ng-repeat="item in items" class="well summary" ng-click="selectItem($index)" ng-class="{active: item.selected}">
         <div class="row-fluid">
           <h6>{{item.name}}</h6>

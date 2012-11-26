@@ -2,8 +2,7 @@ import httplib
 import json
 import logging
 import os
-import rook
-
+from socket import gaierror
 from urlparse import urlparse
 
 # Init logging before we load the database, 3rd party, and 'noisy' modules
@@ -13,6 +12,8 @@ init_console_logging()
 from bottle import get, post, request, response, abort, static_file, HTTPError
 import webob
 import webob.dec
+
+import rook
 
 LOG = logging.getLogger(__name__)
 
@@ -191,10 +192,15 @@ class BrowserMiddleware(object):
                 http.request('GET', '/%s' % path, headers=headers)
                 resp = http.getresponse()
                 body = resp.read()
-            except Exception, e:
+            except gaierror, e:
                 LOG.error('HTTP connection exception: %s' % e)
-                raise HTTPError(401, output='Unable to communicate with '
-                        'github server')
+                raise HTTPError(500, output="Unable to communicate with "
+                        "github server: %s" % source)
+            except Exception, e:
+                LOG.error("HTTP connection exception of type '%s': %s" % (
+                          e.__class__.__name__, e))
+                raise HTTPError(401, output="Unable to communicate with "
+                                "github server")
             finally:
                 http.close()
 
