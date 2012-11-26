@@ -2,8 +2,6 @@ import httplib
 import json
 import logging
 import os
-import rook
-
 from urlparse import urlparse
 
 # Init logging before we load the database, 3rd party, and 'noisy' modules
@@ -13,6 +11,8 @@ init_console_logging()
 from bottle import get, post, request, response, abort, static_file, HTTPError
 import webob
 import webob.dec
+
+import rook
 
 LOG = logging.getLogger(__name__)
 
