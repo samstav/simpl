@@ -149,7 +149,7 @@ function AppController($scope, $http, $location) {
                 message: "There was an error executing your request:"};
     if (typeof error.data == "object" && 'description' in error.data)
         info.message = error.data.description;
-    $rootScope.error = info;
+    $scope.$root.error = info;
     $('#modalError').modal('show');
   }
   
@@ -1110,7 +1110,8 @@ function BlueprintRemoteListController($scope, $location, $http, items, navbar, 
         console.log("Done loading")
       }).
       error(function(data, status, headers, config) {
-        $scope.show_error(data);
+        var response = {data: data, status: status};
+        $scope.show_error(response);
       });
     }
   
