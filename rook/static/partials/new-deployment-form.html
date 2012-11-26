@@ -11,7 +11,7 @@
                           ng-options="blueprint.name for (id,blueprint) in blueprints" required>
                   </select>
                   <!-- Show text if only one exists -->
-                  <input ng-cloak ng-show="!blueprints" readonly="" type="text" value="{{selected.name}}"><span ng-cloak ng-show="branches"> branch: <select id="branch" class="span4" ng-model="remote_branch" ng-change="loadBlueprint()" ng-options="branch.commit.sha as branch.name for branch in branches"></select></span>
+                  <input ng-cloak ng-show="!blueprints" readonly="" type="text" value="{{selected.name}}" class="span8"><span ng-cloak ng-show="branches"> branch: <select id="branch" class="span3" ng-model="remote_branch" ng-change="loadBlueprint()" ng-options="branch.commit.sha as branch.name for branch in branches"></select></span>
                   <p class="help-block">
                     {{blueprint.description}}
                   </p>
