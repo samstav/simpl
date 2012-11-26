@@ -25,9 +25,12 @@
             <legend>Environment</legend>
             <label class="control-label required" for="environment">Where to deploy?</label>
             <div class="controls">
-              <select id="environment" class="span6" ng-model="environment" ng-change="onBlueprintChange()"
+              <!-- Show list if list exists -->
+              <select ng-cloak ng-show="environments" id="environment" class="span6" ng-model="environment" ng-change="onBlueprintChange()"
                       ng-options="environment.name for (id,environment) in environments" required>
               </select>
+              <!-- Show text if only one exists -->
+              <input ng-cloak ng-show="!environments" readonly="" type="text" value="{{environment.name}}" class="input-xlarge">
               <!-- region -->
               <span ng-repeat="setting in settings | filter:{id: 'region'}">
                   in <select id="region" style="width: 80px;" ng-model="answers['region']" ng-options="o for o in setting.choice"></select>
