@@ -1059,6 +1059,7 @@ function BlueprintRemoteListController($scope, $location, $http, items, navbar, 
   //Model: UI
   $scope.showSummaries = true;
   $scope.showStatus = true;
+  $scope.loading_remote_blueprints = true;
 
   $scope.name = 'Blueprints';
   navbar.highlight("blueprints");
@@ -1074,6 +1075,9 @@ function BlueprintRemoteListController($scope, $location, $http, items, navbar, 
     var u = URI(url);
     $scope.remote_server = u.protocol() + '://' + u.host(); //includes port
 
+    $scope.loading_remote_blueprints = true;
+    if(!$scope.$$phase)
+      $scope.$apply();
     $http({method: 'HEAD', url: (checkmate_server_base || '') + '/githubproxy/api/v3/orgs' + u.path(),
         headers: {'X-Target-Url': $scope.remote_server, 'accept': 'application/json'}}).
     success(function(data, status, headers, config) {
@@ -1107,9 +1111,11 @@ function BlueprintRemoteListController($scope, $location, $http, items, navbar, 
           return {key: item.id, id: item.html_url, name: item.name, description: item.description, selected: false}});
         $scope.count = items.count;
         $scope.items = items.all;
+        $scope.loading_remote_blueprints = false;
         console.log("Done loading")
       }).
       error(function(data, status, headers, config) {
+        $scope.loading_remote_blueprints = false;
         var response = {data: data, status: status};
         $scope.show_error(response);
       });
