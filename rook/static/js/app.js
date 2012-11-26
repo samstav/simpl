@@ -52,10 +52,6 @@ checkmate.config(['$routeProvider', '$locationProvider', '$httpProvider', functi
     templateUrl: '/partials/workflows.html',
     controller: WorkflowListController,
   }).
-  when('/:tenantId/blueprints/:id', {
-    templateUrl: '/partials/level2.html',
-    controller: BlueprintListController
-  }).
   when('/:tenantId/blueprints', {
     templateUrl: '/partials/blueprints-remote.html',
     controller: BlueprintRemoteListController
@@ -1053,23 +1049,16 @@ function BlueprintListController($scope, $location, $routeParams, $resource, ite
   });
 }
 
-function BlueprintRemoteListController($scope, $location, $http, items, navbar, $routeParams, $resource, settings, workflow) {
-  //Inherit from Deployment Initializer
-  DeploymentInitController($scope, $location, $routeParams, $resource, null, null, settings, workflow);
+function BlueprintRemoteListController($scope, $location, $routeParams, $resource, $http, items, navbar, settings, workflow) {
+  //Inherit from Blueprint List Controller
+  BlueprintListController($scope, $location, $routeParams, $resource, items, navbar, settings, workflow, {}, null, {}, null);
   //Model: UI
-  $scope.showSummaries = true;
-  $scope.showStatus = true;
   $scope.loading_remote_blueprints = true;
 
-  $scope.name = 'Blueprints';
-  navbar.highlight("blueprints");
   $scope.remote_url = 'https://github.rackspace.com/Blueprints';
   $scope.remote_server = 'https://github.rackspace.com/';
   $scope.remote_org = 'Blueprints';
   $scope.remote_user = null;
-  $scope.count = 0;
-  items.all = [];
-  $scope.items = items.all;  // bind only to shrunken array
 
   $scope.parse_url = function(url) {
     var u = URI(url);
@@ -1091,12 +1080,6 @@ function BlueprintRemoteListController($scope, $location, $http, items, navbar, 
       $scope.load();
     });
   };
-
-  $scope.refresh = function() {
-  };
-
-  $scope.handleSpace = function() {
-  };
   
   $scope.load = function() {
     console.log("Starting load")
@@ -1107,6 +1090,7 @@ function BlueprintRemoteListController($scope, $location, $http, items, navbar, 
     $http({method: 'GET', url: path, headers: {'X-Target-Url': $scope.remote_server, 'accept': 'application/json'}}).
       success(function(data, status, headers, config) {
         console.log("Load returned");
+        items.clear();
         items.receive(data, function(item, key) {
           return {key: item.id, id: item.html_url, name: item.name, description: item.description, selected: false}});
         $scope.count = items.count;
@@ -1185,7 +1169,8 @@ function BlueprintRemoteListController($scope, $location, $http, items, navbar, 
           $scope.updateSettings();
         }).
         error(function(data, status, headers, config) {
-          
+          var response = {data: data, status: status};
+          $scope.show_error(response);
         });
       }
     }).
@@ -1193,13 +1178,14 @@ function BlueprintRemoteListController($scope, $location, $http, items, navbar, 
       $scope.branches = [];
     });
   }
-  
-  $scope.selectItem = function(index) {
-    items.selectItem(index);
-    $scope.selected = items.selected;
-    $scope.get_branches(items.selected);
-  };
 
+  $scope.$watch('selected', function(newVal, oldVal, scope) {
+    if (typeof newVal == 'object') {
+      $scope.loadBlueprint();
+      $scope.get_branches(newVal);
+      //$scope.setBlueprint(items.data[newVal.id]);
+    }
+  });
   $scope.load();
 
 }
