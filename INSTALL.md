@@ -144,7 +144,7 @@ server:
     gem install bundler --no-rdoc --no-ri
     gem install chef --version 10.12.0 --no-rdoc --no-ri
     gem install knife-solo --version 0.0.13 --no-rdoc --no-ri
-    gem install knife-solo_data_bag --version 0.0.24 --no-rdoc --no-ri
+    gem install librarian --version 0.0.24 --no-rdoc --no-ri
     # Verify
     knife -v  # should show '10.12.0'
     gem list knife  # should show solo at 0.0.13 and data_bag at 0.2.1
