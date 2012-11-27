@@ -112,7 +112,7 @@ class TestChefLocal(unittest.TestCase):
         #TODO: check this self.mox.VerifyAll()
 
     def test_databag_create(self):
-        """Test databag item creation (with chekcmate filling in ID)"""
+        """Test databag item creation (with checkmate filling in ID)"""
         original = {
                 'a': 1,
                 'b': '2',
@@ -202,8 +202,8 @@ class TestChefLocal(unittest.TestCase):
                                         'checkmate-environment.pub')
         self.mox.StubOutWithMock(shutil, 'copy')
         shutil.copy(public_key_path, kitchen_key_path).AndReturn(True)
-        self.mox.StubOutWithMock(local, '_init_cookbook_repo')
-        local._init_cookbook_repo(os.path.join(kitchen_path, 'cookbooks'))\
+        self.mox.StubOutWithMock(local, '_init_repo')
+        local._init_repo(os.path.join(kitchen_path, 'cookbooks'))\
                 .AndReturn(True)
         self.mox.StubOutWithMock(local, 'download_cookbooks')
         local.download_cookbooks("test", service, path=path).AndReturn(True)

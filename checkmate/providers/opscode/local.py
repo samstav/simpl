@@ -73,6 +73,11 @@ class Provider(ProviderBase):
                     private_key=deployment.settings().get('keys', {}).get(
                             'deployment', {}).get('private_key'),
                     secret_key=deployment.get_setting('secret_key'),
+                    source_repo=deployment.get_setting('source',
+                                                      provider_key=\
+                                                            self.key,
+                                                      service_name=\
+                                                            service_name),
                     defines=dict(provider=self.key,
                                 task_tags=['root']),
                     properties={'estimated_duration': 10})
@@ -1155,7 +1160,7 @@ from checkmate.ssh import execute as ssh_execute
 
 @task
 def create_environment(name, service_name, path=None, private_key=None,
-        public_key_ssh=None, secret_key=None):
+                       public_key_ssh=None, secret_key=None, source_repo=None):
     """Create a knife-solo environment
 
     The environment is a directory structure that is self-contained and
@@ -1167,6 +1172,7 @@ def create_environment(name, service_name, path=None, private_key=None,
     :param private_key: PEM-formatted private key
     :param public_key_ssh: SSH-formatted public key
     :param secret_key: used for data bag encryption
+    :param source_repo: provides cookbook repository in valid git syntax
     """
     match_celery_logging(LOG)
     # Get path
@@ -1203,16 +1209,20 @@ def create_environment(name, service_name, path=None, private_key=None,
     shutil.copy(public_key_path, kitchen_key_path)
     LOG.debug("Wrote environment public key to kitchen: %s" % kitchen_key_path)
 
-    _init_cookbook_repo(os.path.join(kitchen_path, 'cookbooks'))
-    # Temporary Hack: load all cookbooks and roles from chef-stockton
-    # TODO: Undo this and use more git
-    download_cookbooks(name, service_name, path=root)
-    download_cookbooks(name, service_name, path=root, use_site=True)
-    download_roles(name, service_name, path=root)
+    if source_repo:
+        _init_repo(kitchen_path, source_repo=source_repo)
+    else:
+        _init_repo(os.path.join(kitchen_path, 'cookbooks'))
+        # Keep for backwards compatibility, but source_repo should be provided
+        # Temporary Hack: load all cookbooks and roles from chef-stockton
+        # TODO: Undo this and use more git
+        download_cookbooks(name, service_name, path=root)
+        download_cookbooks(name, service_name, path=root, use_site=True)
+        download_roles(name, service_name, path=root)
 
     results.update(kitchen_data)
     results.update(key_data)
-    LOG.debug("distribute_create_environment returning: %s" % results)
+    LOG.debug("create_environment returning: %s" % results)
     return results
 
 
@@ -1387,21 +1397,32 @@ def _create_environment_keys(environment_path, private_key=None,
             private_key_path=private_key_path)
 
 
-def _init_cookbook_repo(cookbooks_path):
-    """Make cookbook folder a git repo"""
-    if not os.path.exists(cookbooks_path):
-        raise CheckmateException("Invalid cookbook path: %s" % cookbooks_path)
+def _init_repo(path, source_repo=None):
+    """Initialize a git repo. Pull it if remote is supplied."""
+    if not os.path.exists(path):
+        raise CheckmateException("Invalid repo path: %s" % path)
 
     # Init git repo
-    repo = git.Repo.init(cookbooks_path)
+    repo = git.Repo.init(path)
 
-    file_path = os.path.join(cookbooks_path, '.gitignore')
-    with file(file_path, 'w') as f:
-        f.write("#Checkmate Created Repo")
-    index = repo.index
-    index.add(['.gitignore'])
-    index.commit("Initial commit")
-    LOG.debug("Initialized cookbook repo: %s" % cookbooks_path)
+    if source_repo:  # Pull remote if supplied
+        remotes = [r for r in repo.remotes
+                     if r.config_reader.get('url') == source_repo]
+        if remotes:
+            remote = remotes[0]
+        else:
+            remote = repo.create_remote('origin', source_repo)
+        remote.pull('master')
+        LOG.debug("Pulled '%s' into repo: %s" % (source_repo, path))
+    else:
+        # Make path a git repo
+        file_path = os.path.join(path, '.gitignore')
+        with file(file_path, 'w') as f:
+            f.write("#Checkmate Created Repo")
+        index = repo.index
+        index.add(['.gitignore'])
+        index.commit("Initial commit")
+        LOG.debug("Initialized blank repo: %s" % path)
 
 
 @task
