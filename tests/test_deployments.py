@@ -549,14 +549,6 @@ class TestDeploymentSettings(unittest.TestCase):
                     'name': "memory",
                     'type': 'compute',
                     'expected': "4 Gb",
-                    'add': """ - FIXME: broken without env providers
-                      environment:
-                        name: environment
-                        providers:
-                          base:
-                            provides:
-                            - compute: foo
-                            vendor: test""",
                 }
             ]
 
