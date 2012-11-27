@@ -545,6 +545,13 @@ class TestDeploymentSettings(unittest.TestCase):
                     'resource_type': "widget",
                     'expected': "big",
                 },  {
+                    'case': "Provider setting is used even with service param",
+                    'name': "size",
+                    'provider': "base",
+                    'service': 'one',
+                    'resource_type': "widget",
+                    'expected': "big",
+                },  {
                     'case': "Set in blueprint/providers",
                     'name': "memory",
                     'type': 'compute',
