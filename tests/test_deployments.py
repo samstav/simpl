@@ -441,7 +441,7 @@ class TestDeploymentSettings(unittest.TestCase):
                     base:
                       provides:
                       - compute: foo
-                        vendor: bar
+                      vendor: bar
                       constraints:
                       - type: widget
                         setting: size
