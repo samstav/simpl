@@ -1908,26 +1908,30 @@ def manage_databag(environment, bagname, itemname, contents,
                     output=exc.output)
         finally:
             lock.release()
+        LOG.debug(result)
     else:
-        if 'id' not in contents:
-            contents['id'] = itemname
-        elif contents['id'] != itemname:
-            raise CheckmateException("The value of the 'id' field in a databag"
-                    " item is reserved by Chef and must be set to the name of "
-                    "the databag item. Checkmate will set this for you if it "
-                    "is missing, but the data you supplied included an ID "
-                    "that did not match the databag item name. The ID was "
-                    "'%s' and the databg item name was '%s'" % (contents['id'],
-                    itemname))
-        if isinstance(contents, dict):
-            contents = json.dumps(contents)
-        params = ['knife', 'solo', 'data', 'bag', 'create', bagname, itemname,
-                  '-d', '-c', os.path.join(kitchen_path, 'solo.rb'),
-                  '--json', contents]
-        if secret_file:
-            params.extend(['--secret-file', secret_file])
-        result = _run_kitchen_command(kitchen_path, params)
-    LOG.debug(result)
+        if contents:
+            if 'id' not in contents:
+                contents['id'] = itemname
+            elif contents['id'] != itemname:
+                raise CheckmateException("The value of the 'id' field in a databag"
+                        " item is reserved by Chef and must be set to the name of "
+                        "the databag item. Checkmate will set this for you if it "
+                        "is missing, but the data you supplied included an ID "
+                        "that did not match the databag item name. The ID was "
+                        "'%s' and the databg item name was '%s'" % (contents['id'],
+                        itemname))
+            if isinstance(contents, dict):
+                contents = json.dumps(contents)
+            params = ['knife', 'solo', 'data', 'bag', 'create', bagname, itemname,
+                      '-d', '-c', os.path.join(kitchen_path, 'solo.rb'),
+                      '--json', contents]
+            if secret_file:
+                params.extend(['--secret-file', secret_file])
+            result = _run_kitchen_command(kitchen_path, params)
+            LOG.debug(result)
+        else:
+            LOG.warning("Managed databag was called with no contents")
 
 
 def check_all_output(params):
