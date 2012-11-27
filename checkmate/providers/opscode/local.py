@@ -1611,20 +1611,57 @@ def _run_kitchen_command(kitchen_path, params, lock=True):
         if os.path.exists(config_file):
             LOG.debug("Defaulting to config file '%s'" % config_file)
             params.extend(['-c', config_file])
+    result = _run_ruby_command(kitchen_path, params[0], params[1:], lock=lock)
+
+    # Knife succeeds even if there is an error. This code tries to parse the
+    # output to return a useful error. Note that FATAL erros will be picked up
+    # by _run_ruby_command
+    last_error = ''
+    for line in result.split('\n'):
+        if 'ERROR:' in line:
+            LOG.error(line)
+            last_error = line
+    if last_error:
+        if 'KnifeSolo::::' in last_error:
+            # Get the string after a Knife-Solo error::
+            error = last_error.split('Error:')[-1]
+            if error:
+                raise CheckmateCalledProcessError(1, ' '.join(params),
+                        output="Knife error encountered: %s" % error)
+            # Don't raise on all errors. They don't all mean failure!
+    return result
+
+
+def _run_ruby_command(path, command, params, lock=True):
+    """Runs a knife-like command (ex. librarian-chef).
+
+    Since knife-ike command errors are returned to stderr, we need to capture
+    stderr and check for errors.
+
+    That needs to be run in a kitchen, so we move curdir and need to make sure
+    we stay there, so I added some synchronization code while that takes place
+    However, if code calls in that already has a lock, the optional lock param
+    can be set to false so thise code does not lock.
+    :param version_param: the parameter used to get the command's version. This
+            is used to check if the program is installed.
+    """
+    params.insert(0, command)
+    LOG.debug("Running: '%s' in path '%s'" % (' '.join(params), path))
     if lock:
         path_lock = threading.Lock()
         path_lock.acquire()
         try:
-            os.chdir(kitchen_path)
+            if path:
+                os.chdir(path)
             result = check_all_output(params)  # check_output(params)
         except OSError as exc:
             if exc.errno == errno.ENOENT:
-                # Check if knife installed
-                try:
-                    output = check_output(['knife', '-v'])
-                except Exception as exc:
-                    raise CheckmateException("Chef Knife is not installed or "
-                                             "not accessible on the server")
+                # Check if command is installed
+                output = check_output(['which', command])
+                if not output:
+                    raise CheckmateException("'%s' is not installed or not "
+                                             "accessible on the server" %
+                                             command)
             raise exc
         except CalledProcessError, exc:
             #retry and pass ex
@@ -1632,22 +1669,19 @@ def _run_kitchen_command(kitchen_path, params, lock=True):
             # it would fail in celery; we wrap the exception in something
             # Pickle-able.
             raise CheckmateCalledProcessError(exc.returncode, exc.cmd,
-                    output=exc.output)
+                                              output=exc.output)
         finally:
             path_lock.release()
     else:
-        os.chdir(kitchen_path)
-        result = check_all_output(params)  # check_output(params)
+        if path:
+            os.chdir(path)
+        result = check_all_output(params)
     LOG.debug(result)
-    # Knife succeeds even if there is an error. This code tries to parse the
-    # output to return a useful error
+    # Knife-like commands succeed even if there is an error. This code tries to
+    # parse the output to return a useful error
     fatal = []
     last_fatal = ''
-    last_error = ''
     for line in result.split('\n'):
-        if 'ERROR:' in line:
-            LOG.error(line)
-            last_error = line
         if 'FATAL:' in line:
             fatal.append(line)
             last_fatal = line
@@ -1661,14 +1695,7 @@ def _run_kitchen_command(kitchen_path, params, lock=True):
                         output="Chef/Knife error encountered: %s" % error)
         output = '\n'.join(fatal)
         raise CheckmateCalledProcessError(1, command, output=output)
-    elif last_error:
-        if 'KnifeSolo::::' in last_fatal:
-            # Get the string after a Knife-Solo error::
-            error = last_error.split('Error:')[-1]
-            if error:
-                raise CheckmateCalledProcessError(1, ' '.join(params),
-                        output="Knife error encountered: %s" % error)
-            # Don't raise on all errors. They don't all mean failure!
+
     return result
 
 
