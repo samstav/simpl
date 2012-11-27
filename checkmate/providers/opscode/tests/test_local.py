@@ -261,9 +261,10 @@ class TestChefLocal(unittest.TestCase):
         remote.pull('master').AndReturn(True)
 
         os.path.exists(os.path.join(kitchen_path, 'Cheffile')).AndReturn(True)
+        self.mox.StubOutWithMock(os, 'chdir')
+        os.chdir(kitchen_path).AndReturn(True)
         self.mox.StubOutWithMock(local, 'check_all_output')
-        local.check_all_output(['librarian-chef', 'install', '--path',
-                                       kitchen_path]).AndReturn('OK')
+        local.check_all_output(['librarian-chef', 'install']).AndReturn('OK')
 
         self.mox.ReplayAll()
         expected = {'environment': '/fake_path/test',

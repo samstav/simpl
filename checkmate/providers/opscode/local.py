@@ -1213,13 +1213,9 @@ def create_environment(name, service_name, path=None, private_key=None,
         _init_repo(kitchen_path, source_repo=source_repo)
         # If Cheffile exists, all librarian-chef to pull in cookbooks
         if os.path.exists(os.path.join(kitchen_path, 'Cheffile')):
-            try:
-                output = check_all_output(['librarian-chef', 'install', '--path',
-                                       kitchen_path])
-                LOG.debug("Ran librarian-chef in: %s" % kitchen_path)
-            except Exception as exc:
-                raise CheckmateException("librarian-chef is not installed or "
-                                         "not accessible on the server")
+            _run_ruby_command(kitchen_path, 'librarian-chef', ['install'],
+                              lock=True)
+            LOG.debug("Ran 'librarian-chef install' in: %s" % kitchen_path)
     else:
         _init_repo(os.path.join(kitchen_path, 'cookbooks'))
         # Keep for backwards compatibility, but source_repo should be provided
