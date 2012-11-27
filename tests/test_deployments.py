@@ -441,7 +441,7 @@ class TestDeploymentSettings(unittest.TestCase):
                     base:
                       provides:
                       - compute: foo
-                        vendor: bar
+                      vendor: bar
                       constraints:
                       - type: widget
                         setting: size
@@ -491,78 +491,71 @@ class TestDeploymentSettings(unittest.TestCase):
                         compound: "value"
                         """))
         cases = [{
-                  'case': "Path in settings",
-                  'name': "keys/environment/public",
-                  'expected': "this is a public key"
-                },
-                {
-                  'case': "Path in settings 2",
-                  'name': "keys/count",
-                  'expected': 3
-                },
-                {
-                  'case': "Path in settings 3",
-                  'name': "setting_1",
-                  'expected': "Single value"
-                },
-                {
-                  'case': "Not in settings path",
-                  'name': "keys/bob/foo",
-                  'expected': None
-                },
-                {
-                  'case': "Partial path in settings",
-                  'name': "keys/environment/public/his",
-                  'expected': None
-                },
-                {
-                  'case': "Path in settings 4",
-                  'name': "setting_2/compound",
-                  'expected': "value"
-                },
-                {
-                  'case': "Set in blueprint/inputs",
-                  'name': "domain",
-                  'expected': "example.com",
+                    'case': "Path in settings",
+                    'name': "keys/environment/public",
+                    'expected': "this is a public key"
                 }, {
-                  'case': "Set in blueprint/inputs with service/provider scope",
-                  'name': "os",
-                  'service': "web",
-                  'expected': "Ubuntu 11.10",
+                    'case': "Path in settings 2",
+                    'name': "keys/count",
+                    'expected': 3
                 }, {
-                  'case': "Set in blueprint/inputs with no service scope",
-                  'name': "os",
-                  'expected': None,
+                    'case': "Path in settings 3",
+                    'name': "setting_1",
+                    'expected': "Single value"
                 }, {
-                  'case': "Set in blueprint/service under provider/resource",
-                  'name': "memory",
-                  'service': "web",
-                  'type': 'compute',
-                  'expected': "2 Gb",
+                    'case': "Not in settings path",
+                    'name': "keys/bob/foo",
+                    'expected': None
                 }, {
-                'case': "Set in environments/providers/common",
-                'name': "region",
-                'provider': "base",
-                'expected': "place",
+                    'case': "Partial path in settings",
+                    'name': "keys/environment/public/his",
+                    'expected': None
                 }, {
-                'case': "Set in environments/providers/...",
-                'name': "size",
-                'provider': "base",
-                'resource_type': "widget",
-                'expected': "big",
+                    'case': "Path in settings 4",
+                    'name': "setting_2/compound",
+                    'expected': "value"
+                }, {
+                    'case': "Set in blueprint/inputs",
+                    'name': "domain",
+                    'expected': "example.com",
+                }, {
+                    'case': "Set in blueprint/inputs with service/provider scope",
+                    'name': "os",
+                    'service': "web",
+                    'expected': "Ubuntu 11.10",
+                }, {
+                    'case': "Set in blueprint/inputs with no service scope",
+                    'name': "os",
+                    'expected': None,
+                }, {
+                    'case': "Set in blueprint/service under provider/resource",
+                    'name': "memory",
+                    'service': "web",
+                    'type': 'compute',
+                    'expected': "2 Gb",
+                }, {
+                    'case': "Set in environments/providers/common",
+                    'name': "region",
+                    'provider': "base",
+                    'expected': "place",
+                }, {
+                    'case': "Set in environments/providers/...",
+                    'name': "size",
+                    'provider': "base",
+                    'resource_type': "widget",
+                    'expected': "big",
                 },  {
-                  'case': "Set in blueprint/providers",
-                  'name': "memory",
-                  'type': 'compute',
-                  'expected': "4 Gb",
-                  'add': """ - FIXME: broken without env providers
-                    environment:
-                      name: environment
-                      providers:
-                        base:
-                          provides:
-                          - compute: foo
-                          vendor: test""",
+                    'case': "Provider setting is used even with service param",
+                    'name': "size",
+                    'provider': "base",
+                    'service': 'one',
+                    'resource_type': "widget",
+                    'expected': "big",
+                },  {
+                    'case': "Set in blueprint/providers",
+                    'name': "memory",
+                    'type': 'compute',
+                    'expected': "4 Gb",
                 }
             ]
 
@@ -573,6 +566,8 @@ class TestDeploymentSettings(unittest.TestCase):
                     provider_key=test.get('provider'),
                     resource_type=test.get('type'))
             self.assertEquals(value, test['expected'], test['case'])
+            LOG.debug("Test '%s' success=%s" % (test['case'],
+                                                 value==test['expected']))
 
     def test_get_setting_static(self):
         """Test the get_setting function used with static resources"""

@@ -73,6 +73,11 @@ class Provider(ProviderBase):
                     private_key=deployment.settings().get('keys', {}).get(
                             'deployment', {}).get('private_key'),
                     secret_key=deployment.get_setting('secret_key'),
+                    source_repo=deployment.get_setting('source',
+                                                      provider_key=\
+                                                            self.key,
+                                                      service_name=\
+                                                            service_name),
                     defines=dict(provider=self.key,
                                 task_tags=['root']),
                     properties={'estimated_duration': 10})
@@ -1155,7 +1160,7 @@ from checkmate.ssh import execute as ssh_execute
 
 @task
 def create_environment(name, service_name, path=None, private_key=None,
-        public_key_ssh=None, secret_key=None):
+                       public_key_ssh=None, secret_key=None, source_repo=None):
     """Create a knife-solo environment
 
     The environment is a directory structure that is self-contained and
@@ -1167,6 +1172,7 @@ def create_environment(name, service_name, path=None, private_key=None,
     :param private_key: PEM-formatted private key
     :param public_key_ssh: SSH-formatted public key
     :param secret_key: used for data bag encryption
+    :param source_repo: provides cookbook repository in valid git syntax
     """
     match_celery_logging(LOG)
     # Get path
@@ -1203,16 +1209,25 @@ def create_environment(name, service_name, path=None, private_key=None,
     shutil.copy(public_key_path, kitchen_key_path)
     LOG.debug("Wrote environment public key to kitchen: %s" % kitchen_key_path)
 
-    _init_cookbook_repo(os.path.join(kitchen_path, 'cookbooks'))
-    # Temporary Hack: load all cookbooks and roles from chef-stockton
-    # TODO: Undo this and use more git
-    download_cookbooks(name, service_name, path=root)
-    download_cookbooks(name, service_name, path=root, use_site=True)
-    download_roles(name, service_name, path=root)
+    if source_repo:
+        _init_repo(kitchen_path, source_repo=source_repo)
+        # If Cheffile exists, all librarian-chef to pull in cookbooks
+        if os.path.exists(os.path.join(kitchen_path, 'Cheffile')):
+            _run_ruby_command(kitchen_path, 'librarian-chef', ['install'],
+                              lock=True)
+            LOG.debug("Ran 'librarian-chef install' in: %s" % kitchen_path)
+    else:
+        _init_repo(os.path.join(kitchen_path, 'cookbooks'))
+        # Keep for backwards compatibility, but source_repo should be provided
+        # Temporary Hack: load all cookbooks and roles from chef-stockton
+        # TODO: Undo this and use more git
+        download_cookbooks(name, service_name, path=root)
+        download_cookbooks(name, service_name, path=root, use_site=True)
+        download_roles(name, service_name, path=root)
 
     results.update(kitchen_data)
     results.update(key_data)
-    LOG.debug("distribute_create_environment returning: %s" % results)
+    LOG.debug("create_environment returning: %s" % results)
     return results
 
 
@@ -1387,21 +1402,32 @@ def _create_environment_keys(environment_path, private_key=None,
             private_key_path=private_key_path)
 
 
-def _init_cookbook_repo(cookbooks_path):
-    """Make cookbook folder a git repo"""
-    if not os.path.exists(cookbooks_path):
-        raise CheckmateException("Invalid cookbook path: %s" % cookbooks_path)
+def _init_repo(path, source_repo=None):
+    """Initialize a git repo. Pull it if remote is supplied."""
+    if not os.path.exists(path):
+        raise CheckmateException("Invalid repo path: %s" % path)
 
     # Init git repo
-    repo = git.Repo.init(cookbooks_path)
+    repo = git.Repo.init(path)
 
-    file_path = os.path.join(cookbooks_path, '.gitignore')
-    with file(file_path, 'w') as f:
-        f.write("#Checkmate Created Repo")
-    index = repo.index
-    index.add(['.gitignore'])
-    index.commit("Initial commit")
-    LOG.debug("Initialized cookbook repo: %s" % cookbooks_path)
+    if source_repo:  # Pull remote if supplied
+        remotes = [r for r in repo.remotes
+                     if r.config_reader.get('url') == source_repo]
+        if remotes:
+            remote = remotes[0]
+        else:
+            remote = repo.create_remote('origin', source_repo)
+        remote.pull('master')
+        LOG.debug("Pulled '%s' into repo: %s" % (source_repo, path))
+    else:
+        # Make path a git repo
+        file_path = os.path.join(path, '.gitignore')
+        with file(file_path, 'w') as f:
+            f.write("#Checkmate Created Repo")
+        index = repo.index
+        index.add(['.gitignore'])
+        index.commit("Initial commit")
+        LOG.debug("Initialized blank repo: %s" % path)
 
 
 @task
@@ -1611,20 +1637,57 @@ def _run_kitchen_command(kitchen_path, params, lock=True):
         if os.path.exists(config_file):
             LOG.debug("Defaulting to config file '%s'" % config_file)
             params.extend(['-c', config_file])
+    result = _run_ruby_command(kitchen_path, params[0], params[1:], lock=lock)
+
+    # Knife succeeds even if there is an error. This code tries to parse the
+    # output to return a useful error. Note that FATAL erros will be picked up
+    # by _run_ruby_command
+    last_error = ''
+    for line in result.split('\n'):
+        if 'ERROR:' in line:
+            LOG.error(line)
+            last_error = line
+    if last_error:
+        if 'KnifeSolo::::' in last_error:
+            # Get the string after a Knife-Solo error::
+            error = last_error.split('Error:')[-1]
+            if error:
+                raise CheckmateCalledProcessError(1, ' '.join(params),
+                        output="Knife error encountered: %s" % error)
+            # Don't raise on all errors. They don't all mean failure!
+    return result
+
+
+def _run_ruby_command(path, command, params, lock=True):
+    """Runs a knife-like command (ex. librarian-chef).
+
+    Since knife-ike command errors are returned to stderr, we need to capture
+    stderr and check for errors.
+
+    That needs to be run in a kitchen, so we move curdir and need to make sure
+    we stay there, so I added some synchronization code while that takes place
+    However, if code calls in that already has a lock, the optional lock param
+    can be set to false so thise code does not lock.
+    :param version_param: the parameter used to get the command's version. This
+            is used to check if the program is installed.
+    """
+    params.insert(0, command)
+    LOG.debug("Running: '%s' in path '%s'" % (' '.join(params), path))
     if lock:
         path_lock = threading.Lock()
         path_lock.acquire()
         try:
-            os.chdir(kitchen_path)
+            if path:
+                os.chdir(path)
             result = check_all_output(params)  # check_output(params)
         except OSError as exc:
             if exc.errno == errno.ENOENT:
-                # Check if knife installed
-                try:
-                    output = check_output(['knife', '-v'])
-                except Exception as exc:
-                    raise CheckmateException("Chef Knife is not installed or "
-                                             "not accessible on the server")
+                # Check if command is installed
+                output = check_output(['which', command])
+                if not output:
+                    raise CheckmateException("'%s' is not installed or not "
+                                             "accessible on the server" %
+                                             command)
             raise exc
         except CalledProcessError, exc:
             #retry and pass ex
@@ -1632,22 +1695,19 @@ def _run_kitchen_command(kitchen_path, params, lock=True):
             # it would fail in celery; we wrap the exception in something
             # Pickle-able.
             raise CheckmateCalledProcessError(exc.returncode, exc.cmd,
-                    output=exc.output)
+                                              output=exc.output)
         finally:
             path_lock.release()
     else:
-        os.chdir(kitchen_path)
-        result = check_all_output(params)  # check_output(params)
+        if path:
+            os.chdir(path)
+        result = check_all_output(params)
     LOG.debug(result)
-    # Knife succeeds even if there is an error. This code tries to parse the
-    # output to return a useful error
+    # Knife-like commands succeed even if there is an error. This code tries to
+    # parse the output to return a useful error
     fatal = []
     last_fatal = ''
-    last_error = ''
     for line in result.split('\n'):
-        if 'ERROR:' in line:
-            LOG.error(line)
-            last_error = line
         if 'FATAL:' in line:
             fatal.append(line)
             last_fatal = line
@@ -1661,14 +1721,7 @@ def _run_kitchen_command(kitchen_path, params, lock=True):
                         output="Chef/Knife error encountered: %s" % error)
         output = '\n'.join(fatal)
         raise CheckmateCalledProcessError(1, command, output=output)
-    elif last_error:
-        if 'KnifeSolo::::' in last_fatal:
-            # Get the string after a Knife-Solo error::
-            error = last_error.split('Error:')[-1]
-            if error:
-                raise CheckmateCalledProcessError(1, ' '.join(params),
-                        output="Knife error encountered: %s" % error)
-            # Don't raise on all errors. They don't all mean failure!
+
     return result
 
 
@@ -1855,26 +1908,30 @@ def manage_databag(environment, bagname, itemname, contents,
                     output=exc.output)
         finally:
             lock.release()
+        LOG.debug(result)
     else:
-        if 'id' not in contents:
-            contents['id'] = itemname
-        elif contents['id'] != itemname:
-            raise CheckmateException("The value of the 'id' field in a databag"
-                    " item is reserved by Chef and must be set to the name of "
-                    "the databag item. Checkmate will set this for you if it "
-                    "is missing, but the data you supplied included an ID "
-                    "that did not match the databag item name. The ID was "
-                    "'%s' and the databg item name was '%s'" % (contents['id'],
-                    itemname))
-        if isinstance(contents, dict):
-            contents = json.dumps(contents)
-        params = ['knife', 'solo', 'data', 'bag', 'create', bagname, itemname,
-                  '-d', '-c', os.path.join(kitchen_path, 'solo.rb'),
-                  '--json', contents]
-        if secret_file:
-            params.extend(['--secret-file', secret_file])
-        result = _run_kitchen_command(kitchen_path, params)
-    LOG.debug(result)
+        if contents:
+            if 'id' not in contents:
+                contents['id'] = itemname
+            elif contents['id'] != itemname:
+                raise CheckmateException("The value of the 'id' field in a databag"
+                        " item is reserved by Chef and must be set to the name of "
+                        "the databag item. Checkmate will set this for you if it "
+                        "is missing, but the data you supplied included an ID "
+                        "that did not match the databag item name. The ID was "
+                        "'%s' and the databg item name was '%s'" % (contents['id'],
+                        itemname))
+            if isinstance(contents, dict):
+                contents = json.dumps(contents)
+            params = ['knife', 'solo', 'data', 'bag', 'create', bagname, itemname,
+                      '-d', '-c', os.path.join(kitchen_path, 'solo.rb'),
+                      '--json', contents]
+            if secret_file:
+                params.extend(['--secret-file', secret_file])
+            result = _run_kitchen_command(kitchen_path, params)
+            LOG.debug(result)
+        else:
+            LOG.warning("Managed databag was called with no contents")
 
 
 def check_all_output(params):
