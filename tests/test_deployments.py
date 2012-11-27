@@ -566,6 +566,8 @@ class TestDeploymentSettings(unittest.TestCase):
                     provider_key=test.get('provider'),
                     resource_type=test.get('type'))
             self.assertEquals(value, test['expected'], test['case'])
+            LOG.debug("Test '%s' success=%s" % (test['case'],
+                                                 value==test['expected']))
 
     def test_get_setting_static(self):
         """Test the get_setting function used with static resources"""
