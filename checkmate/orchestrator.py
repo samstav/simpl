@@ -4,7 +4,6 @@
 import logging
 import time
 
-from celery import current_app
 from celery.task import task
 import os
 
@@ -25,16 +24,6 @@ from checkmate.utils import extract_sensitive_data, match_celery_logging
 
 LOG = logging.getLogger(__name__)
 db = get_driver()
-
-try:
-    if current_app.backend.__class__.__name__ not in ['DatabaseBackend',
-                                                      'MongoBackend']:
-        LOG.warning("Celery backend does not seem to be configured for a "
-                "database: %s" % current_app.backend.__class__.__name__)
-    if not os.environ.get('CHECKMATE_RESULT_DBURI'):
-        LOG.warning('ATTENTION!! CHECKMATE_RESULT_DBURI not set.  Was the checkmate environment loaded?')
-except:
-    pass
 
 
 @task

@@ -109,6 +109,7 @@ knife-solo_data_bag:
     gem install bundler
     gem install knife-solo
     gem install knife-solo_data_bag
+    gem install librarian
 
 LKG: To install the last known good and tested config of Chef for the Checkmate
 server:
@@ -136,13 +137,14 @@ server:
     gem install chef --version 10.12.0 --no-rdoc --no-ri
     gem install knife-solo --version 0.0.13 --no-rdoc --no-ri
     gem install knife-solo_data_bag --version 0.2.1 --no-rdoc --no-ri
-    
-    # Instlal the same gems in global, because root from cron needs them
+    gem install librarian --version 0.0.24 --no-rdoc --no-ri
+
+    # Install the same gems in global, because root from cron needs them
     rvm gemset use global
     gem install bundler --no-rdoc --no-ri
     gem install chef --version 10.12.0 --no-rdoc --no-ri
     gem install knife-solo --version 0.0.13 --no-rdoc --no-ri
-    gem install knife-solo_data_bag --version 0.2.1 --no-rdoc --no-ri
+    gem install librarian --version 0.0.24 --no-rdoc --no-ri
     # Verify
     knife -v  # should show '10.12.0'
     gem list knife  # should show solo at 0.0.13 and data_bag at 0.2.1

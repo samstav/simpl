@@ -133,10 +133,10 @@ def get_domains(deployment, limit=None, offset=None):
     api = _get_dns_object(deployment)
     try:
         domains = api.list_domains_info(limit=limit, offset=offset)
-        LOG.debug('Successfully retreived domains.')
+        LOG.debug('Successfully retrieved domains.')
         return domains
     except Exception, exc:
-        LOG.debug('Error retreiving domains. Error: %s. Retrying.' % exc)
+        LOG.debug('Error retrieving domains. Error: %s. Retrying.' % exc)
         get_domains.retry(exc=exc)
 
 

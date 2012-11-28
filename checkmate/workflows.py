@@ -398,14 +398,19 @@ def execute_workflow_task(id, task_id, tenant_id=None):
     if not entity:
         abort(404, 'No workflow with id %s' % id)
 
+    serializer = DictionarySerializer()
+    workflow = SpiffWorkflow.deserialize(serializer, entity)
+    task = workflow.get_task(task_id)
+    if not task:
+        abort(404, 'No task with id %s' % task_id)
+
     #Synchronous call
     orchestrator.run_one_task(request.context, id, task_id, timeout=10)
     entity = db.get_workflow(id)
 
-    serializer = DictionarySerializer()
-    wf = SpiffWorkflow.deserialize(serializer, entity)
+    workflow = SpiffWorkflow.deserialize(serializer, entity)
 
-    task = wf.get_task(task_id)
+    task = workflow.get_task(task_id)
     data = serializer._serialize_task(task, skip_children=True)
     data['workflow_id'] = id  # so we know which workflow it came from
     return write_body(data, request, response)
@@ -604,47 +609,52 @@ def wait_for(wf_spec, task, wait_list, name=None, **kwargs):
     :returns: the final task or the task itself if no waiting needs to happen
     """
     if wait_list:
+        wait_set = list(set(wait_list))  # remove duplicates
         join_task = None
         if task.inputs:
             # Move inputs to join
-            for input in task.inputs:
-                # If input is a Join, keep it as an input and use it
-                if isinstance(input, Join):
+            for input_spec in task.inputs:
+                # If input_spec is a Join, keep it as an input and use it
+                if isinstance(input_spec, Join):
                     if join_task:
                         LOG.warning("Task %s seems to have to Join inputs" %
                                 task.name)
                     else:
-                        LOG.debug("Using existing Join task %s" % input.name)
-                        join_task = input
+                        LOG.debug("Using existing Join task %s" %
+                                  input_spec.name)
+                        join_task = input_spec
                         continue
-                if input not in wait_list:
-                    wait_list.append(input)
+                if input_spec not in wait_set:
+                    wait_set.append(input_spec)
                 # remove it from the other tasks outputs
-                input.outputs.remove(task)
+                input_spec.outputs.remove(task)
             if join_task:
                 task.inputs = [join_task]
             else:
                 task.inputs = []
+        elif isinstance(task, Join):
+            join_task = task
 
-        if len(wait_list) > 1:
+        if len(wait_set) > 1:
             if not join_task:
                 # Create a new Merge task since it doesn't exist
                 if not name:
-                    name = "After %s run %s" % (",".join([str(t.id)
-                            for t in wait_list]), task.id)
+                    ids = [str(t.id) for t in wait_set]
+                    ids.sort()
+                    name = "After %s run %s" % (",".join(ids), task.id)
                 join_task = Merge(wf_spec, name, **kwargs)
             if task not in join_task.outputs:
                 task.follow(join_task)
-            for t in wait_list:
+            for t in wait_set:
                 if t not in join_task.ancestors():
                     t.connect(join_task)
             return join_task
         elif join_task:
-            wait_list[0].connect(join_task)
+            wait_set[0].connect(join_task)
             return join_task
         else:
-            task.follow(wait_list[0])
-            return wait_list[0]
+            task.follow(wait_set[0])
+            return wait_set[0]
     else:
         return task
 

@@ -194,14 +194,16 @@ class StubbedWorkflowBase(unittest.TestCase):
         else:
             LOG.debug("No postback for %s" % args[0])
 
-    def _get_stubbed_out_workflow(self, expected_calls=None):
+    def _get_stubbed_out_workflow(self, expected_calls=None, context=None):
         """Returns a workflow of self.deployment with mocks attached to all
         celery calls
         """
         assert isinstance(self.deployment, Deployment)
-        context = RequestContext(auth_token="MOCK_TOKEN", username="MOCK_USER",
-                catalog=CATALOG)
-        plan(self.deployment, context)
+        if not context:
+            context = RequestContext(auth_token="MOCK_TOKEN",
+                                     username="MOCK_USER", catalog=CATALOG)
+        if self.deployment.get('status') == 'NEW':
+            plan(self.deployment, context)
         LOG.debug(json.dumps(self.deployment.get('resources', {}), indent=2))
 
         workflow = create_workflow_deploy(self.deployment, context)
@@ -209,6 +211,10 @@ class StubbedWorkflowBase(unittest.TestCase):
         if not expected_calls:
             expected_calls = self._get_expected_calls()
         self.expected_calls = expected_calls
+        if not expected_calls:
+            raise CheckmateException("Unable to identify expected calls "
+                                     "which is needed to run a simulated "
+                                     "workflow")
 
         #Mock out celery calls
         self.mock_tasks = {}
@@ -301,8 +307,7 @@ class StubbedWorkflowBase(unittest.TestCase):
                 'call': 'checkmate.providers.opscode.local.manage_databag',
                 'args': [self.deployment['id'],
                         self.deployment['id'],
-                        'webapp_wordpress_%s' %
-                                self.deployment.get_setting('prefix'),
+                        self.deployment.settings().get('app_id'),
                         Func(is_good_data_bag)],
                 'kwargs': And(ContainsKeyValue('secret_file',
                         'certificates/chef.pem'), ContainsKeyValue('merge',
@@ -335,61 +340,117 @@ class StubbedWorkflowBase(unittest.TestCase):
                 flavor = resource['flavor']
                 index = key
                 image = resource['image']
-
-                expected_calls.append({
-                    # Create Server
-                    'call': 'checkmate.providers.rackspace.compute_legacy.'
-                            'create_server',
-                    'args': [Func(is_good_context),
-                            StrContains(name)],
-                    'kwargs': And(ContainsKeyValue('image', image),
-                            ContainsKeyValue('flavor', flavor),
-                            ContainsKeyValue('ip_address_type', 'public')),
-                    'result': {
-                            'instance:%s' % key: {
-                                'id': id,
-                                'ip': "4.4.4.%s" % ip,
-                                'private_ip': "10.1.1.%s" % ip,
-                                'password': "shecret",
+                if resource.get('provider') == 'nova':
+                    expected_calls.append({
+                        # Create Server
+                        'call': 'checkmate.providers.rackspace.compute.'
+                                'create_server',
+                        'args': [Func(is_good_context),
+                                StrContains(name),
+                                self.deployment.get_setting('region',
+                                        default='testonia')],
+                        'kwargs': And(ContainsKeyValue('image', image),
+                                ContainsKeyValue('flavor', flavor)),
+                        'result': {
+                                'instance:%s' % key: {
+                                    'id': id,
+                                    'password': "shecret",
+                                    }
+                                },
+                        'post_back_result': True,
+                        'resource': key,
+                        })
+                    expected_calls.append({
+                        # Wait for Server Build
+                        'call': 'checkmate.providers.rackspace.compute'
+                                '.wait_on_build',
+                        'args': [Func(is_good_context), id,
+                                self.deployment.get_setting('region',
+                                        default='testonia')],
+                        'kwargs': And(In('password')),
+                        'result': {
+                                'instance:%s' % key: {
+                                    'status': "ACTIVE",
+                                    'ip': '4.4.4.%s' % ip,
+                                    'private_ip': '10.1.2.%s' % ip,
+                                    'addresses': {
+                                      'public': [
+                                        {
+                                          "version": 4,
+                                          "addr": "4.4.4.%s" % ip,
+                                        },
+                                        {
+                                          "version": 6,
+                                          "addr": "2001:babe::ff04:36c%s" % index,
+                                        }
+                                      ],
+                                      'private': [
+                                        {
+                                          "version": 4,
+                                          "addr": "10.1.2.%s" % ip,
+                                        }
+                                      ]
+                                    }
                                 }
                             },
-                    'post_back_result': True,
-                    'resource': key,
-                    })
-                expected_calls.append({
-                    # Wait for Server Build
-                    'call': 'checkmate.providers.rackspace.compute_legacy.'
-                            'wait_on_build',
-                    'args': [Func(is_good_context), id],
-                    'kwargs': And(In('password')),
-                    'result': {
-                            'instance:%s' % key: {
-                                'status': "ACTIVE",
-                                'ip': '4.4.4.%s' % ip,
-                                'private_ip': '10.1.2.%s' % ip,
-                                'addresses': {
-                                  'public': [
-                                    {
-                                      "version": 4,
-                                      "addr": "4.4.4.%s" % ip,
-                                    },
-                                    {
-                                      "version": 6,
-                                      "addr": "2001:babe::ff04:36c%s" % index,
+                        'post_back_result': True,
+                        'resource': key,
+                        })
+                else:
+                    expected_calls.append({
+                        # Create Server
+                        'call': 'checkmate.providers.rackspace.compute_legacy.'
+                                'create_server',
+                        'args': [Func(is_good_context),
+                                StrContains(name)],
+                        'kwargs': And(ContainsKeyValue('image', image),
+                                ContainsKeyValue('flavor', flavor),
+                                ContainsKeyValue('ip_address_type', 'public')),
+                        'result': {
+                                'instance:%s' % key: {
+                                    'id': id,
+                                    'ip': "4.4.4.%s" % ip,
+                                    'private_ip': "10.1.1.%s" % ip,
+                                    'password': "shecret",
                                     }
-                                  ],
-                                  'private': [
-                                    {
-                                      "version": 4,
-                                      "addr": "10.1.2.%s" % ip,
+                                },
+                        'post_back_result': True,
+                        'resource': key,
+                        })
+                    expected_calls.append({
+                        # Wait for Server Build
+                        'call': 'checkmate.providers.rackspace.compute_legacy'
+                                '.wait_on_build',
+                        'args': [Func(is_good_context), id],
+                        'kwargs': And(In('password')),
+                        'result': {
+                                'instance:%s' % key: {
+                                    'status': "ACTIVE",
+                                    'ip': '4.4.4.%s' % ip,
+                                    'private_ip': '10.1.2.%s' % ip,
+                                    'addresses': {
+                                      'public': [
+                                        {
+                                          "version": 4,
+                                          "addr": "4.4.4.%s" % ip,
+                                        },
+                                        {
+                                          "version": 6,
+                                          "addr": "2001:babe::ff04:36c%s" % index,
+                                        }
+                                      ],
+                                      'private': [
+                                        {
+                                          "version": 4,
+                                          "addr": "10.1.2.%s" % ip,
+                                        }
+                                      ]
                                     }
-                                  ]
                                 }
-                            }
-                        },
-                    'post_back_result': True,
-                    'resource': key,
-                    })
+                            },
+                        'post_back_result': True,
+                        'resource': key,
+                        })
                 # Bootstrap Server with Chef
                 expected_calls.append({
                         'call': 'checkmate.providers.opscode.local.'
@@ -399,7 +460,8 @@ class StubbedWorkflowBase(unittest.TestCase):
                         'result': None,
                         'resource': key,
                     })
-                # build-essential and then role
+
+                # build-essential (now just cook with bootstrap.json)
                 expected_calls.append({
                         'call': 'checkmate.providers.opscode.local.cook',
                         'args': ["4.4.4.%s" % ip, self.deployment['id']],
@@ -412,6 +474,7 @@ class StubbedWorkflowBase(unittest.TestCase):
                         'result': None,
                         'resource': key,
                     })
+                # Cook with role
                 expected_calls.append(
                     {
                         'call': 'checkmate.providers.opscode.local.cook',
