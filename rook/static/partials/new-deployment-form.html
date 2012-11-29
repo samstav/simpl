@@ -90,7 +90,7 @@
           <div class="row-fluid">
               <!-- register DNS -->
               <div class="control-group" ng-repeat="dns_setting in settings | filter:{id: 'register-dns'}">
-                  <label class="control-label required" for="register_dns">{{dns_setting.label}}</label>
+                  <label class="control-label required" for="register_dns">{{dns_setting.label || id}}</label>
                   <div class="controls">
                     <input type="checkbox" class="input-xlarge" id="register_dns" ng-model="answers['register-dns']">
                     <p ng-hide="!dns_setting.description" class="help-block">{{dns_setting.description}}</p>
@@ -172,7 +172,7 @@
 
 <!-- Templates -->
 <script id="setting-ngstring" type="text/ng-template">
-  <label class="control-label capitalize" ng-class="{required: required}" for="{{id}}">{{label}}</label>
+  <label class="control-label capitalize" ng-class="{required: required}" for="{{id}}">{{#label}}{{label}}{{/label}}{{^label}}{{id}}{{/label}}</label>
   <div class="controls">
     <input type="text" class="input-xlarge" id="{{id}}" ng-model="answers['{{id}}']"
             ng-required="{{required}}" ng-pattern="{{regex}}"
@@ -182,7 +182,7 @@
 </script>
 
 <script id="setting-string" type="text/ng-template">
-  <label class="control-label capitalize {{#required}}required{{/required}}" for="{{id}}">{{label}}</label>
+  <label class="control-label capitalize {{#required}}required{{/required}}" for="{{id}}">{{#label}}{{label}}{{/label}}{{^label}}{{id}}{{/label}}</label>
   <div class="controls">
     <input type="text" class="input-xlarge ng-model" id="{{id}}" ng-model="answers['{{id}}']"
             {{#required}}required{{/required}} {{#regex}}ng-pattern="{{regex}}"{{/regex}}
