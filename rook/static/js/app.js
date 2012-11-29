@@ -1,6 +1,6 @@
 //Support for different URL for checkmate server in chrome extension
-var is_chrome = navigator.userAgent.toLowerCase().indexOf('chrome') > -1;
-var checkmate_server_base = (is_chrome && chrome && chrome.extension) ? 'http://localhost\\:8080' : '';
+var is_chrome_extension = navigator.userAgent.toLowerCase().indexOf('chrome') > -1 && chrome && chrome.extension;
+var checkmate_server_base = is_chrome_extension ? 'http://localhost\\:8080' : '';
 
 //Load AngularJS
 var checkmate = angular.module('checkmate', ['checkmate.filters', 'checkmate.services', 'checkmate.directives', 'ngResource', 'ngSanitize', 'ngCookies', 'ui', 'ngLocale']);
@@ -250,7 +250,7 @@ function AppController($scope, $http, $location) {
       contentType: "application/json; charset=utf-8",
       headers: headers,
       dataType: "json",
-      url: (chrome && chrome.extension) ? auth_url : "/authproxy",
+      url: is_chrome_extension ? auth_url : "/authproxy",
       data: data
     }).success(function(json) {
       $('#modalAuth').modal('hide');
