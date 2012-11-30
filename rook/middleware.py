@@ -9,7 +9,8 @@ from urlparse import urlparse
 from checkmate.utils import init_console_logging
 init_console_logging()
 # pylint: disable=E0611
-from bottle import get, post, request, response, abort, static_file, HTTPError
+from bottle import get, post, request, response, abort, route, \
+        static_file, HTTPError
 import webob
 import webob.dec
 
@@ -221,10 +222,23 @@ class BrowserMiddleware(object):
             return write_body(content, request, response)
 
 
-        @post('/feedback')
+        @route('/feedback', method=['POST', 'OPTIONS'])
         @support_only(['application/json'])
         def feedback():
             """Accepts feedback from UI"""
+            if request.method == 'OPTIONS':
+                origin = request.get_header('origin', 'http://noaccess')
+                u = urlparse(origin)
+                if (u.netloc in ['localhost:8080', 'checkmate.rackspace.com',
+                                 'checkmate.rackspace.net'] or
+                    u.netloc.endswith('chkmate.rackspace.net:8080')):
+                    response.add_header('Access-Control-Allow-Origin', origin)
+                    response.add_header('Access-Control-Allow-Methods',
+                                        'POST, OPTIONS')
+                    response.add_header('Access-Control-Allow-Headers',
+                                        'Origin, Accept, Content-Type, '
+                                        'X-Requested-With, X-CSRF-Token')
+                return write_body({}, request, response)
             feedback = read_body(request)
             if not feedback or 'feedback' not in feedback:
                 abort(406, "Expecting a 'feedback' body in the request")
