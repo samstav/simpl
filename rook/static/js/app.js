@@ -1240,8 +1240,50 @@ function DeploymentListController($scope, $location, $http, $resource, scroll, i
 }
 
 //Hard-coded for Managed Cloud Wordpress
-function DeploymentManagedCloudController($scope, $location, $routeParams, $resource, items, navbar, settings, workflow) {
-  
+function DeploymentManagedCloudController($scope, $location, $routeParams, $resource, $http, items, navbar, settings, workflow) {
+
+  $scope.loadRemoteBlueprint = function(blueprint_name) {
+    $http({method: 'GET', url: (checkmate_server_base || '') + '/githubproxy/api/v3/repos/Blueprints/' + blueprint_name + '/git/trees/master',
+        headers: {'X-Target-Url': 'https://github.rackspace.com/', 'accept': 'application/json'}}).
+    success(function(data, status, headers, config) {
+      var checkmate_yaml_file = _.find(data.tree, function(file) {return file.path == "checkmate.yaml";});
+      if (checkmate_yaml_file === undefined) {
+        $scope.notify("No 'checkmate.yaml' found in the repository '" + $scope.selected.name + "'");
+      } else {
+        $http({method: 'GET', url: (checkmate_server_base || '') + '/githubproxy/api/v3/repos/Blueprints/' + blueprint_name + '/git/blobs/' + checkmate_yaml_file.sha,
+            headers: {'X-Target-Url': 'https://github.rackspace.com/', 'Accept': 'application/vnd.github.v3.raw'}}).
+        success(function(data, status, headers, config) {
+          var checkmate_yaml = {};
+          try {
+            checkmate_yaml = YAML.parse(data);
+          } catch(err) {
+            if (err.name == "YamlParseException")
+              $scope.notify("YAML syntax error in line " + err.parsedLine + ". '" + err.snippet + "' caused error '" + err.message + "'");
+          }
+          if ('blueprint' in checkmate_yaml) {
+            if ($scope.auth.loggedIn === true) {
+              checkmate_yaml.blueprint.options.region.default = $scope.auth.catalog.access.user['RAX-AUTH:defaultRegion'] || $scope.auth.catalog.access.regions[0];
+              checkmate_yaml.blueprint.options.region.choice = $scope.auth.catalog.access.regions;
+            };
+            WPBP[blueprint_name] = checkmate_yaml.blueprint;
+            var new_blueprints = {};
+            new_blueprints[blueprint_name] = checkmate_yaml.blueprint;
+            items.receive(new_blueprints, function(item, key) {
+              return {key: key, id: item.id, name: item.name, description: item.description, selected: false}});
+            $scope.count = items.count;
+            $scope.items = items.all;
+          }
+        }).
+        error(function(data, status, headers, config) {
+          $scope.notify('Unable to load latest version of ' + blueprint_name + ' from github');
+        });
+      }
+    }).
+    error(function(data, status, headers, config) {
+      $scope.notify('Unable to find latest version of ' + blueprint_name + ' from github');
+    });
+  }
+
   //Default Environments
   var ENVIRONMENTS = {
       "legacy": {
@@ -1298,14 +1340,19 @@ function DeploymentManagedCloudController($scope, $location, $routeParams, $reso
   
   //Initial Wordpress Templates
   var WPBP = {};
+  //Load the two tested versions stored in Rook
   WPBP.DBaaS = YAML.parse(dbaasBlueprint.innerHTML).blueprint;
   WPBP.MySQL = YAML.parse(mysqlBlueprint.innerHTML).blueprint;
 
+  $scope.setAllBlueprintRegions = function() {
+    _.each(WPBP, function(value, key) {
+      value.options.region.default = $scope.auth.catalog.access.user['RAX-AUTH:defaultRegion'] || $scope.auth.catalog.access.regions[0];
+      value.options.region.choice = $scope.auth.catalog.access.regions;
+    });
+  }
+
   if ($scope.auth.loggedIn === true) {
-      WPBP.DBaaS.options.region.default = $scope.auth.catalog.access.user['RAX-AUTH:defaultRegion'] || $scope.auth.catalog.access.regions[0];
-      WPBP.DBaaS.options.region.choice = $scope.auth.catalog.access.regions;
-      WPBP.MySQL.options.region.default = WPBP.DBaaS.options.region.default;
-      WPBP.MySQL.options.region.choice = WPBP.DBaaS.options.region.choice;
+      $scope.setAllBlueprintRegions();
   };
 
   //Show list of supported Managed Cloud blueprints
@@ -1322,17 +1369,14 @@ function DeploymentManagedCloudController($scope, $location, $routeParams, $reso
             delete $scope.environment.providers.database;
         //Add database support to chef provider
         $scope.environment.providers['chef-local'].provides[1] = {database: "mysql"};
-
     } else if ($scope.blueprint.id == WPBP.DBaaS.id) {
         //Add DBaaS Provider
         $scope.environment.providers.database = {};
-
         //Remove database support from chef-local
         if ($scope.environment.providers['chef-local'].provides.length > 1)
             $scope.environment.providers['chef-local'].provides.pop(1);
         if ($scope.environment.providers['chef-local'].provides.length > 1)
             $scope.environment.providers['chef-local'].provides.pop(1);
-
     }
   }
 
@@ -1347,17 +1391,13 @@ function DeploymentManagedCloudController($scope, $location, $routeParams, $reso
   });
 
   // Event Listeners
-  $scope.OnLogIn = function(e) {
-    $scope.getDomains();
-    $scope.updateSettings();
-  };
   $scope.$on('logIn', function(e) {
-    WPBP.DBaaS.options.region.default = $scope.auth.catalog.access.user['RAX-AUTH:defaultRegion'] || $scope.auth.catalog.access.regions[0];
-    WPBP.DBaaS.options.region.choice = $scope.auth.catalog.access.regions;
-    WPBP.MySQL.options.region.default = WPBP.DBaaS.options.region.default;
-    WPBP.MySQL.options.region.choice = WPBP.DBaaS.options.region.choice;
+    $scope.setAllBlueprintRegions();
   });
 
+  //Load the latest master from github
+  $scope.loadRemoteBlueprint('wordpress');
+  $scope.loadRemoteBlueprint('wordpress-clouddb');
 }
 
 // Handles the option setting and deployment launching
