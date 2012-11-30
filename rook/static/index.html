@@ -474,11 +474,6 @@ blueprint:
         - ssl_certificate
         - ssl_private_key
         value: http
-      - name: HTTPS Only
-        requires:
-        - ssl_certificate
-        - ssl_private_key
-        value: https
       - name: HTTP and HTTPS
         requires:
         - ssl_certificate
@@ -489,8 +484,8 @@ blueprint:
         service: lb
         setting: protocol
       default: http
-      description: Use HTTP, HTTPS (SSL), or both for web traffic. HTTPS requires an SSL certificate and private key.
-      help: Use HTTP, HTTPS (SSL), or both for web traffic. HTTPS requires an SSL certificate and private key.
+      description: Use HTTP or HTTP and HTTPS (SSL) for web traffic. HTTPS requires an SSL certificate and private key.
+      help: Use HTTP or HTTP and HTTPS (SSL) for web traffic. HTTPS requires an SSL certificate and private key.
       label: HTTP Protocol
       type: select
     web_server_size:
@@ -1015,18 +1010,13 @@ blueprint:
         precludes:
         - ssl_certificate
         - ssl_private_key
-      - name: HTTPS Only
-        value: https
-        requires:
-        - ssl_certificate
-        - ssl_private_key
       - name: HTTP and HTTPS
         value: http_and_https
         requires:
         - ssl_certificate
         - ssl_private_key
-      help: Use HTTP, HTTPS (SSL), or both for web traffic. HTTPS requires an SSL certificate and private key.
-      description: Use HTTP, HTTPS (SSL), or both for web traffic. HTTPS requires an SSL certificate and private key.
+      help: Use HTTP or HTTP and HTTPS (SSL) for web traffic. HTTPS requires an SSL certificate and private key.
+      description: Use HTTP or HTTP and HTTPS (SSL) for web traffic. HTTPS requires an SSL certificate and private key.
       constrains:
       - setting: protocol
         service: lb
