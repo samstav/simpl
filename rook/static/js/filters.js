@@ -27,7 +27,7 @@ filters.filter('prepend', function() {
   return function(d, p) {
     if (d)
       return (p || "/") + d;
-    return false;
+    return '';
   };
 });
 

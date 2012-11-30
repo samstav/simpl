@@ -48,7 +48,7 @@
             <div class="controls">
               <div class="input-append span12" ng-cloak ng-show="show_site_address_controls" >
                   <input class="input-xlarge span9" ng-model="manual_site_address" id="site_address" name="site_address" type="url" ng-change="UpdateSiteAddress(manual_site_address)" value="{{answers['web_server_protocol']}}://{{answers['domain'] || ''}}{{answers['path']}}">
-                  <button class="btn" type="button" ng-class="{'active': builder}" ng-click="builder = !builder">Address Details</button>
+                  <button class="btn" ng-class="{'active': builder}" ng-click="builder = !builder">Address Details</button>
               </div>
               <p class="help-block" ng-cloak ng-show="show_site_address_controls" >This also controls the protocol, domain, and path fields below. {{setting.description}}</p>
             </div>
@@ -171,99 +171,90 @@
 
 
 <!-- Templates -->
-<script id="setting-ngstring" type="text/ng-template">
-  <label class="control-label capitalize" ng-class="{required: required}" for="{{id}}">{{#label}}{{label}}{{/label}}{{^label}}{{id}}{{/label}}</label>
-  <div class="controls">
-    <input type="text" class="input-xlarge" id="{{id}}" ng-model="answers['{{id}}']"
-            ng-required="{{required}}" ng-pattern="{{regex}}"
-            value="{{default}}" placeholder="{{setting.sample | prepend:'ex. '}}">
-    <p ng-hide="{{!description}}" class="help-block">{{description}}</p>
-  </div>
-</script>
-
 <script id="setting-string" type="text/ng-template">
-  <label class="control-label capitalize {{#required}}required{{/required}}" for="{{id}}">{{#label}}{{label}}{{/label}}{{^label}}{{id}}{{/label}}</label>
+  <label class="control-label capitalize" ng-class="{required: required}" for="{{setting.id}}">{{setting.label || setting.id}}</label>
   <div class="controls">
-    <input type="text" class="input-xlarge ng-model" id="{{id}}" ng-model="answers['{{id}}']"
-            {{#required}}required{{/required}} {{#regex}}ng-pattern="{{regex}}"{{/regex}}
-            {{#default}}value="{{default}}"{{/default}} {{#sample}}placeholder="{{sample}}"{{/sample}}>
-    {{#description}}<p class="help-block">{{description}}</p>{{/description}}
+    <input type="text" class="input-xlarge" id="{{setting.id}}" ng-model="answers[setting.id]"
+            ng-required="required" ng-pattern="{{setting.regex || ''}}"
+            placeholder="{{setting.sample | prepend:'ex. '}}">
+    <p ng-hide="!setting.description" class="help-block">{{setting.description}}</p>
   </div>
 </script>
 
 <script id="setting-password" type="text/ng-template">
-  <label class="control-label capitalize {{#required}}required{{/required}}" for="{{id}}">{{label}}</label>
-  <div class="controls">
-    <input type="password" class="input-xlarge ng-model" id="{{id}}" ng-model="answers['{{id}}']"
-            {{#required}}required{{/required}} {{#regex}}ng-pattern="{{regex}}"{{/regex}}
-            {{#default}}value="{{default}}"{{/default}} {{#sample}}placeholder="{{sample}}"{{/sample}}>
-      <button ng-click="answers['{{id}}']=generatePassword()" class="btn">Generate</button><br />
-      <label class="checkbox">
-          <input type="checkbox" ng-model="{{id}}.show">
-          Show password
-      </label>
-      <span ng-show="{{id}}.show"><input type="text" class="input-xlarge ng-model" ng-model="answers['{{id}}']" disabled="true"></span>
-    {{#description}}<p class="help-block">{{description}} Click the generate button to generate a random password.</p>{{/description}}
+  <label class="control-label capitalize" ng-class="{required: required}" for="{{setting.id}}">{{setting.label || setting.id}}</label>
+  <div class="controls" ng-init="show=false">
+    <div class="input-append">
+      <input ng-hide="show" type="password" class="input-xlarge" id="{{setting.id}}" ng-model="answers[setting.id]"
+              ng-required="required" ng-pattern="{{setting.regex || ''}}"
+              placeholder="{{setting.sample | prepend:'ex. '}}">
+      <input ng-cloak ng-show="show" type="text" class="input-xlarge" id="{{setting.id}}" ng-model="answers[setting.id]"
+              ng-required="required" ng-pattern="{{setting.regex || ''}}"
+              placeholder="{{setting.sample | prepend:'ex. '}}">
+      <button class="btn" ng-class="{'active': show}" ng-click="show = !show">Show</button>
+      <button ng-click="answers[setting.id]=generatePassword()" class="btn">Generate</button>
+    </div>
+    <p ng-hide="!setting.description" class="help-block">{{setting.description}} Click the generate button to generate a random password.</p>
   </div>
 </script>
 
 <script id="setting-text" type="text/ng-template">
-  <label class="control-label capitalize {{#required}}required{{/required}}" for="{{id}}">{{label}}</label>
+  <label class="control-label capitalize" ng-class="{required: required}" for="{{setting.id}}">{{setting.label || setting.id}}</label>
   <div class="controls">
-    <textarea cols="80" rolws="20" class="input-xlarge ng-model" id="{{id}}" ng-model="answers['{{id}}']"
-            {{#required}}required{{/required}} {{#regex}}ng-pattern="{{regex}}"{{/regex}} {{#sample}}placeholder="{{sample}}"{{/sample}}>{{#default}}>"{{default}}"{{/default}}</textarea>
-    {{#description}}<p class="help-block">{{description}}</p>{{/description}}
+    <textarea cols="80" rows="20" class="input-xlarge ng-model" id="{{setting.id}}" ng-model="answers[setting.id]"
+            ng-required="required" ng-pattern="{{setting.regex || ''}}" placeholder="{{setting.sample | prepend:'ex. '}}">{{setting.default}}</textarea>
+    <p ng-hide="!setting.description" class="help-block">{{setting.description}}</p>
   </div>
 </script>
 
  <script id="setting-int" type="text/ng-template">
-  <label class="control-label capitalize {{#required}}required{{/required}}" for="{{id}}">{{label}}</label>
+  <label class="control-label capitalize" ng-class="{required: required}" for="{{setting.id}}">{{setting.label || setting.id}}</label>
   <div class="controls">
-    <input  type="number" class="input-small" id="{{id}}" ng-model="answers['{{id}}']"
-            {{#required}}required{{/required}}
-            {{#default}}value="{{default}}"{{/default}}>
-    {{#description}}<p class="help-block">{{description}}</p>{{/description}}
+    <input type="number" class="input-small" id="{{setting.id}}" ng-model="answers[setting.id]"
+            ng-required="required" ng-pattern="{{setting.regex || ''}}"
+            placeholder="{{setting.sample | prepend:'ex. '}}" >
+    <p ng-hide="!setting.description" class="help-block">{{setting.description}}</p>
   </div>
 </script>
 
- <script id="setting-boolean" type="text/ng-template">
-  <label class="control-label capitalize {{#required}}required{{/required}}" for="{{id}}">{{label}}</label>
+<script id="setting-boolean" type="text/ng-template">
+  <label class="control-label capitalize" ng-class="{required: required}" for="{{setting.id}}">{{setting.label || setting.id}}</label>
   <div class="controls">
     <label class="checkbox">
-      <input type="checkbox" class="input-xlarge" id="{{id}}" ng-model="answers['{{id}}']"
-            {{#required}}required{{/required}} {{#default}}value="{{default}}"{{/default}}>
-      {{#description}}{{description}}{{/description}}
+      <input type="checkbox" class="input-xlarge" id="{{setting.id}}" ng-model="answers[setting.id]"
+            ng-required="required" >
+      {{description}}
     </label>
   </div>
 </script>
 
 <script id="setting-select" type="text/ng-template">
-  <label class="control-label capitalize {{#required}}required{{/required}}" for="{{id}}">{{label}}</label>
+  <label class="control-label capitalize" ng-class="{required: required}" for="{{setting.id}}">{{setting.label || setting.id}}</label>
   <div class="controls">
-    <select id="{{id}}" ng-model="answers['{{id}}']" {{#required}}required{{/required}} ng-options="o for o in setting.choice">
+    <select id="{{setting.id}}" ng-model="answers[setting.id]" ng-required="required" ng-options="o for o in setting.choice">
     </select>
-        {{#description}}<p class="help-block">{{description}}</p>{{/description}}
+    <p ng-hide="!setting.description" class="help-block">{{setting.description}}</p>
   </div>
 </script>
 
 <script id="setting-select-kv" type="text/ng-template">
-  <label class="control-label capitalize {{#required}}required{{/required}}" for="{{id}}">{{label}}</label>
+  <label class="control-label capitalize" ng-class="{required: required}" for="{{setting.id}}">{{setting.label || setting.id}}</label>
   <div class="controls">
-    <select id="{{id}}" ng-model="answers['{{id}}']" {{#required}}required{{/required}} ng-options="o.value as o.name for o in setting.choice">
+    <select id="{{setting.id}}" ng-model="answers[setting.id]" ng-required="required" ng-options="o.value as o.name for o in setting.choice">
     </select>
-        {{#description}}<p class="help-block">{{description}}</p>{{/description}}
+    <p ng-hide="!setting.description" class="help-block">{{setting.description}}</p>
   </div>
 </script>
 
 <script id="setting-combo" type="text/ng-template">
-  <label class="control-label capitalize {{#required}}required{{/required}}" for="{{id}}">{{label}}</label>
+  <label class="control-label capitalize" ng-class="{required: required}" for="{{setting.id}}">{{setting.label || setting.id}}</label>
   <div class="controls">
-     <input type="text" name="state" class="input-xlarge ng-model" id="{{id}}" ng-model="answers['{{id}}']"
-            {{#required}}required{{/required}} {{#regex}}ng-pattern="{{regex}}"{{/regex}}
-            {{#default}}value="{{default}}"{{/default}} {{#sample}}placeholder="{{sample}}"{{/sample}} />
+     <input type="text" name="state" class="input-xlarge ng-model" id="{{setting.id}}" ng-model="answers[setting.id]"
+            ng-required="required" ng-pattern="{{setting.regex || ''}}"
+            placeholder="{{setting.sample | prepend:'ex. '}}"/>
      <br />
-     <select name="s" id="{{id}}" ng-model="answers['{{id}}']" ng-options="o for o in setting.choice" onchange="document.ex.state.value=document.ex.s.options[document.ex.s.selectedindex].value;document.ex.s.value=""><option value="" selected="selected">
+     <select name="s" id="{{setting.id}}" ng-model="answers[setting.id]" ng-options="o for o in setting.choice" onchange="document.ex.state.value=document.ex.s.options[document.ex.s.selectedindex].value;document.ex.s.value=""><option value="" selected="selected">
      </select>
-     {{#description}}<p class="help-block">{{description}}</p>{{/description}}
+    <p ng-hide="!setting.description" class="help-block">{{setting.description}}</p>
   </div>
- </script>
+</script>

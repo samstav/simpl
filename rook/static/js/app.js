@@ -1495,7 +1495,6 @@ function DeploymentNewController($scope, $location, $routeParams, $resource, set
 
   // Display settings using templates for each type
   $scope.renderSetting = function(setting) {
-    //console.log("RENDERING");
     if (!setting) {
       var message = "The requested setting is null";
       console.log(message);
@@ -1524,7 +1523,7 @@ function DeploymentNewController($scope, $location, $routeParams, $resource, set
       console.log(message);
       return "<em>" + message + "</em>";
     }
-      return (template ? Mustache.render(template, setting) : "").trim();
+      return (template || "").trim();
   };
 
   $scope.showSettings = function() {
