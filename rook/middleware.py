@@ -227,6 +227,17 @@ class BrowserMiddleware(object):
         def feedback():
             """Accepts feedback from UI"""
             if request.method == 'OPTIONS':
+                origin = request.get_header('origin', 'http://noaccess')
+                u = urlparse(origin)
+                if (u.netloc in ['localhost:8080', 'checkmate.rackspace.com',
+                                 'checkmate.rackspace.net'] or
+                    u.netloc.endswith('chkmate.rackspace.net:8080')):
+                    response.add_header('Access-Control-Allow-Origin', origin)
+                    response.add_header('Access-Control-Allow-Methods',
+                                        'POST, OPTIONS')
+                    response.add_header('Access-Control-Allow-Headers',
+                                        'Origin, Accept, Content-Type, '
+                                        'X-Requested-With, X-CSRF-Token')
                 return write_body({}, request, response)
             feedback = read_body(request)
             if not feedback or 'feedback' not in feedback:
@@ -283,18 +294,6 @@ class BrowserMiddleware(object):
             # Add our headers to response
             if self.with_simulator:
                 headers.append(("X-Simulator-Enabled", "True"))
-            if request.path == '/feedback':
-                origin = request.get_header('origin', 'http://noaccess')
-                u = urlparse(origin)
-                if (u.netloc in ['localhost:8080', 'checkmate.rackspace.com',
-                                 'checkmate.rackspace.net'] or
-                    u.netloc.endswith('chkmate.rackspace.net:8080')):
-                    headers.append(('Access-Control-Allow-Origin', origin))
-                    headers.append(('Access-Control-Allow-Methods',
-                                    'POST, OPTIONS'))
-                    headers.append(('Access-Control-Allow-Headers',
-                                    'Origin, Accept, Content-Type, '
-                                    'X-Requested-With, X-CSRF-Token'))
             # Call upstream start_response
             start_response(status, headers, exc_info)
         return callback
