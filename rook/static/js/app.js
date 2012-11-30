@@ -1086,7 +1086,7 @@ function BlueprintRemoteListController($scope, $location, $routeParams, $resourc
         console.log("Load returned");
         items.clear();
         items.receive(data, function(item, key) {
-          return {key: item.id, id: item.html_url, name: item.name, description: item.description, selected: false}});
+          return {key: item.id, id: item.html_url, name: item.name, description: item.description, git_url: item.git_url, selected: false}});
         $scope.count = items.count;
         $scope.items = items.all;
         $scope.loading_remote_blueprints = false;
@@ -1115,7 +1115,6 @@ function BlueprintRemoteListController($scope, $location, $routeParams, $resourc
         $scope.loadBlueprint();
       } else
         $scope.remote_branch = null;
-
     }).
     error(function(data, status, headers, config) {
       $scope.branches = [];
@@ -1136,7 +1135,8 @@ function BlueprintRemoteListController($scope, $location, $routeParams, $resourc
         success(function(data, status, headers, config) {
           var checkmate_yaml = {};
           try {
-            checkmate_yaml = YAML.parse(data);
+            var branch = _.find($scope.branches, function(branch) {return branch.commit.sha = $scope.remote_branch;});
+            checkmate_yaml = YAML.parse(data.replace('%repo_url%', $scope.selected.git_url + '#' + branch.name).replace('%username%', $scope.auth.username || '%username%'));
           } catch(err) {
             if (err.name == "YamlParseException")
               $scope.notify("YAML syntax error in line " + err.parsedLine + ". '" + err.snippet + "' caused error '" + err.message + "'");
@@ -1175,9 +1175,7 @@ function BlueprintRemoteListController($scope, $location, $routeParams, $resourc
 
   $scope.$watch('selected', function(newVal, oldVal, scope) {
     if (typeof newVal == 'object') {
-      $scope.loadBlueprint();
-      $scope.get_branches(newVal);
-      //$scope.setBlueprint(items.data[newVal.id]);
+      $scope.get_branches(newVal);  //calls loadBlueprint()
     }
   });
   
