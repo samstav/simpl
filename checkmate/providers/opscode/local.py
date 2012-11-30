@@ -19,6 +19,7 @@ Component IDs:
 import errno
 import logging
 import os
+import urlparse
 
 from Crypto.PublicKey import RSA  # pip install pycrypto
 from Crypto.Random import atfork
@@ -1402,6 +1403,18 @@ def _create_environment_keys(environment_path, private_key=None,
             private_key_path=private_key_path)
 
 
+def register_scheme(scheme):
+    '''
+    Use this to register a new scheme with urlparse and have it be parsed
+    in the same way as http is parsed
+    '''
+    for method in filter(lambda s: s.startswith('uses_'), dir(urlparse)):
+        getattr(urlparse, method).append(scheme)
+
+
+register_scheme('git')  # without this, urlparse won't handle git:// correctly
+
+
 def _init_repo(path, source_repo=None):
     """Initialize a git repo. Pull it if remote is supplied."""
     if not os.path.exists(path):
@@ -1411,14 +1424,17 @@ def _init_repo(path, source_repo=None):
     repo = git.Repo.init(path)
 
     if source_repo:  # Pull remote if supplied
+        source_repo, ref = urlparse.urldefrag(source_repo)
         remotes = [r for r in repo.remotes
                      if r.config_reader.get('url') == source_repo]
         if remotes:
             remote = remotes[0]
         else:
             remote = repo.create_remote('origin', source_repo)
-        remote.pull('master')
-        LOG.debug("Pulled '%s' into repo: %s" % (source_repo, path))
+        remote.pull(refspec=ref or 'master')
+        LOG.debug("Pulled '%s' ref '%s' into repo: %s" % (source_repo,
+                                                          ref or 'master',
+                                                          path))
     else:
         # Make path a git repo
         file_path = os.path.join(path, '.gitignore')
