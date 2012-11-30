@@ -378,7 +378,8 @@ function NavBarController($scope, $location, $resource) {
             "tenantId": $scope.auth.tenantId,
             "location": $location.absUrl(),
             "auth": $scope.auth,
-            "api_version": $scope.api_version
+            "api_version": $scope.api_version,
+            "rook_version": $scope.rook_version
             }
           });
     headers = checkmate.config.header_defaults.headers.common;
@@ -387,12 +388,13 @@ function NavBarController($scope, $location, $resource) {
       contentType: "application/json; charset=utf-8",
       headers: headers,
       dataType: "json",
-      url: "/feedback",
+      url: "https://checkmate.rackspace.com/feedback",
       data: data
     }).success(function(json) {
         $('.dropdown.open .dropdown-toggle').dropdown('toggle');
         $scope.notify("Feedback received. Thank you!");
         $scope.feedback = "";
+        $('#feedback').val('');
         $("#feedback_error").hide();
     }).error(function(response) {
       $("#feedback_error_text").html(response.statusText);
@@ -1778,7 +1780,7 @@ if (Modernizr.localstorage) {
 }
 $(function() {
   // Don't close feedback form on click
-  $('.dropdown input, .dropdown label').click(function(e) {
+  $('.dropdown input, .dropdown label, .dropdown textarea').click(function(e) {
     e.stopPropagation();
   });
 });
