@@ -204,6 +204,9 @@ function AppController($scope, $http, $location, $resource) {
 
     modal[0].success_callback = success_callback;
     modal[0].failure_callback = failure_callback;
+    modal.on('shown', function () {
+      $('input:text:visible:first', this).focus();
+    });
     modal.modal('show');
   }
 
