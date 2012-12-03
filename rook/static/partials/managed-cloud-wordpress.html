@@ -1,3 +1,10 @@
+<style>
+#mcspec_list {
+  position: absolute;
+  top: 293px;
+  bottom: 0px;
+}
+</style>
 <div class="span3 summaryBar">
   <div class="summaryHeader">
     <div class="top well" ng-cloak ng-show="showStatus">
@@ -15,7 +22,7 @@
       </div>
     </div>
   </div>
-  <div class="summaries" ng-cloak ng-show="showSummaries">
+  <div id="mcspec_list" class="summaries" ng-cloak ng-show="showSummaries">
     <div ng-repeat="item in items" class="well summary" ng-click="selectItem($index)" ng-class="{active: item.selected}">
       <div class="row-fluid">
         <h6><i ng-cloak ng-show="$index < 2" class="icon-star"></i> {{item.name}}</h6>
