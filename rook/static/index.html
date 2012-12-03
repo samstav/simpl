@@ -85,8 +85,8 @@
               </li>
             </ul>
           </div>
-          <div class="nav-collapse collapse" style="display: none" ng-show="auth.loggedIn">
-            <ul id="nav-elements" class="nav">
+          <div class="nav-collapse collapse">
+            <ul id="nav-elements" class="nav" style="display: none" ng-show="auth.loggedIn">
               <li id="nav-deployments"><a href="/{{auth.tenantId}}/deployments">Deployments</a></li>
               <li id="nav-workflows"><a href="/{{auth.tenantId}}/workflows">Workflows</a></li>
 	      <li id="nav-blueprints"><a href="/{{auth.tenantId}}/blueprints">Blueprints</a></li>
@@ -102,41 +102,60 @@
                   <li id="nav-status-libraries"><a href="/status/libraries">Libraries</a></li>
                 </ul>
               </li>-->
-              <li class="divider-vertical"></li>
+              <li class="divider-vertical" style="display: none" ng-show="showSearch"></li>
               <form class="navbar-search" id="navSearch" style="display: none" ng-show="showSearch">
                 <input type="search" ng-model="$parent.search" class="search-query span2" style="height: 15px;" placeholder="Search">
               </form>
             </ul>
-          </div><!--/.nav-collapse -->
-          <div class="nav">
-            <ul class="nav">
-              <li id="nav-feedback" class="dropdown"><a class="dropdown-toggle" href="#" data-toggle="dropdown"><i class="icon-comment icon-white"></i> Feedback</b></a>
-                <div class="dropdown-menu" style="padding: 15px; padding-bottom: 0px; color: black;">
-                  <form id="feedback-form" class="form-horizontal">
-               	    <div class="modal-header">Checkmate Version: {{api_version}}
-                      <br/>Rook Version: {{rook_version}}</div>
-                    <h4>Issues or Suggestions?</h4>
-                    <p>Let us know so we can do something about it.</p>
-                    <textarea id="feedback" name="feedback" class="span4" rows="6" placeholder="I would like to be able to log in using OpenID" ng-model="feedback"></textarea>
-                    <div id="feedback_error" class="alert alert-error hide">
-                      <strong>Feedback not captured!</strong> <span id="feedback_error_text"></span>.
-                      <br>You can send your feedback by email to <a style="display: inline; " href="mailto:checkmate@lists.rackspace.com">checkmate@lists.rackspace.com</a>
-                    </div>
-                    <p>If you would like us to send you updates on your issue, let us know which email address to use:</p>
-                    <div class="input-prepend">
-                      <span class="add-on">
-                        <i class="icon-envelope"></i>
-                      </span><input type="text" id="email" name="email" class="span3" ng-model="email">
-                    </div>
-                    <hr>
-                    <div class="modal-footer">
-                        <button id="feedback-submit" class="btn btn-primary" style="margin-top: 0;" ng-click="send_feedback()">Send Feedback</button>
-                    </div>
-                  </form>
-                </div>
+            <ul id="nav-support" class="nav">
+              <li class="dropdown">
+                <a href="#" class="dropdown-toggle" data-toggle="dropdown">Help<b class="caret"></b></a>
+                <ul class="dropdown-menu">
+                  <li id="nav-support"><a href="#" data-toggle="modal" data-target="#modalSLA">General Info</a></li>
+		  <li id="nav-wiki"><a href="https://one.rackspace.com/display/Checkmate/" target="_blank">Checkmate Wiki</a></li>
+		  <li class="dropdown-submenu">
+		    <a tabindex="-1" href="#">Contact the team</a>
+		    <ul class="dropdown-menu">
+		      <li><a href="mailto:checkmate@lists.rackspace.com" target="_blank">Email</a></li>
+		      <li><a href="irc://irc.intra.rackspace.com/#checkmate" target="_blank">IRC</a></li>
+		      <li><a href="http://github.rackspace.com/checkmate" target="_blank">Github</a></li>
+		    </ul>
+		  </li>
+		  <li class="divider"></li>
+		  <li class="dropdown-submenu">
+		    <a tabindex="-1" href="#">Reports</a>
+		    <ul class="dropdown-menu">
+		      <li><a href="http://mongo-n01.ord1.chkmate.rackspace.net/deployments.php" target="_blank">Deployments</a></li>
+		    </ul>
+		  </li>
+                </ul>
               </li>
-            </ul>
-          </div>
+	      <li id="nav-feedback" class="dropdown"><a class="dropdown-toggle" href="#" data-toggle="dropdown"><i class="icon-comment icon-white"></i> Feedback</b></a>
+		<div id="feedback-dropdown" class="dropdown-menu" style="padding: 15px; padding-bottom: 0px; color: black;">
+		  <form id="feedback-form" class="form-horizontal">
+		    <h4>Issues or Suggestions?</h4>
+		    <p>Let us know so we can do something about it.</p>
+		    <textarea id="feedback" name="feedback" class="span4" rows="6" placeholder="I would like to be able to log in using OpenID" ng-model="feedback"></textarea>
+		    <div id="feedback_error" class="alert alert-error hide">
+		      <strong>Feedback not captured!</strong> <span id="feedback_error_text"></span>.
+		      <br>You can send your feedback by email to <a style="display: inline; " href="mailto:checkmate@lists.rackspace.com">checkmate@lists.rackspace.com</a>
+		    </div>
+		    <div>&nbsp;</div>
+		    <p>If you would like us to send you updates on your issue, let us know which email address to use:</p>
+		    <div class="input-prepend">
+		      <span class="add-on">
+			<i class="icon-envelope"></i>
+		      </span><input type="text" id="email" name="email" class="span3" ng-model="email">
+		    </div>
+		    <div>&nbsp;</div>
+		    <div class="modal-footer">
+		      <button id="feedback-submit" class="btn btn-primary" style="margin-top: 0;" ng-click="send_feedback()">Send Feedback</button>
+		    </div>
+		  </form>
+		</div>
+	      </li>
+	    </ul>
+          </div><!--/.nav-collapse -->
         </div>
       </div>
     </div>
@@ -247,6 +266,39 @@
     </div>
     <div class="modal-footer">
       <a href="#" class="btn" data-dismiss="modal">Close</a>
+    </div>
+  </div>
+  <div id="modalSLA" class="modal hide fade">
+    <div class="modal-header">
+      <button type="button" class="close" data-dismiss="modal">&times;</button>
+      <h3>Support for Checkmate</h3>
+    </div>
+    <div class="modal-body">
+      <dl class="dl-horizontal">
+	<dt>About 24 hours</dt>
+	<dd>We don't have a 24x7 team. The code is an advanced prototype,
+      but a prototype nonetheless, so there could be show-stopping bugs in here and we can't guarantee a time by which we
+      could get them fixed.</dd>
+      </dl>
+  
+      <dl class="dl-horizontal">
+	<dt>Passion</dt>
+	<dd>That said, we love this product and believe in it. We'll do our best to make it rock and to make your
+      experience using it awesome.</dd>
+      </dl>
+  
+      <dl class="dl-horizontal">
+	<dt>Helping each other out</dt>
+	<dd>You can help (or help us help you) by giving us feedback or letting us know about issues
+      <a href="#nav-feedback" class="dropdown-toggle" data-toggle="dropdown">here</a>,
+      by <a target="_blank" href="mailto:checkmate@lists.rackspace.com">email</a>,
+      <a href="irc://irc.intra.rackspace.com/#checkmate" target="_blank">IRC</a>,
+      or <a href="http://github.rackspace.com/checkmate">contributing</a> on github.</dd>
+      </dl>
+    </div>
+    <div class="modal-footer">
+      <small class="pull-left"><b>Checkmate version:</b> {{api_version}}</br>
+      <b>Rook version:</b> {{rook_version}}</small>
     </div>
   </div>
 

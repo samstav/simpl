@@ -112,7 +112,7 @@ function ExternalController($window, $location) {
 }
 
 //Root controller that implements authentication
-function AppController($scope, $http, $location) {
+function AppController($scope, $http, $location, $resource) {
   $scope.showHeader = true;
   $scope.showStatus = false;
   $scope.auth = {
@@ -297,6 +297,21 @@ function AppController($scope, $http, $location) {
 
 
   // Utility Functions
+  console.log("Getting api version");
+  var api = $resource((checkmate_server_base || '') + '/version');
+  api.get(function(data, getResponseHeaders){
+	  $scope.api_version = data.version;
+	  console.log("Got api version: " + $scope.api_version);
+  });
+
+  console.log("Getting rook version");
+  var rook = $resource((checkmate_server_base || '') + '/rookversion');
+  rook.get(function(rookdata, getResponseHeaders){
+      $scope.rook_version = rookdata.version;
+      console.log("Got rook version: " + $scope.rook_version);
+      console.log("Got version: " + $scope.api_version);
+      $scope.$root.simulator = getResponseHeaders("X-Simulator-Enabled");
+  });
 
   //Check for a supported account
   $scope.is_unsupported_account = function() {
@@ -349,24 +364,9 @@ function AppController($scope, $http, $location) {
 
 }
 
-function NavBarController($scope, $location, $resource) {
+function NavBarController($scope, $location) {
   $scope.feedback = "";
   $scope.email = "";
-  console.log("Getting api version");
-  this.api = $resource((checkmate_server_base || '') + '/version');
-  this.api.get(function(data, getResponseHeaders){
-	  $scope.api_version = data.version;
-	  console.log("Got api version: " + $scope.api_version);
-  });
-
-  console.log("Getting rook version");
-  this.rook = $resource((checkmate_server_base || '') + '/rookversion');
-  this.rook.get(function(rookdata, getResponseHeaders){
-      $scope.rook_version = rookdata.version;
-      console.log("Got rook version: " + $scope.rook_version);
-      console.log("Got version: " + $scope.api_version);
-      $scope.$root.simulator = getResponseHeaders("X-Simulator-Enabled");
-  });
 
   // Send feedback to server
   $scope.send_feedback = function() {
