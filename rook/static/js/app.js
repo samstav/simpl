@@ -404,6 +404,73 @@ function NavBarController($scope, $location) {
 
 }
 
+function ActivityFeedController($scope, $http, items) {
+  $scope.parse_event = function(event, key) {
+    var parsed = {
+      key: event.id,
+      id: event.id,
+      when: event.created_at,
+      actor: event.actor.login,
+      actor_url: event.actor.url,
+      actor_avatar_url: event.actor.avatar_url,
+      target: event.repo.name.indexOf('Blueprints') == 0 ? 'blueprint ' + event.repo.name.substr(11) : event.repo.name,
+      target_url: event.repo.url.replace('/api/v3/repos', ''),
+      data: event
+      };
+    if ('payload' in event) {
+      if ('pull_request' in event.payload) {
+        parsed.action = 'pull request ' + event.payload.pull_request.number;
+        parsed.action_url = event.payload.pull_request.html_url;
+      } else if ('commits' in event.payload) {
+        parsed.action = event.payload.commits[0].message;
+        parsed.action_url = event.payload.commits[0].url;
+      }
+      parsed.verb = event.payload.action;
+    }
+    var actionArray = event.type.match(/[A-Z][a-z]+/g).slice(0,-1);
+    parsed.verb = parsed.verb || actionArray[0].toLowerCase() + 'ed';
+    parsed.subject_type = actionArray.slice(1).join(' ').toLowerCase();
+    parsed.article = 'on';
+    switch(event.type)
+    {
+    case 'IssueCommentEvent':
+      parsed.verb = 'issued';
+      break;
+    case 'CreateEvent':
+      parsed.verb = 'created';
+      parsed.article = '';
+      break;
+    case 'PullRequestEvent':
+      parsed.subject_type = '';
+      break;
+    case 'PushEvent':
+      parsed.article = 'to';
+      break;
+    case 'ForkEvent':
+      parsed.article = '';
+      break;
+    default:
+    }
+    return parsed;
+  }
+
+  $scope.load = function() {
+    var path = (checkmate_server_base || '') + '/githubproxy/api/v3/orgs/Blueprints/events'
+    $http({method: 'GET', url: path, headers: {'X-Target-Url': 'https://github.rackspace.com', 'accept': 'application/json'}}).
+      success(function(data, status, headers, config) {
+        items.clear();
+        items.receive(data, $scope.parse_event);
+        $scope.count = items.count;
+        $scope.items = items.all;
+      }).
+      error(function(data, status, headers, config) {
+        var response = {data: data, status: status};
+        //$scope.show_error(response);
+      });
+  }
+  $scope.load();
+}
+
 //Workflow controllers
 function WorkflowListController($scope, $location, $resource, workflow, items, navbar, scroll) {
   //Model: UI
@@ -1798,7 +1865,7 @@ $(window).load(function () {
   prettyPrint();
 
   // Home page
-  $(".pricing img").hover(
+  $(".pricing img.hover-fade").hover(
     function() {
       $(this).fadeTo(100, 1);
     },
