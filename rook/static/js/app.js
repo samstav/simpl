@@ -31,6 +31,10 @@ checkmate.config(['$routeProvider', '$locationProvider', '$httpProvider', functi
   when('/deployments/default', {
     templateUrl: '/partials/managed-cloud-wordpress.html',
     controller: DeploymentManagedCloudController
+  }).
+  when('/deployments/wordpress-stacks', {
+    templateUrl: '/partials/wordpress-stacks.html',
+    controller: StaticController
   })
 
   // New UI - dynamic, tenant pages
