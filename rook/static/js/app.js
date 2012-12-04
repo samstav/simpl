@@ -1129,11 +1129,11 @@ function BlueprintRemoteListController($scope, $location, $routeParams, $resourc
   //Inherit from Blueprint List Controller
   BlueprintListController($scope, $location, $routeParams, $resource, items, navbar, settings, workflow, {}, null, {}, null);
   //Model: UI
-  $scope.loading_remote_blueprints = true;
+  $scope.loading_remote_blueprints = false;
 
-  $scope.remote_url = 'https://github.rackspace.com/Blueprints';
-  $scope.remote_server = 'https://github.rackspace.com/';
-  $scope.remote_org = 'Blueprints';
+  $scope.remote_url = null;
+  $scope.remote_server = null;
+  $scope.remote_org = null;
   $scope.remote_user = null;
 
   $scope.parse_url = function(url) {
@@ -1146,6 +1146,7 @@ function BlueprintRemoteListController($scope, $location, $routeParams, $resourc
     $http({method: 'HEAD', url: (checkmate_server_base || '') + '/githubproxy/api/v3/orgs' + u.path(),
         headers: {'X-Target-Url': $scope.remote_server, 'accept': 'application/json'}}).
     success(function(data, status, headers, config) {
+      $scope.remote_url = u.href();
       $scope.remote_org = u.path().substring(1);
       $scope.remote_user = null;
       $scope.load();
@@ -1158,7 +1159,8 @@ function BlueprintRemoteListController($scope, $location, $routeParams, $resourc
   };
   
   $scope.load = function() {
-    console.log("Starting load")
+    console.log("Starting load");
+    $scope.loading_remote_blueprints = true;
     var path = (checkmate_server_base || '') + '/githubproxy/api/v3/orgs/' + $scope.remote_org + '/repos'
     if ($scope.remote_org === null)
       path = (checkmate_server_base || '') + '/githubproxy/api/v3/users/' + $scope.remote_user + '/repos';
@@ -1260,8 +1262,6 @@ function BlueprintRemoteListController($scope, $location, $routeParams, $resourc
       $scope.get_branches(newVal);  //calls loadBlueprint()
     }
   });
-  
-  $scope.load();
 
 }
 
