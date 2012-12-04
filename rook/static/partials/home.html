@@ -364,7 +364,7 @@
           <table class="table table-condensed">
             <tr ng-repeat="item in items">
               <td><img class="img-rounded pull-left" style="width:25px; height:20px;" ng-src="{{item.actor_avatar_url}}"></td>
-              <td><a ng-href="{{item.actor.url}}" target="_blank"> {{item.actor}}</a>
+              <td><a ng-href="{{item.actor_url}}" target="_blank"> {{item.actor}}</a>
               <span>{{item.verb}} {{item.subject_type}}<a ng-href="{{item.action_url}}" target="_blank">{{item.action | snippet:20}}</a></span> {{item.article}} <a ng-href="{{item.target_url}}" target="_blank">{{item.target}}</a> {{item.when | formattedDate}}</span></td>
             </tr>
           </table>
