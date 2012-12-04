@@ -710,6 +710,8 @@ class AuthTokenRouterMiddleware():
         self.last_headers = None
         self.last_exc_info = None
 
+        self.response_headers = []
+
         # For each endpoint, instantiate a middleware instance to process its
         # token auth calls. We'll route to it when appropriate
         for endpoint in self.endpoints:
@@ -719,12 +721,16 @@ class AuthTokenRouterMiddleware():
                 self.middleware[endpoint] = middleware
                 if endpoint == self.default_endpoint:
                     self.default_middleware = middleware
+                header = ('WWW-Authenticate', 'Keystone uri="%s"' % endpoint)
+                if header not in self.response_headers:
+                    self.response_headers.append(header)
 
         if self.default_endpoint and self.default_middleware is None:
             self.default_middleware = TokenAuthMiddleware(app,
                     endpoint=self.default_endpoint)
 
     def __call__(self, e, h):
+        h = self.start_response_callback(h)
         if 'HTTP_X_AUTH_TOKEN' in e:
             if 'HTTP_X_AUTH_SOURCE' in e:
                 source = e['HTTP_X_AUTH_SOURCE']
@@ -776,6 +782,16 @@ class AuthTokenRouterMiddleware():
                 start_response(status, headers, exc_info)
         return callback
 
+    def start_response_callback(self, start_response):
+        """Intercepts upstream start_response and adds our headers"""
+        def callback(status, headers, exc_info=None):
+            # Add our headers to response
+            for header in self.response_headers:
+                if header not in headers:
+                    headers.append(header)
+            # Call upstream start_response
+            start_response(status, headers, exc_info)
+        return callback
 
 class CatchAll404(object):
     """Facilitates 404 responses for any path not defined elsewhere.  Kept in
