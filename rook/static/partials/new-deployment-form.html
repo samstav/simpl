@@ -160,7 +160,7 @@
           <div class="accordion-group">
               <div class="accordion-heading">
                   <a class="accordion-toggle" data-toggle="collapse" data-parent="#accordion2" data-target="#collapseOne" href="#">
-                    More Options
+                    Show More Options
                   </a>
               </div>
               <div id="collapseOne" class="accordion-body collapse out">
@@ -172,9 +172,9 @@
       </div>
 
       <div class="form-actions">
-        <button ng-click="submit(false)" class="btn btn-primary" ng-disabled="!auth.loggedIn || is_unsupported_account()" onclick="this.disabled=true">Build It!</button>
-        <button ng-cloak ng-show="simulator" ng-click="simulate()" class="btn" ng-disabled="!auth.loggedIn">Simulate It</button>
-        <button ng-click="preview()" class="btn" ng-disabled="!auth.loggedIn">Preview It</button>
+        <button ng-click="submit(false)" class="btn btn-primary" ng-disabled="!auth.loggedIn || is_unsupported_account() || submitting">Build It!</button>
+        <button ng-cloak ng-show="simulator" ng-click="simulate()" class="btn" ng-disabled="!auth.loggedIn || submitting">Simulate It</button>
+        <button ng-click="preview()" class="btn" ng-disabled="!auth.loggedIn || submitting">Preview It</button>
         <button ng-click="loginPrompt()" class="btn" ng-hide="auth.loggedIn">Log in to execute this workflow</button>
       </div>
     </fieldset>
@@ -196,10 +196,10 @@
   <label class="control-label capitalize" ng-class="{required: required}" for="{{setting.id}}">{{setting.label || setting.id}}</label>
   <div class="controls" ng-init="show=false">
     <div class="input-append">
-      <input ng-hide="show" type="password" class="input-xlarge" id="{{setting.id}}" ng-model="answers[setting.id]"
+      <input ng-hide="show" type="password" class="input-large" id="{{setting.id}}" ng-model="answers[setting.id]"
               ng-required="required" ng-pattern="{{setting.regex || ''}}"
               placeholder="{{setting.sample | prepend:'ex. '}}">
-      <input ng-cloak ng-show="show" type="text" class="input-xlarge" id="{{setting.id}}" ng-model="answers[setting.id]"
+      <input ng-cloak ng-show="show" type="text" class="input-large" id="{{setting.id}}" ng-model="answers[setting.id]"
               ng-required="required" ng-pattern="{{setting.regex || ''}}"
               placeholder="{{setting.sample | prepend:'ex. '}}">
       <button class="btn" ng-class="{'active': show}" ng-click="show = !show">Show</button>

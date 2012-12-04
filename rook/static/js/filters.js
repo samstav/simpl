@@ -38,9 +38,16 @@ filters.filter('yaml', function() {
 });
 
 filters.filter('snippet', function() {
-  return function(d) {
-    return d ? d.substr(0, 2000) + '...' : '';
-  };
+  return function(d, chars) {
+    if (d) {
+      if (d.length > (chars || 2000)) {
+        return d.substr(0, chars || 2000) + '...';
+      } else {
+        return d;
+      };
+    };
+    return '';
+  }
 });
 
 filters.filter('checkmark', function() {

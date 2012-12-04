@@ -302,100 +302,78 @@
     </div>
   </div>
   <div class="row pricing">
-    <div class="span3">
-      <div class="spot">Start<br />here</div>
-      <div class="well highlighted">
-        <a href="/deployments/default">
-          <img class="center" id="fanatical" alt="Managed Cloud Wordpress" src="/img/applications/wordpress.png"></a>
-        <h3>Managed Cloud <strong>WordPress</strong></h3>
+    <div id="appCarousel" class="carousel slide span5" data-interval="0">
+      <!-- Carousel items -->
+      <div class="carousel-inner">
+        <div class="active item">
+          <div style="padding-left: 65px; padding-top: 35px; padding-right: 65px;">
+            <div class="spot">Ready<br>Now</div>
+            <div class="well highlighted" style="margin-top: -45px;">
+              <a href="/deployments/default">
+                <img class="center hover-fade" id="fanatical" alt="Managed Cloud Wordpress" src="/img/applications/wordpress.png"></a>
+              <h3>Managed Cloud <strong>WordPress</strong></h3>
+            </div>
+          </div>
+        </div>
+        <div class="item">
+          <div style="padding-left: 65px; padding-top: 35px; padding-right: 65px;">
+            <div class="spot2">Being<br />built</div>
+            <div class="well highlighted" style="margin-top: -45px;">
+                <img class="center hover-fade" style="opacity: .5;" id="fanatical" alt="Managed Cloud Drupal" src="/img/applications/druplicon.small_.png">
+              <h3>Managed Cloud<br><strong>Drupal</strong></h3>
+            </div>
+          </div>
+        </div>
+        <div class="item">
+          <div style="padding-left: 65px; padding-top: 35px; padding-right: 65px;">
+            <div class="spot2">Coming<br />Soon</div>
+            <div class="well highlighted" style="margin-top: -45px;">
+                <img class="center hover-fade" style="opacity: .5;" id="fanatical" alt="Managed Cloud Magento" src="/img/applications/magento1-6.png">
+              <h3>Managed Cloud <strong>Magento</strong></h3>
+            </div>
+          </div>
+        </div>
+        <div class="item">
+          <div style="padding-left: 65px; padding-top: 35px; padding-right: 65px;">
+            <div class="spot2">Coming<br />soon</div>
+            <div class="well highlighted" style="margin-top: -45px;">
+                <img class="center hover-fade" style="opacity: .5;" id="fanatical" alt="Managed Cloud SugarCRM" src="/img/applications/sugarcrm-box-only.jpg">
+              <h3>Managed Cloud <strong>SugarCRM</strong></h3>
+            </div>
+          </div>
+        </div>
       </div>
+      <!-- Carousel nav -->
+      <a class="carousel-control left" href="#" data-target="#appCarousel" data-slide="prev">&lsaquo;</a>
+      <a class="carousel-control right" href="#" data-target="#appCarousel" data-slide="next">&rsaquo;</a>
     </div>
-    <div class="span3">
-      <div class="spot2">Coming<br />soon</div>
-      <div class="well highlighted">
-          <img class="center" style="opacity: .5;" id="fanatical" alt="Managed Cloud Drupal" src="/img/applications/druplicon.small_.png">
-        <h3>Managed Cloud <strong>Drupal</strong></h3>
+
+
+    <div ng-controller="ActivityFeedController">
+      <div class="span4" ng-hide="items">
+        <h4>Check out the latest activity on <a href="https://github.rackspace.com/checkmate" target="_blank">github</a></h4>
+        <ul>
+          <li><a href="https://github.rackspace.com/checkmate" target="_blank">Checkmate server & UI code</a></li>
+          <li><a href="https://github.rackspace.com/Blueprints" target="_blank">Blueprints</a></li>
+          <li><a href="https://github.rackspace.com/Cookbooks" target="_blank">Chef Cookbooks</a></li>
+        </ul>
       </div>
-    </div>
-    <div class="span3">
-      <div class="spot2">Q4<br />2012</div>
-      <div class="well highlighted">
-          <img class="center" style="opacity: .5;" id="fanatical" alt="Managed Cloud Magento" src="/img/applications/magento1-6.png">
-        <h3>Managed Cloud <strong>Magento</strong></h3>
-      </div>
-    </div>
-    <div class="span3">
-      <div class="spot2">Q4<br />2012</div>
-      <div class="well highlighted">
-          <img class="center" style="opacity: .5;" id="fanatical" alt="Managed Cloud SugarCRM" src="/img/applications/sugarcrm-box-only.jpg">
-        <h3>Managed Cloud <strong>SugarCRM</strong></h3>
-      </div>
-    </div>
-  </div>
-  <div class="row pricing">
-    <div class="span4 offset2">
-      <div class="well">
-        <a href="/marketing/customer.html" onclick="window.location='/marketing/customer.html';">
-          <img class="center" alt="Learning" id="learning" src="/marketing/img/worker-at-cubicle.png">
-        </a>
-        <h3>Learn more</h3>
-      </div>
-    </div>
-    <div class="span4">
-      <div class="well">
-        <a href="#" data-toggle="modal" data-target="#modalSLA">
-          <img class="center" alt="Support" id="hacking" src="/marketing/img/fanatiguy.png" data-original-title="">
-        </a>
-        <h3>Support</h3>
+      <div ng-cloak ng-show="items" class="span7">
+        <h4>Join these Rackers and create your own application Blueprints!</h4>
+        <div style="overflow: scroll; height: 360px;">
+          <table class="table table-condensed">
+            <tr ng-repeat="item in items">
+              <td style="width: 20px;"><img class="img-rounded pull-left" style="width:20px; height:20px;" ng-src="{{item.actor_avatar_url}}"></td>
+              <td><a ng-href="{{item.actor_url}}" target="_blank"> {{item.actor}}</a>
+              <span>{{item.verb}} {{item.subject_type}}<a ng-href="{{item.action_url}}" target="_blank">{{item.action | snippet:20}}</a></span> {{item.article}} <a ng-href="{{item.target_url}}" target="_blank">{{item.target}}</a> {{item.when | formattedDate}}</span></td>
+            </tr>
+          </table>
+        </div>
       </div>
     </div>
   </div>
 </div>
 </article></section>
 
-<div id="modalSLA" class="modal hide fade">
-  <div class="modal-header">
-    <button type="button" class="close" data-dismiss="modal">&times;</button>
-    <h3>Support for Checkmate</h3>
-  </div>
-  <div class="modal-body">
-    <dl class="dl-horizontal">
-      <dt>About 24 hours</dt>
-      <dd>We don't have a 24x7 team. The code is an advanced prototype,
-    but a prototype nonetheless, so there could be show-stopping bugs in here and we can't guarantee a time by which we
-    could get them fixed.</dd>
-    </dl>
-
-    <dl class="dl-horizontal">
-      <dt>Passion</dt>
-      <dd>That said, we love this product and believe in it. We'll do our best to make it rock and to make your
-    experience using it awesome.</dd>
-    </dl>
-
-    <dl class="dl-horizontal">
-      <dt>Helping each other out</dt>
-      <dd>You can help (or help us help you) by giving us feedback or letting us know about issues
-    <a href="#nav-feedback" class="dropdown-toggle" data-toggle="dropdown">here</a>,
-    by <a target="_blank" href="mailto:checkmate@lists.rackspace.com">email</a>,
-    <a href="irc://irc.intra.rackspace.com/#checkmate" target="_blank">IRC</a>,
-    or <a href="http://github.rackspace.com/checkmate">contributing</a> on github.</dd>
-    </dl>
-  </div>
-  <div class="modal-footer">
-  </div>
-  </div>
-</div>
-
 
 <script src="/libs/jquery.timeago.js" type="text/javascript"></script>
-
-<script src="/marketing/js/jquery_ujs.js" type="text/javascript"></script>
-<script src="/marketing/js/builds.js" type="text/javascript"></script>
-<script src="/marketing/js/configurations.js" type="text/javascript"></script>
-<script src="/marketing/js/customers.js" type="text/javascript"></script>
-<script src="/marketing/js/sessions.js" type="text/javascript"></script>
-<script src="/marketing/js/environments.js" type="text/javascript"></script>
-<script src="/marketing/js/home.js" type="text/javascript"></script>
-<script src="/marketing/js/newsletter.js" type="text/javascript"></script>
-<script src="/marketing/js/templates.js" type="text/javascript"></script>
-<script src="/marketing/js/application.js" type="text/javascript"></script>

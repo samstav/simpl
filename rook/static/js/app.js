@@ -31,6 +31,10 @@ checkmate.config(['$routeProvider', '$locationProvider', '$httpProvider', functi
   when('/deployments/default', {
     templateUrl: '/partials/managed-cloud-wordpress.html',
     controller: DeploymentManagedCloudController
+  }).
+  when('/deployments/wordpress-stacks', {
+    templateUrl: '/partials/wordpress-stacks.html',
+    controller: StaticController
   })
 
   // New UI - dynamic, tenant pages
@@ -112,7 +116,7 @@ function ExternalController($window, $location) {
 }
 
 //Root controller that implements authentication
-function AppController($scope, $http, $location) {
+function AppController($scope, $http, $location, $resource) {
   $scope.showHeader = true;
   $scope.showStatus = false;
   $scope.auth = {
@@ -204,6 +208,9 @@ function AppController($scope, $http, $location) {
 
     modal[0].success_callback = success_callback;
     modal[0].failure_callback = failure_callback;
+    modal.on('shown', function () {
+      $('input:text:visible:first', this).focus();
+    });
     modal.modal('show');
   }
 
@@ -297,15 +304,38 @@ function AppController($scope, $http, $location) {
 
 
   // Utility Functions
+  console.log("Getting api version");
+  var api = $resource((checkmate_server_base || '') + '/version');
+  api.get(function(data, getResponseHeaders){
+	  $scope.api_version = data.version;
+	  console.log("Got api version: " + $scope.api_version);
+  });
+
+  console.log("Getting rook version");
+  var rook = $resource((checkmate_server_base || '') + '/rookversion');
+  rook.get(function(rookdata, getResponseHeaders){
+      $scope.rook_version = rookdata.version;
+      console.log("Got rook version: " + $scope.rook_version);
+      console.log("Got version: " + $scope.api_version);
+      $scope.$root.simulator = getResponseHeaders("X-Simulator-Enabled");
+  });
 
   //Check for a supported account
   $scope.is_unsupported_account = function() {
-    roles = [];
+    var roles = [];
     if ($scope.auth.loggedIn === true)
-        $scope.auth.catalog.access.user.roles || []
+        roles = $scope.auth.catalog.access.user.roles || [];
     return _.any(roles, function(role) {return role.name == "rack_connect"});
   }
 
+  //Check for a service level
+  $scope.is_managed_account = function() {
+    var roles = [];
+    if ($scope.auth.loggedIn === true)
+        roles = $scope.auth.catalog.access.user.roles || [];
+    return _.any(roles, function(role) {return role.name == "rax_managed"});
+  }
+  
   $scope.generatePassword = function() {
       if (parseInt(navigator.appVersion) <= 3) {
           $scope.notify("Sorry this only works in 4.0+ browsers");
@@ -349,24 +379,9 @@ function AppController($scope, $http, $location) {
 
 }
 
-function NavBarController($scope, $location, $resource) {
+function NavBarController($scope, $location) {
   $scope.feedback = "";
   $scope.email = "";
-  console.log("Getting api version");
-  this.api = $resource((checkmate_server_base || '') + '/version');
-  this.api.get(function(data, getResponseHeaders){
-	  $scope.api_version = data.version;
-	  console.log("Got api version: " + $scope.api_version);
-  });
-
-  console.log("Getting rook version");
-  this.rook = $resource((checkmate_server_base || '') + '/rookversion');
-  this.rook.get(function(rookdata, getResponseHeaders){
-      $scope.rook_version = rookdata.version;
-      console.log("Got rook version: " + $scope.rook_version);
-      console.log("Got version: " + $scope.api_version);
-      $scope.$root.simulator = getResponseHeaders("X-Simulator-Enabled");
-  });
 
   // Send feedback to server
   $scope.send_feedback = function() {
@@ -402,6 +417,122 @@ function NavBarController($scope, $location, $resource) {
     });
   }
 
+}
+
+function ActivityFeedController($scope, $http, items) {
+  $scope.parse_event = function(event, key) {
+    var parsed = {
+      key: event.id,
+      id: event.id,
+      when: event.created_at,
+      actor: event.actor.login,
+      actor_url: event.actor.url.replace('/api/v3/users', ''),
+      actor_avatar_url: event.actor.avatar_url,
+      target: event.repo.name.indexOf('Blueprints') == 0 ? 'blueprint ' + event.repo.name.substr(11) : event.repo.name,
+      target_url: event.repo.url.replace('/api/v3/repos', ''),
+      data: event
+      };
+    if ('payload' in event) {
+      if ('pull_request' in event.payload) {
+        parsed.action = 'pull request ' + event.payload.pull_request.number;
+        parsed.action_url = event.payload.pull_request.html_url;
+      } else if ('commits' in event.payload) {
+        parsed.action = event.payload.commits[0].message;
+        parsed.action_url = event.payload.commits[0].url.replace('/api/v3/repos', '').replace('/commits/', '/commit/');
+      }
+      parsed.verb = event.payload.action;
+    }
+    var actionArray = event.type.match(/[A-Z][a-z]+/g).slice(0,-1);
+    parsed.verb = parsed.verb || actionArray[0].toLowerCase() + 'ed';
+    parsed.subject_type = actionArray.slice(1).join(' ').toLowerCase();
+    parsed.article = 'on';
+    switch(event.type)
+    {
+    case 'IssueCommentEvent':
+      parsed.verb = 'issued';
+      break;
+    case 'CreateEvent':
+      parsed.verb = 'created';
+      parsed.article = '';
+      break;
+    case 'PullRequestEvent':
+      parsed.subject_type = '';
+      break;
+    case 'PushEvent':
+      parsed.article = 'to';
+      break;
+    case 'ForkEvent':
+      parsed.article = '';
+      break;
+    default:
+    }
+    return parsed;
+  }
+
+  $scope.load = function() {
+    var path = (checkmate_server_base || '') + '/githubproxy/api/v3/orgs/Blueprints/events'
+    $http({method: 'GET', url: path, headers: {'X-Target-Url': 'https://github.rackspace.com', 'accept': 'application/json'}}).
+      success(function(data, status, headers, config) {
+        items.clear();
+        items.receive(data, $scope.parse_event);
+        $scope.count = items.count;
+        $scope.items = items.all;
+      }).
+      error(function(data, status, headers, config) {
+        var response = {data: data, status: status};
+        //$scope.show_error(response);
+      });
+  }
+  $scope.load();
+}
+
+function TestController($scope, $location, $routeParams, $resource, $http, items, navbar, settings, workflow) {
+  $scope.prices = {
+    single: {
+      blueprint: 'https://github.rackspace.com/Blueprints/wordpress-single.git',
+      core_price: '87.60',
+      managed_price: '275.20'
+    },
+    double_dbaas: {
+      blueprint: 'https://github.rackspace.com/Blueprints/wordpress-single-clouddb.git',
+      core_price: '240.90',
+      managed_price: '428.50',
+      db_spec: '2 Gb Cloud Database'
+    },
+    double_mysql: {
+      blueprint: 'https://github.rackspace.com/Blueprints/wordpress-single-db.git',
+      core_price: '262.80',
+      managed_price: '538.00',
+      db_spec: '4 Gb Database Server'
+    },
+    multi_dbaas: {
+      blueprint: 'https://github.rackspace.com/Blueprints/wordpress-clouddb.git',
+      core_price: '478.15',
+      managed_price: '694.95',
+      db_spec: '4 Gb Cloud Database'
+    },
+    multi_mysql: {
+      blueprint: 'https://github.rackspace.com/Blueprints/wordpress.git',
+      core_price: '536.55',
+      managed_price: '811.75',
+      db_spec: '8 Gb Database Server'
+    },
+    double: {},
+    multi: {}
+  }
+  
+  $scope.service_level = $scope.is_managed_account() ? 'managed' : 'core';
+  $scope.database_type = 'dbaas';
+
+  $scope.updatePricing = function() {
+    $scope.prices.single.price = $scope.prices.single[$scope.service_level + '_price'];
+    $scope.prices.double.price = $scope.prices['double_' + $scope.database_type][$scope.service_level + '_price'];
+    $scope.prices.multi.price = $scope.prices['multi_' + $scope.database_type][$scope.service_level + '_price'];
+    $scope.prices.double.db_spec = $scope.prices['double_' + $scope.database_type].db_spec;
+    $scope.prices.multi.db_spec = $scope.prices['multi_' + $scope.database_type].db_spec;
+
+  }
+  $scope.updatePricing();
 }
 
 //Workflow controllers
@@ -1047,11 +1178,11 @@ function BlueprintRemoteListController($scope, $location, $routeParams, $resourc
   //Inherit from Blueprint List Controller
   BlueprintListController($scope, $location, $routeParams, $resource, items, navbar, settings, workflow, {}, null, {}, null);
   //Model: UI
-  $scope.loading_remote_blueprints = true;
+  $scope.loading_remote_blueprints = false;
 
-  $scope.remote_url = 'https://github.rackspace.com/Blueprints';
-  $scope.remote_server = 'https://github.rackspace.com/';
-  $scope.remote_org = 'Blueprints';
+  $scope.remote_url = null;
+  $scope.remote_server = null;
+  $scope.remote_org = null;
   $scope.remote_user = null;
 
   $scope.parse_url = function(url) {
@@ -1064,6 +1195,7 @@ function BlueprintRemoteListController($scope, $location, $routeParams, $resourc
     $http({method: 'HEAD', url: (checkmate_server_base || '') + '/githubproxy/api/v3/orgs' + u.path(),
         headers: {'X-Target-Url': $scope.remote_server, 'accept': 'application/json'}}).
     success(function(data, status, headers, config) {
+      $scope.remote_url = u.href();
       $scope.remote_org = u.path().substring(1);
       $scope.remote_user = null;
       $scope.load();
@@ -1076,7 +1208,8 @@ function BlueprintRemoteListController($scope, $location, $routeParams, $resourc
   };
   
   $scope.load = function() {
-    console.log("Starting load")
+    console.log("Starting load");
+    $scope.loading_remote_blueprints = true;
     var path = (checkmate_server_base || '') + '/githubproxy/api/v3/orgs/' + $scope.remote_org + '/repos'
     if ($scope.remote_org === null)
       path = (checkmate_server_base || '') + '/githubproxy/api/v3/users/' + $scope.remote_user + '/repos';
@@ -1178,8 +1311,6 @@ function BlueprintRemoteListController($scope, $location, $routeParams, $resourc
       $scope.get_branches(newVal);  //calls loadBlueprint()
     }
   });
-  
-  $scope.load();
 
 }
 
@@ -1408,6 +1539,8 @@ function DeploymentNewController($scope, $location, $routeParams, $resource, set
   $scope.domain_names = null;
   $scope.manual_site_address = null;
   $scope.show_site_address_controls = false;
+  
+  $scope.submitting = false; //Turned on while we are processing a deployment
 
   //Retrieve existing domains  
   $scope.getDomains = function(){
@@ -1531,6 +1664,9 @@ function DeploymentNewController($scope, $location, $routeParams, $resource, set
   };
 
   $scope.submit = function(action) {
+    if ($scope.submitting === true)
+      return;
+    $scope.submitting = true;
     var url = '/:tenantId/deployments';
     if ((action !== undefined) && action)
       url += '/' + action;
@@ -1572,6 +1708,7 @@ function DeploymentNewController($scope, $location, $routeParams, $resource, set
     });
 
     if (break_flag){
+      $scope.submitting = false;
       return;
     }
 
@@ -1591,8 +1728,10 @@ function DeploymentNewController($scope, $location, $routeParams, $resource, set
         $scope.$root.error = {data: error.data, status: error.status, title: "Error Creating Deployment",
                 message: "There was an error creating your deployment:"};
         $('#modalError').modal('show');
+        $scope.submitting = false;
       });
     } else {
+      $scope.submitting = false;
       $scope.loginPrompt(); //TODO: implement a callback
     }
   };
@@ -1798,7 +1937,7 @@ $(window).load(function () {
   prettyPrint();
 
   // Home page
-  $(".pricing img").hover(
+  $(".pricing img.hover-fade").hover(
     function() {
       $(this).fadeTo(100, 1);
     },
