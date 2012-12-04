@@ -1,75 +1,122 @@
- <style>
-      body {
-        padding-top: 60px; /* 60px to make the container go all the way to the bottom of the topbar */
-      }
-      .textwrap {
-		    float: left;
-		    margin: 10px;
-      }
-      .price {
-        text-align: center;
-        font-size: 20px;
-        font-style: italic;
-        font-weight: bold;
-      }
-      .performance {
-        text-align: center;
-        font-size: 15px;
-        font-style: italic;
-      }
+<style>
+.textwrap {
+              float: left;
+              margin: 10px;
+}
+.price {
+  text-align: center;
+  font-size: 20px;
+  font-style: italic;
+  font-weight: bold;
+}
+.performance {
+  text-align: center;
+  font-size: 15px;
+  font-style: italic;
+}
 </style>
-<div class="container">
-    <img src="http://s.wordpress.org/about/images/logos/wordpress-logo-notext-rgb.png" height=150 width=150 class="textwrap">
+<div class="entries" ng-controller="TestController">
+  <div class="entry well well-small drop-shadow" style="margin-top: 30px;">
+    <img src="/static/img/applications/wordpress.png" height=150 width=150 class="textwrap">
     <h1>Which Architecture Is Right For Your Customer?</h1>
-    <p>WordPress deployments come in many shapes and sizes. Pick from the configs below based on your customer's  <strong>budget, performance and reliability needs.</strong></p>
-    
+    <div class="row-fluid">
+      <div class="span6">WordPress deployments come in many shapes and sizes. Pick from the configs below based on your customer's  <strong>budget, performance and reliability needs.</strong></div>
+      <div class="pull-right"><table>
+        <tr>
+          <td>Database:</td>
+          <td>
+            <div class="btn-group">
+              <button class="btn btn-small" ng-class="{active: database_type=='dbaas', 'btn-primary': database_type=='dbaas'}" ng-click="database_type='dbaas'; updatePricing()">Cloud DB</button>
+              <button class="btn btn-small" ng-class="{active: database_type=='mysql', 'btn-primary': database_type=='mysql'}" ng-click="database_type='mysql'; updatePricing()">MySQL VM</button>
+            </div>
+          </td>
+        </tr>
+        <tr>
+          <td>Service Level:</td>
+          <td>
+            <div class="btn-group">
+              <button class="btn btn-small" ng-class="{active: service_level=='managed', 'btn-primary': service_level=='managed'}" ng-click="service_level='managed'; updatePricing()">Managed</button>
+              <button class="btn btn-small" ng-class="{active: service_level=='core', 'btn-primary': service_level=='core'}" ng-click="service_level='core'; updatePricing()">Core</button>
+            </div>
+          </td>
+        </tr>
+      </table>
+      </div>
+    </div>
     <table class="table table-bordered">
       <thead>
         <tr>
-          <th>Small</th>
-          <th>Medium</th>
-          <th>Medium, Cloud Databases</th>
-          <th>Large</th>
-          <th>Extra Large<th>
+          <th></th>
+          <th>Single/Dev Box</th>
+          <th>Two Node</th>
+          <th>Multi-Node at Scale</th>
         </tr>
-    
      </thead>
       <tbody>
         <tr>
+          <td>Description</td>
           <td>Cheap. Great for development. Host server or OS issue will take down the website.</td>
           <td>Database is offloaded to increase performance. Host server or OS issue will take down the website.</td>
-          <td>Database is offloaded to increase performance. Host server or OS issue will take down the website.</td>
-    <td>No single host server or OS issue will take down the website.</td>
-    <td>Maximum performance and reliability.</td>
+          <td>No single host server or OS issue will take down the website.</td>
         </tr>
         <tr>
+          <td>Architecture</td>
           <th><img style="margin:0px auto;display:block" src="/static/img/artwork/small.png" height=130 width=130</th>
           <th><img style="margin:0px auto;display:block" src="/static/img/artwork/medium.png" height=130 width=130</th>
           <th><img style="margin:0px auto;display:block" src="/static/img/artwork/medium_clouddb.png" height=130 width=130</th>
-          <th><img style="margin:0px auto;display:block" src="/static/img/artwork/medium_clouddb.png" height=130 width=130</th>
-          <th><img style="margin:0px auto;display:block" src="/static/img/artwork/medium_clouddb.png" height=130 width=130</th>
         </tr>
         <tr>
-          <td><div class="performance">X users/minute</div></td>
-          <td><div class="performance">X users/minute</div></td>
+          <td>Specs</td>
+          <td>
+            <div>
+              <ul>
+                <li>2 Gb Server</li>
+                <li>Ubuntu 12.04 (LTS)</li>
+                <li>80 Gb Disk</li>
+              </ul>
+            </div>
+          </td>
+          <td>
+            <div>
+              <ul>
+                <li>2 Gb Server</li>
+                <li>Ubuntu 12.04 (LTS)</li>
+                <li>80 Gb Disk</li>
+                <li>{{prices.double.db_spec}}</li>
+              </ul>
+            </div>
+          </td>
+          <td>
+            <div>
+              <ul>
+                <li>2x2 Gb Servers (up to 8)</li>
+                <li>Ubuntu 12.04 (LTS)</li>
+                <li>80 Gb Disk</li>
+                <li>Cloud Load Balancer</li>
+                <li>{{prices.multi.db_spec}}</li>
+              </ul>
+            </div>
+          </td>
+        </tr>
+        <tr>
+          <td>Performance</td>
           <td><div class="performance">X users/minute</div></td>
           <td><div class="performance">X users/minute</div></td>
           <td><div class="performance">X users/minute</div></td>
         </tr>
         <tr>
-          <td><div class="price">$150/month</div></td>
-          <td><div class="price">$250/month</div></td>
-          <td><div class="price">$185/month</div></td>
-          <td><div class="price">$400+/month</div></td>
-          <td><div class="price">$600+/month</div></td>
+          <td>Cost</td>
+          <td><div class="price">${{prices.single.price}}/month</div></td>
+          <td><div class="price">${{prices.double.price}}/month</div></td>
+          <td><div class="price">${{prices.multi.price}}/month</div></td>
         </tr>
         <tr>
-          <td><button style="margin:0px auto;display:block" type="button" class="btn btn-primary" ng-click="navigate('/deployments/default')">Build It</button></td>
-          <td><button style="margin:0px auto;display:block" type="button" class="btn btn-primary" ng-click="navigate('/deployments/default')">Build It</button></td>
+          <td></td>
           <td><button style="margin:0px auto;display:block" type="button" class="btn btn-primary" ng-click="navigate('/deployments/default')">Build It</button></td>
           <td><button style="margin:0px auto;display:block" type="button" class="btn btn-primary" ng-click="navigate('/deployments/default')">Build It</button></td>
           <td><button style="margin:0px auto;display:block" type="button" class="btn btn-primary" ng-click="navigate('/deployments/default')">Build It</button></td>
         </tr>
       </tbody>
     </table>
+  </div>
 </div>

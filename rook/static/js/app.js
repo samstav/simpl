@@ -486,6 +486,55 @@ function ActivityFeedController($scope, $http, items) {
   $scope.load();
 }
 
+function TestController($scope, $location, $routeParams, $resource, $http, items, navbar, settings, workflow, bps) {
+  $scope.prices = {
+    single: {
+      blueprint: 'https://github.rackspace.com/Blueprints/wordpress-single.git',
+      core_price: '87.60',
+      managed_price: '275.20'
+    },
+    double_dbaas: {
+      blueprint: 'https://github.rackspace.com/Blueprints/wordpress-single-clouddb.git',
+      core_price: '240.90',
+      managed_price: '428.50',
+      db_spec: '2 Gb Cloud Database'
+    },
+    double_mysql: {
+      blueprint: 'https://github.rackspace.com/Blueprints/wordpress-single-db.git',
+      core_price: '262.80',
+      managed_price: '538.00',
+      db_spec: '4 Gb Database Server'
+    },
+    multi_dbaas: {
+      blueprint: 'https://github.rackspace.com/Blueprints/wordpress-clouddb.git',
+      core_price: '478.15',
+      managed_price: '694.95',
+      db_spec: '4 Gb Cloud Database'
+    },
+    multi_mysql: {
+      blueprint: 'https://github.rackspace.com/Blueprints/wordpress.git',
+      core_price: '536.55',
+      managed_price: '811.75',
+      db_spec: '8 Gb Database Server'
+    },
+    double: {},
+    multi: {}
+  }
+  
+  $scope.service_level = $scope.is_managed_account() ? 'managed' : 'core';
+  $scope.database_type = 'dbaas';
+
+  $scope.updatePricing = function() {
+    $scope.prices.single.price = $scope.prices.single[$scope.service_level + '_price'];
+    $scope.prices.double.price = $scope.prices['double_' + $scope.database_type][$scope.service_level + '_price'];
+    $scope.prices.multi.price = $scope.prices['multi_' + $scope.database_type][$scope.service_level + '_price'];
+    $scope.prices.double.db_spec = $scope.prices['double_' + $scope.database_type].db_spec;
+    $scope.prices.multi.db_spec = $scope.prices['multi_' + $scope.database_type].db_spec;
+
+  }
+  $scope.updatePricing();
+}
+
 //Workflow controllers
 function WorkflowListController($scope, $location, $resource, workflow, items, navbar, scroll) {
   //Model: UI
