@@ -418,7 +418,7 @@ function ActivityFeedController($scope, $http, items) {
       id: event.id,
       when: event.created_at,
       actor: event.actor.login,
-      actor_url: event.actor.url,
+      actor_url: event.actor.url.replace('/api/v3/users', ''),
       actor_avatar_url: event.actor.avatar_url,
       target: event.repo.name.indexOf('Blueprints') == 0 ? 'blueprint ' + event.repo.name.substr(11) : event.repo.name,
       target_url: event.repo.url.replace('/api/v3/repos', ''),
@@ -430,7 +430,7 @@ function ActivityFeedController($scope, $http, items) {
         parsed.action_url = event.payload.pull_request.html_url;
       } else if ('commits' in event.payload) {
         parsed.action = event.payload.commits[0].message;
-        parsed.action_url = event.payload.commits[0].url;
+        parsed.action_url = event.payload.commits[0].url.replace('/api/v3/repos', '').replace('/commits/', '/commit/');
       }
       parsed.verb = event.payload.action;
     }
