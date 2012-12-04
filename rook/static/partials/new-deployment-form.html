@@ -172,9 +172,9 @@
       </div>
 
       <div class="form-actions">
-        <button ng-click="submit(false)" class="btn btn-primary" ng-disabled="!auth.loggedIn || is_unsupported_account()" onclick="this.disabled=true">Build It!</button>
-        <button ng-cloak ng-show="simulator" ng-click="simulate()" class="btn" ng-disabled="!auth.loggedIn">Simulate It</button>
-        <button ng-click="preview()" class="btn" ng-disabled="!auth.loggedIn">Preview It</button>
+        <button ng-click="submit(false)" class="btn btn-primary" ng-disabled="!auth.loggedIn || is_unsupported_account() || submitting">Build It!</button>
+        <button ng-cloak ng-show="simulator" ng-click="simulate()" class="btn" ng-disabled="!auth.loggedIn || submitting">Simulate It</button>
+        <button ng-click="preview()" class="btn" ng-disabled="!auth.loggedIn || submitting">Preview It</button>
         <button ng-click="loginPrompt()" class="btn" ng-hide="auth.loggedIn">Log in to execute this workflow</button>
       </div>
     </fieldset>

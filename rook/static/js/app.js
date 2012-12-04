@@ -1490,6 +1490,8 @@ function DeploymentNewController($scope, $location, $routeParams, $resource, set
   $scope.domain_names = null;
   $scope.manual_site_address = null;
   $scope.show_site_address_controls = false;
+  
+  $scope.submitting = false; //Turned on while we are processing a deployment
 
   //Retrieve existing domains  
   $scope.getDomains = function(){
@@ -1613,6 +1615,9 @@ function DeploymentNewController($scope, $location, $routeParams, $resource, set
   };
 
   $scope.submit = function(action) {
+    if ($scope.submitting === true)
+      return;
+    $scope.submitting = true;
     var url = '/:tenantId/deployments';
     if ((action !== undefined) && action)
       url += '/' + action;
@@ -1654,6 +1659,7 @@ function DeploymentNewController($scope, $location, $routeParams, $resource, set
     });
 
     if (break_flag){
+      $scope.submitting = false;
       return;
     }
 
@@ -1673,8 +1679,10 @@ function DeploymentNewController($scope, $location, $routeParams, $resource, set
         $scope.$root.error = {data: error.data, status: error.status, title: "Error Creating Deployment",
                 message: "There was an error creating your deployment:"};
         $('#modalError').modal('show');
+        $scope.submitting = false;
       });
     } else {
+      $scope.submitting = false;
       $scope.loginPrompt(); //TODO: implement a callback
     }
   };
