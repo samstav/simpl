@@ -486,7 +486,7 @@ function ActivityFeedController($scope, $http, items) {
   $scope.load();
 }
 
-function TestController($scope, $location, $routeParams, $resource, $http, items, navbar, settings, workflow, bps) {
+function TestController($scope, $location, $routeParams, $resource, $http, items, navbar, settings, workflow) {
   $scope.prices = {
     single: {
       blueprint: 'https://github.rackspace.com/Blueprints/wordpress-single.git',

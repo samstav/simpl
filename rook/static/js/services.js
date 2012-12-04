@@ -278,7 +278,7 @@ services.factory('workflow', [function() {
   return me;
 }]);
 
-/* A collection the holds the data behind the a view and controller.
+/* A collection that holds the data behind a view and controller.
  * Used in most controllers
 **/
 services.factory('items', [ 'filterFilter', function($resource, filter) {
