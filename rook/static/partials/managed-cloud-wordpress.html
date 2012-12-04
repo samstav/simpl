@@ -14,18 +14,19 @@
         </a>
         <div class="media-body">
           <h4 class="media-heading">Managed Cloud Wordpress</h4>
-          <p><i class="icon-star"></i> = fully tested with the current release of the
-          checkmate engine and supported by the Platform team.</p>
-          <p>Blueprints without the  <i class="icon-star"></i>
-          are the latest release from github and are supported by the authors.</p>
         </div>
       </div>
+      <p><small><span class="label label-success">full support</span> blueprints are fully tested with the current release of the
+      checkmate engine and supported by the Platform team. New versions of these blueprints are released at the same time as a checkmate release.</small></p>
+      <p><small>Blueprints from <span class="label label-inverse">github</span>
+      are frequently updated and are only supported by the authors.</small></p>
     </div>
   </div>
   <div id="mcspec_list" class="summaries" ng-cloak ng-show="showSummaries">
     <div ng-repeat="item in items" class="well summary" ng-click="selectItem($index)" ng-class="{active: item.selected}">
       <div class="row-fluid">
-        <h6><i ng-cloak ng-show="$index < 2" class="icon-star"></i> {{item.name}}</h6>
+        <h6><span ng-cloak ng-show="$index < 2" class="label label-success">full support</span>
+        <span ng-cloak ng-show="$index >= 2" class="label label-inverse">github</span> {{item.name}}</h6>
       </div>
 
       <div class="row-fluid">
