@@ -328,6 +328,14 @@ function AppController($scope, $http, $location, $resource) {
     return _.any(roles, function(role) {return role.name == "rack_connect"});
   }
 
+  //Check for a service level
+  $scope.is_managed_account = function() {
+    var roles = [];
+    if ($scope.auth.loggedIn === true)
+        roles = $scope.auth.catalog.access.user.roles || [];
+    return _.any(roles, function(role) {return role.name == "rax_managed"});
+  }
+  
   $scope.generatePassword = function() {
       if (parseInt(navigator.appVersion) <= 3) {
           $scope.notify("Sorry this only works in 4.0+ browsers");
