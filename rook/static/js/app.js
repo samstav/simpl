@@ -322,9 +322,9 @@ function AppController($scope, $http, $location, $resource) {
 
   //Check for a supported account
   $scope.is_unsupported_account = function() {
-    roles = [];
+    var roles = [];
     if ($scope.auth.loggedIn === true)
-        $scope.auth.catalog.access.user.roles || []
+        roles = $scope.auth.catalog.access.user.roles || [];
     return _.any(roles, function(role) {return role.name == "rack_connect"});
   }
 
