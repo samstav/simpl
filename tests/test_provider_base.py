@@ -242,23 +242,23 @@ class TestProviderBaseWorkflow(StubbedWorkflowBase):
                     'result': None,
                 })
         self.workflow = self._get_stubbed_out_workflow(expected_calls=expected)
- 
-    def test_workflow_completion(self):
-        """Verify workflow sequence and data flow"""
-        self.mox.ReplayAll()
-        self.workflow.complete_all()
-        self.assertTrue(self.workflow.is_completed(), "Workflow did not "
-                "complete")
-        self.assertIn('instance:0', self.workflow.get_tasks()[-1].attributes)
-        self.assertIn('mysql', self.workflow.get_tasks()[-1].attributes[
-            'instance:0']['interfaces'])
+    
+    #def test_workflow_completion(self):
+    #    'Verify workflow sequence and data flow'
+    #    self.mox.ReplayAll()
+    #    self.workflow.complete_all()
+    #    self.assertTrue(self.workflow.is_completed(), "Workflow did not "
+    #            "complete")
+    #    self.assertIn('instance:0', self.workflow.get_tasks()[-1].attributes)
+    #    self.assertIn('mysql', self.workflow.get_tasks()[-1].attributes[
+    #        'instance:0']['interfaces'])
 
-        LOG.debug("RESOURCES: %s" % json.dumps(self.deployment['resources'],
-                indent=2))
-        last_task = self.workflow.get_tasks()[-1]
-        LOG.debug("DELIVERED to '%s': %s" % (last_task.get_name(), json.dumps(
-                last_task.attributes['instance:0'], indent=2)))
-
+    #    LOG.debug("RESOURCES: %s" % json.dumps(self.deployment['resources'],
+    #            indent=2))
+    #    last_task = self.workflow.get_tasks()[-1]
+    #    LOG.debug("DELIVERED to '%s': %s" % (last_task.get_name(), json.dumps(
+    #            last_task.attributes['instance:0'], indent=2)))
+    
 
 class TestProviderBaseParser(unittest.TestCase):
     """Test setting parsers"""
