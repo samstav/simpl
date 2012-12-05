@@ -24,6 +24,8 @@
 -e git+https://github.rackspace.com/checkmate/python-novaclient.git@master#egg=python-novaclient-2012.2
 #Upstream: https://github.rackspace.com/checkmate/rook
 -e git+https://github.rackspace.com/checkmate/rook.git@master#egg=rook
+#Upstream: https://github.rackspace.com/checkmate/GitPython
+-e git+https://github.rackspace.com/checkmate/GitPython.git@0.3#egg=GitPython
 #
 # All other needed requirements should work as specified through the setup.py file.  
 # Really, this file is only needed for the github.rackspace.com repositories.

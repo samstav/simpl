@@ -17,8 +17,10 @@ def get_config():
 # Provide URLs to Github projects if they're not pip-aware
 gh = 'https://github.com'
 github_projects = [
-                   {'project': 'python-keystoneclient', 'user': 'openstack'},
-                   {'project': 'pychef', 'user': 'calebgroom', 'version': '-0.2.dev'},
+                   {'project': 'python-keystoneclient', 'user': 'openstack',
+                        'branch': '0.2.0', 'version': '-0.2.0'},
+                   {'project': 'pychef', 'user': 'calebgroom',
+                        'version': '-0.2.dev'},
                    {'project': 'rackspace-monitoring', 'user': 'racker'},
 #    The following are shoud be built from the github.rackspace checkmate org, which contains patched code
 #    In stalls this by running pip install -r pip-requirements.txt
