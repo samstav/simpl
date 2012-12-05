@@ -100,33 +100,56 @@ class TestWorkflowLogic(StubbedWorkflowBase):
 
 
 class TestWorkflow(StubbedWorkflowBase):
-    """Test Workflow Execution (uses app.yaml)"""
-
-    @classmethod
-    def setUpClass(cls):
-        # Load app.yaml, substitute variables
-        path = os.path.join(os.path.dirname(__file__), '..', 'examples',
-                            'app.yaml')
-        with file(path) as f:
-            source = f.read().decode('utf-8')
-
-        t = Template(source)
-        combined = copy.copy(ENV_VARS)
-        combined.update(os.environ)
-        parsed = t.safe_substitute(**combined)
-        app = yaml.safe_load(yaml.emit(resolve_yaml_external_refs(parsed),
-                             Dumper=yaml.SafeDumper))
-        app['id'] = 'DEP-ID-1000'
-        cls.deployment = Deployment(app)
-
+    """Test Workflow Execution"""
+    
     def setUp(self):
         StubbedWorkflowBase.setUp(self)
+	"""
         # Parse app.yaml as a deployment
         self.deployment = TestWorkflow.deployment
         self.workflow = self._get_stubbed_out_workflow()
-    """    
+    	"""
+        
     def test_workflow_completion(self):
         'Verify workflow sequence and data flow'
+	
+	self.deployment = Deployment(yaml_to_dict("""
+                id: test
+                blueprint:
+                  name: test bp
+                  services:
+                    one:
+                      component:
+                        type: widget
+                        interface: foo
+                    two:
+                      component:
+                        id: big_widget
+                environment:
+                  name: environment
+                  providers:
+                    base:
+                      provides:
+                      - widget: foo
+                      - widget: bar
+                      vendor: test
+                      catalog:
+                        widget:
+                          small_widget:
+                            is: widget
+                            provides:
+                            - widget: foo
+                          big_widget:
+                            is: widget
+                            provides:
+                            - widget: bar
+                    common:
+                      credentials:
+                      - password: secret
+                        username: tester
+            """))
+        PROVIDER_CLASSES['test.base'] = ProviderBase
+        self.workflow = self._get_stubbed_out_workflow()
 
         self.mox.ReplayAll()
 
@@ -179,8 +202,7 @@ class TestWorkflow(StubbedWorkflowBase):
         LOG.debug(json.dumps(self.deployment['resources'], indent=2))
         LOG.debug("\nOUTCOME:")
         LOG.debug(json.dumps(self.outcome, indent=2))
-        """
-
+        
 class TestWordpressWorkflow(StubbedWorkflowBase):
     """Test WordPress Workflow inputs (modifies app.yaml)"""
 
