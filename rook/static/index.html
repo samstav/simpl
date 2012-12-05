@@ -501,6 +501,21 @@ blueprint:
         Encoded key
         -----END PRIVATE KEY-----
       type: text
+    ssl_intermediate_certificate:
+      constrains:
+      - resource_type: application
+        service: web
+        setting: apache/cacert
+      - resource_type: application
+        service: master
+        setting: apache/cacert
+      label: SSL CA Cert
+      description: The collection of trusted root and/or intermediate certification authority certificates.
+      sample: |
+        -----BEGIN CERTIFICATE-----
+        Encoded key
+        -----END CERTIFICATE-----
+      type: text
     username:
       constrains:
       - setting: resources/wp user/name
@@ -1103,6 +1118,21 @@ blueprint:
         resource_type: application
       type: text
       label: SSL Certificate Private Key
+    ssl_intermediate_certificate:
+      constrains:
+      - resource_type: application
+        service: web
+        setting: apache/cacert
+      - resource_type: application
+        service: master
+        setting: apache/cacert
+      label: SSL CA Cert
+      description: The collection of trusted root and/or intermediate certification authority certificates.
+      sample: |
+        -----BEGIN CERTIFICATE-----
+        Encoded key
+        -----END CERTIFICATE-----
+      type: text
   resources:
     wp keys:
       type: key-pair
