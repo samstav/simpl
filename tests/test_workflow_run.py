@@ -287,67 +287,67 @@ class TestWordpressWorkflow(StubbedWorkflowBase):
         # Parse app.yaml as a deployment
         self.deployment = TestWordpressWorkflow.deployment
         self.workflow = self._get_stubbed_out_workflow()
-    """
-    def test_workflow_completion(self):
-        'Verify workflow sequence and data flow'
-
-        self.mox.ReplayAll()
-
-        def recursive_tree(task, indent):
-            print ' ' * indent, task.id, "-", task.name
-            for child in task.outputs:
-                recursive_tree(child, indent + 1)
-
-        def pp(workflow):
-            print workflow.spec.name
-            recursive_tree(workflow.spec.start, 1)
-
-            for id, task in workflow.spec.task_specs.iteritems():
-                if task.inputs:
-                    print task.id, "-", id
-                else:
-                    print task.id, "-", id, "    >>>>  DICONNECTED!"
-
-        pp(self.workflow)
-
-        self.workflow.complete_all()
-        self.assertTrue(self.workflow.is_completed(), "Workflow did not "
-                        "complete")
-
-        LOG.debug("RESOURCES:")
-        LOG.debug(json.dumps(self.deployment['resources'], indent=2))
-        LOG.debug("\nOUTCOME:")
-        LOG.debug(json.dumps(self.outcome, indent=2))
-
-        self.assertIn('data_bags', self.outcome)
-        self.assertIn('DEP-ID-1000', self.outcome['data_bags'])
-
-        databag = self.outcome['data_bags']['DEP-ID-1000']
-        self.assertIn('webapp_wordpress_TEST-BLOG', databag)
-
-        item = databag['webapp_wordpress_TEST-BLOG']
-        self.assertIn('wordpress', item)
-        self.assertIn('lsyncd', item)
-        self.assertIn('mysql', item)
-        self.assertEqual(len(self.deployment['blueprint']['services']['web']\
-                             ['instances']), 4)  # 2 hosts + 2 apps
-        count = 0
-        for resource in self.deployment['resources'].values():
-            if resource.get('provider') == 'legacy':
-                self.assertEquals(resource['image'], "125")
-                count += 1
-        for key in self.deployment['blueprint']['services']['web']\
-                ['instances']:
-            resource = self.deployment['resources'][key]
-            if resource['provider'] == 'legacy':
-                self.assertEquals(resource['flavor'], "4")  # 2Gb for web
-        for key in self.deployment['blueprint']['services']['master']\
-                ['instances']:
-            resource = self.deployment['resources'][key]
-            if resource['provider'] == 'legacy':
-                self.assertEquals(resource['flavor'], "2")  # 1Gb for master
-        self.assertEqual(count, 3)  # 1 master, 2 webs
-        """
+    
+    #def test_workflow_completion(self):
+    #    'Verify workflow sequence and data flow'
+    #
+    #    self.mox.ReplayAll()
+    #
+    #    def recursive_tree(task, indent):
+    #        print ' ' * indent, task.id, "-", task.name
+    #        for child in task.outputs:
+    #            recursive_tree(child, indent + 1)
+    #
+    #    def pp(workflow):
+    #        print workflow.spec.name
+    #        recursive_tree(workflow.spec.start, 1)
+    #
+    #        for id, task in workflow.spec.task_specs.iteritems():
+    #            if task.inputs:
+    #                print task.id, "-", id
+    #            else:
+    #                print task.id, "-", id, "    >>>>  DICONNECTED!"
+    #
+    #    pp(self.workflow)
+    #
+    #    self.workflow.complete_all()
+    #    self.assertTrue(self.workflow.is_completed(), "Workflow did not "
+    #                    "complete")
+    #
+    #    LOG.debug("RESOURCES:")
+    #    LOG.debug(json.dumps(self.deployment['resources'], indent=2))
+    #    LOG.debug("\nOUTCOME:")
+    #    LOG.debug(json.dumps(self.outcome, indent=2))
+    #
+    #   self.assertIn('data_bags', self.outcome)
+    #    self.assertIn('DEP-ID-1000', self.outcome['data_bags'])
+    #
+    #    databag = self.outcome['data_bags']['DEP-ID-1000']
+    #    self.assertIn('webapp_wordpress_TEST-BLOG', databag)
+    #
+    #    item = databag['webapp_wordpress_TEST-BLOG']
+    #    self.assertIn('wordpress', item)
+    #    self.assertIn('lsyncd', item)
+    #    self.assertIn('mysql', item)
+    #    self.assertEqual(len(self.deployment['blueprint']['services']['web']\
+    #                         ['instances']), 4)  # 2 hosts + 2 apps
+    #    count = 0
+    #    for resource in self.deployment['resources'].values():
+    #        if resource.get('provider') == 'legacy':
+    #            self.assertEquals(resource['image'], "125")
+    #            count += 1
+    #    for key in self.deployment['blueprint']['services']['web']\
+    #            ['instances']:
+    #        resource = self.deployment['resources'][key]
+    #        if resource['provider'] == 'legacy':
+    #            self.assertEquals(resource['flavor'], "4")  # 2Gb for web
+    #    for key in self.deployment['blueprint']['services']['master']\
+    #            ['instances']:
+    #        resource = self.deployment['resources'][key]
+    #        if resource['provider'] == 'legacy':
+    #            self.assertEquals(resource['flavor'], "2")  # 1Gb for master
+    #    self.assertEqual(count, 3)  # 1 master, 2 webs
+        
 
 if __name__ == '__main__':
     # Run tests. Handle our parameters separately
