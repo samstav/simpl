@@ -6,11 +6,13 @@ import unittest2 as unittest
 from checkmate.utils import init_console_logging
 from copy import deepcopy
 import uuid
+
+os.environ['CHECKMATE_CONNECTION_STRING'] = 'sqlite://'
+
 from checkmate.db.sql import Deployment
 init_console_logging()
 LOG = logging.getLogger(__name__)
 
-os.environ['CHECKMATE_CONNECTION_STRING'] = 'sqlite://'
 from checkmate import db
 from checkmate.utils import extract_sensitive_data
 
@@ -19,7 +21,7 @@ class TestDatabase(unittest.TestCase):
     """ Test Database code """
 
     def setUp(self):
-        self.driver = db.get_driver('checkmate.db.sql.Driver')
+        self.driver = db.get_driver('checkmate.db.sql.Driver', reset=True)
 
     def _decode_dict(self, dictionary):
         decoded_dict = {}
