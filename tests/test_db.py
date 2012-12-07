@@ -21,7 +21,7 @@ class TestDatabase(unittest.TestCase):
     """ Test Database code """
 
     def setUp(self):
-        self.driver = db.get_driver('checkmate.db.sql.Driver')
+        self.driver = db.get_driver('checkmate.db.sql.Driver', reset=True)
 
     def _decode_dict(self, dictionary):
         decoded_dict = {}
