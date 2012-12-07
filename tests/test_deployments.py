@@ -24,6 +24,8 @@ from checkmate.providers.base import PROVIDER_CLASSES, ProviderBase
 from checkmate.middleware import RequestContext
 from checkmate.utils import yaml_to_dict
 
+os.environ['CHECKMATE_DOMAIN'] = 'checkmate.local'
+
 
 class TestDeployments(unittest.TestCase):
     def test_schema(self):
