@@ -420,6 +420,8 @@ class Provider(ProviderBase):
             name = '%s::%s' % (component['id'], component['role'])
         else:
             name = component['id']
+            if name == 'mysql':
+                name += "::server"  # install server by default, not client
 
         if component['id'].endswith('-role'):
             kwargs['roles'] = [name[0:-5]]  # trim the '-role'
