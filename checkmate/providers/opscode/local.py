@@ -420,6 +420,8 @@ class Provider(ProviderBase):
             name = '%s::%s' % (component['id'], component['role'])
         else:
             name = component['id']
+            if name == 'mysql':
+                name += "::server"  # install server by default, not client
 
         if component['id'].endswith('-role'):
             kwargs['roles'] = [name[0:-5]]  # trim the '-role'
@@ -960,13 +962,8 @@ class Provider(ProviderBase):
             component['requires'] = [dict(host='linux')]
         LOG.debug("Processing dependencies for cookbook %s" %
                   os.path.dirname(metadata_json_path).split(os.path.sep)[-1])
-        self._process_component_deps(context, component)
-
-        # FIXME: Hard Coded - until we have a way to block the mysql output for
-        # wordpress (it doesn't really provide mysql)
-        if component.get('id')  == "wordpress":
-            component['provides'] = [dict(application='http')]
-
+        self._process_component_deps(context, component, add_requires=False,
+                                     add_provides=False)
         return component
 
     def _get_roles(self, context):
@@ -1037,15 +1034,10 @@ class Provider(ProviderBase):
             if options:
                 component['options'] = options  # already translated
         self._process_component_deps(context, component)
-        # FIXME: Hard Coded - until we have a way to block the mysql output for
-        # the wordpress roles (they don't really provide mysql)
-        if component['id'] == "wordpress-master-role":
-            component['provides'] = [dict(application='http')]
-        elif component['id'] == "wordpress-web-role":
-            component['provides'] = [dict(application='http')]
         return component
 
-    def _process_component_deps(self, context, component):
+    def _process_component_deps(self, context, component, add_provides=True,
+                                add_requires=True):
         if component:
             for dep in component.get('dependencies', []):
                 try:
@@ -1054,13 +1046,13 @@ class Provider(ProviderBase):
                     dep_id = dep
                 dependency = self.get_component(context, dep_id)
                 if dependency:
-                    if 'provides' in dependency:
+                    if add_provides and 'provides' in dependency:
                         if 'provides' not in component:
                             component['provides'] = []
                         for entry in dependency['provides']:
                             if entry not in component['provides']:
                                 component['provides'].append(entry)
-                    if 'requires' in dependency:
+                    if add_requires and 'requires' in dependency:
                         if 'requires' not in component:
                             component['requires'] = []
                         for entry in dependency['requires']:
