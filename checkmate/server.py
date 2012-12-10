@@ -10,12 +10,12 @@ import checkmate.common.tracer  # @UnusedImport # module runs on import
 
 # pylint: disable=E0611
 from bottle import app, run, request, response, error, HeaderDict, \
-        default_app, load
+    default_app, load
 
 
 from checkmate.exceptions import CheckmateException, CheckmateNoMapping, \
-        CheckmateValidationException, CheckmateNoData, CheckmateDoesNotExist, \
-        CheckmateBadState, CheckmateDatabaseConnectionError
+    CheckmateValidationException, CheckmateNoData, CheckmateDoesNotExist, \
+    CheckmateBadState, CheckmateDatabaseConnectionError
 from checkmate import middleware
 from checkmate.utils import STATIC, write_body
 
@@ -27,7 +27,7 @@ try:
     if current_app.backend.__class__.__name__ not in ['DatabaseBackend',
                                                       'MongoBackend']:
         LOG.warning("Celery backend does not seem to be configured for a "
-                "database: %s" % current_app.backend.__class__.__name__)
+                    "database: %s" % current_app.backend.__class__.__name__)
     if not current_app.conf.get("CELERY_RESULT_DBURI"):
         LOG.warning("ATTENTION!! CELERY_RESULT_DBURI not set.  Was the "
                     "checkmate environment loaded?")
@@ -116,10 +116,10 @@ def main_func():
                                                   anonymous_paths=STATIC)
     #next = middleware.PAMAuthMiddleware(next, all_admins=True)
     endpoints = ['https://identity.api.rackspacecloud.com/v2.0/tokens',
-            'https://lon.identity.api.rackspacecloud.com/v2.0/tokens']
-    next_app = middleware.AuthTokenRouterMiddleware(next_app, endpoints,
-            default='https://identity.api.rackspacecloud.com/v2.0/tokens',
-                                                  anonymous_paths=STATIC)
+                 'https://lon.identity.api.rackspacecloud.com/v2.0/tokens']
+    next_app = (middleware.AuthTokenRouterMiddleware(next_app, endpoints,
+                default='https://identity.api.rackspacecloud.com/v2.0/tokens',
+                anonymous_paths=STATIC))
     """
     if '--with-ui' in sys.argv:
         # With a UI, we use basic auth and route that to cloud auth.
@@ -155,8 +155,8 @@ def main_func():
     if '--newrelic' in sys.argv:
         import newrelic.agent
         newrelic.agent.initialize(os.path.normpath(os.path.join(
-                os.path.dirname(__file__), os.path.pardir,
-                'newrelic.ini')))  # optional param ->, 'staging')
+                                  os.path.dirname(__file__), os.path.pardir,
+                                  'newrelic.ini')))  # optional param
         next_app = newrelic.agent.wsgi_application()(next_app)
     if '--debug' in sys.argv:
         next_app = middleware.DebugMiddleware(next_app)
