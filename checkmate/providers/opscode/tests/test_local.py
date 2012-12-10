@@ -549,8 +549,6 @@ class TestDBWorkflow(StubbedWorkflowBase):
                 'call': 'checkmate.providers.opscode.local.cook',
                 'args': [None, self.deployment['id']],
                 'kwargs': And(In('password'),
-                                ContainsKeyValue('recipes',
-                                    ['build-essential']),
                                 ContainsKeyValue('identity_file',
                                         '/var/tmp/%s/private.pem' %
                                         self.deployment['id'])),
