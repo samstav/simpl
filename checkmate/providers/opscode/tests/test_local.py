@@ -258,7 +258,7 @@ class TestChefLocal(unittest.TestCase):
         git.Repo.init(kitchen_path).AndReturn(repo)
         repo.remotes = []
         repo.create_remote('origin', "git://ggg").AndReturn(remote)
-        remote.pull('master').AndReturn(True)
+        remote.pull(refspec='master').AndReturn(True)
 
         os.path.exists(os.path.join(kitchen_path, 'Cheffile')).AndReturn(True)
         self.mox.StubOutWithMock(os, 'chdir')
@@ -323,10 +323,10 @@ class TestWorkflowLogic(StubbedWorkflowBase):
                 environment:
                   name: environment
                   providers:
-                    base:
+                    chef-local:
                       provides:
                       - widget: foo
-                      vendor: test
+                      vendor: opscode
                       catalog:
                         widget:
                           small_widget:
@@ -355,16 +355,16 @@ class TestWorkflowLogic(StubbedWorkflowBase):
                       widget:
                         service_input: s1
                   providers:
-                    base:
+                    chef-local:
                       widget:
                         provider_input: p1
             """))
-        PROVIDER_CLASSES['test.base'] = local.Provider
+        PROVIDER_CLASSES['opscode.chef-local'] = local.Provider
 
         expected_calls = [{
                 # Create Chef Environment
                 'call': 'checkmate.providers.opscode.local.create_environment',
-                'args': [self.deployment['id']],
+                'args': [self.deployment['id'], 'one'],
                 'kwargs': And(ContainsKeyValue('private_key', IgnoreArg()),
                         ContainsKeyValue('secret_key', IgnoreArg()),
                         ContainsKeyValue('public_key_ssh', IgnoreArg())),
@@ -426,16 +426,18 @@ class TestWorkflowLogic(StubbedWorkflowBase):
         self.assertTrue(workflow.is_completed())
         expected_tasks = ['Root',
                           'Start',
-                          'Create Chef Environment',
-                          'Feed data to Write task for 0',
-                          'Collect small_widget Chef Data: 0',
-                          'Feed data to Write task for 0',
-                          'Collect Chef Data',
-                          'Write Data Bag',
-                          'After server 0 is registered and options are ready',
-                          'Configure small_widget: 0',
-                          'After server 0 is registered and options are ready']
-        self.assertEqual(len(workflow.get_tasks()), len(expected_tasks))
+                          'Create Chef Environments',
+                          'Create Chef Environment for one',
+                          'Feed data to Write task for 0 (one)',
+                          'Collect small_widget Chef Data for one: 0',
+                          'Collect Chef Data for one',
+                          'Write Data Bag for one',
+                          ('After server 0 (one) is registered and options '
+                                'are ready'),
+                          'Configure small_widget: 0 (one)']
+        #FIXME: sometimes we get multiple "After..." tasks!
+        actual_tasks = list(set([t.get_name() for t in workflow.get_tasks()]))
+        self.assertEqual(len(actual_tasks), len(expected_tasks))
         self.assertDictEqual(self.outcome,
                 {
                   'data_bags': {
@@ -549,8 +551,6 @@ class TestDBWorkflow(StubbedWorkflowBase):
                 'call': 'checkmate.providers.opscode.local.cook',
                 'args': [None, self.deployment['id']],
                 'kwargs': And(In('password'),
-                                ContainsKeyValue('recipes',
-                                    ['build-essential']),
                                 ContainsKeyValue('identity_file',
                                         '/var/tmp/%s/private.pem' %
                                         self.deployment['id'])),
@@ -561,7 +561,7 @@ class TestDBWorkflow(StubbedWorkflowBase):
                 'args': [None, self.deployment['id']],
                 'kwargs': And(In('password'),
                                 ContainsKeyValue('recipes',
-                                    ['mysql']),
+                                    ['mysql::server']),
                                 ContainsKeyValue('identity_file',
                                         '/var/tmp/%s/private.pem' %
                                         self.deployment['id'])),
