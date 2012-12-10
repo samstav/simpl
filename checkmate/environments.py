@@ -5,12 +5,11 @@ import uuid
 # pylint: disable=E0611
 from bottle import get, post, put, delete, request, response, abort, route
 
-from checkmate.common import schema
 from checkmate.components import Component
 from checkmate.db import get_driver, any_id_problems
 from checkmate.exceptions import CheckmateException
 from checkmate.providers import get_provider_class, PROVIDER_CLASSES
-from checkmate.utils import read_body, write_body, extract_sensitive_data,\
+from checkmate.utils import read_body, write_body, extract_sensitive_data, \
     with_tenant
 
 LOG = logging.getLogger(__name__)
@@ -23,6 +22,7 @@ DB = get_driver()
 @get('/environments')
 @with_tenant
 def get_environments(tenant_id=None):
+    """ Return all saved environments """
     if 'with_secrets' in request.query:
         if request.context.is_admin is True:
             LOG.info("Administrator accessing environments with secrets: %s" %
@@ -39,6 +39,7 @@ def get_environments(tenant_id=None):
 @post('/environments')
 @with_tenant
 def post_environment(tenant_id=None):
+    """ Save given environment """
     entity = read_body(request)
     if 'environment' in entity:
         entity = entity['environment']
@@ -55,51 +56,54 @@ def post_environment(tenant_id=None):
     return write_body(results, request, response)
 
 
-@put('/environments/<id>')
+@put('/environments/<eid>')
 @with_tenant
-def put_environment(id, tenant_id=None):
+def put_environment(eid, tenant_id=None):
+    """ Modify a given environment """
     entity = read_body(request)
     if 'environment' in entity:
         entity = entity['environment']
 
-    if any_id_problems(id):
-        abort(406, any_id_problems(id))
+    if any_id_problems(eid):
+        abort(406, any_id_problems(eid))
     if 'id' not in entity:
-        entity['id'] = str(id)
+        entity['id'] = str(eid)
 
     body, secrets = extract_sensitive_data(entity)
-    results = DB.save_environment(id, body, secrets, tenant_id=tenant_id)
+    results = DB.save_environment(eid, body, secrets, tenant_id=tenant_id)
 
     return write_body(results, request, response)
 
 
-@get('/environments/<id>')
+@get('/environments/<eid>')
 @with_tenant
-def get_environment(id, tenant_id=None):
+def get_environment(eid, tenant_id=None):
+    """ Return an environment by its' ID """
     if 'with_secrets' in request.query:
         if request.context.is_admin is True:
             LOG.info("Administrator accessing environment %s secrets: %s" %
                     (id, request.context.username))
-            entity = DB.get_environment(id, with_secrets=True)
+            entity = DB.get_environment(eid, with_secrets=True)
         else:
             abort(403, "Administrator privileges needed for this operation")
     else:
-        entity = DB.get_environment(id)
+        entity = DB.get_environment(eid)
     if not entity:
-        abort(404, 'No environment with id %s' % id)
+        abort(404, 'No environment with id %s' % eid)
     if tenant_id is not None and tenant_id != entity.get('tenantId'):
         LOG.warning("Attempt to access environment %s from wrong tenant %s by "
-                    "%s" % (id, tenant_id, request.context.username))
+                    "%s" % (eid, tenant_id, request.context.username))
         abort(404)
     return write_body(entity, request, response)
 
 
-@delete('/environments/<id>')
+@delete('/environments/<eid>')
 @with_tenant
-def delete_environment(id, tenant_id=None):
-    entity = DB.get_environment(id)
+def delete_environment(eid, tenant_id=None):
+    """ Delete a given environment """
+    entity = DB.get_environment(eid)
     if not entity:
-        abort(404, 'No environment with id %s' % id)
+        abort(404, 'No environment with id %s' % eid)
     return write_body(entity, request, response)
 
 
@@ -109,6 +113,7 @@ def delete_environment(id, tenant_id=None):
 @get('/environments/<environment_id>/providers')
 @with_tenant
 def get_environment_providers(environment_id, tenant_id=None):
+    """ Return the providers in an environment """
     entity = DB.get_environment(environment_id)
     if not entity:
         abort(404, 'No environment with id %s' % environment_id)
@@ -121,6 +126,7 @@ def get_environment_providers(environment_id, tenant_id=None):
 @get('/environments/<environment_id>/providers/<provider_id>')
 @with_tenant
 def get_environment_provider(environment_id, provider_id, tenant_id=None):
+    """ Return a specific provider in an environment """
     entity = DB.get_environment(environment_id)
     if not entity:
         abort(404, 'No environment with id %s' % environment_id)
@@ -137,6 +143,7 @@ def get_environment_provider(environment_id, provider_id, tenant_id=None):
 @with_tenant
 def get_provider_environment_catalog(environment_id, provider_id,
                                      tenant_id=None):
+    """ Return the catalog of a specific provider in an environment """
     entity = DB.get_environment(environment_id, with_secrets=True)
     if not entity:
         abort(404, 'No environment with id %s' % environment_id)
@@ -159,6 +166,10 @@ def get_provider_environment_catalog(environment_id, provider_id,
 @with_tenant
 def get_environment_component(environment_id, provider_id, component_id,
                               tenant_id=None):
+    """
+    Return a specific component found in the catalog of a specific 
+    provider in an environment
+    """
     entity = DB.get_environment(environment_id, with_secrets=True)
     if not entity:
         abort(404, 'No environment with id %s' % environment_id)
@@ -182,6 +193,7 @@ def get_environment_component(environment_id, provider_id, component_id,
 @get('/providers')
 @with_tenant
 def get_providers(tenant_id=None):
+    """ Return a list of providers """
     results = {}
     for key, provider in PROVIDER_CLASSES.iteritems():
         results[key] = (dict(vendor=provider.vendor, name=provider.name,
@@ -192,6 +204,7 @@ def get_providers(tenant_id=None):
 @get('/providers/<provider_id>/catalog')
 @with_tenant
 def get_provider_catalog(provider_id, tenant_id=None):
+    """ Return the catalog of a specific provider """
     vendor = None
     if "." in provider_id:
         vendor = provider_id.split(".")[0]
@@ -214,6 +227,7 @@ def get_provider_catalog(provider_id, tenant_id=None):
 @get('/providers/<provider_id>/catalog/<component_id>')
 @with_tenant
 def get_provider_component(provider_id, component_id, tenant_id=None):
+    """ Return the component from the catalog of a specific Provider """
     vendor = None
     if "." in provider_id:
         vendor = provider_id.split(".")[0]
@@ -235,6 +249,7 @@ def get_provider_component(provider_id, component_id, tenant_id=None):
 @route('/providers/<provider_id>/proxy/<path:path>')
 @with_tenant
 def provider_proxy(provider_id, tenant_id=None, path=None):
+    """ Proxy a request through a provider """
     vendor = None
     if "." in provider_id:
         vendor = provider_id.split(".")[0]
