@@ -560,7 +560,7 @@ class TestDBWorkflow(StubbedWorkflowBase):
                 'args': [None, self.deployment['id']],
                 'kwargs': And(In('password'),
                                 ContainsKeyValue('recipes',
-                                    ['mysql']),
+                                    ['mysql::server']),
                                 ContainsKeyValue('identity_file',
                                         '/var/tmp/%s/private.pem' %
                                         self.deployment['id'])),
