@@ -288,7 +288,7 @@ class StubbedWorkflowBase(unittest.TestCase):
         expected_calls = [{
                 # Create Chef Environment
                 'call': 'checkmate.providers.opscode.local.create_environment',
-                'args': [self.deployment['id']],
+                'args': [self.deployment['id'], IgnoreArg()],
                 'kwargs': And(ContainsKeyValue('private_key', IgnoreArg()),
                         ContainsKeyValue('secret_key', IgnoreArg()),
                         ContainsKeyValue('public_key_ssh', IgnoreArg())),
