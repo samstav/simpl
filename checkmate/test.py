@@ -552,9 +552,12 @@ class StubbedWorkflowBase(unittest.TestCase):
                         'args': [Func(is_good_context),
                                 IsA(basestring),
                                 1,
-                                '1',
+                                1,
                                 None,
                                 self.deployment.get_setting('region',
+                                        resource_type='compute',
+                                        service_name=resource['service'],
+                                        provider_key=resource['provider'],
                                         default='testonia')],
                         'kwargs': IgnoreArg(),
                         'result': {
