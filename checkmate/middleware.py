@@ -217,7 +217,7 @@ class TokenAuthMiddleware(object):
         self.endpoint = endpoint
         self.anonymous_paths = anonymous_paths or []
 
-    def __call__(self, environ, start_resposne):
+    def __call__(self, environ, start_response):
         """Authenticate calls with X-Auth-Token to the source auth service"""
         path_parts = environ['PATH_INFO'].split('/')
         root = path_parts[1] if len(path_parts) > 1 else None
