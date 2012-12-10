@@ -2,7 +2,6 @@
 import logging
 import uuid
 
-# pylint: disable=E0611
 from bottle import get, post, put, delete, request, response, abort, route
 
 from checkmate.components import Component
@@ -279,15 +278,16 @@ class Environment():
         self.providers = None
 
     def select_provider(self, context, resource=None, interface=None):
+        """ Return a provider for a given resource and (optional) interface """
         providers = self.get_providers(context)
-        for p in providers.values():
-            for entry in p.provides(context, resource_type=resource,
-                                    interface=interface):
+        for provider in providers.values():
+            for entry in provider.provides(context, resource_type=resource,
+                                           interface=interface):
                 if resource and resource in entry:
                     if interface is None or interface == entry[resource]:
-                        return p
+                        return provider
                 if not resource and interface in entry.values():
-                    return p
+                    return provider
         LOG.debug("No '%s:%s' providers found in: %s" % (resource, interface,
                   self.dict))
         return None
