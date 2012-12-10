@@ -258,7 +258,7 @@ class TestChefLocal(unittest.TestCase):
         git.Repo.init(kitchen_path).AndReturn(repo)
         repo.remotes = []
         repo.create_remote('origin', "git://ggg").AndReturn(remote)
-        remote.pull('master').AndReturn(True)
+        remote.pull(refspec='master').AndReturn(True)
 
         os.path.exists(os.path.join(kitchen_path, 'Cheffile')).AndReturn(True)
         self.mox.StubOutWithMock(os, 'chdir')
