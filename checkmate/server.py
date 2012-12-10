@@ -1,6 +1,5 @@
 #!/usr/bin/env python
 """ Module to initialize and run Checkmate server"""
-import json
 import os
 import logging
 import string
@@ -9,7 +8,7 @@ import sys
 import checkmate.common.tracer  # @UnusedImport # module runs on import
 
 # pylint: disable=E0611
-from bottle import app, run, request, response, error, HeaderDict, \
+from bottle import app, run, request, response, HeaderDict, \
     default_app, load
 
 
