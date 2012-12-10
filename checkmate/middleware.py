@@ -649,7 +649,7 @@ class BasicAuthMultiCloudMiddleware(object):
         return self.app(environ, start_response)
 
     def _auth_cloud_basic(self, context, uname, passwd, middleware):
-        """"""
+        """Authenticates to Cloud"""
         cred_hash = MD5.new('%s%s%s' % (uname, passwd, middleware.endpoint)) \
             .hexdigest()
         if cred_hash in self.cache:
@@ -824,5 +824,5 @@ class CatchAll404(object):
                didn't match it)"""
             abort(404, "Path '%s' not recognized" % path)
 
-    def __call__(self, e, h):
-        return self.app(e, h)
+    def __call__(self, environ, start_response):
+        return self.app(environ, start_response)
