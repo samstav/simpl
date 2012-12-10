@@ -765,7 +765,7 @@ inputs:
     path: /
     prefix: wp_
     region: ORD
-    register-dns: false
+    register-dns: true
     ssl_certificate: |
       -----BEGIN CERTIFICATE-----
       MIIDxjCCAq6gAwIBAgIJAMPPVAWqOFGIMA0GCSqGSIb3DQEBBQUAMIGWMQswCQYD
@@ -932,7 +932,7 @@ blueprint:
       sample: /blog
       type: string
     register-dns:
-      default: false
+      default: true
       type: boolean
       label: Create DNS records
     region:
@@ -1280,6 +1280,7 @@ inputs:
     web_server_count: 1
     web_server_protocol: http_and_https
     server_size: 1024
+    register-dns: true
 </script>
 </body>
 </html>
