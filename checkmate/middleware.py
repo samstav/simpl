@@ -73,29 +73,29 @@ class TenantMiddleware(object):
     def __init__(self, app):
         self.app = app
 
-    def __call__(self, e, h):
+    def __call__(self, environ, start_response):
         # Clear headers if supplied (anti-spoofing)
-        self._remove_auth_headers(e)
+        self._remove_auth_headers(environ)
 
-        if e['PATH_INFO'] in [None, "", "/"]:
+        if environ['PATH_INFO'] in [None, "", "/"]:
             pass  # Not a tenant call
         else:
-            path_parts = e['PATH_INFO'].split('/')
+            path_parts = environ['PATH_INFO'].split('/')
             tenant = path_parts[1]
             if tenant in RESOURCES or tenant in STATIC:
                 pass  # Not a tenant call
             else:
                 errors = any_tenant_id_problems(tenant)
                 if errors:
-                    return HTTPNotFound(errors)(e, h)
+                    return HTTPNotFound(errors)(environ, start_response)
                 context = request.context
                 rewrite = "/%s" % '/'.join(path_parts[2:])
                 LOG.debug("Rewrite for tenant %s from '%s' "
-                          "to '%s'" % (tenant, e['PATH_INFO'], rewrite))
+                          "to '%s'" % (tenant, environ['PATH_INFO'], rewrite))
                 context.tenant = tenant
-                e['PATH_INFO'] = rewrite
+                environ['PATH_INFO'] = rewrite
 
-        return self.app(e, h)
+        return self.app(environ, start_response)
 
     def _remove_auth_headers(self, env):
         """Remove headers so a user can't fake authentication.
@@ -137,9 +137,9 @@ class TenantMiddleware(object):
 
     def _add_headers(self, env, headers):
         """Add http headers to environment."""
-        for (k, v) in headers.iteritems():
-            env_key = self._header_to_env_var(k)
-            env[env_key] = v
+        for (key, value) in headers.iteritems():
+            env_key = self._header_to_env_var(key)
+            env[env_key] = value
 
 
 class PAMAuthMiddleware(object):
@@ -157,17 +157,17 @@ class PAMAuthMiddleware(object):
         self.domain = None  # Which domain to authenticate in this instance
         self.all_admins = all_admins  # Does this authenticate admins?
 
-    def __call__(self, e, h):
+    def __call__(self, environ, start_response):
         # Authenticate basic auth calls to PAM
         #TODO: this header is not being returned in a 401
-        h = self.start_response_callback(h)
+        start_response = self.start_response_callback(start_response)
         context = request.context
 
-        if 'HTTP_AUTHORIZATION' in e:
+        if 'HTTP_AUTHORIZATION' in environ:
             if getattr(context, 'authenticated', False) is True:
-                return self.app(e, h)
+                return self.app(environ, start_response)
 
-            auth = e['HTTP_AUTHORIZATION'].split()
+            auth = environ['HTTP_AUTHORIZATION'].split()
             if len(auth) == 2:
                 if auth[0].lower() == "basic":
                     login, passwd = base64.b64decode(auth[1]).split(':')
@@ -177,23 +177,25 @@ class PAMAuthMiddleware(object):
                             domain = login.split('\\')[0]
                             if domain != self.domain:
                                 # Does not apply to this instance. Pass through
-                                return self.app(e, h)
+                                return self.app(environ, start_response)
                             username = login.split('\\')[len(domain) + 1:]
                     # TODO: maybe implement some caching?
                     if not pam.authenticate(login, passwd, service='login'):
                         LOG.debug('PAM failing request because of bad creds')
-                        return HTTPUnauthorized("Invalid credentials")(e, h)
+                        return (HTTPUnauthorized("Invalid credentials")
+                                (environ, start_response))
                     LOG.debug("PAM authenticated '%s' as admin" % login)
                     context.domain = self.domain
                     context.username = username
                     context.authenticated = True
                     context.is_admin = self.all_admins
 
-        return self.app(e, h)
+        return self.app(environ, start_response)
 
     def start_response_callback(self, start_response):
         """Intercepts upstream start_response and adds our headers"""
         def callback(status, headers, exc_info=None):
+            """Intercepts upstream start_response and adds our headers"""
             # Add our headers to response
             headers.append(('WWW-Authenticate',
                            'Basic realm="Checkmate PAM Module"'))
@@ -215,31 +217,32 @@ class TokenAuthMiddleware(object):
         self.endpoint = endpoint
         self.anonymous_paths = anonymous_paths or []
 
-    def __call__(self, e, h):
+    def __call__(self, environ, start_resposne):
         """Authenticate calls with X-Auth-Token to the source auth service"""
-        path_parts = e['PATH_INFO'].split('/')
+        path_parts = environ['PATH_INFO'].split('/')
         root = path_parts[1] if len(path_parts) > 1 else None
         if root in self.anonymous_paths:
             # Allow test and static calls
-            return self.app(e, h)
+            return self.app(environ, start_response)
 
-        h = self.start_response_callback(h)
+        start_response = self.start_response_callback(start_response)
 
-        if 'HTTP_X_AUTH_TOKEN' in e:
+        if 'HTTP_X_AUTH_TOKEN' in environ:
             context = request.context
             try:
-                content = self._auth_keystone(context,
-                                              token=e['HTTP_X_AUTH_TOKEN'])
-                e['HTTP_X_AUTHORIZED'] = "Confirmed"
+                content = (self._auth_keystone(context,
+                           token=environ['HTTP_X_AUTH_TOKEN']))
+                environ['HTTP_X_AUTHORIZED'] = "Confirmed"
             except HTTPUnauthorized as exc:
                 LOG.exception(exc)
-                return exc(e, h)
+                return exc(environ, start_response)
             context.set_context(content)
 
-        return self.app(e, h)
+        return self.app(environ, start_response)
 
     def _auth_keystone(self, context, token=None, username=None, apikey=None,
                        password=None):
+        """Authenticates to keystone"""
         url = urlparse(self.endpoint)
         if url.scheme == 'https':
             http_class = httplib.HTTPSConnection
@@ -297,6 +300,7 @@ class TokenAuthMiddleware(object):
     def start_response_callback(self, start_response):
         """Intercepts upstream start_response and adds our headers"""
         def callback(status, headers, exc_info=None):
+            """Intercepts upstream start_response and adds our headers"""
             # Add our headers to response
             header = ('WWW-Authenticate', 'Keystone uri="%s"' % self.endpoint)
             if header not in headers:
@@ -320,27 +324,28 @@ class AuthorizationMiddleware(object):
         self.app = app
         self.anonymous_paths = anonymous_paths
 
-    def __call__(self, e, h):
-        path_parts = e['PATH_INFO'].split('/')
+    def __call__(self, environ, start_response):
+        path_parts = environ['PATH_INFO'].split('/')
         root = path_parts[1] if len(path_parts) > 1 else None
         if root in self.anonymous_paths:
             # Allow test and static calls
-            return self.app(e, h)
+            return self.app(environ, start_response)
 
         context = request.context
 
         if context.is_admin is True:
             # Allow all admin calls
-            return self.app(e, h)
+            return self.app(environ, start_response)
         elif context.tenant:
             # Authorize tenant calls
             if not context.authenticated:
                 LOG.debug('Authentication required for this resource')
-                return HTTPUnauthorized()(e, h)
+                return HTTPUnauthorized()(environ, start_response)
             if not context.allowed_to_access_tenant():
                 LOG.debug('Access to tenant not allowed')
-                return HTTPUnauthorized("Access to tenant not allowed")(e, h)
-            return self.app(e, h)
+                return (HTTPUnauthorized("Access to tenant not allowed")
+                        (environ, start_response))
+            return self.app(environ, start_response)
         elif root in RESOURCES or root is None:
             # Failed attempt to access admin resource
             if context.user_tenants:
@@ -348,10 +353,11 @@ class AuthorizationMiddleware(object):
                     if 'Mosso' not in tenant:
                         LOG.debug('Redirecting to tenant')
                         return (HTTPFound(location='/%s%s' % (tenant,
-                                e['PATH_INFO']))(e, h))
+                                environ['PATH_INFO']))
+                                (environ, start_response))
 
         LOG.debug('Auth-Z failed. Returning 401.')
-        return HTTPUnauthorized()(e, h)
+        return HTTPUnauthorized()(environ, start_response)
 
 
 class StripPathMiddleware(object):
@@ -359,9 +365,9 @@ class StripPathMiddleware(object):
     def __init__(self, app):
         self.app = app
 
-    def __call__(self, e, h):
-        e['PATH_INFO'] = e['PATH_INFO'].rstrip('/')
-        return self.app(e, h)
+    def __call__(self, environ, start_response):
+        environ['PATH_INFO'] = environ['PATH_INFO'].rstrip('/')
+        return self.app(environ, start_response)
 
 
 class ExtensionsMiddleware(object):
@@ -369,25 +375,25 @@ class ExtensionsMiddleware(object):
     def __init__(self, app):
         self.app = app
 
-    def __call__(self, e, h):
-        if e['PATH_INFO'] in [None, "", "/"]:
-            return self.app(e, h)
+    def __call__(self, environ, start_response):
+        if environ['PATH_INFO'] in [None, "", "/"]:
+            return self.app(environ, start_response)
         else:
-            path_parts = e['PATH_INFO'].split('/')
+            path_parts = environ['PATH_INFO'].split('/')
             root = path_parts[1]
             if root in RESOURCES or root in STATIC:
-                return self.app(e, h)
+                return self.app(environ, start_response)
 
-        if e['PATH_INFO'].endswith('.json'):
-            webob.Request(e).accept = 'application/json'
-            e['PATH_INFO'] = e['PATH_INFO'][0:-5]
-        elif e['PATH_INFO'].endswith('.yaml'):
-            webob.Request(e).accept = 'application/x-yaml'
-            e['PATH_INFO'] = e['PATH_INFO'][0:-5]
-        elif e['PATH_INFO'].endswith('.html'):
-            webob.Request(e).accept = 'text/html'
-            e['PATH_INFO'] = e['PATH_INFO'][0:-5]
-        return self.app(e, h)
+        if environ['PATH_INFO'].endswith('.json'):
+            webob.Request(environ).accept = 'application/json'
+            environ['PATH_INFO'] = environ['PATH_INFO'][0:-5]
+        elif environ['PATH_INFO'].endswith('.yaml'):
+            webob.Request(environ).accept = 'application/x-yaml'
+            environ['PATH_INFO'] = environ['PATH_INFO'][0:-5]
+        elif environ['PATH_INFO'].endswith('.html'):
+            webob.Request(environ).accept = 'text/html'
+            environ['PATH_INFO'] = environ['PATH_INFO'][0:-5]
+        return self.app(environ, start_response)
 
 
 class DebugMiddleware():
@@ -401,15 +407,15 @@ class DebugMiddleware():
     def __init__(self, app):
         self.app = app
 
-    def __call__(self, e, h):
+    def __call__(self, environ, start_response):
         LOG.debug('%s %s %s', ('*' * 20), 'REQUEST ENVIRON', ('*' * 20))
-        for key, value in e.items():
+        for key, value in environ.items():
             LOG.debug('%s = %s', key, value)
         LOG.debug('')
         LOG.debug('%s %s %s', ('*' * 20), 'REQUEST BODY', ('*' * 20))
         LOG.debug('')
 
-        resp = self.print_generator(self.app(e, h))
+        resp = self.print_generator(self.app(environ, start_response))
 
         LOG.debug('%s %s %s', ('*' * 20), 'RESPONSE HEADERS', ('*' * 20))
         for (key, value) in response.headers.iteritems():
@@ -438,9 +444,9 @@ class ExceptionMiddleware():
     def __init__(self, app):
         self.app = app
 
-    def __call__(self, e, h):
+    def __call__(self, environ, start_response):
         try:
-            return self.app(e, h)
+            return self.app(environ, start_response)
         except CheckmateException as exc:
             print "*** ERROR ***"
             LOG.exception(exc)
@@ -524,6 +530,7 @@ class RequestContext(object):
         self.authenticated = True
 
     def get_service_catalog(self, content):
+        """Returns Service Catalog"""
         return content['access']['serviceCatalog']
 
     def get_user_tenants(self, content):
@@ -562,9 +569,11 @@ class RequestContext(object):
         return user_tenants.keys()
 
     def get_username(self, content):
+        """Returns username"""
         return content['access']['user']['name']
 
     def get_roles(self, content):
+        """Returns roles for a given user"""
         user = content['access']['user']
         return [role['name'] for role in user.get('roles', [])]
 
@@ -574,10 +583,10 @@ class ContextMiddleware(object):
     def __init__(self, app):
         self.app = app
 
-    def __call__(self, e, h):
+    def __call__(self, environ, start_response):
         # Use a default empty context
         request.context = RequestContext()
-        return self.app(e, h)
+        return self.app(environ, start_response)
 
 
 class BasicAuthMultiCloudMiddleware(object):
@@ -606,17 +615,18 @@ class BasicAuthMultiCloudMiddleware(object):
                 value['middleware'] = (TokenAuthMiddleware(app,
                                        endpoint=value['endpoint']))
 
-    def __call__(self, e, h):
+    def __call__(self, environ, start_response):
         # Authenticate basic auth calls to endpoints
-        h = self.start_response_callback(h)
+        start_response = self.start_response_callback(start_response)
 
-        if 'HTTP_AUTHORIZATION' in e:
-            auth = e['HTTP_AUTHORIZATION'].split()
+        if 'HTTP_AUTHORIZATION' in environ:
+            auth = environ['HTTP_AUTHORIZATION'].split()
             if len(auth) == 2:
                 if auth[0].lower() == "basic":
                     creds = base64.b64decode(auth[1]).split(':')
                     if len(creds) != 2:
-                        return HTTPUnauthorized('Invalid credentials')(e, h)
+                        return (HTTPUnauthorized('Invalid credentials')
+                                (environ, start_response))
                     uname, passwd = creds
                     if '\\' in uname:
                         domain, uname = uname.split('\\')
@@ -634,11 +644,12 @@ class BasicAuthMultiCloudMiddleware(object):
                                            uname, passwd,
                                            self.domains[domain]['middleware']))
                             except HTTPUnauthorized as exc:
-                                return exc(e, h)
+                                return exc(environ, start_response)
                             context.set_context(content)
-        return self.app(e, h)
+        return self.app(environ, start_response)
 
     def _auth_cloud_basic(self, context, uname, passwd, middleware):
+        """"""
         cred_hash = MD5.new('%s%s%s' % (uname, passwd, middleware.endpoint)) \
             .hexdigest()
         if cred_hash in self.cache:
@@ -659,6 +670,7 @@ class BasicAuthMultiCloudMiddleware(object):
     def start_response_callback(self, start_response):
         """Intercepts upstream start_response and adds our headers"""
         def callback(status, headers, exc_info=None):
+            """Intercepts upstream start_response and adds our headers"""
             # Add our headers to response
             if self.domains:
                 for key, value in self.domains.iteritems():
@@ -726,29 +738,30 @@ class AuthTokenRouterMiddleware():
             self.default_middleware = (TokenAuthMiddleware(app,
                                        endpoint=self.default_endpoint))
 
-    def __call__(self, e, h):
-        h = self.start_response_callback(h)
-        if 'HTTP_X_AUTH_TOKEN' in e:
-            if 'HTTP_X_AUTH_SOURCE' in e:
-                source = e['HTTP_X_AUTH_SOURCE']
+    def __call__(self, environ, start_response):
+        start_response = self.start_response_callback(start_response)
+        if 'HTTP_X_AUTH_TOKEN' in environ:
+            if 'HTTP_X_AUTH_SOURCE' in environ:
+                source = environ['HTTP_X_AUTH_SOURCE']
                 if not (source in self.endpoints or
                         source == self.default_endpoint):
                     LOG.info("Untrusted Auth Source supplied: %s" % source)
-                    return HTTPUnauthorized("Untrusted Auth Source")(e, h)
+                    return (HTTPUnauthorized("Untrusted Auth Source")
+                            (environ, start_response))
 
                 sources = [source]
             else:
                 sources = self.endpoints
 
-            sr = self.start_response_intercept(h)
+            sr = self.start_response_intercept(start_response)
             for source in sources:
-                result = self.middleware[source].__call__(e, sr)
+                result = self.middleware[source].__call__(environ, sr)
                 if self.last_status:
                     if self.last_status.startswith('401 '):
                         # Unauthorized, let's try next route
                         continue
                     # We got an authorized response
-                    if e.get('HTTP_X_AUTHORIZED') == "Confirmed":
+                    if environ.get('HTTP_X_AUTHORIZED') == "Confirmed":
                         LOG.debug("Token Auth Router successfully authorized "
                                   "against %s" % source)
                     else:
@@ -758,16 +771,17 @@ class AuthTokenRouterMiddleware():
 
             # Call default endpoint if not already called and if source was not
             # specified
-            if 'HTTP_X_AUTH_SOURCE' not in e and self.default_endpoint not in\
-                    sources:
-                result = self.middleware[self.default_endpoint].__call__(e, sr)
+            if 'HTTP_X_AUTH_SOURCE' not in environ and self.default_endpoint \
+                    not in sources:
+                result = (self.middleware[self.default_endpoint].
+                          __call__(environ, sr))
                 if not self.last_status.startswith('401 '):
                     # We got a good hit
                     LOG.debug("Token Auth Router got a successful response "
                               "against %s" % self.default_endpoint)
                     return result
 
-        return self.app(e, h)
+        return self.app(environ, start_response)
 
     def start_response_intercept(self, start_response):
         """Intercepts upstream start_response and remembers status"""
