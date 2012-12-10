@@ -323,10 +323,10 @@ class TestWorkflowLogic(StubbedWorkflowBase):
                 environment:
                   name: environment
                   providers:
-                    base:
+                    chef-local:
                       provides:
                       - widget: foo
-                      vendor: test
+                      vendor: opscode
                       catalog:
                         widget:
                           small_widget:
@@ -355,11 +355,11 @@ class TestWorkflowLogic(StubbedWorkflowBase):
                       widget:
                         service_input: s1
                   providers:
-                    base:
+                    chef-local:
                       widget:
                         provider_input: p1
             """))
-        PROVIDER_CLASSES['test.base'] = local.Provider
+        PROVIDER_CLASSES['opscode.chef-local'] = local.Provider
 
         expected_calls = [{
                 # Create Chef Environment
