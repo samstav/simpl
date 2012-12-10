@@ -364,7 +364,7 @@ class TestWorkflowLogic(StubbedWorkflowBase):
         expected_calls = [{
                 # Create Chef Environment
                 'call': 'checkmate.providers.opscode.local.create_environment',
-                'args': [self.deployment['id']],
+                'args': [self.deployment['id'], 'one'],
                 'kwargs': And(ContainsKeyValue('private_key', IgnoreArg()),
                         ContainsKeyValue('secret_key', IgnoreArg()),
                         ContainsKeyValue('public_key_ssh', IgnoreArg())),
@@ -426,15 +426,16 @@ class TestWorkflowLogic(StubbedWorkflowBase):
         self.assertTrue(workflow.is_completed())
         expected_tasks = ['Root',
                           'Start',
-                          'Create Chef Environment',
-                          'Feed data to Write task for 0',
-                          'Collect small_widget Chef Data: 0',
-                          'Feed data to Write task for 0',
-                          'Collect Chef Data',
-                          'Write Data Bag',
-                          'After server 0 is registered and options are ready',
-                          'Configure small_widget: 0',
-                          'After server 0 is registered and options are ready']
+                          'Create Chef Environments',
+                          'Create Chef Environment for one',
+                          'Feed data to Write task for 0 (one)',
+                          'Collect small_widget Chef Data for one: 0',
+                          'Feed data to Write task for 0 (one)',
+                          'Collect Chef Data for one',
+                          'Write Data Bag for one',
+                          ('After server 0 (one) is registered and options '
+                                'are ready'),
+                          'Configure small_widget: 0 (one)']
         self.assertEqual(len(workflow.get_tasks()), len(expected_tasks))
         self.assertDictEqual(self.outcome,
                 {
