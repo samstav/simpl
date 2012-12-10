@@ -15,15 +15,18 @@ LOG = logging.getLogger(__name__)
 
 
 class AcceptMissingHostKey(paramiko.client.MissingHostKeyPolicy):
-    """ add missing host keys to the client, but do not save in the known_hosts file 
-     since we can easily spin up servers that have recycled ip addresses """
-    
+    """ add missing host keys to the client, but do not save
+        in the known_hosts file since we can easily spin up servers
+        that have recycled ip addresses """
+
     def missing_host_key(self, client, hostname, key):
         client._host_keys.add(hostname, key.get_name(), key)
 
+
 @task(default_retry_delay=10, max_retries=36)
 def test_connection(context, ip, username, timeout=10, password=None,
-           identity_file=None, port=22, callback=None, private_key=None):
+                    identity_file=None, port=22, callback=None,
+                    private_key=None):
     """Connect to an ssh server and verify that it responds
 
     ip:             the ip address or host name of the server
@@ -47,8 +50,8 @@ def test_connection(context, ip, username, timeout=10, password=None,
         username, ip, port))
     try:
         client = _connect(ip, port=port, username=username, timeout=timeout,
-                      private_key=private_key, identity_file=identity_file,
-                      password=password)
+                          private_key=private_key, identity_file=identity_file,
+                          password=password)
         client.close()
         LOG.debug("ssh://%s@%s:%d is up." % (username, ip, port))
         if callback:
@@ -63,7 +66,7 @@ def test_connection(context, ip, username, timeout=10, password=None,
 
 @task(default_retry_delay=10, max_retries=10)
 def execute(ip, command, username, timeout=10, password=None,
-           identity_file=None, port=22, callback=None, private_key=None):
+            identity_file=None, port=22, callback=None, private_key=None):
     """Executes an ssh command on a remote host and returns a dict with stdin
     and stdout of the call. Tries cert auth first and falls back to password
     auth if password provided
@@ -81,12 +84,12 @@ def execute(ip, command, username, timeout=10, password=None,
     """
     match_celery_logging(LOG)
     LOG.debug("Executing '%s' on ssh://%s@%s:%d." % (command, username,
-        ip, port))
+              ip, port))
     client = None
     try:
         client = _connect(ip, port=port, username=username, timeout=timeout,
-                      private_key=private_key, identity_file=identity_file,
-                      password=password)
+                          private_key=private_key, identity_file=identity_file,
+                          password=password)
         stdin, stdout, stderr = client.exec_command(command)
         results = {'stdout': stdout.read(), 'stderr': stderr.read()}
         LOG.debug('ssh://%s@%s:%d responded.' % (username, ip, port))
@@ -126,13 +129,13 @@ def _connect(ip, port=22, username="root", timeout=10, identity_file=None,
                            pkey=pkey)
         elif identity_file is not None:
             LOG.debug("Trying key file: %s" % os.path.expanduser(
-                    identity_file))
+                      identity_file))
             client.connect(ip, timeout=timeout, port=port, username=username,
                            key_filename=os.path.expanduser(identity_file))
         else:
             client.connect(ip, port=port, username=username, password=password)
             LOG.debug("Authentication for ssh://%s@%s:%d using "
-                    "password succeeded" % (username, ip, port))
+                      "password succeeded" % (username, ip, port))
         LOG.debug("Connected to ssh://%s@%s:%d." % (username, ip, port))
         return client
     except paramiko.PasswordRequiredException, exc:
@@ -145,10 +148,10 @@ def _connect(ip, port=22, username="root", timeout=10, identity_file=None,
             raise exc
     except paramiko.BadHostKeyException, exc:
         msg = ("ssh://%s@%s:%d failed:  %s. You might have a bad key "
-                "entry on your server, but this is a security issue and won't "
-                "be handled automatically. To fix this you can remove the "
-                "host entry for this host from the /.ssh/known_hosts file" % (
-                    username, ip, port, exc))
+               "entry on your server, but this is a security issue and won't "
+               "be handled automatically. To fix this you can remove the "
+               "host entry for this host from the /.ssh/known_hosts file" % (
+               username, ip, port, exc))
         LOG.debug(msg)
         raise exc
     except Exception, exc:
