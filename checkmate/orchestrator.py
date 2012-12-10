@@ -12,7 +12,7 @@ try:
 except ImportError:
     #TODO(zns): remove this when Spiff incorporates the code in it
     print "Get SpiffWorkflow with the Celery spec in it from here: "\
-            "https://github.com/ziadsawalha/SpiffWorkflow/"
+          "https://github.com/ziadsawalha/SpiffWorkflow/"
     raise
 from SpiffWorkflow import Workflow, Task
 from SpiffWorkflow.operators import Attrib
@@ -28,8 +28,8 @@ db = get_driver()
 
 @task
 def create_simple_server(context, name, image=214, flavor=1,
-                                    files=None, ip_address_type='public',
-                                    timeout=60):
+                         files=None, ip_address_type='public',
+                         timeout=60):
     """Create a Rackspace Cloud server using a workflow.
 
     The workflow right now is a simple proof of concept using SPiffWorkflow.
@@ -58,17 +58,18 @@ def create_simple_server(context, name, image=214, flavor=1,
 
     # Second task will take output from first task (the 'token') and write it
     # into the 'context' dict to be available to future tasks
-    write_token = Transform(wfspec, "Write Token to Deployment", transforms=[
-            "my_task.attributes['context']['authtoken']"\
-            "=my_task.attributes['token']"])
+    write_token = (Transform(wfspec, "Write Token to Deployment", transforms=[
+                   "my_task.attributes['context']['authtoken']"
+                   "=my_task.attributes['token']"]))
     auth_task.connect(write_token)
 
     # Third task takes the 'context' attribute and creates a server
-    create_server_task = Celery(wfspec, 'Create Server',
-           'checkmate.providers.rackspace.compute_legacy.create_server',
-           call_args=[Attrib('context'), name],
-           api_object=None, image=119, flavor=1, files=files,
-           ip_address_type='public')
+    create_server_task = (Celery(wfspec, 'Create Server',
+                          'checkmate.providers.rackspace. \
+                          compute_legacy.create_server',
+                          call_args=[Attrib('context'), name],
+                          api_object=None, image=119, flavor=1, files=files,
+                          ip_address_type='public'))
     write_token.connect(create_server_task)
 
     # Create an instance of the workflow spec
@@ -77,8 +78,8 @@ def create_simple_server(context, name, image=214, flavor=1,
     wf.get_task(3).set_attribute(context=context)
 
     serializer = DictionarySerializer()
-    body=wf.serialize(serializer)
-    body['id']=create_simple_server.request.id
+    body = wf.serialize(serializer)
+    body['id'] = create_simple_server.request.id
     db.save_workflow(create_simple_server.request.id,
                      body)
 
@@ -92,11 +93,12 @@ def create_simple_server(context, name, image=214, flavor=1,
         if count != complete:
             complete = count
             create_simple_server.update_state(state="PROGRESS",
-                                      meta={'complete': count, 'total': total})
+                                              meta={'complete': count,
+                                              'total': total})
         wf.complete_all()
         i += 1
         db.save_workflow(create_simple_server.request.id,
-                     wf.serialize(serializer))
+                         wf.serialize(serializer))
         time.sleep(1)
 
     db.save_workflow(create_simple_server.request.id,
@@ -170,9 +172,10 @@ def run_workflow(id, timeout=900, wait=1, counter=1):
             total = len(wf.get_tasks(state=Task.ANY_MASK))  # Changes
             completed = len(wf.get_tasks(state=Task.COMPLETED))
             LOG.debug("Workflow status: %s/%s (state=%s)" % (completed,
-                    total, "PROGRESS"))
+                      total, "PROGRESS"))
             run_workflow.update_state(state="PROGRESS",
-                    meta={'complete': completed, 'total': total})
+                                      meta={'complete': completed,
+                                      'total': total})
         else:
             # No progress made. So drop priority (to max of 20s wait)
             if wait < 20:
@@ -193,9 +196,9 @@ def run_workflow(id, timeout=900, wait=1, counter=1):
                                                                  wait,
                                                                  counter))
         retry_kwargs = {'timeout': timeout, 'wait': wait,
-                'counter': counter + 1}
+                        'counter': counter + 1}
         return run_workflow.retry([id], kwargs=retry_kwargs, countdown=wait,
-                Throw=False)
+                                  Throw=False)
     else:
         LOG.debug("Workflow '%s' did not complete (no timeout set)." % id)
         return False
@@ -217,10 +220,10 @@ def run_one_task(context, workflow_id, task_id, timeout=60):
     original = serializer._serialize_task(task, skip_children=True)
     if not task:
         raise IndexError("Task '%s' not found in Workflow '%s'" % (task_id,
-                workflow_id))
+                         workflow_id))
     if task._is_finished():
         raise ValueError("Task '%s' is in state '%s' which cannot be executed"
-                % (task.get_name(), task.get_state_name()))
+                         % (task.get_name(), task.get_state_name()))
 
     if task._is_predicted() or task._has_state(Task.WAITING):
         LOG.debug("Progressing task '%s' (%s)" % (task_id,
@@ -238,16 +241,16 @@ def run_one_task(context, workflow_id, task_id, timeout=60):
         result = task.task_spec._update_state(task)
     elif task._has_state(Task.READY):
         LOG.debug("Completing task '%s' (%s)" % (task_id,
-                                                  task.get_state_name()))
+                  task.get_state_name()))
         result = wf.complete_task_from_id(task_id)
     else:
         LOG.warn("Task '%s' in Workflow '%s' is in state %s and cannot be "
-                "progressed" % (task_id, workflow_id, task.get_state_name()))
+                 "progressed" % (task_id, workflow_id, task.get_state_name()))
         return False
     updated = wf.serialize(serializer)
     if original != updated:
         LOG.debug("Task '%s' in Workflow '%s' completion result: %s" % (
-                task_id, workflow_id, result))
+                  task_id, workflow_id, result))
         msg = "Saving: %s" % wf.get_dump()
         LOG.debug(msg)
         body, secrets = extract_sensitive_data(updated)
