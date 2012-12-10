@@ -746,7 +746,7 @@ class TestDeploymentCounts(unittest.TestCase):
     def setUp(self):
         self._deploymets = json.load(open(os.path.join(
                 os.path.dirname(__file__), 'data', 'deployments.json')))
-        self._mox.StubOutWithMock(checkmate.deployments, "db")
+        self._mox.StubOutWithMock(checkmate.deployments, "DB")
         bottle.request.bind({})
         bottle.request.context = Context()
         bottle.request.context.tenant = None
@@ -757,7 +757,7 @@ class TestDeploymentCounts(unittest.TestCase):
         unittest.TestCase.tearDown(self)
 
     def test_get_count_all(self):
-        checkmate.deployments.db.get_deployments(tenant_id=mox.IgnoreArg()
+        checkmate.deployments.DB.get_deployments(tenant_id=mox.IgnoreArg()
                                                  ).AndReturn(self._deploymets)
         self._mox.ReplayAll()
         self._assert_good_count(json.loads(get_deployments_count()), 3)
@@ -765,14 +765,14 @@ class TestDeploymentCounts(unittest.TestCase):
     def test_get_count_tenant(self):
         # remove the extra deployment
         self._deploymets.pop("3fgh")
-        checkmate.deployments.db.get_deployments(tenant_id="12345").AndReturn(
+        checkmate.deployments.DB.get_deployments(tenant_id="12345").AndReturn(
                 self._deploymets)
         self._mox.ReplayAll()
         self._assert_good_count(json.loads(get_deployments_count(
                 tenant_id="12345")), 2)
 
     def test_get_count_deployment(self):
-        checkmate.deployments.db.get_deployments(tenant_id=None).AndReturn(
+        checkmate.deployments.DB.get_deployments(tenant_id=None).AndReturn(
                 self._deploymets)
         self._mox.ReplayAll()
         self._assert_good_count(json.loads(get_deployments_by_bp_count(
@@ -783,9 +783,9 @@ class TestDeploymentCounts(unittest.TestCase):
         raw_deployments.pop("3fgh")
         self._deploymets.pop("2def")
         self._deploymets.pop("1abc")
-        checkmate.deployments.db.get_deployments(tenant_id="854673"
+        checkmate.deployments.DB.get_deployments(tenant_id="854673"
                                                  ).AndReturn(self._deploymets)
-        checkmate.deployments.db.get_deployments(tenant_id="12345"
+        checkmate.deployments.DB.get_deployments(tenant_id="12345"
                                                  ).AndReturn(raw_deployments)
         self._mox.ReplayAll()
         self._assert_good_count(json.loads(get_deployments_by_bp_count(

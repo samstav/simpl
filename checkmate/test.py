@@ -31,45 +31,59 @@ from checkmate.workflows import create_workflow_deploy, wait_for
 
 # Environment variables and safe alternatives
 ENV_VARS = {
-        'CHECKMATE_CLIENT_USERNAME': 'john.doe',
-        'CHECKMATE_CLIENT_APIKEY': 'secret-api-key',
-        'CHECKMATE_CLIENT_PUBLIC_KEY': """ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQDtjYYMFbpCJ/ND3izZ1DqNFQHlooXyNcDGWilAqNqcCfz9L+gpGjY2pQlZz/1Hir3R8fz0MS9VY32RYmP3wWygt85kNccEkOpVGGpGyV/aMFaQHZD0h6d0AT+haP0Iig+OrH1YBnpdgVPWx3SbU4eV/KYGpO9Mintj3P54of22lTK4dOwCNvID9P9w+T1kMfdVxGwhqsSL0RxVXnSSkozXQWCNvaZJMUmidm8YA009c5PoksyWjl3EE+rEzZ8ywvtUJf9DvnLCESfhF3hK5lAiEd8z7gyiQnBexn/dXzldGFiJYJgQ5HolYaNMtTF+AQY6R6Qt0okCPyEDJxHJUM7d""",
-        'CHECKMATE_PUBLIC_KEY': """ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQDtjYYMFbpCJ/ND3izZ1DqNFQHlooXyNcDGWilAqNqcCfz9L+gpGjY2pQlZz/1Hir3R8fz0MS9VY32RYmP3wWygt85kNccEkOpVGGpGyV/aMFaQHZD0h6d0AT+haP0Iig+OrH1YBnpdgVPWx3SbU4eV/KYGpO9Mintj3P54of22lTK4dOwCNvID9P9w+T1kMfdVxGwhqsSL0RxVXnSSkozXQWCNvaZJMUmidm8YA009c5PoksyWjl3EE+rEzZ8ywvtUJf9DvnLCESfhF3hK5lAiEd8z7gyiQnBexn/dXzldGFiJYJgQ5HolYaNMtTF+AQY6R6Qt0okCPyEDJxHJUM7d""",
-        'CHECKMATE_CLIENT_PRIVATE_KEY': 'mumble-code',
-        'CHECKMATE_CLIENT_DOMAIN': 'test.local',
-        'CHECKMATE_CLIENT_REGION': 'chicago'
-    }
+    'CHECKMATE_CLIENT_USERNAME': 'john.doe',
+    'CHECKMATE_CLIENT_APIKEY': 'secret-api-key',
+    'CHECKMATE_CLIENT_PUBLIC_KEY': ("ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAA"
+    "ABAQDtjYYMFbpCJ/ND3izZ1DqNFQHlooXyNcDGWilAqNqcCfz9L+gpGjY2pQlZz/1Hir"
+    "3R8fz0MS9VY32RYmP3wWygt85kNccEkOpVGGpGyV/aMFaQHZD0h6d0AT+haP0Iig+OrH"
+    "1YBnpdgVPWx3SbU4eV/KYGpO9Mintj3P54of22lTK4dOwCNvID9P9w+T1kMfdVxGwhqs"
+    "SL0RxVXnSSkozXQWCNvaZJMUmidm8YA009c5PoksyWjl3EE+rEzZ8ywvtUJf9DvnLCES"
+    "fhF3hK5lAiEd8z7gyiQnBexn/dXzldGFiJYJgQ5HolYaNMtTF+AQY6R6Qt0okCPyEDJx"
+    "HJUM7d"),
+    'CHECKMATE_PUBLIC_KEY': "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQDtj" \
+    "YYMFbpCJ/ND3izZ1DqNFQHlooXyNcDGWilAqNqcCfz9L+gpGjY2pQlZz/1Hir3R8fz0M" \
+    "S9VY32RYmP3wWygt85kNccEkOpVGGpGyV/aMFaQHZD0h6d0AT+haP0Iig+OrH1YBnpdg" \
+    "VPWx3SbU4eV/KYGpO9Mintj3P54of22lTK4dOwCNvID9P9w+T1kMfdVxGwhqsSL0RxVX" \
+    "nSSkozXQWCNvaZJMUmidm8YA009c5PoksyWjl3EE+rEzZ8ywvtUJf9DvnLCESfhF3hK5" \
+    "lAiEd8z7gyiQnBexn/dXzldGFiJYJgQ5HolYaNMtTF+AQY6R6Qt0okCPyEDJxHJUM7d",
+    'CHECKMATE_CLIENT_PRIVATE_KEY': 'mumble-code',
+    'CHECKMATE_CLIENT_DOMAIN': 'test.local',
+    'CHECKMATE_CLIENT_REGION': 'chicago'
+}
 
 CATALOG = [{
-  "endpoints": [
+    "endpoints": [
     {
-      "publicURL": "https://monitoring.api.rackspacecloud.com/v1.0/T1000",
-      "tenantId": "T1000"
+        "publicURL": "https://monitoring.api.rackspacecloud.com/v1.0/T1000",
+        "tenantId": "T1000"
     }
-  ],
-  "name": "cloudMonitoring",
-  "type": "rax:monitor"
- },
- {
-   "endpoints": [
-     {
-       "publicURL": "https://ord.loadbalancers.api.rackspacecloud.com/v1.0/T1000",
-       "region": "ORD",
-       "tenantId": "T1000"
-      },
-      {
-        "publicURL": "https://dfw.loadbalancers.api.rackspacecloud.com/v1.0/T1000",
+],
+    "name": "cloudMonitoring",
+    "type": "rax:monitor"
+},
+{
+    "endpoints": [
+    {
+        "publicURL": "https://ord.loadbalancers.api.rackspacecloud.com" \
+        "/v1.0/T1000",
+        "region": "ORD",
+        "tenantId": "T1000"
+    },
+    {
+        "publicURL": "https://dfw.loadbalancers.api.rackspacecloud.com \
+        /v1.0/T1000",
         "region": "DFW",
         "tenantId": "T1000"
-      }
-    ],
+    }
+],
     "name": "cloudLoadBalancers",
     "type": "rax:load-balancer"
   },
   {
     "endpoints": [
       {
-        "internalURL": "https://snet-storage101.ord1.clouddrive.com/v1/Mosso_T-2000",
+        "internalURL": "https://snet-storage101.ord1.clouddrive.com \
+        /v1/Mosso_T-2000",
         "publicURL": "https://storage101.ord1.clouddrive.com/v1/Mosso_T-2000",
         "region": "ORD",
         "tenantId": "Mossos_T-2000"
