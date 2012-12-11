@@ -1255,8 +1255,8 @@ function BlueprintRemoteListController($scope, $location, $routeParams, $resourc
     });
   }
 
-  $scope.loadBlueprint = function() {
-    $http({method: 'GET', url: (checkmate_server_base || '') + '/githubproxy/api/v3/repos/' + ($scope.remote_org || $scope.remote_user) + '/' + $scope.selected.name + '/git/trees/' + $scope.remote_branch,
+  $scope.loadBlueprint = function(branch) {
+    $http({method: 'GET', url: (checkmate_server_base || '') + '/githubproxy/api/v3/repos/' + ($scope.remote_org || $scope.remote_user) + '/' + $scope.selected.name + '/git/trees/' + (branch || $scope.remote_branch),
         headers: {'X-Target-Url': $scope.remote_server, 'accept': 'application/json'}}).
     success(function(data, status, headers, config) {
       var checkmate_yaml_file = _.find(data.tree, function(file) {return file.path == "checkmate.yaml";});
@@ -1279,7 +1279,7 @@ function BlueprintRemoteListController($scope, $location, $routeParams, $resourc
               checkmate_yaml.environment.name = "- not named -";
             if (!('id' in checkmate_yaml.environment))
               checkmate_yaml.environment.id = "included";
-              var env_name = checkmate_yaml.environment.name;
+            var env_name = checkmate_yaml.environment.name;
             $scope.environments = {env_name: checkmate_yaml.environment};
             $scope.environment = checkmate_yaml.environment;
           } else {
