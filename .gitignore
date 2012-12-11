@@ -16,6 +16,7 @@ src/
 checkmate/static-libs/
 checkmate/openstack
 /tests/data/environments
+/tests/data/simulator.json
 /checkmate/providers/opscode/chef-stockton
 
 # possible locations of chef-stockton repo

@@ -1178,7 +1178,7 @@ def create_environment(name, service_name, path=None, private_key=None,
         LOG.debug("Created environment directory: %s" % fullpath)
     except OSError as ose:
         if ose.errno == errno.EEXIST:
-            LOG.warn("Environment directory % already exists", fullpath,
+            LOG.warn("Environment directory %s already exists", fullpath,
                       exc_info=True)
         else:
             raise CheckmateException(
