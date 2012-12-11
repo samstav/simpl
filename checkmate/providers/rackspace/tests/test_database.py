@@ -10,27 +10,20 @@ LOG = logging.getLogger(__name__)
 from checkmate.providers.rackspace import database
 import mox
 
+from checkmate import test
 from checkmate.exceptions import CheckmateException
 from checkmate.deployments import Deployment, resource_postback
-from checkmate.providers.base import PROVIDER_CLASSES
-from checkmate.test import StubbedWorkflowBase, TestProvider
+from checkmate.providers import base, register_providers
+from checkmate.test import StubbedWorkflowBase, ProviderTester
 from checkmate.utils import yaml_to_dict
 
 from celery.exceptions import RetryTaskError
 
 
-class TestDatabase(unittest.TestCase):
+class TestDatabase(ProviderTester):
     """ Test Database Provider """
 
-    def setUp(self):
-        self.mox = mox.Mox()
-
-    def tearDown(self):
-        self.mox.UnsetStubs()
-
-    def test_provider(self):
-        provider = database.Provider({})
-        self.assertEqual(provider.key, 'rackspace.database')
+    klass = database.Provider
 
     def test_create_instance(self):
         #Mock instance
@@ -156,8 +149,8 @@ class TestDBWorkflow(StubbedWorkflowBase):
 
     def setUp(self):
         StubbedWorkflowBase.setUp(self)
-        PROVIDER_CLASSES['test.base'] = TestProvider
-        PROVIDER_CLASSES['rackspace.database'] = database.Provider
+        base.PROVIDER_CLASSES = {}
+        register_providers([database.Provider, test.TestProvider])
         self.deployment = Deployment(yaml_to_dict("""
                 id: 'DEP-ID-1000'
                 blueprint:

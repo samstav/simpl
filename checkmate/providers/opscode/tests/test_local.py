@@ -18,16 +18,18 @@ import git
 import mox
 from mox import In, IsA, And, IgnoreArg, ContainsKeyValue
 
+from checkmate import test
 from checkmate.deployments import Deployment
 from checkmate.exceptions import CheckmateException
-from checkmate.providers.base import PROVIDER_CLASSES
+from checkmate.providers import base, register_providers
 from checkmate.providers.opscode import local
-from checkmate.test import StubbedWorkflowBase, ENV_VARS, TestProvider
+from checkmate.test import StubbedWorkflowBase, ENV_VARS
 from checkmate.utils import yaml_to_dict
 
 
-class TestChefLocal(unittest.TestCase):
+class TestChefLocal(test.ProviderTester):
     """ Test ChefLocal Module """
+    klass = local.Provider
 
     @classmethod
     def setUpClass(cls):
@@ -39,12 +41,6 @@ class TestChefLocal(unittest.TestCase):
         test_path = os.path.join(local_path, 'test_env', 'kitchen', 'roles')
         if not os.path.exists(test_path):
             local.create_environment('test_env', 'kitchen')
-
-    def setUp(self):
-        self.mox = mox.Mox()
-
-    def tearDown(self):
-        self.mox.UnsetStubs()
 
     def test_cook_missing_role(self):
         """Test that missing role error is correctly detected and reported"""
@@ -359,7 +355,8 @@ class TestWorkflowLogic(StubbedWorkflowBase):
                       widget:
                         provider_input: p1
             """))
-        PROVIDER_CLASSES['opscode.chef-local'] = local.Provider
+        base.PROVIDER_CLASSES = {}
+        register_providers([local.Provider])
 
         expected_calls = [{
                 # Create Chef Environment
@@ -465,8 +462,8 @@ class TestDBWorkflow(StubbedWorkflowBase):
 
     def setUp(self):
         StubbedWorkflowBase.setUp(self)
-        PROVIDER_CLASSES['opscode.chef-local'] = local.Provider
-        PROVIDER_CLASSES['test.base'] = TestProvider
+        base.PROVIDER_CLASSES = {}
+        register_providers([local.Provider, test.TestProvider])
         self.deployment = Deployment(yaml_to_dict("""
                 id: 'DEP-ID-1000'
                 blueprint:
