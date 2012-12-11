@@ -49,7 +49,7 @@ def post_blueprint(tenant_id=None):
     return write_body(results, request, response)
 
 
-@put('/blueprints/<id>')
+@put('/blueprints/<b_id>')
 @with_tenant
 def put_blueprint(b_id, tenant_id=None):
     """
@@ -70,7 +70,7 @@ def put_blueprint(b_id, tenant_id=None):
     return write_body(results, request, response)
 
 
-@get('/blueprints/<id>')
+@get('/blueprints/<b_id>')
 @with_tenant
 def get_blueprint(b_id, tenant_id=None):
     """

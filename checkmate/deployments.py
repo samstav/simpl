@@ -3,10 +3,9 @@ import logging
 import os
 import uuid
 
-# pylint: disable=E0611
 from bottle import request, response, abort, \
-    get, post, route  # @UnresolvedImport
-from celery.task import task  # @UnresolvedImport
+    get, post, route
+from celery.task import task
 from SpiffWorkflow import Workflow, Task
 from SpiffWorkflow.storage import DictionarySerializer
 
@@ -17,15 +16,15 @@ from checkmate.common import schema
 from checkmate.db import get_driver, any_id_problems
 from checkmate.environments import Environment
 from checkmate.exceptions import CheckmateException, CheckmateDoesNotExist, \
-        CheckmateValidationException, CheckmateBadState
+    CheckmateValidationException, CheckmateBadState
 from checkmate.providers import ProviderBase
 from checkmate.workflows import create_workflow_deploy, \
-        create_workflow_spec_deploy
+    create_workflow_spec_deploy
 from checkmate.utils import write_body, read_body, extract_sensitive_data, \
-        merge_dictionary, with_tenant, is_ssh_key, get_time_string
+    merge_dictionary, with_tenant, is_ssh_key, get_time_string
 
 LOG = logging.getLogger(__name__)
-db = get_driver()
+DB = get_driver()
 
 
 def _content_to_deployment(bottle_request, deployment_id=None, tenant_id=None):
@@ -76,18 +75,20 @@ def _save_deployment(deployment, deployment_id=None, tenant_id=None):
     if 'tenantId' in deployment:
         if tenant_id:
             assert deployment['tenantId'] == tenant_id, ("tenantId must match "
-                                                     "with current tenant ID")
+                                                         "with current tenant "
+                                                         "ID")
         else:
             tenant_id = deployment['tenantId']
     else:
         assert tenant_id, "Tenant ID must be specified in deployment"
         deployment['tenantId'] = tenant_id
     body, secrets = extract_sensitive_data(deployment)
-    return db.save_deployment(deployment_id, body, secrets,
+    return DB.save_deployment(deployment_id, body, secrets,
                               tenant_id=tenant_id)
 
 
 def _create_deploy_workflow(deployment, context):
+    """ Create and return serialized workflow """
     workflow = create_workflow_deploy(deployment, context)
     serializer = DictionarySerializer()
     serialized_workflow = workflow.serialize(serializer)
@@ -107,7 +108,7 @@ def _deploy(deployment, context):
     deployment['status'] = "LAUNCHED"
 
     body, secrets = extract_sensitive_data(workflow)
-    db.save_workflow(workflow['id'], body, secrets,
+    DB.save_workflow(workflow['id'], body, secrets,
                      tenant_id=deployment['tenantId'])
 
     _save_deployment(deployment)
@@ -121,8 +122,9 @@ def _deploy(deployment, context):
 @get('/deployments')
 @with_tenant
 def get_deployments(tenant_id=None):
-    return write_body(db.get_deployments(tenant_id=tenant_id), request,
-            response)
+    """ Get existing deployments """
+    return write_body(DB.get_deployments(tenant_id=tenant_id), request,
+                      response)
 
 
 @get('/deployments/count')
@@ -134,15 +136,19 @@ def get_deployments_count(tenant_id=None):
 
     :param:tenant_id: the (optional) tenant
     """
-    return write_body({"count": len(db.get_deployments(tenant_id=tenant_id))},
-            request, response)
+    return write_body({"count": len(DB.get_deployments(tenant_id=tenant_id))},
+                      request, response)
 
 
 @get("/deployments/count/<blueprint_id>")
 @with_tenant
 def get_deployments_by_bp_count(blueprint_id, tenant_id=None):
+    """ 
+    Return the number of times the given blueprint appears
+    in saved deployments
+    """
     ret = {"count": 0}
-    deployments = db.get_deployments(tenant_id=tenant_id)
+    deployments = DB.get_deployments(tenant_id=tenant_id)
     if not deployments:
         LOG.debug("No deployments")
     for dep_id, dep in deployments.items():
@@ -161,6 +167,10 @@ def get_deployments_by_bp_count(blueprint_id, tenant_id=None):
 @post('/deployments')
 @with_tenant
 def post_deployment(tenant_id=None):
+    """
+    Creates deployment and wokflow based on sent information
+    and triggers workflow execution
+    """
     deployment = _content_to_deployment(request, tenant_id=tenant_id)
     oid = str(deployment['id'])
     _save_deployment(deployment, deployment_id=oid, tenant_id=tenant_id)
@@ -235,7 +245,7 @@ def plan_deployment(oid, tenant_id=None):
     """Plan a NEW deployment and save it as PLANNED"""
     if any_id_problems(oid):
         abort(406, any_id_problems(oid))
-    entity = db.get_deployment(oid, with_secrets=True)
+    entity = DB.get_deployment(oid, with_secrets=True)
     if not entity:
         raise CheckmateDoesNotExist('No deployment with id %s' % oid)
     if entity.get('status', 'NEW') != 'NEW':
@@ -255,7 +265,7 @@ def deploy_deployment(oid, tenant_id=None):
     """Deploy a NEW or PLANNED deployment and save it as DEPLOYED"""
     if any_id_problems(oid):
         raise CheckmateValidationException(any_id_problems(oid))
-    entity = db.get_deployment(oid, with_secrets=True)
+    entity = DB.get_deployment(oid, with_secrets=True)
     if not entity:
         CheckmateDoesNotExist('No deployment with id %s' % oid)
     deployment = Deployment(entity)  # Also validates syntax
@@ -279,10 +289,11 @@ def deploy_deployment(oid, tenant_id=None):
 @get('/deployments/<oid>')
 @with_tenant
 def get_deployment(oid, tenant_id=None):
+    """Return deployment with given ID"""
     if 'with_secrets' in request.query:  # TODO: verify admin-ness
-        entity = db.get_deployment(oid, with_secrets=True)
+        entity = DB.get_deployment(oid, with_secrets=True)
     else:
-        entity = db.get_deployment(oid)
+        entity = DB.get_deployment(oid)
     if not entity:
         raise CheckmateDoesNotExist('No deployment with id %s' % oid)
     return write_body(entity, request, response)
@@ -291,7 +302,8 @@ def get_deployment(oid, tenant_id=None):
 @get('/deployments/<oid>/status')
 @with_tenant
 def get_deployment_status(oid, tenant_id=None):
-    deployment = db.get_deployment(oid)
+    """Return workflow status of given deployment"""
+    deployment = DB.get_deployment(oid)
     if not deployment:
         abort(404, 'No deployment with id %s' % oid)
 
@@ -299,7 +311,7 @@ def get_deployment_status(oid, tenant_id=None):
     results = {}
     workflow_id = deployment.get('workflow')
     if workflow_id:
-        workflow = db.get_workflow(workflow_id)
+        workflow = DB.get_workflow(workflow_id)
         serializer = DictionarySerializer()
         wf = Workflow.deserialize(serializer, workflow)
         for task in wf.get_tasks(state=Task.ANY_MASK):
@@ -313,8 +325,9 @@ def get_deployment_status(oid, tenant_id=None):
                     if error is not None:  # Show empty strings too
                         result['error'] = error
                     result['output'] = {key: task.attributes[key] for key
-                            in task.attributes if key not in['deployment',
-                            'token', 'error']}
+                                        in task.attributes if key
+                                        not in['deployment',
+                                        'token', 'error']}
                     if 'tasks' not in resource:
                         resource['tasks'] = {}
                     resource['tasks'][task.get_name()] = result
@@ -346,12 +359,12 @@ def execute(oid, timeout=180, tenant_id=None):
     if any_id_problems(oid):
         abort(406, any_id_problems(oid))
 
-    deployment = db.get_deployment(oid)
+    deployment = DB.get_deployment(oid)
     if not deployment:
         abort(404, 'No deployment with id %s' % oid)
 
     result = orchestrator.run_workflow.\
-             delay(oid, timeout=3600)  # @UndefinedVariable
+        delay(oid, timeout=3600)
     return result
 
 
@@ -403,7 +416,7 @@ def plan(deployment, context):
     # Collect all requirements from components
     for service_name, component in components.iteritems():
         LOG.debug("Analyzing component %s requirements and needs in service %s"
-                % (component['id'], service_name))
+                  % (component['id'], service_name))
 
         # Save list of interfaces provided by which service
         if 'provides' in component:
@@ -455,9 +468,9 @@ def plan(deployment, context):
                     # Generate name and expand
                     relation_name = '%s-%s' % (service_name, key)
                     expanded_relation = {
-                            'interface': value,
-                            'service': key,
-                            }
+                        'interface': value,
+                        'service': key,
+                    }
                     expanded[relation_name] = expanded_relation
             relations[service_name] = expanded
     LOG.debug("All relations successfully matched with target services")
@@ -478,8 +491,8 @@ def plan(deployment, context):
             else:
                 resource_type = component['id']
                 LOG.debug("Component '%s' has no type specified using the "
-                        "'is' attribute so the id of the component is being "
-                        "used as the type" % component['id'])
+                          "'is' attribute so the id of the component is being "
+                          "used as the type" % component['id'])
 
             # Check for hosting relationship
             host = None
@@ -496,95 +509,97 @@ def plan(deployment, context):
                         host = key
                         host_type = key if key != 'host' else None
                         host_interface = value['interface']
-                        host_provider = environment.select_provider(context,
-                                resource=host_type, interface=host_interface)
-                        found = host_provider.find_components(context,
-                                resource=host_type, interface=host_interface)
+                        host_provider = (environment.select_provider(context,
+                                         resource=host_type,
+                                         interface=host_interface))
+                        found = (host_provider.find_components(context,
+                                 resource=host_type, interface=host_interface))
                         if found:
                             if len(found) == 1:
                                 host_component = found[0]
                                 host_type = host_component['is']
                             else:
-                                raise CheckmateException("More than one "
-                                        "component offers '%s:%s' in provider "
-                                        "%s: %s" % (host_type or '*',
-                                        host_interface, host_provider.key,
-                                        ', '.join([c['id'] for c in found])))
+                                raise (CheckmateException("More than one "
+                                       "component offers '%s:%s' in provider "
+                                       "%s: %s" % (host_type or '*',
+                                       host_interface, host_provider.key,
+                                       ', '.join([c['id'] for c in found]))))
                         else:
-                            raise CheckmateException("No components found "
-                                        "that offer '%s:%s' in provider %s" % (
-                                        host_type or '*', host_interface,
-                                        host_provider.key))
+                            raise (CheckmateException("No components found "
+                                   "that offer '%s:%s' in provider %s" % (
+                                   host_type or '*', host_interface,
+                                   host_provider.key)))
                         break
 
             provider = component.provider
             if not provider:
                 raise CheckmateException("No provider could be found for the "
-                        "'%s' resource in component '%s'" % (resource_type,
-                        component['id']))
-            count = deployment.get_setting('count', provider_key=provider.key,
-                    resource_type=resource_type, service_name=service_name,
-                    default=1)
+                                         "'%s' resource in component '%s'" %
+                                         (resource_type, component['id']))
+            count = (deployment.get_setting('count', provider_key=provider.key,
+                     resource_type=resource_type, service_name=service_name,
+                     default=1))
 
             def add_resource(provider, deployment, service, service_name,
-                    index, domain, resource_type, component_id=None):
+                             index, domain, resource_type, component_id=None):
+                """ Add a new resource to Deployment """
                 # Generate a default name
                 name = 'CM-%s-%s%s.%s' % (deployment['id'][0:7], service_name,
-                        index, domain)
+                                          index, domain)
                 # Call provider to give us a resource template
-                resource = provider.generate_template(deployment,
-                        resource_type, service_name, context, name=name)
+                resource = (provider.generate_template(deployment,
+                            resource_type, service_name, context, name=name))
                 if component_id:
                     resource['component'] = component_id
                 # Add it to resources
                 resources[str(resource_index)] = resource
                 resource['index'] = str(resource_index)
                 LOG.debug("  Adding a %s resource with resource key %s" % (
-                        resources[str(resource_index)]['type'],
-                        resource_index))
+                          resources[str(resource_index)]['type'],
+                          resource_index))
                 Resource.validate(resource)
                 return resource
 
-            domain = deployment.get_setting('domain',
-                    provider_key=provider.key, resource_type=resource_type,
-                    service_name=service_name,
-                    default=os.environ.get('CHECKMATE_DOMAIN',
-                                                   'checkmate.local'))
+            domain = (deployment.get_setting('domain',
+                      provider_key=provider.key, resource_type=resource_type,
+                      service_name=service_name,
+                      default=os.environ.get('CHECKMATE_DOMAIN',
+                                             'checkmate.local')))
             for index in range(count):
                 if host:
                     # Obtain resource to host this one on
                     LOG.debug("Creating %s resource to host %s/%s" % (
-                            host_type, service_name, component['id']))
-                    host_resource = add_resource(host_provider, deployment,
-                            service, service_name, index + 1,
-                            domain, host_type,
-                            component_id=host_component['id'])
+                              host_type, service_name, component['id']))
+                    host_resource = (add_resource(host_provider, deployment,
+                                     service, service_name, index + 1,
+                                     domain, host_type,
+                                     component_id=host_component['id']))
                     host_index = str(resource_index)
                     resource_index += 1
 
-                resource = add_resource(provider, deployment, service,
-                        service_name, index + 1, domain,
-                        resource_type, component_id=component['id'])
+                resource = (add_resource(provider, deployment, service,
+                            service_name, index + 1, domain,
+                            resource_type, component_id=component['id']))
                 resource_index += 1
 
                 if host:
                     # Fill in relations on hosted resource
                     resource['hosted_on'] = str(resource_index - 2)
                     relation = dict(interface=host_interface, state='planned',
-                            relation='host', target=host_index)
+                                    relation='host', target=host_index)
                     if 'relations' not in resource:
                         resource['relations'] = dict(host=relation)
                     else:
                         if 'host' in resource['relations']:
                             CheckmateException("Conflicting relation named "
-                                    "'host' exists in service '%s'" %
-                                    service_name)
+                                               "'host' exists in service "
+                                               "'%s'" % service_name)
                         # wire up any information the component wants to get
                         #from its host
                         for relation in resource['relations'].values():
-                            if (relation.get('interface', '') == 'host' and
-                                'service' not in relation):
-                                relation['target'] = host_index
+                            if ((relation.get('interface', '') == 'host' and
+                                'service' not in relation)):
+                                    relation['target'] = host_index
                         resource['relations']['host'] = relation
 
                     # Fill in relations on hosting resource
@@ -595,7 +610,7 @@ def plan(deployment, context):
                     else:
                         host_resource['hosts'] = [str(resource_index - 1)]
                     LOG.debug("Created hosting relation from %s to %s:%s" % (
-                            resource_index - 1, host_index, host_interface))
+                              resource_index - 1, host_index, host_interface))
 
     # Create connections between components
     connections = {}
@@ -607,7 +622,7 @@ def plan(deployment, context):
             # Find what interface is needed
             target_interface = relation['interface']
             LOG.debug("  Looking for a provider supporting '%s' for the '%s' "
-                    "service" % (target_interface, service_name))
+                      "service" % (target_interface, service_name))
             if 'service' in relation:
                 target_service_name = relation['service']
             else:
@@ -628,79 +643,73 @@ def plan(deployment, context):
                                                  "a host and cannot satisfy "
                                                  "relation %s of service %s" %
                                                  (target_service_name, name,
-                                                  service_name)
-                                                )
+                                                  service_name))
                 else:
                     provides = component.get('provides', [])
                     for entry in provides:
                         if target_interface == entry.values()[0]:
                             found.append(component)
             if not found:
-                raise CheckmateException("'%s' service does not provide a "
-                        "resource with an interface of type '%s', which is "
-                        "needed by the '%s' relationship to '%s'" % (
-                        target_service_name, target_interface, name,
-                        service_name))
+                raise (CheckmateException("'%s' service does not provide a "
+                       "resource with an interface of type '%s', which is "
+                       "needed by the '%s' relationship to '%s'" % (
+                       target_service_name, target_interface, name,
+                       service_name)))
             if target_interface != 'host' and len(found) > 1:
-                raise CheckmateException("'%s' has more than one resource "
-                        "that provides an interface of type '%s', which is "
-                        "needed by the '%s' relationship to '%s'. This causes "
-                        "ambiguity. Additional information is needed to "
-                        "identify which component to connect" % (
-                        target_service_name, target_interface, name,
-                        service_name))
+                raise (CheckmateException("'%s' has more than one resource "
+                       "that provides an interface of type '%s', which is "
+                       "needed by the '%s' relationship to '%s'. This causes "
+                       "ambiguity. Additional information is needed to "
+                       "identify which component to connect" % (
+                       target_service_name, target_interface, name,
+                       service_name)))
 
             # Get hash of source instances (exclude the hosts unless its
             # specifically requested)
             source_instances = {index: resource
                                 for index, resource in resources.iteritems()
                                 if resource['service'] == service_name and
-                                        'hosts' not in resource}
+                                'hosts' not in resource}
             LOG.debug("    Instances %s need '%s' from the '%s' service"
-                    % (source_instances.keys(), target_interface,
-                       target_service_name))
+                      % (source_instances.keys(), target_interface,
+                      target_service_name))
 
             # Get list of target instances
             if target_interface == 'host':
                 target_instances = [
-                        resource['hosted_on'] for index, resource in
-                                resources.iteritems()
-                        if resource['service'] == target_service_name
-                                and resource.get('component')
-                                        in target_component_ids]
+                    resource['hosted_on'] for index, resource in
+                    resources.iteritems()
+                    if resource['service'] == target_service_name
+                    and resource.get('component') in target_component_ids]
             else:
                 target_instances = [
-                        index for index, resource in
-                                resources.iteritems()
-                        if resource['service'] == target_service_name
-                                and resource.get('component')
-                                        in target_component_ids]
+                    index for index, resource in resources.iteritems()
+                    if resource['service'] == target_service_name
+                    and resource.get('component') in target_component_ids]
             LOG.debug("    Instances %s provide %s" % (target_instances,
-                    target_interface))
+                      target_interface))
 
             # Wire them up (create relation entries under resources)
-            connections[name] = dict(
-                    interface=relation['interface'])
+            connections[name] = dict(interface=relation['interface'])
             if 'host' == target_interface and "service" not in relation:
                 # relation is from component to its host
                 for source_instance, resource in source_instances.iteritems():
                     target_instance = resource['hosted_on']
                     if 'relations' not in resource:
                         resource['relations'] = {}
-                    resource['relations'][name] =\
+                    resource['relations'][name] = \
                         dict(state='planned', target=target_instance,
                              interface=target_interface, name=name)
                     if 'relations' not in resources[target_instance]:
                         resources[target_instance]['relations'] = {}
-                    resources[target_instance]['relations'][name] =\
+                    resources[target_instance]['relations'][name] = \
                         dict(state='planned', source=source_instance,
                              interface=target_interface, name=name)
                     if 'attribute' in relation:
                         resources[source_instance]['relations'][name]\
-                                .update({'attribute': relation['attribute']})
+                            .update({'attribute': relation['attribute']})
                         resources[target_instance]['relations'][name]\
-                                .update({'attribute':
-                                        relation['attribute']})
+                            .update({'attribute': relation['attribute']})
             else:
                 for source_instance in source_instances:
                     if 'relations' not in resources[source_instance]:
@@ -713,22 +722,22 @@ def plan(deployment, context):
                         # Add forward relation (from source to target)
                         srcrels = resources[source_instance]['relations']
                         srcrels[target_relation] \
-                                = dict(state='planned', target=target_instance,
-                                    interface=target_interface, name=name)
+                            = dict(state='planned', target=target_instance,
+                                   interface=target_interface, name=name)
                         # Add relation to target showing incoming from source
                         trgrels = resources[target_instance]['relations']
                         trgrels[source_relation] \
-                                = dict(state='planned', source=source_instance,
-                                    interface=target_interface, name=name)
+                            = dict(state='planned', source=source_instance,
+                                   interface=target_interface, name=name)
                         if 'attribute' in relation:
-                            srcrels[target_relation].update({'attribute':
-                                            relation['attribute']})
-                            trgrels[source_relation].update({'attribute':
-                                            relation['attribute']})
+                            srcrels[target_relation]. \
+                                update({'attribute': relation['attribute']})
+                            trgrels[source_relation]. \
+                                update({'attribute': relation['attribute']})
                         LOG.debug("  New connection '%s' from %s:%s to %s:%s "
-                                "created" % (name, service_name,
-                                source_instance, target_service_name,
-                                target_instance))
+                                  "created" % (name, service_name,
+                                  source_instance, target_service_name,
+                                  target_instance))
 
     # Generate static resources
     for key, resource in blueprint.get('resources', {}).iteritems():
@@ -737,8 +746,8 @@ def plan(deployment, context):
             # Generate a default name
             name = 'CM-%s-shared%s.%s' % (deployment['id'][0:7], key, domain)
             # Call provider to give us a resource template
-            result = provider.generate_template(deployment,
-                    resource['type'], None, context, name=name)
+            result = (provider.generate_template(deployment,
+                      resource['type'], None, context, name=name))
             result['component'] = component['id']
         else:
             if resource['type'] == 'user':
@@ -762,8 +771,8 @@ def plan(deployment, context):
                                                                  "/password" %
                                                                  key)
                     if not instance['password']:
-                        instance['password'] = ProviderBase({}).evaluate(
-                                "generate_password()")
+                        instance['password'] = (ProviderBase({}).evaluate(
+                                                "generate_password()"))
                 else:
                     instance['password'] = resource['password']
                 instance['hash'] = keys.hash_SHA512(instance['password'])
@@ -801,8 +810,8 @@ def plan(deployment, context):
         resources[str(key)] = result
         result['index'] = str(key)
         LOG.debug("  Adding a %s resource with resource key %s" % (
-                resources[str(key)]['type'],
-                key))
+                  resources[str(key)]['type'],
+                  key))
         Resource.validate(result)
 
     #Write resources and connections to deployment
@@ -838,7 +847,7 @@ def _verify_required_blueprint_options_supplied(deployment):
                     option.get('required') in ['true', True]:
                 if key not in bp_inputs:
                     abort(406, "Required blueprint input '%s' not supplied" %
-                            key)
+                          key)
 
 
 def get_os_env_keys():
@@ -849,23 +858,22 @@ def get_os_env_keys():
                 os.environ['CHECKMATE_PUBLIC_KEY']))):
         try:
             path = os.path.expanduser(os.environ['CHECKMATE_PUBLIC_KEY'])
-            with file(path, 'r') as f:
-                key = f.read()
+            with file(path, 'r') as fi:
+                key = fi.read()
             if is_ssh_key(key):
                 dkeys['checkmate'] = {'public_key_ssh': key,
-                        'public_key_path': path}
+                                      'public_key_path': path}
             else:
                 dkeys['checkmate'] = {'public_key': key,
-                        'public_key_path': path}
+                                      'public_key_path': path}
         except IOError as(errno, strerror):
             LOG.error("I/O error reading public key from CHECKMATE_PUBLIC_KEY="
-                    "'%s' environment variable (%s): %s" % (
-                            os.environ['CHECKMATE_PUBLIC_KEY'], errno,
-                                                                strerror))
+                      "'%s' environment variable (%s): %s" % (
+                      os.environ['CHECKMATE_PUBLIC_KEY'], errno, strerror))
         except StandardError as exc:
             LOG.error("Error reading public key from CHECKMATE_PUBLIC_KEY="
-                    "'%s' environment variable: %s" % (
-                            os.environ['CHECKMATE_PUBLIC_KEY'], exc))
+                      "'%s' environment variable: %s" % (
+                      os.environ['CHECKMATE_PUBLIC_KEY'], exc))
     return dkeys
 
 
@@ -886,7 +894,7 @@ def get_client_keys(inputs):
     if 'client_public_key_ssh' in inputs:
         if not is_ssh_key(inputs['client_public_key_ssh']):
             abort(406, "client_public_key_ssh input is not a valid ssh public "
-                    "key string: %s" % inputs['client_public_key_ssh'])
+                  "key string: %s" % inputs['client_public_key_ssh'])
         results['client'] = {'public_key_ssh': inputs['client_public_key_ssh']}
     return results
 
@@ -941,10 +949,11 @@ class Resource():
 
     @classmethod
     def validate(cls, obj):
+        """Validate Schema"""
         errors = schema.validate(obj, schema.RESOURCE_SCHEMA)
         if errors:
             raise CheckmateValidationException("Invalid resource: %s" %
-                    '\n'.join(errors))
+                                               '\n'.join(errors))
 
     def get_settings(self, deployment, context, provider):
         """Get all settings for this resource
@@ -956,9 +965,9 @@ class Resource():
         assert isinstance(provider, ProviderBase)
         component = provider.get_component(self.dict['component'])
         if not component:
-            raise CheckmateException("Could not find component '%s' in "
-                    "provider %s.%s's catalog" % (self.dict['component'],
-                    provider.vendor, provider.name))
+            raise (CheckmateException("Could not find component '%s' in "
+                   "provider %s.%s's catalog" % (self.dict['component'],
+                   provider.vendor, provider.name)))
 
 
 class Deployment(ExtensibleDict):
@@ -980,13 +989,15 @@ class Deployment(ExtensibleDict):
 
     @classmethod
     def validate(cls, obj):
+        """ Validate Schema """
         errors = schema.validate(obj, schema.DEPLOYMENT_SCHEMA)
         errors.extend(schema.validate_inputs(obj))
         if errors:
-            raise CheckmateValidationException("Invalid %s: %s" % (
-                    cls.__name__, '\n'.join(errors)))
+            raise (CheckmateValidationException("Invalid %s: %s" % (
+                   cls.__name__, '\n'.join(errors))))
 
     def environment(self):
+        """ Initialize environment from Deployment """
         if self._environment is None:
             entity = self.get('environment')
             if entity:
@@ -994,6 +1005,7 @@ class Deployment(ExtensibleDict):
         return self._environment
 
     def inputs(self):
+        """ return inputs of deployment """
         return self.get('inputs', {})
 
     def settings(self):
@@ -1010,8 +1022,8 @@ class Deployment(ExtensibleDict):
         #TODO: make this smarter
         try:
             creds = [p['credentials'][0] for key, p in
-                            self['environment']['providers'].iteritems()
-                            if key == 'common']
+                     self['environment']['providers'].iteritems()
+                     if key == 'common']
             if creds:
                 creds = creds[0]
                 results['username'] = creds['username']
@@ -1021,10 +1033,10 @@ class Deployment(ExtensibleDict):
                     results['password'] = creds['password']
             else:
                 LOG.debug("No credentials supplied in environment/common/"
-                        "credentials")
+                          "credentials")
         except Exception as exc:
             LOG.debug("No credentials supplied in environment/common/"
-                        "credentials")
+                      "credentials")
 
         inputs = self.inputs()
         results['region'] = inputs.get('blueprint', {}).get('region')
@@ -1036,19 +1048,19 @@ class Deployment(ExtensibleDict):
         all_keys = get_client_keys(inputs)
         if os_keys:
             all_keys.update(os_keys)
-        deployment_keys = self.get('resources', {}).get('deployment-keys', {})\
-                .get('instance')
+        deployment_keys = (self.get('resources', {}).get(
+                           'deployment-keys', {}).get('instance'))
         if deployment_keys:
             all_keys['deployment'] = deployment_keys
 
         if not all_keys:
             LOG.warn("No keys supplied. Less secure password auth will be "
-                    "used.")
+                     "used.")
 
         results['keys'] = all_keys
 
         results['domain'] = inputs.get('domain', os.environ.get(
-                    'CHECKMATE_DOMAIN', 'checkmate.local'))
+                                       'CHECKMATE_DOMAIN', 'checkmate.local'))
         self._settings = results
         return results
 
@@ -1073,8 +1085,8 @@ class Deployment(ExtensibleDict):
         :param default: value to return if no match found
         """
         if service_name:
-            result = self._get_input_service_override(name, service_name,
-                    resource_type=resource_type)
+            result = (self._get_input_service_override(name, service_name,
+                      resource_type=resource_type))
             if result:
                 return result
 
@@ -1083,18 +1095,18 @@ class Deployment(ExtensibleDict):
                 return result
 
         if provider_key:
-            result = self._get_input_provider_option(name, provider_key,
-                    resource_type=resource_type)
+            result = (self._get_input_provider_option(name, provider_key,
+                      resource_type=resource_type))
             if result:
                 return result
 
-        result = self._get_constrained_static_resource_setting(name,
-                service_name=service_name, resource_type=resource_type)
+        result = (self._get_constrained_static_resource_setting(name,
+                  service_name=service_name, resource_type=resource_type))
         if result:
             return result
 
-        result = self._get_input_blueprint_option_constraint(name,
-                service_name=service_name, resource_type=resource_type)
+        result = (self._get_input_blueprint_option_constraint(name,
+                  service_name=service_name, resource_type=resource_type))
         if result:
             return result
 
@@ -1106,13 +1118,13 @@ class Deployment(ExtensibleDict):
         if result:
             return result
 
-        result = self._get_environment_provider_constraint(name, provider_key,
-                resource_type=resource_type)
+        result = (self._get_environment_provider_constraint(name, provider_key,
+                  resource_type=resource_type))
         if result:
             return result
 
-        result = self._get_environment_provider_constraint(name, 'common',
-                resource_type=resource_type)
+        result = (self._get_environment_provider_constraint(name, 'common',
+                  resource_type=resource_type))
         if result:
             return result
 
@@ -1187,7 +1199,7 @@ class Deployment(ExtensibleDict):
         if name in inputs:
             result = inputs[name]
             LOG.debug("Found setting '%s' in inputs. %s=%s" %
-                    (name, name, result))
+                      (name, name, result))
             return result
 
     def _get_input_simple(self, name):
@@ -1199,7 +1211,7 @@ class Deployment(ExtensibleDict):
             if name in blueprint_inputs:
                 result = blueprint_inputs[name]
                 LOG.debug("Found setting '%s' in inputs/blueprint. %s=%s" %
-                        (name, name, result))
+                          (name, name, result))
                 return result
 
     def _get_input_blueprint_option_constraint(self, name, service_name=None,
@@ -1215,25 +1227,26 @@ class Deployment(ExtensibleDict):
             for key, option in options.iteritems():
                 if 'constrains' in option:  # the verb 'constrains' (not noun)
                     for constraint in option['constrains']:
-                        if self.constraint_applies(constraint, name,
-                                service_name=service_name,
-                                resource_type=resource_type):
+                        if (self.constraint_applies(constraint, name,
+                            service_name=service_name,
+                            resource_type=resource_type)):
                             # Find in inputs or use default if available
                             result = self._get_input_simple(key)
                             if result:
                                 LOG.debug("Found setting '%s' from constraint "
-                                        "in blueprint input '%s'. %s=%s" % (
-                                        name, key, name, result))
+                                          "in blueprint input '%s'. %s=%s" % (
+                                          name, key, name, result))
                                 return result
                             if 'default' in option:
                                 result = option['default']
                                 LOG.debug("Default setting '%s' obtained from "
-                                        "constraint in blueprint input '%s': "
-                                        "default=%s" % (name, key, result))
+                                          "constraint in blueprint input "
+                                          "'%s': default=%s" % (name, key,
+                                          result))
                                 return result
 
     def _get_constrained_static_resource_setting(self, name, service_name=None,
-                                             resource_type=None):
+                                                 resource_type=None):
         """Get a setting implied through a static resource constraint
 
         :param name: the name of the setting
@@ -1246,17 +1259,17 @@ class Deployment(ExtensibleDict):
             for key, resource in resources.iteritems():
                 if 'constrains' in resource:
                     for constraint in resource['constrains']:
-                        if self.constraint_applies(constraint, name,
-                                    service_name=service_name,
-                                    resource_type=resource_type):
+                        if (self.constraint_applies(constraint, name,
+                            service_name=service_name,
+                            resource_type=resource_type)):
                             # Find the instance, and get the atribute
                             instance = self['resources'][key]['instance']
                             result = instance[constraint.get('attribute',
                                                              name)]
                             if result:
                                 LOG.debug("Found setting '%s' from constraint "
-                                        "in blueprint resource '%s'. %s=%s" % (
-                                        name, key, name, result))
+                                          "in blueprint resource '%s'. "
+                                          "%s=%s" % (name, key, name, result))
                                 return result
 
     def _get_constrained_svc_cmp_setting(self, name, service_name):
@@ -1278,7 +1291,7 @@ class Deployment(ExtensibleDict):
                                 return constraints[name]
 
     def constraint_applies(self, constraint, name, resource_type=None,
-                service_name=None):
+                           service_name=None):
         """Checks if a constraint applies
 
         :param constraint: the constraint dict
@@ -1301,11 +1314,11 @@ class Deployment(ExtensibleDict):
                     constraint['resource'] != resource_type:
                 return False
         LOG.debug("Constraint '%s' for '%s' applied to '%s/%s'" % (
-                constraint, name, service_name, resource_type))
+                  constraint, name, service_name, resource_type))
         return True
 
     def _get_input_service_override(self, name, service_name,
-            resource_type=None):
+                                    resource_type=None):
         """Get a setting applied through a deployment setting on a service
 
         Params are ordered similar to how they appear in yaml/json::
@@ -1325,13 +1338,13 @@ class Deployment(ExtensibleDict):
                     if name in options:
                         result = options[name]
                         LOG.debug("Found setting '%s' as service "
-                                "setting in blueprint/services/%s/%s'. %s=%s"
-                                % (name, service_name, resource_type, name,
-                                result))
+                                  "setting in blueprint/services/%s/%s'. %s=%s"
+                                  % (name, service_name, resource_type, name,
+                                  result))
                         return result
 
     def _get_input_provider_option(self, name, provider_key,
-            resource_type=None):
+                                   resource_type=None):
         """Get a setting applied through a deployment setting to a provider
 
         Params are ordered similar to how they appear in yaml/json::
@@ -1351,9 +1364,9 @@ class Deployment(ExtensibleDict):
                     if options and name in options:
                         result = options[name]
                         LOG.debug("Found setting '%s' as provider "
-                                "setting in blueprint/providers/%s/%s'. %s=%s"
-                                % (name, provider_key, resource_type, name,
-                                result))
+                                  "setting in blueprint/providers/%s/%s'."
+                                  " %s=%s" % (name, provider_key,
+                                  resource_type, name, result))
                         return result
 
     def _get_environment_provider_constraint(self, name, provider_key,
@@ -1397,15 +1410,15 @@ class Deployment(ExtensibleDict):
         for service_name, service in services.iteritems():
             service_component = service['component']
             LOG.debug("Identifying component '%s' for service '%s'" % (
-                    service_component, service_name))
+                      service_component, service_name))
             assert not isinstance(service_component, list)  # deprecated syntax
             component = self.environment().find_component(service_component,
-                    context)
+                                                          context)
             if not component:
                 raise CheckmateException("Could not resolve component '%s'"
-                        % service_component)
+                                         % service_component)
             LOG.debug("Component '%s' identified as '%s' for service '%s'" % (
-                    service_component, component['id'], service_name))
+                      service_component, component['id'], service_name))
             results[service_name] = component
         return results
 
@@ -1429,15 +1442,16 @@ class Deployment(ExtensibleDict):
                         raise IndexError("Resource %s not found" % resource_id)
                     # Check the value
                     if not isinstance(value, dict):
-                        raise CheckmateException("Postback value for instance "
-                                "'%s' was not a dictionary" % resource_id)
+                        raise (CheckmateException("Postback value for "
+                               "instance '%s' was not a dictionary"
+                               % resource_id))
                     # Canonicalize it
                     value = schema.translate_dict(value)
                     # Merge it in
                     if 'instance' not in resource:
                         resource['instance'] = {}
                     LOG.debug("Merging postback data for resource %s: %s" % (
-                            resource_id, value), extra=dict(data=resource))
+                              resource_id, value), extra=dict(data=resource))
                     merge_dictionary(resource['instance'], value)
 
                 elif key.startswith('connection:'):
@@ -1446,25 +1460,26 @@ class Deployment(ExtensibleDict):
                     connection = self['connections'][connection_id]
                     if not connection:
                         raise IndexError("Connection %s not found" %
-                                connection_id)
+                                         connection_id)
                     # Check the value
                     if not isinstance(value, dict):
-                        raise CheckmateException("Postback value for "
-                                "connection '%s' was not a dictionary" %
-                                connection_id)
+                        raise (CheckmateException("Postback value for "
+                               "connection '%s' was not a dictionary" %
+                               connection_id))
                     # Canonicalize it
                     value = schema.translate_dict(value)
                     # Merge it in
                     LOG.debug("Merging postback data for connection %s: %s" % (
-                            connection_id, value), extra=dict(data=connection))
+                              connection_id, value),
+                              extra=dict(data=connection))
                     merge_dictionary(connection, value)
                 else:
                     if isinstance(value, dict):
                         value = schema.translate_dict(value)
                     else:
                         value = schema.translate(value)
-                    raise NotImplementedError("Global post-back values not "
-                            "yet supported: %s" % key)
+                    raise (NotImplementedError("Global post-back values not "
+                           "yet supported: %s" % key))
 
 
 @task
@@ -1496,7 +1511,7 @@ def resource_postback(deployment_id, contents):
 
     The contents are a hash (dict) of all the above
     """
-    deployment = db.get_deployment(deployment_id, with_secrets=True)
+    deployment = DB.get_deployment(deployment_id, with_secrets=True)
     if not deployment:
         raise IndexError("Deployment %s not found" % deployment_id)
 
@@ -1504,7 +1519,7 @@ def resource_postback(deployment_id, contents):
     deployment.on_resource_postback(contents)
 
     body, secrets = extract_sensitive_data(deployment)
-    db.save_deployment(deployment_id, body, secrets)
+    DB.save_deployment(deployment_id, body, secrets)
 
     LOG.debug("Updated deployment %s with post-back" % deployment_id,
-            extra=dict(data=contents))
+              extra=dict(data=contents))

@@ -50,7 +50,7 @@ def post_component(tenant_id=None):
     return write_body(results, request, response)
 
 
-@put('/components/<id>')
+@put('/components/<c_id>')
 @with_tenant
 def put_component(c_id, tenant_id=None):
     """
@@ -71,7 +71,7 @@ def put_component(c_id, tenant_id=None):
     return write_body(results, request, response)
 
 
-@get('/components/<id>')
+@get('/components/<c_id>')
 @with_tenant
 def get_component(c_id, tenant_id=None):
     """

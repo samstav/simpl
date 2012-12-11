@@ -41,7 +41,7 @@ class TestServer(unittest.TestCase):
         self.rest_tenant_exercise('component')
 
     def test_multitenant_blueprint(self):
-        self.rest_tenant_exercise('blueprint')
+        self.rest_tenant_exercise('blueprint', 'b_id')
 
     def test_crosstenant_deployment(self):
         pass  # self.rest_cross_tenant_exercise('deployment')
@@ -79,9 +79,10 @@ class TestServer(unittest.TestCase):
         self.assertEqual(res.status, '200 OK')
         self.assertEqual(res.content_type, 'application/json')
 
-    def rest_tenant_exercise(self, model_name):
+    def rest_tenant_exercise(self, model_name, id='id'):
         #PUT
-        entity = "%s: &e1\n    id: '1'" % model_name
+        entity = "%s: &e1\n    %s: '1'" % (model_name, id)
+        print "ENTITY: %s" % entity
         res = self.app.put('/T1000/%ss/1' % model_name, entity,
                             content_type='application/x-yaml')
         self.assertEqual(res.status, '200 OK', res)
