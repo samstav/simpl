@@ -62,9 +62,8 @@ class Provider(ProviderBase):
                 properties={'estimated_duration': 5})
 
         collect = Merge(wfspec,
-                "Collect Chef Data",
-                defines=dict(provider=self.key, extend_lists=True),
-                )
+                        "Collect Chef Data",
+                        defines={'provider': self.key, 'extend_lists': True})
         # Make sure the environment exists before writing options.
         collect.follow(create_environment_task)
         write_options.follow(collect)
@@ -72,8 +71,7 @@ class Provider(ProviderBase):
         # this task
         self.collect_data_task = dict(root=collect, final=write_options)
         self.prep_task = create_environment_task
-
-        return dict(root=create_environment_task, final=write_options)
+        return {'root': create_environment_task, 'final': write_options}
 
     def _hash_all_user_resource_passwords(self, deployment):
         """Chef needs all passwords to be a hash"""
