@@ -7,6 +7,9 @@ from checkmate.exceptions import CheckmateValidationException
 
 
 class ExtensibleDict(collections.MutableMapping):
+    """
+    TODO: docstring
+    """
 
     def __init__(self, *args, **kwargs):
         obj = dict(*args, **kwargs)
@@ -55,4 +58,4 @@ class ExtensibleDict(collections.MutableMapping):
 
         if errors:
             raise CheckmateValidationException("Invalid %s: %s" % (
-                    cls.__name__, '\n'.join(errors)))
+                cls.__name__, '\n'.join(errors)))

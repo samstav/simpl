@@ -1,6 +1,5 @@
 #!/usr/bin/env python
-# pylint: disable=E0611
-from bottle import get, post, put, request, response, abort #@UnresolvedImport
+from bottle import get, post, put, request, response, abort
 import logging
 import uuid
 
@@ -8,11 +7,11 @@ from checkmate.classes import ExtensibleDict
 from checkmate.common import schema
 from checkmate.db import get_driver, any_id_problems
 from checkmate.exceptions import CheckmateValidationException
-from checkmate.utils import read_body, write_body, extract_sensitive_data,\
-        with_tenant
+from checkmate.utils import read_body, write_body, extract_sensitive_data, \
+    with_tenant
 
 LOG = logging.getLogger(__name__)
-db = get_driver()
+DB = get_driver()
 
 
 #
@@ -21,13 +20,19 @@ db = get_driver()
 @get('/blueprints')
 @with_tenant
 def get_blueprints(tenant_id=None):
-    return write_body(db.get_blueprints(tenant_id=tenant_id), request,
-            response)
+    """
+    Returns blueprints for given tenant ID
+    """
+    return write_body(DB.get_blueprints(tenant_id=tenant_id), request,
+                      response)
 
 
 @post('/blueprints')
 @with_tenant
 def post_blueprint(tenant_id=None):
+    """
+    TODO: docstring
+    """
     entity = read_body(request)
     if 'blueprint' in entity:
         entity = entity['blueprint']
@@ -38,36 +43,42 @@ def post_blueprint(tenant_id=None):
         abort(406, any_id_problems(entity['id']))
 
     body, secrets = extract_sensitive_data(entity)
-    results = db.save_blueprint(entity['id'], body, secrets,
-            tenant_id=tenant_id)
+    results = DB.save_blueprint(entity['id'], body, secrets,
+                                tenant_id=tenant_id)
 
     return write_body(results, request, response)
 
 
 @put('/blueprints/<id>')
 @with_tenant
-def put_blueprint(id, tenant_id=None):
+def put_blueprint(b_id, tenant_id=None):
+    """
+    TODO: docstring
+    """
     entity = read_body(request)
     if 'blueprint' in entity:
         entity = entity['blueprint']
 
-    if any_id_problems(id):
-        abort(406, any_id_problems(id))
+    if any_id_problems(b_id):
+        abort(406, any_id_problems(b_id))
     if 'id' not in entity:
-        entity['id'] = str(id)
+        entity['id'] = str(b_id)
 
     body, secrets = extract_sensitive_data(entity)
-    results = db.save_blueprint(id, body, secrets, tenant_id=tenant_id)
+    results = DB.save_blueprint(b_id, body, secrets, tenant_id=tenant_id)
 
     return write_body(results, request, response)
 
 
 @get('/blueprints/<id>')
 @with_tenant
-def get_blueprint(id, tenant_id=None):
-    entity = db.get_blueprint(id)
+def get_blueprint(b_id, tenant_id=None):
+    """
+    TODO: docstring
+    """
+    entity = DB.get_blueprint(b_id)
     if not entity:
-        abort(404, 'No blueprint with id %s' % id)
+        abort(404, 'No blueprint with id %s' % b_id)
     return write_body(entity, request, response)
 
 
@@ -86,4 +97,4 @@ class Blueprint(ExtensibleDict):
         errors.extend(schema.validate_inputs(obj))
         if errors:
             raise CheckmateValidationException("Invalid %s: %s" % (
-                    cls.__name__, '\n'.join(errors)))
+                cls.__name__, '\n'.join(errors)))
