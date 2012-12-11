@@ -191,8 +191,8 @@ def get_workflow_task(task_id, tenant_id=None):
 
 def process(tenant_id):
     """Process one task at a time. Patch Celery class to not make real calls"""
-    path = os.path.normpath(os.path.join(os.path.dirname(__file__), os.pardir,
-            'tests', 'data', 'simulator.json'))
+    path = os.path.normpath(os.path.join(os.path.dirname(__file__),
+                                         'simulator.json'))
     serializer = DictionarySerializer()
     with open(path) as f:
         data = json.load(f)

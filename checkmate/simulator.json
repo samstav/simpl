@@ -63,17 +63,17 @@
   "task_tree": {
     "parent": null, 
     "task_spec": "Root", 
-    "last_state_change": 1355248048.841699, 
+    "last_state_change": 1355264043.753116, 
     "children": [
       {
         "parent": 1, 
         "task_spec": "Start", 
-        "last_state_change": 1355248048.843532, 
+        "last_state_change": 1355264043.754493, 
         "children": [
           {
             "parent": 2, 
             "task_spec": "end", 
-            "last_state_change": 1355248048.843928, 
+            "last_state_change": 1355264043.754805, 
             "children": [], 
             "state": 64, 
             "internal_attributes": {
@@ -81,7 +81,7 @@
             }, 
             "attributes": {
               "username": "tester", 
-              "domain": "checkmate.local", 
+              "domain": "test.local", 
               "keys": {
                 "checkmate": {
                   "public_key_path": "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQDtjYYMFbpCJ/ND3izZ1DqNFQHlooXyNcDGWilAqNqcCfz9L+gpGjY2pQlZz/1Hir3R8fz0MS9VY32RYmP3wWygt85kNccEkOpVGGpGyV/aMFaQHZD0h6d0AT+haP0Iig+OrH1YBnpdgVPWx3SbU4eV/KYGpO9Mintj3P54of22lTK4dOwCNvID9P9w+T1kMfdVxGwhqsSL0RxVXnSSkozXQWCNvaZJMUmidm8YA009c5PoksyWjl3EE+rEzZ8ywvtUJf9DvnLCESfhF3hK5lAiEd8z7gyiQnBexn/dXzldGFiJYJgQ5HolYaNMtTF+AQY6R6Qt0okCPyEDJxHJUM7d", 
@@ -101,7 +101,7 @@
         }, 
         "attributes": {
           "username": "tester", 
-          "domain": "checkmate.local", 
+          "domain": "test.local", 
           "keys": {
             "checkmate": {
               "public_key_path": "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQDtjYYMFbpCJ/ND3izZ1DqNFQHlooXyNcDGWilAqNqcCfz9L+gpGjY2pQlZz/1Hir3R8fz0MS9VY32RYmP3wWygt85kNccEkOpVGGpGyV/aMFaQHZD0h6d0AT+haP0Iig+OrH1YBnpdgVPWx3SbU4eV/KYGpO9Mintj3P54of22lTK4dOwCNvID9P9w+T1kMfdVxGwhqsSL0RxVXnSSkozXQWCNvaZJMUmidm8YA009c5PoksyWjl3EE+rEzZ8ywvtUJf9DvnLCESfhF3hK5lAiEd8z7gyiQnBexn/dXzldGFiJYJgQ5HolYaNMtTF+AQY6R6Qt0okCPyEDJxHJUM7d", 
