@@ -146,6 +146,9 @@ CATALOG = [{
   }
 ]
 
+def register():
+    register_providers([TestProvider])
+
 
 class StubbedWorkflowBase(unittest.TestCase):
     def setUp(self):
@@ -687,7 +690,8 @@ class TestProvider(ProviderBase):
     Defers to ProviderBase for most functionality, but implements
     prep_environment, add_connection_tasks and add_resource_tasks
     """
-    name = "Test"
+    name = "base"
+    vendor = "test"
 
     def prep_environment(self, wfspec, deployment, context):
         pass
