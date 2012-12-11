@@ -18,15 +18,21 @@ from checkmate.deployments import Deployment
 from checkmate.test import StubbedWorkflowBase, ENV_VARS
 from checkmate.utils import yaml_to_dict
 from checkmate.deployments import get_os_env_keys
-from checkmate.providers.base import PROVIDER_CLASSES, ProviderBase
+from checkmate.providers import base
+from checkmate.providers.base import ProviderBase
 from checkmate.utils import resolve_yaml_external_refs
 
-# Register built-in providers
 from checkmate.providers import rackspace, opscode
-if 'rackspace.legacy' not in PROVIDER_CLASSES:
-    rackspace.register()
-if 'opscode.chef-local' not in PROVIDER_CLASSES:
-    opscode.register()
+
+
+#def commonSetUp():
+#    # Register built-in providers
+#    base.PROVIDER_CLASSES.clear()
+#    if 'rackspace.legacy' not in base.PROVIDER_CLASSES:
+#        rackspace.register()
+#    if 'opscode.chef-local' not in base.PROVIDER_CLASSES:
+#        opscode.register()
+
 
 class TestWorkflowStubbing(StubbedWorkflowBase):
     """Test workflow stubbing using mox"""
@@ -88,7 +94,7 @@ class TestWorkflowLogic(StubbedWorkflowBase):
                       - password: secret
                         username: tester
             """))
-        PROVIDER_CLASSES['test.base'] = ProviderBase
+        base.PROVIDER_CLASSES['test.base'] = ProviderBase
 
         workflow = self._get_stubbed_out_workflow()
 
@@ -148,7 +154,7 @@ class TestWorkflow(StubbedWorkflowBase):
                       - password: secret
                         username: tester
             """))
-        PROVIDER_CLASSES['test.base'] = ProviderBase
+        base.PROVIDER_CLASSES['test.base'] = ProviderBase
         self.workflow = self._get_stubbed_out_workflow()
 
         self.mox.ReplayAll()
