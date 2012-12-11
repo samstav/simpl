@@ -28,7 +28,8 @@ from checkmate.exceptions import CheckmateException
 from checkmate.providers import base, register_providers, get_provider_class
 from checkmate.providers.base import ProviderBase
 from checkmate.middleware import RequestContext  # also enables logging
-from checkmate.utils import is_ssh_key, get_source_body, merge_dictionary
+from checkmate.utils import is_ssh_key, get_source_body, merge_dictionary, \
+    yaml_to_dict
 from checkmate.workflows import create_workflow_deploy, wait_for
 
 # Environment variables and safe alternatives
@@ -814,6 +815,37 @@ class ProviderTester(unittest.TestCase):
 
     def setUp(self):
         self.mox = mox.Mox()
+
+    def test_provider_key(self):
+        provider = self.klass({})
+        self.assertEqual(provider.key, '%s.%s' % (self.klass.vendor,
+                                                  self.klass.name))
+
+    def test_provider_key_override(self):
+        provider = self.klass({}, key="custom.value")
+        self.assertEqual(provider.key, "custom.value")
+
+    def test_provider_override(self):
+        """Test that an injected catalog and config gets applied"""
+        override = yaml_to_dict("""
+                  provides:
+                  - widget: foo
+                  - widget: bar
+                  vendor: test
+                  catalog:
+                    widget:
+                      small_widget:
+                        is: widget
+                        provides:
+                        - widget: foo
+                      big_widget:
+                        is: widget
+                        provides:
+                        - widget: bar
+            """)
+        provider = self.klass(override)
+        self.assertListEqual(provider.provides(None), override['provides'])
+        self.assertDictEqual(provider.get_catalog(None), override['catalog'])
 
     def test_provider_loads_unregistered(self):
         """Check that provider loads without registration"""

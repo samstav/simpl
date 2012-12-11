@@ -279,27 +279,6 @@ class TestChefLocal(test.ProviderTester):
 class TestWorkflowLogic(StubbedWorkflowBase):
     """ Test Basic Workflow code """
 
-    def test_provider_catalog_override(self):
-        """Test that an injected catalog gets applied"""
-        data = yaml_to_dict("""
-                  provides:
-                  - widget: foo
-                  - widget: bar
-                  vendor: test
-                  catalog:
-                    widget:
-                      small_widget:
-                        is: widget
-                        provides:
-                        - widget: foo
-                      big_widget:
-                        is: widget
-                        provides:
-                        - widget: bar
-            """)
-        base = local.Provider(data, key='base')
-        self.assertDictEqual(base.get_catalog(None), data['catalog'])
-
     def test_workflow_option_flow(self):
         """Test that options get routed to data bag/overrides
 
