@@ -25,21 +25,28 @@ class Provider(ProviderBase):
             return  # already prepped
         self._hash_all_user_resource_passwords(deployment)
 
+        # Create Celery Task
+        settings = deployment.settings()
+        keys = settings.get('keys', {})
+        deployment_keys = keys.get('deployment', {})
+        public_key_ssh = deployment_keys.get('public_key_ssh')
+        private_key = deployment_keys.get('private_key')
+        secret_key = deployment.get_setting('secret_key')
+        source_repo = deployment.get_setting('source', provider_key=self.key)
+        defines = {'provider': self.key, 'task_tags': ['root']}
+        properties = {'estimated_duration': 10}
+        task_name = 'checkmate.providers.opscode.local.create_environment'
         create_environment_task = Celery(wfspec,
-                'Create Chef Environment',
-                'checkmate.providers.opscode.local.create_environment',
-                call_args=[deployment['id'], 'kitchen'],
-                public_key_ssh=deployment.settings().get('keys', {}).get(
-                        'deployment', {}).get('public_key_ssh'),
-                private_key=deployment.settings().get('keys', {}).get(
-                        'deployment', {}).get('private_key'),
-                secret_key=deployment.get_setting('secret_key'),
-                source_repo=deployment.get_setting('source',
-                                                  provider_key=\
-                                                        self.key),
-                defines=dict(provider=self.key,
-                            task_tags=['root']),
-                properties={'estimated_duration': 10})
+                                         'Create Chef Environment',
+                                         task_name,
+                                         call_args=[deployment['id'],
+                                                    'kitchen'],
+                                         public_key_ssh=public_key_ssh,
+                                         private_key=private_key,
+                                         secret_key=secret_key,
+                                         source_repo=source_repo,
+                                         defines=defines,
+                                         properties=properties)
 
         #FIXME: use a map file
         # Call manage_databag(environment, bagname, itemname, contents)
