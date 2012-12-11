@@ -20,7 +20,8 @@ from checkmate import keys
 from checkmate.deployments import Deployment, plan, get_deployments_count, \
         get_deployments_by_bp_count, _deploy, generate_keys
 from checkmate.exceptions import CheckmateValidationException
-from checkmate.providers.base import PROVIDER_CLASSES, ProviderBase
+from checkmate.providers import base
+from checkmate.providers.base import ProviderBase
 from checkmate.middleware import RequestContext
 from checkmate.utils import yaml_to_dict
 
@@ -214,7 +215,7 @@ class TestDeploymentResourceGenerator(unittest.TestCase):
                         count: 4
             """))
 
-        PROVIDER_CLASSES['test.base'] = ProviderBase
+        base.PROVIDER_CLASSES['test.base'] = ProviderBase
 
         parsed = plan(deployment, RequestContext())
         services = parsed['blueprint']['services']
@@ -256,7 +257,7 @@ class TestDeploymentResourceGenerator(unittest.TestCase):
                             - widget: bar
             """))
 
-        PROVIDER_CLASSES['test.base'] = ProviderBase
+        base.PROVIDER_CLASSES['test.base'] = ProviderBase
 
         parsed = plan(deployment, RequestContext())
         resources = parsed['resources']
@@ -345,7 +346,7 @@ class TestComponentSearch(unittest.TestCase):
                             provides:
                             - widget: foo
             """))
-        PROVIDER_CLASSES['test.base'] = ProviderBase
+        base.PROVIDER_CLASSES['test.base'] = ProviderBase
         plan(deployment, RequestContext())
         self.assertEquals(deployment['resources'].values()[0]['component'],
                 'small_widget')
@@ -383,7 +384,7 @@ class TestComponentSearch(unittest.TestCase):
                             provides:
                             - widget: bar
             """))
-        PROVIDER_CLASSES['test.base'] = ProviderBase
+        base.PROVIDER_CLASSES['test.base'] = ProviderBase
         plan(deployment, RequestContext())
         components = [r['component'] for r in deployment['resources'].values()]
         self.assertIn('big_widget', components)
@@ -425,7 +426,7 @@ class TestComponentSearch(unittest.TestCase):
                       - password: secret
                         username: tester
             """))
-        PROVIDER_CLASSES['test.base'] = ProviderBase
+        base.PROVIDER_CLASSES['test.base'] = ProviderBase
         plan(deployment, RequestContext())
         components = [r['component'] for r in deployment['resources'].values()]
         self.assertIn('big_widget', components)
@@ -561,7 +562,7 @@ class TestDeploymentSettings(unittest.TestCase):
                 }
             ]
 
-        PROVIDER_CLASSES['test.base'] = ProviderBase
+        base.PROVIDER_CLASSES['test.base'] = ProviderBase
         for test in cases[:-1]:  # TODO: last case broken without env providers
             value = deployment.get_setting(test['name'],
                     service_name=test.get('service'),
@@ -612,7 +613,7 @@ class TestDeploymentSettings(unittest.TestCase):
                             - widget: bar
             """))
 
-        PROVIDER_CLASSES['test.base'] = ProviderBase
+        base.PROVIDER_CLASSES['test.base'] = ProviderBase
 
         parsed = plan(deployment, RequestContext())
         resources = parsed['resources']
@@ -724,7 +725,7 @@ class TestDeploymentSettings(unittest.TestCase):
                             provides:
                             - widget: bar
             """))
-        PROVIDER_CLASSES['test.base'] = ProviderBase
+        base.PROVIDER_CLASSES['test.base'] = ProviderBase
         planned = plan(deployment, RequestContext())
         # Use service and type
         value = planned.get_setting('username', service_name='single',
