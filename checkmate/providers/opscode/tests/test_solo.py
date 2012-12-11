@@ -4,17 +4,116 @@ import logging
 import unittest2 as unittest
 
 import mox
+from mox import In, IsA, And, IgnoreArg, ContainsKeyValue
 
 # Init logging before we load the database, 3rd party, and 'noisy' modules
 from checkmate.utils import init_console_logging
 init_console_logging()
 LOG = logging.getLogger(__name__)
 
-from checkmate import test
+from checkmate import test, utils
+from checkmate.deployments import Deployment
+from checkmate.providers import base, register_providers
 from checkmate.providers.opscode import solo
+
 
 class TestChefSolo(test.ProviderTester):
     klass = solo.Provider
+
+
+class TestDBWorkflow(test.StubbedWorkflowBase):
+    """ Test MySQL Resource Creation Workflow """
+
+    def setUp(self):
+        test.StubbedWorkflowBase.setUp(self)
+        base.PROVIDER_CLASSES = {}
+        register_providers([solo.Provider, test.TestProvider])
+        self.deployment = Deployment(utils.yaml_to_dict("""
+                id: 'DEP-ID-1000'
+                blueprint:
+                  name: test db
+                  services:
+                    db:
+                      component:
+                        id: mysql
+                        is: database
+                        type: database
+                environment:
+                  name: test
+                  providers:
+                    chef-solo:
+                      vendor: opscode
+                      provides:
+                      - database: mysql
+                      catalog:
+                        database:
+                          mysql_instance:
+                            id: mysql_instance
+                            provides:
+                            - database: mysql
+                            requires:
+                            - host: 'linux'
+                    base:
+                      vendor: test
+                      provides:
+                      - compute: linux
+                      catalog:
+                        compute:
+                          linux_instance:
+                            id: linux_instance
+                            is: compute
+                            provides:
+                            - compute: linux
+                inputs:
+                  blueprint:
+                    region: DFW
+            """))
+        expected = self._get_expected_calls()
+        expected.append({
+                    'call': 'checkmate.providers.test.create_resource',
+                    'args': [IsA(dict),
+                            {'index': '0', 'component': 'linux_instance',
+                            'dns-name': 'CM-DEP-ID--db1.checkmate.local',
+                            'instance': {}, 'hosts': ['1'], 'provider': 'base',
+                            'type': 'compute', 'service': 'db'}],
+                    'kwargs': None,
+                    'result': {
+                          'instance:0': {
+                              'name': 'CM-DEP-ID--db1.checkmate.local',
+                              'interfaces': {
+                                'mysql': {
+                                    'username': 'mysql_user',
+                                    'host': 'db.local',
+                                    'database_name': 'dbX',
+                                    'port': 8888,
+                                    'password': 'secret',
+                                  },
+                              }
+                          }
+                      },
+                      'post_back_result': True,
+                })
+        expected.append({
+                'call': 'checkmate.providers.opscode.local.manage_databag',
+                'args': [self.deployment['id'],
+                        self.deployment['id'],
+                        None,
+                        None],
+                'kwargs': And(ContainsKeyValue('secret_file',
+                        'certificates/chef.pem'), ContainsKeyValue('merge',
+                        True)),
+                'result': None
+            })
+        self.workflow = self._get_stubbed_out_workflow(expected_calls=expected)
+
+    def test_workflow_completion(self):
+        """Verify workflow sequence and data flow"""
+
+        self.mox.ReplayAll()
+
+        self.workflow.complete_all()
+        self.assertTrue(self.workflow.is_completed(), "Workflow did not "
+                        "complete")
 
 
 if __name__ == '__main__':

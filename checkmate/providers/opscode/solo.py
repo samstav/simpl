@@ -1,6 +1,10 @@
 """Chef Solo configuration management provider"""
 import logging
 
+from SpiffWorkflow.operators import Attrib, PathAttrib
+from SpiffWorkflow.specs import Celery, Transform, Merge
+
+from checkmate.keys import hash_SHA512
 from checkmate.providers import ProviderBase
 
 LOG = logging.getLogger(__name__)
@@ -13,3 +17,64 @@ class Provider(ProviderBase):
 
     def __init__(self, provider, key=None):
         ProviderBase.__init__(self, provider, key=key)
+        self.prep_task = None
+        self.collect_data_task = None
+
+    def prep_environment(self, wfspec, deployment, context):
+        if self.prep_task:
+            return  # already prepped
+        self._hash_all_user_resource_passwords(deployment)
+
+        create_environment_task = Celery(wfspec,
+                'Create Chef Environment',
+                'checkmate.providers.opscode.local.create_environment',
+                call_args=[deployment['id'], 'kitchen'],
+                public_key_ssh=deployment.settings().get('keys', {}).get(
+                        'deployment', {}).get('public_key_ssh'),
+                private_key=deployment.settings().get('keys', {}).get(
+                        'deployment', {}).get('private_key'),
+                secret_key=deployment.get_setting('secret_key'),
+                source_repo=deployment.get_setting('source',
+                                                  provider_key=\
+                                                        self.key),
+                defines=dict(provider=self.key,
+                            task_tags=['root']),
+                properties={'estimated_duration': 10})
+
+        #FIXME: use a map file
+        # Call manage_databag(environment, bagname, itemname, contents)
+        write_options = Celery(wfspec,
+                "Write Data Bag",
+               'checkmate.providers.opscode.local.manage_databag',
+                call_args=[deployment['id'], deployment['id'],
+                        Attrib('app_id'), Attrib('chef_options')],
+                kitchen_name="kitchen",
+                secret_file='certificates/chef.pem',
+                merge=True,
+                defines=dict(provider=self.key),
+                properties={'estimated_duration': 5})
+
+        collect = Merge(wfspec,
+                "Collect Chef Data",
+                defines=dict(provider=self.key, extend_lists=True),
+                )
+        # Make sure the environment exists before writing options.
+        collect.follow(create_environment_task)
+        write_options.follow(collect)
+        # Any tasks that need to be collected will wire themselves into
+        # this task
+        self.collect_data_task = dict(root=collect, final=write_options)
+        self.prep_task = create_environment_task
+
+        return dict(root=create_environment_task, final=write_options)
+
+    def _hash_all_user_resource_passwords(self, deployment):
+        """Chef needs all passwords to be a hash"""
+        if 'resources' in deployment:
+            for resource in deployment['resources'].values():
+                if resource.get('type') == 'user':
+                    instance = resource.get('instance', {})
+                    if 'password' in instance:
+                        instance['hash'] = hash_SHA512(instance['password'])
+
+
