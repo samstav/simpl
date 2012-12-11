@@ -24,6 +24,8 @@ class TestChefSolo(unittest.TestCase):
         except Exception as exc:
             self.assertFalse(True, msg="Expecting to be able to import solo "
                              "module")
+        from checkmate.providers import get_provider_class
+        self.assertIs(get_provider_class('opscode', 'solo'), solo)
 
     def tearDown(self):
         self.mox.UnsetStubs()
