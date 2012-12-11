@@ -9,6 +9,7 @@ LOG = logging.getLogger(__name__)
 import mox
 from novaclient.v1_1 import client
 
+from checkmate import test
 from checkmate.exceptions import CheckmateException
 from checkmate.deployments import Deployment, resource_postback
 from checkmate.middleware import RequestContext
@@ -18,14 +19,9 @@ from checkmate.test import StubbedWorkflowBase, TestProvider
 from checkmate.utils import yaml_to_dict
 
 
-class TestNovaCompute(unittest.TestCase):
+class TestNovaCompute(test.ProviderTester):
     """ Test Nova Compute Provider """
-
-    def setUp(self):
-        self.mox = mox.Mox()
-
-    def tearDown(self):
-        self.mox.UnsetStubs()
+    klass = compute.Provider
 
     def test_provider(self):
         provider = compute.Provider({})

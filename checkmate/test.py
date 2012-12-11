@@ -3,6 +3,7 @@
 import json
 import logging
 import os
+import sys
 import unittest2 as unittest
 import uuid
 
@@ -13,7 +14,7 @@ from mox import IsA, In, And, IgnoreArg, ContainsKeyValue, Func, StrContains
 from SpiffWorkflow.specs import Celery, Transform
 
 # Init logging before we load the database, 3rd party, and 'noisy' modules
-from checkmate.utils import init_console_logging
+from checkmate.utils import init_console_logging, import_class
 init_console_logging()
 LOG = logging.getLogger(__name__)
 
@@ -24,9 +25,11 @@ os.environ['CHECKMATE_DATA_PATH'] = os.path.join(os.path.dirname(__file__),
 
 from checkmate.common import schema
 from checkmate.exceptions import CheckmateException
+from checkmate.providers import base, register_providers, get_provider_class
 from checkmate.providers.base import ProviderBase
 from checkmate.middleware import RequestContext  # also enables logging
-from checkmate.utils import is_ssh_key, get_source_body, merge_dictionary
+from checkmate.utils import is_ssh_key, get_source_body, merge_dictionary, \
+    yaml_to_dict
 from checkmate.workflows import create_workflow_deploy, wait_for
 
 # Environment variables and safe alternatives
@@ -143,6 +146,9 @@ CATALOG = [{
     "type": "rax:object-cdn"
   }
 ]
+
+def register():
+    register_providers([TestProvider])
 
 
 class StubbedWorkflowBase(unittest.TestCase):
@@ -685,7 +691,8 @@ class TestProvider(ProviderBase):
     Defers to ProviderBase for most functionality, but implements
     prep_environment, add_connection_tasks and add_resource_tasks
     """
-    name = "Test"
+    name = "base"
+    vendor = "test"
 
     def prep_environment(self, wfspec, deployment, context):
         pass
@@ -789,3 +796,78 @@ class TestProvider(ProviderBase):
         if tasks:
             for task in tasks:
                 wait_for(wfspec, task, [compile_override])
+
+
+class ProviderTester(unittest.TestCase):
+    """Basic Provider Test Suite
+
+    To use this, load it in the provider tests and set the override the klass
+    property with the provider class to test:
+
+        from checkmate import test
+
+        class TestMe(test.ProviderTests):
+            klass = module.MyProviderClass
+
+    """
+
+    klass = TestProvider
+
+    def setUp(self):
+        self.mox = mox.Mox()
+
+    def test_provider_key(self):
+        provider = self.klass({})
+        self.assertEqual(provider.key, '%s.%s' % (self.klass.vendor,
+                                                  self.klass.name))
+
+    def test_provider_key_override(self):
+        provider = self.klass({}, key="custom.value")
+        self.assertEqual(provider.key, "custom.value")
+
+    def test_provider_override(self):
+        """Test that an injected catalog and config gets applied"""
+        override = yaml_to_dict("""
+                  provides:
+                  - widget: foo
+                  - widget: bar
+                  vendor: test
+                  catalog:
+                    widget:
+                      small_widget:
+                        is: widget
+                        provides:
+                        - widget: foo
+                      big_widget:
+                        is: widget
+                        provides:
+                        - widget: bar
+            """)
+        provider = self.klass(override)
+        self.assertListEqual(provider.provides(None), override['provides'])
+        self.assertDictEqual(provider.get_catalog(None), override['catalog'])
+
+    def test_provider_loads_unregistered(self):
+        """Check that provider loads without registration"""
+        if not isinstance(self.klass, TestProvider):
+            self.assertIs(get_provider_class(self.klass.vendor,
+                                             self.klass.name), self.klass)
+
+    def test_provider_loads_registered(self):
+        """Check that provider loads"""
+        base.PROVIDER_CLASSES = {}
+        register_providers([self.klass])
+        self.assertTrue(issubclass(get_provider_class(self.klass.vendor,
+                                                      self.klass.name),
+                                   ProviderBase))
+
+    def test_provider_registration(self):
+        """Check that provider class registers"""
+        base.PROVIDER_CLASSES = {}
+        register_providers([self.klass])
+        key = self.klass({}).key
+        self.assertIn(key, base.PROVIDER_CLASSES)
+        self.assertIs(base.PROVIDER_CLASSES[key], self.klass)
+
+    def tearDown(self):
+        self.mox.UnsetStubs()

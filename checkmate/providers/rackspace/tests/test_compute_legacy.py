@@ -10,26 +10,15 @@ import mox
 import openstack.compute
 
 from checkmate.exceptions import CheckmateException
-from checkmate.deployments import Deployment, resource_postback
+from checkmate.deployments import resource_postback
 from checkmate.middleware import RequestContext
-from checkmate.providers.base import PROVIDER_CLASSES
 from checkmate.providers.rackspace import compute_legacy
-from checkmate.test import StubbedWorkflowBase, TestProvider
-from checkmate.utils import yaml_to_dict
+from checkmate import test
 
 
-class TestLegacyCompute(unittest.TestCase):
+class TestLegacyCompute(test.ProviderTester):
     """ Test Legacy Compute Provider """
-
-    def setUp(self):
-        self.mox = mox.Mox()
-
-    def tearDown(self):
-        self.mox.UnsetStubs()
-
-    def test_provider(self):
-        provider = compute_legacy.Provider({})
-        self.assertEqual(provider.key, 'rackspace.legacy')
+    klass = compute_legacy.Provider
 
     def test_create_server(self):
 
