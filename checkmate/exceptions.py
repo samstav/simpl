@@ -19,6 +19,7 @@ class CheckmateException(Exception):
 
 
 class CheckmateDatabaseMigrationError(CheckmateException):
+    """Error switching databases"""
     pass
 
 
@@ -54,6 +55,7 @@ class CheckmateBadState(CheckmateException):
 
 
 class CheckmateIndexError(CheckmateException):
+    """Checkmate Index Error"""
     pass
 
 
@@ -80,8 +82,10 @@ class CheckmateCalledProcessError(CheckmateException):
 
 
 class CheckmateServerBuildFailed(CheckmateException):
+    """Error Building Server"""
     pass
 
 
 class CheckmateValidationException(CheckmateException):
+    """Validation Error"""
     pass

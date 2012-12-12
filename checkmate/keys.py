@@ -34,7 +34,8 @@ def get_public_key(private_key):
     return key.publickey().exportKey('PEM')
 
 
-def hash_SHA512(value, salt=None):  # pylint: disable=C0103
+def hash_SHA512(value, salt=None):
+    """Create random SHA512 hashed value"""
     if not salt:
         salt = Random.get_random_bytes(8).encode('base64').strip()
     new_hash = SHA512.new(salt)
@@ -42,7 +43,8 @@ def hash_SHA512(value, salt=None):  # pylint: disable=C0103
     return "$6$%s$%s" % (salt, new_hash.hexdigest())
 
 
-def hash_MD5(value, salt=None):  # pylint: disable=C0103
+def hash_MD5(value, salt=None):
+    """Create random MD5 hashed value"""
     if not salt:
         salt = Random.get_random_bytes(8).encode('base64').strip()
     new_hash = MD5.new(salt)
