@@ -1692,7 +1692,11 @@ def _run_ruby_command(path, command, params, lock=True):
         except OSError as exc:
             if exc.errno == errno.ENOENT:
                 # Check if command is installed
-                output = check_output(['which', command])
+                output = None
+                try:
+                    output = check_output(['which', command])
+                except CalledProcessError:
+                    pass
                 if not output:
                     raise CheckmateException("'%s' is not installed or not "
                                              "accessible on the server" %
