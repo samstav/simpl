@@ -1422,6 +1422,7 @@ def _init_repo(path, source_repo=None):
         if remotes:
             remote = remotes[0]
         else:
+            #FIXME: there's a gap here. We don't check if origin exists.
             remote = repo.create_remote('origin', source_repo)
         remote.pull(refspec=ref or 'master')
         LOG.debug("Pulled '%s' ref '%s' into repo: %s" % (source_repo,
