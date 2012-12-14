@@ -7,6 +7,7 @@ from SpiffWorkflow.operators import Attrib, PathAttrib
 from SpiffWorkflow.specs import Celery, Transform, Merge
 
 from checkmate import utils
+from checkmate.exceptions import CheckmateException
 from checkmate.keys import hash_SHA512
 from checkmate.providers import ProviderBase
 from checkmate.workflows import wait_for
@@ -365,14 +366,86 @@ class Provider(ProviderBase):
                     if 'password' in instance:
                         instance['hash'] = hash_SHA512(instance['password'])
 
+    def add_connection_tasks(self, resource, key, relation, relation_key,
+                             wfspec, deployment, context):
+        """Write out or Transform data. Provide final task for relation sources
+        to hook into"""
+        LOG.debug("Adding connection task  resource: %s, key: %s, relation: %s"
+                  " relation_key: %s"
+                  % (resource, key, relation, relation_key))
+
+        if relation_key != 'host':
+            #FIXME: need to implement this (with map)
+            raise NotImplemented()
+
+        if relation_key == 'host':
+            # Wait on host to be ready
+            wait_on = self.get_host_ready_tasks(resource, wfspec, deployment)
+            if not wait_on:
+                raise CheckmateException("No host resource found for relation "
+                                         "'%s'" % relation_key)
+
+            # Create chef setup tasks
+            register_node_task = Celery(wfspec,
+                    'Register Server %s (%s)' % (relation['target'],
+                                                 resource['service']),
+                    'checkmate.providers.opscode.local.register_node',
+                    call_args=[
+                            PathAttrib('instance:%s/ip' % relation['target']),
+                            deployment['id']],
+                    password=PathAttrib('instance:%s/password' %
+                            relation['target']),
+                    kitchen_name='kitchen',
+                    omnibus_version="10.12.0-1",
+                    identity_file=Attrib('private_key_path'),
+                    attributes={'deployment': {'id': deployment['id']}},
+                    defines=dict(resource=key,
+                                relation=relation_key,
+                                provider=self.key),
+                    description=("Install Chef client on the target machine "
+                                 "and register it in the environment"),
+                    properties=dict(estimated_duration=120))
+
+            bootstrap_task = Celery(wfspec,
+                    'Pre-Configure Server %s (%s)' % (relation['target'],
+                                                      resource['service']),
+                    'checkmate.providers.opscode.local.cook',
+                    call_args=[
+                            PathAttrib('instance:%s/ip' % relation['target']),
+                            deployment['id']],
+                    password=PathAttrib('instance:%s/password' %
+                                        relation['target']),
+                    kitchen_name='kitchen',
+                    identity_file=Attrib('private_key_path'),
+                    description="Install basic pre-requisites on %s"
+                                % relation['target'],
+                    defines=dict(resource=key,
+                                 relation=relation_key,
+                                 provider=self.key),
+                    properties=dict(estimated_duration=100,
+                                    task_tags=['final']))
+            bootstrap_task.follow(register_node_task)
+
+            # Register only when server is up and environment is ready
+            wait_on.append(self.prep_task)
+            root = wait_for(wfspec, register_node_task, wait_on,
+                    name="After Environment is Ready and Server %s (%s) is Up"
+                            % (relation['target'], resource['service']),
+                    resource=key, relation=relation_key, provider=self.key)
+            if 'task_tags' in root.properties:
+                root.properties['task_tags'].append('root')
+            else:
+                root.properties['task_tags'] = ['root']
+            return dict(root=root, final=bootstrap_task)
+
 
 class TemplateParser():
     """Chef.map parser. Uses Jinja2 template processing"""
     @staticmethod
-    def parse(template, request, response):
+    def parse(template_path, request, response):
         """Parse template
 
-        :param template: the path to the template file
+        :param template_path: the path to the template file
 
         """
         class MyLoader(BaseLoader):
