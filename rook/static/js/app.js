@@ -1255,8 +1255,9 @@ function BlueprintRemoteListController($scope, $location, $routeParams, $resourc
     });
   }
 
-  $scope.loadBlueprint = function(branch) {
-    $http({method: 'GET', url: (checkmate_server_base || '') + '/githubproxy/api/v3/repos/' + ($scope.remote_org || $scope.remote_user) + '/' + $scope.selected.name + '/git/trees/' + (branch || $scope.remote_branch),
+  $scope.loadBlueprint = function(branch_sha) {
+    branch_sha = branch_sha || $scope.remote_branch;
+    $http({method: 'GET', url: (checkmate_server_base || '') + '/githubproxy/api/v3/repos/' + ($scope.remote_org || $scope.remote_user) + '/' + $scope.selected.name + '/git/trees/' + branch_sha,
         headers: {'X-Target-Url': $scope.remote_server, 'accept': 'application/json'}}).
     success(function(data, status, headers, config) {
       var checkmate_yaml_file = _.find(data.tree, function(file) {return file.path == "checkmate.yaml";});
@@ -1268,7 +1269,7 @@ function BlueprintRemoteListController($scope, $location, $routeParams, $resourc
         success(function(data, status, headers, config) {
           var checkmate_yaml = {};
           try {
-            var branch = _.find($scope.branches, function(branch) {return branch.commit.sha = $scope.remote_branch;});
+            var branch = _.find($scope.branches, function(branch) {return branch.commit.sha == branch_sha;});
             checkmate_yaml = YAML.parse(data.replace('%repo_url%', $scope.selected.git_url + '#' + branch.name).replace('%username%', $scope.auth.username || '%username%'));
           } catch(err) {
             if (err.name == "YamlParseException")
