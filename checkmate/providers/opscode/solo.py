@@ -129,7 +129,7 @@ class Provider(ProviderBase):
                         deployment['id']],
                 password=PathAttrib('instance:%s/password' %
                         resource.get('hosted_on', key)),
-                kitchen_name=service_name,
+                kitchen_name='kitchen',
                 identity_file=Attrib('private_key_path'),
                 description="Push and apply Chef recipes on the server",
                 defines=dict(resource=key,
@@ -313,7 +313,7 @@ class Provider(ProviderBase):
                         call_args=[deployment['id'], deployment['id'],
                                 Attrib('app_id'), contents_param],
                         secret_file='certificates/chef.pem',
-                        kitchen_name=service_name,
+                        kitchen_name='kitchen',
                         merge=True,
                         defines=dict(provider=self.key, resource=key),
                         properties={'estimated_duration': 5},
@@ -324,7 +324,7 @@ class Provider(ProviderBase):
                         (component['id'], key, service_name),
                         'checkmate.providers.opscode.local.manage_role',
                         call_args=[deployment['id'], deployment['id']],
-                        kitchen_name=service_name,
+                        kitchen_name='kitchen',
                         override_attributes=contents_param,
                         merge=True,
                         description="Take the JSON prepared earlier and write "
