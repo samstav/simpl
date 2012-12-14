@@ -763,7 +763,7 @@ function WorkflowController($scope, $resource, $http, $routeParams, $location, $
         $scope.$root.error = info;
       $('#modalError').modal('show');
     });
-  }
+  };
   
   //Parse loaded workflow
   $scope.parse = function(object) {
@@ -790,10 +790,10 @@ function WorkflowController($scope, $resource, $http, $routeParams, $location, $
     var alltasks = items.tasks;
     var tasks = _.filter(alltasks, function(task, key) {
         return task.task_spec == spec_id;
-      })
+      });
     $scope.current_spec_tasks = tasks;
     tasks = $scope.spec_tasks(spec_id);
-    if (tasks && !(_.include(tasks, $scope.current_task))) 
+    if (tasks && !(_.include(tasks, $scope.current_task)))
       $scope.selectTask(tasks[0].id);
     $scope.toCurrent();
     if ($location.hash() != spec_id)
@@ -808,17 +808,17 @@ function WorkflowController($scope, $resource, $http, $routeParams, $location, $
             if (item !== null) {
                   var itemTop = item.top - 250;
                   $('.summaries').animate({'scrollTop': curScrollPos + itemTop}, 200);
-            };
+            }
     }, 0);
-  }
+  };
   
   $scope.state_class = function(task) {
     return workflow.classify(task);
-  }
+  };
 
   $scope.state_name = function(task) {
     return workflow.state_name(task);
-  }
+  };
   
   $scope.save_spec = function() {
     var editor = _.find($('.CodeMirror'), function(c) {
@@ -833,7 +833,7 @@ function WorkflowController($scope, $resource, $http, $routeParams, $location, $
           for (var attr in returned) {
             if (returned.hasOwnProperty(attr))
               $scope.current_spec[attr] = returned[attr];
-          };
+          }
           $scope.notify('Saved');
         }, function(error) {
           $scope.$root.error = {data: error.data, status: error.status, title: "Error Saving",
@@ -858,7 +858,7 @@ function WorkflowController($scope, $resource, $http, $routeParams, $location, $
     }
     try {
         $scope.$apply($scope.current_task_json = JSON.stringify(copy, null, 2));
-    } catch(err) {};
+    } catch(err) {}
     // Refresh CodeMirror since it might have been hidden
     _.each($('.CodeMirror'), function(inst) { inst.CodeMirror.refresh(); });
   };
@@ -876,7 +876,7 @@ function WorkflowController($scope, $resource, $http, $routeParams, $location, $
           for (var attr in returned) {
             if (['workflow_id', "tenantId"].indexOf(attr) == -1 && returned.hasOwnProperty(attr))
               $scope.current_task[attr] = returned[attr];
-          };
+          }
           $scope.notify('Saved');
         }, function(error) {
           $scope.$root.error = {data: error.data, status: error.status, title: "Error Saving",
@@ -945,43 +945,43 @@ function WorkflowController($scope, $resource, $http, $routeParams, $location, $
   
   $scope.execute_task = function() {
     return $scope.task_action($scope.current_task.id, 'execute');
-  }
+  };
 
   $scope.reset_task = function() {
     return $scope.task_action($scope.current_task.id, 'reset');
-  }
+  };
 
   $scope.resubmit_task = function() {
     return $scope.task_action($scope.current_task.id, 'resubmit');
-  }
+  };
 
   $scope.was_server_created = function() {
-    if (typeof $scope.current_task != 'undefined' && ($scope.current_task.task_spec.indexOf("Create Server") == 0 || $scope.current_task.task_spec.indexOf("Wait for Server") == 0) &&
+    if (typeof $scope.current_task != 'undefined' && ($scope.current_task.task_spec.indexOf("Create Server") === 0 || $scope.current_task.task_spec.indexOf("Wait for Server") === 0) &&
         $scope.resource($scope.current_task) !== null)
       return true;
     return false;
-  }
+  };
 
   $scope.was_database_created = function() {
-    if (typeof $scope.current_task != 'undefined' && ($scope.current_task.task_spec.indexOf("Create Database") == 0 || $scope.current_task.task_spec.indexOf("Add DB User") == 0) &&
+    if (typeof $scope.current_task != 'undefined' && ($scope.current_task.task_spec.indexOf("Create Database") === 0 || $scope.current_task.task_spec.indexOf("Add DB User") === 0) &&
         $scope.resource($scope.current_task) !== null)
       return true;
     return false;
-  }
+  };
 
   $scope.was_loadbalancer_created = function() {
     if (typeof $scope.current_task != 'undefined' && ($scope.current_task.task_spec.indexOf("Load") != -1 || $scope.current_task.task_spec.indexOf("alancer") != -1) &&
         $scope.resource($scope.current_task) !== null)
       return true;
     return false;
-  }
+  };
 
   $scope.resource = function(task) {
     if (typeof task == 'undefined')
       return null;
     try {
       var res = _.find(task.attributes, function(obj, attr) {
-        if (attr.indexOf("instance:") == 0)
+        if (attr.indexOf("instance:") === 0)
           return true;
         return false;
       });
@@ -992,7 +992,7 @@ function WorkflowController($scope, $resource, $http, $routeParams, $location, $
     } catch(err) {
       console.log("Error in WorkflowController.resource: " + err);
     }
-  }
+  };
 
   //Init
   if (!$scope.auth.loggedIn) {
@@ -1029,7 +1029,7 @@ function WorkflowController($scope, $resource, $http, $routeParams, $location, $
 
   $scope.play = function() {
     var w = 960,
-    h = 500
+    h = 500;
 
     var vis = d3.select(".entries").append("svg:svg")
         .attr("width", w)
