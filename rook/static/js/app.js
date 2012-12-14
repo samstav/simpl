@@ -768,10 +768,14 @@ function WorkflowController($scope, $resource, $http, $routeParams, $location, $
   //Parse loaded workflow
   $scope.parse = function(object) {
       $scope.data = object;
-      items.tasks = workflow.flattenTasks({}, object.task_tree);
-      items.all = workflow.parseTasks(items.tasks, object.wf_spec.task_specs);
-      $scope.count = items.all.length;
-      workflow.calculateStatistics($scope, items.all);
+      if (typeof object == 'object' && 'task_tree' in object) {
+        items.tasks = workflow.flattenTasks({}, object.task_tree);
+        items.all = workflow.parseTasks(items.tasks, object.wf_spec.task_specs);
+        $scope.count = items.all.length;
+        workflow.calculateStatistics($scope, items.all);
+      } else {
+        items.clear();
+      }
   };
 
   $scope.percentComplete = function() {
@@ -992,9 +996,13 @@ function WorkflowController($scope, $resource, $http, $routeParams, $location, $
 
   //Init
   if (!$scope.auth.loggedIn) {
-      $scope.loginPrompt($scope.load);
+    $scope.loginPrompt($scope.load);
   } else if ($location.path().split('/').slice(-1)[0] == '+preview') {
-    $scope.parse(workflow.preview['workflow']);
+    if (typeof workflow.preview == 'object') {
+      $scope.parse(workflow.preview['workflow']);
+    } else {
+      $scope.parse();
+    }
   } else
     $scope.load();
 
