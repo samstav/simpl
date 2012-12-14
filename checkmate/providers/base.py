@@ -205,6 +205,7 @@ class ProviderBaseWorkflowMixIn():
         if tasks:  # should only be one
             return tasks[0]
 
+
 class ProviderBasePlanningMixIn():
     """The methods used by the deployment planning code (i.e. they need a
     deployment to work on)
@@ -360,7 +361,7 @@ class ProviderBase(ProviderBasePlanningMixIn, ProviderBaseWorkflowMixIn):
                 return [Component(component, id=component_id, provider=self)]
 
         LOG.debug("Searching for component %s:%s in provider '%s'" % (
-                resource_type, interface, self.key))
+                resource_type or '*', interface or '*', self.key))
         catalog = self.get_catalog(context, type_filter=resource_type)
         matches = []
         # Loop through catalog
