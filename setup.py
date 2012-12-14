@@ -46,6 +46,7 @@ setup(
     author_email='checkmate@lists.rackspace.com',
     dependency_links=github_urls,
     install_requires=['bottle==0.10.11',
+                      'pymongo==2.3',
                       'celery-with-mongodb==3.0',
                       'eventlet==0.9.17',
                       'GitPython==0.3.2.RC1',
