@@ -1,6 +1,8 @@
 """Chef Solo configuration management provider"""
 import logging
+import os
 
+from jinja2 import BaseLoader, Environment, TemplateNotFound
 from SpiffWorkflow.operators import Attrib, PathAttrib
 from SpiffWorkflow.specs import Celery, Transform, Merge
 
@@ -364,3 +366,65 @@ class Provider(ProviderBase):
                         instance['hash'] = hash_SHA512(instance['password'])
 
 
+class TemplateParser():
+    """Chef.map parser. Uses Jinja2 template processing"""
+    @staticmethod
+    def parse(template, request, response):
+        """Parse template
+
+        :param template: the path to the template file
+
+        """
+        class MyLoader(BaseLoader):
+            """Template loader"""
+            def __init__(self, path):
+                self.path = path
+
+            def get_source(self, environment, template):
+                path = os.path.join(self.path, template)
+                if not os.path.exists(path):
+                    raise TemplateNotFound(template)
+                mtime = os.path.getmtime(path)
+                with file(path) as f:
+                    source = f.read().decode('utf-8')
+                return source, path, lambda: mtime == os.path.getmtime(path)
+
+        env = Environment(loader=MyLoader(os.path.join(os.path.dirname(
+            __file__), 'static')))
+
+        def do_prepend(value, param='/'):
+            """
+            Prepend a string if the passed in string exists.
+
+            Example:
+            The template '{{ root|prepend('/')}}/path';
+            Called with root undefined renders:
+                /path
+            Called with root defined as 'root' renders:
+                /root/path
+            """
+            if value:
+                return '%s%s' % (param, value)
+            else:
+                return ''
+        env.filters['prepend'] = do_prepend
+
+        env.json = json
+
+        def parse_url(value):
+            """
+            Parse a url into its components.
+
+            Example:
+            The template '{{ root|prepend('/')}}/path';
+            Called with root undefined renders:
+                /path
+            Called with root defined as 'root' renders:
+                /root/path
+            """
+            return url_parse(value)
+        env.filters['parse_url'] = parse_url
+
+        template = env.get_template("%s.template" % name)
+        return template.render(data=data, source=json.dumps(data,
+                               indent=2), tenant_id=tenant_id)
