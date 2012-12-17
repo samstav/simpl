@@ -1314,7 +1314,7 @@ class Deployment(ExtensibleDict):
                     constraint['resource'] != resource_type:
                 return False
         LOG.debug("Constraint '%s' for '%s' applied to '%s/%s'" % (
-                  constraint, name, service_name, resource_type))
+                  constraint, name, service_name or '*', resource_type or '*'))
         return True
 
     def _get_input_service_override(self, name, service_name,

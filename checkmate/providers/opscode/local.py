@@ -1422,6 +1422,7 @@ def _init_repo(path, source_repo=None):
         if remotes:
             remote = remotes[0]
         else:
+            #FIXME: there's a gap here. We don't check if origin exists.
             remote = repo.create_remote('origin', source_repo)
         remote.pull(refspec=ref or 'master')
         LOG.debug("Pulled '%s' ref '%s' into repo: %s" % (source_repo,
@@ -1691,7 +1692,11 @@ def _run_ruby_command(path, command, params, lock=True):
         except OSError as exc:
             if exc.errno == errno.ENOENT:
                 # Check if command is installed
-                output = check_output(['which', command])
+                output = None
+                try:
+                    output = check_output(['which', command])
+                except CalledProcessError:
+                    pass
                 if not output:
                     raise CheckmateException("'%s' is not installed or not "
                                              "accessible on the server" %
