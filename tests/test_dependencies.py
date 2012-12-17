@@ -62,6 +62,13 @@ class TestDependencies(unittest.TestCase):
         self.assertGreaterEqual(version, [0, 3, 2], "Checkmate expects "
                                 "SpiffWorkflow version 0.3.2 or later")
 
+    def test_jinja_version(self):
+        """Test that we can instantiate YAML"""
+        import jinja2
+        version = [int(part) for part in jinja2.__version__.split(".")]
+        self.assertEqual(version, [2, 6], "Checkmate expects Jinja2 "
+                                "version 2.6")
+
 
 if __name__ == '__main__':
     # Run tests. Handle our paramsters separately

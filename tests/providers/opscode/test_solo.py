@@ -68,7 +68,26 @@ class TestDBWorkflow(test.StubbedWorkflowBase):
                   blueprint:
                     region: DFW
             """))
-        expected = self._get_expected_calls()
+        expected = []
+        # Create Chef Environment
+        expected.append({
+                # Use chef-solo tasks for now
+                'call': 'checkmate.providers.opscode.local.create_environment',
+                # Use only one kitchen. Call it "kitchen" like we used to
+                'args': [self.deployment['id'], 'kitchen'],
+                'kwargs': And(ContainsKeyValue('private_key', IgnoreArg()),
+                        ContainsKeyValue('secret_key', IgnoreArg()),
+                        ContainsKeyValue('public_key_ssh', IgnoreArg()),
+                        ContainsKeyValue('source_repo', IgnoreArg())),
+                'result': {
+                    'environment': '/var/tmp/%s/' % self.deployment['id'],
+                    'kitchen': '/var/tmp/%s/kitchen' % self.deployment['id'],
+                    'private_key_path': '/var/tmp/%s/private.pem' %
+                            self.deployment['id'],
+                    'public_key_path': '/var/tmp/%s/checkmate.pub' %
+                            self.deployment['id'],
+                    'public_key': test.ENV_VARS['CHECKMATE_CLIENT_PUBLIC_KEY']}
+            })
         expected.append({
                     'call': 'checkmate.providers.test.create_resource',
                     'args': [IsA(dict),
