@@ -841,13 +841,13 @@ def _verify_required_blueprint_options_supplied(deployment):
     blueprint = deployment['blueprint']
     if 'options' in blueprint:
         inputs = deployment.get('inputs', {})
-        bp_inputs = inputs.get('blueprint')
+        bp_inputs = inputs.get('blueprint', {})
         for key, option in blueprint['options'].iteritems():
             if (not 'default' in option) and \
                     option.get('required') in ['true', True]:
                 if key not in bp_inputs:
-                    abort(406, "Required blueprint input '%s' not supplied" %
-                          key)
+                    raise CheckmateValidationException("Required blueprint "
+                            "input '%s' not supplied" % key)
 
 
 def get_os_env_keys():
