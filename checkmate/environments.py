@@ -288,8 +288,8 @@ class Environment():
                         return provider
                 if not resource and interface in entry.values():
                     return provider
-        LOG.debug("No '%s:%s' providers found in: %s" % (resource, interface,
-                  self.dict))
+        LOG.debug("No '%s:%s' providers found in: %s" % (resource or '*',
+                  interface or '*', self.dict))
         return None
 
     def get_providers(self, context):

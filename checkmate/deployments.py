@@ -512,6 +512,10 @@ def plan(deployment, context):
                         host_provider = (environment.select_provider(context,
                                          resource=host_type,
                                          interface=host_interface))
+                        if not host_provider:
+                            raise (CheckmateException("No provider found for "
+                                   "%s:%s to host %s" % (host_type or '*',
+                                   host_interface or '*', component['id'])))
                         found = (host_provider.find_components(context,
                                  resource=host_type, interface=host_interface))
                         if found:
