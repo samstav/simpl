@@ -435,6 +435,26 @@ class ProviderBase(ProviderBasePlanningMixIn, ProviderBaseWorkflowMixIn):
                 text, number, unit, result))
         return result
 
+    def get_setting(self, name, default=None):
+        """
+        Returns a provider-specific setting.
+
+        Currently detects settings coming from the provider constraints.
+
+        :param name: the name of the setting
+        :param default: optional default alue to return if the setting is not
+                        found
+
+        """
+        constraints = self._dict.get('constraints')
+        if not constraints:
+            return default
+        matches = [c for c in constraints
+                   if isinstance(c, dict) and c.keys()[0] == name]
+        if matches:
+            return matches[0].values()[0]
+        return default
+
 
 def register_providers(providers):
     """Add provider classes to list of available providers"""

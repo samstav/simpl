@@ -151,6 +151,17 @@ class TestProviderBase(unittest.TestCase):
         self.assertRaises(CheckmateException, provider.evaluate,
                 "unknown()")
 
+    def test_get_setting(self):
+        provider = ProviderBase(yaml_to_dict("""
+                vendor: acme
+                constraints:
+                - foo: bar
+                """))
+        self.assertIsNone(provider.get_setting('test'))
+        self.assertEqual(provider.get_setting('test', default=1), 1)
+        self.assertEqual(provider.get_setting('foo'), 'bar')
+        self.assertEqual(provider.get_setting('foo', default='ignore!'), 'bar')
+
 
 class TestProviderBaseWorkflow(StubbedWorkflowBase):
     """ Test Option Data Flow in Workflow """
