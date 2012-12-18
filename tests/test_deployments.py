@@ -735,6 +735,25 @@ class TestDeploymentSettings(unittest.TestCase):
         value = planned.get_setting('password', resource_type='widget')
         self.assertGreater(len(value), 0)
 
+    def test_handle_missing_options(self):
+        """Validate missing options handled correctly"""
+        deployment = Deployment(yaml_to_dict("""
+                id: test
+                environment:
+                  providers:
+                    base
+                blueprint:
+                  services:
+                    web:
+                  options:
+                    foo:
+                      required: true
+                inputs: {}
+            """))
+        base.PROVIDER_CLASSES['test.base'] = ProviderBase
+        self.assertRaises(CheckmateValidationException, plan, deployment,
+            RequestContext())
+
 
 class TestDeploymentCounts(unittest.TestCase):
     """ Tests getting deployment numbers """

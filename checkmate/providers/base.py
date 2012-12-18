@@ -1,11 +1,10 @@
 import logging
+import platform
 import random
 import string
 import uuid
-import checkmate
-import os
-import platform
 
+import checkmate
 from checkmate import utils
 from checkmate.common import schema
 from checkmate.components import Component
@@ -290,10 +289,10 @@ class ProviderBase(ProviderBasePlanningMixIn, ProviderBaseWorkflowMixIn):
             results = self._dict['provides']
         else:
             data = self.get_catalog(context)
-            for key, value in data.iteritems():
+            for key, type_category in data.iteritems():
                 if key == 'lists':
                     continue
-                for id, component in value.iteritems():
+                for id, component in type_category.iteritems():
                     if 'provides' in component:
                         for entry in component['provides']:
                             if entry not in results:
@@ -385,7 +384,8 @@ class ProviderBase(ProviderBasePlanningMixIn, ProviderBaseWorkflowMixIn):
         """Evaluate an option value.
 
         Understands the following functions:
-        - generate('uuid')
+        - generate_password()
+        - generate_uuid()
         """
         if function_string.startswith('generate_uuid('):
             return uuid.uuid4().hex
@@ -434,6 +434,26 @@ class ProviderBase(ProviderBasePlanningMixIn, ProviderBaseWorkflowMixIn):
         LOG.debug("Parsed '%s' as '%s %s', and returned %s megabyte" % (
                 text, number, unit, result))
         return result
+
+    def get_setting(self, name, default=None):
+        """
+        Returns a provider-specific setting.
+
+        Currently detects settings coming from the provider constraints.
+
+        :param name: the name of the setting
+        :param default: optional default alue to return if the setting is not
+                        found
+
+        """
+        constraints = self._dict.get('constraints')
+        if not constraints:
+            return default
+        matches = [c for c in constraints
+                   if isinstance(c, dict) and c.keys()[0] == name]
+        if matches:
+            return matches[0].values()[0]
+        return default
 
 
 def register_providers(providers):

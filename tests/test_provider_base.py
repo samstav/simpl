@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-import json
 import logging
 import uuid
 
@@ -21,28 +20,30 @@ from checkmate.utils import yaml_to_dict
 
 LOG = logging.getLogger(__name__)
 
+
 class TestProviderBasePlanningMixIn(unittest.TestCase):
-    
+
     def __init__(self, methodName="runTest"):
         self._mox = mox.Mox()
         self._prov_planner = ProviderBasePlanningMixIn()
         self._prov_planner.key = "test_key"
         unittest.TestCase.__init__(self, methodName=methodName)
-    
+
     def test_template(self):
         req_context = RequestContext()
-        template = self._prov_planner.generate_template({'id':"1234567890"}, "test_type", None, req_context)
+        template = self._prov_planner.generate_template({'id': "1234567890"}, "test_type", None, req_context)
         self.assertIn("type", template, "No type")
-        self.assertEqual("test_type", template.get("type","NONE"), "Type not set")
+        self.assertEqual("test_type", template.get("type", "NONE"), "Type not set")
         self.assertIn("provider", template, "No provider in template")
         self.assertEqual("test_key", template.get("provider", "NONE"), "Provider not set")
         self.assertIn("instance", template, "No instance in template")
         self.assertIn("dns-name", template, "No dns-name in template")
-        self.assertEqual("CM-1234567-test_type", template.get("dns-name","NONE"), "dns-name not set")
+        self.assertEqual("CM-1234567-test_type", template.get("dns-name", "NONE"), "dns-name not set")
         req_ctx_dict = req_context.get_queued_task_dict()
         self.assertIn("metadata", req_ctx_dict, "No metadata in template")
-        self.assertIn("RAX-CHKMT", req_ctx_dict.get("metadata",{}), "No metadata set")
+        self.assertIn("RAX-CHKMT", req_ctx_dict.get("metadata", {}), "No metadata set")
         LOG.info("RAX-CHKMT: {}".format(req_ctx_dict.get("metadata").get("RAX-CHKMT")))
+
 
 class TestProviderBase(unittest.TestCase):
     def test_provider_bad_override(self):
@@ -151,6 +152,17 @@ class TestProviderBase(unittest.TestCase):
         self.assertRaises(CheckmateException, provider.evaluate,
                 "unknown()")
 
+    def test_get_setting(self):
+        provider = ProviderBase(yaml_to_dict("""
+                vendor: acme
+                constraints:
+                - foo: bar
+                """))
+        self.assertIsNone(provider.get_setting('test'))
+        self.assertEqual(provider.get_setting('test', default=1), 1)
+        self.assertEqual(provider.get_setting('foo'), 'bar')
+        self.assertEqual(provider.get_setting('foo', default='ignore!'), 'bar')
+
 
 class TestProviderBaseWorkflow(StubbedWorkflowBase):
     """ Test Option Data Flow in Workflow """
@@ -242,7 +254,7 @@ class TestProviderBaseWorkflow(StubbedWorkflowBase):
                     'result': None,
                 })
         self.workflow = self._get_stubbed_out_workflow(expected_calls=expected)
-    
+
     #def test_workflow_completion(self):
     #    'Verify workflow sequence and data flow'
     #    self.mox.ReplayAll()
@@ -258,7 +270,7 @@ class TestProviderBaseWorkflow(StubbedWorkflowBase):
     #    last_task = self.workflow.get_tasks()[-1]
     #    LOG.debug("DELIVERED to '%s': %s" % (last_task.get_name(), json.dumps(
     #            last_task.attributes['instance:0'], indent=2)))
-    
+
 
 class TestProviderBaseParser(unittest.TestCase):
     """Test setting parsers"""
