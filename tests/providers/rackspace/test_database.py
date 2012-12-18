@@ -158,7 +158,6 @@ class TestDBWorkflow(StubbedWorkflowBase):
                   services:
                     db:
                       component:
-                        id: mysql
                         is: database
                         type: database
                         requires:
