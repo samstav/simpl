@@ -29,7 +29,12 @@ class TestDependencies(unittest.TestCase):
     def test_paramiko_version(self):
         """Test that we can instantiate pycrypto"""
         import paramiko
-        self.assertGreaterEqual(paramiko.__version_info__, (1, 7, 7, 1),
+        try:
+            # new syntax is a string
+            version = tuple(int(v) for v in paramiko.__version__.split('.'))
+        except:
+            version = paramiko.__version_info__  # older syntax
+        self.assertGreaterEqual(version, (1, 7, 7, 1),
                                 "Checkmate expects paramiko version 1.7.7.1 "
                                 "or later")
 
