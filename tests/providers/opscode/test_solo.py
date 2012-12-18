@@ -180,7 +180,8 @@ class TestDBWorkflow(test.StubbedWorkflowBase):
                         "complete")
 
 
-class TestTemplating(unittest.TestCase):
+class TestChefMap(unittest.TestCase):
+    """Test ChefMap Class"""
     def setUp(self):
         self.mox = mox.Mox()
 
@@ -188,7 +189,7 @@ class TestTemplating(unittest.TestCase):
         self.mox.UnsetStubs()
 
     def test_remote_url_parser(self):
-        provider = solo.Provider({})
+        map_class = solo.ChefMap
         cases = [{
                 'name': 'github file',
                 'url': 'http://github.com/user/repo',
@@ -222,12 +223,11 @@ class TestTemplating(unittest.TestCase):
             },
         ]
         for case in cases:
-            result = provider.get_remote_raw_url(case['url'], case['file'])
+            result = map_class.get_remote_raw_url(case['url'], case['file'])
             self.assertEqual(result, case['expected'], msg=case['name'])
 
     def test_get_remote_map_file(self):
         """Test remote map file retrieval"""
-        provider = solo.Provider({})
         map_file = '---\nid: mysql'
         self.mox.StubOutWithMock(solo, 'httplib')
         connection_class_mock = self.mox.CreateMockAnything()
@@ -244,9 +244,17 @@ class TestTemplating(unittest.TestCase):
         connection_mock.close().AndReturn(True)
         response_mock.status = 200
         self.mox.ReplayAll()
-        response = provider.get_remote_map_file("https://github.com/checkmate/app.git")
-        self.assertEqual(response, map_file)
+        chef_map = solo.ChefMap("https://github.com/checkmate/app.git")
+        self.assertEqual(chef_map.raw, map_file)
         self.mox.VerifyAll()
+
+
+class TestTemplating(unittest.TestCase):
+    def setUp(self):
+        self.mox = mox.Mox()
+
+    def tearDown(self):
+        self.mox.UnsetStubs()
 
     def test_remote_catalog_sourcing(self):
         """Test source constraint picks up remote catalog"""

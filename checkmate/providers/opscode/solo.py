@@ -475,7 +475,64 @@ class Provider(ProviderBase):
 
             return catalog
 
-    def get_remote_raw_url(self, source, path="Chefmap"):
+    def get_remote_catalog(self, source):
+        """Gets the remote catalog from a repo by obtaining a Chefmap file, if
+        it exists, and parsing it"""
+        map_file = ChefMap(source)
+        LOG.debug('Obtained remote catalog from %s' % source)
+        catalog = {}
+        try:
+            for doc in yaml.safe_load_all(map_file.parsed):
+                if 'id' in doc:
+                    for key in doc.keys():
+                        if key not in schema.COMPONENT_SCHEMA:
+                            del doc[key]
+                    resource_type = doc.get('is', 'application')
+                    if resource_type not in catalog:
+                        catalog[resource_type] = {}
+                    catalog[resource_type][doc['id']] = doc
+        except ValueError:
+            msg = 'Catalog source did not return parsable content'
+            raise CheckmateException(msg)
+        return catalog
+
+
+class ChefMap():
+    """Retrieves and parses Chefmap files"""
+    def __init__(self, source):
+        """Create a new Chefmap instance
+
+        :param source: is the path to the root git repo. Supported protocols
+                       are http, https, and git. The .git extension is
+                       optional. Appending a branch name as a #fragment works::
+
+                map_file = ChefMap("http://github.com/user/repo")
+                map_file = ChefMap("https://github.com/org/repo.git")
+                map_file = ChefMap("git://github.com/user/repo#master")
+
+        :return: solo.ChefMap
+
+        """
+        self.source = source
+        self._raw = None
+        self._parsed = None
+
+    @property
+    def raw(self):
+        """Returns the raw file contents"""
+        if not self._raw:
+            self._raw = self.get_remote_map_file()
+        return self._raw
+
+    @property
+    def parsed(self):
+        """Returns the parsed file contents"""
+        if not self._parsed:
+            self._parsed = self.parse(self.raw)
+        return self._parsed
+
+    @staticmethod
+    def get_remote_raw_url(source, path="Chefmap"):
         """Calculates the raw URL for a file based off a source repo"""
         source_repo, ref = urlparse.urldefrag(source)
         url = urlparse.urlparse(source_repo)
@@ -489,9 +546,9 @@ class Provider(ProviderBase):
                                       url.params, url.query, url.fragment))
         return result
 
-    def get_remote_map_file(self, source):
+    def get_remote_map_file(self):
         """Gets the remote map file from a repo"""
-        target_url = self.get_remote_raw_url(source)
+        target_url = self.get_remote_raw_url(self.source)
         url = urlparse.urlparse(target_url)
         if url.scheme == 'https':
             http_class = httplib.HTTPSConnection
@@ -508,7 +565,7 @@ class Provider(ProviderBase):
 
         # TODO: implement some caching to not overload the server
         try:
-            LOG.debug('Connecting to %s' % source)
+            LOG.debug('Connecting to %s' % self.source)
             http.request('GET', url.path, headers=headers)
             resp = http.getresponse()
             body = resp.read()
@@ -525,36 +582,11 @@ class Provider(ProviderBase):
 
         return body
 
-    def get_remote_catalog(self, source):
-        """Gets the remote catalog from a repo by obtaining a Chefmap file, if
-        it exists, and parsing it"""
-        contents = self.get_remote_map_file(source)
-        LOG.debug('Obtained remote catalog from %s' % source)
-        contents = TemplateParser.parse(contents)
-        try:
-            catalog = {}
-            for doc in yaml.safe_load_all(contents):
-                if 'id' in doc:
-                    for key in doc.keys():
-                        if key not in schema.COMPONENT_SCHEMA:
-                            del doc[key]
-                    resource_type = doc.get('is', 'application')
-                    if resource_type not in catalog:
-                        catalog[resource_type] = {}
-                    catalog[resource_type][doc['id']] = doc
-        except ValueError:
-            msg = 'Catalog source did not return parsable content'
-            raise CheckmateException(msg)
-        return catalog
-
-
-class TemplateParser():
-    """Chefmap parser. Uses Jinja2 template processing"""
     @staticmethod
     def parse(template):
         """Parse template
 
-        :param template_path: the path to the template file
+        :param template: the template contents as a string
 
         """
         env = Environment(loader=DictLoader({'template': template}))
