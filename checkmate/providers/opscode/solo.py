@@ -398,7 +398,6 @@ class Provider(ProviderBase):
                     kitchen_name='kitchen',
                     omnibus_version="10.12.0-1",
                     identity_file=Attrib('private_key_path'),
-                    attributes={'deployment': {'id': deployment['id']}},
                     defines=dict(resource=key,
                                 relation=relation_key,
                                 provider=self.key),

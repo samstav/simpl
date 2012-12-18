@@ -3,8 +3,7 @@
 import logging
 import unittest2 as unittest
 
-import mox
-from mox import In, IsA, And, IgnoreArg, ContainsKeyValue
+from mox import In, IsA, And, IgnoreArg, ContainsKeyValue, Not
 
 # Init logging before we load the database, 3rd party, and 'noisy' modules
 from checkmate.utils import init_console_logging
@@ -47,8 +46,8 @@ class TestDBWorkflow(test.StubbedWorkflowBase):
                       - database: mysql
                       catalog:
                         database:
-                          mysql_instance:
-                            id: mysql_instance
+                          mysql:
+                            id: mysql
                             provides:
                             - database: mysql
                             requires:
@@ -97,21 +96,65 @@ class TestDBWorkflow(test.StubbedWorkflowBase):
                             'type': 'compute', 'service': 'db'}],
                     'kwargs': None,
                     'result': {
-                          'instance:0': {
-                              'name': 'CM-DEP-ID--db1.checkmate.local',
-                              'interfaces': {
-                                'mysql': {
-                                    'username': 'mysql_user',
-                                    'host': 'db.local',
-                                    'database_name': 'dbX',
-                                    'port': 8888,
-                                    'password': 'secret',
-                                  },
-                              }
-                          }
-                      },
-                      'post_back_result': True,
+                            'instance:0': {
+                                'status': "ACTIVE",
+                                'ip': '4.4.4.1',
+                                'private_ip': '10.1.2.1',
+                                'addresses': {
+                                  'public': [
+                                    {
+                                      "version": 4,
+                                      "addr": "4.4.4.1",
+                                    },
+                                    {
+                                      "version": 6,
+                                      "addr": "2001:babe::ff04:36c1",
+                                    }
+                                  ],
+                                  'private': [
+                                    {
+                                      "version": 4,
+                                      "addr": "10.1.2.1",
+                                    }
+                                  ]
+                                }
+                            }
+                        },
+                    'post_back_result': True,
                 })
+        expected.append({
+                'call': 'checkmate.providers.opscode.local.register_node',
+                'args': ["4.4.4.1", self.deployment['id']],
+                'kwargs': In('password'),
+                'result': None,
+                'resource': '1',
+            })
+        # build-essential (now just cook with bootstrap.json)
+        expected.append({
+                'call': 'checkmate.providers.opscode.local.cook',
+                'args': ["4.4.4.1", self.deployment['id']],
+                'kwargs': And(In('password'),
+                              Not(In('recipes')),
+                              Not(In('roles')),
+                              ContainsKeyValue('identity_file',
+                                        '/var/tmp/%s/private.pem' %
+                                        self.deployment['id'])),
+                'result': None,
+                'resource': '1',
+            })
+        # Cook with role
+        expected.append(
+            {
+                'call': 'checkmate.providers.opscode.local.cook',
+                'args': ["4.4.4.1", self.deployment['id']],
+                'kwargs': And(In('password'), ContainsKeyValue('recipes',
+                        ["mysql::server"]),
+                        ContainsKeyValue('identity_file',
+                                '/var/tmp/%s/private.pem' %
+                                self.deployment['id'])),
+                'result': None,
+                'resource': '1',
+            })
         expected.append({
                 'call': 'checkmate.providers.opscode.local.manage_databag',
                 'args': [self.deployment['id'],
