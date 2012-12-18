@@ -12,10 +12,11 @@ init_console_logging()
 LOG = logging.getLogger(__name__)
 
 from checkmate import test, utils
-from checkmate.deployments import Deployment
+from checkmate.deployments import Deployment, plan
 from checkmate.middleware import RequestContext
 from checkmate.providers import base, register_providers
 from checkmate.providers.opscode import solo
+from checkmate.workflows import create_workflow_deploy
 
 
 class TestChefSolo(test.ProviderTester):
@@ -70,105 +71,102 @@ class TestDBWorkflow(test.StubbedWorkflowBase):
                     region: DFW
             """))
         expected = []
+
         # Create Chef Environment
-        expected.append({
-                # Use chef-solo tasks for now
-                'call': 'checkmate.providers.opscode.local.create_environment',
-                # Use only one kitchen. Call it "kitchen" like we used to
-                'args': [self.deployment['id'], 'kitchen'],
-                'kwargs': And(ContainsKeyValue('private_key', IgnoreArg()),
-                        ContainsKeyValue('secret_key', IgnoreArg()),
-                        ContainsKeyValue('public_key_ssh', IgnoreArg()),
-                        ContainsKeyValue('source_repo', IgnoreArg())),
-                'result': {
-                    'environment': '/var/tmp/%s/' % self.deployment['id'],
-                    'kitchen': '/var/tmp/%s/kitchen' % self.deployment['id'],
-                    'private_key_path': '/var/tmp/%s/private.pem' %
-                            self.deployment['id'],
-                    'public_key_path': '/var/tmp/%s/checkmate.pub' %
-                            self.deployment['id'],
-                    'public_key': test.ENV_VARS['CHECKMATE_CLIENT_PUBLIC_KEY']}
+
+        expected.append({  # Use chef-solo tasks for now
+                           # Use only one kitchen. Call it "kitchen" like we
+                           # used to
+            'call': 'checkmate.providers.opscode.local.create_environment',
+            'args': [self.deployment['id'], 'kitchen'],
+            'kwargs': And(ContainsKeyValue('private_key', IgnoreArg()),
+                          ContainsKeyValue('secret_key', IgnoreArg()),
+                          ContainsKeyValue('public_key_ssh',
+                          IgnoreArg()), ContainsKeyValue('source_repo',
+                          IgnoreArg())),
+            'result': {
+                'environment': '/var/tmp/%s/' % self.deployment['id'],
+                'kitchen': '/var/tmp/%s/kitchen' % self.deployment['id'
+                        ],
+                'private_key_path': '/var/tmp/%s/private.pem'
+                    % self.deployment['id'],
+                'public_key_path': '/var/tmp/%s/checkmate.pub'
+                    % self.deployment['id'],
+                'public_key': test.ENV_VARS['CHECKMATE_CLIENT_PUBLIC_KEY'
+                        ],
+                },
             })
         expected.append({
-                    'call': 'checkmate.providers.test.create_resource',
-                    'args': [IsA(dict),
-                            {'index': '0', 'component': 'linux_instance',
-                            'dns-name': 'CM-DEP-ID--db1.checkmate.local',
-                            'instance': {}, 'hosts': ['1'], 'provider': 'base',
-                            'type': 'compute', 'service': 'db'}],
-                    'kwargs': None,
-                    'result': {
-                            'instance:0': {
-                                'status': "ACTIVE",
-                                'ip': '4.4.4.1',
-                                'private_ip': '10.1.2.1',
-                                'addresses': {
-                                  'public': [
-                                    {
-                                      "version": 4,
-                                      "addr": "4.4.4.1",
-                                    },
-                                    {
-                                      "version": 6,
-                                      "addr": "2001:babe::ff04:36c1",
-                                    }
-                                  ],
-                                  'private': [
-                                    {
-                                      "version": 4,
-                                      "addr": "10.1.2.1",
-                                    }
-                                  ]
-                                }
-                            }
-                        },
-                    'post_back_result': True,
-                })
-        expected.append({
-                'call': 'checkmate.providers.opscode.local.register_node',
-                'args': ["4.4.4.1", self.deployment['id']],
-                'kwargs': In('password'),
-                'result': None,
-                'resource': '1',
+            'call': 'checkmate.providers.test.create_resource',
+            'args': [IsA(dict), {
+                'index': '0',
+                'component': 'linux_instance',
+                'dns-name': 'CM-DEP-ID--db1.checkmate.local',
+                'instance': {},
+                'hosts': ['1'],
+                'provider': 'base',
+                'type': 'compute',
+                'service': 'db',
+                }],
+            'kwargs': None,
+            'result': {'instance:0': {
+                'status': 'ACTIVE',
+                'ip': '4.4.4.1',
+                'private_ip': '10.1.2.1',
+                'addresses': {'public': [{'version': 4,
+                              'addr': '4.4.4.1'}, {'version': 6,
+                              'addr': '2001:babe::ff04:36c1'}],
+                              'private': [{'version': 4,
+                              'addr': '10.1.2.1'}]},
+                }},
+            'post_back_result': True,
             })
+        expected.append({
+            'call': 'checkmate.providers.opscode.local.register_node',
+            'args': ['4.4.4.1', self.deployment['id']],
+            'kwargs': In('password'),
+            'result': None,
+            'resource': '1',
+            })
+
         # build-essential (now just cook with bootstrap.json)
+
         expected.append({
-                'call': 'checkmate.providers.opscode.local.cook',
-                'args': ["4.4.4.1", self.deployment['id']],
-                'kwargs': And(In('password'),
-                              Not(In('recipes')),
-                              Not(In('roles')),
-                              ContainsKeyValue('identity_file',
-                                        '/var/tmp/%s/private.pem' %
-                                        self.deployment['id'])),
-                'result': None,
-                'resource': '1',
+            'call': 'checkmate.providers.opscode.local.cook',
+            'args': ['4.4.4.1', self.deployment['id']],
+            'kwargs': And(In('password'), Not(In('recipes')),
+                          Not(In('roles')),
+                          ContainsKeyValue('identity_file',
+                          '/var/tmp/%s/private.pem'
+                          % self.deployment['id'])),
+            'result': None,
+            'resource': '1',
             })
+
         # Cook with role
-        expected.append(
-            {
-                'call': 'checkmate.providers.opscode.local.cook',
-                'args': ["4.4.4.1", self.deployment['id']],
-                'kwargs': And(In('password'), ContainsKeyValue('recipes',
-                        ["mysql::server"]),
-                        ContainsKeyValue('identity_file',
-                                '/var/tmp/%s/private.pem' %
-                                self.deployment['id'])),
-                'result': None,
-                'resource': '1',
+
+        expected.append({
+            'call': 'checkmate.providers.opscode.local.cook',
+            'args': ['4.4.4.1', self.deployment['id']],
+            'kwargs': And(In('password'), ContainsKeyValue('recipes',
+                          ['mysql::server']),
+                          ContainsKeyValue('identity_file',
+                          '/var/tmp/%s/private.pem'
+                          % self.deployment['id'])),
+            'result': None,
+            'resource': '1',
             })
         expected.append({
-                'call': 'checkmate.providers.opscode.local.manage_databag',
-                'args': [self.deployment['id'],
-                        self.deployment['id'],
-                        None,
-                        None],
-                'kwargs': And(ContainsKeyValue('secret_file',
-                        'certificates/chef.pem'), ContainsKeyValue('merge',
-                        True)),
-                'result': None
+            'call': 'checkmate.providers.opscode.local.manage_databag',
+            'args': [self.deployment['id'], self.deployment['id'],
+                     None, None],
+            'kwargs': And(ContainsKeyValue('secret_file',
+                          'certificates/chef.pem'),
+                          ContainsKeyValue('merge', True)),
+            'result': None,
             })
-        self.workflow = self._get_stubbed_out_workflow(expected_calls=expected)
+        self.workflow = \
+            self._get_stubbed_out_workflow(expected_calls=expected)
 
     def test_workflow_completion(self):
         """Verify workflow sequence and data flow"""
@@ -178,6 +176,96 @@ class TestDBWorkflow(test.StubbedWorkflowBase):
         self.workflow.complete_all()
         self.assertTrue(self.workflow.is_completed(), "Workflow did not "
                         "complete")
+
+
+class TestMapWorkflowTasks(test.StubbedWorkflowBase):
+
+    """Test that map file tasks are created"""
+
+    def setUp(self):
+        test.StubbedWorkflowBase.setUp(self)
+        base.PROVIDER_CLASSES = {}
+        register_providers([solo.Provider, test.TestProvider])
+        self.deployment = \
+            Deployment(utils.yaml_to_dict("""
+                id: 'DEP-ID-1000'
+                blueprint:
+                  name: test app
+                  services:
+                    frontend:
+                      component:
+                        id: foo
+                      relations:
+                        backend: mysql
+                    backend:
+                      component:
+                        id: bar
+                environment:
+                  name: test
+                  providers:
+                    chef-solo:
+                      vendor: opscode
+                      constraints:
+                      - source: http://mock_url
+                    base:
+                      vendor: test
+                      catalog:
+                        compute:
+                          linux_instance:
+                            id: linux_instance
+                            is: compute
+                            provides:
+                            - compute: linux
+            """))
+        self.map_file = \
+            """
+                \n--- # foo component
+                id: foo
+                \n--- # bar component
+                id: bar
+                provides:
+                - database: mysql
+            """
+
+    def test_workflow_tasks(self):
+        """Verify workflow sequence and data flow"""
+
+        self.mox.StubOutWithMock(solo, 'httplib')
+        connection_class_mock = self.mox.CreateMockAnything()
+        solo.httplib.HTTPConnection = connection_class_mock
+        connection_mock = self.mox.CreateMockAnything()
+        response_mock = self.mox.CreateMockAnything()
+        for i in range(1):  # will be called twice; planning and workflow
+                            # creation
+            connection_class_mock.__call__(IgnoreArg(),
+                    IgnoreArg()).AndReturn(connection_mock)
+
+            connection_mock.request('GET', IgnoreArg(),
+                                    headers=IgnoreArg()).AndReturn(True)
+            connection_mock.getresponse().AndReturn(response_mock)
+
+            response_mock.read().AndReturn(self.map_file)
+            connection_mock.close().AndReturn(True)
+            response_mock.status = 200
+
+        self.mox.ReplayAll()
+
+        context = RequestContext(auth_token='MOCK_TOKEN',
+                                 username='MOCK_USER')
+        plan(self.deployment, context)
+
+        workflow = create_workflow_deploy(self.deployment, context)
+
+        task_list = [t.get_name() for t in workflow.get_tasks()]
+        expected = ['Root',
+                    'Start',
+                    'Create Chef Environment',
+                    'Configure bar: 1 (backend)',
+                    'Configure foo: 0 (frontend)',
+                    ]
+        self.assertListEqual(task_list, expected)
+
+        self.mox.VerifyAll()
 
 
 class TestChefMap(unittest.TestCase):

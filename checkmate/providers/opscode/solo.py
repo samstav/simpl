@@ -40,8 +40,12 @@ class Provider(ProviderBase):
     def __init__(self, provider, key=None):
         ProviderBase.__init__(self, provider, key=key)
         self.prep_task = None
-        self.collect_data_task = None
+        self.collect_data_tasks = None
         self.source = self.get_setting('source')
+        if self.source:
+            self.map_file = ChefMap(self.source)
+        else:
+            self.map_file = None
 
     def prep_environment(self, wfspec, deployment, context):
         if self.prep_task:
@@ -56,54 +60,61 @@ class Provider(ProviderBase):
         private_key = deployment_keys.get('private_key')
         secret_key = deployment.get_setting('secret_key')
         source_repo = deployment.get_setting('source', provider_key=self.key)
-        defines = {'provider': self.key, 'task_tags': ['root']}
-        properties = {'estimated_duration': 10}
+        defines = {'provider': self.key}
+        properties = {'estimated_duration': 10, 'task_tags': ['root']}
         task_name = 'checkmate.providers.opscode.local.create_environment'
-        create_environment_task = Celery(wfspec,
-                                         'Create Chef Environment',
-                                         task_name,
-                                         call_args=[deployment['id'],
-                                                    'kitchen'],
-                                         public_key_ssh=public_key_ssh,
-                                         private_key=private_key,
-                                         secret_key=secret_key,
-                                         source_repo=source_repo,
-                                         defines=defines,
-                                         properties=properties)
+        self.prep_task = Celery(wfspec,
+                                'Create Chef Environment',
+                                task_name,
+                                call_args=[deployment['id'], 'kitchen'],
+                                public_key_ssh=public_key_ssh,
+                                private_key=private_key,
+                                secret_key=secret_key,
+                                source_repo=source_repo,
+                                defines=defines,
+                                properties=properties)
 
-        #FIXME: use a map file
+        if self.map_file and self.map_file.has_mappings():
+            collect = Merge(wfspec,
+                            "Chef Data Ready",
+                            defines={'provider': self.key},
+                            properties={'task_tags': ['write_options']})
+            # Make sure the environment exists before writing options.
+            collect.follow(self.prep_task)
+
+            write_options = Celery(wfspec,
+                    "Write Data",
+                   'checkmate.providers.opscode.local.manage_databag',
+                    call_args=[deployment['id'], deployment['id'],
+                            Attrib('app_id'), Attrib('chef_options')],
+                    kitchen_name="kitchen",
+                    secret_file='certificates/chef.pem',
+                    merge=True,
+                    defines=dict(provider=self.key),
+                    properties={'estimated_duration': 5})
+            self.collect_data_tasks = dict(root=collect, final=write_options)
+        else:
+            # Nothing to write. Mark environment task as 'write_options' task
+            self.prep_task.properties['task_tags'].append('write_options')
+            self.collect_data_tasks = {'root': self.prep_task,
+                                      'final': self.prep_task}
+            return {'root': self.prep_task,
+                    'final': self.prep_task}
+
         # Call manage_databag(environment, bagname, itemname, contents)
         """
-        write_options = Celery(wfspec,
-                "Write Data Bag",
-               'checkmate.providers.opscode.local.manage_databag',
-                call_args=[deployment['id'], deployment['id'],
-                        Attrib('app_id'), Attrib('chef_options')],
-                kitchen_name="kitchen",
-                secret_file='certificates/chef.pem',
-                merge=True,
-                defines=dict(provider=self.key),
-                properties={'estimated_duration': 5})
-
-        collect = Merge(wfspec,
-                        "Collect Chef Data",
-                        defines={'provider': self.key,
-                                 'extend_lists': True,
-                                 'task_tags': ['write_options']})
-        # Make sure the environment exists before writing options.
-        collect.follow(create_environment_task)
         write_options.follow(collect)
         # Any tasks that need to be collected will wire themselves into
         # this task
-        self.collect_data_task = dict(root=collect, final=write_options)
+        self.collect_data_tasks = dict(root=collect, final=write_options)
+
+        if self.map_file.has_databags():
+            for databag in self.map_file.databags():
+                pass  # Task for each databag
+
         self.prep_task = create_environment_task
         return {'root': create_environment_task, 'final': write_options}
         """
-        self.collect_data_task = dict(root=create_environment_task,
-                                      final=create_environment_task)
-        self.prep_task = create_environment_task
-        return {'root': create_environment_task,
-                'final': create_environment_task}
 
     def add_resource_tasks(self, resource, key, wfspec, deployment, context,
                            wait_on=None):
@@ -159,7 +170,7 @@ class Provider(ProviderBase):
                 **kwargs)
 
         # Collect dependencies
-        dependencies = [self.prep_task, self.collect_data_task['final']]
+        dependencies = [self.prep_task, self.collect_data_tasks['final']]
         if options_ready:
             dependencies.append(options_ready)
 
@@ -355,7 +366,7 @@ class Provider(ProviderBase):
                         properties={'estimated_duration': 5},
                         )
         else:
-            write_options = self.collect_data_task['root']
+            write_options = self.collect_data_tasks['root']
 
         # Write must wait on collect
         wait_for(wfspec, write_options, [collect_data],
@@ -395,7 +406,7 @@ class Provider(ProviderBase):
 
         if relation_key != 'host':
             #FIXME: need to implement this (with map)
-            raise NotImplemented()
+            return
 
         if relation_key == 'host':
             # Wait on host to be ready
@@ -470,16 +481,18 @@ class Provider(ProviderBase):
 
         if self.source:
             # Get remote catalog
-            catalog = self.get_remote_catalog(self.source)
+            catalog = self.get_remote_catalog()
             # parse out provides
 
             return catalog
 
-    def get_remote_catalog(self, source):
+    def get_remote_catalog(self, source=None):
         """Gets the remote catalog from a repo by obtaining a Chefmap file, if
         it exists, and parsing it"""
-        map_file = ChefMap(source)
-        LOG.debug('Obtained remote catalog from %s' % source)
+        if source:
+            map_file = ChefMap(source)
+        else:
+            map_file = self.map_file
         catalog = {}
         try:
             for doc in yaml.safe_load_all(map_file.parsed):
@@ -491,6 +504,7 @@ class Provider(ProviderBase):
                     if resource_type not in catalog:
                         catalog[resource_type] = {}
                     catalog[resource_type][doc['id']] = doc
+            LOG.debug('Obtained remote catalog from %s' % map_file.source)
         except ValueError:
             msg = 'Catalog source did not return parsable content'
             raise CheckmateException(msg)
@@ -581,6 +595,19 @@ class ChefMap():
                                      (target_url, resp.reason))
 
         return body
+
+    @property
+    def components(self):
+        """The components in the map file"""
+        return (c for c in yaml.safe_load_all(self.parsed)
+                if 'id' in c)
+
+    def has_mappings(self):
+        """Does the map file have any mappings?"""
+        for component in self.components:
+            if 'maps' in component:
+                return True
+        return False
 
     @staticmethod
     def parse(template):
