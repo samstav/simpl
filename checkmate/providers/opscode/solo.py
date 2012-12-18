@@ -1,18 +1,35 @@
 """Chef Solo configuration management provider"""
+import httplib
+import json
 import logging
 import os
+import urlparse
+import yaml
 
-from jinja2 import BaseLoader, Environment, TemplateNotFound
+from jinja2 import BaseLoader, Environment, TemplateNotFound, DictLoader
 from SpiffWorkflow.operators import Attrib, PathAttrib
 from SpiffWorkflow.specs import Celery, Transform, Merge
 
 from checkmate import utils
+from checkmate.common import schema
 from checkmate.exceptions import CheckmateException
 from checkmate.keys import hash_SHA512
 from checkmate.providers import ProviderBase
 from checkmate.workflows import wait_for
 
 LOG = logging.getLogger(__name__)
+
+
+def register_scheme(scheme):
+    '''
+    Use this to register a new scheme with urlparse and have it be parsed
+    in the same way as http is parsed
+    '''
+    for method in filter(lambda s: s.startswith('uses_'), dir(urlparse)):
+        getattr(urlparse, method).append(scheme)
+
+
+register_scheme('git')  # without this, urlparse won't handle git:// correctly
 
 
 class Provider(ProviderBase):
@@ -24,6 +41,7 @@ class Provider(ProviderBase):
         ProviderBase.__init__(self, provider, key=key)
         self.prep_task = None
         self.collect_data_task = None
+        self.source = self.get_setting('source')
 
     def prep_environment(self, wfspec, deployment, context):
         if self.prep_task:
@@ -92,6 +110,7 @@ class Provider(ProviderBase):
         """Create and write settings, generate run_list, and call cook"""
         wait_on, service_name, component = self._add_resource_tasks_helper(
                 resource, key, wfspec, deployment, context, wait_on)
+        #chef_map = self.get_map(component)
         self._add_component_tasks(wfspec, component, deployment, key,
                                   context, service_name)
 
@@ -302,7 +321,7 @@ class Provider(ProviderBase):
             contents_param = Attrib('chef_options')  # eval at run-time
         else:
             contents_param = planning_time_options  # no run-time eval needed
-            collect_data.follow(self.prep_task[service_name])  # no wait needed
+            collect_data.follow(self.prep_task)  # no wait needed
         if write_separately:
             if str(os.environ.get('CHECKMATE_CHEF_USE_DATA_BAGS', True)
                         ).lower() in ['true', '1', 'yes']:
@@ -336,7 +355,7 @@ class Provider(ProviderBase):
                         properties={'estimated_duration': 5},
                         )
         else:
-            write_options = self.collect_data_tasks[service_name]['root']
+            write_options = self.collect_data_task['root']
 
         # Write must wait on collect
         wait_for(wfspec, write_options, [collect_data],
@@ -347,7 +366,7 @@ class Provider(ProviderBase):
         LOG.debug("Attaching %s to %s (%s)" % (write_options.name, ', '.join(
                         [t.name for t in tasks]), service_name))
         if not tasks:
-            tasks = [self.prep_task[service_name]]
+            tasks = [self.prep_task]
         wait_for(wfspec, collect_data, tasks,
                 name="Get %s data: %s (%s)" %
                 (component['id'], key, service_name),
@@ -437,32 +456,108 @@ class Provider(ProviderBase):
                 root.properties['task_tags'] = ['root']
             return dict(root=root, final=bootstrap_task)
 
+    def get_catalog(self, context, type_filter=None):
+        """Return stored/override catalog if it exists, else connect, build,
+        and return one"""
+
+        # TODO: maybe implement this an on_get_catalog so we don't have to do
+        #        this for every provider
+        results = ProviderBase.get_catalog(self, context,
+                                           type_filter=type_filter)
+        if results:
+            # We have a prexisting or injected catalog stored. Use it.
+            return results
+
+        if self.source:
+            # Get remote catalog
+            catalog = self.get_remote_catalog(self.source)
+            # parse out provides
+
+            return catalog
+
+    def get_remote_raw_url(self, source, path="Chefmap"):
+        """Calculates the raw URL for a file based off a source repo"""
+        source_repo, ref = urlparse.urldefrag(source)
+        url = urlparse.urlparse(source_repo)
+        if url.path.endswith('.git'):
+            repo_path = url.path[:-4]
+        else:
+            repo_path = url.path
+        scheme = url.scheme if url.scheme != 'git' else 'https'
+        full_path = os.path.join(repo_path, 'raw', ref or 'master', path)
+        result = urlparse.urlunparse((scheme, url.netloc, full_path,
+                                      url.params, url.query, url.fragment))
+        return result
+
+    def get_remote_map_file(self, source):
+        """Gets the remote map file from a repo"""
+        target_url = self.get_remote_raw_url(source)
+        url = urlparse.urlparse(target_url)
+        if url.scheme == 'https':
+            http_class = httplib.HTTPSConnection
+            port = url.port or 443
+        else:
+            http_class = httplib.HTTPConnection
+            port = url.port or 80
+        host = url.hostname
+
+        http = http_class(host, port)
+        headers = {
+            'Accept': 'text/plain',
+        }
+
+        # TODO: implement some caching to not overload the server
+        try:
+            LOG.debug('Connecting to %s' % source)
+            http.request('GET', url.path, headers=headers)
+            resp = http.getresponse()
+            body = resp.read()
+        except StandardError as exc:
+            LOG.exception(exc)
+            raise exc
+        finally:
+            http.close()
+
+        if resp.status != 200:
+            raise CheckmateException("Map file could not be retrieved from "
+                                     "'%s'. The error returned was '%s'" %
+                                     (target_url, resp.reason))
+
+        return body
+
+    def get_remote_catalog(self, source):
+        """Gets the remote catalog from a repo by obtaining a Chefmap file, if
+        it exists, and parsing it"""
+        contents = self.get_remote_map_file(source)
+        LOG.debug('Obtained remote catalog from %s' % source)
+        contents = TemplateParser.parse(contents)
+        try:
+            catalog = {}
+            for doc in yaml.safe_load_all(contents):
+                if 'id' in doc:
+                    for key in doc.keys():
+                        if key not in schema.COMPONENT_SCHEMA:
+                            del doc[key]
+                    resource_type = doc.get('is', 'application')
+                    if resource_type not in catalog:
+                        catalog[resource_type] = {}
+                    catalog[resource_type][doc['id']] = doc
+        except ValueError:
+            msg = 'Catalog source did not return parsable content'
+            raise CheckmateException(msg)
+        return catalog
+
 
 class TemplateParser():
-    """Chef.map parser. Uses Jinja2 template processing"""
+    """Chefmap parser. Uses Jinja2 template processing"""
     @staticmethod
-    def parse(template_path, request, response):
+    def parse(template):
         """Parse template
 
         :param template_path: the path to the template file
 
         """
-        class MyLoader(BaseLoader):
-            """Template loader"""
-            def __init__(self, path):
-                self.path = path
-
-            def get_source(self, environment, template):
-                path = os.path.join(self.path, template)
-                if not os.path.exists(path):
-                    raise TemplateNotFound(template)
-                mtime = os.path.getmtime(path)
-                with file(path) as f:
-                    source = f.read().decode('utf-8')
-                return source, path, lambda: mtime == os.path.getmtime(path)
-
-        env = Environment(loader=MyLoader(os.path.join(os.path.dirname(
-            __file__), 'static')))
+        env = Environment(loader=DictLoader({'template': template}))
 
         def do_prepend(value, param='/'):
             """
@@ -494,9 +589,9 @@ class TemplateParser():
             Called with root defined as 'root' renders:
                 /root/path
             """
-            return url_parse(value)
-        env.filters['parse_url'] = parse_url
+            return urlparse.urlparse(value)
+        env.globals['parse_url'] = parse_url
+        env.globals['setting'] = lambda x: x
 
-        template = env.get_template("%s.template" % name)
-        return template.render(data=data, source=json.dumps(data,
-                               indent=2), tenant_id=tenant_id)
+        template = env.get_template('template')
+        return template.render(deployment={'id': 'DEP01'}, resource={})

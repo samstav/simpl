@@ -3,6 +3,7 @@
 import logging
 import unittest2 as unittest
 
+import mox
 from mox import In, IsA, And, IgnoreArg, ContainsKeyValue, Not
 
 # Init logging before we load the database, 3rd party, and 'noisy' modules
@@ -12,6 +13,7 @@ LOG = logging.getLogger(__name__)
 
 from checkmate import test, utils
 from checkmate.deployments import Deployment
+from checkmate.middleware import RequestContext
 from checkmate.providers import base, register_providers
 from checkmate.providers.opscode import solo
 
@@ -177,6 +179,204 @@ class TestDBWorkflow(test.StubbedWorkflowBase):
         self.assertTrue(self.workflow.is_completed(), "Workflow did not "
                         "complete")
 
+
+class TestTemplating(unittest.TestCase):
+    def setUp(self):
+        self.mox = mox.Mox()
+
+    def tearDown(self):
+        self.mox.UnsetStubs()
+
+    def test_remote_url_parser(self):
+        provider = solo.Provider({})
+        cases = [{
+                'name': 'github file',
+                'url': 'http://github.com/user/repo',
+                'file': 'test.yaml',
+                'expected': 'http://github.com/user/repo/raw/master/test.yaml'
+            }, {
+                'name': 'github path',
+                'url': 'http://github.com/user/repo/',
+                'file': 'dir/file.txt',
+                'expected': 'http://github.com/user/repo/raw/master/dir/file.txt'
+            }, {
+                'name': 'with branch',
+                'url': 'http://github.com/user/repo#myBranch',
+                'file': 'file.txt',
+                'expected': 'http://github.com/user/repo/raw/myBranch/file.txt'
+            }, {
+                'name': 'with .git extension',
+                'url': 'http://github.com/user/repo.git',
+                'file': 'file.txt',
+                'expected': 'http://github.com/user/repo/raw/master/file.txt'
+            }, {
+                'name': 'enterprise https',
+                'url': 'https://gh.acme.com/user/repo#a-branch',
+                'file': 'file.txt',
+                'expected': 'https://gh.acme.com/user/repo/raw/a-branch/file.txt'
+            }, {
+                'name': 'git protocol',
+                'url': 'git://github.com/user/repo/',
+                'file': 'dir/file.txt',
+                'expected': 'https://github.com/user/repo/raw/master/dir/file.txt'
+            },
+        ]
+        for case in cases:
+            result = provider.get_remote_raw_url(case['url'], case['file'])
+            self.assertEqual(result, case['expected'], msg=case['name'])
+
+    def test_get_remote_map_file(self):
+        """Test remote map file retrieval"""
+        provider = solo.Provider({})
+        map_file = '---\nid: mysql'
+        self.mox.StubOutWithMock(solo, 'httplib')
+        connection_class_mock = self.mox.CreateMockAnything()
+        solo.httplib.HTTPSConnection = connection_class_mock
+
+        connection_mock = self.mox.CreateMockAnything()
+        connection_class_mock.__call__(IgnoreArg(), IgnoreArg()).AndReturn(connection_mock)
+
+        response_mock = self.mox.CreateMockAnything()
+        connection_mock.request('GET', IgnoreArg(), headers=IgnoreArg()).AndReturn(True)
+        connection_mock.getresponse().AndReturn(response_mock)
+
+        response_mock.read().AndReturn(map_file)
+        connection_mock.close().AndReturn(True)
+        response_mock.status = 200
+        self.mox.ReplayAll()
+        response = provider.get_remote_map_file("https://github.com/checkmate/app.git")
+        self.assertEqual(response, map_file)
+        self.mox.VerifyAll()
+
+    def test_remote_catalog_sourcing(self):
+        """Test source constraint picks up remote catalog"""
+        provider = solo.Provider(utils.yaml_to_dict("""
+                vendor: opscode
+                constraints:
+                - source: git://gh.acme.com/user/repo.git#branch
+                """))
+        self.mox.StubOutWithMock(solo, 'httplib')
+        connection_class_mock = self.mox.CreateMockAnything()
+        solo.httplib.HTTPSConnection = connection_class_mock
+
+        connection_mock = self.mox.CreateMockAnything()
+        connection_class_mock.__call__(IgnoreArg(), IgnoreArg()).AndReturn(connection_mock)
+
+        response_mock = self.mox.CreateMockAnything()
+        connection_mock.request('GET', IgnoreArg(), headers=IgnoreArg()).AndReturn(True)
+        connection_mock.getresponse().AndReturn(response_mock)
+
+        response_mock.read().AndReturn(TEMPLATE)
+        connection_mock.close().AndReturn(True)
+        response_mock.status = 200
+        self.mox.ReplayAll()
+
+        response = provider.get_catalog(RequestContext())
+
+        self.assertListEqual(response.keys(), ['application', 'database'])
+        self.assertListEqual(response['application'].keys(), ['webapp'])
+        self.assertListEqual(response['database'].keys(), ['mysql'])
+        self.mox.VerifyAll()
+
+
+TEMPLATE = """# vim: set filetype=yaml syntax=yaml:
+# Global function
+{% set app_id = deployment.id + '_app' %}
+
+--- # first component
+id: webapp
+provides:
+- application: http
+requires:
+- host: linux
+- database: mysql
+options:
+  "site_name":
+    type: string
+    sample: "Bob's tire shop"
+    required: false
+run-list:
+  recipes:
+  - first
+maps:
+- value: {{ setting('site_name') }}
+  targets:
+  - attributes://webapp/site/name
+- source: requirements://database:mysql/database_name
+  targets:
+  - attributes://webapp/db/name
+- source: requirements://database:mysql/username
+  targets:
+  - attributes://webapp/db/user
+- source: requirements://database:mysql/host
+  targets:
+  - attributes://webapp/db/host
+- source: requirements://database:mysql/password
+  targets:
+  - attributes://webapp/db/password
+- source: requirements://database:mysql/root_password
+  targets:
+  - attributes://mysql/server_root_password
+
+--- # second component map
+id: mysql
+is: database
+provides:
+- database: mysql
+requires:
+- host: linux
+options:
+  "database_name":
+    type: string
+    default: db1
+    required: true
+  "database_user":
+    type: string
+    default: db_user
+    required: true
+  "database_password":
+    type: password
+    default: =generate_password()
+    required: true
+chef-roles:
+  mysql-master:
+    create: true
+    recipes:
+    - apt
+    - mysql::server
+    - holland
+    - holland::common
+    - holland::mysqldump
+maps:
+- value: {{ setting('server_root_password') }}
+  targets:
+  - encrypted-databag://{{app_id}}/mysql/server_root_password
+  - output://{{resource.index}}/instance/interfaces/mysql/root_password
+- source: requirements://database/hostname  # database is defined in component
+  targets:
+  - encrypted-databag://{{deployment.id}}//{{app_id}}/mysql/host
+- source: requirements://host/instance/ip
+  targets:
+  - output://{{resource.index}}/instance/interfaces/mysql/host
+- source: requirements://database:mysql/database_user
+  targets:
+  - encrypted-databag://{{app_id}}/mysql/username
+  - output://{{resource.index}}/instance/interfaces/mysql/username
+- value: {{ setting('database_password') }}
+  targets:
+  - encrypted-databag://{{app_id}}/mysql/password
+  - output://{{resource.index}}/instance/interfaces/mysql/password
+- value: {{ deployment.id }} # Deployment ID needs to go to Node Attribute
+  targets:
+  - attributes://deployment/id
+output:
+  '{{resource.index}}':
+    name: {{ setting('database_name') }}
+    instance:
+      interfaces:
+        mysql:
+          database_name: {{ setting('database_name') }}
+"""
 
 if __name__ == '__main__':
     # Run tests. Handle our parameters separately
