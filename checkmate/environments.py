@@ -348,34 +348,32 @@ class Environment():
           interface: http
         - id: component_id
         """
-        resource_type = blueprint_entry.get('type')
-        interface = blueprint_entry.get('interface')
-        default = None
-        for provider in self.get_providers(context).values():
-            matches = []
-            if resource_type or interface:
-                # we can narrow down search
-                if provider.provides(context, resource_type=resource_type,
-                                     interface=interface):
-                    # normalize 'type' to 'resource_type'
-                    params = {}
-                    params.update(blueprint_entry)
-                    if 'type' in params:
-                        del params['type']
-                    params['resource_type'] = resource_type
-                    matches = provider.find_components(context, **params)
-            else:
-                matches = provider.find_components(context, **blueprint_entry)
+        providers = self.get_providers(context)
+        matches = []  # all components that match the blueprint entry
 
-            if matches:
-                if len(matches) == 1:
-                    return Component(matches[0], provider=provider)
-                else:
-                    LOG.warning("Ambiguous component '%s' matches: %s" %
-                                (blueprint_entry, matches))
-                    if not default:
-                        default = Component(matches[0], provider=provider)
-                        LOG.warning("Will use '%s.%s' as a default if no "
-                                    "match is found" %
-                                    (provider.key, default['id']))
-        return default
+        # normalize 'type' to 'resource_type'
+        params = {}
+        params.update(blueprint_entry)
+        resource_type = params.get('type', params.get('resource_type'))
+        if 'type' in params:
+            del params['type']
+        params['resource_type'] = resource_type
+
+        for provider in providers.values():
+            these_matches = provider.find_components(context, **params)
+            if these_matches:
+                matches.extend(these_matches)
+
+        if not matches:
+            LOG.info("Did not find component match for: %s" % blueprint_entry)
+            return None
+
+        if len(matches) == 1:
+            return Component(matches[0], provider=provider)
+        else:
+            LOG.warning("Ambiguous component '%s' matches: %s" %
+                        (blueprint_entry, matches))
+            selected = Component(matches[0], provider=provider)
+            LOG.warning("Will use '%s.%s' as a default if no match is found" %
+                        (provider.key, selected['id']))
+            return selected

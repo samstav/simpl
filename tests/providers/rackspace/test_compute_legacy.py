@@ -116,7 +116,7 @@ class TestLegacyGenerateTemplate(unittest.TestCase):
             }
         }
         provider = compute_legacy.Provider({})
-       
+
         #Mock Base Provider, context and deployment
         RackspaceComputeProviderBase = self.mox.CreateMockAnything()
         context = self.mox.CreateMockAnything()

@@ -347,7 +347,7 @@ class ProviderBase(ProviderBasePlanningMixIn, ProviderBaseWorkflowMixIn):
         """
         component_id = kwargs.pop('id', None)
         resource_type = kwargs.pop('resource_type', kwargs.pop('type',
-                kwargs.pop('resource', None)))
+                                   kwargs.pop('resource', None)))
         interface = kwargs.pop('interface', None)
         kwargs.pop('version', None)  # noise reduction
         if kwargs:
@@ -358,6 +358,9 @@ class ProviderBase(ProviderBasePlanningMixIn, ProviderBaseWorkflowMixIn):
             if component:
                 LOG.debug("Found component by id: %s" % component_id)
                 return [Component(component, id=component_id, provider=self)]
+            else:
+                LOG.debug("No match for component id: %s" % component_id)
+                return []
 
         LOG.debug("Searching for component %s:%s in provider '%s'" % (
                 resource_type or '*', interface or '*', self.key))

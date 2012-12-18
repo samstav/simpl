@@ -176,7 +176,6 @@ class TestDeploymentResourceGenerator(unittest.TestCase):
                   services:
                     back:
                       component: &widget
-                        id: widget
                         type: widget
                         interface: foo
                     front:
@@ -234,7 +233,7 @@ class TestDeploymentResourceGenerator(unittest.TestCase):
                   services:
                     "single":
                       component:
-                        id: widget
+                        type: widget
                   resources:
                     "myResource":  # provided by a provider
                       type: widget
