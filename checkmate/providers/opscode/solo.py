@@ -6,7 +6,7 @@ import os
 import urlparse
 import yaml
 
-from jinja2 import BaseLoader, Environment, TemplateNotFound, DictLoader
+from jinja2 import Environment, DictLoader
 from SpiffWorkflow.operators import Attrib, PathAttrib
 from SpiffWorkflow.specs import Celery, Transform, Merge
 

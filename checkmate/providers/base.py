@@ -347,7 +347,7 @@ class ProviderBase(ProviderBasePlanningMixIn, ProviderBaseWorkflowMixIn):
         """
         component_id = kwargs.pop('id', None)
         resource_type = kwargs.pop('resource_type', kwargs.pop('type',
-                kwargs.pop('resource', None)))
+                                   kwargs.pop('resource', None)))
         interface = kwargs.pop('interface', None)
         kwargs.pop('version', None)  # noise reduction
         if kwargs:

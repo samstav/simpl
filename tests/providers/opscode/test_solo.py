@@ -1,5 +1,8 @@
-#!/usr/bin/env python
+#!/usr/bin/python
+# -*- coding: utf-8 -*-
+
 """Tests for chef-solo provider"""
+
 import logging
 import unittest2 as unittest
 
@@ -7,6 +10,7 @@ import mox
 from mox import In, IsA, And, IgnoreArg, ContainsKeyValue, Not
 
 # Init logging before we load the database, 3rd party, and 'noisy' modules
+
 from checkmate.utils import init_console_logging
 init_console_logging()
 LOG = logging.getLogger(__name__)
@@ -20,17 +24,20 @@ from checkmate.workflows import create_workflow_deploy
 
 
 class TestChefSolo(test.ProviderTester):
+
     klass = solo.Provider
 
 
 class TestDBWorkflow(test.StubbedWorkflowBase):
+
     """ Test MySQL Resource Creation Workflow """
 
     def setUp(self):
         test.StubbedWorkflowBase.setUp(self)
         base.PROVIDER_CLASSES = {}
         register_providers([solo.Provider, test.TestProvider])
-        self.deployment = Deployment(utils.yaml_to_dict("""
+        self.deployment = \
+            Deployment(utils.yaml_to_dict("""
                 id: 'DEP-ID-1000'
                 blueprint:
                   name: test db
@@ -174,8 +181,8 @@ class TestDBWorkflow(test.StubbedWorkflowBase):
         self.mox.ReplayAll()
 
         self.workflow.complete_all()
-        self.assertTrue(self.workflow.is_completed(), "Workflow did not "
-                        "complete")
+        self.assertTrue(self.workflow.is_completed(),
+                        'Workflow did not complete')
 
 
 class TestMapWorkflowTasks(test.StubbedWorkflowBase):
@@ -269,7 +276,9 @@ class TestMapWorkflowTasks(test.StubbedWorkflowBase):
 
 
 class TestChefMap(unittest.TestCase):
+
     """Test ChefMap Class"""
+
     def setUp(self):
         self.mox = mox.Mox()
 
@@ -278,66 +287,82 @@ class TestChefMap(unittest.TestCase):
 
     def test_remote_url_parser(self):
         map_class = solo.ChefMap
-        cases = [{
+        cases = [
+            {
                 'name': 'github file',
                 'url': 'http://github.com/user/repo',
                 'file': 'test.yaml',
-                'expected': 'http://github.com/user/repo/raw/master/test.yaml'
-            }, {
+                'expected': 'http://github.com/user/repo/raw/master/test.yaml',
+                },
+            {
                 'name': 'github path',
                 'url': 'http://github.com/user/repo/',
                 'file': 'dir/file.txt',
-                'expected': 'http://github.com/user/repo/raw/master/dir/file.txt'
-            }, {
+                'expected':
+                        'http://github.com/user/repo/raw/master/dir/file.txt',
+                },
+            {
                 'name': 'with branch',
                 'url': 'http://github.com/user/repo#myBranch',
                 'file': 'file.txt',
-                'expected': 'http://github.com/user/repo/raw/myBranch/file.txt'
-            }, {
+                'expected':
+                        'http://github.com/user/repo/raw/myBranch/file.txt',
+                },
+            {
                 'name': 'with .git extension',
                 'url': 'http://github.com/user/repo.git',
                 'file': 'file.txt',
-                'expected': 'http://github.com/user/repo/raw/master/file.txt'
-            }, {
+                'expected': 'http://github.com/user/repo/raw/master/file.txt',
+                },
+            {
                 'name': 'enterprise https',
                 'url': 'https://gh.acme.com/user/repo#a-branch',
                 'file': 'file.txt',
-                'expected': 'https://gh.acme.com/user/repo/raw/a-branch/file.txt'
-            }, {
+                'expected':
+                        'https://gh.acme.com/user/repo/raw/a-branch/file.txt',
+                },
+            {
                 'name': 'git protocol',
                 'url': 'git://github.com/user/repo/',
                 'file': 'dir/file.txt',
-                'expected': 'https://github.com/user/repo/raw/master/dir/file.txt'
-            },
-        ]
+                'expected':
+                        'https://github.com/user/repo/raw/master/dir/file.txt',
+                },
+            ]
+
         for case in cases:
-            result = map_class.get_remote_raw_url(case['url'], case['file'])
+            result = map_class.get_remote_raw_url(case['url'],
+                    case['file'])
             self.assertEqual(result, case['expected'], msg=case['name'])
 
     def test_get_remote_map_file(self):
         """Test remote map file retrieval"""
+
         map_file = '---\nid: mysql'
         self.mox.StubOutWithMock(solo, 'httplib')
         connection_class_mock = self.mox.CreateMockAnything()
         solo.httplib.HTTPSConnection = connection_class_mock
 
         connection_mock = self.mox.CreateMockAnything()
-        connection_class_mock.__call__(IgnoreArg(), IgnoreArg()).AndReturn(connection_mock)
+        connection_class_mock.__call__(IgnoreArg(),
+                IgnoreArg()).AndReturn(connection_mock)
 
         response_mock = self.mox.CreateMockAnything()
-        connection_mock.request('GET', IgnoreArg(), headers=IgnoreArg()).AndReturn(True)
+        connection_mock.request('GET', IgnoreArg(),
+                                headers=IgnoreArg()).AndReturn(True)
         connection_mock.getresponse().AndReturn(response_mock)
 
         response_mock.read().AndReturn(map_file)
         connection_mock.close().AndReturn(True)
         response_mock.status = 200
         self.mox.ReplayAll()
-        chef_map = solo.ChefMap("https://github.com/checkmate/app.git")
+        chef_map = solo.ChefMap('https://github.com/checkmate/app.git')
         self.assertEqual(chef_map.raw, map_file)
         self.mox.VerifyAll()
 
 
 class TestTemplating(unittest.TestCase):
+
     def setUp(self):
         self.mox = mox.Mox()
 
@@ -346,7 +371,9 @@ class TestTemplating(unittest.TestCase):
 
     def test_remote_catalog_sourcing(self):
         """Test source constraint picks up remote catalog"""
-        provider = solo.Provider(utils.yaml_to_dict("""
+
+        provider = \
+            solo.Provider(utils.yaml_to_dict("""
                 vendor: opscode
                 constraints:
                 - source: git://gh.acme.com/user/repo.git#branch
@@ -356,10 +383,12 @@ class TestTemplating(unittest.TestCase):
         solo.httplib.HTTPSConnection = connection_class_mock
 
         connection_mock = self.mox.CreateMockAnything()
-        connection_class_mock.__call__(IgnoreArg(), IgnoreArg()).AndReturn(connection_mock)
+        connection_class_mock.__call__(IgnoreArg(),
+                IgnoreArg()).AndReturn(connection_mock)
 
         response_mock = self.mox.CreateMockAnything()
-        connection_mock.request('GET', IgnoreArg(), headers=IgnoreArg()).AndReturn(True)
+        connection_mock.request('GET', IgnoreArg(),
+                                headers=IgnoreArg()).AndReturn(True)
         connection_mock.getresponse().AndReturn(response_mock)
 
         response_mock.read().AndReturn(TEMPLATE)
@@ -369,13 +398,15 @@ class TestTemplating(unittest.TestCase):
 
         response = provider.get_catalog(RequestContext())
 
-        self.assertListEqual(response.keys(), ['application', 'database'])
+        self.assertListEqual(response.keys(), ['application', 'database'
+                             ])
         self.assertListEqual(response['application'].keys(), ['webapp'])
         self.assertListEqual(response['database'].keys(), ['mysql'])
         self.mox.VerifyAll()
 
 
-TEMPLATE = """# vim: set filetype=yaml syntax=yaml:
+TEMPLATE = \
+    """# vim: set filetype=yaml syntax=yaml:
 # Global function
 {% set app_id = deployment.id + '_app' %}
 
@@ -475,10 +506,14 @@ output:
 """
 
 if __name__ == '__main__':
+
     # Run tests. Handle our parameters separately
+
     import sys
     args = sys.argv[:]
+
     # Our --debug means --verbose for unitest
+
     if '--debug' in args:
         args.pop(args.index('--debug'))
         if '--verbose' not in args:

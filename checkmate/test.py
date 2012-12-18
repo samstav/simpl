@@ -161,6 +161,7 @@ CATALOG = [{
   }
 ]
 
+
 def register():
     register_providers([TestProvider])
 
