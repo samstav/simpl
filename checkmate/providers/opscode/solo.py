@@ -74,7 +74,7 @@ class Provider(ProviderBase):
                                 defines=defines,
                                 properties=properties)
 
-        if self.map_file and self.map_file.has_mappings():
+        if self.map_file and self.map_file.has_databag_mappings():
             collect = Merge(wfspec,
                             "Chef Data Ready",
                             defines={'provider': self.key},

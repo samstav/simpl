@@ -281,6 +281,97 @@ class TestMapWorkflowTasks(test.StubbedWorkflowBase):
         self.mox.VerifyAll()
 
 
+class TestMaplessWorkflowTasks(test.StubbedWorkflowBase):
+
+    """Test that workflow works without maps"""
+
+    def setUp(self):
+        test.StubbedWorkflowBase.setUp(self)
+        base.PROVIDER_CLASSES = {}
+        register_providers([solo.Provider, test.TestProvider])
+        self.deployment = \
+            Deployment(utils.yaml_to_dict("""
+                id: 'DEP-ID-1000'
+                blueprint:
+                  name: test app
+                  services:
+                    frontend:
+                      component:
+                        id: foo
+                      relations:
+                        backend: mysql
+                    backend:
+                      component:
+                        id: bar
+                environment:
+                  name: test
+                  providers:
+                    chef-solo:
+                      vendor: opscode
+                      constraints:
+                      - source: http://mock_url
+                    base:
+                      vendor: test
+                      catalog:
+                        compute:
+                          linux_instance:
+                            id: linux_instance
+                            is: compute
+                            provides:
+                            - compute: linux
+            """))
+        self.map_file = \
+            """
+            \n--- # foo component
+                id: foo
+            \n--- # bar component
+                id: bar
+                provides:
+                - database: mysql
+                maps: {}  # blank map should be ignored as well
+            """
+
+    def test_workflow_tasks(self):
+        """Verify workflow sequence and data flow"""
+
+        self.mox.StubOutWithMock(solo, 'httplib')
+        connection_class_mock = self.mox.CreateMockAnything()
+        solo.httplib.HTTPConnection = connection_class_mock
+        connection_mock = self.mox.CreateMockAnything()
+        response_mock = self.mox.CreateMockAnything()
+        for i in range(1):  # will be called twice; planning and workflow
+                            # creation
+            connection_class_mock.__call__(IgnoreArg(),
+                    IgnoreArg()).AndReturn(connection_mock)
+
+            connection_mock.request('GET', IgnoreArg(),
+                                    headers=IgnoreArg()).AndReturn(True)
+            connection_mock.getresponse().AndReturn(response_mock)
+
+            response_mock.read().AndReturn(self.map_file)
+            connection_mock.close().AndReturn(True)
+            response_mock.status = 200
+
+        self.mox.ReplayAll()
+
+        context = RequestContext(auth_token='MOCK_TOKEN',
+                                 username='MOCK_USER')
+        plan(self.deployment, context)
+
+        workflow = create_workflow_deploy(self.deployment, context)
+
+        task_list = [t.get_name() for t in workflow.get_tasks()]
+        expected = ['Root',
+                    'Start',
+                    'Create Chef Environment',
+                    'Configure bar: 1 (backend)',
+                    'Configure foo: 0 (frontend)',
+                    ]
+        self.assertListEqual(task_list, expected)
+
+        self.mox.VerifyAll()
+
+
 class TestChefMap(unittest.TestCase):
 
     """Test ChefMap Class"""
