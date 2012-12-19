@@ -5,6 +5,7 @@
 
 import logging
 import unittest2 as unittest
+from urlparse import urlunparse
 
 import mox
 from mox import In, IsA, And, IgnoreArg, ContainsKeyValue, Not
@@ -226,9 +227,14 @@ class TestMapWorkflowTasks(test.StubbedWorkflowBase):
             """))
         self.map_file = \
             """
-                \n--- # foo component
+            \n--- # foo component
                 id: foo
-                \n--- # bar component
+                maps:
+                # Simple scalar to attribute
+                - value: 10
+                  targets:
+                  - attributes://widgets
+            \n--- # bar component
                 id: bar
                 provides:
                 - database: mysql
@@ -359,6 +365,114 @@ class TestChefMap(unittest.TestCase):
         chef_map = solo.ChefMap('https://github.com/checkmate/app.git')
         self.assertEqual(chef_map.raw, map_file)
         self.mox.VerifyAll()
+
+    def test_map_URI_parser(self):
+        fxn = solo.ChefMap.parse_map_URI
+        cases = [
+            {
+                'name': 'requirement from short form',
+                'scheme': 'requirements',
+                'netloc': 'database:mysql',
+                'path': 'username',
+                },
+            {
+                'name': 'requirement from long form',
+                'scheme': 'requirements',
+                'netloc': 'my_name',
+                'path': 'root/child',
+                },
+            {
+                'name': 'databag',
+                'scheme': 'databags',
+                'netloc': 'my_dbag',
+                'path': 'item/key',
+                },
+            {
+                'name': 'encrypted databag',
+                'scheme': 'encrypted-databags',
+                'netloc': 'secrets',
+                'path': 'item/key/with/long/path',
+                },
+            {
+                'name': 'attributes',
+                'scheme': 'attributes',
+                'netloc': '',
+                'path': 'item/key/with/long/path',
+                },
+            {
+                'name': 'roles',
+                'scheme': 'roles',
+                'netloc': 'role-name',
+                'path': 'item/key/with/long/path',
+                },
+            {
+                'name': 'output',
+                'scheme': 'output',
+                'netloc': '',
+                'path': 'item/key/with/long/path',
+                },
+            ]
+
+        for case in cases:
+            uri = urlunparse((case['scheme'],
+                              case['netloc'],
+                              case['path'],
+                              None,
+                              None,
+                              None
+                              )
+                             )
+            result = fxn(uri)
+            for key, value in result.iteritems():
+                self.assertEqual(value, case.get(key, ''), msg="%s' got '%s' "
+                                 "wrong in %s" % (case['name'], key, uri))
+
+    def test_has_mapping_positive(self):
+        chef_map = solo.ChefMap('')
+        chef_map._raw = """
+            id: test
+            maps:
+            - source: 1
+        """
+        self.assertTrue(chef_map.has_mappings())
+
+    def test_has_mapping_negative(self):
+        chef_map = solo.ChefMap('')
+        chef_map._raw = """
+            id: test
+            maps: {}
+        """
+        self.assertFalse(chef_map.has_mappings())
+
+    def test_has_databag_mapping_positive(self):
+        chef_map = solo.ChefMap('')
+        chef_map._raw = """
+            id: test
+            maps:
+            - source: 1
+            - source: 'string'
+            - source: databags://test
+            """
+        self.assertTrue(chef_map.has_databag_mappings())
+
+    def test_has_databag_mapping_positive_encrypted(self):
+        chef_map = solo.ChefMap('')
+        chef_map._raw = """
+            id: test
+            maps:
+            - source: 1
+            - source: 'string'
+            - source: encrypted-databags://enc-test
+            """
+        self.assertTrue(chef_map.has_databag_mappings())
+
+    def test_has_databag_mapping_negative(self):
+        chef_map = solo.ChefMap('')
+        chef_map._raw = """
+            id: test
+            maps: {}
+        """
+        self.assertFalse(chef_map.has_databag_mappings())
 
 
 class TestTemplating(unittest.TestCase):

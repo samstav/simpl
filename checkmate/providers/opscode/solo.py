@@ -605,9 +605,49 @@ class ChefMap():
     def has_mappings(self):
         """Does the map file have any mappings?"""
         for component in self.components:
-            if 'maps' in component:
+            if component.get('maps'):  # ignore empty maps too
                 return True
         return False
+
+    def has_databag_mappings(self):
+        """Does the map file have any databag mappings?"""
+        for component in self.components:
+            databag_maps = (m for m in component.get('maps', [])
+                            if (self.parse_map_URI(m.get('source'))['scheme']
+                                in ['databags', 'encrypted-databags']))
+            if any(databag_maps):
+                return True
+        return False
+
+    def test(self, value):
+        print value
+        return True
+
+    @staticmethod
+    def parse_map_URI(uri):
+        """
+        Parses the URI format of a map
+
+        :param uri: string uri based on map file suported sources and targets
+        :returns: dict
+
+        """
+        try:
+            parts = urlparse.urlparse(uri)
+        except AttributeError:
+            # probably a scalar
+            parts = urlparse.urlparse('')
+
+        result = {
+            'scheme': parts.scheme,
+            'netloc': parts.netloc,
+            'path': parts.path.strip('/'),
+            'query': parts.query,
+            'fragment': parts.fragment,
+            }
+        if parts.scheme in ['attributes', 'output']:
+            result['path'] = os.path.join(parts.netloc, parts.path)
+        return result
 
     @staticmethod
     def parse(template):
