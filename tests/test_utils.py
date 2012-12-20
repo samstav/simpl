@@ -228,6 +228,57 @@ class TestUtils(unittest.TestCase):
         self.assertTrue(utils.isUUID(uuid.uuid4().hex),
                         "uuid string is a UUID")
 
+    def test_write_path(self):
+        cases = [
+            {
+                'name': 'scalar at root',
+                'start': {},
+                'path': 'root',
+                'value': 'scalar',
+                'expected': {'root': 'scalar'}
+            }, {
+                'name': 'int at root',
+                'start': {},
+                'path': 'root',
+                'value': 10,
+                'expected': {'root': 10}
+            }, {
+                'name': 'bool at root',
+                'start': {},
+                'path': 'root',
+                'value': True,
+                'expected': {'root': True}
+            }, {
+                'name': 'value at two piece path',
+                'start': {},
+                'path': 'root/subfolder',
+                'value': True,
+                'expected': {'root': {'subfolder': True}}
+            }, {
+                'name': 'value at multi piece path',
+                'start': {},
+                'path': 'one/two/three',
+                'value': {},
+                'expected': {'one': {'two': {'three': {}}}}
+            }, {
+                'name': 'add to existing',
+                'start': {'root': {'exists': True}},
+                'path': 'root/new',
+                'value': False,
+                'expected': {'root': {'exists': True, 'new': False}}
+            }, {
+                'name': 'overwrite existing',
+                'start': {'root': {'exists': True}},
+                'path': 'root/exists',
+                'value': False,
+                'expected': {'root': {'exists': False}}
+            }
+            ]
+        for case in cases:
+            result = case['start']
+            utils.write_path(result, case['path'], case['value'])
+            self.assertDictEqual(result, case['expected'], msg=case['name'])
+
 
 if __name__ == '__main__':
     # Run tests. Handle our parameters separately

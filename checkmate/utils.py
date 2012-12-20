@@ -502,3 +502,15 @@ def isUUID(value):
         return True
     except:
         return False
+
+
+def write_path(target, path, value):
+    """Writes a value into a dict building any intermediate keys"""
+    parts = path.split('/')
+    current = target
+    for part in parts[:-1]:
+        if part not in current:
+            current[part] = current = {}
+        else:
+            current = current[part]
+    current[parts[-1]] = value
