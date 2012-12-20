@@ -764,6 +764,42 @@ class TestTemplating(unittest.TestCase):
         self.mox.VerifyAll()
 
 
+    def test_parsing_functions_parse_url(self):
+        """Test 'parse_url' function use in parsing"""
+        chef_map = solo.ChefMap('')
+        chef_map._raw = """
+            id: foo
+            maps:
+            - value: {{ 1 }}
+              targets:
+              - attributes://here
+            \n--- # component bar
+            id: bar
+            maps:
+            - value: {{ parse_url('http://github.com').scheme }}
+              targets:
+              - attributes://scheme
+            - value: {{ parse_url('http://github.com').netloc }}
+              targets:
+              - attributes://netloc
+            - value: {{ parse_url('http://github.com/checkmate').path }}
+              targets:
+              - attributes://path
+              - attributes://{{ parse_url('http://local/a/b/c/d').path }}
+            - value: {{ parse_url('http://github.com/#master').fragment }}
+              targets:
+              - attributes://fragment
+        """
+        result = chef_map.get_attributes('bar')
+        expected = {
+            'scheme': 'http',
+            'netloc': 'github.com',
+            'fragment': 'master',
+            'path': '/checkmate',
+            'a': {'b': {'c': {'d': '/checkmate'}}}
+            }
+        self.assertDictEqual(result, expected)
+
 TEMPLATE = \
     """# vim: set filetype=yaml syntax=yaml:
 # Global function
