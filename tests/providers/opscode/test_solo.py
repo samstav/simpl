@@ -784,6 +784,20 @@ class TestChefMap(unittest.TestCase):
         self.assertDictEqual(chef_map.get_attributes('bar'), {})
         self.assertIsNone(chef_map.get_attributes('not there'))
 
+    def test_has_runtime_options(self):
+        chef_map = solo.ChefMap('')
+        chef_map._raw = """
+            id: foo
+            maps:
+            - source: requirements://database:mysql/
+            \n---
+            id: bar
+            maps: {}
+            """
+        self.assertTrue(chef_map.has_runtime_options('foo'))
+        self.assertFalse(chef_map.has_runtime_options('bar'))
+        self.assertFalse(chef_map.has_runtime_options('not there'))
+
 
 class TestTemplating(unittest.TestCase):
 

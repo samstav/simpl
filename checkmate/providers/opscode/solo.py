@@ -408,6 +408,25 @@ class ChefMap():
                                                  m['value'])
                     return result
 
+    def has_runtime_options(self, component_id):
+        """
+        Check if a component has maps that can only be resolved at run-time
+
+        Those would be items like:
+        - requirement sources where the required resource does not exist yet
+
+        :returns: boolean
+
+        """
+        for component in self.components:
+            if component_id == component['id']:
+                maps = (m for m in component.get('maps', [])
+                                if (self.parse_map_URI(m.get('source'))['scheme']
+                                    in ['requirements']))
+                if any(maps):
+                    return True
+        return False
+
     @staticmethod
     def parse_map_URI(uri):
         """
