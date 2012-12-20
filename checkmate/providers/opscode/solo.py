@@ -152,7 +152,7 @@ class Provider(ProviderBase):
         configure_task = Celery(wfspec,
                 'Configure %s: %s (%s)' % (component['id'],
                 key, service_name),
-               'checkmate.providers.opscode.local.cook',
+               'checkmate.providers.opscode.solo.cook',
                 call_args=[
                         PathAttrib('instance:%s/ip' %
                                 resource.get('hosted_on', key)),
@@ -443,13 +443,12 @@ class Provider(ProviderBase):
             bootstrap_task = Celery(wfspec,
                     'Pre-Configure Server %s (%s)' % (relation['target'],
                                                       resource['service']),
-                    'checkmate.providers.opscode.local.cook',
+                    'checkmate.providers.opscode.solo.cook',
                     call_args=[
                             PathAttrib('instance:%s/ip' % relation['target']),
                             deployment['id']],
                     password=PathAttrib('instance:%s/password' %
                                         relation['target']),
-                    kitchen_name='kitchen',
                     identity_file=Attrib('private_key_path'),
                     description="Install basic pre-requisites on %s"
                                 % relation['target'],
@@ -714,3 +713,79 @@ class ChefMap():
 
         template = env.get_template('template')
         return template.render(deployment={'id': 'DEP01'}, resource={})
+
+
+import threading
+from celery import task
+from checkmate.providers.opscode import local
+
+
+@task(countdown=20, max_retries=3)
+def cook(host, environment, recipes=None, roles=None, path=None,
+         username='root', password=None, identity_file=None, port=22,
+         attributes=None):
+    """Apply recipes/roles to a server"""
+    utils.match_celery_logging(LOG)
+    root = local._get_root_environments_path(path)
+    kitchen_path = os.path.join(root, environment, 'kitchen')
+    if not os.path.exists(kitchen_path):
+        raise CheckmateException("Environment kitchen does not exist: %s" %
+                kitchen_path)
+    node_path = os.path.join(kitchen_path, 'nodes', '%s.json' % host)
+    if not os.path.exists(node_path):
+        cook.retry(exc=CheckmateException("Node '%s' is not registered in %s"
+                                          % (host, kitchen_path)))
+
+    # Add any missing recipes to node settings
+    run_list = []
+    if roles:
+        run_list.extend(["role[%s]" % role for role in roles])
+    if recipes:
+        run_list.extend(["recipe[%s]" % recipe for recipe in recipes])
+    if run_list or attributes:
+        add_list = []
+        # Open file, read/parse/calculate changes, then write
+        lock = threading.Lock()
+        lock.acquire()
+        try:
+            with file(node_path, 'r') as f:
+                node = json.load(f)
+            if run_list:
+                for entry in run_list:
+                    if entry not in node['run_list']:
+                        node['run_list'].append(entry)
+                        add_list.append(entry)
+            if attributes:
+                utils.merge_dictionary(node, attributes)
+            if add_list or attributes:
+                with file(node_path, 'w') as f:
+                    json.dump(node, f)
+        finally:
+            lock.release()
+        if add_list:
+            LOG.debug("Added to %s: %s" % (node_path, add_list))
+        else:
+            LOG.debug("All run_list already exists in %s: %s" % (node_path,
+                      run_list))
+        if attributes:
+            LOG.debug("Wrote attributes to %s" % node_path,
+                      extra={'data': attributes})
+    else:
+        LOG.debug("No recipes or roles to add and no attribute changes. Will "
+                  "just run 'knife cook' for %s using bootstrap.json" %
+                  node_path)
+
+    # Build and run command
+    if not username:
+        username = 'root'
+    params = ['knife', 'cook', '%s@%s' % (username, host),
+              '-c', os.path.join(kitchen_path, 'solo.rb')]
+    if not (run_list or attributes):
+        params.extend(['bootstrap.json'])
+    if identity_file:
+        params.extend(['-i', identity_file])
+    if password:
+        params.extend(['-P', password])
+    if port:
+        params.extend(['-p', str(port)])
+    local._run_kitchen_command(kitchen_path, params)

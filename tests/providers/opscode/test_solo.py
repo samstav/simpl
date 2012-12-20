@@ -3,8 +3,11 @@
 
 """Tests for chef-solo provider"""
 
+import __builtin__
 import copy
+import json
 import logging
+import os
 import unittest2 as unittest
 from urlparse import urlunparse
 
@@ -21,13 +24,74 @@ from checkmate import test, utils
 from checkmate.deployments import Deployment, plan
 from checkmate.middleware import RequestContext
 from checkmate.providers import base, register_providers
-from checkmate.providers.opscode import solo
+from checkmate.providers.opscode import solo, local
 from checkmate.workflows import create_workflow_deploy
 
 
 class TestChefSolo(test.ProviderTester):
 
     klass = solo.Provider
+
+
+class TestChefSoloTasks(unittest.TestCase):
+    def setUp(self):
+        os.environ['CHECKMATE_CHEF_LOCAL_PATH'] = '/test/checkmate'
+        self.mox = mox.Mox()
+
+    def tearDown(self):
+        self.mox.UnsetStubs()
+
+    def test_cook(self):
+        """Test that cook task picks up run_list and attributes"""
+        root_path = os.environ['CHECKMATE_CHEF_LOCAL_PATH']
+        environment_path = os.path.join(root_path, "env_test")
+        kitchen_path = os.path.join(environment_path, "kitchen")
+        node_path = os.path.join(kitchen_path, "nodes", "a.b.c.d.json")
+
+        #Stub out checks for paths
+        self.mox.StubOutWithMock(local, '_get_root_environments_path')
+        local._get_root_environments_path(None).AndReturn(root_path)
+        self.mox.StubOutWithMock(os.path, 'exists')
+        os.path.exists(kitchen_path).AndReturn(True)
+        os.path.exists(node_path).AndReturn(True)
+
+        #Stub out file access
+        mock_file = self.mox.CreateMockAnything()
+        mock_file.__enter__().AndReturn(mock_file)
+        mock_file.__exit__(None, None, None).AndReturn(None)
+
+        #Stub out file reads
+        node = json.loads('{ "run_list": [] }')
+        self.mox.StubOutWithMock(json, 'load')
+        json.load(mock_file).AndReturn(node)
+
+        #Stub out file write
+        mock_file.__enter__().AndReturn(mock_file)
+        self.mox.StubOutWithMock(json, 'dump')
+        json.dump(And(
+                      ContainsKeyValue('run_list',
+                                       ['role[role1]', 'recipe[recipe1]']),
+                      ContainsKeyValue('id', 1)
+                      ),
+                  mock_file).AndReturn(None)
+        mock_file.__exit__(None, None, None).AndReturn(None)
+
+        #Stub out file opens
+        self.mox.StubOutWithMock(__builtin__, 'file')
+        __builtin__.file(node_path, 'r').AndReturn(mock_file)
+        __builtin__.file(node_path, 'w').AndReturn(mock_file)
+
+        #Stub out process call to knife
+        params = ['knife', 'cook', 'root@a.b.c.d',
+                  '-c', os.path.join(kitchen_path, "solo.rb"),
+                  '-p', '22']
+        self.mox.StubOutWithMock(local, '_run_kitchen_command')
+        local._run_kitchen_command(kitchen_path, params).AndReturn("OK")
+
+        self.mox.ReplayAll()
+        solo.cook("a.b.c.d", "env_test", roles=['role1'], recipes=['recipe1'],
+                  attributes={'id': 1})
+        self.mox.VerifyAll()
 
 
 class TestDBWorkflow(test.StubbedWorkflowBase):
@@ -141,7 +205,7 @@ class TestDBWorkflow(test.StubbedWorkflowBase):
         # build-essential (now just cook with bootstrap.json)
 
         expected.append({
-            'call': 'checkmate.providers.opscode.local.cook',
+            'call': 'checkmate.providers.opscode.solo.cook',
             'args': ['4.4.4.1', self.deployment['id']],
             'kwargs': And(In('password'), Not(In('recipes')),
                           Not(In('roles')),
@@ -155,7 +219,7 @@ class TestDBWorkflow(test.StubbedWorkflowBase):
         # Cook with role
 
         expected.append({
-            'call': 'checkmate.providers.opscode.local.cook',
+            'call': 'checkmate.providers.opscode.solo.cook',
             'args': ['4.4.4.1', self.deployment['id']],
             'kwargs': And(In('password'), ContainsKeyValue('recipes',
                           ['mysql::server']),
@@ -335,8 +399,8 @@ class TestMapWorkflowTasks(test.StubbedWorkflowBase):
                         'public_key':
                                 test.ENV_VARS['CHECKMATE_CLIENT_PUBLIC_KEY']}
             },  {
-                # Prepare foo
-                'call': 'checkmate.providers.opscode.local.cook',
+                # Prep foo - bootstrap.json
+                'call': 'checkmate.providers.opscode.solo.cook',
                 'args': ['4.4.4.4', self.deployment['id']],
                 'kwargs': And(In('password'), Not(ContainsKeyValue('recipes',
                         ['foo'])),
@@ -353,8 +417,8 @@ class TestMapWorkflowTasks(test.StubbedWorkflowBase):
                 'result': None,
                 'resource': '1',
             },  {
-                # Cook foo
-                'call': 'checkmate.providers.opscode.local.cook',
+                # Cook foo - run recipes
+                'call': 'checkmate.providers.opscode.solo.cook',
                 'args': ['4.4.4.4', self.deployment['id']],
                 'kwargs': And(In('password'), ContainsKeyValue('recipes',
                         ['foo']),
@@ -364,7 +428,7 @@ class TestMapWorkflowTasks(test.StubbedWorkflowBase):
                 'result': None
             }, {
                 # Cook bar
-                'call': 'checkmate.providers.opscode.local.cook',
+                'call': 'checkmate.providers.opscode.solo.cook',
                 'args': [None, self.deployment['id']],
                 'kwargs': And(In('password'), ContainsKeyValue('recipes',
                         ['bar']),
