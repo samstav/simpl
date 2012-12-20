@@ -632,7 +632,12 @@ class TestChefMap(unittest.TestCase):
                 'scheme': 'output',
                 'netloc': '',
                 'path': 'item/key/with/long/path',
-                },
+            }, {
+                'name': 'path check',
+                'scheme': 'output',
+                'netloc': 'item',
+                'path': 'item',
+                }
             ]
 
         for case in cases:

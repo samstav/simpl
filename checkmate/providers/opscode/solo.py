@@ -665,7 +665,7 @@ class ChefMap():
             'fragment': parts.fragment,
             }
         if parts.scheme in ['attributes', 'output']:
-            result['path'] = os.path.join(parts.netloc, parts.path)
+            result['path'] = os.path.join(parts.netloc, parts.path).strip('/')
         return result
 
     @staticmethod
