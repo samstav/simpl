@@ -28,7 +28,6 @@ def register_scheme(scheme):
     for method in filter(lambda s: s.startswith('uses_'), dir(urlparse)):
         getattr(urlparse, method).append(scheme)
 
-
 register_scheme('git')  # without this, urlparse won't handle git:// correctly
 
 
@@ -83,7 +82,7 @@ class Provider(ProviderBase):
             collect.follow(self.prep_task)
 
             write_options = Celery(wfspec,
-                    "Write Data",
+                    "Write Data Bag",
                    'checkmate.providers.opscode.local.manage_databag',
                     call_args=[deployment['id'], deployment['id'],
                             Attrib('app_id'), Attrib('chef_options')],
@@ -97,7 +96,7 @@ class Provider(ProviderBase):
             # Nothing to write. Mark environment task as 'write_options' task
             self.prep_task.properties['task_tags'].append('write_options')
             self.collect_data_tasks = {'root': self.prep_task,
-                                      'final': self.prep_task}
+                                       'final': self.prep_task}
             return {'root': self.prep_task,
                     'final': self.prep_task}
 
@@ -628,7 +627,7 @@ class ChefMap():
         """
         Parses the URI format of a map
 
-        :param uri: string uri based on map file suported sources and targets
+        :param uri: string uri based on map file supported sources and targets
         :returns: dict
 
         """

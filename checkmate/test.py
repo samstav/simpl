@@ -3,7 +3,6 @@
 import json
 import logging
 import os
-import sys
 import unittest2 as unittest
 import uuid
 
@@ -14,7 +13,7 @@ from mox import IsA, In, And, IgnoreArg, ContainsKeyValue, Func, StrContains
 from SpiffWorkflow.specs import Celery, Transform
 
 # Init logging before we load the database, 3rd party, and 'noisy' modules
-from checkmate.utils import init_console_logging, import_class
+from checkmate.utils import init_console_logging
 init_console_logging()
 LOG = logging.getLogger(__name__)
 
@@ -260,6 +259,7 @@ class StubbedWorkflowBase(unittest.TestCase):
 
             # To Mock data retrieval - but this has been commented out
             # since SpiffWorkflow only calls this when rehydrating a workflow
+            #
             #default_app.AsyncResult.__call__(async_mock.task_id).AndReturn(
             #        async_mock)
 

@@ -230,6 +230,8 @@ class TestMapWorkflowTasks(test.StubbedWorkflowBase):
             """
             \n--- # foo component
                 id: foo
+                requires:
+                - host: linux
                 maps:
                 # Simple scalar to attribute
                 - value: 10
@@ -268,14 +270,20 @@ class TestMapWorkflowTasks(test.StubbedWorkflowBase):
         plan(self.deployment, context)
         workflow = create_workflow_deploy(self.deployment, context)
 
-        task_list = [t.get_name() for t in workflow.get_tasks()]
-        expected = ['Root',
+        task_list = list(set(t.get_name() for t in workflow.get_tasks()))
+        expected = list(set([
+                    'Root',
                     'Start',
                     'Create Chef Environment',
-                    'Configure bar: 1 (backend)',
-                    'Configure foo: 0 (frontend)',
-                    ]
-        self.assertListEqual(task_list, expected)
+                    'Create Resource 0',
+                    'After Environment is Ready and Server 0 (frontend) is Up',
+                    'Register Server 0 (frontend)',
+                    'Pre-Configure Server 0 (frontend)',
+                    'After server 0 (frontend) is registered and options are ready',
+                    'Configure foo: 1 (frontend)',
+                    'Configure bar: 2 (backend)',
+                    ]))
+        self.assertListEqual(task_list, expected, msg=task_list)
         self.mox.VerifyAll()
 
     def test_workflow_execution(self):
@@ -327,8 +335,26 @@ class TestMapWorkflowTasks(test.StubbedWorkflowBase):
                         'public_key':
                                 test.ENV_VARS['CHECKMATE_CLIENT_PUBLIC_KEY']}
             },  {
+                # Prepare foo
                 'call': 'checkmate.providers.opscode.local.cook',
-                'args': [None, self.deployment['id']],
+                'args': ['4.4.4.4', self.deployment['id']],
+                'kwargs': And(In('password'), Not(ContainsKeyValue('recipes',
+                        ['foo'])),
+                        ContainsKeyValue('identity_file',
+                                '/var/tmp/%s/private.pem' %
+                                self.deployment['id'])),
+                'result': None
+            }, {
+                # Register foo
+                'call': 'checkmate.providers.opscode.local.register_node',
+                'args': ["4.4.4.4", self.deployment['id']],
+                'kwargs': In('password'),
+                'result': None,
+                'resource': '1',
+            },  {
+                # Cook foo
+                'call': 'checkmate.providers.opscode.local.cook',
+                'args': ['4.4.4.4', self.deployment['id']],
                 'kwargs': And(In('password'), ContainsKeyValue('recipes',
                         ['foo']),
                         ContainsKeyValue('identity_file',
@@ -336,6 +362,7 @@ class TestMapWorkflowTasks(test.StubbedWorkflowBase):
                                 self.deployment['id'])),
                 'result': None
             }, {
+                # Cook bar
                 'call': 'checkmate.providers.opscode.local.cook',
                 'args': [None, self.deployment['id']],
                 'kwargs': And(In('password'), ContainsKeyValue('recipes',
@@ -344,17 +371,37 @@ class TestMapWorkflowTasks(test.StubbedWorkflowBase):
                                 '/var/tmp/%s/private.pem' %
                                 self.deployment['id'])),
                 'result': None
-            }]
+            }, {
+                # Create Server
+                'call': 'checkmate.providers.test.create_resource',
+                'args': [IsA(dict), IsA(dict)],
+                'kwargs': IgnoreArg(),
+                'result': {
+                        'instance:0': {
+                            'id': '1',
+                            'password': "shecret",
+                            'ip': '4.4.4.4'
+                            }
+                        },
+                'post_back_result': True,
+                'resource': '0',
+                }]
         workflow = self._get_stubbed_out_workflow(context=context,
                 expected_calls=expected_calls)
-        task_list = [t.get_name() for t in workflow.get_tasks()]
-        expected = ['Root',
+        task_list = list(set(t.get_name() for t in workflow.get_tasks()))
+        expected = list(set([
+                    'Root',
                     'Start',
                     'Create Chef Environment',
-                    'Configure bar: 1 (backend)',
-                    'Configure foo: 0 (frontend)',
-                    ]
-        self.assertListEqual(task_list, expected)
+                    'Create Resource 0',
+                    'After Environment is Ready and Server 0 (frontend) is Up',
+                    'Register Server 0 (frontend)',
+                    'Pre-Configure Server 0 (frontend)',
+                    'After server 0 (frontend) is registered and options are ready',
+                    'Configure foo: 1 (frontend)',
+                    'Configure bar: 2 (backend)',
+                    ]))
+        self.assertListEqual(task_list, expected, msg=task_list)
 
         self.mox.ReplayAll()
         workflow.complete_all()
@@ -442,14 +489,15 @@ class TestMaplessWorkflowTasks(test.StubbedWorkflowBase):
 
         workflow = create_workflow_deploy(self.deployment, context)
 
-        task_list = [t.get_name() for t in workflow.get_tasks()]
-        expected = ['Root',
-                    'Start',
-                    'Create Chef Environment',
-                    'Configure bar: 1 (backend)',
-                    'Configure foo: 0 (frontend)',
-                    ]
-        self.assertListEqual(task_list, expected)
+        task_list = list(set(t.get_name() for t in workflow.get_tasks()))
+        expected = list(set([
+                     'Root',
+                     'Start',
+                     'Create Chef Environment',
+                     'Configure bar: 1 (backend)',
+                     'Configure foo: 0 (frontend)',
+                     ]))
+        self.assertListEqual(task_list, expected, msg=task_list)
 
         self.mox.VerifyAll()
 
