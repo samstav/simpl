@@ -258,9 +258,10 @@ class StubbedWorkflowBase(unittest.TestCase):
             # State is checked
             async_mock.ready().AndReturn(True)
 
-            # Data is retrieved
-            default_app.AsyncResult.__call__(async_mock.task_id).AndReturn(
-                    async_mock)
+            # To Mock data retrieval - but this has been commented out
+            # since SpiffWorkflow only calls this when rehydrating a workflow
+            #default_app.AsyncResult.__call__(async_mock.task_id).AndReturn(
+            #        async_mock)
 
         return workflow
 
