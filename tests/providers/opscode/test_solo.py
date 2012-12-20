@@ -697,11 +697,16 @@ class TestChefMap(unittest.TestCase):
                 'netloc': '',
                 'path': 'item/key/with/long/path',
             }, {
-                'name': 'path check',
+                'name': 'path check for output',
                 'scheme': 'output',
-                'netloc': 'item',
-                'path': 'item',
-                }
+                'netloc': '',
+                'path': 'only/path',
+            }, {
+                'name': 'only path check for attributes',
+                'scheme': 'attributes',
+                'netloc': '',
+                'path': 'only/path',
+            }
             ]
 
         for case in cases:
@@ -715,8 +720,15 @@ class TestChefMap(unittest.TestCase):
                              )
             result = fxn(uri)
             for key, value in result.iteritems():
-                self.assertEqual(value, case.get(key, ''), msg="%s' got '%s' "
+                self.assertEqual(value, case.get(key, ''), msg="'%s' got '%s' "
                                  "wrong in %s" % (case['name'], key, uri))
+
+    def test_map_URI_parser_netloc(self):
+        result = solo.ChefMap.parse_map_URI("attributes://only/path")
+        self.assertEqual(result['path'], 'only/path')
+
+        result = solo.ChefMap.parse_map_URI("attributes://only")
+        self.assertEqual(result['path'], 'only')
 
     def test_has_mapping_positive(self):
         chef_map = solo.ChefMap('')
