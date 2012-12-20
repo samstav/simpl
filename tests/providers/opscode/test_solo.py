@@ -716,8 +716,9 @@ class TestChefMap(unittest.TestCase):
               targets:
               - databags://mybag/there
         """
-        self.assertIsNotNone(chef_map.get_attributes('foo'))
+        self.assertDictEqual(chef_map.get_attributes('foo'), {'here': 1})
         self.assertDictEqual(chef_map.get_attributes('bar'), {})
+        self.assertIsNone(chef_map.get_attributes('not there'))
 
 
 class TestTemplating(unittest.TestCase):
