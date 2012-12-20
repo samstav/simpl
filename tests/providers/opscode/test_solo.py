@@ -763,6 +763,18 @@ class TestTemplating(unittest.TestCase):
         self.assertListEqual(response['database'].keys(), ['mysql'])
         self.mox.VerifyAll()
 
+    def test_parsing_scalar(self):
+        """Test parsing with simple, scalar variables"""
+        chef_map = solo.ChefMap('')
+        chef_map._raw = """
+            {% set id = 'foo' %}
+            id: {{ id }}
+            maps:
+            - value: {{ 1 }}
+              targets:
+              - attributes://{{ 'here' }}
+        """
+        self.assertDictEqual(chef_map.get_attributes('foo'), {'here': 1})
 
     def test_parsing_functions_parse_url(self):
         """Test 'parse_url' function use in parsing"""
