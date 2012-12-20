@@ -23,7 +23,6 @@ from checkmate.exceptions import CheckmateException
 from checkmate.providers.base import PROVIDER_CLASSES
 from checkmate.middleware import RequestContext, TokenAuthMiddleware
 from checkmate.providers.opscode import local
-from checkmate.providers.opscode.local import Transforms
 from checkmate.test import StubbedWorkflowBase, ENV_VARS, TestProvider
 from checkmate.utils import yaml_to_dict, dict_to_yaml
 from checkmate.workflows import create_workflow_deploy, \
