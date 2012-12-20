@@ -348,7 +348,8 @@ class TestMapWorkflowTasks(test.StubbedWorkflowBase):
                 # Register foo
                 'call': 'checkmate.providers.opscode.local.register_node',
                 'args': ["4.4.4.4", self.deployment['id']],
-                'kwargs': In('password'),
+                'kwargs': And(In('password'), ContainsKeyValue('attributes',
+                        {'widgets': 10})),
                 'result': None,
                 'resource': '1',
             },  {
@@ -694,6 +695,24 @@ class TestChefMap(unittest.TestCase):
             maps: {}
         """
         self.assertFalse(chef_map.has_databag_mappings())
+
+    def test_get_attributes(self):
+        chef_map = solo.ChefMap('')
+        chef_map._raw = """
+            id: foo
+            maps:
+            - value: 1
+              targets:
+              - attributes://here
+            \n--- # component bar
+            id: bar
+            maps:
+            - value: 1
+              targets:
+              - databags://mybag/there
+        """
+        self.assertIsNotNone(chef_map.get_attributes('foo'))
+        self.assertDictEqual(chef_map.get_attributes('bar'), {})
 
 
 class TestTemplating(unittest.TestCase):

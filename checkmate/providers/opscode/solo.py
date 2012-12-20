@@ -414,6 +414,11 @@ class Provider(ProviderBase):
                 raise CheckmateException("No host resource found for relation "
                                          "'%s'" % relation_key)
 
+            if self.map_file:
+                attributes = self.map_file.get_attributes(
+                        resource['component'])
+            else:
+                attributes = None
             # Create chef setup tasks
             register_node_task = Celery(wfspec,
                     'Register Server %s (%s)' % (relation['target'],
@@ -425,6 +430,7 @@ class Provider(ProviderBase):
                     password=PathAttrib('instance:%s/password' %
                             relation['target']),
                     kitchen_name='kitchen',
+                    attributes=attributes,
                     omnibus_version="10.12.0-1",
                     identity_file=Attrib('private_key_path'),
                     defines=dict(resource=key,
@@ -618,9 +624,23 @@ class ChefMap():
                 return True
         return False
 
-    def test(self, value):
-        print value
-        return True
+    def get_attributes(self, component_id):
+        """Get attribute maps for a specific component"""
+        for component in self.components:
+            if component_id == component['id']:
+                maps = (m for m in component.get('maps', [])
+                        if any(target for target in m.get('targets', [])
+                               if (self.parse_map_URI(target)['scheme'] ==
+                                   'attributes')))
+                if maps:
+                    result = {}
+                    for m in maps:
+                        for target in m.get('targets', []):
+                            url = self.parse_map_URI(target)
+                            if url['scheme'] == 'attributes':
+                                utils.write_path(result, url['path'],
+                                                 m['value'])
+                    return result
 
     @staticmethod
     def parse_map_URI(uri):
