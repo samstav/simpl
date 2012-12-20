@@ -709,7 +709,8 @@ class ChefMap():
             """
             return urlparse.urlparse(value)
         env.globals['parse_url'] = parse_url
-        env.globals['setting'] = lambda x: x
+        env.globals['setting'] = lambda x: x  # placeholder
+        env.globals['hash'] = hash_SHA512
 
         template = env.get_template('template')
         return template.render(deployment={'id': 'DEP01'}, resource={})

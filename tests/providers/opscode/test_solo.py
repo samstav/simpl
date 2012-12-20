@@ -813,6 +813,22 @@ class TestTemplating(unittest.TestCase):
             }
         self.assertDictEqual(result, expected)
 
+    def test_parsing_functions_hash(self):
+        """Test 'hash' function use in parsing"""
+        chef_map = solo.ChefMap('')
+        chef_map._raw = """
+            id: foo
+            maps:
+            - value: {{ hash('password', salt='ahem') }}
+              targets:
+              - attributes://here
+        """
+        self.assertDictEqual(chef_map.get_attributes('foo'),
+                {'here': '$6$ahem$cf866f39224e26521d6ac5575225c0ac4933ec3d47bc'
+                         'ee136c3ceef8341343b4530858b8bca85e33e1e4ccf297f8b096'
+                         'fcebe978f5e0d6e8188445dc89cc66cf'})
+
+
 TEMPLATE = \
     """# vim: set filetype=yaml syntax=yaml:
 # Global function
