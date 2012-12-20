@@ -289,14 +289,15 @@ class ProviderBase(ProviderBasePlanningMixIn, ProviderBaseWorkflowMixIn):
             results = self._dict['provides']
         else:
             data = self.get_catalog(context)
-            for key, type_category in data.iteritems():
-                if key == 'lists':
-                    continue
-                for id, component in type_category.iteritems():
-                    if 'provides' in component:
-                        for entry in component['provides']:
-                            if entry not in results:
-                                results.append(entry)
+            if data:
+                for key, type_category in data.iteritems():
+                    if key == 'lists':
+                        continue
+                    for id, component in type_category.iteritems():
+                        if 'provides' in component:
+                            for entry in component['provides']:
+                                if entry not in results:
+                                    results.append(entry)
             self._dict['provides'] = results  # cache this
 
         filtered = []
