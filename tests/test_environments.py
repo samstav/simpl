@@ -73,6 +73,8 @@ class TestEnvironments(unittest.TestCase):
                         same_id:
                           id: same_id
                           is: gadget
+                          provides:
+                          - gadget: bar
                   widget_maker:
                     vendor: test
                     catalog:
@@ -80,6 +82,8 @@ class TestEnvironments(unittest.TestCase):
                         same_id:
                           id: same_id
                           is: widget
+                          provides:
+                          - widget: bar
                       """)
         PROVIDER_CLASSES['test.gadget_maker'] = ProviderBase
         PROVIDER_CLASSES['test.widget_maker'] = ProviderBase
