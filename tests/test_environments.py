@@ -9,7 +9,8 @@ LOG = logging.getLogger(__name__)
 
 from checkmate.environments import Environment
 from checkmate.middleware import RequestContext
-from checkmate.providers.base import PROVIDER_CLASSES, ProviderBase
+from checkmate.providers import base
+from checkmate.providers.base import ProviderBase
 from checkmate.utils import yaml_to_dict
 
 
@@ -26,7 +27,7 @@ class TestEnvironments(unittest.TestCase):
                     vendor: test
                       """)
 
-        PROVIDER_CLASSES['test.base'] = ProviderBase
+        base.PROVIDER_CLASSES['test.base'] = ProviderBase
 
         environment = Environment(definition)
         self.assertIn('base', environment.get_providers(None))
@@ -52,7 +53,7 @@ class TestEnvironments(unittest.TestCase):
                           - database: mysql
                       """)
 
-        PROVIDER_CLASSES['test.base'] = ProviderBase
+        base.PROVIDER_CLASSES['test.base'] = ProviderBase
 
         environment = Environment(definition)
         context = RequestContext()
@@ -85,8 +86,8 @@ class TestEnvironments(unittest.TestCase):
                           provides:
                           - widget: bar
                       """)
-        PROVIDER_CLASSES['test.gadget_maker'] = ProviderBase
-        PROVIDER_CLASSES['test.widget_maker'] = ProviderBase
+        base.PROVIDER_CLASSES['test.gadget_maker'] = ProviderBase
+        base.PROVIDER_CLASSES['test.widget_maker'] = ProviderBase
         environment = Environment(definition)
         context = RequestContext()
 
