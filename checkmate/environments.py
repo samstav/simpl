@@ -373,5 +373,5 @@ class Environment():
             LOG.warning("Ambiguous component '%s' matches: %s" %
                         (blueprint_entry, matches))
             LOG.warning("Will use '%s.%s' as a default if no match is found" %
-                        (provider.key, matches[0]['id']))
+                        (matches[0].provider.key, matches[0]['id']))
         return matches[0]

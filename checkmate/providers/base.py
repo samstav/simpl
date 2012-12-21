@@ -354,7 +354,7 @@ class ProviderBase(ProviderBasePlanningMixIn, ProviderBaseWorkflowMixIn):
         if kwargs:
             LOG.debug("Extra kwargs: %s" % kwargs)
 
-        if component_id:
+        if component_id and not (interface or resource_type):
             component = self.get_component(context, component_id)
             if component:
                 LOG.debug("Found component by id: %s" % component_id)
@@ -372,6 +372,8 @@ class ProviderBase(ProviderBasePlanningMixIn, ProviderBaseWorkflowMixIn):
             if key == 'lists':
                 continue  # ignore lists, we are looking for components
             for id, component in components.iteritems():
+                if component_id and component_id != id:
+                    continue  # ID specified and does not match
                 provides = component.get('provides', [])
                 for entry in provides:
                     ptype, pinterface = entry.items()[0]
@@ -382,6 +384,12 @@ class ProviderBase(ProviderBasePlanningMixIn, ProviderBaseWorkflowMixIn):
                     LOG.debug("'%s' matches in provider '%s' and provides %s" %
                             (id, self.key, provides))
                     matches.append(Component(component, id=id, provider=self))
+                ptype = component.get('is', None)
+                if ptype and resource_type and resource_type == ptype:
+                    LOG.debug("'%s' matches in provider '%s' and provides %s" %
+                            (id, self.key, provides))
+                    matches.append(Component(component, id=id, provider=self))
+
         return matches
 
     def evaluate(self, function_string):
