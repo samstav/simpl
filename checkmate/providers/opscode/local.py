@@ -1125,8 +1125,9 @@ class Provider(ProviderBase):
                             (cid, self.key, result.get('provides', [])))
                 return [self.get_component(context, cid)]
             else:
-                raise CheckmateException("Component id '%s' provided but not "
+                LOG.warn("Component id '%s' provided but not "
                         "found in provider '%s'" % (cid, self.key))
+                return []
         return ProviderBase.find_components(self, context, **kwargs)
 
     def status(self):
