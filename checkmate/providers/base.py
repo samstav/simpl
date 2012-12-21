@@ -384,11 +384,6 @@ class ProviderBase(ProviderBasePlanningMixIn, ProviderBaseWorkflowMixIn):
                     LOG.debug("'%s' matches in provider '%s' and provides %s" %
                             (id, self.key, provides))
                     matches.append(Component(component, id=id, provider=self))
-                ptype = component.get('is', None)
-                if ptype and resource_type and resource_type == ptype:
-                    LOG.debug("'%s' matches in provider '%s' and provides %s" %
-                            (id, self.key, provides))
-                    matches.append(Component(component, id=id, provider=self))
 
         return matches
 
