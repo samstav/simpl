@@ -349,6 +349,7 @@ class ProviderBase(ProviderBasePlanningMixIn, ProviderBaseWorkflowMixIn):
         resource_type = kwargs.pop('resource_type', kwargs.pop('type',
                                    kwargs.pop('resource', None)))
         interface = kwargs.pop('interface', None)
+        role = kwargs.pop('role', None)
         kwargs.pop('version', None)  # noise reduction
         if kwargs:
             LOG.debug("Extra kwargs: %s" % kwargs)
@@ -372,6 +373,8 @@ class ProviderBase(ProviderBasePlanningMixIn, ProviderBaseWorkflowMixIn):
                 continue  # ignore lists, we are looking for components
             for id, component in components.iteritems():
                 provides = component.get('provides', [])
+                if role and role not in component.get('roles',[]):
+                    continue # Component does not provide given role                   
                 for entry in provides:
                     ptype, pinterface = entry.items()[0]
                     if interface and interface != pinterface:
