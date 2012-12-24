@@ -1166,7 +1166,8 @@ class Deployment(ExtensibleDict):
             options = blueprint['options']
             for key, option in options.iteritems():
                 if 'constrains' in option:
-                    for constraint in option['constrains']:
+                    constraints = self.parse_constraints(option['constrains'])
+                    for constraint in constraints:
                         if self.constraint_applies(constraint, path):
                             # Find in inputs or use default if available
                             result = self._get_input_simple(key)
@@ -1230,7 +1231,8 @@ class Deployment(ExtensibleDict):
             options = blueprint['options']
             for key, option in options.iteritems():
                 if 'constrains' in option:  # the verb 'constrains' (not noun)
-                    for constraint in option['constrains']:
+                    constraints = self.parse_constraints(option['constrains'])
+                    for constraint in constraints:
                         if (self.constraint_applies(constraint, name,
                             service_name=service_name,
                             resource_type=resource_type)):
@@ -1262,11 +1264,13 @@ class Deployment(ExtensibleDict):
             resources = blueprint['resources']
             for key, resource in resources.iteritems():
                 if 'constrains' in resource:
-                    for constraint in resource['constrains']:
+                    constraints = resource['constrains']
+                    constraints = self.parse_constraints(constraints)
+                    for constraint in constraints:
                         if (self.constraint_applies(constraint, name,
                             service_name=service_name,
                             resource_type=resource_type)):
-                            # Find the instance, and get the atribute
+                            # Find the instance, and get the attribute
                             instance = self['resources'][key]['instance']
                             result = instance[constraint.get('attribute',
                                                              name)]
@@ -1277,7 +1281,7 @@ class Deployment(ExtensibleDict):
                                 return result
 
     def _get_constrained_svc_cmp_setting(self, name, service_name):
-        """Get a setting implied through a static resource constraint
+        """Get a setting implied through a blueprint service constraint
 
         :param name: the name of the setting
         :param service_name: the name of the service being evaluated
@@ -1287,12 +1291,62 @@ class Deployment(ExtensibleDict):
             services = blueprint['services']
             service = services.get(service_name, None)
             if service is not None:
+                # Check constraints under service
+                if 'constraints' in service:
+                    constraints = service['constraints']
+                    constraints = self.parse_constraints(constraints)
+                    for constraint in constraints:
+                        if name == constraint['setting']:
+                            result = constraint.get('value')
+                            LOG.debug("Found setting '%s' as a service "
+                                      "constraint in service '%s'. %s=%s"
+                                      % (name, service_name, name, result))
+                            return result
+                # Check constraints under component
                 if 'component' in service:
                     if service['component'] is not None:
                         if 'constraints' in service['component']:
                             constraints = service['component']['constraints']
-                            if name in constraints:
-                                return constraints[name]
+                            constraints = self.parse_constraints(constraints)
+                            for constraint in constraints:
+                                if name == constraint['setting']:
+                                    result = constraint.get('value')
+                                    LOG.debug("Found setting '%s' as a "
+                                              "service comoponent constraint "
+                                              "in service '%s'. %s=%s" % (name,
+                                              service_name, name, result))
+                                    return result
+
+    @staticmethod
+    def parse_constraints(constraints):
+        """
+
+        Ensure constraint syntax is valid
+
+        If it is key/values, convert it to a list.
+        If the list has key/values, convert them to the expected format with
+        setting, service, etc...
+
+        """
+        constraint_list = []
+        if isinstance(constraints, list):
+            constraint_list = constraints
+        elif isinstance(constraints, dict):
+            LOG.warning("Constraints not a list: %s" % constraints)
+            for key, value in constraints.iteritems():
+                constraint_list.append({'setting': key,
+                                        'value': value})
+        parsed = []
+        for constraint in constraint_list:
+            if len(constraint) == 1 and constraint.keys()[0] != 'setting':
+                # it's one key/value pair which is not 'setting':path
+                # Convert setting:value to full constraint syntax
+                parsed.append({'setting': constraint.keys()[0],
+                              'value': constraint.values()[0]})
+            else:
+                parsed.append(constraint)
+
+        return parsed
 
     def constraint_applies(self, constraint, name, resource_type=None,
                            service_name=None):
@@ -1389,11 +1443,8 @@ class Deployment(ExtensibleDict):
             constraints = provider.get('constraints', [])
             assert isinstance(constraints, list), ("constraints need to be a "
                                                    "list or array")
+            constraints = self.parse_constraints(constraints)
             for constraint in constraints:
-                if len(constraint) == 1:
-                    # Convert setting:value to full constraint syntax
-                    constraint = dict(setting=constraint.keys()[0],
-                                      value=constraint.values()[0])
                 if self.constraint_applies(constraint, name,
                                            resource_type=resource_type):
                     result = constraint['value']

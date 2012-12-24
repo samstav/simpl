@@ -143,6 +143,51 @@ class TestDeploymentParser(unittest.TestCase):
         del parsed['created']  # we expect this to get added
         self.assertDictEqual(original, parsed._data)
 
+    def test_constrain_format_handling(self):
+        cases = {
+                    'full': {
+                              'parse': [{
+                                            'setting': 'my setting',
+                                            'service': 'web',
+                                            'type': 'compute'
+                                        }],
+                              'expected': [{
+                                            'setting': 'my setting',
+                                            'service': 'web',
+                                            'type': 'compute'
+                                           }],
+                            },
+                    'key/value': {
+                                    'parse': {
+                                                  'version': '1.2.3',
+                                                  'create': True,
+                                             },
+                                    'expected': [{
+                                                    'setting': 'version',
+                                                    'value': '1.2.3'
+                                                 }, {
+                                                    'setting': 'create',
+                                                    'value': True
+                                                 }]
+                                  },
+                    'option': {
+                              'parse': [{
+                                            'setting': '/resources/id/value'
+                                        }],
+                              'expected': [{
+                                            'setting': '/resources/id/value'
+                                           }],
+                            },
+                }
+        for name, case in cases.iteritems():
+            parsed = Deployment.parse_constraints(case['parse'])
+            expected = case['expected']
+            for constraint in expected:
+                self.assertIn(constraint, parsed)
+                parsed.remove(constraint)
+            self.assertEqual(parsed, [], msg="Parsed has extra constraints: %s"
+                             % parsed)
+
 
 class TestDeploymentDeployer(unittest.TestCase):
     def test_deployer(self):
@@ -186,6 +231,11 @@ class TestDeploymentResourceGenerator(unittest.TestCase):
                       component: *widget
                       relations:
                         back: foo
+                    side:
+                      component:
+                        <<: *widget
+                        constraints:
+                        - count: 2
                 environment:
                   name: environment
                   providers:
@@ -219,10 +269,11 @@ class TestDeploymentResourceGenerator(unittest.TestCase):
         parsed = plan(deployment, RequestContext())
         services = parsed['blueprint']['services']
         self.assertEqual(len(services['front']['instances']), 1)
-        self.assertEqual(len(services['middle']['instances']), 4)
+        self.assertEqual(len(services['middle']['instances']), 4,
+                         msg="Expecting inputs to generate 4 resources")
         self.assertEqual(len(services['back']['instances']), 1)
-        #import json
-        #print json.dumps(parsed, indent=2)
+        self.assertEqual(len(services['side']['instances']), 2,
+                         msg="Expecting constraint to generate 2 resources")
 
     def test_static_resource_generator(self):
         """Test the parser generates the right number of static resources"""
@@ -498,7 +549,15 @@ class TestDeploymentSettings(unittest.TestCase):
                   services:
                     web:
                       component:
-                      type: compute
+                        type: compute
+                      constraints:
+                      - count: 2
+                    wordpress:  #FIXME: remove backwards compatibility
+                      component:
+                        type: compute
+                        constraints:
+                          "wordpress/version": 3.1.4
+                          "wordpress/create": true
                   options:
                     my_server_type:
                       constrains:
@@ -591,9 +650,29 @@ class TestDeploymentSettings(unittest.TestCase):
                     'case': "Provider setting is used even with service param",
                     'name': "size",
                     'provider': "base",
-                    'service': 'one',
+                    'service': 'web',
                     'resource_type': "widget",
                     'expected': "big",
+                },  {
+                    'case': "Set in blueprint/service as constraint",
+                    'name': "count",
+                    'type': 'compute',
+                    'service': 'web',
+                    'expected': 2,
+                }, {  # FIXME: remove backwards compatibility
+                    'case': "Constraint as key/value pair",
+                    'name': "wordpress/version",
+                    'type': 'compute',
+                    'provider': "base",
+                    'service': 'wordpress',
+                    'expected': "3.1.4",
+                }, {  # FIXME: remove backwards compatibility
+                    'case': "Constraint with multiple key/value pairs",
+                    'name': "wordpress/create",
+                    'type': 'compute',
+                    'provider': "base",
+                    'service': 'wordpress',
+                    'expected': True,
                 },  {
                     'case': "Set in blueprint/providers",
                     'name': "memory",
@@ -610,7 +689,7 @@ class TestDeploymentSettings(unittest.TestCase):
                     resource_type=test.get('type'))
             self.assertEquals(value, test['expected'], test['case'])
             LOG.debug("Test '%s' success=%s" % (test['case'],
-                                                 value==test['expected']))
+                                                 value == test['expected']))
 
     def test_get_setting_static(self):
         """Test the get_setting function used with static resources"""
