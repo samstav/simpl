@@ -8,7 +8,7 @@ import yaml
 
 from jinja2 import Environment, DictLoader
 from SpiffWorkflow.operators import Attrib, PathAttrib
-from SpiffWorkflow.specs import Celery, Transform, Merge
+from SpiffWorkflow.specs import Celery, TransMerge
 
 from checkmate import utils
 from checkmate.common import schema
@@ -29,6 +29,10 @@ def register_scheme(scheme):
         getattr(urlparse, method).append(scheme)
 
 register_scheme('git')  # without this, urlparse won't handle git:// correctly
+
+
+class CheckmateNotReady(CheckmateException):
+    pass
 
 
 class Provider(ProviderBase):
@@ -106,7 +110,7 @@ class Provider(ProviderBase):
 
         # Create the cook task
         resource = deployment['resources'][key]
-        configure_task = Celery(wfspec,
+        anchor_task = configure_task = Celery(wfspec,
                 'Configure %s: %s (%s)' % (component['id'],
                 key, service_name),
                'checkmate.providers.opscode.solo.cook',
@@ -125,6 +129,32 @@ class Provider(ProviderBase):
                 properties={'estimated_duration': 100},
                 **kwargs)
 
+        if self.map_file:
+            if self.map_file.has_runtime_options(resource['component']):
+                """
+                collect_data = Celery(wfspec,
+                        "Collect Chef Data for %s" % key,
+                        'checkmate.providers.opscode.solo.resolve_mappings',
+                        call_args=[context.get_queued_task_dict(
+                                        deployment=deployment['id'],
+                                        resource=key),
+                                deployment['id'],
+                                self.map_file.parsed],
+                        deployment=deployment,
+                        description="Get data needed for our cookbooks and "
+                                    "place it in a structure ready for "
+                                    "storage in a databag or role",
+                        properties={
+                                    'task_tags': ['collect'],
+                                   },
+                        defines={'provider': self.key,
+                                 'resource': key,
+                                })
+                """
+                collect_data = self.get_collect_task(wfspec, deployment, key)
+                configure_task.follow(collect_data)
+                anchor_task = collect_data
+
         # Collect dependencies
         dependencies = [self.prep_task]
 
@@ -137,8 +167,9 @@ class Provider(ProviderBase):
             if tasks:
                 dependencies.extend(tasks)
 
-        server_id = deployment['resources'][key].get('hosted_on', key)
-        wait_for(wfspec, configure_task, dependencies,
+        server_id = resource.get('hosted_on', key)
+
+        wait_for(wfspec, anchor_task, dependencies,
                 name="After server %s (%s) is registered and options are ready"
                         % (server_id, service_name),
                 description="Before applying chef recipes, we need to know "
@@ -152,6 +183,33 @@ class Provider(ProviderBase):
                      name='Wait for %s to be configured before completing '
                      'host %s' %
                      (service_name, resource.get('hosted_on', key)))
+
+    def get_collect_task(self, wfspec, deployment, resource_key):
+        """Get (or create_ a task to collect options"""
+        tasks = self.find_tasks(wfspec,
+                                provider=self.key,
+                                resource=resource_key,
+                                tag='collect')
+        if tasks:
+            return tasks[0]
+        source = utils.get_source_body(Transforms.collect_options)
+        collect_data = TransMerge(wfspec,
+                "Collect Chef Data for %s" % resource_key,
+                transforms=[source],
+                description="Get data needed for our cookbooks and "
+                        "place it in a structure ready for storage in "
+                        "a databag or role",
+                properties={
+                            'task_tags': ['collect'],
+                            #FIXME: hack while spiking
+                            'chef_maps': self.map_file.parsed,
+                            'resources': deployment['resources'],
+                           },
+                defines={'provider': self.key,
+                         'resource': resource_key,
+                        }
+                )
+        return collect_data
 
     def _hash_all_user_resource_passwords(self, deployment):
         """Chef needs all passwords to be a hash"""
@@ -171,8 +229,18 @@ class Provider(ProviderBase):
                   % (resource, key, relation, relation_key))
 
         if relation_key != 'host':
-            #FIXME: need to implement this (with map)
-            return
+            # Is relation in maps?
+            tasks = []
+            if self.map_file:
+                if self.map_file.has_requirement_mapping(resource['component'],
+                                                         relation_key):
+                    # Wait for relation target to be ready
+                    tasks = self.find_tasks(wfspec,
+                                            resource=relation['target'],
+                                            tag='final')
+            if tasks:
+                collect_task = self.get_collect_task(wfspec, deployment, key)
+                wait_for(wfspec, collect_task, tasks)
 
         if relation_key == 'host':
             # Wait on host to be ready
@@ -183,7 +251,7 @@ class Provider(ProviderBase):
 
             if self.map_file:
                 attributes = self.map_file.get_attributes(
-                        resource['component'])
+                        resource['component'], deployment)
             else:
                 attributes = None
             # Create chef setup tasks
@@ -282,8 +350,84 @@ class Provider(ProviderBase):
         return catalog
 
 
+class Transforms():
+    """Class to hold transform functions.
+
+    We put them in a separate class to:
+    - access them from tests
+    - possible, in the future, use them as a library instead of passing the
+      actual code in to Spiff for security reasons
+
+    """
+    def collect_options(self, my_task):
+        """Collect and write run-time options"""
+        from checkmate.providers.opscode.solo import ChefMap, CheckmateNotReady
+        chef_map = ChefMap(None)
+        chef_map._parsed = my_task.task_spec.get_property('chef_maps')
+        resources = my_task.task_spec.get_property('resources')
+        try:
+            resolved_maps = chef_map.resolve_maps(resources, my_task)
+            if resolved_maps:
+                my_task.set_attribute(chef_options=resolved_maps)
+                return True
+        except CheckmateNotReady:
+            LOG.debug("Data not yet ready")
+            return False
+        LOG.debug("Data not yet ready")
+        return False  # false means not done
+
+
 class ChefMap():
     """Retrieves and parses Chefmap files"""
+
+    def resolve_maps(self, resources, my_task):
+        """Resolve maps"""
+        results = {}
+        for component in self.components:
+            maps = (m for m in component.get('maps', [])
+                    if (self.parse_map_URI(m.get('source'))['scheme'] ==
+                               'requirements'))
+            if maps:
+                result = {}
+                for m in maps:
+                    result = self.evaluate_mapping_source(m, resources)
+                    if result:
+                        for target in m.get('targets', []):
+                            url = self.parse_map_URI(target)
+                            if url['scheme'] == 'attributes':
+                                if 'attributes' not in results:
+                                    results['attributes'] = {}
+                                utils.write_path(results['attributes'],
+                                                 url['path'],
+                                                 result)
+        return results
+
+    def evaluate_mapping_source(self, mapping, resources):
+        """
+        Returns the mapping source value
+
+        Raises a CheckmateNotReady exception if the source is not yet available
+
+        :returns: the value
+
+        """
+        value = None
+        if 'source' in mapping:
+            url = self.parse_map_URI(mapping.get('source'))
+            if url['scheme'] == 'requirements':
+                    #FIXME hack - we need more context information
+                    try:
+                        value = resources['0']['instance']['ip']
+                    except:
+                        LOG.debug("Map not ready yet: " % mapping)
+                        raise CheckmateNotReady("Not ready")
+        elif 'value' in mapping:
+            value = mapping['value']
+        else:
+            raise CheckmateException("Mapping has neither 'source' nor "
+                                     "'value'")
+        return value
+
     def __init__(self, source):
         """Create a new Chefmap instance
 
@@ -390,7 +534,17 @@ class ChefMap():
                 return True
         return False
 
-    def get_attributes(self, component_id):
+    def has_requirement_mapping(self, component_id, requirement_key):
+        for component in self.components:
+            if component_id == component['id']:
+                for m in component.get('maps', []):
+                    url = self.parse_map_URI(m.get('source'))
+                    if (url['scheme'] == 'requirements' and
+                        url['netloc'] == requirement_key):
+                        return True
+        return False
+
+    def get_attributes(self, component_id, deployment):
         """Get attribute maps for a specific component"""
         for component in self.components:
             if component_id == component['id']:
@@ -401,11 +555,18 @@ class ChefMap():
                 if maps:
                     result = {}
                     for m in maps:
-                        for target in m.get('targets', []):
-                            url = self.parse_map_URI(target)
-                            if url['scheme'] == 'attributes':
-                                utils.write_path(result, url['path'],
-                                                 m['value'])
+                        value = None
+                        try:
+                            value = self.evaluate_mapping_source(m, deployment)
+                        except CheckmateNotReady:
+                            LOG.debug("Map not ready yet: " % m)
+                            continue
+                        if value:
+                            for target in m.get('targets', []):
+                                url = self.parse_map_URI(target)
+                                if url['scheme'] == 'attributes':
+                                    utils.write_path(result, url['path'],
+                                                     value)
                     return result
 
     def has_runtime_options(self, component_id):
