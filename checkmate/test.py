@@ -9,7 +9,8 @@ import uuid
 from celery.app import default_app
 from celery.result import AsyncResult
 import mox
-from mox import IsA, In, And, IgnoreArg, ContainsKeyValue, Func, StrContains
+from mox import (IsA, In, And, IgnoreArg, ContainsKeyValue, Func, StrContains,
+                 Not)
 from SpiffWorkflow.specs import Celery, Transform
 
 # Init logging before we load the database, 3rd party, and 'noisy' modules
@@ -488,9 +489,8 @@ class StubbedWorkflowBase(unittest.TestCase):
                 expected_calls.append({
                         'call': 'checkmate.providers.opscode.local.cook',
                         'args': ["4.4.4.%s" % ip, self.deployment['id']],
-                        'kwargs': And(In('password'),
-                                        ContainsKeyValue('recipes',
-                                            ['build-essential']),
+                        'kwargs': And(In('password'), Not(In('recipes')),
+                                        Not(In('roles')),
                                         ContainsKeyValue('identity_file',
                                                 '/var/tmp/%s/private.pem' %
                                                 self.deployment['id'])),

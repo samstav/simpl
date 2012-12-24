@@ -16,7 +16,7 @@ LOG = logging.getLogger(__name__)
 
 import git
 import mox
-from mox import In, IsA, And, IgnoreArg, ContainsKeyValue
+from mox import In, IsA, And, IgnoreArg, ContainsKeyValue, Not
 
 from checkmate import test
 from checkmate.deployments import Deployment
@@ -404,16 +404,15 @@ class TestWorkflowLogic(StubbedWorkflowBase):
                           'Start',
                           'Create Chef Environments',
                           'Create Chef Environment for one',
-                          'Feed data to Write task for 0 (one)',
                           'Collect small_widget Chef Data for one: 0',
                           'Collect Chef Data for one',
                           'Write Data Bag for one',
                           ('After server 0 (one) is registered and options '
                                 'are ready'),
                           'Configure small_widget: 0 (one)']
-        #FIXME: sometimes we get multiple "After..." tasks!
-        actual_tasks = list(set([t.get_name() for t in workflow.get_tasks()]))
-        self.assertEqual(len(actual_tasks), len(expected_tasks))
+        actual_tasks = workflow.spec.task_specs.keys()
+        self.assertEqual(len(actual_tasks), len(expected_tasks),
+                             msg=actual_tasks)
         self.assertDictEqual(self.outcome,
                 {
                   'data_bags': {
@@ -526,7 +525,8 @@ class TestDBWorkflow(StubbedWorkflowBase):
         expected.append({
                 'call': 'checkmate.providers.opscode.local.cook',
                 'args': [None, self.deployment['id']],
-                'kwargs': And(In('password'),
+                'kwargs': And(In('password'), Not(In('recipes')),
+                                Not(In('roles')),
                                 ContainsKeyValue('identity_file',
                                         '/var/tmp/%s/private.pem' %
                                         self.deployment['id'])),
