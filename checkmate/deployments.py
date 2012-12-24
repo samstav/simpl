@@ -1539,6 +1539,7 @@ class Deployment(ExtensibleDict):
 
 @task
 def resource_postback(deployment_id, contents):
+    #FIXME: we need to receive a context and check access
     """Accepts back results from a remote call and updates the deployment with
     the result data for a specific resource.
 
