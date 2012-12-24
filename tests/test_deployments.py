@@ -5,10 +5,8 @@ import unittest2 as unittest
 
 # Init logging before we load the database, 3rd party, and 'noisy' modules
 from checkmate.utils import init_console_logging
-from mox import Mox
 import mox
 import checkmate
-from bottle import Bottle
 import bottle
 import json
 from celery.app.task import Context
@@ -370,6 +368,62 @@ class TestDeploymentResourceGenerator(unittest.TestCase):
         self.assertIn("anyKey", resources)
         self.assertItemsEqual(resources['anyKey']['instance'].keys(),
                             ["private_key", "public_key", "public_key_ssh"])
+
+
+class TestDeploymentRelationParser(unittest.TestCase):
+    def test_blueprint_relation_parser(self):
+        """Test that parser handles relations listed in blueprints"""
+        deployment = Deployment(yaml_to_dict("""
+                id: test
+                blueprint:
+                  name: test bp
+                  services:
+                    balanced:
+                      component: &widget
+                        type: widget
+                        interface: foo
+                      relations:
+                        front: foo
+                    front:
+                      component:
+                        <<: *widget
+                        constraints:
+                        - count: 2
+                      relations:
+                        back: bar
+                    back:
+                      component:
+                        type: widget
+                        interface: bar
+                environment:
+                  name: environment
+                  providers:
+                    base:
+                      provides:
+                      - widget: foo
+                      vendor: test
+                      catalog:
+                        widget:
+                          small_widget:
+                            is: widget
+                            provides:
+                            - widget: foo
+                          big_widget:
+                            is: widget
+                            provides:
+                            - widget: bar
+            """))
+
+        base.PROVIDER_CLASSES['test.base'] = ProviderBase
+
+        parsed = plan(deployment, RequestContext())
+        expected_connections = {
+                                  'balanced-front': {'interface': 'foo'},
+                                  'front-back': {'interface': 'bar'},
+                                }
+        self.assertDictEqual(parsed['resources']['connections'],
+                             expected_connections)
+
 
 class TestComponentSearch(unittest.TestCase):
     """ Test code that finds components """
