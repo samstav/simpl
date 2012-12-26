@@ -398,9 +398,6 @@ def plan(deployment, context):
     services = blueprint.get('services', {})
     relations = {}
 
-    # The following are hashes with resource_type as the hash:
-    requirements = {}  # list of interfaces needed by component
-    provided = {}  # list of interfaces provided by other components
 
     #
     # Analyze Dependencies
@@ -413,31 +410,6 @@ def plan(deployment, context):
     #Identify component providers and get the resolved components
     components = deployment.get_components(context)
 
-    # Collect all requirements from components
-    for service_name, component in components.iteritems():
-        LOG.debug("Analyzing component %s requirements and needs in service %s"
-                  % (component['id'], service_name))
-
-        # Save list of interfaces provided by which service
-        if 'provides' in component:
-            for entry in component['provides']:
-                resource_type, interface = entry.items()[0]
-                if resource_type in provided:
-                    provided[resource_type].append(interface)
-                else:
-                    provided[resource_type] = [interface]
-        # Save list of what interfaces are required by each service
-        if 'requires' in component:
-            for entry in component['requires']:
-                key, value = entry.items()[0]
-                # Convert short form to long form before evaluating
-                if not isinstance(value, dict):
-                    value = {'interface': value}
-                interface = value['interface']
-                if interface in requirements:
-                    requirements[interface].append(service_name)
-                else:
-                    requirements[interface] = [service_name]
 
     # Collect relations and verify service for relation exists
     LOG.debug("Analyzing relations")
