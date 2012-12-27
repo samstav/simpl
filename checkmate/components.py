@@ -184,13 +184,17 @@ class Component(ExtensibleDict):
             expanded_results = {}
             for entry in results:
                 if len(entry) == 1:
-                    item = entry.items()[0]
-                    if entry.keys()[0] == 'host':
-                        keys = ('relation', 'interface')
+                    value = entry.values()[0]
+                    if isinstance(value, dict):
+                        expanded_results[entry.keys()[0]] = value
                     else:
-                        keys = ('resource_type', 'interface')
-                    expanded = dict(zip(keys, item))
-                    expanded_results['%s:%s' % item] = expanded
+                        item = entry.items()[0]
+                        if entry.keys()[0] == 'host':
+                            keys = ('relation', 'interface')
+                        else:
+                            keys = ('resource_type', 'interface')
+                        expanded = dict(zip(keys, item))
+                        expanded_results['%s:%s' % item] = expanded
                 else:
                     raise CheckmateValidationException("Requires has invalid "
                                                        "format: " % entry)
