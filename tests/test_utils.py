@@ -214,6 +214,14 @@ class TestUtils(unittest.TestCase):
         source = utils.get_source_body(self.test_get_source_body)
         self.assertTrue(source.startswith("source = utils"))
 
+        source = utils.get_source_body(self.dummy_static)
+        self.assertTrue(source.startswith("\"\"\"used"))
+
+    @staticmethod
+    def dummy_static():
+        """used for get_source_body test"""
+        pass
+
     def test_isUUID_blanks(self):
         self.assertFalse(utils.isUUID(None), "None is not a UUID")
         self.assertFalse(utils.isUUID(""), "Empty string is not a UUID")

@@ -446,8 +446,19 @@ def is_ssh_key(key):
 
 def get_source_body(function):
     """Gets the body of a function (i.e. no definition line, and unindented"""
-    # Unindent
-    lines = inspect.getsource(function).split('\n')[1:]
+    lines = inspect.getsource(function).split('\n')
+
+    # Find body - skip decorators and definition
+    start = 0
+    for number, line in enumerate(lines):
+        if line.strip().startswith("@"):
+            start = number + 1
+        elif line.strip().startswith("def "):
+            start = number + 1
+            break
+    lines = lines[start:]
+
+    # Unindent body
     indent = len(lines[0]) - len(lines[0].lstrip())
     for index, line in enumerate(lines):
         lines[index] = line[indent:]
