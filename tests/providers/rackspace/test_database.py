@@ -161,9 +161,7 @@ class TestDBWorkflow(StubbedWorkflowBase):
                         is: database
                         type: database
                         requires:
-                          "server":
-                            relation: host
-                            interface: 'linux'
+                        - host: 'linux'
                 environment:
                   name: test
                   providers:
@@ -188,7 +186,8 @@ class TestDBWorkflow(StubbedWorkflowBase):
                             provides:
                             - database: mysql
                             requires:
-                            - compute:
+                            - compute:  # FIXME: this syntax needs to be deprecated
+                                resource_type: compute
                                 relation: host
                                 interface: mysql
                         lists:

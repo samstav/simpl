@@ -453,9 +453,7 @@ class TestDBWorkflow(StubbedWorkflowBase):
                         is: database
                         type: database
                         requires:
-                          "server":
-                            relation: host
-                            interface: 'linux'
+                        - host: linux
                 environment:
                   name: test
                   providers:
