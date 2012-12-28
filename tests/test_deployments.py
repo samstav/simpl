@@ -15,13 +15,15 @@ init_console_logging()
 LOG = logging.getLogger(__name__)
 
 from checkmate import keys
-from checkmate.deployments import Deployment, plan, get_deployments_count, \
-        get_deployments_by_bp_count, _deploy, generate_keys
-from checkmate.exceptions import CheckmateValidationException
+from checkmate.deployments import (Deployment, plan, get_deployments_count,
+                                   get_deployments_by_bp_count, _deploy, Plan,
+                                   generate_keys)
+from checkmate.exceptions import (CheckmateValidationException,
+                                  CheckmateException)
 from checkmate.providers import base
 from checkmate.providers.base import ProviderBase
 from checkmate.middleware import RequestContext
-from checkmate.utils import yaml_to_dict
+from checkmate.utils import yaml_to_dict, dict_to_yaml
 
 os.environ['CHECKMATE_DOMAIN'] = 'checkmate.local'
 
@@ -73,7 +75,6 @@ class TestDeployments(unittest.TestCase):
                              ['instance'].keys())
         self.assertEqual(deployment['resources']['deployment-keys']['type'],
                          'key-pair')
-
 
     def test_key_generation_public(self):
         """Test that key generation works if a private key is supplied"""
@@ -134,6 +135,7 @@ class TestDeploymentParser(unittest.TestCase):
                     'name': 'environment',
                     'providers': {},
                     },
+                'plan': {'services': {}},
                 }
         original = copy.copy(deployment)
         parsed = plan(Deployment(deployment), RequestContext())
@@ -217,21 +219,22 @@ class TestDeploymentResourceGenerator(unittest.TestCase):
                 blueprint:
                   name: test bp
                   services:
-                    back:
-                      component: &widget
-                        type: widget
-                        interface: foo
                     front:
-                      component: *widget
+                      component:
+                        id: start_widget
                       relations:
                         middle: foo
                     middle:
-                      component: *widget
+                      component:
+                        id: link_widget
                       relations:
-                        back: foo
+                        back: bar
+                    back:
+                      component:
+                        id: big_widget
                     side:
                       component:
-                        <<: *widget
+                        id: big_widget
                         constraints:
                         - count: 2
                 environment:
@@ -243,18 +246,20 @@ class TestDeploymentResourceGenerator(unittest.TestCase):
                       vendor: test
                       catalog:
                         widget:
-                          small_widget:
+                          start_widget:
+                            is: widget
+                            requires:
+                            - widget: foo
+                          link_widget:
                             is: widget
                             provides:
                             - widget: foo
+                            requires:
+                            - widget: bar
                           big_widget:
                             is: widget
                             provides:
                             - widget: bar
-                    common:
-                      credentials:
-                      - password: secret
-                        username: tester
                 inputs:
                   services:
                     middle:
@@ -353,8 +358,10 @@ class TestDeploymentResourceGenerator(unittest.TestCase):
                         'password': 'secret',
                         }
                     }
-        self.assertIn("hash", resources['myUser']['instance']) # Make sure hash value was generated
-        expected['instance']['hash'] = resources['myUser']['instance']['hash'] # Pull hash value into expected
+        # Make sure hash value was generated
+        self.assertIn("hash", resources['myUser']['instance'])
+        # Pull hash value into expected
+        expected['instance']['hash'] = resources['myUser']['instance']['hash']
         self.assertDictEqual(resources['myUser'], expected)
 
         # Key pair
@@ -379,18 +386,20 @@ class TestDeploymentRelationParser(unittest.TestCase):
                   name: test bp
                   services:
                     balanced:
-                      component: &widget
-                        type: widget
-                        interface: foo
+                      component:
+                        id: balancer_widget
                       relations:
-                        front: foo
+                        front: foo  # short syntax
                     front:
                       component:
-                        <<: *widget
+                        resource_type: widget
+                        interface: foo
                         constraints:
                         - count: 2
                       relations:
-                        back: bar
+                        "allyourbase":  # long syntax
+                          service: back
+                          interface: bar
                     back:
                       component:
                         type: widget
@@ -399,13 +408,17 @@ class TestDeploymentRelationParser(unittest.TestCase):
                   name: environment
                   providers:
                     base:
-                      provides:
-                      - widget: foo
                       vendor: test
                       catalog:
                         widget:
+                          balancer_widget:
+                            is: widget
+                            requires:
+                            - widget: foo
                           small_widget:
                             is: widget
+                            requires:
+                            - widget: bar
                             provides:
                             - widget: foo
                           big_widget:
@@ -419,7 +432,7 @@ class TestDeploymentRelationParser(unittest.TestCase):
         parsed = plan(deployment, RequestContext())
         expected_connections = {
                                   'balanced-front': {'interface': 'foo'},
-                                  'front-back': {'interface': 'bar'},
+                                  'allyourbase': {'interface': 'bar'},
                                 }
         self.assertDictEqual(parsed['resources']['connections'],
                              expected_connections)
@@ -914,10 +927,16 @@ class TestDeploymentSettings(unittest.TestCase):
                 id: test
                 environment:
                   providers:
-                    base
+                    base:
+                      vendor: test
+                      catalog:
+                        widget:
+                          bar: {}
                 blueprint:
                   services:
                     web:
+                      component:
+                        id: bar
                   options:
                     foo:
                       required: true
@@ -991,6 +1010,462 @@ class TestDeploymentCounts(unittest.TestCase):
         self.assertIn("count", ret, "Return does not contain count")
         self.assertEqual(expected_count, ret.get("count", -1),
                          "Wrong count returned")
+
+
+class TestDeploymentPlanning(unittest.TestCase):
+    """Tests the Plan() class and its deployment planning logic"""
+    def test_find_components_positive(self):
+        """Test the Plan() class can find components"""
+        deployment = Deployment(yaml_to_dict("""
+                id: test
+                blueprint:
+                  name: test bp
+                  services:
+                    by_id:
+                      component:
+                        id: widget_with_id
+                    by_interface:
+                      component:
+                        interface: foo
+                    by_type:
+                      component:
+                        resource_type: gadget
+                    by_type_and_interface:
+                      component:
+                        interface: bar
+                        resource_type: gadget
+                environment:
+                  name: environment
+                  providers:
+                    base:
+                      vendor: test
+                      catalog:
+                        widget:
+                          widget_with_id:
+                            id: widget_with_id
+                            is: widget
+                          foo_widget:
+                            is: widget
+                            provides:
+                            - widget: foo
+                    gbase:
+                      vendor: test
+                      catalog:
+                        gadget:
+                          bar_gadget:
+                            is: gadget
+                            provides:
+                            - gadget: bar
+            """))
+
+        base.PROVIDER_CLASSES['test.base'] = ProviderBase
+        base.PROVIDER_CLASSES['test.gbase'] = ProviderBase
+
+        planner = Plan(deployment)
+        planner.plan(RequestContext())
+
+        services = planner['services']
+        self.assertIn('by_id', services)
+        self.assertIn('by_interface', services)
+        self.assertIn('by_type', services)
+        self.assertIn('by_type_and_interface', services)
+        self.assertEqual(len(services), 4)
+
+        component = services['by_id']['component']
+        self.assertEqual(component['id'], 'widget_with_id')
+        self.assertEqual(component['provider'], 'checkmate.base')
+        self.assertEqual(component['provider-key'], 'base')
+
+        component = services['by_interface']['component']
+        self.assertEqual(component['id'], 'foo_widget')
+        self.assertEqual(component['provider'], 'checkmate.base')
+        self.assertEqual(component['provider-key'], 'base')
+
+        component = services['by_type']['component']
+        self.assertEqual(component['id'], 'bar_gadget')
+        self.assertEqual(component['provider'], 'checkmate.base')
+        self.assertEqual(component['provider-key'], 'gbase')
+
+        component = services['by_type_and_interface']['component']
+        self.assertEqual(component['id'], 'bar_gadget')
+        self.assertEqual(component['provider'], 'checkmate.base')
+        self.assertEqual(component['provider-key'], 'gbase')
+
+    def test_find_components_not_found(self):
+        """Test the Plan() class fails missing components"""
+        deployment = Deployment(yaml_to_dict("""
+                id: test
+                blueprint:
+                  name: test bp
+                  services:
+                    by_id:
+                      component:
+                        id: widget_with_id  # id does not exist in catalog
+                environment:
+                  name: environment
+                  providers:
+                    base:
+                      vendor: test
+                      catalog:
+                        widget:
+                          foo_widget:
+                            is: widget
+                            provides:
+                            - widget: foo
+            """))
+
+        base.PROVIDER_CLASSES['test.base'] = ProviderBase
+
+        planner = Plan(deployment)
+        self.assertRaises(CheckmateException, planner.plan, RequestContext())
+
+    def test_find_components_mismatch(self):
+        """Test the Plan() class skips mismatched components"""
+        deployment = Deployment(yaml_to_dict("""
+                id: test
+                blueprint:
+                  name: test bp
+                  services:
+                    by_id:
+                      component:
+                        id: widget_with_id
+                        resource_type: gadget  # only widget in catalog
+                environment:
+                  name: environment
+                  providers:
+                    base:
+                      vendor: test
+                      catalog:
+                        widget:
+                          widget_with_id:
+                            id: widget_with_id
+                            is: widget
+                            provides:
+                            - widget: foo
+            """))
+
+        base.PROVIDER_CLASSES['test.base'] = ProviderBase
+
+        planner = Plan(deployment)
+        self.assertRaises(CheckmateException, planner.plan, RequestContext())
+
+    def test_resolve_relations(self):
+        """Test the Plan() class can parse relations"""
+        deployment = Deployment(yaml_to_dict("""
+                id: test
+                blueprint:
+                  name: test bp
+                  services:
+                    main:
+                      component:
+                        id: main_widget
+                      relations:
+                        explicit: foo
+                    explicit:
+                      component:
+                        id: foo_widget
+                environment:
+                  name: environment
+                  providers:
+                    base:
+                      vendor: test
+                      catalog:
+                        widget:
+                          main_widget:
+                            is: widget
+                            requires:
+                            - widget: foo
+                          foo_widget:
+                            is: widget
+                            provides:
+                            - widget: foo
+            """))
+
+        base.PROVIDER_CLASSES['test.base'] = ProviderBase
+
+        planner = Plan(deployment)
+        planner.plan(RequestContext())
+        services = planner['services']
+        component = services['main']['component']
+        widget_foo = component['requires']['widget:foo']
+        expected = {'interface': 'foo',
+                    'resource_type': 'widget',
+                    'satisfied-by': {
+                        'name': 'main-explicit',
+                        'relation-key': 'main-explicit',
+                        'service': 'explicit',
+                        'component': 'foo_widget',
+                        'target': 'widget:foo',
+                        }
+                    }
+        self.assertDictEqual(widget_foo, expected)
+
+    #FIXME: re-enable this when done with v0.2
+    @unittest.skip("Not compatible with v0.2 relations")
+    def test_resolve_relations_negative(self):
+        """Test the Plan() class detects unused/duplicate relations"""
+        deployment = Deployment(yaml_to_dict("""
+                id: test
+                blueprint:
+                  name: test bp
+                  services:
+                    main:
+                      component:
+                        id: main_widget
+                      relations:
+                        explicit: foo
+                        "duplicate-provides":
+                          service: named
+                          interface: foo
+                    explicit:
+                      component:
+                        id: foo_widget
+                    named:
+                      component:
+                        id: foo_widget
+                environment:
+                  name: environment
+                  providers:
+                    base:
+                      vendor: test
+                      catalog:
+                        widget:
+                          main_widget:
+                            is: widget
+                            requires:
+                            - widget: foo
+                          foo_widget:
+                            is: widget
+                            provides:
+                            - widget: foo
+            """))
+
+        base.PROVIDER_CLASSES['test.base'] = ProviderBase
+        planner = Plan(deployment)
+        self.assertRaises(CheckmateValidationException, planner.plan,
+                          RequestContext())
+
+    def test_resolve_requirements(self):
+        """Test the Plan() class can resolve all requirements"""
+        deployment = Deployment(yaml_to_dict("""
+                id: test
+                blueprint:
+                  name: test bp
+                  services:
+                    main:
+                      component:
+                        id: main_widget
+                      relations:
+                        explicit: foo
+                    explicit:
+                      component:
+                        id: foo_widget
+                environment:
+                  name: environment
+                  providers:
+                    base:
+                      vendor: test
+                      catalog:
+                        widget:
+                          main_widget:
+                            is: widget
+                            requires:
+                            - widget: foo
+                            - host: bar
+                          foo_widget:
+                            is: widget
+                            provides:
+                            - widget: foo
+                          bar_widget:
+                            is: widget
+                            provides:
+                            - widget: bar
+                            requires:
+                            - gadget: mysql
+                          bar_gadget:
+                            is: gadget
+                            provides:
+                            - gadget: mysql
+            """))
+
+        base.PROVIDER_CLASSES['test.base'] = ProviderBase
+
+        planner = Plan(deployment)
+        planner.plan(RequestContext())
+        services = planner['services']
+
+        component = services['main']['component']
+        widget_foo = component['requires']['widget:foo']
+        expected = {'interface': 'foo',
+                    'resource_type': 'widget',
+                    'satisfied-by': {
+                        'name': 'main-explicit',
+                        'relation-key': 'main-explicit',
+                        'service': 'explicit',
+                        'component': 'foo_widget',
+                        'target': 'widget:foo',
+                        }
+                    }
+        self.assertDictEqual(widget_foo, expected)
+
+        host_bar = component['requires']['host:bar']
+        expected = {'interface': 'bar',
+                    'relation': 'host',
+                    'satisfied-by': {
+                        'name': 'host:bar',
+                        'service': 'main',
+                        'component': 'bar_widget',
+                        'target': 'widget:bar',
+                        }
+                    }
+        self.assertDictEqual(host_bar, expected)
+
+        self.assertIn('gadget:mysql', services['main']['extra-components'])
+        recursive = services['main']['extra-components']['host:bar']
+        expected = {'interface': 'mysql',
+                    'resource_type': 'gadget',
+                    'satisfied-by': {
+                        'name': 'gadget:mysql',
+                        'service': 'main',
+                        'component': 'bar_gadget',
+                        'target': 'gadget:mysql',
+                        }
+                    }
+        self.assertDictEqual(recursive['requires']['gadget:mysql'], expected)
+
+    def test_relation_names(self):
+        """Test the Plan() class handles relation naming correctly"""
+        deployment = Deployment(yaml_to_dict("""
+                id: test
+                blueprint:
+                  name: test bp
+                  services:
+                    front:
+                      component:
+                        id: start_widget
+                      relations:
+                        middle: foo  # shorthand
+                    middle:
+                      component:
+                        id: link_widget
+                      relations:
+                        "john":  # long form
+                          service: back
+                          interface: bar
+                    back:
+                      component:
+                        id: big_widget  # implicit requirement for gadget:mysql
+                environment:
+                  name: environment
+                  providers:
+                    base:
+                      provides:
+                      - widget: foo
+                      vendor: test
+                      catalog:
+                        widget:
+                          start_widget:
+                            is: widget
+                            requires:
+                            - widget: foo
+                          link_widget:
+                            is: widget
+                            provides:
+                            - widget: foo
+                            requires:
+                            - widget: bar
+                          big_widget:
+                            is: widget
+                            provides:
+                            - widget: bar
+                            requires:
+                            - gadget: mysql
+                          end_gadget:
+                            is: gadget
+                            provides:
+                            - gadget: mysql
+                            requires:
+                            - host: linux
+                          another_end:
+                            is: compute
+                            provides:
+                            - compute: linux
+            """))
+
+        base.PROVIDER_CLASSES['test.base'] = ProviderBase
+
+        plan(deployment, RequestContext())
+        resources = deployment['resources']
+
+        expected = yaml_to_dict("""
+                  front-middle:       # easy to see this is service-to-service
+                    interface: foo
+                  gadget:mysql:       # this is within one service
+                    interface: mysql
+                  john:               # this is explicitely named
+                    interface: bar
+                                      # 'host' does not exist
+            """)
+        self.assertDictEqual(resources['connections'], expected)
+
+    def test_relation_v02_features(self):
+        """Test the Plan() class handles relation features we used for v0.2"""
+        deployment = Deployment(yaml_to_dict("""
+                id: test
+                blueprint:
+                  name: test bp
+                  services:
+                    main:
+                      component:
+                        id: main_widget
+                      relations:
+                        "varnish/master":
+                          service: explicit
+                          interface: foo
+                          attribute: ip
+                    explicit:
+                      component:
+                        id: foo_widget
+                environment:
+                  name: environment
+                  providers:
+                    base:
+                      vendor: test
+                      catalog:
+                        widget:
+                          main_widget:
+                            is: widget
+                            requires:
+                            - widget: foo
+                            - host: bar
+                          foo_widget:
+                            is: widget
+                            provides:
+                            - widget: foo
+                          bar_widget:
+                            is: widget
+                            provides:
+                            - widget: bar
+                            requires:
+                            - gadget: mysql
+                          bar_gadget:
+                            is: gadget
+                            provides:
+                            - gadget: mysql
+            """))
+
+        base.PROVIDER_CLASSES['test.base'] = ProviderBase
+
+        plan(deployment, RequestContext())
+        resources = deployment['resources']
+
+        expected = {'varnish/master': {'interface': 'foo'}}
+        self.assertDictEqual(resources['connections'], expected)
+
+        relations = resources['0']['relations']
+        self.assertIn('varnish/master', relations)
+        self.assertIn('attribute', relations['varnish/master'])
+        self.assertEqual(relations['varnish/master']['attribute'], 'ip')
 
 
 if __name__ == '__main__':

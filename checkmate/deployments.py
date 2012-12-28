@@ -20,8 +20,9 @@ from checkmate.exceptions import CheckmateException, CheckmateDoesNotExist, \
 from checkmate.providers import ProviderBase
 from checkmate.workflows import create_workflow_deploy, \
     create_workflow_spec_deploy
-from checkmate.utils import write_body, read_body, extract_sensitive_data, \
-    merge_dictionary, with_tenant, is_ssh_key, get_time_string
+from checkmate.utils import (write_body, read_body, extract_sensitive_data,
+                             merge_dictionary, with_tenant, is_ssh_key,
+                             get_time_string, dict_to_yaml)
 
 LOG = logging.getLogger(__name__)
 DB = get_driver()
@@ -371,438 +372,37 @@ def execute(oid, timeout=180, tenant_id=None):
 def plan(deployment, context):
     """Process a new checkmate deployment and plan for execution.
 
-    This creates placeholder tags that will be used for the actual creation
-    of resources.
-
-    The logic is as follows:
-    - find the blueprint in the deployment
-    - get the components from the blueprint
-    - identify dependencies (inputs/options and connections/relations)
-    - build a list of resources to create
-    - returns the parsed Deployment
+    This creates templates for resources and connections that will be used for
+    the actual creation of resources.
 
     :param deployment: checkmate deployment instance (dict)
+    :param context: RequestContext (auth data, etc) for making API calls
     """
     assert context.__class__.__name__ == 'RequestContext'
     assert deployment.get('status') == 'NEW'
     assert isinstance(deployment, Deployment)
 
-    LOG.info("Planning deployment '%s'" % deployment['id'])
-    # Find blueprint and environment. Without those, there's nothing to plan!
-    blueprint = deployment.get('blueprint')
-    if not blueprint:
-        abort(406, "Blueprint not found. Nothing to do.")
-    environment = deployment.environment()
-    if not environment:
-        abort(406, "Environment not found. Nowhere to deploy to.")
-    services = blueprint.get('services', {})
-    relations = {}
+    # Analyze Deployment and Create a Plan
+    planner = Plan(deployment)
+    resources = planner.plan(context)
 
-
-    #
-    # Analyze Dependencies
-    #
-    _verify_required_blueprint_options_supplied(deployment)
-
-    # Load providers
-    providers = environment.get_providers(context)
-
-    #Identify component providers and get the resolved components
-    components = deployment.get_components(context)
-
-
-    # Collect relations and verify service for relation exists
-    LOG.debug("Analyzing relations")
-    for service_name, service in services.iteritems():
-        if 'relations' in service:
-            # Check that they all connect to valid service
-            # TODO: check interfaces also match
-            for key, relation in service['relations'].iteritems():
-                if isinstance(relation, dict):
-                    if 'service' in relation:
-                        target = relation['service']
-                    else:
-                        target = service_name
-                else:
-                    target = key
-                if target not in services:
-                    msg = "Cannot find service '%s' for '%s' to connect to " \
-                          "in deployment %s" % (target, service_name,
-                          deployment['id'])
-                    LOG.info(msg)
-                    abort(406, msg)
-            # Collect all of them (converting short syntax to long)
-            expanded = {}
-            for key, value in service['relations'].iteritems():
-                if isinstance(value, dict):
-                    expanded[key] = value
-                else:
-                    # Generate name and expand
-                    relation_name = '%s-%s' % (service_name, key)
-                    expanded_relation = {
-                        'interface': value,
-                        'service': key,
-                    }
-                    expanded[relation_name] = expanded_relation
-            relations[service_name] = expanded
-    LOG.debug("All relations successfully matched with target services")
-
-    #
-    # Build needed resource list
-    #
-    resources = {}
-    resource_index = 0  # counter we use to increment as we create resources
-    for service_name, service in services.iteritems():
-        LOG.debug("Gather resources needed for service '%s'" % service_name)
-        service_components = components[service_name]
-        if not isinstance(service_components, list):
-            service_components = [service_components]
-        for component in service_components:
-            if 'is' in component:
-                resource_type = component['is']
-            else:
-                resource_type = component['id']
-                LOG.debug("Component '%s' has no type specified using the "
-                          "'is' attribute so the id of the component is being "
-                          "used as the type" % component['id'])
-
-            # Check for hosting relationship
-            host = None
-            if 'requires' in component:
-                for entry in component['requires']:
-                    key, value = entry.items()[0]
-                    # Skip short form not called host (reference relationship)
-                    if not isinstance(value, dict):
-                        if key != 'host':
-                            continue
-                        value = dict(interface=value, relation='host')
-                    if value.get('relation', 'reference') == 'host':
-                        LOG.debug("Host needed for %s" % component['id'])
-                        host = key
-                        host_type = key if key != 'host' else None
-                        host_interface = value['interface']
-                        host_provider = (environment.select_provider(context,
-                                         resource=host_type,
-                                         interface=host_interface))
-                        if not host_provider:
-                            raise (CheckmateException("No provider found for "
-                                   "%s:%s to host %s" % (host_type or '*',
-                                   host_interface or '*', component['id'])))
-                        found = (host_provider.find_components(context,
-                                 resource=host_type, interface=host_interface))
-                        if found:
-                            if len(found) == 1:
-                                host_component = found[0]
-                                host_type = host_component['is']
-                            else:
-                                raise (CheckmateException("More than one "
-                                       "component offers '%s:%s' in provider "
-                                       "%s: %s" % (host_type or '*',
-                                       host_interface, host_provider.key,
-                                       ', '.join([c['id'] for c in found]))))
-                        else:
-                            raise (CheckmateException("No components found "
-                                   "that offer '%s:%s' in provider %s" % (
-                                   host_type or '*', host_interface,
-                                   host_provider.key)))
-                        break
-
-            provider = component.provider
-            if not provider:
-                raise CheckmateException("No provider could be found for the "
-                                         "'%s' resource in component '%s'" %
-                                         (resource_type, component['id']))
-            count = (deployment.get_setting('count', provider_key=provider.key,
-                     resource_type=resource_type, service_name=service_name,
-                     default=1))
-
-            def add_resource(provider, deployment, service, service_name,
-                             index, domain, resource_type, component_id=None):
-                """ Add a new resource to Deployment """
-                # Generate a default name
-                name = 'CM-%s-%s%s.%s' % (deployment['id'][0:7], service_name,
-                                          index, domain)
-                # Call provider to give us a resource template
-                resource = (provider.generate_template(deployment,
-                            resource_type, service_name, context, name=name))
-                if component_id:
-                    resource['component'] = component_id
-                # Add it to resources
-                resources[str(resource_index)] = resource
-                resource['index'] = str(resource_index)
-                LOG.debug("  Adding a %s resource with resource key %s" % (
-                          resources[str(resource_index)]['type'],
-                          resource_index))
-                Resource.validate(resource)
-                return resource
-
-            domain = (deployment.get_setting('domain',
-                      provider_key=provider.key, resource_type=resource_type,
-                      service_name=service_name,
-                      default=os.environ.get('CHECKMATE_DOMAIN',
-                                             'checkmate.local')))
-            for index in range(count):
-                if host:
-                    # Obtain resource to host this one on
-                    LOG.debug("Creating %s resource to host %s/%s" % (
-                              host_type, service_name, component['id']))
-                    host_resource = (add_resource(host_provider, deployment,
-                                     service, service_name, index + 1,
-                                     domain, host_type,
-                                     component_id=host_component['id']))
-                    host_index = str(resource_index)
-                    resource_index += 1
-
-                resource = (add_resource(provider, deployment, service,
-                            service_name, index + 1, domain,
-                            resource_type, component_id=component['id']))
-                resource_index += 1
-
-                if host:
-                    # Fill in relations on hosted resource
-                    resource['hosted_on'] = str(resource_index - 2)
-                    relation = dict(interface=host_interface, state='planned',
-                                    relation='host', target=host_index)
-                    if 'relations' not in resource:
-                        resource['relations'] = dict(host=relation)
-                    else:
-                        if 'host' in resource['relations']:
-                            CheckmateException("Conflicting relation named "
-                                               "'host' exists in service "
-                                               "'%s'" % service_name)
-                        # wire up any information the component wants to get
-                        #from its host
-                        for relation in resource['relations'].values():
-                            if ((relation.get('interface', '') == 'host' and
-                                'service' not in relation)):
-                                    relation['target'] = host_index
-                        resource['relations']['host'] = relation
-
-                    # Fill in relations on hosting resource
-                    # no need to fill in a full relation for host, so just
-                    # populate an array
-                    if 'hosts' in host_resource:
-                        host_resource['hosts'].append(str(resource_index - 1))
-                    else:
-                        host_resource['hosts'] = [str(resource_index - 1)]
-                    LOG.debug("Created hosting relation from %s to %s:%s" % (
-                              resource_index - 1, host_index, host_interface))
-
-    # Create connections between components
-    connections = {}
-    LOG.debug("Wiring services and resources")
-    for service_name, service_relations in relations.iteritems():
-        LOG.debug("  For %s" % service_name)
-        service = services[service_name]
-        for name, relation in service_relations.iteritems():
-            # Find what interface is needed
-            target_interface = relation['interface']
-            LOG.debug("  Looking for a provider supporting '%s' for the '%s' "
-                      "service" % (target_interface, service_name))
-            if 'service' in relation:
-                target_service_name = relation['service']
-            else:
-                target_service_name = service_name
-            # Verify target can provide requested interface
-            target_components = components[target_service_name]
-            if not isinstance(target_components, list):
-                target_components = [target_components]
-            target_component_ids = [c['id'] for c in target_components]
-            found = []
-            for component in target_components:
-                if target_interface == 'host':
-                    if 'host' in [k for d in component.get('requires', [])
-                                  for k in d.keys()]:
-                        found.append(component)
-                    else:
-                        raise CheckmateException("%s service does not require "
-                                                 "a host and cannot satisfy "
-                                                 "relation %s of service %s" %
-                                                 (target_service_name, name,
-                                                  service_name))
-                else:
-                    provides = component.get('provides', [])
-                    for entry in provides:
-                        if target_interface == entry.values()[0]:
-                            found.append(component)
-            if not found:
-                raise (CheckmateException("'%s' service does not provide a "
-                       "resource with an interface of type '%s', which is "
-                       "needed by the '%s' relationship to '%s'" % (
-                       target_service_name, target_interface, name,
-                       service_name)))
-            if target_interface != 'host' and len(found) > 1:
-                raise (CheckmateException("'%s' has more than one resource "
-                       "that provides an interface of type '%s', which is "
-                       "needed by the '%s' relationship to '%s'. This causes "
-                       "ambiguity. Additional information is needed to "
-                       "identify which component to connect" % (
-                       target_service_name, target_interface, name,
-                       service_name)))
-
-            # Get hash of source instances (exclude the hosts unless its
-            # specifically requested)
-            source_instances = {index: resource
-                                for index, resource in resources.iteritems()
-                                if resource['service'] == service_name and
-                                'hosts' not in resource}
-            LOG.debug("    Instances %s need '%s' from the '%s' service"
-                      % (source_instances.keys(), target_interface,
-                      target_service_name))
-
-            # Get list of target instances
-            if target_interface == 'host':
-                target_instances = [
-                    resource['hosted_on'] for index, resource in
-                    resources.iteritems()
-                    if resource['service'] == target_service_name
-                    and resource.get('component') in target_component_ids]
-            else:
-                target_instances = [
-                    index for index, resource in resources.iteritems()
-                    if resource['service'] == target_service_name
-                    and resource.get('component') in target_component_ids]
-            LOG.debug("    Instances %s provide %s" % (target_instances,
-                      target_interface))
-
-            # Wire them up (create relation entries under resources)
-            connections[name] = dict(interface=relation['interface'])
-            if 'host' == target_interface and "service" not in relation:
-                # relation is from component to its host
-                for source_instance, resource in source_instances.iteritems():
-                    target_instance = resource['hosted_on']
-                    if 'relations' not in resource:
-                        resource['relations'] = {}
-                    resource['relations'][name] = \
-                        dict(state='planned', target=target_instance,
-                             interface=target_interface, name=name)
-                    if 'relations' not in resources[target_instance]:
-                        resources[target_instance]['relations'] = {}
-                    resources[target_instance]['relations'][name] = \
-                        dict(state='planned', source=source_instance,
-                             interface=target_interface, name=name)
-                    if 'attribute' in relation:
-                        resources[source_instance]['relations'][name]\
-                            .update({'attribute': relation['attribute']})
-                        resources[target_instance]['relations'][name]\
-                            .update({'attribute': relation['attribute']})
-            else:
-                for source_instance in source_instances:
-                    if 'relations' not in resources[source_instance]:
-                        resources[source_instance]['relations'] = {}
-                    source_relation = '-'.join([name, source_instance])
-                    for target_instance in target_instances:
-                        target_relation = '-'.join([name, target_instance])
-                        if 'relations' not in resources[target_instance]:
-                            resources[target_instance]['relations'] = {}
-                        # Add forward relation (from source to target)
-                        srcrels = resources[source_instance]['relations']
-                        srcrels[target_relation] \
-                            = dict(state='planned', target=target_instance,
-                                   interface=target_interface, name=name)
-                        # Add relation to target showing incoming from source
-                        trgrels = resources[target_instance]['relations']
-                        trgrels[source_relation] \
-                            = dict(state='planned', source=source_instance,
-                                   interface=target_interface, name=name)
-                        if 'attribute' in relation:
-                            srcrels[target_relation]. \
-                                update({'attribute': relation['attribute']})
-                            trgrels[source_relation]. \
-                                update({'attribute': relation['attribute']})
-                        LOG.debug("  New connection '%s' from %s:%s to %s:%s "
-                                  "created" % (name, service_name,
-                                  source_instance, target_service_name,
-                                  target_instance))
-
-    # Generate static resources
-    for key, resource in blueprint.get('resources', {}).iteritems():
-        component = environment.find_component(resource, context)
-        if component:
-            # Generate a default name
-            name = 'CM-%s-shared%s.%s' % (deployment['id'][0:7], key, domain)
-            # Call provider to give us a resource template
-            result = (provider.generate_template(deployment,
-                      resource['type'], None, context, name=name))
-            result['component'] = component['id']
-        else:
-            if resource['type'] == 'user':
-                # Fall-back to local loader
-                instance = {}
-                result = dict(type='user', instance=instance)
-                if 'name' not in resource:
-                    instance['name'] = \
-                        deployment._get_setting_by_resource_path("resources/%s"
-                                                                 "/name" % key,
-                                                                 'admin')
-                    if not instance['name']:
-                        raise CheckmateException("Name must be specified for "
-                                                 "the '%s' user resource" %
-                                                 key)
-                else:
-                    instance['name'] = resource['name']
-                if 'password' not in resource:
-                    instance['password'] = \
-                        deployment._get_setting_by_resource_path("resources/%s"
-                                                                 "/password" %
-                                                                 key)
-                    if not instance['password']:
-                        instance['password'] = (ProviderBase({}).evaluate(
-                                                "generate_password()"))
-                else:
-                    instance['password'] = resource['password']
-                instance['hash'] = keys.hash_SHA512(instance['password'])
-            elif resource['type'] == 'key-pair':
-                # Fall-back to local loader
-                instance = {}
-                private_key = resource.get('private_key')
-                if private_key is None:
-                    # Generate and store all key types
-                    private, public = keys.generate_key_pair()
-                    instance['public_key'] = public['PEM']
-                    instance['public_key_ssh'] = public['ssh']
-                    instance['private_key'] = private['PEM']
-                else:
-                    # Private key was supplied
-                    instance['private_key'] = private_key
-                    #make sure we have or can get a public key
-                    if 'public_key' in resource:
-                        public_key = resource['public_key']
-                    else:
-                        public_key = keys.get_public_key(private_key)
-                    instance['public_key'] = public_key
-                    if 'public_key_ssh' in resource:
-                        public_key_ssh = resource['public_key_ssh']
-                    else:
-                        public_key_ssh = keys.get_ssh_public_key(private_key)
-                    instance['public_key_ssh'] = public_key_ssh
-                if 'instance' in resource:
-                    instance = resource['instance']
-                result = dict(type='key-pair', instance=instance)
-            else:
-                raise CheckmateException("Could not find provider for the "
-                                         "'%s' resource" % key)
-        # Add it to resources
-        resources[str(key)] = result
-        result['index'] = str(key)
-        LOG.debug("  Adding a %s resource with resource key %s" % (
-                  resources[str(key)]['type'],
-                  key))
-        Resource.validate(result)
-
-    #Write resources and connections to deployment
-    if connections:
-        resources['connections'] = connections
+    # Store plan results in deployment
     if resources:
         deployment['resources'] = resources
+
+    # Save plan details for future rehydration/use
+    deployment['plan'] = planner._data  # get the dict so we can serialize it
+
     # Link resources to services
+    # TODO: remove this. We don't need to (shouldn't) write into the blueprint
     for index, resource in resources.iteritems():
         if index not in ['connections', 'keys'] and 'service' in resource:
-            service = blueprint['services'][resource['service']]
+            service = planner.blueprint['services'][resource['service']]
             if 'instances' not in service:
                 service['instances'] = []
             service['instances'].append(str(index))
 
+    # Mark deployment as planned and return it (nothing has been saved so far)
     deployment['status'] = 'PLANNED'
     LOG.info("Deployment '%s' planning complete and status changed to %s" %
             (deployment['id'], deployment['status']))
@@ -944,6 +544,760 @@ class Resource():
             raise (CheckmateException("Could not find component '%s' in "
                    "provider %s.%s's catalog" % (self.dict['component'],
                    provider.vendor, provider.name)))
+
+
+class Plan(ExtensibleDict):
+    """Analyzes a Checkmate deployment and persists the analysis results
+
+    This class will do the following:
+    - identify which components the blueprint calls for
+    - figure out how to connect the components based on relations and
+      requirements
+    - save decisions such as which provider and which component were selected,
+      how requirements were met, how relations were resolved
+
+    The data is stored in this structure:
+    ```
+    services:
+      {service}:
+        component:
+          id: {component_id}:
+          provider: {key}
+          requires:
+            key:
+              ...
+          provides:
+            key:
+              ...
+    ```
+
+    Each `requires` entry gets a `satisfied-by` entry.
+
+    Services can also have an `extra-components` map with additional components
+    loaded to meet requirements within the service.
+
+    Usage:
+
+    Instantiate the class with a deployment and context, then call plan(),
+    which will return all planned resources.
+
+    The class behaves like a dict and will contain the analysis results.
+    The resources attribute will contain the planned resources as well.
+
+    """
+
+    def __init__(self, deployment, *args, **kwargs):
+        ExtensibleDict.__init__(self, *args, **kwargs)
+
+        self.deployment = deployment
+        self.resources = {}
+        self.connections = {}
+
+        # Find blueprint and environment. Otherwise, there's nothing to plan!
+        self.blueprint = deployment.get('blueprint')
+        if not self.blueprint:
+            raise CheckmateValidationException("Blueprint not found. Nothing "
+                                               "to do.")
+        self.environment = self.deployment.environment()
+        if not self.environment:
+            raise CheckmateValidationException("Environment not found. "
+                                               "Nowhere to deploy to.")
+
+        # Quick validations
+        _verify_required_blueprint_options_supplied(deployment)
+
+    def plan(self, context):
+        """Perform plan anlysis. Returns a reference to planned resources"""
+        LOG.info("Planning deployment '%s'" % self.deployment['id'])
+        # Fill the list of services
+        service_names = self.deployment['blueprint'].get('services', {}).keys()
+        self['services'] = {name: {'component': {}} for name in service_names}
+
+        # Perform analysis steps
+        self.resolve_components(context)
+        self.resolve_relations()
+        self.resolve_remaining_requirements(context)
+        self.resolve_recursive_requirements(context, history=[])
+        # Call the remaining, unfactored code
+        self.legacy_plan(self.deployment, context)
+        LOG.debug("ANALYSIS\n%s", dict_to_yaml(self._data))
+        return self.resources
+
+    #TODO: refactor this away
+    def legacy_plan(self, deployment, context):
+        """
+        This is a container for the origninal plan() function. It contains
+        code that is not yet fully refactored. This will go away over time.
+        """
+        blueprint = self.blueprint
+        environment = self.environment
+        resources = self.resources
+        connections = self.connections
+        services = blueprint.get('services', {})
+
+        # counter we increment and use as a new resource key
+        self.resource_index = 0
+
+        #
+        # Prepare resources and connections to create
+        #
+        LOG.debug("Add and connect resources")
+        for service_name, service in services.iteritems():
+            LOG.debug("  For service '%s'" % service_name)
+            service_analysis = self['services'][service_name]
+            definition = service_analysis['component']
+
+            # Get main component for this service
+            provider_key = definition['provider-key']
+            provider = environment.get_provider(provider_key)
+            component = provider.get_component(context, definition['id'])
+            resource_type = component.get('is')
+            count = (deployment.get_setting('count',
+                     provider_key=provider_key,
+                     resource_type=resource_type, service_name=service_name,
+                     default=1))
+
+            #TODO: shouldn't this live in the provider?
+            domain = (deployment.get_setting('domain',
+                      provider_key=provider_key,
+                      resource_type=resource_type,
+                      service_name=service_name,
+                      default=os.environ.get('CHECKMATE_DOMAIN',
+                                             'checkmate.local')))
+
+            # Create as many as we have been asked to create
+            for service_index in range(1, count + 1):
+                # Create the main resource template
+                resource = deployment.create_resource_template(service_index,
+                                                               definition,
+                                                               service_name,
+                                                               domain, context)
+                # Add it to resources
+                self.add_resource(resource)
+
+                # Add host and other requirements that exist in this service
+                for key, requirement in definition['requires'].iteritems():
+                    req_info = requirement.get('satisfied-by')
+                    if not req_info or req_info['service'] != service_name:
+                        continue
+
+                    LOG.debug("    Processing requirement '%s' for '%s'" % (key,
+                              definition['id']))
+                    dep_definition = service_analysis['extra-components'][key]
+                    dep_resource = deployment.create_resource_template(
+                                                   service_index,
+                                                   dep_definition,
+                                                   service_name, domain,
+                                                   context)
+                    self.add_resource(dep_resource)
+
+                    # Fill in relation on source resource
+                    if requirement.get('relation', 'reference') == 'host':
+                        # FIXME: workflows look for hard coded relationship name
+                        # instead of the relation type.
+                        name = 'host'
+                    else:
+                        name = req_info['name']
+
+                    relation = {
+                                'name': req_info['name'],
+                                'interface': requirement['interface'],
+                                'state': 'planned',
+                                'relation': requirement.get('relation',
+                                                            'reference'),
+                                'target': dep_resource['index'],
+                                'source-key': key,
+                               }
+                    if 'relation-key' in req_info:
+                        relation['relation-key'] = req_info['relation-key']
+                    #FIXME: remove v0.2 feature
+                    if 'attribute' in req_info:
+                        LOG.warning("Using v0.2 feature")
+                        relation['attribute'] = req_info['attribute']
+
+                    if 'relations' not in resource:
+                        resource['relations'] = {}
+                    else:
+                        if name in resource['relations']:
+                            CheckmateException("Conflicting relation named "
+                                               "'%s' exists in service "
+                                               "'%s'" % (
+                                               req_info['relation-key'],
+                                               service_name))
+                    resource['relations'][name] = relation
+
+                    # Add special 'host' relation indexes
+                    if requirement.get('relation', 'reference') == 'host':
+                        LOG.debug("Created a %s resource to host %s/%s" % (
+                                  dep_resource['type'], service_name,
+                                  component['id']))
+                        resource['hosted_on'] = str(dep_resource['index'])
+
+                        # Fill in relations on hosting resource
+                        # no need to fill in a full relation for host, so just
+                        # populate an array
+                        if 'hosts' in dep_resource:
+                            dep_resource['hosts'].append(str(resource['index']))
+                        else:
+                            dep_resource['hosts'] = [str(resource['index'])]
+                        LOG.debug("Created hosting relation from %s to %s:%s" % (
+                                  resource['index'], dep_resource['index'],
+                                  requirement['interface']))
+                    else:
+                        # Fill in relation on target (not for 'host' relations)
+                        relation = {
+                                    'name': req_info['name'],
+                                    'interface': requirement['interface'],
+                                    'state': 'planned',
+                                    'relation': requirement.get('relation',
+                                                                'reference'),
+                                    'source': resource['index'],
+                                    'source-key': key,
+                                   }
+                        if 'relation-key' in req_info:
+                            relation['relation-key'] = req_info['relation-key']
+                        #FIXME: remove v0.2 feature
+                        if 'attribute' in req_info:
+                            LOG.warning("Using v0.2 feature")
+                            relation['attribute'] = req_info['attribute']
+                        if 'relations' not in dep_resource:
+                            dep_resource['relations'] = {}
+                        else:
+                            if name in dep_resource['relations']:
+                                CheckmateException("Conflicting relation named "
+                                                   "'%s' exists in service "
+                                                   "'%s'" % (
+                                                   req_info['relation-key'],
+                                                   service_name))
+                        dep_resource['relations'][name] = relation
+
+                        #TODO: this is just copied in for legacy compatibility
+                        connections[name] = dict(interface=relation['interface'])
+
+        LOG.debug("Add connections between services")
+        for service_name, service in services.iteritems():
+            LOG.debug("  For service '%s'" % service_name)
+            service_analysis = self['services'][service_name]
+            definition = service_analysis['component']
+            resource_keys = [k for (k, v) in resources.iteritems()
+                             if v['service'] == service_name]
+
+            for resource_key in resource_keys:
+                resource = resources[resource_key]
+
+                # Add cross-service relations
+                for key, requirement in definition['requires'].iteritems():
+                    req_info = requirement.get('satisfied-by')
+                    if not req_info or req_info['service'] == service_name:
+                        continue
+
+                    LOG.debug("    Processing external requirement '%s' for '%s'"
+                              % (key,  definition['id']))
+                    target_service = self['services'][req_info['service']]
+                    target_keys = [k for (k, v) in resources.iteritems()
+                                   if v['service'] == req_info['service']]
+                    dep_definition = target_service['component']
+
+                    if requirement.get('relation', 'reference') == 'host':
+                        # FIXME: workflows look for hard coded name instead of
+                        # relation type
+                        name = 'host'
+                    else:
+                        name = req_info['name']
+
+                    for target_key in target_keys:
+                        target_resource = resources[target_key]
+
+                        # Fill in relation on source resource
+
+                        relation = {
+                                    'name': req_info['name'],
+                                    'interface': requirement['interface'],
+                                    'state': 'planned',
+                                    'relation': requirement.get('relation',
+                                                                'reference'),
+                                    'target': target_resource['index'],
+                                    'source-key': key,
+                                   }
+                        if 'relation-key' in req_info:
+                            relation['relation-key'] = req_info['relation-key']
+                        #FIXME: remove v0.2 feature
+                        if 'attribute' in req_info:
+                            LOG.warning("Using v0.2 feature")
+                            relation['attribute'] = req_info['attribute']
+
+                        if 'relations' not in resource:
+                            resource['relations'] = {}
+                        else:
+                            if name in resource['relations']:
+                                CheckmateException("Conflicting relation named "
+                                                   "'%s' exists in service "
+                                                   "'%s'" % (name, service_name))
+                        resource['relations'][name] = relation
+
+                        # Add special 'host' relation indexes
+                        if requirement.get('relation', 'reference') == 'host':
+                            LOG.debug("Created a %s resource to host %s/%s" % (
+                                      target_resource['type'], service_name,
+                                      component['id']))
+                            resource['hosted_on'] = str(target_resource['index'])
+
+                            # Fill in relations on hosting resource
+                            # no need to fill in a full relation for host, so just
+                            # populate an array
+                            if 'hosts' in target_resource:
+                                target_resource['hosts'].append(str(resource['index']))
+                            else:
+                                target_resource['hosts'] = [str(resource['index'])]
+                            LOG.debug("Created hosting relation from %s to %s:%s" % (
+                                      resource['index'], target_resource['index'],
+                                      requirement['interface']))
+                        else:
+                            # Fill in relation on target (not for 'host' relations)
+                            relation = {
+                                        'name': req_info['name'],
+                                        'interface': requirement['interface'],
+                                        'state': 'planned',
+                                        'relation': requirement.get('relation',
+                                                                    'reference'),
+                                        'source': resource['index'],
+                                        'source-key': key,
+                                       }
+                            if 'relation-key' in req_info:
+                                relation['relation-key'] = req_info['relation-key']
+                            #FIXME: remove v0.2 feature
+                            if 'attribute' in req_info:
+                                LOG.warning("Using v0.2 feature")
+                                relation['attribute'] = req_info['attribute']
+
+                            if 'relations' not in target_resource:
+                                target_resource['relations'] = {}
+                            else:
+                                if name in target_resource['relations']:
+                                    CheckmateException("Conflicting relation "
+                                                       "named '%s' exists in "
+                                                       "service '%s'" % (name,
+                                                       service_name))
+                            target_resource['relations'][name] = relation
+
+                            #TODO: this is just copied in for legacy compatibility
+                            connections[name] = dict(interface=relation['interface'])
+
+        # Generate static resources
+        LOG.debug("Prepare static resources")
+        for key, resource in blueprint.get('resources', {}).iteritems():
+            component = environment.find_component(resource, context)
+            if component:
+                # Generate a default name
+                name = 'CM-%s-shared%s.%s' % (deployment['id'][0:7], key, domain)
+                # Call provider to give us a resource template
+                result = (provider.generate_template(deployment,
+                          resource['type'], None, context, name=name))
+                result['component'] = component['id']
+            else:
+                if resource['type'] == 'user':
+                    # Fall-back to local loader
+                    instance = {}
+                    result = dict(type='user', instance=instance)
+                    if 'name' not in resource:
+                        instance['name'] = \
+                            deployment._get_setting_by_resource_path("resources/%s"
+                                                                     "/name" % key,
+                                                                     'admin')
+                        if not instance['name']:
+                            raise CheckmateException("Name must be specified for "
+                                                     "the '%s' user resource" %
+                                                     key)
+                    else:
+                        instance['name'] = resource['name']
+                    if 'password' not in resource:
+                        instance['password'] = \
+                            deployment._get_setting_by_resource_path("resources/%s"
+                                                                     "/password" %
+                                                                     key)
+                        if not instance['password']:
+                            instance['password'] = (ProviderBase({}).evaluate(
+                                                    "generate_password()"))
+                    else:
+                        instance['password'] = resource['password']
+                    instance['hash'] = keys.hash_SHA512(instance['password'])
+                elif resource['type'] == 'key-pair':
+                    # Fall-back to local loader
+                    instance = {}
+                    private_key = resource.get('private_key')
+                    if private_key is None:
+                        # Generate and store all key types
+                        private, public = keys.generate_key_pair()
+                        instance['public_key'] = public['PEM']
+                        instance['public_key_ssh'] = public['ssh']
+                        instance['private_key'] = private['PEM']
+                    else:
+                        # Private key was supplied
+                        instance['private_key'] = private_key
+                        #make sure we have or can get a public key
+                        if 'public_key' in resource:
+                            public_key = resource['public_key']
+                        else:
+                            public_key = keys.get_public_key(private_key)
+                        instance['public_key'] = public_key
+                        if 'public_key_ssh' in resource:
+                            public_key_ssh = resource['public_key_ssh']
+                        else:
+                            public_key_ssh = keys.get_ssh_public_key(private_key)
+                        instance['public_key_ssh'] = public_key_ssh
+                    if 'instance' in resource:
+                        instance = resource['instance']
+                    result = dict(type='key-pair', instance=instance)
+                else:
+                    raise CheckmateException("Could not find provider for the "
+                                             "'%s' resource" % key)
+            # Add it to resources
+            resources[str(key)] = result
+            result['index'] = str(key)
+            LOG.debug("  Adding a %s resource with resource key %s" % (
+                      resources[str(key)]['type'],
+                      key))
+            Resource.validate(result)
+
+        #Write resources and connections to deployment
+        if connections:
+            resources['connections'] = connections
+
+    def add_resource(self, resource):
+        """Add a resource to the list of resources to be created"""
+        resource['index'] = str(self.resource_index)
+        self.resource_index += 1
+        LOG.debug("  Adding a '%s' resource with resource key '%s'" % (
+                  resource.get('type'), resource['index']))
+        self.resources[resource['index']] = resource
+
+    def resolve_components(self, context):
+        """
+
+        Identify needed components and resolve them to provider components
+
+        :param context: the call context. Component catalog may depend on
+                current context
+
+        """
+        LOG.debug("Analyzing service components")
+        services = self.deployment['blueprint'].get('services', {})
+        for service_name, service in services.iteritems():
+            definition = service['component']
+            LOG.debug("Identifying component '%s' for service '%s'" % (
+                      definition, service_name))
+            component = self.identify_component(definition, context)
+            LOG.debug("Component '%s' identified as '%s' for service '%s'" % (
+                      definition, component['id'], service_name))
+            self['services'][service_name]['component'] = component
+
+    def resolve_relations(self):
+        """
+
+        Identifies source and target provides/requires keys for all relations
+
+        Assumes that find_components() has already run and identified all the
+        components in the deployment. If not, this will effectively be a noop
+
+        """
+        LOG.debug("Analyzing relations")
+        services = self.deployment['blueprint'].get('services', {})
+        for service_name, service in services.iteritems():
+            if not 'relations' in service:
+                continue
+            for key, relation in service['relations'].iteritems():
+                rel_key, rel = self._format_relation(key, relation,
+                                                     service_name)
+                if rel['service'] not in services:
+                    msg = ("Cannot find service '%s' for '%s' to connect to "
+                           "in deployment %s" % (rel['service'], service_name,
+                           self.deployment['id']))
+                    LOG.info(msg)
+                    raise CheckmateValidationException(msg)
+
+                source = self['services'][service_name]['component']
+                source_match = self._match_relation_source(rel, source)
+                if not source_match:
+                    LOG.warning("Bypassing validation for v0.2 compatibility")
+                    continue  # FIXME: This is here for v0.2 features only
+                    raise CheckmateValidationException("Could not identify "
+                                                       "source for relation "
+                                                       "'%s'" % rel_key)
+
+                LOG.debug("  Matched relation '%s' to requirement '%s'" % (
+                          rel_key, source_match))
+                target = self['services'][rel['service']]['component']
+                requirement = source['requires'][source_match]
+                self._satisfy_requirement(requirement, rel_key, target,
+                                          rel['service'], name=rel_key,
+                                          relation_key=rel_key)
+                #FIXME: part of v0.2 features to be removed
+                if 'attribute' in relation:
+                    LOG.warning("Using v0.2 feature")
+                    requirement['satisfied-by']['attribute'] = \
+                            relation['attribute']
+        LOG.debug("All relations successfully matched with target services")
+
+    def resolve_remaining_requirements(self, context):
+        """
+
+        Resolves all requirements by finding and loading appropriate components
+
+        Requirements that have been already resolved by an explicit relation
+        are lft alone. This is expected to be run after relations are resolved
+        in order to fullfill any remaining requirements.
+
+        Any additional components are added under a service's
+        `extra-components` key.
+
+        """
+        LOG.debug("Analyzing requirements")
+        services = self['services']
+        for service_name, service in services.iteritems():
+            requirements = service['component']['requires']
+            for key, requirement in requirements.iteritems():
+                # Skip if already matched
+                if 'satisfied-by' in requirement:
+                    continue
+
+                # Get definition
+                definition = copy.copy(requirement)
+                if 'relation' in definition:
+                    del definition['relation']
+
+                # Identify the component
+                LOG.debug("Identifying component '%s' to satisfy requirement "
+                          "'%s' in service '%s'" % (definition, key,
+                          service_name))
+                component = self.identify_component(definition, context)
+                if not component:
+                    raise CheckmateException("Could not resolve component '%s'"
+                                             % definition)
+                LOG.debug("Component '%s' identified as '%s'  to satisfy "
+                          "requirement '%s' for service '%s'" % (definition,
+                          component['id'], key, service_name))
+
+                # Add it to the 'extra-components' list in the service
+                if 'extra-components' not in service:
+                    service['extra-components'] = {}
+                service['extra-components'][key] = component
+
+                self._satisfy_requirement(requirement, key, component,
+                                          service_name)
+
+    def resolve_recursive_requirements(self, context, history):
+        """
+
+        Goes through extra-component and resolves any of their requirements
+
+        Loops recursively until all requirements are met. Detects cyclic Loops
+        by keeping track of requirements met.
+
+        """
+        LOG.debug("Analyzing additional requirements")
+        stack = []
+        services = self['services']
+        for service_name, service in services.iteritems():
+            if not 'extra-components' in service:
+                continue
+            for component_key, component in service['extra-components'].iteritems():
+                requirements = component['requires']
+                for key, requirement in requirements.iteritems():
+                    # Skip if already matched
+                    if 'satisfied-by' in requirement:
+                        continue
+                    stack.append((service_name, component_key, key))
+
+        for service_name, component_key, requirement_key in stack:
+            service = services[service_name]
+            component = service['extra-components'][component_key]
+            requirement = component['requires'][requirement_key]
+
+            # Get definition
+            definition = copy.copy(requirement)
+            if 'relation' in definition:
+                del definition['relation']
+
+            # Identify the component
+            LOG.debug("Identifying component '%s' to satisfy requirement "
+                      "'%s' in service '%s' for extra component '%s'" % (
+                      definition, requirement_key, service_name,
+                      component_key))
+            found = self.identify_component(definition, context)
+            if not found:
+                raise CheckmateException("Could not resolve component '%s'"
+                                         % definition)
+            LOG.debug("Component '%s' identified as '%s'  to satisfy "
+                      "requirement '%s' for service '%s' for extra component "
+                      "'%s'" % (definition, found['id'], requirement_key,
+                      service_name, component_key))
+
+            signature = (service_name, found['id'])
+            if signature in history:
+                msg = ("Dependency loop detected while resolving requirements "
+                       "for service '%s'. The component '%s' has been "
+                       "encountered already" % signature)
+                LOG.debug(msg, extra={'data': self})
+                raise CheckmateException(msg)
+            history.append(signature)
+            # Add it to the 'extra-components' list in the service
+            service['extra-components'][requirement_key] = found
+
+            self._satisfy_requirement(requirement, requirement_key, found,
+                                      service_name)
+        if stack:
+            self.resolve_recursive_requirements(context, history)
+
+    def _satisfy_requirement(self, requirement, requirement_key, component,
+                             component_service, relation_key=None, name=None):
+        """
+
+        Mark requirement as satisfied by component
+
+        Format is:
+            satisfied-by:
+              service: the name of the service the requirement is met by
+              component: the component ID that satisfies the requirement
+              target: the 'provides' key that meets th requirement
+              name: the name to use for the relation
+              relation-key: optional key of a relation if one was used as a
+                            hint to identify this relationship
+
+        """
+        # Identify the matching interface
+        target_match = self._match_relation_target(requirement, component)
+        if not target_match:
+            raise CheckmateValidationException("Could not identify target for "
+                                               "requirement '%s'" %
+                                               requirement_key)
+        info = {
+                'service': component_service,
+                'component': component['id'],
+                'target': target_match,
+                'name': name or relation_key or requirement_key,
+               }
+        if relation_key:
+            info['relation-key'] = relation_key
+
+        requirement['satisfied-by'] = info
+
+    def identify_component(self, definition, context):
+        """Identifies a component based on blueprint-type keys"""
+        assert not isinstance(definition, list)  # deprecated syntax
+        found = self.environment.find_component(definition, context)
+        if not found:
+            raise CheckmateException("Could not resolve component '%s'"
+                                     % definition)
+        component = {}
+        component['id'] = found['id']
+        provider = found.provider
+        component['provider-key'] = provider.key
+        component['provider'] = "%s.%s" % (provider.vendor, provider.name)
+        component['provides'] = found.provides or {}
+        component['requires'] = found.requires or {}
+        return component
+
+    @staticmethod
+    def _format_relation(key, value, service):
+        """
+
+        Parses relation and returns expanded relation as key and map tuple
+
+        A Relation's syntax is one of:
+        1 - service: interface
+        2 - key:
+              map (or set of keys and values)
+        3 - host: interface (a special case of #1 where 'host' is a keyword)
+
+        If #1 or #3 are passed in, they are converted to the format of #2
+
+        :param key: the key of the relation or first value of a key/value pair
+        :param value: the value after the key
+        :param service: the name of the current service being evaluated
+
+        :returns: key, value as formatted by #2
+
+        The key returned also handles relationship naming optimized for user
+        readability. COnnections between services are named 'from-to',
+        connections generated by a named relation are named per the relation
+        name, and other relations are named service:interface.
+
+        """
+        final_key = key
+        final_map = {}
+        if isinstance(value, dict):
+            # Format #2
+            final_key = key
+            final_map = value
+        else:
+            if key == 'host':
+                # Format #3
+                final_key = '%s:%s' % (key, value)
+                final_map['relation'] = 'host'
+                # host will be created in current service
+                final_map['service'] = service
+                final_map['interface'] = value
+            else:
+                # Format #1
+                final_key = '%s-%s' % (service, key)
+                final_map['service'] = key
+                final_map['interface'] = value
+            LOG.debug("  _format_relation translated (%s, %s) to (%s, %s)" % (
+                      key, value, final_key, final_map))
+        # FIXME: this is for v0.2 only
+        if 'service' not in final_map:
+            LOG.warning("Skipping validation for v0.2 compatibility")
+            final_map['service'] = service
+
+        if 'service' not in final_map:  # post v0.2, let's raise this
+            raise CheckmateException("No service specified for relation '%s'" %
+                                     final_key)
+        return final_key, final_map
+
+    @staticmethod
+    def _match_relation_source(relation, component):
+        """
+
+        Matches a requirement on the source component as the source of a
+        relation
+
+        Will not match a requirement that is already satisfied.
+
+        :param relation: dict of the relation
+        :param component: a dict of the component as parsed by the analyzer
+        :returns: 'requires' key
+
+        """
+        backup = None
+        for key, requirement in component.get('requires', {}).iteritems():
+            if requirement['interface'] == relation['interface']:
+                if 'satisfied-by' not in requirement:
+                    return key
+                else:
+                    #FIXME: this is needed for v0.2 comptibility
+                    # Use this key as a backup if we don't find one that is
+                    # still unsatisfied
+                    backup = key
+        if backup:
+            LOG.warning("Returning satisfied requirement for v0.2 "
+                        "compatibility")
+        return backup
+
+    @staticmethod
+    def _match_relation_target(relation, component):
+        """
+
+        Matches a provided interface on the target component as the target of a
+        relation
+
+        :param relation: dict of the relation
+        :param component: a dict of the component as parsed by the analyzer
+        :returns: 'provides' key
+
+        """
+        for key, provided in component.get('provides', {}).iteritems():
+            if provided['interface'] == relation['interface']:
+                return key
 
 
 class Deployment(ExtensibleDict):
@@ -1448,6 +1802,29 @@ class Deployment(ExtensibleDict):
                       service_component, component['id'], service_name))
             results[service_name] = component
         return results
+
+    def create_resource_template(self, index, definition, service_name, domain,
+                                 context):
+        """Create a new resource dict to add to the deployment
+
+        :param index: the index of the resource within its service (ex. web2)
+        :param definition: the component definition coming from the Plan
+        :param domain: the DNS domain to use for resource names
+        :param context: RequestContext (auth token, etc) for catalog calls
+
+        :returns: a validated dict of the resource ready to add to deployment
+        """
+        # Generate a default name
+        name = 'CM-%s-%s%s.%s' % (self['id'][0:7], service_name, index, domain)
+        # Call provider to give us a resource template
+        provider_key = definition['provider-key']
+        provider = self.environment().get_provider(provider_key)
+        component = provider.get_component(context, definition['id'])
+        resource = provider.generate_template(self, component.get('is'),
+                                              service_name, context, name=name)
+        resource['component'] = definition['id']
+        Resource.validate(resource)
+        return resource
 
     def on_resource_postback(self, contents):
         """Called to merge in contents when a postback with new resource data
