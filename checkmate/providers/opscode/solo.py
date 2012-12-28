@@ -47,9 +47,10 @@ class Provider(ProviderBase):
         # Map File
         self.source = self.get_setting('source')
         if self.source:
-            self.map_file = ChefMap(self.source)
+            self.map_file = ChefMap(url=self.source)
         else:
-            self.map_file = None
+            # Create noop map file
+            self.map_file = ChefMap(raw="")
 
     def prep_environment(self, wfspec, deployment, context):
         if self.prep_task:
@@ -129,31 +130,30 @@ class Provider(ProviderBase):
                 properties={'estimated_duration': 100},
                 **kwargs)
 
-        if self.map_file:
-            if self.map_file.has_runtime_options(resource['component']):
-                """
-                collect_data = Celery(wfspec,
-                        "Collect Chef Data for %s" % key,
-                        'checkmate.providers.opscode.solo.resolve_mappings',
-                        call_args=[context.get_queued_task_dict(
-                                        deployment=deployment['id'],
-                                        resource=key),
-                                deployment['id'],
-                                self.map_file.parsed],
-                        deployment=deployment,
-                        description="Get data needed for our cookbooks and "
-                                    "place it in a structure ready for "
-                                    "storage in a databag or role",
-                        properties={
-                                    'task_tags': ['collect'],
-                                   },
-                        defines={'provider': self.key,
-                                 'resource': key,
-                                })
-                """
-                collect_data = self.get_collect_task(wfspec, deployment, key)
-                configure_task.follow(collect_data)
-                anchor_task = collect_data
+        if self.map_file.has_runtime_options(resource['component']):
+            """
+            collect_data = Celery(wfspec,
+                    "Collect Chef Data for %s" % key,
+                    'checkmate.providers.opscode.solo.resolve_mappings',
+                    call_args=[context.get_queued_task_dict(
+                                    deployment=deployment['id'],
+                                    resource=key),
+                            deployment['id'],
+                            self.map_file.parsed],
+                    deployment=deployment,
+                    description="Get data needed for our cookbooks and "
+                                "place it in a structure ready for "
+                                "storage in a databag or role",
+                    properties={
+                                'task_tags': ['collect'],
+                               },
+                    defines={'provider': self.key,
+                             'resource': key,
+                            })
+            """
+            collect_data = self.get_collect_task(wfspec, deployment, key)
+            configure_task.follow(collect_data)
+            anchor_task = collect_data
 
         # Collect dependencies
         dependencies = [self.prep_task]
@@ -232,15 +232,13 @@ class Provider(ProviderBase):
         if relation.get('relation') != 'host':
             # Is relation in maps?
             tasks = []
-            if self.map_file:
-                if self.map_file.has_requirement_mapping(resource['component'],
-                                                       relation['source-key']):
-                    LOG.debug("Relation '%s' for resource '%s' has a mapping"
-                              % (relation_key, key))
-                    # Wait for relation target to be ready
-                    tasks = self.find_tasks(wfspec,
-                                            resource=relation['target'],
-                                            tag='final')
+            if self.map_file.has_requirement_mapping(resource['component'],
+                                                   relation['source-key']):
+                LOG.debug("Relation '%s' for resource '%s' has a mapping"
+                          % (relation_key, key))
+                # Set up a wait for the relation target to be ready
+                tasks = self.find_tasks(wfspec, resource=relation['target'],
+                                        tag='final')
             if tasks:
                 collect_task = self.get_collect_task(wfspec, deployment, key)
                 wait_for(wfspec, collect_task, tasks)
@@ -252,11 +250,8 @@ class Provider(ProviderBase):
                 raise CheckmateException("No host resource found for relation "
                                          "'%s'" % relation_key)
 
-            if self.map_file:
-                attributes = self.map_file.get_attributes(
-                        resource['component'], deployment)
-            else:
-                attributes = None
+            attributes = self.map_file.get_attributes(resource['component'],
+                                                      deployment)
             # Create chef setup tasks
             register_node_task = Celery(wfspec,
                     'Register Server %s (%s)' % (relation['target'],
@@ -332,7 +327,7 @@ class Provider(ProviderBase):
         """Gets the remote catalog from a repo by obtaining a Chefmap file, if
         it exists, and parsing it"""
         if source:
-            map_file = ChefMap(source)
+            map_file = ChefMap(url=source)
         else:
             map_file = self.map_file
         catalog = {}
@@ -346,7 +341,7 @@ class Provider(ProviderBase):
                     if resource_type not in catalog:
                         catalog[resource_type] = {}
                     catalog[resource_type][doc['id']] = doc
-            LOG.debug('Obtained remote catalog from %s' % map_file.source)
+            LOG.debug('Obtained remote catalog from %s' % map_file.url)
         except ValueError:
             msg = 'Catalog source did not return parsable content'
             raise CheckmateException(msg)
@@ -365,8 +360,8 @@ class Transforms():
     def collect_options(self, my_task):
         """Collect and write run-time options"""
         from checkmate.providers.opscode.solo import ChefMap, CheckmateNotReady
-        chef_map = ChefMap(None)
-        chef_map._parsed = my_task.task_spec.get_property('chef_maps')
+        parsed = my_task.task_spec.get_property('chef_maps')
+        chef_map = ChefMap(parsed=parsed)
         resources = my_task.task_spec.get_property('resources')
         try:
             resolved_maps = chef_map.resolve_maps(resources, my_task)
@@ -431,35 +426,37 @@ class ChefMap():
                                      "'value'")
         return value
 
-    def __init__(self, source):
+    def __init__(self, url=None, raw=None, parsed=None):
         """Create a new Chefmap instance
 
-        :param source: is the path to the root git repo. Supported protocols
+        :param url: is the path to the root git repo. Supported protocols
                        are http, https, and git. The .git extension is
                        optional. Appending a branch name as a #fragment works::
 
                 map_file = ChefMap("http://github.com/user/repo")
                 map_file = ChefMap("https://github.com/org/repo.git")
                 map_file = ChefMap("git://github.com/user/repo#master")
+        :param raw: provide the raw content of the map file
+        :param parsed: provide parsed content of the map file
 
         :return: solo.ChefMap
 
         """
-        self.source = source
-        self._raw = None
-        self._parsed = None
+        self.url = url
+        self._raw = raw
+        self._parsed = parsed
 
     @property
     def raw(self):
         """Returns the raw file contents"""
-        if not self._raw:
+        if self._raw is None:
             self._raw = self.get_remote_map_file()
         return self._raw
 
     @property
     def parsed(self):
         """Returns the parsed file contents"""
-        if not self._parsed:
+        if self._parsed is None:
             self._parsed = self.parse(self.raw)
         return self._parsed
 
@@ -480,7 +477,7 @@ class ChefMap():
 
     def get_remote_map_file(self):
         """Gets the remote map file from a repo"""
-        target_url = self.get_remote_raw_url(self.source)
+        target_url = self.get_remote_raw_url(self.url)
         url = urlparse.urlparse(target_url)
         if url.scheme == 'https':
             http_class = httplib.HTTPSConnection
@@ -497,7 +494,7 @@ class ChefMap():
 
         # TODO: implement some caching to not overload the server
         try:
-            LOG.debug('Connecting to %s' % self.source)
+            LOG.debug('Connecting to %s' % self.url)
             http.request('GET', url.path, headers=headers)
             resp = http.getresponse()
             body = resp.read()
