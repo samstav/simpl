@@ -169,68 +169,63 @@ class TestDBWorkflow(test.StubbedWorkflowBase):
                         ],
                 },
             })
-        expected.append({
-            'call': 'checkmate.providers.test.create_resource',
-            'args': [IsA(dict), {
-                'index': '0',
-                'component': 'linux_instance',
-                'dns-name': 'CM-DEP-ID--db1.checkmate.local',
-                'instance': {},
-                'hosts': ['1'],
-                'provider': 'base',
-                'type': 'compute',
-                'service': 'db',
-                }],
-            'kwargs': None,
-            'result': {'instance:0': {
-                'status': 'ACTIVE',
-                'ip': '4.4.4.1',
-                'private_ip': '10.1.2.1',
-                'addresses': {'public': [{'version': 4,
-                              'addr': '4.4.4.1'}, {'version': 6,
-                              'addr': '2001:babe::ff04:36c1'}],
-                              'private': [{'version': 4,
-                              'addr': '10.1.2.1'}]},
-                }},
-            'post_back_result': True,
-            })
-        expected.append({
-            'call': 'checkmate.providers.opscode.local.register_node',
-            'args': ['4.4.4.1', self.deployment['id']],
-            'kwargs': In('password'),
-            'result': None,
-            'resource': '1',
-            })
 
-        # build-essential (now just cook with bootstrap.json)
+        for key, resource in self.deployment['resources'].iteritems():
+            if resource['type'] == 'compute':
+                expected.append({
+                        'call': 'checkmate.providers.test.create_resource',
+                        'args': [IsA(dict), resource],
+                        'kwargs': None,
+                        'result': {'instance:%s' % key: {
+                            'status': 'ACTIVE',
+                            'ip': '4.4.4.1',
+                            'private_ip': '10.1.2.1',
+                            'addresses': {'public': [{'version': 4,
+                                          'addr': '4.4.4.1'}, {'version': 6,
+                                          'addr': '2001:babe::ff04:36c1'}],
+                                          'private': [{'version': 4,
+                                          'addr': '10.1.2.1'}]},
+                            }},
+                        'post_back_result': True,
+                        })
+                expected.append({
+                    'call': 'checkmate.providers.opscode.local.register_node',
+                    'args': ['4.4.4.1', self.deployment['id']],
+                    'kwargs': In('password'),
+                    'result': None,
+                    'resource': key,
+                    })
 
-        expected.append({
-            'call': 'checkmate.providers.opscode.solo.cook',
-            'args': ['4.4.4.1', self.deployment['id']],
-            'kwargs': And(In('password'),
-                          Not(In('recipes')),
-                          Not(In('roles')),
-                          ContainsKeyValue('identity_file',
-                                '/var/tmp/%s/private.pem'
-                                % self.deployment['id'])
-                         ),
-            'result': None,
-            'resource': '1',
-            })
+                # build-essential (now just cook with bootstrap.json)
 
-        # Cook with role
+                expected.append({
+                    'call': 'checkmate.providers.opscode.solo.cook',
+                    'args': ['4.4.4.1', self.deployment['id']],
+                    'kwargs': And(In('password'),
+                                  Not(In('recipes')),
+                                  Not(In('roles')),
+                                  ContainsKeyValue('identity_file',
+                                        '/var/tmp/%s/private.pem'
+                                        % self.deployment['id'])
+                                 ),
+                    'result': None,
+                    'resource': key,
+                    })
+            else:
 
-        expected.append({
-            'call': 'checkmate.providers.opscode.solo.cook',
-            'args': ['4.4.4.1', self.deployment['id']],
-            'kwargs': And(In('password'), ContainsKeyValue('recipes',
-                          ['mysql::server']),
-                          ContainsKeyValue('identity_file',
-                          '/var/tmp/%s/private.pem'
-                          % self.deployment['id'])),
-            'result': None,
-            'resource': '1',
-            })
+                # Cook with role
+
+                expected.append({
+                    'call': 'checkmate.providers.opscode.solo.cook',
+                    'args': ['4.4.4.1', self.deployment['id']],
+                    'kwargs': And(In('password'), ContainsKeyValue('recipes',
+                                  ['mysql::server']),
+                                  ContainsKeyValue('identity_file',
+                                  '/var/tmp/%s/private.pem'
+                                  % self.deployment['id'])),
+                    'result': None,
+                    'resource': key,
+                    })
         expected.append({
             'call': 'checkmate.providers.opscode.local.manage_databag',
             'args': [self.deployment['id'], self.deployment['id'],
@@ -396,60 +391,70 @@ class TestMapWorkflowTasks(test.StubbedWorkflowBase):
                                 self.deployment['id'],
                         'public_key':
                                 test.ENV_VARS['CHECKMATE_CLIENT_PUBLIC_KEY']}
-            }, {
-                # Register foo - knife prepare
-                'call': 'checkmate.providers.opscode.local.register_node',
-                'args': ["4.4.4.4", self.deployment['id']],
-                'kwargs': And(In('password'), ContainsKeyValue('attributes',
-                        {'widgets': 10})),
-                'result': None,
-                'resource': '1',
-            },  {
-                # Prep foo - bootstrap.json
-                'call': 'checkmate.providers.opscode.solo.cook',
-                'args': ['4.4.4.4', self.deployment['id']],
-                'kwargs': And(In('password'), Not(ContainsKeyValue('recipes',
-                        ['foo'])),
-                        ContainsKeyValue('identity_file',
-                                '/var/tmp/%s/private.pem' %
-                                self.deployment['id'])),
-                'result': None
-            },  {
-                # Cook foo - run recipes
-                'call': 'checkmate.providers.opscode.solo.cook',
-                'args': ['4.4.4.4', self.deployment['id']],
-                'kwargs': And(In('password'), ContainsKeyValue('recipes',
-                        ['foo']), ContainsKeyValue('attributes',
-                        {'master': {'ip': '4.4.4.4'}}),
-                        ContainsKeyValue('identity_file',
-                                '/var/tmp/%s/private.pem' %
-                                self.deployment['id'])),
-                'result': None
-            }, {
-                # Cook bar
-                'call': 'checkmate.providers.opscode.solo.cook',
-                'args': [None, self.deployment['id']],
-                'kwargs': And(In('password'), ContainsKeyValue('recipes',
-                        ['bar']),
-                        ContainsKeyValue('identity_file',
-                                '/var/tmp/%s/private.pem' %
-                                self.deployment['id'])),
-                'result': None
-            }, {
-                # Create Server
-                'call': 'checkmate.providers.test.create_resource',
-                'args': [IsA(dict), IsA(dict)],
-                'kwargs': IgnoreArg(),
-                'result': {
-                        'instance:0': {
-                            'id': '1',
-                            'password': "shecret",
-                            'ip': '4.4.4.4'
-                            }
-                        },
-                'post_back_result': True,
-                'resource': '0',
-                }]
+            }]
+        for key, resource in self.deployment['resources'].iteritems():
+            if resource.get('type') == 'compute':
+                expected_calls.extend([{
+                        # Register foo - knife prepare
+                        'call': 'checkmate.providers.opscode.local.'
+                                'register_node',
+                        'args': ["4.4.4.4", self.deployment['id']],
+                        'kwargs': And(In('password'),
+                                      ContainsKeyValue('attributes',
+                                {'widgets': 10})),
+                        'result': None,
+                        'resource': key,
+                    },  {
+                        # Prep foo - bootstrap.json
+                        'call': 'checkmate.providers.opscode.solo.cook',
+                        'args': ['4.4.4.4', self.deployment['id']],
+                        'kwargs': And(In('password'),
+                                      Not(ContainsKeyValue('recipes',
+                                                           ['foo'])),
+                                ContainsKeyValue('identity_file',
+                                        '/var/tmp/%s/private.pem' %
+                                        self.deployment['id'])),
+                        'result': None
+                    }, {
+                        # Create Server
+                        'call': 'checkmate.providers.test.create_resource',
+                        'args': [IsA(dict), IsA(dict)],
+                        'kwargs': IgnoreArg(),
+                        'result': {
+                                'instance:%s' % key: {
+                                    'id': '1',
+                                    'password': "shecret",
+                                    'ip': '4.4.4.4'
+                                    }
+                                },
+                        'post_back_result': True,
+                        'resource': key,
+                    }])
+            elif 'type' in resource:
+                expected_calls.extend([{
+                        # Cook foo - run recipes
+                        'call': 'checkmate.providers.opscode.solo.cook',
+                        'args': ['4.4.4.4', self.deployment['id']],
+                        'kwargs': And(In('password'),
+                                      ContainsKeyValue('recipes',
+                                                        ['foo']),
+                                      ContainsKeyValue('attributes',
+                                            {'master': {'ip': '4.4.4.4'}}),
+                                      ContainsKeyValue('identity_file',
+                                            '/var/tmp/%s/private.pem' %
+                                            self.deployment['id'])),
+                        'result': None
+                    }, {
+                        # Cook bar
+                        'call': 'checkmate.providers.opscode.solo.cook',
+                        'args': [None, self.deployment['id']],
+                        'kwargs': And(In('password'),
+                                        ContainsKeyValue('recipes', ['bar']),
+                                        ContainsKeyValue('identity_file',
+                                                '/var/tmp/%s/private.pem' %
+                                                self.deployment['id'])),
+                        'result': None
+                    }])
         workflow = self._get_stubbed_out_workflow(context=context,
                 expected_calls=expected_calls)
         task_list = list(set(t.get_name() for t in workflow.get_tasks()))

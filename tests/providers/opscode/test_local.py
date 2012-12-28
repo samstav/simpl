@@ -19,8 +19,9 @@ import mox
 from mox import In, IsA, And, IgnoreArg, ContainsKeyValue, Not
 
 from checkmate import test
-from checkmate.deployments import Deployment
+from checkmate.deployments import Deployment, plan
 from checkmate.exceptions import CheckmateException
+from checkmate.middleware import RequestContext
 from checkmate.providers import base, register_providers
 from checkmate.providers.opscode import local
 from checkmate.test import StubbedWorkflowBase, ENV_VARS
@@ -459,12 +460,8 @@ class TestDBWorkflow(StubbedWorkflowBase):
                   providers:
                     chef-local:
                       vendor: opscode
-                      provides:
-                      - database: mysql
                     base:
                       vendor: test
-                      provides:
-                      - compute: linux
                       catalog:
                         compute:
                           linux_instance:
@@ -477,16 +474,18 @@ class TestDBWorkflow(StubbedWorkflowBase):
                     region: DFW
             """))
         expected = self._get_expected_calls()
-        expected.append({
+        context = RequestContext(auth_token='MOCK_TOKEN',
+                                 username='MOCK_USER')
+        plan(self.deployment, context)
+        for key, resource in self.deployment['resources'].iteritems():
+            if resource.get('type') == 'compute':
+                expected.append({
                     'call': 'checkmate.providers.test.create_resource',
                     'args': [IsA(dict),
-                            {'index': '0', 'component': 'linux_instance',
-                            'dns-name': 'CM-DEP-ID--db1.checkmate.local',
-                            'instance': {}, 'hosts': ['1'], 'provider': 'base',
-                            'type': 'compute', 'service': 'db'}],
+                            resource],
                     'kwargs': None,
                     'result': {
-                          'instance:0': {
+                          'instance:%s' % key: {
                               'name': 'CM-DEP-ID--db1.checkmate.local',
                               'interfaces': {
                                 'mysql': {
