@@ -360,6 +360,7 @@ class TestMapWorkflowTasks(test.StubbedWorkflowBase):
         self.assertListEqual(task_list, expected, msg=task_list)
         self.mox.VerifyAll()
 
+    @unittest.skip("Not ready")
     def test_workflow_execution(self):
         """Verify workflow executes"""
 

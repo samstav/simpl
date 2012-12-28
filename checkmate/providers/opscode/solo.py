@@ -209,6 +209,7 @@ class Provider(ProviderBase):
                          'resource': resource_key,
                         }
                 )
+        LOG.debug("Created data collection task for '%s'" % resource_key)
         return collect_data
 
     def _hash_all_user_resource_passwords(self, deployment):
@@ -224,9 +225,9 @@ class Provider(ProviderBase):
                              wfspec, deployment, context):
         """Write out or Transform data. Provide final task for relation sources
         to hook into"""
-        LOG.debug("Adding connection task  resource: %s, key: %s, relation: %s"
-                  " relation_key: %s"
-                  % (resource, key, relation, relation_key))
+        LOG.debug("Adding connection task for resource '%s' for relation '%s'"
+                  % (key, relation_key), extra={'data': {'resource': resource,
+                  'relation': relation}})
 
         if relation.get('relation') != 'host':
             # Is relation in maps?
@@ -234,6 +235,8 @@ class Provider(ProviderBase):
             if self.map_file:
                 if self.map_file.has_requirement_mapping(resource['component'],
                                                        relation['source-key']):
+                    LOG.debug("Relation '%s' for resource '%s' has a mapping"
+                              % (relation_key, key))
                     # Wait for relation target to be ready
                     tasks = self.find_tasks(wfspec,
                                             resource=relation['target'],
