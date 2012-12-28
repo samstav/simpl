@@ -337,7 +337,10 @@ class ProviderBase(ProviderBasePlanningMixIn, ProviderBaseWorkflowMixIn):
             if key == 'lists':
                 continue
             if id in value:
-                return Component(value[id], id=id, provider=self)
+                result = value[id]
+                if 'is' not in result:
+                    result['is'] = key
+                return Component(result, id=id, provider=self)
 
     def find_components(self, context, **kwargs):
         """Finds the components that matches the supplied key/value arguments
