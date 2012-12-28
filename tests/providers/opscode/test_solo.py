@@ -102,8 +102,7 @@ class TestDBWorkflow(test.StubbedWorkflowBase):
         test.StubbedWorkflowBase.setUp(self)
         base.PROVIDER_CLASSES = {}
         register_providers([solo.Provider, test.TestProvider])
-        self.deployment = \
-            Deployment(utils.yaml_to_dict("""
+        self.deployment = Deployment(utils.yaml_to_dict("""
                 id: 'DEP-ID-1000'
                 blueprint:
                   name: test db
@@ -111,15 +110,11 @@ class TestDBWorkflow(test.StubbedWorkflowBase):
                     db:
                       component:
                         id: mysql
-                        is: database
-                        type: database
                 environment:
                   name: test
                   providers:
                     chef-solo:
                       vendor: opscode
-                      provides:
-                      - database: mysql
                       catalog:
                         database:
                           mysql:
@@ -130,19 +125,20 @@ class TestDBWorkflow(test.StubbedWorkflowBase):
                             - host: 'linux'
                     base:
                       vendor: test
-                      provides:
-                      - compute: linux
                       catalog:
                         compute:
                           linux_instance:
                             id: linux_instance
-                            is: compute
                             provides:
                             - compute: linux
                 inputs:
                   blueprint:
                     region: DFW
             """))
+        context = RequestContext(auth_token='MOCK_TOKEN',
+                                 username='MOCK_USER')
+        plan(self.deployment, context)
+
         expected = []
 
         # Create Chef Environment
@@ -235,8 +231,7 @@ class TestDBWorkflow(test.StubbedWorkflowBase):
                           ContainsKeyValue('merge', True)),
             'result': None,
             })
-        self.workflow = \
-            self._get_stubbed_out_workflow(expected_calls=expected)
+        self.workflow = self._get_stubbed_out_workflow(expected_calls=expected)
 
     def test_workflow_completion(self):
         """Verify workflow sequence and data flow"""
@@ -291,6 +286,7 @@ class TestMapWorkflowTasks(test.StubbedWorkflowBase):
             """
             \n--- # foo component
                 id: foo
+                is: application
                 requires:
                 - database: mysql
                 - host: linux
@@ -309,6 +305,7 @@ class TestMapWorkflowTasks(test.StubbedWorkflowBase):
                   - attributes://db/name
             \n--- # bar component
                 id: bar
+                is: database
                 provides:
                 - database: mysql
             """
@@ -340,7 +337,7 @@ class TestMapWorkflowTasks(test.StubbedWorkflowBase):
         plan(self.deployment, context)
         workflow = create_workflow_deploy(self.deployment, context)
         print workflow.get_dump()
-        collect_task = workflow.spec.task_specs['Collect Chef Data for 1']
+        collect_task = workflow.spec.task_specs['Collect Chef Data for 0']
         ancestors = collect_task.ancestors()
         # inputs = collect_task.inputs
         host_done = workflow.spec.task_specs['Configure bar: 2 (backend)']
@@ -350,12 +347,14 @@ class TestMapWorkflowTasks(test.StubbedWorkflowBase):
                     'Root',
                     'Start',
                     'Create Chef Environment',
-                    'Create Resource 0',
-                    'After Environment is Ready and Server 0 (frontend) is Up',
-                    'Register Server 0 (frontend)',
-                    'Pre-Configure Server 0 (frontend)',
-                    'Collect Chef Data for 1',
-                    'Configure foo: 1 (frontend)',
+                    'Create Resource 1',
+                    'After Environment is Ready and Server 1 (frontend) is Up',
+                    'Register Server 1 (frontend)',
+                    'Pre-Configure Server 1 (frontend)',
+                    'Get frontend-backend values for 1',
+                    'After 1,10 run 4',
+                    'Collect Chef Data for 0',
+                    'Configure foo: 0 (frontend)',
                     'Configure bar: 2 (backend)',
                     ]))
         self.assertListEqual(task_list, expected, msg=task_list)
@@ -462,12 +461,14 @@ class TestMapWorkflowTasks(test.StubbedWorkflowBase):
                     'Root',
                     'Start',
                     'Create Chef Environment',
-                    'Create Resource 0',
-                    'After Environment is Ready and Server 0 (frontend) is Up',
-                    'Register Server 0 (frontend)',
-                    'Pre-Configure Server 0 (frontend)',
-                    'Collect Chef Data for 1',
-                    'Configure foo: 1 (frontend)',
+                    'Create Resource 1',
+                    'After Environment is Ready and Server 1 (frontend) is Up',
+                    'Register Server 1 (frontend)',
+                    'Pre-Configure Server 1 (frontend)',
+                    'Get frontend-backend values for 1',
+                    'After 1,10 run 4',
+                    'Collect Chef Data for 0',
+                    'Configure foo: 0 (frontend)',
                     'Configure bar: 2 (backend)',
                     ]))
         self.assertListEqual(task_list, expected, msg=task_list)
@@ -521,6 +522,8 @@ class TestMaplessWorkflowTasks(test.StubbedWorkflowBase):
             """
             \n--- # foo component
                 id: foo
+                requires:
+                - database: mysql
             \n--- # bar component
                 id: bar
                 provides:

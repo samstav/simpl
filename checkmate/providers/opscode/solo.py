@@ -228,12 +228,12 @@ class Provider(ProviderBase):
                   " relation_key: %s"
                   % (resource, key, relation, relation_key))
 
-        if relation_key != 'host':
+        if relation.get('relation') != 'host':
             # Is relation in maps?
             tasks = []
             if self.map_file:
                 if self.map_file.has_requirement_mapping(resource['component'],
-                                                         relation_key):
+                                                       relation['source-key']):
                     # Wait for relation target to be ready
                     tasks = self.find_tasks(wfspec,
                                             resource=relation['target'],
@@ -242,7 +242,7 @@ class Provider(ProviderBase):
                 collect_task = self.get_collect_task(wfspec, deployment, key)
                 wait_for(wfspec, collect_task, tasks)
 
-        if relation_key == 'host':
+        if relation.get('relation') == 'host':
             # Wait on host to be ready
             wait_on = self.get_host_ready_tasks(resource, wfspec, deployment)
             if not wait_on:
