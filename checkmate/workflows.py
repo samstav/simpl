@@ -558,7 +558,13 @@ def create_workflow_spec_deploy(deployment, context):
         if 'hosts' in resource:
             for index in resource['hosts']:
                 hr = deployment['resources'][index]
-                relation = hr['relations']['host']
+                relations = [r for r in hr['relations'].values()
+                             if (r.get('relation') == 'host'
+                                 and r['target'] == key)]
+                if len(relations) > 1:
+                    raise CheckmateException("Multiple 'host' relations for "
+                                             "resource '%s'" % key)
+                relation = relations[0]
                 provider = providers[hr['provider']]
                 provider_result = provider.add_connection_tasks(hr,
                         index, relation, 'host', wfspec, deployment, context)
