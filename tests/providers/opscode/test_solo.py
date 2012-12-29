@@ -144,6 +144,29 @@ class TestMySQLMaplessWorkflow(test.StubbedWorkflowBase):
                                  username='MOCK_USER')
         plan(self.deployment, context)
 
+    def test_workflow_task_generation(self):
+        """Verify workflow task creation"""
+        context = RequestContext(auth_token='MOCK_TOKEN',
+                                 username='MOCK_USER')
+        workflow = create_workflow_deploy(self.deployment, context)
+
+        task_list = workflow.spec.task_specs.keys()
+        expected = ['Root',
+                    'Start',
+                    'Create Chef Environment',
+                    'Create Resource 1',
+                    'After Environment is Ready and Server 1 (db) is Up',
+                    'Pre-Configure Server 1 (db)',
+                    'Register Server 1 (db)',
+                    'After server 1 (db) is registered and options are ready',
+                    'Configure mysql: 0 (db)']
+        task_list.sort()
+        expected.sort()
+        self.assertListEqual(task_list, expected, msg=task_list)
+
+    def test_workflow_completion(self):
+        """Verify workflow sequence and data flow"""
+
         expected = []
 
         # Create Chef Environment
@@ -227,19 +250,8 @@ class TestMySQLMaplessWorkflow(test.StubbedWorkflowBase):
                     'result': None,
                     'resource': key,
                     })
-        expected.append({
-            'call': 'checkmate.providers.opscode.local.manage_databag',
-            'args': [self.deployment['id'], self.deployment['id'],
-                     None, None],
-            'kwargs': And(ContainsKeyValue('secret_file',
-                          'certificates/chef.pem'),
-                          ContainsKeyValue('merge', True)),
-            'result': None,
-            })
-        self.workflow = self._get_stubbed_out_workflow(expected_calls=expected)
 
-    def test_workflow_completion(self):
-        """Verify workflow sequence and data flow"""
+        self.workflow = self._get_stubbed_out_workflow(expected_calls=expected)
 
         self.mox.ReplayAll()
 
@@ -293,28 +305,60 @@ class TestMapfileWithoutMaps(test.StubbedWorkflowBase):
             """
             \n--- # foo component
                 id: foo
-                is: application
                 requires:
                 - database: mysql
-                - host: linux
-                maps:
-                # Simple scalar to attribute
-                - value: 10
-                  targets:
-                  - attributes://widgets
-                # Host requirement resolved at run-time
-                - source: requirements://host/ip
-                  targets:
-                  - attributes://master/ip
-                # Relation requirement resolved at run-time
-                - source: requirements://database:mysql/database_name
-                  targets:
-                  - attributes://db/name
             \n--- # bar component
                 id: bar
-                is: database
                 provides:
                 - database: mysql
+                maps: {}  # blank map should be ignored as well
+            """
+
+    def test_workflow_task_generation(self):
+        """Verify workflow sequence and data flow"""
+
+        self.mox.StubOutWithMock(solo, 'httplib')
+        connection_class_mock = self.mox.CreateMockAnything()
+        solo.httplib.HTTPConnection = connection_class_mock
+        connection_mock = self.mox.CreateMockAnything()
+        response_mock = self.mox.CreateMockAnything()
+        for i in range(1):  # will be called twice; planning and workflow
+                            # creation
+            connection_class_mock.__call__(IgnoreArg(),
+                    IgnoreArg()).AndReturn(connection_mock)
+
+            connection_mock.request('GET', IgnoreArg(),
+                                    headers=IgnoreArg()).AndReturn(True)
+            connection_mock.getresponse().AndReturn(response_mock)
+
+            response_mock.read().AndReturn(self.map_file)
+            connection_mock.close().AndReturn(True)
+            response_mock.status = 200
+
+        self.mox.ReplayAll()
+
+        context = RequestContext(auth_token='MOCK_TOKEN',
+                                 username='MOCK_USER')
+        plan(self.deployment, context)
+
+        workflow = create_workflow_deploy(self.deployment, context)
+
+        task_list = workflow.spec.task_specs.keys()
+        self.assertNotIn('Collect Chef Data for 0', task_list,
+                         msg="Should not have a Collect task when no mappings "
+                             "exist in the map file")
+        expected = ['Root',
+                    'Start',
+                    'Create Chef Environment',
+                    'Configure bar: 1 (backend)',
+                    'Configure foo: 0 (frontend)',
+                   ]
+        task_list.sort()
+        expected.sort()
+        self.assertListEqual(task_list, expected, msg=task_list)
+
+        self.mox.VerifyAll()
+
             """
 
         # Mock out remote catalog calls

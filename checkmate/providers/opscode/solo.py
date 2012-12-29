@@ -123,6 +123,7 @@ class Provider(ProviderBase):
                 password=PathAttrib('instance:%s/password' %
                         resource.get('hosted_on', key)),
                 kitchen_name='kitchen',
+                attributes=PathAttrib('chef_options/attributes'),
                 identity_file=Attrib('private_key_path'),
                 description="Push and apply Chef recipes on the server",
                 defines=dict(resource=key,
@@ -206,9 +207,9 @@ class Provider(ProviderBase):
         collect_data = TransMerge(wfspec,
                 "Collect Chef Data for %s" % resource_key,
                 transforms=[source],
-                description="Get data needed for our cookbooks and "
-                        "place it in a structure ready for storage in "
-                        "a databag or role",
+                description="Get data needed for our cookbooks and place it "
+                            "in a structure ready for storage in a databag or "
+                            "role",
                 properties={
                             'task_tags': ['collect'],
                             'chef_maps': maps,
@@ -588,11 +589,12 @@ class ChefMap():
         return (c for c in yaml.safe_load_all(self.parsed)
                 if 'id' in c)
 
-    def has_mappings(self):
-        """Does the map file have any mappings?"""
+    def has_mappings(self, component_id):
+        """Does the map file have any mappings for this component"""
         for component in self.components:
-            if component.get('maps'):  # ignore empty maps too
-                return True
+            if component_id == component['id']:
+                if component.get('maps') or component.get('output'):
+                    return True
         return False
 
     def has_databag_mappings(self):
@@ -640,6 +642,18 @@ class ChefMap():
                                                      value)
                     return result
 
+    def get_component_maps(self, component_id):
+        """Get maps for a specific component"""
+        for component in self.components:
+            if component_id == component['id']:
+                return component.get('maps')
+
+    def get_component_output_template(self, component_id):
+        """Get output template for a specific component"""
+        for component in self.components:
+            if component_id == component['id']:
+                return component.get('output')
+
     def has_runtime_options(self, component_id):
         """
         Check if a component has maps that can only be resolved at run-time
@@ -681,7 +695,7 @@ class ChefMap():
             'query': parts.query,
             'fragment': parts.fragment,
             }
-        if parts.scheme in ['attributes', 'output']:
+        if parts.scheme in ['attributes', 'outputs']:
             result['path'] = os.path.join(parts.netloc.strip('/'),
                                           parts.path.strip('/')).strip('/')
         return result
