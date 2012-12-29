@@ -192,6 +192,17 @@ class Provider(ProviderBase):
                                 tag='collect')
         if tasks:
             return tasks[0]
+
+        # Create the task
+        resource = deployment['resources'][resource_key]
+        parsed = self.map_file.parse(self.map_file.raw, deployment=deployment,
+                                     resource=resource)
+        map_with_context = ChefMap(parsed=parsed)
+
+        maps = self.get_resource_prepared_maps(resource, deployment,
+                                               map_file=map_with_context)
+        output = map_with_context.get_component_output_template(
+                                                         resource['component'])
         source = utils.get_source_body(Transforms.collect_options)
         collect_data = TransMerge(wfspec,
                 "Collect Chef Data for %s" % resource_key,
@@ -201,16 +212,39 @@ class Provider(ProviderBase):
                         "a databag or role",
                 properties={
                             'task_tags': ['collect'],
-                            #FIXME: hack while spiking
-                            'chef_maps': self.map_file.parsed,
-                            'resources': deployment['resources'],
+                            'chef_maps': maps,
+                            'chef_output': output,
                            },
-                defines={'provider': self.key,
+                defines={
+                         'provider': self.key,
                          'resource': resource_key,
                         }
                 )
         LOG.debug("Created data collection task for '%s'" % resource_key)
         return collect_data
+
+    def get_resource_prepared_maps(self, resource, deployment, map_file=None):
+        """Parse maps for a resource and identify paths for finding the map
+        data"""
+        if map_file is None:
+            map_file = self.map_file
+
+        maps = map_file.get_component_maps(resource['component'])
+        for mapping in maps or []:
+
+            # find paths for sources
+
+            if 'source' in mapping:
+                url = ChefMap.parse_map_URI(mapping['source'])
+                if url['scheme'] == 'requirements':
+                    key = url['netloc']
+                    relations = [r for r in resource['relations'].values()
+                                if r.get('source-key') == key]
+                    if relations:
+                        target = relations[0]['target']
+                        mapping['path'] = 'instance:%s/instance/interfaces/%s' % (target, relations[0]['interface'])
+
+        return maps
 
     def _hash_all_user_resource_passwords(self, deployment):
         """Chef needs all passwords to be a hash"""
@@ -616,10 +650,11 @@ class ChefMap():
         return result
 
     @staticmethod
-    def parse(template):
+    def parse(template, **kwargs):
         """Parse template
 
         :param template: the template contents as a string
+        :param kwargs: extra arguments are passed to the renderer
 
         """
         env = Environment(loader=DictLoader({'template': template}))
@@ -656,11 +691,30 @@ class ChefMap():
             """
             return urlparse.urlparse(value)
         env.globals['parse_url'] = parse_url
-        env.globals['setting'] = lambda x: x  # placeholder
+        deployment = kwargs.get('deployment')
+        resource = kwargs.get('resource')
+        if deployment:
+            if resource:
+                fxn = lambda x: deployment.get_setting(x,
+                        resource_type=resource['type'],
+                        provider_key=resource['provider'],
+                        service_name=resource['service'])
+            else:
+                fxn = lambda x: deployment.get_setting(x)
+        else:
+            fxn = lambda x: ''  # noop
+        env.globals['setting'] = fxn
         env.globals['hash'] = hash_SHA512
 
         template = env.get_template('template')
-        return template.render(deployment={'id': 'DEP01'}, resource={})
+        minimum_kwargs = {
+                          'deployment': {'id': ''},
+                          'resource': {},
+                          'component': {},
+                          'clients': [],
+                          }
+        minimum_kwargs.update(kwargs)
+        return template.render(**minimum_kwargs)
 
 #
 # Celery Tasks
