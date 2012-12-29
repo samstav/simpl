@@ -287,6 +287,54 @@ class TestUtils(unittest.TestCase):
             utils.write_path(result, case['path'], case['value'])
             self.assertDictEqual(result, case['expected'], msg=case['name'])
 
+    def test_read_path(self):
+        cases = [
+            {
+                'name': 'simple value',
+                'start': {'root': 1},
+                'path': 'root',
+                'expected': 1
+            }, {
+                'name': 'simple path',
+                'start': {'root': {'folder': 2}},
+                'path': 'root/folder',
+                'expected': 2
+            }, {
+                'name': 'blank path',
+                'start': {'root': 1},
+                'path': '',
+                'expected': None
+            }, {
+                'name': '/ only',
+                'start': {'root': 1},
+                'path': '/',
+                'expected': None
+            }, {
+                'name': 'extra /',
+                'start': {'root': 1},
+                'path': '/root/',
+                'expected': 1
+            }, {
+                'name': 'nonexistent root',
+                'start': {'root': 1},
+                'path': 'not-there',
+                'expected': None
+            }, {
+                'name': 'nonexistent path',
+                'start': {'root': 1},
+                'path': 'root/not-there',
+                'expected': None
+            }, {
+                'name': 'empty source',
+                'start': {},
+                'path': 'root',
+                'expected': None
+            },
+            ]
+        for case in cases:
+            result = utils.read_path(case['start'], case['path'])
+            self.assertEqual(result, case['expected'], msg=case['name'])
+
 
 if __name__ == '__main__':
     # Run tests. Handle our parameters separately

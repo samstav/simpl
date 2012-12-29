@@ -525,3 +525,16 @@ def write_path(target, path, value):
         else:
             current = current[part]
     current[parts[-1]] = value
+
+
+def read_path(source, path):
+    """Reads a value from a dict supporting a path as a key"""
+    parts = path.strip('/').split('/')
+    current = source
+    for part in parts[:-1]:
+        if part not in current:
+            return
+        current = current[part]
+        if not isinstance(current, dict):
+            return
+    return current.get(parts[-1])
