@@ -174,7 +174,7 @@ DEPLOYMENT_SCHEMA = ['id', 'name', 'blueprint', 'environment', 'inputs',
         'tenantId']
 
 COMPONENT_SCHEMA = ['id', 'options', 'requires', 'provides', 'summary',
-        'dependencies', 'version', 'is', 'role', 'roles', 'roles', 'source_name']
+        'dependencies', 'version', 'is', 'role', 'roles', 'source_name']
 
 OPTION_SCHEMA = ['name', 'label', 'default', 'help', 'description', 'source',
         'source_field_name', 'required', 'type', 'constrains']
