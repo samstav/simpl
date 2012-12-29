@@ -9,7 +9,8 @@ LOG = logging.getLogger(__name__)
 
 from checkmate.environments import Environment
 from checkmate.middleware import RequestContext
-from checkmate.providers.base import PROVIDER_CLASSES, ProviderBase
+from checkmate.providers import base
+from checkmate.providers.base import ProviderBase
 from checkmate.utils import yaml_to_dict
 
 
@@ -26,7 +27,7 @@ class TestEnvironments(unittest.TestCase):
                     vendor: test
                       """)
 
-        PROVIDER_CLASSES['test.base'] = ProviderBase
+        base.PROVIDER_CLASSES['test.base'] = ProviderBase
 
         environment = Environment(definition)
         self.assertIn('base', environment.get_providers(None))
@@ -52,7 +53,7 @@ class TestEnvironments(unittest.TestCase):
                           - database: mysql
                       """)
 
-        PROVIDER_CLASSES['test.base'] = ProviderBase
+        base.PROVIDER_CLASSES['test.base'] = ProviderBase
 
         environment = Environment(definition)
         context = RequestContext()
@@ -60,6 +61,50 @@ class TestEnvironments(unittest.TestCase):
         bar = environment.find_component({'id': 'bar'}, context)
         self.assertEqual(foo['id'], 'foo')
         self.assertEqual(bar['id'], 'bar')
+
+    def test_provider_lookup_same_ids(self):
+        """Test that provider lookup doesn't get confused with same IDs"""
+        definition = yaml_to_dict("""
+                name: environment
+                providers:
+                  gadget_maker:
+                    vendor: test
+                    catalog:
+                      gadget:
+                        same_id:
+                          id: same_id
+                          is: gadget
+                          provides:
+                          - gadget: bar
+                  widget_maker:
+                    vendor: test
+                    catalog:
+                      widget:
+                        same_id:
+                          id: same_id
+                          is: widget
+                          provides:
+                          - widget: bar
+                      """)
+        base.PROVIDER_CLASSES['test.gadget_maker'] = ProviderBase
+        base.PROVIDER_CLASSES['test.widget_maker'] = ProviderBase
+        environment = Environment(definition)
+        context = RequestContext()
+
+        # Make sure we can find something
+        found = environment.find_component({'id': 'same_id'}, context)
+        self.assertIsNotNone(found)
+
+        gadget = environment.find_component({'id': 'same_id',
+                                            'type': 'gadget'}, context)
+        self.assertEqual(gadget['is'], 'gadget')
+        self.assertEqual(gadget.provider.key, 'gadget_maker')
+
+        # Make sure we can find a particular type
+        widget = environment.find_component({'id': 'same_id',
+                                            'type': 'widget'}, context)
+        self.assertEqual(widget['is'], 'widget')
+        self.assertEqual(widget.provider.key, 'widget_maker')
 
 
 if __name__ == '__main__':

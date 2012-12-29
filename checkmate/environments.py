@@ -362,18 +362,16 @@ class Environment():
         for provider in providers.values():
             these_matches = provider.find_components(context, **params)
             if these_matches:
-                matches.extend(these_matches)
+                for match in these_matches:
+                    matches.append(Component(match, provider=provider))
 
         if not matches:
             LOG.info("Did not find component match for: %s" % blueprint_entry)
             return None
 
-        if len(matches) == 1:
-            return Component(matches[0], provider=provider)
-        else:
+        if len(matches) > 1:
             LOG.warning("Ambiguous component '%s' matches: %s" %
                         (blueprint_entry, matches))
-            selected = Component(matches[0], provider=provider)
             LOG.warning("Will use '%s.%s' as a default if no match is found" %
-                        (provider.key, selected['id']))
-            return selected
+                        (matches[0].provider.key, matches[0]['id']))
+        return matches[0]
