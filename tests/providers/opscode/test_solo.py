@@ -721,12 +721,12 @@ class TestChefMap(unittest.TestCase):
                 },
             {
                 'name': 'output',
-                'scheme': 'output',
+                'scheme': 'outputs',
                 'netloc': '',
                 'path': 'item/key/with/long/path',
             }, {
                 'name': 'path check for output',
-                'scheme': 'output',
+                'scheme': 'outputs',
                 'netloc': '',
                 'path': 'only/path',
             }, {
@@ -756,6 +756,12 @@ class TestChefMap(unittest.TestCase):
         self.assertEqual(result['path'], 'only/path')
 
         result = solo.ChefMap.parse_map_URI("attributes://only")
+        self.assertEqual(result['path'], 'only')
+
+        result = solo.ChefMap.parse_map_URI("outputs://only/path")
+        self.assertEqual(result['path'], 'only/path')
+
+        result = solo.ChefMap.parse_map_URI("outputs://only")
         self.assertEqual(result['path'], 'only')
 
     def test_has_mapping_positive(self):
@@ -858,6 +864,99 @@ class TestChefMap(unittest.TestCase):
         self.assertTrue(chef_map.has_runtime_options('foo'))
         self.assertFalse(chef_map.has_runtime_options('bar'))
         self.assertFalse(chef_map.has_runtime_options('not there'))
+
+
+class TestTransform(unittest.TestCase):
+    """Test Transform functionality"""
+
+    def setUp(self):
+        self.mox = mox.Mox()
+
+    def tearDown(self):
+        self.mox.UnsetStubs()
+
+    def test_write_attribute(self):
+        maps = utils.yaml_to_dict("""
+                # Simple scalar to attribute
+                - value: 10
+                  targets:
+                  - attributes://widgets
+            """)
+        fxn = solo.Transforms.collect_options
+        task = self.mox.CreateMockAnything()
+        spec = self.mox.CreateMockAnything()
+        spec.get_property('chef_maps').AndReturn(maps)
+        spec.get_property('chef_output', {}).AndReturn({})
+        results = {}
+        task.attributes = results
+        self.mox.ReplayAll()
+        result = fxn(spec, task)
+        self.mox.VerifyAll()
+        self.assertTrue(result)  # task completes
+        expected = {'chef_options': {'attributes': {'widgets': 10}}}
+        self.assertDictEqual(results, expected)
+
+    def test_write_output_template(self):
+        """Test that an output template written as output"""
+        output = utils.yaml_to_dict("""
+                  'instance:0':
+                    name: test
+                    instance:
+                      interfaces:
+                        mysql:
+                          database_name: db1
+            """)
+
+        fxn = solo.Transforms.collect_options
+        task = self.mox.CreateMockAnything()
+        spec = self.mox.CreateMockAnything()
+        spec.get_property('chef_maps').AndReturn([])
+        spec.get_property('chef_output', {}).AndReturn(output or {})
+        results = {}
+        task.attributes = results
+        self.mox.ReplayAll()
+        result = fxn(spec, task)
+        self.mox.VerifyAll()
+        self.assertTrue(result)  # task completes
+        expected = utils.yaml_to_dict("""
+                  'instance:0':
+                    name: test
+                    instance:
+                      interfaces:
+                        mysql:
+                          database_name: db1
+            """)
+        self.assertDictEqual(results, expected)
+
+
+class TestChefMapEvaluator(unittest.TestCase):
+    """Test ChefMap Mapping Evaluation"""
+    def test_scalar_evaluation(self):
+        chefmap = solo.ChefMap(parsed="")
+        result = chefmap.evaluate_mapping_source({'value': 10}, None)
+        self.assertEqual(result, 10)
+
+    def test_requirement_evaluation(self):
+        chefmap = solo.ChefMap(parsed="")
+        mapping = {
+                   'source': 'requirements://host/ip',
+                   'path': 'instance:1'
+                  }
+        data = {'instance:1': {'ip': '4.4.4.4'}}
+        result = chefmap.evaluate_mapping_source(mapping, data)
+        self.assertEqual(result, '4.4.4.4')
+
+
+class TestChefMapApplier(unittest.TestCase):
+    """Test ChefMap Mapping writing to targets"""
+    def test_output_writing(self):
+        chefmap = solo.ChefMap(parsed="")
+        mapping = {
+                   'targets': ['outputs://ip'],
+                  }
+        result = {}
+        chefmap.apply_mapping(mapping, '4.4.4.4', result)
+        self.assertEqual(result, {'outputs': {'ip': '4.4.4.4'}})
 
 
 class TestTemplating(unittest.TestCase):

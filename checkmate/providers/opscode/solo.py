@@ -16,6 +16,7 @@ from checkmate.exceptions import CheckmateException
 from checkmate.keys import hash_SHA512
 from checkmate.providers import ProviderBase
 from checkmate.workflows import wait_for
+from checkmate.utils import merge_dictionary  # used by transform
 
 LOG = logging.getLogger(__name__)
 
@@ -131,26 +132,10 @@ class Provider(ProviderBase):
                 **kwargs)
 
         if self.map_file.has_runtime_options(resource['component']):
-            """
-            collect_data = Celery(wfspec,
-                    "Collect Chef Data for %s" % key,
-                    'checkmate.providers.opscode.solo.resolve_mappings',
-                    call_args=[context.get_queued_task_dict(
-                                    deployment=deployment['id'],
-                                    resource=key),
-                            deployment['id'],
-                            self.map_file.parsed],
-                    deployment=deployment,
-                    description="Get data needed for our cookbooks and "
-                                "place it in a structure ready for "
-                                "storage in a databag or role",
-                    properties={
-                                'task_tags': ['collect'],
-                               },
-                    defines={'provider': self.key,
-                             'resource': key,
-                            })
-            """
+            collect_data = self.get_collect_task(wfspec, deployment, key)
+            configure_task.follow(collect_data)
+            anchor_task = collect_data
+        elif self.map_file.has_mappings(resource['component']):
             collect_data = self.get_collect_task(wfspec, deployment, key)
             configure_task.follow(collect_data)
             anchor_task = collect_data
@@ -185,7 +170,21 @@ class Provider(ProviderBase):
                      (service_name, resource.get('hosted_on', key)))
 
     def get_collect_task(self, wfspec, deployment, resource_key):
-        """Get (or create_ a task to collect options"""
+        """
+
+        Get (or create) a task that collects map options
+
+        The task will run its code whenever an input task completes. The code
+        to pick up the actual values based on the map comes from the Transforms
+        class.
+
+        One collect task is created for each resource and marked with a
+        'collect' tag.
+
+        :returns: a TransMerge task for the resource specified in resource_key
+
+        """
+        # Does it exist already?
         tasks = self.find_tasks(wfspec,
                                 provider=self.key,
                                 resource=resource_key,
@@ -263,19 +262,21 @@ class Provider(ProviderBase):
                   % (key, relation_key), extra={'data': {'resource': resource,
                   'relation': relation}})
 
-        if relation.get('relation') != 'host':
-            # Is relation in maps?
-            tasks = []
-            if self.map_file.has_requirement_mapping(resource['component'],
-                                                   relation['source-key']):
-                LOG.debug("Relation '%s' for resource '%s' has a mapping"
-                          % (relation_key, key))
-                # Set up a wait for the relation target to be ready
-                tasks = self.find_tasks(wfspec, resource=relation['target'],
-                                        tag='final')
-            if tasks:
-                collect_task = self.get_collect_task(wfspec, deployment, key)
-                wait_for(wfspec, collect_task, tasks)
+        # Is this relation in one of our maps? If so, let's handle that
+        tasks = []
+        if self.map_file.has_requirement_mapping(resource['component'],
+                                                 relation['source-key']):
+            LOG.debug("Relation '%s' for resource '%s' has a mapping"
+                      % (relation_key, key))
+            # Set up a wait for the relation target to be ready
+            tasks = self.find_tasks(wfspec, resource=relation['target'],
+                                    tag='final')
+        if tasks:
+            # The collect task will have received a copy of the map and
+            # will pick up the values that it needs when these precursor
+            # tasks signal they are complete.
+            collect_task = self.get_collect_task(wfspec, deployment, key)
+            wait_for(wfspec, collect_task, tasks)
 
         if relation.get('relation') == 'host':
             # Wait on host to be ready
@@ -388,71 +389,107 @@ class Transforms():
     We put them in a separate class to:
     - access them from tests
     - possible, in the future, use them as a library instead of passing the
-      actual code in to Spiff for security reasons
+      actual code in to Spiff for better security
 
     """
+    @staticmethod  # self will actually be a SpiffWorkflow.TaskSpec
     def collect_options(self, my_task):
         """Collect and write run-time options"""
         from checkmate.providers.opscode.solo import ChefMap, CheckmateNotReady
-        parsed = my_task.task_spec.get_property('chef_maps')
-        chef_map = ChefMap(parsed=parsed)
-        resources = my_task.task_spec.get_property('resources')
-        try:
-            resolved_maps = chef_map.resolve_maps(resources, my_task)
-            if resolved_maps:
-                my_task.set_attribute(chef_options=resolved_maps)
-                return True
-        except CheckmateNotReady:
-            LOG.debug("Data not yet ready")
-            return False
-        LOG.debug("Data not yet ready")
-        return False  # false means not done
+        maps = self.get_property('chef_maps')
+        data = my_task.attributes
+        queue = []
+        for mapping in maps:
+            try:
+                result = ChefMap.evaluate_mapping_source(mapping, data)
+                if result:
+                    queue.append((mapping, result))
+            except CheckmateNotReady:
+                return False  # false means not done
+        results = {}
+        for mapping, result in queue:
+            ChefMap.apply_mapping(mapping, result, results)
+
+        output_template = self.get_property('chef_output', {})
+        if output_template:
+            merge_dictionary(my_task.attributes, output_template)
+
+        if results:
+
+            # Write chef options and task outputs
+
+            outputs = results.pop('outputs', {})
+            if results:
+                if 'chef_options' not in my_task.attributes:
+                    my_task.attributes['chef_options'] = {}
+                merge_dictionary(my_task.attributes['chef_options'], results)
+
+            if outputs:
+                merge_dictionary(my_task.attributes, outputs)
+                LOG.debug("Writing task outputs: %s" % outputs)
+        return True
 
 
 class ChefMap():
     """Retrieves and parses Chefmap files"""
 
-    def resolve_maps(self, resources, my_task):
-        """Resolve maps"""
-        results = {}
-        for component in self.components:
-            maps = (m for m in component.get('maps', [])
-                    if (self.parse_map_URI(m.get('source'))['scheme'] ==
-                               'requirements'))
-            if maps:
-                result = {}
-                for m in maps:
-                    result = self.evaluate_mapping_source(m, resources)
-                    if result:
-                        for target in m.get('targets', []):
-                            url = self.parse_map_URI(target)
-                            if url['scheme'] == 'attributes':
-                                if 'attributes' not in results:
-                                    results['attributes'] = {}
-                                utils.write_path(results['attributes'],
-                                                 url['path'],
-                                                 result)
-        return results
+    @staticmethod
+    def resolve_map(mapping, data, output):
+        """Resolve mapping and write output"""
+        result = ChefMap.evaluate_mapping_source(mapping, data)
+        if result:
+            ChefMap.apply_mapping(mapping, result, output)
 
-    def evaluate_mapping_source(self, mapping, resources):
+    @staticmethod
+    def apply_mapping(mapping, value, output):
+        """Applies the mapping value to all the targets
+
+        :param mapping: dict of the mapping
+        :param value: the value of the mapping. This is evaluated elsewhere.
+        :param output: a dict to apply the mapping to
+
+        """
+        for target in mapping.get('targets', []):
+            url = ChefMap.parse_map_URI(target)
+            if url['scheme'] in ['attributes', 'outputs']:
+                if url['scheme'] not in output:
+                    output[url['scheme']] = {}
+                utils.write_path(output[url['scheme']], url['path'].strip('/'),
+                                 value)
+                LOG.debug("Wrote to output '%s': %s" % (target, value))
+            else:
+                raise NotImplemented("Unsupported url scheme '%s'" %
+                                     url['scheme'])
+
+    @staticmethod
+    def evaluate_mapping_source(mapping, data):
         """
         Returns the mapping source value
 
         Raises a CheckmateNotReady exception if the source is not yet available
 
+        :param mapping: the mapping to resolved
+        :param data: the data to read from
         :returns: the value
 
         """
         value = None
         if 'source' in mapping:
-            url = self.parse_map_URI(mapping.get('source'))
+            url = ChefMap.parse_map_URI(mapping['source'])
             if url['scheme'] == 'requirements':
-                    #FIXME hack - we need more context information
-                    try:
-                        value = resources['0']['instance']['ip']
-                    except:
-                        LOG.debug("Map not ready yet: " % mapping)
-                        raise CheckmateNotReady("Not ready")
+                path = mapping.get('path', url['netloc'])
+                try:
+                    value = utils.read_path(data, os.path.join(path,
+                                            url['path']))
+                except (KeyError, TypeError):
+                    LOG.debug("'%s' not yet available at '%s': %s" % (
+                              mapping['source'], path, exc), extra={'data': data})
+                    raise CheckmateNotReady("Not ready")
+                LOG.debug("Resolved mapping '%s' to '%s'" % (mapping['source'],
+                          value))
+            else:
+                raise NotImplemented("Unsupported url scheme '%s'" %
+                                     url['scheme'])
         elif 'value' in mapping:
             value = mapping['value']
         else:
