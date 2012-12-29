@@ -4,7 +4,6 @@
 """Tests for chef-solo provider"""
 
 import __builtin__
-import copy
 import json
 import logging
 import os
@@ -28,12 +27,15 @@ from checkmate.providers.opscode import solo, local
 from checkmate.workflows import create_workflow_deploy
 
 
-class TestChefSolo(test.ProviderTester):
+class TestChefSoloProvider(test.ProviderTester):
 
     klass = solo.Provider
 
 
-class TestChefSoloTasks(unittest.TestCase):
+class TestCeleryTasks(unittest.TestCase):
+
+    """ Test Celery tasks """
+
     def setUp(self):
         os.environ['CHECKMATE_CHEF_LOCAL_PATH'] = '/test/checkmate'
         self.mox = mox.Mox()
@@ -94,9 +96,16 @@ class TestChefSoloTasks(unittest.TestCase):
         self.mox.VerifyAll()
 
 
-class TestDBWorkflow(test.StubbedWorkflowBase):
+class TestMySQLMaplessWorkflow(test.StubbedWorkflowBase):
 
-    """ Test MySQL Resource Creation Workflow """
+    """
+
+    Test that cookbooks can be used without a map file (only catalog)
+
+    This test is done using the MySQL cookbook. This is a very commonly used
+    cookbook.
+
+    """
 
     def setUp(self):
         test.StubbedWorkflowBase.setUp(self)
@@ -105,11 +114,12 @@ class TestDBWorkflow(test.StubbedWorkflowBase):
         self.deployment = Deployment(utils.yaml_to_dict("""
                 id: 'DEP-ID-1000'
                 blueprint:
-                  name: test db
+                  name: MySQL Database
                   services:
                     db:
                       component:
-                        id: mysql
+                        resource_type: database
+                        interface: mysql
                 environment:
                   name: test
                   providers:
@@ -118,7 +128,6 @@ class TestDBWorkflow(test.StubbedWorkflowBase):
                       catalog:
                         database:
                           mysql:
-                            id: mysql
                             provides:
                             - database: mysql
                             requires:
@@ -128,12 +137,8 @@ class TestDBWorkflow(test.StubbedWorkflowBase):
                       catalog:
                         compute:
                           linux_instance:
-                            id: linux_instance
                             provides:
                             - compute: linux
-                inputs:
-                  blueprint:
-                    region: DFW
             """))
         context = RequestContext(auth_token='MOCK_TOKEN',
                                  username='MOCK_USER')
@@ -209,7 +214,7 @@ class TestDBWorkflow(test.StubbedWorkflowBase):
                     })
             else:
 
-                # Cook with role
+                # Cook with cookbook (special mysql handling calls server role)
 
                 expected.append({
                     'call': 'checkmate.providers.opscode.solo.cook',
@@ -242,10 +247,12 @@ class TestDBWorkflow(test.StubbedWorkflowBase):
         self.assertTrue(self.workflow.is_completed(),
                         'Workflow did not complete')
 
+        self.mox.VerifyAll()
 
-class TestMapWorkflowTasks(test.StubbedWorkflowBase):
 
-    """Test that map file tasks are created"""
+class TestMapfileWithoutMaps(test.StubbedWorkflowBase):
+
+    """Test that map file works without maps (was 'checkmate.json')"""
 
     def setUp(self):
         test.StubbedWorkflowBase.setUp(self)
@@ -364,7 +371,8 @@ class TestMapWorkflowTasks(test.StubbedWorkflowBase):
     def test_workflow_execution(self):
         """Verify workflow executes"""
 
-        # Plan deployment
+        # Plan deployment (mocking remote catalog calls)
+
         self.mox.ReplayAll()
         context = RequestContext(auth_token='MOCK_TOKEN',
                                  username='MOCK_USER')
@@ -372,6 +380,7 @@ class TestMapWorkflowTasks(test.StubbedWorkflowBase):
         self.mox.VerifyAll()
 
         # Create new mox queue for running workflow
+
         self.mox.ResetAll()
         self.assertEqual(self.deployment.get('status'), 'PLANNED')
         expected_calls = [{
@@ -479,10 +488,19 @@ class TestMapWorkflowTasks(test.StubbedWorkflowBase):
         self.assertDictEqual(self.outcome, {})
         self.mox.VerifyAll()
 
+class TestMappedMultipleWorkflow(test.StubbedWorkflowBase):
 
-class TestMaplessWorkflowTasks(test.StubbedWorkflowBase):
+    """
 
-    """Test that workflow works without maps"""
+    Test complex workflows
+
+    We're looking to test:
+    - workflows with multiple service that all use map files
+    - map file outputs being delivered to dependent components
+    - multiple components in one service (count>1)
+    - use conceptual (foo, bar, widget, etc) catalog, not mysql
+
+    """
 
     def setUp(self):
         test.StubbedWorkflowBase.setUp(self)
@@ -514,7 +532,6 @@ class TestMaplessWorkflowTasks(test.StubbedWorkflowBase):
                       catalog:
                         compute:
                           linux_instance:
-                            id: linux_instance
                             is: compute
                             provides:
                             - compute: linux
@@ -844,6 +861,7 @@ class TestChefMap(unittest.TestCase):
 
 
 class TestTemplating(unittest.TestCase):
+    """Test that templating engine handles the use cases we need"""
 
     def setUp(self):
         self.mox = mox.Mox()
