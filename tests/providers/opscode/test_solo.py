@@ -359,6 +359,90 @@ class TestMapfileWithoutMaps(test.StubbedWorkflowBase):
 
         self.mox.VerifyAll()
 
+
+class TestMapSingleWorkflow(test.StubbedWorkflowBase):
+    """
+
+    Test workflow for a single service works
+
+    We're looking to:
+    - test using a map file to generate outputs (map and template)
+    - test mysql cookbook and map with outputs
+    - test routing data from requires (host/ip) to provides (mysql/host)
+    - have a simple, one component test to test the basics if one of the more
+      complex tests fails
+
+    """
+
+    def setUp(self):
+        test.StubbedWorkflowBase.setUp(self)
+        base.PROVIDER_CLASSES = {}
+        register_providers([solo.Provider, test.TestProvider])
+        self.deployment = \
+            Deployment(utils.yaml_to_dict("""
+                id: 'DEP-ID-1000'
+                blueprint:
+                  name: test db
+                  services:
+                    db:
+                      component:
+                        id: mysql
+                environment:
+                  name: test
+                  providers:
+                    chef-solo:
+                      vendor: opscode
+                      constraints:
+                      - source: http://mock_url
+                    base:
+                      vendor: test
+                      catalog:
+                        compute:
+                          linux_instance:
+                            id: linux_instance
+                            provides:
+                            - compute: linux
+                #FIXME: these are not getting picked up by defaults
+                inputs:
+                  blueprint:
+                    database_name: db1
+                    username: u1
+                    password: px
+            """))
+        self.map_file = \
+            """
+                id: mysql
+                is: database
+                requires:
+                - host: linux
+                options:
+                  database_name:
+                    required: true
+                    default: db1
+                  username:
+                    required: true
+                    default: root
+                  password:
+                    type: password
+                    required: false
+                maps:
+                # Take inputs and provide them as output using map
+                - value: {{ setting('database_name') }}
+                  targets:
+                  - outputs://instance:{{resource.index}}/instance/interfaces/mysql/database_name
+                # We can route data from requires to provides
+                - source: requirements://host:linux/ip
+                  targets:
+                  - outputs://instance:{{resource.index}}/instance/interfaces/mysql/host
+                output:
+                  instance:{{resource.index}}:
+                    name: {{ setting('database_name') }}
+                    instance:
+                      interfaces:
+                        mysql:
+                          database_name: {{ setting('database_name') }}
+                          password: {{ setting('password') }}
+                          username: {{ setting('username') }}
             """
 
         # Mock out remote catalog calls
@@ -387,31 +471,22 @@ class TestMapfileWithoutMaps(test.StubbedWorkflowBase):
                                  username='MOCK_USER')
         plan(self.deployment, context)
         workflow = create_workflow_deploy(self.deployment, context)
-        print workflow.get_dump()
-        collect_task = workflow.spec.task_specs['Collect Chef Data for 0']
-        ancestors = collect_task.ancestors()
-        # inputs = collect_task.inputs
-        host_done = workflow.spec.task_specs['Configure bar: 2 (backend)']
-        self.assertIn(host_done, ancestors)
-        task_list = list(set(t.get_name() for t in workflow.get_tasks()))
-        expected = list(set([
-                    'Root',
+        task_list = workflow.spec.task_specs.keys()
+        expected = ['Root',
                     'Start',
                     'Create Chef Environment',
                     'Create Resource 1',
-                    'After Environment is Ready and Server 1 (frontend) is Up',
-                    'Register Server 1 (frontend)',
-                    'Pre-Configure Server 1 (frontend)',
-                    'Get frontend-backend values for 1',
-                    'After 1,10 run 4',
+                    'After Environment is Ready and Server 1 (db) is Up',
+                    'Register Server 1 (db)',
+                    'Pre-Configure Server 1 (db)',
                     'Collect Chef Data for 0',
-                    'Configure foo: 0 (frontend)',
-                    'Configure bar: 2 (backend)',
-                    ]))
+                    'Configure mysql: 0 (db)',
+                    ]
+        task_list.sort()
+        expected.sort()
         self.assertListEqual(task_list, expected, msg=task_list)
         self.mox.VerifyAll()
 
-    @unittest.skip("Not ready")
     def test_workflow_execution(self):
         """Verify workflow executes"""
 
@@ -448,27 +523,6 @@ class TestMapfileWithoutMaps(test.StubbedWorkflowBase):
         for key, resource in self.deployment['resources'].iteritems():
             if resource.get('type') == 'compute':
                 expected_calls.extend([{
-                        # Register foo - knife prepare
-                        'call': 'checkmate.providers.opscode.local.'
-                                'register_node',
-                        'args': ["4.4.4.4", self.deployment['id']],
-                        'kwargs': And(In('password'),
-                                      ContainsKeyValue('attributes',
-                                {'widgets': 10})),
-                        'result': None,
-                        'resource': key,
-                    },  {
-                        # Prep foo - bootstrap.json
-                        'call': 'checkmate.providers.opscode.solo.cook',
-                        'args': ['4.4.4.4', self.deployment['id']],
-                        'kwargs': And(In('password'),
-                                      Not(ContainsKeyValue('recipes',
-                                                           ['foo'])),
-                                ContainsKeyValue('identity_file',
-                                        '/var/tmp/%s/private.pem' %
-                                        self.deployment['id'])),
-                        'result': None
-                    }, {
                         # Create Server
                         'call': 'checkmate.providers.test.create_resource',
                         'args': [IsA(dict), IsA(dict)],
@@ -477,32 +531,45 @@ class TestMapfileWithoutMaps(test.StubbedWorkflowBase):
                                 'instance:%s' % key: {
                                     'id': '1',
                                     'password': "shecret",
-                                    'ip': '4.4.4.4'
+                                    'ip': '4.4.4.4',
+                                    'instance': {
+                                        'interfaces': {
+                                            'linux': {
+                                              'ip': '4.4.4.4'
+                                            }
+                                        }
+                                    }
                                     }
                                 },
                         'post_back_result': True,
                         'resource': key,
-                    }])
-            elif 'type' in resource:
-                expected_calls.extend([{
-                        # Cook foo - run recipes
+                    }, {
+                        # Register host - knife prepare
+                        'call': 'checkmate.providers.opscode.local.'
+                                'register_node',
+                        'args': ["4.4.4.4", self.deployment['id']],
+                        'kwargs': And(In('password')),
+                        'result': None,
+                        'resource': key,
+                    },  {
+                        # Prep host - bootstrap.json means no recipes passed in
                         'call': 'checkmate.providers.opscode.solo.cook',
                         'args': ['4.4.4.4', self.deployment['id']],
                         'kwargs': And(In('password'),
-                                      ContainsKeyValue('recipes',
-                                                        ['foo']),
-                                      ContainsKeyValue('attributes',
-                                            {'master': {'ip': '4.4.4.4'}}),
+                                      Not(In('recipes')),
                                       ContainsKeyValue('identity_file',
                                             '/var/tmp/%s/private.pem' %
                                             self.deployment['id'])),
                         'result': None
-                    }, {
-                        # Cook bar
+                    }])
+            elif resource.get('type') == 'database':
+                expected_calls.extend([{
+                        # Cook mysql
                         'call': 'checkmate.providers.opscode.solo.cook',
-                        'args': [None, self.deployment['id']],
+                        'args': ['4.4.4.4', self.deployment['id']],
                         'kwargs': And(In('password'),
-                                        ContainsKeyValue('recipes', ['bar']),
+                                        ContainsKeyValue('recipes',
+                                                ['mysql::server']),
                                         ContainsKeyValue('identity_file',
                                                 '/var/tmp/%s/private.pem' %
                                                 self.deployment['id'])),
@@ -510,27 +577,29 @@ class TestMapfileWithoutMaps(test.StubbedWorkflowBase):
                     }])
         workflow = self._get_stubbed_out_workflow(context=context,
                 expected_calls=expected_calls)
-        task_list = list(set(t.get_name() for t in workflow.get_tasks()))
-        expected = list(set([
-                    'Root',
-                    'Start',
-                    'Create Chef Environment',
-                    'Create Resource 1',
-                    'After Environment is Ready and Server 1 (frontend) is Up',
-                    'Register Server 1 (frontend)',
-                    'Pre-Configure Server 1 (frontend)',
-                    'Get frontend-backend values for 1',
-                    'After 1,10 run 4',
-                    'Collect Chef Data for 0',
-                    'Configure foo: 0 (frontend)',
-                    'Configure bar: 2 (backend)',
-                    ]))
-        self.assertListEqual(task_list, expected, msg=task_list)
+
         self.mox.ReplayAll()
         workflow.complete_all()
         self.assertTrue(workflow.is_completed(), msg=workflow.get_dump())
         self.assertDictEqual(self.outcome, {})
         self.mox.VerifyAll()
+
+        final = workflow.get_tasks()[-1]
+        expected = utils.yaml_to_dict("""
+                chef_options:
+                instance:0:
+                    name: db1
+                    instance:
+                      interfaces:
+                        mysql:
+                          database_name: db1
+                          password: px
+                          username: u1
+                          host: 4.4.4.4
+            """)
+        self.assertDictEqual(final.attributes['instance:0'],
+                             expected['instance:0'])
+
 
 class TestMappedMultipleWorkflow(test.StubbedWorkflowBase):
 
@@ -584,58 +653,203 @@ class TestMappedMultipleWorkflow(test.StubbedWorkflowBase):
             """
             \n--- # foo component
                 id: foo
+                is: application
                 requires:
                 - database: mysql
+                - host: linux
+                maps:
+                # Simple scalar to attribute
+                - value: 10
+                  targets:
+                  - attributes://widgets
+                # Host requirement resolved at run-time
+                - source: requirements://host:linux/ip
+                  targets:
+                  - attributes://master/ip
+                # Relation requirement resolved at run-time
+                - source: requirements://database:mysql/database_name
+                  targets:
+                  - attributes://db/name
             \n--- # bar component
                 id: bar
+                is: database
                 provides:
                 - database: mysql
-                maps: {}  # blank map should be ignored as well
+                maps:
+                - value: foo-db
+                  targets:
+                  - outputs://instance:{{resource.index}}/instance/interfaces/mysql/database_name
             """
 
-    def test_workflow_tasks(self):
-        """Verify workflow sequence and data flow"""
-
+        # Mock out remote catalog calls
         self.mox.StubOutWithMock(solo, 'httplib')
         connection_class_mock = self.mox.CreateMockAnything()
         solo.httplib.HTTPConnection = connection_class_mock
         connection_mock = self.mox.CreateMockAnything()
         response_mock = self.mox.CreateMockAnything()
-        for i in range(1):  # will be called twice; planning and workflow
-                            # creation
-            connection_class_mock.__call__(IgnoreArg(),
-                    IgnoreArg()).AndReturn(connection_mock)
 
-            connection_mock.request('GET', IgnoreArg(),
-                                    headers=IgnoreArg()).AndReturn(True)
-            connection_mock.getresponse().AndReturn(response_mock)
+        connection_class_mock.__call__(IgnoreArg(),
+                IgnoreArg()).AndReturn(connection_mock)
 
-            response_mock.read().AndReturn(self.map_file)
-            connection_mock.close().AndReturn(True)
-            response_mock.status = 200
+        connection_mock.request('GET', IgnoreArg(),
+                                headers=IgnoreArg()).AndReturn(True)
+        connection_mock.getresponse().AndReturn(response_mock)
+
+        response_mock.read().AndReturn(self.map_file)
+        connection_mock.close().AndReturn(True)
+        response_mock.status = 200
+
+    def test_workflow_task_creation(self):
+        """Verify workflow sequence and data flow"""
 
         self.mox.ReplayAll()
-
         context = RequestContext(auth_token='MOCK_TOKEN',
                                  username='MOCK_USER')
         plan(self.deployment, context)
-
         workflow = create_workflow_deploy(self.deployment, context)
-
+        collect_task = workflow.spec.task_specs['Collect Chef Data for 0']
+        ancestors = collect_task.ancestors()
+        # inputs = collect_task.inputs
+        host_done = workflow.spec.task_specs['Configure bar: 2 (backend)']
+        self.assertIn(host_done, ancestors)
         task_list = workflow.spec.task_specs.keys()
-        self.assertNotIn('Collect Chef Data for 0', task_list,
-                         msg="Should not have a Collect task when no mappings "
-                             "exist in the map file")
-        expected = ['Root',
+        expected = [
+                    'Root',
                     'Start',
                     'Create Chef Environment',
-                    'Configure bar: 1 (backend)',
+                    'Create Resource 1',
+                    'After Environment is Ready and Server 1 (frontend) is Up',
+                    'Register Server 1 (frontend)',
+                    'Pre-Configure Server 1 (frontend)',
+
+                    'Collect Chef Data for 2',
+                    'Configure bar: 2 (backend)',
+
+                    'Get frontend-backend values for 1',
+                    'After 1,11 run 5',
+                    'Collect Chef Data for 0',
                     'Configure foo: 0 (frontend)',
-                   ]
+
+                    ]
         task_list.sort()
         expected.sort()
         self.assertListEqual(task_list, expected, msg=task_list)
+        self.mox.VerifyAll()
 
+    def test_workflow_execution(self):
+        """Verify workflow executes"""
+
+        # Plan deployment
+        self.mox.ReplayAll()
+        context = RequestContext(auth_token='MOCK_TOKEN',
+                                 username='MOCK_USER')
+        plan(self.deployment, context)
+        self.mox.VerifyAll()
+
+        # Create new mox queue for running workflow
+        self.mox.ResetAll()
+        self.assertEqual(self.deployment.get('status'), 'PLANNED')
+        expected_calls = [{
+                # Create Chef Environment
+                'call': 'checkmate.providers.opscode.local.create_environment',
+                'args': [self.deployment['id'], 'kitchen'],
+                'kwargs': And(ContainsKeyValue('private_key', IgnoreArg()),
+                        ContainsKeyValue('secret_key', IgnoreArg()),
+                        ContainsKeyValue('public_key_ssh', IgnoreArg())),
+                'result': {
+                        'environment': '/var/tmp/%s/' %
+                                self.deployment['id'],
+                        'kitchen': '/var/tmp/%s/kitchen',
+                        'private_key_path': '/var/tmp/%s/private.pem' %
+                                self.deployment['id'],
+                        'public_key_path': '/var/tmp/%s/checkmate.pub' %
+                                self.deployment['id'],
+                        'public_key':
+                                test.ENV_VARS['CHECKMATE_CLIENT_PUBLIC_KEY']}
+            }]
+        for key, resource in self.deployment['resources'].iteritems():
+            if resource.get('type') == 'compute':
+                expected_calls.extend([{
+                        # Register foo - knife prepare
+                        'call': 'checkmate.providers.opscode.local.'
+                                'register_node',
+                        'args': ["4.4.4.4", self.deployment['id']],
+                        'kwargs': And(In('password'),
+                                      ContainsKeyValue('attributes',
+                                              {'widgets': 10})),
+                        'result': None,
+                        'resource': key,
+                    },  {
+                        # Prep foo - bootstrap.json
+                        'call': 'checkmate.providers.opscode.solo.cook',
+                        'args': ['4.4.4.4', self.deployment['id']],
+                        'kwargs': And(In('password'),
+                                      Not(ContainsKeyValue('recipes',
+                                                           ['foo'])),
+                                ContainsKeyValue('identity_file',
+                                        '/var/tmp/%s/private.pem' %
+                                        self.deployment['id'])),
+                        'result': None
+                    }, {
+                        # Create Server
+                        'call': 'checkmate.providers.test.create_resource',
+                        'args': [IsA(dict), IsA(dict)],
+                        'kwargs': IgnoreArg(),
+                        'result': {
+                                'instance:%s' % key: {
+                                    'id': '1',
+                                    'password': "shecret",
+                                    'ip': '4.4.4.4',
+                                    'instance': {
+                                        'interfaces': {
+                                            'linux': {
+                                              'ip': '4.4.4.4'
+                                            }
+                                        }
+                                    }
+                                    }
+                                },
+                        'post_back_result': True,
+                        'resource': key,
+                    }])
+            elif resource.get('type') == 'application':
+                expected_calls.extend([{
+                        # Cook foo - run recipes
+                        'call': 'checkmate.providers.opscode.solo.cook',
+                        'args': ['4.4.4.4', self.deployment['id']],
+                        'kwargs': And(In('password'),
+                                      ContainsKeyValue('recipes',
+                                                        ['foo']),
+                                      ContainsKeyValue('attributes',
+                                            {
+                                            'widgets': 10,
+                                            'master': {'ip': '4.4.4.4'},
+                                            'db': {'name': 'foo-db'},
+                                            }),
+                                      ContainsKeyValue('identity_file',
+                                            '/var/tmp/%s/private.pem' %
+                                            self.deployment['id'])),
+                        'result': None
+                    }])
+            elif resource.get('type') == 'database':
+                expected_calls.extend([{
+                        # Cook bar
+                        'call': 'checkmate.providers.opscode.solo.cook',
+                        'args': [None, self.deployment['id']],
+                        'kwargs': And(In('password'),
+                                        ContainsKeyValue('recipes', ['bar']),
+                                        ContainsKeyValue('identity_file',
+                                                '/var/tmp/%s/private.pem' %
+                                                self.deployment['id'])),
+                        'result': None
+                    }])
+        workflow = self._get_stubbed_out_workflow(context=context,
+                expected_calls=expected_calls)
+
+        self.mox.ReplayAll()
+        workflow.complete_all()
+        self.assertTrue(workflow.is_completed(), msg=workflow.get_dump())
+        self.assertDictEqual(self.outcome, {})
         self.mox.VerifyAll()
 
 
@@ -815,7 +1029,7 @@ class TestChefMap(unittest.TestCase):
             maps:
             - source: 1
         """
-        self.assertTrue(chef_map.has_mappings())
+        self.assertTrue(chef_map.has_mappings('test'))
 
     def test_has_mapping_negative(self):
         chef_map = solo.ChefMap('')
@@ -823,7 +1037,7 @@ class TestChefMap(unittest.TestCase):
             id: test
             maps: {}
         """
-        self.assertFalse(chef_map.has_mappings())
+        self.assertFalse(chef_map.has_mappings('test'))
 
     def test_has_requirement_map_positive(self):
         chef_map = solo.ChefMap('')
