@@ -1078,36 +1078,6 @@ class TestChefMap(unittest.TestCase):
         """
         self.assertFalse(chef_map.has_requirement_mapping('test', 'name'))
 
-    def test_has_databag_mapping_positive(self):
-        chef_map = solo.ChefMap('')
-        chef_map._raw = """
-            id: test
-            maps:
-            - source: 1
-            - source: 'string'
-            - source: databags://test
-            """
-        self.assertTrue(chef_map.has_databag_mappings())
-
-    def test_has_databag_mapping_positive_encrypted(self):
-        chef_map = solo.ChefMap('')
-        chef_map._raw = """
-            id: test
-            maps:
-            - source: 1
-            - source: 'string'
-            - source: encrypted-databags://enc-test
-            """
-        self.assertTrue(chef_map.has_databag_mappings())
-
-    def test_has_databag_mapping_negative(self):
-        chef_map = solo.ChefMap('')
-        chef_map._raw = """
-            id: test
-            maps: {}
-        """
-        self.assertFalse(chef_map.has_databag_mappings())
-
     def test_get_attributes(self):
         chef_map = solo.ChefMap('')
         chef_map._raw = """

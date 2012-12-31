@@ -611,15 +611,6 @@ class ChefMap():
                     return True
         return False
 
-    def has_databag_mappings(self):
-        """Does the map file have any databag mappings?"""
-        for component in self.components:
-            databag_maps = (m for m in component.get('maps', [])
-                            if (self.parse_map_URI(m.get('source'))['scheme']
-                                in ['databags', 'encrypted-databags']))
-            if any(databag_maps):
-                return True
-        return False
 
     def has_requirement_mapping(self, component_id, requirement_key):
         for component in self.components:
