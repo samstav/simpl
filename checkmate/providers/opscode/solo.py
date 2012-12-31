@@ -14,7 +14,8 @@ from SpiffWorkflow.specs import Celery, TransMerge
 from checkmate import utils
 from checkmate.common import schema
 from checkmate.exceptions import (CheckmateException,
-                                  CheckmateCalledProcessError)
+                                  CheckmateCalledProcessError,
+                                  CheckmateValidationException)
 from checkmate.keys import hash_SHA512
 from checkmate.providers import ProviderBase
 from checkmate.workflows import wait_for
@@ -96,28 +97,32 @@ class Provider(ProviderBase):
     def _add_component_tasks(self, wfspec, component, deployment, key,
                              context, service_name):
         # Get component/role or recipe name
-        kwargs = {}
-        LOG.debug("Determining component from dict: %s" % component.get('id'),
+        component_id = component['id']
+        LOG.debug("Determining component from dict: %s" % component_id,
                   extra=component)
-        if 'role' in component:
-            name = '%s::%s' % (component['id'], component['role'])
-        else:
-            name = component['id']
-            if name == 'mysql':
-                name += "::server"  # install server by default, not client
-
-        if component['id'].endswith('-role'):
-            kwargs['roles'] = [name[0:-5]]  # trim the '-role'
-        else:
-            kwargs['recipes'] = [name]
-        LOG.debug("Component run_list determined to be %s" % kwargs)
+        run_list = {}
+        for mcomponent in self.map_file.components:
+            if mcomponent['id'] == component_id:
+                run_list = mcomponent.get('run-list', {})
+        if not run_list:
+            if 'role' in component:
+                name = '%s::%s' % (component_id, component['role'])
+            else:
+                name = component_id
+                if name == 'mysql':
+                    name += "::server"  # install server by default, not client
+            if component_id.endswith('-role'):
+                run_list['roles'] = [name[0:-5]]  # trim the '-role'
+            else:
+                run_list['recipes'] = [name]
+        LOG.debug("Component run_list determined to be %s" % run_list)
+        kwargs = run_list
 
         # Create the cook task
         resource = deployment['resources'][key]
         anchor_task = configure_task = Celery(wfspec,
-                'Configure %s: %s (%s)' % (component['id'],
-                key, service_name),
-               'checkmate.providers.opscode.solo.cook',
+                'Configure %s: %s (%s)' % (component_id, key, service_name),
+                'checkmate.providers.opscode.solo.cook',
                 call_args=[
                         PathAttrib('instance:%s/ip' %
                                 resource.get('hosted_on', key)),
@@ -134,9 +139,9 @@ class Provider(ProviderBase):
                 properties={'estimated_duration': 100},
                 **kwargs)
 
-        if self.map_file.has_mappings(resource['component']):
-            collect_data_tasks = self.get_collect_tasks(wfspec, deployment,
-                                                        key, component)
+        if self.map_file.has_mappings(component_id):
+            collect_data_tasks = self.get_prep_tasks(wfspec, deployment, key,
+                                                     component)
             configure_task.follow(collect_data_tasks['final'])
             anchor_task = collect_data_tasks['root']
 
@@ -739,6 +744,12 @@ class ChefMap():
         for component in self.components:
             if component_id == component['id']:
                 return component.get('output')
+
+    def get_component_run_list(self, component_id):
+        """Get run_list for a specific component"""
+        for component in self.components:
+            if component_id == component['id']:
+                return component.get('run_list')
 
     def has_runtime_options(self, component_id):
         """

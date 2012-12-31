@@ -629,6 +629,7 @@ class TestMappedMultipleWorkflow(test.StubbedWorkflowBase):
     - workflows with multiple service that all use map files
     - map file outputs being delivered to dependent components
     - write to databags as well as attributes
+    - use run-list
     - multiple components in one service (count>1)
     - use conceptual (foo, bar, widget, etc) catalog, not mysql
 
@@ -690,6 +691,12 @@ class TestMappedMultipleWorkflow(test.StubbedWorkflowBase):
                   targets:
                   - attributes://db/name
                   - encrypted-databags://app_bag/mysql/db_name
+                run-list:
+                  roles:
+                  - foo-master
+                  recipes:
+                  - something
+                  - something::role
             \n--- # bar component
                 id: bar
                 is: database
@@ -849,7 +856,10 @@ class TestMappedMultipleWorkflow(test.StubbedWorkflowBase):
                         'args': ['4.4.4.4', self.deployment['id']],
                         'kwargs': And(In('password'),
                                       ContainsKeyValue('recipes',
-                                                        ['foo']),
+                                              ['something',
+                                              'something::role']),
+                                      ContainsKeyValue('roles',
+                                                       ['foo-master']),
                                       ContainsKeyValue('attributes',
                                             {
                                             'widgets': 10,
