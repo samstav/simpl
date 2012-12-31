@@ -827,6 +827,9 @@ blueprint:
         constraints:
           wordpress/version: 3.4.1
       relations:
+        wordpress/database:
+          interface: mysql
+          service: backend
         varnish/master_backend:
           interface: host
           service: master
