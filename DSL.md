@@ -22,6 +22,12 @@ id: a unique identifier (not necessarily a UUID, but a string) within the provid
 
 name: user friendliness (*mssql vs Microsoft SQL Server)
 
+role: Allows you to specify the role of this component. 
+	EX:
+	component:
+	  name: wordpress
+          role: master
+
 version: for versioning...!
 
 description: comes from Juju, a short description. (we could have named it description, but decided not to diverge from something already out there...)

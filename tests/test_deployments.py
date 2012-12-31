@@ -431,6 +431,47 @@ class TestComponentSearch(unittest.TestCase):
         self.assertIn('big_widget', components)
         self.assertIn('small_widget', components)
 
+    def test_component_find_with_role(self):
+        """ Make sure roles match in component and provider """
+        deployment = Deployment(yaml_to_dict("""
+                id: test
+                blueprint:
+                  name: test bp
+                  services:
+                    one:
+                      component:
+                        role: master
+                        type: widget
+                environment:
+                  name: environment
+                  providers:
+                    base:
+                      provides:
+                      - widget: foo
+                      - widget: bar
+                      vendor: test
+                      catalog:
+                        widget:
+                          small_widget:
+                            roles: 
+                            - web
+                            - master
+                            is: widget
+                            provides:
+                            - widget: foo
+                          big_widget:
+                            is: widget
+                            provides:
+                            - widget: bar
+                            roles:
+                            - web
+            """))
+        base.PROVIDER_CLASSES['test.base'] = ProviderBase
+        plan(deployment, RequestContext())
+        self.assertEquals(deployment['resources'].values()[0]['component'],
+                'small_widget')
+
+
 
 class TestDeploymentSettings(unittest.TestCase):
 
