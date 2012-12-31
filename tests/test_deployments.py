@@ -268,13 +268,17 @@ class TestDeploymentResourceGenerator(unittest.TestCase):
 
         base.PROVIDER_CLASSES['test.base'] = ProviderBase
 
-        parsed = plan(deployment, RequestContext())
-        services = parsed['blueprint']['services']
-        self.assertEqual(len(services['front']['instances']), 1)
-        self.assertEqual(len(services['middle']['instances']), 4,
+        plan(deployment, RequestContext())
+        resources = deployment['resources'].values()
+        self.assertEqual(len([r for r in resources
+                              if r.get('service') == 'front']), 1)
+        self.assertEqual(len([r for r in resources
+                              if r.get('service') == 'middle']), 4,
                          msg="Expecting inputs to generate 4 resources")
-        self.assertEqual(len(services['back']['instances']), 1)
-        self.assertEqual(len(services['side']['instances']), 2,
+        self.assertEqual(len([r for r in resources
+                              if r.get('service') == 'back']), 1)
+        self.assertEqual(len([r for r in resources
+                              if r.get('service') == 'side']), 2,
                          msg="Expecting constraint to generate 2 resources")
 
     def test_static_resource_generator(self):

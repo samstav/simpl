@@ -80,11 +80,7 @@ class ProviderBaseWorkflowMixIn():
             raise CheckmateNoMapping("Component '%s' not found" % component_id)
 
         # Get service
-        service_name = None
-        for name, service in deployment['blueprint']['services'].iteritems():
-            if key in service.get('instances', []):
-                service_name = name
-                break
+        service_name = resource['service']
         if not service_name:
             raise CheckmateException("Service not found for resource %s" %
                     key)

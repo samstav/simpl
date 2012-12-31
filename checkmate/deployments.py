@@ -390,15 +390,6 @@ def plan(deployment, context):
     if resources:
         deployment['resources'] = resources
 
-    # Link resources to services
-    # TODO: remove this. We don't need to (shouldn't) write into the blueprint
-    for index, resource in resources.iteritems():
-        if index not in ['connections', 'keys'] and 'service' in resource:
-            service = planner.blueprint['services'][resource['service']]
-            if 'instances' not in service:
-                service['instances'] = []
-            service['instances'].append(str(index))
-
     # Mark deployment as planned and return it (nothing has been saved so far)
     deployment['status'] = 'PLANNED'
     LOG.info("Deployment '%s' planning complete and status changed to %s" %
