@@ -133,11 +133,13 @@ class Provider(ProviderBase):
                 **kwargs)
 
         if self.map_file.has_runtime_options(resource['component']):
-            collect_data = self.get_collect_task(wfspec, deployment, key)
+            collect_data = self.get_collect_task(wfspec, deployment, key,
+                                                 component)
             configure_task.follow(collect_data)
             anchor_task = collect_data
         elif self.map_file.has_mappings(resource['component']):
-            collect_data = self.get_collect_task(wfspec, deployment, key)
+            collect_data = self.get_collect_task(wfspec, deployment, key,
+                                                 component)
             configure_task.follow(collect_data)
             anchor_task = collect_data
 
@@ -170,7 +172,7 @@ class Provider(ProviderBase):
                      'host %s' %
                      (service_name, resource.get('hosted_on', key)))
 
-    def get_collect_task(self, wfspec, deployment, resource_key):
+    def get_collect_task(self, wfspec, deployment, resource_key, component):
         """
 
         Get (or create) a task that collects map options
@@ -194,15 +196,23 @@ class Provider(ProviderBase):
             return tasks[0]
 
         # Create the task
+
+        defaults = {}  # used by setting() in Jinja context to return defaults
+        for key, option in component.get('options', {}).iteritems():
+            if 'default' in option:
+                default = option['default']
+                if default.startswith('=generate'):
+                    default = self.evaluate(default[1:])
+                defaults[key] = default
         resource = deployment['resources'][resource_key]
         parsed = self.map_file.parse(self.map_file.raw, deployment=deployment,
-                                     resource=resource)
+                                     resource=resource, component=component,
+                                     defaults=defaults)
         map_with_context = ChefMap(parsed=parsed)
-
         maps = self.get_resource_prepared_maps(resource, deployment,
                                                map_file=map_with_context)
-        output = map_with_context.get_component_output_template(
-                                                         resource['component'])
+        component_id = component['id']
+        output = map_with_context.get_component_output_template(component_id)
         source = utils.get_source_body(Transforms.collect_options)
         collect_data = TransMerge(wfspec,
                 "Collect Chef Data for %s" % resource_key,
@@ -276,7 +286,11 @@ class Provider(ProviderBase):
             # The collect task will have received a copy of the map and
             # will pick up the values that it needs when these precursor
             # tasks signal they are complete.
-            collect_task = self.get_collect_task(wfspec, deployment, key)
+            environment = deployment.environment()
+            provider = environment.get_provider(resource['provider'])
+            component = provider.get_component(context, resource['component'])
+            collect_task = self.get_collect_task(wfspec, deployment, key,
+                                                 component)
             wait_for(wfspec, collect_task, tasks)
 
         if relation.get('relation') == 'host':
@@ -744,16 +758,19 @@ class ChefMap():
         env.globals['parse_url'] = parse_url
         deployment = kwargs.get('deployment')
         resource = kwargs.get('resource')
+        defaults = kwargs.get('defaults', {})
         if deployment:
             if resource:
-                fxn = lambda x: deployment.get_setting(x,
+                fxn = lambda setting_name: deployment.get_setting(setting_name,
                         resource_type=resource['type'],
                         provider_key=resource['provider'],
-                        service_name=resource['service'])
+                        service_name=resource['service'],
+                        default=defaults.get(setting_name))
             else:
-                fxn = lambda x: deployment.get_setting(x)
+                fxn = lambda setting_name: deployment.get_setting(setting_name,
+                        default=defaults.get(setting_name))
         else:
-            fxn = lambda x: ''  # noop
+            fxn = lambda setting_name: defaults.get(setting_name)  # also noop
         env.globals['setting'] = fxn
         env.globals['hash'] = hash_SHA512
 

@@ -367,6 +367,7 @@ class TestMapSingleWorkflow(test.StubbedWorkflowBase):
 
     We're looking to:
     - test using a map file to generate outputs (map and template)
+    - tests that option defaults are picked up and sent to outputs.
     - test mysql cookbook and map with outputs
     - test routing data from requires (host/ip) to provides (mysql/host)
     - have a simple, one component test to test the basics if one of the more
@@ -375,6 +376,7 @@ class TestMapSingleWorkflow(test.StubbedWorkflowBase):
     """
 
     def setUp(self):
+        self.maxDiff = 1000
         test.StubbedWorkflowBase.setUp(self)
         base.PROVIDER_CLASSES = {}
         register_providers([solo.Provider, test.TestProvider])
@@ -387,6 +389,8 @@ class TestMapSingleWorkflow(test.StubbedWorkflowBase):
                     db:
                       component:
                         id: mysql
+                        constraints:
+                        - password: myPassW0rd  # test constraints work
                 environment:
                   name: test
                   providers:
@@ -402,12 +406,10 @@ class TestMapSingleWorkflow(test.StubbedWorkflowBase):
                             id: linux_instance
                             provides:
                             - compute: linux
-                #FIXME: these are not getting picked up by defaults
                 inputs:
                   blueprint:
-                    database_name: db1
-                    username: u1
-                    password: px
+                    username: u1  # test that this gets used
+                    # test that database_name gets provided from defaults
             """))
         self.map_file = \
             """
@@ -418,18 +420,28 @@ class TestMapSingleWorkflow(test.StubbedWorkflowBase):
                 options:
                   database_name:
                     required: true
-                    default: db1
+                    default: app_db
                   username:
                     required: true
                     default: root
                   password:
                     type: password
+                    default: =generate_password()
                     required: false
                 maps:
                 # Take inputs and provide them as output using map
                 - value: {{ setting('database_name') }}
                   targets:
+                  #TODO: find out if users would like writing to attributes
+                  #      to happen by default (not needing this next line)
+                  - attributes://db_name
                   - outputs://instance:{{resource.index}}/instance/interfaces/mysql/database_name
+                - value: {{ setting('username') or 'root' }}
+                  targets:
+                  - attributes://username
+                - value: {{ setting('password') or 'password' }}
+                  targets:
+                  - attributes://password
                 # We can route data from requires to provides
                 - source: requirements://host:linux/ip
                   targets:
@@ -440,7 +452,6 @@ class TestMapSingleWorkflow(test.StubbedWorkflowBase):
                     instance:
                       interfaces:
                         mysql:
-                          database_name: {{ setting('database_name') }}
                           password: {{ setting('password') }}
                           username: {{ setting('username') }}
             """
@@ -563,6 +574,11 @@ class TestMapSingleWorkflow(test.StubbedWorkflowBase):
                         'result': None
                     }])
             elif resource.get('type') == 'database':
+                attributes = {
+                                'username': 'u1',
+                                'password': 'myPassW0rd',
+                                'db_name': 'app_db',
+                             }
                 expected_calls.extend([{
                         # Cook mysql
                         'call': 'checkmate.providers.opscode.solo.cook',
@@ -570,6 +586,8 @@ class TestMapSingleWorkflow(test.StubbedWorkflowBase):
                         'kwargs': And(In('password'),
                                         ContainsKeyValue('recipes',
                                                 ['mysql::server']),
+                                        ContainsKeyValue('attributes',
+                                                attributes),
                                         ContainsKeyValue('identity_file',
                                                 '/var/tmp/%s/private.pem' %
                                                 self.deployment['id'])),
@@ -588,14 +606,14 @@ class TestMapSingleWorkflow(test.StubbedWorkflowBase):
         expected = utils.yaml_to_dict("""
                 chef_options:
                 instance:0:
-                    name: db1
+                    name: app_db
                     instance:
                       interfaces:
                         mysql:
-                          database_name: db1
-                          password: px
-                          username: u1
-                          host: 4.4.4.4
+                          database_name: app_db      # from mapfile defaults
+                          password: myPassW0rd       # from constraints
+                          username: u1               # from blueprint settings
+                          host: 4.4.4.4              # from host requirement
             """)
         self.assertDictEqual(final.attributes['instance:0'],
                              expected['instance:0'])
