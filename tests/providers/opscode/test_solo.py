@@ -628,7 +628,9 @@ class TestMappedMultipleWorkflow(test.StubbedWorkflowBase):
     We're looking to test:
     - workflows with multiple service that all use map files
     - map file outputs being delivered to dependent components
-    - write to databags as well as attributes
+    - write to databags
+    - write to attributes
+    - write to roles
     - use run-list
     - multiple components in one service (count>1)
     - use conceptual (foo, bar, widget, etc) catalog, not mysql
@@ -691,6 +693,15 @@ class TestMappedMultipleWorkflow(test.StubbedWorkflowBase):
                   targets:
                   - attributes://db/name
                   - encrypted-databags://app_bag/mysql/db_name
+                # Test writing into a role
+                - value: 2
+                  targets:
+                  - roles://foo-master/how-many
+                chef-roles:
+                  foo-master:
+                    recipes:
+                    - apt
+                    - foo::server
                 run-list:
                   roles:
                   - foo-master
@@ -753,9 +764,10 @@ class TestMappedMultipleWorkflow(test.StubbedWorkflowBase):
                     'Configure bar: 2 (backend)',
 
                     'Get frontend-backend values for 1',
-                    'After 1,12 run 5',
+                    'After 1,13 run 5',
                     'Collect Chef Data for 0',
                     'Write Data Bag for 0',
+                    'Write Role foo-master for 0',
                     'Configure foo: 0 (frontend)',
 
                     ]
@@ -851,7 +863,19 @@ class TestMappedMultipleWorkflow(test.StubbedWorkflowBase):
                                    'secret_file': 'certificates/chef.pem'},
                         'result': None
                     }, {
-                        # Cook foo - run recipes
+                        # Write foo-master role
+                        'call': 'checkmate.providers.opscode.local.'
+                                'manage_role',
+                        'args': ['foo-master', 'DEP-ID-1000'],
+                        'kwargs': {'merge': True,
+                                   'run_list': ['recipe[apt]',
+                                                'recipe[foo::server]'],
+                                   'override_attributes': {'how-many': 2},
+                                   'kitchen_name': 'kitchen',
+                                  },
+                        'result': None
+                    }, {
+                        # Cook foo - run using runlist
                         'call': 'checkmate.providers.opscode.solo.cook',
                         'args': ['4.4.4.4', self.deployment['id']],
                         'kwargs': And(In('password'),
@@ -861,14 +885,15 @@ class TestMappedMultipleWorkflow(test.StubbedWorkflowBase):
                                       ContainsKeyValue('roles',
                                                        ['foo-master']),
                                       ContainsKeyValue('attributes',
-                                            {
-                                            'widgets': 10,
-                                            'master': {'ip': '4.4.4.4'},
-                                            'db': {'name': 'foo-db'},
-                                            }),
+                                              {
+                                              'widgets': 10,
+                                              'master': {'ip': '4.4.4.4'},
+                                              'db': {'name': 'foo-db'},
+                                              }),
                                       ContainsKeyValue('identity_file',
-                                            '/var/tmp/%s/private.pem' %
-                                            self.deployment['id'])),
+                                              '/var/tmp/%s/private.pem' %
+                                              self.deployment['id']),
+                                      ),
                         'result': None
                     }])
             elif resource.get('type') == 'database':

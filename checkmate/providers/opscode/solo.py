@@ -174,7 +174,7 @@ class Provider(ProviderBase):
                      'host %s' %
                      (service_name, resource.get('hosted_on', key)))
 
-    def get_collect_tasks(self, wfspec, deployment, resource_key, component):
+    def get_prep_tasks(self, wfspec, deployment, resource_key, component):
         """
 
         Create (or get if they exist) tasks that collects map options
@@ -185,12 +185,19 @@ class Provider(ProviderBase):
 
         One collect task is created for each resource and marked with a
         'collect' tag.
+        If databag tasks are needed, they are marked with a 'write-databag'
+        tag.
+        If role tasks are needed, they are marked with a 'write-role' tag.
+
+        Note:
+        Only one databag with one item is currently supported per component.
+        Only opne role per component is suported now.
 
         :returns: a dict with 'root' and 'final' tasks. The tasks are linked
                   together but are not linked into the workflow
 
         """
-        # Does it exist already?
+        # Do tasks already exist?
         collect_tasks = self.find_tasks(wfspec,
                                         provider=self.key,
                                         resource=resource_key,
@@ -201,10 +208,15 @@ class Provider(ProviderBase):
                                           resource=resource_key,
                                           tag='options-ready')
             if not ready_tasks:
-                raise CheckmateException("Missing 'options-ready' task")
+                raise CheckmateException("'collect' task exists, but "
+                                         "'options-ready' is missing")
             return {'root': collect_tasks[0], 'final': ready_tasks[0]}
 
-        # Create the task
+        collect_data = None
+        write_databag = None
+        write_role = None
+
+        # Create the task data collection/map parsing task
 
         defaults = {}  # used by setting() in Jinja context to return defaults
         for key, option in component.get('options', {}).iteritems():
@@ -241,41 +253,40 @@ class Provider(ProviderBase):
                 )
         LOG.debug("Created data collection task for '%s'" % resource_key)
 
-        # Do we need to write databags?
-        databags = {}
-        for mcomponent in map_with_context.components:
-            if mcomponent['id'] == component_id:
-                for mapping in mcomponent.get('maps', []):
-                    for target in mapping.get('targets', []):
-                        uri = map_with_context.parse_map_URI(target)
-                        scheme = uri['scheme']
-                        if scheme not in ['databags', 'encrypted-databags']:
-                            continue
-                        encrypted = scheme == 'encrypted-databags'
-                        bag_name = uri['netloc']
-                        path_parts = uri['path'].strip('/').split('/')
-                        if len(path_parts) < 1:
-                            msg = ("Mapping target '%s' is invalid. It needs "
-                                   "a databag name and a databag item name")
-                            raise CheckmateValidationException(msg)
-                        item_name = path_parts[0]
+        # Create the databag writing task (if needed)
 
-                        if bag_name not in databags:
-                            databags[bag_name] = {'encrypted': encrypted,
-                                                    'items': []}
-                        if encrypted == True:
-                            databags[bag_name]['encrypted'] = True
-                        if item_name not in databags[bag_name]['items']:
-                            databags[bag_name]['items'].append(item_name)
+        databags = {}
+        for mapping in map_with_context.get_component_maps(component_id):
+            for target in mapping.get('targets', []):
+                uri = map_with_context.parse_map_URI(target)
+                scheme = uri['scheme']
+                if scheme not in ['databags', 'encrypted-databags']:
+                    continue
+                encrypted = scheme == 'encrypted-databags'
+                bag_name = uri['netloc']
+                path_parts = uri['path'].strip('/').split('/')
+                if len(path_parts) < 1:
+                    msg = ("Mapping target '%s' is invalid. It needs "
+                           "a databag name and a databag item name")
+                    raise CheckmateValidationException(msg)
+                item_name = path_parts[0]
+
+                if bag_name not in databags:
+                    databags[bag_name] = {'encrypted': encrypted,
+                                            'items': []}
+                if encrypted == True:
+                    databags[bag_name]['encrypted'] = True
+                if item_name not in databags[bag_name]['items']:
+                    databags[bag_name]['items'].append(item_name)
 
         if len(databags) == 1:
             bag_name = next(databags.iterkeys())
             items = databags[bag_name]['items']
             if len(items) > 1:
-                raise NotImplemented("Chef-solo provider does not currently "
-                                     "support more than one databag item per "
-                                     "component. '%s' has multiple items: %s"
-                                     % (bag_name, items))
+                raise NotImplementedError("Chef-solo provider does not "
+                                     "currently support more than one databag "
+                                     "item per component. '%s' has multiple "
+                                     "items: %s" % (bag_name, items))
             item_name = items[0]
             if databags[bag_name]['encrypted'] == True:
                 secret_file = 'certificates/chef.pem'
@@ -295,19 +306,90 @@ class Provider(ProviderBase):
                     defines={
                              'provider': self.key,
                              'resource': resource_key,
-                             'task_tags': ['options-ready'],
                             },
                     properties={'estimated_duration': 5}
                     )
-            write_databag.follow(collect_data)
-            return {'root': collect_data, 'final': write_databag}
 
         elif len(databags) > 1:
-            raise NotImplemented("Chef-solo provider does not currently "
-                                "support more than one databag per component")
+            raise NotImplementedError("Chef-solo provider does not currently "
+                                      "support more than one databag per "
+                                      "component")
+
+        # Create the role writing task (if needed)
+
+        roles = {}
+        for mcomponent in map_with_context.components:
+            if mcomponent['id'] == component_id:
+
+                # Collect from chef-roles
+
+                roles = mcomponent.get('chef-roles', {})
+
+                # Also run through map targets
+
+                for mapping in mcomponent.get('maps', []):
+                    for target in mapping.get('targets', []):
+                        uri = map_with_context.parse_map_URI(target)
+                        scheme = uri['scheme']
+                        if scheme != 'roles':
+                            continue
+                        role_name = uri['netloc']
+
+                        if role_name not in roles:
+                            roles[role_name] = {'create': False,
+                                                'recipes': []}
+        if len(roles) == 1:
+            role_name = next(roles.iterkeys())
+            role = roles[role_name]
+            path = 'chef_options/roles/%s' % role_name
+            run_list = None
+            recipes = role.get('recipes', [])
+            if recipes:
+                run_list = ["recipe[%s]" % r for r in recipes]
+            # FIXME: right now we create all
+            # if role['create'] == True:
+            write_role = Celery(wfspec,
+                    "Write Role %s for %s" % (role_name, resource_key),
+                    'checkmate.providers.opscode.local.manage_role',
+                    call_args=[role_name, deployment['id']],
+                    kitchen_name='kitchen',
+                    override_attributes=PathAttrib(path),
+                    run_list=run_list,
+                    merge=True,
+                    description="Take the JSON prepared earlier and write "
+                            "it into the application role. It will be "
+                            "used by the Chef recipe to access global "
+                            "data",
+                    defines={'provider': self.key, 'resource': resource_key},
+                    properties={'estimated_duration': 5},
+                    )
+        elif len(roles) > 1:
+            raise NotImplementedError("Chef-solo provider does not currently "
+                                      "support more than one role per "
+                                      "component")
+
+        # Chain the tasks: collect - >write databag -> write role
+        # databag and role don't depend on each other. They could run in
+        # parallel, but chaining them is easier for now and less tasks
+
+        result = {'root': collect_data}
+        if write_role:
+            write_role.set_property(task_tags=['options-ready'])
+            result['final'] = write_role
+            if write_databag:
+                write_databag.follow(collect_data)
+                write_role.follow(write_databag)
+            else:
+                write_role.follow(collect_data)
         else:
-            collect_data.properties['task_tags'].append('options-ready')
-            return {'root': collect_data, 'final': collect_data}
+            if write_databag:
+                write_databag.follow(collect_data)
+                write_databag.set_property(task_tags=['options-ready'])
+                result['final'] = write_databag
+            else:
+                result['final'] = collect_data
+                collect_data.properties['task_tags'].append('options-ready')
+        return result
 
     def get_resource_prepared_maps(self, resource, deployment, map_file=None):
         """Parse maps for a resource and identify paths for finding the map
@@ -368,8 +450,8 @@ class Provider(ProviderBase):
             environment = deployment.environment()
             provider = environment.get_provider(resource['provider'])
             component = provider.get_component(context, resource['component'])
-            collect_tasks = self.get_collect_tasks(wfspec, deployment, key,
-                                                   component)
+            collect_tasks = self.get_prep_tasks(wfspec, deployment, key,
+                                                component)
             wait_for(wfspec, collect_tasks['root'], tasks)
 
         if relation.get('relation') == 'host':
@@ -551,15 +633,15 @@ class ChefMap():
                 utils.write_path(output[url['scheme']], url['path'].strip('/'),
                                  value)
                 LOG.debug("Wrote to output '%s': %s" % (target, value))
-            elif url['scheme'] in ['databags', 'encrypted-databags']:
+            elif url['scheme'] in ['databags', 'encrypted-databags', 'roles']:
                 if url['scheme'] not in output:
                     output[url['scheme']] = {}
                 path = os.path.join(url['netloc'], url['path'].strip('/'))
                 utils.write_path(output[url['scheme']], path, value)
                 LOG.debug("Wrote to output '%s': %s" % (target, value))
             else:
-                raise NotImplemented("Unsupported url scheme '%s'" %
-                                     url['scheme'])
+                raise NotImplementedError("Unsupported url scheme '%s'" %
+                                          url['scheme'])
 
     @staticmethod
     def evaluate_mapping_source(mapping, data):
@@ -589,8 +671,8 @@ class ChefMap():
                 LOG.debug("Resolved mapping '%s' to '%s'" % (mapping['source'],
                           value))
             else:
-                raise NotImplemented("Unsupported url scheme '%s'" %
-                                     url['scheme'])
+                raise NotImplementedError("Unsupported url scheme '%s'" %
+                                          url['scheme'])
         elif 'value' in mapping:
             value = mapping['value']
         else:
@@ -696,7 +778,6 @@ class ChefMap():
                 if component.get('maps') or component.get('output'):
                     return True
         return False
-
 
     def has_requirement_mapping(self, component_id, requirement_key):
         for component in self.components:
