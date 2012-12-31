@@ -628,6 +628,7 @@ class TestMappedMultipleWorkflow(test.StubbedWorkflowBase):
     We're looking to test:
     - workflows with multiple service that all use map files
     - map file outputs being delivered to dependent components
+    - write to databags as well as attributes
     - multiple components in one service (count>1)
     - use conceptual (foo, bar, widget, etc) catalog, not mysql
 
@@ -688,6 +689,7 @@ class TestMappedMultipleWorkflow(test.StubbedWorkflowBase):
                 - source: requirements://database:mysql/database_name
                   targets:
                   - attributes://db/name
+                  - encrypted-databags://app_bag/mysql/db_name
             \n--- # bar component
                 id: bar
                 is: database
@@ -744,8 +746,9 @@ class TestMappedMultipleWorkflow(test.StubbedWorkflowBase):
                     'Configure bar: 2 (backend)',
 
                     'Get frontend-backend values for 1',
-                    'After 1,11 run 5',
+                    'After 1,12 run 5',
                     'Collect Chef Data for 0',
+                    'Write Data Bag for 0',
                     'Configure foo: 0 (frontend)',
 
                     ]
@@ -832,6 +835,15 @@ class TestMappedMultipleWorkflow(test.StubbedWorkflowBase):
                     }])
             elif resource.get('type') == 'application':
                 expected_calls.extend([{
+                        # Write foo databag item
+                        'call': 'checkmate.providers.opscode.solo.'
+                                'write_databag_item',
+                        'args': ['DEP-ID-1000', 'app_bag', 'mysql',
+                                 {'db_name': 'foo-db'}],
+                        'kwargs': {'merge': True,
+                                   'secret_file': 'certificates/chef.pem'},
+                        'result': None
+                    }, {
                         # Cook foo - run recipes
                         'call': 'checkmate.providers.opscode.solo.cook',
                         'args': ['4.4.4.4', self.deployment['id']],

@@ -3,6 +3,7 @@ import httplib
 import json
 import logging
 import os
+from subprocess import CalledProcessError
 import urlparse
 import yaml
 
@@ -12,7 +13,8 @@ from SpiffWorkflow.specs import Celery, TransMerge
 
 from checkmate import utils
 from checkmate.common import schema
-from checkmate.exceptions import CheckmateException
+from checkmate.exceptions import (CheckmateException,
+                                  CheckmateCalledProcessError)
 from checkmate.keys import hash_SHA512
 from checkmate.providers import ProviderBase
 from checkmate.workflows import wait_for
@@ -23,8 +25,8 @@ LOG = logging.getLogger(__name__)
 
 def register_scheme(scheme):
     '''
-    Use this to register a new scheme with urlparse and have it be parsed
-    in the same way as http is parsed
+    Use this to register a new scheme with urlparse and have it be
+    parsed in the same way as http is parsed
     '''
     for method in filter(lambda s: s.startswith('uses_'), dir(urlparse)):
         getattr(urlparse, method).append(scheme)
@@ -108,7 +110,7 @@ class Provider(ProviderBase):
             kwargs['roles'] = [name[0:-5]]  # trim the '-role'
         else:
             kwargs['recipes'] = [name]
-        LOG.debug("Component determined to be %s" % kwargs)
+        LOG.debug("Component run_list determined to be %s" % kwargs)
 
         # Create the cook task
         resource = deployment['resources'][key]
@@ -132,16 +134,11 @@ class Provider(ProviderBase):
                 properties={'estimated_duration': 100},
                 **kwargs)
 
-        if self.map_file.has_runtime_options(resource['component']):
-            collect_data = self.get_collect_task(wfspec, deployment, key,
-                                                 component)
-            configure_task.follow(collect_data)
-            anchor_task = collect_data
-        elif self.map_file.has_mappings(resource['component']):
-            collect_data = self.get_collect_task(wfspec, deployment, key,
-                                                 component)
-            configure_task.follow(collect_data)
-            anchor_task = collect_data
+        if self.map_file.has_mappings(resource['component']):
+            collect_data_tasks = self.get_collect_tasks(wfspec, deployment,
+                                                        key, component)
+            configure_task.follow(collect_data_tasks['final'])
+            anchor_task = collect_data_tasks['root']
 
         # Collect dependencies
         dependencies = [self.prep_task]
@@ -172,10 +169,10 @@ class Provider(ProviderBase):
                      'host %s' %
                      (service_name, resource.get('hosted_on', key)))
 
-    def get_collect_task(self, wfspec, deployment, resource_key, component):
+    def get_collect_tasks(self, wfspec, deployment, resource_key, component):
         """
 
-        Get (or create) a task that collects map options
+        Create (or get if they exist) tasks that collects map options
 
         The task will run its code whenever an input task completes. The code
         to pick up the actual values based on the map comes from the Transforms
@@ -184,16 +181,23 @@ class Provider(ProviderBase):
         One collect task is created for each resource and marked with a
         'collect' tag.
 
-        :returns: a TransMerge task for the resource specified in resource_key
+        :returns: a dict with 'root' and 'final' tasks. The tasks are linked
+                  together but are not linked into the workflow
 
         """
         # Does it exist already?
-        tasks = self.find_tasks(wfspec,
-                                provider=self.key,
-                                resource=resource_key,
-                                tag='collect')
-        if tasks:
-            return tasks[0]
+        collect_tasks = self.find_tasks(wfspec,
+                                        provider=self.key,
+                                        resource=resource_key,
+                                        tag='collect')
+        if collect_tasks:
+            ready_tasks = self.find_tasks(wfspec,
+                                          provider=self.key,
+                                          resource=resource_key,
+                                          tag='options-ready')
+            if not ready_tasks:
+                raise CheckmateException("Missing 'options-ready' task")
+            return {'root': collect_tasks[0], 'final': ready_tasks[0]}
 
         # Create the task
 
@@ -231,7 +235,74 @@ class Provider(ProviderBase):
                         }
                 )
         LOG.debug("Created data collection task for '%s'" % resource_key)
-        return collect_data
+
+        # Do we need to write databags?
+        databags = {}
+        for mcomponent in map_with_context.components:
+            if mcomponent['id'] == component_id:
+                for mapping in mcomponent.get('maps', []):
+                    for target in mapping.get('targets', []):
+                        uri = map_with_context.parse_map_URI(target)
+                        scheme = uri['scheme']
+                        if scheme not in ['databags', 'encrypted-databags']:
+                            continue
+                        encrypted = scheme == 'encrypted-databags'
+                        bag_name = uri['netloc']
+                        path_parts = uri['path'].strip('/').split('/')
+                        if len(path_parts) < 1:
+                            msg = ("Mapping target '%s' is invalid. It needs "
+                                   "a databag name and a databag item name")
+                            raise CheckmateValidationException(msg)
+                        item_name = path_parts[0]
+
+                        if bag_name not in databags:
+                            databags[bag_name] = {'encrypted': encrypted,
+                                                    'items': []}
+                        if encrypted == True:
+                            databags[bag_name]['encrypted'] = True
+                        if item_name not in databags[bag_name]['items']:
+                            databags[bag_name]['items'].append(item_name)
+
+        if len(databags) == 1:
+            bag_name = next(databags.iterkeys())
+            items = databags[bag_name]['items']
+            if len(items) > 1:
+                raise NotImplemented("Chef-solo provider does not currently "
+                                     "support more than one databag item per "
+                                     "component. '%s' has multiple items: %s"
+                                     % (bag_name, items))
+            item_name = items[0]
+            if databags[bag_name]['encrypted'] == True:
+                secret_file = 'certificates/chef.pem'
+                path = 'chef_options/encrypted-databags/%s/%s' % (bag_name,
+                                                                  item_name)
+            else:
+                secret_file = None
+                path = 'chef_options/databags/%s/%s' % (bag_name, item_name)
+
+            write_databag = Celery(wfspec,
+                    "Write Data Bag for %s" % resource['index'],
+                   'checkmate.providers.opscode.solo.write_databag_item',
+                    call_args=[deployment['id'], bag_name, item_name,
+                               PathAttrib(path)],
+                    secret_file=secret_file,
+                    merge=True,
+                    defines={
+                             'provider': self.key,
+                             'resource': resource_key,
+                             'task_tags': ['options-ready'],
+                            },
+                    properties={'estimated_duration': 5}
+                    )
+            write_databag.follow(collect_data)
+            return {'root': collect_data, 'final': write_databag}
+
+        elif len(databags) > 1:
+            raise NotImplemented("Chef-solo provider does not currently "
+                                "support more than one databag per component")
+        else:
+            collect_data.properties['task_tags'].append('options-ready')
+            return {'root': collect_data, 'final': collect_data}
 
     def get_resource_prepared_maps(self, resource, deployment, map_file=None):
         """Parse maps for a resource and identify paths for finding the map
@@ -252,7 +323,10 @@ class Provider(ProviderBase):
                                 if r.get('source-key') == key]
                     if relations:
                         target = relations[0]['target']
-                        mapping['path'] = 'instance:%s/instance/interfaces/%s' % (target, relations[0]['interface'])
+                        mapping['path'] = ('instance:%s/instance/interfaces/%s'
+                                           % (target,
+                                              relations[0]['interface'])
+                                          )
 
         return maps
 
@@ -289,9 +363,9 @@ class Provider(ProviderBase):
             environment = deployment.environment()
             provider = environment.get_provider(resource['provider'])
             component = provider.get_component(context, resource['component'])
-            collect_task = self.get_collect_task(wfspec, deployment, key,
-                                                 component)
-            wait_for(wfspec, collect_task, tasks)
+            collect_tasks = self.get_collect_tasks(wfspec, deployment, key,
+                                                   component)
+            wait_for(wfspec, collect_tasks['root'], tasks)
 
         if relation.get('relation') == 'host':
             # Wait on host to be ready
@@ -472,6 +546,12 @@ class ChefMap():
                 utils.write_path(output[url['scheme']], url['path'].strip('/'),
                                  value)
                 LOG.debug("Wrote to output '%s': %s" % (target, value))
+            elif url['scheme'] in ['databags', 'encrypted-databags']:
+                if url['scheme'] not in output:
+                    output[url['scheme']] = {}
+                path = os.path.join(url['netloc'], url['path'].strip('/'))
+                utils.write_path(output[url['scheme']], path, value)
+                LOG.debug("Wrote to output '%s': %s" % (target, value))
             else:
                 raise NotImplemented("Unsupported url scheme '%s'" %
                                      url['scheme'])
@@ -496,9 +576,10 @@ class ChefMap():
                 try:
                     value = utils.read_path(data, os.path.join(path,
                                             url['path']))
-                except (KeyError, TypeError):
+                except (KeyError, TypeError) as exc:
                     LOG.debug("'%s' not yet available at '%s': %s" % (
-                              mapping['source'], path, exc), extra={'data': data})
+                              mapping['source'], path, exc),
+                              extra={'data': data})
                     raise CheckmateNotReady("Not ready")
                 LOG.debug("Resolved mapping '%s' to '%s'" % (mapping['source'],
                           value))
@@ -852,3 +933,104 @@ def cook(host, environment, recipes=None, roles=None, path=None,
     if port:
         params.extend(['-p', str(port)])
     local._run_kitchen_command(kitchen_path, params)
+
+
+@task
+def write_databag_item(environment, bagname, itemname, contents, path=None,
+                   secret_file=None, merge=True):
+    """
+
+    Creates/Updates a data_bag or encrypted_data_bag
+
+    :param environment: the ID of the environment
+    :param bagname: the name of the databag (in solo, this ends up being a
+            directory)
+    :param item: the name of the item (in solo this ends up being a .json file)
+    :param contents: this is a dict of attributes to write in to the databag
+    :param path: optional override to the default path where environments live
+    :param secret_file: the path to a certificate used to encrypt a data_bag
+    :param merge: if True, the data will be merged in. If not, it will be
+            completely overwritten
+
+    """
+    utils.match_celery_logging(LOG)
+    root = local._get_root_environments_path(path)
+    kitchen_path = os.path.join(root, environment, 'kitchen')
+    databags_root = os.path.join(kitchen_path, 'data_bags')
+    if not os.path.exists(databags_root):
+        raise CheckmateException("Data bags path does not exist: %s" %
+                databags_root)
+
+    # Check if the bag already exists (create it if not)
+    config_file = os.path.join(kitchen_path, 'solo.rb')
+    params = ['knife', 'solo', 'data', 'bag', 'list', '-F', 'json',
+              '-c', config_file]
+    data_bags = local._run_kitchen_command(kitchen_path, params)
+    if data_bags:
+        data_bags = json.loads(data_bags)
+    if bagname not in data_bags:
+        merge = False  # Nothing to merge if it is new!
+        local._run_kitchen_command(kitchen_path, ['knife', 'solo', 'data',
+                                   'bag', 'create', bagname, '-c',
+                                    config_file])
+        LOG.debug("Created data bag '%s' in '%s'" % (bagname, databags_root))
+
+    # Check if the item already exists (create it if not)
+    params = ['knife', 'solo', 'data', 'bag', 'show', bagname, '-F', 'json',
+              '-c', config_file]
+    existing_contents = local._run_kitchen_command(kitchen_path, params)
+    if existing_contents:
+        existing_contents = json.loads(existing_contents)
+    if itemname not in existing_contents:
+        merge = False  # Nothing to merge if it is new!
+
+    # Write contents
+    if merge:
+        params = ['knife', 'solo', 'data', 'bag', 'show', bagname, itemname,
+            '-F', 'json', '-c', config_file]
+        if secret_file:
+            params.extend(['--secret-file', secret_file])
+
+        lock = threading.Lock()
+        lock.acquire()
+        try:
+            data = local._run_kitchen_command(kitchen_path, params)
+            existing = json.loads(data)
+            contents = merge_dictionary(existing, contents)
+            if isinstance(contents, dict):
+                contents = json.dumps(contents)
+            params = ['knife', 'solo', 'data', 'bag', 'create', bagname,
+                      itemname, '-c', config_file, '-d', '--json', contents]
+            if secret_file:
+                params.extend(['--secret-file', secret_file])
+            result = local._run_kitchen_command(kitchen_path, params,
+                                                lock=False)
+        except CalledProcessError, exc:
+            # Reraise pickleable exception
+            raise CheckmateCalledProcessError(exc.returncode, exc.cmd,
+                    output=exc.output)
+        finally:
+            lock.release()
+        LOG.debug(result)
+    else:
+        if contents:
+            if 'id' not in contents:
+                contents['id'] = itemname
+            elif contents['id'] != itemname:
+                raise CheckmateException("The value of the 'id' field in a "
+                        "databag item is reserved by Chef and must be set to "
+                        "the name of the databag item. Checkmate will set "
+                        "this for you if it is missing, but the data you "
+                        "supplied included an ID that did not match the "
+                        "databag item name. The ID was '%s' and the databg "
+                        "item name was '%s'" % (contents['id'], itemname))
+            if isinstance(contents, dict):
+                contents = json.dumps(contents)
+            params = ['knife', 'solo', 'data', 'bag', 'create', bagname,
+                       itemname, '-d', '-c', config_file, '--json', contents]
+            if secret_file:
+                params.extend(['--secret-file', secret_file])
+            result = local._run_kitchen_command(kitchen_path, params)
+            LOG.debug(result)
+        else:
+            LOG.warning("write_databag_item was called with no contents")
