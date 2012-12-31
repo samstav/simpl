@@ -35,7 +35,8 @@ def register_scheme(scheme):
 register_scheme('git')  # without this, urlparse won't handle git:// correctly
 
 
-class CheckmateNotReady(CheckmateException):
+class SoloProviderNotReady(CheckmateException):
+    """Expected data are not yet available"""
     pass
 
 
@@ -571,7 +572,8 @@ class Transforms():
     @staticmethod  # self will actually be a SpiffWorkflow.TaskSpec
     def collect_options(self, my_task):
         """Collect and write run-time options"""
-        from checkmate.providers.opscode.solo import ChefMap, CheckmateNotReady
+        from checkmate.providers.opscode.solo import (ChefMap,
+                                                      SoloProviderNotReady)
         maps = self.get_property('chef_maps')
         data = my_task.attributes
         queue = []
@@ -580,7 +582,7 @@ class Transforms():
                 result = ChefMap.evaluate_mapping_source(mapping, data)
                 if result:
                     queue.append((mapping, result))
-            except CheckmateNotReady:
+            except SoloProviderNotReady:
                 return False  # false means not done
         results = {}
         for mapping, result in queue:
@@ -648,7 +650,7 @@ class ChefMap():
         """
         Returns the mapping source value
 
-        Raises a CheckmateNotReady exception if the source is not yet available
+        Raises a SoloProviderNotReady exception if the source is not yet available
 
         :param mapping: the mapping to resolved
         :param data: the data to read from
@@ -667,7 +669,7 @@ class ChefMap():
                     LOG.debug("'%s' not yet available at '%s': %s" % (
                               mapping['source'], path, exc),
                               extra={'data': data})
-                    raise CheckmateNotReady("Not ready")
+                    raise SoloProviderNotReady("Not ready")
                 LOG.debug("Resolved mapping '%s' to '%s'" % (mapping['source'],
                           value))
             else:
@@ -803,7 +805,7 @@ class ChefMap():
                         value = None
                         try:
                             value = self.evaluate_mapping_source(m, deployment)
-                        except CheckmateNotReady:
+                        except SoloProviderNotReady:
                             LOG.debug("Map not ready yet: " % m)
                             continue
                         if value:

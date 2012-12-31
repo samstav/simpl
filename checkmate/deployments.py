@@ -390,9 +390,6 @@ def plan(deployment, context):
     if resources:
         deployment['resources'] = resources
 
-    # Save plan details for future rehydration/use
-    deployment['plan'] = planner._data  # get the dict so we can serialize it
-
     # Link resources to services
     # TODO: remove this. We don't need to (shouldn't) write into the blueprint
     for index, resource in resources.iteritems():

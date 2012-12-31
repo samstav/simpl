@@ -135,7 +135,6 @@ class TestDeploymentParser(unittest.TestCase):
                     'name': 'environment',
                     'providers': {},
                     },
-                'plan': {'services': {}},
                 }
         original = copy.copy(deployment)
         parsed = plan(Deployment(deployment), RequestContext())
