@@ -930,16 +930,14 @@ class ChefMap():
 
         def parse_url(value):
             """
+
             Parse a url into its components.
 
-            Example:
-            The template '{{ root|prepend('/')}}/path';
-            Called with root undefined renders:
-                /path
-            Called with root defined as 'root' renders:
-                /root/path
+            returns a blank URL if none provided to make this a safe function
+            to call from within a Jinja template which will generally not cause
+            exceptions and wqill always return a url object
             """
-            return urlparse.urlparse(value)
+            return urlparse.urlparse(value or '')
         env.globals['parse_url'] = parse_url
         deployment = kwargs.get('deployment')
         resource = kwargs.get('resource')
@@ -950,12 +948,12 @@ class ChefMap():
                         resource_type=resource['type'],
                         provider_key=resource['provider'],
                         service_name=resource['service'],
-                        default=defaults.get(setting_name))
+                        default=defaults.get(setting_name, ''))
             else:
                 fxn = lambda setting_name: deployment.get_setting(setting_name,
-                        default=defaults.get(setting_name))
+                        default=defaults.get(setting_name, ''))
         else:
-            fxn = lambda setting_name: defaults.get(setting_name)  # also noop
+            fxn = lambda setting_name: defaults.get(setting_name, '')  # also noop
         env.globals['setting'] = fxn
         env.globals['hash'] = hash_SHA512
 
