@@ -965,7 +965,16 @@ class ChefMap():
                           'clients': [],
                           }
         minimum_kwargs.update(kwargs)
-        return template.render(**minimum_kwargs)
+
+        try:
+            result = template.render(**minimum_kwargs)
+            #TODO: exceptions in Jinja template sometimes missing traceback
+        except StandardError as exc:
+            raise CheckmateException("Chef template rendering failed: %s" %
+                                     exc)
+        except TemplateError as exc:
+            raise CheckmateException("Chef template had an error: %s" % exc)
+        return result
 
 #
 # Celery Tasks
