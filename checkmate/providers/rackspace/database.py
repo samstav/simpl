@@ -273,6 +273,8 @@ class Provider(ProviderBase):
                     } for f in flavors}
 
         self.validate_catalog(results)
+        if type_filter is None:
+            self._dict['catalog'] = results
         return results
 
     def evaluate(self, function_string):
