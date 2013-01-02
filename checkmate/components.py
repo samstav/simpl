@@ -174,6 +174,16 @@ class Component(ExtensibleDict):
                     raise CheckmateValidationException("Provides has invalid "
                                                        "format: " % entry)
             results = expanded_results
+        if isinstance(results, dict):
+            for value in results.values():
+                if 'type' in value:
+                    if 'resource_type' in value:
+                        msg = ("Component has both type and resource_type "
+                               "specified in its provides section")
+                        raise CheckmateValidationException(msg)
+                    value['resource_type'] = value['type']
+                    del value['type']
+                    break
         return results
 
     @property
@@ -199,4 +209,14 @@ class Component(ExtensibleDict):
                     raise CheckmateValidationException("Requires has invalid "
                                                        "format: " % entry)
             results = expanded_results
+        if isinstance(results, dict):
+            for value in results.values():
+                if 'type' in value:
+                    if 'resource_type' in value:
+                        msg = ("Component has both type and resource_type "
+                               "specified in its requires section")
+                        raise CheckmateValidationException(msg)
+                    value['resource_type'] = value['type']
+                    del value['type']
+                    break
         return results
