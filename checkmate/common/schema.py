@@ -144,6 +144,7 @@ INTERFACE_SCHEMA = yaml_to_dict("""
       dns_udp:
       dns_tcp:
       rdp:
+      ssh:
       udp:
       udp_stream:
       tcp_client_first:
