@@ -1,3 +1,4 @@
+import copy
 import logging
 
 from SpiffWorkflow.operators import PathAttrib
@@ -200,43 +201,60 @@ class Provider(ProviderBase):
             results['lists']['regions'] = regions
 
         if type_filter is None or type_filter == 'load-balancer':
-            protocols = api.get_protocols()
-            # add our custom protocol for handling both http and https on same vip
-            # TODO: add support for arbitrary combinations of secure and unsecure
-            #       protocols (ftp/ftps for example)
-            if not "http_and_https" in protocols:
-                protocols.extend(["http_and_https"])
             algorithms = api.get_algorithms()
             options = {
-                'algorithm':{
-                    'type': 'list', 
+                'algorithm': {
+                    'type': 'list',
                     'choice': algorithms
                 },
-                'create_dns':{
+                'create_dns': {
                     'type': 'boolean',
-                    'default': 'false'
+                    'default': False
                 }
              }
-            options.update({'protocol':{'type':'list', 'choice': [p.lower() for p in protocols]}})
-            
-            results['load-balancer'] = {
-                "rsCloudLB": {
+
+            if 'load-balancer' not in results:
+                results['load-balancer'] = {}
+
+            # provide list of available load balancer types
+
+            protocols = api.get_protocols()
+            protocols = [p.lower() for p in protocols]
+            for protocol in protocols:
+                item = {
+                        'id': protocol,
+                        'is': 'load-balancer',
+                        'provides': [{'load-balancer': protocol}],
+                        #FIXME: we don't need to call this the name of a valid,
+                        #resource type, but until we get the key'd requires
+                        #code in, this stops it failing alidation.
+                        'requires': [{"application": {'interface': protocol}}],
+                        'options': copy.copy(options),
+                    }
+                results['load-balancer'][protocol] = item
+
+            # provide abstracted 'proxy' load-balancer type
+
+            # add our custom protocol for handling both http and https on same
+            # vip
+            # TODO: add support for arbitrary combinations of secure and
+            #       unsecure protocols (ftp/ftps for example)
+            if not "http_and_https" in protocols:
+                protocols.extend(["http_and_https"])
+            protocol_option = {
+                               'protocol':
+                                    {
+                                        'type': 'list',
+                                        'choice': protocols,
+                                    }
+                              }
+            options.update(protocol_option)
+            results['load-balancer']['rsCloudLB'] = {
                     'id': 'rsCloudLB',
                     'is': 'load-balancer',
-                    'provides': [{'load-balancer':'proxy'}],
+                    'provides': [{'load-balancer': 'proxy'}],
                     'options': options
                 }
-            }
-#            items = {}
-#            for protocol in protocols:
-#                item = {
-#                        'id': protocol.lower(),
-#                        'is': 'load-balancer',
-#                        'provides': [{'load-balancer': protocol.lower()}],
-#                        'options': options,
-#                    }
-#                items[protocol.lower()] = item
-#            results['load-balancer'] = items
 
         self.validate_catalog(results)
         if type_filter is None:
