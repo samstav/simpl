@@ -6,7 +6,8 @@ import os
 from subprocess import CalledProcessError
 import urlparse
 
-from jinja2 import Environment, DictLoader
+from jinja2 import DictLoader, TemplateError
+from jinja2.sandbox import ImmutableSandboxedEnvironment
 from SpiffWorkflow.operators import Attrib, PathAttrib
 from SpiffWorkflow.specs import Celery, TransMerge
 import yaml
@@ -905,7 +906,8 @@ class ChefMap():
         :param kwargs: extra arguments are passed to the renderer
 
         """
-        env = Environment(loader=DictLoader({'template': template}))
+        template_map = {'template': template}
+        env = ImmutableSandboxedEnvironment(loader=DictLoader(template_map))
 
         def do_prepend(value, param='/'):
             """
