@@ -747,7 +747,6 @@ class TestMappedMultipleWorkflow(test.StubbedWorkflowBase):
         workflow = create_workflow_deploy(self.deployment, context)
         collect_task = workflow.spec.task_specs['Collect Chef Data for 0']
         ancestors = collect_task.ancestors()
-        # inputs = collect_task.inputs
         host_done = workflow.spec.task_specs['Configure bar: 2 (backend)']
         self.assertIn(host_done, ancestors)
         task_list = workflow.spec.task_specs.keys()
@@ -763,8 +762,6 @@ class TestMappedMultipleWorkflow(test.StubbedWorkflowBase):
                     'Collect Chef Data for 2',
                     'Configure bar: 2 (backend)',
 
-                    'Get frontend-backend values for 1',
-                    'After 1,13 run 5',
                     'Collect Chef Data for 0',
                     'Write Data Bag for 0',
                     'Write Role foo-master for 0',

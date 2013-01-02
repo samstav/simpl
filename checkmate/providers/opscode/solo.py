@@ -397,8 +397,18 @@ class Provider(ProviderBase):
         return result
 
     def get_resource_prepared_maps(self, resource, deployment, map_file=None):
-        """Parse maps for a resource and identify paths for finding the map
-        data"""
+        """
+
+        Parse maps for a resource and identify paths for finding the map
+        data
+
+        By looking at a requirementsuirement's key and finding the relations
+        that satisfy that key (using the source-key attribute) and that have a
+        'target' attribute, we can identify the resource we need to get the
+        data from and provide the path to that resource as a hint to the
+        TransMerge task
+
+        """
         if map_file is None:
             map_file = self.map_file
 
@@ -412,14 +422,15 @@ class Provider(ProviderBase):
                 if url['scheme'] == 'requirements':
                     key = url['netloc']
                     relations = [r for r in resource['relations'].values()
-                                if r.get('source-key') == key]
+                                if (r.get('source-key') == key and
+                                    'target' in r)
+                                ]
                     if relations:
                         target = relations[0]['target']
                         mapping['path'] = ('instance:%s/instance/interfaces/%s'
                                            % (target,
                                               relations[0]['interface'])
                                           )
-
         return maps
 
     def _hash_all_user_resource_passwords(self, deployment):
@@ -644,13 +655,13 @@ class ChefMap():
                     output[url['scheme']] = {}
                 utils.write_path(output[url['scheme']], url['path'].strip('/'),
                                  value)
-                LOG.debug("Wrote to output '%s': %s" % (target, value))
+                LOG.debug("Wrote to target '%s': %s" % (target, value))
             elif url['scheme'] in ['databags', 'encrypted-databags', 'roles']:
                 if url['scheme'] not in output:
                     output[url['scheme']] = {}
                 path = os.path.join(url['netloc'], url['path'].strip('/'))
                 utils.write_path(output[url['scheme']], path, value)
-                LOG.debug("Wrote to output '%s': %s" % (target, value))
+                LOG.debug("Wrote to target '%s': %s" % (target, value))
             else:
                 raise NotImplementedError("Unsupported url scheme '%s'" %
                                           url['scheme'])
