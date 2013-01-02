@@ -19,8 +19,9 @@ import uuid
 from bottle import abort, request
 import yaml
 from yaml.events import AliasEvent, ScalarEvent
-from yaml.parser import ParserError
 from yaml.composer import ComposerError
+from yaml.scanner import ScannerError
+from yaml.parser import ParserError
 import argparse
 
 from checkmate.exceptions import CheckmateNoData, CheckmateValidationException
@@ -184,7 +185,7 @@ def read_body(request):
     if content_type == 'application/x-yaml':
         try:
             return yaml_to_dict(data)
-        except ParserError as exc:
+        except (ParserError, ScannerError) as exc:
             raise CheckmateValidationException("Invalid YAML syntax. "
                                                "Check:\n%s" % exc)
         except ComposerError as exc:
