@@ -329,6 +329,8 @@ class Provider(RackspaceComputeProviderBase):
                         } for i in images if False}
 
         self.validate_catalog(results)
+        if type_filter is None:
+            self._dict['catalog'] = results
         return results
 
     @staticmethod
