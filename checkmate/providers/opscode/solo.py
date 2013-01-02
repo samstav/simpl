@@ -318,7 +318,8 @@ class Provider(ProviderBase):
         elif len(databags) > 1:
             raise NotImplementedError("Chef-solo provider does not currently "
                                       "support more than one databag per "
-                                      "component")
+                                      "component. Databags requested: %s" %
+                                      databags.keys())
 
         # Create the role writing task (if needed)
 
@@ -663,8 +664,8 @@ class ChefMap():
                 utils.write_path(output[url['scheme']], path, value)
                 LOG.debug("Wrote to target '%s': %s" % (target, value))
             else:
-                raise NotImplementedError("Unsupported url scheme '%s'" %
-                                          url['scheme'])
+                raise NotImplementedError("Unsupported url scheme '%s' in url "
+                                          "'%s'" % (url['scheme'], target))
 
     @staticmethod
     def evaluate_mapping_source(mapping, data):
@@ -694,8 +695,9 @@ class ChefMap():
                 LOG.debug("Resolved mapping '%s' to '%s'" % (mapping['source'],
                           value))
             else:
-                raise NotImplementedError("Unsupported url scheme '%s'" %
-                                          url['scheme'])
+                raise NotImplementedError("Unsupported url scheme '%s' in url "
+                                          "'%s'" % (url['scheme'],
+                                          mapping['source']))
         elif 'value' in mapping:
             value = mapping['value']
         else:
