@@ -312,9 +312,14 @@ class ProviderBase(ProviderBasePlanningMixIn, ProviderBaseWorkflowMixIn):
         :param context: a RequestContext that has a security information
         :param type_filter: which type of resource to filter by
         :return_type: dict"""
+        result = {}
         if 'catalog' in self._dict:
-            return self._dict['catalog']
-        return {}
+            catalog = self._dict['catalog']
+            if type_filter and type_filter in catalog:
+                result = {type_filter: catalog[type_filter]}
+            else:
+                result = self._dict['catalog']
+        return result
 
     def validate_catalog(self, catalog):
         errors = schema.validate_catalog(catalog)
