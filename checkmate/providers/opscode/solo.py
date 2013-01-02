@@ -5,11 +5,14 @@ import logging
 import os
 from subprocess import CalledProcessError
 import urlparse
-import yaml
 
 from jinja2 import Environment, DictLoader
 from SpiffWorkflow.operators import Attrib, PathAttrib
 from SpiffWorkflow.specs import Celery, TransMerge
+import yaml
+from yaml.composer import ComposerError
+from yaml.parser import ParserError
+from yaml.scanner import ScannerError
 
 from checkmate import utils
 from checkmate.common import schema
@@ -557,6 +560,12 @@ class Provider(ProviderBase):
         except ValueError:
             msg = 'Catalog source did not return parsable content'
             raise CheckmateException(msg)
+        except (ParserError, ScannerError) as exc:
+            raise CheckmateValidationException("Invalid YAML syntax in "
+                                               "Chefmap. Check:\n%s" % exc)
+        except ComposerError as exc:
+            raise CheckmateValidationException("Invalid YAML structure in "
+                                               "Chefmap. Check:\n%s" % exc)
         return catalog
 
 
@@ -770,8 +779,16 @@ class ChefMap():
     @property
     def components(self):
         """The components in the map file"""
-        return (c for c in yaml.safe_load_all(self.parsed)
-                if 'id' in c)
+        try:
+            result = [c for c in yaml.safe_load_all(self.parsed)
+                if 'id' in c]
+        except (ParserError, ScannerError) as exc:
+            raise CheckmateValidationException("Invalid YAML syntax in "
+                                               "Chefmap. Check:\n%s" % exc)
+        except ComposerError as exc:
+            raise CheckmateValidationException("Invalid YAML structure in "
+                                               "Chefmap. Check:\n%s" % exc)
+        return result
 
     def has_mappings(self, component_id):
         """Does the map file have any mappings for this component"""
