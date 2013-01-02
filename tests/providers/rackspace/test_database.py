@@ -173,13 +173,13 @@ class TestDBWorkflow(StubbedWorkflowBase):
                       constraints:
                       - region: DFW
                       catalog:  # override so we don't need a token to connect
-                        database:
+                        compute:
                           mysql_instance:
                             id: mysql_instance
                             is: compute
                             provides:
                             - compute: mysql
-                        compute:
+                        database:
                           mysql_database:
                             id: mysql_database
                             is: database
