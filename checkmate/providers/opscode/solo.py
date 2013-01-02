@@ -731,14 +731,17 @@ class ChefMap():
         """Calculates the raw URL for a file based off a source repo"""
         source_repo, ref = urlparse.urldefrag(source)
         url = urlparse.urlparse(source_repo)
-        if url.path.endswith('.git'):
-            repo_path = url.path[:-4]
+        if url.scheme == 'file':
+            result = os.path.join(source_repo, path)
         else:
-            repo_path = url.path
-        scheme = url.scheme if url.scheme != 'git' else 'https'
-        full_path = os.path.join(repo_path, 'raw', ref or 'master', path)
-        result = urlparse.urlunparse((scheme, url.netloc, full_path,
-                                      url.params, url.query, url.fragment))
+            if url.path.endswith('.git'):
+                repo_path = url.path[:-4]
+            else:
+                repo_path = url.path
+            scheme = url.scheme if url.scheme != 'git' else 'https'
+            full_path = os.path.join(repo_path, 'raw', ref or 'master', path)
+            result = urlparse.urlunparse((scheme, url.netloc, full_path,
+                                          url.params, url.query, url.fragment))
         return result
 
     def get_remote_map_file(self):
@@ -748,6 +751,15 @@ class ChefMap():
         if url.scheme == 'https':
             http_class = httplib.HTTPSConnection
             port = url.port or 443
+        elif url.scheme == 'file':
+            try:
+                with file(url.path, 'r') as f:
+                    body = f.read()
+            except StandardError as exc:
+                raise CheckmateException("Map file could not be retrieved "
+                                     "from '%s'. The error returned was '%s'" %
+                                     (target_url, exc))
+            return body
         else:
             http_class = httplib.HTTPConnection
             port = url.port or 80
