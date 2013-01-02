@@ -120,7 +120,7 @@ if '--trace-calls' in sys.argv or '-t' in sys.argv:
             filename.endswith(".pyo")):
             filename = filename[:-1]
         line = linecache.getline(filename, line_no)
-        name = frame.f_globals["__name__"]
+        name = frame.f_globals.get("__name__")
         sys.stdout.write('%s%s    %s:%s: %s%s\n' %
                          (ConsoleColors.HEADER, '  ' * STACK_DEPTH, name,
                           line_no, line.rstrip(), ConsoleColors.ENDC))
