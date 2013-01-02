@@ -574,7 +574,7 @@ class TestComponentSearch(unittest.TestCase):
                       catalog:
                         widget:
                           small_widget:
-                            roles: 
+                            roles:
                             - web
                             - master
                             is: widget
@@ -1279,6 +1279,8 @@ class TestDeploymentPlanning(unittest.TestCase):
                             is: widget
                             provides:
                             - widget: foo
+                            requires:
+                            - host: linux
                           bar_widget:
                             is: widget
                             provides:
@@ -1289,6 +1291,10 @@ class TestDeploymentPlanning(unittest.TestCase):
                             is: gadget
                             provides:
                             - gadget: mysql
+                          linux_instance:
+                            is: compute
+                            provides:
+                            - compute: linux
             """))
 
         base.PROVIDER_CLASSES['test.base'] = ProviderBase
@@ -1335,6 +1341,10 @@ class TestDeploymentPlanning(unittest.TestCase):
                         }
                     }
         self.assertDictEqual(recursive['requires']['gadget:mysql'], expected)
+
+        host = planner.resources['3']
+        self.assertNotIn('relations', host, msg="Host is not supposed to have "
+                                                "any relations but host")
 
     def test_relation_names(self):
         """Test the Plan() class handles relation naming correctly"""

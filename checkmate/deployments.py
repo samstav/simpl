@@ -768,7 +768,9 @@ class Plan(ExtensibleDict):
             service_analysis = self['services'][service_name]
             definition = service_analysis['component']
             resource_keys = [k for (k, v) in resources.iteritems()
-                             if v['service'] == service_name]
+                             if (v['service'] == service_name and
+                                 v['component'] == definition['id'])
+                            ]
 
             for resource_key in resource_keys:
                 resource = resources[resource_key]
@@ -782,9 +784,11 @@ class Plan(ExtensibleDict):
                     LOG.debug("    Processing external requirement '%s' for '%s'"
                               % (key,  definition['id']))
                     target_service = self['services'][req_info['service']]
-                    target_keys = [k for (k, v) in resources.iteritems()
-                                   if v['service'] == req_info['service']]
                     dep_definition = target_service['component']
+                    target_keys = [k for (k, v) in resources.iteritems()
+                                   if (v['service'] == req_info['service'] and
+                                       v['component'] == dep_definition['id'])
+                                  ]
 
                     if requirement.get('relation', 'reference') == 'host':
                         # FIXME: workflows look for hard coded name instead of
