@@ -552,11 +552,15 @@ class Plan(ExtensibleDict):
           id: {component_id}:
           provider: {key}
           requires:
-            key:
-              ...
+            {key}:
+              satisfied-by:
+                ...
           provides:
             key:
               ...
+          connections:
+            {key}:
+              target | source: {service}
     ```
 
     Each `requires` entry gets a `satisfied-by` entry.
@@ -620,7 +624,6 @@ class Plan(ExtensibleDict):
         blueprint = self.blueprint
         environment = self.environment
         resources = self.resources
-        connections = self.connections
         services = blueprint.get('services', {})
 
         # counter we increment and use as a new resource key
@@ -760,7 +763,7 @@ class Plan(ExtensibleDict):
                         dep_resource['relations'][name] = relation
 
                         #TODO: this is just copied in for legacy compatibility
-                        connections[name] = dict(interface=relation['interface'])
+                        self.connections[name] = dict(interface=relation['interface'])
 
         LOG.debug("Add connections between services")
         for service_name, service in services.iteritems():
@@ -873,7 +876,7 @@ class Plan(ExtensibleDict):
                             target_resource['relations'][name] = relation
 
                             #TODO: this is just copied in for legacy compatibility
-                            connections[name] = dict(interface=relation['interface'])
+                            self.connections[name] = dict(interface=relation['interface'])
 
         # Generate static resources
         LOG.debug("Prepare static resources")
@@ -952,8 +955,8 @@ class Plan(ExtensibleDict):
             Resource.validate(result)
 
         #Write resources and connections to deployment
-        if connections:
-            resources['connections'] = connections
+        if self.connections:
+            resources['connections'] = self.connections
 
     def add_resource(self, resource):
         """Add a resource to the list of resources to be created"""
@@ -1020,14 +1023,45 @@ class Plan(ExtensibleDict):
                           rel_key, source_match))
                 target = self['services'][rel['service']]['component']
                 requirement = source['requires'][source_match]
-                self._satisfy_requirement(requirement, rel_key, target,
-                                          rel['service'], name=rel_key,
-                                          relation_key=rel_key)
-                #FIXME: part of v0.2 features to be removed
-                if 'attribute' in relation:
-                    LOG.warning("Using v0.2 feature")
-                    requirement['satisfied-by']['attribute'] = \
-                            relation['attribute']
+                if 'satisfied-by' not in requirement:
+                    self._satisfy_requirement(requirement, rel_key, target,
+                                              rel['service'], name=rel_key,
+                                              relation_key=rel_key)
+                    #FIXME: part of v0.2 features to be removed
+                    if 'attribute' in relation:
+                        LOG.warning("Using v0.2 feature")
+                        requirement['satisfied-by']['attribute'] = \
+                                relation['attribute']
+
+                # Write to source connections
+
+                definition = self['services'][service_name]['component']
+                if 'connections' not in definition:
+                    definition['connections'] = {}
+                connections = definition['connections']
+                if rel_key not in connections:
+                    info = {
+                            'direction': 'outbound',
+                            'service': rel['service'],
+                            'endpoint': source_match,
+                            'interface': rel['interface'],
+                            }
+                    connections[rel_key] = info
+
+                # Write to target connections
+
+                if 'connections' not in target:
+                    target['connections'] = {}
+                connections = target['connections']
+                if rel_key not in connections:
+                    info = {
+                            'direction': 'inbound',
+                            'service': service_name,
+                            'interface': rel['interface'],
+                            'endpoint': self._match_relation_target(rel, target)
+                            }
+                    connections[rel_key] = info
+
         LOG.debug("All relations successfully matched with target services")
 
     def resolve_remaining_requirements(self, context):
