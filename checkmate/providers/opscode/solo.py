@@ -134,7 +134,6 @@ class Provider(ProviderBase):
                         deployment['id']],
                 password=PathAttrib('instance:%s/password' %
                         resource.get('hosted_on', key)),
-                kitchen_name='kitchen',
                 attributes=PathAttrib('chef_options/attributes'),
                 identity_file=Attrib('private_key_path'),
                 description="Push and apply Chef recipes on the server",
