@@ -593,7 +593,6 @@ class TestComponentSearch(unittest.TestCase):
                 'small_widget')
 
 
-
 class TestDeploymentSettings(unittest.TestCase):
 
     def test_get_setting(self):
@@ -1198,7 +1197,7 @@ class TestDeploymentPlanning(unittest.TestCase):
                         'relation-key': 'main-explicit',
                         'service': 'explicit',
                         'component': 'foo_widget',
-                        'target': 'widget:foo',
+                        'provides-key': 'widget:foo',
                         }
                     }
         self.assertDictEqual(widget_foo, expected)
@@ -1247,6 +1246,95 @@ class TestDeploymentPlanning(unittest.TestCase):
         planner = Plan(deployment)
         self.assertRaises(CheckmateValidationException, planner.plan,
                           RequestContext())
+
+    def test_resolve_relations_multiple(self):
+        """Test that all relations are generated"""
+        deployment = Deployment(yaml_to_dict("""
+                id: test
+                blueprint:
+                  name: test bp
+                  services:
+                    balanced:
+                      component:
+                        id: balancer_widget
+                      relations:
+                        master: foo
+                        slave: foo
+                    master:
+                      component:
+                        resource_type: widget
+                        interface: foo
+                    slave:
+                      component:
+                        resource_type: widget
+                        interface: foo
+                        constraints:
+                        - count: 2
+                      relations:
+                        "allyourbase":
+                          service: back
+                          interface: bar
+                    back:
+                      component:
+                        type: widget
+                        interface: bar
+                environment:
+                  name: environment
+                  providers:
+                    base:
+                      vendor: test
+                      catalog:
+                        widget:
+                          balancer_widget:
+                            is: widget
+                            requires:
+                            - widget: foo
+                          web_widget:
+                            is: widget
+                            requires:
+                            - widget: bar
+                            provides:
+                            - widget: foo
+                          data_widget:
+                            is: widget
+                            provides:
+                            - widget: bar
+                            requires:
+                            - host: windows
+                          compute_widget:
+                            is: compute
+                            provides:
+                            - compute: windows
+            """))
+
+        base.PROVIDER_CLASSES['test.base'] = ProviderBase
+
+        planner = Plan(deployment)
+        planner.plan(RequestContext())
+
+        resources = {key: [] for key in planner['services'].keys()}
+        for key, resource in planner.resources.iteritems():
+            if key != 'connections':
+                resources[resource['service']].append(resource)
+
+        expect = "Expecting one 'back' resource"
+        self.assertEqual(len(resources['back']), 2, msg=expect)
+        back = resources['back'][0]
+        back_host = resources['back'][1]
+        if back['type'] != 'widget':
+            back, back_host = back_host, back
+
+        expect = "Expecting two 'slave' resources"
+        self.assertEqual(len(resources['slave']), 2, msg=expect)
+        slave1 = resources['slave'][0]
+        slave2 = resources['slave'][1]
+
+        expect = "Expecting connections from all 'front' resources to 'back'"
+        self.assertIn('relations', back)
+        self.assertIn('allyourbase-%s' % slave1['index'], back['relations'],
+                      msg=expect)
+        self.assertIn('allyourbase-%s' % slave2['index'], back['relations'],
+                      msg=expect)
 
     def test_resolve_requirements(self):
         """Test the Plan() class can resolve all requirements"""
@@ -1312,7 +1400,7 @@ class TestDeploymentPlanning(unittest.TestCase):
                         'relation-key': 'main-explicit',
                         'service': 'explicit',
                         'component': 'foo_widget',
-                        'target': 'widget:foo',
+                        'provides-key': 'widget:foo',
                         }
                     }
         self.assertDictEqual(widget_foo, expected)
@@ -1324,7 +1412,7 @@ class TestDeploymentPlanning(unittest.TestCase):
                         'name': 'host:bar',
                         'service': 'main',
                         'component': 'bar_widget',
-                        'target': 'widget:bar',
+                        'provides-key': 'widget:bar',
                         }
                     }
         self.assertDictEqual(host_bar, expected)
@@ -1337,12 +1425,12 @@ class TestDeploymentPlanning(unittest.TestCase):
                         'name': 'gadget:mysql',
                         'service': 'main',
                         'component': 'bar_gadget',
-                        'target': 'gadget:mysql',
+                        'provides-key': 'gadget:mysql',
                         }
                     }
         self.assertDictEqual(recursive['requires']['gadget:mysql'], expected)
 
-        host = planner.resources['3']
+        host = planner.resources['4']
         self.assertNotIn('relations', host, msg="Host is not supposed to have "
                                                 "any relations but host")
 
@@ -1413,8 +1501,6 @@ class TestDeploymentPlanning(unittest.TestCase):
         expected = yaml_to_dict("""
                   front-middle:       # easy to see this is service-to-service
                     interface: foo
-                  gadget:mysql:       # this is within one service
-                    interface: mysql
                   john:               # this is explicitely named
                     interface: bar
                                       # 'host' does not exist
@@ -1476,9 +1562,9 @@ class TestDeploymentPlanning(unittest.TestCase):
         self.assertDictEqual(resources['connections'], expected)
 
         relations = resources['0']['relations']
-        self.assertIn('varnish/master', relations)
-        self.assertIn('attribute', relations['varnish/master'])
-        self.assertEqual(relations['varnish/master']['attribute'], 'ip')
+        self.assertIn('varnish/master-3', relations)
+        self.assertIn('attribute', relations['varnish/master-3'])
+        self.assertEqual(relations['varnish/master-3']['attribute'], 'ip')
 
 
 if __name__ == '__main__':

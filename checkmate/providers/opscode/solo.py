@@ -422,7 +422,7 @@ class Provider(ProviderBase):
                 if url['scheme'] == 'requirements':
                     key = url['netloc']
                     relations = [r for r in resource['relations'].values()
-                                if (r.get('source-key') == key and
+                                if (r.get('requires-key') == key and
                                     'target' in r)
                                 ]
                     if relations:
@@ -453,7 +453,7 @@ class Provider(ProviderBase):
         # Is this relation in one of our maps? If so, let's handle that
         tasks = []
         if self.map_file.has_requirement_mapping(resource['component'],
-                                                 relation['source-key']):
+                                                 relation['requires-key']):
             LOG.debug("Relation '%s' for resource '%s' has a mapping"
                       % (relation_key, key))
             # Set up a wait for the relation target to be ready
