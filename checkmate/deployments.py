@@ -1149,6 +1149,22 @@ class Plan(ExtensibleDict):
                 self._satisfy_requirement(requirement, key, component,
                                           service_name)
 
+                # Connect the two components (write connection info in each)
+                target_match = self._match_relation_target(requirement,
+                                                           component)
+                source_map = {
+                                'component': service['component'],
+                                'service': service_name,
+                                'endpoint': key,
+                             }
+                target_map = {
+                                'component': component,
+                                'service': service_name,
+                                'endpoint': target_match,
+                             }
+                self.connect(source_map, target_map, requirement['interface'],
+                             key)
+
     def resolve_recursive_requirements(self, context, history):
         """
 
@@ -1209,6 +1225,20 @@ class Plan(ExtensibleDict):
 
             self._satisfy_requirement(requirement, requirement_key, found,
                                       service_name)
+
+            # Connect the two components (write connection info in each)
+            source_map = {
+                            'component': component,
+                            'service': service_name,
+                            'endpoint': requirement_key,
+                         }
+            target_map = {
+                            'component': found,
+                            'service': service_name,
+                            'endpoint': requirement['satisfied-by']['target'],
+                         }
+            self.connect(source_map, target_map, requirement['interface'],
+                         key)
         if stack:
             self.resolve_recursive_requirements(context, history)
 
