@@ -1027,42 +1027,80 @@ class Plan(ExtensibleDict):
                     self._satisfy_requirement(requirement, rel_key, target,
                                               rel['service'], name=rel_key,
                                               relation_key=rel_key)
+                    target_match = requirement['satisfied-by']['target']
                     #FIXME: part of v0.2 features to be removed
                     if 'attribute' in relation:
                         LOG.warning("Using v0.2 feature")
                         requirement['satisfied-by']['attribute'] = \
                                 relation['attribute']
+                else:
+                    target_match = self._match_relation_target(rel, target)
 
-                # Write to source connections
+                # Connect the two components (write connection info in each)
 
-                definition = self['services'][service_name]['component']
-                if 'connections' not in definition:
-                    definition['connections'] = {}
-                connections = definition['connections']
-                if rel_key not in connections:
-                    info = {
-                            'direction': 'outbound',
-                            'service': rel['service'],
-                            'endpoint': source_match,
-                            'interface': rel['interface'],
-                            }
-                    connections[rel_key] = info
-
-                # Write to target connections
-
-                if 'connections' not in target:
-                    target['connections'] = {}
-                connections = target['connections']
-                if rel_key not in connections:
-                    info = {
-                            'direction': 'inbound',
-                            'service': service_name,
-                            'interface': rel['interface'],
-                            'endpoint': self._match_relation_target(rel, target)
-                            }
-                    connections[rel_key] = info
+                source_def = self['services'][service_name]['component']
+                source_map = {
+                                'component': source_def,
+                                'service': service_name,
+                                'endpoint': source_match,
+                             }
+                target_map = {
+                                'component': target,
+                                'service': rel['service'],
+                                'endpoint': target_match,
+                             }
+                self.connect(source_map, target_map, rel['interface'], rel_key)
 
         LOG.debug("All relations successfully matched with target services")
+
+    def connect(self, source, target, interface, connection_key):
+        """
+
+        Connect two components by adding the connection information to them
+
+        :param source: a map of the source 'component', 'service' name, and
+                       'endpoint, as shown below
+        :param target: a dict of the target 'component', 'service' name, and
+                       'endpoint' as shown below
+        :param interface: the interface used as the protocol of the connection
+        :param connection_key: the name of the relation or connection
+
+        Format of source and target dicts:
+        {
+            'component': dict of the component,
+            'service': string of the service name
+            'endpoint': the key of the 'requires' or 'provides' entry
+        }
+
+        """
+
+        # Write to source connections
+
+        if 'connections' not in source['component']:
+            source['component']['connections'] = {}
+        connections = source['component']['connections']
+        if connection_key not in connections:
+            info = {
+                    'direction': 'outbound',
+                    'service': target['service'],
+                    'endpoint': source['endpoint'],
+                    'interface': interface,
+                   }
+            connections[connection_key] = info
+
+        # Write to target connections
+
+        if 'connections' not in target['component']:
+            target['component']['connections'] = {}
+        connections = target['component']['connections']
+        if connection_key not in connections:
+            info = {
+                    'direction': 'inbound',
+                    'service': source['service'],
+                    'interface': interface,
+                    'endpoint': target['endpoint'],
+                   }
+            connections[connection_key] = info
 
     def resolve_remaining_requirements(self, context):
         """
