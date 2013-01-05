@@ -360,7 +360,6 @@ class Provider(ProviderBase):
                     kitchen_name='kitchen',
                     override_attributes=PathAttrib(path),
                     run_list=run_list,
-                    merge=True,
                     description="Take the JSON prepared earlier and write "
                             "it into the application role. It will be "
                             "used by the Chef recipe to access global "
