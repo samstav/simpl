@@ -705,6 +705,21 @@ function WorkflowController($scope, $resource, $http, $routeParams, $location, $
             _.each($scope.output.resources, function(resource) {
                 if (resource.component == 'linux_instance') {
                     all_data.push('  ' + resource.service + ' server: ' + resource['dns-name']);
+                    if (resource.instance.public_ip === undefined) {
+                        for (var nindex in resource.instance.interfaces.host.networks) {
+                            var network = resource.instance.interfaces.host.networks[nindex]
+                            if (network.name == 'public_net') {
+                                for (var cindex in network.connections) {
+                                    var connection = network.connections[cindex]
+                                    if (connection.type == 'ipv4') {
+                                        resource.instance.public_ip = connection.value;
+                                        break;
+                                    }
+                                }
+                                break;
+                            }
+                        }
+                    }
                     all_data.push('    IP:      ' + resource.instance.public_ip);
                     all_data.push('    Role:    ' + resource.service);
                     all_data.push('    root pw: ' + resource.instance.password);
