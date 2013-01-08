@@ -360,10 +360,11 @@ class Environment():
         params['resource_type'] = resource_type
 
         for provider in providers.values():
-            these_matches = provider.find_components(context, **params)
-            if these_matches:
-                for match in these_matches:
-                    matches.append(Component(match, provider=provider))
+            if provider.provides(context, resource_type=resource_type, interface=params.get("interface")):
+                these_matches = provider.find_components(context, **params)
+                if these_matches:
+                    for match in these_matches:
+                        matches.append(Component(match, provider=provider))
 
         if not matches:
             LOG.info("Did not find component match for: %s" % blueprint_entry)
