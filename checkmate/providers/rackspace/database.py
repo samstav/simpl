@@ -216,7 +216,7 @@ class Provider(ProviderBase):
                 'is': 'database',
                 'provides': [{'database': 'mysql'}],
                 'requires': [{'compute': dict(relation='host',
-                        interface='mysql')}],
+                        interface='mysql', type='compute')}],
                 'options': {
                     'database/name':{
                         'type': 'string',
