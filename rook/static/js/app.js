@@ -1712,6 +1712,11 @@ function DeploymentNewController($scope, $location, $routeParams, $resource, set
           return item;
         return null;
       });
+      
+      if (setting == undefined){
+    	  console.log("WARNING: expected setting '" + key + "' is undefined");
+    	  return;
+      }
 
       //Check that all required fields are set
       if (setting.required === true) {
