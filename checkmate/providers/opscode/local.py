@@ -1326,7 +1326,8 @@ cookbook_path    ["%s", "%s"]
 role_path  "%s"
 data_bag_path  "%s"
 log_level        :info
-log_location     STDOUT
+log_location     "%s"
+verbose_logging  true
 ssl_verify_mode  :verify_none
 encrypted_data_bag_secret "%s"
 """ % (kitchen_path,
@@ -1334,6 +1335,7 @@ encrypted_data_bag_secret "%s"
             os.path.join(kitchen_path, 'site-cookbooks'),
             os.path.join(kitchen_path, 'roles'),
             os.path.join(kitchen_path, 'data_bags'),
+            os.path.join(kitchen_path, 'knife-solo.log'),
             secret_key_path)
     # knife kitchen creates a default solo.rb, so the file already exists
     solo_file = os.path.join(kitchen_path, 'solo.rb')
