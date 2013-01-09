@@ -426,10 +426,12 @@ class Provider(ProviderBase):
                                 ]
                     if relations:
                         target = relations[0]['target']
+                        #  account for host FIXME: This representation needs to be consistent!
                         mapping['path'] = ('instance:%s/instance/interfaces/%s'
                                            % (target,
                                               relations[0]['interface'])
-                                          )
+                                          if relations[0].get('relation', '') != 'host'
+                                          else 'instance:%s' % target)
         return maps
 
     def _hash_all_user_resource_passwords(self, deployment):
