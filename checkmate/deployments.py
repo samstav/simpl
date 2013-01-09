@@ -377,9 +377,9 @@ def plan(deployment, context):
     assert deployment.get('status') == 'NEW'
     assert isinstance(deployment, Deployment)
     uses_chef_solo = ("chef-solo" in
-                      deployment.environment().get_providers(request.context))
+                      deployment.environment().get_providers(context))
     uses_chef_local = ("chef-local" in
-                      deployment.environment().get_providers(request.context))
+                      deployment.environment().get_providers(context))
     if (uses_chef_local and uses_chef_solo):
         abort(406, "Environment cannot include both chef-local and "
               "chef-solo providers at this time.")
