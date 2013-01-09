@@ -180,6 +180,9 @@ class Provider(ProviderBase):
                         ],
                    merge_results=True,
                    defines=dict(resource=key,
+                                resource_type=resource.get('resource_type',
+                                                           resource.get('type', None)),
+                                interface=resource.get('interface'),
                                 provider=self.key,
                                 task_tags=['create', 'final']),
                    properties={
@@ -352,7 +355,7 @@ def create_instance(context, instance_name, flavor, size, databases, region,
         api = Provider._connect(context, region)
 
     if databases is None:
-        databases=[]
+        databases = []
 
     instance = api.create_instance(instance_name, flavor, size,
                                           databases=databases)
@@ -362,7 +365,7 @@ def create_instance(context, instance_name, flavor, size, databases, region,
 
     # Return instance and its interfaces
     results = {
-            'instance:%s' % context['resource']:  {
+            'instance:%s' % context['resource']: {
                     'id': instance.id,
                     'name': instance.name,
                     'status': instance.status,
@@ -456,16 +459,17 @@ def create_database(context, name, region, character_set=None, collate=None,
                         'host_region': region,
                         'interfaces': {
                                 'mysql': {
-                                        'host': instance.hostname,
+                                        'host': instance.hostname,  # pylint: disable=E1103
                                         'database_name': name
                                     },
                             }
                     }
             }
-        LOG.info('Created database(s) %s on instance %s' % ([db['name'] for db in
+        LOG.info('Created database(s) %s on instance %s' % (
+                [db['name'] for db in
                 databases], instance_id))
         # Send data back to deployment
-        resource_postback.delay(context['deployment'], results) #@UndefinedVariable
+        resource_postback.delay(context['deployment'], results)
         return results
     except clouddb.errors.ResponseError as exc:
         LOG.exception(exc)
