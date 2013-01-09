@@ -11,6 +11,7 @@ import yaml
 
 # Init logging before we load the database, 3rd party, and 'noisy' modules
 from checkmate.utils import init_console_logging
+from checkmate.deployment import get_os_env_keys
 init_console_logging()
 LOG = logging.getLogger(__name__)
 
