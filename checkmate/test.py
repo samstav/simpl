@@ -6,8 +6,8 @@ import os
 import unittest2 as unittest
 import uuid
 
-from celery.app import default_app
-from celery.result import AsyncResult
+from celery.app import default_app  # @UnresolvedImport
+from celery.result import AsyncResult  # @UnresolvedImport
 import mox
 from mox import (IsA, In, And, IgnoreArg, ContainsKeyValue, Func, StrContains,
                  Not)
@@ -198,7 +198,7 @@ class StubbedWorkflowBase(unittest.TestCase):
                     self.deployment.on_resource_postback(call['result'])
                     return
 
-        if args[0] == 'checkmate.providers.opscode.local.manage_databag':
+        if args[0] == 'checkmate.providers.opscode.databag.write_databag':
             args = kwargs['args']
             bag_name = args[1]
             item_name = args[2]
@@ -310,7 +310,7 @@ class StubbedWorkflowBase(unittest.TestCase):
 
         expected_calls = [{
                 # Create Chef Environment
-                'call': 'checkmate.providers.opscode.local.create_environment',
+                'call': 'checkmate.providers.opscode.databag.create_environment',
                 'args': [self.deployment['id'], IgnoreArg()],
                 'kwargs': And(ContainsKeyValue('private_key', IgnoreArg()),
                         ContainsKeyValue('secret_key', IgnoreArg()),
@@ -328,7 +328,7 @@ class StubbedWorkflowBase(unittest.TestCase):
         if str(os.environ.get('CHECKMATE_CHEF_USE_DATA_BAGS', True)
                     ).lower() in ['true', '1', 'yes']:
             expected_calls.append({
-                'call': 'checkmate.providers.opscode.local.manage_databag',
+                'call': 'checkmate.providers.opscode.databag.write_databag',
                 'args': [self.deployment['id'],
                         self.deployment['id'],
                         self.deployment.settings().get('app_id'),
@@ -487,7 +487,7 @@ class StubbedWorkflowBase(unittest.TestCase):
 
                 # build-essential (now just cook with bootstrap.json)
                 expected_calls.append({
-                        'call': 'checkmate.providers.opscode.local.cook',
+                        'call': 'checkmate.providers.opscode.databag.cook',
                         'args': ["4.4.4.%s" % ip, self.deployment['id']],
                         'kwargs': And(In('password'), Not(In('recipes')),
                                         Not(In('roles')),
@@ -500,7 +500,7 @@ class StubbedWorkflowBase(unittest.TestCase):
                 # Cook with role
                 expected_calls.append(
                     {
-                        'call': 'checkmate.providers.opscode.local.cook',
+                        'call': 'checkmate.providers.opscode.databag.cook',
                         'args': ["4.4.4.%s" % ip, self.deployment['id']],
                         'kwargs': And(In('password'), ContainsKeyValue('roles',
                                 ["wordpress-%s" % role]),
@@ -512,8 +512,8 @@ class StubbedWorkflowBase(unittest.TestCase):
                     })
                 if role == 'master':
                     expected_calls.append({
-                        'call': 'checkmate.providers.opscode.local.'
-                                'manage_databag',
+                        'call': 'checkmate.providers.opscode.'
+                                'databag.write_databag',
                         'args': [self.deployment['id'],
                                 self.deployment['id'],
                                 'webapp_wordpress_%s' %
@@ -527,7 +527,7 @@ class StubbedWorkflowBase(unittest.TestCase):
                     })
                     expected_calls.append(
                         {
-                            'call': 'checkmate.providers.opscode.local.cook',
+                            'call': 'checkmate.providers.opscode.databag.cook',
                             'args': ["4.4.4.%s" % ip, self.deployment['id']],
                             'kwargs': And(In('password'),
                                     ContainsKeyValue('recipes',
@@ -542,7 +542,7 @@ class StubbedWorkflowBase(unittest.TestCase):
                 else:
                     expected_calls.append(
                         {
-                            'call': 'checkmate.providers.opscode.local.cook',
+                            'call': 'checkmate.providers.opscode.databag.cook',
                             'args': ["4.4.4.%s" % ip, self.deployment['id']],
                             'kwargs': And(In('password'),
                                     ContainsKeyValue('recipes',
@@ -584,7 +584,7 @@ class StubbedWorkflowBase(unittest.TestCase):
                         'kwargs': IgnoreArg(),
                         'result': {
                                 #'id': 'db-inst-1',
-                                'instance:%s' % key:  {
+                                'instance:%s' % key: {
                                     'id': 'db-inst-1',
                                     'name': 'dbname.domain.local',
                                     'status': 'BUILD',
@@ -665,8 +665,8 @@ class StubbedWorkflowBase(unittest.TestCase):
                         'resource': key,
                     })
                 expected_calls.append({
-                        'call': 'checkmate.providers.opscode.local.'
-                                'manage_databag',
+                        'call': 'checkmate.providers.opscode.'
+                                'databag.write_databag',
                         'args': [self.deployment['id'],
                                 self.deployment['id'],
                                 'webapp_wordpress_%s' %

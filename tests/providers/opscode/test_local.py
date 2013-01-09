@@ -23,14 +23,15 @@ from checkmate.deployments import Deployment, plan
 from checkmate.exceptions import CheckmateException
 from checkmate.middleware import RequestContext
 from checkmate.providers import base, register_providers
-from checkmate.providers.opscode import local
+from checkmate.providers.opscode.local import Provider
+from checkmate.providers.opscode import databag
 from checkmate.test import StubbedWorkflowBase, ENV_VARS
 from checkmate.utils import yaml_to_dict
 
 
 class TestChefLocal(test.ProviderTester):
     """ Test ChefLocal Module """
-    klass = local.Provider
+    klass = Provider
 
     @classmethod
     def setUpClass(cls):
@@ -41,7 +42,7 @@ class TestChefLocal(test.ProviderTester):
             LOG.info("Created '%s'" % local_path)
         test_path = os.path.join(local_path, 'test_env', 'kitchen', 'roles')
         if not os.path.exists(test_path):
-            local.create_environment('test_env', 'kitchen')
+            databag.create_environment('test_env', 'kitchen')
 
     def test_cook_missing_role(self):
         """Test that missing role error is correctly detected and reported"""
@@ -92,12 +93,12 @@ class TestChefLocal(test.ProviderTester):
         os.chdir('/tmp/checkmate/test/myEnv/kitchen').AndReturn(None)
 
         #Stub out process call to knife
-        self.mox.StubOutWithMock(local, 'check_all_output')
-        local.check_all_output(params).AndReturn(results)
+        self.mox.StubOutWithMock(databag, 'check_all_output')
+        databag.check_all_output(params).AndReturn(results)
 
         self.mox.ReplayAll()
         try:
-            local.cook('a.b.c.d',  'myEnv', recipes=None,
+            databag.cook('a.b.c.d', 'myEnv', recipes=None,
                        roles=['build', 'not-a-role'])
         except Exception as exc:
             if 'MissingRole' in exc.__str__():
@@ -123,8 +124,8 @@ class TestChefLocal(test.ProviderTester):
                     },
             }
         bag = uuid.uuid4().hex
-        local.manage_databag('test_env', bag, 'test', original)
-        stored = local._run_kitchen_command(
+        databag.write_databag('test_env', bag, 'test', original)
+        stored = databag._run_kitchen_command(
                 "/tmp/checkmate/test/test_env/kitchen/",
                 ['knife', 'solo', 'data', 'bag', 'show', bag, 'test', '-F',
                 'json'])
@@ -160,9 +161,9 @@ class TestChefLocal(test.ProviderTester):
                     },
             }
         bag = uuid.uuid4().hex
-        local.manage_databag('test_env', bag, 'test', original)
-        local.manage_databag('test_env', bag, 'test', merge, merge=True)
-        stored = local._run_kitchen_command(
+        databag.write_databag('test_env', bag, 'test', original)
+        databag.write_databag('test_env', bag, 'test', merge, merge=True)
+        stored = databag._run_kitchen_command(
                 "/tmp/checkmate/test/test_env/kitchen/",
                 ['knife', 'solo', 'data', 'bag', 'show', bag, 'test', '-F',
                 'json'])
@@ -175,7 +176,7 @@ class TestChefLocal(test.ProviderTester):
                 'id': 'Not-the-tem-name',
             }
         bag = uuid.uuid4().hex
-        self.assertRaises(CheckmateException, local.manage_databag,
+        self.assertRaises(CheckmateException, databag.write_databag,
                 'test_env', bag, 'test', original)
 
     def test_create_environment(self):
@@ -186,14 +187,14 @@ class TestChefLocal(test.ProviderTester):
         #Stub out checks for paths
         self.mox.StubOutWithMock(os, 'mkdir')
         os.mkdir(fullpath, 0770).AndReturn(True)
-        self.mox.StubOutWithMock(local, '_get_root_environments_path')
-        local._get_root_environments_path(path).AndReturn(path)
-        self.mox.StubOutWithMock(local, '_create_environment_keys')
-        local._create_environment_keys(fullpath, private_key="PPP",
+        self.mox.StubOutWithMock(databag, '_get_root_environments_path')
+        databag._get_root_environments_path(path).AndReturn(path)
+        self.mox.StubOutWithMock(databag, '_create_environment_keys')
+        databag._create_environment_keys(fullpath, private_key="PPP",
                                        public_key_ssh="SSH").AndReturn(
                                        dict(keys="keys"))
-        self.mox.StubOutWithMock(local, '_create_kitchen')
-        local._create_kitchen(service, fullpath, secret_key="SSS")\
+        self.mox.StubOutWithMock(databag, '_create_kitchen')
+        databag._create_kitchen(service, fullpath, secret_key="SSS")\
                 .AndReturn(dict(kitchen="kitchen_path"))
         kitchen_path = os.path.join(fullpath, service)
         public_key_path = os.path.join(fullpath, 'checkmate.pub')
@@ -201,21 +202,21 @@ class TestChefLocal(test.ProviderTester):
                                         'checkmate-environment.pub')
         self.mox.StubOutWithMock(shutil, 'copy')
         shutil.copy(public_key_path, kitchen_key_path).AndReturn(True)
-        self.mox.StubOutWithMock(local, '_init_repo')
-        local._init_repo(os.path.join(kitchen_path, 'cookbooks'))\
+        self.mox.StubOutWithMock(databag, '_init_repo')
+        databag._init_repo(os.path.join(kitchen_path, 'cookbooks'))\
                 .AndReturn(True)
-        self.mox.StubOutWithMock(local, 'download_cookbooks')
-        local.download_cookbooks("test", service, path=path).AndReturn(True)
-        local.download_cookbooks("test", service, path=path, use_site=True)\
+        self.mox.StubOutWithMock(databag, 'download_cookbooks')
+        databag.download_cookbooks("test", service, path=path).AndReturn(True)
+        databag.download_cookbooks("test", service, path=path, use_site=True)\
                 .AndReturn(True)
-        self.mox.StubOutWithMock(local, 'download_roles')
-        local.download_roles("test", service, path=path).AndReturn(True)
+        self.mox.StubOutWithMock(databag, 'download_roles')
+        databag.download_roles("test", service, path=path).AndReturn(True)
 
         self.mox.ReplayAll()
         expected = {'environment': '/fake_path/test',
                     'keys': 'keys',
                     'kitchen': 'kitchen_path'}
-        self.assertDictEqual(local.create_environment("test",
+        self.assertDictEqual(databag.create_environment("test",
                                                       service, path=path,
                                                       private_key="PPP",
                                                       public_key_ssh="SSH",
@@ -231,14 +232,14 @@ class TestChefLocal(test.ProviderTester):
         #Stub out checks for paths
         self.mox.StubOutWithMock(os, 'mkdir')
         os.mkdir(fullpath, 0770).AndReturn(True)
-        self.mox.StubOutWithMock(local, '_get_root_environments_path')
-        local._get_root_environments_path(path).AndReturn(path)
-        self.mox.StubOutWithMock(local, '_create_environment_keys')
-        local._create_environment_keys(fullpath, private_key="PPP",
+        self.mox.StubOutWithMock(databag, '_get_root_environments_path')
+        databag._get_root_environments_path(path).AndReturn(path)
+        self.mox.StubOutWithMock(databag, '_create_environment_keys')
+        databag._create_environment_keys(fullpath, private_key="PPP",
                                        public_key_ssh="SSH").AndReturn(
                                        dict(keys="keys"))
-        self.mox.StubOutWithMock(local, '_create_kitchen')
-        local._create_kitchen(service, fullpath, secret_key="SSS")\
+        self.mox.StubOutWithMock(databag, '_create_kitchen')
+        databag._create_kitchen(service, fullpath, secret_key="SSS")\
                 .AndReturn(dict(kitchen="kitchen_path"))
         kitchen_path = os.path.join(fullpath, service)
         public_key_path = os.path.join(fullpath, 'checkmate.pub')
@@ -260,14 +261,14 @@ class TestChefLocal(test.ProviderTester):
         os.path.exists(os.path.join(kitchen_path, 'Cheffile')).AndReturn(True)
         self.mox.StubOutWithMock(os, 'chdir')
         os.chdir(kitchen_path).AndReturn(True)
-        self.mox.StubOutWithMock(local, 'check_all_output')
-        local.check_all_output(['librarian-chef', 'install']).AndReturn('OK')
+        self.mox.StubOutWithMock(databag, 'check_all_output')
+        databag.check_all_output(['librarian-chef', 'install']).AndReturn('OK')
 
         self.mox.ReplayAll()
         expected = {'environment': '/fake_path/test',
                     'keys': 'keys',
                     'kitchen': 'kitchen_path'}
-        self.assertDictEqual(local.create_environment("test",
+        self.assertDictEqual(databag.create_environment("test",
                                                       service, path=path,
                                                       private_key="PPP",
                                                       public_key_ssh="SSH",
@@ -336,11 +337,11 @@ class TestWorkflowLogic(StubbedWorkflowBase):
                         provider_input: p1
             """))
         base.PROVIDER_CLASSES = {}
-        register_providers([local.Provider])
+        register_providers([Provider])
 
         expected_calls = [{
                 # Create Chef Environment
-                'call': 'checkmate.providers.opscode.local.create_environment',
+                'call': 'checkmate.providers.opscode.databag.create_environment',
                 'args': [self.deployment['id'], 'one'],
                 'kwargs': And(ContainsKeyValue('private_key', IgnoreArg()),
                         ContainsKeyValue('secret_key', IgnoreArg()),
@@ -355,7 +356,7 @@ class TestWorkflowLogic(StubbedWorkflowBase):
                                 self.deployment['id'],
                         'public_key': ENV_VARS['CHECKMATE_CLIENT_PUBLIC_KEY']}
             }, {
-                'call': 'checkmate.providers.opscode.local.manage_databag',
+                'call': 'checkmate.providers.opscode.databag.write_databag',
                 'args': [self.deployment['id'], self.deployment['id'],
                         IgnoreArg(),
                         {'small_widget':
@@ -375,7 +376,7 @@ class TestWorkflowLogic(StubbedWorkflowBase):
                         True)),
                 'result': None
             }, {
-                'call': 'checkmate.providers.opscode.local.cook',
+                'call': 'checkmate.providers.opscode.databag.cook',
                 'args': [None, self.deployment['id']],
                 'kwargs': And(In('password'), ContainsKeyValue('recipes',
                         ['small_widget']),
@@ -384,7 +385,7 @@ class TestWorkflowLogic(StubbedWorkflowBase):
                                 self.deployment['id'])),
                 'result': None
             }, {
-                'call': 'checkmate.providers.opscode.local.cook',
+                'call': 'checkmate.providers.opscode.databag.cook',
                 'args': [None, self.deployment['id']],
                 'kwargs': And(In('password'), ContainsKeyValue('recipes',
                         ['big_widget']),
@@ -442,7 +443,7 @@ class TestDBWorkflow(StubbedWorkflowBase):
     def setUp(self):
         StubbedWorkflowBase.setUp(self)
         base.PROVIDER_CLASSES = {}
-        register_providers([local.Provider, test.TestProvider])
+        register_providers([Provider, test.TestProvider])
         self.deployment = Deployment(yaml_to_dict("""
                 id: 'DEP-ID-1000'
                 blueprint:
@@ -501,7 +502,7 @@ class TestDBWorkflow(StubbedWorkflowBase):
                       'post_back_result': True,
                 })
         expected.append({
-                'call': 'checkmate.providers.opscode.local.manage_databag',
+                'call': 'checkmate.providers.opscode.databag.write_databag',
                 'args': [self.deployment['id'],
                         self.deployment['id'],
                         'webapp_mysql_%s' %
@@ -513,14 +514,14 @@ class TestDBWorkflow(StubbedWorkflowBase):
                 'result': None
             })
         expected.append({
-                    'call': 'checkmate.providers.opscode.local.'
+                    'call': 'checkmate.providers.opscode.databag.'
                             'register_node',
                     'args': [None, self.deployment['id']],
                     'kwargs': In('password'),
                     'result': None,
                 })
         expected.append({
-                'call': 'checkmate.providers.opscode.local.cook',
+                'call': 'checkmate.providers.opscode.databag.cook',
                 'args': [None, self.deployment['id']],
                 'kwargs': And(In('password'), Not(In('recipes')),
                                 Not(In('roles')),
@@ -530,7 +531,7 @@ class TestDBWorkflow(StubbedWorkflowBase):
                 'result': None,
             })
         expected.append({
-                'call': 'checkmate.providers.opscode.local.cook',
+                'call': 'checkmate.providers.opscode.databag.cook',
                 'args': [None, self.deployment['id']],
                 'kwargs': And(In('password'),
                                 ContainsKeyValue('recipes',

@@ -23,7 +23,7 @@ from checkmate import test, utils
 from checkmate.deployments import Deployment, plan
 from checkmate.middleware import RequestContext
 from checkmate.providers import base, register_providers
-from checkmate.providers.opscode import solo, local
+from checkmate.providers.opscode import solo, databag
 from checkmate.workflows import create_workflow_deploy
 
 
@@ -51,8 +51,8 @@ class TestCeleryTasks(unittest.TestCase):
         node_path = os.path.join(kitchen_path, "nodes", "a.b.c.d.json")
 
         #Stub out checks for paths
-        self.mox.StubOutWithMock(local, '_get_root_environments_path')
-        local._get_root_environments_path(None).AndReturn(root_path)
+        self.mox.StubOutWithMock(databag, '_get_root_environments_path')
+        databag._get_root_environments_path(None).AndReturn(root_path)
         self.mox.StubOutWithMock(os.path, 'exists')
         os.path.exists(kitchen_path).AndReturn(True)
         os.path.exists(node_path).AndReturn(True)
@@ -87,11 +87,11 @@ class TestCeleryTasks(unittest.TestCase):
         params = ['knife', 'cook', 'root@a.b.c.d',
                   '-c', os.path.join(kitchen_path, "solo.rb"),
                   '-p', '22']
-        self.mox.StubOutWithMock(local, '_run_kitchen_command')
-        local._run_kitchen_command(kitchen_path, params).AndReturn("OK")
+        self.mox.StubOutWithMock(databag, '_run_kitchen_command')
+        databag._run_kitchen_command(kitchen_path, params).AndReturn("OK")
 
         self.mox.ReplayAll()
-        solo.cook("a.b.c.d", "env_test", roles=['role1'], recipes=['recipe1'],
+        databag.cook("a.b.c.d", "env_test", roles=['role1'], recipes=['recipe1'],
                   attributes={'id': 1})
         self.mox.VerifyAll()
 
@@ -174,7 +174,7 @@ class TestMySQLMaplessWorkflow(test.StubbedWorkflowBase):
         expected.append({  # Use chef-solo tasks for now
                            # Use only one kitchen. Call it "kitchen" like we
                            # used to
-            'call': 'checkmate.providers.opscode.local.create_environment',
+            'call': 'checkmate.providers.opscode.databag.create_environment',
             'args': [self.deployment['id'], 'kitchen'],
             'kwargs': And(ContainsKeyValue('private_key', IgnoreArg()),
                           ContainsKeyValue('secret_key', IgnoreArg()),
@@ -213,7 +213,7 @@ class TestMySQLMaplessWorkflow(test.StubbedWorkflowBase):
                         'post_back_result': True,
                         })
                 expected.append({
-                    'call': 'checkmate.providers.opscode.local.register_node',
+                    'call': 'checkmate.providers.opscode.databag.register_node',
                     'args': ['4.4.4.1', self.deployment['id']],
                     'kwargs': In('password'),
                     'result': None,
@@ -223,7 +223,7 @@ class TestMySQLMaplessWorkflow(test.StubbedWorkflowBase):
                 # build-essential (now just cook with bootstrap.json)
 
                 expected.append({
-                    'call': 'checkmate.providers.opscode.solo.cook',
+                    'call': 'checkmate.providers.opscode.databag.cook',
                     'args': ['4.4.4.1', self.deployment['id']],
                     'kwargs': And(In('password'),
                                   Not(In('recipes')),
@@ -240,7 +240,7 @@ class TestMySQLMaplessWorkflow(test.StubbedWorkflowBase):
                 # Cook with cookbook (special mysql handling calls server role)
 
                 expected.append({
-                    'call': 'checkmate.providers.opscode.solo.cook',
+                    'call': 'checkmate.providers.opscode.databag.cook',
                     'args': ['4.4.4.1', self.deployment['id']],
                     'kwargs': And(In('password'), ContainsKeyValue('recipes',
                                   ['mysql::server']),
@@ -515,7 +515,7 @@ class TestMapSingleWorkflow(test.StubbedWorkflowBase):
         self.assertEqual(self.deployment.get('status'), 'PLANNED')
         expected_calls = [{
                 # Create Chef Environment
-                'call': 'checkmate.providers.opscode.local.create_environment',
+                'call': 'checkmate.providers.opscode.databag.create_environment',
                 'args': [self.deployment['id'], 'kitchen'],
                 'kwargs': And(ContainsKeyValue('private_key', IgnoreArg()),
                         ContainsKeyValue('secret_key', IgnoreArg()),
@@ -556,15 +556,15 @@ class TestMapSingleWorkflow(test.StubbedWorkflowBase):
                         'resource': key,
                     }, {
                         # Register host - knife prepare
-                        'call': 'checkmate.providers.opscode.local.'
+                        'call': 'checkmate.providers.opscode.databag.'
                                 'register_node',
                         'args': ["4.4.4.4", self.deployment['id']],
                         'kwargs': And(In('password')),
                         'result': None,
                         'resource': key,
-                    },  {
+                    }, {
                         # Prep host - bootstrap.json means no recipes passed in
-                        'call': 'checkmate.providers.opscode.solo.cook',
+                        'call': 'checkmate.providers.opscode.databag.cook',
                         'args': ['4.4.4.4', self.deployment['id']],
                         'kwargs': And(In('password'),
                                       Not(In('recipes')),
@@ -581,7 +581,7 @@ class TestMapSingleWorkflow(test.StubbedWorkflowBase):
                              }
                 expected_calls.extend([{
                         # Cook mysql
-                        'call': 'checkmate.providers.opscode.solo.cook',
+                        'call': 'checkmate.providers.opscode.databag.cook',
                         'args': ['4.4.4.4', self.deployment['id']],
                         'kwargs': And(In('password'),
                                         ContainsKeyValue('recipes',
@@ -788,7 +788,7 @@ class TestMappedMultipleWorkflow(test.StubbedWorkflowBase):
         self.assertEqual(self.deployment.get('status'), 'PLANNED')
         expected_calls = [{
                 # Create Chef Environment
-                'call': 'checkmate.providers.opscode.local.create_environment',
+                'call': 'checkmate.providers.opscode.databag.create_environment',
                 'args': [self.deployment['id'], 'kitchen'],
                 'kwargs': And(ContainsKeyValue('private_key', IgnoreArg()),
                         ContainsKeyValue('secret_key', IgnoreArg()),
@@ -808,7 +808,7 @@ class TestMappedMultipleWorkflow(test.StubbedWorkflowBase):
             if resource.get('type') == 'compute':
                 expected_calls.extend([{
                         # Register foo - knife prepare
-                        'call': 'checkmate.providers.opscode.local.'
+                        'call': 'checkmate.providers.opscode.databag.'
                                 'register_node',
                         'args': ["4.4.4.4", self.deployment['id']],
                         'kwargs': And(In('password'),
@@ -816,9 +816,9 @@ class TestMappedMultipleWorkflow(test.StubbedWorkflowBase):
                                               {'widgets': 10})),
                         'result': None,
                         'resource': key,
-                    },  {
+                    }, {
                         # Prep foo - bootstrap.json
-                        'call': 'checkmate.providers.opscode.solo.cook',
+                        'call': 'checkmate.providers.opscode.databag.cook',
                         'args': ['4.4.4.4', self.deployment['id']],
                         'kwargs': And(In('password'),
                                       Not(ContainsKeyValue('recipes',
@@ -852,8 +852,8 @@ class TestMappedMultipleWorkflow(test.StubbedWorkflowBase):
             elif resource.get('type') == 'application':
                 expected_calls.extend([{
                         # Write foo databag item
-                        'call': 'checkmate.providers.opscode.solo.'
-                                'write_databag_item',
+                        'call': 'checkmate.providers.opscode.'
+                                'databag.write_databag',
                         'args': ['DEP-ID-1000', 'app_bag', 'mysql',
                                  {'db_name': 'foo-db'}],
                         'kwargs': {'merge': True,
@@ -861,7 +861,7 @@ class TestMappedMultipleWorkflow(test.StubbedWorkflowBase):
                         'result': None
                     }, {
                         # Write foo-master role
-                        'call': 'checkmate.providers.opscode.local.'
+                        'call': 'checkmate.providers.opscode.databag.'
                                 'manage_role',
                         'args': ['foo-master', 'DEP-ID-1000'],
                         'kwargs': {'merge': True,
@@ -873,7 +873,7 @@ class TestMappedMultipleWorkflow(test.StubbedWorkflowBase):
                         'result': None
                     }, {
                         # Cook foo - run using runlist
-                        'call': 'checkmate.providers.opscode.solo.cook',
+                        'call': 'checkmate.providers.opscode.databag.cook',
                         'args': ['4.4.4.4', self.deployment['id']],
                         'kwargs': And(In('password'),
                                       ContainsKeyValue('recipes',
@@ -896,7 +896,7 @@ class TestMappedMultipleWorkflow(test.StubbedWorkflowBase):
             elif resource.get('type') == 'database':
                 expected_calls.extend([{
                         # Cook bar
-                        'call': 'checkmate.providers.opscode.solo.cook',
+                        'call': 'checkmate.providers.opscode.databag.cook',
                         'args': [None, self.deployment['id']],
                         'kwargs': And(In('password'),
                                         ContainsKeyValue('recipes', ['bar']),

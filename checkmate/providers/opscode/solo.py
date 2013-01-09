@@ -76,7 +76,7 @@ class Provider(ProviderBase):
         source_repo = deployment.get_setting('source', provider_key=self.key)
         defines = {'provider': self.key}
         properties = {'estimated_duration': 10, 'task_tags': ['root']}
-        task_name = 'checkmate.providers.opscode.local.create_environment'
+        task_name = 'checkmate.providers.opscode.databag.create_environment'
         self.prep_task = Celery(wfspec,
                                 'Create Chef Environment',
                                 task_name,
@@ -127,7 +127,7 @@ class Provider(ProviderBase):
         resource = deployment['resources'][key]
         anchor_task = configure_task = Celery(wfspec,
                 'Configure %s: %s (%s)' % (component_id, key, service_name),
-                'checkmate.providers.opscode.solo.cook',
+                'checkmate.providers.opscode.databag.cook',
                 call_args=[
                         PathAttrib('instance:%s/ip' %
                                 resource.get('hosted_on', key)),
@@ -302,7 +302,7 @@ class Provider(ProviderBase):
 
             write_databag = Celery(wfspec,
                     "Write Data Bag for %s" % resource['index'],
-                   'checkmate.providers.opscode.solo.write_databag_item',
+                   'checkmate.providers.opscode.databag.write_databag',
                     call_args=[deployment['id'], bag_name, item_name,
                                PathAttrib(path)],
                     secret_file=secret_file,
@@ -355,7 +355,7 @@ class Provider(ProviderBase):
             # if role['create'] == True:
             write_role = Celery(wfspec,
                     "Write Role %s for %s" % (role_name, resource_key),
-                    'checkmate.providers.opscode.local.manage_role',
+                    'checkmate.providers.opscode.databag.manage_role',
                     call_args=[role_name, deployment['id']],
                     kitchen_name='kitchen',
                     override_attributes=PathAttrib(path),
@@ -482,7 +482,7 @@ class Provider(ProviderBase):
             register_node_task = Celery(wfspec,
                     'Register Server %s (%s)' % (relation['target'],
                                                  resource['service']),
-                    'checkmate.providers.opscode.local.register_node',
+                    'checkmate.providers.opscode.databag.register_node',
                     call_args=[
                             PathAttrib('instance:%s/ip' % relation['target']),
                             deployment['id']],
@@ -502,7 +502,7 @@ class Provider(ProviderBase):
             bootstrap_task = Celery(wfspec,
                     'Pre-Configure Server %s (%s)' % (relation['target'],
                                                       resource['service']),
-                    'checkmate.providers.opscode.solo.cook',
+                    'checkmate.providers.opscode.databag.cook',
                     call_args=[
                             PathAttrib('instance:%s/ip' % relation['target']),
                             deployment['id']],
@@ -592,8 +592,8 @@ class Transforms():
     @staticmethod  # self will actually be a SpiffWorkflow.TaskSpec
     def collect_options(self, my_task):
         """Collect and write run-time options"""
-        from checkmate.providers.opscode.solo import (ChefMap,
-                                                      SoloProviderNotReady)
+        from checkmate.providers.opscode.solo import\
+                ChefMap, SoloProviderNotReady  # @UnresolvedImport
         maps = self.get_property('chef_maps')
         data = my_task.attributes
         queue = []
@@ -998,182 +998,3 @@ class ChefMap():
         except TemplateError as exc:
             raise CheckmateException("Chef template had an error: %s" % exc)
         return result
-
-#
-# Celery Tasks
-#
-import threading
-from celery import task
-from checkmate.providers.opscode import local
-
-
-@task(countdown=20, max_retries=3)
-def cook(host, environment, recipes=None, roles=None, path=None,
-         username='root', password=None, identity_file=None, port=22,
-         attributes=None):
-    """Apply recipes/roles to a server"""
-    utils.match_celery_logging(LOG)
-    root = local._get_root_environments_path(path)
-    kitchen_path = os.path.join(root, environment, 'kitchen')
-    if not os.path.exists(kitchen_path):
-        raise CheckmateException("Environment kitchen does not exist: %s" %
-                kitchen_path)
-    node_path = os.path.join(kitchen_path, 'nodes', '%s.json' % host)
-    if not os.path.exists(node_path):
-        cook.retry(exc=CheckmateException("Node '%s' is not registered in %s"
-                                          % (host, kitchen_path)))
-
-    # Add any missing recipes to node settings
-    run_list = []
-    if roles:
-        run_list.extend(["role[%s]" % role for role in roles])
-    if recipes:
-        run_list.extend(["recipe[%s]" % recipe for recipe in recipes])
-    if run_list or attributes:
-        add_list = []
-        # Open file, read/parse/calculate changes, then write
-        lock = threading.Lock()
-        lock.acquire()
-        try:
-            with file(node_path, 'r') as f:
-                node = json.load(f)
-            if run_list:
-                for entry in run_list:
-                    if entry not in node['run_list']:
-                        node['run_list'].append(entry)
-                        add_list.append(entry)
-            if attributes:
-                utils.merge_dictionary(node, attributes)
-            if add_list or attributes:
-                with file(node_path, 'w') as f:
-                    json.dump(node, f)
-        finally:
-            lock.release()
-        if add_list:
-            LOG.debug("Added to %s: %s" % (node_path, add_list))
-        else:
-            LOG.debug("All run_list already exists in %s: %s" % (node_path,
-                      run_list))
-        if attributes:
-            LOG.debug("Wrote attributes to %s" % node_path,
-                      extra={'data': attributes})
-    else:
-        LOG.debug("No recipes or roles to add and no attribute changes. Will "
-                  "just run 'knife cook' for %s using bootstrap.json" %
-                  node_path)
-
-    # Build and run command
-    if not username:
-        username = 'root'
-    params = ['knife', 'cook', '%s@%s' % (username, host),
-              '-c', os.path.join(kitchen_path, 'solo.rb')]
-    if not (run_list or attributes):
-        params.extend(['bootstrap.json'])
-    if identity_file:
-        params.extend(['-i', identity_file])
-    if password:
-        params.extend(['-P', password])
-    if port:
-        params.extend(['-p', str(port)])
-    local._run_kitchen_command(kitchen_path, params)
-
-
-@task
-def write_databag_item(environment, bagname, itemname, contents, path=None,
-                   secret_file=None, merge=True):
-    """
-
-    Creates/Updates a data_bag or encrypted_data_bag
-
-    :param environment: the ID of the environment
-    :param bagname: the name of the databag (in solo, this ends up being a
-            directory)
-    :param item: the name of the item (in solo this ends up being a .json file)
-    :param contents: this is a dict of attributes to write in to the databag
-    :param path: optional override to the default path where environments live
-    :param secret_file: the path to a certificate used to encrypt a data_bag
-    :param merge: if True, the data will be merged in. If not, it will be
-            completely overwritten
-
-    """
-    utils.match_celery_logging(LOG)
-    root = local._get_root_environments_path(path)
-    kitchen_path = os.path.join(root, environment, 'kitchen')
-    databags_root = os.path.join(kitchen_path, 'data_bags')
-    if not os.path.exists(databags_root):
-        raise CheckmateException("Data bags path does not exist: %s" %
-                databags_root)
-
-    # Check if the bag already exists (create it if not)
-    config_file = os.path.join(kitchen_path, 'solo.rb')
-    params = ['knife', 'solo', 'data', 'bag', 'list', '-F', 'json',
-              '-c', config_file]
-    data_bags = local._run_kitchen_command(kitchen_path, params)
-    if data_bags:
-        data_bags = json.loads(data_bags)
-    if bagname not in data_bags:
-        merge = False  # Nothing to merge if it is new!
-        local._run_kitchen_command(kitchen_path, ['knife', 'solo', 'data',
-                                   'bag', 'create', bagname, '-c',
-                                    config_file])
-        LOG.debug("Created data bag '%s' in '%s'" % (bagname, databags_root))
-
-    # Check if the item already exists (create it if not)
-    params = ['knife', 'solo', 'data', 'bag', 'show', bagname, '-F', 'json',
-              '-c', config_file]
-    existing_contents = local._run_kitchen_command(kitchen_path, params)
-    if existing_contents:
-        existing_contents = json.loads(existing_contents)
-    if itemname not in existing_contents:
-        merge = False  # Nothing to merge if it is new!
-
-    # Write contents
-    if merge:
-        params = ['knife', 'solo', 'data', 'bag', 'show', bagname, itemname,
-            '-F', 'json', '-c', config_file]
-        if secret_file:
-            params.extend(['--secret-file', secret_file])
-
-        lock = threading.Lock()
-        lock.acquire()
-        try:
-            data = local._run_kitchen_command(kitchen_path, params)
-            existing = json.loads(data)
-            contents = merge_dictionary(existing, contents)
-            if isinstance(contents, dict):
-                contents = json.dumps(contents)
-            params = ['knife', 'solo', 'data', 'bag', 'create', bagname,
-                      itemname, '-c', config_file, '-d', '--json', contents]
-            if secret_file:
-                params.extend(['--secret-file', secret_file])
-            result = local._run_kitchen_command(kitchen_path, params,
-                                                lock=False)
-        except CalledProcessError, exc:
-            # Reraise pickleable exception
-            raise CheckmateCalledProcessError(exc.returncode, exc.cmd,
-                    output=exc.output)
-        finally:
-            lock.release()
-        LOG.debug(result)
-    else:
-        if contents:
-            if 'id' not in contents:
-                contents['id'] = itemname
-            elif contents['id'] != itemname:
-                raise CheckmateException("The value of the 'id' field in a "
-                        "databag item is reserved by Chef and must be set to "
-                        "the name of the databag item. Checkmate will set "
-                        "this for you if it is missing, but the data you "
-                        "supplied included an ID that did not match the "
-                        "databag item name. The ID was '%s' and the databg "
-                        "item name was '%s'" % (contents['id'], itemname))
-            if isinstance(contents, dict):
-                contents = json.dumps(contents)
-            params = ['knife', 'solo', 'data', 'bag', 'create', bagname,
-                       itemname, '-d', '-c', config_file, '--json', contents]
-            if secret_file:
-                params.extend(['--secret-file', secret_file])
-            result = local._run_kitchen_command(kitchen_path, params)
-            LOG.debug(result)
-        else:
-            LOG.warning("write_databag_item was called with no contents")
