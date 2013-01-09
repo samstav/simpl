@@ -340,7 +340,8 @@ class Plan(ExtensibleDict):
                     write_key = '%s-%s' % (key, target_index)
                 if write_key in relations:
                     CheckmateException("Conflicting relation named '%s' "
-                                       "exists" % (write_key))
+                                       "exists in service '%s'" % (
+                                        write_key, target_service))
                 relations[write_key] = result
 
             #TODO: this is just copied in for legacy compatibility
