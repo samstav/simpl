@@ -24,6 +24,7 @@ from checkmate.keys import hash_SHA512
 from checkmate.providers import ProviderBase
 from checkmate.workflows import wait_for
 from checkmate.utils import merge_dictionary  # used by transform
+from checkmate.deployments import resource_postback
 
 LOG = logging.getLogger(__name__)
 
@@ -245,6 +246,7 @@ class Provider(ProviderBase):
                 description="Get data needed for our cookbooks and place it "
                             "in a structure ready for storage in a databag or "
                             "role",
+                attributes={'deployment': deployment['id']},
                 properties={
                             'task_tags': ['collect'],
                             'chef_maps': maps,
@@ -252,7 +254,7 @@ class Provider(ProviderBase):
                            },
                 defines={
                          'provider': self.key,
-                         'resource': resource_key,
+                         'resource': resource_key
                         }
                 )
         LOG.debug("Created data collection task for '%s'" % resource_key)
@@ -626,7 +628,13 @@ class Transforms():
 
             if outputs:
                 merge_dictionary(my_task.attributes, outputs)
-                LOG.debug("Writing task outputs: %s" % outputs)
+                if 'deployment' in my_task.attributes:
+                    LOG.debug("Writing task outputs: %s" % outputs)
+                    resource_postback.delay(my_task.attributes['deployment'],
+                                            outputs)
+                else:
+                    LOG.warn("Deployment id not in attributes,"
+                             "cannot update deployment from chef-solo")
         return True
 
 
