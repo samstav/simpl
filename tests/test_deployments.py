@@ -1507,66 +1507,6 @@ class TestDeploymentPlanning(unittest.TestCase):
             """)
         self.assertDictEqual(resources['connections'], expected)
 
-    def test_relation_v02_features(self):
-        """Test the Plan() class handles relation features we used for v0.2"""
-        deployment = Deployment(yaml_to_dict("""
-                id: test
-                blueprint:
-                  name: test bp
-                  services:
-                    main:
-                      component:
-                        id: main_widget
-                      relations:
-                        "varnish/master":
-                          service: explicit
-                          interface: foo
-                          attribute: ip
-                    explicit:
-                      component:
-                        id: foo_widget
-                environment:
-                  name: environment
-                  providers:
-                    base:
-                      vendor: test
-                      catalog:
-                        widget:
-                          main_widget:
-                            is: widget
-                            requires:
-                            - widget: foo
-                            - host: bar
-                          foo_widget:
-                            is: widget
-                            provides:
-                            - widget: foo
-                          bar_widget:
-                            is: widget
-                            provides:
-                            - widget: bar
-                            requires:
-                            - gadget: mysql
-                          bar_gadget:
-                            is: gadget
-                            provides:
-                            - gadget: mysql
-            """))
-
-        base.PROVIDER_CLASSES['test.base'] = ProviderBase
-
-        plan(deployment, RequestContext())
-        resources = deployment['resources']
-
-        expected = {'varnish/master': {'interface': 'foo'}}
-        self.assertDictEqual(resources['connections'], expected)
-
-        relations = resources['0']['relations']
-        self.assertIn('varnish/master-3', relations)
-        self.assertIn('attribute', relations['varnish/master-3'])
-        self.assertEqual(relations['varnish/master-3']['attribute'], 'ip')
-
-
 if __name__ == '__main__':
     # Run tests. Handle our parameters separately
     import sys

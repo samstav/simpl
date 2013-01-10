@@ -97,9 +97,7 @@ class TestComponents(unittest.TestCase):
                 requires:
                 - compute: linux
                 - database: mysql
-                - compute:
-                    relation: host
-                    interface: 'linux'
+                - host: linux
             """)
         c = Component(data)
         expected = yaml_to_dict("""
@@ -109,7 +107,7 @@ class TestComponents(unittest.TestCase):
                     compute:linux:
                       resource_type: compute
                       interface: linux
-                    compute:
+                    host:linux:
                       interface: linux
                       relation: host
             """)
