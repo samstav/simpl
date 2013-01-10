@@ -16,7 +16,7 @@ from mox import In, IsA, And, IgnoreArg, ContainsKeyValue, Not
 # Init logging before we load the database, 3rd party, and 'noisy' modules
 
 from checkmate.utils import init_console_logging
-from nose.tools.nontrivial import nottest
+from unittest.case import skip
 init_console_logging()
 LOG = logging.getLogger(__name__)
 
@@ -499,7 +499,7 @@ class TestMapSingleWorkflow(test.StubbedWorkflowBase):
         self.assertListEqual(task_list, expected, msg=task_list)
         self.mox.VerifyAll()
 
-    @nottest
+    @skip
     def test_workflow_execution(self):
         """Verify workflow executes"""
 
@@ -775,7 +775,7 @@ class TestMappedMultipleWorkflow(test.StubbedWorkflowBase):
         self.assertListEqual(task_list, expected, msg=task_list)
         self.mox.VerifyAll()
 
-    @nottest
+    @skip
     def test_workflow_execution(self):
         """Verify workflow executes"""
 
