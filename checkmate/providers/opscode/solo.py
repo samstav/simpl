@@ -24,6 +24,7 @@ from checkmate.keys import hash_SHA512
 from checkmate.providers import ProviderBase
 from checkmate.workflows import wait_for
 from checkmate.utils import merge_dictionary  # used by transform
+from checkmate.deployments import resource_postback
 
 LOG = logging.getLogger(__name__)
 
@@ -249,10 +250,11 @@ class Provider(ProviderBase):
                             'task_tags': ['collect'],
                             'chef_maps': maps,
                             'chef_output': output,
+                            'deployment': deployment['id']
                            },
                 defines={
                          'provider': self.key,
-                         'resource': resource_key,
+                         'resource': resource_key
                         }
                 )
         LOG.debug("Created data collection task for '%s'" % resource_key)
@@ -589,13 +591,17 @@ class Transforms():
     - access them from tests
     - possible, in the future, use them as a library instead of passing the
       actual code in to Spiff for better security
+    TODO: Should separate them out into their own module (not class)
 
     """
     @staticmethod  # self will actually be a SpiffWorkflow.TaskSpec
-    def collect_options(self, my_task):
+    def collect_options(self, my_task):  # pylint: disable=W0211
         """Collect and write run-time options"""
+        # pylint: disable=W0621
         from checkmate.providers.opscode.solo import\
-                ChefMap, SoloProviderNotReady  # @UnresolvedImport
+                ChefMap, SoloProviderNotReady
+        # pylint: disable=W0621
+        from checkmate.deployments import resource_postback as postback
         maps = self.get_property('chef_maps')
         data = my_task.attributes
         queue = []
@@ -626,7 +632,14 @@ class Transforms():
 
             if outputs:
                 merge_dictionary(my_task.attributes, outputs)
-                LOG.debug("Writing task outputs: %s" % outputs)
+                merge_dictionary(outputs, output_template)
+                dep = self.get_property('deployment', None)
+                if dep and outputs:
+                    LOG.debug("Writing task outputs: %s" % outputs)
+                    postback.delay(dep, outputs)
+                else:
+                    LOG.warn("Deployment id not in task properties,"
+                             "cannot update deployment from chef-solo")
         return True
 
 
