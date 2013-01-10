@@ -10,6 +10,8 @@ from novaclient.v1_1 import client
 from SpiffWorkflow.operators import PathAttrib
 from SpiffWorkflow.specs import Celery
 
+import checkmate.ssh
+import checkmate.rdp
 from checkmate.deployments import resource_postback
 from checkmate.exceptions import CheckmateNoTokenError, \
                                  CheckmateNoMapping, \
@@ -217,6 +219,7 @@ class Provider(RackspaceComputeProviderBase):
                                 resource=key),
                         PathAttrib('instance:%s/id' % key),
                         resource['region']],
+                verify_up=True,
                 password=PathAttrib('instance:%s/password' % key),
                 private_key=deployment.settings().get('keys', {}).get(
                         'deployment', {}).get('private_key'),
@@ -403,8 +406,6 @@ class Provider(RackspaceComputeProviderBase):
 
 from celery.task import task #@UnresolvedImport
 
-from checkmate.ssh import test_connection
-
 REGION_MAP = {'dallas': 'DFW',
               'chicago': 'ORD',
               'london': 'LON'}
@@ -481,7 +482,7 @@ def create_server(context, name, region, api_object=None, flavor="2",
 
 @task(default_retry_delay=30, max_retries=120)  # max 60 minute wait
 def wait_on_build(context, server_id, region, ip_address_type='public',
-            check_ssh=True, username='root', timeout=10, password=None,
+            verify_up=True, username='root', timeout=10, password=None,
             identity_file=None, port=22, api_object=None, private_key=None):
     """Checks build is complete and. optionally, that SSH is working.
 
@@ -556,15 +557,27 @@ def wait_on_build(context, server_id, region, ip_address_type='public',
     if not ip:
         raise CheckmateException("Could not find IP of server %s" % server_id)
     else:
-        up = test_connection(context, ip, username, timeout=timeout,
-                password=password, identity_file=identity_file, port=port,
-                private_key=private_key)
-        if up:
-            LOG.info("Server %s is up" % server_id)
-            instance_key = 'instance:%s' % context['resource']
-            results = {instance_key: results}
-            # Send data back to deployment
-            resource_postback.delay(context['deployment'], results) #@UndefinedVariable
+        instance_key = 'instance:%s' % context['resource']
+        results = {instance_key: results}
+
+        if verify_up:
+            image_details = api_object.images.find(id=server.image['id'])
+            if image_details.metadata['os_type'] == 'linux':
+                up = checkmate.ssh.test_connection(context, ip, username, timeout=timeout,
+                                     password=password,
+                                     identity_file=identity_file, port=port,
+                                     private_key=private_key)
+            else:
+                up = checkmate.rdp.test_connection(context, ip, port=port, timeout=timeout)
+
+            if up:
+                LOG.info("Server %s is up" % server_id)
+                resource_postback.delay(context['deployment'], results)
+                return results
+            else:
+                return wait_on_build.retry(exc=CheckmateException("Server "
+                    "%s not ready yet" % server_id))
+        else:
+            LOG.info("Server %s is ACTIVE. Not verified to be up" % server_id)
+            resource_postback.delay(context['deployment'], results)
             return results
-        return wait_on_build.retry(exc=CheckmateException("Server "
-                "%s not ready yet" % server_id))
