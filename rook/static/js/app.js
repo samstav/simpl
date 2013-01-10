@@ -1213,7 +1213,6 @@ function BlueprintRemoteListController($scope, $location, $routeParams, $resourc
   $scope.parse_url = function(url) {
     var u = URI(url);
     $scope.remote_server = u.protocol() + '://' + u.host(); //includes port
-
     $scope.loading_remote_blueprints = true;
     if(!$scope.$$phase)
       $scope.$apply();
@@ -1226,6 +1225,7 @@ function BlueprintRemoteListController($scope, $location, $routeParams, $resourc
       $scope.load();
     }).
     error(function(data, status, headers, config) {
+      $scope.remote_url = u.href();
       $scope.remote_org = null;
       $scope.remote_user = u.path().substring(1);
       $scope.load();
