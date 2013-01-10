@@ -11,19 +11,18 @@ import yaml
 
 # Init logging before we load the database, 3rd party, and 'noisy' modules
 from checkmate.utils import init_console_logging
+from checkmate.deployment import get_os_env_keys
 init_console_logging()
 LOG = logging.getLogger(__name__)
 
 from checkmate.deployments import Deployment
 from checkmate.test import StubbedWorkflowBase, ENV_VARS
 from checkmate.utils import yaml_to_dict
-from checkmate.deployments import get_os_env_keys
 from checkmate.providers import base
 from checkmate.providers.base import ProviderBase
 from checkmate.utils import resolve_yaml_external_refs
 
 from checkmate.providers import rackspace, opscode
-
 
 #def commonSetUp():
 #    # Register built-in providers
@@ -107,19 +106,17 @@ class TestWorkflowLogic(StubbedWorkflowBase):
 
 class TestWorkflow(StubbedWorkflowBase):
     """Test Workflow Execution"""
-    
+
     def setUp(self):
         StubbedWorkflowBase.setUp(self)
-	"""
         # Parse app.yaml as a deployment
-        self.deployment = TestWorkflow.deployment
-        self.workflow = self._get_stubbed_out_workflow()
-    	"""
-        
+#        self.deployment = TestWorkflow.deployment
+#        self.workflow = self._get_stubbed_out_workflow()
+
     def test_workflow_completion(self):
-        'Verify workflow sequence and data flow'
-	
-	self.deployment = Deployment(yaml_to_dict("""
+        """Verify workflow sequence and data flow"""
+
+        self.deployment = Deployment(yaml_to_dict("""
                 id: test
                 blueprint:
                   name: test bp
@@ -208,7 +205,8 @@ class TestWorkflow(StubbedWorkflowBase):
         LOG.debug(json.dumps(self.deployment['resources'], indent=2))
         LOG.debug("\nOUTCOME:")
         LOG.debug(json.dumps(self.outcome, indent=2))
-        
+
+
 class TestWordpressWorkflow(StubbedWorkflowBase):
     """Test WordPress Workflow inputs (modifies app.yaml)"""
 
@@ -293,7 +291,7 @@ class TestWordpressWorkflow(StubbedWorkflowBase):
         # Parse app.yaml as a deployment
         self.deployment = TestWordpressWorkflow.deployment
         self.workflow = self._get_stubbed_out_workflow()
-    
+
     #def test_workflow_completion(self):
     #    'Verify workflow sequence and data flow'
     #
@@ -353,7 +351,6 @@ class TestWordpressWorkflow(StubbedWorkflowBase):
     #        if resource['provider'] == 'legacy':
     #            self.assertEquals(resource['flavor'], "2")  # 1Gb for master
     #    self.assertEqual(count, 3)  # 1 master, 2 webs
-        
 
 if __name__ == '__main__':
     # Run tests. Handle our parameters separately

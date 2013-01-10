@@ -324,6 +324,8 @@ class Provider(RackspaceComputeProviderBase):
                         } for i in api.images.list() if int(i.id) > 1000}
 
         self.validate_catalog(results)
+        if type_filter is None:
+            self._dict['catalog'] = results
         return results
 
     @staticmethod

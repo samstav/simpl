@@ -19,8 +19,9 @@ import uuid
 from bottle import abort, request
 import yaml
 from yaml.events import AliasEvent, ScalarEvent
-from yaml.parser import ParserError
 from yaml.composer import ComposerError
+from yaml.scanner import ScannerError
+from yaml.parser import ParserError
 import argparse
 
 from checkmate.exceptions import CheckmateNoData, CheckmateValidationException
@@ -184,7 +185,7 @@ def read_body(request):
     if content_type == 'application/x-yaml':
         try:
             return yaml_to_dict(data)
-        except ParserError as exc:
+        except (ParserError, ScannerError) as exc:
             raise CheckmateValidationException("Invalid YAML syntax. "
                                                "Check:\n%s" % exc)
         except ComposerError as exc:
@@ -446,8 +447,19 @@ def is_ssh_key(key):
 
 def get_source_body(function):
     """Gets the body of a function (i.e. no definition line, and unindented"""
-    # Unindent
-    lines = inspect.getsource(function).split('\n')[1:]
+    lines = inspect.getsource(function).split('\n')
+
+    # Find body - skip decorators and definition
+    start = 0
+    for number, line in enumerate(lines):
+        if line.strip().startswith("@"):
+            start = number + 1
+        elif line.strip().startswith("def "):
+            start = number + 1
+            break
+    lines = lines[start:]
+
+    # Unindent body
     indent = len(lines[0]) - len(lines[0].lstrip())
     for index, line in enumerate(lines):
         lines[index] = line[indent:]
@@ -502,3 +514,28 @@ def isUUID(value):
         return True
     except:
         return False
+
+
+def write_path(target, path, value):
+    """Writes a value into a dict building any intermediate keys"""
+    parts = path.split('/')
+    current = target
+    for part in parts[:-1]:
+        if part not in current:
+            current[part] = current = {}
+        else:
+            current = current[part]
+    current[parts[-1]] = value
+
+
+def read_path(source, path):
+    """Reads a value from a dict supporting a path as a key"""
+    parts = path.strip('/').split('/')
+    current = source
+    for part in parts[:-1]:
+        if part not in current:
+            return
+        current = current[part]
+        if not isinstance(current, dict):
+            return
+    return current.get(parts[-1])

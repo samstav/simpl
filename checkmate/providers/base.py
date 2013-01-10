@@ -80,11 +80,7 @@ class ProviderBaseWorkflowMixIn():
             raise CheckmateNoMapping("Component '%s' not found" % component_id)
 
         # Get service
-        service_name = None
-        for name, service in deployment['blueprint']['services'].iteritems():
-            if key in service.get('instances', []):
-                service_name = name
-                break
+        service_name = resource['service']
         if not service_name:
             raise CheckmateException("Service not found for resource %s" %
                     key)
@@ -316,9 +312,14 @@ class ProviderBase(ProviderBasePlanningMixIn, ProviderBaseWorkflowMixIn):
         :param context: a RequestContext that has a security information
         :param type_filter: which type of resource to filter by
         :return_type: dict"""
+        result = {}
         if 'catalog' in self._dict:
-            return self._dict['catalog']
-        return {}
+            catalog = self._dict['catalog']
+            if type_filter and type_filter in catalog:
+                result = {type_filter: catalog[type_filter]}
+            else:
+                result = self._dict['catalog']
+        return result
 
     def validate_catalog(self, catalog):
         errors = schema.validate_catalog(catalog)
@@ -337,7 +338,10 @@ class ProviderBase(ProviderBasePlanningMixIn, ProviderBaseWorkflowMixIn):
             if key == 'lists':
                 continue
             if id in value:
-                return Component(value[id], id=id, provider=self)
+                result = value[id]
+                if 'is' not in result:
+                    result['is'] = key
+                return Component(result, id=id, provider=self)
 
     def find_components(self, context, **kwargs):
         """Finds the components that matches the supplied key/value arguments
@@ -351,22 +355,61 @@ class ProviderBase(ProviderBasePlanningMixIn, ProviderBaseWorkflowMixIn):
                                    kwargs.pop('resource', None)))
         interface = kwargs.pop('interface', None)
         role = kwargs.pop('role', None)
-        kwargs.pop('version', None)  # noise reduction
+        kwargs.pop('version', None)      # noise reduction
+        kwargs.pop('constraints', None)  # noise reduction
         if kwargs:
             LOG.debug("Extra kwargs: %s" % kwargs)
 
-        if component_id and not (interface or resource_type):
+        # if id specified, use it
+
+        if component_id:
             component = self.get_component(context, component_id)
             if component:
+                # check the type/interface also match
+                provides = component.provides or {}
+                match = False
+                for provide_key, provide in provides.iteritems():
+                    ptype = provide.get('resource_type')
+                    pinterface = provide['interface']
+                    if interface and interface != pinterface:
+                        continue  # Interface specified and does not match
+                    if resource_type and resource_type != ptype:
+                        continue  # Type specified and does not match
+                    match = True
+                    break
+                if not match and interface:
+                    LOG.debug("Found component by id '%s', but type '%s' and "
+                              "interface '%s' did not match" %
+                              (component_id, resource_type or '*',
+                               interface or '*'))
+                    return []
+                # if no interface, check type at least matches 'is'
+                if not match:
+                    if resource_type and resource_type != component.get('is'):
+                        LOG.debug("Found component by id '%s', but type '%s'"
+                                  "did not match" % (component_id,
+                                                     resource_type))
+                        return []
+                # Check role if it exists
+                if role and role not in component.get('roles', []):
+                    LOG.debug("Found component by id '%s', but role '%s'"
+                                  "did not match" % (component_id, role))
+                    return []
+
                 LOG.debug("Found component by id: %s" % component_id)
-                return [Component(component, id=component_id, provider=self)]
+                return [component]
             else:
                 LOG.debug("No match for component id: %s" % component_id)
                 return []
 
+        # use type, interface to find a component (and check the role)
+
         LOG.debug("Searching for component %s:%s in provider '%s'" % (
-                resource_type or '*', interface or '*', self.key))
-        catalog = self.get_catalog(context, type_filter=resource_type)
+                  resource_type or '*', interface or '*', self.key))
+        catalog = self.get_catalog(context)
+        if not catalog:
+            LOG.debug("No catalog available for provider: '%s'" % self.key)
+            return []
         matches = []
         # Loop through catalog
         for key, components in catalog.iteritems():
@@ -375,11 +418,14 @@ class ProviderBase(ProviderBasePlanningMixIn, ProviderBaseWorkflowMixIn):
             for id, component in components.iteritems():
                 if component_id and component_id != id:
                     continue  # ID specified and does not match
-                provides = component.get('provides', [])
-                if role and role not in component.get('roles',[]):
-                    continue # Component does not provide given role                   
-                for entry in provides:
-                    ptype, pinterface = entry.items()[0]
+                if role and role not in component.get('roles', []):
+                    continue  # Component does not provide given role
+                comp = Component()
+                comp._data = component
+                provides = comp.provides or {}
+                for entry in provides.values():
+                    ptype = entry.get('resource_type')
+                    pinterface = entry['interface']
                     if interface and interface != pinterface:
                         continue  # Interface specified and does not match
                     if resource_type and resource_type != ptype:

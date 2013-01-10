@@ -214,6 +214,14 @@ class TestUtils(unittest.TestCase):
         source = utils.get_source_body(self.test_get_source_body)
         self.assertTrue(source.startswith("source = utils"))
 
+        source = utils.get_source_body(self.dummy_static)
+        self.assertTrue(source.startswith("\"\"\"used"))
+
+    @staticmethod
+    def dummy_static():
+        """used for get_source_body test"""
+        pass
+
     def test_isUUID_blanks(self):
         self.assertFalse(utils.isUUID(None), "None is not a UUID")
         self.assertFalse(utils.isUUID(""), "Empty string is not a UUID")
@@ -227,6 +235,105 @@ class TestUtils(unittest.TestCase):
         self.assertTrue(utils.isUUID(uuid.uuid4()), "uuid() is a UUID")
         self.assertTrue(utils.isUUID(uuid.uuid4().hex),
                         "uuid string is a UUID")
+
+    def test_write_path(self):
+        cases = [
+            {
+                'name': 'scalar at root',
+                'start': {},
+                'path': 'root',
+                'value': 'scalar',
+                'expected': {'root': 'scalar'}
+            }, {
+                'name': 'int at root',
+                'start': {},
+                'path': 'root',
+                'value': 10,
+                'expected': {'root': 10}
+            }, {
+                'name': 'bool at root',
+                'start': {},
+                'path': 'root',
+                'value': True,
+                'expected': {'root': True}
+            }, {
+                'name': 'value at two piece path',
+                'start': {},
+                'path': 'root/subfolder',
+                'value': True,
+                'expected': {'root': {'subfolder': True}}
+            }, {
+                'name': 'value at multi piece path',
+                'start': {},
+                'path': 'one/two/three',
+                'value': {},
+                'expected': {'one': {'two': {'three': {}}}}
+            }, {
+                'name': 'add to existing',
+                'start': {'root': {'exists': True}},
+                'path': 'root/new',
+                'value': False,
+                'expected': {'root': {'exists': True, 'new': False}}
+            }, {
+                'name': 'overwrite existing',
+                'start': {'root': {'exists': True}},
+                'path': 'root/exists',
+                'value': False,
+                'expected': {'root': {'exists': False}}
+            }
+            ]
+        for case in cases:
+            result = case['start']
+            utils.write_path(result, case['path'], case['value'])
+            self.assertDictEqual(result, case['expected'], msg=case['name'])
+
+    def test_read_path(self):
+        cases = [
+            {
+                'name': 'simple value',
+                'start': {'root': 1},
+                'path': 'root',
+                'expected': 1
+            }, {
+                'name': 'simple path',
+                'start': {'root': {'folder': 2}},
+                'path': 'root/folder',
+                'expected': 2
+            }, {
+                'name': 'blank path',
+                'start': {'root': 1},
+                'path': '',
+                'expected': None
+            }, {
+                'name': '/ only',
+                'start': {'root': 1},
+                'path': '/',
+                'expected': None
+            }, {
+                'name': 'extra /',
+                'start': {'root': 1},
+                'path': '/root/',
+                'expected': 1
+            }, {
+                'name': 'nonexistent root',
+                'start': {'root': 1},
+                'path': 'not-there',
+                'expected': None
+            }, {
+                'name': 'nonexistent path',
+                'start': {'root': 1},
+                'path': 'root/not-there',
+                'expected': None
+            }, {
+                'name': 'empty source',
+                'start': {},
+                'path': 'root',
+                'expected': None
+            },
+            ]
+        for case in cases:
+            result = utils.read_path(case['start'], case['path'])
+            self.assertEqual(result, case['expected'], msg=case['name'])
 
 
 if __name__ == '__main__':

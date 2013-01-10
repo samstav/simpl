@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 from bottle import get, post, put, request, response, abort
+import copy
 import logging
 import uuid
 
@@ -156,3 +157,66 @@ class Component(ExtensibleDict):
         if errors:
             raise CheckmateValidationException("Invalid component: %s" %
                                                '\n'.join(errors))
+
+    @property
+    def provides(self):
+        """Returns the 'provides' list in the expanded format"""
+        results = copy.copy(self._data.get('provides'))
+        if isinstance(results, list):
+            expanded_results = {}
+            for entry in results:
+                if len(entry) == 1:
+                    item = entry.items()[0]
+                    keys = ('resource_type', 'interface')
+                    expanded = dict(zip(keys, item))
+                    expanded_results['%s:%s' % item] = expanded
+                else:
+                    raise CheckmateValidationException("Provides has invalid "
+                                                       "format: " % entry)
+            results = expanded_results
+        if isinstance(results, dict):
+            for value in results.values():
+                if 'type' in value:
+                    if 'resource_type' in value:
+                        msg = ("Component has both type and resource_type "
+                               "specified in its provides section")
+                        raise CheckmateValidationException(msg)
+                    value['resource_type'] = value['type']
+                    del value['type']
+                    break
+        return results
+
+    @property
+    def requires(self):
+        """Returns the 'requires' list in the expanded format"""
+        results = copy.copy(self._data.get('requires'))
+        if isinstance(results, list):
+            expanded_results = {}
+            for entry in results:
+                if len(entry) == 1:
+                    value = entry.values()[0]
+                    if isinstance(value, dict):
+                        expanded_results[entry.keys()[0]] = value
+                    else:
+                        item = entry.items()[0]
+                        if entry.keys()[0] == 'host':
+                            keys = ('relation', 'interface')
+                        else:
+                            keys = ('resource_type', 'interface')
+                        expanded = dict(zip(keys, item))
+                        expanded_results['%s:%s' % item] = expanded
+                else:
+                    raise CheckmateValidationException("Requires has invalid "
+                                                       "format: " % entry)
+            results = expanded_results
+        if isinstance(results, dict):
+            for value in results.values():
+                if 'type' in value:
+                    if 'resource_type' in value:
+                        msg = ("Component has both type and resource_type "
+                               "specified in its requires section")
+                        raise CheckmateValidationException(msg)
+                    value['resource_type'] = value['type']
+                    del value['type']
+                    break
+        return results

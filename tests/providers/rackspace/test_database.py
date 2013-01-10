@@ -161,9 +161,7 @@ class TestDBWorkflow(StubbedWorkflowBase):
                         is: database
                         type: database
                         requires:
-                          "server":
-                            relation: host
-                            interface: 'linux'
+                        - host: 'linux'
                 environment:
                   name: test
                   providers:
@@ -175,20 +173,21 @@ class TestDBWorkflow(StubbedWorkflowBase):
                       constraints:
                       - region: DFW
                       catalog:  # override so we don't need a token to connect
-                        database:
+                        compute:
                           mysql_instance:
                             id: mysql_instance
                             is: compute
                             provides:
                             - compute: mysql
-                        compute:
+                        database:
                           mysql_database:
                             id: mysql_database
                             is: database
                             provides:
                             - database: mysql
                             requires:
-                            - compute:
+                            - compute:  # FIXME: this syntax needs to be deprecated
+                                resource_type: compute
                                 relation: host
                                 interface: mysql
                         lists:

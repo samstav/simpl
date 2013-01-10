@@ -558,7 +558,13 @@ def create_workflow_spec_deploy(deployment, context):
         if 'hosts' in resource:
             for index in resource['hosts']:
                 hr = deployment['resources'][index]
-                relation = hr['relations']['host']
+                relations = [r for r in hr['relations'].values()
+                             if (r.get('relation') == 'host'
+                                 and r['target'] == key)]
+                if len(relations) > 1:
+                    raise CheckmateException("Multiple 'host' relations for "
+                                             "resource '%s'" % key)
+                relation = relations[0]
                 provider = providers[hr['provider']]
                 provider_result = provider.add_connection_tasks(hr,
                         index, relation, 'host', wfspec, deployment, context)
@@ -568,7 +574,6 @@ def create_workflow_spec_deploy(deployment, context):
                     LOG.debug("Attaching '%s' to 'Start'" %
                             provider_result['root'].name)
                     wfspec.start.connect(provider_result['root'])
-                
 
     # Do relations
     for key, resource in deployment.get('resources', {}).iteritems():
@@ -599,7 +604,7 @@ def wait_for(wf_spec, task, wait_list, name=None, **kwargs):
 
     If wait_list has more than one task, we'll use a Merge task. If wait_list
     only contains one task, we'll just wire them up directly. If task input is
-    already a join, we'll tap into that.
+    already a subclass of join, we'll tap into that.
 
     :param wf_spec: the workflow spec being worked on
     :param task: the task that will be waiting
@@ -611,14 +616,21 @@ def wait_for(wf_spec, task, wait_list, name=None, **kwargs):
     if wait_list:
         wait_set = list(set(wait_list))  # remove duplicates
         join_task = None
+        if issubclass(task.__class__, Join):
+            # It's a join. Just add the inputs
+            for t in wait_set:
+                if t not in task.ancestors():
+                    t.connect(task)
+            return task
+
         if task.inputs:
             # Move inputs to join
             for input_spec in task.inputs:
                 # If input_spec is a Join, keep it as an input and use it
                 if isinstance(input_spec, Join):
                     if join_task:
-                        LOG.warning("Task %s seems to have to Join inputs" %
-                                task.name)
+                        LOG.warning("Task %s seems to have multiple Join "
+                                    "inputs" % task.name)
                     else:
                         LOG.debug("Using existing Join task %s" %
                                   input_spec.name)
@@ -632,8 +644,6 @@ def wait_for(wf_spec, task, wait_list, name=None, **kwargs):
                 task.inputs = [join_task]
             else:
                 task.inputs = []
-        elif isinstance(task, Join):
-            join_task = task
 
         if len(wait_set) > 1:
             if not join_task:

@@ -359,8 +359,12 @@ class Environment():
             del params['type']
         params['resource_type'] = resource_type
 
+        interface = params.get("interface")
+
         for provider in providers.values():
-            if provider.provides(context, resource_type=resource_type, interface=params.get("interface")):
+            if (not (resource_type or interface))\
+                    or provider.provides(context, resource_type=resource_type,
+                                          interface=interface):
                 these_matches = provider.find_components(context, **params)
                 if these_matches:
                     for match in these_matches:

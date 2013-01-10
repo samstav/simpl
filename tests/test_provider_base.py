@@ -78,6 +78,29 @@ class TestProviderBase(unittest.TestCase):
         base = ProviderBase(data, key='base')
         self.assertDictEqual(base.get_catalog(None), data['catalog'])
 
+    def test_provider_catalog_filter(self):
+        """Test that get_catalog applies type filter"""
+        data = yaml_to_dict("""
+                  vendor: test
+                  catalog:
+                    widget:
+                      small_widget:
+                        is: widget
+                        provides:
+                        - widget: foo
+                    gadget:
+                      big_gadget:
+                        is: gadget
+                        provides:
+                        - gadget: bar
+            """)
+        base = ProviderBase(data, key='base')
+        self.assertDictEqual(base.get_catalog(None), data['catalog'])
+        widgets = base.get_catalog(None, type_filter='widget')
+        self.assertDictEqual(widgets, {'widget': data['catalog']['widget']})
+        gadgets = base.get_catalog(None, type_filter='gadget')
+        self.assertDictEqual(gadgets, {'gadget': data['catalog']['gadget']})
+
     def test_provider_find_components(self):
         base = ProviderBase(yaml_to_dict("""
                   provides:
