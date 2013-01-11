@@ -570,8 +570,8 @@ def wait_on_build(context, server_id, region, ip_address_type='public',
                                   private_key=private_key)
                 up = test_result.get()
             else:
-                test_result = checkmate.rdp.test_connection(context, ip,
-                                                            timeout=timeout)
+                test_result = checkmate.rdp.test_connection.delay(
+                                  context, ip, timeout=timeout)
                 up = test_result.get()
 
             if up:
