@@ -23,17 +23,18 @@ def test_connection(context, host, port=3389, timeout=10, callback=None):
     match_celery_logging(LOG)
     LOG.debug("Checking for a response from rdp://%s:%d." % (host, port))
 
+    
+    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    sock.settimeout(timeout)
     try:
-        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        sock.settimeout(timeout)
         sock.connect((host, port))
-        sock.close()
-        LOG.debug("rdp://%s:%d is up." % (host, port))
-        if callback:
-            subtask(callback).delay()
-        return True
     except Exception, exc:
         LOG.debug('rdp://%s:%d failed.  %s' % (host, port, exc))
         if test_connection.request.id:
             test_connection.retry(exc=exc)
-    return False
+
+    sock.close()
+    LOG.debug("rdp://%s:%d is up." % (host, port))
+    if callback:
+        subtask(callback).delay()
+    return True
