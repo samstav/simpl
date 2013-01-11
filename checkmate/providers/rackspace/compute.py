@@ -230,9 +230,10 @@ class Provider(RackspaceComputeProviderBase):
                              task_tags=['final']))
         create_server_task.connect(build_wait_task)
 
-        #If Managed Cloud, add a Completion task to release RBA
-        # other providers may delay this task until they are done
-        if 'rax_managed' in context.roles:
+        # If Managed Cloud Linux servers, add a Completion task to release
+        # RBA. Other providers may delay this task until they are done.
+        if ('rax_managed' in context.roles and
+            resource['component'] == 'linux_instance'):
             touch_complete = Celery(wfspec, 'Mark Server %s (%s) Complete'
                     % (key, resource['service']), 'checkmate.ssh.execute',
                     call_args=[PathAttrib("instance:%s/public_ip" % key),
