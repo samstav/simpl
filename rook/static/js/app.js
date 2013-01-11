@@ -747,6 +747,21 @@ function WorkflowController($scope, $resource, $http, $routeParams, $location, $
                     all_data.push('    Public VIP:       ' + resource.instance.public_ip);
                 }
             });
+            all_data.push('Applications: ');
+            if ($scope.output.username == undefined) {
+                _.each($scope.output.resources, function(resource) {
+                    if (resource.type == 'application' && resource.instance !== undefined) {
+                        _.each(resource.instance, function(instance) {
+                            if (instance.admin_user !== undefined) {
+                                $scope.output.username = instance.admin_user;
+                            }
+                            if (instance.admin_password !== undefined) {
+                                $scope.output.password = instance.admin_password;
+                            }
+                        });
+                    }
+                });
+            }
 
             all_data.push('User:     ' + $scope.output.username);
             all_data.push('Password: ' + $scope.output.password);
