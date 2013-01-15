@@ -477,7 +477,7 @@ class Deployment(ExtensibleDict):
                     constraints = self.parse_constraints(constraints)
                     for constraint in constraints:
                         if name == constraint['setting']:
-                            result = constraint.get('value')
+                            result = self.evaluate_constraint(constraint)
                             LOG.debug("Found setting '%s' as a service "
                                       "constraint in service '%s'. %s=%s"
                                       % (name, service_name, name, result))
@@ -490,7 +490,8 @@ class Deployment(ExtensibleDict):
                             constraints = self.parse_constraints(constraints)
                             for constraint in constraints:
                                 if name == constraint['setting']:
-                                    result = constraint.get('value')
+                                    result = self.evaluate_constraint(
+                                            constraint)
                                     LOG.debug("Found setting '%s' as a "
                                               "service comoponent constraint "
                                               "in service '%s'. %s=%s" % (name,
@@ -554,6 +555,11 @@ class Deployment(ExtensibleDict):
         LOG.debug("Constraint '%s' for '%s' applied to '%s/%s'" % (
                   constraint, name, service_name or '*', resource_type or '*'))
         return True
+
+    def evaluate_constraint(self, constraint):
+        """Returns the value to apply from a constraint"""
+        if 'value' in constraint:
+            return constraint['value']
 
     def _get_input_service_override(self, name, service_name,
                                     resource_type=None):
@@ -627,7 +633,7 @@ class Deployment(ExtensibleDict):
             for constraint in constraints:
                 if self.constraint_applies(constraint, name,
                                            resource_type=resource_type):
-                    result = constraint['value']
+                    result = self.evaluate_constraint(constraint)
                     LOG.debug("Found setting '%s' as a provider constraint in "
                               "the environment for provider '%s'. %s=%s"
                               % (name, provider_key, name, result))
