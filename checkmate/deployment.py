@@ -1,6 +1,7 @@
 import copy
 import logging
 import os
+from urlparse import urlparse
 
 from checkmate import keys
 from checkmate.classes import ExtensibleDict
@@ -349,18 +350,12 @@ class Deployment(ExtensibleDict):
                     constraints = self.parse_constraints(option['constrains'])
                     for constraint in constraints:
                         if self.constraint_applies(constraint, path):
-                            # Find in inputs or use default if available
-                            result = self._get_input_simple(key)
+                            result = self._apply_constraint(path, constraint,
+                                                            option=option,
+                                                            option_key=key)
                             if result:
-                                LOG.debug("Found setting '%s' from constraint "
-                                          "by resource path. %s=%s" % (
-                                          path, key, result))
-                                return result
-                            if 'default' in option:
-                                result = option['default']
-                                LOG.debug("Default setting '%s' obtained from "
-                                          "constraint by resource '%s': "
-                                          "default=%s" % (path, key, result))
+                                LOG.debug("Found setting '%s' from constraint."
+                                          " %s=%s" % (path, key, result))
                                 return result
         return default
 
@@ -405,6 +400,7 @@ class Deployment(ExtensibleDict):
 
         :param name: the name of the setting
         :param service_name: the name of the service being evaluated
+        :param resource_type: the resource type to match the constraint with
         """
         blueprint = self['blueprint']
         if 'options' in blueprint:
@@ -416,19 +412,12 @@ class Deployment(ExtensibleDict):
                         if (self.constraint_applies(constraint, name,
                             service_name=service_name,
                             resource_type=resource_type)):
-                            # Find in inputs or use default if available
-                            result = self._get_input_simple(key)
+                            result = self._apply_constraint(name, constraint,
+                                                            option=option,
+                                                            option_key=key)
                             if result:
-                                LOG.debug("Found setting '%s' from constraint "
-                                          "in blueprint input '%s'. %s=%s" % (
-                                          name, key, name, result))
-                                return result
-                            if 'default' in option:
-                                result = option['default']
-                                LOG.debug("Default setting '%s' obtained from "
-                                          "constraint in blueprint input "
-                                          "'%s': default=%s" % (name, key,
-                                          result))
+                                LOG.debug("Found setting '%s' from constraint."
+                                          " %s=%s" % (name, name, result))
                                 return result
 
     def _get_constrained_static_resource_setting(self, name, service_name=None,
@@ -450,14 +439,16 @@ class Deployment(ExtensibleDict):
                         if (self.constraint_applies(constraint, name,
                             service_name=service_name,
                             resource_type=resource_type)):
-                            # Find the instance, and get the attribute
                             instance = self['resources'][key]['instance']
+                            result = self._apply_constraint(name, constraint,
+                                                            resource=instance)
+                            # Find the instance, and get the attribute
                             result = instance[constraint.get('attribute',
                                                              name)]
                             if result:
                                 LOG.debug("Found setting '%s' from constraint "
-                                          "in blueprint resource '%s'. "
-                                          "%s=%s" % (name, key, name, result))
+                                          "in blueprint resource '%s'. %s=%s" %
+                                          (name, key, name, result))
                                 return result
 
     def _get_constrained_svc_cmp_setting(self, name, service_name):
@@ -477,7 +468,7 @@ class Deployment(ExtensibleDict):
                     constraints = self.parse_constraints(constraints)
                     for constraint in constraints:
                         if name == constraint['setting']:
-                            result = self.evaluate_constraint(constraint)
+                            result = self._apply_constraint(name, constraint)
                             LOG.debug("Found setting '%s' as a service "
                                       "constraint in service '%s'. %s=%s"
                                       % (name, service_name, name, result))
@@ -490,8 +481,8 @@ class Deployment(ExtensibleDict):
                             constraints = self.parse_constraints(constraints)
                             for constraint in constraints:
                                 if name == constraint['setting']:
-                                    result = self.evaluate_constraint(
-                                            constraint)
+                                    result = self._apply_constraint(name,
+                                                                    constraint)
                                     LOG.debug("Found setting '%s' as a "
                                               "service comoponent constraint "
                                               "in service '%s'. %s=%s" % (name,
@@ -556,10 +547,84 @@ class Deployment(ExtensibleDict):
                   constraint, name, service_name or '*', resource_type or '*'))
         return True
 
-    def evaluate_constraint(self, constraint):
-        """Returns the value to apply from a constraint"""
+    def _apply_constraint(self, name, constraint, option=None, resource=None,
+                          option_key=None):
+        """
+
+        Returns the value to of the option applying any constraint definitions
+
+        :param name: the name of the option we are seeking
+        :param constraint: the dict of any constraint used to find the option
+        :param option: the option being evaluated
+        :param resource: the resource the constraint is applied to
+        :param option_key: the key of the option the constraint is coming from
+
+        """
+
+        # Return the value if it is explicitely assigned in the constraint
+
         if 'value' in constraint:
             return constraint['value']
+
+        # Find the value
+
+        value = None
+        if resource:
+            # use the resource as the value if the constraint has a resource
+            value = resource
+        else:
+            if option_key:
+                value = self._get_input_simple(option_key)
+            if not value and option and 'default' in option:
+                value = option.get('default')
+                LOG.debug("Default setting '%s' obtained from constraint "
+                          "in blueprint input '%s': default=%s" % (
+                            name, option_key, value))
+
+        # objectify the value it if it is a typed option
+
+        if option and 'type' in option and not resource:
+            value = self._objectify(option, value)
+
+        # If the constraint has an attribute specified, get that attribute
+
+        if 'attribute' in constraint:
+            attribute = constraint['attribute']
+
+            if value:
+                if attribute in value:
+                    result = value[attribute]
+                if result:
+                    LOG.debug("Found setting '%s' from constraint in '%s'"
+                              ". %s=%s" % (name, option_key, option_key,
+                              result))
+                    return result
+
+        if value:
+            LOG.debug("Found setting '%s' from constraint in blueprint "
+                      "input '%s'. %s=%s" % (name, option_key, option_key,
+                      value))
+            return value
+
+    @staticmethod
+    def _objectify(option, value):
+        """Parse option based on type into an object of that type"""
+        if 'type' not in option:
+            return value
+        if option['type'] == 'url':
+            parts = urlparse(value)
+            return {
+                    'scheme': parts.scheme,
+                    'protocol': parts.scheme,
+                    'netloc': parts.netloc,
+                    'hostname': parts.hostname,
+                    'port': parts.port,
+                    'username': parts.username,
+                    'password': parts.password,
+                    'path': parts.path.strip('/'),
+                    'query': parts.query,
+                    'fragment': parts.fragment,
+                   }
 
     def _get_input_service_override(self, name, service_name,
                                     resource_type=None):
@@ -633,7 +698,7 @@ class Deployment(ExtensibleDict):
             for constraint in constraints:
                 if self.constraint_applies(constraint, name,
                                            resource_type=resource_type):
-                    result = self.evaluate_constraint(constraint)
+                    result = self._apply_constraint(name, constraint)
                     LOG.debug("Found setting '%s' as a provider constraint in "
                               "the environment for provider '%s'. %s=%s"
                               % (name, provider_key, name, result))

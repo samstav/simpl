@@ -625,14 +625,30 @@ class TestDeploymentSettings(unittest.TestCase):
                       component:
                         type: compute
                         constraints:
-                          "wordpress/version": 3.1.4
-                          "wordpress/create": true
+                        - "wordpress/version": 3.1.4
+                        - "wordpress/create": true
                   options:
                     my_server_type:
                       constrains:
                       - type: compute
                         service: web
                         setting: os
+                    my_url:
+                      type: url
+                      default: 'git://fqdn:1000/path'
+                      constrains:
+                      - type: compute
+                        service: web
+                        setting: protocol
+                        attribute: protocol
+                      - type: compute
+                        service: master
+                        setting: protocol
+                        attribute: scheme
+                      - type: compute
+                        service: web
+                        setting: domain
+                        attribute: hostname
                 inputs:
                   blueprint:
                     domain: example.com
@@ -742,6 +758,27 @@ class TestDeploymentSettings(unittest.TestCase):
                     'provider': "base",
                     'service': 'wordpress',
                     'expected': True,
+                }, {
+                    'case': "Constrains reading url scheme",
+                    'name': "protocol",
+                    'type': 'compute',
+                    'provider': "base",
+                    'service': 'master',
+                    'expected': "git",
+                }, {
+                    'case': "Url protocol is aliased to scheme",
+                    'name': "protocol",
+                    'type': 'compute',
+                    'provider': "base",
+                    'service': 'web',
+                    'expected': "git",
+                }, {
+                    'case': "Constrains reading url hostname",
+                    'name': "domain",
+                    'type': 'compute',
+                    'provider': "base",
+                    'service': 'web',
+                    'expected': "fqdn",
                 },  {
                     'case': "Set in blueprint/providers",
                     'name': "memory",
@@ -756,7 +793,7 @@ class TestDeploymentSettings(unittest.TestCase):
                     service_name=test.get('service'),
                     provider_key=test.get('provider'),
                     resource_type=test.get('type'))
-            self.assertEquals(value, test['expected'], test['case'])
+            self.assertEquals(value, test['expected'], msg=test['case'])
             LOG.debug("Test '%s' success=%s" % (test['case'],
                                                  value == test['expected']))
 
