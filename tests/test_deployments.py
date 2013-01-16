@@ -598,13 +598,18 @@ class TestDeploymentSettings(unittest.TestCase):
     def test_get_setting(self):
         """Test the get_setting function"""
         deployment = Deployment(yaml_to_dict("""
+                id: test
                 environment:
                   name: environment
                   providers:
                     base:
-                      provides:
-                      - compute: foo
-                      vendor: bar
+                      vendor: test
+                      catalog:
+                        compute:
+                          dummy_server:
+                            is: compute
+                            provides:
+                            - compute: foo
                       constraints:
                       - type: widget
                         setting: size
@@ -649,6 +654,14 @@ class TestDeploymentSettings(unittest.TestCase):
                         service: web
                         setting: domain
                         attribute: hostname
+                  resources:
+                    "my keys":
+                      type: key-pair
+                      constrains:
+                      - setting: server_key
+                        resource_type: compute
+                        service: web
+                        attribute: private_key
                 inputs:
                   blueprint:
                     domain: example.com
@@ -788,14 +801,20 @@ class TestDeploymentSettings(unittest.TestCase):
             ]
 
         base.PROVIDER_CLASSES['test.base'] = ProviderBase
+        parsed = plan(deployment, RequestContext())
         for test in cases[:-1]:  # TODO: last case broken without env providers
-            value = deployment.get_setting(test['name'],
+            value = parsed.get_setting(test['name'],
                     service_name=test.get('service'),
                     provider_key=test.get('provider'),
                     resource_type=test.get('type'))
             self.assertEquals(value, test['expected'], msg=test['case'])
             LOG.debug("Test '%s' success=%s" % (test['case'],
                                                  value == test['expected']))
+
+        msg = "Coming from static resource constraint"
+        value = parsed.get_setting("server_key", service_name="web",
+                                   resource_type="compute")
+        self.assertIn('-----BEGIN RSA PRIVATE KEY-----\n', value, msg=msg)
 
     def test_get_setting_static(self):
         """Test the get_setting function used with static resources"""
