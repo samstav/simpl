@@ -18,7 +18,7 @@ def main_func():
                 'checkmate.orchestrator,checkmate.ssh,checkmate.deployments,'
                 'checkmate.providers.rackspace,checkmate.providers.opscode,'
                 'checkmate.celeryapp',
-                '--events', 
+                '--events',
                 ])
         if '--verbose' in sys.argv:
             sys.argv.pop(sys.argv.index('--verbose'))

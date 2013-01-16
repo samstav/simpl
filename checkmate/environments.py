@@ -166,7 +166,7 @@ def get_provider_environment_catalog(environment_id, provider_id,
 def get_environment_component(environment_id, provider_id, component_id,
                               tenant_id=None):
     """
-    Return a specific component found in the catalog of a specific 
+    Return a specific component found in the catalog of a specific
     provider in an environment
     """
     entity = DB.get_environment(environment_id, with_secrets=True)

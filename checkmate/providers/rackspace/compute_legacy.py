@@ -11,8 +11,10 @@ from SpiffWorkflow.operators import Attrib, PathAttrib
 from SpiffWorkflow.specs import Celery, Transform
 
 from checkmate.deployments import Deployment, resource_postback
-from checkmate.exceptions import CheckmateNoTokenError, CheckmateNoMapping, \
-        CheckmateServerBuildFailed, CheckmateException
+from checkmate.exceptions import (CheckmateNoTokenError,
+                                  CheckmateNoMapping,
+                                  CheckmateServerBuildFailed,
+                                  CheckmateException)
 from checkmate.providers.rackspace.compute import RackspaceComputeProviderBase
 from checkmate.utils import get_source_body, match_celery_logging, yaml_to_dict
 from checkmate.workflows import wait_for
@@ -52,7 +54,7 @@ CATALOG_TEMPLATE = yaml_to_dict("""compute:
                         {
                             "path" : "/etc/banner.txt",
                             "contents" : "ICAgICAgDQoiQSBjbG91ZCBkb2VzIG5vdCBrbm93IHdoeSBp dCBtb3ZlcyBpbiBqdXN0IHN1Y2ggYSBkaXJlY3Rpb24gYW5k IGF0IHN1Y2ggYSBzcGVlZC4uLkl0IGZlZWxzIGFuIGltcHVs c2lvbi4uLnRoaXMgaXMgdGhlIHBsYWNlIHRvIGdvIG5vdy4g QnV0IHRoZSBza3kga25vd3MgdGhlIHJlYXNvbnMgYW5kIHRo ZSBwYXR0ZXJucyBiZWhpbmQgYWxsIGNsb3VkcywgYW5kIHlv dSB3aWxsIGtub3csIHRvbywgd2hlbiB5b3UgbGlmdCB5b3Vy c2VsZiBoaWdoIGVub3VnaCB0byBzZWUgYmV5b25kIGhvcml6 b25zLiINCg0KLVJpY2hhcmQgQmFjaA=="
-                        } 
+                        }
                     ]
         'metadata': &metadata
             type: hash
@@ -83,6 +85,7 @@ CATALOG_TEMPLATE = yaml_to_dict("""compute:
             source_field_name: flavor
             choice: []
 """)
+
 
 class Provider(RackspaceComputeProviderBase):
     name = 'legacy'
@@ -177,7 +180,8 @@ class Provider(RackspaceComputeProviderBase):
         :returns: returns the root task in the chain of tasks
         TODO: use environment keys instead of private key
         """
-        create_server_task = Celery(wfspec, 'Create Server %s (%s)' % (key, resource['service']),
+        create_server_task = Celery(wfspec, 'Create Server %s (%s)' % (key,
+                                    resource['service']),
                'checkmate.providers.rackspace.compute_legacy.create_server',
                call_args=[context.get_queued_task_dict(
                                 deployment=deployment['id'],
@@ -193,8 +197,8 @@ class Provider(RackspaceComputeProviderBase):
                properties={'estimated_duration': 20})
 
         build_wait_task = Celery(wfspec, 'Wait for Server %s (%s) build'
-                % (key, resource['service']), 'checkmate.providers.rackspace.compute_legacy.'
-                        'wait_on_build',
+                % (key, resource['service']),
+                'checkmate.providers.rackspace.compute_legacy.wait_on_build',
                 call_args=[context.get_queued_task_dict(
                                 deployment=deployment['id'],
                                 resource=key),
@@ -231,7 +235,8 @@ class Provider(RackspaceComputeProviderBase):
         if getattr(self, 'prep_task', None):
             wait_on.append(self.prep_task)
         join = wait_for(wfspec, create_server_task, wait_on,
-                name="Server %s (%s) Wait on Prerequisites" % (key, resource['service']),
+                name="Server %s (%s) Wait on Prerequisites" % (key,
+                     resource['service']),
                 defines=dict(resource=key,
                              provider=self.key,
                              task_tags=['root']))
@@ -316,9 +321,9 @@ class Provider(RackspaceComputeProviderBase):
             results['lists']['sizes'] = flavors
 
         if type_filter is None or type_filter == 'image':
-             if 'lists' not in results:
-                 results['lists'] = {}
-             results['lists']['images'] = {
+            if 'lists' not in results:
+                results['lists'] = {}
+            results['lists']['images'] = {
                     str(i.id): {
                         'name': i.name
                         } for i in api.images.list() if int(i.id) > 1000}
@@ -342,7 +347,9 @@ class Provider(RackspaceComputeProviderBase):
 
     @staticmethod
     def _flavors(api):
-        """Gets current tenant's flavors and formats them in Checkmate format"""
+        """
+        Gets current tenant's flavors and formats them in Checkmate format
+        """
         flavors = api.flavors.list()
         results = {
                 str(f.id): {
@@ -380,7 +387,7 @@ class Provider(RackspaceComputeProviderBase):
 """
   Celery tasks to manipulate Rackspace Cloud Servers.
 """
-from celery.task import task #@UnresolvedImport
+from celery.task import task  # @UnresolvedImport
 
 from checkmate.ssh import test_connection
 
@@ -435,7 +442,7 @@ def create_server(context, name, api_object=None, flavor=2, files=None,
 
     try:
         server = api_object.servers.create(image=int(image),
-                flavor=int(flavor), name=name, 
+                flavor=int(flavor), name=name,
                 meta=context.get("metadata", None), files=files)
         create_server.update_state(state="PROGRESS",
                                    meta={"server.id": server.id})
@@ -460,7 +467,8 @@ def create_server(context, name, api_object=None, flavor=2, files=None,
     results = {instance_key: dict(id=server.id, ip=ip_address,
             password=server.adminPass, private_ip=private_ip_address)}
     # Send data back to deployment
-    resource_postback.delay(context['deployment'], results) #@UndefinedVariable
+    resource_postback.delay(context['deployment'],
+                            results) #@UndefinedVariable
     return results
 
 
@@ -516,18 +524,21 @@ def wait_on_build(context, server_id, ip_address_type='public',
         results['progress'] = server.progress
         #countdown = 100 - server.progress
         #if countdown <= 0:
-        #    countdown = 15  # progress is not accurate. Allow at least 15s wait
+        #    countdown = 15  # progress is not accurate. Allow at least 15s
+        #    wait
         wait_on_build.update_state(state='PROGRESS', meta=results)
-        # progress indicate shows percentage, give no inidication of seconds lef to build.  
-        # It often, if not usually takes at least 30 seconds after a server hits 100% before
-        # it will be "ACTIVE".  We used to use % left as a countdown value, but 
-        # reverting to the above configured countdown.
+        # progress indicate shows percentage, give no inidication of seconds
+        # left to build.
+        # It often, if not usually takes at least 30 seconds after a server
+        # hits 100% before it will be "ACTIVE".  We used to use % left as a
+        # countdown value, but reverting to the above configured countdown.
         LOG.debug("Server %s progress is %s. Retrying after 30 seconds" % (
                   server_id, server.progress))
         return wait_on_build.retry()
 
     if server.status == 'ERROR':
-        raise CheckmateException("Server %s creation error: %" % (server_id,server.status))
+        raise CheckmateException("Server %s creation error: %" % (server_id,
+                                 server.status))
 
 
     if server.status != 'ACTIVE':
@@ -545,7 +556,8 @@ def wait_on_build(context, server_id, ip_address_type='public',
             instance_key = 'instance:%s' % context['resource']
             results = {instance_key: results}
             # Send data back to deployment
-            resource_postback.delay(context['deployment'], results) #@UndefinedVariable
+            resource_postback.delay(context['deployment'],
+                                    results) #@UndefinedVariable
             return results
         return wait_on_build.retry(exc=CheckmateException("Server %s not "
                 "ready yet" % server_id))

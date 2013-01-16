@@ -124,7 +124,7 @@ class TestNovaGenerateTemplate(unittest.TestCase):
             }
         }
         provider = compute.Provider({})
-       
+
         #Mock Base Provider, context and deployment
         RackspaceComputeProviderBase = self.mox.CreateMockAnything()
         deployment = self.mox.CreateMockAnything()
@@ -192,7 +192,7 @@ class TestNovaGenerateTemplate(unittest.TestCase):
             }
         }
         provider = compute.Provider({})
-       
+
         #Mock Base Provider, context and deployment
         RackspaceComputeProviderBase = self.mox.CreateMockAnything()
         deployment = self.mox.CreateMockAnything()

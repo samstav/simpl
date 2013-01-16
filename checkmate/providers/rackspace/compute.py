@@ -51,7 +51,7 @@ CATALOG_TEMPLATE = yaml_to_dict("""compute:
                         {
                             "path" : "/etc/banner.txt",
                             "contents" : "ICAgICAgDQoiQSBjbG91ZCBkb2VzIG5vdCBrbm93IHdoeSBp dCBtb3ZlcyBpbiBqdXN0IHN1Y2ggYSBkaXJlY3Rpb24gYW5k IGF0IHN1Y2ggYSBzcGVlZC4uLkl0IGZlZWxzIGFuIGltcHVs c2lvbi4uLnRoaXMgaXMgdGhlIHBsYWNlIHRvIGdvIG5vdy4g QnV0IHRoZSBza3kga25vd3MgdGhlIHJlYXNvbnMgYW5kIHRo ZSBwYXR0ZXJucyBiZWhpbmQgYWxsIGNsb3VkcywgYW5kIHlv dSB3aWxsIGtub3csIHRvbywgd2hlbiB5b3UgbGlmdCB5b3Vy c2VsZiBoaWdoIGVub3VnaCB0byBzZWUgYmV5b25kIGhvcml6 b25zLiINCg0KLVJpY2hhcmQgQmFjaA=="
-                        } 
+                        }
                     ]
         'metadata': &metadata
             type: hash
@@ -96,7 +96,6 @@ class RackspaceComputeProviderBase(ProviderBase):
                                "managed_cloud",
                                "delay.sh")) as open_file:
             self.managed_cloud_script = open_file.read()
-
 
     def prep_environment(self, wfspec, deployment, context):
         keys = set()
@@ -538,18 +537,21 @@ def wait_on_build(context, server_id, region, ip_address_type='public',
         results['progress'] = server.progress
         #countdown = 100 - server.progress
         #if countdown <= 0:
-        #    countdown = 15  # progress is not accurate. Allow at least 15s wait
+        #    countdown = 15  # progress is not accurate. Allow at least 15s
+        #           # wait
         wait_on_build.update_state(state='PROGRESS', meta=results)
-        # progress indicate shows percentage, give no inidication of seconds lef to build.  
-        # It often, if not usually takes at least 30 seconds after a server hits 100% before
-        # it will be "ACTIVE".  We used to use % left as a countdown value, but 
-        # reverting to the above configured countdown.
+        # progress indicate shows percentage, give no inidication of seconds
+        # left to build.
+        # It often, if not usually takes at least 30 seconds after a server
+        # hits 100% before it will be "ACTIVE".  We used to use % left as a
+        # countdown value, but reverting to the above configured countdown.
         LOG.debug("Server %s progress is %s. Retrying after 30 seconds" % (
                   server_id, server.progress))
         return wait_on_build.retry()
 
     if server.status == 'ERROR':
-        raise CheckmateException("Server %s creation error: %" % (server_id,server.status))
+        raise CheckmateException("Server %s creation error: %" % (server_id,
+                                 server.status))
 
     if server.status != 'ACTIVE':
         LOG.warning("Server %s status is %s, which is not recognized. "

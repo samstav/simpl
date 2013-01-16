@@ -119,7 +119,7 @@ class Provider(ProviderBase):
                         ],
                    instance_id=PathAttrib('instance:%s/id' %
                             resource['hosted_on']),
-                   
+
                    merge_results=True,
                    defines=dict(resource=key,
                                 provider=self.key,

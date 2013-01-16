@@ -5,8 +5,8 @@ from SpiffWorkflow.operators import PathAttrib
 from SpiffWorkflow.specs import Celery
 
 from checkmate.deployments import resource_postback
-from checkmate.exceptions import CheckmateException, CheckmateNoTokenError,\
-    CheckmateBadState
+from checkmate.exceptions import (CheckmateException, CheckmateNoTokenError,
+                                  CheckmateBadState)
 from checkmate.providers import ProviderBase
 from checkmate.workflows import wait_for
 from checkmate.utils import match_celery_logging
@@ -42,10 +42,10 @@ class Provider(ProviderBase):
     def add_resource_tasks(self, resource, key, wfspec, deployment, context,
                 wait_on=None):
         proto = deployment.get_setting("protocol", resource_type="load-balancer",
-                                       service_name=resource.get('service', None), 
+                                       service_name=resource.get('service', None),
                                        default="HTTP")
         dns = str(deployment.get_setting("create_dns", resource_type="load-balancer",
-                                       service_name=resource.get('service', None), 
+                                       service_name=resource.get('service', None),
                                        default="false"))
         dns = (dns.lower() == 'true' or dns == '1' or dns.lower() == 'yes')
         # handle our custom protocol
@@ -54,32 +54,32 @@ class Provider(ProviderBase):
         dual = ("http_and_https" == proto)
         if dual:
             proto = "http"
-            
+
         create_lb = Celery(wfspec, 'Create %s Loadbalancer' % proto,
                 'checkmate.providers.rackspace.loadbalancer.'
                         'create_loadbalancer',
                 call_args=[context.get_queued_task_dict(
                                 deployment=deployment['id'],
                                 resource=key),
-                        resource.get('dns-name'), 
-                        'PUBLIC', 
+                        resource.get('dns-name'),
+                        'PUBLIC',
                         proto.upper(),
                         resource['region']],
                 defines=dict(resource=key,
                         provider=self.key,
-                        task_tags=['create','root','final']),
+                        task_tags=['create', 'root', 'final']),
                 properties={'estimated_duration': 30},
                 dns=dns)
         final = create_lb
         if dual:
             resource2 = deepcopy(resource)
-            resource2['index'] = str(len([res for 
-                                      res in deployment.get("resources").keys() 
+            resource2['index'] = str(len([res for
+                                      res in deployment.get("resources").keys()
                                       if res.isdigit()]))
             if 'relations' not in resource2:
                 resource2['relations'] = {}
             resource2['relations'].update({
-                "lb1-lb2":{
+                "lb1-lb2": {
                     "interface": "vip",
                     "source": resource['index'],
                     "state": "planned",
@@ -89,7 +89,7 @@ class Provider(ProviderBase):
             if not "relations" in resource:
                 resource['relations'] = {}
             resource['relations'].update({
-                "lb2-lb1":{
+                "lb2-lb1": {
                     "interface": "vip",
                     "target": resource2['index'],
                     "state": "planned",
@@ -97,15 +97,15 @@ class Provider(ProviderBase):
                 }
             })
             deployment['resources'].update({resource2['index']: resource2})
-            
+
             final = Celery(wfspec, 'Create HTTPS Loadbalancer (dual protocol)',
                 'checkmate.providers.rackspace.loadbalancer.'
                         'create_loadbalancer',
                 call_args=[context.get_queued_task_dict(
                                 deployment=deployment['id'],
                                 resource=resource2['index']),
-                        "%s-2" % resource2.get('dns-name'), 
-                        'PUBLIC', 
+                        "%s-2" % resource2.get('dns-name'),
+                        'PUBLIC',
                         "HTTPS",
                         resource2['region']],
                 defines=dict(resource=resource2['index'],
@@ -121,25 +121,32 @@ class Provider(ProviderBase):
             wfspec, deployment, context):
         interface = relation['interface']
         if interface and "vip" != interface.lower():
-            self._add_node_connection(resource, key, relation, relation_key, 
+            self._add_node_connection(resource, key, relation, relation_key,
                                       wfspec, deployment, context, interface)
-    
-    def _add_node_connection(self,resource, key, relation, relation_key,
-            wfspec, deployment, context, interface):
+
+    def _add_node_connection(self, resource, key, relation, relation_key,
+                             wfspec, deployment, context, interface):
 
         comp = self.find_components(context, id="rsCloudLB")
         if not comp:
-            raise CheckmateException("Could not locate component for id 'rsCloudLB'")
+            raise CheckmateException("Could not locate component for id "
+                                     "'rsCloudLB'")
         else:
-            comp = comp[0] # there should be only one
-            if not interface in comp.get('options',{}).get("protocol",{}).get("choice",[]):
-                raise CheckmateException("Invalid relation interface for this provider: {}".format(interface))
-                
+            comp = comp[0]  # there should be only one
+            options = comp.get('options', {})
+            protocol_option = options.get("protocol", {})
+            protocols = protocol_option.get("choice", [])
+            if not interface in protocols:
+                raise CheckmateException("'%s' is an invalid relation "
+                                         "interface for provider '%s'. Valid "
+                                         "options are: %s" % (interface,
+                                          self.key, protocols))
+
         # Get all tasks we need to precede the LB Add Node task
         finals = self.find_tasks(wfspec, resource=relation['target'],
-                tag='final')
-        create_lb = self.find_tasks(wfspec, resource=key,
-                provider=self.key, tag='final')[0]
+                                 tag='final')
+        create_lb = self.find_tasks(wfspec, resource=key, provider=self.key,
+                                    tag='final')[0]
         target_resource = deployment['resources'][relation['target']]
         if 'hosted_on' in target_resource:
             target = target_resource['hosted_on']
@@ -227,7 +234,7 @@ class Provider(ProviderBase):
                         'provides': [{'load-balancer': protocol}],
                         #FIXME: we don't need to call this the name of a valid,
                         #resource type, but until we get the key'd requires
-                        #code in, this stops it failing alidation.
+                        #code in, this stops it failing validation.
                         'requires': [{"application": {'interface': protocol}}],
                         'options': copy.copy(options),
                     }
@@ -333,13 +340,13 @@ def create_loadbalancer(context, name, vip_type, protocol, region,
     match_celery_logging(LOG)
     if api is None:
         api = Provider._connect(context, region)
-        
+
     #FIXME: should pull default from lb api but thats not exposed via the client yet
     if not port:
         port = 443 if "https" == protocol.lower() else 80
-    
+
     fakenode = cloudlb.Node(address=PLACEHOLDER_IP, condition="ENABLED", port=port)
-    
+
     # determine new or shared vip
     vip = None
     if not parent_lb:
@@ -349,13 +356,13 @@ def create_loadbalancer(context, name, vip_type, protocol, region,
         if not other_lb:
             return create_loadbalancer.retry(exc=CheckmateException(
                     "Could not locate load balancer %s for shared vip" % parent_lb))
-        for _vip in other_lb.virtualIps: 
+        for _vip in other_lb.virtualIps:
             if vip_type.upper() == _vip.type:
                 vip = cloudlb.VirtualIP(id=_vip.id)
                 break
         if not vip:
             create_loadbalancer.retry(exc=CheckmateException("Cannot get %s vip for load balancer %s") % (vip_type, parent_lb))
-    
+
     meta = context.get("metadata",None)
     if meta: # attach checkmate metadata to the lb if available
         new_meta = []
@@ -368,20 +375,20 @@ def create_loadbalancer(context, name, vip_type, protocol, region,
     else:
         lb = api.loadbalancers.create(name=name, port=port, protocol=protocol.upper(),
                                       nodes=[fakenode], virtualIps=[vip])
-        
+
     # update our assigned vip
     for ip in lb.virtualIps:
         if ip.ipVersion == 'IPV4' and ip.type == "PUBLIC":
             vip = ip.address
 
     LOG.debug('Load balancer %d created.  VIP = %s' % (lb.id, vip))
-    
+
     #FIXME: This should be handled by the DNS provider, not this one!
     if dns:
         create_record.delay(context, parse_domain(name), '.'.join(name.split('.')[1:]), #@UndefinedVariable
                                        'A', vip, rec_ttl=300,
                                        makedomain=True)
-    
+
     # attach an appropriate monitor for our nodes
     monitor_type = protocol.upper()
     set_monitor.delay(context, lb.id, monitor_type, region, monitor_path,
