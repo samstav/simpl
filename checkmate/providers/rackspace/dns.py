@@ -1,5 +1,6 @@
 import logging
 
+import tldextract
 from SpiffWorkflow.operators import Attrib
 from SpiffWorkflow.specs import Celery
 
@@ -119,10 +120,9 @@ def _get_dns_object(context):
 
 
 def parse_domain(domain_str):
-    # return domain.com for web1.domain.com
-    # hackish.  Doesn't account for .co.uk, .co.it, etc.
-    chunks = domain_str.split('.')
-    return chunks[-2] + '.' + chunks[-1]
+    """Return 'domain.com' for 'sub2.sub1.domain.com' """
+    domain_data = tldextract.extract(domain_str)
+    return '%s.%s' % (domain_data.domain, domain_data.tld)
 
 """ Celery tasks """
 
