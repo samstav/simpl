@@ -767,7 +767,7 @@ function WorkflowController($scope, $resource, $http, $routeParams, $location, $
             all_data.push('Password: ' + $scope.output.password);
             all_data.push('Priv Key: ' + $scope.output.private_key);
             $scope.all_data = all_data.join('\n');
-            
+
           }, function(error) {
             console.log("Error " + error.data + "(" + error.status + ") loading deployment.");
             $scope.$root.error = {data: error.data, status: error.status, title: "Error loading deployment",
@@ -1650,7 +1650,7 @@ function DeploymentNewController($scope, $location, $routeParams, $resource, set
   };
 
   $scope.UpdateSiteAddress = function(new_address) {
-    parsed = URI.parse(new_address);
+    var parsed = URI.parse(new_address);
     if (!('hostname' in parsed)) {
         $('#site_address_error').text("Domain name or IP address missing");
         return;
@@ -1663,7 +1663,47 @@ function DeploymentNewController($scope, $location, $routeParams, $resource, set
     $scope.answers['web_server_protocol'] = parsed.protocol;
     $scope.answers['domain'] = parsed.hostname;
     $scope.answers['path'] = parsed.path || "/";
-    $('#siteAddressModal').modal('hide');
+  };
+
+  $scope.UpdateURL = function(scope, setting_id) {
+    var new_address = scope.protocol + '://' + scope.domain + scope.path;
+    var parsed = URI.parse(new_address);
+    if (!('hostname' in parsed)) {
+        $('#site_address_error').text("Domain name or IP address missing");
+        return;
+    }
+    if (!('protocol' in parsed)){
+        $('#site_address_error').text("Protocol (http or https) is missing");
+        return;
+    }
+    $('#site_address_error').text("");
+    $scope.answers[setting_id] = new_address;
+  };
+
+  $scope.UpdateParts = function(scope, setting_id) {
+    try {
+      var parsed = URI.parse($scope.answers[setting_id]);
+      if (!('hostname' in parsed)) {
+          $('#site_address_error').text("Domain name or IP address missing");
+          return;
+      }
+      if (!('protocol' in parsed)){
+          $('#site_address_error').text("Protocol (http or https) is missing");
+          return;
+      }
+      scope.protocol = parsed.protocol;
+      scope.domain = parsed.hostname;
+      scope.path = parsed.path;
+    } catch(err) {}
+    $('#site_address_error').text("");
+  };
+
+  $scope.ShowCerts = function() {
+    if ('web_server_protocol' in $scope.answers && $scope.answers['web_server_protocol'].indexOf('https') != -1)
+      return true;
+    if ('url' in $scope.answers && $scope.answers['url'].indexOf('https') == 1)
+      return true;
+    return false;
   };
 
   // Display settings using templates for each type
@@ -1727,10 +1767,10 @@ function DeploymentNewController($scope, $location, $routeParams, $resource, set
           return item;
         return null;
       });
-      
-      if (setting == undefined){
-    	  console.log("WARNING: expected setting '" + key + "' is undefined");
-    	  return;
+
+      if (setting === undefined){
+        console.log("WARNING: expected setting '" + key + "' is undefined");
+        return;
       }
 
       //Check that all required fields are set
