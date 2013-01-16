@@ -442,17 +442,21 @@ def translate(name):
         return path_separator.join(segments)
 
     # Check if composite (made up of a number of words together)
-    # this breaks some recipes used in chef components.
-#    word_seps = '.-_'
-#    if any((c in name) for c in word_seps):
-#        chars = list(name)
-#        words = ''.join([' ' if o in word_seps else o for o in chars]
-#                ).split(' ')
-#        for index, word in enumerate(words):
-#            words[index] = translate(word) or ''
-#        return '_'.join(words)
+    word_seps = '.-_'
+    recognized = False
+    if any((c in name) for c in word_seps):
+        chars = list(name)
+        words = ''.join([' ' if o in word_seps else o for o in chars]
+                ).split(' ')
+        for index, word in enumerate(words):
+            words[index] = translate(word) or ''
+        # FIXME: this breaks some recipes used in chef components, so we won't
+        # return it, but we also won't log it until we fix this.
+        recognized = True
+        #return '_'.join(words)
 
-    LOG.debug("Unrecognized name: %s" % name)
+    if not recognized:
+        LOG.debug("Unrecognized name: %s" % name)
     return name
 
 
