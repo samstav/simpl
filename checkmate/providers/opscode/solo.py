@@ -4,7 +4,6 @@ import httplib
 import json
 import logging
 import os
-from subprocess import CalledProcessError
 import urlparse
 
 from jinja2 import DictLoader, TemplateError
@@ -19,13 +18,11 @@ from yaml.scanner import ScannerError
 from checkmate import utils
 from checkmate.common import schema
 from checkmate.exceptions import (CheckmateException,
-                                  CheckmateCalledProcessError,
                                   CheckmateValidationException)
 from checkmate.keys import hash_SHA512
 from checkmate.providers import ProviderBase
 from checkmate.workflows import wait_for
-from checkmate.utils import merge_dictionary  # used by transform
-from checkmate.deployments import resource_postback
+from checkmate.utils import merge_dictionary  # Spiff version used by transform
 
 LOG = logging.getLogger(__name__)
 
@@ -129,6 +126,7 @@ class Provider(ProviderBase):
         kwargs = run_list
 
         # Create the cook task
+
         resource = deployment['resources'][key]
         anchor_task = configure_task = Celery(wfspec,
                 'Configure %s: %s (%s)' % (component_id, key, service_name),
@@ -159,10 +157,8 @@ class Provider(ProviderBase):
 
         # Wait for relations tasks to complete
         for relation_key in resource.get('relations', {}).keys():
-            tasks = self.find_tasks(wfspec,
-                    resource=key,
-                    relation=relation_key,
-                    tag='final')
+            tasks = self.find_tasks(wfspec, resource=key,
+                                    relation=relation_key, tag='final')
             if tasks:
                 dependencies.extend(tasks)
 
@@ -320,8 +316,11 @@ class Provider(ProviderBase):
                 secret_file = None
                 path = 'chef_options/databags/%s/%s' % (bag_name, item_name)
 
-            name = "%s Data Bag for %s" % (collect_tag.capitalize(),
-                                           resource['index']),
+            if collect_tag == 'collect':
+                name = "Write Data Bag for %s" % resource['index']
+            else:
+                name = "Rewrite Data Bag for %s (%s)" % (resource['index'],
+                                                    collect_tag.capitalize())
             write_databag = Celery(wfspec, name,
                    'checkmate.providers.opscode.databag.write_databag',
                     call_args=[deployment['id'], bag_name, item_name,
@@ -376,8 +375,12 @@ class Provider(ProviderBase):
                 run_list = ["recipe[%s]" % r for r in recipes]
             # FIXME: right now we create all
             # if role['create'] == True:
-            name = "%s Role %s for %s" % (collect_tag.capitalize(), role_name,
-                                          resource_key)
+            if collect_tag == 'collect':
+                name = "Write Role %s for %s" % (role_name, resource_key)
+            else:
+                name = "Rewrite Role %s for %s (%s)" % (role_name,
+                                                        resource_key,
+                                                      collect_tag.capitalize())
             write_role = Celery(wfspec, name,
                     'checkmate.providers.opscode.databag.manage_role',
                     call_args=[role_name, deployment['id']],
@@ -828,7 +831,8 @@ class ChefMap():
         """
         Returns the mapping source value
 
-        Raises a SoloProviderNotReady exception if the source is not yet available
+        Raises a SoloProviderNotReady exception if the source is not yet
+        available
 
         :param mapping: the mapping to resolved
         :param data: the data to read from
@@ -981,6 +985,10 @@ class ChefMap():
         return False
 
     def has_requirement_mapping(self, component_id, requirement_key):
+        """
+        Does the map file have any 'requirements' mappings for this
+        component's requirement_key requirement
+        """
         for component in self.components:
             if component_id == component['id']:
                 for m in component.get('maps', []):
@@ -1060,8 +1068,8 @@ class ChefMap():
         for component in self.components:
             if component_id == component['id']:
                 maps = (m for m in component.get('maps', [])
-                                if (self.parse_map_URI(m.get('source'))['scheme']
-                                    in ['requirements']))
+                        if (self.parse_map_URI(m.get('source'))['scheme']
+                                in ['requirements']))
                 if any(maps):
                     return True
         return False
@@ -1148,7 +1156,7 @@ class ChefMap():
                 fxn = lambda setting_name: deployment.get_setting(setting_name,
                         default=defaults.get(setting_name, ''))
         else:
-            fxn = lambda setting_name: defaults.get(setting_name, '')  # also noop
+            fxn = lambda setting_name: defaults.get(setting_name, '')  # noop
         env.globals['setting'] = fxn
         env.globals['hash'] = hash_SHA512
 
