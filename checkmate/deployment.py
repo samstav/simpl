@@ -269,6 +269,7 @@ class Deployment(ExtensibleDict):
                 compute, database)
         :param default: value to return if no match found
         """
+        result = None
         if service_name:
             result = (self._get_input_service_override(name, service_name,
                       resource_type=resource_type))
@@ -535,7 +536,7 @@ class Deployment(ExtensibleDict):
                 # it's one key/value pair which is not 'setting':path
                 # Convert setting:value to full constraint syntax
                 parsed.append({'setting': constraint.keys()[0],
-                              'value': constraint.values()[0]})
+                               'value': constraint.values()[0]})
             else:
                 parsed.append(constraint)
 
@@ -596,7 +597,7 @@ class Deployment(ExtensibleDict):
         else:
             if option_key:
                 value = self._get_input_simple(option_key)
-            if not value and option and 'default' in option:
+            if (not value) and option and 'default' in option:
                 value = option.get('default')
                 LOG.debug("Default setting '%s' obtained from constraint "
                           "in blueprint input '%s': default=%s" % (
@@ -645,6 +646,8 @@ class Deployment(ExtensibleDict):
                     'query': parts.query,
                     'fragment': parts.fragment,
                    }
+        else:
+            return value
 
     def _get_input_service_override(self, name, service_name,
                                     resource_type=None):
