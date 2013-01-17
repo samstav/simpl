@@ -111,6 +111,9 @@ class Provider(ProviderBase):
         for mcomponent in self.map_file.components:
             if mcomponent['id'] == component_id:
                 run_list = mcomponent.get('run-list', {})
+                assert isinstance(run_list, dict), ("component '%s' run-list "
+                                                    "is not a map" %
+                                                    component_id)
         if not run_list:
             if 'role' in component:
                 name = '%s::%s' % (component_id, component['role'])
