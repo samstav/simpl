@@ -1349,6 +1349,7 @@ class TestDeploymentPlanning(unittest.TestCase):
                             is: widget
                             requires:
                             - widget: bar
+                            - host: windows
                             provides:
                             - widget: foo
                           data_widget:
@@ -1380,10 +1381,17 @@ class TestDeploymentPlanning(unittest.TestCase):
         if back['type'] != 'widget':
             back, back_host = back_host, back
 
-        expect = "Expecting two 'slave' resources"
-        self.assertEqual(len(resources['slave']), 2, msg=expect)
-        slave1 = resources['slave'][0]
-        slave2 = resources['slave'][1]
+        expect = "Expecting two 'slave' resources and two hosts (four total)"
+        self.assertEqual(len(resources['slave']), 4, msg=expect)
+        slave1host = resources['slave'][0]
+        slave1 = resources['slave'][1]
+        slave2host = resources['slave'][2]
+        slave2 = resources['slave'][3]
+        expect = "Hosts dedicated"
+        self.assertEqual(slave1host['hosts'], [slave1['index']], msg=expect)
+        self.assertEqual(slave1['hosted_on'], slave1host['index'], msg=expect)
+        self.assertEqual(slave2host['hosts'], [slave2['index']], msg=expect)
+        self.assertEqual(slave2['hosted_on'], slave2host['index'], msg=expect)
 
         expect = "Expecting connections from all 'front' resources to 'back'"
         self.assertIn('relations', back)

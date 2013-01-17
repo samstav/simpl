@@ -81,7 +81,7 @@ class Plan(ExtensibleDict):
         verify_required_blueprint_options_supplied(deployment)
 
     def plan(self, context):
-        """Perform plan anlysis. Returns a reference to planned resources"""
+        """Perform plan analysis. Returns a reference to planned resources"""
         LOG.info("Planning deployment '%s'" % self.deployment['id'])
         # Fill the list of services
         service_names = self.deployment['blueprint'].get('services', {}).keys()
@@ -163,6 +163,21 @@ class Plan(ExtensibleDict):
                                                    service_name, domain,
                                                    context)
                     self.add_resource(extra_resource, extra_def)
+
+                    # Connnect extra components
+
+                    if key in definition.get('host-keys', []):
+                        # connect hosts
+                        connections = definition.get('connections', {})
+                        if key not in connections:
+                            continue
+                        connection = connections[key]
+                        if connection.get('relation') == 'reference':
+                            continue
+                        if connection['direction'] == 'inbound':
+                            continue
+                        self.connect_instances(resource, extra_resource,
+                                               connection, key)
 
     def connect_resources(self):
         # Add connections
@@ -593,6 +608,13 @@ class Plan(ExtensibleDict):
                 if 'extra-components' not in service:
                     service['extra-components'] = {}
                 service['extra-components'][key] = component
+
+                # Remember which resources are host resources
+
+                if relation == "host":
+                    if 'host-keys' not in service['component']:
+                        service['component']['host-keys'] = []
+                    service['component']['host-keys'].append(key)
 
                 self._satisfy_requirement(requirement, key, component,
                                           service_name)
