@@ -454,7 +454,7 @@ class TestMapfileWithoutMaps(test.StubbedWorkflowBase):
         self.mox.VerifyAll()
 
 
-class TestMapSingleWorkflow(test.StubbedWorkflowBase):
+class TestMappedSingleWorkflow(test.StubbedWorkflowBase):
     """
 
     Test workflow for a single service works
@@ -1187,41 +1187,37 @@ class TestChefMap(unittest.TestCase):
         self.assertEqual(result['path'], 'only')
 
     def test_has_mapping_positive(self):
-        chef_map = solo.ChefMap('')
-        chef_map._raw = """
-            id: test
-            maps:
-            - source: 1
-        """
+        chef_map = solo.ChefMap(raw="""
+                id: test
+                maps:
+                - source: 1
+            """)
         self.assertTrue(chef_map.has_mappings('test'))
 
     def test_has_mapping_negative(self):
-        chef_map = solo.ChefMap('')
-        chef_map._raw = """
-            id: test
-            maps: {}
-        """
+        chef_map = solo.ChefMap(raw="""
+                id: test
+                maps: {}
+            """)
         self.assertFalse(chef_map.has_mappings('test'))
 
     def test_has_requirement_map_positive(self):
-        chef_map = solo.ChefMap('')
-        chef_map._raw = """
-            id: test
-            maps:
-            - source: requirements://name/path
-            - source: requirements://database:mysql/username
-        """
+        chef_map = solo.ChefMap(raw="""
+                id: test
+                maps:
+                - source: requirements://name/path
+                - source: requirements://database:mysql/username
+            """)
         self.assertTrue(chef_map.has_requirement_mapping('test', 'name'))
         self.assertTrue(chef_map.has_requirement_mapping('test',
                                                           'database:mysql'))
         self.assertFalse(chef_map.has_requirement_mapping('test', 'other'))
 
     def test_has_requirement_mapping_negative(self):
-        chef_map = solo.ChefMap('')
-        chef_map._raw = """
-            id: test
-            maps: {}
-        """
+        chef_map = solo.ChefMap(raw="""
+                id: test
+                maps: {}
+            """)
         self.assertFalse(chef_map.has_requirement_mapping('test', 'name'))
 
     def test_has_client_map_positive(self):
@@ -1243,34 +1239,32 @@ class TestChefMap(unittest.TestCase):
         self.assertFalse(chef_map.has_client_mapping('test', 'name'))
 
     def test_get_attributes(self):
-        chef_map = solo.ChefMap('')
-        chef_map._raw = """
-            id: foo
-            maps:
-            - value: 1
-              targets:
-              - attributes://here
-            \n--- # component bar
-            id: bar
-            maps:
-            - value: 1
-              targets:
-              - databags://mybag/there
-        """
+        chef_map = solo.ChefMap(raw="""
+                id: foo
+                maps:
+                - value: 1
+                  targets:
+                  - attributes://here
+                \n--- # component bar
+                id: bar
+                maps:
+                - value: 1
+                  targets:
+                  - databags://mybag/there
+            """)
         self.assertDictEqual(chef_map.get_attributes('foo', None), {'here': 1})
         self.assertDictEqual(chef_map.get_attributes('bar', None), {})
         self.assertIsNone(chef_map.get_attributes('not there', None))
 
     def test_has_runtime_options(self):
-        chef_map = solo.ChefMap('')
-        chef_map._raw = """
-            id: foo
-            maps:
-            - source: requirements://database:mysql/
-            \n---
-            id: bar
-            maps: {}
-            """
+        chef_map = solo.ChefMap(raw="""
+                id: foo
+                maps:
+                - source: requirements://database:mysql/
+                \n---
+                id: bar
+                maps: {}
+                """)
         self.assertTrue(chef_map.has_runtime_options('foo'))
         self.assertFalse(chef_map.has_runtime_options('bar'))
         self.assertFalse(chef_map.has_runtime_options('not there'))
