@@ -415,6 +415,7 @@ class Provider(ProviderBase):
             map_file = self.map_file
 
         maps = map_file.get_component_maps(resource['component'])
+        result = []
         for mapping in maps or []:
 
             # find paths for sources
@@ -424,18 +425,35 @@ class Provider(ProviderBase):
                 if url['scheme'] == 'requirements':
                     key = url['netloc']
                     relations = [r for r in resource['relations'].values()
-                                if (r.get('requires-key') == key and
-                                    'target' in r)
+                                 if (r.get('requires-key') == key and
+                                     'target' in r)
                                 ]
                     if relations:
                         target = relations[0]['target']
-                        #  account for host FIXME: This representation needs to be consistent!
-                        mapping['path'] = ('instance:%s/interfaces/%s'
-                                           % (target,
-                                              relations[0]['interface'])
-                                          if relations[0].get('relation', '') != 'host'
-                                          else 'instance:%s' % target)
-        return maps
+                        #  account for host
+                        #  FIXME: This representation needs to be consistent!
+                        if relations[0].get('relation', '') != 'host':
+                            mapping['path'] = ('instance:%s/interfaces/%s'
+                                               % (target,
+                                                  relations[0]['interface']))
+                        else:
+                            mapping['path'] = 'instance:%s' % target
+                    result.append(mapping)
+                elif url['scheme'] == 'clients':
+                    key = url['netloc']
+                    for client in deployment['resources'].values():
+                        if 'relations' not in client:
+                            continue
+                        relations = [r for r in client['relations'].values()
+                                     if (r.get('requires-key') == key and
+                                         r.get('target') == resource['index'])
+                                     ]
+                        if relations:
+                            mapping['path'] = 'instance:%s' % client['index']
+                            result.append(copy.copy(mapping))
+                else:
+                    result.append(mapping)
+        return result
 
     def _hash_all_user_resource_passwords(self, deployment):
         """Chef needs all passwords to be a hash"""

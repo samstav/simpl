@@ -32,6 +32,99 @@ class TestChefSoloProvider(test.ProviderTester):
 
     klass = solo.Provider
 
+    def test_get_resource_prepared_maps(self):
+        base.PROVIDER_CLASSES = {}
+        register_providers([solo.Provider, test.TestProvider])
+        deployment = Deployment(utils.yaml_to_dict("""
+                id: 'DEP-ID-1000'
+                blueprint:
+                  name: test app
+                  services:
+                    frontend:
+                      component:
+                        id: foo
+                      constraints:
+                      - count: 2
+                      relations:
+                        backend: mysql
+                    backend:
+                      component:
+                        id: bar
+                environment:
+                  name: test
+                  providers:
+                    chef-solo:
+                      vendor: opscode
+                      catalog:
+                        application:
+                          foo:
+                            is: application
+                            requires:
+                            - database: mysql
+                        database:
+                          bar:
+                            is: database
+                            provides:
+                            - database: mysql
+                    base:
+                      vendor: test
+                      catalog:
+                        compute:
+                          linux_instance:
+                            id: linux_instance
+                            is: compute
+                            provides:
+                            - compute: linux
+            """))
+        chef_map = solo.ChefMap(raw="""
+            \n--- # foo component
+                id: foo
+                requires:
+                - database: mysql
+                maps:
+                - source: requirements://database:mysql/ip
+                  targets:
+                  - attributes://ip
+            \n--- # bar component
+                id: bar
+                provides:
+                - database: mysql
+                maps:
+                - source: clients://database:mysql/ip
+                  targets:
+                  - attributes://clients
+            """)
+        plan(deployment, RequestContext())
+        provider = deployment.environment().get_provider('chef-solo')
+
+        # Check requirement map
+
+        resource = deployment['resources']['0']
+        result = provider.get_resource_prepared_maps(resource, deployment,
+                                            map_file=chef_map)
+        expected = [{'source': 'requirements://database:mysql/ip',
+                     'targets': ['attributes://ip'],
+                     'path': 'instance:2/interfaces/mysql'}]
+        self.assertListEqual(result, expected)
+
+        # Check client maps
+
+        resource = deployment['resources']['2']
+        result = provider.get_resource_prepared_maps(resource, deployment,
+                                            map_file=chef_map)
+        expected = [
+                    {
+                     'source': 'clients://database:mysql/ip',
+                     'targets': ['attributes://clients'],
+                     'path': 'instance:1',
+                    }, {
+                     'source': 'clients://database:mysql/ip',
+                     'targets': ['attributes://clients'],
+                     'path': 'instance:0',
+                    },
+                   ]
+        self.assertListEqual(result, expected)
+
 
 class TestCeleryTasks(unittest.TestCase):
 
