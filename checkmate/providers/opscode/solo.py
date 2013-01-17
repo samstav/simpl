@@ -1,4 +1,5 @@
 """Chef Solo configuration management provider"""
+import copy
 import httplib
 import json
 import logging
@@ -695,7 +696,7 @@ class ChefMap():
         value = None
         if 'source' in mapping:
             url = ChefMap.parse_map_URI(mapping['source'])
-            if url['scheme'] == 'requirements':
+            if url['scheme'] in ['requirements', 'clients']:
                 path = mapping.get('path', url['netloc'])
                 try:
                     value = utils.read_path(data, os.path.join(path,
@@ -844,6 +845,20 @@ class ChefMap():
                     url = self.parse_map_URI(m.get('source'))
                     if (url['scheme'] == 'requirements' and
                         url['netloc'] == requirement_key):
+                        return True
+        return False
+
+    def has_client_mapping(self, component_id, provides_key):
+        """
+        Does the map file have any 'clients' mappings for this
+        component's provides_key connection point
+        """
+        for component in self.components:
+            if component_id == component['id']:
+                for m in component.get('maps', []):
+                    url = self.parse_map_URI(m.get('source'))
+                    if (url['scheme'] == 'clients' and
+                        url['netloc'] == provides_key):
                         return True
         return False
 

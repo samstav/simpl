@@ -1037,6 +1037,12 @@ class TestChefMap(unittest.TestCase):
                 'path': 'item/key/with/long/path',
                 },
             {
+                'name': 'clients',
+                'scheme': 'clients',
+                'netloc': 'provides_key',
+                'path': 'item/key/with/long/path',
+                },
+            {
                 'name': 'roles',
                 'scheme': 'roles',
                 'netloc': 'role-name',
@@ -1124,6 +1130,24 @@ class TestChefMap(unittest.TestCase):
             maps: {}
         """
         self.assertFalse(chef_map.has_requirement_mapping('test', 'name'))
+
+    def test_has_client_map_positive(self):
+        chef_map = solo.ChefMap(raw="""
+                id: test
+                maps:
+                - source: clients://name/path
+                - source: clients://database:mysql/ip
+            """)
+        self.assertTrue(chef_map.has_client_mapping('test', 'name'))
+        self.assertTrue(chef_map.has_client_mapping('test', 'database:mysql'))
+        self.assertFalse(chef_map.has_client_mapping('test', 'other'))
+
+    def test_has_client_mapping_negative(self):
+        chef_map = solo.ChefMap(raw="""
+                id: test
+                maps: {}
+            """)
+        self.assertFalse(chef_map.has_client_mapping('test', 'name'))
 
     def test_get_attributes(self):
         chef_map = solo.ChefMap('')
@@ -1233,6 +1257,16 @@ class TestChefMapEvaluator(unittest.TestCase):
         chefmap = solo.ChefMap(parsed="")
         mapping = {
                    'source': 'requirements://host/ip',
+                   'path': 'instance:1'
+                  }
+        data = {'instance:1': {'ip': '4.4.4.4'}}
+        result = chefmap.evaluate_mapping_source(mapping, data)
+        self.assertEqual(result, '4.4.4.4')
+
+    def test_client_evaluation(self):
+        chefmap = solo.ChefMap(parsed="")
+        mapping = {
+                   'source': 'clients://host/ip',
                    'path': 'instance:1'
                   }
         data = {'instance:1': {'ip': '4.4.4.4'}}
