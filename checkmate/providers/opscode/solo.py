@@ -183,39 +183,52 @@ class Provider(ProviderBase):
                      'host %s' %
                      (service_name, resource.get('hosted_on', key)))
 
-    def get_prep_tasks(self, wfspec, deployment, resource_key, component):
+    def get_prep_tasks(self, wfspec, deployment, resource_key, component,
+                       collect_tag='collect', ready_tag='options-ready'):
         """
 
-        Create (or get if they exist) tasks that collects map options
+        Create (or get if they exist) tasks that collect and write map options
 
-        The task will run its code whenever an input task completes. The code
-        to pick up the actual values based on the map comes from the Transforms
-        class.
+        The collect task will run its code whenever an input task completes.
+        The code to pick up the actual values based on the map comes from the
+        Transforms class.
+
+        :param wfspec: the current workflow
+        :param deployment: the current deployment
+        :param resource_key: the key of the resource we are configuring
+        :param component: the component for that resource
+        :param collect_tag: the tag to use for the collect task.
+        :param ready_tag: the tag to tuse for the final, options-ready task
+        :returns: a dict with 'root' and 'final' tasks. The tasks are linked
+                  together but are not linked into the workflow
 
         One collect task is created for each resource and marked with a
         'collect' tag.
+
         If databag tasks are needed, they are marked with a 'write-databag'
         tag.
+
         If role tasks are needed, they are marked with a 'write-role' tag.
+
+        If a new set of tasks are needed (for example, in order to reconfigure
+        a resource when a client is ready) then supply a different set of tags
+        for the collect_tag and ready_tag than the default.
 
         Note:
         Only one databag with one item is currently supported per component.
-        Only opne role per component is suported now.
-
-        :returns: a dict with 'root' and 'final' tasks. The tasks are linked
-                  together but are not linked into the workflow
+        Only one role per component is supported now.
 
         """
         # Do tasks already exist?
         collect_tasks = self.find_tasks(wfspec,
                                         provider=self.key,
                                         resource=resource_key,
-                                        tag='collect')
+                                        tag=collect_tag)
         if collect_tasks:
             ready_tasks = self.find_tasks(wfspec,
                                           provider=self.key,
                                           resource=resource_key,
-                                          tag='options-ready')
+                                          tag=ready_tag)
             if not ready_tasks:
                 raise CheckmateException("'collect' task exists, but "
                                          "'options-ready' is missing")
@@ -244,8 +257,9 @@ class Provider(ProviderBase):
         component_id = component['id']
         output = map_with_context.get_component_output_template(component_id)
         source = utils.get_source_body(Transforms.collect_options)
-        collect_data = TransMerge(wfspec,
-                "Collect Chef Data for %s" % resource_key,
+        name = "%s Chef Data for %s" % (collect_tag.capitalize(),
+                                        resource_key)
+        collect_data = TransMerge(wfspec, name,
                 transforms=[source],
                 description="Get data needed for our cookbooks and place it "
                             "in a structure ready for storage in a databag or "
@@ -306,8 +320,9 @@ class Provider(ProviderBase):
                 secret_file = None
                 path = 'chef_options/databags/%s/%s' % (bag_name, item_name)
 
-            write_databag = Celery(wfspec,
-                    "Write Data Bag for %s" % resource['index'],
+            name = "%s Data Bag for %s" % (collect_tag.capitalize(),
+                                           resource['index']),
+            write_databag = Celery(wfspec, name,
                    'checkmate.providers.opscode.databag.write_databag',
                     call_args=[deployment['id'], bag_name, item_name,
                                PathAttrib(path)],
@@ -317,7 +332,9 @@ class Provider(ProviderBase):
                              'provider': self.key,
                              'resource': resource_key,
                             },
-                    properties={'estimated_duration': 5}
+                    properties={'estimated_duration': 5,
+                                'task_tags': ['write-databag'],
+                               }
                     )
 
         elif len(databags) > 1:
@@ -359,8 +376,9 @@ class Provider(ProviderBase):
                 run_list = ["recipe[%s]" % r for r in recipes]
             # FIXME: right now we create all
             # if role['create'] == True:
-            write_role = Celery(wfspec,
-                    "Write Role %s for %s" % (role_name, resource_key),
+            name = "%s Role %s for %s" % (collect_tag.capitalize(), role_name,
+                                          resource_key)
+            write_role = Celery(wfspec, name,
                     'checkmate.providers.opscode.databag.manage_role',
                     call_args=[role_name, deployment['id']],
                     kitchen_name='kitchen',
@@ -370,16 +388,21 @@ class Provider(ProviderBase):
                             "it into the application role. It will be "
                             "used by the Chef recipe to access global "
                             "data",
-                    defines={'provider': self.key, 'resource': resource_key},
-                    properties={'estimated_duration': 5},
+                    defines={
+                             'provider': self.key,
+                             'resource': resource_key
+                            },
+                    properties={'estimated_duration': 5,
+                                'task_tags': ['write-role'],
+                               },
                     )
         elif len(roles) > 1:
             raise NotImplementedError("Chef-solo provider does not currently "
                                       "support more than one role per "
                                       "component")
 
-        # Chain the tasks: collect - >write databag -> write role
-        # databag and role don't depend on each other. They could run in
+        # Chain the tasks: collect -> write databag -> write role
+        # Note: databag and role don't depend on each other. They could run in
         # parallel, but chaining them is easier for now and less tasks
 
         result = {'root': collect_data}
