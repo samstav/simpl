@@ -579,6 +579,91 @@ class Provider(ProviderBase):
                 root.properties['task_tags'] = ['root']
             return dict(root=root, final=bootstrap_task)
 
+        # Inform server when a client is ready if it has client mappings
+        # TODO: put this in an add_client_ready_tasks for all providers or
+        # make it available as a separate workflow or set of tasks
+
+        resources = deployment['resources']
+        target = resources[relation['target']]
+        if target['provider'] == self.key:
+            if self.map_file.has_client_mapping(target['component'],
+                                                relation['requires-key']):
+                server = target  # our view is from the source of the relation
+                client = resource  # this is the client that is just finishing
+                environment = deployment.environment()
+                provider = environment.get_provider(server['provider'])
+                server_component = provider.get_component(context,
+                                                          server['component'])
+                tasks = self.get_reconfigure_tasks(wfspec, deployment, client,
+                                                   server, server_component)
+                reconfigure_task = tasks['root']
+
+                final_tasks = self.find_tasks(wfspec, resource=key,
+                                              provider=self.key, tag='final')
+                if not final_tasks:
+                    # If server already configured, anchor to root
+                    final_tasks = [self.prep_task]
+                wait_for(wfspec, reconfigure_task, final_tasks)
+
+    def get_reconfigure_tasks(self, wfspec, deployment, client, server,
+                              server_component):
+        """
+
+        Gets creates if does not exist) a task to reconfigure a server when a
+        client is ready.
+
+        This generates only one task per workflow which all clients tie in to.
+        If it is desired for each client to trigger a separate call to
+        reconfigure the server, then the client creation should be launched in
+        a separate workflow.
+
+        :param wfspec: the workflow specific
+        :param deployment: the deployment
+        :param client: the client resource dict
+        :param server: the server resource dict
+        :param server_component: the component for the server
+
+        """
+        LOG.debug("Inform server %s (%s) that client %s (%s) is ready to "
+                  "connect it" % (server['index'], server['component'],
+                                  client['index'], client['component']))
+        existing = self.find_tasks(wfspec, resource=server['index'],
+                                   provider=self.key, tag='client-ready')
+        if existing:
+            reconfigure_task = existing[0]
+            result = {'root': reconfigure_task, 'final': reconfigure_task}
+        else:
+            name = 'Reconfigure %s: client ready' % server['component']
+            reconfigure_task = Celery(wfspec,
+                    name, 'checkmate.providers.opscode.databag.cook',
+                    call_args=[
+                            PathAttrib('instance:%s/ip' % server['index']),
+                            deployment['id']],
+                    password=PathAttrib('instance:%s/password' %
+                                        server['index']),
+                    attributes=PathAttrib('chef_options/attributes'),
+                    identity_file=Attrib('private_key_path'),
+                    description="Push and apply Chef recipes on the "
+                                "server",
+                    defines=dict(resource=server['index'],
+                                 provider=self.key,
+                                 task_tags=['client-ready']),
+                    properties={'estimated_duration': 100})
+            if self.map_file.has_mappings(server['component']):
+                collect_tag = "reconfig"
+                ready_tag = "reconfig-options-ready"
+                collect_tasks = self.get_prep_tasks(wfspec, deployment,
+                                                    server['index'],
+                                                    server_component,
+                                                    collect_tag=collect_tag,
+                                                    ready_tag=ready_tag)
+                reconfigure_task.follow(collect_tasks['final'])
+                result = {'root': collect_tasks['root'],
+                          'final': reconfigure_task}
+            else:
+                result = {'root': reconfigure_task, 'final': reconfigure_task}
+        return result
+
     def get_catalog(self, context, type_filter=None):
         """Return stored/override catalog if it exists, else connect, build,
         and return one"""
