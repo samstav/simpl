@@ -619,50 +619,63 @@ class Transforms():
     @staticmethod  # self will actually be a SpiffWorkflow.TaskSpec
     def collect_options(self, my_task):  # pylint: disable=W0211
         """Collect and write run-time options"""
-        # pylint: disable=W0621
-        from checkmate.providers.opscode.solo import\
-                ChefMap, SoloProviderNotReady
-        # pylint: disable=W0621
-        from checkmate.deployments import resource_postback as postback
-        maps = self.get_property('chef_maps')
-        data = my_task.attributes
-        queue = []
-        for mapping in maps:
-            try:
-                result = ChefMap.evaluate_mapping_source(mapping, data)
-                if result:
-                    queue.append((mapping, result))
-            except SoloProviderNotReady:
-                return False  # false means not done
-        results = {}
-        for mapping, result in queue:
-            ChefMap.apply_mapping(mapping, result, results)
+        try:
+            # pylint: disable=W0621
+            from checkmate.providers.opscode.solo import\
+                    ChefMap, SoloProviderNotReady
+            # pylint: disable=W0621
+            from checkmate.deployments import resource_postback as postback
+            maps = self.get_property('chef_maps')
+            data = my_task.attributes
+            queue = []
+            for mapping in maps:
+                try:
+                    result = ChefMap.evaluate_mapping_source(mapping, data)
+                    if result:
+                        queue.append((mapping, result))
+                except SoloProviderNotReady:
+                    return False  # false means not done
+            results = {}
+            for mapping, result in queue:
+                ChefMap.apply_mapping(mapping, result, results)
 
-        output_template = self.get_property('chef_output', {})
-        if output_template:
-            merge_dictionary(my_task.attributes, output_template)
-
-        if results:
-
-            # Write chef options and task outputs
-
-            outputs = results.pop('outputs', {})
+            output_template = self.get_property('chef_output', {})
             if results:
-                if 'chef_options' not in my_task.attributes:
-                    my_task.attributes['chef_options'] = {}
-                merge_dictionary(my_task.attributes['chef_options'], results)
 
-            if outputs:
-                merge_dictionary(my_task.attributes, outputs)
-                merge_dictionary(outputs, output_template)
-                dep = self.get_property('deployment', None)
-                if dep and outputs:
-                    LOG.debug("Writing task outputs: %s" % outputs)
-                    postback.delay(dep, outputs)
-                else:
-                    LOG.warn("Deployment id not in task properties,"
-                             "cannot update deployment from chef-solo")
-        return True
+                # Write chef options (outputs need to be merged with template)
+
+                outputs = results.pop('outputs', {})
+                if results:
+                    # write results wkithout outputs
+                    if 'chef_options' not in my_task.attributes:
+                        my_task.attributes['chef_options'] = {}
+                    merge_dictionary(my_task.attributes['chef_options'],
+                                     results)
+
+                if outputs:
+                    # write outputs (merged into template)
+                    if output_template is None:
+                        output_template = {}
+                    merge_dictionary(output_template, outputs)
+                    merge_dictionary(my_task.attributes, outputs)
+
+                    # postback if done and we have outputs
+
+                    dep = self.get_property('deployment', None)
+                    if dep and output_template:
+                        LOG.debug("Writing task outputs: %s" % output_template)
+                        postback.delay(dep, output_template)
+                    else:
+                        LOG.warn("Deployment id not in task properties, "
+                                 "cannot update deployment from chef-solo")
+            else:
+                if output_template:
+                    merge_dictionary(my_task.attributes, output_template)
+
+            return True
+        except StandardError as exc:
+            LOG.error("Error in transform: %s", exc)
+            raise exc
 
 
 class ChefMap():
