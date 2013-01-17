@@ -295,10 +295,8 @@ class Plan(ExtensibleDict):
         :param definition: the definition of the resource from the plan
 
         """
-        relations = {}
         for key, connection in definition.get('connections', {}).iteritems():
-            relation_type = connection.get('relation', 'reference')
-            if (relation_type == 'host'
+            if (connection.get('relation', 'reference') == 'host'
                     and connection['direction'] == 'inbound'):
                 continue  # we don't write host relation on host
 
@@ -310,39 +308,7 @@ class Plan(ExtensibleDict):
                 target_def = target_service['component']
             for target_index in target_def.get('instances', []):
                 target = self.resources[target_index]
-                result = {
-                            'interface': connection['interface'],
-                            'state': 'planned',
-                            'name': key,
-                            'relation': relation_type
-                         }
-                if connection['direction'] == 'inbound':
-                    result['source'] = target_index
-                elif connection['direction'] == 'outbound':
-                    result['target'] = target_index
-                    result['requires-key'] = connection['requires-key']
-
-                #FIXME: remove v0.2 feature
-                if 'attribute' in connection:
-                    LOG.warning("Using v0.2 feature")
-                    result['attribute'] = connection['attribute']
-
-                if 'relation-key' in connection:
-                    result['relation-key'] = connection['relation-key']
-                if relation_type == 'host':
-                    resource['hosted_on'] = target_index
-                    if 'hosts' in target:
-                        target['hosts'].append(resource['index'])
-                    else:
-                        target['hosts'] = [resource['index']]
-                    write_key = 'host'
-                else:
-                    write_key = '%s-%s' % (key, target_index)
-                if write_key in relations:
-                    CheckmateException("Conflicting relation named '%s' "
-                                       "exists in service '%s'" % (
-                                        write_key, target_service))
-                relations[write_key] = result
+                self.connect_instances(resource, target, connection, key)
 
             #TODO: this is just copied in for legacy compatibility
             if (connection['direction'] == 'outbound'
@@ -352,11 +318,65 @@ class Plan(ExtensibleDict):
                     con_def = {'interface': connection['interface']}
                     self.connections[rel_key] = con_def
 
-        if relations:
-            if 'relations' in resource:
-                resource['relations'].update(relations)
+    def connect_instances(self, resource, target, connection, connection_key):
+        """Connect two resources based on the provided connection definition"""
+        relation_type = connection.get('relation', 'reference')
+        if relation_type == 'host':
+            write_key = 'host'
+        else:
+            write_key = '%s-%s' % (connection_key, target['index'])
+        result = {
+                    'interface': connection['interface'],
+                    'state': 'planned',
+                    'name': connection_key,
+                    'relation': relation_type
+                 }
+        if connection['direction'] == 'inbound':
+            result['source'] = target['index']
+        elif connection['direction'] == 'outbound':
+            result['target'] = target['index']
+            result['requires-key'] = connection['requires-key']
+
+        #FIXME: remove v0.2 feature
+        if 'attribute' in connection:
+            LOG.warning("Using v0.2 feature")
+            result['attribute'] = connection['attribute']
+        #END v0.2 feature
+
+        if 'relation-key' in connection:
+            result['relation-key'] = connection['relation-key']
+
+        # Validate
+
+        if 'relations' in resource and write_key in resource['relations']:
+            if resource['relations'][write_key] != result:
+                LOG.debug("Relation '%s' already exists")
+                return
             else:
-                resource['relations'] = relations
+                CheckmateException("Conflicting relation named '%s' exists in "
+                                   "service '%s'" % (write_key,
+                                   target['service']))
+
+        # Write relation
+
+        if 'relations' not in resource:
+            resource['relations'] = {}
+        relations = resource['relations']
+        if relation_type == 'host':
+            if resource.get('hosted_on') not in [None, target['index']]:
+                raise CheckmateException("Resource '%s' is already set to be "
+                                         "hosted on '%s'. Cannot change host "
+                                         "to '%s'" % (resource['index'],
+                                         resource['hosted_on'], target['index']
+                                         ))
+
+            resource['hosted_on'] = target['index']
+            if 'hosts' in target:
+                if resource['index'] not in target['hosts']:
+                    target['hosts'].append(resource['index'])
+            else:
+                target['hosts'] = [resource['index']]
+        relations[write_key] = result
 
     def resolve_components(self, context):
         """
