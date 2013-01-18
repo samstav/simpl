@@ -1017,6 +1017,25 @@ class TestDeploymentSettings(unittest.TestCase):
                                                     'http://fqdn'),
                               dict, msg=msg)
 
+    def test_apply_constraint_attribute(self):
+        deployment = yaml_to_dict("""
+              id: 1
+              blueprint:
+                options:
+                  my_option:
+                    default: 'thedefaultwidgetvaluegoeshere'
+                    constrains:
+                    - type: blah
+                      service: foo
+                      setting: fa
+                      attribute: widget""")
+        deployment = Deployment(deployment)
+        option = deployment['blueprint']['options']['my_option']
+        constraint = option['constrains'][0]
+        self.assertRaises(CheckmateException, deployment._apply_constraint,
+                          "my_option", constraint, option=option,
+                          option_key="my_option")
+
 
 class TestDeploymentCounts(unittest.TestCase):
     """ Tests getting deployment numbers """

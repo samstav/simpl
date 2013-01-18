@@ -1,3 +1,4 @@
+import collections
 import copy
 import logging
 import os
@@ -614,6 +615,12 @@ class Deployment(ExtensibleDict):
             attribute = constraint['attribute']
 
             if value:
+                if not isinstance(value, collections.Mapping):
+                    raise CheckmateException("Could not read attribute '%s' "
+                                             "while obtaining option '%s' "
+                                             "since value is of type %s" % (
+                                             attribute, name,
+                                             type(value).__name__))
                 if attribute in value:
                     result = value[attribute]
                 if result:
