@@ -465,9 +465,6 @@ class Deployment(ExtensibleDict):
                             instance = self['resources'][key]['instance']
                             result = self._apply_constraint(name, constraint,
                                                             resource=instance)
-                            # Find the instance, and get the attribute
-                            result = instance[constraint.get('attribute',
-                                                             name)]
                             if result:
                                 LOG.debug("Found setting '%s' from constraint "
                                           "in blueprint resource '%s'. %s=%s" %
