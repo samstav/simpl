@@ -385,10 +385,10 @@ def plan(deployment, context):
               "chef-solo providers at this time.")
 
     # Analyze Deployment and Create plan
-    if uses_chef_solo:
-        planner = Plan(deployment)
-    else:
+    if uses_chef_local:
         planner = Legacy_Plan(deployment)
+    else:
+        planner = Plan(deployment)
 
     resources = planner.plan(context)
 

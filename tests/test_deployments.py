@@ -1460,8 +1460,6 @@ class TestDeploymentPlanning(unittest.TestCase):
                   name: environment
                   providers:
                     base:
-                      provides:
-                      - widget: foo
                       vendor: test
                       catalog:
                         widget:
