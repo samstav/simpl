@@ -261,10 +261,11 @@ class Provider(ProviderBase):
                             "in a structure ready for storage in a databag or "
                             "role",
                 properties={
-                            'task_tags': ['collect'],
+                            'task_tags': [collect_tag],
                             'chef_maps': maps,
                             'chef_output': output,
-                            'deployment': deployment['id']
+                            'deployment': deployment['id'],
+                            'extend_lists': True,
                            },
                 defines={
                          'provider': self.key,
@@ -599,14 +600,14 @@ class Provider(ProviderBase):
                                                           server['component'])
                 tasks = self.get_reconfigure_tasks(wfspec, deployment, client,
                                                    server, server_component)
-                reconfigure_task = tasks['root']
+                recollect_task = tasks['root']
 
                 final_tasks = self.find_tasks(wfspec, resource=key,
                                               provider=self.key, tag='final')
                 if not final_tasks:
                     # If server already configured, anchor to root
                     final_tasks = [self.prep_task]
-                wait_for(wfspec, reconfigure_task, final_tasks)
+                wait_for(wfspec, recollect_task, final_tasks)
 
     def get_reconfigure_tasks(self, wfspec, deployment, client, server,
                               server_component):
@@ -632,9 +633,17 @@ class Provider(ProviderBase):
                                   client['index'], client['component']))
         existing = self.find_tasks(wfspec, resource=server['index'],
                                    provider=self.key, tag='client-ready')
+        collect_tag = "reconfig"
+        ready_tag = "reconfig-options-ready"
         if existing:
             reconfigure_task = existing[0]
-            result = {'root': reconfigure_task, 'final': reconfigure_task}
+            collect = self.find_tasks(wfspec, resource=server['index'],
+                                      provider=self.key, tag=collect_tag)
+            if collect:
+                root_task = collect[0]
+            else:
+                root_task = reconfigure_task
+            result = {'root': root_task, 'final': reconfigure_task}
         else:
             name = 'Reconfigure %s: client ready' % server['component']
             reconfigure_task = Celery(wfspec,
@@ -648,13 +657,16 @@ class Provider(ProviderBase):
                     identity_file=Attrib('private_key_path'),
                     description="Push and apply Chef recipes on the "
                                 "server",
-                    defines=dict(resource=server['index'],
-                                 provider=self.key,
-                                 task_tags=['client-ready']),
-                    properties={'estimated_duration': 100})
+                    defines={
+                             'resource': server['index'],
+                             'provider': self.key,
+                            },
+                    properties={
+                                'estimated_duration': 100,
+                                'task_tags': ['client-ready'],
+                               }
+                    )
             if self.map_file.has_mappings(server['component']):
-                collect_tag = "reconfig"
-                ready_tag = "reconfig-options-ready"
                 collect_tasks = self.get_prep_tasks(wfspec, deployment,
                                                     server['index'],
                                                     server_component,
@@ -757,11 +769,11 @@ class Transforms():
 
                 outputs = results.pop('outputs', {})
                 if results:
-                    # write results wkithout outputs
+                    # write results without outputs
                     if 'chef_options' not in my_task.attributes:
                         my_task.attributes['chef_options'] = {}
                     merge_dictionary(my_task.attributes['chef_options'],
-                                     results)
+                                     results, True)
 
                 if outputs:
                     # write outputs (merged into template)
@@ -808,11 +820,27 @@ class ChefMap():
         :param output: a dict to apply the mapping to
 
         """
+        # FIXME: hack to get v0.5 out. Until we implement search() or Craig's
+        # ValueFilter. For now, just write arrays for all 'clients' mappings
+        write_array = False
+        if 'source' in mapping:
+            url = ChefMap.parse_map_URI(mapping['source'])
+            if url['scheme'] == 'clients':
+                write_array = True
+
         for target in mapping.get('targets', []):
             url = ChefMap.parse_map_URI(target)
             if url['scheme'] in ['attributes', 'outputs']:
                 if url['scheme'] not in output:
                     output[url['scheme']] = {}
+                if write_array:
+                    existing = utils.read_path(output[url['scheme']],
+                                               url['path'].strip('/'))
+                    if not existing:
+                        existing = []
+                    if value not in existing:
+                        existing.append(value)
+                    value = existing
                 utils.write_path(output[url['scheme']], url['path'].strip('/'),
                                  value)
                 LOG.debug("Wrote to target '%s': %s" % (target, value))
@@ -820,6 +848,13 @@ class ChefMap():
                 if url['scheme'] not in output:
                     output[url['scheme']] = {}
                 path = os.path.join(url['netloc'], url['path'].strip('/'))
+                if write_array:
+                    existing = utils.read_path(output[url['scheme']], path)
+                    if not existing:
+                        existing = []
+                    if value not in existing:
+                        existing.append(value)
+                    value = existing
                 utils.write_path(output[url['scheme']], path, value)
                 LOG.debug("Wrote to target '%s': %s" % (target, value))
             else:
