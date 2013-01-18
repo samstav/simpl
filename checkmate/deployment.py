@@ -627,8 +627,7 @@ class Deployment(ExtensibleDict):
                       value))
             return value
 
-    @staticmethod
-    def _objectify(option, value):
+    def _objectify(self, option, value):
         """Parse option based on type into an object of that type"""
         if 'type' not in option:
             return value
