@@ -420,8 +420,7 @@ class ProviderBase(ProviderBasePlanningMixIn, ProviderBaseWorkflowMixIn):
                     continue  # ID specified and does not match
                 if role and role not in component.get('roles', []):
                     continue  # Component does not provide given role
-                comp = Component()
-                comp._data = component
+                comp = Component(component, id=id)
                 provides = comp.provides or {}
                 for entry in provides.values():
                     ptype = entry.get('resource_type')

@@ -100,7 +100,7 @@ def init_logging(default_config=None):
     args = parser.parse_known_args()[0]
     if args.logconfig:
         logging.config.fileConfig(args.logconfig,disable_existing_loggers=False)
-    elif default_config and os.path.isfile(default_config): 
+    elif default_config and os.path.isfile(default_config):
         logging.config.fileConfig(default_config,disable_existing_loggers=False)
     else:
         init_console_logging()

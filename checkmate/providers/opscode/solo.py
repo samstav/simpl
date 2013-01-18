@@ -403,8 +403,8 @@ class Provider(ProviderBase):
         Parse maps for a resource and identify paths for finding the map
         data
 
-        By looking at a requirementsuirement's key and finding the relations
-        that satisfy that key (using the source-key attribute) and that have a
+        By looking at a requirement's key and finding the relations that
+        satisfy that key (using the requires-key attribute) and that have a
         'target' attribute, we can identify the resource we need to get the
         data from and provide the path to that resource as a hint to the
         TransMerge task

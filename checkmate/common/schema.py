@@ -289,16 +289,19 @@ def validate_input(key, value):
 ALIASES = {
         'apache': ['apache2'],
         'authentication': ['auth'],
+        'configuration': ['conf'],
         'database': ['db'],
         'description': ['desc'],
         'destination': ['dest'],
         'directory': ['dir'],
-        'configuration': ['conf'],
+        'drupal': [],
+        'etherpad': [],
         'host': ['hostname'],
         'id': [],
         'ip': [],
         'instance': [],
         'key': [],
+        'maximum': ['max'],
         'memory': ['mem'],
         'mysql': [],
         'name': [],
@@ -310,46 +313,104 @@ ALIASES = {
         'region': [],
         'server': ['srv', 'srvr'],
         'source': ['src'],
+        'ssh': [],
         'status': [],
         'username': [],
         'user': [],
-        'wordpress': [],
+        'wordpress': ['wp'],
         'worker': [],
     }
 
 # Add items we come across frequently just to minimize log noise
 ALIASES.update({
-    'apt': [],
-    'aws': [],
-    'build': [],
-    'essential': [],
-    'checkmate': [],
-    'chef': [],
-    'client': [],
-    'handler': [],
-    'firewall': [],
-    'holland': [],
-    'iptables': [],
-    'lsyncd': [],
-    'memcached': [],
-    'openssl': [],
-    'php': [],
-    'php5': [],
-    'postgresql': [],
-    'runit': [],
-    'suhosin': [],
-    'ufw': [],
-    'varnish': [],
-    'vsftpd': [],
-    'windows': [],
-    'xfs': [],
-    'xml': [],
-    'yum': [],
-    'private': [],
-    'public': [],
-    'ssl': [],
-    'cert':[],
-    'certificate':[]
+        'access': [],
+        'address': [],
+        'allowed': [],
+        'apt': [],
+        'aws': [],
+        'awwbomb': [],
+        'back': [],
+        'bin': [],
+        'bind': [],
+        'bluepill': [],
+        'bucket': [],
+        'buffer': [],
+        'build': [],
+        'cache': [],
+        'cert': [],
+        'certificate': [],
+        'checkmate': [],
+        'chef': [],
+        'client': [],
+        'connection': ['connections'],
+        'contact': [],
+        'container': [],
+        'create': [],
+        'data': [],
+        'day': ['days'],
+        'default': [],
+        'dmg': [],
+        'domain': [],
+        'ec2': [],
+        'enabled': [],
+        'essential': [],
+        'expire': [],
+        'firewall': [],
+        'gzip': [],
+        'handler': [],
+        'hash': [],
+        'heap': [],
+        'holland': [],
+        'iptables': [],
+        'keepalive': [],
+        'level': [],
+        'listen': [],
+        'lite': [],
+        'log': ['logs'],
+        'lsyncd': [],
+        'memcached': [],
+        'monit': [],
+        'net': [],
+        'nginx': [],
+        'nodejs': [],
+        'npm': [],
+        'ohai': [],
+        'open': [],
+        'openssl': [],
+        'php': [],
+        'php5': [],
+        'port': ['ports'],
+        'postfix': [],
+        'postgresql': [],
+        'prefix': [],
+        'private': [],
+        'process': ['processes'],
+        'public': [],
+        'read': [],
+        'root': [],
+        'runit': [],
+        'size': [],
+        'secure': [],
+        'self': [],
+        'service': [],
+        'site': [],
+        'slave': ['slaves'],
+        'ssl': [],
+        'suhosin': [],
+        'table': [],
+        'timeout': [],
+        'tunable': [],
+        'type': ['types'],
+        'ufw': [],
+        'varnish': [],
+        'version': [],
+        'vsftpd': [],
+        'wait': [],
+        'windows': [],
+        'write': [],
+        'xfs': [],
+        'xml': [],
+        'yum': [],
     })
 
 
@@ -358,7 +419,7 @@ def translate(name):
 
     Canonicalizes composite names to be separated by underscores.
     Keeps path separators intack (name/alias becomes name/canonical_name)
-    @deprecated: this prevents us from using third party chef-based 
+    @deprecated: this prevents us from using third party chef-based
                  components without modification
     """
     # Check if is already canonical
@@ -381,17 +442,21 @@ def translate(name):
         return path_separator.join(segments)
 
     # Check if composite (made up of a number of words together)
-    # this breaks some recipes used in chef components.
-#    word_seps = '.-_'
-#    if any((c in name) for c in word_seps):
-#        chars = list(name)
-#        words = ''.join([' ' if o in word_seps else o for o in chars]
-#                ).split(' ')
-#        for index, word in enumerate(words):
-#            words[index] = translate(word) or ''
-#        return '_'.join(words)
+    word_seps = '.-_'
+    recognized = False
+    if any((c in name) for c in word_seps):
+        chars = list(name)
+        words = ''.join([' ' if o in word_seps else o for o in chars]
+                ).split(' ')
+        for index, word in enumerate(words):
+            words[index] = translate(word) or ''
+        # FIXME: this breaks some recipes used in chef components, so we won't
+        # return it, but we also won't log it until we fix this.
+        recognized = True
+        #return '_'.join(words)
 
-    LOG.debug("Unrecognized name: %s" % name)
+    if not recognized:
+        LOG.debug("Unrecognized name: %s" % name)
     return name
 
 
