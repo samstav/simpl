@@ -780,6 +780,7 @@ class Transforms():
     def collect_options(self, my_task):  # pylint: disable=W0211
         """Collect and write run-time options"""
         try:
+            import copy
             # pylint: disable=W0621
             from checkmate.providers.opscode.solo import (ChefMap,
                                                           SoloProviderNotReady)
@@ -813,6 +814,10 @@ class Transforms():
 
                 # outputs do not go into chef_options
                 outputs = results.pop('outputs', {})
+                # Use output_template as a template for outputs
+                if output_template:
+                    outputs = merge_dictionary(copy.copy(output_template),
+                                               outputs)
 
                 # Write chef_options for databag and role tasks
                 if results:
