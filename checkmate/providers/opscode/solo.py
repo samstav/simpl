@@ -1014,6 +1014,19 @@ class ChefMap():
         return False
 
     @staticmethod
+    def filter_maps_by_schemes(maps, target_schemes=None):
+        """Returns the maps that have specific target schemes"""
+        if not maps or not target_schemes:
+            return maps
+        result = []
+        for mapping in maps:
+            for target in mapping.get('targets', []):
+                url = ChefMap.parse_map_URI(target)
+                if url['scheme'] in target_schemes:
+                    result.append(mapping)
+                    break
+        return result
+
     @staticmethod
     def resolve_map(mapping, data, output):
         """Resolve mapping and write output"""

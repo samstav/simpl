@@ -1269,6 +1269,42 @@ class TestChefMap(unittest.TestCase):
         self.assertFalse(chef_map.has_runtime_options('bar'))
         self.assertFalse(chef_map.has_runtime_options('not there'))
 
+    def test_filter_maps_by_schemes(self):
+        maps = utils.yaml_to_dict("""
+                - value: 1
+                  targets:
+                  - databags://bag/item
+                - value: 2
+                  targets:
+                  - databags://bag/item
+                  - roles://bag/item
+                - value: 3
+                  targets:
+                  - attributes://id
+                """)
+        expect = "Should detect all maps with databags target"
+        ts = ['databags']
+        result = solo.ChefMap.filter_maps_by_schemes(maps, target_schemes=ts)
+        self.assertListEqual(result, maps[0:2], msg=expect)
+
+        expect = "Should detect only map with roles target"
+        ts = ['roles']
+        result = solo.ChefMap.filter_maps_by_schemes(maps, target_schemes=ts)
+        self.assertListEqual(result, [maps[1]], msg=expect)
+
+        expect = "Should detect all maps once"
+        ts = ['databags', 'attributes', 'roles']
+        result = solo.ChefMap.filter_maps_by_schemes(maps, target_schemes=ts)
+        self.assertListEqual(result, maps, msg=expect)
+
+        expect = "Should return all maps"
+        result = solo.ChefMap.filter_maps_by_schemes(maps)
+        self.assertListEqual(result, maps, msg=expect)
+
+        expect = "Should return all maps"
+        result = solo.ChefMap.filter_maps_by_schemes(maps, target_schemes=[])
+        self.assertListEqual(result, maps, msg=expect)
+
 
 class TestTransform(unittest.TestCase):
     """Test Transform functionality"""
