@@ -1268,6 +1268,14 @@ class ChefMap():
 
         env.json = json
 
+        def evaluate(value):
+            """Handle defaults with functions"""
+            if isinstance(value, basestring):
+                if value.startswith('=generate'):
+                    # TODO: Optimize. Maybe have Deployment class handle it
+                    value = ProviderBase({}).evaluate(value[1:])
+            return value
+
         def parse_url(value):
             """
 
@@ -1284,16 +1292,18 @@ class ChefMap():
         defaults = kwargs.get('defaults', {})
         if deployment:
             if resource:
-                fxn = lambda setting_name: deployment.get_setting(setting_name,
+                fxn = lambda setting_name: evaluate(deployment.get_setting(
+                        setting_name,
                         resource_type=resource['type'],
                         provider_key=resource['provider'],
                         service_name=resource['service'],
-                        default=defaults.get(setting_name, ''))
+                        default=defaults.get(setting_name, '')))
             else:
-                fxn = lambda setting_name: deployment.get_setting(setting_name,
-                        default=defaults.get(setting_name, ''))
+                fxn = lambda setting_name: evaluate(deployment.get_setting(
+                        setting_name, default=defaults.get(setting_name, '')))
         else:
-            fxn = lambda setting_name: defaults.get(setting_name, '')  # noop
+            # noop
+            fxn = lambda setting_name: evaluate(defaults.get(setting_name, ''))
         env.globals['setting'] = fxn
         env.globals['hash'] = hash_SHA512
 

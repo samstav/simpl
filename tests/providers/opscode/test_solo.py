@@ -125,6 +125,63 @@ class TestChefSoloProvider(test.ProviderTester):
                    ]
         self.assertListEqual(result, expected)
 
+    def test_get_map_with_context_defaults(self):
+        """Make sure defaults get evaluated correctly"""
+        provider = solo.Provider({})
+        deployment = Deployment(utils.yaml_to_dict("""
+                id: 'DEP-ID-1000'
+                blueprint:
+                  name: Test
+                  services:
+                    foo:
+                      component:
+                        id: test
+                  options:
+                    bp_password:
+                      default: =generate_password()
+                      constrains:
+                      - service: foo
+                        setting: bp_password
+                environment:
+                  name: test
+                  providers:
+                    chef-solo:
+                      vendor: opscode
+                      constraint:
+                      - source: dummy
+            """))
+        chefmap = solo.ChefMap(raw="""
+                id: test
+                options:
+                  password:
+                    default: =generate_password()
+                output:
+                  component: {{ setting('password') }}
+                  blueprint: {{ setting('bp_password') }}
+            """)
+        provider.map_file = chefmap
+        component = chefmap.components[0]
+
+        self.mox.StubOutWithMock(provider, 'evaluate')
+        provider.evaluate('generate_password()').AndReturn("RandomPass")
+
+        self.mox.StubOutWithMock(solo.ProviderBase, 'evaluate')
+        solo.ProviderBase.evaluate('generate_password()').AndReturn("randp2")
+
+        resource = {
+                    'type': 'application',
+                    'service': 'foo',
+                    'provider': 'chef-solo',
+                   }
+        self.mox.ReplayAll()
+        context = provider.get_map_with_context(component=component,
+                                                deployment=deployment,
+                                                resource=resource)
+        output = context.get_component_output_template("test")
+        self.assertEqual(output['component'], "RandomPass")
+        self.assertEqual(output['blueprint'], "randp2")
+        self.mox.VerifyAll()
+
 
 class TestCeleryTasks(unittest.TestCase):
 
