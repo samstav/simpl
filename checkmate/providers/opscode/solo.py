@@ -804,102 +804,6 @@ class Transforms():
 class ChefMap():
     """Retrieves and parses Chefmap files"""
 
-    @staticmethod
-    def resolve_map(mapping, data, output):
-        """Resolve mapping and write output"""
-        result = ChefMap.evaluate_mapping_source(mapping, data)
-        if result:
-            ChefMap.apply_mapping(mapping, result, output)
-
-    @staticmethod
-    def apply_mapping(mapping, value, output):
-        """Applies the mapping value to all the targets
-
-        :param mapping: dict of the mapping
-        :param value: the value of the mapping. This is evaluated elsewhere.
-        :param output: a dict to apply the mapping to
-
-        """
-        # FIXME: hack to get v0.5 out. Until we implement search() or Craig's
-        # ValueFilter. For now, just write arrays for all 'clients' mappings
-        write_array = False
-        if 'source' in mapping:
-            url = ChefMap.parse_map_URI(mapping['source'])
-            if url['scheme'] == 'clients':
-                write_array = True
-
-        for target in mapping.get('targets', []):
-            url = ChefMap.parse_map_URI(target)
-            if url['scheme'] in ['attributes', 'outputs']:
-                if url['scheme'] not in output:
-                    output[url['scheme']] = {}
-                if write_array:
-                    existing = utils.read_path(output[url['scheme']],
-                                               url['path'].strip('/'))
-                    if not existing:
-                        existing = []
-                    if value not in existing:
-                        existing.append(value)
-                    value = existing
-                utils.write_path(output[url['scheme']], url['path'].strip('/'),
-                                 value)
-                LOG.debug("Wrote to target '%s': %s" % (target, value))
-            elif url['scheme'] in ['databags', 'encrypted-databags', 'roles']:
-                if url['scheme'] not in output:
-                    output[url['scheme']] = {}
-                path = os.path.join(url['netloc'], url['path'].strip('/'))
-                if write_array:
-                    existing = utils.read_path(output[url['scheme']], path)
-                    if not existing:
-                        existing = []
-                    if value not in existing:
-                        existing.append(value)
-                    value = existing
-                utils.write_path(output[url['scheme']], path, value)
-                LOG.debug("Wrote to target '%s': %s" % (target, value))
-            else:
-                raise NotImplementedError("Unsupported url scheme '%s' in url "
-                                          "'%s'" % (url['scheme'], target))
-
-    @staticmethod
-    def evaluate_mapping_source(mapping, data):
-        """
-        Returns the mapping source value
-
-        Raises a SoloProviderNotReady exception if the source is not yet
-        available
-
-        :param mapping: the mapping to resolved
-        :param data: the data to read from
-        :returns: the value
-
-        """
-        value = None
-        if 'source' in mapping:
-            url = ChefMap.parse_map_URI(mapping['source'])
-            if url['scheme'] in ['requirements', 'clients']:
-                path = mapping.get('path', url['netloc'])
-                try:
-                    value = utils.read_path(data, os.path.join(path,
-                                            url['path']))
-                except (KeyError, TypeError) as exc:
-                    LOG.debug("'%s' not yet available at '%s': %s" % (
-                              mapping['source'], path, exc),
-                              extra={'data': data})
-                    raise SoloProviderNotReady("Not ready")
-                LOG.debug("Resolved mapping '%s' to '%s'" % (mapping['source'],
-                          value))
-            else:
-                raise NotImplementedError("Unsupported url scheme '%s' in url "
-                                          "'%s'" % (url['scheme'],
-                                          mapping['source']))
-        elif 'value' in mapping:
-            value = mapping['value']
-        else:
-            raise CheckmateException("Mapping has neither 'source' nor "
-                                     "'value'")
-        return value
-
     def __init__(self, url=None, raw=None, parsed=None):
         """Create a new Chefmap instance
 
@@ -1110,6 +1014,102 @@ class ChefMap():
         return False
 
     @staticmethod
+    @staticmethod
+    def resolve_map(mapping, data, output):
+        """Resolve mapping and write output"""
+        result = ChefMap.evaluate_mapping_source(mapping, data)
+        if result:
+            ChefMap.apply_mapping(mapping, result, output)
+
+    @staticmethod
+    def apply_mapping(mapping, value, output):
+        """Applies the mapping value to all the targets
+
+        :param mapping: dict of the mapping
+        :param value: the value of the mapping. This is evaluated elsewhere.
+        :param output: a dict to apply the mapping to
+
+        """
+        # FIXME: hack to get v0.5 out. Until we implement search() or Craig's
+        # ValueFilter. For now, just write arrays for all 'clients' mappings
+        write_array = False
+        if 'source' in mapping:
+            url = ChefMap.parse_map_URI(mapping['source'])
+            if url['scheme'] == 'clients':
+                write_array = True
+
+        for target in mapping.get('targets', []):
+            url = ChefMap.parse_map_URI(target)
+            if url['scheme'] in ['attributes', 'outputs']:
+                if url['scheme'] not in output:
+                    output[url['scheme']] = {}
+                if write_array:
+                    existing = utils.read_path(output[url['scheme']],
+                                               url['path'].strip('/'))
+                    if not existing:
+                        existing = []
+                    if value not in existing:
+                        existing.append(value)
+                    value = existing
+                utils.write_path(output[url['scheme']], url['path'].strip('/'),
+                                 value)
+                LOG.debug("Wrote to target '%s': %s" % (target, value))
+            elif url['scheme'] in ['databags', 'encrypted-databags', 'roles']:
+                if url['scheme'] not in output:
+                    output[url['scheme']] = {}
+                path = os.path.join(url['netloc'], url['path'].strip('/'))
+                if write_array:
+                    existing = utils.read_path(output[url['scheme']], path)
+                    if not existing:
+                        existing = []
+                    if value not in existing:
+                        existing.append(value)
+                    value = existing
+                utils.write_path(output[url['scheme']], path, value)
+                LOG.debug("Wrote to target '%s': %s" % (target, value))
+            else:
+                raise NotImplementedError("Unsupported url scheme '%s' in url "
+                                          "'%s'" % (url['scheme'], target))
+
+    @staticmethod
+    def evaluate_mapping_source(mapping, data):
+        """
+        Returns the mapping source value
+
+        Raises a SoloProviderNotReady exception if the source is not yet
+        available
+
+        :param mapping: the mapping to resolved
+        :param data: the data to read from
+        :returns: the value
+
+        """
+        value = None
+        if 'source' in mapping:
+            url = ChefMap.parse_map_URI(mapping['source'])
+            if url['scheme'] in ['requirements', 'clients']:
+                path = mapping.get('path', url['netloc'])
+                try:
+                    value = utils.read_path(data, os.path.join(path,
+                                            url['path']))
+                except (KeyError, TypeError) as exc:
+                    LOG.debug("'%s' not yet available at '%s': %s" % (
+                              mapping['source'], path, exc),
+                              extra={'data': data})
+                    raise SoloProviderNotReady("Not ready")
+                LOG.debug("Resolved mapping '%s' to '%s'" % (mapping['source'],
+                          value))
+            else:
+                raise NotImplementedError("Unsupported url scheme '%s' in url "
+                                          "'%s'" % (url['scheme'],
+                                          mapping['source']))
+        elif 'value' in mapping:
+            value = mapping['value']
+        else:
+            raise CheckmateException("Mapping has neither 'source' nor "
+                                     "'value'")
+        return value
+
     def parse_map_URI(uri):
         """
         Parses the URI format of a map
