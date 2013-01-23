@@ -809,7 +809,11 @@ class Transforms():
 
             # Write to the task attributes and postback the desired output
 
-            output_template = self.get_property('chef_output') or {}
+            output_template = self.get_property('chef_output')
+            if output_template:
+                output_template = copy.copy(output_template)
+            else:
+                output_template = {}
             if results:
 
                 # outputs do not go into chef_options
