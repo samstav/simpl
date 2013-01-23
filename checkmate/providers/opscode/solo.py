@@ -797,8 +797,14 @@ class Transforms():
 
             return True
         except StandardError as exc:
+            import sys
+            import traceback
             LOG.error("Error in transform: %s", exc)
-            raise exc
+            tb = sys.exc_info()[2]
+            tb_info = traceback.extract_tb(tb)
+            mod, line = tb_info[-1][-2:]
+            raise Exception("%s %s in %s executing: %s" % (type(exc).__name__,
+                                                           exc, mod, line))
 
 
 class ChefMap():
