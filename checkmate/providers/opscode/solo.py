@@ -236,22 +236,31 @@ class Provider(ProviderBase):
 
         # Create the task data collection/map parsing task
 
-        defaults = {}  # used by setting() in Jinja context to return defaults
-        for key, option in component.get('options', {}).iteritems():
-            if 'default' in option:
-                default = option['default']
-                if default.startswith('=generate'):
-                    default = self.evaluate(default[1:])
-                defaults[key] = default
-        resource = deployment['resources'][resource_key]
-        parsed = self.map_file.parse(self.map_file.raw, deployment=deployment,
-                                     resource=resource, component=component,
-                                     defaults=defaults)
-        map_with_context = ChefMap(parsed=parsed)
-        maps = self.get_resource_prepared_maps(resource, deployment,
-                                               map_file=map_with_context)
         component_id = component['id']
+        resource = deployment['resources'][resource_key]
+
+        # Get a map file parsed with all the right objhects available in the
+        # Jinja context. These objects had not been available until now.
+
+        map_with_context = self.get_map_with_context(deployment=deployment,
+                                                     resource=resource,
+                                                     component=component)
+        all_maps = self.get_resource_prepared_maps(resource, deployment,
+                                                   map_file=map_with_context)
+
+        chef_options = {}
+
+        # Parse all maps and resolve the ones where the data is ready.
+
+        unresolved = ChefMap.resolve_ready_maps(all_maps, deployment,
+                                                chef_options)
+        if 'attributes' in chef_options:
+            del chef_options['attributes']  # those were added in Register
+
+        # Create the output template defined in the map file
+
         output = map_with_context.get_component_output_template(component_id)
+
         source = utils.get_source_body(Transforms.collect_options)
         name = "%s Chef Data for %s" % (collect_tag.capitalize(),
                                         resource_key)
@@ -262,8 +271,9 @@ class Provider(ProviderBase):
                             "role",
                 properties={
                             'task_tags': [collect_tag],
-                            'chef_maps': maps,
+                            'chef_maps': unresolved,
                             'chef_output': output,
+                            'chef_options': chef_options,
                             'deployment': deployment['id'],
                             'extend_lists': True,
                            },
@@ -427,6 +437,23 @@ class Provider(ProviderBase):
                 result['final'] = collect_data
                 collect_data.properties['task_tags'].append('options-ready')
         return result
+
+    def get_map_with_context(self, **kwargs):
+        """Returns a map file that was parsed with real data in the context"""
+        # Add defaults if there is a component and no defaults specified
+        if kwargs and 'defaults' not in kwargs and 'component' in kwargs:
+            component = kwargs['component']
+            # used by setting() in Jinja context to return defaults
+            defaults = {}
+            for key, option in component.get('options', {}).iteritems():
+                if 'default' in option:
+                    default = option['default']
+                    if default.startswith('=generate'):
+                        default = self.evaluate(default[1:])
+                    defaults[key] = default
+            kwargs['defaults'] = defaults
+        parsed = self.map_file.parse(self.map_file.raw, **kwargs)
+        return ChefMap(parsed=parsed)
 
     def get_resource_prepared_maps(self, resource, deployment, map_file=None):
         """

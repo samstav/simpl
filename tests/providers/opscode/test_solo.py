@@ -592,7 +592,6 @@ class TestMappedSingleWorkflow(test.StubbedWorkflowBase):
         self.assertListEqual(task_list, expected, msg=task_list)
         self.mox.VerifyAll()
 
-    @skip
     def test_workflow_execution(self):
         """Verify workflow executes"""
 
@@ -628,6 +627,11 @@ class TestMappedSingleWorkflow(test.StubbedWorkflowBase):
             }]
         for key, resource in self.deployment['resources'].iteritems():
             if resource.get('type') == 'compute':
+                attributes = {
+                                'username': 'u1',
+                                'password': 'myPassW0rd',
+                                'db_name': 'app_db',
+                             }
                 expected_calls.extend([{
                         # Create Server
                         'call': 'checkmate.providers.test.create_resource',
@@ -654,7 +658,9 @@ class TestMappedSingleWorkflow(test.StubbedWorkflowBase):
                         'call': 'checkmate.providers.opscode.databag.'
                                 'register_node',
                         'args': ["4.4.4.4", self.deployment['id']],
-                        'kwargs': And(In('password')),
+                        'kwargs': And(In('password'),
+                                      ContainsKeyValue('attributes',
+                                                        attributes)),
                         'result': None,
                         'resource': key,
                     }, {
@@ -669,11 +675,6 @@ class TestMappedSingleWorkflow(test.StubbedWorkflowBase):
                         'result': None
                     }])
             elif resource.get('type') == 'database':
-                attributes = {
-                                'username': 'u1',
-                                'password': 'myPassW0rd',
-                                'db_name': 'app_db',
-                             }
                 expected_calls.extend([{
                         # Cook mysql
                         'call': 'checkmate.providers.opscode.databag.cook',
@@ -681,8 +682,6 @@ class TestMappedSingleWorkflow(test.StubbedWorkflowBase):
                         'kwargs': And(In('password'),
                                         ContainsKeyValue('recipes',
                                                 ['mysql::server']),
-                                        ContainsKeyValue('attributes',
-                                                attributes),
                                         ContainsKeyValue('identity_file',
                                                 '/var/tmp/%s/private.pem' %
                                                 self.deployment['id'])),
@@ -988,7 +987,6 @@ class TestMappedMultipleWorkflow(test.StubbedWorkflowBase):
                                                        ['foo-master']),
                                       ContainsKeyValue('attributes',
                                               {
-                                              'widgets': 10,
                                               'master': {'ip': '4.4.4.4'},
                                               'db': {'name': 'foo-db'},
                                               }),
