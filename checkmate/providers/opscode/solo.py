@@ -286,10 +286,13 @@ class Provider(ProviderBase):
 
         # Create the databag writing task (if needed)
 
+        schemes = ['encrypted-databags', 'databags']
+        databag_maps = ChefMap.filter_maps_by_schemes(all_maps,
+                                                  target_schemes=schemes) or []
         databags = {}
-        for mapping in map_with_context.get_component_maps(component_id):
+        for mapping in databag_maps:
             for target in mapping.get('targets', []):
-                uri = map_with_context.parse_map_URI(target)
+                uri = ChefMap.parse_map_URI(target)
                 scheme = uri['scheme']
                 if scheme not in ['databags', 'encrypted-databags']:
                     continue
@@ -315,9 +318,10 @@ class Provider(ProviderBase):
             items = databags[bag_name]['items']
             if len(items) > 1:
                 raise NotImplementedError("Chef-solo provider does not "
-                                     "currently support more than one databag "
-                                     "item per component. '%s' has multiple "
-                                     "items: %s" % (bag_name, items))
+                                          "currently support more than one "
+                                          "databag item per component. '%s' "
+                                          "has multiple items: %s" % (bag_name,
+                                          items))
             item_name = items[0]
             if databags[bag_name]['encrypted'] == True:
                 secret_file = 'certificates/chef.pem'
@@ -510,6 +514,8 @@ class Provider(ProviderBase):
                             result.append(copy.copy(mapping))
                 else:
                     result.append(mapping)
+            else:
+                result.append(mapping)
         return result
 
     def _hash_all_user_resource_passwords(self, deployment):
@@ -529,22 +535,27 @@ class Provider(ProviderBase):
                   % (key, relation_key), extra={'data': {'resource': resource,
                   'relation': relation}})
 
+        environment = deployment.environment()
+        provider = environment.get_provider(resource['provider'])
+        component = provider.get_component(context, resource['component'])
+        map_with_context = self.get_map_with_context(deployment=deployment,
+                                                     resource=resource,
+                                                     component=component)
+
         # Is this relation in one of our maps? If so, let's handle that
         tasks = []
-        if self.map_file.has_requirement_mapping(resource['component'],
-                                                 relation['requires-key']):
+        if map_with_context.has_requirement_mapping(resource['component'],
+                                                    relation['requires-key']):
             LOG.debug("Relation '%s' for resource '%s' has a mapping"
                       % (relation_key, key))
             # Set up a wait for the relation target to be ready
             tasks = self.find_tasks(wfspec, resource=relation['target'],
                                     tag='final')
+
         if tasks:
             # The collect task will have received a copy of the map and
             # will pick up the values that it needs when these precursor
             # tasks signal they are complete.
-            environment = deployment.environment()
-            provider = environment.get_provider(resource['provider'])
-            component = provider.get_component(context, resource['component'])
             collect_tasks = self.get_prep_tasks(wfspec, deployment, key,
                                                 component)
             wait_for(wfspec, collect_tasks['root'], tasks)
@@ -555,9 +566,8 @@ class Provider(ProviderBase):
             if not wait_on:
                 raise CheckmateException("No host resource found for relation "
                                          "'%s'" % relation_key)
-
-            attributes = self.map_file.get_attributes(resource['component'],
-                                                      deployment)
+            attributes = map_with_context.get_attributes(resource['component'],
+                                                         deployment)
             # Create chef setup tasks
             register_node_task = Celery(wfspec,
                     'Register Server %s (%s)' % (relation['target'],
@@ -617,8 +627,8 @@ class Provider(ProviderBase):
         resources = deployment['resources']
         target = resources[relation['target']]
         if target['provider'] == self.key:
-            if self.map_file.has_client_mapping(target['component'],
-                                                relation['requires-key']):
+            if map_with_context.has_client_mapping(target['component'],
+                                                   relation['requires-key']):
                 server = target  # our view is from the source of the relation
                 client = resource  # this is the client that is just finishing
                 environment = deployment.environment()
@@ -986,7 +996,8 @@ class ChefMap():
         return False
 
     def get_attributes(self, component_id, deployment):
-        """Get attribute maps for a specific component"""
+        """Parse maps and get attributes for a specific component that are
+        ready"""
         for component in self.components:
             if component_id == component['id']:
                 maps = (m for m in component.get('maps', [])

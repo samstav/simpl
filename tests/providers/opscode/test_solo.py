@@ -876,7 +876,73 @@ class TestMappedMultipleWorkflow(test.StubbedWorkflowBase):
         self.assertListEqual(task_list, expected, msg=task_list)
         self.mox.VerifyAll()
 
-    @skip
+        # Make sure maps are correct
+        transmerge = workflow.spec.task_specs['Collect Chef Data for 0']
+        expected = {
+            'resource': '0',
+            'deployment': 'DEP-ID-1000',
+            'provider': 'chef-solo',
+            'task_tags': ['collect'],
+            'extend_lists': True,
+            'chef_options': {
+                'roles': {
+                    'foo-master': {'how-many': 2}}},
+            'chef_output': None,
+            'chef_maps': [
+                {
+                    'source': 'requirements://host:linux/ip',
+                    'targets': ['attributes://master/ip'],
+                    'path': 'instance:1'},
+                {
+                    'source': 'requirements://database:mysql/database_name',
+                    'targets': ['attributes://db/name',
+                                'encrypted-databags://app_bag/mysql/db_name'],
+                    'path': 'instance:2/interfaces/mysql'
+                }]
+            }
+        self.assertDictEqual(transmerge.properties, expected)
+
+        transmerge = workflow.spec.task_specs['Collect Chef Data for 2']
+        expected = {
+            'resource': '2',
+            'deployment': 'DEP-ID-1000',
+            'provider': 'chef-solo',
+            'task_tags': ['collect', 'options-ready'],
+            'extend_lists': True,
+            'chef_options': {
+                'outputs': {
+                    'instance:2': {
+                        'instance': {
+                            'interfaces': {
+                                'mysql': {
+                                    'database_name': 'foo-db'
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            'chef_output': None,
+            'chef_maps': []
+            }
+        self.assertDictEqual(transmerge.properties, expected)
+
+        # Make sure plan-time data is correct
+        register = workflow.spec.task_specs['Register Server 1 (frontend)']
+        expected = {
+            'resource': '0',
+            'provider': 'chef-solo',
+            'relation': 'host',
+            'estimated_duration': 120
+            }
+        self.assertDictEqual(register.properties, expected)
+        self.assertDictEqual(register.kwargs['attributes'], {'widgets': 10})
+
+        # Make sure role is being created
+        role = workflow.spec.task_specs['Write Role foo-master for 0']
+        expected = ['recipe[apt]', 'recipe[foo::server]']
+        self.assertListEqual(role.kwargs['run_list'], expected)
+
     def test_workflow_execution(self):
         """Verify workflow executes"""
 
@@ -968,7 +1034,7 @@ class TestMappedMultipleWorkflow(test.StubbedWorkflowBase):
                         'call': 'checkmate.providers.opscode.databag.'
                                 'manage_role',
                         'args': ['foo-master', 'DEP-ID-1000'],
-                        'kwargs': {'merge': True,
+                        'kwargs': {
                                    'run_list': ['recipe[apt]',
                                                 'recipe[foo::server]'],
                                    'override_attributes': {'how-many': 2},
