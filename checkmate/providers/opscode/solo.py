@@ -818,6 +818,13 @@ class Transforms():
                         output_template = {}
                     merge_dictionary(output_template, outputs)
                     merge_dictionary(my_task.attributes, outputs)
+                    # Be compatible and write without 'instance'
+                    compat = {}
+                    for k, v in outputs.iteritems():
+                        if isinstance(v, dict) and 'instance' in v:
+                            compat[k] = v['instance']
+                    if compat:
+                        merge_dictionary(my_task.attributes, compat)
             else:
                 if output_template:
                     merge_dictionary(my_task.attributes, output_template)

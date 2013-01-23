@@ -99,7 +99,7 @@ class TestChefSoloProvider(test.ProviderTester):
 
         # Check requirement map
 
-        resource = deployment['resources']['0']
+        resource = deployment['resources']['0']  # one of the mysql clients
         result = provider.get_resource_prepared_maps(resource, deployment,
                                             map_file=chef_map)
         expected = [{'source': 'requirements://database:mysql/ip',
@@ -109,7 +109,7 @@ class TestChefSoloProvider(test.ProviderTester):
 
         # Check client maps
 
-        resource = deployment['resources']['2']
+        resource = deployment['resources']['2']  # mysql database w/ 2 clients
         result = provider.get_resource_prepared_maps(resource, deployment,
                                             map_file=chef_map)
         expected = [
@@ -717,6 +717,12 @@ class TestMappedSingleWorkflow(test.StubbedWorkflowBase):
                           password: myPassW0rd       # from constraints
                           username: u1               # from blueprint settings
                           host: 4.4.4.4              # from host requirement
+                    interfaces:                      # add this for v3.0 compat
+                      mysql:
+                        database_name: app_db
+                        password: myPassW0rd
+                        username: u1
+                        host: 4.4.4.4
             """)
         self.assertDictEqual(final.attributes['instance:0'],
                              expected['instance:0'])
