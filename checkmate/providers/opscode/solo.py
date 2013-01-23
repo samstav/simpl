@@ -781,19 +781,20 @@ class Transforms():
                         output_template = {}
                     merge_dictionary(output_template, outputs)
                     merge_dictionary(my_task.attributes, outputs)
-
-                    # postback if done and we have outputs
-
-                    dep = self.get_property('deployment', None)
-                    if dep and output_template:
-                        LOG.debug("Writing task outputs: %s" % output_template)
-                        postback.delay(dep, output_template)
-                    else:
-                        LOG.warn("Deployment id not in task properties, "
-                                 "cannot update deployment from chef-solo")
             else:
                 if output_template:
                     merge_dictionary(my_task.attributes, output_template)
+
+            # postback output into deployment resource
+
+            if output_template:
+                dep = self.get_property('deployment')
+                if dep:
+                    LOG.debug("Writing task outputs: %s" % output_template)
+                    postback.delay(dep, output_template)
+                else:
+                    LOG.warn("Deployment id not in task properties, "
+                             "cannot update deployment from chef-solo")
 
             return True
         except StandardError as exc:

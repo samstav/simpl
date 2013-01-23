@@ -691,6 +691,15 @@ class TestMappedSingleWorkflow(test.StubbedWorkflowBase):
         workflow = self._get_stubbed_out_workflow(context=context,
                 expected_calls=expected_calls)
 
+        # Hack to hijack postback in Transform which is called as a string in
+        # exec(), so cannot be easily mocked.
+        # We make the call hit our deployment directly
+        call_me = 'dep.on_resource_postback(output_template) #'
+        transmerge = workflow.spec.task_specs['Collect Chef Data for 0']
+        transmerge.set_property(deployment=self.deployment)
+        stub = transmerge.transforms[0].replace('postback.', call_me)
+        transmerge.transforms[0] = stub
+
         self.mox.ReplayAll()
         workflow.complete_all()
         self.assertTrue(workflow.is_completed(), msg=workflow.get_dump())
@@ -1003,6 +1012,20 @@ class TestMappedMultipleWorkflow(test.StubbedWorkflowBase):
                     }])
         workflow = self._get_stubbed_out_workflow(context=context,
                 expected_calls=expected_calls)
+
+        # Hack to hijack postback in Transform which is called as a string in
+        # exec(), so cannot be easily mocked.
+        # We make the call hit our deployment directly
+        call_me = 'dep.on_resource_postback(output_template) #'
+        transmerge = workflow.spec.task_specs['Collect Chef Data for 0']
+        transmerge.set_property(deployment=self.deployment)
+        stub = transmerge.transforms[0].replace('postback.', call_me)
+        transmerge.transforms[0] = stub
+
+        transmerge = workflow.spec.task_specs['Collect Chef Data for 2']
+        transmerge.set_property(deployment=self.deployment)
+        stub = transmerge.transforms[0].replace('postback.', call_me)
+        transmerge.transforms[0] = stub
 
         self.mox.ReplayAll()
         workflow.complete_all()
