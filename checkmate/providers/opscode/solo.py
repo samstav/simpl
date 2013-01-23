@@ -1110,6 +1110,33 @@ class ChefMap():
                                      "'value'")
         return value
 
+    @staticmethod
+    def resolve_ready_maps(maps, data, output):
+        """
+
+        Parse and apply maps that are ready
+
+        :param maps: a list of maps to attempt to resolve
+        :param data: the source of the data (a deployment)
+        :param output: a dict to write the output to
+        :returns: unresolved maps
+
+        """
+        unresolved = []
+        for mapping in maps:
+            value = None
+            try:
+                value = ChefMap.evaluate_mapping_source(mapping, data)
+            except SoloProviderNotReady:
+                unresolved.append(mapping)
+                continue
+            if value:
+                ChefMap.apply_mapping(mapping, value, output)
+            else:
+                unresolved.append(mapping)
+        return unresolved
+
+    @staticmethod
     def parse_map_URI(uri):
         """
         Parses the URI format of a map

@@ -1373,6 +1373,34 @@ class TestChefMapApplier(unittest.TestCase):
         self.assertEqual(result, {'outputs': {'ip': '4.4.4.4'}})
 
 
+class TestChefMapResolver(unittest.TestCase):
+    """Test ChefMap Mapping writing to targets"""
+    def test_resolve_ready_maps(self):
+        maps = utils.yaml_to_dict("""
+                - value: 1
+                  targets:
+                  - attributes://simple
+                - source: requirements://key/path/value
+                  path: instance:1/location
+                  targets:
+                  - attributes://ready
+                - source: requirements://key/path/value
+                  path: instance:2/location
+                  targets:
+                  - attributes://not
+                """)
+        data = utils.yaml_to_dict("""
+                instance:1:
+                  location:
+                    path:
+                      value: 8
+                """)
+        result = {}
+        unresolved = solo.ChefMap.resolve_ready_maps(maps, data, result)
+        self.assertDictEqual(result, {'attributes': {'ready': 8, 'simple': 1}})
+        self.assertListEqual(unresolved, [maps[2]])
+
+
 class TestTemplating(unittest.TestCase):
     """Test that templating engine handles the use cases we need"""
 
