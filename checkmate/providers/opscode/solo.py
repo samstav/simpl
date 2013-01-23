@@ -781,12 +781,15 @@ class Transforms():
         """Collect and write run-time options"""
         try:
             # pylint: disable=W0621
-            from checkmate.providers.opscode.solo import\
-                    ChefMap, SoloProviderNotReady
+            from checkmate.providers.opscode.solo import (ChefMap,
+                                                          SoloProviderNotReady)
             # pylint: disable=W0621
             from checkmate.deployments import resource_postback as postback
-            maps = self.get_property('chef_maps')
+            maps = self.get_property('chef_maps', [])
             data = my_task.attributes
+
+            # Evaluate all maps and exit if any of them are not ready
+
             queue = []
             for mapping in maps:
                 try:
@@ -794,29 +797,33 @@ class Transforms():
                     if result:
                         queue.append((mapping, result))
                 except SoloProviderNotReady:
-                    return False  # false means not done
-            results = {}
+                    return False  # false means not done/not ready
+
+            # All maps are resolved, so combine them with the ones resolved at
+            # planning-time
+
+            results = self.get_property('chef_options', {})
             for mapping, result in queue:
                 ChefMap.apply_mapping(mapping, result, results)
 
-            output_template = self.get_property('chef_output', {})
+            # Write to the task attributes and postback the desired output
+
+            output_template = self.get_property('chef_output') or {}
             if results:
 
-                # Write chef options (outputs need to be merged with template)
-
+                # outputs do not go into chef_options
                 outputs = results.pop('outputs', {})
+
+                # Write chef_options for databag and role tasks
                 if results:
-                    # write results without outputs
                     if 'chef_options' not in my_task.attributes:
                         my_task.attributes['chef_options'] = {}
                     merge_dictionary(my_task.attributes['chef_options'],
                                      results, True)
 
+                # write outputs (into attributes and output_template)
                 if outputs:
-                    # write outputs (merged into template)
-                    if output_template is None:
-                        output_template = {}
-                    merge_dictionary(output_template, outputs)
+                    # Write results into attributes
                     merge_dictionary(my_task.attributes, outputs)
                     # Be compatible and write without 'instance'
                     compat = {}
@@ -825,6 +832,9 @@ class Transforms():
                             compat[k] = v['instance']
                     if compat:
                         merge_dictionary(my_task.attributes, compat)
+
+                    # Write outputs into output template
+                    merge_dictionary(output_template, outputs)
             else:
                 if output_template:
                     merge_dictionary(my_task.attributes, output_template)

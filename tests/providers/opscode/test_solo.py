@@ -1100,7 +1100,16 @@ class TestMappedMultipleWorkflow(test.StubbedWorkflowBase):
         self.mox.ReplayAll()
         workflow.complete_all()
         self.assertTrue(workflow.is_completed(), msg=workflow.get_dump())
-        self.assertDictEqual(self.outcome, {})
+        expected = {
+                    'data_bags': {
+                        'app_bag': {
+                            'mysql': {
+                                'db_name': 'foo-db'
+                            }
+                        }
+                    }
+                   }
+        self.assertDictEqual(self.outcome, expected)
         self.mox.VerifyAll()
 
 
@@ -1418,8 +1427,9 @@ class TestTransform(unittest.TestCase):
         fxn = solo.Transforms.collect_options
         task = self.mox.CreateMockAnything()
         spec = self.mox.CreateMockAnything()
-        spec.get_property('chef_maps').AndReturn(maps)
-        spec.get_property('chef_output', {}).AndReturn({})
+        spec.get_property('chef_maps', []).AndReturn(maps)
+        spec.get_property('chef_options', {}).AndReturn({})
+        spec.get_property('chef_output').AndReturn({})
         results = {}
         task.attributes = results
         self.mox.ReplayAll()
@@ -1443,8 +1453,10 @@ class TestTransform(unittest.TestCase):
         fxn = solo.Transforms.collect_options
         task = self.mox.CreateMockAnything()
         spec = self.mox.CreateMockAnything()
-        spec.get_property('chef_maps').AndReturn([])
-        spec.get_property('chef_output', {}).AndReturn(output or {})
+        spec.get_property('chef_maps', []).AndReturn([])
+        spec.get_property('chef_options', {}).AndReturn({})
+        spec.get_property('chef_output').AndReturn(output or {})
+        spec.get_property('deployment').AndReturn(1)
         results = {}
         task.attributes = results
         self.mox.ReplayAll()
