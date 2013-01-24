@@ -75,7 +75,7 @@ class Provider(ProviderBase):
         source_repo = deployment.get_setting('source', provider_key=self.key)
         defines = {'provider': self.key}
         properties = {'estimated_duration': 10, 'task_tags': ['root']}
-        task_name = 'checkmate.providers.opscode.databag.create_environment'
+        task_name = 'checkmate.providers.opscode.knife.create_environment'
         self.prep_task = Celery(wfspec,
                                 'Create Chef Environment',
                                 task_name,
@@ -130,7 +130,7 @@ class Provider(ProviderBase):
         resource = deployment['resources'][key]
         anchor_task = configure_task = Celery(wfspec,
                 'Configure %s: %s (%s)' % (component_id, key, service_name),
-                'checkmate.providers.opscode.databag.cook',
+                'checkmate.providers.opscode.knife.cook',
                 call_args=[
                         PathAttrib('instance:%s/ip' %
                                 resource.get('hosted_on', key)),
@@ -337,7 +337,7 @@ class Provider(ProviderBase):
                 name = "Rewrite Data Bag for %s (%s)" % (resource['index'],
                                                     collect_tag.capitalize())
             write_databag = Celery(wfspec, name,
-                   'checkmate.providers.opscode.databag.write_databag',
+                   'checkmate.providers.opscode.knife.write_databag',
                     call_args=[deployment['id'], bag_name, item_name,
                                PathAttrib(path)],
                     secret_file=secret_file,
@@ -397,7 +397,7 @@ class Provider(ProviderBase):
                                                         resource_key,
                                                       collect_tag.capitalize())
             write_role = Celery(wfspec, name,
-                    'checkmate.providers.opscode.databag.manage_role',
+                    'checkmate.providers.opscode.knife.manage_role',
                     call_args=[role_name, deployment['id']],
                     kitchen_name='kitchen',
                     override_attributes=PathAttrib(path),
@@ -572,7 +572,7 @@ class Provider(ProviderBase):
             register_node_task = Celery(wfspec,
                     'Register Server %s (%s)' % (relation['target'],
                                                  resource['service']),
-                    'checkmate.providers.opscode.databag.register_node',
+                    'checkmate.providers.opscode.knife.register_node',
                     call_args=[
                             PathAttrib('instance:%s/ip' % relation['target']),
                             deployment['id']],
@@ -592,7 +592,7 @@ class Provider(ProviderBase):
             bootstrap_task = Celery(wfspec,
                     'Pre-Configure Server %s (%s)' % (relation['target'],
                                                       resource['service']),
-                    'checkmate.providers.opscode.databag.cook',
+                    'checkmate.providers.opscode.knife.cook',
                     call_args=[
                             PathAttrib('instance:%s/ip' % relation['target']),
                             deployment['id']],
@@ -684,7 +684,7 @@ class Provider(ProviderBase):
         else:
             name = 'Reconfigure %s: client ready' % server['component']
             reconfigure_task = Celery(wfspec,
-                    name, 'checkmate.providers.opscode.databag.cook',
+                    name, 'checkmate.providers.opscode.knife.cook',
                     call_args=[
                             PathAttrib('instance:%s/ip' % server['index']),
                             deployment['id']],
