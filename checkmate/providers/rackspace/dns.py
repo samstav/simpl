@@ -7,6 +7,7 @@ from SpiffWorkflow.specs import Celery
 from checkmate.exceptions import CheckmateException, CheckmateNoTokenError
 from checkmate.providers import ProviderBase
 from checkmate.utils import match_celery_logging
+import os
 
 LOG = logging.getLogger(__name__)
 
@@ -121,7 +122,9 @@ def _get_dns_object(context):
 
 def parse_domain(domain_str):
     """Return 'domain.com' for 'sub2.sub1.domain.com' """
-    domain_data = tldextract.extract(domain_str)
+    extractor = tldextract.TLDExtract(cache_file=os.environ.get(
+                                            'CHECKMATE_TLD_CACHE_FILE', None))
+    domain_data = extractor(domain_str)
     return '%s.%s' % (domain_data.domain, domain_data.tld)
 
 """ Celery tasks """
