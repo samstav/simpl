@@ -1005,15 +1005,16 @@ class TestDeploymentSettings(unittest.TestCase):
             RequestContext())
 
     def test_objectify(self):
+        deployment = Deployment({})
         msg = "Untyped option should remain unchanged"
-        self.assertEqual(Deployment._objectify({}, 0), 0, msg=msg)
+        self.assertEqual(deployment._objectify({}, 0), 0, msg=msg)
 
         msg = "Typed, non-object option should remain unchanged"
-        self.assertEqual(Deployment._objectify({'type': 'string'}, 0), 0,
+        self.assertEqual(deployment._objectify({'type': 'string'}, 0), 0,
                          msg=msg)
 
         msg = "Typed option should return type"
-        self.assertIsInstance(Deployment._objectify({'type': 'url'},
+        self.assertIsInstance(deployment._objectify({'type': 'url'},
                                                     'http://fqdn'),
                               dict, msg=msg)
 
