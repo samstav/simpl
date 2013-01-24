@@ -17,8 +17,6 @@ def get_config():
 # Provide URLs to Github projects if they're not pip-aware
 gh = 'https://github.com'
 github_projects = [
-                   {'project': 'python-keystoneclient', 'user': 'openstack',
-                        'branch': '0.2.0', 'version': '-0.2.0'},
                    {'project': 'pychef', 'user': 'calebgroom',
                         'version': '-0.2.dev'},
                    {'project': 'rackspace-monitoring', 'user': 'racker'},
@@ -60,7 +58,7 @@ setup(
                       'python-clouddb',
                       'python-novaclient==2012.2',
                       'python-cloudlb',
-                      'python-keystoneclient',
+                      'python-keystoneclient==0.2.0',
                       'python-clouddns',
                       'python-cloudfiles',
                       'rackspace-monitoring',
