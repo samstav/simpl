@@ -69,6 +69,7 @@ setup(
                       'sqlalchemy-migrate==0.7.2',
                       'WebOb==1.2.2',
                       'prettytable==0.6',
+                      'tldextract',
                       ],
     entry_points={
         'console_scripts': [

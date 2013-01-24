@@ -1,11 +1,13 @@
 import logging
 
+import tldextract
 from SpiffWorkflow.operators import Attrib
 from SpiffWorkflow.specs import Celery
 
 from checkmate.exceptions import CheckmateException, CheckmateNoTokenError
 from checkmate.providers import ProviderBase
 from checkmate.utils import match_celery_logging
+import os
 
 LOG = logging.getLogger(__name__)
 
@@ -119,10 +121,11 @@ def _get_dns_object(context):
 
 
 def parse_domain(domain_str):
-    # return domain.com for web1.domain.com
-    # hackish.  Doesn't account for .co.uk, .co.it, etc.
-    chunks = domain_str.split('.')
-    return chunks[-2] + '.' + chunks[-1]
+    """Return 'domain.com' for 'sub2.sub1.domain.com' """
+    extractor = tldextract.TLDExtract(cache_file=os.environ.get(
+                                            'CHECKMATE_TLD_CACHE_FILE', None))
+    domain_data = extractor(domain_str)
+    return '%s.%s' % (domain_data.domain, domain_data.tld)
 
 """ Celery tasks """
 
