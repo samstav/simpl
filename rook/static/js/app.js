@@ -1008,6 +1008,12 @@ function WorkflowController($scope, $resource, $http, $routeParams, $location, $
     return false;
   };
 
+  $scope.CloudControlURL = function(region) {
+    if (region == 'LON')
+      return "https://lon.cloudcontrol.rackspacecloud.com";
+    return "https://us.cloudcontrol.rackspacecloud.com"
+  };
+
   $scope.resource = function(task) {
     if (typeof task == 'undefined')
       return null;
