@@ -795,7 +795,7 @@ class Transforms():
             for mapping in maps:
                 try:
                     result = ChefMap.evaluate_mapping_source(mapping, data)
-                    if result:
+                    if result is not None:
                         queue.append((mapping, result))
                 except SoloProviderNotReady:
                     return False  # false means not done/not ready
@@ -1039,7 +1039,7 @@ class ChefMap():
                         except SoloProviderNotReady:
                             LOG.debug("Map not ready yet: " % m)
                             continue
-                        if value:
+                        if value is not None:
                             for target in m.get('targets', []):
                                 url = self.parse_map_URI(target)
                                 if url['scheme'] == 'attributes':
@@ -1102,7 +1102,7 @@ class ChefMap():
     def resolve_map(mapping, data, output):
         """Resolve mapping and write output"""
         result = ChefMap.evaluate_mapping_source(mapping, data)
-        if result:
+        if result is not None:
             ChefMap.apply_mapping(mapping, result, output)
 
     @staticmethod
@@ -1214,7 +1214,7 @@ class ChefMap():
             except SoloProviderNotReady:
                 unresolved.append(mapping)
                 continue
-            if value:
+            if value is not None:
                 ChefMap.apply_mapping(mapping, value, output)
             else:
                 unresolved.append(mapping)
