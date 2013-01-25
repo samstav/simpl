@@ -16,11 +16,11 @@ class TestParseDomain(unittest.TestCase):
 
     def setUp(self):
         self.sample_domain = ('www.sample.com', 'sample.com')
-        self.default_tld_cache_file = ('%s/.tld_set' %
-                                       os.path.dirname(tldextract.__file__))
+        tld_path = os.path.dirname(tldextract.__file__)
+        self.default_tld_cache_file = os.path.join(tld_path, '.tld_set')
         self.tld_cache_env = 'CHECKMATE_TLD_CACHE_FILE'
-        self.custom_tld_cache_file = ('%s/tld_set.tmp' %
-                                      os.path.dirname(__file__))
+        self.custom_tld_cache_file = os.path.join(os.path.dirname(__file__),
+                                                  'tld_set.tmp')
         self.sample_data = [
                             self.sample_domain,
                             ('ftp.regaion1.sample.com', 'sample.com'),
