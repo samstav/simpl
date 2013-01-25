@@ -1602,6 +1602,33 @@ class TestDeploymentPlanning(unittest.TestCase):
             """)
         self.assertDictEqual(resources['connections'], expected)
 
+    def test_evaluate_defaults(self):
+        plan = Plan(Deployment(yaml_to_dict("""
+                id: test
+                blueprint:
+                  options:
+                    defpass:
+                      default: =generate_password()
+                    defuuid:
+                      default: =generate_uuid()
+                    static:
+                      default: 1
+                    none:
+                      type: string
+                environment:
+                  providers:
+            """)))
+        plan.evaluate_defaults()
+        options = plan.deployment['blueprint']['options']
+        defpass = options['defpass']['default']
+        defuuid = options['defuuid']['default']
+        self.assertNotEqual(defpass, "=generate_password()")
+        self.assertNotEqual(defuuid, "=generate_uuid()")
+        plan.evaluate_defaults()  # test idempotency
+        self.assertEqual(defpass, options['defpass']['default'])
+        self.assertEqual(defuuid, options['defuuid']['default'])
+
+
 if __name__ == '__main__':
     # Run tests. Handle our parameters separately
     import sys

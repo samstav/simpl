@@ -172,8 +172,7 @@ class TestProviderBase(unittest.TestCase):
         self.assertIsInstance(uuid.UUID(provider.evaluate("generate_uuid())")),
                 uuid.UUID)
         self.assertEqual(len(provider.evaluate("generate_password()")), 8)
-        self.assertRaises(CheckmateException, provider.evaluate,
-                "unknown()")
+        self.assertRaises(NameError, provider.evaluate, "unknown()")
 
     def test_get_setting(self):
         provider = ProviderBase(yaml_to_dict("""

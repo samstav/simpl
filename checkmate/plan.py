@@ -8,7 +8,7 @@ from checkmate.db import get_driver
 from checkmate.exceptions import CheckmateException,\
     CheckmateValidationException
 from checkmate.providers import ProviderBase
-from checkmate.utils import dict_to_yaml
+from checkmate import utils
 from checkmate.deployment import verify_required_blueprint_options_supplied,\
     Resource
 
@@ -88,6 +88,7 @@ class Plan(ExtensibleDict):
         self['services'] = {name: {'component': {}} for name in service_names}
 
         # Perform analysis steps
+        self.evaluate_defaults()
         self.resolve_components(context)
         self.resolve_relations()
         self.resolve_remaining_requirements(context)
@@ -96,9 +97,25 @@ class Plan(ExtensibleDict):
         self.connect_resources()
         self.add_static_resources(self.deployment, context)
 
-        LOG.debug("ANALYSIS\n%s", dict_to_yaml(self._data))
-        LOG.debug("RESOURCES\n%s", dict_to_yaml(self.resources))
+        LOG.debug("ANALYSIS\n%s", utils.dict_to_yaml(self._data))
+        LOG.debug("RESOURCES\n%s", utils.dict_to_yaml(self.resources))
         return self.resources
+
+    def evaluate_defaults(self):
+        """
+
+        Evaluate option defaults
+
+        Replaces defaults if they are a function with a final value so that the
+        defaults are not evaluated once per workflow or once per component.
+
+        """
+        for key, option in self.blueprint.get('options', {}).iteritems():
+            if 'default' in option:
+                default = option['default']
+                if (isinstance(default, basestring,) and
+                    default.startswith('=generate')):
+                    option['default'] = utils.evaluate(default[1:])
 
     def add_resources(self, deployment, context):
         """
