@@ -10,7 +10,9 @@ import inspect
 import json
 import logging.config
 import os
+import random
 import re
+import string
 import struct
 import sys
 from time import gmtime, strftime
@@ -539,3 +541,22 @@ def read_path(source, path):
         if not isinstance(current, dict):
             return
     return current.get(parts[-1])
+
+
+def evaluate(function_string):
+    """Evaluate an option value.
+
+    Understands the following functions:
+    - generate_password()
+    - generate_uuid()
+    """
+    if function_string.startswith('generate_uuid('):
+        return uuid.uuid4().hex
+    if function_string.startswith('generate_password('):
+        # Defaults to 8 chars, alphanumeric
+        start_with = string.ascii_uppercase + string.ascii_lowercase
+        password = '%s%s' % (random.choice(start_with),
+            ''.join(random.choice(start_with + string.digits)
+            for x in range(7)))
+        return password
+    raise NameError("Unsupported function: %s" % function_string)

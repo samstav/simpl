@@ -598,13 +598,18 @@ class TestDeploymentSettings(unittest.TestCase):
     def test_get_setting(self):
         """Test the get_setting function"""
         deployment = Deployment(yaml_to_dict("""
+                id: test
                 environment:
                   name: environment
                   providers:
                     base:
-                      provides:
-                      - compute: foo
-                      vendor: bar
+                      vendor: test
+                      catalog:
+                        compute:
+                          dummy_server:
+                            is: compute
+                            provides:
+                            - compute: foo
                       constraints:
                       - type: widget
                         setting: size
@@ -625,14 +630,38 @@ class TestDeploymentSettings(unittest.TestCase):
                       component:
                         type: compute
                         constraints:
-                          "wordpress/version": 3.1.4
-                          "wordpress/create": true
+                        - "wordpress/version": 3.1.4
+                        - "wordpress/create": true
                   options:
                     my_server_type:
                       constrains:
                       - type: compute
                         service: web
                         setting: os
+                    my_url:
+                      type: url
+                      default: 'git://fqdn:1000/path'
+                      constrains:
+                      - type: compute
+                        service: web
+                        setting: protocol
+                        attribute: protocol
+                      - type: compute
+                        service: master
+                        setting: protocol
+                        attribute: scheme
+                      - type: compute
+                        service: web
+                        setting: domain
+                        attribute: hostname
+                  resources:
+                    "my keys":
+                      type: key-pair
+                      constrains:
+                      - setting: server_key
+                        resource_type: compute
+                        service: web
+                        attribute: private_key
                 inputs:
                   blueprint:
                     domain: example.com
@@ -742,6 +771,27 @@ class TestDeploymentSettings(unittest.TestCase):
                     'provider': "base",
                     'service': 'wordpress',
                     'expected': True,
+                }, {
+                    'case': "Constrains reading url scheme",
+                    'name': "protocol",
+                    'type': 'compute',
+                    'provider': "base",
+                    'service': 'master',
+                    'expected': "git",
+                }, {
+                    'case': "Url protocol is aliased to scheme",
+                    'name': "protocol",
+                    'type': 'compute',
+                    'provider': "base",
+                    'service': 'web',
+                    'expected': "git",
+                }, {
+                    'case': "Constrains reading url hostname",
+                    'name': "domain",
+                    'type': 'compute',
+                    'provider': "base",
+                    'service': 'web',
+                    'expected': "fqdn",
                 },  {
                     'case': "Set in blueprint/providers",
                     'name': "memory",
@@ -751,14 +801,20 @@ class TestDeploymentSettings(unittest.TestCase):
             ]
 
         base.PROVIDER_CLASSES['test.base'] = ProviderBase
+        parsed = plan(deployment, RequestContext())
         for test in cases[:-1]:  # TODO: last case broken without env providers
-            value = deployment.get_setting(test['name'],
+            value = parsed.get_setting(test['name'],
                     service_name=test.get('service'),
                     provider_key=test.get('provider'),
                     resource_type=test.get('type'))
-            self.assertEquals(value, test['expected'], test['case'])
+            self.assertEquals(value, test['expected'], msg=test['case'])
             LOG.debug("Test '%s' success=%s" % (test['case'],
                                                  value == test['expected']))
+
+        msg = "Coming from static resource constraint"
+        value = parsed.get_setting("server_key", service_name="web",
+                                   resource_type="compute")
+        self.assertIn('-----BEGIN RSA PRIVATE KEY-----\n', value, msg=msg)
 
     def test_get_setting_static(self):
         """Test the get_setting function used with static resources"""
@@ -947,6 +1003,39 @@ class TestDeploymentSettings(unittest.TestCase):
         base.PROVIDER_CLASSES['test.base'] = ProviderBase
         self.assertRaises(CheckmateValidationException, plan, deployment,
             RequestContext())
+
+    def test_objectify(self):
+        deployment = Deployment({})
+        msg = "Untyped option should remain unchanged"
+        self.assertEqual(deployment._objectify({}, 0), 0, msg=msg)
+
+        msg = "Typed, non-object option should remain unchanged"
+        self.assertEqual(deployment._objectify({'type': 'string'}, 0), 0,
+                         msg=msg)
+
+        msg = "Typed option should return type"
+        self.assertIsInstance(deployment._objectify({'type': 'url'},
+                                                    'http://fqdn'),
+                              dict, msg=msg)
+
+    def test_apply_constraint_attribute(self):
+        deployment = yaml_to_dict("""
+              id: 1
+              blueprint:
+                options:
+                  my_option:
+                    default: 'thedefaultwidgetvaluegoeshere'
+                    constrains:
+                    - type: blah
+                      service: foo
+                      setting: fa
+                      attribute: widget""")
+        deployment = Deployment(deployment)
+        option = deployment['blueprint']['options']['my_option']
+        constraint = option['constrains'][0]
+        self.assertRaises(CheckmateException, deployment._apply_constraint,
+                          "my_option", constraint, option=option,
+                          option_key="my_option")
 
 
 class TestDeploymentCounts(unittest.TestCase):
@@ -1293,6 +1382,7 @@ class TestDeploymentPlanning(unittest.TestCase):
                             is: widget
                             requires:
                             - widget: bar
+                            - host: windows
                             provides:
                             - widget: foo
                           data_widget:
@@ -1324,10 +1414,17 @@ class TestDeploymentPlanning(unittest.TestCase):
         if back['type'] != 'widget':
             back, back_host = back_host, back
 
-        expect = "Expecting two 'slave' resources"
-        self.assertEqual(len(resources['slave']), 2, msg=expect)
-        slave1 = resources['slave'][0]
-        slave2 = resources['slave'][1]
+        expect = "Expecting two 'slave' resources and two hosts (four total)"
+        self.assertEqual(len(resources['slave']), 4, msg=expect)
+        slave1host = resources['slave'][0]
+        slave1 = resources['slave'][1]
+        slave2host = resources['slave'][2]
+        slave2 = resources['slave'][3]
+        expect = "Hosts dedicated"
+        self.assertEqual(slave1host['hosts'], [slave1['index']], msg=expect)
+        self.assertEqual(slave1['hosted_on'], slave1host['index'], msg=expect)
+        self.assertEqual(slave2host['hosts'], [slave2['index']], msg=expect)
+        self.assertEqual(slave2['hosted_on'], slave2host['index'], msg=expect)
 
         expect = "Expecting connections from all 'front' resources to 'back'"
         self.assertIn('relations', back)
@@ -1504,6 +1601,33 @@ class TestDeploymentPlanning(unittest.TestCase):
                                       # 'host' does not exist
             """)
         self.assertDictEqual(resources['connections'], expected)
+
+    def test_evaluate_defaults(self):
+        plan = Plan(Deployment(yaml_to_dict("""
+                id: test
+                blueprint:
+                  options:
+                    defpass:
+                      default: =generate_password()
+                    defuuid:
+                      default: =generate_uuid()
+                    static:
+                      default: 1
+                    none:
+                      type: string
+                environment:
+                  providers:
+            """)))
+        plan.evaluate_defaults()
+        options = plan.deployment['blueprint']['options']
+        defpass = options['defpass']['default']
+        defuuid = options['defuuid']['default']
+        self.assertNotEqual(defpass, "=generate_password()")
+        self.assertNotEqual(defuuid, "=generate_uuid()")
+        plan.evaluate_defaults()  # test idempotency
+        self.assertEqual(defpass, options['defpass']['default'])
+        self.assertEqual(defuuid, options['defuuid']['default'])
+
 
 if __name__ == '__main__':
     # Run tests. Handle our parameters separately

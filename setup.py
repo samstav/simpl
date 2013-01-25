@@ -53,7 +53,7 @@ setup(
                       'pam==0.1.4',
                       'paramiko==1.7.7.2',
                       'pycrypto==2.6',
-                      #Note: python-clouddb would end up being ".01", but that 
+                      #Note: python-clouddb would end up being ".01", but that
                       #is not valid (with a leading ".") so we exclude it here.
                       'python-clouddb',
                       'python-novaclient==2012.2',
@@ -69,7 +69,7 @@ setup(
                       'sqlalchemy-migrate==0.7.2',
                       'WebOb==1.2.2',
                       'prettytable==0.6',
-                      'tldextract',
+                      'tldextract==1.1.2',
                       ],
     entry_points={
         'console_scripts': [

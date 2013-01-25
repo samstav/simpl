@@ -1,8 +1,5 @@
 import logging
 import platform
-import random
-import string
-import uuid
 
 import checkmate
 from checkmate import utils
@@ -436,22 +433,8 @@ class ProviderBase(ProviderBasePlanningMixIn, ProviderBaseWorkflowMixIn):
         return matches
 
     def evaluate(self, function_string):
-        """Evaluate an option value.
-
-        Understands the following functions:
-        - generate_password()
-        - generate_uuid()
-        """
-        if function_string.startswith('generate_uuid('):
-            return uuid.uuid4().hex
-        if function_string.startswith('generate_password('):
-            # Defaults to 8 chars, alphanumeric
-            start_with = string.ascii_uppercase + string.ascii_lowercase
-            password = '%s%s' % (random.choice(start_with),
-                ''.join(random.choice(start_with + string.digits)
-                for x in range(7)))
-            return password
-        raise CheckmateException("Unsupported function: %s" % function_string)
+        """Evaluate an option value"""
+        return utils.evaluate(function_string)
 
     def proxy(self, path, request, tenant_id=None):
         """Proxy request through to provider"""

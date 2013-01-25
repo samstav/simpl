@@ -24,13 +24,163 @@ from checkmate import test, utils
 from checkmate.deployments import Deployment, plan
 from checkmate.middleware import RequestContext
 from checkmate.providers import base, register_providers
-from checkmate.providers.opscode import solo, databag
+from checkmate.providers.opscode import solo, knife
 from checkmate.workflows import create_workflow_deploy
 
 
 class TestChefSoloProvider(test.ProviderTester):
 
     klass = solo.Provider
+
+    def test_get_resource_prepared_maps(self):
+        base.PROVIDER_CLASSES = {}
+        register_providers([solo.Provider, test.TestProvider])
+        deployment = Deployment(utils.yaml_to_dict("""
+                id: 'DEP-ID-1000'
+                blueprint:
+                  name: test app
+                  services:
+                    frontend:
+                      component:
+                        id: foo
+                      constraints:
+                      - count: 2
+                      relations:
+                        backend: mysql
+                    backend:
+                      component:
+                        id: bar
+                environment:
+                  name: test
+                  providers:
+                    chef-solo:
+                      vendor: opscode
+                      catalog:
+                        application:
+                          foo:
+                            is: application
+                            requires:
+                            - database: mysql
+                        database:
+                          bar:
+                            is: database
+                            provides:
+                            - database: mysql
+                    base:
+                      vendor: test
+                      catalog:
+                        compute:
+                          linux_instance:
+                            id: linux_instance
+                            is: compute
+                            provides:
+                            - compute: linux
+            """))
+        chef_map = solo.ChefMap(raw="""
+            \n--- # foo component
+                id: foo
+                requires:
+                - database: mysql
+                maps:
+                - source: requirements://database:mysql/ip
+                  targets:
+                  - attributes://ip
+            \n--- # bar component
+                id: bar
+                provides:
+                - database: mysql
+                maps:
+                - source: clients://database:mysql/ip
+                  targets:
+                  - attributes://clients
+            """)
+        plan(deployment, RequestContext())
+        provider = deployment.environment().get_provider('chef-solo')
+
+        # Check requirement map
+
+        resource = deployment['resources']['0']  # one of the mysql clients
+        result = provider.get_resource_prepared_maps(resource, deployment,
+                                            map_file=chef_map)
+        expected = [{'source': 'requirements://database:mysql/ip',
+                     'targets': ['attributes://ip'],
+                     'path': 'instance:2/interfaces/mysql'}]
+        self.assertListEqual(result, expected)
+
+        # Check client maps
+
+        resource = deployment['resources']['2']  # mysql database w/ 2 clients
+        result = provider.get_resource_prepared_maps(resource, deployment,
+                                            map_file=chef_map)
+        expected = [
+                    {
+                     'source': 'clients://database:mysql/ip',
+                     'targets': ['attributes://clients'],
+                     'path': 'instance:1',
+                    }, {
+                     'source': 'clients://database:mysql/ip',
+                     'targets': ['attributes://clients'],
+                     'path': 'instance:0',
+                    },
+                   ]
+        self.assertListEqual(result, expected)
+
+    def test_get_map_with_context_defaults(self):
+        """Make sure defaults get evaluated correctly"""
+        provider = solo.Provider({})
+        deployment = Deployment(utils.yaml_to_dict("""
+                id: 'DEP-ID-1000'
+                blueprint:
+                  name: Test
+                  services:
+                    foo:
+                      component:
+                        id: test
+                  options:
+                    bp_password:
+                      default: =generate_password()
+                      constrains:
+                      - service: foo
+                        setting: bp_password
+                environment:
+                  name: test
+                  providers:
+                    chef-solo:
+                      vendor: opscode
+                      constraint:
+                      - source: dummy
+            """))
+        chefmap = solo.ChefMap(raw="""
+                id: test
+                options:
+                  password:
+                    default: =generate_password()
+                output:
+                  component: {{ setting('password') }}
+                  blueprint: {{ setting('bp_password') }}
+            """)
+        provider.map_file = chefmap
+        component = chefmap.components[0]
+
+        self.mox.StubOutWithMock(provider, 'evaluate')
+        provider.evaluate('generate_password()').AndReturn("RandomPass")
+
+        self.mox.StubOutWithMock(solo.ProviderBase, 'evaluate')
+        solo.ProviderBase.evaluate('generate_password()').AndReturn("randp2")
+
+        resource = {
+                    'type': 'application',
+                    'service': 'foo',
+                    'provider': 'chef-solo',
+                   }
+        self.mox.ReplayAll()
+        context = provider.get_map_with_context(component=component,
+                                                deployment=deployment,
+                                                resource=resource)
+        output = context.get_component_output_template("test")
+        self.assertEqual(output['component'], "RandomPass")
+        self.assertEqual(output['blueprint'], "randp2")
+        self.mox.VerifyAll()
 
 
 class TestCeleryTasks(unittest.TestCase):
@@ -52,8 +202,8 @@ class TestCeleryTasks(unittest.TestCase):
         node_path = os.path.join(kitchen_path, "nodes", "a.b.c.d.json")
 
         #Stub out checks for paths
-        self.mox.StubOutWithMock(databag, '_get_root_environments_path')
-        databag._get_root_environments_path(None).AndReturn(root_path)
+        self.mox.StubOutWithMock(knife, '_get_root_environments_path')
+        knife._get_root_environments_path(None).AndReturn(root_path)
         self.mox.StubOutWithMock(os.path, 'exists')
         os.path.exists(kitchen_path).AndReturn(True)
         os.path.exists(node_path).AndReturn(True)
@@ -88,11 +238,11 @@ class TestCeleryTasks(unittest.TestCase):
         params = ['knife', 'cook', 'root@a.b.c.d',
                   '-c', os.path.join(kitchen_path, "solo.rb"),
                   '-p', '22']
-        self.mox.StubOutWithMock(databag, '_run_kitchen_command')
-        databag._run_kitchen_command(kitchen_path, params).AndReturn("OK")
+        self.mox.StubOutWithMock(knife, '_run_kitchen_command')
+        knife._run_kitchen_command(kitchen_path, params).AndReturn("OK")
 
         self.mox.ReplayAll()
-        databag.cook("a.b.c.d", "env_test", roles=['role1'], recipes=['recipe1'],
+        knife.cook("a.b.c.d", "env_test", roles=['role1'], recipes=['recipe1'],
                   attributes={'id': 1})
         self.mox.VerifyAll()
 
@@ -175,7 +325,7 @@ class TestMySQLMaplessWorkflow(test.StubbedWorkflowBase):
         expected.append({  # Use chef-solo tasks for now
                            # Use only one kitchen. Call it "kitchen" like we
                            # used to
-            'call': 'checkmate.providers.opscode.databag.create_environment',
+            'call': 'checkmate.providers.opscode.knife.create_environment',
             'args': [self.deployment['id'], 'kitchen'],
             'kwargs': And(ContainsKeyValue('private_key', IgnoreArg()),
                           ContainsKeyValue('secret_key', IgnoreArg()),
@@ -214,7 +364,7 @@ class TestMySQLMaplessWorkflow(test.StubbedWorkflowBase):
                         'post_back_result': True,
                         })
                 expected.append({
-                    'call': 'checkmate.providers.opscode.databag.register_node',
+                    'call': 'checkmate.providers.opscode.knife.register_node',
                     'args': ['4.4.4.1', self.deployment['id']],
                     'kwargs': In('password'),
                     'result': None,
@@ -224,7 +374,7 @@ class TestMySQLMaplessWorkflow(test.StubbedWorkflowBase):
                 # build-essential (now just cook with bootstrap.json)
 
                 expected.append({
-                    'call': 'checkmate.providers.opscode.databag.cook',
+                    'call': 'checkmate.providers.opscode.knife.cook',
                     'args': ['4.4.4.1', self.deployment['id']],
                     'kwargs': And(In('password'),
                                   Not(In('recipes')),
@@ -241,7 +391,7 @@ class TestMySQLMaplessWorkflow(test.StubbedWorkflowBase):
                 # Cook with cookbook (special mysql handling calls server role)
 
                 expected.append({
-                    'call': 'checkmate.providers.opscode.databag.cook',
+                    'call': 'checkmate.providers.opscode.knife.cook',
                     'args': ['4.4.4.1', self.deployment['id']],
                     'kwargs': And(In('password'), ContainsKeyValue('recipes',
                                   ['mysql::server']),
@@ -361,7 +511,7 @@ class TestMapfileWithoutMaps(test.StubbedWorkflowBase):
         self.mox.VerifyAll()
 
 
-class TestMapSingleWorkflow(test.StubbedWorkflowBase):
+class TestMappedSingleWorkflow(test.StubbedWorkflowBase):
     """
 
     Test workflow for a single service works
@@ -499,7 +649,6 @@ class TestMapSingleWorkflow(test.StubbedWorkflowBase):
         self.assertListEqual(task_list, expected, msg=task_list)
         self.mox.VerifyAll()
 
-    @skip
     def test_workflow_execution(self):
         """Verify workflow executes"""
 
@@ -517,7 +666,7 @@ class TestMapSingleWorkflow(test.StubbedWorkflowBase):
         self.assertEqual(self.deployment.get('status'), 'PLANNED')
         expected_calls = [{
                 # Create Chef Environment
-                'call': 'checkmate.providers.opscode.databag.create_environment',
+                'call': 'checkmate.providers.opscode.knife.create_environment',
                 'args': [self.deployment['id'], 'kitchen'],
                 'kwargs': And(ContainsKeyValue('private_key', IgnoreArg()),
                         ContainsKeyValue('secret_key', IgnoreArg()),
@@ -535,6 +684,11 @@ class TestMapSingleWorkflow(test.StubbedWorkflowBase):
             }]
         for key, resource in self.deployment['resources'].iteritems():
             if resource.get('type') == 'compute':
+                attributes = {
+                                'username': 'u1',
+                                'password': 'myPassW0rd',
+                                'db_name': 'app_db',
+                             }
                 expected_calls.extend([{
                         # Create Server
                         'call': 'checkmate.providers.test.create_resource',
@@ -558,15 +712,17 @@ class TestMapSingleWorkflow(test.StubbedWorkflowBase):
                         'resource': key,
                     }, {
                         # Register host - knife prepare
-                        'call': 'checkmate.providers.opscode.databag.'
+                        'call': 'checkmate.providers.opscode.knife.'
                                 'register_node',
                         'args': ["4.4.4.4", self.deployment['id']],
-                        'kwargs': And(In('password')),
+                        'kwargs': And(In('password'),
+                                      ContainsKeyValue('attributes',
+                                                        attributes)),
                         'result': None,
                         'resource': key,
                     }, {
                         # Prep host - bootstrap.json means no recipes passed in
-                        'call': 'checkmate.providers.opscode.databag.cook',
+                        'call': 'checkmate.providers.opscode.knife.cook',
                         'args': ['4.4.4.4', self.deployment['id']],
                         'kwargs': And(In('password'),
                                       Not(In('recipes')),
@@ -576,20 +732,13 @@ class TestMapSingleWorkflow(test.StubbedWorkflowBase):
                         'result': None
                     }])
             elif resource.get('type') == 'database':
-                attributes = {
-                                'username': 'u1',
-                                'password': 'myPassW0rd',
-                                'db_name': 'app_db',
-                             }
                 expected_calls.extend([{
                         # Cook mysql
-                        'call': 'checkmate.providers.opscode.databag.cook',
+                        'call': 'checkmate.providers.opscode.knife.cook',
                         'args': ['4.4.4.4', self.deployment['id']],
                         'kwargs': And(In('password'),
                                         ContainsKeyValue('recipes',
                                                 ['mysql::server']),
-                                        ContainsKeyValue('attributes',
-                                                attributes),
                                         ContainsKeyValue('identity_file',
                                                 '/var/tmp/%s/private.pem' %
                                                 self.deployment['id'])),
@@ -597,6 +746,15 @@ class TestMapSingleWorkflow(test.StubbedWorkflowBase):
                     }])
         workflow = self._get_stubbed_out_workflow(context=context,
                 expected_calls=expected_calls)
+
+        # Hack to hijack postback in Transform which is called as a string in
+        # exec(), so cannot be easily mocked.
+        # We make the call hit our deployment directly
+        call_me = 'dep.on_resource_postback(output_template) #'
+        transmerge = workflow.spec.task_specs['Collect Chef Data for 0']
+        transmerge.set_property(deployment=self.deployment)
+        stub = transmerge.transforms[0].replace('postback.', call_me)
+        transmerge.transforms[0] = stub
 
         self.mox.ReplayAll()
         workflow.complete_all()
@@ -616,6 +774,12 @@ class TestMapSingleWorkflow(test.StubbedWorkflowBase):
                           password: myPassW0rd       # from constraints
                           username: u1               # from blueprint settings
                           host: 4.4.4.4              # from host requirement
+                    interfaces:                      # add this for v3.0 compat
+                      mysql:
+                        database_name: app_db
+                        password: myPassW0rd
+                        username: u1
+                        host: 4.4.4.4
             """)
         self.assertDictEqual(final.attributes['instance:0'],
                              expected['instance:0'])
@@ -775,7 +939,73 @@ class TestMappedMultipleWorkflow(test.StubbedWorkflowBase):
         self.assertListEqual(task_list, expected, msg=task_list)
         self.mox.VerifyAll()
 
-    @skip
+        # Make sure maps are correct
+        transmerge = workflow.spec.task_specs['Collect Chef Data for 0']
+        expected = {
+            'resource': '0',
+            'deployment': 'DEP-ID-1000',
+            'provider': 'chef-solo',
+            'task_tags': ['collect'],
+            'extend_lists': True,
+            'chef_options': {
+                'roles': {
+                    'foo-master': {'how-many': 2}}},
+            'chef_output': None,
+            'chef_maps': [
+                {
+                    'source': 'requirements://host:linux/ip',
+                    'targets': ['attributes://master/ip'],
+                    'path': 'instance:1'},
+                {
+                    'source': 'requirements://database:mysql/database_name',
+                    'targets': ['attributes://db/name',
+                                'encrypted-databags://app_bag/mysql/db_name'],
+                    'path': 'instance:2/interfaces/mysql'
+                }]
+            }
+        self.assertDictEqual(transmerge.properties, expected)
+
+        transmerge = workflow.spec.task_specs['Collect Chef Data for 2']
+        expected = {
+            'resource': '2',
+            'deployment': 'DEP-ID-1000',
+            'provider': 'chef-solo',
+            'task_tags': ['collect', 'options-ready'],
+            'extend_lists': True,
+            'chef_options': {
+                'outputs': {
+                    'instance:2': {
+                        'instance': {
+                            'interfaces': {
+                                'mysql': {
+                                    'database_name': 'foo-db'
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            'chef_output': None,
+            'chef_maps': []
+            }
+        self.assertDictEqual(transmerge.properties, expected)
+
+        # Make sure plan-time data is correct
+        register = workflow.spec.task_specs['Register Server 1 (frontend)']
+        expected = {
+            'resource': '0',
+            'provider': 'chef-solo',
+            'relation': 'host',
+            'estimated_duration': 120
+            }
+        self.assertDictEqual(register.properties, expected)
+        self.assertDictEqual(register.kwargs['attributes'], {'widgets': 10})
+
+        # Make sure role is being created
+        role = workflow.spec.task_specs['Write Role foo-master for 0']
+        expected = ['recipe[apt]', 'recipe[foo::server]']
+        self.assertListEqual(role.kwargs['run_list'], expected)
+
     def test_workflow_execution(self):
         """Verify workflow executes"""
 
@@ -791,7 +1021,7 @@ class TestMappedMultipleWorkflow(test.StubbedWorkflowBase):
         self.assertEqual(self.deployment.get('status'), 'PLANNED')
         expected_calls = [{
                 # Create Chef Environment
-                'call': 'checkmate.providers.opscode.databag.create_environment',
+                'call': 'checkmate.providers.opscode.knife.create_environment',
                 'args': [self.deployment['id'], 'kitchen'],
                 'kwargs': And(ContainsKeyValue('private_key', IgnoreArg()),
                         ContainsKeyValue('secret_key', IgnoreArg()),
@@ -811,7 +1041,7 @@ class TestMappedMultipleWorkflow(test.StubbedWorkflowBase):
             if resource.get('type') == 'compute':
                 expected_calls.extend([{
                         # Register foo - knife prepare
-                        'call': 'checkmate.providers.opscode.databag.'
+                        'call': 'checkmate.providers.opscode.knife.'
                                 'register_node',
                         'args': ["4.4.4.4", self.deployment['id']],
                         'kwargs': And(In('password'),
@@ -821,7 +1051,7 @@ class TestMappedMultipleWorkflow(test.StubbedWorkflowBase):
                         'resource': key,
                     }, {
                         # Prep foo - bootstrap.json
-                        'call': 'checkmate.providers.opscode.databag.cook',
+                        'call': 'checkmate.providers.opscode.knife.cook',
                         'args': ['4.4.4.4', self.deployment['id']],
                         'kwargs': And(In('password'),
                                       Not(ContainsKeyValue('recipes',
@@ -856,7 +1086,7 @@ class TestMappedMultipleWorkflow(test.StubbedWorkflowBase):
                 expected_calls.extend([{
                         # Write foo databag item
                         'call': 'checkmate.providers.opscode.'
-                                'databag.write_databag',
+                                'knife.write_databag',
                         'args': ['DEP-ID-1000', 'app_bag', 'mysql',
                                  {'db_name': 'foo-db'}],
                         'kwargs': {'merge': True,
@@ -864,10 +1094,10 @@ class TestMappedMultipleWorkflow(test.StubbedWorkflowBase):
                         'result': None
                     }, {
                         # Write foo-master role
-                        'call': 'checkmate.providers.opscode.databag.'
+                        'call': 'checkmate.providers.opscode.knife.'
                                 'manage_role',
                         'args': ['foo-master', 'DEP-ID-1000'],
-                        'kwargs': {'merge': True,
+                        'kwargs': {
                                    'run_list': ['recipe[apt]',
                                                 'recipe[foo::server]'],
                                    'override_attributes': {'how-many': 2},
@@ -876,7 +1106,7 @@ class TestMappedMultipleWorkflow(test.StubbedWorkflowBase):
                         'result': None
                     }, {
                         # Cook foo - run using runlist
-                        'call': 'checkmate.providers.opscode.databag.cook',
+                        'call': 'checkmate.providers.opscode.knife.cook',
                         'args': ['4.4.4.4', self.deployment['id']],
                         'kwargs': And(In('password'),
                                       ContainsKeyValue('recipes',
@@ -886,7 +1116,6 @@ class TestMappedMultipleWorkflow(test.StubbedWorkflowBase):
                                                        ['foo-master']),
                                       ContainsKeyValue('attributes',
                                               {
-                                              'widgets': 10,
                                               'master': {'ip': '4.4.4.4'},
                                               'db': {'name': 'foo-db'},
                                               }),
@@ -899,7 +1128,7 @@ class TestMappedMultipleWorkflow(test.StubbedWorkflowBase):
             elif resource.get('type') == 'database':
                 expected_calls.extend([{
                         # Cook bar
-                        'call': 'checkmate.providers.opscode.databag.cook',
+                        'call': 'checkmate.providers.opscode.knife.cook',
                         'args': [None, self.deployment['id']],
                         'kwargs': And(In('password'),
                                         ContainsKeyValue('recipes', ['bar']),
@@ -911,10 +1140,33 @@ class TestMappedMultipleWorkflow(test.StubbedWorkflowBase):
         workflow = self._get_stubbed_out_workflow(context=context,
                 expected_calls=expected_calls)
 
+        # Hack to hijack postback in Transform which is called as a string in
+        # exec(), so cannot be easily mocked.
+        # We make the call hit our deployment directly
+        call_me = 'dep.on_resource_postback(output_template) #'
+        transmerge = workflow.spec.task_specs['Collect Chef Data for 0']
+        transmerge.set_property(deployment=self.deployment)
+        stub = transmerge.transforms[0].replace('postback.', call_me)
+        transmerge.transforms[0] = stub
+
+        transmerge = workflow.spec.task_specs['Collect Chef Data for 2']
+        transmerge.set_property(deployment=self.deployment)
+        stub = transmerge.transforms[0].replace('postback.', call_me)
+        transmerge.transforms[0] = stub
+
         self.mox.ReplayAll()
         workflow.complete_all()
         self.assertTrue(workflow.is_completed(), msg=workflow.get_dump())
-        self.assertDictEqual(self.outcome, {})
+        expected = {
+                    'data_bags': {
+                        'app_bag': {
+                            'mysql': {
+                                'db_name': 'foo-db'
+                            }
+                        }
+                    }
+                   }
+        self.assertDictEqual(self.outcome, expected)
         self.mox.VerifyAll()
 
 
@@ -1037,6 +1289,12 @@ class TestChefMap(unittest.TestCase):
                 'path': 'item/key/with/long/path',
                 },
             {
+                'name': 'clients',
+                'scheme': 'clients',
+                'netloc': 'provides_key',
+                'path': 'item/key/with/long/path',
+                },
+            {
                 'name': 'roles',
                 'scheme': 'roles',
                 'netloc': 'role-name',
@@ -1088,75 +1346,123 @@ class TestChefMap(unittest.TestCase):
         self.assertEqual(result['path'], 'only')
 
     def test_has_mapping_positive(self):
-        chef_map = solo.ChefMap('')
-        chef_map._raw = """
-            id: test
-            maps:
-            - source: 1
-        """
+        chef_map = solo.ChefMap(raw="""
+                id: test
+                maps:
+                - source: 1
+            """)
         self.assertTrue(chef_map.has_mappings('test'))
 
     def test_has_mapping_negative(self):
-        chef_map = solo.ChefMap('')
-        chef_map._raw = """
-            id: test
-            maps: {}
-        """
+        chef_map = solo.ChefMap(raw="""
+                id: test
+                maps: {}
+            """)
         self.assertFalse(chef_map.has_mappings('test'))
 
     def test_has_requirement_map_positive(self):
-        chef_map = solo.ChefMap('')
-        chef_map._raw = """
-            id: test
-            maps:
-            - source: requirements://name/path
-            - source: requirements://database:mysql/username
-        """
+        chef_map = solo.ChefMap(raw="""
+                id: test
+                maps:
+                - source: requirements://name/path
+                - source: requirements://database:mysql/username
+            """)
         self.assertTrue(chef_map.has_requirement_mapping('test', 'name'))
         self.assertTrue(chef_map.has_requirement_mapping('test',
                                                           'database:mysql'))
         self.assertFalse(chef_map.has_requirement_mapping('test', 'other'))
 
     def test_has_requirement_mapping_negative(self):
-        chef_map = solo.ChefMap('')
-        chef_map._raw = """
-            id: test
-            maps: {}
-        """
+        chef_map = solo.ChefMap(raw="""
+                id: test
+                maps: {}
+            """)
         self.assertFalse(chef_map.has_requirement_mapping('test', 'name'))
 
+    def test_has_client_map_positive(self):
+        chef_map = solo.ChefMap(raw="""
+                id: test
+                maps:
+                - source: clients://name/path
+                - source: clients://database:mysql/ip
+            """)
+        self.assertTrue(chef_map.has_client_mapping('test', 'name'))
+        self.assertTrue(chef_map.has_client_mapping('test', 'database:mysql'))
+        self.assertFalse(chef_map.has_client_mapping('test', 'other'))
+
+    def test_has_client_mapping_negative(self):
+        chef_map = solo.ChefMap(raw="""
+                id: test
+                maps: {}
+            """)
+        self.assertFalse(chef_map.has_client_mapping('test', 'name'))
+
     def test_get_attributes(self):
-        chef_map = solo.ChefMap('')
-        chef_map._raw = """
-            id: foo
-            maps:
-            - value: 1
-              targets:
-              - attributes://here
-            \n--- # component bar
-            id: bar
-            maps:
-            - value: 1
-              targets:
-              - databags://mybag/there
-        """
+        chef_map = solo.ChefMap(raw="""
+                id: foo
+                maps:
+                - value: 1
+                  targets:
+                  - attributes://here
+                \n--- # component bar
+                id: bar
+                maps:
+                - value: 1
+                  targets:
+                  - databags://mybag/there
+            """)
         self.assertDictEqual(chef_map.get_attributes('foo', None), {'here': 1})
         self.assertDictEqual(chef_map.get_attributes('bar', None), {})
         self.assertIsNone(chef_map.get_attributes('not there', None))
 
     def test_has_runtime_options(self):
-        chef_map = solo.ChefMap('')
-        chef_map._raw = """
-            id: foo
-            maps:
-            - source: requirements://database:mysql/
-            \n---
-            id: bar
-            maps: {}
-            """
+        chef_map = solo.ChefMap(raw="""
+                id: foo
+                maps:
+                - source: requirements://database:mysql/
+                \n---
+                id: bar
+                maps: {}
+                """)
         self.assertTrue(chef_map.has_runtime_options('foo'))
         self.assertFalse(chef_map.has_runtime_options('bar'))
         self.assertFalse(chef_map.has_runtime_options('not there'))
+
+    def test_filter_maps_by_schemes(self):
+        maps = utils.yaml_to_dict("""
+                - value: 1
+                  targets:
+                  - databags://bag/item
+                - value: 2
+                  targets:
+                  - databags://bag/item
+                  - roles://bag/item
+                - value: 3
+                  targets:
+                  - attributes://id
+                """)
+        expect = "Should detect all maps with databags target"
+        ts = ['databags']
+        result = solo.ChefMap.filter_maps_by_schemes(maps, target_schemes=ts)
+        self.assertListEqual(result, maps[0:2], msg=expect)
+
+        expect = "Should detect only map with roles target"
+        ts = ['roles']
+        result = solo.ChefMap.filter_maps_by_schemes(maps, target_schemes=ts)
+        self.assertListEqual(result, [maps[1]], msg=expect)
+
+        expect = "Should detect all maps once"
+        ts = ['databags', 'attributes', 'roles']
+        result = solo.ChefMap.filter_maps_by_schemes(maps, target_schemes=ts)
+        self.assertListEqual(result, maps, msg=expect)
+
+        expect = "Should return all maps"
+        result = solo.ChefMap.filter_maps_by_schemes(maps)
+        self.assertListEqual(result, maps, msg=expect)
+
+        expect = "Should return all maps"
+        result = solo.ChefMap.filter_maps_by_schemes(maps, target_schemes=[])
+        self.assertListEqual(result, maps, msg=expect)
 
 
 class TestTransform(unittest.TestCase):
@@ -1178,8 +1484,9 @@ class TestTransform(unittest.TestCase):
         fxn = solo.Transforms.collect_options
         task = self.mox.CreateMockAnything()
         spec = self.mox.CreateMockAnything()
-        spec.get_property('chef_maps').AndReturn(maps)
-        spec.get_property('chef_output', {}).AndReturn({})
+        spec.get_property('chef_maps', []).AndReturn(maps)
+        spec.get_property('chef_options', {}).AndReturn({})
+        spec.get_property('chef_output').AndReturn({})
         results = {}
         task.attributes = results
         self.mox.ReplayAll()
@@ -1203,8 +1510,10 @@ class TestTransform(unittest.TestCase):
         fxn = solo.Transforms.collect_options
         task = self.mox.CreateMockAnything()
         spec = self.mox.CreateMockAnything()
-        spec.get_property('chef_maps').AndReturn([])
-        spec.get_property('chef_output', {}).AndReturn(output or {})
+        spec.get_property('chef_maps', []).AndReturn([])
+        spec.get_property('chef_options', {}).AndReturn({})
+        spec.get_property('chef_output').AndReturn(output or {})
+        spec.get_property('deployment').AndReturn(1)
         results = {}
         task.attributes = results
         self.mox.ReplayAll()
@@ -1239,6 +1548,16 @@ class TestChefMapEvaluator(unittest.TestCase):
         result = chefmap.evaluate_mapping_source(mapping, data)
         self.assertEqual(result, '4.4.4.4')
 
+    def test_client_evaluation(self):
+        chefmap = solo.ChefMap(parsed="")
+        mapping = {
+                   'source': 'clients://host/ip',
+                   'path': 'instance:1'
+                  }
+        data = {'instance:1': {'ip': '4.4.4.4'}}
+        result = chefmap.evaluate_mapping_source(mapping, data)
+        self.assertEqual(result, '4.4.4.4')
+
 
 class TestChefMapApplier(unittest.TestCase):
     """Test ChefMap Mapping writing to targets"""
@@ -1250,6 +1569,34 @@ class TestChefMapApplier(unittest.TestCase):
         result = {}
         chefmap.apply_mapping(mapping, '4.4.4.4', result)
         self.assertEqual(result, {'outputs': {'ip': '4.4.4.4'}})
+
+
+class TestChefMapResolver(unittest.TestCase):
+    """Test ChefMap Mapping writing to targets"""
+    def test_resolve_ready_maps(self):
+        maps = utils.yaml_to_dict("""
+                - value: 1
+                  targets:
+                  - attributes://simple
+                - source: requirements://key/path/value
+                  path: instance:1/location
+                  targets:
+                  - attributes://ready
+                - source: requirements://key/path/value
+                  path: instance:2/location
+                  targets:
+                  - attributes://not
+                """)
+        data = utils.yaml_to_dict("""
+                instance:1:
+                  location:
+                    path:
+                      value: 8
+                """)
+        result = {}
+        unresolved = solo.ChefMap.resolve_ready_maps(maps, data, result)
+        self.assertDictEqual(result, {'attributes': {'ready': 8, 'simple': 1}})
+        self.assertListEqual(unresolved, [maps[2]])
 
 
 class TestTemplating(unittest.TestCase):
