@@ -138,7 +138,7 @@
           <div id="error-alert" class="alert alert-block fade in" ng-cloak ng-show="current_task.internal_attributes.task_state.state == 'RETRY' &amp;&amp; current_task.state != 64">
             <button type="button" class="close" data-dismiss="alert">&times;</button>
             <h4 class="alert-heading">Something might be up! But we haven't given up yet...</h4>
-            <p>This task is being retried. See the code <a class="accordion-toggle cmcollapse" data-toggle="collapse" data-target="#traceback2">traceback</a>.</p>
+            <p>This task is being retried. See the code <a class="accordion-toggle cmcollapse" data-toggle="collapse" data-target="#traceback2" href="#{{current_spec_index}}">traceback</a>.</p>
             <div id="traceback2" class="cmcollapse collapse">
               <pre>{{current_task.internal_attributes.task_state.traceback}}</pre>
             </div>
