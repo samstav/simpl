@@ -23,6 +23,8 @@ from checkmate.keys import hash_SHA512
 from checkmate.providers import ProviderBase
 from checkmate.workflows import wait_for
 from checkmate.utils import merge_dictionary  # Spiff version used by transform
+from jinja2.runtime import Undefined
+from jinja2.filters import do_indent
 
 LOG = logging.getLogger(__name__)
 
@@ -795,7 +797,7 @@ class Transforms():
             for mapping in maps:
                 try:
                     result = ChefMap.evaluate_mapping_source(mapping, data)
-                    if result is not None:
+                    if ChefMap.is_writable_val(result):
                         queue.append((mapping, result))
                 except SoloProviderNotReady:
                     return False  # false means not done/not ready
@@ -1021,6 +1023,10 @@ class ChefMap():
                         return True
         return False
 
+    @staticmethod
+    def is_writable_val(val):
+        return val is not None and len(str(val)) > 0
+
     def get_attributes(self, component_id, deployment):
         """Parse maps and get attributes for a specific component that are
         ready"""
@@ -1039,7 +1045,7 @@ class ChefMap():
                         except SoloProviderNotReady:
                             LOG.debug("Map not ready yet: " % m)
                             continue
-                        if value is not None:
+                        if ChefMap.is_writable_val(value):
                             for target in m.get('targets', []):
                                 url = self.parse_map_URI(target)
                                 if url['scheme'] == 'attributes':
@@ -1101,9 +1107,10 @@ class ChefMap():
     @staticmethod
     def resolve_map(mapping, data, output):
         """Resolve mapping and write output"""
-        result = ChefMap.evaluate_mapping_source(mapping, data)
-        if result is not None:
-            ChefMap.apply_mapping(mapping, result, output)
+        ChefMap.apply_mapping(mapping,
+            ChefMap.evaluate_mapping_source(mapping,
+                                            data),
+                              output)
 
     @staticmethod
     def apply_mapping(mapping, value, output):
@@ -1116,6 +1123,8 @@ class ChefMap():
         """
         # FIXME: hack to get v0.5 out. Until we implement search() or Craig's
         # ValueFilter. For now, just write arrays for all 'clients' mappings
+        if not ChefMap.is_writable_val(value):
+            return
         write_array = False
         if 'source' in mapping:
             url = ChefMap.parse_map_URI(mapping['source'])
@@ -1329,8 +1338,10 @@ class ChefMap():
             result = template.render(**minimum_kwargs)
             #TODO: exceptions in Jinja template sometimes missing traceback
         except StandardError as exc:
+            LOG.error(exc, exc_info=True)
             raise CheckmateException("Chef template rendering failed: %s" %
                                      exc)
         except TemplateError as exc:
+            LOG.error(exc, exc_info=True)
             raise CheckmateException("Chef template had an error: %s" % exc)
         return result
