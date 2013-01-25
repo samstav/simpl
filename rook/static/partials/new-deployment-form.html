@@ -46,7 +46,7 @@
             <legend>Options</legend>
 
             <!-- url setting -->
-            <div class="control-group" ng-repeat="setting in settings | filter:{id: 'url'}" compile-html="renderSetting(setting)">
+            <div class="control-group" ng-repeat="setting in settings | idIn:['url']" compile-html="renderSetting(setting)">
                               </div>
 
             <!-- legacy site_address setting -->
@@ -63,7 +63,7 @@
       <div id="url_controls" ng-cloak ng-show="builder" class="well offset1">
           <div class="row-fluid">
               <!-- protocol -->
-              <div class="control-group" ng-repeat="setting in settings | filter:{id: 'web_server_protocol'}">
+              <div class="control-group" ng-repeat="setting in settings | idIn: ['web_server_protocol']">
                 <label class="control-label required" for="web_server_protocol">{{setting.label}}</label>
                 <div class="controls">
                   <select style="width:150px;" id="web_server_protocol" ng-model="answers['web_server_protocol']" ng-options="o.value as o.name for o in setting.choice"></select>
@@ -74,7 +74,7 @@
 
           <div class="row-fluid">
             <!-- domain -->
-            <div class="control-group" ng-repeat="setting in settings | filter:{id: 'domain'}">
+            <div class="control-group" ng-repeat="setting in settings | idIn: ['domain']">
               <label class="control-label required" for="domain">{{setting.label}}</label>
               <div class="controls">
                 <div class="input-append">
@@ -118,7 +118,7 @@
 
       <div class="row-fluid">
           <!-- username -->
-          <div class="control-group offset1" ng-repeat="setting in settings | filter:{id: 'username'}">
+          <div class="control-group offset1" ng-repeat="setting in settings | idIn: ['username']">
             <label class="control-label required" for="path">{{setting.label}}</label>
             <div class="controls">
               <input type="text" name="username" class="input-xlarge" id="path" ng-model="answers['username']" placeholder="{{setting.sample | prepend:'ex. '}}">
