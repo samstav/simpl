@@ -32,8 +32,10 @@ from SpiffWorkflow.storage import DictionarySerializer
 from checkmate.common import schema
 from checkmate.db import any_id_problems
 from checkmate.deployments import plan, Deployment
-from checkmate.workflows import get_SpiffWorkflow_status, create_workflow_deploy
-from checkmate.utils import write_body, read_body, with_tenant
+from checkmate.workflows import (get_SpiffWorkflow_status,
+                                 create_workflow_deploy)
+from checkmate.utils import (write_body, read_body, with_tenant,
+                             merge_dictionary)
 
 PACKAGE = {}
 LOG = logging.getLogger(__name__)
@@ -146,7 +148,8 @@ def workflow_state(tenant_id=None):
     if not PACKAGE.get(tenant_id):
         abort(404, "No simulated deployment exists for %s" % tenant_id)
 
-    results = process(tenant_id)
+    complete = 'complete' in request.query
+    results = process(tenant_id, complete=complete)
 
     return write_body(results, request, response)
 
@@ -189,55 +192,60 @@ def get_workflow_task(task_id, tenant_id=None):
     return write_body(data, request, response)
 
 
-def process(tenant_id):
-    """Process one task at a time. Patch Celery class to not make real calls"""
-    path = os.path.normpath(os.path.join(os.path.dirname(__file__),
-                                         'simulator.json'))
-    serializer = DictionarySerializer()
-    with open(path) as f:
-        data = json.load(f)
-        template = Workflow.deserialize(serializer, data)
+def process(tenant_id, complete=False):
+    """
 
+    Process simulated deployment and workflow.
+
+    :param tenant_id: simulated objects are stored per tenant in memoty. We
+                      need this key to find the right one.
+    :param complete: set this to true to complete the workflow. Otherwsie, each
+                     call moves it ahead by only one call
+    Note: Patches Celery class to not make real calls
+
+    """
     global PACKAGE
     if 'workflow' not in PACKAGE[tenant_id]:
         abort(404, "Workflow does not exist")
+    serializer = DictionarySerializer()
     workflow = Workflow.deserialize(serializer, PACKAGE[tenant_id]['workflow'])
 
     def hijacked_try_fire(self, my_task, force=False):
         """We patch this in to intercept calls that would go to celery"""
-        name = my_task.get_name()
-        result = None
-        if name in template.spec.task_specs:
-            template_task = None  # template.get_task(my_task.id)
-            for task in template.get_tasks():
-                if task.get_name() == name:
-                    template_task = task
-                    break
-            if template_task:
-                result = template_task.attributes
-            else:
-                LOG.warn("Task not found in simulator.json: %s" % name)
-        else:
-            LOG.warn("Spec not found in simulator.json: %s" % name)
+        result = simulate_result(tenant_id, my_task, workflow)
         if result:
-            my_task.set_attribute(**result)
-            if my_task.task_spec.call.startswith('checkmate.providers.'
-                    'rackspace.'):
-                data = {}
-                for k, v in result.iteritems():
-                    if k.startswith('instance:'):
-                        data[k] = v
-                    elif k.startswith('connection:'):
-                        data[k] = v
+            # From Celery.try_file
+            if self.result_key:
+                data = {self.result_key: result}
+            else:
+                if isinstance(result, dict):
+                    data = result
+                else:
+                    data = {'result': result}
+            # Load formatted result into attributes
+            if self.merge_results:
+                merge_dictionary(my_task.attributes, data)
+            else:
+                my_task.set_attribute(**data)
 
-                if data:
-                    PACKAGE[tenant_id].on_resource_postback(data)
+            # Post-back instance and connection data
+            postback = {}
+            for k, v in data.iteritems():
+                if k.startswith('instance:'):
+                    postback[k] = v
+                elif k.startswith('connection:'):
+                    postback[k] = v
+            if postback:
+                PACKAGE[tenant_id].on_resource_postback(postback)
         return True
 
     try_fire = Celery.try_fire
     try:
         Celery.try_fire = hijacked_try_fire
-        workflow.complete_next()
+        if complete is True:
+            workflow.complete_all()
+        else:
+            workflow.complete_next()
     finally:
         Celery.try_fire = try_fire
 
@@ -245,3 +253,104 @@ def process(tenant_id):
     results['id'] = 'simulate'
     PACKAGE[tenant_id]['workflow'] = results
     return results
+
+
+def simulate_result(tenant_id, my_task, workflow):
+    """Simulate result data based on provider, deployment, and workflow"""
+    global PACKAGE
+    spec = my_task.task_spec
+    props = spec.properties
+    resource = None
+    result = None
+    call = getattr(spec, 'call', None)
+    provider = props.get('provider')
+    deployment = PACKAGE[tenant_id]
+    if 'resource' in props:
+        resource_key = props['resource']
+        resource = deployment['resources'][resource_key]
+    else:
+        resource_key = None
+        resource = {}
+    if call in ["checkmate.providers.rackspace.compute.create_server",
+                "checkmate.providers.rackspace.compute_legacy.create_server",
+               ]:
+        result = {
+                  'instance:%s' % resource_key: {
+                    'id': '200%s' % resource_key,
+                    'password': "shecret",
+                    }
+                  }
+    elif call in ["checkmate.providers.rackspace.compute.wait_on_build",
+                  "checkmate.providers.rackspace.compute_legacy."
+                        "wait_on_build",
+                 ]:
+        result = {
+                'instance:%s' % resource_key: {
+                    'status': "ACTIVE",
+                    'ip': '4.4.4.%s' % resource_key,
+                    'private_ip': '10.1.2.%s' % resource_key,
+                    'addresses': {
+                      'public': [
+                        {
+                          "version": 4,
+                          "addr": "4.4.4.%s" % resource_key,
+                        },
+                        {
+                          "version": 6,
+                          "addr": "2001:babe::ff04:36c%s" % resource_key,
+                        }
+                      ],
+                      'private': [
+                        {
+                          "version": 4,
+                          "addr": "10.1.2.%s" % resource_key,
+                        }
+                      ]
+                    }
+                }
+            }
+    elif call == ("checkmate.providers.rackspace.load-balancer."
+                       "create_load_balancer"):
+        result = {
+                  'instance:%s' % resource_key: {
+                        'id': "LB0%s" % resource_key,
+                        'public_ip': "4.4.4.20%s" % resource_key,
+                        'port': "dummy",
+                        'protocol': "dummy"}}
+    elif call in ["checkmate.providers.opscode.knife.cook",
+                  "checkmate.providers.opscode.knife.write_databag",
+                  "checkmate.providers.opscode.knife.write_role",
+                  ]:
+        result = {}
+        LOG.debug("Ignoring task '%s' for provider '%s' in simuator" %
+                  (provider, spec.name))
+    elif provider == 'chef-solo':
+        if props.get('relation') == 'host':
+            result = {}
+            LOG.debug("Ignoring task '%s' for provider '%s' in simuator" %
+                      (provider, spec.name))
+        elif 'root' in props.get('task_tags', []):
+            result = {
+                'environment': '/var/tmp/%s/' % deployment['id'],
+                'kitchen': '/var/tmp/%s/kitchen' % deployment['id'],
+                'private_key_path': '/var/tmp/%s/private.pem' %
+                        deployment['id'],
+                'public_key_path': '/var/tmp/%s/checkmate.pub' %
+                        deployment['id']}
+        elif ('task_tags' in props and (
+                'final' in props['task_tags'] or
+                'options-ready' in props['task_tags'])):
+            result = {}
+            LOG.debug("Ignoring task '%s' for provider '%s' in simuator" %
+                      (provider, spec.name))
+    elif provider == 'load-balancer':
+        if 'final' in props.get('task_tags', []):
+            result = {}
+            LOG.debug("Ignoring task '%s' for provider '%s' in simuator" %
+                      (provider, spec.name))
+
+    if result is None:
+        LOG.info("Consider handling a simulated result for task '%s'. The "
+                 "resource is %s and the spec properties are %s" % (
+                 spec.name, resource, props))
+    return result

@@ -159,48 +159,6 @@ class TestWorkflow(StubbedWorkflowBase):
         self.workflow.complete_all()
         self.assertTrue(self.workflow.is_completed())
 
-        serializer = DictionarySerializer()
-        simulation = self.workflow.serialize(serializer)
-        simulation['id'] = 'simulate'
-        result = json.dumps(simulation, indent=2)
-        #LOG.debug(result)
-
-        # Update simulator (since this test was successful)
-        simulator_file_path = os.path.join(os.path.dirname(__file__), 'data',
-                                           'simulator.json')
-
-        # Scrub data
-        for var_name, safe_value in ENV_VARS.iteritems():
-            if var_name in os.environ:
-                result = result.replace(os.environ[var_name], safe_value)
-        keys = get_os_env_keys()
-        if keys:
-            for key, value in keys.iteritems():
-                if 'public_key' in value:
-                    result = result.replace(value['public_key'][0:-1],
-                                            "-----BEGIN PUBLIC KEY-----\n...\n"
-                                            "-----END PUBLIC KEY-----\n")
-                if 'public_key_ssh' in value:
-                    result = result.replace(value['public_key_ssh'][0:-1],
-                                            ENV_VARS['CHECKMATE_PUBLIC_KEY'])
-                if 'public_key_path' in value:
-                    result = result.replace(value['public_key_path'],
-                                            '/var/tmp/DEP-ID-1000/key.pub')
-                if 'private_key' in value:
-                    result = result.replace(value['private_key'][0:-1],
-                                            "-----BEGIN RSA PRIVATE KEY-----\n"
-                                            "...\n"
-                                            "-----END RSA PRIVATE KEY-----")
-                if 'private_key_path' in value:
-                    result = result.replace(value['private_key_path'],
-                                            '/var/tmp/DEP-ID-1000/key.pem')
-        # Save it to simulator.json
-        try:
-            with file(simulator_file_path, 'w') as f:
-                f.write(result)
-        except:
-            pass
-
         LOG.debug("RESOURCES:")
         LOG.debug(json.dumps(self.deployment['resources'], indent=2))
         LOG.debug("\nOUTCOME:")
