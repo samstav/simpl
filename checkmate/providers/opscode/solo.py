@@ -637,15 +637,26 @@ class Provider(ProviderBase):
                 provider = environment.get_provider(server['provider'])
                 server_component = provider.get_component(context,
                                                           server['component'])
-                tasks = self.get_reconfigure_tasks(wfspec, deployment, client,
-                                                   server, server_component)
-                recollect_task = tasks['root']
+                recon_tasks = self.get_reconfigure_tasks(wfspec, deployment,
+                                                         client,
+                                                         server,
+                                                         server_component)
+                recollect_task = recon_tasks['root']
 
-                final_tasks = self.find_tasks(wfspec, resource=key,
-                                              provider=self.key, tag='final')
+                final_tasks = self.find_tasks(wfspec,
+                                              resource=key,
+                                              provider=self.key,
+                                              tag='final')
+                final_tasks.extend(self.find_tasks(wfspec,
+                                                   resource=server.get('index'),
+                                                   provider=self.key,
+                                                   tag='final'))
                 if not final_tasks:
                     # If server already configured, anchor to root
+                    LOG.warn("Did not find final task for resource %s" %
+                            key)
                     final_tasks = [self.prep_task]
+                LOG.debug("Reconfig waiting on %s" % final_tasks)
                 wait_for(wfspec, recollect_task, final_tasks)
 
     def get_reconfigure_tasks(self, wfspec, deployment, client, server,
@@ -685,13 +696,14 @@ class Provider(ProviderBase):
             result = {'root': root_task, 'final': reconfigure_task}
         else:
             name = 'Reconfigure %s: client ready' % server['component']
+            host_idx = server['hosted_on']
             reconfigure_task = Celery(wfspec,
                     name, 'checkmate.providers.opscode.knife.cook',
                     call_args=[
-                            PathAttrib('instance:%s/ip' % server['index']),
+                            PathAttrib('instance:%s/public_ip' % host_idx),
                             deployment['id']],
                     password=PathAttrib('instance:%s/password' %
-                                        server['index']),
+                                        host_idx),
                     attributes=PathAttrib('chef_options/attributes'),
                     identity_file=Attrib('private_key_path'),
                     description="Push and apply Chef recipes on the "
