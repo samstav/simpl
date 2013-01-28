@@ -1008,6 +1008,12 @@ function WorkflowController($scope, $resource, $http, $routeParams, $location, $
     return false;
   };
 
+  $scope.CloudControlURL = function(region) {
+    if (region == 'LON')
+      return "https://lon.cloudcontrol.rackspacecloud.com";
+    return "https://us.cloudcontrol.rackspacecloud.com"
+  };
+
   $scope.resource = function(task) {
     if (typeof task == 'undefined')
       return null;
@@ -1224,6 +1230,7 @@ function BlueprintRemoteListController($scope, $location, $routeParams, $resourc
   $scope.remote_server = null;
   $scope.remote_org = null;
   $scope.remote_user = null;
+  $scope.remote_branch = null;
 
   $scope.parse_url = function(url) {
     var u = URI(url);
@@ -1284,8 +1291,8 @@ function BlueprintRemoteListController($scope, $location, $routeParams, $resourc
     success(function(data, status, headers, config) {
       $scope.branches = data;
       if (data.length >= 1) {
-        $scope.remote_branch = data[0].commit.sha;
-        $scope.loadBlueprint();
+        $scope.remote_branch = data[0];
+        $scope.loadBlueprint(data[0]);
       } else
         $scope.remote_branch = null;
     }).
@@ -1295,8 +1302,9 @@ function BlueprintRemoteListController($scope, $location, $routeParams, $resourc
     });
   };
 
-  $scope.loadBlueprint = function(branch_sha) {
-    branch_sha = branch_sha || $scope.remote_branch;
+  $scope.loadBlueprint = function(branch) {
+    var branch_name = branch.name;
+    var branch_sha = branch.commit.sha;
     $http({method: 'GET', url: (checkmate_server_base || '') + '/githubproxy/api/v3/repos/' + ($scope.remote_org || $scope.remote_user) + '/' + $scope.selected.name + '/git/trees/' + branch_sha,
         headers: {'X-Target-Url': $scope.remote_server, 'accept': 'application/json'}}).
     success(function(data, status, headers, config) {
@@ -1309,7 +1317,6 @@ function BlueprintRemoteListController($scope, $location, $routeParams, $resourc
         success(function(data, status, headers, config) {
           var checkmate_yaml = {};
           try {
-            var branch = _.find($scope.branches, function(branch) {return branch.commit.sha == branch_sha;});
             checkmate_yaml = YAML.parse(data.replace('%repo_url%', $scope.selected.git_url + '#' + branch.name).replace('%username%', $scope.auth.username || '%username%'));
           } catch(err) {
             if (err.name == "YamlParseException")
@@ -1701,7 +1708,7 @@ function DeploymentNewController($scope, $location, $routeParams, $resource, set
   $scope.ShowCerts = function() {
     if ('web_server_protocol' in $scope.answers && $scope.answers['web_server_protocol'].indexOf('https') != -1)
       return true;
-    if ('url' in $scope.answers && $scope.answers['url'].indexOf('https') == 1)
+    if ('url' in $scope.answers && $scope.answers['url'].indexOf('https') != -1)
       return true;
     return false;
   };

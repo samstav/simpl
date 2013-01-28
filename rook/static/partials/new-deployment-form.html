@@ -8,10 +8,10 @@
               <div class="controls">
                   <!-- Show list if list exists -->
                   <select ng-cloak ng-show="blueprints" id="blueprint" class="span6" ng-model="blueprint" ng-change="setBlueprint(blueprint)" style="width:350px"
-                          ng-options="blueprint.name for (id,blueprint) in blueprints" required>
+                          ng-options="blueprint.name for (id, blueprint) in blueprints" required>
                   </select>
                   <!-- Show text if only one exists -->
-                  <input ng-cloak ng-show="!blueprints" readonly="" type="text" value="{{selected.name}}" class="span8"><span ng-cloak ng-show="branches"> branch: <select id="branch" class="span3" ng-model="remote_branch" ng-change="loadBlueprint(remote_branch)" ng-options="branch.commit.sha as branch.name for branch in branches"></select></span>
+                  <input ng-cloak ng-show="!blueprints" readonly="" type="text" value="{{selected.name}}" class="span8"><span ng-cloak ng-show="branches"> branch: <select id="branch" class="span3" ng-model="$parent.remote_branch" ng-change="loadBlueprint(remote_branch)" ng-options="branch.name for branch in branches"></select></span>
                   <p class="help-block">
                     {{blueprint.description}}
                   </p>
@@ -46,7 +46,7 @@
             <legend>Options</legend>
 
             <!-- url setting -->
-            <div class="control-group" ng-repeat="setting in settings | filter:{id: 'url'}" compile-html="renderSetting(setting)">
+            <div class="control-group" ng-repeat="setting in settings | idIn:['url']" compile-html="renderSetting(setting)">
                               </div>
 
             <!-- legacy site_address setting -->
@@ -63,7 +63,7 @@
       <div id="url_controls" ng-cloak ng-show="builder" class="well offset1">
           <div class="row-fluid">
               <!-- protocol -->
-              <div class="control-group" ng-repeat="setting in settings | filter:{id: 'web_server_protocol'}">
+              <div class="control-group" ng-repeat="setting in settings | idIn: ['web_server_protocol']">
                 <label class="control-label required" for="web_server_protocol">{{setting.label}}</label>
                 <div class="controls">
                   <select style="width:150px;" id="web_server_protocol" ng-model="answers['web_server_protocol']" ng-options="o.value as o.name for o in setting.choice"></select>
@@ -74,7 +74,7 @@
 
           <div class="row-fluid">
             <!-- domain -->
-            <div class="control-group" ng-repeat="setting in settings | filter:{id: 'domain'}">
+            <div class="control-group" ng-repeat="setting in settings | idIn: ['domain']">
               <label class="control-label required" for="domain">{{setting.label}}</label>
               <div class="controls">
                 <div class="input-append">
@@ -114,11 +114,44 @@
                 </div>
               </div>
           </div>
+
+          <div class="row-fluid">
+              <!-- ssl certificate -->
+              <div class="control-group offset1" ng-cloak ng-show="ShowCerts()" ng-repeat="setting in settings | filter:{id: 'ssl_certificate'}">
+                  <label class="control-label capitalize" for="ssl_certificate">{{setting.label}}</label>
+                  <div class="controls">
+                      <textarea cols="80" rolws="20" class="input-xlarge" id="ssl_certificate" ng-model="answers['ssl_certificate']" placeholder="{{setting.sample | prepend:'ex. '}}"></textarea>
+                      <p class="help-block">{{setting.description}} To generate internal certificates for testing, go to <a href="https://ssl.corp.rackspace.com/" target="_blank">https://ssl.corp.rackspace.com/</a></p>
+                  </div>
+              </div>
+          </div>
+
+          <div class="row-fluid">
+              <!-- ssl key -->
+              <div class="control-group offset1" ng-cloak ng-show="ShowCerts()" ng-repeat="setting in settings | filter:{id: 'ssl_private_key'}">
+                  <label class="control-label capitalize" for="ssl_certificate">{{setting.label}}</label>
+                  <div class="controls">
+                      <textarea cols="80" rolws="20" class="input-xlarge" id="ssl_private_key" ng-model="answers['ssl_private_key']" placeholder="{{setting.sample | prepend:'ex. '}}"></textarea>
+                      <p ng-hide="!setting.description" class="help-block">{{setting.description}}</p>
+                  </div>
+              </div>
+          </div>
+
+          <div class="row-fluid">
+              <!-- ssl CA certificate -->
+              <div class="control-group offset1" ng-cloak ng-show="ShowCerts()" ng-repeat="setting in settings | filter:{id: 'ssl_intermediate_certificate'}">
+                  <label class="control-label capitalize" for="ssl_intermediate_certificate">{{setting.label}}</label>
+                  <div class="controls">
+                      <textarea cols="80" rolws="20" class="input-xlarge" id="ssl_intermediate_certificate" ng-model="answers['ssl_intermediate_certificate']" placeholder="{{setting.sample | prepend:'ex. '}}"></textarea>
+                      <p ng-hide="!setting.description" class="help-block">{{setting.description}}</p>
+                  </div>
+              </div>
+          </div>
       </div>
 
       <div class="row-fluid">
           <!-- username -->
-          <div class="control-group offset1" ng-repeat="setting in settings | filter:{id: 'username'}">
+          <div class="control-group offset1" ng-repeat="setting in settings | idIn: ['username']">
             <label class="control-label required" for="path">{{setting.label}}</label>
             <div class="controls">
               <input type="text" name="username" class="input-xlarge" id="path" ng-model="answers['username']" placeholder="{{setting.sample | prepend:'ex. '}}">
@@ -127,38 +160,6 @@
           </div>
       </div>
 
-      <div class="row-fluid">
-          <!-- ssl certificate -->
-          <div class="control-group offset1" ng-cloak ng-show="ShowCerts()" ng-repeat="setting in settings | filter:{id: 'ssl_certificate'}">
-              <label class="control-label capitalize" for="ssl_certificate">{{setting.label}}</label>
-              <div class="controls">
-                  <textarea cols="80" rolws="20" class="input-xlarge" id="ssl_certificate" ng-model="answers['ssl_certificate']" placeholder="{{setting.sample | prepend:'ex. '}}"></textarea>
-                  <p class="help-block">{{setting.description}} To generate internal certificates for testing, go to <a href="https://ssl.corp.rackspace.com/" target="_blank">https://ssl.corp.rackspace.com/</a></p>
-              </div>
-          </div>
-      </div>
-
-      <div class="row-fluid">
-          <!-- ssl key -->
-          <div class="control-group offset1" ng-cloak ng-show="ShowCerts()" ng-repeat="setting in settings | filter:{id: 'ssl_private_key'}">
-              <label class="control-label capitalize" for="ssl_certificate">{{setting.label}}</label>
-              <div class="controls">
-                  <textarea cols="80" rolws="20" class="input-xlarge" id="ssl_private_key" ng-model="answers['ssl_private_key']" placeholder="{{setting.sample | prepend:'ex. '}}"></textarea>
-                  <p ng-hide="!setting.description" class="help-block">{{setting.description}}</p>
-              </div>
-          </div>
-      </div>
-
-      <div class="row-fluid">
-          <!-- ssl CA certificate -->
-          <div class="control-group offset1" ng-cloak ng-show="ShowCerts()" ng-repeat="setting in settings | filter:{id: 'ssl_intermediate_certificate'}">
-              <label class="control-label capitalize" for="ssl_intermediate_certificate">{{setting.label}}</label>
-              <div class="controls">
-                  <textarea cols="80" rolws="20" class="input-xlarge" id="ssl_intermediate_certificate" ng-model="answers['ssl_intermediate_certificate']" placeholder="{{setting.sample | prepend:'ex. '}}"></textarea>
-                  <p ng-hide="!setting.description" class="help-block">{{setting.description}}</p>
-              </div>
-          </div>
-      </div>
     </fieldset>
 
     <fieldset ng-hide="!showSettings()">
@@ -341,6 +342,38 @@
           <div class="controls">
             <input style="width:80px;" type="text" name="path_for_{{setting.id}}" class="input-xlarge" id="path_for_{{setting.id}}" placeholder="ex. /blog" ng-model="path" ng-change="UpdateURL(this, setting.id)">
           </div>
+        </div>
+    </div>
+    <div class="row-fluid">
+        <!-- ssl certificate -->
+        <div class="control-group offset1" ng-cloak ng-show="ShowCerts()" ng-repeat="setting in settings | filter:{id: 'ssl_certificate'}">
+            <label class="control-label capitalize" for="ssl_certificate">{{setting.label}}</label>
+            <div class="controls">
+                <textarea cols="80" rolws="20" class="input-xlarge" id="ssl_certificate" ng-model="answers['ssl_certificate']" placeholder="{{setting.sample | prepend:'ex. '}}"></textarea>
+                <p class="help-block">{{setting.description}} To generate internal certificates for testing, go to <a href="https://ssl.corp.rackspace.com/" target="_blank">https://ssl.corp.rackspace.com/</a></p>
+            </div>
+        </div>
+    </div>
+
+    <div class="row-fluid">
+        <!-- ssl key -->
+        <div class="control-group offset1" ng-cloak ng-show="ShowCerts()" ng-repeat="setting in settings | filter:{id: 'ssl_private_key'}">
+            <label class="control-label capitalize" for="ssl_certificate">{{setting.label}}</label>
+            <div class="controls">
+                <textarea cols="80" rolws="20" class="input-xlarge" id="ssl_private_key" ng-model="answers['ssl_private_key']" placeholder="{{setting.sample | prepend:'ex. '}}"></textarea>
+                <p ng-hide="!setting.description" class="help-block">{{setting.description}}</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="row-fluid">
+        <!-- ssl CA certificate -->
+        <div class="control-group offset1" ng-cloak ng-show="ShowCerts()" ng-repeat="setting in settings | filter:{id: 'ssl_intermediate_certificate'}">
+            <label class="control-label capitalize" for="ssl_intermediate_certificate">{{setting.label}}</label>
+            <div class="controls">
+                <textarea cols="80" rolws="20" class="input-xlarge" id="ssl_intermediate_certificate" ng-model="answers['ssl_intermediate_certificate']" placeholder="{{setting.sample | prepend:'ex. '}}"></textarea>
+                <p ng-hide="!setting.description" class="help-block">{{setting.description}}</p>
+            </div>
         </div>
     </div>
   </div>
