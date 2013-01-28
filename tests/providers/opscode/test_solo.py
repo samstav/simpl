@@ -17,6 +17,7 @@ from mox import In, IsA, And, IgnoreArg, ContainsKeyValue, Not
 
 from checkmate.utils import init_console_logging
 from unittest.case import skip
+import checkmate
 init_console_logging()
 LOG = logging.getLogger(__name__)
 
@@ -1507,6 +1508,7 @@ class TestTransform(unittest.TestCase):
                           database_name: db1
             """)
 
+        self.mox.StubOutWithMock(checkmate.deployments.resource_postback, "delay")
         fxn = solo.Transforms.collect_options
         task = self.mox.CreateMockAnything()
         spec = self.mox.CreateMockAnything()
@@ -1514,6 +1516,7 @@ class TestTransform(unittest.TestCase):
         spec.get_property('chef_options', {}).AndReturn({})
         spec.get_property('chef_output').AndReturn(output or {})
         spec.get_property('deployment').AndReturn(1)
+        checkmate.deployments.resource_postback.delay(IgnoreArg(), IgnoreArg()).AndReturn(None)
         results = {}
         task.attributes = results
         self.mox.ReplayAll()
