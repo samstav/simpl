@@ -346,6 +346,13 @@ All calls are supported flat off of the root or under a tenant ID. Calls off of 
     GET /status/libraries
 
 
+    # If the server is started with --with-simulator, the following calls are avaiable:
+
+    POST [/:tid]/deployments/simulate
+    GET [/:tid]/deployments/simulate
+    GET [/:tid]/workflows/simulate/status  #progresses the workflow by one task
+    GET [/:tid]/workflows/simulate/status?complete  #cmpletes the workflow
+
 ## Usage
 
 To start the checkmate REST API server:
