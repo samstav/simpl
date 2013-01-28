@@ -1708,7 +1708,7 @@ function DeploymentNewController($scope, $location, $routeParams, $resource, set
   $scope.ShowCerts = function() {
     if ('web_server_protocol' in $scope.answers && $scope.answers['web_server_protocol'].indexOf('https') != -1)
       return true;
-    if ('url' in $scope.answers && $scope.answers['url'].indexOf('https') == 1)
+    if ('url' in $scope.answers && $scope.answers['url'].indexOf('https') != -1)
       return true;
     return false;
   };
