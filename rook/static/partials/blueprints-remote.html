@@ -8,7 +8,7 @@
   </div>
 </div>
 
-<div class="span3 summaryBar" ng-init="parse_url('https://github.rackspace.com/Blueprints')">
+<div class="span3 summaryBar" ng-init="parse_org_url('https://github.rackspace.com/Blueprints')">
   <div class="summaryHeader">
     <div class="top well" ng-cloak ng-show="showStatus">
       <div class="row-fluid" style="height: 20px;">
@@ -22,18 +22,18 @@
         </div>
       </div>
 
-      <h4><img src="/static/img/github.ico"> github <span ng-cloak ng-show="remote_user">User: {{remote_user}}</span><span ng-cloak ng-show="remote_org">Org: {{remote_org}}</span></h4>
-      <div ng-cloak ng-show="remote_server">on {{remote_server}}</div>
+      <h4><img src="/static/img/github.ico"> github <span ng-cloak ng-show="remote.user">User: {{remote.user}}</span><span ng-cloak ng-show="remote.org">Org: {{remote.org}}</span></h4>
+      <div ng-cloak ng-show="remote.server">on {{remote.server}}</div>
 
       <div class="control-group" style="padding-top: 5px;">
         <label class="control-label required" for="url">Enter URL to an org or user:</label>
         <div class="controls">
           <div class="input-append" ng-init="url_list = ['https://github.rackspace.com/Blueprints']">
-            <input id="url" type="text" class="input" data-provide="typeahead" data-source="{{url_list}}" ng-model="remote_url"></input>
+            <input id="url" type="text" class="input" data-provide="typeahead" data-source="{{url_list}}" ng-model="remote.url"></input>
             <button class="btn dropdown-toggle" type="button" data-toggle="dropdown" data-target="#urls_menu"><b class="caret"></b></button>
             <div id="urls_menu" class="dropdown">
               <ul class="dropdown-menu" role="menu" aria-labelledby="dLabel">
-                <li ng-repeat="o in url_list"><a href="#" ng-click="$parent.remote_url=o;reload_blueprints();">{{o}}</a></li>
+                <li ng-repeat="o in url_list"><a href="#" ng-click="$parent.remote.url=o;reload_blueprints();">{{o}}</a></li>
               </ul>
             </div>
           </div>

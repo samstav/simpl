@@ -28,9 +28,19 @@ checkmate.config(['$routeProvider', '$locationProvider', '$httpProvider', functi
 
   // New UI - static pages
   $routeProvider.
-  when('/deployments/default', {
+  when('/deployments/new/wordpress', {
     templateUrl: '/partials/managed-cloud-wordpress.html',
     controller: DeploymentManagedCloudController
+  }).when('/deployments/default', {  // for legacy compat for a while
+    templateUrl: '/partials/managed-cloud-wordpress.html',
+    controller: DeploymentManagedCloudController
+  }).when('/deployments/new', {
+    templateUrl: '/partials/deployment-new-remote.html',
+    controller: DeploymentNewRemoteController
+  }).when('/:tenantId/deployments/new', {
+    templateUrl: '/partials/deployment-new-remote.html',
+    controller: DeploymentNewRemoteController,
+    reloadOnSearch: false
   }).
   when('/deployments/wordpress-stacks', {
     templateUrl: '/partials/wordpress-stacks.html',
@@ -376,7 +386,6 @@ function AppController($scope, $http, $location, $resource) {
   $scope.encodeURIComponent = function(data) {
     return encodeURIComponent(data);
   };
-
 }
 
 function NavBarController($scope, $location) {
@@ -416,7 +425,6 @@ function NavBarController($scope, $location) {
       $("#feedback_error").show();
     });
   };
-
 }
 
 function ActivityFeedController($scope, $http, items) {
@@ -748,7 +756,7 @@ function WorkflowController($scope, $resource, $http, $routeParams, $location, $
                 }
             });
             all_data.push('Applications: ');
-            if ($scope.output.username == undefined) {
+            if ($scope.output.username === undefined) {
                 _.each($scope.output.resources, function(resource) {
                     if (resource.type == 'application' && resource.instance !== undefined) {
                         _.each(resource.instance, function(instance) {
@@ -1220,146 +1228,113 @@ function BlueprintListController($scope, $location, $routeParams, $resource, ite
   });
 }
 
-function BlueprintRemoteListController($scope, $location, $routeParams, $resource, $http, items, navbar, settings, workflow) {
+function BlueprintRemoteListController($scope, $location, $routeParams, $resource, $http, items, navbar, settings, workflow, github) {
   //Inherit from Blueprint List Controller
   BlueprintListController($scope, $location, $routeParams, $resource, items, navbar, settings, workflow, {}, null, {}, null);
   //Model: UI
   $scope.loading_remote_blueprints = false;
 
-  $scope.remote_url = null;
-  $scope.remote_server = null;
-  $scope.remote_org = null;
-  $scope.remote_user = null;
-  $scope.remote_branch = null;
+  $scope.default_branch = 'master';
+  $scope.remote = {};
+  $scope.remote.url = null;
+  $scope.remote.server = null;
+  $scope.remote.owner = null;
+  $scope.remote.org = null;
+  $scope.remote.user = null;
+  $scope.remote.repo = null;
+  $scope.remote.branch = null;
 
-  $scope.parse_url = function(url) {
-    var u = URI(url);
-    $scope.remote_server = u.protocol() + '://' + u.host(); //includes port
+  $scope.parse_org_url = function(url) {
+    console.log('parse_org_url', url);
     $scope.loading_remote_blueprints = true;
-    if(!$scope.$$phase)
-      $scope.$apply();
-    $http({method: 'HEAD', url: (checkmate_server_base || '') + '/githubproxy/api/v3/orgs' + u.path(),
-        headers: {'X-Target-Url': $scope.remote_server, 'accept': 'application/json'}}).
-    success(function(data, status, headers, config) {
-      $scope.remote_url = u.href();
-      $scope.remote_org = u.path().substring(1);
-      $scope.remote_user = null;
-      $scope.load();
-    }).
-    error(function(data, status, headers, config) {
-      $scope.remote_url = u.href();
-      $scope.remote_org = null;
-      $scope.remote_user = u.path().substring(1);
-      $scope.load();
-    });
+    $scope.remote = github.parse_org_url(url, $scope.load);
+  };
+
+  //Handle results of loading repositories
+  $scope.receive_blueprints = function(data) {
+    items.clear();
+    items.receive(data, function(item, key) {
+      return {key: item.id, id: item.html_url, name: item.name, description: item.description, git_url: item.git_url, selected: false};});
+    $scope.count = items.count;
+    $scope.items = items.all;
+    $scope.loading_remote_blueprints = false;
   };
 
   $scope.load = function() {
-    console.log("Starting load");
+    console.log("Starting load", $scope.remote);
     $scope.loading_remote_blueprints = true;
-    var path = (checkmate_server_base || '') + '/githubproxy/api/v3/orgs/' + $scope.remote_org + '/repos';
-    if ($scope.remote_org === null)
-      path = (checkmate_server_base || '') + '/githubproxy/api/v3/users/' + $scope.remote_user + '/repos';
-    console.log("Loading: " + path);
-    $http({method: 'GET', url: path, headers: {'X-Target-Url': $scope.remote_server, 'accept': 'application/json'}}).
-      success(function(data, status, headers, config) {
-        console.log("Load returned");
-        items.clear();
-        items.receive(data, function(item, key) {
-          return {key: item.id, id: item.html_url, name: item.name, description: item.description, git_url: item.git_url, selected: false};});
-        $scope.count = items.count;
-        $scope.items = items.all;
-        $scope.loading_remote_blueprints = false;
-        console.log("Done loading");
-      }).
-      error(function(data, status, headers, config) {
-        $scope.loading_remote_blueprints = false;
-        var response = {data: data, status: status};
-        $scope.show_error(response);
-      });
-    };
-
-  $scope.reload_blueprints = function() {
-    $scope.items = [];
-    items.clear();
-    $scope.parse_url($scope.remote_url);
-  };
-
-  $scope.get_branches = function(selected) {
-    $http({method: 'GET', url: (checkmate_server_base || '') + '/githubproxy/api/v3/repos/' + ($scope.remote_org || $scope.remote_user) + '/' + selected.name + '/branches',
-        headers: {'X-Target-Url': $scope.remote_server, 'accept': 'application/json'}}).
-    success(function(data, status, headers, config) {
-      $scope.branches = data;
-      if (data.length >= 1) {
-        $scope.remote_branch = data[0];
-        $scope.loadBlueprint(data[0]);
-      } else
-        $scope.remote_branch = null;
-    }).
-    error(function(data, status, headers, config) {
-      $scope.branches = [];
-      $scope.remote_branch = null;
+    github.get_repos($scope.remote, $scope.receive_blueprints, function(data) {
+      $scope.loading_remote_blueprints = false;
+      $scope.show_error(data);
     });
   };
 
-  $scope.loadBlueprint = function(branch) {
-    var branch_name = branch.name;
-    var branch_sha = branch.commit.sha;
-    $http({method: 'GET', url: (checkmate_server_base || '') + '/githubproxy/api/v3/repos/' + ($scope.remote_org || $scope.remote_user) + '/' + $scope.selected.name + '/git/trees/' + branch_sha,
-        headers: {'X-Target-Url': $scope.remote_server, 'accept': 'application/json'}}).
-    success(function(data, status, headers, config) {
-      var checkmate_yaml_file = _.find(data.tree, function(file) {return file.path == "checkmate.yaml";});
-      if (checkmate_yaml_file === undefined) {
-        $scope.notify("No 'checkmate.yaml' found in the repository '" + $scope.selected.name + "'");
-      } else {
-        $http({method: 'GET', url: (checkmate_server_base || '') + '/githubproxy/api/v3/repos/' + ($scope.remote_org || $scope.remote_user) + '/' + $scope.selected.name + '/git/blobs/' + checkmate_yaml_file.sha,
-            headers: {'X-Target-Url': $scope.remote_server, 'Accept': 'application/vnd.github.v3.raw'}}).
-        success(function(data, status, headers, config) {
-          var checkmate_yaml = {};
-          try {
-            checkmate_yaml = YAML.parse(data.replace('%repo_url%', $scope.selected.git_url + '#' + branch.name).replace('%username%', $scope.auth.username || '%username%'));
-          } catch(err) {
-            if (err.name == "YamlParseException")
-              $scope.notify("YAML syntax error in line " + err.parsedLine + ". '" + err.snippet + "' caused error '" + err.message + "'");
-          }
-          if ('environment' in checkmate_yaml) {
-            if (!('name' in checkmate_yaml.environment))
-              checkmate_yaml.environment.name = "- not named -";
-            if (!('id' in checkmate_yaml.environment))
-              checkmate_yaml.environment.id = "included";
-            var env_name = checkmate_yaml.environment.name;
-            $scope.environments = {env_name: checkmate_yaml.environment};
-            $scope.environment = checkmate_yaml.environment;
-          } else {
-            //TODO: create from catalog
-            $scope.environments = {};
-            $scope.environment = null;
-          }
+  $scope.reload_blueprints = function() {
+    console.log('reload_blueprints', $scope.remote);
+    $scope.items = [];
+    items.clear();
+    $scope.parse_org_url($scope.remote.url);
+  };
 
-          if ('blueprint' in checkmate_yaml) {
-            $scope.blueprint = checkmate_yaml.blueprint;
-          } else {
-            $scope.blueprint = null;
-          }
-          $scope.updateSettings();
-        }).
-        error(function(data, status, headers, config) {
-          var response = {data: data, status: status};
-          $scope.show_error(response);
-        });
-      }
-    }).
-    error(function(data, status, headers, config) {
+  $scope.receive_branches = function(data) {
+    console.log("BRANCHES", data);
+    $scope.branches = data;
+    if (data.length >= 1) {
+      var select = _.find(data, function(branch) {return branch.name == $scope.default_branch;});
+      $scope.remote.branch = select || data[0];
+      $scope.loadBlueprint();
+    } else
+      $scope.remote.branch = null;
+  };
+
+  $scope.get_branches = function() {
+    console.log('get_branches');
+    github.get_branches($scope.remote, $scope.receive_branches, function(response) {
       $scope.branches = [];
+      $scope.remote.branch = null;
+    });
+  };
+
+  $scope.receive_blueprint = function(data) {
+    if ('environment' in data) {
+      if (!('name' in data.environment))
+        data.environment.name = "- not named -";
+      if (!('id' in data.environment))
+        data.environment.id = "included";
+      var env_name = data.environment.name;
+      $scope.environments = {env_name: data.environment};
+      $scope.environment = data.environment;
+    } else {
+      //TODO: create from catalog
+      $scope.environments = {};
+      $scope.environment = null;
+    }
+
+    if ('blueprint' in data) {
+      $scope.blueprint = data.blueprint;
+    } else {
+      $scope.blueprint = null;
+    }
+    $scope.updateSettings();
+  };
+
+  $scope.loadBlueprint = function() {
+    console.log('loadBlueprint', $scope.remote);
+    github.get_blueprint($scope.remote, $scope.auth.username, $scope.receive_blueprint, function(data) {
+      if (typeof data == 'string') {
+        $scope.notify(data);
+      } else {
+        $scope.show_error(data);
+      }
     });
   };
 
   $scope.$watch('selected', function(newVal, oldVal, scope) {
     if (typeof newVal == 'object') {
-      $scope.get_branches(newVal);  //calls loadBlueprint()
+      $scope.remote.repo = newVal;
+      $scope.get_branches();  //calls loadBlueprint()
     }
   });
-
 }
 
 //Deployment controllers
@@ -1419,47 +1394,36 @@ function DeploymentListController($scope, $location, $http, $resource, scroll, i
 }
 
 //Hard-coded for Managed Cloud Wordpress
-function DeploymentManagedCloudController($scope, $location, $routeParams, $resource, $http, items, navbar, settings, workflow) {
+function DeploymentManagedCloudController($scope, $location, $routeParams, $resource, $http, items, navbar, settings, workflow, github) {
 
-  $scope.loadRemoteBlueprint = function(blueprint_name) {
-    $http({method: 'GET', url: (checkmate_server_base || '') + '/githubproxy/api/v3/repos/Blueprints/' + blueprint_name + '/git/trees/master',
-        headers: {'X-Target-Url': 'https://github.rackspace.com/', 'accept': 'application/json'}}).
-    success(function(data, status, headers, config) {
-      var checkmate_yaml_file = _.find(data.tree, function(file) {return file.path == "checkmate.yaml";});
-      if (checkmate_yaml_file === undefined) {
-        $scope.notify("No 'checkmate.yaml' found in the repository '" + $scope.selected.name + "'");
-      } else {
-        $http({method: 'GET', url: (checkmate_server_base || '') + '/githubproxy/api/v3/repos/Blueprints/' + blueprint_name + '/git/blobs/' + checkmate_yaml_file.sha,
-            headers: {'X-Target-Url': 'https://github.rackspace.com/', 'Accept': 'application/vnd.github.v3.raw'}}).
-        success(function(data, status, headers, config) {
-          var checkmate_yaml = {};
-          try {
-            checkmate_yaml = YAML.parse(data);
-          } catch(err) {
-            if (err.name == "YamlParseException")
-              $scope.notify("YAML syntax error in line " + err.parsedLine + ". '" + err.snippet + "' caused error '" + err.message + "'");
-          }
-          if ('blueprint' in checkmate_yaml) {
-            if ($scope.auth.loggedIn === true) {
-              checkmate_yaml.blueprint.options.region['default'] = $scope.auth.catalog.access.user['RAX-AUTH:defaultRegion'] || $scope.auth.catalog.access.regions[0];
-              checkmate_yaml.blueprint.options.region.choice = $scope.auth.catalog.access.regions;
-            }
-            WPBP[blueprint_name] = checkmate_yaml.blueprint;
-            var new_blueprints = {};
-            new_blueprints[blueprint_name] = checkmate_yaml.blueprint;
-            items.receive(new_blueprints, function(item, key) {
-              return {key: key, id: item.id, name: item.name, description: item.description, selected: false};});
-            $scope.count = items.count;
-            $scope.items = items.all;
-          }
-        }).
-        error(function(data, status, headers, config) {
-          $scope.notify('Unable to load latest version of ' + blueprint_name + ' from github');
-        });
+  $scope.receive_blueprint = function(data) {
+    if ('blueprint' in data) {
+      if ($scope.auth.loggedIn === true) {
+        data.blueprint.options.region['default'] = $scope.auth.catalog.access.user['RAX-AUTH:defaultRegion'] || $scope.auth.catalog.access.regions[0];
+        data.blueprint.options.region.choice = $scope.auth.catalog.access.regions;
       }
-    }).
-    error(function(data, status, headers, config) {
-      $scope.notify('Unable to find latest version of ' + blueprint_name + ' from github');
+      WPBP[data.blueprint.name] = data.blueprint;
+      var new_blueprints = {};
+      new_blueprints[data.blueprint.name] = data.blueprint;
+      items.receive(new_blueprints, function(item, key) {
+        return {key: key, id: item.id, name: item.name, description: item.description, selected: false};});
+      $scope.count = items.count;
+      $scope.items = items.all;
+    }
+  };
+
+  $scope.loadRemoteBlueprint = function(blueprint_name, branch_name) {
+    var remote = {};
+    remote.server = 'https://github.rackspace.com/';
+    remote.owner = 'Blueprints';
+    remote.repo = {};
+    remote.repo.name = blueprint_name;
+    remote.branch = {};
+    remote.branch.commit = {};
+    remote.branch.commit.sha = branch_name;
+
+    github.get_blueprint(remote, $scope.auth.username, $scope.receive_blueprint, function(data) {
+      $scope.notify('Unable to load latest version of ' + blueprint_name + ' from github');
     });
   };
 
@@ -1470,11 +1434,14 @@ function DeploymentManagedCloudController($scope, $location, $routeParams, $reso
           "name": "Legacy Cloud Servers",
           "providers": {
               "legacy": {},
-              "chef-local": {
+              "chef-solo": {
                   "vendor": "opscode",
                   "provides": [
                       {
                           "application": "http"
+                      },
+                      {
+                          "application": "ssh"
                       },
                       {
                           "database": "mysql"
@@ -1495,11 +1462,14 @@ function DeploymentManagedCloudController($scope, $location, $routeParams, $reso
           "name": "Next-Gen Open Cloud",
           "providers": {
               "nova": {},
-              "chef-local": {
+              "chef-solo": {
                   "vendor": "opscode",
                   "provides": [
                       {
                           "application": "http"
+                      },
+                      {
+                          "application": "ssh"
                       },
                       {
                           "database": "mysql"
@@ -1519,9 +1489,6 @@ function DeploymentManagedCloudController($scope, $location, $routeParams, $reso
 
   //Initial Wordpress Templates
   var WPBP = {};
-  //Load the two tested versions stored in Rook
-  WPBP.DBaaS = YAML.parse(dbaasBlueprint.innerHTML).blueprint;
-  WPBP.MySQL = YAML.parse(mysqlBlueprint.innerHTML).blueprint;
 
   $scope.setAllBlueprintRegions = function() {
     _.each(WPBP, function(value, key) {
@@ -1538,29 +1505,26 @@ function DeploymentManagedCloudController($scope, $location, $routeParams, $reso
   items.clear();
   //$scope.blueprints = WPBP;
   BlueprintListController($scope, $location, $routeParams, $resource, items, navbar, settings, workflow,
-                          WPBP, 'MySQL', ENVIRONMENTS, 'next-gen');
+                          WPBP, null, ENVIRONMENTS, 'next-gen');
   //$scope.showSummaries = false;
 
   $scope.updateDatabaseProvider = function() {
-    if ($scope.blueprint.id == WPBP.MySQL.id) {
+    if ($scope.blueprint.id == '0255a076c7cf4fd38c69b6727f0b37ea') {
         //Remove DBaaS Provider
         if ('database' in $scope.environment.providers)
             delete $scope.environment.providers.database;
         //Add database support to chef provider
-        $scope.environment.providers['chef-local'].provides[1] = {database: "mysql"};
-    } else if ($scope.blueprint.id == WPBP.DBaaS.id) {
+        $scope.environment.providers['chef-solo'].provides[2] = {database: "mysql"};
+    } else if ($scope.blueprint.id == 'd8fcfc17-b515-473a-9fe1-6d4e3356ef8d') {
         //Add DBaaS Provider
         $scope.environment.providers.database = {};
         //Remove database support from chef-local
-        if ($scope.environment.providers['chef-local'].provides.length > 1)
-            $scope.environment.providers['chef-local'].provides.pop(1);
-        if ($scope.environment.providers['chef-local'].provides.length > 1)
-            $scope.environment.providers['chef-local'].provides.pop(1);
+        if ($scope.environment.providers['chef-solo'].provides.length > 2)
+            $scope.environment.providers['chef-solo'].provides.pop(2);
+        if ($scope.environment.providers['chef-solo'].provides.length > 2)
+            $scope.environment.providers['chef-solo'].provides.pop(2);
     }
   };
-
-  $scope.updateSettings();
-  $scope.updateDatabaseProvider();
 
   //Wire Blueprints to Deployment
   $scope.$watch('blueprint', function(newVal, oldVal, scope) {
@@ -1575,8 +1539,38 @@ function DeploymentManagedCloudController($scope, $location, $routeParams, $reso
   });
 
   //Load the latest master from github
-  $scope.loadRemoteBlueprint('wordpress');
-  $scope.loadRemoteBlueprint('wordpress-clouddb');
+  $scope.loadRemoteBlueprint('wordpress', 'chef-solo');
+  $scope.loadRemoteBlueprint('wordpress-clouddb', 'chef-solo');
+}
+
+//Select one remote blueprint
+function DeploymentNewRemoteController($scope, $location, $routeParams, $resource, $http, items, navbar, settings, workflow, github) {
+
+  var blueprint = $location.search().blueprint;
+  var u = URI(blueprint);
+
+  BlueprintRemoteListController($scope, $location, $routeParams, $resource, $http, items, navbar, settings, workflow, github);
+
+  //Override it with a one repo load
+  $scope.load = function() {
+    console.log("Starting load", $scope.remote);
+    $scope.loading_remote_blueprints = true;
+    github.get_repo($scope.remote, $scope.remote.repo.name,
+      function(data) {
+        $scope.remote.repo = data;
+        $scope.default_branch = u.fragment() || 'master';
+        $scope.selected = $scope.remote.repo;
+      },
+      function(data) {
+        $scope.loading_remote_blueprints = false;
+        $scope.show_error(data);
+      });
+  };
+
+  //Instead of parse_org_url
+  $scope.loading_remote_blueprints = true;
+  $scope.remote = github.parse_org_url(blueprint, $scope.load);
+
 }
 
 // Handles the option setting and deployment launching
@@ -1626,7 +1620,7 @@ function DeploymentNewController($scope, $location, $routeParams, $resource, set
 
     if ($scope.environment) {
       $scope.settings = $scope.settings.concat(settings.getSettingsFromEnvironment($scope.environment));
-      if ('legacy' in $scope.environment.providers) {
+      if ('providers' in $scope.environment && 'legacy' in $scope.environment.providers) {
         if ($scope.settings && $scope.auth.loggedIn === true && 'RAX-AUTH:defaultRegion' in $scope.auth.catalog.access.user) {
             _.each($scope.settings, function(setting) {
                 if (setting.id == 'region') {
@@ -1648,7 +1642,13 @@ function DeploymentNewController($scope, $location, $routeParams, $resource, set
         setting.choice = $scope.auth.catalog.access.regions;
     });
     $scope.show_site_address_controls = _.any($scope.settings, function(setting) {return ['domain', 'web_server_protocol'].indexOf(setting.id) > -1;});
-    if (_.any($scope.settings, function(setting) {return setting.id == 'domain';}) && $scope.domain_names === null)
+    if (_.any($scope.settings, function(setting) {
+        if (setting.id == 'domain')
+          return true;
+        if ('type' in setting && setting['type'] == 'url')
+          return true;
+        return false;
+        }) && $scope.domain_names === null)
       $scope.getDomains();
   };
 
@@ -1845,7 +1845,6 @@ function DeploymentNewController($scope, $location, $routeParams, $resource, set
     $scope.updateSettings();
   };
   $scope.$on('logIn', $scope.OnLogIn);
-
 }
 
 function DeploymentController($scope, $location, $resource, $routeParams) {
