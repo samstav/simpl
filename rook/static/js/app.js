@@ -31,6 +31,13 @@ checkmate.config(['$routeProvider', '$locationProvider', '$httpProvider', functi
   when('/deployments/default', {
     templateUrl: '/partials/managed-cloud-wordpress.html',
     controller: DeploymentManagedCloudController
+  }).when('/deployments/new', {
+    templateUrl: '/partials/deployment-new-remote.html',
+    controller: DeploymentNewRemoteController
+  }).when('/:tenantId/deployments/new', {
+    templateUrl: '/partials/deployment-new-remote.html',
+    controller: DeploymentNewRemoteController,
+    reloadOnSearch: false
   }).
   when('/deployments/wordpress-stacks', {
     templateUrl: '/partials/wordpress-stacks.html',
@@ -1226,6 +1233,7 @@ function BlueprintRemoteListController($scope, $location, $routeParams, $resourc
   //Model: UI
   $scope.loading_remote_blueprints = false;
 
+  $scope.default_branch = 'master';
   $scope.remote = {};
   $scope.remote.url = null;
   $scope.remote.server = null;
@@ -1241,7 +1249,8 @@ function BlueprintRemoteListController($scope, $location, $routeParams, $resourc
     $scope.remote = github.parse_org_url(url, $scope.load);
   };
 
-  $scope.receive = function(data) {
+  //Handle results of loading repositories
+  $scope.receive_blueprints = function(data) {
     items.clear();
     items.receive(data, function(item, key) {
       return {key: item.id, id: item.html_url, name: item.name, description: item.description, git_url: item.git_url, selected: false};});
@@ -1250,15 +1259,13 @@ function BlueprintRemoteListController($scope, $location, $routeParams, $resourc
     $scope.loading_remote_blueprints = false;
   };
 
-  $scope.receive_error = function(data) {
-    $scope.loading_remote_blueprints = false;
-    $scope.show_error(data);
-  };
-
   $scope.load = function() {
     console.log("Starting load", $scope.remote);
     $scope.loading_remote_blueprints = true;
-    github.load_repos($scope.remote, $scope.receive, $scope.receive_error);
+    github.get_repos($scope.remote, $scope.receive_blueprints, function(data) {
+      $scope.loading_remote_blueprints = false;
+      $scope.show_error(data);
+    });
   };
 
   $scope.reload_blueprints = function() {
@@ -1268,84 +1275,65 @@ function BlueprintRemoteListController($scope, $location, $routeParams, $resourc
     $scope.parse_org_url($scope.remote.url);
   };
 
-  $scope.get_branches = function(selected) {
-    console.log('get_branches', selected);
-    $http({method: 'GET', url: (checkmate_server_base || '') + '/githubproxy/api/v3/repos/' + ($scope.remote.org || $scope.remote.user) + '/' + selected.name + '/branches',
-        headers: {'X-Target-Url': $scope.remote.server, 'accept': 'application/json'}}).
-    success(function(data, status, headers, config) {
-      $scope.branches = data;
-      if (data.length >= 1) {
-        $scope.remote_branch = data[0];
-        $scope.loadBlueprint(data[0]);
-      } else
-        $scope.remote_branch = null;
-    }).
-    error(function(data, status, headers, config) {
+  $scope.receive_branches = function(data) {
+    console.log("BRANCHES", data);
+    $scope.branches = data;
+    if (data.length >= 1) {
+      var select = _.find(data, function(branch) {return branch.name == $scope.default_branch;});
+      $scope.remote.branch = select || data[0];
+      $scope.loadBlueprint();
+    } else
+      $scope.remote.branch = null;
+  };
+
+  $scope.get_branches = function() {
+    console.log('get_branches');
+    github.get_branches($scope.remote, $scope.receive_branches, function(response) {
       $scope.branches = [];
-      $scope.remote_branch = null;
+      $scope.remote.branch = null;
     });
   };
 
-  $scope.loadBlueprint = function(branch) {
-    console.log('loadBlueprint', branch);
-    var branch_name = branch.name;
-    var branch_sha = branch.commit.sha;
-    var repo_name = $scope.selected.name;
-    $http({method: 'GET', url: (checkmate_server_base || '') + '/githubproxy/api/v3/repos/' + ($scope.remote.org || $scope.remote.user) + '/' + repo_name + '/git/trees/' + branch_sha,
-        headers: {'X-Target-Url': $scope.remote.server, 'accept': 'application/json'}}).
-    success(function(data, status, headers, config) {
-      var checkmate_yaml_file = _.find(data.tree, function(file) {return file.path == "checkmate.yaml";});
-      if (checkmate_yaml_file === undefined) {
-        $scope.notify("No 'checkmate.yaml' found in the repository '" + $scope.selected.name + "'");
-      } else {
-        $http({method: 'GET', url: (checkmate_server_base || '') + '/githubproxy/api/v3/repos/' + ($scope.remote.org || $scope.remote.user) + '/' + repo_name + '/git/blobs/' + checkmate_yaml_file.sha,
-            headers: {'X-Target-Url': $scope.remote.server, 'Accept': 'application/vnd.github.v3.raw'}}).
-        success(function(data, status, headers, config) {
-          var checkmate_yaml = {};
-          try {
-            checkmate_yaml = YAML.parse(data.replace('%repo_url%', $scope.selected.git_url + '#' + branch.name).replace('%username%', $scope.auth.username || '%username%'));
-          } catch(err) {
-            if (err.name == "YamlParseException")
-              $scope.notify("YAML syntax error in line " + err.parsedLine + ". '" + err.snippet + "' caused error '" + err.message + "'");
-          }
-          if ('environment' in checkmate_yaml) {
-            if (!('name' in checkmate_yaml.environment))
-              checkmate_yaml.environment.name = "- not named -";
-            if (!('id' in checkmate_yaml.environment))
-              checkmate_yaml.environment.id = "included";
-            var env_name = checkmate_yaml.environment.name;
-            $scope.environments = {env_name: checkmate_yaml.environment};
-            $scope.environment = checkmate_yaml.environment;
-          } else {
-            //TODO: create from catalog
-            $scope.environments = {};
-            $scope.environment = null;
-          }
+  $scope.receive_blueprint = function(data) {
+    if ('environment' in data) {
+      if (!('name' in data.environment))
+        data.environment.name = "- not named -";
+      if (!('id' in data.environment))
+        data.environment.id = "included";
+      var env_name = data.environment.name;
+      $scope.environments = {env_name: data.environment};
+      $scope.environment = data.environment;
+    } else {
+      //TODO: create from catalog
+      $scope.environments = {};
+      $scope.environment = null;
+    }
 
-          if ('blueprint' in checkmate_yaml) {
-            $scope.blueprint = checkmate_yaml.blueprint;
-          } else {
-            $scope.blueprint = null;
-          }
-          $scope.updateSettings();
-        }).
-        error(function(data, status, headers, config) {
-          var response = {data: data, status: status};
-          $scope.show_error(response);
-        });
+    if ('blueprint' in data) {
+      $scope.blueprint = data.blueprint;
+    } else {
+      $scope.blueprint = null;
+    }
+    $scope.updateSettings();
+  };
+
+  $scope.loadBlueprint = function() {
+    console.log('loadBlueprint', $scope.remote);
+    github.get_blueprint($scope.remote, $scope.auth.username, $scope.receive_blueprint, function(data) {
+      if (typeof data == 'string') {
+        $scope.notify(data);
+      } else {
+        $scope.show_error(data);
       }
-    }).
-    error(function(data, status, headers, config) {
-      $scope.branches = [];
     });
   };
 
   $scope.$watch('selected', function(newVal, oldVal, scope) {
     if (typeof newVal == 'object') {
-      $scope.get_branches(newVal);  //calls loadBlueprint()
+      $scope.remote.repo = newVal;
+      $scope.get_branches();  //calls loadBlueprint()
     }
   });
-
 }
 
 //Deployment controllers
@@ -1563,6 +1551,36 @@ function DeploymentManagedCloudController($scope, $location, $routeParams, $reso
   //Load the latest master from github
   $scope.loadRemoteBlueprint('wordpress');
   $scope.loadRemoteBlueprint('wordpress-clouddb');
+}
+
+//Select one remote blueprint
+function DeploymentNewRemoteController($scope, $location, $routeParams, $resource, $http, items, navbar, settings, workflow, github) {
+
+  var blueprint = $location.search().blueprint;
+  var u = URI(blueprint);
+
+  BlueprintRemoteListController($scope, $location, $routeParams, $resource, $http, items, navbar, settings, workflow, github);
+
+  //Override it with a one repo load
+  $scope.load = function() {
+    console.log("Starting load", $scope.remote);
+    $scope.loading_remote_blueprints = true;
+    github.get_repo($scope.remote, $scope.remote.repo.name,
+      function(data) {
+        $scope.remote.repo = data;
+        $scope.default_branch = u.fragment() || 'master';
+        $scope.selected = $scope.remote.repo;
+      },
+      function(data) {
+        $scope.loading_remote_blueprints = false;
+        $scope.show_error(data);
+      });
+  };
+
+  //Instead of parse_org_url
+  $scope.loading_remote_blueprints = true;
+  $scope.remote = github.parse_org_url(blueprint, $scope.load);
+
 }
 
 // Handles the option setting and deployment launching

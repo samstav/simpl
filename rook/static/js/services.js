@@ -502,7 +502,11 @@ services.factory('github', ['$http', function($http) {
       results.server = u.protocol() + '://' + u.host(); //includes port
       results.url = u.href();
       results.owner = first_path_part;
-      results.repo = parts.length > 1 ? parts[1] : null;
+      if (parts.length > 1) {
+        results.repo = {name: parts[1]};
+      } else {
+        results.repo = {};
+      }
       //Test if org
       $http({method: 'HEAD', url: (checkmate_server_base || '') + '/githubproxy/api/v3/orgs/' + first_path_part,
           headers: {'X-Target-Url': results.server, 'accept': 'application/json'}}).
@@ -521,7 +525,8 @@ services.factory('github', ['$http', function($http) {
       return results;
     },
 
-    load_repos: function(remote, callback, error_callback) {
+    //Load all repos for owner
+    get_repos: function(remote, callback, error_callback) {
       var path = (checkmate_server_base || '') + '/githubproxy/api/v3/';
       if (remote.org !== null) {
         path += 'orgs/' + remote.org + '/repos';
@@ -540,20 +545,78 @@ services.factory('github', ['$http', function($http) {
         });
     },
 
-    get_branch_sha: function(remote, branch_name) {
-      $http({method: 'GET', url: (checkmate_server_base || '') + '/githubproxy/api/v3/repos/' + remote.owner + '/' + remote.repo + '/branches/' + branch_name,
-        headers: {'X-Target-Url': $scope.remote.server, 'accept': 'application/json'}}).
+    //Load one repo
+    get_repo: function(remote, repo_name, callback, error_callback) {
+      var path = (checkmate_server_base || '') + '/githubproxy/api/v3/repos/' + remote.owner + '/' + repo_name;
+      console.log("Loading: " + path);
+      $http({method: 'GET', url: path, headers: {'X-Target-Url': remote.server, 'accept': 'application/json'}}).
+        success(function(data, status, headers, config) {
+          callback(data);
+        }).
+        error(function(data, status, headers, config) {
+          var response = {data: data, status: status};
+          error_callback(response);
+        });
+    },
+
+    //Get all branches for a repo
+    get_branches: function(remote, callback, error_callback) {
+      $http({method: 'GET', url: (checkmate_server_base || '') + '/githubproxy/api/v3/repos/' + remote.owner + '/' + remote.repo.name + '/branches',
+          headers: {'X-Target-Url': remote.server, 'accept': 'application/json'}}).
       success(function(data, status, headers, config) {
-        $scope.branches = data;
-        if (data.length >= 1) {
-          $scope.remote.branch = data[0];
-          $scope.loadBlueprint(data[0]);
-        } else
-          $scope.remote.branch = null;
+        callback(data);
       }).
       error(function(data, status, headers, config) {
-        $scope.branches = [];
-        $scope.remote.branch = null;
+        var response = {data: data, status: status};
+        error_callback(response);
+      });
+    },
+
+    // Get a single branch
+    get_branch: function(remote, branch_name, callback, error_callback) {
+      // There seems to be a bug in github enterprise where getting a single branch fails
+      $http({method: 'GET', url: (checkmate_server_base || '') + '/githubproxy/api/v3/repos/' + remote.owner + '/' + remote.repo.name + '/branches',
+        headers: {'X-Target-Url': remote.server, 'accept': 'application/json'}}).
+      success(function(data, status, headers, config) {
+        var the_branch = _.find(data, function(branch) {return branch.name == branch_name;});
+        callback(the_branch);
+      }).
+      error(function(data, status, headers, config) {
+        var response = {data: data, status: status};
+        error_callback(response);
+      });
+    },
+
+    get_blueprint: function(remote, username, callback, error_callback) {
+      var repo_url = (checkmate_server_base || '') + '/githubproxy/api/v3/repos/' + remote.owner + '/' + remote.repo.name;
+      $http({method: 'GET', url: repo_url + '/git/trees/' + remote.branch.commit.sha,
+          headers: {'X-Target-Url': remote.server, 'accept': 'application/json'}}).
+      success(function(data, status, headers, config) {
+        var checkmate_yaml_file = _.find(data.tree, function(file) {return file.path == "checkmate.yaml";});
+        if (checkmate_yaml_file === undefined) {
+          error_callback("No 'checkmate.yaml' found in the repository '" + remote.repo.name + "'");
+        } else {
+          $http({method: 'GET', url: repo_url + '/git/blobs/' + checkmate_yaml_file.sha,
+              headers: {'X-Target-Url': remote.server, 'Accept': 'application/vnd.github.v3.raw'}}).
+          success(function(data, status, headers, config) {
+            var checkmate_yaml = {};
+            try {
+              checkmate_yaml = YAML.parse(data.replace('%repo_url%', remote.repo.git_url + '#' + remote.branch.name).replace('%username%', username || '%username%'));
+            } catch(err) {
+              if (err.name == "YamlParseException")
+                error_callback("YAML syntax error in line " + err.parsedLine + ". '" + err.snippet + "' caused error '" + err.message + "'");
+            }
+            callback(checkmate_yaml);
+          }).
+          error(function(data, status, headers, config) {
+            var response = {data: data, status: status};
+            error_callback(response);
+          });
+        }
+      }).
+      error(function(data, status, headers, config) {
+        var response = {data: data, status: status};
+        error_callback(response);
       });
     }
   };
