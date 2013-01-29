@@ -28,7 +28,10 @@ checkmate.config(['$routeProvider', '$locationProvider', '$httpProvider', functi
 
   // New UI - static pages
   $routeProvider.
-  when('/deployments/default', {
+  when('/deployments/new/wordpress', {
+    templateUrl: '/partials/managed-cloud-wordpress.html',
+    controller: DeploymentManagedCloudController
+  }).when('/deployments/default', {  // for legacy compat for a while
     templateUrl: '/partials/managed-cloud-wordpress.html',
     controller: DeploymentManagedCloudController
   }).when('/deployments/new', {
@@ -753,7 +756,7 @@ function WorkflowController($scope, $resource, $http, $routeParams, $location, $
                 }
             });
             all_data.push('Applications: ');
-            if ($scope.output.username == undefined) {
+            if ($scope.output.username === undefined) {
                 _.each($scope.output.resources, function(resource) {
                     if (resource.type == 'application' && resource.instance !== undefined) {
                         _.each(resource.instance, function(instance) {
@@ -1392,8 +1395,6 @@ function DeploymentListController($scope, $location, $http, $resource, scroll, i
 
 //Hard-coded for Managed Cloud Wordpress
 function DeploymentManagedCloudController($scope, $location, $routeParams, $resource, $http, items, navbar, settings, workflow, github) {
-
-  BlueprintRemoteListController($scope, $location, $routeParams, $resource, $http, items, navbar, settings, workflow, github);
 
   $scope.receive_blueprint = function(data) {
     if ('blueprint' in data) {
