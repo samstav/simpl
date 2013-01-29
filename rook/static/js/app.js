@@ -383,7 +383,6 @@ function AppController($scope, $http, $location, $resource) {
   $scope.encodeURIComponent = function(data) {
     return encodeURIComponent(data);
   };
-
 }
 
 function NavBarController($scope, $location) {
@@ -423,7 +422,6 @@ function NavBarController($scope, $location) {
       $("#feedback_error").show();
     });
   };
-
 }
 
 function ActivityFeedController($scope, $http, items) {
@@ -1849,7 +1847,6 @@ function DeploymentNewController($scope, $location, $routeParams, $resource, set
     $scope.updateSettings();
   };
   $scope.$on('logIn', $scope.OnLogIn);
-
 }
 
 function DeploymentController($scope, $location, $resource, $routeParams) {
