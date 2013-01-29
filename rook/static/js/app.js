@@ -1229,8 +1229,10 @@ function BlueprintRemoteListController($scope, $location, $routeParams, $resourc
   $scope.remote = {};
   $scope.remote.url = null;
   $scope.remote.server = null;
+  $scope.remote.owner = null;
   $scope.remote.org = null;
   $scope.remote.user = null;
+  $scope.remote.repo = null;
   $scope.remote.branch = null;
 
   $scope.parse_org_url = function(url) {
@@ -1239,29 +1241,24 @@ function BlueprintRemoteListController($scope, $location, $routeParams, $resourc
     $scope.remote = github.parse_org_url(url, $scope.load);
   };
 
+  $scope.receive = function(data) {
+    items.clear();
+    items.receive(data, function(item, key) {
+      return {key: item.id, id: item.html_url, name: item.name, description: item.description, git_url: item.git_url, selected: false};});
+    $scope.count = items.count;
+    $scope.items = items.all;
+    $scope.loading_remote_blueprints = false;
+  };
+
+  $scope.receive_error = function(data) {
+    $scope.loading_remote_blueprints = false;
+    $scope.show_error(data);
+  };
+
   $scope.load = function() {
     console.log("Starting load", $scope.remote);
     $scope.loading_remote_blueprints = true;
-    var path = (checkmate_server_base || '') + '/githubproxy/api/v3/orgs/' + $scope.remote.org + '/repos';
-    if ($scope.remote.org === null)
-      path = (checkmate_server_base || '') + '/githubproxy/api/v3/users/' + $scope.remote.user + '/repos';
-    console.log("Loading: " + path);
-    $http({method: 'GET', url: path, headers: {'X-Target-Url': $scope.remote.server, 'accept': 'application/json'}}).
-      success(function(data, status, headers, config) {
-        console.log("Load returned");
-        items.clear();
-        items.receive(data, function(item, key) {
-          return {key: item.id, id: item.html_url, name: item.name, description: item.description, git_url: item.git_url, selected: false};});
-        $scope.count = items.count;
-        $scope.items = items.all;
-        $scope.loading_remote_blueprints = false;
-        console.log("Done loading");
-      }).
-      error(function(data, status, headers, config) {
-        $scope.loading_remote_blueprints = false;
-        var response = {data: data, status: status};
-        $scope.show_error(response);
-      });
+    github.load_repos($scope.remote, $scope.receive, $scope.receive_error);
   };
 
   $scope.reload_blueprints = function() {

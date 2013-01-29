@@ -497,23 +497,64 @@ services.factory('github', ['$http', function($http) {
     parse_org_url: function(url, callback) {
       var results = {};
       var u = URI(url);
-      var first_path_part = u.path().substring(1).split('/')[0];
+      var parts = u.path().substring(1).split('/');
+      var first_path_part = parts[0];
       results.server = u.protocol() + '://' + u.host(); //includes port
+      results.url = u.href();
+      results.owner = first_path_part;
+      results.repo = parts.length > 1 ? parts[1] : null;
+      //Test if org
       $http({method: 'HEAD', url: (checkmate_server_base || '') + '/githubproxy/api/v3/orgs/' + first_path_part,
           headers: {'X-Target-Url': results.server, 'accept': 'application/json'}}).
       success(function(data, status, headers, config) {
-        results.url = u.href();
+        //This is an org
         results.org = first_path_part;
         results.user = null;
         callback();
       }).
       error(function(data, status, headers, config) {
-        results.url = u.href();
+        //This is not an org (assume it is a user)
         results.org = null;
         results.user = first_path_part;
         callback();
       });
       return results;
+    },
+
+    load_repos: function(remote, callback, error_callback) {
+      var path = (checkmate_server_base || '') + '/githubproxy/api/v3/';
+      if (remote.org !== null) {
+        path += 'orgs/' + remote.org + '/repos';
+      } else
+        path += 'users/' + remote.user + '/repos';
+      console.log("Loading: " + path);
+      $http({method: 'GET', url: path, headers: {'X-Target-Url': remote.server, 'accept': 'application/json'}}).
+        success(function(data, status, headers, config) {
+          console.log("Load repos returned");
+          callback(data);
+          console.log("Done loading repos");
+        }).
+        error(function(data, status, headers, config) {
+          var response = {data: data, status: status};
+          error_callback(response);
+        });
+    },
+
+    get_branch_sha: function(remote, branch_name) {
+      $http({method: 'GET', url: (checkmate_server_base || '') + '/githubproxy/api/v3/repos/' + remote.owner + '/' + remote.repo + '/branches/' + branch_name,
+        headers: {'X-Target-Url': $scope.remote.server, 'accept': 'application/json'}}).
+      success(function(data, status, headers, config) {
+        $scope.branches = data;
+        if (data.length >= 1) {
+          $scope.remote.branch = data[0];
+          $scope.loadBlueprint(data[0]);
+        } else
+          $scope.remote.branch = null;
+      }).
+      error(function(data, status, headers, config) {
+        $scope.branches = [];
+        $scope.remote.branch = null;
+      });
     }
   };
   return me;
