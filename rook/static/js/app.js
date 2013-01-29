@@ -1220,48 +1220,33 @@ function BlueprintListController($scope, $location, $routeParams, $resource, ite
   });
 }
 
-function BlueprintRemoteListController($scope, $location, $routeParams, $resource, $http, items, navbar, settings, workflow) {
+function BlueprintRemoteListController($scope, $location, $routeParams, $resource, $http, items, navbar, settings, workflow, github) {
   //Inherit from Blueprint List Controller
   BlueprintListController($scope, $location, $routeParams, $resource, items, navbar, settings, workflow, {}, null, {}, null);
   //Model: UI
   $scope.loading_remote_blueprints = false;
 
-  $scope.remote_url = null;
-  $scope.remote_server = null;
-  $scope.remote_org = null;
-  $scope.remote_user = null;
-  $scope.remote_branch = null;
+  $scope.remote = {};
+  $scope.remote.url = null;
+  $scope.remote.server = null;
+  $scope.remote.org = null;
+  $scope.remote.user = null;
+  $scope.remote.branch = null;
 
-  $scope.parse_url = function(url) {
-    var u = URI(url);
-    $scope.remote_server = u.protocol() + '://' + u.host(); //includes port
+  $scope.parse_org_url = function(url) {
+    console.log('parse_org_url', url);
     $scope.loading_remote_blueprints = true;
-    if(!$scope.$$phase)
-      $scope.$apply();
-    $http({method: 'HEAD', url: (checkmate_server_base || '') + '/githubproxy/api/v3/orgs' + u.path(),
-        headers: {'X-Target-Url': $scope.remote_server, 'accept': 'application/json'}}).
-    success(function(data, status, headers, config) {
-      $scope.remote_url = u.href();
-      $scope.remote_org = u.path().substring(1);
-      $scope.remote_user = null;
-      $scope.load();
-    }).
-    error(function(data, status, headers, config) {
-      $scope.remote_url = u.href();
-      $scope.remote_org = null;
-      $scope.remote_user = u.path().substring(1);
-      $scope.load();
-    });
+    $scope.remote = github.parse_org_url(url, $scope.load);
   };
 
   $scope.load = function() {
-    console.log("Starting load");
+    console.log("Starting load", $scope.remote);
     $scope.loading_remote_blueprints = true;
-    var path = (checkmate_server_base || '') + '/githubproxy/api/v3/orgs/' + $scope.remote_org + '/repos';
-    if ($scope.remote_org === null)
-      path = (checkmate_server_base || '') + '/githubproxy/api/v3/users/' + $scope.remote_user + '/repos';
+    var path = (checkmate_server_base || '') + '/githubproxy/api/v3/orgs/' + $scope.remote.org + '/repos';
+    if ($scope.remote.org === null)
+      path = (checkmate_server_base || '') + '/githubproxy/api/v3/users/' + $scope.remote.user + '/repos';
     console.log("Loading: " + path);
-    $http({method: 'GET', url: path, headers: {'X-Target-Url': $scope.remote_server, 'accept': 'application/json'}}).
+    $http({method: 'GET', url: path, headers: {'X-Target-Url': $scope.remote.server, 'accept': 'application/json'}}).
       success(function(data, status, headers, config) {
         console.log("Load returned");
         items.clear();
@@ -1277,17 +1262,19 @@ function BlueprintRemoteListController($scope, $location, $routeParams, $resourc
         var response = {data: data, status: status};
         $scope.show_error(response);
       });
-    };
+  };
 
   $scope.reload_blueprints = function() {
+    console.log('reload_blueprints', $scope.remote);
     $scope.items = [];
     items.clear();
-    $scope.parse_url($scope.remote_url);
+    $scope.parse_org_url($scope.remote.url);
   };
 
   $scope.get_branches = function(selected) {
-    $http({method: 'GET', url: (checkmate_server_base || '') + '/githubproxy/api/v3/repos/' + ($scope.remote_org || $scope.remote_user) + '/' + selected.name + '/branches',
-        headers: {'X-Target-Url': $scope.remote_server, 'accept': 'application/json'}}).
+    console.log('get_branches', selected);
+    $http({method: 'GET', url: (checkmate_server_base || '') + '/githubproxy/api/v3/repos/' + ($scope.remote.org || $scope.remote.user) + '/' + selected.name + '/branches',
+        headers: {'X-Target-Url': $scope.remote.server, 'accept': 'application/json'}}).
     success(function(data, status, headers, config) {
       $scope.branches = data;
       if (data.length >= 1) {
@@ -1303,17 +1290,19 @@ function BlueprintRemoteListController($scope, $location, $routeParams, $resourc
   };
 
   $scope.loadBlueprint = function(branch) {
+    console.log('loadBlueprint', branch);
     var branch_name = branch.name;
     var branch_sha = branch.commit.sha;
-    $http({method: 'GET', url: (checkmate_server_base || '') + '/githubproxy/api/v3/repos/' + ($scope.remote_org || $scope.remote_user) + '/' + $scope.selected.name + '/git/trees/' + branch_sha,
-        headers: {'X-Target-Url': $scope.remote_server, 'accept': 'application/json'}}).
+    var repo_name = $scope.selected.name;
+    $http({method: 'GET', url: (checkmate_server_base || '') + '/githubproxy/api/v3/repos/' + ($scope.remote.org || $scope.remote.user) + '/' + repo_name + '/git/trees/' + branch_sha,
+        headers: {'X-Target-Url': $scope.remote.server, 'accept': 'application/json'}}).
     success(function(data, status, headers, config) {
       var checkmate_yaml_file = _.find(data.tree, function(file) {return file.path == "checkmate.yaml";});
       if (checkmate_yaml_file === undefined) {
         $scope.notify("No 'checkmate.yaml' found in the repository '" + $scope.selected.name + "'");
       } else {
-        $http({method: 'GET', url: (checkmate_server_base || '') + '/githubproxy/api/v3/repos/' + ($scope.remote_org || $scope.remote_user) + '/' + $scope.selected.name + '/git/blobs/' + checkmate_yaml_file.sha,
-            headers: {'X-Target-Url': $scope.remote_server, 'Accept': 'application/vnd.github.v3.raw'}}).
+        $http({method: 'GET', url: (checkmate_server_base || '') + '/githubproxy/api/v3/repos/' + ($scope.remote.org || $scope.remote.user) + '/' + repo_name + '/git/blobs/' + checkmate_yaml_file.sha,
+            headers: {'X-Target-Url': $scope.remote.server, 'Accept': 'application/vnd.github.v3.raw'}}).
         success(function(data, status, headers, config) {
           var checkmate_yaml = {};
           try {

@@ -489,3 +489,32 @@ services.config(function ($httpProvider) {
 	  });
       };
   })
+
+/* Github APIs for blueprint parsing*/
+services.factory('github', ['$http', function($http) {
+  var me = {
+    //Parse URL and returns the github components (org, user, repo) back
+    parse_org_url: function(url, callback) {
+      var results = {};
+      var u = URI(url);
+      var first_path_part = u.path().substring(1).split('/')[0];
+      results.server = u.protocol() + '://' + u.host(); //includes port
+      $http({method: 'HEAD', url: (checkmate_server_base || '') + '/githubproxy/api/v3/orgs/' + first_path_part,
+          headers: {'X-Target-Url': results.server, 'accept': 'application/json'}}).
+      success(function(data, status, headers, config) {
+        results.url = u.href();
+        results.org = first_path_part;
+        results.user = null;
+        callback();
+      }).
+      error(function(data, status, headers, config) {
+        results.url = u.href();
+        results.org = null;
+        results.user = first_path_part;
+        callback();
+      });
+      return results;
+    }
+  };
+  return me;
+}]);
