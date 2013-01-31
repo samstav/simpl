@@ -456,7 +456,72 @@ services.value('settings', {
   getSettingsFromEnvironment: function(env) {
     var options = [];
     return options;
-  }
+  },
+
+  substituteVariables: function(source, variables) {
+    var text = JSON.stringify(source);
+    var changed = false;
+    for (var v in variables)
+      if (text.indexOf(v)) {
+        text = text.replace(v, variables[v]);
+        changed = true;
+      }
+    if (changed) {
+      var updated = JSON.parse(text);
+      this.mergeInto(source, updated);
+    }
+  },
+
+  //Merges src into target. Returns target. Modifies target with differences.
+  mergeInto: function mergeInto(target, src) {
+    var array = Array.isArray(src);
+    if (src === null || src === undefined)
+      return target;
+
+    if (array) {
+        target = target || [];
+        src.forEach(function(e, i) {
+            if (target.length < i - 1) {
+              target.push(e);
+            } else {
+              if (typeof e === 'object') {
+                  mergeInto(target[i], e);
+              } else {
+                  if (target[i] != e) {
+                      target[i] = e;
+                  }
+              }
+            }
+        });
+    } else {
+        if (target && typeof target === 'object') {
+            Object.keys(target).forEach(function (key) {
+                var val = target[key];
+                if (typeof val === 'object') {
+                  mergeInto(val, src[key]);
+                } else {
+                  if (val !== src[key])
+                    target[key] = src[key];
+                }
+            });
+        }
+        Object.keys(src).forEach(function (key) {
+            if (typeof src[key] !== 'object' || !src[key]) {
+                if (target[key] != src[key])
+                  target[key] = src[key];
+            }
+            else {
+                if (!target[key]) {
+                    target[key] = src[key];
+                } else {
+                    mergeInto(target[key], src[key]);
+                }
+            }
+        });
+    }
+
+    return target;
+}
 });
 
 // Captures HTTP requests and responses (including errors)

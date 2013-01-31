@@ -1490,7 +1490,8 @@ function DeploymentManagedCloudController($scope, $location, $routeParams, $reso
                       {
                           "compute": "mysql"
                       }
-                  ]
+                  ],
+                  constraints: [ {source: "%repo_url%"} ]
               },
               "common": {
                   "vendor": "rackspace"
@@ -1518,7 +1519,8 @@ function DeploymentManagedCloudController($scope, $location, $routeParams, $reso
                       {
                           "compute": "mysql"
                       }
-                  ]
+                  ],
+                  constraints: [ {source: "%repo_url%"} ]
               },
               "common": {
                   "vendor": "rackspace"
@@ -1801,10 +1803,13 @@ function DeploymentNewController($scope, $location, $routeParams, $resource, set
       url += '/' + action;
     var Deployment = $resource((checkmate_server_base || '') + url, {tenantId: $scope.auth.tenantId});
     var deployment = new Deployment({});
-    deployment.blueprint = $scope.blueprint;
-    deployment.environment = $scope.environment;
+    deployment.blueprint = jQuery.extend({}, $scope.blueprint);  //Copy
+    deployment.environment = jQuery.extend({}, $scope.environment);  //Copy
     deployment.inputs = {};
     deployment.inputs.blueprint = {};
+    if (typeof $scope.remote == 'object' && $scope.remote.url !== undefined)
+      settings.substituteVariables(deployment, {"%repo_url%": $scope.remote.url});
+
     break_flag = false;
 
     // Have to fix some of the answers so they are in the right format, specifically the select
