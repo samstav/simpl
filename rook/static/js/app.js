@@ -1591,7 +1591,14 @@ function DeploymentManagedCloudController($scope, $location, $routeParams, $reso
 function DeploymentNewRemoteController($scope, $location, $routeParams, $resource, $http, items, navbar, settings, workflow, github) {
 
   var blueprint = $location.search().blueprint;
+  if (blueprint === undefined)
+    blueprint = "https://github.rackspace.com/Blueprints/helloworld";
   var u = URI(blueprint);
+  if (u.fragment() === "") {
+    u.fragment($location.hash() || 'master');
+    $location.hash("");
+    $location.search('blueprint', u.normalize());
+  }
 
   BlueprintRemoteListController($scope, $location, $routeParams, $resource, $http, items, navbar, settings, workflow, github);
 
@@ -1602,7 +1609,7 @@ function DeploymentNewRemoteController($scope, $location, $routeParams, $resourc
     github.get_repo($scope.remote, $scope.remote.repo.name,
       function(data) {
         $scope.remote.repo = data;
-        $scope.default_branch = u.fragment() || 'master';
+        $scope.default_branch = u.fragment() || $location.hash() || 'master';
         $scope.selected = $scope.remote.repo;
       },
       function(data) {
