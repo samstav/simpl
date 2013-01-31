@@ -386,6 +386,35 @@ function AppController($scope, $http, $location, $resource) {
   $scope.encodeURIComponent = function(data) {
     return encodeURIComponent(data);
   };
+
+  //Create environment based on catalog
+  $scope.generate_default_environments = function() {
+    var nova = {
+      id: 'default_openstack',
+      name: "Rackspace Open Cloud",
+      description: "An OpenStack environment generated from the service catalog",
+      providers: {
+        'chef-solo': {vendor: 'opscode'},
+        'load-balancer': {},
+        'legacy': {},
+        'database': {},
+        'common': {vendor: 'rackspace'}
+      }
+    };
+    var legacy = {
+      id: 'default_legacy',
+      name: "Rackspace Legacy Cloud",
+      description: "A legacy environment generated from the service catalog",
+      providers: {
+        'chef-solo': {vendor: 'opscode'},
+        'load-balancer': {},
+        'nova': {},
+        'database': {},
+        'common': {vendor: 'rackspace'}
+      }
+    };
+    return {default_openstack: nova, default_legacy: legacy};
+  };
 }
 
 function NavBarController($scope, $location) {
