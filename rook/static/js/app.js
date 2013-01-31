@@ -831,7 +831,6 @@ function WorkflowController($scope, $resource, $http, $routeParams, $location, $
       });
     $scope.current_spec_tasks = tasks;
     tasks = $scope.spec_tasks(spec_id);
-    console.log(tasks, $scope.current_task, typeof task);
     if (tasks && !(_.include(tasks, $scope.current_task))) {
       $scope.selectTask(tasks[0].id);
       $scope.toCurrent();
@@ -1077,13 +1076,21 @@ function WorkflowController($scope, $resource, $http, $routeParams, $location, $
     var w = 960,
     h = 500;
 
+    d3.select(".entries").select("svg").remove();
+
     var vis = d3.select(".entries").append("svg:svg")
         .attr("width", w)
         .attr("height", h);
-    var links = _.each($scope.data.wf_spec.task_specs, function(t, k) {return {"source": k, "target": "Root"};});
-    var nodes = _.each($scope.data.wf_spec.task_specs, function(t, k) {return t;});
 
-    var force = self.force = d3.layout.force()
+    var nodes = _.map($scope.data.wf_spec.task_specs, function(t, k) {return t;});
+    var links = [];
+    _.each($scope.data.wf_spec.task_specs, function(t, k) {
+        _.each(t.inputs, function(i) {
+          links.push({"source": t, "target": $scope.data.wf_spec.task_specs[i]});
+        });
+      });
+
+    var force = d3.layout.force()
         .nodes(nodes)
         .links(links)
         .gravity(0.05)
@@ -1096,6 +1103,8 @@ function WorkflowController($scope, $resource, $http, $routeParams, $location, $
         .data(links)
         .enter().append("svg:line")
         .attr("class", "link")
+        .attr("stroke", "black")
+        .attr("stroke-width", 1)
         .attr("x1", function(d) { return d.source.x; })
         .attr("y1", function(d) { return d.source.y; })
         .attr("x2", function(d) { return d.target.x; })
@@ -1124,16 +1133,16 @@ function WorkflowController($scope, $resource, $http, $routeParams, $location, $
         force.resume();
     }
 
-
     var node = vis.selectAll("g.node")
-        .data(json.nodes)
-      .enter().append("svg:g")
+        .data(nodes)
+        .enter()
+        .append("svg:g")
         .attr("class", "node")
         .call(node_drag);
 
     node.append("svg:image")
         .attr("class", "circle")
-        .attr("xlink:href", "https://d3nwyuy0nl342s.cloudfront.net/images/icons/public.png")
+        .attr("xlink:href", "/favicon.ico")
         .attr("x", "-8px")
         .attr("y", "-8px")
         .attr("width", "16px")
@@ -1155,6 +1164,7 @@ function WorkflowController($scope, $resource, $http, $routeParams, $location, $
 
       node.attr("transform", function(d) { return "translate(" + d.x + "," + d.y + ")"; });
     }
+    force.start();
 
   };
 
