@@ -1316,7 +1316,6 @@ function BlueprintRemoteListController($scope, $location, $routeParams, $resourc
   };
 
   $scope.receive_branches = function(data) {
-    console.log("BRANCHES", data);
     $scope.branches = data;
     if (data.length >= 1) {
       var select = _.find(data, function(branch) {return branch.name == $scope.default_branch;});
@@ -1631,11 +1630,11 @@ function DeploymentNewController($scope, $location, $routeParams, $resource, set
     $scope.domain_names = [];
     if ($scope.auth.loggedIn){
       var tenant_id = $scope.auth.tenantId;
-      url = '/:tenantId/providers/rackspace.dns/proxy/v1.0/'+tenant_id+'/domains.json';
+      var url = '/:tenantId/providers/rackspace.dns/proxy/v1.0/'+tenant_id+'/domains.json';
       var Domains = $resource((checkmate_server_base || '') + url, {tenantId: $scope.auth.tenantId});
-      var domains = Domains.query(function() {
-        for(var i=0; i<domains.length; i++){
-          $scope.domain_names.push(domains[i].name);
+      var results = Domains.query(function() {
+        for(var i=0; i<results.length; i++){
+          $scope.domain_names.push(results[i].name);
         }
        },
        function(response) {
