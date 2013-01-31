@@ -1300,7 +1300,7 @@ function BlueprintRemoteListController($scope, $location, $routeParams, $resourc
   };
 
   $scope.load = function() {
-    console.log("Starting load", $scope.remote);
+    console.log("Starting load", $scope.remote.url);
     $scope.loading_remote_blueprints = true;
     github.get_repos($scope.remote, $scope.receive_blueprints, function(data) {
       $scope.loading_remote_blueprints = false;
@@ -1454,7 +1454,7 @@ function DeploymentManagedCloudController($scope, $location, $routeParams, $reso
   };
 
   $scope.loadRemoteBlueprint = function(blueprint_name, branch_name) {
-    var remote = {};
+    var remote = $scope.remote = {};
     remote.server = 'https://github.rackspace.com/';
     remote.owner = 'Blueprints';
     remote.repo = {};
@@ -1462,6 +1462,7 @@ function DeploymentManagedCloudController($scope, $location, $routeParams, $reso
     remote.branch = {};
     remote.branch.commit = {};
     remote.branch.commit.sha = branch_name;
+    remote.url = remote.server + remote.owner + '/' + remote.repo.name + '#' + branch_name;
 
     github.get_blueprint(remote, $scope.auth.username, $scope.receive_blueprint, function(data) {
       $scope.notify('Unable to load latest version of ' + blueprint_name + ' from github');
