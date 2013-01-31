@@ -1341,18 +1341,18 @@ function BlueprintRemoteListController($scope, $location, $routeParams, $resourc
         data.environment.id = "included";
       var env_name = data.environment.name;
       $scope.environments = {env_name: data.environment};
-      $scope.environment = data.environment;
     } else {
       //TODO: create from catalog
-      $scope.environments = {};
-      $scope.environment = null;
+      $scope.environments = $scope.generate_default_environments();
     }
+    $scope.environment = $scope.environments[Object.keys($scope.environments)[0]];
 
     if ('blueprint' in data) {
       $scope.blueprint = data.blueprint;
     } else {
       $scope.blueprint = null;
     }
+
     $scope.updateSettings();
   };
 
