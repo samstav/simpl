@@ -1019,7 +1019,7 @@ function WorkflowController($scope, $resource, $http, $routeParams, $location, $
   $scope.CloudControlURL = function(region) {
     if (region == 'LON')
       return "https://lon.cloudcontrol.rackspacecloud.com";
-    return "https://us.cloudcontrol.rackspacecloud.com"
+    return "https://us.cloudcontrol.rackspacecloud.com";
   };
 
   $scope.resource = function(task) {
@@ -1337,7 +1337,10 @@ function BlueprintRemoteListController($scope, $location, $routeParams, $resourc
   });
 }
 
-//Deployment controllers
+/*
+ * Deployment controllers
+ */
+//Deployment list
 function DeploymentListController($scope, $location, $http, $resource, scroll, items, navbar) {
   //Model: UI
   $scope.showItemsBar = true;
@@ -1847,6 +1850,7 @@ function DeploymentNewController($scope, $location, $routeParams, $resource, set
   $scope.$on('logIn', $scope.OnLogIn);
 }
 
+//Handles an existing deployment
 function DeploymentController($scope, $location, $resource, $routeParams) {
   //Model: UI
   $scope.showSummaries = true;
@@ -1904,7 +1908,9 @@ function DeploymentController($scope, $location, $resource, $routeParams) {
   $scope.load();
 }
 
-//Provider controllers
+/*
+ * Provider controllers
+ */
 function ProviderListController($scope, $location, $resource, items, scroll) {
   //Model: UI
   $scope.showSummaries = true;
@@ -1942,7 +1948,9 @@ function ProviderListController($scope, $location, $resource, items, scroll) {
   $scope.load();
 }
 
-//Environment controllers
+/*
+ * Environment controllers
+ */
 function EnvironmentListController($scope, $location, $resource, items, scroll) {
   //Model: UI
   $scope.showSummaries = true;
@@ -2001,7 +2009,9 @@ function EnvironmentListController($scope, $location, $resource, items, scroll) 
 }
 
 
-// Other stuff
+/*
+ * Other stuff
+ */
 if (Modernizr.localstorage) {
   // window.localStorage is available!
 } else {
