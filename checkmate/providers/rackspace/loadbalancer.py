@@ -19,6 +19,14 @@ REGION_MAP = {'dallas': 'DFW',
               'chicago': 'ORD',
               'london': 'LON'}
 
+PROTOCOL_PAIRS = {
+                  'https': 'http',
+                  'pop3s': 'pop3',
+                  'sftp': 'ftp',
+                  'ldaps': 'ldap',
+                  'pop3s': 'pop3',
+                 }
+
 
 class Provider(ProviderBase):
     name = 'load-balancer'
@@ -41,80 +49,116 @@ class Provider(ProviderBase):
 
     def add_resource_tasks(self, resource, key, wfspec, deployment, context,
                 wait_on=None):
-        proto = deployment.get_setting("protocol", resource_type="load-balancer",
-                                       service_name=resource.get('service', None),
-                                       default="HTTP")
-        dns = str(deployment.get_setting("create_dns", resource_type="load-balancer",
-                                       service_name=resource.get('service', None),
-                                       default="false"))
+        service_name = resource.get('service')
+        resource_type = resource.get('type')
+        proto = deployment.get_setting("protocol",
+                                       resource_type=resource_type,
+                                       service_name=service_name,
+                                       default="http").lower()
+        dns = str(deployment.get_setting("create_dns",
+                                         resource_type=resource_type,
+                                         service_name=service_name,
+                                         default="false"))
         dns = (dns.lower() == 'true' or dns == '1' or dns.lower() == 'yes')
-        # handle our custom protocol
-        # TODO: add support for arbitrary combinations of secure and
-        #       unsecure protocols (ftp/ftps for example)
-        dual = ("http_and_https" == proto)
-        if dual:
-            proto = "http"
 
-        create_lb = Celery(wfspec, 'Create %s Loadbalancer' % proto,
-                'checkmate.providers.rackspace.loadbalancer.'
-                        'create_loadbalancer',
-                call_args=[context.get_queued_task_dict(
-                                deployment=deployment['id'],
-                                resource=key),
-                        resource.get('dns-name'),
-                        'PUBLIC',
-                        proto.upper(),
-                        resource['region']],
-                defines=dict(resource=key,
-                        provider=self.key,
-                        task_tags=['create', 'root', 'final']),
-                properties={'estimated_duration': 30},
-                dns=dns)
+        allow_insecure = deployment.get_setting("allow_insecure",
+                                                resource_type=resource_type,
+                                                service_name=service_name,
+                                                default=False)
+        allow_insecure = str(allow_insecure).lower() in ['1', 'yes', 'true',
+                                                         '-1']
+
+        extra_protocols = set()
+        # handle our custom protocol
+        if proto == "http_and_https":
+            proto = 'https'
+            allow_insecure = True
+
+        # add support for arbitrary combinations of secure and
+        # unsecure protocols (ftp/ftps for example)
+        if allow_insecure == True and proto in PROTOCOL_PAIRS:
+            unencrypted = PROTOCOL_PAIRS[proto]
+            LOG.debug("Adding unencrypted protocol '%s'" % unencrypted)
+            extra_protocols.add(unencrypted)
+
+        create_lb = Celery(wfspec,
+                           'Create %s Loadbalancer (%s)' % (proto.upper(),
+                                                            key),
+                           'checkmate.providers.rackspace.loadbalancer.'
+                                    'create_loadbalancer',
+                           call_args=[context.get_queued_task_dict(
+                                            deployment=deployment['id'],
+                                            resource=key),
+                                      resource.get('dns-name'),
+                                      'PUBLIC',
+                                      proto.upper(),
+                                      resource['region']],
+                           defines={'resource': key,
+                                    'provider': self.key,
+                                   },
+                            # FIXME: final task should be the one that finishes
+                            # when all extra_protocols are done, not this one
+                           properties={'estimated_duration': 30,
+                                       'task_tags': ['create', 'root',
+                                                     'final'],
+                                      },
+                           dns=dns)
         final = create_lb
-        if dual:
+        for extra_protocol in extra_protocols:
+            # FIXME: these resources should be generated during
+            # planning, not here
             resource2 = deepcopy(resource)
             resource2['index'] = str(len([res for
                                       res in deployment.get("resources").keys()
                                       if res.isdigit()]))
+            resource2['dns-name'] = '%s-%s' % (resource2['index'],
+                                               resource2['dns-name'])
             if 'relations' not in resource2:
                 resource2['relations'] = {}
             resource2['relations'].update({
-                "lb1-lb2": {
+                "lb%s-lb%s" % (key, resource2['index']): {
                     "interface": "vip",
                     "source": resource['index'],
                     "state": "planned",
-                    "name": "lb1-lb2"
+                    "name": "lb%s-lb%s" % (key, resource2['index'])
                 }
             })
             if not "relations" in resource:
                 resource['relations'] = {}
             resource['relations'].update({
-                "lb2-lb1": {
+                "lb%s-lb%s" % (resource2['index'], key): {
                     "interface": "vip",
                     "target": resource2['index'],
                     "state": "planned",
-                    "name": "lb1-lb2"
+                    "name": "lb%s-lb%s" % (resource2['index'],
+                                           key)
                 }
             })
             deployment['resources'].update({resource2['index']: resource2})
+            LOG.debug("Added resource '%s' for extra protocol '%s'" %
+                      (resource2['index'], extra_protocol))
 
-            final = Celery(wfspec, 'Create HTTPS Loadbalancer (dual protocol)',
-                'checkmate.providers.rackspace.loadbalancer.'
-                        'create_loadbalancer',
-                call_args=[context.get_queued_task_dict(
-                                deployment=deployment['id'],
-                                resource=resource2['index']),
-                        "%s-2" % resource2.get('dns-name'),
-                        'PUBLIC',
-                        "HTTPS",
-                        resource2['region']],
-                defines=dict(resource=resource2['index'],
-                        provider=self.key,
-                        task_tags=['create', 'final']),
-                properties={'estimated_duration': 30},
-                parent_lb=PathAttrib("instance:%s/id" % key))
+            final = Celery(wfspec,
+                    'Create %s Loadbalancer (%s)' % (extra_protocol.upper(),
+                                                     resource2['index']),
+                    'checkmate.providers.rackspace.loadbalancer.'
+                            'create_loadbalancer',
+                    call_args=[context.get_queued_task_dict(
+                                    deployment=deployment['id'],
+                                    resource=resource2['index']),
+                            resource2.get('dns-name'),
+                            'PUBLIC',
+                            extra_protocol.upper(),
+                            resource2['region']],
+                    defines={'resource': resource2['index'],
+                             'provider': self.key,
+                            },
+                    properties={'estimated_duration': 30,
+                                'task_tags': [],
+                               },
+                    parent_lb=PathAttrib("instance:%s/id" % key))
             final.follow(create_lb)
-
+        final.properties['task_tags'].append('final')
         return dict(root=create_lb, final=final)
 
     def add_connection_tasks(self, resource, key, relation, relation_key,
@@ -217,6 +261,14 @@ class Provider(ProviderBase):
                 'create_dns': {
                     'type': 'boolean',
                     'default': False
+                },
+                'allow_insecure': {
+                    'type': 'boolean',
+                    'default': False,
+                    'description': 'For secure protocols (https, pop3s, sftp, '
+                                   'ldaps, pop3s) turning this on will also '
+                                   'allow the unencrypted version of the '
+                                   'protocol.'
                 }
              }
 
