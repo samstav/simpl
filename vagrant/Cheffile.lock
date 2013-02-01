@@ -1,33 +1,35 @@
 SITE
   remote: http://community.opscode.com/api/v1
   specs:
-    apt (1.5.0)
-    build-essential (1.2.0)
-    erlang (1.1.0)
+    apt (1.8.4)
+    build-essential (1.3.2)
+    chef_gem (0.0.5)
+    erlang (1.1.2)
       yum (>= 0.5.0)
     mongodb (0.11.0)
       apt (>= 0.0.0)
     openssl (1.0.0)
-    python (1.0.8)
+    python (1.2.0)
       build-essential (>= 0.0.0)
       yum (>= 0.0.0)
-    rabbitmq (1.6.4)
+    rabbitmq (1.8.0)
       apt (>= 1.4.4)
       erlang (>= 0.9)
       yum (>= 0.5.0)
-    yum (1.0.0)
+    yum (2.1.0)
 
 GIT
-  remote: https://github.com/gondoi/chef-rvm
-  ref: master
-  sha: 3d52d4501ac8c56e55a34dc982e6fb5cd55d19ac
+  remote: https://github.com/fnichol/chef-rvm
+  ref: 485e042818063dcf40e8da1404d9758fb26de65d
+  sha: 485e042818063dcf40e8da1404d9758fb26de65d
   specs:
     rvm (0.9.1)
+      chef_gem (>= 0.0.0)
 
 GIT
   remote: https://github.rackspace.com/Cookbooks/checkmate
   ref: master
-  sha: 8634516c9fd08be2f23baab1e64b62774792181e
+  sha: 7a3176f1514a416cfcf6cdc3d6c8dc743153b1ba
   specs:
     checkmate (1.1.0)
       apt (>= 0.0.0)
