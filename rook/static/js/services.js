@@ -625,12 +625,31 @@ services.factory('github', ['$http', function($http) {
         });
     },
 
-    //Get all branches for a repo
+    //Get all branches (and tags) for a repo
     get_branches: function(remote, callback, error_callback) {
-      $http({method: 'GET', url: (checkmate_server_base || '') + '/githubproxy/api/v3/repos/' + remote.owner + '/' + remote.repo.name + '/branches',
+      $http({method: 'GET', url: (checkmate_server_base || '') + '/githubproxy/api/v3/repos/' + remote.owner + '/' + remote.repo.name + '/git/refs',
           headers: {'X-Target-Url': remote.server, 'accept': 'application/json'}}).
       success(function(data, status, headers, config) {
-        callback(data);
+        //Only branches and tags
+        var filtered = _.filter(data, function(item) {
+          return item.ref.indexOf('refs/heads/') === 0 || item.ref.indexOf('refs/tags/') === 0;
+        });
+        //Format the data (we need name, type, and sha only)
+        var transformed = _.map(filtered, function(item){
+          if (item.ref.indexOf('refs/heads/') === 0)
+            return {
+              type: 'branch',
+              name: item.ref.substring(11),
+              commit: item.object.sha
+              };
+          else if (item.ref.indexOf('refs/tags/') === 0)
+            return {
+              type: 'tag',
+              name: item.ref.substring(10),
+              commit: item.object.sha
+              };
+        });
+        callback(transformed);
       }).
       error(function(data, status, headers, config) {
         var response = {data: data, status: status};
@@ -638,14 +657,36 @@ services.factory('github', ['$http', function($http) {
       });
     },
 
-    // Get a single branch
-    get_branch: function(remote, branch_name, callback, error_callback) {
-      // There seems to be a bug in github enterprise where getting a single branch fails
-      $http({method: 'GET', url: (checkmate_server_base || '') + '/githubproxy/api/v3/repos/' + remote.owner + '/' + remote.repo.name + '/branches',
-        headers: {'X-Target-Url': remote.server, 'accept': 'application/json'}}).
+    // Get a single branch or tag and return it as an object (with type, name, and commit)
+    get_branch_from_name: function(remote, branch_name, callback, error_callback) {
+      $http({method: 'GET', url: (checkmate_server_base || '') + '/githubproxy/api/v3/repos/' + remote.owner + '/' + remote.repo.name + '/git/refs',
+          headers: {'X-Target-Url': remote.server, 'accept': 'application/json'}}).
       success(function(data, status, headers, config) {
-        var the_branch = _.find(data, function(branch) {return branch.name == branch_name;});
-        callback(the_branch);
+        //Only branches and tags
+        var branch_ref = 'refs/heads/' + branch_name;
+        var tag_ref = 'refs/tags/' + branch_name;
+        var found = _.find(data, function(item) {
+          return item.ref == branch_ref || item.ref == tag_ref;
+        });
+        if (found === undefined) {
+          var response = {data: "Branch or tag " + branch_name + " not found", status: "404"};
+          error_callback(response);
+          return;
+        }
+
+        //Format and return the data (we need name, type, and sha only)
+        if (found.ref == branch_ref)
+          callback({
+            type: 'branch',
+            name: found.ref.substring(11),
+            commit: found.object.sha
+            });
+        else if (item.ref == tag_ref)
+          callback({
+            type: 'tag',
+            name: found.ref.substring(10),
+            commit: found.object.sha
+            });
       }).
       error(function(data, status, headers, config) {
         var response = {data: data, status: status};
@@ -655,7 +696,7 @@ services.factory('github', ['$http', function($http) {
 
     get_blueprint: function(remote, username, callback, error_callback) {
       var repo_url = (checkmate_server_base || '') + '/githubproxy/api/v3/repos/' + remote.owner + '/' + remote.repo.name;
-      $http({method: 'GET', url: repo_url + '/git/trees/' + remote.branch.commit.sha,
+      $http({method: 'GET', url: repo_url + '/git/trees/' + remote.branch.commit,
           headers: {'X-Target-Url': remote.server, 'accept': 'application/json'}}).
       success(function(data, status, headers, config) {
         var checkmate_yaml_file = _.find(data.tree, function(file) {return file.path == "checkmate.yaml";});

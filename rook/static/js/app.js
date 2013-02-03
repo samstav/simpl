@@ -1453,16 +1453,14 @@ function DeploymentManagedCloudController($scope, $location, $routeParams, $reso
     }
   };
 
-  $scope.loadRemoteBlueprint = function(blueprint_name, branch_name) {
+  $scope.loadRemoteBlueprint = function(blueprint_name, branch) {
     var remote = $scope.remote = {};
     remote.server = 'https://github.rackspace.com/';
     remote.owner = 'Blueprints';
     remote.repo = {};
     remote.repo.name = blueprint_name;
-    remote.branch = {};
-    remote.branch.commit = {};
-    remote.branch.commit.sha = branch_name;
-    remote.url = remote.server + remote.owner + '/' + remote.repo.name + '#' + branch_name;
+    remote.branch = branch;
+    remote.url = remote.server + remote.owner + '/' + remote.repo.name + '#' + branch.name;
 
     github.get_blueprint(remote, $scope.auth.username, $scope.receive_blueprint, function(data) {
       $scope.notify('Unable to load latest version of ' + blueprint_name + ' from github');
@@ -1583,8 +1581,38 @@ function DeploymentManagedCloudController($scope, $location, $routeParams, $reso
   });
 
   //Load the latest master from github
-  $scope.loadRemoteBlueprint('wordpress', 'chef-solo');
-  $scope.loadRemoteBlueprint('wordpress-clouddb', 'chef-solo');
+  var wordpress = {};
+  wordpress.server = 'https://github.rackspace.com/';
+  wordpress.owner = 'Blueprints';
+  wordpress.repo = {};
+  wordpress.repo.name = 'wordpress';
+  wordpress.branch = {};
+  wordpress.url = wordpress.server + wordpress.owner + '/wordpress#v0.5';
+  github.get_branch_from_name(wordpress, 'v0.5', function(branch) {
+    wordpress.branch = branch;
+    github.get_blueprint(wordpress, $scope.auth.username, $scope.receive_blueprint, function(data) {
+      $scope.notify('Unable to load latest version of wordpress from github');
+    });
+  }, function(data) {
+      $scope.notify('Unable to load latest version of wordpress from github');
+  });
+
+  var wordpressclouddb = {};
+  wordpressclouddb.server = 'https://github.rackspace.com/';
+  wordpressclouddb.owner = 'Blueprints';
+  wordpressclouddb.repo = {};
+  wordpressclouddb.repo.name = 'wordpress-clouddb';
+  wordpressclouddb.branch = {};
+  wordpressclouddb.url = wordpressclouddb.server + wordpressclouddb.owner + '/wordpress-clouddb#v0.5';
+  github.get_branch_from_name(wordpressclouddb, 'v0.5', function(branch) {
+    wordpressclouddb.branch = branch;
+    github.get_blueprint(wordpressclouddb, $scope.auth.username, $scope.receive_blueprint, function(data) {
+      $scope.notify('Unable to load latest version of wordpress-clouddb from github');
+    });
+  }, function(data) {
+      $scope.notify('Unable to load latest version of wordpress-clouddb from github');
+  });
+
 }
 
 //Select one remote blueprint
