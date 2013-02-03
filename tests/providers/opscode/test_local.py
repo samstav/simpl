@@ -256,7 +256,12 @@ class TestChefLocal(test.ProviderTester):
         git.Repo.init(kitchen_path).AndReturn(repo)
         repo.remotes = []
         repo.create_remote('origin', "git://ggg").AndReturn(remote)
-        remote.pull(refspec='master').AndReturn(True)
+        remote.fetch(refspec='master').AndReturn(True)
+
+        self.mox.StubOutWithMock(git, 'Git')
+        gb_mock = self.mox.CreateMockAnything()
+        git.Git(kitchen_path).AndReturn(gb_mock)
+        gb_mock.checkout('FETCH_HEAD').AndReturn(True)
 
         os.path.exists(os.path.join(kitchen_path, 'Cheffile')).AndReturn(True)
         self.mox.StubOutWithMock(os, 'chdir')
