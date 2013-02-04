@@ -242,6 +242,8 @@ class Plan(ExtensibleDict):
                           resource['type'], None, context, name=name))
                 result['component'] = component['id']
             else:
+                # TODO: These should come from a provider (ex. AD, LDAP, PKI,
+                # etc...)
                 if resource['type'] == 'user':
                     # Fall-back to local loader
                     instance = {}
@@ -263,8 +265,8 @@ class Plan(ExtensibleDict):
                                                                      "/password" %
                                                                      key)
                         if not instance['password']:
-                            instance['password'] = (ProviderBase({}).evaluate(
-                                                    "generate_password()"))
+                            instance['password'] = utils.evaluate(
+                                                         "generate_password()")
                     else:
                         instance['password'] = resource['password']
                     instance['hash'] = keys.hash_SHA512(instance['password'])
