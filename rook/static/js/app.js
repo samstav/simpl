@@ -695,6 +695,8 @@ function WorkflowController($scope, $resource, $http, $routeParams, $location, $
             try {
               url = object.inputs.blueprint.url;
               $scope.output.path = url;
+              var u = URI(url);
+              $scope.output.domain = u.hostname();
             }
             catch (error) {
               console.log("url not found", error);
