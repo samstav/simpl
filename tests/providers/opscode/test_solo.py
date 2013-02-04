@@ -543,6 +543,9 @@ class TestMappedSingleWorkflow(test.StubbedWorkflowBase):
                         id: mysql
                         constraints:
                         - password: myPassW0rd  # test constraints work
+                  resources:
+                    admin:
+                      type: user
                 environment:
                   name: test
                   providers:
@@ -649,6 +652,10 @@ class TestMappedSingleWorkflow(test.StubbedWorkflowBase):
         expected.sort()
         self.assertListEqual(task_list, expected, msg=task_list)
         self.mox.VerifyAll()
+
+        # Make sure hash value was generated
+        resources = self.deployment['resources']
+        self.assertIn("hash", resources['admin']['instance'])
 
     def test_workflow_execution(self):
         """Verify workflow executes"""
