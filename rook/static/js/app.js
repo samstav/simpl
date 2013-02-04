@@ -1436,7 +1436,7 @@ function DeploymentListController($scope, $location, $http, $resource, scroll, i
 //Hard-coded for Managed Cloud Wordpress
 function DeploymentManagedCloudController($scope, $location, $routeParams, $resource, $http, items, navbar, settings, workflow, github) {
 
-  $scope.receive_blueprint = function(data) {
+  $scope.receive_blueprint = function(data, remote) {
     if ('blueprint' in data) {
       if ($scope.auth.loggedIn === true) {
         data.blueprint.options.region['default'] = $scope.auth.catalog.access.user['RAX-AUTH:defaultRegion'] || $scope.auth.catalog.access.regions[0];
@@ -1446,7 +1446,7 @@ function DeploymentManagedCloudController($scope, $location, $routeParams, $reso
       var new_blueprints = {};
       new_blueprints[data.blueprint.name] = data.blueprint;
       items.receive(new_blueprints, function(item, key) {
-        return {key: key, id: item.id, name: item.name, description: item.description, selected: false};});
+        return {key: key, id: item.id, name: item.name, description: item.description, remote: remote, selected: false};});
       $scope.count = items.count;
       $scope.items = items.all;
     }
@@ -1585,9 +1585,14 @@ function DeploymentManagedCloudController($scope, $location, $routeParams, $reso
     $scope.setAllBlueprintRegions();
   });
 
-  //Load the latest master from github
+  //Load the latest supported blueprints (tagged) from github
   $scope.loadRemoteBlueprint('https://github.rackspace.com/Blueprints/wordpress#v0.5');
   $scope.loadRemoteBlueprint('https://github.rackspace.com/Blueprints/wordpress-clouddb#v0.5');
+
+  //Load the latest master from github
+  $scope.loadRemoteBlueprint('https://github.rackspace.com/Blueprints/wordpress');
+  $scope.loadRemoteBlueprint('https://github.rackspace.com/Blueprints/wordpress-clouddb');
+
 }
 
 //Select one remote blueprint

@@ -713,7 +713,7 @@ services.factory('github', ['$http', function($http) {
               if (err.name == "YamlParseException")
                 error_callback("YAML syntax error in line " + err.parsedLine + ". '" + err.snippet + "' caused error '" + err.message + "'");
             }
-            callback(checkmate_yaml);
+            callback(checkmate_yaml, remote);
           }).
           error(function(data, status, headers, config) {
             var response = {data: data, status: status};
