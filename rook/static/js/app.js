@@ -1332,7 +1332,7 @@ function BlueprintRemoteListController($scope, $location, $routeParams, $resourc
     });
   };
 
-  $scope.receive_blueprint = function(data) {
+  $scope.receive_blueprint = function(data, remote) {
     if ('environment' in data) {
       if (!('name' in data.environment))
         data.environment.name = "- not named -";
@@ -1345,6 +1345,7 @@ function BlueprintRemoteListController($scope, $location, $routeParams, $resourc
       $scope.environments = $scope.generate_default_environments();
     }
     $scope.environment = $scope.environments[Object.keys($scope.environments)[0]];
+    $scope.remote = remote;
 
     if ('blueprint' in data) {
       $scope.blueprint = data.blueprint;
@@ -1442,11 +1443,11 @@ function DeploymentManagedCloudController($scope, $location, $routeParams, $reso
         data.blueprint.options.region['default'] = $scope.auth.catalog.access.user['RAX-AUTH:defaultRegion'] || $scope.auth.catalog.access.regions[0];
         data.blueprint.options.region.choice = $scope.auth.catalog.access.regions;
       }
-      WPBP[data.blueprint.name] = data.blueprint;
+      WPBP[remote.url] = data.blueprint;
       var new_blueprints = {};
-      new_blueprints[data.blueprint.name] = data.blueprint;
+      new_blueprints[remote.url] = data.blueprint;
       items.receive(new_blueprints, function(item, key) {
-        return {key: key, id: item.id, name: item.name, description: item.description, remote: remote, selected: false};});
+        return {key: remote.url, id: item.id, name: item.name, description: item.description, remote: remote, selected: false};});
       $scope.count = items.count;
       $scope.items = items.all;
     }
@@ -1822,8 +1823,9 @@ function DeploymentNewController($scope, $location, $routeParams, $resource, set
     deployment.environment = jQuery.extend({}, $scope.environment);  //Copy
     deployment.inputs = {};
     deployment.inputs.blueprint = {};
-    if (typeof $scope.remote == 'object' && $scope.remote.url !== undefined)
-      settings.substituteVariables(deployment, {"%repo_url%": $scope.remote.url});
+    var remote = $scope.selected.remote || $scope.remote;
+    if (typeof remote == 'object' && remote.url !== undefined)
+      settings.substituteVariables(deployment, {"%repo_url%": remote.url});
 
     break_flag = false;
 
