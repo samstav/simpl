@@ -1222,8 +1222,7 @@ function WorkflowController($scope, $resource, $http, $routeParams, $location, $
 }
 
 //Blueprint controllers
-function BlueprintListController($scope, $location, $routeParams, $resource, items, navbar, settings, workflow,
-                                 blueprints, initial_blueprint, environments, initial_environment) {
+function BlueprintListController($scope, $location, $routeParams, $resource, items, navbar, settings, workflow, blueprints, initial_blueprint, environments, initial_environment) {
   //Model: UI
   $scope.showSummaries = true;
   $scope.showStatus = true;
@@ -1612,7 +1611,6 @@ function DeploymentManagedCloudController($scope, $location, $routeParams, $reso
   }, function(data) {
       $scope.notify('Unable to load latest version of wordpress-clouddb from github');
   });
-
 }
 
 //Select one remote blueprint
@@ -1649,7 +1647,6 @@ function DeploymentNewRemoteController($scope, $location, $routeParams, $resourc
   //Instead of parse_org_url
   $scope.loading_remote_blueprints = true;
   $scope.remote = github.parse_org_url(blueprint, $scope.load);
-
 }
 
 // Handles the option setting and deployment launching
