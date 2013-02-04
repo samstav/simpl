@@ -681,7 +681,7 @@ services.factory('github', ['$http', function($http) {
             name: found.ref.substring(11),
             commit: found.object.sha
             });
-        else if (item.ref == tag_ref)
+        else if (found.ref == tag_ref)
           callback({
             type: 'tag',
             name: found.ref.substring(10),

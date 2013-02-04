@@ -1452,17 +1452,23 @@ function DeploymentManagedCloudController($scope, $location, $routeParams, $reso
     }
   };
 
-  $scope.loadRemoteBlueprint = function(blueprint_name, branch) {
-    var remote = $scope.remote = {};
-    remote.server = 'https://github.rackspace.com/';
-    remote.owner = 'Blueprints';
-    remote.repo = {};
-    remote.repo.name = blueprint_name;
-    remote.branch = branch;
-    remote.url = remote.server + remote.owner + '/' + remote.repo.name + '#' + branch.name;
-
-    github.get_blueprint(remote, $scope.auth.username, $scope.receive_blueprint, function(data) {
-      $scope.notify('Unable to load latest version of ' + blueprint_name + ' from github');
+  $scope.loadRemoteBlueprint = function(repo_url) {
+    var u = URI(repo_url);
+    var parts = u.path().substring(1).split('/');
+    var first_path_part = parts[0];
+    var remote = {};
+    remote.url = u.href();
+    remote.owner = first_path_part;
+    remote.server = u.protocol() + '://' + u.host(); //includes port
+    remote.repo = {name: parts[1]};
+    remote.url = repo_url;
+    github.get_branch_from_name(remote, u.fragment() || 'master', function(branch) {
+      remote.branch = branch;
+      github.get_blueprint(remote, $scope.auth.username, $scope.receive_blueprint, function(data) {
+        $scope.notify('Unable to load latest version of ' + remote.repo.name + ' from github');
+      });
+    }, function(data) {
+        $scope.notify('Unable to load latest version of ' + remote.repo.name + ' from github');
     });
   };
 
@@ -1580,37 +1586,8 @@ function DeploymentManagedCloudController($scope, $location, $routeParams, $reso
   });
 
   //Load the latest master from github
-  var wordpress = {};
-  wordpress.server = 'https://github.rackspace.com/';
-  wordpress.owner = 'Blueprints';
-  wordpress.repo = {};
-  wordpress.repo.name = 'wordpress';
-  wordpress.branch = {};
-  wordpress.url = wordpress.server + wordpress.owner + '/wordpress#v0.5';
-  github.get_branch_from_name(wordpress, 'v0.5', function(branch) {
-    wordpress.branch = branch;
-    github.get_blueprint(wordpress, $scope.auth.username, $scope.receive_blueprint, function(data) {
-      $scope.notify('Unable to load latest version of wordpress from github');
-    });
-  }, function(data) {
-      $scope.notify('Unable to load latest version of wordpress from github');
-  });
-
-  var wordpressclouddb = {};
-  wordpressclouddb.server = 'https://github.rackspace.com/';
-  wordpressclouddb.owner = 'Blueprints';
-  wordpressclouddb.repo = {};
-  wordpressclouddb.repo.name = 'wordpress-clouddb';
-  wordpressclouddb.branch = {};
-  wordpressclouddb.url = wordpressclouddb.server + wordpressclouddb.owner + '/wordpress-clouddb#v0.5';
-  github.get_branch_from_name(wordpressclouddb, 'v0.5', function(branch) {
-    wordpressclouddb.branch = branch;
-    github.get_blueprint(wordpressclouddb, $scope.auth.username, $scope.receive_blueprint, function(data) {
-      $scope.notify('Unable to load latest version of wordpress-clouddb from github');
-    });
-  }, function(data) {
-      $scope.notify('Unable to load latest version of wordpress-clouddb from github');
-  });
+  $scope.loadRemoteBlueprint('https://github.rackspace.com/Blueprints/wordpress#v0.5');
+  $scope.loadRemoteBlueprint('https://github.rackspace.com/Blueprints/wordpress-clouddb#v0.5');
 }
 
 //Select one remote blueprint
