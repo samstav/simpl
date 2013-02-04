@@ -25,8 +25,8 @@
   <div id="mcspec_list" class="summaries" ng-cloak ng-show="showSummaries">
     <div ng-repeat="item in items" class="well summary" ng-click="selectItem($index)" ng-class="{active: item.selected}">
       <div class="row-fluid">
-        <h6><span ng-cloak ng-show="$index < 2" class="label label-success">full support</span>
-        <span ng-cloak ng-show="$index >= 2" class="label label-inverse">github</span> {{item.name}}</h6>
+        <h6><span ng-cloak ng-show="item.remote.branch.name == 'v0.5'" class="label label-success">full support</span>
+        <span ng-cloak ng-show="item.remote.branch.name != 'v0.5'" class="label label-inverse">github</span> {{item.name}}</h6>
       </div>
 
       <div class="row-fluid">

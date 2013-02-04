@@ -7,11 +7,11 @@
               <label class="control-label required" for="blueprint">What to deploy?</label>
               <div class="controls">
                   <!-- Show list if list exists -->
-                  <select ng-cloak ng-show="blueprints" id="blueprint" class="span6" ng-model="blueprint" ng-change="setBlueprint(blueprint)" style="width:350px"
+                  <select ng-cloak ng-show="blueprints" id="blueprint" ng-class="{span7: branches, span9: !branches}" ng-model="blueprint" ng-change="setBlueprint(blueprint)"
                           ng-options="blueprint.name for (id, blueprint) in blueprints" required>
                   </select>
                   <!-- Show text if only one exists -->
-                  <input ng-cloak ng-show="!blueprints" readonly="" type="text" value="{{selected.name}}" class="span8"><span ng-cloak ng-show="branches"> branch: <select id="branch" class="span3" ng-model="$parent.remote.branch" ng-change="loadBlueprint()" ng-options="branch.name for branch in branches"></select></span>
+                  <input ng-cloak ng-show="!blueprints" readonly="" type="text" value="{{blueprint.name}}" ng-class="{span7: branches, span9: !branches}"><span ng-cloak ng-show="branches"> branch/tag: <select id="branch" name="branch" class="span3" ng-model="$parent.remote.branch" ng-change="loadBlueprint()" ng-options="branch.name for branch in branches"></select></span>
                   <p class="help-block">
                     {{blueprint.description}}
                   </p>

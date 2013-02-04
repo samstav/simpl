@@ -135,6 +135,17 @@ function AppController($scope, $http, $location, $resource) {
       expires: ''
     };
 
+  $scope.safeApply = function(fn) {
+    var phase = this.$root.$$phase;
+    if(phase == '$apply' || phase == '$digest') {
+      if(fn && (typeof(fn) === 'function')) {
+        fn();
+      }
+    } else {
+      this.$apply(fn);
+    }
+  };
+
   $scope.navigate = function(url) {
     $location.path(url);
   };
@@ -289,7 +300,7 @@ function AppController($scope, $http, $location, $resource) {
           delete $('#modalAuth')[0].failure_callback;
         }
       else
-        $scope.$apply();
+        $scope.$safeApply();
       $scope.$broadcast('logIn');
     }).error(function(response) {
       if (typeof $('#modalAuth')[0].failure_callback == 'function') {
@@ -385,6 +396,35 @@ function AppController($scope, $http, $location, $resource) {
 
   $scope.encodeURIComponent = function(data) {
     return encodeURIComponent(data);
+  };
+
+  //Create environment based on catalog
+  $scope.generate_default_environments = function() {
+    var nova = {
+      id: 'default_openstack',
+      name: "Rackspace Open Cloud",
+      description: "An OpenStack environment generated from the service catalog",
+      providers: {
+        'chef-solo': {vendor: 'opscode'},
+        'load-balancer': {},
+        'legacy': {},
+        'database': {},
+        'common': {vendor: 'rackspace'}
+      }
+    };
+    var legacy = {
+      id: 'default_legacy',
+      name: "Rackspace Legacy Cloud",
+      description: "A legacy environment generated from the service catalog",
+      providers: {
+        'chef-solo': {vendor: 'opscode'},
+        'load-balancer': {},
+        'nova': {},
+        'database': {},
+        'common': {vendor: 'rackspace'}
+      }
+    };
+    return {default_openstack: nova, default_legacy: legacy};
   };
 }
 
@@ -650,34 +690,45 @@ function WorkflowController($scope, $resource, $http, $routeParams, $location, $
               console.log(error);
             }
 
-            var domain = null;
-            //Find domain in inputs
+            var url = null;
+            //Find url in inputs
             try {
-              domain = object.inputs.blueprint.domain;
-              $scope.output.domain = domain;
+              url = object.inputs.blueprint.url;
+              $scope.output.path = url;
             }
             catch (error) {
-              console.log(error);
+              console.log("url not found", error);
+
+              var domain = null;
+              //Find domain in inputs
+              try {
+                domain = object.inputs.blueprint.domain;
+                $scope.output.domain = domain;
+              }
+              catch (error) {
+                console.log(error);
+              }
+              //If no domain, use load-balancer VIP
+              if (domain === null) {
+                domain = $scope.output.vip;
+              }
+              //Find path in inputs
+              var path = "/";
+              try {
+                path = object.inputs.blueprint.path;
+              }
+              catch (error) {
+                console.log(error);
+              }
+              if (domain !== undefined && path !== undefined)
+                $scope.output.path = "http://" + domain + path;
             }
-            //If no domain, use load-balancer VIP
-            if (domain === null) {
-              domain = $scope.output.vip;
-            }
-            //Find path in inputs
-            var path = "/";
-            try {
-              path = object.inputs.blueprint.path;
-            }
-            catch (error) {
-              console.log(error);
-            }
-            if (domain !== undefined && path !== undefined)
-              $scope.output.path = "http://" + domain + path;
+
 
             //Get user name/password
             try {
               var user = _.find(object.resources, function(r, k) { return r.type == 'user';});
-              if ('instance' in user) {
+              if (user !== undefined && 'instance' in user) {
                 $scope.output.username = user.instance.name;
                 $scope.output.password = user.instance.password;
               }
@@ -689,7 +740,7 @@ function WorkflowController($scope, $resource, $http, $routeParams, $location, $
             //Get the private key
             try {
               var keypair = _.find(object.resources, function(r, k) { return r.type == 'key-pair';});
-              if ('instance' in keypair) {
+              if (keypair !== undefined && 'instance' in keypair) {
                 $scope.output.private_key = keypair.instance.private_key;
               }
             }
@@ -707,18 +758,18 @@ function WorkflowController($scope, $resource, $http, $routeParams, $location, $
             //Copy all data to all_data for clipboard use
             var all_data = [];
             all_data.push('From: ' + $location.absUrl());
-            all_data.push('Wordpress URL: ' + $scope.output.path);
-            all_data.push('Wordpress IP: ' +  $scope.output.vip);
+            all_data.push('App URL: ' + $scope.output.path);
+            all_data.push('App IP: ' +  $scope.output.vip);
             all_data.push('Servers: ');
             _.each($scope.output.resources, function(resource) {
                 if (resource.component == 'linux_instance') {
                     all_data.push('  ' + resource.service + ' server: ' + resource['dns-name']);
                     if (resource.instance.public_ip === undefined) {
                         for (var nindex in resource.instance.interfaces.host.networks) {
-                            var network = resource.instance.interfaces.host.networks[nindex]
+                            var network = resource.instance.interfaces.host.networks[nindex];
                             if (network.name == 'public_net') {
                                 for (var cindex in network.connections) {
-                                    var connection = network.connections[cindex]
+                                    var connection = network.connections[cindex];
                                     if (connection.type == 'ipv4') {
                                         resource.instance.public_ip = connection.value;
                                         break;
@@ -739,8 +790,8 @@ function WorkflowController($scope, $resource, $http, $routeParams, $location, $
                     all_data.push('  ' + resource.service + ' database: ' + resource['dns-name']);
                     try {
                       all_data.push('    Host:       ' + resource.instance.interfaces.mysql.host);
-                      all_data.push('    Username:   ' + resource.instance.interfaces.mysql.username);
-                      all_data.push('    Password:   ' + resource.instance.interfaces.mysql.password);
+                      all_data.push('    Username:   ' + (resource.instance.interfaces.mysql.username || $scope.output.username));
+                      all_data.push('    Password:   ' + (resource.instance.interfaces.mysql.password || $scope.output.password));
                       all_data.push('    DB Name:    ' + resource.instance.interfaces.mysql.database_name);
                       //all_data.push('    Admin Link: https://' + $scope.output.master_server.instance.public_ip + '/database-admin');
                     } catch(err) {
@@ -831,7 +882,6 @@ function WorkflowController($scope, $resource, $http, $routeParams, $location, $
       });
     $scope.current_spec_tasks = tasks;
     tasks = $scope.spec_tasks(spec_id);
-    console.log(tasks, $scope.current_task, typeof task);
     if (tasks && !(_.include(tasks, $scope.current_task))) {
       $scope.selectTask(tasks[0].id);
       $scope.toCurrent();
@@ -1019,7 +1069,7 @@ function WorkflowController($scope, $resource, $http, $routeParams, $location, $
   $scope.CloudControlURL = function(region) {
     if (region == 'LON')
       return "https://lon.cloudcontrol.rackspacecloud.com";
-    return "https://us.cloudcontrol.rackspacecloud.com"
+    return "https://us.cloudcontrol.rackspacecloud.com";
   };
 
   $scope.resource = function(task) {
@@ -1077,13 +1127,21 @@ function WorkflowController($scope, $resource, $http, $routeParams, $location, $
     var w = 960,
     h = 500;
 
+    d3.select(".entries").select("svg").remove();
+
     var vis = d3.select(".entries").append("svg:svg")
         .attr("width", w)
         .attr("height", h);
-    var links = _.each($scope.data.wf_spec.task_specs, function(t, k) {return {"source": k, "target": "Root"};});
-    var nodes = _.each($scope.data.wf_spec.task_specs, function(t, k) {return t;});
 
-    var force = self.force = d3.layout.force()
+    var nodes = _.map($scope.data.wf_spec.task_specs, function(t, k) {return t;});
+    var links = [];
+    _.each($scope.data.wf_spec.task_specs, function(t, k) {
+        _.each(t.inputs, function(i) {
+          links.push({"source": t, "target": $scope.data.wf_spec.task_specs[i]});
+        });
+      });
+
+    var force = d3.layout.force()
         .nodes(nodes)
         .links(links)
         .gravity(0.05)
@@ -1096,6 +1154,8 @@ function WorkflowController($scope, $resource, $http, $routeParams, $location, $
         .data(links)
         .enter().append("svg:line")
         .attr("class", "link")
+        .attr("stroke", "black")
+        .attr("stroke-width", 1)
         .attr("x1", function(d) { return d.source.x; })
         .attr("y1", function(d) { return d.source.y; })
         .attr("x2", function(d) { return d.target.x; })
@@ -1124,16 +1184,16 @@ function WorkflowController($scope, $resource, $http, $routeParams, $location, $
         force.resume();
     }
 
-
     var node = vis.selectAll("g.node")
-        .data(json.nodes)
-      .enter().append("svg:g")
+        .data(nodes)
+        .enter()
+        .append("svg:g")
         .attr("class", "node")
         .call(node_drag);
 
     node.append("svg:image")
         .attr("class", "circle")
-        .attr("xlink:href", "https://d3nwyuy0nl342s.cloudfront.net/images/icons/public.png")
+        .attr("xlink:href", "/favicon.ico")
         .attr("x", "-8px")
         .attr("y", "-8px")
         .attr("width", "16px")
@@ -1155,7 +1215,7 @@ function WorkflowController($scope, $resource, $http, $routeParams, $location, $
 
       node.attr("transform", function(d) { return "translate(" + d.x + "," + d.y + ")"; });
     }
-
+    force.start();
   };
 
   // Old code we might reuse
@@ -1183,8 +1243,7 @@ function WorkflowController($scope, $resource, $http, $routeParams, $location, $
 }
 
 //Blueprint controllers
-function BlueprintListController($scope, $location, $routeParams, $resource, items, navbar, settings, workflow,
-                                 blueprints, initial_blueprint, environments, initial_environment) {
+function BlueprintListController($scope, $location, $routeParams, $resource, items, navbar, settings, workflow, blueprints, initial_blueprint, environments, initial_environment) {
   //Model: UI
   $scope.showSummaries = true;
   $scope.showStatus = true;
@@ -1261,7 +1320,7 @@ function BlueprintRemoteListController($scope, $location, $routeParams, $resourc
   };
 
   $scope.load = function() {
-    console.log("Starting load", $scope.remote);
+    console.log("Starting load", $scope.remote.url);
     $scope.loading_remote_blueprints = true;
     github.get_repos($scope.remote, $scope.receive_blueprints, function(data) {
       $scope.loading_remote_blueprints = false;
@@ -1277,7 +1336,6 @@ function BlueprintRemoteListController($scope, $location, $routeParams, $resourc
   };
 
   $scope.receive_branches = function(data) {
-    console.log("BRANCHES", data);
     $scope.branches = data;
     if (data.length >= 1) {
       var select = _.find(data, function(branch) {return branch.name == $scope.default_branch;});
@@ -1295,7 +1353,7 @@ function BlueprintRemoteListController($scope, $location, $routeParams, $resourc
     });
   };
 
-  $scope.receive_blueprint = function(data) {
+  $scope.receive_blueprint = function(data, remote) {
     if ('environment' in data) {
       if (!('name' in data.environment))
         data.environment.name = "- not named -";
@@ -1303,18 +1361,19 @@ function BlueprintRemoteListController($scope, $location, $routeParams, $resourc
         data.environment.id = "included";
       var env_name = data.environment.name;
       $scope.environments = {env_name: data.environment};
-      $scope.environment = data.environment;
     } else {
       //TODO: create from catalog
-      $scope.environments = {};
-      $scope.environment = null;
+      $scope.environments = $scope.generate_default_environments();
     }
+    $scope.environment = $scope.environments[Object.keys($scope.environments)[0]];
+    $scope.remote = remote;
 
     if ('blueprint' in data) {
       $scope.blueprint = data.blueprint;
     } else {
       $scope.blueprint = null;
     }
+
     $scope.updateSettings();
   };
 
@@ -1337,7 +1396,10 @@ function BlueprintRemoteListController($scope, $location, $routeParams, $resourc
   });
 }
 
-//Deployment controllers
+/*
+ * Deployment controllers
+ */
+//Deployment list
 function DeploymentListController($scope, $location, $http, $resource, scroll, items, navbar) {
   //Model: UI
   $scope.showItemsBar = true;
@@ -1396,34 +1458,39 @@ function DeploymentListController($scope, $location, $http, $resource, scroll, i
 //Hard-coded for Managed Cloud Wordpress
 function DeploymentManagedCloudController($scope, $location, $routeParams, $resource, $http, items, navbar, settings, workflow, github) {
 
-  $scope.receive_blueprint = function(data) {
+  $scope.receive_blueprint = function(data, remote) {
     if ('blueprint' in data) {
       if ($scope.auth.loggedIn === true) {
         data.blueprint.options.region['default'] = $scope.auth.catalog.access.user['RAX-AUTH:defaultRegion'] || $scope.auth.catalog.access.regions[0];
         data.blueprint.options.region.choice = $scope.auth.catalog.access.regions;
       }
-      WPBP[data.blueprint.name] = data.blueprint;
+      WPBP[remote.url] = data.blueprint;
       var new_blueprints = {};
-      new_blueprints[data.blueprint.name] = data.blueprint;
+      new_blueprints[remote.url] = data.blueprint;
       items.receive(new_blueprints, function(item, key) {
-        return {key: key, id: item.id, name: item.name, description: item.description, selected: false};});
+        return {key: remote.url, id: item.id, name: item.name, description: item.description, remote: remote, selected: false};});
       $scope.count = items.count;
       $scope.items = items.all;
     }
   };
 
-  $scope.loadRemoteBlueprint = function(blueprint_name, branch_name) {
+  $scope.loadRemoteBlueprint = function(repo_url) {
+    var u = URI(repo_url);
+    var parts = u.path().substring(1).split('/');
+    var first_path_part = parts[0];
     var remote = {};
-    remote.server = 'https://github.rackspace.com/';
-    remote.owner = 'Blueprints';
-    remote.repo = {};
-    remote.repo.name = blueprint_name;
-    remote.branch = {};
-    remote.branch.commit = {};
-    remote.branch.commit.sha = branch_name;
-
-    github.get_blueprint(remote, $scope.auth.username, $scope.receive_blueprint, function(data) {
-      $scope.notify('Unable to load latest version of ' + blueprint_name + ' from github');
+    remote.url = u.href();
+    remote.owner = first_path_part;
+    remote.server = u.protocol() + '://' + u.host(); //includes port
+    remote.repo = {name: parts[1]};
+    remote.url = repo_url;
+    github.get_branch_from_name(remote, u.fragment() || 'master', function(branch) {
+      remote.branch = branch;
+      github.get_blueprint(remote, $scope.auth.username, $scope.receive_blueprint, function(data) {
+        $scope.notify('Unable to load latest version of ' + remote.repo.name + ' from github');
+      });
+    }, function(data) {
+        $scope.notify('Unable to load latest version of ' + remote.repo.name + ' from github');
     });
   };
 
@@ -1449,7 +1516,8 @@ function DeploymentManagedCloudController($scope, $location, $routeParams, $reso
                       {
                           "compute": "mysql"
                       }
-                  ]
+                  ],
+                  constraints: [ {source: "%repo_url%"} ]
               },
               "common": {
                   "vendor": "rackspace"
@@ -1477,7 +1545,8 @@ function DeploymentManagedCloudController($scope, $location, $routeParams, $reso
                       {
                           "compute": "mysql"
                       }
-                  ]
+                  ],
+                  constraints: [ {source: "%repo_url%"} ]
               },
               "common": {
                   "vendor": "rackspace"
@@ -1503,10 +1572,8 @@ function DeploymentManagedCloudController($scope, $location, $routeParams, $reso
 
   //Show list of supported Managed Cloud blueprints
   items.clear();
-  //$scope.blueprints = WPBP;
   BlueprintListController($scope, $location, $routeParams, $resource, items, navbar, settings, workflow,
                           WPBP, null, ENVIRONMENTS, 'next-gen');
-  //$scope.showSummaries = false;
 
   $scope.updateDatabaseProvider = function() {
     if ($scope.blueprint.id == '0255a076c7cf4fd38c69b6727f0b37ea') {
@@ -1538,16 +1605,27 @@ function DeploymentManagedCloudController($scope, $location, $routeParams, $reso
     $scope.setAllBlueprintRegions();
   });
 
+  //Load the latest supported blueprints (tagged) from github
+  $scope.loadRemoteBlueprint('https://github.rackspace.com/Blueprints/wordpress#v0.5');
+  $scope.loadRemoteBlueprint('https://github.rackspace.com/Blueprints/wordpress-clouddb#v0.5');
+
   //Load the latest master from github
-  $scope.loadRemoteBlueprint('wordpress', 'chef-solo');
-  $scope.loadRemoteBlueprint('wordpress-clouddb', 'chef-solo');
+  $scope.loadRemoteBlueprint('https://github.rackspace.com/Blueprints/wordpress');
+  $scope.loadRemoteBlueprint('https://github.rackspace.com/Blueprints/wordpress-clouddb');
 }
 
 //Select one remote blueprint
 function DeploymentNewRemoteController($scope, $location, $routeParams, $resource, $http, items, navbar, settings, workflow, github) {
 
   var blueprint = $location.search().blueprint;
+  if (blueprint === undefined)
+    blueprint = "https://github.rackspace.com/Blueprints/helloworld";
   var u = URI(blueprint);
+  if (u.fragment() === "") {
+    u.fragment($location.hash() || 'master');
+    $location.hash("");
+    $location.search('blueprint', u.normalize());
+  }
 
   BlueprintRemoteListController($scope, $location, $routeParams, $resource, $http, items, navbar, settings, workflow, github);
 
@@ -1558,7 +1636,7 @@ function DeploymentNewRemoteController($scope, $location, $routeParams, $resourc
     github.get_repo($scope.remote, $scope.remote.repo.name,
       function(data) {
         $scope.remote.repo = data;
-        $scope.default_branch = u.fragment() || 'master';
+        $scope.default_branch = u.fragment() || $location.hash() || 'master';
         $scope.selected = $scope.remote.repo;
       },
       function(data) {
@@ -1570,7 +1648,6 @@ function DeploymentNewRemoteController($scope, $location, $routeParams, $resourc
   //Instead of parse_org_url
   $scope.loading_remote_blueprints = true;
   $scope.remote = github.parse_org_url(blueprint, $scope.load);
-
 }
 
 // Handles the option setting and deployment launching
@@ -1589,11 +1666,11 @@ function DeploymentNewController($scope, $location, $routeParams, $resource, set
     $scope.domain_names = [];
     if ($scope.auth.loggedIn){
       var tenant_id = $scope.auth.tenantId;
-      url = '/:tenantId/providers/rackspace.dns/proxy/v1.0/'+tenant_id+'/domains.json';
+      var url = '/:tenantId/providers/rackspace.dns/proxy/v1.0/'+tenant_id+'/domains.json';
       var Domains = $resource((checkmate_server_base || '') + url, {tenantId: $scope.auth.tenantId});
-      var domains = Domains.query(function() {
-        for(var i=0; i<domains.length; i++){
-          $scope.domain_names.push(domains[i].name);
+      var results = Domains.query(function() {
+        for(var i=0; i<results.length; i++){
+          $scope.domain_names.push(results[i].name);
         }
        },
        function(response) {
@@ -1760,10 +1837,14 @@ function DeploymentNewController($scope, $location, $routeParams, $resource, set
       url += '/' + action;
     var Deployment = $resource((checkmate_server_base || '') + url, {tenantId: $scope.auth.tenantId});
     var deployment = new Deployment({});
-    deployment.blueprint = $scope.blueprint;
-    deployment.environment = $scope.environment;
+    deployment.blueprint = jQuery.extend({}, $scope.blueprint);  //Copy
+    deployment.environment = jQuery.extend({}, $scope.environment);  //Copy
     deployment.inputs = {};
     deployment.inputs.blueprint = {};
+    var remote = $scope.selected.remote || $scope.remote;
+    if (typeof remote == 'object' && remote.url !== undefined)
+      settings.substituteVariables(deployment, {"%repo_url%": remote.url});
+
     break_flag = false;
 
     // Have to fix some of the answers so they are in the right format, specifically the select
@@ -1847,6 +1928,7 @@ function DeploymentNewController($scope, $location, $routeParams, $resource, set
   $scope.$on('logIn', $scope.OnLogIn);
 }
 
+//Handles an existing deployment
 function DeploymentController($scope, $location, $resource, $routeParams) {
   //Model: UI
   $scope.showSummaries = true;
@@ -1904,7 +1986,9 @@ function DeploymentController($scope, $location, $resource, $routeParams) {
   $scope.load();
 }
 
-//Provider controllers
+/*
+ * Provider controllers
+ */
 function ProviderListController($scope, $location, $resource, items, scroll) {
   //Model: UI
   $scope.showSummaries = true;
@@ -1942,7 +2026,9 @@ function ProviderListController($scope, $location, $resource, items, scroll) {
   $scope.load();
 }
 
-//Environment controllers
+/*
+ * Environment controllers
+ */
 function EnvironmentListController($scope, $location, $resource, items, scroll) {
   //Model: UI
   $scope.showSummaries = true;
@@ -2001,7 +2087,9 @@ function EnvironmentListController($scope, $location, $resource, items, scroll) 
 }
 
 
-// Other stuff
+/*
+ * Other stuff
+ */
 if (Modernizr.localstorage) {
   // window.localStorage is available!
 } else {

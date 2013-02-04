@@ -293,102 +293,102 @@ services.factory('workflow', [function() {
 **/
 services.factory('items', [ 'filterFilter', function($resource, filter) {
   var items = {
-  data: {},  //original json
-  all: [],  //array of items
-  filtered: [],
-  selected: null,  //selected item
-  selectedIdx: null,  //array index of selected items
-  count: 0,
+    data: {},  //original json
+    all: [],  //array of items
+    filtered: [],
+    selected: null,  //selected item
+    selectedIdx: null,  //array index of selected items
+    count: 0,
 
-  receive: function(list, transform) {
-    console.log("Receiving");
-    if (transform === null || transform === undefined)
-        transform = function(item) {return item;};
-    items.data = list;
-    angular.forEach(list, function(value, key) {
-      this.push(transform(value, key));
-    }, items.all);
-    items.count = items.all.length;
-    items.filtered = items.all;
-    console.log('Done receiving ' + items.count + ' entries');
-  },
+    receive: function(list, transform) {
+      console.log("Receiving");
+      if (transform === null || transform === undefined)
+          transform = function(item) {return item;};
+      for (var attrname in list) { items.data[attrname] = list[attrname]; }
+      angular.forEach(list, function(value, key) {
+        this.push(transform(value, key));
+      }, items.all);
+      items.count = items.all.length;
+      items.filtered = items.all;
+      console.log('Done receiving ' + items.count + ' entries');
+    },
 
-  clear: function() {
-    items.data = null;
-    items.all = [];
-    items.filtered = [];
-    items.selected = null;
-    items.selectedIdx = null;
-    items.count = 0;
-  },
+    clear: function() {
+      items.data = {};
+      items.all = [];
+      items.filtered = [];
+      items.selected = null;
+      items.selectedIdx = null;
+      items.count = 0;
+    },
 
-  prev: function() {
-    if (items.hasPrev()) {
-        items.selectItem(items.selected ? items.selectedIdx - 1 : 0);
-    }
-  },
+    prev: function() {
+      if (items.hasPrev()) {
+          items.selectItem(items.selected ? items.selectedIdx - 1 : 0);
+      }
+    },
 
-  next: function() {
-    if (items.hasNext()) {
-        items.selectItem(items.selected ? items.selectedIdx + 1 : 0);
-    }
-  },
+    next: function() {
+      if (items.hasNext()) {
+          items.selectItem(items.selected ? items.selectedIdx + 1 : 0);
+      }
+    },
 
-  hasPrev: function() {
-    if (!items.selected) {
-      return true;
-    }
-    return items.selectedIdx > 0;
-  },
+    hasPrev: function() {
+      if (!items.selected) {
+        return true;
+      }
+      return items.selectedIdx > 0;
+    },
 
-  hasNext: function() {
-    if (!items.selected) {
-      return true;
-    }
-    return items.selectedIdx < items.filtered.length - 1;
-  },
+    hasNext: function() {
+      if (!items.selected) {
+        return true;
+      }
+      return items.selectedIdx < items.filtered.length - 1;
+    },
 
-  selectItem: function(idx) {
-    // Unselect previous selection.
-    if (items.selected) {
-      items.selected.selected = false;
-    }
+    selectItem: function(idx) {
+      // Unselect previous selection.
+      if (items.selected) {
+        items.selected.selected = false;
+      }
 
-    items.selected = items.filtered[idx];
-    items.selectedIdx = idx;
-    items.selected.selected = true;
+      items.selected = items.filtered[idx];
+      items.selectedIdx = idx;
+      items.selected.selected = true;
 
-  },
+    },
 
-  filterBy: function(key, value) {
-    console.log('Filtering');
-    items.filtered = filter(items.all, function(item) {
-      return item[key] === value;
-    });
-    items.reindexSelectedItem();
-  },
+    filterBy: function(key, value) {
+      console.log('Filtering');
+      items.filtered = filter(items.all, function(item) {
+        return item[key] === value;
+      });
+      items.reindexSelectedItem();
+    },
 
-  clearFilter: function() {
-    items.filtered = items.all;
-    items.reindexSelectedItem();
-  },
+    clearFilter: function() {
+      items.filtered = items.all;
+      items.reindexSelectedItem();
+    },
 
-  reindexSelectedItem: function() {
-    if (items.selected) {
-      var idx = items.filtered.indexOf(items.selected);
+    reindexSelectedItem: function() {
+      if (items.selected) {
+        var idx = items.filtered.indexOf(items.selected);
 
-      if (idx === -1) {
-          if (items.selected) items.selected.selected = false;
-          items.selected = null;
-          items.selectedIdx = null;
-      } else {
-          items.selectedIdx = idx;
+        if (idx === -1) {
+            if (items.selected) items.selected.selected = false;
+            items.selected = null;
+            items.selectedIdx = null;
+        } else {
+            items.selectedIdx = idx;
+        }
       }
     }
-  }
-};
+  };
 
-return items;
+  return items;
 }]);
 
 
@@ -456,7 +456,72 @@ services.value('settings', {
   getSettingsFromEnvironment: function(env) {
     var options = [];
     return options;
-  }
+  },
+
+  substituteVariables: function(source, variables) {
+    var text = JSON.stringify(source);
+    var changed = false;
+    for (var v in variables)
+      if (text.indexOf(v)) {
+        text = text.replace(v, variables[v]);
+        changed = true;
+      }
+    if (changed) {
+      var updated = JSON.parse(text);
+      this.mergeInto(source, updated);
+    }
+  },
+
+  //Merges src into target. Returns target. Modifies target with differences.
+  mergeInto: function mergeInto(target, src) {
+    var array = Array.isArray(src);
+    if (src === null || src === undefined)
+      return target;
+
+    if (array) {
+        target = target || [];
+        src.forEach(function(e, i) {
+            if (target.length < i - 1) {
+              target.push(e);
+            } else {
+              if (typeof e === 'object') {
+                  mergeInto(target[i], e);
+              } else {
+                  if (target[i] != e) {
+                      target[i] = e;
+                  }
+              }
+            }
+        });
+    } else {
+        if (target && typeof target === 'object') {
+            Object.keys(target).forEach(function (key) {
+                var val = target[key];
+                if (typeof val === 'object') {
+                  mergeInto(val, src[key]);
+                } else {
+                  if (val !== src[key])
+                    target[key] = src[key];
+                }
+            });
+        }
+        Object.keys(src).forEach(function (key) {
+            if (typeof src[key] !== 'object' || !src[key]) {
+                if (target[key] != src[key])
+                  target[key] = src[key];
+            }
+            else {
+                if (!target[key]) {
+                    target[key] = src[key];
+                } else {
+                    mergeInto(target[key], src[key]);
+                }
+            }
+        });
+    }
+
+    return target;
+}
 });
 
 // Captures HTTP requests and responses (including errors)
@@ -560,12 +625,31 @@ services.factory('github', ['$http', function($http) {
         });
     },
 
-    //Get all branches for a repo
+    //Get all branches (and tags) for a repo
     get_branches: function(remote, callback, error_callback) {
-      $http({method: 'GET', url: (checkmate_server_base || '') + '/githubproxy/api/v3/repos/' + remote.owner + '/' + remote.repo.name + '/branches',
+      $http({method: 'GET', url: (checkmate_server_base || '') + '/githubproxy/api/v3/repos/' + remote.owner + '/' + remote.repo.name + '/git/refs',
           headers: {'X-Target-Url': remote.server, 'accept': 'application/json'}}).
       success(function(data, status, headers, config) {
-        callback(data);
+        //Only branches and tags
+        var filtered = _.filter(data, function(item) {
+          return item.ref.indexOf('refs/heads/') === 0 || item.ref.indexOf('refs/tags/') === 0;
+        });
+        //Format the data (we need name, type, and sha only)
+        var transformed = _.map(filtered, function(item){
+          if (item.ref.indexOf('refs/heads/') === 0)
+            return {
+              type: 'branch',
+              name: item.ref.substring(11),
+              commit: item.object.sha
+              };
+          else if (item.ref.indexOf('refs/tags/') === 0)
+            return {
+              type: 'tag',
+              name: item.ref.substring(10),
+              commit: item.object.sha
+              };
+        });
+        callback(transformed);
       }).
       error(function(data, status, headers, config) {
         var response = {data: data, status: status};
@@ -573,14 +657,36 @@ services.factory('github', ['$http', function($http) {
       });
     },
 
-    // Get a single branch
-    get_branch: function(remote, branch_name, callback, error_callback) {
-      // There seems to be a bug in github enterprise where getting a single branch fails
-      $http({method: 'GET', url: (checkmate_server_base || '') + '/githubproxy/api/v3/repos/' + remote.owner + '/' + remote.repo.name + '/branches',
-        headers: {'X-Target-Url': remote.server, 'accept': 'application/json'}}).
+    // Get a single branch or tag and return it as an object (with type, name, and commit)
+    get_branch_from_name: function(remote, branch_name, callback, error_callback) {
+      $http({method: 'GET', url: (checkmate_server_base || '') + '/githubproxy/api/v3/repos/' + remote.owner + '/' + remote.repo.name + '/git/refs',
+          headers: {'X-Target-Url': remote.server, 'accept': 'application/json'}}).
       success(function(data, status, headers, config) {
-        var the_branch = _.find(data, function(branch) {return branch.name == branch_name;});
-        callback(the_branch);
+        //Only branches and tags
+        var branch_ref = 'refs/heads/' + branch_name;
+        var tag_ref = 'refs/tags/' + branch_name;
+        var found = _.find(data, function(item) {
+          return item.ref == branch_ref || item.ref == tag_ref;
+        });
+        if (found === undefined) {
+          var response = {data: "Branch or tag " + branch_name + " not found", status: "404"};
+          error_callback(response);
+          return;
+        }
+
+        //Format and return the data (we need name, type, and sha only)
+        if (found.ref == branch_ref)
+          callback({
+            type: 'branch',
+            name: found.ref.substring(11),
+            commit: found.object.sha
+            });
+        else if (found.ref == tag_ref)
+          callback({
+            type: 'tag',
+            name: found.ref.substring(10),
+            commit: found.object.sha
+            });
       }).
       error(function(data, status, headers, config) {
         var response = {data: data, status: status};
@@ -590,7 +696,7 @@ services.factory('github', ['$http', function($http) {
 
     get_blueprint: function(remote, username, callback, error_callback) {
       var repo_url = (checkmate_server_base || '') + '/githubproxy/api/v3/repos/' + remote.owner + '/' + remote.repo.name;
-      $http({method: 'GET', url: repo_url + '/git/trees/' + remote.branch.commit.sha,
+      $http({method: 'GET', url: repo_url + '/git/trees/' + remote.branch.commit,
           headers: {'X-Target-Url': remote.server, 'accept': 'application/json'}}).
       success(function(data, status, headers, config) {
         var checkmate_yaml_file = _.find(data.tree, function(file) {return file.path == "checkmate.yaml";});
@@ -607,7 +713,7 @@ services.factory('github', ['$http', function($http) {
               if (err.name == "YamlParseException")
                 error_callback("YAML syntax error in line " + err.parsedLine + ". '" + err.snippet + "' caused error '" + err.message + "'");
             }
-            callback(checkmate_yaml);
+            callback(checkmate_yaml, remote);
           }).
           error(function(data, status, headers, config) {
             var response = {data: data, status: status};
