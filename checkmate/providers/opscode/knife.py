@@ -295,7 +295,16 @@ encrypted_data_bag_secret "%s"
 
 
 def _init_repo(path, source_repo=None):
-    """Initialize a git repo. Pull it if remote is supplied."""
+    """
+
+    Initialize a git repo.
+
+    If a remote is supplied, we pull it in.
+
+    If the remote has a reference appended as a fragment, we fetch that and
+    check it out as a detached head.
+
+    """
     if not os.path.exists(path):
         raise CheckmateException("Invalid repo path: %s" % path)
 
@@ -311,8 +320,10 @@ def _init_repo(path, source_repo=None):
         else:
             #FIXME: there's a gap here. We don't check if origin exists.
             remote = repo.create_remote('origin', source_repo)
-        remote.pull(refspec=ref or 'master')
-        LOG.debug("Pulled '%s' ref '%s' into repo: %s" % (source_repo,
+        remote.fetch(refspec=ref or 'master')
+        git_binary = git.Git(path)
+        git_binary.checkout('FETCH_HEAD')
+        LOG.debug("Fetched '%s' ref '%s' into repo: %s" % (source_repo,
                                                           ref or 'master',
                                                           path))
     else:
