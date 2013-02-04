@@ -135,6 +135,17 @@ function AppController($scope, $http, $location, $resource) {
       expires: ''
     };
 
+  $scope.safeApply = function(fn) {
+    var phase = this.$root.$$phase;
+    if(phase == '$apply' || phase == '$digest') {
+      if(fn && (typeof(fn) === 'function')) {
+        fn();
+      }
+    } else {
+      this.$apply(fn);
+    }
+  };
+
   $scope.navigate = function(url) {
     $location.path(url);
   };
@@ -289,7 +300,7 @@ function AppController($scope, $http, $location, $resource) {
           delete $('#modalAuth')[0].failure_callback;
         }
       else
-        $scope.$apply();
+        $scope.$safeApply();
       $scope.$broadcast('logIn');
     }).error(function(response) {
       if (typeof $('#modalAuth')[0].failure_callback == 'function') {
@@ -679,34 +690,45 @@ function WorkflowController($scope, $resource, $http, $routeParams, $location, $
               console.log(error);
             }
 
-            var domain = null;
-            //Find domain in inputs
+            var url = null;
+            //Find url in inputs
             try {
-              domain = object.inputs.blueprint.domain;
-              $scope.output.domain = domain;
+              url = object.inputs.blueprint.url;
+              $scope.output.path = url;
             }
             catch (error) {
-              console.log(error);
+              console.log("url not found", error);
+
+              var domain = null;
+              //Find domain in inputs
+              try {
+                domain = object.inputs.blueprint.domain;
+                $scope.output.domain = domain;
+              }
+              catch (error) {
+                console.log(error);
+              }
+              //If no domain, use load-balancer VIP
+              if (domain === null) {
+                domain = $scope.output.vip;
+              }
+              //Find path in inputs
+              var path = "/";
+              try {
+                path = object.inputs.blueprint.path;
+              }
+              catch (error) {
+                console.log(error);
+              }
+              if (domain !== undefined && path !== undefined)
+                $scope.output.path = "http://" + domain + path;
             }
-            //If no domain, use load-balancer VIP
-            if (domain === null) {
-              domain = $scope.output.vip;
-            }
-            //Find path in inputs
-            var path = "/";
-            try {
-              path = object.inputs.blueprint.path;
-            }
-            catch (error) {
-              console.log(error);
-            }
-            if (domain !== undefined && path !== undefined)
-              $scope.output.path = "http://" + domain + path;
+
 
             //Get user name/password
             try {
               var user = _.find(object.resources, function(r, k) { return r.type == 'user';});
-              if ('instance' in user) {
+              if (user !== undefined && 'instance' in user) {
                 $scope.output.username = user.instance.name;
                 $scope.output.password = user.instance.password;
               }
@@ -718,7 +740,7 @@ function WorkflowController($scope, $resource, $http, $routeParams, $location, $
             //Get the private key
             try {
               var keypair = _.find(object.resources, function(r, k) { return r.type == 'key-pair';});
-              if ('instance' in keypair) {
+              if (keypair !== undefined && 'instance' in keypair) {
                 $scope.output.private_key = keypair.instance.private_key;
               }
             }
@@ -736,18 +758,18 @@ function WorkflowController($scope, $resource, $http, $routeParams, $location, $
             //Copy all data to all_data for clipboard use
             var all_data = [];
             all_data.push('From: ' + $location.absUrl());
-            all_data.push('Wordpress URL: ' + $scope.output.path);
-            all_data.push('Wordpress IP: ' +  $scope.output.vip);
+            all_data.push('App URL: ' + $scope.output.path);
+            all_data.push('App IP: ' +  $scope.output.vip);
             all_data.push('Servers: ');
             _.each($scope.output.resources, function(resource) {
                 if (resource.component == 'linux_instance') {
                     all_data.push('  ' + resource.service + ' server: ' + resource['dns-name']);
                     if (resource.instance.public_ip === undefined) {
                         for (var nindex in resource.instance.interfaces.host.networks) {
-                            var network = resource.instance.interfaces.host.networks[nindex]
+                            var network = resource.instance.interfaces.host.networks[nindex];
                             if (network.name == 'public_net') {
                                 for (var cindex in network.connections) {
-                                    var connection = network.connections[cindex]
+                                    var connection = network.connections[cindex];
                                     if (connection.type == 'ipv4') {
                                         resource.instance.public_ip = connection.value;
                                         break;
@@ -768,8 +790,8 @@ function WorkflowController($scope, $resource, $http, $routeParams, $location, $
                     all_data.push('  ' + resource.service + ' database: ' + resource['dns-name']);
                     try {
                       all_data.push('    Host:       ' + resource.instance.interfaces.mysql.host);
-                      all_data.push('    Username:   ' + resource.instance.interfaces.mysql.username);
-                      all_data.push('    Password:   ' + resource.instance.interfaces.mysql.password);
+                      all_data.push('    Username:   ' + (resource.instance.interfaces.mysql.username || $scope.output.username));
+                      all_data.push('    Password:   ' + (resource.instance.interfaces.mysql.password || $scope.output.password));
                       all_data.push('    DB Name:    ' + resource.instance.interfaces.mysql.database_name);
                       //all_data.push('    Admin Link: https://' + $scope.output.master_server.instance.public_ip + '/database-admin');
                     } catch(err) {
@@ -1194,7 +1216,6 @@ function WorkflowController($scope, $resource, $http, $routeParams, $location, $
       node.attr("transform", function(d) { return "translate(" + d.x + "," + d.y + ")"; });
     }
     force.start();
-
   };
 
   // Old code we might reuse
@@ -1551,10 +1572,8 @@ function DeploymentManagedCloudController($scope, $location, $routeParams, $reso
 
   //Show list of supported Managed Cloud blueprints
   items.clear();
-  //$scope.blueprints = WPBP;
   BlueprintListController($scope, $location, $routeParams, $resource, items, navbar, settings, workflow,
                           WPBP, null, ENVIRONMENTS, 'next-gen');
-  //$scope.showSummaries = false;
 
   $scope.updateDatabaseProvider = function() {
     if ($scope.blueprint.id == '0255a076c7cf4fd38c69b6727f0b37ea') {
@@ -1593,7 +1612,6 @@ function DeploymentManagedCloudController($scope, $location, $routeParams, $reso
   //Load the latest master from github
   $scope.loadRemoteBlueprint('https://github.rackspace.com/Blueprints/wordpress');
   $scope.loadRemoteBlueprint('https://github.rackspace.com/Blueprints/wordpress-clouddb');
-
 }
 
 //Select one remote blueprint

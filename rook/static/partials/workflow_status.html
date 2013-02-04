@@ -6,7 +6,7 @@
           <div class="alert alert-success">
               <clippy style="top:0" content="{{all_data}}" bgcolor="#DFF0D8"></clippy>
               <h2 style="margin-top: 0;">Congratulations! Your deployment is complete.</h2>
-              <div ng-hide="!output.path"><p><strong>Access your Wordpress site</strong> from <a ng-href="{{output.path}}" target="_blank">{{output.path}}</a>.</p>
+              <div ng-hide="!output.path"><p><strong>Access your application</strong> from <a ng-href="{{output.path}}" target="_blank">{{output.path}}</a>.</p>
               <p>Alternatively, enter the IP address in your hosts file if the domain name is not yet accessible:</p>
               <p><pre>echo "{{output.vip}}  {{output.domain}}" >> /etc/hosts</pre></p>
               <p>You might need to run this with elevated priviledges:
@@ -41,9 +41,9 @@
 
               <p><strong>Access your application</strong> using these administrative credentials:
               <pre>username: {{output.username}}<br>password: {{output.password}}</pre></p>
-              <p>Alternatively, you can use this private key:<clippy content="{{output.private_key}}" bgcolor="#DFF0D8"></clippy>
+              <p ng-cloak ng-show="output.private_key">Alternatively, you can use this private key:<clippy content="{{output.private_key}}" bgcolor="#DFF0D8"></clippy>
               </p>
-              <p><pre>{{output.private_key}}</pre></p>
+              <p ng-cloak ng-show="output.private_key"><pre>{{output.private_key}}</pre></p>
               <p>The advanced view of the workflow can still be reached <a href=".">here</a>.</p>
           </div>
         </div>
