@@ -1713,7 +1713,7 @@ function DeploymentNewController($scope, $location, $routeParams, $resource, set
     }
 
     _.each($scope.settings, function(setting) {
-      if ('default' in setting) {
+      if ('default' in setting && (typeof setting['default'] != 'string' || setting['default'].indexOf('=generate') === -1)) {
         $scope.answers[setting.id] = setting['default'];
       } else
         $scope.answers[setting.id] = null;
