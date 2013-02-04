@@ -13,7 +13,6 @@ at a time.
 # pylint: disable=E0611
 import json
 import logging
-import os
 from time import sleep
 import uuid
 
@@ -27,9 +26,9 @@ except ImportError:
     raise
 
 from SpiffWorkflow import Workflow
+from SpiffWorkflow.operators import Attrib, PathAttrib, valueof
 from SpiffWorkflow.storage import DictionarySerializer
 
-from checkmate.common import schema
 from checkmate.db import any_id_problems
 from checkmate.deployments import plan, Deployment
 from checkmate.workflows import (get_SpiffWorkflow_status,
@@ -255,6 +254,29 @@ def process(tenant_id, complete=False):
     return results
 
 
+# Copied from SpiffWorkflow.spec.Celery because they can't be accessed
+def eval_args(args, my_task):
+    """Parses args and evaluates any Attrib entries"""
+    results = []
+    for arg in args:
+        if isinstance(arg, Attrib) or isinstance(arg, PathAttrib):
+            results.append(valueof(my_task, arg))
+        else:
+            results.append(arg)
+    return results
+
+
+def eval_kwargs(kwargs, my_task):
+    """Parses kwargs and evaluates any Attrib entries"""
+    results = {}
+    for kwarg, value in kwargs.iteritems():
+        if isinstance(value, Attrib) or isinstance(value, PathAttrib):
+            results[kwarg] = valueof(my_task, value)
+        else:
+            results[kwarg] = value
+    return results
+
+
 def simulate_result(tenant_id, my_task, workflow):
     """Simulate result data based on provider, deployment, and workflow"""
     global PACKAGE
@@ -265,6 +287,12 @@ def simulate_result(tenant_id, my_task, workflow):
     call = getattr(spec, 'call', None)
     provider = props.get('provider')
     deployment = PACKAGE[tenant_id]
+    arg, kwargs = None, None
+    if spec.args:
+        args = eval_args(spec.args, my_task)
+    if spec.kwargs:
+        kwargs = eval_kwargs(spec.kwargs, my_task)
+
     if 'resource' in props:
         resource_key = props['resource']
         resource = deployment['resources'][resource_key]
@@ -288,6 +316,7 @@ def simulate_result(tenant_id, my_task, workflow):
                 'instance:%s' % resource_key: {
                     'status': "ACTIVE",
                     'ip': '4.4.4.%s' % resource_key,
+                    'public_ip': '4.4.4.%s' % resource_key,
                     'private_ip': '10.1.2.%s' % resource_key,
                     'addresses': {
                       'public': [
@@ -309,16 +338,61 @@ def simulate_result(tenant_id, my_task, workflow):
                     }
                 }
             }
-    elif call == ("checkmate.providers.rackspace.load-balancer."
-                       "create_load_balancer"):
+    elif call == ("checkmate.providers.rackspace.loadbalancer."
+                       "create_loadbalancer"):
         result = {
                   'instance:%s' % resource_key: {
                         'id': "LB0%s" % resource_key,
                         'public_ip': "4.4.4.20%s" % resource_key,
                         'port': "dummy",
                         'protocol': "dummy"}}
+    elif call in ["checkmate.providers.rackspace.database.create_database",
+                  ]:
+        instance_id = kwargs.get('instance_id', 'DBS%s' % resource_key)
+        hostname = "srv%s.rackdb.net" % resource_key
+        database_name = args[1]
+        result = {
+                'instance:%s' % resource_key: {
+                        'name': database_name,
+                        'host_instance': instance_id,
+                        'host_region': resource.get('region'),
+                        'interfaces': {
+                                'mysql': {
+                                        'host': hostname,
+                                        'database_name': database_name
+                                    },
+                            }
+                    }
+            }
+    elif call in ["checkmate.providers.rackspace.database.create_instance",
+                  ]:
+        result = {
+            'instance:%s' % resource_key: {
+                    'id': "DBS%s" % resource_key,
+                    'name': resource['dns-name'],
+                    'status': "ACTIVE",
+                    'region': resource.get('region'),
+                    'interfaces': {
+                            'mysql': {
+                                    'host': "srv%s.rackdb.net" % resource_key
+                                }
+                        },
+                    'databases': {}
+                }
+        }
     elif call in ["checkmate.providers.opscode.knife.cook",
-                  "checkmate.providers.opscode.knife.write_databag",
+                  ]:
+        if my_task.attributes:
+            # Take output from map and post it back
+            result = my_task.attributes.get('instance:%s' % resource_key, {})
+            if result:
+                result = {'instance:%s' % resource_key: result}
+        else:
+            result = {}
+        if not result:
+            LOG.debug("Ignoring task '%s' for provider '%s' in simuator" %
+                      (provider, spec.name))
+    elif call in ["checkmate.providers.opscode.knife.write_databag",
                   "checkmate.providers.opscode.knife.write_role",
                   ]:
         result = {}
@@ -348,6 +422,7 @@ def simulate_result(tenant_id, my_task, workflow):
             result = {}
             LOG.debug("Ignoring task '%s' for provider '%s' in simuator" %
                       (provider, spec.name))
+
 
     if result is None:
         LOG.info("Consider handling a simulated result for task '%s'. The "

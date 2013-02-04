@@ -802,6 +802,9 @@ class Deployment(ExtensibleDict):
                                % resource_id))
                     # Canonicalize it
                     value = schema.translate_dict(value)
+                    # Only apply instance
+                    if 'instance' in value:
+                        value = value['instance']
                     # Merge it in
                     if 'instance' not in resource:
                         resource['instance'] = {}
