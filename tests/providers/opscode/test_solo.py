@@ -855,6 +855,7 @@ class TestMappedMultipleWorkflow(test.StubbedWorkflowBase):
                 - source: requirements://host:linux/ip
                   targets:
                   - attributes://master/ip
+                  - outputs://instance:{{resource.index}}/instance/ip
                 # Relation requirement resolved at run-time
                 - source: requirements://database:mysql/database_name
                   targets:
@@ -955,7 +956,8 @@ class TestMappedMultipleWorkflow(test.StubbedWorkflowBase):
             'chef_maps': [
                 {
                     'source': 'requirements://host:linux/ip',
-                    'targets': ['attributes://master/ip'],
+                    'targets': ['attributes://master/ip',
+                                'outputs://instance:0/instance/ip'],
                     'path': 'instance:1'},
                 {
                     'source': 'requirements://database:mysql/database_name',

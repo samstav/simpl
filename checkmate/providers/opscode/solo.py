@@ -669,7 +669,7 @@ class Provider(ProviderBase):
                               server_component):
         """
 
-        Gets creates if does not exist) a task to reconfigure a server when a
+        Gets (creates if does not exist) a task to reconfigure a server when a
         client is ready.
 
         This generates only one task per workflow which all clients tie in to.
@@ -703,19 +703,15 @@ class Provider(ProviderBase):
             result = {'root': root_task, 'final': reconfigure_task}
         else:
             name = 'Reconfigure %s: client ready' % server['component']
-            host_idx = server['hosted_on']
+            host_idx = server.get('hosted_on', server['index'])
             run_list = self._get_component_run_list(server_component)
             reconfigure_task = Celery(wfspec,
                     name, 'checkmate.providers.opscode.knife.cook',
                     call_args=[
-                            PathAttrib('instance:%s/public_ip' % host_idx),
+                            PathAttrib('instance:%s/ip' % host_idx),
                             deployment['id']],
-                    password=PathAttrib('instance:%s/password' %
-                                        host_idx),
-                    # Taking the below out for now because it could step
-                    # on attribute-based components so for now, you have to
-                    # have a databag-based component to do reconfig tasks
-                    # attributes=PathAttrib('chef_options/attributes'),
+                    password=PathAttrib('instance:%s/password' % host_idx),
+                    attributes=PathAttrib('chef_options/attributes'),
                     identity_file=Attrib('private_key_path'),
                     description="Push and apply Chef recipes on the "
                                 "server",
