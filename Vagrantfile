@@ -9,7 +9,7 @@ Vagrant::Config.run do |config|
   config.vm.box = "precise"
   config.vm.box_url = "http://files.vagrantup.com/precise64.box"
 
-  config.vm.provision :shell, :inline => "if [ \"$(chef-client --version |awk '{print $2}')\" != \"10.12.0\" ]; then bash <(wget http://chef.rackspacecloud.com/install-alt.sh -q --tries=10 -O -) -v 10.12.0-1 -r 2>> /dev/null; fi"
+  config.vm.provision :shell, :inline => "if [ \"$(chef-client --version |awk '{print $2}')\" != \"10.18.2\" ]; then bash <(wget http://www.opscode.com/chef/install.sh --tries=10 -O -) -v 10.18.2 2>> /dev/null; fi"
 
   config.vm.provision :chef_solo do |chef|
     chef.log_level = :debug
@@ -24,6 +24,7 @@ Vagrant::Config.run do |config|
     chef.add_recipe "mongodb::10gen_repo"
     chef.add_recipe "mongodb"
     chef.add_recipe "checkmate"
+    chef.add_recipe "rvm::vagrant"
     chef.add_recipe "rvm::user"
     chef.add_recipe "checkmate::vagrant"
     chef.add_recipe "checkmate::broker"

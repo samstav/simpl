@@ -23,6 +23,8 @@ from checkmate.keys import hash_SHA512
 from checkmate.providers import ProviderBase
 from checkmate.workflows import wait_for
 from checkmate.utils import merge_dictionary  # Spiff version used by transform
+from jinja2.runtime import Undefined
+from jinja2.filters import do_indent
 
 LOG = logging.getLogger(__name__)
 
@@ -98,13 +100,9 @@ class Provider(ProviderBase):
         self._add_component_tasks(wfspec, component, deployment, key,
                                   context, service_name)
 
-    def _add_component_tasks(self, wfspec, component, deployment, key,
-                             context, service_name):
-        # Get component/role or recipe name
-        component_id = component['id']
-        LOG.debug("Determining component from dict: %s" % component_id,
-                  extra=component)
+    def _get_component_run_list(self, component):
         run_list = {}
+        component_id = component['id']
         for mcomponent in self.map_file.components:
             if mcomponent['id'] == component_id:
                 run_list = mcomponent.get('run-list', {})
@@ -117,13 +115,23 @@ class Provider(ProviderBase):
             else:
                 name = component_id
                 if name == 'mysql':
-                    name += "::server"  # install server by default, not client
+                    # FIXME: hack (install server by default, not client)
+                    name += "::server"
             if component_id.endswith('-role'):
                 run_list['roles'] = [name[0:-5]]  # trim the '-role'
             else:
                 run_list['recipes'] = [name]
         LOG.debug("Component run_list determined to be %s" % run_list)
-        kwargs = run_list
+        return run_list
+
+    def _add_component_tasks(self, wfspec, component, deployment, key,
+                             context, service_name):
+        # Get component/role or recipe name
+        component_id = component['id']
+        LOG.debug("Determining component from dict: %s" % component_id,
+                  extra=component)
+
+        kwargs = self._get_component_run_list(component)
 
         # Create the cook task
 
@@ -635,15 +643,26 @@ class Provider(ProviderBase):
                 provider = environment.get_provider(server['provider'])
                 server_component = provider.get_component(context,
                                                           server['component'])
-                tasks = self.get_reconfigure_tasks(wfspec, deployment, client,
-                                                   server, server_component)
-                recollect_task = tasks['root']
+                recon_tasks = self.get_reconfigure_tasks(wfspec, deployment,
+                                                         client,
+                                                         server,
+                                                         server_component)
+                recollect_task = recon_tasks['root']
 
-                final_tasks = self.find_tasks(wfspec, resource=key,
-                                              provider=self.key, tag='final')
+                final_tasks = self.find_tasks(wfspec,
+                                              resource=key,
+                                              provider=self.key,
+                                              tag='final')
+                final_tasks.extend(self.find_tasks(wfspec,
+                                                   resource=server.get('index'),
+                                                   provider=self.key,
+                                                   tag='final'))
                 if not final_tasks:
                     # If server already configured, anchor to root
+                    LOG.warn("Did not find final task for resource %s" %
+                            key)
                     final_tasks = [self.prep_task]
+                LOG.debug("Reconfig waiting on %s" % final_tasks)
                 wait_for(wfspec, recollect_task, final_tasks)
 
     def get_reconfigure_tasks(self, wfspec, deployment, client, server,
@@ -672,6 +691,7 @@ class Provider(ProviderBase):
                                    provider=self.key, tag='client-ready')
         collect_tag = "reconfig"
         ready_tag = "reconfig-options-ready"
+
         if existing:
             reconfigure_task = existing[0]
             collect = self.find_tasks(wfspec, resource=server['index'],
@@ -683,14 +703,19 @@ class Provider(ProviderBase):
             result = {'root': root_task, 'final': reconfigure_task}
         else:
             name = 'Reconfigure %s: client ready' % server['component']
+            host_idx = server['hosted_on']
+            run_list = self._get_component_run_list(server_component)
             reconfigure_task = Celery(wfspec,
                     name, 'checkmate.providers.opscode.knife.cook',
                     call_args=[
-                            PathAttrib('instance:%s/ip' % server['index']),
+                            PathAttrib('instance:%s/public_ip' % host_idx),
                             deployment['id']],
                     password=PathAttrib('instance:%s/password' %
-                                        server['index']),
-                    attributes=PathAttrib('chef_options/attributes'),
+                                        host_idx),
+                    # Taking the below out for now because it could step
+                    # on attribute-based components so for now, you have to
+                    # have a databag-based component to do reconfig tasks
+                    # attributes=PathAttrib('chef_options/attributes'),
                     identity_file=Attrib('private_key_path'),
                     description="Push and apply Chef recipes on the "
                                 "server",
@@ -701,7 +726,8 @@ class Provider(ProviderBase):
                     properties={
                                 'estimated_duration': 100,
                                 'task_tags': ['client-ready'],
-                               }
+                               },
+                    **run_list
                     )
             if self.map_file.has_mappings(server['component']):
                 collect_tasks = self.get_prep_tasks(wfspec, deployment,
@@ -795,7 +821,7 @@ class Transforms():
             for mapping in maps:
                 try:
                     result = ChefMap.evaluate_mapping_source(mapping, data)
-                    if result is not None:
+                    if ChefMap.is_writable_val(result):
                         queue.append((mapping, result))
                 except SoloProviderNotReady:
                     return False  # false means not done/not ready
@@ -1021,6 +1047,10 @@ class ChefMap():
                         return True
         return False
 
+    @staticmethod
+    def is_writable_val(val):
+        return val is not None and len(str(val)) > 0
+
     def get_attributes(self, component_id, deployment):
         """Parse maps and get attributes for a specific component that are
         ready"""
@@ -1039,7 +1069,7 @@ class ChefMap():
                         except SoloProviderNotReady:
                             LOG.debug("Map not ready yet: " % m)
                             continue
-                        if value is not None:
+                        if ChefMap.is_writable_val(value):
                             for target in m.get('targets', []):
                                 url = self.parse_map_URI(target)
                                 if url['scheme'] == 'attributes':
@@ -1101,9 +1131,10 @@ class ChefMap():
     @staticmethod
     def resolve_map(mapping, data, output):
         """Resolve mapping and write output"""
-        result = ChefMap.evaluate_mapping_source(mapping, data)
-        if result is not None:
-            ChefMap.apply_mapping(mapping, result, output)
+        ChefMap.apply_mapping(mapping,
+            ChefMap.evaluate_mapping_source(mapping,
+                                            data),
+                              output)
 
     @staticmethod
     def apply_mapping(mapping, value, output):
@@ -1116,6 +1147,8 @@ class ChefMap():
         """
         # FIXME: hack to get v0.5 out. Until we implement search() or Craig's
         # ValueFilter. For now, just write arrays for all 'clients' mappings
+        if not ChefMap.is_writable_val(value):
+            return
         write_array = False
         if 'source' in mapping:
             url = ChefMap.parse_map_URI(mapping['source'])
@@ -1329,8 +1362,10 @@ class ChefMap():
             result = template.render(**minimum_kwargs)
             #TODO: exceptions in Jinja template sometimes missing traceback
         except StandardError as exc:
+            LOG.error(exc, exc_info=True)
             raise CheckmateException("Chef template rendering failed: %s" %
                                      exc)
         except TemplateError as exc:
+            LOG.error(exc, exc_info=True)
             raise CheckmateException("Chef template had an error: %s" % exc)
         return result
