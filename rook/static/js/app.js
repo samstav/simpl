@@ -62,6 +62,10 @@ checkmate.config(['$routeProvider', '$locationProvider', '$httpProvider', functi
     templateUrl: '/partials/workflows.html',
     controller: WorkflowListController
   }).
+  when('/blueprints', {
+    templateUrl: '/partials/blueprints-remote.html',
+    controller: BlueprintRemoteListController
+  }).
   when('/:tenantId/blueprints', {
     templateUrl: '/partials/blueprints-remote.html',
     controller: BlueprintRemoteListController
