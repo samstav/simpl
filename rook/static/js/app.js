@@ -300,7 +300,7 @@ function AppController($scope, $http, $location, $resource) {
           delete $('#modalAuth')[0].failure_callback;
         }
       else
-        $scope.$safeApply();
+        $scope.$apply();
       $scope.$broadcast('logIn');
     }).error(function(response) {
       if (typeof $('#modalAuth')[0].failure_callback == 'function') {
