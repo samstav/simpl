@@ -100,13 +100,9 @@ class Provider(ProviderBase):
         self._add_component_tasks(wfspec, component, deployment, key,
                                   context, service_name)
 
-    def _add_component_tasks(self, wfspec, component, deployment, key,
-                             context, service_name):
-        # Get component/role or recipe name
-        component_id = component['id']
-        LOG.debug("Determining component from dict: %s" % component_id,
-                  extra=component)
+    def _get_component_run_list(self, component):
         run_list = {}
+        component_id = component['id']
         for mcomponent in self.map_file.components:
             if mcomponent['id'] == component_id:
                 run_list = mcomponent.get('run-list', {})
@@ -119,13 +115,23 @@ class Provider(ProviderBase):
             else:
                 name = component_id
                 if name == 'mysql':
-                    name += "::server"  # install server by default, not client
+                    # FIXME: hack (install server by default, not client)
+                    name += "::server"
             if component_id.endswith('-role'):
                 run_list['roles'] = [name[0:-5]]  # trim the '-role'
             else:
                 run_list['recipes'] = [name]
         LOG.debug("Component run_list determined to be %s" % run_list)
-        kwargs = run_list
+        return run_list
+
+    def _add_component_tasks(self, wfspec, component, deployment, key,
+                             context, service_name):
+        # Get component/role or recipe name
+        component_id = component['id']
+        LOG.debug("Determining component from dict: %s" % component_id,
+                  extra=component)
+
+        kwargs = self._get_component_run_list(component)
 
         # Create the cook task
 
@@ -685,6 +691,7 @@ class Provider(ProviderBase):
                                    provider=self.key, tag='client-ready')
         collect_tag = "reconfig"
         ready_tag = "reconfig-options-ready"
+
         if existing:
             reconfigure_task = existing[0]
             collect = self.find_tasks(wfspec, resource=server['index'],
@@ -697,6 +704,7 @@ class Provider(ProviderBase):
         else:
             name = 'Reconfigure %s: client ready' % server['component']
             host_idx = server['hosted_on']
+            run_list = self._get_component_run_list(server_component)
             reconfigure_task = Celery(wfspec,
                     name, 'checkmate.providers.opscode.knife.cook',
                     call_args=[
@@ -704,7 +712,10 @@ class Provider(ProviderBase):
                             deployment['id']],
                     password=PathAttrib('instance:%s/password' %
                                         host_idx),
-                    attributes=PathAttrib('chef_options/attributes'),
+                    # Taking the below out for now because it could step
+                    # on attribute-based components so for now, you have to
+                    # have a databag-based component to do reconfig tasks
+                    # attributes=PathAttrib('chef_options/attributes'),
                     identity_file=Attrib('private_key_path'),
                     description="Push and apply Chef recipes on the "
                                 "server",
@@ -715,7 +726,8 @@ class Provider(ProviderBase):
                     properties={
                                 'estimated_duration': 100,
                                 'task_tags': ['client-ready'],
-                               }
+                               },
+                    **run_list
                     )
             if self.map_file.has_mappings(server['component']):
                 collect_tasks = self.get_prep_tasks(wfspec, deployment,

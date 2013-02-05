@@ -15,6 +15,7 @@ import sys
 import git
 import shutil
 import urlparse
+from git.exc import GitCommandError
 
 LOG = logging.getLogger(__name__)
 
@@ -313,6 +314,7 @@ def _init_repo(path, source_repo=None):
 
     if source_repo:  # Pull remote if supplied
         source_repo, ref = urlparse.urldefrag(source_repo)
+        LOG.debug("Fetching ref %s from %s" % (ref or 'master', source_repo))
         remotes = [r for r in repo.remotes
                      if r.config_reader.get('url') == source_repo]
         if remotes:
@@ -320,7 +322,11 @@ def _init_repo(path, source_repo=None):
         else:
             #FIXME: there's a gap here. We don't check if origin exists.
             remote = repo.create_remote('origin', source_repo)
-        remote.fetch(refspec=ref or 'master')
+        try:
+            remote.fetch(refspec=ref or 'master')
+        except GitCommandError as gce:
+            LOG.error("Error fetching source repo: %s" % str(gce))
+            raise gce
         git_binary = git.Git(path)
         git_binary.checkout('FETCH_HEAD')
         LOG.debug("Fetched '%s' ref '%s' into repo: %s" % (source_repo,
