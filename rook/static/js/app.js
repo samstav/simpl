@@ -1489,10 +1489,12 @@ function DeploymentManagedCloudController($scope, $location, $routeParams, $reso
     github.get_branch_from_name(remote, u.fragment() || 'master', function(branch) {
       remote.branch = branch;
       github.get_blueprint(remote, $scope.auth.username, $scope.receive_blueprint, function(data) {
-        $scope.notify('Unable to load latest version of ' + remote.repo.name + ' from github');
+        $scope.notify('Unable to load latest version of ' + remote.repo.name + ' from github: ' + data);
+        console.log('Unable to load latest version of ' + remote.repo.name + ' from github: ' + data);
       });
     }, function(data) {
-        $scope.notify('Unable to load latest version of ' + remote.repo.name + ' from github');
+        $scope.notify('Unable to load latest version of ' + remote.repo.name + ' from github: ' + data);
+        console.log('Unable to load latest version of ' + remote.repo.name + ' from github: ' + data);
     });
   };
 
