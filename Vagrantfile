@@ -32,6 +32,8 @@ Vagrant::Config.run do |config|
 
     chef.json = {
       :rvm => {
+        :version => "1.17.10",
+        :branch => "none",
         :user_installs => [{
           :user => 'vagrant',
           :default_ruby => 'ruby-1.9.3-p125@checkmate',
