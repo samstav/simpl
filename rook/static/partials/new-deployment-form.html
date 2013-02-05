@@ -26,8 +26,7 @@
             <label class="control-label required" for="environment">Where to deploy?</label>
             <div class="controls">
               <!-- Show list if list exists -->
-              <select ng-cloak ng-show="environments" id="environment" class="span6" ng-model="environment" ng-change="onBlueprintChange()"
-                      ng-options="environment.name for (id,environment) in environments" required>
+              <select ng-cloak ng-show="environments" id="environment" class="span6" ng-model="environment" ng-change="setEnvironment(environment)" ng-options="environment.name for (id,environment) in environments" required>
               </select>
               <!-- Show text if only one exists -->
               <input ng-cloak ng-show="!environments" readonly="" type="text" value="{{environment.name}}" class="input-xlarge">
@@ -302,7 +301,7 @@
       <div class="control-group">
         <label class="control-label required" for="protocol_for_{{setting.id}}">Protocol</label>
         <div class="controls">
-          <select style="width:150px;" id="protocol_for_{{setting.id}}" ng-options="o for o in ['http', 'https']" ng-model="protocol" ng-change="UpdateURL(this, setting.id)"></select>
+          <select style="width:150px;" id="protocol_for_{{setting.id}}" ng-options="o for o in setting.protocols || ['http']" ng-model="protocol" ng-change="UpdateURL(this, setting.id)"></select>
         </div>
       </div>
     </div>

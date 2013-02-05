@@ -468,6 +468,7 @@ function NavBarController($scope, $location) {
 }
 
 function ActivityFeedController($scope, $http, items) {
+  $scope.loading = false;
   $scope.parse_event = function(event, key) {
     var parsed = {
       key: event.id,
@@ -518,6 +519,7 @@ function ActivityFeedController($scope, $http, items) {
   };
 
   $scope.load = function() {
+    $scope.loading = true;
     var path = (checkmate_server_base || '') + '/githubproxy/api/v3/orgs/Blueprints/events';
     $http({method: 'GET', url: path, headers: {'X-Target-Url': 'https://github.rackspace.com', 'accept': 'application/json'}}).
       success(function(data, status, headers, config) {
@@ -525,10 +527,11 @@ function ActivityFeedController($scope, $http, items) {
         items.receive(data, $scope.parse_event);
         $scope.count = items.count;
         $scope.items = items.all;
+        $scope.loading = false;
       }).
       error(function(data, status, headers, config) {
         var response = {data: data, status: status};
-        //$scope.show_error(response);
+        $scope.loading = false;
       });
   };
   $scope.load();
@@ -1691,6 +1694,35 @@ function DeploymentNewController($scope, $location, $routeParams, $resource, set
     $scope.updateSettings();
   };
 
+  $scope.setEnvironment = function(environment) {
+    $scope.environment = environment;
+    $scope.updateRegions();
+  };
+
+  $scope.updateRegions = function() {
+    if ($scope.environment) {
+      if ('providers' in $scope.environment && 'legacy' in $scope.environment.providers) {
+        if ($scope.settings && $scope.auth.loggedIn === true && 'RAX-AUTH:defaultRegion' in $scope.auth.catalog.access.user) {
+            _.each($scope.settings, function(setting) {
+                if (setting.id == 'region') {
+                    setting['default'] = $scope.auth.catalog.access.user['RAX-AUTH:defaultRegion'];
+                    setting.choice = [setting['default']];
+                    $scope.answers[setting.id] = setting['default'];
+                    setting.description = "Your legacy cloud servers region is '" + setting['default'] + "'. You can only deploy to this region";
+                }
+            });
+        }
+      } else {
+        _.each($scope.settings, function(setting) {
+          if (setting.id == 'region' && $scope.auth.loggedIn === true) {
+            setting.choice = $scope.auth.catalog.access.regions;
+            setting.description = "";
+          }
+        });
+      }
+    }
+  };
+
   $scope.updateSettings = function() {
     $scope.settings = [];
     $scope.answers = {};
@@ -1701,17 +1733,7 @@ function DeploymentNewController($scope, $location, $routeParams, $resource, set
 
     if ($scope.environment) {
       $scope.settings = $scope.settings.concat(settings.getSettingsFromEnvironment($scope.environment));
-      if ('providers' in $scope.environment && 'legacy' in $scope.environment.providers) {
-        if ($scope.settings && $scope.auth.loggedIn === true && 'RAX-AUTH:defaultRegion' in $scope.auth.catalog.access.user) {
-            _.each($scope.settings, function(setting) {
-                if (setting.id == 'region') {
-                    setting['default'] = $scope.auth.catalog.access.user['RAX-AUTH:defaultRegion'];
-                    setting.choice = [setting['default']];
-                    setting.description = "Your legacy cloud servers region is '" + setting['default'] + "'. You can only deploy to this region";
-                }
-            });
-        }
-      }
+      $scope.updateRegions();
     }
 
     _.each($scope.settings, function(setting) {
