@@ -468,6 +468,7 @@ function NavBarController($scope, $location) {
 }
 
 function ActivityFeedController($scope, $http, items) {
+  $scope.loading = false;
   $scope.parse_event = function(event, key) {
     var parsed = {
       key: event.id,
@@ -518,6 +519,7 @@ function ActivityFeedController($scope, $http, items) {
   };
 
   $scope.load = function() {
+    $scope.loading = true;
     var path = (checkmate_server_base || '') + '/githubproxy/api/v3/orgs/Blueprints/events';
     $http({method: 'GET', url: path, headers: {'X-Target-Url': 'https://github.rackspace.com', 'accept': 'application/json'}}).
       success(function(data, status, headers, config) {
@@ -525,10 +527,11 @@ function ActivityFeedController($scope, $http, items) {
         items.receive(data, $scope.parse_event);
         $scope.count = items.count;
         $scope.items = items.all;
+        $scope.loading = false;
       }).
       error(function(data, status, headers, config) {
         var response = {data: data, status: status};
-        //$scope.show_error(response);
+        $scope.loading = false;
       });
   };
   $scope.load();
