@@ -26,8 +26,7 @@
             <label class="control-label required" for="environment">Where to deploy?</label>
             <div class="controls">
               <!-- Show list if list exists -->
-              <select ng-cloak ng-show="environments" id="environment" class="span6" ng-model="environment" ng-change="onBlueprintChange()"
-                      ng-options="environment.name for (id,environment) in environments" required>
+              <select ng-cloak ng-show="environments" id="environment" class="span6" ng-model="environment" ng-change="setEnvironment(environment)" ng-options="environment.name for (id,environment) in environments" required>
               </select>
               <!-- Show text if only one exists -->
               <input ng-cloak ng-show="!environments" readonly="" type="text" value="{{environment.name}}" class="input-xlarge">
