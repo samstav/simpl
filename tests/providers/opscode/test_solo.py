@@ -105,7 +105,9 @@ class TestChefSoloProvider(test.ProviderTester):
                                             map_file=chef_map)
         expected = [{'source': 'requirements://database:mysql/ip',
                      'targets': ['attributes://ip'],
-                     'path': 'instance:2/interfaces/mysql'}]
+                     'path': 'instance:2/interfaces/mysql',
+                     'resource': '0',
+                     }]
         self.assertListEqual(result, expected)
 
         # Check client maps
@@ -117,10 +119,12 @@ class TestChefSoloProvider(test.ProviderTester):
                     {
                      'source': 'clients://database:mysql/ip',
                      'targets': ['attributes://clients'],
+                     'resource': '2',
                      'path': 'instance:1',
                     }, {
                      'source': 'clients://database:mysql/ip',
                      'targets': ['attributes://clients'],
+                     'resource': '2',
                      'path': 'instance:0',
                     },
                    ]
@@ -801,6 +805,7 @@ class TestMappedMultipleWorkflow(test.StubbedWorkflowBase):
     - use run-list
     - multiple components in one service (count>1)
     - use conceptual (foo, bar, widget, etc) catalog, not mysql
+    - check client mappings
 
     """
 
@@ -851,10 +856,18 @@ class TestMappedMultipleWorkflow(test.StubbedWorkflowBase):
                 - value: 10
                   targets:
                   - attributes://widgets
+                  - attributes://connections
                 # Host requirement resolved at run-time
                 - source: requirements://host:linux/ip
                   targets:
                   - attributes://master/ip
+                  - outputs://instance:{{resource.index}}/instance/ip
+                - source: requirements://host:linux/private_ip
+                  targets:
+                  - outputs://instance:{{resource.index}}/instance/private_ip
+                - source: requirements://host:linux/public_ip
+                  targets:
+                  - outputs://instance:{{resource.index}}/instance/public_ip
                 # Relation requirement resolved at run-time
                 - source: requirements://database:mysql/database_name
                   targets:
@@ -884,6 +897,9 @@ class TestMappedMultipleWorkflow(test.StubbedWorkflowBase):
                 - value: foo-db
                   targets:
                   - outputs://instance:{{resource.index}}/instance/interfaces/mysql/database_name
+                - source: clients://database:mysql/ip
+                  targets:
+                  - attributes://connections
             """
 
         # Mock out remote catalog calls
@@ -934,6 +950,9 @@ class TestMappedMultipleWorkflow(test.StubbedWorkflowBase):
                     'Write Role foo-master for 0',
                     'Configure foo: 0 (frontend)',
 
+                    'Reconfig Chef Data for 2',
+                    'Reconfigure bar: client ready',
+
                     ]
         task_list.sort()
         expected.sort()
@@ -955,13 +974,29 @@ class TestMappedMultipleWorkflow(test.StubbedWorkflowBase):
             'chef_maps': [
                 {
                     'source': 'requirements://host:linux/ip',
-                    'targets': ['attributes://master/ip'],
-                    'path': 'instance:1'},
+                    'targets': ['attributes://master/ip',
+                                'outputs://instance:0/instance/ip'],
+                    'path': 'instance:1',
+                    'resource': '0',
+                    },
+                {
+                    'source': 'requirements://host:linux/private_ip',
+                    'targets': ['outputs://instance:0/instance/private_ip'],
+                    'path': 'instance:1',
+                    'resource': '0',
+                    },
+                {
+                    'source': 'requirements://host:linux/public_ip',
+                    'targets': ['outputs://instance:0/instance/public_ip'],
+                    'path': 'instance:1',
+                    'resource': '0',
+                    },
                 {
                     'source': 'requirements://database:mysql/database_name',
                     'targets': ['attributes://db/name',
                                 'encrypted-databags://app_bag/mysql/db_name'],
-                    'path': 'instance:2/interfaces/mysql'
+                    'path': 'instance:2/interfaces/mysql',
+                    'resource': '0',
                 }]
             }
         self.assertDictEqual(transmerge.properties, expected)
@@ -987,7 +1022,10 @@ class TestMappedMultipleWorkflow(test.StubbedWorkflowBase):
                 }
             },
             'chef_output': None,
-            'chef_maps': []
+            'chef_maps': [{'path': 'instance:0',
+                           'resource': '2',
+                           'source': 'clients://database:mysql/ip',
+                           'targets': ['attributes://connections']}]
             }
         self.assertDictEqual(transmerge.properties, expected)
 
@@ -1000,7 +1038,8 @@ class TestMappedMultipleWorkflow(test.StubbedWorkflowBase):
             'estimated_duration': 120
             }
         self.assertDictEqual(register.properties, expected)
-        self.assertDictEqual(register.kwargs['attributes'], {'widgets': 10})
+        self.assertDictEqual(register.kwargs['attributes'], {'connections': 10,
+                                                             'widgets': 10})
 
         # Make sure role is being created
         role = workflow.spec.task_specs['Write Role foo-master for 0']
@@ -1047,7 +1086,8 @@ class TestMappedMultipleWorkflow(test.StubbedWorkflowBase):
                         'args': ["4.4.4.4", self.deployment['id']],
                         'kwargs': And(In('password'),
                                       ContainsKeyValue('attributes',
-                                              {'widgets': 10})),
+                                              {'connections': 10,
+                                               'widgets': 10})),
                         'result': None,
                         'resource': key,
                     }, {
@@ -1074,7 +1114,8 @@ class TestMappedMultipleWorkflow(test.StubbedWorkflowBase):
                                     'instance': {
                                         'interfaces': {
                                             'linux': {
-                                              'ip': '4.4.4.4'
+                                              'password': "shecret",
+                                              'ip': '4.4.4.4',
                                             }
                                         }
                                     }
@@ -1132,8 +1173,18 @@ class TestMappedMultipleWorkflow(test.StubbedWorkflowBase):
                         'call': 'checkmate.providers.opscode.knife.cook',
                         'args': [None, self.deployment['id']],
                         'kwargs': And(In('password'),
-                                        ContainsKeyValue('recipes', ['bar']),
-                                        ContainsKeyValue('identity_file',
+                                      ContainsKeyValue('recipes', ['bar']),
+                                      ContainsKeyValue('identity_file',
+                                                '/var/tmp/%s/private.pem' %
+                                                self.deployment['id'])),
+                        'result': None
+                    }, {
+                        # Re-cook bar
+                        'call': 'checkmate.providers.opscode.knife.cook',
+                        'args': [None, self.deployment['id']],
+                        'kwargs': And(In('password'),
+                                      ContainsKeyValue('recipes', ['bar']),
+                                      ContainsKeyValue('identity_file',
                                                 '/var/tmp/%s/private.pem' %
                                                 self.deployment['id'])),
                         'result': None
@@ -1145,15 +1196,14 @@ class TestMappedMultipleWorkflow(test.StubbedWorkflowBase):
         # exec(), so cannot be easily mocked.
         # We make the call hit our deployment directly
         call_me = 'dep.on_resource_postback(output_template) #'
-        transmerge = workflow.spec.task_specs['Collect Chef Data for 0']
-        transmerge.set_property(deployment=self.deployment)
-        stub = transmerge.transforms[0].replace('postback.', call_me)
-        transmerge.transforms[0] = stub
-
-        transmerge = workflow.spec.task_specs['Collect Chef Data for 2']
-        transmerge.set_property(deployment=self.deployment)
-        stub = transmerge.transforms[0].replace('postback.', call_me)
-        transmerge.transforms[0] = stub
+        for task_name in ['Collect Chef Data for 0',
+                          'Collect Chef Data for 2',
+                          'Reconfig Chef Data for 2',
+                         ]:
+            transmerge = workflow.spec.task_specs[task_name]
+            transmerge.set_property(deployment=self.deployment)
+            stub = transmerge.transforms[0].replace('postback.', call_me)
+            transmerge.transforms[0] = stub
 
         self.mox.ReplayAll()
         workflow.complete_all()
@@ -1168,6 +1218,31 @@ class TestMappedMultipleWorkflow(test.StubbedWorkflowBase):
                     }
                    }
         self.assertDictEqual(self.outcome, expected)
+
+        found = False
+        for task in workflow.get_tasks():
+            if task.get_name() == "Reconfig Chef Data for 2":
+                connections = (task.attributes.get('chef_options', {}).\
+                               get('attributes:2', {}).get('connections'))
+                if connections == ['4.4.4.4']:
+                    found = True
+                self.assertNotEqual(connections, 10, "Foo attribute written "
+                                                     "to Bar")
+        self.assertTrue(found, "Client IPs expected in 'connecitons' for bar")
+
+        for task in workflow.get_tasks():
+            if task.get_name() == "Collect Chef Data for 0":
+                connections = (task.attributes.get('chef_options', {}).\
+                               get('attributes:0', {}).get('connections'))
+                self.assertNotEqual(connections, ['4.4.4.4'],
+                                    "Bar attribute written to Foo")
+
+        register = workflow.spec.task_specs["Register Server 1 (frontend)"]
+        connections = (register.kwargs.get('attributes', {}).
+                       get('connections'))
+        self.assertEqual(connections, 10,
+                            "Foo attribute not written")
+
         self.mox.VerifyAll()
 
 
@@ -1481,6 +1556,7 @@ class TestTransform(unittest.TestCase):
                 - value: 10
                   targets:
                   - attributes://widgets
+                  resource: '0'
             """)
         fxn = solo.Transforms.collect_options
         task = self.mox.CreateMockAnything()
@@ -1494,7 +1570,7 @@ class TestTransform(unittest.TestCase):
         result = fxn(spec, task)
         self.mox.VerifyAll()
         self.assertTrue(result)  # task completes
-        expected = {'chef_options': {'attributes': {'widgets': 10}}}
+        expected = {'chef_options': {'attributes:0': {'widgets': 10}}}
         self.assertDictEqual(results, expected)
 
     def test_write_output_template(self):
@@ -1579,14 +1655,17 @@ class TestChefMapResolver(unittest.TestCase):
     def test_resolve_ready_maps(self):
         maps = utils.yaml_to_dict("""
                 - value: 1
+                  resource: '0'
                   targets:
                   - attributes://simple
                 - source: requirements://key/path/value
                   path: instance:1/location
+                  resource: '0'
                   targets:
                   - attributes://ready
                 - source: requirements://key/path/value
                   path: instance:2/location
+                  resource: '0'
                   targets:
                   - attributes://not
                 """)
@@ -1598,7 +1677,8 @@ class TestChefMapResolver(unittest.TestCase):
                 """)
         result = {}
         unresolved = solo.ChefMap.resolve_ready_maps(maps, data, result)
-        self.assertDictEqual(result, {'attributes': {'ready': 8, 'simple': 1}})
+        expected = {'attributes:0': {'ready': 8, 'simple': 1}}
+        self.assertDictEqual(result, expected)
         self.assertListEqual(unresolved, [maps[2]])
 
 
