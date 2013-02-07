@@ -39,7 +39,8 @@ class Provider(ProviderBase):
 
         # Get region
         region = deployment.get_setting('region', resource_type=resource_type,
-                service_name=service, provider_key=self.key)
+                                        service_name=service,
+                                        provider_key=self.key)
         if not region:
             raise CheckmateException("Could not identify which region to "
                     "create load-balancer in")
@@ -54,6 +55,7 @@ class Provider(ProviderBase):
         proto = deployment.get_setting("protocol",
                                        resource_type=resource_type,
                                        service_name=service_name,
+                                       provider_key=self.key,
                                        default="http").lower()
         dns = str(deployment.get_setting("create_dns",
                                          resource_type=resource_type,
@@ -64,6 +66,7 @@ class Provider(ProviderBase):
         allow_insecure = deployment.get_setting("allow_insecure",
                                                 resource_type=resource_type,
                                                 service_name=service_name,
+                                                provider_key=self.key,
                                                 default=False)
         allow_insecure = str(allow_insecure).lower() in ['1', 'yes', 'true',
                                                          '-1']
@@ -345,19 +348,22 @@ class Provider(ProviderBase):
         def find_a_region(catalog):
             """Any region"""
             for service in catalog:
-                if service['type'] == 'rax:database':
+                if service['type'] == 'rax:load-balancer':
                     endpoints = service['endpoints']
                     for endpoint in endpoints:
                         return endpoint['region']
 
         if not region:
-            region = find_a_region(context.catalog) or 'DFW'
+            region = find_a_region(context.catalog)
+            if not region:
+                raise CheckmateException("Unable to locate a load-balancer "
+                                         "endpoint")
 
         #TODO: instead of hacking auth using a token, submit patch upstream
         url = find_url(context.catalog, region)
         if not url:
             raise CheckmateException("Unable to locate region url for LBaaS "
-                    "for region '%s'" % region)
+                                     "for region '%s'" % region)
         api = cloudlb.CloudLoadBalancer(context.username, 'dummy', region)
         api.client.auth_token = context.auth_token
         api.client.region_account_url = url
