@@ -21,6 +21,7 @@ def main_func():
             'checkmate.rdp',
             'checkmate.deployments',
             'checkmate.workflows',
+            'checkmate.providers.core',
             'checkmate.providers.rackspace',
             'checkmate.providers.opscode',
             'checkmate.celeryapp',
