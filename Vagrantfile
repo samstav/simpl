@@ -41,6 +41,12 @@ Vagrant::Config.run do |config|
           :gems => {
             'ruby-1.9.3-p125@checkmate' => [
               { 'name' => 'bundler' },
+              { 'name' => 'net-ssh',
+                'version' => '2.2.2' },
+              { 'name' => 'net-ssh-multi',
+                'version' => '1.1' },
+              { 'name' => 'net-ssh-gateway',
+                'version' => '1.1.0' },
               { 'name' => 'chef',
                 'version' => '10.12.0' },
               { 'name' => 'librarian'},
@@ -50,7 +56,11 @@ Vagrant::Config.run do |config|
                 'version' => '0.2.1' }
             ]
           }
-        }]
+        }],
+        :vagrant => {
+          :system_chef_solo => '/usr/bin/chef-solo',
+          :system_chef_client => '/usr/bin/chef-client'
+        }
       },
       :checkmate => {
         :user => {
