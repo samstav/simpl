@@ -47,7 +47,7 @@ DEPENDENCIES
   checkmate (>= 0)
   mongodb (>= 0)
   openssl (>= 0)
-  python (= 1.0.8)
+  python (>= 0)
   rabbitmq (>= 0)
   rvm (>= 0)
   yum (>= 0)
