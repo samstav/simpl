@@ -144,8 +144,8 @@ class Provider(ProviderBase):
                                 resource.get('hosted_on', key)),
                         deployment['id']],
                 password=PathAttrib('instance:%s/password' %
-                        resource.get('hosted_on', key)),
-                attributes=PathAttrib('chef_options/attributes'),
+                                    resource.get('hosted_on', key)),
+                attributes=PathAttrib('chef_options/attributes:%s' % key),
                 identity_file=Attrib('private_key_path'),
                 description="Push and apply Chef recipes on the server",
                 defines=dict(resource=key,
@@ -262,8 +262,10 @@ class Provider(ProviderBase):
 
         unresolved = ChefMap.resolve_ready_maps(all_maps, deployment,
                                                 chef_options)
-        if 'attributes' in chef_options:
-            del chef_options['attributes']  # those were added in Register
+        attrib_key = 'attributes:%s' % resource_key
+        if attrib_key in chef_options:
+            # Remove ones already added in Register
+            del chef_options[attrib_key]
 
         # Create the output template defined in the map file
 
@@ -524,6 +526,11 @@ class Provider(ProviderBase):
                     result.append(mapping)
             else:
                 result.append(mapping)
+
+        # Write attribute hints
+        key = resource['index']
+        for mapping in result:
+            mapping['resource'] = key
         return result
 
     def _hash_all_user_resource_passwords(self, deployment):
@@ -669,7 +676,7 @@ class Provider(ProviderBase):
                               server_component):
         """
 
-        Gets creates if does not exist) a task to reconfigure a server when a
+        Gets (creates if does not exist) a task to reconfigure a server when a
         client is ready.
 
         This generates only one task per workflow which all clients tie in to.
@@ -703,19 +710,16 @@ class Provider(ProviderBase):
             result = {'root': root_task, 'final': reconfigure_task}
         else:
             name = 'Reconfigure %s: client ready' % server['component']
-            host_idx = server['hosted_on']
+            host_idx = server.get('hosted_on', server['index'])
             run_list = self._get_component_run_list(server_component)
             reconfigure_task = Celery(wfspec,
                     name, 'checkmate.providers.opscode.knife.cook',
                     call_args=[
                             PathAttrib('instance:%s/public_ip' % host_idx),
                             deployment['id']],
-                    password=PathAttrib('instance:%s/password' %
-                                        host_idx),
-                    # Taking the below out for now because it could step
-                    # on attribute-based components so for now, you have to
-                    # have a databag-based component to do reconfig tasks
-                    # attributes=PathAttrib('chef_options/attributes'),
+                    password=PathAttrib('instance:%s/password' % host_idx),
+                    attributes=PathAttrib('chef_options/attributes:%s' %
+                                          server['index']),
                     identity_file=Attrib('private_key_path'),
                     description="Push and apply Chef recipes on the "
                                 "server",
@@ -1157,7 +1161,26 @@ class ChefMap():
 
         for target in mapping.get('targets', []):
             url = ChefMap.parse_map_URI(target)
-            if url['scheme'] in ['attributes', 'outputs']:
+            if url['scheme'] == 'attributes':
+                if 'resource' not in mapping:
+                    raise CheckmateException('Resource hint required in '
+                                             'attribute mapping')
+
+                path = '%s:%s' % (url['scheme'], mapping['resource'])
+                if path not in output:
+                    output[path] = {}
+                if write_array:
+                    existing = utils.read_path(output[path],
+                                               url['path'].strip('/'))
+                    if not existing:
+                        existing = []
+                    if value not in existing:
+                        existing.append(value)
+                    value = existing
+                utils.write_path(output[path], url['path'].strip('/'),
+                                 value)
+                LOG.debug("Wrote to target '%s': %s" % (target, value))
+            elif url['scheme'] == 'outputs':
                 if url['scheme'] not in output:
                     output[url['scheme']] = {}
                 if write_array:

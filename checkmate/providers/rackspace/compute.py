@@ -568,16 +568,15 @@ def wait_on_build(context, server_id, region, ip_address_type='public',
         if verify_up:
             image_details = api_object.images.find(id=server.image['id'])
             if image_details.metadata['os_type'] == 'linux':
-                test_result = checkmate.ssh.test_connection.delay(context, ip,
-                                  username, timeout=timeout,
-                                  password=password,
-                                  identity_file=identity_file, port=port,
-                                  private_key=private_key)
-                up = test_result.get()
+                up = checkmate.ssh.test_connection(context, ip, username,
+                                                   timeout=timeout,
+                                                   password=password,
+                                                   identity_file=identity_file,
+                                                   port=port,
+                                                   private_key=private_key)
             else:
-                test_result = checkmate.rdp.test_connection.delay(
-                                  context, ip, timeout=timeout)
-                up = test_result.get()
+                up = checkmate.rdp.test_connection(context, ip,
+                                                   timeout=timeout)
 
             if up:
                 LOG.info("Server %s is up" % server_id)
