@@ -177,9 +177,10 @@ class TestUtils(unittest.TestCase):
 
     def test_merge_dictionary(self):
         dst = dict(a=1, b=2, c=dict(ca=31, cc=33, cd=dict(cca=1)), d=4, f=6,
-                g=7, i=[], k=[3, 4])
+                g=7, i=[], k=[3, 4], l=[[], [{'s': 1}]])
         src = dict(b='u2', c=dict(cb='u32', cd=dict(cda=dict(cdaa='u3411',
-                cdab='u3412'))), e='u5', h=dict(i='u4321'), i=[1], j=[1, 2])
+                cdab='u3412'))), e='u5', h=dict(i='u4321'), i=[1], j=[1, 2],
+                l=[None, [{'t': 8}]])
         r = utils.merge_dictionary(dst, src)
         assert r is dst
         assert r['a'] == 1 and r['d'] == 4 and r['f'] == 6
@@ -193,6 +194,16 @@ class TestUtils(unittest.TestCase):
         assert r['i'] == [1]
         assert r['j'] == [1, 2]
         assert r['k'] == [3, 4]
+        assert r['l'] == [[], [{'s': 1, 't': 8}]], "Found: %s" % r['l']
+
+    def test_merge_lists(self):
+        dst = [[], [2], [None, 4]]
+        src = [[1], [], [3, None]]
+        r = utils.merge_lists(dst, src)
+        assert r is dst
+        assert r[0] == [1]
+        assert r[1] == [2]
+        assert r[2] == [3, 4], "Found: %s" % r[2]
 
     def test_is_ssh_key(self):
         self.assertFalse(utils.is_ssh_key(None))
