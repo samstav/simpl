@@ -729,3 +729,103 @@ services.factory('github', ['$http', function($http) {
   };
   return me;
 }]);
+
+/*
+ * Authentication Service
+**/
+services.factory('auth', [function($resource) {
+  var auth = {
+    auth_url: null,
+    username: null,
+    token: null,
+    supertoken: null,
+    tenant: null,
+    // Authenticate
+    authenticate: function(target, username, apikey, password, tenant, callback, error_callback) {
+      var data;
+      if (apikey) {
+         data = JSON.stringify({
+          "auth": {
+            "RAX-KSKEY:apiKeyCredentials": {
+              "username": username,
+              "apiKey": apikey
+            }
+          }
+        });
+      } else if (password) {
+        if (target == "https://identity-internal.api.rackspacecloud.com/v2.0/tokens") {
+          data = JSON.stringify({
+              "auth": {
+                "RAX-AUTH:domain": {
+                "name": "Rackspace"
+                },
+                "passwordCredentials": {
+                  "username": username,
+                  "password": password
+                }
+              }
+            });
+        } else {
+          data = JSON.stringify({
+            "auth": {
+              "passwordCredentials": {
+                "username": username,
+                "password": password
+              }
+            }
+          });
+        }
+      } else {
+        return false;
+      }
+
+      if (target === undefined || target === null || target.length === 0) {
+        headers = {};  // Not supported on server, but we should do it
+      } else {
+        headers = {"X-Auth-Source": target};
+      }
+
+      return $.ajax({
+        type: "POST",
+        contentType: "application/json; charset=utf-8",
+        headers: headers,
+        dataType: "json",
+        url: is_chrome_extension ? target : "/authproxy",
+        data: data
+      }).success(function(response) {
+        auth.auth_url = target;
+        if (target == "https://identity-internal.api.rackspacecloud.com/v2.0/tokens")
+          auth.supertoken = response.access.token.id;
+        callback(response);
+      }).error(function(response) {
+        error_callback(response);
+      });
+    },
+    impersonate: function(tenant, callback, error_callback) {
+      var data;
+      data = JSON.stringify({"RAX-AUTH:impersonation":
+          {
+            "user": {"username": tenant},
+            "expire-in-seconds": 10800}
+          });
+      headers = {'X-Auth-Token': auth.token,
+                 'X-Auth-Source': "https://identity-internal.api.rackspacecloud.com/v2.0/RAX-AUTH/impersonation-tokens"};
+      console.log(data, headers);
+      return $.ajax({
+        type: "POST",
+        contentType: "application/json; charset=utf-8",
+        headers: headers,
+        dataType: "json",
+        url: is_chrome_extension ? auth.auth_url : "/authproxy",
+        data: data
+      }).success(function(json) {
+        auth.tenant = tenant;
+        auth.token = json.access.token.id;
+        callback(tenant, json);
+      }).error(function(response) {
+        error_callback(response);
+      });
+    }
+  };
+  return auth;
+}]);
