@@ -361,10 +361,6 @@ class TestDeploymentResourceGenerator(unittest.TestCase):
                         'password': 'secret',
                         }
                     }
-        # Make sure hash value was generated
-        self.assertIn("hash", resources['myUser']['instance'])
-        # Pull hash value into expected
-        expected['instance']['hash'] = resources['myUser']['instance']['hash']
         self.assertDictEqual(resources['myUser'], expected)
 
         # Key pair
