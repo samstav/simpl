@@ -22,6 +22,8 @@ from checkmate.utils import match_celery_logging, \
                             isUUID, \
                             yaml_to_dict
 from checkmate.workflows import wait_for
+from novaclient.exceptions import NotFound, NoUniqueMatch
+
 
 LOG = logging.getLogger(__name__)
 UBUNTU_12_04_IMAGE_ID = "5cebb13a-f783-4f8c-8058-c4182c724ccd"
@@ -500,7 +502,14 @@ def wait_on_build(context, server_id, region, ip_address_type='public',
 
     assert server_id, "ID must be provided"
     LOG.debug("Getting server %s" % server_id)
-    server = api_object.servers.find(id=server_id)
+    server = None
+    try:
+        server = api_object.servers.find(id=server_id)
+    except (NotFound, NoUniqueMatch), exc:
+        msg = "No server matching id %s" % server_id
+        LOG.error(msg, exc_info=True)
+        raise CheckmateException(msg)
+
     results = {'id': server_id,
             'status': server.status,
             'addresses': server.addresses,
@@ -535,6 +544,11 @@ def wait_on_build(context, server_id, region, ip_address_type='public',
                 results['private_ip'] = address['addr']
                 break
 
+    if not ip:
+        # we might not get an ip right away, so wait until its populated
+        return wait_on_build.retry(exc=CheckmateException(
+                            "Could not find IP of server %s" % server_id))
+
     if server.status == 'BUILD':
         results['progress'] = server.progress
         #countdown = 100 - server.progress
@@ -551,41 +565,34 @@ def wait_on_build(context, server_id, region, ip_address_type='public',
                   server_id, server.progress))
         return wait_on_build.retry()
 
-    if server.status == 'ERROR':
-        raise CheckmateException("Server %s creation error: %" % (server_id,
-                                 server.status))
-
     if server.status != 'ACTIVE':
         LOG.warning("Server %s status is %s, which is not recognized. "
                 "Assuming it is active" % (server_id, server.status))
 
-    if not ip:
-        raise CheckmateException("Could not find IP of server %s" % server_id)
-    else:
-        instance_key = 'instance:%s' % context['resource']
-        results = {instance_key: results}
+    instance_key = 'instance:%s' % context['resource']
+    results = {instance_key: results}
 
-        if verify_up:
-            image_details = api_object.images.find(id=server.image['id'])
-            if image_details.metadata['os_type'] == 'linux':
-                up = checkmate.ssh.test_connection(context, ip, username,
-                                                   timeout=timeout,
-                                                   password=password,
-                                                   identity_file=identity_file,
-                                                   port=port,
-                                                   private_key=private_key)
-            else:
-                up = checkmate.rdp.test_connection(context, ip,
-                                                   timeout=timeout)
-
-            if up:
-                LOG.info("Server %s is up" % server_id)
-                resource_postback.delay(context['deployment'], results)
-                return results
-            else:
-                return wait_on_build.retry(exc=CheckmateException("Server "
-                    "%s not ready yet" % server_id))
+    if verify_up:
+        image_details = api_object.images.find(id=server.image['id'])
+        if image_details.metadata['os_type'] == 'linux':
+            up = checkmate.ssh.test_connection(context, ip, username,
+                                               timeout=timeout,
+                                               password=password,
+                                               identity_file=identity_file,
+                                               port=port,
+                                               private_key=private_key)
         else:
-            LOG.info("Server %s is ACTIVE. Not verified to be up" % server_id)
+            up = checkmate.rdp.test_connection(context, ip,
+                                               timeout=timeout)
+
+        if up:
+            LOG.info("Server %s is up" % server_id)
             resource_postback.delay(context['deployment'], results)
             return results
+        else:
+            raise wait_on_build.retry(exc=CheckmateException("Server "
+                "%s not ready yet" % server_id))
+    else:
+        LOG.info("Server %s is ACTIVE. Not verified to be up" % server_id)
+        resource_postback.delay(context['deployment'], results)
+        return results
