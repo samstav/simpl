@@ -101,11 +101,14 @@ def init_logging(default_config=None):
     parser.add_argument('--logconfig')
     args = parser.parse_known_args()[0]
     if args.logconfig:
-        logging.config.fileConfig(args.logconfig,disable_existing_loggers=False)
+        logging.config.fileConfig(args.logconfig,
+                                  disable_existing_loggers=False)
     elif default_config and os.path.isfile(default_config):
-        logging.config.fileConfig(default_config,disable_existing_loggers=False)
+        logging.config.fileConfig(default_config,
+                                  disable_existing_loggers=False)
     else:
         init_console_logging()
+
 
 def init_console_logging():
     """Log to console"""
@@ -390,31 +393,44 @@ def merge_dictionary(dst, src, extend_lists=False):
                 if isinstance(source, dict) and isinstance(dest, dict):
                     stack.append((dest, source))
                 elif isinstance(source, list) and isinstance(dest, list):
-                    if not extend_lists:
-                        # Make them the same size
-                        r = dest[:]
-                        s = source[:]
-                        if len(dest) > len(source):
-                            s.extend([None for i in range(len(dest) -
-                                    len(source))])
-                        elif len(dest) < len(source):
-                            r.extend([None for i in range(len(source) -
-                                    len(dest))])
-                        # Merge lists
-                        for index, value in enumerate(r):
-                            if (not value) and s[index]:
-                                r[index] = s[index]
-                            elif isinstance(value, dict) and \
-                                    isinstance(s[index], dict):
-                                stack.append((dest[index], source[index]))
-                            else:
-                                dest[index] = s[index]
-                        current_dst[key] = r
-                    else:
-                        dest.extend([s for s in source if s not in dest])
+                    merge_lists(dest, source, extend_lists=extend_lists)
                 else:
                     current_dst[key] = source
     return dst
+
+
+def merge_lists(dest, source, extend_lists=False):
+    """Recursive merge two lists
+
+    This applies merge_dictionary if any of the entries are dicts.
+    Note: This updates dst."""
+    if not source:
+        return
+    if not extend_lists:
+        # Make them the same size
+        r = dest
+        s = source[:]
+        if len(dest) > len(source):
+            s.extend([None for i in range(len(dest) -
+                    len(source))])
+        elif len(dest) < len(source):
+            r.extend([None for i in range(len(source) -
+                    len(dest))])
+        # Merge lists
+        for index, value in enumerate(r):
+            if value is None and s[index] is not None:
+                dest[index] = s[index]
+            elif isinstance(value, dict) and \
+                    isinstance(s[index], dict):
+                merge_dictionary(dest[index], source[index],
+                                 extend_lists=extend_lists)
+            elif isinstance(value, list):
+                merge_lists(value, s[index])
+            elif s[index] is not None:
+                dest[index] = s[index]
+    else:
+        dest.extend([s for s in source if s not in dest])
+    return dest
 
 
 def is_ssh_key(key):
