@@ -5,16 +5,7 @@ import logging
 import time
 
 from celery.task import task
-
-try:
-    from SpiffWorkflow.specs import WorkflowSpec, Celery, Transform
-except ImportError:
-    #TODO(zns): remove this when Spiff incorporates the code in it
-    print "Get SpiffWorkflow with the Celery spec in it from here: "\
-          "https://github.com/ziadsawalha/SpiffWorkflow/"
-    raise
 from SpiffWorkflow import Workflow, Task
-from SpiffWorkflow.operators import Attrib
 from SpiffWorkflow.storage import DictionarySerializer
 
 from checkmate.db import get_driver
@@ -25,86 +16,24 @@ LOG = logging.getLogger(__name__)
 DB = get_driver()
 
 
-@task
-def create_simple_server(context, name, image=119, flavor=1,
-                         files=None, ip_address_type='public',
-                         timeout=60):
-    """Create a Rackspace Cloud server using a workflow.
-
-    The workflow right now is a simple proof of concept using SPiffWorkflow.
-    The workflow spec looks like this::
-
-        Start
-            -> Celery: Call Stockton Authentication (gets token)
-                -> Transform: write Auth Data into 'context' dict
-                    -> Celery: Call Stockton Create Server (gets IP)
-                        -> End
-
-    Note:: this requires the SpiffWorkflow version with a Celery spec in it,
-    which is available here until it is merged in::
-
-            https://github.com/ziadsawalha/SpiffWorkflow/tree/celery
-    """
-    match_celery_logging(LOG)
-    # Build a workflow spec (the spec is the design of the workflow)
-    wfspec = WorkflowSpec(name="Auth and Create Server Workflow")
-
-    # First task will read 'context' attribute and send it to Stockton
-    auth_task = Celery(wfspec, 'Authenticate',
-                       'checkmate.providers.rackspace.identity.get_token',
-                       call_args=[Attrib('context')], result_key='token')
-    wfspec.start.connect(auth_task)
-
-    # Second task will take output from first task (the 'token') and write it
-    # into the 'context' dict to be available to future tasks
-    write_token = (Transform(wfspec, "Write Token to Deployment", transforms=[
-                   "my_task.attributes['context']['authtoken']"
-                   "=my_task.attributes['token']"]))
-    auth_task.connect(write_token)
-
-    # Third task takes the 'context' attribute and creates a server
-    create_server_task = (Celery(wfspec, 'Create Server',
-                          'checkmate.providers.rackspace. \
-                          compute_legacy.create_server',
-                          call_args=[Attrib('context'), name],
-                          api_object=None, image=image, flavor=flavor,
-                          files=files,
-                          ip_address_type=ip_address_type))
-    write_token.connect(create_server_task)
-
-    # Create an instance of the workflow spec
-    workflow = Workflow(wfspec)
-    #Pass in the initial deployemnt dict (task 3 is the Auth task)
-    workflow.get_task(3).set_attribute(context=context)
-
-    serializer = DictionarySerializer()
-    body = workflow.serialize(serializer)
-    body['id'] = create_simple_server.request.id
-    DB.save_workflow(create_simple_server.request.id,
-                     body)
-
-    # Loop through trying to complete the workflow and periodically send
-    # status updates
-    i = 0
-    complete = 0
+def update_workflow_status(workflow):
+    """Update workflow object with progress"""
     total = len(workflow.get_tasks(state=Task.ANY_MASK))
-    while not workflow.is_completed() and i < timeout:
-        count = len(workflow.get_tasks(state=Task.COMPLETED))
-        if count != complete:
-            complete = count
-            create_simple_server.update_state(state="PROGRESS",
-                                              meta={'complete': count,
-                                              'total': total})
-        workflow.complete_all()
-        i += 1
-        DB.save_workflow(create_simple_server.request.id,
-                         workflow.serialize(serializer))
-        time.sleep(1)
+    completed = len(workflow.get_tasks(state=Task.COMPLETED))
+    if total is not None and total > 0:
+        progress = int(100 * completed / total)
+    else:
+        progress = 100
+    workflow.attributes['progress'] = progress
+    workflow.attributes['total'] = total
+    workflow.attributes['completed'] = completed
 
-    DB.save_workflow(create_simple_server.request.id,
-                     workflow.serialize(serializer))
-
-    return workflow.get_task(5).attributes
+    if workflow.is_completed():
+        workflow.attributes['status'] = "COMPLETE"
+    elif completed == 0:
+        workflow.attributes['status'] = "NEW"
+    else:
+        workflow.attributes['status'] = "IN PROGRESS"
 
 
 @task
@@ -145,7 +74,18 @@ def run_workflow(w_id, timeout=900, wait=1, counter=1):
 
     # Prepare to run it
     if d_wf.is_completed():
-        LOG.debug("Workflow '%s' is already complete. Nothing to do." % w_id)
+        if d_wf.get_attribute('status') != "COMPLETE":
+            #TODO: make DRY
+            update_workflow_status(d_wf)
+            updated = d_wf.serialize(serializer)
+            body, secrets = extract_sensitive_data(updated)
+            body['tenantId'] = workflow.get('tenantId')
+            body['id'] = w_id
+            DB.save_workflow(w_id, body, secrets)
+            LOG.debug("Workflow '%s' is already complete. Marked it so." %
+                      w_id)
+        else:
+            LOG.debug("Workflow '%s' is already complete. Nothing to do." % w_id)
         return True
 
     before = d_wf.get_dump()
@@ -162,6 +102,8 @@ def run_workflow(w_id, timeout=900, wait=1, counter=1):
 
         if before != after:
             # We made some progress, so save and prioritize next run
+            #TODO: make DRY
+            update_workflow_status(d_wf)
             updated = d_wf.serialize(serializer)
             body, secrets = extract_sensitive_data(updated)
             body['tenantId'] = workflow.get('tenantId')
@@ -170,13 +112,15 @@ def run_workflow(w_id, timeout=900, wait=1, counter=1):
             wait = 1
 
             # Report progress
-            total = len(d_wf.get_tasks(state=Task.ANY_MASK))  # Changes
-            completed = len(d_wf.get_tasks(state=Task.COMPLETED))
+            completed = d_wf.get_attribute('completed')
+            total = d_wf.get_attribute('total')
+            status = d_wf.get_attribute('status')
             LOG.debug("Workflow status: %s/%s (state=%s)" % (completed,
-                      total, "PROGRESS"))
+                      total, status))
             run_workflow.update_state(state="PROGRESS",
                                       meta={'complete': completed,
                                       'total': total})
+
         else:
             # No progress made. So drop priority (to max of 20s wait)
             if wait < 20:
@@ -248,12 +192,14 @@ def run_one_task(context, workflow_id, task_id, timeout=60):
         LOG.warn("Task '%s' in Workflow '%s' is in state %s and cannot be "
                  "progressed" % (task_id, workflow_id, task.get_state_name()))
         return False
+    update_workflow_status(d_wf)
     updated = d_wf.serialize(serializer)
     if original != updated:
         LOG.debug("Task '%s' in Workflow '%s' completion result: %s" % (
                   task_id, workflow_id, result))
         msg = "Saving: %s" % d_wf.get_dump()
         LOG.debug(msg)
+        #TODO: make DRY
         body, secrets = extract_sensitive_data(updated)
         body['tenantId'] = workflow.get('tenantId')
         body['id'] = workflow_id

@@ -254,6 +254,7 @@ def post_workflow_task(id, task_id, tenant_id=None):
         task._state = entity['state']
 
     # Save workflow (with secrets)
+    orchestrator.update_workflow_status(wf)
     serializer = DictionarySerializer()
     body, secrets = extract_sensitive_data(wf.serialize(serializer))
     body['tenantId'] = workflow.get('tenantId', tenant_id)
@@ -306,6 +307,7 @@ def reset_workflow_task(id, task_id, tenant_id=None):
     task._state = Task.FUTURE
     task.parent._state = Task.READY
 
+    orchestrator.update_workflow_status(wf)
     serializer = DictionarySerializer()
     entity = wf.serialize(serializer)
     body, secrets = extract_sensitive_data(entity)
@@ -368,6 +370,7 @@ def resubmit_workflow_task(workflow_id, task_id, tenant_id=None):
                                                   task.get_state_name()))
         task.task_spec._update_state(task)
 
+    orchestrator.update_workflow_status(wf)
     serializer = DictionarySerializer()
     entity = wf.serialize(serializer)
     body, secrets = extract_sensitive_data(entity)
@@ -480,6 +483,7 @@ def create_workflow_deploy(deployment, context):
     LOG.debug("Workflow %s estimated duration: %s" % (deployment['id'],
             overall))
     workflow.attributes['estimated_duration'] = overall
+    orchestrator.update_workflow_status(workflow)
 
     return workflow
 
