@@ -614,7 +614,7 @@ function WorkflowListController($scope, $location, $resource, workflow, items, n
     this.klass.get({tenantId: $scope.auth.tenantId}, function(list, getResponseHeaders){
       console.log("Load returned");
       items.receive(list, function(item, key) {
-        return {id: key, name: item.wf_spec.name, tenantId: item.tenantId};});
+        return {id: key, name: item.wf_spec.name, status: item.attributes.status, progress: item.attributes.progress, tenantId: item.tenantId};});
       $scope.count = items.count;
       $scope.items = items.all;
       console.log("Done loading");

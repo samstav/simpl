@@ -2,16 +2,20 @@
   <table class="table table-striped">
     <thead>
       <tr>
-        <th>ID</th>
-        <th>Name</th>
-        <th>Tenant</th>
+        <th class="span3">ID</th>
+        <th class="span7">Name</th>
+        <th class="span2">Status</th>
       </tr>
     </thead>
     <tbody>
       <tr ng-repeat="workflow in items | orderBy:'id'" >
         <td><a ng-href="/{{auth.tenantId}}/workflows/{{workflow.id}}"><i class="icon-tasks"></i> {{workflow.id}}</a></td>
         <td>{{workflow.name}}</td>
-        <td>{{workflow.tenantId}}</td>
+        <td><div class="progress" style="margin-bottom: 0px;">
+              <div class="bar" ng-style="{width: (workflow.progress || '0') + '%'}"
+                 ng-class="{'bar-success': workflow.status == 'COMPLETE'}">
+                 <span>{{workflow.status}}</span></div>
+            </div></td>
       </tr>
     </tbody>
   </table>
