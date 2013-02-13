@@ -16,7 +16,7 @@ filters.filter('formattedFullDate', function() {
 
 filters.filter('secondsETA', function() {
   return function(d) {
-    if (d == 0) {
+    if (d === 0) {
       return "now";
     } else
       return d ? moment().add('seconds', d).fromNow() : '';
@@ -44,21 +44,21 @@ filters.filter('snippet', function() {
         return d.substr(0, chars || 2000) + '...';
       } else {
         return d;
-      };
-    };
+      }
+    }
     return '';
-  }
+  };
 });
 
 filters.filter('checkmark', function() {
     return function(input) {
       return input ? '\u2713' : '\u2718';
-    }
+    };
   });
 
 filters.filter('truncate', function() {
     return function(input, max_length) {
-      if (input == null || input == "") {
+      if (input === null || input === "") {
         return "...[no name]...";
       }
 
@@ -67,7 +67,7 @@ filters.filter('truncate', function() {
       } else {
         return input;
       }
-    }
+    };
   });
 
 filters.filter('idIn', function() {

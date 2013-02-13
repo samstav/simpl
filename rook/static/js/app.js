@@ -130,7 +130,7 @@ function ExternalController($window, $location) {
 }
 
 //Root controller that implements authentication
-function AppController($scope, $http, $location, $resource) {
+function AppController($scope, $http, $location, $resource, auth) {
   $scope.showHeader = true;
   $scope.showStatus = false;
   $scope.auth = {
@@ -177,10 +177,15 @@ function AppController($scope, $http, $location, $resource) {
   //Accepts subset of auth data. We use a subset so we can store it locally.
   $scope.accept_auth_data = function(response) {
       $scope.auth.catalog = response;
-      $scope.auth.username = response.access.user.name;
-      $scope.auth.tenantId = response.access.token.tenant.id;
+      $scope.auth.username = response.access.user.name || response.access.user.id;
+      if ('tenant' in response.access.token)
+        $scope.auth.tenantId = response.access.token.tenant.id;
       checkmate.config.header_defaults.headers.common['X-Auth-Token'] = response.access.token.id;
       checkmate.config.header_defaults.headers.common['X-Auth-Source'] = response.auth_url;
+      auth.auth_url = response.auth_url;
+      auth.token = response.access.token.id;
+      auth.supertoken = response.access.token.id;
+      auth.username = $scope.auth.username;
       var expires = new Date(response.access.token.expires);
       var now = new Date();
       if (expires < now) {
@@ -193,15 +198,15 @@ function AppController($scope, $http, $location, $resource) {
   };
 
   // Restore login from session
-  var auth = localStorage.getItem('auth');
-  if (auth !== undefined && auth !== null)
-    auth = JSON.parse(auth);
-  if (auth !== undefined && auth !== null && auth != {} && 'access' in auth && 'token' in auth.access) {
-    expires = new Date(auth.access.token.expires);
+  var stored_auth = localStorage.getItem('auth');
+  if (stored_auth !== undefined && stored_auth !== null)
+    stored_auth = JSON.parse(stored_auth);
+  if (stored_auth !== undefined && stored_auth !== null && stored_auth != {} && 'access' in stored_auth && 'token' in stored_auth.access) {
+    expires = new Date(stored_auth.access.token.expires);
     now = new Date();
     if (expires.getTime() > now.getTime()) {
-      auth.loggedIn = true;
-      $scope.accept_auth_data(auth);
+      stored_auth.loggedIn = true;
+      $scope.accept_auth_data(stored_auth);
     } else {
       $scope.auth.loggedIn = false;
     }
@@ -239,6 +244,44 @@ function AppController($scope, $http, $location, $resource) {
     modal.modal('show');
   };
 
+  $scope.on_auth_success = function(json) {
+    $('#modalAuth').modal('hide');
+    //Parse data. Keep only a subset to store in local storage
+    var keep = {access: {token: json.access.token, user: json.access.user}};
+    keep.auth_url = auth.auth_url;  // save for later
+    regions = _.union.apply(this, _.map(json.access.serviceCatalog, function(o) {return _.map(o.endpoints, function(e) {return e.region;});}));
+    if ('RAX-AUTH:defaultRegion' in json.access.user && regions.indexOf(json.access.user['RAX-AUTH:defaultRegion']) == -1)
+      regions.push(json.access.user['RAX-AUTH:defaultRegion']);
+    keep.access.regions = _.compact(regions);
+    localStorage.setItem('auth', JSON.stringify(keep));
+    $scope.accept_auth_data(keep);
+    $scope.bound_creds = {
+        username: '',
+        password: '',
+        apikey: '',
+        auth_url: "https://identity.api.rackspacecloud.com/v2.0/tokens"
+      };
+    $scope.notify("Welcome, " + $scope.auth.username + "! You are logged in");
+    if (typeof $('#modalAuth')[0].success_callback == 'function') {
+        $('#modalAuth')[0].success_callback();
+        delete $('#modalAuth')[0].success_callback;
+        delete $('#modalAuth')[0].failure_callback;
+      }
+    else
+      $scope.$apply();
+    $scope.$broadcast('logIn');
+  };
+
+   $scope.on_auth_failed = function(response) {
+    if (typeof $('#modalAuth')[0].failure_callback == 'function') {
+        $('#modalAuth')[0].failure_callback();
+        delete $('#modalAuth')[0].success_callback;
+        delete $('#modalAuth')[0].failure_callback;
+      }
+    $("#auth_error_text").html(response.statusText + ". Check that you typed in the correct credentials.");
+    $("#auth_error").show();
+  };
+
   // Log in using credentials delivered through bound_credentials
   $scope.logIn = function() {
     var username = $scope.bound_creds.username;
@@ -246,75 +289,8 @@ function AppController($scope, $http, $location, $resource) {
     var apikey = $scope.bound_creds.apikey;
     var auth_url = $scope.bound_creds.auth_url;
     var data;
-    if (apikey) {
-       data = JSON.stringify({
-        "auth": {
-          "RAX-KSKEY:apiKeyCredentials": {
-            "username": username,
-            "apiKey": apikey
-          }
-        }
-      });
-     } else if (password) {
-       data = JSON.stringify({
-          "auth": {
-            "passwordCredentials": {
-              "username": username,
-              "password": password
-            }
-          }
-        });
-     } else {
-      return false;
-     }
-
-    if (auth_url === undefined || auth_url === null || auth_url.length === 0) {
-      headers = {};  // Not supported on server, but we should do it
-    } else {
-      headers = {"X-Auth-Source": auth_url};
-    }
-    return $.ajax({
-      type: "POST",
-      contentType: "application/json; charset=utf-8",
-      headers: headers,
-      dataType: "json",
-      url: is_chrome_extension ? auth_url : "/authproxy",
-      data: data
-    }).success(function(json) {
-      $('#modalAuth').modal('hide');
-      //Parse data. Keep only a subset to store in local storage
-      var keep = {access: {token: json.access.token, user: json.access.user}};
-      keep.auth_url = auth_url;  // save for later
-      regions = _.union.apply(this, _.map(json.access.serviceCatalog, function(o) {return _.map(o.endpoints, function(e) {return e.region;});}));
-      if (regions.indexOf(json.access.user['RAX-AUTH:defaultRegion']) == -1)
-        regions.push(json.access.user['RAX-AUTH:defaultRegion']);
-      keep.access.regions = _.compact(regions);
-      localStorage.setItem('auth', JSON.stringify(keep));
-      $scope.accept_auth_data(keep);
-      $scope.bound_creds = {
-          username: '',
-          password: '',
-          apikey: '',
-          auth_url: "https://identity.api.rackspacecloud.com/v2.0/tokens"
-        };
-      $scope.notify("Welcome, " + $scope.auth.username + "! You are logged in");
-      if (typeof $('#modalAuth')[0].success_callback == 'function') {
-          $('#modalAuth')[0].success_callback();
-          delete $('#modalAuth')[0].success_callback;
-          delete $('#modalAuth')[0].failure_callback;
-        }
-      else
-        $scope.$apply();
-      $scope.$broadcast('logIn');
-    }).error(function(response) {
-      if (typeof $('#modalAuth')[0].failure_callback == 'function') {
-          $('#modalAuth')[0].failure_callback();
-          delete $('#modalAuth')[0].success_callback;
-          delete $('#modalAuth')[0].failure_callback;
-        }
-      $("#auth_error_text").html(response.statusText + ". Check that you typed in the correct credentials.");
-      $("#auth_error").show();
-    });
+    return auth.authenticate(auth_url, username, apikey, password, null,
+      $scope.on_auth_success, $scope.on_auth_failed);
   };
 
   $scope.logOut = function() {
@@ -638,7 +614,7 @@ function WorkflowListController($scope, $location, $resource, workflow, items, n
     this.klass.get({tenantId: $scope.auth.tenantId}, function(list, getResponseHeaders){
       console.log("Load returned");
       items.receive(list, function(item, key) {
-        return {id: key, name: item.wf_spec.name, tenantId: item.tenantId};});
+        return {id: key, name: item.wf_spec.name, status: item.attributes.status, progress: item.attributes.progress, tenantId: item.tenantId};});
       $scope.count = items.count;
       $scope.items = items.all;
       console.log("Done loading");
