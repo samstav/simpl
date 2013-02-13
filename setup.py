@@ -43,16 +43,21 @@ setup(
     author='Rackspace Cloud',
     author_email='checkmate@lists.rackspace.com',
     dependency_links=github_urls,
-    install_requires=['bottle==0.10.11',
+    install_requires=['amqp==1.0.8',
+                      'anyjson==0.3.3',
+                      'billiard==2.7.3.21',
+                      'bottle==0.10.11',
                       'pymongo==2.3',
-                      'celery-with-mongodb==3.0',
+                      'celery==3.0.15',
                       'eventlet==0.9.17',
                       'GitPython==0.3.2.RC1',
                       'Jinja2==2.6',
+                      'kombu==2.5.6',
                       'openstack.compute==2.0a1',
                       'pam==0.1.4',
                       'paramiko==1.7.7.2',
                       'pycrypto==2.6',
+                      'pymongo==2.3',  # 2.4.2 causes errors in saving objects
                       #Note: python-clouddb would end up being ".01", but that
                       #is not valid (with a leading ".") so we exclude it here.
                       'python-clouddb',
