@@ -591,8 +591,11 @@ def wait_on_build(context, server_id, region, ip_address_type='public',
                                                timeout=timeout)
 
         if not isup:
+            # try again in half a second but only wait for another 2 minutes
             raise wait_on_build.retry(exc=CheckmateException("Server "
-                "%s not ready yet" % server_id))
+                "%s is ACTIVE but cannot be contacted." % server_id),
+                                      countdown=0.5,
+                                      max_retries=240)
     else:
         LOG.info("Server %s is ACTIVE. Not verified to be up" % server_id)
 
