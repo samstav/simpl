@@ -27,6 +27,7 @@ except ImportError:
 
 from SpiffWorkflow import Workflow
 from SpiffWorkflow.operators import Attrib, PathAttrib, valueof
+from SpiffWorkflow.specs import TransMerge
 from SpiffWorkflow.storage import DictionarySerializer
 
 from checkmate.db import any_id_problems
@@ -89,10 +90,10 @@ def async():
         yield '"Done": 3}'
     return afunc()
 
+
 #
 # Simulator
 #
-
 @post('/deployments/simulate')
 @with_tenant
 def simulate(tenant_id=None):
@@ -122,6 +123,17 @@ def simulate(tenant_id=None):
 
     serializer = DictionarySerializer()
     workflow = create_workflow_deploy(deployment, request.context)
+
+    # Hack to hijack postback in Transform which is called as a string in
+    # exec(), so cannot be easily mocked.
+    # We make the call hit our deployment directly
+    call_me = 'dep.on_resource_postback(output_template) #'
+    for spec in workflow.spec.task_specs.values():
+        if (isinstance(spec, TransMerge) and
+                'postback.' in spec.transforms[0]):
+            stub = spec.transforms[0].replace('postback.', call_me)
+            spec.transforms[0] = stub
+
     serialized_workflow = workflow.serialize(serializer)
     results['workflow'] = serialized_workflow
     results['workflow']['id'] = 'simulate'
@@ -238,6 +250,18 @@ def process(tenant_id, complete=False):
                 PACKAGE[tenant_id].on_resource_postback(postback)
         return True
 
+    # Hack to hijack postback in Transform which is called as a string in
+    # exec(), so cannot be easily mocked.
+    # We make the call hit our deployment directly
+    # TODO: remove hack
+    call_me = 'dep.on_resource_postback(output_template) #'
+    deployment = Deployment(PACKAGE[tenant_id])
+    for spec in workflow.spec.task_specs.values():
+        if (isinstance(spec, TransMerge) and
+                call_me in spec.transforms[0]):
+            spec.set_property(deployment=deployment)
+    # End Hack
+
     try_fire = Celery.try_fire
     try:
         Celery.try_fire = hijacked_try_fire
@@ -247,6 +271,16 @@ def process(tenant_id, complete=False):
             workflow.complete_next()
     finally:
         Celery.try_fire = try_fire
+
+    # Hack to hijack postback in Transform
+    # Remove the deployment reference since it cannot be serialized
+    # TODO: remove hack
+    call_me = 'dep.on_resource_postback(output_template) #'
+    for spec in workflow.spec.task_specs.values():
+        if (isinstance(spec, TransMerge) and
+                call_me in spec.transforms[0]):
+            del spec.properties['deployment']
+    # End Hack
 
     results = workflow.serialize(serializer)
     results['id'] = 'simulate'
