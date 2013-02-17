@@ -16,7 +16,6 @@ from urlparse import urlparse
 from checkmate.utils import init_console_logging
 init_console_logging()
 from bottle import get, request, response, abort
-from Crypto.Hash import MD5
 import webob
 import webob.dec
 from webob.exc import HTTPNotFound, HTTPUnauthorized, HTTPFound
@@ -26,7 +25,7 @@ LOG = logging.getLogger(__name__)
 
 from checkmate.db import any_tenant_id_problems
 from checkmate.exceptions import CheckmateException
-from checkmate.utils import RESOURCES, STATIC, to_json, to_yaml
+from checkmate.utils import RESOURCES, STATIC, to_json, to_yaml, import_class
 
 
 def generate_response(self, environ, start_response):
@@ -156,6 +155,7 @@ class PAMAuthMiddleware(object):
         self.app = app
         self.domain = None  # Which domain to authenticate in this instance
         self.all_admins = all_admins  # Does this authenticate admins?
+        self.auth_header = 'Basic realm="Checkmate PAM Module"'
 
     def __call__(self, environ, start_response):
         # Authenticate basic auth calls to PAM
@@ -197,8 +197,7 @@ class PAMAuthMiddleware(object):
         def callback(status, headers, exc_info=None):
             """Intercepts upstream start_response and adds our headers"""
             # Add our headers to response
-            headers.append(('WWW-Authenticate',
-                           'Basic realm="Checkmate PAM Module"'))
+            headers.append(('WWW-Authenticate', self.auth_header))
             # Call upstream start_response
             start_response(status, headers, exc_info)
         return callback
@@ -216,13 +215,18 @@ class TokenAuthMiddleware(object):
         self.app = app
         self.endpoint = endpoint
         self.anonymous_paths = anonymous_paths or []
+        self.auth_header = 'Keystone uri="%s"' % endpoint['uri']
+        if 'kwargs' in endpoint and 'realm' in endpoint['kwargs']:
+            self.auth_header = str('Keystone uri="%s" realm="%s"' % (
+                                   endpoint['uri'],
+                                   endpoint['kwargs']['realm']))
 
     def __call__(self, environ, start_response):
         """Authenticate calls with X-Auth-Token to the source auth service"""
         path_parts = environ['PATH_INFO'].split('/')
         root = path_parts[1] if len(path_parts) > 1 else None
         if root in self.anonymous_paths:
-            # Allow test and static calls
+            # Allow anything marked as anonymous
             return self.app(environ, start_response)
 
         start_response = self.start_response_callback(start_response)
@@ -243,7 +247,7 @@ class TokenAuthMiddleware(object):
     def _auth_keystone(self, context, token=None, username=None, apikey=None,
                        password=None):
         """Authenticates to keystone"""
-        url = urlparse(self.endpoint)
+        url = urlparse(self.endpoint['uri'])
         if url.scheme == 'https':
             http_class = httplib.HTTPSConnection
             port = url.port or 443
@@ -272,22 +276,23 @@ class TokenAuthMiddleware(object):
         }
         # TODO: implement some caching to not overload auth
         try:
-            LOG.debug('Authenticating to %s' % self.endpoint)
+            LOG.debug('Authenticating to %s' % self.endpoint['uri'])
             http.request('POST', url.path, body=json.dumps(body),
                          headers=headers)
             resp = http.getresponse()
             body = resp.read()
         except Exception as exc:
             LOG.error('HTTP connection exception: %s' % exc)
-            raise HTTPUnauthorized('Unable to communicate with keystone')
+            raise HTTPUnauthorized('Unable to communicate with %s' %
+                                   self.endpoint['uri'])
         finally:
             http.close()
 
         if resp.status != 200:
             LOG.debug('Invalid token for tenant: %s' % resp.reason)
-            raise (HTTPUnauthorized("Token invalid or not valid for "
-                   "this tenant (%s)" % resp.reason,
-                   [('WWW-Authenticate', 'Keystone %s' % self.endpoint)]))
+            raise HTTPUnauthorized("Token invalid or not valid for this "
+                                   "tenant (%s)" % resp.reason,
+                                   [('WWW-Authenticate', self.auth_header)])
 
         try:
             content = json.loads(body)
@@ -302,7 +307,7 @@ class TokenAuthMiddleware(object):
         def callback(status, headers, exc_info=None):
             """Intercepts upstream start_response and adds our headers"""
             # Add our headers to response
-            header = ('WWW-Authenticate', 'Keystone uri="%s"' % self.endpoint)
+            header = ('WWW-Authenticate', self.auth_header)
             if header not in headers:
                 headers.append(header)
             # Call upstream start_response
@@ -589,32 +594,80 @@ class ContextMiddleware(object):
         return self.app(environ, start_response)
 
 
-
-
 class AuthTokenRouterMiddleware():
-    """Middleware that routes Keystone auth to multiple endpoints
-
-    All tokens with an X-Auth-Source header get routed to that source if the
-    source is in the list of allowed endpoints.
-    If a default endpoint is selected, it receives all calls without an
-    X-Auth-Source header. If no default is selected, calls are routed to each
-    endpoint until a valid response is received
     """
-    def __init__(self, app, endpoints, default=None, anonymous_paths=None):
+
+    Middleware that routes auth to multiple endpoints
+
+    The list of available auth endpoints is always returned in the API HTTP
+    response using standard HTTP WWW-Authorization headers. This is what
+    clients are expected to use to determine how or where they want to
+    authenticate.
+
+    Example response:
+
+        WWW-Authenticate: Keystone uri="https://keystone.us/v2.0/tokens"
+        WWW-Authenticate: Keystone uri="https://keystone.uk/v2.0/tokens"
+        WWW-Authenticate: MyProtocol uri="https://my.com/custom_auth"
+        WWW-Authenticate: MyOther uri="https://my.uk/v2.0/another_auth"
+        WWW-Authenticate: Basic uri="https://this.com/", realm="Checkmate"
+
+    Once a client authenticates, they call back with their credentials and
+    indicate the auth mechanism they used using an X-Auth-Source header which
+    points to the URI they used.
+
+    Note: this scheme requires that URI exists and is unique.
+
+    All subsequent requests with an X-Auth-Source header get routed to that
+    source for validation if it is in the list of valid endpoint URIs.
+    If a default endpoint is selected, it receives all calls without an
+    X-Auth-Source header.
+
+    If no default is selected, calls are routed to each
+    endpoint until a valid response is received.
+
+    The middleware modules that will be instantiated will receive the endpoint
+    and the anonymous_paths as kwargs. Expecting _nit__ to support:
+
+            Class(endpoint, anonymous_path=None).
+
+    """
+    def __init__(self, app, endpoints, anonymous_paths=None):
         """
-        :param domains: the hash of domains to authenticate against. Each key
-                is a realm that points to a different cloud. The hash contains
-                endpoint and protocol, which is one of:
-                    keystone: using keystone protocol
+        :param endpoints: an array of auth endpoint dicts which is the list of
+                endpoints to authenticate against.
+                Each entry should have the following keys:
+
+                middleware: the middleware class to load to parse this entry
+                default: if this is the default endpoint to authenticate to
+                uri: the uri used for the endpoints
+                kwargs: the arguments to pass to the middleware
+
+        :param anonymous_paths: paths to ignore and allow through.
         """
         self.app = app
-        self.default_endpoint = default
-        # Make endpoints unique and maintain order
+
+        # parse endpoints
         self.endpoints = []
         if endpoints:
+            # Load (no duplicates) into self.endpoints maintaining order
             for endpoint in endpoints:
                 if endpoint not in self.endpoints:
+                    if 'middleware' not in endpoint:
+                        raise CheckmateException("Required 'middleware' key "
+                                                 "not specified in endpoint: "
+                                                 "%s" % endpoint)
+                    if 'uri' not in endpoint:
+                        raise CheckmateException("Required 'uri' key "
+                                                 "not specified in endpoint: "
+                                                 "%s" % endpoint)
                     self.endpoints.append(endpoint)
+                    if endpoint.get('default') is True:
+                        self.default_endpoint = endpoint
+            # Make sure a default exists (else use the first one)
+            if not self.default_endpoint:
+                self.default_endpoint = endpoints[0]
+
         self.middleware = {}
         self.default_middleware = None
         self.anonymous_paths = anonymous_paths or []
@@ -628,13 +681,15 @@ class AuthTokenRouterMiddleware():
         # For each endpoint, instantiate a middleware instance to process its
         # token auth calls. We'll route to it when appropriate
         for endpoint in self.endpoints:
-            if endpoint not in self.middleware:
-                middleware = (TokenAuthMiddleware(app, endpoint=endpoint,
-                              anonymous_paths=self.anonymous_paths))
-                self.middleware[endpoint] = middleware
-                if endpoint == self.default_endpoint:
-                    self.default_middleware = middleware
-                header = ('WWW-Authenticate', 'Keystone uri="%s"' % endpoint)
+            if 'middleware_instance' not in endpoint:
+                middleware = import_class(endpoint['middleware'])
+                instance = middleware(app, endpoint,
+                                      anonymous_paths=self.anonymous_paths)
+                endpoint['middleware'] = instance
+                self.middleware[endpoint['uri']] = instance
+                if endpoint is self.default_endpoint:
+                    self.default_middleware = instance
+                header = ('WWW-Authenticate', instance.auth_header)
                 if header not in self.response_headers:
                     self.response_headers.append(header)
 
@@ -647,19 +702,18 @@ class AuthTokenRouterMiddleware():
         if 'HTTP_X_AUTH_TOKEN' in environ:
             if 'HTTP_X_AUTH_SOURCE' in environ:
                 source = environ['HTTP_X_AUTH_SOURCE']
-                if not (source in self.endpoints or
-                        source == self.default_endpoint):
+                if not source in self.middleware:
                     LOG.info("Untrusted Auth Source supplied: %s" % source)
                     return (HTTPUnauthorized("Untrusted Auth Source")
                             (environ, start_response))
 
-                sources = [source]
+                sources = {source: self.middleware[source]}
             else:
-                sources = self.endpoints
+                sources = self.middleware
 
             sr = self.start_response_intercept(start_response)
-            for source in sources:
-                result = self.middleware[source].__call__(environ, sr)
+            for source in sources.itervalues():
+                result = source.__call__(environ, sr)
                 if self.last_status:
                     if self.last_status.startswith('401 '):
                         # Unauthorized, let's try next route
@@ -676,9 +730,8 @@ class AuthTokenRouterMiddleware():
             # Call default endpoint if not already called and if source was not
             # specified
             if 'HTTP_X_AUTH_SOURCE' not in environ and self.default_endpoint \
-                    not in sources:
-                result = (self.middleware[self.default_endpoint].
-                          __call__(environ, sr))
+                    not in sources.values():
+                result = self.default_middleware.__call__(environ, sr)
                 if not self.last_status.startswith('401 '):
                     # We got a good hit
                     LOG.debug("Token Auth Router got a successful response "

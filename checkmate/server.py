@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 """ Module to initialize and run Checkmate server"""
 import os
+import json
 import logging
 import string
 import sys
@@ -8,15 +9,19 @@ import sys
 import checkmate.common.tracer  # @UnusedImport # module runs on import
 
 # pylint: disable=E0611
-from bottle import app, run, request, response, HeaderDict, \
-    default_app, load
+from bottle import app, run, request, response, HeaderDict, default_app, load
 
 
-from checkmate.exceptions import CheckmateException, CheckmateNoMapping, \
-    CheckmateValidationException, CheckmateNoData, CheckmateDoesNotExist, \
-    CheckmateBadState, CheckmateDatabaseConnectionError
+from checkmate.exceptions import (CheckmateException,
+                                  CheckmateNoMapping,
+                                  CheckmateValidationException,
+                                  CheckmateNoData,
+                                  CheckmateDoesNotExist,
+                                  CheckmateBadState,
+                                  CheckmateDatabaseConnectionError,
+                                  )
 from checkmate import middleware
-from checkmate.utils import STATIC, write_body
+from checkmate import utils
 
 LOG = logging.getLogger(__name__)
 
@@ -32,6 +37,24 @@ try:
                     "checkmate environment loaded?")
 except:
     pass
+
+
+DEFAULT_AUTH_ENDPOINTS = [{
+                    'middleware': 'checkmate.middleware.TokenAuthMiddleware',
+                    'default': True,
+                    'uri': 'https://identity.api.rackspacecloud.com/v2.0/tokens',
+                    'kwargs': {
+                            'protocol': 'Keystone',
+                            'realm': 'US Cloud',
+                        },
+                }, {
+                    'middleware': 'checkmate.middleware.TokenAuthMiddleware',
+                    'uri': 'https://lon.identity.api.rackspacecloud.com/v2.0/tokens',
+                    'kwargs': {
+                            'protocol': 'Keystone',
+                            'realm': 'UK Cloud',
+                        },
+                }]
 
 
 def error_formatter(error):
@@ -77,15 +100,14 @@ def error_formatter(error):
     output['description'] = error.output
     output['code'] = error.status
     response.status = error.status
-    return write_body(dict(error=output), request, response)
+    return utils.write_body(dict(error=output), request, response)
 
 
-#if __name__ == '__main__':
 def main_func():
+    """ Start the server based on passed in arguments. Called by __main__ """
 
     # Init logging before we load the database, 3rd party, and 'noisy' modules
-    from checkmate.utils import init_logging
-    init_logging(default_config="/etc/default/checkmate-svr-log.conf")
+    utils.init_logging(default_config="/etc/default/checkmate-svr-log.conf")
 
     # Register built-in providers
     from checkmate.providers import rackspace, opscode
@@ -95,6 +117,8 @@ def main_func():
     # Load routes from other modules
     LOG.info("Loading API")
     load("checkmate.api")
+
+    # Load simulator if requested
     with_simulator = False
     if '--with-simulator' in sys.argv:
         load("checkmate.simulator")
@@ -112,57 +136,48 @@ def main_func():
                               }
     next_app.catchall = True
     next_app = middleware.AuthorizationMiddleware(next_app,
-                                                  anonymous_paths=STATIC)
-    #next = middleware.PAMAuthMiddleware(next, all_admins=True)
-    endpoints = ['https://identity.api.rackspacecloud.com/v2.0/tokens',
-                 'https://lon.identity.api.rackspacecloud.com/v2.0/tokens']
-    next_app = (middleware.AuthTokenRouterMiddleware(next_app, endpoints,
-                default='https://identity.api.rackspacecloud.com/v2.0/tokens',
-                anonymous_paths=STATIC))
-    """
-    if '--with-ui' in sys.argv:
-        # With a UI, we use basic auth and route that to cloud auth.
-        domains = {
-                'UK': {
-                        'protocol': 'keystone',
-                        'endpoint':
-                                'https://lon.identity.api.rackspacecloud.com/'
-                                'v2.0/tokens',
-                    },
-                'US': {
-                        'protocol': 'keystone',
-                        'endpoint': 'https://identity.api.rackspacecloud.com/'
-                        'v2.0/tokens',
-                    },
-            }
-        next = middleware.BasicAuthMultiCloudMiddleware(next, domains=domains)
-    """
+                                                  anonymous_paths=utils.STATIC)
+    endpoints = os.environ.get('CHECKMATE_AUTH_ENDPOINTS')
+    if endpoints:
+        endpoints = json.loads(endpoints)
+    else:
+        endpoints = DEFAULT_AUTH_ENDPOINTS
+    next_app = middleware.AuthTokenRouterMiddleware(next_app, endpoints,
+                                                    anonymous_paths=utils.\
+                                                            STATIC)
+
+    # Load Rook if requested
     if '--with-ui' in sys.argv:
         try:
+            endpoint_uris = [e['uri'] for e in endpoints]
             from rook.middleware import BrowserMiddleware
-            next_app = BrowserMiddleware(next_app, proxy_endpoints=endpoints,
+            next_app = BrowserMiddleware(next_app,
+                                         proxy_endpoints=endpoint_uris,
                                          with_simulator=with_simulator)
         except ImportError as exc:
             LOG.exception(exc)
-            LOG.warning("Not loading UI middleware. Make sure rook is "
+            LOG.warning("Unable to load UI middleware. Make sure rook is "
                         "installed.")
     next_app = middleware.TenantMiddleware(next_app)
     next_app = middleware.ContextMiddleware(next_app)
     next_app = middleware.StripPathMiddleware(next_app)
     next_app = middleware.ExtensionsMiddleware(next_app)
-    #next_app = middleware.CatchAll404(next_app)
+
+    # Load NewRelic inspection if requested
     if '--newrelic' in sys.argv:
         import newrelic.agent
         newrelic.agent.initialize(os.path.normpath(os.path.join(
                                   os.path.dirname(__file__), os.path.pardir,
                                   'newrelic.ini')))  # optional param
         next_app = newrelic.agent.wsgi_application()(next_app)
+
+    # Load request/response dumping if debugging enabled
     if '--debug' in sys.argv:
         next_app = middleware.DebugMiddleware(next_app)
         LOG.debug("Routes: %s" % ['%s %s' % (r.method, r.rule) for r in
                                   app().routes])
 
-    # Pick up IP/port from last param
+    # Pick up IP/port from last param (default is 127.0.0.1:8080)
     ip = '127.0.0.1'
     port = 8080
     if len(sys.argv) > 0:
@@ -173,9 +188,13 @@ def main_func():
                 ip, port = supplied.split(':')
             else:
                 ip = supplied
+
+    # Select server (wsgiref by default. eventlet if requested)
     server = 'wsgiref'
     if '--eventlet' in sys.argv:
         server = 'eventlet'
+
+    # Start listening. Enable reload by default to pick up file changes
     run(app=next_app, host=ip, port=port, reloader=True, server=server)
 
 
