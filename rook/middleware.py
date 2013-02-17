@@ -1,3 +1,4 @@
+import base64
 import httplib
 import json
 import logging
@@ -7,12 +8,15 @@ from urlparse import urlparse
 
 # Init logging before we load the database, 3rd party, and 'noisy' modules
 from checkmate.utils import init_console_logging
+from checkmate.middleware import TokenAuthMiddleware
 init_console_logging()
 # pylint: disable=E0611
 from bottle import get, post, request, response, abort, route, \
         static_file, HTTPError
+from Crypto.Hash import MD5
 import webob
 import webob.dec
+from webob.exc import HTTPUnauthorized
 
 import rook
 
@@ -294,6 +298,121 @@ class BrowserMiddleware(object):
             # Add our headers to response
             if self.with_simulator:
                 headers.append(("X-Simulator-Enabled", "True"))
+            # Call upstream start_response
+            start_response(status, headers, exc_info)
+        return callback
+
+
+class BasicAuthMultiCloudMiddleware(object):
+    """Implements basic auth to multiple cloud endpoints
+
+    - Authenticates any basic auth to PAM
+        - 401 if fails
+        - Mark authenticated as admin if true
+    - Adds basic auth header to any returning calls so client knows basic
+      auth is supported
+
+    Usage:
+        domains = {
+                'UK': {
+                        'protocol': 'keystone',
+                        'endpoint':
+                                'https://lon.identity.api.rackspacecloud.com/'
+                                'v2.0/tokens',
+                    },
+                'US': {
+                        'protocol': 'keystone',
+                        'endpoint': 'https://identity.api.rackspacecloud.com/'
+                        'v2.0/tokens',
+                    },
+            }
+        next = middleware.BasicAuthMultiCloudMiddleware(next, domains=domains)
+
+    """
+    def __init__(self, app, domains=None):
+        """
+        :param domains: the hash of domains to authenticate against. Each key
+                is a realm that points to a different cloud. The hash contains
+                endpoint and protocol, which is one of:
+                    keystone: using keystone protocol
+        """
+        self.domains = domains
+        self.app = app
+        self.cache = {}
+        # For each endpoint, instantiate a middleware instance to process its
+        # token auth calls. We'll route to it when appropriate
+        for key, value in domains.iteritems():
+            if value['protocol'] in ['keystone', 'keystone-rax']:
+                value['middleware'] = (TokenAuthMiddleware(app,
+                                       endpoint=value['endpoint']))
+
+    def __call__(self, environ, start_response):
+        # Authenticate basic auth calls to endpoints
+        start_response = self.start_response_callback(start_response)
+
+        if 'HTTP_AUTHORIZATION' in environ:
+            auth = environ['HTTP_AUTHORIZATION'].split()
+            if len(auth) == 2:
+                if auth[0].lower() == "basic":
+                    creds = base64.b64decode(auth[1]).split(':')
+                    if len(creds) != 2:
+                        return (HTTPUnauthorized('Invalid credentials')
+                                (environ, start_response))
+                    uname, passwd = creds
+                    if '\\' in uname:
+                        domain, uname = uname.split('\\')
+                        LOG.debug('Detected domain authentication: %s' %
+                                  domain)
+                        if domain in self.domains:
+                            LOG.warning("Unrecognized domain: %s" % domain)
+                    else:
+                        domain = 'default'
+                    if domain in self.domains:
+                        if self.domains[domain]['protocol'] == 'keystone':
+                            context = request.context
+                            try:
+                                content = (self._auth_cloud_basic(context,
+                                           uname, passwd,
+                                           self.domains[domain]['middleware']))
+                            except HTTPUnauthorized as exc:
+                                return exc(environ, start_response)
+                            context.set_context(content)
+        return self.app(environ, start_response)
+
+    def _auth_cloud_basic(self, context, uname, passwd, middleware):
+        """Authenticates to Cloud"""
+        cred_hash = MD5.new('%s%s%s' % (uname, passwd, middleware.endpoint)) \
+            .hexdigest()
+        if cred_hash in self.cache:
+            content = self.cache[cred_hash]
+            LOG.debug('Using cached catalog')
+        else:
+            try:
+                LOG.debug('Authenticating to %s' % middleware.endpoint)
+                content = (middleware._auth_keystone(context,
+                           username=uname, password=passwd))
+                self.cache[cred_hash] = content
+            except HTTPUnauthorized as exc:
+                LOG.exception(exc)
+                raise exc
+        LOG.debug("Basic auth over Cloud authenticated '%s'" % uname)
+        return content
+
+    def start_response_callback(self, start_response):
+        """Intercepts upstream start_response and adds our headers"""
+        def callback(status, headers, exc_info=None):
+            """Intercepts upstream start_response and adds our headers"""
+            # Add our headers to response
+            if self.domains:
+                for key, value in self.domains.iteritems():
+                    if value['protocol'] in ['keystone', 'keystone-rax']:
+                        headers.extend([
+                            ('WWW-Authenticate', 'Basic realm="%s"' % key),
+                            ('WWW-Authenticate', 'Keystone uri="%s"' %
+                             value['endpoint']),
+                        ])
+                    elif value['protocol'] == 'PAM':
+                        headers.append(('WWW-Authenticate', 'Basic'))
             # Call upstream start_response
             start_response(status, headers, exc_info)
         return callback
