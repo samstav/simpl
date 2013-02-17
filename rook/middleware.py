@@ -46,7 +46,7 @@ class BrowserMiddleware(object):
         self.app = app
         STATIC.extend(['favicon.ico', 'apple-touch-icon.png', 'js', 'libs',
                        'css', 'img', 'authproxy', 'marketing', '', None,
-                       'feedback', 'partials', 'githubproxy'])
+                       'feedback', 'partials', 'githubproxy', 'rookversion'])
         HANDLERS['application/vnd.github.v3.raw'] = write_raw
         self.proxy_endpoints = proxy_endpoints
         self.with_simulator = with_simulator
