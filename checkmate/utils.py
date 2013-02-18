@@ -31,13 +31,13 @@ from checkmate.exceptions import CheckmateNoData, CheckmateValidationException
 LOG = logging.getLogger(__name__)
 RESOURCES = ['deployments', 'workflows', 'blueprints', 'environments',
         'components', 'providers', 'test', 'status']
-STATIC = ['test', 'version', 'rookversion']
 
 DEFAULT_SENSITIVE_KEYS = ['credentials', 'apikey',
         re.compile("(?:(?:auth)|(?:api))?[-_ ]?token$"),
         re.compile("priv(?:ate)?[-_ ]?key$"),
         re.compile('password$'),
         re.compile('^password')]
+STATIC = ['test', 'version']
 
 
 def get_debug_level():

@@ -390,6 +390,27 @@ To execute deployments, checkmate uses a message queue. You need to have celery 
 
 The following environment variables can be set to configure checkmate:
 
+**CHECKMATE_AUTH_ENDPOINTS**: a json string representation of a list of auth endpoints to support. The uri and middleware keys are required. A sample is:
+
+```
+                [{
+                    'middleware': 'checkmate.middleware.TokenAuthMiddleware',
+                    'default': True,
+                    'uri': 'https://identity.api.rackspacecloud.com/v2.0/tokens',
+                    'kwargs': {
+                            'protocol': 'Keystone',
+                            'realm': 'US Cloud',
+                        },
+                }, {
+                    'middleware': 'checkmate.middleware.TokenAuthMiddleware',
+                    'uri': 'https://lon.identity.api.rackspacecloud.com/v2.0/tokens',
+                    'kwargs': {
+                            'protocol': 'Keystone',
+                            'realm': 'UK Cloud',
+                        },
+                }]
+```
+
 **CHECKMATE_CONNECTION_STRING**: a sql-alchemy or mongodb connection string pointing to the database store for checkmate. Examples:
 
     sqlite:////var/checkmate/data/db.sqlite
