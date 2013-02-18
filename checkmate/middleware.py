@@ -339,6 +339,7 @@ class AuthorizationMiddleware(object):
         context = request.context
 
         if context.is_admin is True:
+            start_response = self.start_response_callback(start_response)
             # Allow all admin calls
             return self.app(environ, start_response)
         elif context.tenant:
@@ -363,6 +364,17 @@ class AuthorizationMiddleware(object):
 
         LOG.debug('Auth-Z failed. Returning 401.')
         return HTTPUnauthorized()(environ, start_response)
+
+    def start_response_callback(self, start_response):
+        """Intercepts upstream start_response and adds auth-z headers"""
+        def callback(status, headers, exc_info=None):
+            # Add our headers to response
+            header = ('X-AuthZ-Admin', "True")
+            if header not in headers:
+                headers.append(header)
+            # Call upstream start_response
+            start_response(status, headers, exc_info)
+        return callback
 
 
 class StripPathMiddleware(object):
