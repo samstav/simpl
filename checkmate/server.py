@@ -149,10 +149,8 @@ def main_func():
     # Load Rook if requested
     if '--with-ui' in sys.argv:
         try:
-            endpoint_uris = [e['uri'] for e in endpoints]
             from rook.middleware import BrowserMiddleware
-            next_app = BrowserMiddleware(next_app,
-                                         proxy_endpoints=endpoint_uris,
+            next_app = BrowserMiddleware(next_app, proxy_endpoints=endpoints,
                                          with_simulator=with_simulator)
         except ImportError as exc:
             LOG.exception(exc)
