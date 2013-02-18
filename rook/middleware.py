@@ -16,7 +16,7 @@ from bottle import get, post, request, response, abort, route, \
 from Crypto.Hash import MD5
 import webob
 import webob.dec
-from webob.exc import HTTPUnauthorized
+from webob.exc import HTTPUnauthorized, HTTPNotFound
 
 import rook
 
@@ -51,6 +51,7 @@ class BrowserMiddleware(object):
         STATIC.extend(['favicon.ico', 'apple-touch-icon.png', 'js', 'libs',
                        'css', 'img', 'authproxy', 'marketing', '', None,
                        'feedback', 'partials', 'githubproxy', 'rookversion'])
+        RESOURCES.append('admin')
         HANDLERS['application/vnd.github.v3.raw'] = write_raw
         self.endpoints = proxy_endpoints
         self.proxy_endpoints = None
@@ -252,15 +253,34 @@ class BrowserMiddleware(object):
                                         'Origin, Accept, Content-Type, '
                                         'X-Requested-With, X-CSRF-Token')
                 return write_body({}, request, response)
-            feedback = read_body(request)
-            if not feedback or 'feedback' not in feedback:
+            user_feedback = read_body(request)
+            if not user_feedback or 'feedback' not in user_feedback:
                 abort(406, "Expecting a 'feedback' body in the request")
             token = request.get_header('X-Auth-Token')
             if token:
-                feedback['feedback']['token'] = token
-            feedback['feedback']['received'] = get_time_string()
-            self.feedback_db.save_feedback(feedback)
-            return write_body(feedback, request, response)
+                user_feedback['feedback']['token'] = token
+            user_feedback['feedback']['received'] = get_time_string()
+            self.feedback_db.save_feedback(user_feedback)
+            return write_body(user_feedback, request, response)
+
+        @get('/admin/<path:path>')
+        @support_only(['text/html', 'application/json'])
+        def get_admin(path=None):
+            """Read feedback"""
+            if path in ['feedback', 'feedback/.json']:
+                if 'text/html' in request.get_header('Accept', ['text/html']):
+                    return static(path=None)
+                else:
+                    if request.context.is_admin == True:
+                        LOG.info("Administrator accessing feedback: %s" %
+                                request.context.username)
+                        results = self.feedback_db.get_feedback()
+                        return write_body(results, request, response)
+                    else:
+                        abort(403, "Administrator privileges needed for this "
+                              "operation")
+            else:
+                raise HTTPNotFound("File not found: %s" % path)
 
         @get('/')
         @get('/<path:path>')

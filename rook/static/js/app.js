@@ -47,6 +47,13 @@ checkmate.config(['$routeProvider', '$locationProvider', '$httpProvider', functi
     controller: StaticController
   });
 
+  // Admin pages
+  $routeProvider.
+  when('/admin/feedback', {
+    templateUrl: '/partials/admin-feedback.html',
+    controller: FeedbackListController
+  });
+
   // New UI - dynamic, tenant pages
   $routeProvider.
   when('/:tenantId/workflows/:id/status', {
@@ -1969,6 +1976,54 @@ function DeploymentController($scope, $location, $resource, $routeParams) {
 
   $scope.load();
 }
+
+
+/*
+ * Admin controllers
+ */
+function FeedbackListController($scope, $location, $resource, items, scroll) {
+  //Model: UI
+  $scope.showSummaries = true;
+  $scope.showStatus = false;
+
+  $scope.name = 'Feedback';
+  $scope.count = 0;
+  items.all = [];
+  $scope.items = items.all;  // bind only to shrunken array
+
+  $scope.refresh = function() {
+  };
+
+  $scope.handleSpace = function() {
+  };
+
+  $scope.load = function() {
+    console.log("Starting load");
+    this.klass = $resource((checkmate_server_base || '') + '/admin/feedback/.json');
+    this.klass.get({}, function(list, getResponseHeaders){
+      console.log("Load returned");
+      items.receive(list, function(item, key) {
+        item.id = key;
+        if ('feedback' in item)
+          item.received = item.feedback.received;
+        return item;});
+      $scope.count = items.count;
+      $scope.items = items.all;
+      console.log("Done loading");
+    },
+    function(response) {
+      $scope.show_error(response);
+    });
+  };
+
+  //Setup
+  $scope.$watch('items.selectedIdx', function(newVal, oldVal, scope) {
+    if (newVal !== null) scroll.toCurrent();
+  });
+
+  $scope.load();
+}
+
 
 /*
  * Provider controllers
