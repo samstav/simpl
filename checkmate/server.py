@@ -124,6 +124,12 @@ def main_func():
         load("checkmate.simulator")
         with_simulator = True
 
+    # Load admin routes if requested
+    with_admin = False
+    if '--with-admin' in sys.argv:
+        load("checkmate.admin")
+        with_admin = True
+
     # Build WSGI Chain:
     LOG.info("Loading Application")
     next_app = default_app()  # This is the main checkmate app
@@ -151,7 +157,8 @@ def main_func():
         try:
             from rook.middleware import BrowserMiddleware
             next_app = BrowserMiddleware(next_app, proxy_endpoints=endpoints,
-                                         with_simulator=with_simulator)
+                                         with_simulator=with_simulator,
+                                         with_admin=with_admin)
         except ImportError as exc:
             LOG.exception(exc)
             LOG.warning("Unable to load UI middleware. Make sure rook is "

@@ -342,9 +342,11 @@ All calls are supported flat off of the root or under a tenant ID. Calls off of 
     GET [/:tid]/providers/:pid/catalog
     GET [/:tid]/providers/:pid/catalog/:cid
 
-    GET /status/celery
-    GET /status/libraries
 
+    # If the server is started with --with-admin, the following calls are avaiabl to admin users:
+
+    GET /admin/status/celery
+    GET /admin/status/libraries
 
     # If the server is started with --with-simulator, the following calls are avaiable:
 
@@ -363,6 +365,7 @@ Options:
 
         --with-ui:         enable support for browsers and HTML templates (requires [rook](https://github.rackspace.com/checkmate/rook))
         --with-simulator:  enable support for the workflow simulator
+        --with-admin:      enable /admin calls (authorized to admin users only)
         --newrelic:        enable newrelic monitoring (place newrelic.ini in
                            your directory)
         --eventlet:        use the eventlet server (recommended in production)
