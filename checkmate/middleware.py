@@ -536,7 +536,7 @@ class RequestContext(object):
 
     def get_service_catalog(self, content):
         """Returns Service Catalog"""
-        return content['access']['serviceCatalog']
+        return content['access'].get('serviceCatalog')
 
     def get_user_tenants(self, content):
         """Returns a list of tenants from token and catalog."""
@@ -566,16 +566,19 @@ class RequestContext(object):
 
         # Get tenants from service catalog
         catalog = self.get_service_catalog(content)
-        for service in catalog:
-            endpoints = service['endpoints']
-            for endpoint in endpoints:
-                if 'tenantId' in endpoint:
-                    user_tenants[endpoint['tenantId']] = None
+        if catalog:
+            for service in catalog:
+                endpoints = service['endpoints']
+                for endpoint in endpoints:
+                    if 'tenantId' in endpoint:
+                        user_tenants[endpoint['tenantId']] = None
         return user_tenants.keys()
 
     def get_username(self, content):
         """Returns username"""
-        return content['access']['user']['name']
+        # FIXME: when GLobal Auth implements name, remove the logic for 'id'
+        user = content['access']['user']
+        return user.get('name') or user.get('id')
 
     def get_roles(self, content):
         """Returns roles for a given user"""
