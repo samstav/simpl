@@ -303,6 +303,31 @@ class BrowserMiddleware(object):
         return callback
 
 
+class RackspaceSSOAuthMiddleware(TokenAuthMiddleware):
+    def __init__(self, app, endpoint, anonymous_paths=None):
+        self.app = app
+        self.endpoint = endpoint
+        self.anonymous_paths = anonymous_paths or []
+        self.auth_header = 'GlobalAuth uri="%s"' % endpoint['uri']
+        if 'kwargs' in endpoint and 'realm' in endpoint['kwargs']:
+            self.auth_header = str('GlobalAuth uri="%s";realm="%s"' % (
+                                   endpoint['uri'],
+                                   endpoint['kwargs']['realm']))
+
+
+class RackspaceImpersonationAuthMiddleware(TokenAuthMiddleware):
+    def __init__(self, app, endpoint, anonymous_paths=None):
+        self.app = app
+        self.endpoint = endpoint
+        self.anonymous_paths = anonymous_paths or []
+        self.auth_header = 'GlobalAuthImpersonation uri="%s"' % endpoint['uri']
+        if 'kwargs' in endpoint and 'realm' in endpoint['kwargs']:
+            self.auth_header = str('GlobalAuthImpersonation uri="%s";'
+                                   'realm="%s"' % (
+                                   endpoint['uri'],
+                                   endpoint['kwargs']['realm']))
+
+
 class BasicAuthMultiCloudMiddleware(object):
     """Implements basic auth to multiple cloud endpoints
 
