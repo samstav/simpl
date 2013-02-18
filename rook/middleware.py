@@ -52,7 +52,10 @@ class BrowserMiddleware(object):
                        'css', 'img', 'authproxy', 'marketing', '', None,
                        'feedback', 'partials', 'githubproxy', 'rookversion'])
         HANDLERS['application/vnd.github.v3.raw'] = write_raw
-        self.proxy_endpoints = proxy_endpoints
+        self.endpoints = proxy_endpoints
+        self.proxy_endpoints = None
+        if proxy_endpoints:
+            self.proxy_endpoints = [e['uri'] for e in proxy_endpoints]
         self.with_simulator = with_simulator
         connection_string = os.environ.get('CHECKMATE_CONNECTION_STRING',
                                            'sqlite://')
