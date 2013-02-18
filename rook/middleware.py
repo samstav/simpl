@@ -46,7 +46,8 @@ class BrowserMiddleware(object):
         - unauthenticated to resource route: render root UI so client can auth
     """
 
-    def __init__(self, app, proxy_endpoints=None, with_simulator=False):
+    def __init__(self, app, proxy_endpoints=None, with_simulator=False,
+                 with_admin=False):
         self.app = app
         STATIC.extend(['favicon.ico', 'apple-touch-icon.png', 'js', 'libs',
                        'css', 'img', 'authproxy', 'marketing', '', None,
@@ -58,6 +59,7 @@ class BrowserMiddleware(object):
         if proxy_endpoints:
             self.proxy_endpoints = [e['uri'] for e in proxy_endpoints]
         self.with_simulator = with_simulator
+        self.with_admin = with_admin
         connection_string = os.environ.get('CHECKMATE_CONNECTION_STRING',
                                            'sqlite://')
         if connection_string.startswith('mongodb://'):
@@ -274,11 +276,10 @@ class BrowserMiddleware(object):
             self.feedback_db.save_feedback(user_feedback)
             return write_body(user_feedback, request, response)
 
-        @get('/admin/<path:path>')
         @support_only(['text/html', 'application/json'])
-        def get_admin(path=None):
+        def get_admin():
             """Read feedback"""
-            if path in ['feedback', 'feedback/.json']:
+            if request.path in ['/admin/feedback/', '/admin/feedback/.json']:
                 if 'text/html' in request.get_header('Accept', ['text/html']):
                     return static(path=None)
                 else:
@@ -291,7 +292,12 @@ class BrowserMiddleware(object):
                         abort(403, "Administrator privileges needed for this "
                               "operation")
             else:
-                raise HTTPNotFound("File not found: %s" % path)
+                raise HTTPNotFound("File not found: %s" % request.path)
+
+        if self.with_admin is True:
+            route('/admin/feedback', 'GET', get_admin)
+            route('/admin/feedback.json', 'GET', get_admin)
+            route('/admin/feedback/.json', 'GET', get_admin)
 
         @get('/')
         @get('/<path:path>')
@@ -350,7 +356,7 @@ class RackspaceSSOAuthMiddleware(object):
         self.anonymous_paths = anonymous_paths or []
         self.auth_header = 'GlobalAuth uri="%s"' % endpoint['uri']
         if 'kwargs' in endpoint and 'realm' in endpoint['kwargs']:
-            self.auth_header = str('GlobalAuth uri="%s";realm="%s"' % (
+            self.auth_header = str('GlobalAuth uri="%s" realm="%s"' % (
                                    endpoint['uri'],
                                    endpoint['kwargs'].get('realm')))
         self.service_token = None
@@ -524,7 +530,7 @@ class RackspaceImpersonationAuthMiddleware(TokenAuthMiddleware):
         self.anonymous_paths = anonymous_paths or []
         self.auth_header = 'GlobalAuthImpersonation uri="%s"' % endpoint['uri']
         if 'kwargs' in endpoint and 'realm' in endpoint['kwargs']:
-            self.auth_header = str('GlobalAuthImpersonation uri="%s";'
+            self.auth_header = str('GlobalAuthImpersonation uri="%s" '
                                    'realm="%s"' % (
                                    endpoint['uri'],
                                    endpoint['kwargs']['realm']))

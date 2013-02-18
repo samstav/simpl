@@ -49,6 +49,14 @@ checkmate.config(['$routeProvider', '$locationProvider', '$httpProvider', functi
 
   // Admin pages
   $routeProvider.
+  when('/admin/status/celery', {
+    templateUrl: '/partials/raw.html',
+    controller: RawController
+  }).
+  when('/admin/status/libraries', {
+    templateUrl: '/partials/raw.html',
+    controller: RawController
+  }).
   when('/admin/feedback', {
     templateUrl: '/partials/admin-feedback.html',
     controller: FeedbackListController
@@ -134,6 +142,28 @@ function StaticController($scope, $location) {
 function ExternalController($window, $location) {
   console.log("Loading external URL " + $location.absUrl());
   $window.location.href = $location.absUrl();
+}
+
+//Loads raw content
+function RawController($scope, $location, $http) {
+  console.log("Loading raw content from URL " + $location.absUrl());
+  $scope.showHeader = false;
+  $scope.showStatus = false;
+  $http({method: 'GET', url: $location.absUrl()}).
+    success(function(data, status, headers, config) {
+      console.log(status);
+      $scope.data = JSON.stringify(data, null, 2);
+      $scope.safeApply();
+    }).
+    error(function(data, status, headers, config) {
+      $scope.data = '';
+      $scope.safeApply();
+      $scope.show_error({
+                      data: data,
+                      status: status,
+                      title: "Error",
+                      message: "There was an error executing your request:"});
+    });
 }
 
 //Root controller that implements authentication
