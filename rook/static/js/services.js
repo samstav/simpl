@@ -841,7 +841,7 @@ services.factory('auth', ['$resource', '$rootScope', function($resource, $rootSc
         dataType: "json",
         url: is_chrome_extension ? target : "/authproxy",
         data: data
-      }).success(function(response) {
+      }).success(function(response, textStatus, request) {
         //Populate identity
         auth.identity.username = response.access.user.name || response.access.user.id;
         auth.identity.user = response.access.user;
@@ -849,11 +849,10 @@ services.factory('auth', ['$resource', '$rootScope', function($resource, $rootSc
         auth.identity.token = response.access.token;
         auth.identity.expiration = response.access.token.expires;
         auth.identity.endpoint_type = endpoint['scheme'];
-        if (endpoint['scheme'] == "GlobalAuth") {
-          auth.identity.is_admin = true;
-        } else {
-          auth.identity.is_admin = false;
-        }
+
+        //Check if this user is an admin
+        var is_admin = request.getResponseHeader('X-AuthZ-Admin') || 'False';
+        auth.identity.is_admin = (is_admin === 'True');
 
         //Populate context
         auth.context.username = auth.identity.username;

@@ -8,7 +8,7 @@ from urlparse import urlparse
 
 # Init logging before we load the database, 3rd party, and 'noisy' modules
 from checkmate.utils import init_console_logging
-from checkmate.middleware import TokenAuthMiddleware
+from checkmate.middleware import TokenAuthMiddleware, RequestContext
 init_console_logging()
 # pylint: disable=E0611
 from bottle import get, post, request, response, abort, route, \
@@ -168,6 +168,17 @@ class BrowserMiddleware(object):
                 msg = "Auth target did not return json-encoded body"
                 LOG.debug(msg)
                 raise HTTPError(401, output=msg)
+
+            try:  # to detect if we just authenticated an asmin
+                for endpoint in self.endpoints:
+                    if endpoint['uri'] == source:
+                        role = endpoint.get('kwargs', {}).get('admin_role')
+                        if role:
+                            roles = content['access']['user'].get('roles')
+                            if {"name": role} in roles:
+                                response.add_header('X-AuthZ-Admin', 'True')
+            except StandardError:
+                pass
 
             return write_body(content, request, response)
 
@@ -332,7 +343,7 @@ class BrowserMiddleware(object):
         return callback
 
 
-class RackspaceSSOAuthMiddleware(TokenAuthMiddleware):
+class RackspaceSSOAuthMiddleware(object):
     def __init__(self, app, endpoint, anonymous_paths=None):
         self.app = app
         self.endpoint = endpoint
@@ -341,7 +352,169 @@ class RackspaceSSOAuthMiddleware(TokenAuthMiddleware):
         if 'kwargs' in endpoint and 'realm' in endpoint['kwargs']:
             self.auth_header = str('GlobalAuth uri="%s";realm="%s"' % (
                                    endpoint['uri'],
-                                   endpoint['kwargs']['realm']))
+                                   endpoint['kwargs'].get('realm')))
+        self.service_token = None
+        self.service_username = endpoint['kwargs'].get('username')
+        self.service_password = endpoint['kwargs'].get('password')
+        if 'kwargs' in endpoint:
+            self.admin_role = {"name": endpoint['kwargs'].get('admin_role')}
+        else:
+            self.admin_role = None
+
+        # FIXME: temoporary logic. Make this get a new toiken when needed
+        try:
+            result = self._auth_keystone(RequestContext(),
+                                         username=self.service_username,
+                                         password=self.service_password)
+            self.service_token = result['access']['token']['id']
+        except:
+            LOG.error("Unable to authenticate to Global Auth. Endpoint '%s' "
+                      "will be disabled" % endpoint.get('kwargs', {}).\
+                      get('realm'))
+
+    def __call__(self, environ, start_response):
+        """Authenticate calls with X-Auth-Token to the source auth service"""
+        path_parts = environ['PATH_INFO'].split('/')
+        root = path_parts[1] if len(path_parts) > 1 else None
+        if root in self.anonymous_paths:
+            # Allow anything marked as anonymous
+            return self.app(environ, start_response)
+
+        start_response = self.start_response_callback(start_response)
+
+        if 'HTTP_X_AUTH_TOKEN' in environ and self.service_token:
+            context = request.context
+            try:
+                content = (self._validate_keystone(context,
+                           token=environ['HTTP_X_AUTH_TOKEN']))
+                environ['HTTP_X_AUTHORIZED'] = "Confirmed"
+                if self.admin_role in content['access']['user']['roles']:
+                    request.context.is_admin = True
+            except HTTPUnauthorized as exc:
+                LOG.exception(exc)
+                return exc(environ, start_response)
+            context.set_context(content)
+
+        return self.app(environ, start_response)
+
+    def _validate_keystone(self, context, token=None, username=None,
+                           apikey=None, password=None):
+        """Validates a Keystone Auth Token"""
+        url = urlparse(self.endpoint['uri'])
+        if url.scheme == 'https':
+            http_class = httplib.HTTPSConnection
+            port = url.port or 443
+        else:
+            http_class = httplib.HTTPConnection
+            port = url.port or 80
+        host = url.hostname
+
+        http = http_class(host, port)
+
+        path = os.path.join(url.path, token)
+        if context.tenant:
+            path = "%s?belongsTo=%s" % (path, context.tenant)
+            LOG.debug("Validating on tenant '%s'" % context.tenant)
+        headers = {
+            'X-Auth-Token': self.service_token,
+            'Accept': 'application/json',
+        }
+        # TODO: implement some caching to not overload auth
+        try:
+            LOG.debug('Validating token with %s' % self.endpoint['uri'])
+            http.request('GET', path, headers=headers)
+            resp = http.getresponse()
+            body = resp.read()
+        except Exception as exc:
+            LOG.error('HTTP connection exception: %s' % exc)
+            raise HTTPUnauthorized('Unable to communicate with %s' %
+                                   self.endpoint['uri'])
+        finally:
+            http.close()
+
+        if resp.status != 200:
+            LOG.debug('Invalid token for tenant: %s' % resp.reason)
+            raise HTTPUnauthorized("Token invalid or not valid for this "
+                                   "tenant (%s)" % resp.reason,
+                                   [('WWW-Authenticate', self.auth_header)])
+
+        try:
+            content = json.loads(body)
+        except ValueError:
+            msg = 'Keystone did not return json-encoded body'
+            LOG.debug(msg)
+            raise HTTPUnauthorized(msg)
+        return content
+
+    def _auth_keystone(self, context, token=None, username=None, apikey=None,
+                       password=None):
+        """Authenticates to keystone"""
+        url = urlparse(self.endpoint['uri'])
+        if url.scheme == 'https':
+            http_class = httplib.HTTPSConnection
+            port = url.port or 443
+        else:
+            http_class = httplib.HTTPConnection
+            port = url.port or 80
+        host = url.hostname
+
+        http = http_class(host, port)
+        if token:
+            body = {"auth": {"token": {"id": token}}}
+        elif password:
+            body = {"auth": {"passwordCredentials": {
+                    "username": username, 'password': password}}}
+        elif apikey:
+            body = {"auth": {"RAX-KSKEY:apiKeyCredentials": {
+                    "username": username, 'apiKey': apikey}}}
+
+        if context.tenant:
+            auth = body['auth']
+            auth['tenantId'] = context.tenant
+            LOG.debug("Authenticating to tenant '%s'" % context.tenant)
+        headers = {
+            'Content-type': 'application/json',
+            'Accept': 'application/json',
+        }
+        # TODO: implement some caching to not overload auth
+        try:
+            LOG.debug('Authenticating to %s' % self.endpoint['uri'])
+            http.request('POST', url.path, body=json.dumps(body),
+                         headers=headers)
+            resp = http.getresponse()
+            body = resp.read()
+        except Exception as exc:
+            LOG.error('HTTP connection exception: %s' % exc)
+            raise HTTPUnauthorized('Unable to communicate with %s' %
+                                   self.endpoint['uri'])
+        finally:
+            http.close()
+
+        if resp.status != 200:
+            LOG.debug('Invalid token for tenant: %s' % resp.reason)
+            raise HTTPUnauthorized("Token invalid or not valid for this "
+                                   "tenant (%s)" % resp.reason,
+                                   [('WWW-Authenticate', self.auth_header)])
+
+        try:
+            content = json.loads(body)
+        except ValueError:
+            msg = 'Keystone did not return json-encoded body'
+            LOG.debug(msg)
+            raise HTTPUnauthorized(msg)
+        return content
+
+    def start_response_callback(self, start_response):
+        """Intercepts upstream start_response and adds our headers"""
+        def callback(status, headers, exc_info=None):
+            """Intercepts upstream start_response and adds our headers"""
+            # Add our headers to response
+            header = ('WWW-Authenticate', self.auth_header)
+            if header not in headers:
+                headers.append(header)
+            # Call upstream start_response
+            start_response(status, headers, exc_info)
+        return callback
 
 
 class RackspaceImpersonationAuthMiddleware(TokenAuthMiddleware):

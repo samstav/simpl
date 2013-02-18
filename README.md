@@ -29,6 +29,10 @@ checkmate server has the right setting for ther aurth endpoints:
 
 export CHECKMATE_AUTH_ENDPOINTS='[{"default": true, "middleware": "checkmate.middleware.TokenAuthMiddleware", "uri": "https://identity.api.rackspacecloud.com/v2.0/tokens", "kwargs": {"protocol": "Keystone", "realm": "US Cloud"}}, {"middleware": "checkmate.middleware.TokenAuthMiddleware", "uri": "https://lon.identity.api.rackspacecloud.com/v2.0/tokens", "kwargs": {"protocol": "Keystone", "realm": "UK Cloud"}}, {"middleware": "rook.middleware.RackspaceSSOAuthMiddleware", "uri": "https://identity-internal.api.rackspacecloud.com/v2.0/tokens", "kwargs": {"realm": "Rackspace SSO", "protocol": "GlobalAuth"}}, {"middleware": "rook.middleware.RackspaceImpersonationAuthMiddleware", "uri": "https://identity-internal.api.rackspacecloud.com/v2.0/RAX-AUTH/impersonation-tokens", "kwargs": {"realm": "Rackspace SSO", "protocol": "GlobalAuthImpersonation"}}]'
 
+For Global Auth validation:
+- add the service 'username' and 'password' to the GlobalAuth entry kwargs
+For Global Auth admin auth-z:
+- add the 'admin_role' name to the kwargs
 
 
 Contributing
