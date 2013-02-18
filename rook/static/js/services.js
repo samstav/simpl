@@ -732,16 +732,65 @@ services.factory('github', ['$http', function($http) {
 
 /*
  * Authentication Service
+ *
+ * Handles authentication and impersonation
+ *
+ * identity stores:
+ *   - the user's name
+ *   - the user's token and auth source
+ *   - if the user is an admin in Checkmate
+ *
+ * context stores:
+ *   - the current tenant
+ *   - the current user (tracks if we are impersonating or not)
+ *
+ * Examples:
+ * - Racker who is a member of Checkmate Admins group:
+ *   identity: Racker, Global Auth token, roles: *:admin
+ *   context:  Racker username, role=admin
+ *
+ * When Cloud Auth account logged in:
+ *   identity: cloud auth user, token, roles: admin on tenant
+ *   context: tenant, cloud username
+ *
+ * Emits these broadcast events:
+ * - logOn
+ * - logOff
+ * - contextChanged (always called: log on/off, impersonating/un-impersonating)
+ *
 **/
-services.factory('auth', [function($resource) {
+services.factory('auth', ['$resource', '$rootScope', function($resource, $rootScope) {
   var auth = {
-    auth_url: null,
-    username: null,
-    token: null,
-    supertoken: null,
-    tenant: null,
+
+    // Stores the user's identity and necessary credential info
+    identity: {
+      username: null,
+      auth_url: null,
+      token: null,
+      expiration: null,
+      endpoint_type: null, // Keystone | Rackspace Auth | Basic | Global Auth
+      is_admin: false,
+      loggedIn: false,
+      user: null
+    },
+    // Stores the current context (when impersonating, it's a tenant user and
+    // context when not, it's just a mirror of the current identity)
+    context: {
+      username: null,
+      auth_url: null, // US, UK, etc...
+      token: null, // token object with id, expires, and tenant info
+      expiration: null,
+      tenantId: null,
+      catalog: {},
+      impersonated: false,
+      regions: null,
+      user: null
+    },
+    endpoints: [],
+
     // Authenticate
-    authenticate: function(target, username, apikey, password, tenant, callback, error_callback) {
+    authenticate: function(endpoint, username, apikey, password, tenant, callback, error_callback) {
+      var target = endpoint['uri'];
       var data;
       if (apikey) {
          data = JSON.stringify({
@@ -793,13 +842,75 @@ services.factory('auth', [function($resource) {
         url: is_chrome_extension ? target : "/authproxy",
         data: data
       }).success(function(response) {
-        auth.auth_url = target;
-        if (target == "https://identity-internal.api.rackspacecloud.com/v2.0/tokens")
-          auth.supertoken = response.access.token.id;
+        //Populate identity
+        auth.identity.username = response.access.user.name || response.access.user.id;
+        auth.identity.user = response.access.user;
+        auth.identity.auth_url = target;
+        auth.identity.token = response.access.token;
+        auth.identity.expiration = response.access.token.expires;
+        auth.identity.endpoint_type = endpoint['scheme'];
+        if (endpoint['scheme'] == "GlobalAuth") {
+          auth.identity.is_admin = true;
+        } else {
+          auth.identity.is_admin = false;
+        }
+
+        //Populate context
+        auth.context.username = auth.identity.username;
+        auth.context.user = response.access.user;
+        auth.context.auth_url = target;
+        auth.context.token = response.access.token;
+        if (endpoint['scheme'] == "GlobalAuth") {
+          auth.context.tenantId = null;
+          auth.context.catalog = {};
+          auth.context.impersonated = false;
+        } else {
+          if ('tenant' in response.access.token)
+            auth.context.tenantId = response.access.token.tenant.id;
+          else
+            auth.context.tenantId = null;
+          auth.context.catalog = response.access.serviceCatalog;
+          auth.context.impersonated = false;
+        }
+
+        //Parse region list
+        var regions = _.union.apply(this, _.map(response.access.serviceCatalog, function(o) {return _.map(o.endpoints, function(e) {return e.region;});}));
+        if ('RAX-AUTH:defaultRegion' in response.access.user && regions.indexOf(response.access.user['RAX-AUTH:defaultRegion']) == -1)
+          regions.push(response.access.user['RAX-AUTH:defaultRegion']);
+        auth.context.regions = _.compact(regions);
+
+        //Save for future use
+        auth.save();
+
+        //Check token expiration
+        auth.check_state();
+        /*
+        var expires = new Date(response.access.token.expires);
+        var now = new Date();
+        if (expires < now) {
+          auth.expires = 'expired';
+          $scope.auth.loggedIn = false;
+        } else {
+          $scope.auth.expires = expires - now;
+          $scope.auth.loggedIn = true;
+        }
+        */
+
         callback(response);
+
+        $rootScope.$broadcast('logIn');
+        $rootScope.$broadcast('contextChanged');
+
       }).error(function(response) {
         error_callback(response);
       });
+    },
+    logOut: function() {
+      auth.clear();
+      localStorage.removeItem('auth');
+      delete checkmate.config.header_defaults.headers.common['X-Auth-Token'];
+      delete checkmate.config.header_defaults.headers.common['X-Auth-Source'];
+      $rootScope.$broadcast('logOff');
     },
     impersonate: function(tenant, callback, error_callback) {
       var data;
@@ -808,7 +919,7 @@ services.factory('auth', [function($resource) {
             "user": {"username": tenant},
             "expire-in-seconds": 10800}
           });
-      headers = {'X-Auth-Token': auth.token,
+      headers = {'X-Auth-Token': auth.token.id,
                  'X-Auth-Source': "https://identity-internal.api.rackspacecloud.com/v2.0/RAX-AUTH/impersonation-tokens"};
       console.log(data, headers);
       return $.ajax({
@@ -820,12 +931,70 @@ services.factory('auth', [function($resource) {
         data: data
       }).success(function(json) {
         auth.tenant = tenant;
-        auth.token = json.access.token.id;
+        auth.token = json.access.token;
         callback(tenant, json);
       }).error(function(response) {
         error_callback(response);
       });
+    },
+    //Check all auth data and update state
+    check_state: function() {
+      if ('identity' in auth && auth.identity.expiration !== null) {
+        var expires = new Date(auth.identity.expiration);
+        var now = new Date();
+        if (expires.getTime() > now.getTime()) {
+          auth.identity.loggedIn = true;
+          //Make all AJAX calls use context
+          checkmate.config.header_defaults.headers.common['X-Auth-Token'] = auth.context.token.id;
+          checkmate.config.header_defaults.headers.common['X-Auth-Source'] = auth.context.auth_url;
+        } else {
+          auth.clear();
+        }
+      } else
+        auth.clear();
+    },
+    clear: function() {
+      auth.identity = {};
+      auth.context = {};
+    },
+    //Save to local storage
+    save: function() {
+      var data = {auth: {identity: auth.identity, context: auth.context, endpoints: auth.endpoints}};
+      //Save for future use
+      localStorage.setItem('auth', JSON.stringify(data));
+    },
+    //Restore from local storage
+    restore: function() {
+      var data = localStorage.getItem('auth');
+      if (data !== undefined && data !== null)
+        data = JSON.parse(data);
+      if (data !== undefined && data !== null && data != {} && 'auth' in data && 'identity' in data.auth && 'context' in data.auth) {
+        auth.identity = data.auth.identity;
+        auth.context = data.auth.context;
+        auth.endpoints = data.auth.endpoints;
+        auth.check_state();
+      }
+    },
+    parseWWWAuthenticateHeaders: function(headers) {
+      headers = headers.split(',');
+      var parsed = _.map(headers, function(entry) {
+        entry = entry.trim();
+        try {
+          var scheme = entry.match(/^([\w\-]+)/)[0];
+          var realm = entry.match(/realm=['"]([^'"]+)['"]/)[1];
+          var uri = entry.match(/uri=['"]([^'"]+)['"]/)[1];
+          return {scheme: scheme, realm: realm, uri: uri};
+        } catch(err) {
+          console.log("Error parsing WWW-Authenticate entry", entry);
+          return {};
+        }
+      });
+      auth.endpoints = _.compact(parsed);
     }
   };
+
+  // Restore login from session
+  auth.restore();
+
   return auth;
 }]);
