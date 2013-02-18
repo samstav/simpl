@@ -133,11 +133,6 @@ function ExternalController($window, $location) {
 function AppController($scope, $http, $location, $resource, auth) {
   $scope.showHeader = true;
   $scope.showStatus = false;
-  $scope.auth = {
-      username: '',
-      tenantId: '',
-      expires: ''
-    };
 
   $scope.safeApply = function(fn) {
     var phase = this.$root.$$phase;
@@ -174,52 +169,22 @@ function AppController($scope, $http, $location, $resource, auth) {
     $('#modalError').modal('show');
   };
 
-  //Accepts subset of auth data. We use a subset so we can store it locally.
-  $scope.accept_auth_data = function(response) {
-      $scope.auth.catalog = response;
-      $scope.auth.username = response.access.user.name || response.access.user.id;
-      if ('tenant' in response.access.token)
-        $scope.auth.tenantId = response.access.token.tenant.id;
-      checkmate.config.header_defaults.headers.common['X-Auth-Token'] = response.access.token.id;
-      checkmate.config.header_defaults.headers.common['X-Auth-Source'] = response.auth_url;
-      auth.auth_url = response.auth_url;
-      auth.token = response.access.token.id;
-      auth.supertoken = response.access.token.id;
-      auth.username = $scope.auth.username;
-      var expires = new Date(response.access.token.expires);
-      var now = new Date();
-      if (expires < now) {
-        $scope.auth.expires = 'expired';
-        $scope.auth.loggedIn = false;
-      } else {
-        $scope.auth.expires = expires - now;
-        $scope.auth.loggedIn = true;
-      }
-  };
+  $scope.$on('logOn', function() {
+    $scope.message = auth.message;
+    $scope.notify("Welcome FROM ON_LOGIN, " + $scope.auth.identity.username + "! You are logged in");
+  });
 
-  // Restore login from session
-  var stored_auth = localStorage.getItem('auth');
-  if (stored_auth !== undefined && stored_auth !== null)
-    stored_auth = JSON.parse(stored_auth);
-  if (stored_auth !== undefined && stored_auth !== null && stored_auth != {} && 'access' in stored_auth && 'token' in stored_auth.access) {
-    expires = new Date(stored_auth.access.token.expires);
-    now = new Date();
-    if (expires.getTime() > now.getTime()) {
-      stored_auth.loggedIn = true;
-      $scope.accept_auth_data(stored_auth);
-    } else {
-      $scope.auth.loggedIn = false;
-    }
-  } else {
-    $scope.auth.loggedIn = false;
-  }
+  $scope.$on('logOff', function() {
+    $location.path('/');
+  });
+
+  $scope.auth = auth;
 
   // Bind to logon modal
   $scope.bound_creds = {
     username: '',
     password: '',
-    apikey: '',
-    auth_url: "https://identity.api.rackspacecloud.com/v2.0/tokens" //default
+    apikey: ''
   };
 
   $scope.refresh = function() {
@@ -246,22 +211,12 @@ function AppController($scope, $http, $location, $resource, auth) {
 
   $scope.on_auth_success = function(json) {
     $('#modalAuth').modal('hide');
-    //Parse data. Keep only a subset to store in local storage
-    var keep = {access: {token: json.access.token, user: json.access.user}};
-    keep.auth_url = auth.auth_url;  // save for later
-    regions = _.union.apply(this, _.map(json.access.serviceCatalog, function(o) {return _.map(o.endpoints, function(e) {return e.region;});}));
-    if ('RAX-AUTH:defaultRegion' in json.access.user && regions.indexOf(json.access.user['RAX-AUTH:defaultRegion']) == -1)
-      regions.push(json.access.user['RAX-AUTH:defaultRegion']);
-    keep.access.regions = _.compact(regions);
-    localStorage.setItem('auth', JSON.stringify(keep));
-    $scope.accept_auth_data(keep);
     $scope.bound_creds = {
         username: '',
         password: '',
-        apikey: '',
-        auth_url: "https://identity.api.rackspacecloud.com/v2.0/tokens"
+        apikey: ''
       };
-    $scope.notify("Welcome, " + $scope.auth.username + "! You are logged in");
+    $scope.notify("Welcome, " + $scope.auth.identity.username + "! You are logged in");
     if (typeof $('#modalAuth')[0].success_callback == 'function') {
         $('#modalAuth')[0].success_callback();
         delete $('#modalAuth')[0].success_callback;
@@ -269,7 +224,6 @@ function AppController($scope, $http, $location, $resource, auth) {
       }
     else
       $scope.$apply();
-    $scope.$broadcast('logIn');
   };
 
    $scope.on_auth_failed = function(response) {
@@ -287,20 +241,22 @@ function AppController($scope, $http, $location, $resource, auth) {
     var username = $scope.bound_creds.username;
     var password = $scope.bound_creds.password;
     var apikey = $scope.bound_creds.apikey;
-    var auth_url = $scope.bound_creds.auth_url;
-    var data;
-    return auth.authenticate(auth_url, username, apikey, password, null,
+    var endpoint = $scope.selected_endpoint || auth.endpoints[0];
+    return auth.authenticate(endpoint, username, apikey, password, null,
       $scope.on_auth_success, $scope.on_auth_failed);
   };
 
   $scope.logOut = function() {
-    $scope.auth.username = '';
-    $scope.auth.catalog = null;
-    localStorage.removeItem('auth');
-    $scope.auth.loggedIn = false;
-    delete checkmate.config.header_defaults.headers.common['X-Auth-Token'];
-    delete checkmate.config.header_defaults.headers.common['X-Auth-Source'];
-    $location.path('/');
+    $scope.auth.logOut();
+  };
+
+  $scope.on_impersonate_success = function(tenant, json) {
+    $('#user_menu').dropdown('toggle');
+    $scope.safeApply();
+  };
+
+  $scope.impersonate = function(tenant) {
+    auth.impersonate(tenant, $scope.on_impersonate_success, $scope.on_auth_failed);
   };
 
 
@@ -310,30 +266,53 @@ function AppController($scope, $http, $location, $resource, auth) {
   api.get(function(data, getResponseHeaders){
     $scope.api_version = data.version;
     console.log("Got api version: " + $scope.api_version);
+    //Check if simulator enabled
+    $scope.$root.simulator = getResponseHeaders("X-Simulator-Enabled");
+    //Check for which auth endpoints are enabled
+    var headers;
+    if ($.browser.mozilla) {
+      // Firefox does not parse the headers correctly
+      var all_headers = getResponseHeaders();
+      var combined = '';
+      _.each(all_headers, function(h, k) {
+          if (k.indexOf('keystone') === 0) {
+            combined += ', ' + k.replace('keystone', 'Keystone') + ":" + h;
+          } else if (k.indexOf('globalauthimpersonation') === 0){
+            combined += ', ' + k.replace('globalauthimpersonation', 'GlobalAuthImpersonation')+ ":" + h;
+          } else if (k.indexOf('globalauth') === 0) {
+            combined += ', ' + k.replace('globalauth', 'GlobalAuth')+ ":" + h;
+          } else if (k == 'www-authenticate')
+            combined += ', ' + h;
+      });
+      headers = combined.substring(2);
+    }
+    else {
+      headers = getResponseHeaders("WWW-Authenticate");
+    }
+    auth.parseWWWAuthenticateHeaders(headers);
   });
 
   console.log("Getting rook version");
   var rook = $resource((checkmate_server_base || '') + '/rookversion');
   rook.get(function(rookdata, getResponseHeaders){
-      $scope.rook_version = rookdata.version;
-      console.log("Got rook version: " + $scope.rook_version);
-      console.log("Got version: " + $scope.api_version);
-      $scope.$root.simulator = getResponseHeaders("X-Simulator-Enabled");
+    $scope.rook_version = rookdata.version;
+    console.log("Got rook version: " + $scope.rook_version);
+    console.log("Got version: " + $scope.api_version);
   });
 
   //Check for a supported account
   $scope.is_unsupported_account = function() {
     var roles = [];
-    if ($scope.auth.loggedIn === true)
-        roles = $scope.auth.catalog.access.user.roles || [];
+    if ($scope.auth.identity.loggedIn === true)
+        roles = $scope.auth.context.user.roles || [];
     return _.any(roles, function(role) {return role.name == "rack_connect";});
   };
 
   //Check for a service level
   $scope.is_managed_account = function() {
     var roles = [];
-    if ($scope.auth.loggedIn === true)
-        roles = $scope.auth.catalog.access.user.roles || [];
+    if ($scope.auth.identity.loggedIn === true)
+        roles = $scope.auth.context.user.roles || [];
     return _.any(roles, function(role) {return role.name == "rax_managed";});
   };
 
@@ -418,8 +397,8 @@ function NavBarController($scope, $location) {
         "feedback": {
             "request": $scope.feedback,
             "email": $scope.email,
-            "username": $scope.auth.username,
-            "tenantId": $scope.auth.tenantId,
+            "username": $scope.auth.identity.username,
+            "tenantId": $scope.auth.context.tenantId,
             "location": $location.absUrl(),
             "auth": $scope.auth,
             "api_version": $scope.api_version,
@@ -611,7 +590,7 @@ function WorkflowListController($scope, $location, $resource, workflow, items, n
   $scope.load = function() {
     console.log("Starting load");
     this.klass = $resource((checkmate_server_base || '') + '/:tenantId/workflows/.json');
-    this.klass.get({tenantId: $scope.auth.tenantId}, function(list, getResponseHeaders){
+    this.klass.get({tenantId: $scope.auth.context.tenantId}, function(list, getResponseHeaders){
       console.log("Load returned");
       items.receive(list, function(item, key) {
         return {id: key, name: item.wf_spec.name, status: item.attributes.status, progress: item.attributes.progress, tenantId: item.tenantId};});
@@ -900,7 +879,7 @@ function WorkflowController($scope, $resource, $http, $routeParams, $location, $
       return c.CodeMirror.getTextArea().id == 'spec_source';
       });
 
-    if ($scope.auth.loggedIn) {
+    if ($scope.auth.identity.loggedIn) {
       var klass = $resource((checkmate_server_base || '') + '/:tenantId/workflows/:id/specs/' + $scope.current_spec_index);
       var thang = new klass(JSON.parse(editor.CodeMirror.getValue()));
       thang.$save($routeParams, function(returned, getHeaders){
@@ -943,7 +922,7 @@ function WorkflowController($scope, $resource, $http, $routeParams, $location, $
       return c.CodeMirror.getTextArea().id == 'task_source';
       });
 
-    if ($scope.auth.loggedIn) {
+    if ($scope.identity.loggedIn) {
       var klass = $resource((checkmate_server_base || '') + '/:tenantId/workflows/:id/tasks/' + $scope.current_task_index);
       var thang = new klass(JSON.parse(editor.CodeMirror.getValue()));
       thang.$save($routeParams, function(returned, getHeaders){
@@ -989,7 +968,7 @@ function WorkflowController($scope, $resource, $http, $routeParams, $location, $
   };
 
   $scope.workflow_action = function(workflow_id, action) {
-    if ($scope.auth.loggedIn) {
+    if ($scope.auth.identity.loggedIn) {
       console.log("Executing '" + action + " on workflow " + workflow_id);
       $http({method: 'GET', url: $location.path() + '/+' + action}).
         success(function(data, status, headers, config) {
@@ -1004,7 +983,7 @@ function WorkflowController($scope, $resource, $http, $routeParams, $location, $
   };
 
   $scope.task_action = function(task_id, action) {
-    if ($scope.auth.loggedIn) {
+    if ($scope.auth.identity.loggedIn) {
       console.log("Executing '" + action + " on task " + task_id);
       $http({method: 'POST', url: $location.path() + '/tasks/' + task_id + '/+' + action}).
         success(function(data, status, headers, config) {
@@ -1076,7 +1055,7 @@ function WorkflowController($scope, $resource, $http, $routeParams, $location, $
   };
 
   //Init
-  if (!$scope.auth.loggedIn) {
+  if (!$scope.auth.identity.loggedIn) {
     $scope.loginPrompt($scope.load);
   } else if ($location.path().split('/').slice(-1)[0] == '+preview') {
     if (typeof workflow.preview == 'object') {
@@ -1363,8 +1342,7 @@ function BlueprintRemoteListController($scope, $location, $routeParams, $resourc
   };
 
   $scope.loadBlueprint = function() {
-    console.log('loadBlueprint', $scope.remote);
-    github.get_blueprint($scope.remote, $scope.auth.username, $scope.receive_blueprint, function(data) {
+    github.get_blueprint($scope.remote, $scope.auth.identity.username, $scope.receive_blueprint, function(data) {
       if (typeof data == 'string') {
         $scope.notify(data);
       } else {
@@ -1419,7 +1397,7 @@ function DeploymentListController($scope, $location, $http, $resource, scroll, i
   $scope.load = function() {
     console.log("Starting load");
     this.klass = $resource((checkmate_server_base || '') + '/:tenantId/deployments/.json');
-    this.klass.get({tenantId: $scope.auth.tenantId}, function(list, getResponseHeaders){
+    this.klass.get({tenantId: $scope.auth.context.tenantId}, function(list, getResponseHeaders){
       console.log("Load returned");
       items.all = [];
       items.receive(list, function(item) {
@@ -1445,9 +1423,9 @@ function DeploymentManagedCloudController($scope, $location, $routeParams, $reso
 
   $scope.receive_blueprint = function(data, remote) {
     if ('blueprint' in data) {
-      if ($scope.auth.loggedIn === true) {
-        data.blueprint.options.region['default'] = $scope.auth.catalog.access.user['RAX-AUTH:defaultRegion'] || $scope.auth.catalog.access.regions[0];
-        data.blueprint.options.region.choice = $scope.auth.catalog.access.regions;
+      if ($scope.auth.identity.loggedIn === true) {
+        data.blueprint.options.region['default'] = $scope.auth.context.user['RAX-AUTH:defaultRegion'] || $scope.auth.context.regions[0];
+        data.blueprint.options.region.choice = $scope.auth.context.regions;
       }
       WPBP[remote.url] = data.blueprint;
       var new_blueprints = {};
@@ -1471,7 +1449,7 @@ function DeploymentManagedCloudController($scope, $location, $routeParams, $reso
     remote.url = repo_url;
     github.get_branch_from_name(remote, u.fragment() || 'master', function(branch) {
       remote.branch = branch;
-      github.get_blueprint(remote, $scope.auth.username, $scope.receive_blueprint, function(data) {
+      github.get_blueprint(remote, $scope.auth.identity.username, $scope.receive_blueprint, function(data) {
         $scope.notify('Unable to load latest version of ' + remote.repo.name + ' from github: ' + data);
         console.log('Unable to load latest version of ' + remote.repo.name + ' from github: ' + data);
       });
@@ -1548,12 +1526,12 @@ function DeploymentManagedCloudController($scope, $location, $routeParams, $reso
 
   $scope.setAllBlueprintRegions = function() {
     _.each(WPBP, function(value, key) {
-      value.options.region['default'] = $scope.auth.catalog.access.user['RAX-AUTH:defaultRegion'] || $scope.auth.catalog.access.regions[0];
-      value.options.region.choice = $scope.auth.catalog.access.regions;
+      value.options.region['default'] = $scope.auth.context.user['RAX-AUTH:defaultRegion'] || $scope.auth.context.regions[0];
+      value.options.region.choice = $scope.auth.context.regions;
     });
   };
 
-  if ($scope.auth.loggedIn === true) {
+  if ($scope.auth.identity.loggedIn === true) {
       $scope.setAllBlueprintRegions();
   }
 
@@ -1651,10 +1629,10 @@ function DeploymentNewController($scope, $location, $routeParams, $resource, set
   //Retrieve existing domains
   $scope.getDomains = function(){
     $scope.domain_names = [];
-    if ($scope.auth.loggedIn){
-      var tenant_id = $scope.auth.tenantId;
-      var url = '/:tenantId/providers/rackspace.dns/proxy/v1.0/'+tenant_id+'/domains.json';
-      var Domains = $resource((checkmate_server_base || '') + url, {tenantId: $scope.auth.tenantId});
+    var tenant_id = $scope.auth.context.tenantId;
+    if ($scope.auth.identity.loggedIn && tenant_id){
+      var url = '/:tenantId/providers/rackspace.dns/proxy/v1.0/:tenantId/domains.json';
+      var Domains = $resource((checkmate_server_base || '') + url, {tenantId: $scope.auth.context.tenantId});
       var results = Domains.query(function() {
         for(var i=0; i<results.length; i++){
           $scope.domain_names.push(results[i].name);
@@ -1682,10 +1660,10 @@ function DeploymentNewController($scope, $location, $routeParams, $resource, set
   $scope.updateRegions = function() {
     if ($scope.environment) {
       if ('providers' in $scope.environment && 'legacy' in $scope.environment.providers) {
-        if ($scope.settings && $scope.auth.loggedIn === true && 'RAX-AUTH:defaultRegion' in $scope.auth.catalog.access.user) {
+        if ($scope.settings && $scope.auth.identity.loggedIn === true && 'RAX-AUTH:defaultRegion' in $scope.auth.context.user) {
             _.each($scope.settings, function(setting) {
                 if (setting.id == 'region') {
-                    setting['default'] = $scope.auth.catalog.access.user['RAX-AUTH:defaultRegion'];
+                    setting['default'] = $scope.auth.context.user['RAX-AUTH:defaultRegion'];
                     setting.choice = [setting['default']];
                     $scope.answers[setting.id] = setting['default'];
                     setting.description = "Your legacy cloud servers region is '" + setting['default'] + "'. You can only deploy to this region";
@@ -1694,8 +1672,8 @@ function DeploymentNewController($scope, $location, $routeParams, $resource, set
         }
       } else {
         _.each($scope.settings, function(setting) {
-          if (setting.id == 'region' && $scope.auth.loggedIn === true) {
-            setting.choice = $scope.auth.catalog.access.regions;
+          if (setting.id == 'region' && $scope.auth.identity.loggedIn === true) {
+            setting.choice = $scope.auth.context.regions;
             setting.description = "";
           }
         });
@@ -1721,8 +1699,8 @@ function DeploymentNewController($scope, $location, $routeParams, $resource, set
         $scope.answers[setting.id] = setting['default'];
       } else
         $scope.answers[setting.id] = null;
-      if (setting.id == 'region' && $scope.auth.loggedIn === true)
-        setting.choice = $scope.auth.catalog.access.regions;
+      if (setting.id == 'region' && $scope.auth.identity.loggedIn === true)
+        setting.choice = $scope.auth.context.regions;
     });
     $scope.show_site_address_controls = _.any($scope.settings, function(setting) {return ['domain', 'web_server_protocol'].indexOf(setting.id) > -1;});
     if (_.any($scope.settings, function(setting) {
@@ -1841,7 +1819,7 @@ function DeploymentNewController($scope, $location, $routeParams, $resource, set
     var url = '/:tenantId/deployments';
     if ((action !== undefined) && action)
       url += '/' + action;
-    var Deployment = $resource((checkmate_server_base || '') + url, {tenantId: $scope.auth.tenantId});
+    var Deployment = $resource((checkmate_server_base || '') + url, {tenantId: $scope.auth.context.tenantId});
     var deployment = new Deployment({});
     deployment.blueprint = jQuery.extend({}, $scope.blueprint);  //Copy
     deployment.environment = jQuery.extend({}, $scope.environment);  //Copy
@@ -1892,15 +1870,15 @@ function DeploymentNewController($scope, $location, $routeParams, $resource, set
       return;
     }
 
-    if ($scope.auth.loggedIn) {
+    if ($scope.auth.identity.loggedIn) {
         deployment.$save(function(returned, getHeaders){
         if (action == '+preview') {
             workflow.preview = returned;
-            $location.path('/' + $scope.auth.tenantId + '/workflows/+preview');
+            $location.path('/' + $scope.auth.context.tenantId + '/workflows/+preview');
         } else {
             var deploymentId = getHeaders('location').split('/')[3];
             console.log("Posted deployment", deploymentId);
-            $location.path('/' + $scope.auth.tenantId + '/workflows/' + deploymentId + '/status');
+            $location.path('/' + $scope.auth.context.tenantId + '/workflows/' + deploymentId + '/status');
         }
       }, function(error) {
         console.log("Error " + error.data + "(" + error.status + ") creating new deployment.");
@@ -1966,7 +1944,7 @@ function DeploymentController($scope, $location, $resource, $routeParams) {
       return c.CodeMirror.getTextArea().id == 'source';
       });
 
-    if ($scope.auth.loggedIn) {
+    if ($scope.auth.identity.loggedIn) {
       var klass = $resource((checkmate_server_base || '') + '/:tenantId/deployments/:id/.json', null, {'get': {method:'GET'}, 'save': {method:'PUT'}});
       var thang = new klass(JSON.parse(editor.CodeMirror.getValue()));
       thang.$save($routeParams, function(returned, getHeaders){
@@ -2014,7 +1992,7 @@ function ProviderListController($scope, $location, $resource, items, scroll) {
   $scope.load = function() {
     console.log("Starting load");
     this.klass = $resource((checkmate_server_base || '') + '/:tenantId/providers/.json');
-    this.klass.get({tenantId: $scope.auth.tenantId}, function(list, getResponseHeaders){
+    this.klass.get({tenantId: $scope.auth.context.tenantId}, function(list, getResponseHeaders){
       console.log("Load returned");
       items.receive(list, function(item, key) {
         return {id: key, name: item.name, vendor: item.vendor};});
@@ -2054,7 +2032,7 @@ function EnvironmentListController($scope, $location, $resource, items, scroll) 
   $scope.load = function() {
     console.log("Starting load");
     this.klass = $resource((checkmate_server_base || '') + '/:tenantId/environments/.json');
-    this.klass.get({tenantId: $scope.auth.tenantId}, function(list, getResponseHeaders){
+    this.klass.get({tenantId: $scope.auth.context.tenantId}, function(list, getResponseHeaders){
       console.log("Load returned");
       items.receive(list, function(item, key) {
         return {id: key, name: item.name, vendor: item.vendor, providers: item.providers};});

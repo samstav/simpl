@@ -67,32 +67,32 @@
           <div id="user_control" class="nav pull-right">
             <ul class="nav">
               <li class="divider-vertical"></li>
-              <li class="dropdown pull-right" style="display: none;" ng-show="auth.loggedIn">
+              <li class="dropdown pull-right" style="display: none;" ng-show="auth.identity.loggedIn">
                 <a href="#" class="dropdown-toggle" data-toggle="dropdown" id="user_button">
-                      <i class="icon-user icon-white"></i> {{auth.username}}
-                      <span ng-show="auth.tenantId"> ({{auth.tenantId}})</span>
+                      <i class="icon-user icon-white"></i> {{auth.context.username}}
+                      <span ng-show="auth.context.tenantId"> ({{auth.context.tenantId}})</span>
                       <b class="caret"></b>
                 </a>
-                <ul class="dropdown-menu">
+                <ul id="user_menu" class="dropdown-menu pull-right" role="menu" aria-labelledby="user_button">
                   <li><a ng-click="logOut()">Log Out</a></li>
                 </ul>
               </li>
-              <li class="pull-right" style="display: none" ng-show="!auth.loggedIn">
+              <li class="pull-right" style="display: none" ng-show="!auth.identity.loggedIn">
                 <a href="#" ng-click="loginPrompt()">
                   <i class="icon-user icon-white"></i> Log In</a>
               </li>
             </ul>
           </div>
           <div class="nav-collapse collapse">
-            <ul id="nav-elements" class="nav" style="display: none" ng-show="auth.loggedIn">
-              <li id="nav-deployments"><a href="/{{auth.tenantId}}/deployments">Deployments</a></li>
-              <li id="nav-workflows"><a href="/{{auth.tenantId}}/workflows">Workflows</a></li>
+            <ul id="nav-elements" class="nav" style="display: none" ng-show="auth.identity.loggedIn">
+              <li id="nav-deployments"><a href="/{{auth.context.tenantId}}/deployments">Deployments</a></li>
+              <li id="nav-workflows"><a href="/{{auth.context.tenantId}}/workflows">Workflows</a></li>
               <!--<li class="dropdown">
                 <a href="#" class="dropdown-toggle" data-toggle="dropdown">Other<b class="caret"></b></a>
                 <ul class="dropdown-menu">
-                  <li id="nav-environments"><a href="/{{auth.tenantId}}/environments">Environments</a></li>
-                  <li id="nav-blueprints"><a href="/{{auth.tenantId}}/blueprints">Blueprints</a></li>
-                  <li id="nav-providers"><a href="/{{auth.tenantId}}/providers">Providers</a></li>
+                  <li id="nav-environments"><a href="/{{auth.context.tenantId}}/environments">Environments</a></li>
+                  <li id="nav-blueprints"><a href="/{{auth.context.tenantId}}/blueprints">Blueprints</a></li>
+                  <li id="nav-providers"><a href="/{{auth.context.tenantId}}/providers">Providers</a></li>
                   <li class="divider"></li>
                   <li class="nav-header">Status</li>
                   <li id="nav-status-celery"><a href="/status/celery">Celery</a></li>
@@ -105,7 +105,7 @@
               </form>
             </ul>
             <ul id="nav-support" class="nav">
-              <li id="nav-blueprints"><a href="{{auth.tenantId | prepend}}/blueprints">Blueprints</a></li>
+              <li id="nav-blueprints"><a href="{{auth.context.tenantId | prepend}}/blueprints">Blueprints</a></li>
               <li class="dropdown">
                 <a id="support-menu" href="#" class="dropdown-toggle" data-toggle="dropdown">Help<b class="caret"></b></a>
                 <ul class="dropdown-menu">

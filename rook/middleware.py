@@ -55,7 +55,7 @@ class BrowserMiddleware(object):
         self.proxy_endpoints = proxy_endpoints
         self.with_simulator = with_simulator
         connection_string = os.environ.get('CHECKMATE_CONNECTION_STRING',
-                'sqlite://')
+                                           'sqlite://')
         if connection_string.startswith('mongodb://'):
             driver_name = 'rook.db.feedback.MongoDriver'
         else:
@@ -101,24 +101,28 @@ class BrowserMiddleware(object):
                         'marketing'))
 
         @post('/authproxy')
-        @support_only(['application/json', 'application/x-yaml'])
+        @support_only(['application/json'])
         def authproxy():
             """Proxy Auth Requests
 
             The Ajax client cannot talk to auth because of CORS. This function
             allows it to authenticate through this server.
+
             """
-            auth = read_body(request)
-            if not auth:
-                abort(406, "Expecting a body in the request")
+            # Check for source
             source = request.get_header('X-Auth-Source')
             if not source:
                 abort(401, "X-Auth-Source header not supplied. The header is "
-                        "required and must point to a valid and permitted "
-                        "auth endpoint.")
+                      "required and must point to a valid and permitted auth "
+                      "endpoint.")
             if source not in self.proxy_endpoints:
                 abort(401, "Auth endpoint not permitted: %s" % source)
 
+            auth = read_body(request)
+            if not auth:
+                abort(406, "Expecting a body in the request")
+
+            # Prepare proxy call
             url = urlparse(source)
             if url.scheme == 'https':
                 http_class = httplib.HTTPSConnection
@@ -127,23 +131,26 @@ class BrowserMiddleware(object):
                 http_class = httplib.HTTPConnection
                 port = url.port or 80
             host = url.hostname
-
             http = http_class(host, port)
-            headers = {
-                'Content-type': 'application/json',
-                'Accept': 'application/json',
-                }
+
+            headers = {}
+            token = request.get_header('X-Auth-Token')
+            if token:
+                headers['X-Auth-Token'] = token
+            headers['Content-type'] = 'application/json'
+            headers['Accept'] = 'application/json'
+
             # TODO: implement some caching to not overload auth
+            LOG.debug('Proxy authenticating to %s' % source)
             try:
-                LOG.debug('Proxy authenticating to %s' % source)
                 http.request('POST', url.path, body=json.dumps(auth),
-                        headers=headers)
+                             headers=headers)
                 resp = http.getresponse()
                 body = resp.read()
             except Exception, e:
                 LOG.error('HTTP connection exception: %s' % e)
                 raise HTTPError(401, output='Unable to communicate with '
-                        'keystone server')
+                                'keystone server')
             finally:
                 http.close()
 
@@ -154,7 +161,7 @@ class BrowserMiddleware(object):
             try:
                 content = json.loads(body)
             except ValueError:
-                msg = 'Keystone did not return json-encoded body'
+                msg = "Auth target did not return json-encoded body"
                 LOG.debug(msg)
                 raise HTTPError(401, output=msg)
 
@@ -224,7 +231,6 @@ class BrowserMiddleware(object):
                 content = body
 
             return write_body(content, request, response)
-
 
         @route('/feedback', method=['POST', 'OPTIONS'])
         @support_only(['application/json'])
