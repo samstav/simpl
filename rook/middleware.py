@@ -107,8 +107,9 @@ class BrowserMiddleware(object):
                         'marketing'))
 
         @post('/authproxy')
+        @route('/authproxy/<path:path>', method=['POST', 'GET'])
         @support_only(['application/json'])
-        def authproxy():
+        def authproxy(path=None):
             """Proxy Auth Requests
 
             The Ajax client cannot talk to auth because of CORS. This function
@@ -124,9 +125,10 @@ class BrowserMiddleware(object):
             if source not in self.proxy_endpoints:
                 abort(401, "Auth endpoint not permitted: %s" % source)
 
-            auth = read_body(request)
-            if not auth:
-                abort(406, "Expecting a body in the request")
+            if request.body and getattr(request.body, 'len', -1) > 0:
+                auth = read_body(request)
+            else:
+                auth = None
 
             # Prepare proxy call
             url = urlparse(source)
@@ -147,9 +149,13 @@ class BrowserMiddleware(object):
             headers['Accept'] = 'application/json'
 
             # TODO: implement some caching to not overload auth
-            LOG.debug('Proxy authenticating to %s' % source)
+            LOG.debug('Proxy call to auth to %s' % source)
+            post_body = json.dumps(auth) if auth else None
+            proxy_path = path or url.path
+            if not proxy_path.startswith('/'):
+                proxy_path = '/%s' % proxy_path
             try:
-                http.request('POST', url.path, body=json.dumps(auth),
+                http.request(request.method, proxy_path, body=post_body,
                              headers=headers)
                 resp = http.getresponse()
                 body = resp.read()
@@ -315,12 +321,18 @@ class BrowserMiddleware(object):
             return static_file(path or '/index.html', root=root, mimetype=mimetype)
 
     def __call__(self, e, h):
-        """Detect unauthenticated calls and redirect them to root.
-        This gets processed before the bottle routes"""
+        """
+
+        Detect unauthenticated HTML calls and redirect them to root.
+
+        This gets processed before the bottle routes
+
+        """
         h = self.start_response_callback(h)
         if 'text/html' in webob.Request(e).accept or \
                 e['PATH_INFO'].endswith('.html'):  # Angular requests json
-            if e['PATH_INFO'] not in [None, "", "/", "/authproxy"]:
+            if e['PATH_INFO'] not in [None, "", "/"] and \
+                    not e['PATH_INFO'].startswith("/authproxy"):
                 path_parts = e['PATH_INFO'].split('/')
                 if path_parts[1] in STATIC:
                     # Not a tenant call. Bypass auth and return static content
