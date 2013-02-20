@@ -436,16 +436,17 @@ class Provider(RackspaceComputeProviderBase):
 
         return api
 
-"""
-  Celery tasks to manipulate OpenStack Compute with support for
-  the Rackspace Cloud.
-"""
 
+#
+#  Celery tasks to manipulate OpenStack Compute with support for
+#  the Rackspace Cloud.
+#
 from celery.task import task
 
 REGION_MAP = {'dallas': 'DFW',
               'chicago': 'ORD',
               'london': 'LON'}
+
 
 #
 # Celery Tasks
