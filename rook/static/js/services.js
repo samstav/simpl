@@ -771,7 +771,8 @@ services.factory('auth', ['$resource', '$rootScope', function($resource, $rootSc
       endpoint_type: null, // Keystone | Rackspace Auth | Basic | Global Auth
       is_admin: false,
       loggedIn: false,
-      user: null
+      user: null,
+      tenants: null
     },
     // Stores the current context (when impersonating, it's a tenant user and
     // context when not, it's just a mirror of the current identity)
@@ -866,8 +867,20 @@ services.factory('auth', ['$resource', '$rootScope', function($resource, $rootSc
         } else {
           if ('tenant' in response.access.token)
             auth.context.tenantId = response.access.token.tenant.id;
-          else
+          else {
             auth.context.tenantId = null;
+            headers['X-Auth-Token'] = auth.context.token.id;
+            $.ajax({
+              type: "GET",
+              contentType: "application/json; charset=utf-8",
+              headers: headers,
+              dataType: "json",
+              url: is_chrome_extension ? target : "/authproxy/v2.0/tenants"
+            }).success(function(response, textStatus, request) {
+              auth.identity.tenants = response.tenants;
+              auth.save();
+            });
+          }
           auth.context.catalog = response.access.serviceCatalog;
           auth.context.impersonated = false;
         }
@@ -913,14 +926,26 @@ services.factory('auth', ['$resource', '$rootScope', function($resource, $rootSc
     },
     impersonate: function(tenant, callback, error_callback) {
       var data;
-      data = JSON.stringify({"RAX-AUTH:impersonation":
+      if (auth.identity.endpoint_type == 'GlobalAuth') {
+        data = JSON.stringify({"RAX-AUTH:impersonation":
           {
             "user": {"username": tenant},
             "expire-in-seconds": 10800}
           });
-      headers = {'X-Auth-Token': auth.token.id,
-                 'X-Auth-Source': "https://identity-internal.api.rackspacecloud.com/v2.0/RAX-AUTH/impersonation-tokens"};
-      console.log(data, headers);
+        headers = {'X-Auth-Token': auth.identity.token.id,
+                   'X-Auth-Source': "https://identity-internal.api.rackspacecloud.com/v2.0/RAX-AUTH/impersonation-tokens"};
+      } else if (auth.identity.endpoint_type == 'Keystone') {
+        data = JSON.stringify({
+            "auth": {
+              "token": {
+                "id": auth.identity.token.id
+              },
+              'tenantId': tenant
+            }
+          });
+        headers = {'X-Auth-Token': auth.identity.token.id,
+                   'X-Auth-Source': auth.identity.auth_url};
+      }
       return $.ajax({
         type: "POST",
         contentType: "application/json; charset=utf-8",
@@ -928,10 +953,24 @@ services.factory('auth', ['$resource', '$rootScope', function($resource, $rootSc
         dataType: "json",
         url: is_chrome_extension ? auth.auth_url : "/authproxy",
         data: data
-      }).success(function(json) {
-        auth.tenant = tenant;
-        auth.token = json.access.token;
-        callback(tenant, json);
+      }).success(function(response) {
+        auth.context.tenant = tenant;
+        auth.context.token = response.access.token;
+
+        if (auth.identity.endpoint_type == 'Keystone') {
+          if ('tenant' in response.access.token)
+            auth.context.tenantId = response.access.token.tenant.id;
+          auth.context.catalog = response.access.serviceCatalog;
+          auth.context.impersonated = false;
+        }
+
+        var regions = _.union.apply(this, _.map(response.access.serviceCatalog, function(o) {return _.map(o.endpoints, function(e) {return e.region;});}));
+        if ('RAX-AUTH:defaultRegion' in response.access.user && regions.indexOf(response.access.user['RAX-AUTH:defaultRegion']) == -1)
+          regions.push(response.access.user['RAX-AUTH:defaultRegion']);
+        auth.context.regions = _.compact(regions);
+        auth.save();
+
+        callback(tenant, response);
       }).error(function(response) {
         error_callback(response);
       });

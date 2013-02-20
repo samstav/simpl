@@ -289,7 +289,7 @@ function AppController($scope, $http, $location, $resource, auth) {
 
   $scope.on_impersonate_success = function(tenant, json) {
     $('#user_menu').dropdown('toggle');
-    $scope.safeApply();
+    $location.path('/');
   };
 
   $scope.impersonate = function(tenant) {

@@ -74,6 +74,11 @@
                       <b class="caret"></b>
                 </a>
                 <ul id="user_menu" class="dropdown-menu pull-right" role="menu" aria-labelledby="user_button">
+                  <li ng-cloak ng-show="auth.identity.tenants" class="nav-header">TENANTS</li>
+                  <li role="presentation" ng-repeat="tenant in auth.identity.tenants">
+                      <a role="menutitem" ng-click="impersonate(tenant.id)">{{tenant.name}} ({{tenant.id}})</a>
+                  </li>
+                  <li ng-cloak ng-show="auth.identity.tenants" class="divider"></li>
                   <li><a ng-click="logOut()">Log Out</a></li>
                 </ul>
               </li>
@@ -84,7 +89,7 @@
             </ul>
           </div>
           <div class="nav-collapse collapse">
-            <ul id="nav-elements" class="nav" style="display: none" ng-show="auth.identity.loggedIn">
+            <ul id="nav-elements" class="nav" style="display: none" ng-show="auth.context.tenantId">
               <li id="nav-deployments"><a href="/{{auth.context.tenantId}}/deployments">Deployments</a></li>
               <li id="nav-workflows"><a href="/{{auth.context.tenantId}}/workflows">Workflows</a></li>
               <!--<li class="dropdown">
