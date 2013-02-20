@@ -348,11 +348,18 @@ class Provider(RackspaceComputeProviderBase):
     def _images(api):
         """Gets current tenant's images and formats them in Checkmate format"""
         images = api.images.list()
-        results = {
-                str(i.id): {
+        results = {}
+        for i in images:
+            if 'LAMP' in i.name:
+                continue
+            image = {
                     'name': i.name,
-                    'os': i.name.split(' LTS ')[0].split(' (')[0],
-                    } for i in images if 'LAMP' not in i.name}
+                    'os': i.name.split(' LTS ')[0].split(' (')[0]
+                    }
+            #FIXME: hack to make our blueprints work with Private OpenStack
+            if 'precise' in image['os']:
+                image['os'] = 'Ubuntu 12.04'
+            results[str(i.id)] = image
         return results
 
     @staticmethod
