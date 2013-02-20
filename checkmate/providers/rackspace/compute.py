@@ -394,9 +394,10 @@ class Provider(RackspaceComputeProviderBase):
 
         os.environ['NOVA_RAX_AUTH'] = "Yes Please!"
         api = client.Client(context.username, 'dummy', None,
-                "https://identity.api.rackspacecloud.com/v2.0",
-                region_name=region, service_type="compute",
-                service_name='cloudServersOpenStack')
+                            context.auth_source or
+                                "https://identity.api.rackspacecloud.com/v2.0",
+                            region_name=region, service_type="compute",
+                            service_name='cloudServersOpenStack')
         api.client.auth_token = context.auth_token
 
         url = find_url(context.catalog, region)

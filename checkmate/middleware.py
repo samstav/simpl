@@ -240,6 +240,7 @@ class TokenAuthMiddleware(object):
             except HTTPUnauthorized as exc:
                 LOG.exception(exc)
                 return exc(environ, start_response)
+            context.auth_source = self.endpoint['uri']
             context.set_context(content)
 
         return self.app(environ, start_response)
@@ -498,8 +499,9 @@ class RequestContext(object):
     def __init__(self, auth_token=None, username=None, tenant=None,
                  is_admin=False, read_only=False, show_deleted=False,
                  authenticated=False, catalog=None, user_tenants=None,
-                 roles=None, domain=None, **kwargs):
+                 roles=None, domain=None, auth_source=None, **kwargs):
         self.authenticated = authenticated
+        self.auth_source = auth_source
         self.auth_token = auth_token
         self.catalog = catalog
         self.username = username
