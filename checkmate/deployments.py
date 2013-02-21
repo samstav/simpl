@@ -16,7 +16,6 @@ from checkmate.workflows import create_workflow_deploy, \
 from checkmate.utils import (write_body, read_body, extract_sensitive_data,
                              with_tenant)
 from checkmate.plan import Plan
-from checkmate.legacy_plan import Plan as Legacy_Plan
 from checkmate.deployment import Deployment, generate_keys
 
 LOG = logging.getLogger(__name__)
@@ -376,20 +375,12 @@ def plan(deployment, context):
     assert context.__class__.__name__ == 'RequestContext'
     assert deployment.get('status') == 'NEW'
     assert isinstance(deployment, Deployment)
-    uses_chef_solo = ("chef-solo" in
-                      deployment.environment().get_providers(context))
-    uses_chef_local = ("chef-local" in
-                      deployment.environment().get_providers(context))
-    if (uses_chef_local and uses_chef_solo):
-        abort(406, "Environment cannot include both chef-local and "
-              "chef-solo providers at this time.")
+    if "chef-local" in deployment.environment().get_providers(context):
+        abort(406, "Provider 'chef-local' deprecated. Use 'chef-solo' "
+              "instead.")
 
     # Analyze Deployment and Create plan
-    if uses_chef_local:
-        planner = Legacy_Plan(deployment)
-    else:
-        planner = Plan(deployment)
-
+    planner = Plan(deployment)
     resources = planner.plan(context)
 
     # Store plan results in deployment

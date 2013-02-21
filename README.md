@@ -76,7 +76,7 @@ Multiple environments can exist in one tenant or account. For example, you could
           vendor: rackspace
           provides:
           - database: mysql
-        chef-local:
+        chef-solo:
           vendor: opscode
           provides:
           - application: http  # see catalog for list of apps like wordpress, drupal, etc...
@@ -430,20 +430,11 @@ Note: to connect to mongodb, also install the pymongo client library:
 
 **CHECKMATE_CHEF_LOCAL_PATH**: checkmate uses chef to configure applications on
     servers. Checkmate supports using chef with and without a chef server. When
-    using it without a chef server, checkmate has a provider called chef-local
+    using it without a chef server, checkmate has a provider called chef-solo
     that stores all deployments in a multi-tenant capable and scalable file
     structure. This setting points to the directory where this structure should
     be hosted.  If not specified, Checkmate will try to default to
     /var/local/checkmate/deployments.
-
-**CHECKMATE_CHEF_REPO**: This setting points to a directory that contains a chef
-    repository (a directory with cookbooks, roles, environments, site-cookbooks
-    subdirecotries, etc...). You can clone the opscode repo (https://github.com/opscode-cookbooks/)
-    or use your own. This repo is never modified by checkmate. Files from it are
-    copied to the individual deployments. If not specified, Checkmate will try
-    to default to /var/local/checkmate/chef-stockton.
-
-**CHECKMATE_CHEF_USE_DATA_BAGS**: when using the chef-local provider, some capabilities of a chef server can be emulated using data bags. Setting this value to True tells checkmate to use data bags instead of normal node, role, and environment overrides to store data for deployments. (default=True).
 
 **CHECKMATE_CHEF_PATH**: when using checkmate with a server, checkmate needs to know the path for the chef client deployment. This points to that path. The kniofe.rb file should be in there.
 
@@ -488,6 +479,9 @@ CHECKMATE_DATA_PATH
 
 CHECKMATE_PRIVATE_KEY
 
+CHECKMATE_CHEF_REPO
+
+CHECKMATE_CHEF_USE_DATA_BAGS
 
 ## Checkmate Installation
 
@@ -694,8 +688,7 @@ Start the task queue:
     export CHECKMATE_RESULT_BACKEND="mongodb"
     export CHECKMATE_MONGODB_BACKEND_SETTINGS='{"host": "localhost", "port": 27017, "user": "checkmate", "password": "password", "database": "checkmate", "taskmeta_collection": "celery_task_meta"}'
     export CHECKMATE_CONNECTION_STRING="mongodb://checkmate:password@localhost:27017/checkmate"
-    export CHECKMATE_CHEF_REPO=/var/checkmate/chef/repo/chef-stockton
-    export CHECKMATE_CHEF_LOCAL_PATH=/var/chef
+    export CHECKMATE_CHEF_LOCAL_PATH=/var/local/checkmate/deployments
     bin/checkmate-queue START
 
 
@@ -706,8 +699,7 @@ And then start the checkmate server:
     export CHECKMATE_RESULT_BACKEND="mongodb"
     export CHECKMATE_MONGODB_BACKEND_SETTINGS='{"host": "localhost", "port": 27017, "user": "checkmate", "password": "password", "database": "checkmate", "taskmeta_collection": "celery_task_meta"}'
     export CHECKMATE_CONNECTION_STRING="mongodb://checkmate:password@localhost:27017/checkmate"
-    export CHECKMATE_CHEF_REPO=/var/checkmate/chef/repo/chef-stockton
-    export CHECKMATE_CHEF_LOCAL_PATH=/var/chef
+    export CHECKMATE_CHEF_LOCAL_PATH=/var/local/checkmate/deployments
     export CHECKMATE_PUBLIC_KEY=`cat ~/.ssh/id_rsa.pub`  # on a mac
     bin/checkmate-server START --with-ui --with-simulator
 
