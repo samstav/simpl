@@ -240,6 +240,7 @@ class TokenAuthMiddleware(object):
             except HTTPUnauthorized as exc:
                 LOG.exception(exc)
                 return exc(environ, start_response)
+            context.auth_source = self.endpoint['uri']
             context.set_context(content)
 
         return self.app(environ, start_response)
@@ -339,6 +340,7 @@ class AuthorizationMiddleware(object):
         context = request.context
 
         if context.is_admin is True:
+            start_response = self.start_response_callback(start_response)
             # Allow all admin calls
             return self.app(environ, start_response)
         elif context.tenant:
@@ -363,6 +365,17 @@ class AuthorizationMiddleware(object):
 
         LOG.debug('Auth-Z failed. Returning 401.')
         return HTTPUnauthorized()(environ, start_response)
+
+    def start_response_callback(self, start_response):
+        """Intercepts upstream start_response and adds auth-z headers"""
+        def callback(status, headers, exc_info=None):
+            # Add our headers to response
+            header = ('X-AuthZ-Admin', "True")
+            if header not in headers:
+                headers.append(header)
+            # Call upstream start_response
+            start_response(status, headers, exc_info)
+        return callback
 
 
 class StripPathMiddleware(object):
@@ -486,8 +499,9 @@ class RequestContext(object):
     def __init__(self, auth_token=None, username=None, tenant=None,
                  is_admin=False, read_only=False, show_deleted=False,
                  authenticated=False, catalog=None, user_tenants=None,
-                 roles=None, domain=None, **kwargs):
+                 roles=None, domain=None, auth_source=None, **kwargs):
         self.authenticated = authenticated
+        self.auth_source = auth_source
         self.auth_token = auth_token
         self.catalog = catalog
         self.username = username
@@ -536,7 +550,7 @@ class RequestContext(object):
 
     def get_service_catalog(self, content):
         """Returns Service Catalog"""
-        return content['access']['serviceCatalog']
+        return content['access'].get('serviceCatalog')
 
     def get_user_tenants(self, content):
         """Returns a list of tenants from token and catalog."""
@@ -566,16 +580,19 @@ class RequestContext(object):
 
         # Get tenants from service catalog
         catalog = self.get_service_catalog(content)
-        for service in catalog:
-            endpoints = service['endpoints']
-            for endpoint in endpoints:
-                if 'tenantId' in endpoint:
-                    user_tenants[endpoint['tenantId']] = None
+        if catalog:
+            for service in catalog:
+                endpoints = service['endpoints']
+                for endpoint in endpoints:
+                    if 'tenantId' in endpoint:
+                        user_tenants[endpoint['tenantId']] = None
         return user_tenants.keys()
 
     def get_username(self, content):
         """Returns username"""
-        return content['access']['user']['name']
+        # FIXME: when GLobal Auth implements name, remove the logic for 'id'
+        user = content['access']['user']
+        return user.get('name') or user.get('id')
 
     def get_roles(self, content):
         """Returns roles for a given user"""
