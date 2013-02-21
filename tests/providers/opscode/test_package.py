@@ -9,9 +9,8 @@ class TestPackage(unittest.TestCase):
         base.PROVIDER_CLASSES = {}
         opscode.register()
         self.assertIn('opscode.chef-server', base.PROVIDER_CLASSES)
-        self.assertIn('opscode.chef-local', base.PROVIDER_CLASSES)
         self.assertIn('opscode.chef-solo', base.PROVIDER_CLASSES)
-        self.assertEqual(len(base.PROVIDER_CLASSES), 3, msg="Check that all "
+        self.assertEqual(len(base.PROVIDER_CLASSES), 2, msg="Check that all "
                          "your providers are registered and tested for")
 
 

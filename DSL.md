@@ -22,7 +22,7 @@ id: a unique identifier (not necessarily a UUID, but a string) within the provid
 
 name: user friendliness (*mssql vs Microsoft SQL Server)
 
-role: Allows you to specify the role of this component. 
+role: Allows you to specify the role of this component.
 	EX:
 	component:
 	  name: wordpress
@@ -68,7 +68,7 @@ username:
     sample: for display, to show what this looks like.
     help: help text.
 password:
-    
+
 Note:
 
     GET /providers
@@ -86,8 +86,8 @@ name: user friendliness
 
 providers: the keys are predefined names form the providers. Checkmate identifies the provider based on the key and vendor field.
   nova:
-    vendor: rackspace  - results in Checkmate dynaminally loading checkmate.providers.rackspace.nova (last two are vendor.key)
-  chef-local:
+    vendor: rackspace  - results in Checkmate dynamically loading checkmate.providers.rackspace.nova (last two are vendor.key)
+  chef-solo:
     vendor: opscode
   database:
     vendor: rackspace
@@ -183,7 +183,7 @@ Note: more specific inputs override more general ones (see get_setting code in d
 **Action Item**: determine the need for global inputs. Do we really need them? Or at least put them in a "globals" category
 
 Minimal, canonical deployment (hello world) available [here](https://github.rackspace.com/Blueprints/helloworld/).
- 
+
 **Action Item**: define how we reference blueprints and environments in deployments without including full copies.  Reference UUID?  URL to file in git or local reference? etc.
 
 **Action Item**: improve syntax for indicating a generated value, or remove it and let a generated value be the default.  Or create system for code to be included in blueprint to be used to generate, validate values. See artifacts prototype in app.yaml.

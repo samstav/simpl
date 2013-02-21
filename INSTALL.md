@@ -182,15 +182,8 @@ create the directory. If you want your variable settings to look stock, set
 the optional CHECKMATE_PREFIX to something like /home/myuser/checkmate.
 
     export CHECKMATE_PREFIX=""
-    export CHECKMATE_CHEF_LOCAL_PATH="${CHECKMATE_PREFIX}/var/checkmate/chef"
+    export CHECKMATE_CHEF_LOCAL_PATH="${CHECKMATE_PREFIX}/var/checkmate/deployments"
     mkdir -p $CHECKMATE_CHEF_LOCAL_PATH
-
-Clone the chef repository and point checkmate to it:
-
-    export CHECKMATE_CHEF_REPO="${CHECKMATE_PREFIX}/var/checkmate/chef/repo"
-    mkdir -p $CHECKMATE_CHEF_REPO
-    cd $CHECKMATE_CHEF_REPO
-    git clone git://github.rackspace.com/checkmate/chef-stockton.git
 
 ### Starting the Checkmate services
 
@@ -203,7 +196,7 @@ be prepped:
     export CHECKMATE_BROKER_PORT="5672"
     export CHECKMATE_BROKER_HOST="localhost"
     export CHECKMATE_CONNECTION_STRING="sqlite:///${CHECKMATE_PREFIX}/var/checkmate/data/db.sqlite"
-    
+
     # If you're using MongoDB
     # in username and passwords reserved characters like :, /, + and @ must be escaped following RFC 2396.
     export CHECKMATE_BROKER_URL="mongodb://checkmate:secret@localhost:27017/checkmate"
@@ -211,9 +204,7 @@ be prepped:
     export CHECKMATE_MONGODB_BACKEND_SETTINGS='{"host": "localhost", "port": 27017, "user": "checkmate", "password": "secret", "database": "checkmate", "taskmeta_collection": "celery_task_meta"}'
     export CHECKMATE_CONNECTION_STRING="mongodb://checkmate:secret@localhost:27017/checkmate"
 
-    # If you're using the chef provider (currently the only application provider)
-    export CHECKMATE_CHEF_REPO="/var/local/checkmate/chef/repo/chef-stockton"
-    export CHECKMATE_CHEF_LOCAL_PATH="/var/local/checkmate/chef-stockton"
+    export CHECKMATE_CHEF_LOCAL_PATH="/var/local/checkmate/deployments"
 
     # Always
     export CELERY_CONFIG_MODULE=checkmate.celeryconfig
