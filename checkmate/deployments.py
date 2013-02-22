@@ -120,7 +120,11 @@ def get_deployments(tenant_id=None):
     """ Get existing deployments """
     offset = request.query.get('offset')
     limit = request.query.get('limit')
-    return write_body(DB.get_deployments(tenant_id=tenant_id, offset=offset
+    if offset:
+        offset=int(offset)
+    if limit:
+        limit=int(limit)
+    return write_body(DB.get_deployments(tenant_id=tenant_id, offset=offset,
                                          limit=limit), request, response)
 
 @get('/deployments/count')

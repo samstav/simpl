@@ -122,8 +122,7 @@ class Driver(DbBase):
                 results = (self.database()[klass].find({'tenantId': tenant_id},
                            {'_id': 0}).skip(offset).limit(limit))
             elif offset and (limit is None):
-                print "whoops"
-                results = (self.database()[klass].find({'tenantId': tenant_id},
+                 results = (self.database()[klass].find({'tenantId': tenant_id},
                            {'_id': 0}).skip(offset))
             else:
                 results = self.database()[klass].find({'tenantId': tenant_id},
