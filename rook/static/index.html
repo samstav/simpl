@@ -67,32 +67,37 @@
           <div id="user_control" class="nav pull-right">
             <ul class="nav">
               <li class="divider-vertical"></li>
-              <li class="dropdown pull-right" style="display: none;" ng-show="auth.loggedIn">
+              <li class="dropdown pull-right" style="display: none;" ng-show="auth.identity.loggedIn">
                 <a href="#" class="dropdown-toggle" data-toggle="dropdown" id="user_button">
-                      <i class="icon-user icon-white"></i> {{auth.username}}
-                      <span ng-show="auth.tenantId"> ({{auth.tenantId}})</span>
+                      <i class="icon-user icon-white"></i> {{auth.context.username}}
+                      <span ng-show="auth.context.tenantId"> ({{auth.context.tenantId}})</span>
                       <b class="caret"></b>
                 </a>
-                <ul class="dropdown-menu">
+                <ul id="user_menu" class="dropdown-menu pull-right" role="menu" aria-labelledby="user_button">
+                  <li ng-cloak ng-show="auth.identity.tenants" class="nav-header">TENANTS</li>
+                  <li role="presentation" ng-repeat="tenant in auth.identity.tenants">
+                      <a role="menutitem" ng-click="impersonate(tenant.id)">{{tenant.name}} ({{tenant.id}})</a>
+                  </li>
+                  <li ng-cloak ng-show="auth.identity.tenants" class="divider"></li>
                   <li><a ng-click="logOut()">Log Out</a></li>
                 </ul>
               </li>
-              <li class="pull-right" style="display: none" ng-show="!auth.loggedIn">
+              <li class="pull-right" style="display: none" ng-show="!auth.identity.loggedIn">
                 <a href="#" ng-click="loginPrompt()">
                   <i class="icon-user icon-white"></i> Log In</a>
               </li>
             </ul>
           </div>
           <div class="nav-collapse collapse">
-            <ul id="nav-elements" class="nav" style="display: none" ng-show="auth.loggedIn">
-              <li id="nav-deployments"><a href="/{{auth.tenantId}}/deployments">Deployments</a></li>
-              <li id="nav-workflows"><a href="/{{auth.tenantId}}/workflows">Workflows</a></li>
+            <ul id="nav-elements" class="nav" style="display: none" ng-show="auth.context.tenantId">
+              <li id="nav-deployments"><a href="/{{auth.context.tenantId}}/deployments">Deployments</a></li>
+              <li id="nav-workflows"><a href="/{{auth.context.tenantId}}/workflows">Workflows</a></li>
               <!--<li class="dropdown">
                 <a href="#" class="dropdown-toggle" data-toggle="dropdown">Other<b class="caret"></b></a>
                 <ul class="dropdown-menu">
-                  <li id="nav-environments"><a href="/{{auth.tenantId}}/environments">Environments</a></li>
-                  <li id="nav-blueprints"><a href="/{{auth.tenantId}}/blueprints">Blueprints</a></li>
-                  <li id="nav-providers"><a href="/{{auth.tenantId}}/providers">Providers</a></li>
+                  <li id="nav-environments"><a href="/{{auth.context.tenantId}}/environments">Environments</a></li>
+                  <li id="nav-blueprints"><a href="/{{auth.context.tenantId}}/blueprints">Blueprints</a></li>
+                  <li id="nav-providers"><a href="/{{auth.context.tenantId}}/providers">Providers</a></li>
                   <li class="divider"></li>
                   <li class="nav-header">Status</li>
                   <li id="nav-status-celery"><a href="/status/celery">Celery</a></li>
@@ -105,18 +110,28 @@
               </form>
             </ul>
             <ul id="nav-support" class="nav">
-              <li id="nav-blueprints"><a href="{{auth.tenantId | prepend}}/blueprints">Blueprints</a></li>
+              <li id="nav-blueprints"><a href="{{auth.context.tenantId | prepend}}/blueprints">Blueprints</a></li>
               <li class="dropdown">
-                <a id="support-menu" href="#" class="dropdown-toggle" data-toggle="dropdown">Help<b class="caret"></b></a>
+                <a href="#" ng-cloak ng-show="auth.identity.is_admin" class="dropdown-toggle" data-toggle="dropdown">Admin<b class="caret"></b></a>
                 <ul class="dropdown-menu">
-                  <li id="nav-support"><a href="#" data-toggle="modal" data-target="#modalSLA">General Info</a></li>
-                  <li id="nav-wiki"><a href="https://one.rackspace.com/display/Checkmate/" target="_blank">Checkmate Wiki</a></li>
+                  <li id="nav-admin-feedback"><a href="/admin/feedback">View Feedback</a></li>
                   <li class="dropdown-submenu">
                     <a tabindex="-1" href="#">Reports</a>
                     <ul class="dropdown-menu">
                       <li><a href="http://mongo-n01.ord1.chkmate.rackspace.net/deployments.php" target="_blank">Deployments</a></li>
                     </ul>
                   </li>
+                  <li class="divider"></li>
+                  <li class="nav-header">Status</li>
+                  <li id="nav-status-celery"><a href="/admin/status/celery">Celery</a></li>
+                  <li id="nav-status-libraries"><a href="/admin/status/libraries">Libraries</a></li>
+                </ul>
+              </li>
+              <li class="dropdown">
+                <a id="support-menu" href="#" class="dropdown-toggle" data-toggle="dropdown">Help<b class="caret"></b></a>
+                <ul class="dropdown-menu">
+                  <li id="nav-support"><a href="#" data-toggle="modal" data-target="#modalSLA">General Info</a></li>
+                  <li id="nav-wiki"><a href="https://one.rackspace.com/display/Checkmate/" target="_blank">Checkmate Wiki</a></li>
                   <li class="divider"></li>
                   <li id="nav-feedback" class="dropdown-submenu">
                     <a id="feedback-menu" class="dropdown-toggle" href="#" data-toggle="dropdown" data-target="#feedback-dropdown">Submit Feedback</a>
@@ -207,48 +222,42 @@
   <div id="modalAuth" class="modal hide fade">
   <div class="modal-header">
     <button type="button" class="close" data-dismiss="modal">&times;</button>
-    <h3>Log In</h3>
-    <p>Log in to your Rackspace Cloud account.</p>
+    <h3>Welcome to Checkmate!</h3>
+    <br>
   </div>
   <div class="modal-body">
-    <form class="form-horizontal" style="margin-bottom: 0px">
-            <div id="auth_error" class="alert alert-error hide">
-              <strong>Authentication Failed!</strong> <span id="auth_error_text"></span>.
+    <form class="form-horizontal" style="margin-bottom: 0px" ng-init="selected_endpoint = null">
+      <div id="auth_error" class="alert alert-error hide">
+        <strong>Authentication Failed!</strong> <span id="auth_error_text"></span>.
+      </div>
+      <fieldset>
+        <ul class="nav nav-tabs">
+          <li ng-repeat="endpoint in auth.endpoints" ng-class="{active: (selected_endpoint || auth.endpoints[0])==endpoint}"><a href="#" data-toggle="tab" ng-hide="endpoint.scheme=='GlobalAuthImpersonation'" ng-click="$parent.selected_endpoint=endpoint">{{endpoint['realm']}}</a></li>
+        </ul>
+        <div class="control-group">
+          <label class="control-label" for="username">Username<span ng-hide="selected.uri != 'https://identity-internal.api.rackspacecloud.com/v2.0/tokens'"> (SSO)</span></label>
+          <div class="controls">
+            <input type="text" class="input-xlarge" id="username" ng-model="bound_creds.username"></i>
+          </div>
+        </div>
+        <div class="control-group">
+          <label class="control-label" for="password">Password</label>
+          <div class="controls">
+            <input type="password" class="input-xlarge" id="password" ng-model="bound_creds.password">
+          </div>
+        </div>
+          <p style="text-align: center">or</p>
+          <div class="control-group">
+            <label class="control-label" for="apikey">API Key</label>
+            <div class="controls">
+              <input type="password" class="input-xlarge" id="apikey" ng-model="bound_creds.apikey">
             </div>
-            <fieldset>
-              <div class="control-group">
-                <label class="control-label" for="username">Username</label>
-                <div class="controls">
-                  <input type="text" class="input-xlarge" id="username" ng-model="bound_creds.username"></i>
-                </div>
-              </div>
-              <div class="control-group">
-                <label class="control-label" for="password">Password</label>
-                <div class="controls">
-                  <input type="password" class="input-xlarge" id="password" ng-model="bound_creds.password">
-                </div>
-              </div>
-                <p style="text-align: center">or</p>
-                <div class="control-group">
-                  <label class="control-label" for="apikey">API Key</label>
-                  <div class="controls">
-                        <input type="password" class="input-xlarge" id="apikey" ng-model="bound_creds.apikey">
-                  </div>
-                </div>
-                <hr/>
-                <div class="control-group">
-                  <label class="control-label" for="auth_url">Cloud/Region</label>
-                  <div class="controls">
-                    <select id="auth_url" class="span3" required ng-model="bound_creds.auth_url">
-                      <option value="https://identity.api.rackspacecloud.com/v2.0/tokens">Rackspace Cloud - US</option>
-                      <option value="https://lon.identity.api.rackspacecloud.com/v2.0/tokens">Rackspace Cloud - UK</option>
-                    </select>
-                  </div>
-                </div>
-            </fieldset>
-            <div class="modal-footer">
-              <button type="submit" class="btn btn-primary" ng-click="logIn(username.value, password.value, apikey.value, auth_url.value)">Authenticate!</button>
-            </div>
+          </div>
+          <hr/>
+      </fieldset>
+      <div class="modal-footer">
+        <button type="submit" class="btn btn-primary" ng-click="logIn()">Authenticate!</button>
+      </div>
     </form>
   </div>
   </div>

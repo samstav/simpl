@@ -85,12 +85,26 @@ class MongoDriver(DbBase):
         del body['_id']
         return body
 
+    def get_feedback(self):
+        """Retrieves feedback from database"""
+        results = self.database()['feedback'].find(None, {'_id': 0})
+        if results:
+            response = {}
+            i = 1
+            for entry in results:
+                response[str(i)] = entry
+                i += 1
+            return response
+        else:
+            return {}
+
 
 if _ENGINE:
     Base = declarative_base(bind=_ENGINE)
     Session = scoped_session(sessionmaker(_ENGINE))
 else:
     Base = object
+
 
 class TextPickleType(PickleType):
     """Type that can be set to dict and stored in the database as Text.

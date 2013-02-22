@@ -2,7 +2,7 @@
   <div class="tControls">
     <div class="top" ng-cloak ng-show="data">
       <button ng-click="workflow_action(data.id, 'execute')" class="btn cmtip" title="Run workflow" alt="Run"><i class="icon-play"></i></button>
-      <button ng-click="navigate(auth.tenantId + '/workflows/' + data.id + '/status')" class="btn cmtip" title="Check status" alt="Status"><i class="icon-heart"></i></button>
+      <button ng-click="navigate(auth.context.tenantId + '/workflows/' + data.id + '/status')" class="btn cmtip" title="Check status" alt="Status"><i class="icon-heart"></i></button>
     </div>
     <div class="bottom" ng-cloak ng-show="data">
       <button ng-click="load()" class="btn cmtip" title="Refresh" alt="Refresh"><i class="icon-repeat"></i></button>
@@ -137,7 +137,7 @@
 
           <div id="error-alert" class="alert alert-block fade in" ng-cloak ng-show="current_task.internal_attributes.task_state.state == 'RETRY' &amp;&amp; current_task.state != 64">
             <button type="button" class="close" data-dismiss="alert">&times;</button>
-            <h4 class="alert-heading">Something might be up! But we haven't given up yet...</h4>
+            <h4 class="alert-heading">{{current_task.internal_attributes.task_state.info.replace('CheckmateException(u\'', '').replace('\',)', '').replace('CheckmateException("', '').replace('",)', '') || 'Something might be up! But we haven\'t given up yet...'}}</h4>
             <p>This task is being retried. See the code <a class="accordion-toggle cmcollapse" data-toggle="collapse" data-target="#traceback2" href="#{{current_spec_index}}">traceback</a>.</p>
             <div id="traceback2" class="cmcollapse collapse">
               <pre>{{current_task.internal_attributes.task_state.traceback}}</pre>
@@ -147,18 +147,18 @@
 
           <!-- Next Gen Server -->
           <div class="alert alert-success" ng-cloak ng-show="was_server_created()">
-            <button type="button" class="close" data-dismiss="alert">&times;</button> Server <a ng-cloak ng-show="resource(current_task).id.indexOf('-')" target="_blank" ng-href="https://mycloud.rackspace.com/a/{{auth.username}}/#compute%2CcloudServersOpenStack%2C{{resource(current_task).region}}/{{resource(current_task).id}}">{{resource(current_task).id}}</a> <a ng-hide="resource(current_task).id.indexOf('-')" target="_blank" href="https://mycloud.rackspace.com/a/{{auth.username}}/#compute%2CcloudServers/{{resource(current_task).id}}">{{resource(current_task).id}}</a> was created<span ng-switch on="resource(current_task).ip || true"><span ng-switch-when="true">.</span><span ng-switch-default> with IP address {{resource(current_task).ip}}. Connect to it over <a href="ssh://root@{{resource(current_task).ip}}">ssh</a></span></span> View it in <a
-             target="_blank" ng-href="{{CloudControlURL(resource(current_task).region)}}/customer/{{auth.tenantId}}/next_gen_servers/{{resource(current_task).region}}/{{resource(current_task).id}}"
+            <button type="button" class="close" data-dismiss="alert">&times;</button> Server <a ng-cloak ng-show="resource(current_task).id.indexOf('-')" target="_blank" ng-href="https://mycloud.rackspace.com/a/{{auth.context.username}}/#compute%2CcloudServersOpenStack%2C{{resource(current_task).region}}/{{resource(current_task).id}}">{{resource(current_task).id}}</a> <a ng-hide="resource(current_task).id.indexOf('-')" target="_blank" href="https://mycloud.rackspace.com/a/{{auth.context.username}}/#compute%2CcloudServers/{{resource(current_task).id}}">{{resource(current_task).id}}</a> was created<span ng-switch on="resource(current_task).ip || true"><span ng-switch-when="true">.</span><span ng-switch-default> with IP address {{resource(current_task).ip}}. Connect to it over <a href="ssh://root@{{resource(current_task).ip}}">ssh</a></span></span> View it in <a
+             target="_blank" ng-href="{{CloudControlURL(resource(current_task).region)}}/customer/{{auth.context.tenantId}}/next_gen_servers/{{resource(current_task).region}}/{{resource(current_task).id}}"
             >Cloud Control</a>.
           </div>
 
           <!-- Load Blaancer -->
           <div class="alert alert-success" ng-cloak ng-show="was_loadbalancer_created()">
-            <button type="button" class="close" data-dismiss="alert">&times;</button> Load balancer <a target="_blank" href="https://mycloud.rackspace.com/a/{{auth.username}}/load_balancers#rax%3Aload-balancer%2CcloudLoadBalancers%2C{{current_task.attributes.region}}/{{resource(current_task).id}}">{{resource(current_task).id}}</a> was created and assigned the public virtual IP (VIP) <a target="_blank" href="http://{{resource(current_task).public_ip}}/">{{resource(current_task).public_ip}}</a>. Open it in <a target="_blank" href="{{CloudControlURL(resource(current_task).region)}}/customer/{{auth.tenantId}}/load_balancers/{{current_task.attributes.region}}/{{resource(current_task).id}}">Cloud Control</a>.
+            <button type="button" class="close" data-dismiss="alert">&times;</button> Load balancer <a target="_blank" href="https://mycloud.rackspace.com/a/{{auth.context.username}}/load_balancers#rax%3Aload-balancer%2CcloudLoadBalancers%2C{{current_task.attributes.region}}/{{resource(current_task).id}}">{{resource(current_task).id}}</a> was created and assigned the public virtual IP (VIP) <a target="_blank" href="http://{{resource(current_task).public_ip}}/">{{resource(current_task).public_ip}}</a>. Open it in <a target="_blank" href="{{CloudControlURL(resource(current_task).region)}}/customer/{{auth.context.tenantId}}/load_balancers/{{current_task.attributes.region}}/{{resource(current_task).id}}">Cloud Control</a>.
           </div>
 
           <div class="alert alert-success" ng-cloak ng-show="was_database_created()">
-            <button type="button" class="close" data-dismiss="alert">&times;</button> Database instance <a target="_blank" href="https://mycloud.rackspace.com/a/{{auth.username}}/database#rax%3Adatabase%2CcloudDatabases%2C{{current_task.attributes.region}}/{{resource(current_task).id}}">{{resource(current_task).id}}</a> was created on host {{resource(current_task).interfaces.mysql.host}}. Open it in <a target="_blank" href="{{CloudControlURL(resource(current_task).region)}}/customer/{{auth.tenantId}}/dbaas/instances/{{current_task.attributes.region}}/{{resource(current_task).id}}">Cloud Control</a>.
+            <button type="button" class="close" data-dismiss="alert">&times;</button> Database instance <a target="_blank" href="https://mycloud.rackspace.com/a/{{auth.context.username}}/database#rax%3Adatabase%2CcloudDatabases%2C{{current_task.attributes.region}}/{{resource(current_task).id}}">{{resource(current_task).id}}</a> was created on host {{resource(current_task).interfaces.mysql.host}}. Open it in <a target="_blank" href="{{CloudControlURL(resource(current_task).region)}}/customer/{{auth.context.tenantId}}/dbaas/instances/{{current_task.attributes.region}}/{{resource(current_task).id}}">Cloud Control</a>.
           </div>
           <textarea id="task_source" ui-codemirror="{ theme: 'lesser-dark', mode: {name: 'javascript', json: true}, lineNumbers: true, autoFocus: true, lineWrapping: true, dragDrop: false, matchBrackets: true }" ng-model="current_task_json"></textarea>
         </div>

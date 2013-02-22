@@ -81,8 +81,8 @@
                     <button class="btn dropdown-toggle" type="button" data-toggle="dropdown" data-target="#domains_menu"><b class="caret"></b></button>
                     <div id="domains_menu" class="dropdown">
                         <ul class="dropdown-menu" role="menu" aria-labelledby="dLabel">
-                          <li ng-hide="auth.loggedIn"><a href="#" ng-click="loginPrompt()">Log in (to see your domains)</a></li>
-                          <li ng-cloak ng-show="domain_names==[]"><i class="icon-question-sign"></i> No domains registered for account {{auth.tenantId}}</li>
+                          <li ng-hide="auth.identity.loggedIn"><a href="#" ng-click="loginPrompt()">Log in (to see your domains)</a></li>
+                          <li ng-cloak ng-show="domain_names==[]"><i class="icon-question-sign"></i> No domains registered for account {{auth.context.tenantId}}</li>
                           <li ng-repeat="o in domain_names"><a href="#" ng-click="answers['domain']=o">{{o}}</a></li>
                         </ul>
                     </div>
@@ -178,10 +178,10 @@
       </div>
 
       <div class="form-actions">
-        <button ng-click="submit(false)" class="btn btn-primary" ng-disabled="!auth.loggedIn || is_unsupported_account() || submitting">Build It!</button>
-        <button ng-cloak ng-show="simulator" ng-click="simulate()" class="btn" ng-disabled="!auth.loggedIn || submitting">Simulate It</button>
-        <button ng-click="preview()" class="btn" ng-disabled="!auth.loggedIn || submitting">Preview It</button>
-        <button ng-click="loginPrompt()" class="btn" ng-hide="auth.loggedIn">Log in to execute this workflow</button>
+        <button ng-click="submit(false)" class="btn btn-primary" ng-disabled="!auth.identity.loggedIn || is_unsupported_account() || submitting">Build It!</button>
+        <button ng-cloak ng-show="simulator" ng-click="simulate()" class="btn" ng-disabled="!auth.identity.loggedIn || submitting">Simulate It</button>
+        <button ng-click="preview()" class="btn" ng-disabled="!auth.identity.loggedIn || submitting">Preview It</button>
+        <button ng-click="loginPrompt()" class="btn" ng-hide="auth.identity.loggedIn">Log in to execute this workflow</button>
       </div>
     </fieldset>
 </form>
@@ -315,8 +315,8 @@
             <button class="btn dropdown-toggle" type="button" data-toggle="dropdown" data-target="#domains_menu_for_{{setting.id}}"><b class="caret"></b></button>
             <div id="domains_menu_for_{{setting.id}}" class="dropdown">
               <ul class="dropdown-menu" role="menu" aria-labelledby="dLabel">
-                <li ng-hide="auth.loggedIn"><a href="#" ng-click="loginPrompt()">Log in (to see your domains)</a></li>
-                <li ng-cloak ng-show="domain_names==[]"><i class="icon-question-sign"></i> No domains registered for account {{auth.tenantId}}</li>
+                <li ng-hide="auth.identity.loggedIn"><a href="#" ng-click="loginPrompt()">Log in (to see your domains)</a></li>
+                <li ng-cloak ng-show="domain_names==[]"><i class="icon-question-sign"></i> No domains registered for account {{auth.context.tenantId}}</li>
                 <li ng-repeat="o in domain_names"><a href="#" ng-click="$parent.domain=o;UpdateURL($parent, setting.id)">{{o}}</a></li>
               </ul>
             </div>

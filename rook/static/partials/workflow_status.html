@@ -18,7 +18,7 @@
               <table class="table table-bordered table-condensed">
                 <thead><tr><th>Name</th><th>Role</th><th>IP</th><th>Root Password</th></tr></thead>
                 <tbody><tr ng-repeat="resource in output.resources | filter:{component:'linux_instance'}">
-                    <td><a target="_blank" ng-href="https://mycloud.rackspace.com/a/{{auth.username}}/#compute%2CcloudServersOpenStack%2C{{resource.region}}/{{resource.instance.id}}">{{resource['dns-name']}}</a></td>
+                    <td><a target="_blank" ng-href="https://mycloud.rackspace.com/a/{{auth.context.username}}/#compute%2CcloudServersOpenStack%2C{{resource.region}}/{{resource.instance.id}}">{{resource['dns-name']}}</a></td>
                     <td>{{resource.service}}</td>
                     <td>{{resource.instance.public_ip}}</td>
                     <td>{{resource.instance.password}}</td>
@@ -27,9 +27,9 @@
               <p><strong>Databases</strong> created:<br>
               <table class="table table-condensed" ng-repeat="resource in output.resources | filter:{type:'database'}">
                 <tr><td>Name:</td><td>
-                  <a ng-cloak ng-show="resource.provider=='database'" target="_blank" ng-href="https://mycloud.rackspace.com/a/{{auth.username}}/database#rax%3Adatabase%2CcloudDatabases%2C{{output.resources[resource.hosted_on].region}}/{{output.resources[resource.hosted_on].instance.id}}">{{resource['dns-name']}}</a>
-                  <a ng-cloak ng-show="resource.provider=='chef-local'" target="_blank" ng-href="https://mycloud.rackspace.com/a/{{auth.username}}/#compute%2CcloudServersOpenStack%2C{{output.resources[resource.hosted_on].region}}/{{output.resources[resource.hosted_on].instance.id}}">{{resource['dns-name']}}</a>
-                  <a ng-cloak ng-show="resource.provider=='chef-solo'" target="_blank" ng-href="https://mycloud.rackspace.com/a/{{auth.username}}/#compute%2CcloudServersOpenStack%2C{{output.resources[resource.hosted_on].region}}/{{output.resources[resource.hosted_on].instance.id}}">{{resource['dns-name']}}</a>
+                  <a ng-cloak ng-show="resource.provider=='database'" target="_blank" ng-href="https://mycloud.rackspace.com/a/{{auth.context.username}}/database#rax%3Adatabase%2CcloudDatabases%2C{{output.resources[resource.hosted_on].region}}/{{output.resources[resource.hosted_on].instance.id}}">{{resource['dns-name']}}</a>
+                  <a ng-cloak ng-show="resource.provider=='chef-local'" target="_blank" ng-href="https://mycloud.rackspace.com/a/{{auth.context.username}}/#compute%2CcloudServersOpenStack%2C{{output.resources[resource.hosted_on].region}}/{{output.resources[resource.hosted_on].instance.id}}">{{resource['dns-name']}}</a>
+                  <a ng-cloak ng-show="resource.provider=='chef-solo'" target="_blank" ng-href="https://mycloud.rackspace.com/a/{{auth.context.username}}/#compute%2CcloudServersOpenStack%2C{{output.resources[resource.hosted_on].region}}/{{output.resources[resource.hosted_on].instance.id}}">{{resource['dns-name']}}</a>
                   </td></tr>
                 <!--<tr><td>Admin Link:</td><td><a target="_blank" href="https://{{output.master_server.instance.public_ip}}/database-admin">https://{{output.master_server.instance.public_ip}}/database-admin</a></td></tr>-->
                 <tr><td>Role:</td><td>{{resource.service}}</td></tr>
