@@ -206,6 +206,34 @@ class TestDatabase(unittest.TestCase):
         self.assertDictEqual(results, expected_result_body)
 
     @unittest.skipIf(SKIP, REASON)
+    def test_pagination(self):
+        entity = {'id': 1,
+                  'name': 'My Component',
+                  'credentials': ['My Secrets']
+                 }
+        body, secrets = extract_sensitive_data(entity)
+        self.driver.save_object(self.collection_name, entity['id'], body, secrets,
+                                tenant_id='T1000')
+        entity['id'] = 2
+        entity['id'] = 'My Second Component'
+        body, secrets = extract_sensitive_data(entity)
+        self.driver.save_object(self.collection_name, entity['id'], body, secrets,
+                                tenant_id='T1000')
+        entity['id'] = 3
+        entity['id'] = 'My Third Component'
+        body, secrets = extract_sensitive_data(entity)
+        self.driver.save_object(self.collection_name, entity['id'], body, secrets,
+                                tenant_id='T1000')
+
+        results = self.driver.get_objects(self.collection_name, tenant_id='T1000',
+                                          with_secrets=False, pagination=[2])
+        print "results: %s" % results
+        self.assertEqual(len(results), 2)
+
+
+
+
+    @unittest.skipIf(SKIP, REASON)
     def test_hex_id(self):
         id = uuid.uuid4().hex
         body = self.driver.save_object(self.collection_name, id, dict(id=id), None,

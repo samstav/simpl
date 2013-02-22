@@ -102,6 +102,19 @@ def error_formatter(error):
     response.status = error.status
     return utils.write_body(dict(error=output), request, response)
 
+def list_filter(config):
+    ''' Bottle custom filter that matches a comma 
+        separated list of numbers. '''
+    delimiter = config or ','
+    regexp = r'\d+(%s\d)*' % re.escape(delimiter)
+
+    def to_python(match):
+        return map(int, match.split(delimiter))
+
+    def to_url(numbers):
+        return delimiter.join(map(str, numbers))
+
+    return regexp, to_python, to_url    
 
 def main_func():
     """ Start the server based on passed in arguments. Called by __main__ """
@@ -133,6 +146,9 @@ def main_func():
     # Build WSGI Chain:
     LOG.info("Loading Application")
     next_app = default_app()  # This is the main checkmate app
+
+    next_app.router.add_filter('list', list_filter) #registers custom filter
+
     next_app.error_handler = {500: error_formatter,
                               401: error_formatter,
                               404: error_formatter,
