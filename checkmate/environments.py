@@ -295,7 +295,7 @@ class Environment():
     def get_providers(self, context):
         """ Returns provider class instances for this environment """
         if not self.providers:
-            providers = self.dict.get('providers', None)
+            providers = self.dict.get('providers') or {}
             if providers:
                 common = providers.get('common', {})
             else:
