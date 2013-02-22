@@ -438,6 +438,8 @@ Note: to connect to mongodb, also install the pymongo client library:
 
 **CHECKMATE_CHEF_PATH**: when using checkmate with a server, checkmate needs to know the path for the chef client deployment. This points to that path. The kniofe.rb file should be in there.
 
+**CHECKMATE_CHEF_OMNIBUS_VERSION**: the omnibus version to use by default. If not specified, 10.12.0-1 is used. This can also be overridden by a constraint in a deployment.
+
 **CHECKMATE_BROKER_USERNAME**: the username to use to connect to the message queue
 
 **CHECKMATE_BROKER_PASSWORD**: the password to use to connect to the message queue.
