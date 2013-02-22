@@ -1,6 +1,6 @@
 """Provider for OpenStack Compute API
 
-- Supports Rackspace Open CLoud Compute Extensions and Auth
+- Supports Rackspace Open Cloud Compute Extensions and Auth
 """
 import copy
 import logging
@@ -199,7 +199,8 @@ class Provider(RackspaceComputeProviderBase):
         :returns: returns the root task in the chain of tasks
         TODO: use environment keys instead of private key
         """
-        create_server_task = Celery(wfspec, 'Create Server %s (%s)' % (key, resource['service']),
+        create_server_task = Celery(wfspec, 'Create Server %s (%s)' % (key,
+                                    resource['service']),
                'checkmate.providers.rackspace.compute.create_server',
                call_args=[context.get_queued_task_dict(
                                 deployment=deployment['id'],
@@ -214,8 +215,7 @@ class Provider(RackspaceComputeProviderBase):
                             task_tags=['create']),
                properties={'estimated_duration': 20})
 
-        build_wait_task = Celery(wfspec, 'Wait for Server %s (%s) build'
-                % (key, resource['service']), 'checkmate.providers.rackspace.compute.wait_on_build',
+        kwargs = dict(
                 call_args=[context.get_queued_task_dict(
                                 deployment=deployment['id'],
                                 resource=key),
@@ -229,7 +229,12 @@ class Provider(RackspaceComputeProviderBase):
                 properties={'estimated_duration': 150},
                 defines=dict(resource=key,
                              provider=self.key,
-                             task_tags=['final']))
+                             task_tags=['final'])
+                )
+        task_name = 'Wait for Server %s (%s) build' % (key,
+                                                       resource['service'])
+        celery_call = 'checkmate.providers.rackspace.compute.wait_on_build'
+        build_wait_task = Celery(wfspec, task_name, celery_call, **kwargs)
         create_server_task.connect(build_wait_task)
 
         # If Managed Cloud Linux servers, add a Completion task to release
@@ -352,7 +357,11 @@ class Provider(RackspaceComputeProviderBase):
 
     @staticmethod
     def _flavors(api):
-        """Gets current tenant's flavors and formats them in Checkmate format"""
+        """
+
+        Gets current tenant's flavors and formats them in Checkmate format
+
+        """
         flavors = api.flavors.list()
         results = {
                 str(f.id): {
@@ -410,7 +419,7 @@ class Provider(RackspaceComputeProviderBase):
   the Rackspace Cloud.
 """
 
-from celery.task import task #@UnresolvedImport
+from celery.task import task
 
 REGION_MAP = {'dallas': 'DFW',
               'chicago': 'ORD',
@@ -482,11 +491,12 @@ def create_server(context, name, region, api_object=None, flavor="2",
                               }}
 
     # Send data back to deployment
-    resource_postback.delay(context['deployment'], results) #@UndefinedVariable
+    resource_postback.delay(context['deployment'], results)
     return results
 
 
-@task(default_retry_delay=30, max_retries=120, acks_late=True)  # max 60 minute wait
+# max 60 minute wait
+@task(default_retry_delay=30, max_retries=120, acks_late=True)
 def wait_on_build(context, server_id, region, ip_address_type='public',
             verify_up=True, username='root', timeout=10, password=None,
             identity_file=None, port=22, api_object=None, private_key=None):
@@ -533,7 +543,7 @@ def wait_on_build(context, server_id, region, ip_address_type='public',
         # It often, if not usually takes at least 30 seconds after a server
         # hits 100% before it will be "ACTIVE".  We used to use % left as a
         # countdown value, but reverting to the above configured countdown.
-        msg = ("Server %s progress is %s. Retrying after 30 seconds" % (
+        msg = ("Server '%s' progress is %s. Retrying after 30 seconds" % (
                   server_id, server.progress))
         LOG.debug(msg)
         return wait_on_build.retry(exc=CheckmateException(msg))
@@ -542,19 +552,37 @@ def wait_on_build(context, server_id, region, ip_address_type='public',
         # this may fail with custom/unexpected statuses like "networking"
         # or a manual rebuild performed by the user to fix some problem
         # so lets retry instead and notify via the normal task mechanisms
-        msg = ("Server %s status is %s, which is not recognized. "
+        msg = ("Server '%s' status is %s, which is not recognized. "
               "Not assuming it is active" % (server_id, server.status))
         return wait_on_build.retry(exc=CheckmateException(msg))
+
+    # if a rack_connect account, wait for rack_connect configuration to finish
+    if 'rack_connect' in context['roles']:
+        if 'rackconnect_automation_status' not in server.metadata:
+            msg = ("Rack Connect server still does not have the "
+                   "'rackconnect_automation_status' metadata tag")
+            return wait_on_build.retry(exc=CheckmateException(msg))
+        else:
+            if server.metadata['rackconnect_automation_status'] == 'DEPLOYED':
+                LOG.debug("Rack Connect server ready. Metadata found'")
+            else:
+                msg = ("Rack Connect server 'rackconnect_automation_status' "
+                       "metadata tag is still not 'DEPLOPYED'. It is '%s'" %
+                       server.metadata.get('rackconnect_automation_status'))
+                return wait_on_build.retry(exc=CheckmateException(msg))
 
     # should be active now, grab an appropriate address and check connectivity
     ip = None
     if server.addresses:
         # Get requested IP
-        addresses = server.addresses.get(ip_address_type or 'public', [])
-        for address in addresses:
-            if address['version'] == 4:
-                ip = address['addr']
-                break
+        if ip_address_type != 'public':
+            addresses = server.addresses.get(ip_address_type or 'public', [])
+            for address in addresses:
+                if address['version'] == 4:
+                    ip = address['addr']
+                    break
+        else:
+            ip = server.accessIPv4
         results['ip'] = ip
 
         # Get public (default) IP
@@ -575,7 +603,7 @@ def wait_on_build(context, server_id, region, ip_address_type='public',
     # we might not get an ip right away, so wait until its populated
     if not ip:
         return wait_on_build.retry(exc=CheckmateException(
-                            "Could not find IP of server %s" % server_id))
+                            "Could not find IP of server '%s'" % server_id))
 
     if verify_up:
         isup = False
@@ -594,11 +622,11 @@ def wait_on_build(context, server_id, region, ip_address_type='public',
         if not isup:
             # try again in half a second but only wait for another 2 minutes
             raise wait_on_build.retry(exc=CheckmateException("Server "
-                "%s is ACTIVE but cannot be contacted." % server_id),
+                "'%s' is ACTIVE but cannot be contacted." % server_id),
                                       countdown=0.5,
                                       max_retries=240)
     else:
-        LOG.info("Server %s is ACTIVE. Not verified to be up" % server_id)
+        LOG.info("Server '%s' is ACTIVE. Not verified to be up" % server_id)
 
     instance_key = 'instance:%s' % context['resource']
     results = {instance_key: results}

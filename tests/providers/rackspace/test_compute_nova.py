@@ -7,16 +7,13 @@ init_console_logging()
 LOG = logging.getLogger(__name__)
 
 import mox
-from novaclient.v1_1 import client
 
 from checkmate import test
 from checkmate.exceptions import CheckmateException
-from checkmate.deployments import Deployment, resource_postback
+from checkmate.deployments import resource_postback
 from checkmate.middleware import RequestContext
-from checkmate.providers.base import PROVIDER_CLASSES
 from checkmate.providers.rackspace import compute
-from checkmate.test import StubbedWorkflowBase, TestProvider
-from checkmate.utils import yaml_to_dict
+from checkmate import ssh
 
 
 class TestNovaCompute(test.ProviderTester):
@@ -91,6 +88,219 @@ class TestNovaCompute(test.ProviderTester):
 
         self.assertDictEqual(results, expected)
         self.mox.VerifyAll()
+
+    def test_wait_on_build_rackconnect_pending(self):
+        """ Test that Rack Connect waits on metadata """
+
+        #Mock server
+        server = self.mox.CreateMockAnything()
+        server.id = 'fake_server_id'
+        server.status = 'ACTIVE'
+        server.addresses = {
+                        "private": [
+                            {
+                                "addr": "10.10.10.10",
+                                "version": 4
+                            }
+                        ],
+                        "public": [
+                            {
+                                "addr": "4.4.4.4",
+                                "version": 4
+                            },
+                            {
+                                "addr": "2001:4800:780e:0510:d87b:9cbc:ff04:513a",
+                                "version": 6
+                            }
+                        ]
+                }
+        server.adminPass = 'password'
+        server.metadata = {}
+
+        #Stub out postback call
+        self.mox.StubOutWithMock(resource_postback, 'delay')
+        self.mox.StubOutWithMock(ssh, 'test_connection')
+
+        #Create appropriate api mocks
+        openstack_api_mock = self.mox.CreateMockAnything()
+        openstack_api_mock.client = self.mox.CreateMockAnything()
+        openstack_api_mock.client.region_name = 'North'
+        openstack_api_mock.servers = self.mox.CreateMockAnything()
+        openstack_api_mock.servers.find(id=server.id).AndReturn(server)
+
+        context = dict(deployment='DEP', resource='1', roles=['rack_connect'])
+        ssh.test_connection(context, "4.4.4.4", "root", timeout=10,
+                password=None, identity_file=None, port=22,
+                private_key=None).AndReturn(True)
+
+        self.mox.ReplayAll()
+        self.assertRaises(CheckmateException, compute.wait_on_build, context,
+                           server.id, 'North', api_object=openstack_api_mock)
+
+    def test_wait_on_build_rackconnect_ready(self):
+        """ Test that Rack Connect waits on metadata """
+
+        #Mock server
+        server = self.mox.CreateMockAnything()
+        server.id = 'fake_server_id'
+        server.status = 'ACTIVE'
+        server.addresses = {
+                        "private": [
+                            {
+                                "addr": "10.10.10.10",
+                                "version": 4
+                            }
+                        ],
+                        "public": [
+                            {
+                                "addr": "4.4.4.4",
+                                "version": 4
+                            },
+                            {
+                                "addr": "2001:4800:780e:0510:d87b:9cbc:ff04:"
+                                        "513a",
+                                "version": 6
+                            }
+                        ]
+                }
+        server.adminPass = 'password'
+        server.image = {'id': 1}
+        server.metadata = {'rackconnect_automation_status': 'DEPLOYED'}
+        server.accessIPv4 = "8.8.8.8"
+
+        #Stub out postback call
+        self.mox.StubOutWithMock(resource_postback, 'delay')
+        self.mox.StubOutWithMock(ssh, 'test_connection')
+
+        #Create appropriate api mocks
+        openstack_api_mock = self.mox.CreateMockAnything()
+        openstack_api_mock.client = self.mox.CreateMockAnything()
+        openstack_api_mock.client.region_name = 'North'
+        openstack_api_mock.servers = self.mox.CreateMockAnything()
+        openstack_api_mock.servers.find(id=server.id).AndReturn(server)
+        openstack_api_mock.images = self.mox.CreateMockAnything()
+        image_mock = self.mox.CreateMockAnything()
+        image_mock.metadata = {'os_type': 'linux'}
+        openstack_api_mock.images.find(id=1).AndReturn(image_mock)
+
+        context = dict(deployment='DEP', resource='1', roles=['rack_connect'])
+        ssh.test_connection(context, "8.8.8.8", "root", timeout=10,
+                password=None, identity_file=None, port=22,
+                private_key=None).AndReturn(True)
+
+        expected = {
+                'instance:1': {
+                        'status': 'ACTIVE',
+                        'addresses': {
+                                'public': [
+                                        {'version': 4, 'addr': '4.4.4.4'},
+                                        {'version': 6, 'addr': '2001:4800:780e'
+                                                ':0510:d87b:9cbc:ff04:513a'}
+                                        ],
+                                'private': [
+                                        {'version': 4, 'addr': '10.10.10.10'}
+                                        ]
+                                },
+                        'ip': '8.8.8.8',
+                        'region': 'North',
+                        'public_ip': '4.4.4.4',
+                        'private_ip': '10.10.10.10',
+                        'id': 'fake_server_id'
+                    }
+            }
+
+        resource_postback.delay(context['deployment'],
+                                expected).AndReturn(True)
+
+        self.mox.ReplayAll()
+        results = compute.wait_on_build(context, server.id, 'North',
+                                        api_object=openstack_api_mock)
+
+        self.assertDictEqual(results, expected)
+        self.mox.VerifyAll()
+
+    def test_wait_on_build(self):
+        """ Test that normal wait finishes """
+
+        #Mock server
+        server = self.mox.CreateMockAnything()
+        server.id = 'fake_server_id'
+        server.status = 'ACTIVE'
+        server.addresses = {
+                        "private": [
+                            {
+                                "addr": "10.10.10.10",
+                                "version": 4
+                            }
+                        ],
+                        "public": [
+                            {
+                                "addr": "4.4.4.4",
+                                "version": 4
+                            },
+                            {
+                                "addr": "2001:4800:780e:0510:d87b:9cbc:ff04:"
+                                        "513a",
+                                "version": 6
+                            }
+                        ]
+                }
+        server.adminPass = 'password'
+        server.image = {'id': 1}
+        server.metadata = {}
+        server.accessIPv4 = "4.4.4.4"
+
+        #Stub out postback call
+        self.mox.StubOutWithMock(resource_postback, 'delay')
+        self.mox.StubOutWithMock(ssh, 'test_connection')
+
+        #Create appropriate api mocks
+        openstack_api_mock = self.mox.CreateMockAnything()
+        openstack_api_mock.client = self.mox.CreateMockAnything()
+        openstack_api_mock.client.region_name = 'North'
+        openstack_api_mock.servers = self.mox.CreateMockAnything()
+        openstack_api_mock.servers.find(id=server.id).AndReturn(server)
+        openstack_api_mock.images = self.mox.CreateMockAnything()
+        image_mock = self.mox.CreateMockAnything()
+        image_mock.metadata = {'os_type': 'linux'}
+        openstack_api_mock.images.find(id=1).AndReturn(image_mock)
+
+        context = dict(deployment='DEP', resource='1', roles=[])
+        ssh.test_connection(context, "4.4.4.4", "root", timeout=10,
+                password=None, identity_file=None, port=22,
+                private_key=None).AndReturn(True)
+
+        expected = {
+                'instance:1': {
+                        'status': 'ACTIVE',
+                        'addresses': {
+                                'public': [
+                                        {'version': 4, 'addr': '4.4.4.4'},
+                                        {'version': 6, 'addr': '2001:4800:780e'
+                                                ':0510:d87b:9cbc:ff04:513a'}
+                                        ],
+                                'private': [
+                                        {'version': 4, 'addr': '10.10.10.10'}
+                                        ]
+                                },
+                        'ip': '4.4.4.4',
+                        'region': 'North',
+                        'public_ip': '4.4.4.4',
+                        'private_ip': '10.10.10.10',
+                        'id': 'fake_server_id'
+                    }
+            }
+
+        resource_postback.delay(context['deployment'],
+                                expected).AndReturn(True)
+
+        self.mox.ReplayAll()
+        results = compute.wait_on_build(context, server.id, 'North',
+                                        api_object=openstack_api_mock)
+
+        self.assertDictEqual(results, expected)
+        self.mox.VerifyAll()
+
 
 class TestNovaGenerateTemplate(unittest.TestCase):
     """Test Nova Compute Provider's region functions"""
@@ -228,7 +438,7 @@ class TestNovaGenerateTemplate(unittest.TestCase):
 
 
 if __name__ == '__main__':
-    # Run tests. Handle our parameters seprately
+    # Run tests. Handle our parameters separately
     import sys
     args = sys.argv[:]
     # Our --debug means --verbose for unittest
