@@ -226,7 +226,7 @@ class TestDatabase(unittest.TestCase):
                                 tenant_id='T1000')
 
         results = self.driver.get_objects(self.collection_name, tenant_id='T1000',
-                                          with_secrets=False, pagination=[2])
+                                          with_secrets=False, limit=2)
         expected = {1:
                       {'id': 1,
                        'name': 'My Component',
@@ -239,7 +239,7 @@ class TestDatabase(unittest.TestCase):
         self.assertDictEqual(results, expected)
 
         results = self.driver.get_objects(self.collection_name, tenant_id='T1000',
-                                          with_secrets=False, pagination=[1,3])
+                                          with_secrets=False, offset=1, limit=2)
         expected = {2:
                       {'id': 2,
                        'name': 'My Second Component',

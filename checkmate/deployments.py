@@ -118,16 +118,10 @@ def _deploy(deployment, context):
 @with_tenant
 def get_deployments(tenant_id=None):
     """ Get existing deployments """
-    return write_body(DB.get_deployments(tenant_id=tenant_id), request,
-                      response)
-
-@get('/deployments/<pagination:list>')
-@with_tenant
-def get_deployments_with_pagination(pagination, tenant_id=None):
-    """ Get paginated existing deployments """
-    return write_body(DB.get_deployments(tenant_id=tenant_id,
-                                         pagination=pagination),
-                      request, response)
+    offset = request.query.get('offset')
+    limit = request.query.get('limit')
+    return write_body(DB.get_deployments(tenant_id=tenant_id, offset=offset
+                                         limit=limit), request, response)
 
 @get('/deployments/count')
 @with_tenant

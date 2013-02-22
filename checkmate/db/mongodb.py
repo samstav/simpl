@@ -64,9 +64,10 @@ class Driver(DbBase):
     def get_deployment(self, id, with_secrets=None):
         return self.get_object('deployments', id, with_secrets)
 
-    def get_deployments(self, tenant_id=None, with_secrets=None, pagination=None):
+    def get_deployments(self, tenant_id=None, with_secrets=None,
+                        limit=None, offset=None):
         return self.get_objects('deployments', tenant_id, with_secrets, 
-                                pagination)
+                                offset=offset, limit=limit)
 
     def save_deployment(self, id, body, secrets=None, tenant_id=None):
         return self.save_object('deployments', id, body, secrets, tenant_id)
@@ -112,26 +113,30 @@ class Driver(DbBase):
                     merge_dictionary(results, secrets)
             return results
 
-    def get_objects(self, klass, tenant_id=None, with_secrets=None, pagination=None):
-        if pagination:
-            if len(pagination) == 1:
-                skip = 0
-                limit = pagination[0]
-            else:
-                skip = pagination[0]
-                limit = pagination[1]
-                         
+    def get_objects(self, klass, tenant_id=None, with_secrets=None,
+                    offset=None, limit=None):                       
         if tenant_id:
             if limit:
+                if offset is None:
+                    offset = 0
                 results = (self.database()[klass].find({'tenantId': tenant_id},
-                           {'_id': 0}).skip(skip).limit(limit))
+                           {'_id': 0}).skip(offset).limit(limit))
+            elif offset and (limit is None):
+                print "whoops"
+                results = (self.database()[klass].find({'tenantId': tenant_id},
+                           {'_id': 0}).skip(offset))
             else:
                 results = self.database()[klass].find({'tenantId': tenant_id},
                                                       {'_id': 0})
         else:
             if limit:
-                results = (self.database()[klass].find({'tenantId': tenant_id},
-                           {'_id': 0}).skip(skip).limit(limit))
+                if offset is None:
+                    offset = 0
+                results = (self.database()[klass].find(None,
+                           {'_id': 0}).skip(offset).limit(limit))
+            elif offset and (limit is None):
+                results = (self.database()[klass].find(None,
+                           {'_id': 0}).skip(offset))
             else:
                 results = self.database()[klass].find(None, {'_id': 0})
         if results:
