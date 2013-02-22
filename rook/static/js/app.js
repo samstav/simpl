@@ -349,9 +349,10 @@ function AppController($scope, $http, $location, $resource, auth) {
   //Check for a supported account
   $scope.is_unsupported_account = function() {
     var roles = [];
+    var unsupported_roles = [];
     if ($scope.auth.identity.loggedIn === true)
         roles = $scope.auth.context.user.roles || [];
-    return _.any(roles, function(role) {return role.name == "rack_connect";});
+    return _.any(roles, function(role) {return unsupported_roles.indexOf(role.name) >= 0;});
   };
 
   //Check for a service level
@@ -360,6 +361,13 @@ function AppController($scope, $http, $location, $resource, auth) {
     if ($scope.auth.identity.loggedIn === true)
         roles = $scope.auth.context.user.roles || [];
     return _.any(roles, function(role) {return role.name == "rax_managed";});
+  };
+
+  $scope.is_rack_connect_account = function() {
+    var roles = [];
+    if ($scope.auth.identity.loggedIn === true)
+        roles = $scope.auth.context.user.roles || [];
+    return _.any(roles, function(role) {return role.name == "rack_connect";});
   };
 
   $scope.generatePassword = function() {

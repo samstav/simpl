@@ -67,7 +67,9 @@
           <h1>New Deployment</h1>
           <p>Select your blueprint, environment, and options to create a new deployment</p>
         </div>
-
+        <p ng-cloak ng-show="is_unsupported_account()" class="alert">
+          This account is a not supported.
+        </p>
         <ng-include src="'/partials/new-deployment-form.html'"></ng-include>
       </div>
     </div>
