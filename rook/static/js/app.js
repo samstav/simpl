@@ -196,6 +196,15 @@ function AppController($scope, $http, $location, $resource, auth) {
   //Call this with an http response for a generic error message
   $scope.show_error = function(response) {
     var error = response;
+    // Also handle $http response
+    if (typeof response == "object" && 'error' in response) {
+      error = response.error;
+      if (!('status' in error) && ('code' in error))
+        error.status = error.code;
+      if (!('data' in error) && ('description' in error))
+        error.data = {description: error.description};
+    }
+
     var info = {data: error.data,
                 status: error.status,
                 title: "Error",
@@ -959,7 +968,7 @@ function WorkflowController($scope, $resource, $http, $routeParams, $location, $
       return c.CodeMirror.getTextArea().id == 'task_source';
       });
 
-    if ($scope.identity.loggedIn) {
+    if ($scope.auth.identity.loggedIn) {
       var klass = $resource((checkmate_server_base || '') + '/:tenantId/workflows/:id/tasks/' + $scope.current_task_index);
       var thang = new klass(JSON.parse(editor.CodeMirror.getValue()));
       thang.$save($routeParams, function(returned, getHeaders){
@@ -1028,6 +1037,8 @@ function WorkflowController($scope, $resource, $http, $routeParams, $location, $
           // this callback will be called asynchronously
           // when the response is available
           $scope.load();
+        }).error(function(data) {
+          $scope.show_error(data);
         });
     } else {
       $scope.loginPrompt(); //TODO: implement a callback
