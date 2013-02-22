@@ -120,9 +120,6 @@ class Driver(DbBase):
             else:
                 skip = pagination[0]
                 limit = pagination[1]
-
-            print "skip: %s" % skip
-            print "limit: %s" % limit
                          
         if tenant_id:
             if limit:

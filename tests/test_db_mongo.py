@@ -215,23 +215,41 @@ class TestDatabase(unittest.TestCase):
         self.driver.save_object(self.collection_name, entity['id'], body, secrets,
                                 tenant_id='T1000')
         entity['id'] = 2
-        entity['id'] = 'My Second Component'
+        entity['name'] = 'My Second Component'
         body, secrets = extract_sensitive_data(entity)
         self.driver.save_object(self.collection_name, entity['id'], body, secrets,
                                 tenant_id='T1000')
         entity['id'] = 3
-        entity['id'] = 'My Third Component'
+        entity['name'] = 'My Third Component'
         body, secrets = extract_sensitive_data(entity)
         self.driver.save_object(self.collection_name, entity['id'], body, secrets,
                                 tenant_id='T1000')
 
         results = self.driver.get_objects(self.collection_name, tenant_id='T1000',
                                           with_secrets=False, pagination=[2])
-        print "results: %s" % results
+        expected = {1:
+                      {'id': 1,
+                       'name': 'My Component',
+                       'tenantId': 'T1000'},
+                    2: 
+                      {'id': 2,
+                       'name': 'My Second Component',
+                       'tenantId': 'T1000'}}
         self.assertEqual(len(results), 2)
+        self.assertDictEqual(results, expected)
 
-
-
+        results = self.driver.get_objects(self.collection_name, tenant_id='T1000',
+                                          with_secrets=False, pagination=[1,3])
+        expected = {2:
+                      {'id': 2,
+                       'name': 'My Second Component',
+                       'tenantId': 'T1000'},
+                    3: 
+                      {'id': 3,
+                       'name': 'My Third Component',
+                       'tenantId': 'T1000'}}
+        self.assertEqual(len(results), 2)
+        self.assertDictEqual(results, expected)
 
     @unittest.skipIf(SKIP, REASON)
     def test_hex_id(self):
