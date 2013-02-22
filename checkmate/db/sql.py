@@ -151,8 +151,10 @@ class Driver(DbBase):
     def get_deployment(self, id, with_secrets=None):
         return self.get_object(Deployment, id, with_secrets)
 
-    def get_deployments(self, tenant_id=None, with_secrets=None):
-        return self.get_objects(Deployment, tenant_id, with_secrets)
+    def get_deployments(self, tenant_id=None, with_secrets=None,
+                        offset=None, limit=None):
+        return self.get_objects(Deployment, tenant_id, with_secrets,
+                                offset=None, limit=None)
 
     def save_deployment(self, id, body, secrets=None, tenant_id=None):
         return self.save_object(Deployment, id, body, secrets, tenant_id)
@@ -205,10 +207,17 @@ class Driver(DbBase):
             else:
                 return body
 
-    def get_objects(self, klass, tenant_id=None, with_secrets=None):
+    def get_objects(self, klass, tenant_id=None, with_secrets=None,
+                    offset=None, limit=None):
         results = Session.query(klass)
         if tenant_id:
             results = results.filter_by(tenant_id=tenant_id)
+        if offset and (limit is None):
+            results = results.offset(offest).all()
+        if limit:
+           if offset is None:
+               offset = 0
+           results = results.limit(limit).offset(offset).all()
         if results and results.count() > 0:
             response = {}
             if with_secrets == True:
