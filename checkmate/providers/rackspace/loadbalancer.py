@@ -20,12 +20,11 @@ REGION_MAP = {'dallas': 'DFW',
               'london': 'LON'}
 
 PROTOCOL_PAIRS = {
-                  'https': 'http',
-                  'pop3s': 'pop3',
-                  'sftp': 'ftp',
-                  'ldaps': 'ldap',
-                  'pop3s': 'pop3',
-                 }
+    'https': 'http',
+    'pop3s': 'pop3',
+    'sftp': 'ftp',
+    'ldaps': 'ldap',
+    'pop3s': 'pop3'}
 
 
 class Provider(ProviderBase):
@@ -33,9 +32,10 @@ class Provider(ProviderBase):
     vendor = 'rackspace'
 
     def generate_template(self, deployment, resource_type, service, context,
-            name=None):
-        template = ProviderBase.generate_template(self,
-                deployment, resource_type, service, context, name=name)
+                          name=None):
+        template = ProviderBase.generate_template(self, deployment,
+                                                  resource_type, service,
+                                                  context, name=name)
 
         # Get region
         region = deployment.get_setting('region', resource_type=resource_type,
@@ -43,13 +43,13 @@ class Provider(ProviderBase):
                                         provider_key=self.key)
         if not region:
             raise CheckmateException("Could not identify which region to "
-                    "create load-balancer in")
+                                     "create load-balancer in")
 
         template['region'] = region
         return template
 
     def add_resource_tasks(self, resource, key, wfspec, deployment, context,
-                wait_on=None):
+                           wait_on=None):
         service_name = resource.get('service')
         resource_type = resource.get('type')
         proto = deployment.get_setting("protocol",
@@ -79,7 +79,7 @@ class Provider(ProviderBase):
 
         # add support for arbitrary combinations of secure and
         # unsecure protocols (ftp/ftps for example)
-        if allow_insecure == True and proto in PROTOCOL_PAIRS:
+        if allow_insecure and proto in PROTOCOL_PAIRS:
             unencrypted = PROTOCOL_PAIRS[proto]
             LOG.debug("Adding unencrypted protocol '%s'" % unencrypted)
             extra_protocols.add(unencrypted)
@@ -88,32 +88,30 @@ class Provider(ProviderBase):
                            'Create %s Loadbalancer (%s)' % (proto.upper(),
                                                             key),
                            'checkmate.providers.rackspace.loadbalancer.'
-                                    'create_loadbalancer',
-                           call_args=[context.get_queued_task_dict(
-                                            deployment=deployment['id'],
-                                            resource=key),
-                                      resource.get('dns-name'),
-                                      'PUBLIC',
-                                      proto.upper(),
-                                      resource['region']],
-                           defines={'resource': key,
-                                    'provider': self.key,
-                                   },
-                            # FIXME: final task should be the one that finishes
-                            # when all extra_protocols are done, not this one
+                           'create_loadbalancer',
+                           call_args=[
+                               context.get_queued_task_dict(
+                                   deployment=deployment['id'],
+                                   resource=key),
+                               resource.get('dns-name'),
+                               'PUBLIC',
+                               proto.upper(),
+                               resource['region']],
+                           defines={'resource': key, 'provider': self.key},
+                           # FIXME: final task should be the one that finishes
+                           # when all extra_protocols are done, not this one
                            properties={'estimated_duration': 30,
                                        'task_tags': ['create', 'root',
-                                                     'final'],
-                                      },
+                                                     'final']},
                            dns=dns)
         final = create_lb
         for extra_protocol in extra_protocols:
             # FIXME: these resources should be generated during
             # planning, not here
             resource2 = deepcopy(resource)
-            resource2['index'] = str(len([res for
-                                      res in deployment.get("resources").keys()
-                                      if res.isdigit()]))
+            resource2['index'] = str(
+                len([res for res in deployment.get("resources").keys()
+                     if res.isdigit()]))
             resource2['dns-name'] = '%s-%s' % (resource2['index'],
                                                resource2['dns-name'])
             if 'relations' not in resource2:
@@ -142,30 +140,29 @@ class Provider(ProviderBase):
                       (resource2['index'], extra_protocol))
 
             final = Celery(wfspec,
-                    'Create %s Loadbalancer (%s)' % (extra_protocol.upper(),
-                                                     resource2['index']),
-                    'checkmate.providers.rackspace.loadbalancer.'
-                            'create_loadbalancer',
-                    call_args=[context.get_queued_task_dict(
-                                    deployment=deployment['id'],
-                                    resource=resource2['index']),
-                            resource2.get('dns-name'),
-                            'PUBLIC',
-                            extra_protocol.upper(),
-                            resource2['region']],
-                    defines={'resource': resource2['index'],
-                             'provider': self.key,
-                            },
-                    properties={'estimated_duration': 30,
-                                'task_tags': [],
-                               },
-                    parent_lb=PathAttrib("instance:%s/id" % key))
+                           'Create %s Loadbalancer (%s)' % (
+                               extra_protocol.upper(), resource2['index']),
+                           'checkmate.providers.rackspace.loadbalancer.'
+                           'create_loadbalancer',
+                           call_args=[
+                               context.get_queued_task_dict(
+                                   deployment=deployment['id'],
+                                   resource=resource2['index']),
+                               resource2.get('dns-name'),
+                               'PUBLIC',
+                               extra_protocol.upper(),
+                               resource2['region']],
+                           defines={'resource': resource2['index'],
+                                    'provider': self.key},
+                           properties={'estimated_duration': 30,
+                                       'task_tags': []},
+                           parent_lb=PathAttrib("instance:%s/id" % key))
             final.follow(create_lb)
         final.properties['task_tags'].append('final')
         return dict(root=create_lb, final=final)
 
     def add_connection_tasks(self, resource, key, relation, relation_key,
-            wfspec, deployment, context):
+                             wfspec, deployment, context):
         interface = relation['interface']
         if interface and "vip" != interface.lower():
             self._add_node_connection(resource, key, relation, relation_key,
@@ -187,7 +184,8 @@ class Provider(ProviderBase):
                 raise CheckmateException("'%s' is an invalid relation "
                                          "interface for provider '%s'. Valid "
                                          "options are: %s" % (interface,
-                                          self.key, protocols))
+                                                              self.key,
+                                                              protocols))
 
         # Get all tasks we need to precede the LB Add Node task
         finals = self.find_tasks(wfspec, resource=relation['target'],
@@ -202,28 +200,31 @@ class Provider(ProviderBase):
         # determine the port based on protocol
         #Create the add node task
         add_node = Celery(wfspec,
-                "Add Node %s to LB %s" % (relation['target'], key),
-                'checkmate.providers.rackspace.loadbalancer.add_node',
-                call_args=[context.get_queued_task_dict(
-                            deployment=deployment['id'],
-                            resource=key),
-                        PathAttrib('instance:%s/id' % key),
-                        PathAttrib('instance:%s/private_ip' % target),
-                        resource['region']],
-                defines=dict(relation=relation_key, provider=self.key,
-                        task_tags=['final']),
-                properties={'estimated_duration': 20})
+                          "Add Node %s to LB %s" % (relation['target'], key),
+                          'checkmate.providers.rackspace.loadbalancer.'
+                          'add_node',
+                          call_args=[
+                              context.get_queued_task_dict(
+                                  deployment=deployment['id'],
+                                  resource=key),
+                              PathAttrib('instance:%s/id' % key),
+                              PathAttrib('instance:%s/private_ip' % target),
+                              resource['region']],
+                          defines=dict(relation=relation_key,
+                                       provider=self.key,
+                                       task_tags=['final']),
+                          properties={'estimated_duration': 20})
 
         #Make it wait on all other provider completions
         finals.append(create_lb)
         wait_for(wfspec, add_node, finals,
-                name="Wait before adding %s to LB %s" % (relation['target'], key),
-                description="Wait for Load Balancer ID "
-                        "and for server to be fully configured before "
-                        "adding it to load balancer",
-                defines=dict(relation=relation_key,
-                            provider=self.key,
-                            task_tags=['root']))
+                 name="Wait before adding %s to LB %s" % (relation['target'],
+                                                          key),
+                 description="Wait for Load Balancer ID "
+                             "and for server to be fully configured before "
+                             "adding it to load balancer",
+                 defines=dict(relation=relation_key, provider=self.key,
+                              task_tags=['root']))
 
     def get_catalog(self, context, type_filter=None):
         """Return stored/override catalog if it exists, else connect, build,
@@ -232,7 +233,7 @@ class Provider(ProviderBase):
         # TODO: maybe implement this an on_get_catalog so we don't have to do
         #        this for every provider
         results = ProviderBase.get_catalog(self, context,
-            type_filter=type_filter)
+                                           type_filter=type_filter)
         if results:
             # We have a prexisting or overridecatalog stored
             return results
@@ -273,7 +274,7 @@ class Provider(ProviderBase):
                                    'allow the unencrypted version of the '
                                    'protocol.'
                 }
-             }
+            }
 
             if 'load-balancer' not in results:
                 results['load-balancer'] = {}
@@ -283,16 +284,13 @@ class Provider(ProviderBase):
             protocols = api.get_protocols()
             protocols = [p.lower() for p in protocols]
             for protocol in protocols:
-                item = {
-                        'id': protocol,
-                        'is': 'load-balancer',
+                item = {'id': protocol, 'is': 'load-balancer',
                         'provides': [{'load-balancer': protocol}],
                         #FIXME: we don't need to call this the name of a valid,
                         #resource type, but until we get the key'd requires
                         #code in, this stops it failing validation.
                         'requires': [{"application": {'interface': protocol}}],
-                        'options': copy.copy(options),
-                    }
+                        'options': copy.copy(options)}
                 results['load-balancer'][protocol] = item
 
             # provide abstracted 'proxy' load-balancer type
@@ -303,20 +301,14 @@ class Provider(ProviderBase):
             #       unsecure protocols (ftp/ftps for example)
             if not "http_and_https" in protocols:
                 protocols.extend(["http_and_https"])
-            protocol_option = {
-                               'protocol':
-                                    {
-                                        'type': 'list',
-                                        'choice': protocols,
-                                    }
-                              }
+            protocol_option = {'protocol': {'type': 'list',
+                                            'choice': protocols}}
             options.update(protocol_option)
             results['load-balancer']['rsCloudLB'] = {
-                    'id': 'rsCloudLB',
-                    'is': 'load-balancer',
-                    'provides': [{'load-balancer': 'proxy'}],
-                    'options': options
-                }
+                'id': 'rsCloudLB',
+                'is': 'load-balancer',
+                'provides': [{'load-balancer': 'proxy'}],
+                'options': options}
 
         self.validate_catalog(results)
         if type_filter is None:
@@ -374,10 +366,9 @@ class Provider(ProviderBase):
   Celery tasks to manipulate Rackspace Cloud Load Balancers
 """
 import cloudlb
-from celery.task import task #@UnresolvedImport
+from celery.task import task
 
-from checkmate.providers.rackspace.dns import create_record,\
-        parse_domain
+from checkmate.providers.rackspace.dns import create_record, parse_domain
 
 # Cloud Load Balancers needs an IP for all load balancers. To create one we
 # sometimes need a dummy node. This is the IP address we use for the dummy
@@ -387,52 +378,64 @@ PLACEHOLDER_IP = '1.2.3.4'
 #
 # Celery tasks
 #
+
+
 @task
-def create_loadbalancer(context, name, vip_type, protocol, region,
-                                   api=None, dns=False,
-                                   monitor_path='/', port=None,
-                                   monitor_delay=10, monitor_timeout=10,
-                                   monitor_attempts=3, monitor_body='(.*)',
-                                   monitor_status='^[234][0-9][0-9]$',
-                                   parent_lb=None):
+def create_loadbalancer(context, name, vip_type, protocol, region, api=None,
+                        dns=False, port=None, algorithm='ROUND_ROBIN',
+                        monitor_path='/', monitor_delay=10, monitor_timeout=10,
+                        monitor_attempts=3, monitor_body='(.*)',
+                        monitor_status='^[234][0-9][0-9]$', parent_lb=None):
     match_celery_logging(LOG)
     if api is None:
         api = Provider._connect(context, region)
 
-    #FIXME: should pull default from lb api but thats not exposed via the client yet
+    #FIXME: should pull default from lb api but thats not exposed via the
+    #       client yet
     if not port:
         port = 443 if "https" == protocol.lower() else 80
 
-    fakenode = cloudlb.Node(address=PLACEHOLDER_IP, condition="ENABLED", port=port)
+    fakenode = cloudlb.Node(address=PLACEHOLDER_IP, condition="ENABLED",
+                            port=port)
 
     # determine new or shared vip
     vip = None
     if not parent_lb:
         vip = cloudlb.VirtualIP(type=vip_type)
-    else: # share vip with another lb in the deployment
+    else:
+        # share vip with another lb in the deployment
         other_lb = api.loadbalancers.get(parent_lb)
         if not other_lb:
-            return create_loadbalancer.retry(exc=CheckmateException(
-                    "Could not locate load balancer %s for shared vip" % parent_lb))
+            return create_loadbalancer.retry(
+                exc=CheckmateException("Could not locate load balancer %s for "
+                                       "shared vip" % parent_lb))
         for _vip in other_lb.virtualIps:
             if vip_type.upper() == _vip.type:
                 vip = cloudlb.VirtualIP(id=_vip.id)
                 break
         if not vip:
-            create_loadbalancer.retry(exc=CheckmateException("Cannot get %s vip for load balancer %s") % (vip_type, parent_lb))
+            create_loadbalancer.retry(
+                exc=CheckmateException("Cannot get %s vip for load balancer "
+                                       "%s") % (vip_type, parent_lb))
 
-    meta = context.get("metadata",None)
-    if meta: # attach checkmate metadata to the lb if available
+    meta = context.get("metadata", None)
+    if meta:
+        # attach checkmate metadata to the lb if available
         new_meta = []
-        #Assumes that meta data is in format "meta" : {"key" : "value" , "key2" : "value2"}
+        # Assumes that meta data is in format
+        #   "meta" : {"key" : "value" , "key2" : "value2"}
         for key in meta:
-            new_meta.append({"key" : key, "value" : meta[key]})
-        lb = api.loadbalancers.create(name=name, port=port, protocol=protocol.upper(),
+            new_meta.append({"key": key, "value": meta[key]})
+        lb = api.loadbalancers.create(name=name, port=port,
+                                      protocol=protocol.upper(),
                                       nodes=[fakenode], virtualIps=[vip],
+                                      algorithm=algorithm,
                                       metadata=new_meta)
     else:
-        lb = api.loadbalancers.create(name=name, port=port, protocol=protocol.upper(),
-                                      nodes=[fakenode], virtualIps=[vip])
+        lb = api.loadbalancers.create(name=name, port=port,
+                                      protocol=protocol.upper(),
+                                      nodes=[fakenode], virtualIps=[vip],
+                                      algorithm=algorithm)
 
     # update our assigned vip
     for ip in lb.virtualIps:
@@ -443,9 +446,9 @@ def create_loadbalancer(context, name, vip_type, protocol, region,
 
     #FIXME: This should be handled by the DNS provider, not this one!
     if dns:
-        create_record.delay(context, parse_domain(name), '.'.join(name.split('.')[1:]), #@UndefinedVariable
-                                       'A', vip, rec_ttl=300,
-                                       makedomain=True)
+        create_record.delay(context, parse_domain(name),
+                            '.'.join(name.split('.')[1:]),
+                            'A', vip, rec_ttl=300, makedomain=True)
 
     # attach an appropriate monitor for our nodes
     monitor_type = protocol.upper()
@@ -454,12 +457,14 @@ def create_loadbalancer(context, name, vip_type, protocol, region,
                       monitor_body, monitor_status)
 
     results = {'instance:%s' % context['resource']: {'id': lb.id,
-            'public_ip': vip, 'port': lb.port, 'protocol': lb.protocol}}
+                                                     'public_ip': vip,
+                                                     'port': lb.port,
+                                                     'protocol': lb.protocol}}
 
     # Send data back to deployment
-    resource_postback.delay(context['deployment'], results) #@UndefinedVariable
-
+    resource_postback.delay(context['deployment'], results)
     return results
+
 
 @task
 def delete_loadbalancer(context, lbid, region, api=None):
@@ -479,13 +484,14 @@ def add_node(context, lbid, ip, region, api=None):
         api = Provider._connect(context, region)
 
     if ip == PLACEHOLDER_IP:
-        raise CheckmateException("IP %s is reserved as a placeholder IP"
-                "by checkmate" % ip)
+        raise CheckmateException("IP %s is reserved as a placeholder IP by "
+                                 "checkmate" % ip)
 
     lb = api.loadbalancers.get(lbid)
     if not (lb and lb.port):
-        return add_node.retry(exc=CheckmateBadState(
-                "Could not retrieve data for load balancer {}".format(lbid)))
+        return add_node.retry(
+            exc=CheckmateBadState("Could not retrieve data for load balancer "
+                                  "{}".format(lbid)))
     results = None
     port = lb.port
 
@@ -504,7 +510,7 @@ def add_node(context, lbid, ip, region, api=None):
                     node.condition = "ENABLED"
                 node.update()
                 LOG.debug("Updated %s:%d from load balancer %d" % (
-                        node.address, node.port, lbid))
+                    node.address, node.port, lbid))
                 new_node - node
             # We return this at the end of the call
             results = {'id': node.id}
@@ -525,23 +531,24 @@ def add_node(context, lbid, ip, region, api=None):
                 results = {'id': results[0].id}
             else:
                 LOG.warning("CloudLB says node %s (ID=%s) was added to LB %s, "
-                        "but upon validating, it does not look like that is "
-                        "the case!" % (ip, results[0].id, lbid))
+                            "but upon validating, it does not look like that "
+                            "is the case!" % (ip, results[0].id, lbid))
                 # Try again!
-                return add_node.retry(exc=CheckmateException(
-                        "Validation failed - Node was not added"))
+                return add_node.retry(
+                    exc=CheckmateException("Validation failed - Node was not "
+                                           "added"))
         except cloudlb.errors.ResponseError, exc:
             if exc.status == 422:
                 LOG.debug("Cannot modify load balancer %d. Will retry "
-                        "adding %s (%d %s)" % (lbid, ip, exc.status,
-                        exc.reason))
+                          "adding %s (%d %s)" % (lbid, ip, exc.status,
+                                                 exc.reason))
                 return add_node.retry(exc=exc)
             LOG.debug("Response error from load balancer %d. Will retry "
-                    "adding %s (%d %s)" % (lbid, ip, exc.status, exc.reason))
+                      "adding %s (%d %s)" % (lbid, ip, exc.status, exc.reason))
             return add_node.retry(exc=exc)
         except Exception, exc:
             LOG.debug("Error adding %s behind load balancer %d. Error: "
-                    "%s. Retrying" % (ip, lbid, str(exc)))
+                      "%s. Retrying" % (ip, lbid, str(exc)))
             return add_node.retry(exc=exc)
 
     # Delete placeholder
@@ -549,7 +556,7 @@ def add_node(context, lbid, ip, region, api=None):
         try:
             placeholder.delete()
             LOG.debug('Removed %s:%d from load balancer %d' % (
-                    placeholder.address, placeholder.port, lbid))
+                      placeholder.address, placeholder.port, lbid))
         except Exception, exc:
             return add_node.retry(exc=exc)
 
@@ -575,16 +582,16 @@ def delete_node(context, lbid, ip, port, region, api=None):
         except cloudlb.errors.ResponseError, exc:
             if exc.status == 422:
                 LOG.debug("Cannot modify load balancer %d. Will retry "
-                        "deleting %s:%d (%d %s)" % (lbid, ip, port, exc.status,
-                        exc.reason))
+                          "deleting %s:%d (%d %s)" % (lbid, ip, port,
+                                                      exc.status, exc.reason))
                 delete_node.retry(exc=exc)
-            LOG.debug('Response error from load balancer %d. Will retry ' \
-                'deleting %s:%d (%d %s)' % (
-                lbid, ip, port, exc.status, exc.reason))
+            LOG.debug('Response error from load balancer %d. Will retry '
+                      'deleting %s:%d (%d %s)' % (lbid, ip, port, exc.status,
+                                                  exc.reason))
             delete_node.retry(exc=exc)
         except Exception, exc:
             LOG.debug("Error deleting %s:%d from load balancer %d. Error: %s. "
-                    "Retrying" % (ip, port, lbid, str(exc)))
+                      "Retrying" % (ip, port, lbid, str(exc)))
             delete_node.retry(exc=exc)
     else:
         LOG.debug('No LB node matching %s:%d on LB %d' % (
@@ -593,8 +600,8 @@ def delete_node(context, lbid, ip, port, region, api=None):
 
 @task(default_retry_delay=10, max_retries=10)
 def set_monitor(context, lbid, mon_type, region, path='/', delay=10,
-                           timeout=10, attempts=3, body='(.*)',
-                           status='^[234][0-9][0-9]$', api=None):
+                timeout=10, attempts=3, body='(.*)',
+                status='^[234][0-9][0-9]$', api=None):
     match_celery_logging(LOG)
     if api is None:
         api = Provider._connect(context, region)
@@ -603,22 +610,23 @@ def set_monitor(context, lbid, mon_type, region, path='/', delay=10,
 
     try:
         hm_monitor = lb.healthmonitor()
-        hm = cloudlb.healthmonitor.HealthMonitor(type=mon_type, delay=delay,
-                 timeout=timeout,
-                 attemptsBeforeDeactivation=attempts,
-                 path=path,
-                 statusRegex=status,
-                 bodyRegex=body)
+        hm = cloudlb.healthmonitor.HealthMonitor(
+            type=mon_type, delay=delay,
+            timeout=timeout,
+            attemptsBeforeDeactivation=attempts,
+            path=path,
+            statusRegex=status,
+            bodyRegex=body)
         hm_monitor.add(hm)
     except cloudlb.errors.ResponseError as re:
         if re.status == 422:
             LOG.debug("Cannot modify load balancer %d. Will retry setting %s "
-                    "monitor (%d %s)" % (lbid, type, re.status, re.reason))
+                      "monitor (%d %s)" % (lbid, type, re.status, re.reason))
             set_monitor.retry(exc=re)
         LOG.debug("Response error from load balancer %d. Will retry setting "
-                "%s monitor (%d %s)" % (lbid, type, re.status, re.reason))
+                  "%s monitor (%d %s)" % (lbid, type, re.status, re.reason))
         set_monitor.retry(exc=re)
     except Exception as exc:
-        LOG.debug('Error setting %s monitor on load balancer %d. Error: %s. ' \
-                'Retrying' % (type, lbid, str(exc)))
+        LOG.debug("Error setting %s monitor on load balancer %d. Error: %s. "
+                  "Retrying" % (type, lbid, str(exc)))
         set_monitor.retry(exc=exc)
