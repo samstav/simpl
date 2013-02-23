@@ -16,15 +16,18 @@ from copy import deepcopy
 LOG = logging.getLogger(__name__)
 
 # Any names should become airport codes
-REGION_MAP = {'dallas': 'DFW',
-              'chicago': 'ORD',
-              'london': 'LON'}
+REGION_MAP = {
+    'dallas': 'DFW',
+    'chicago': 'ORD',
+    'london': 'LON',
+}
 
 PROTOCOL_PAIRS = {
     'https': 'http',
     'sftp': 'ftp',
     'ldaps': 'ldap',
-    'pop3s': 'pop3'}
+    'pop3s': 'pop3',
+}
 
 
 class Provider(ProviderBase):
