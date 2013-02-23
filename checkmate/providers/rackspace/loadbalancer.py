@@ -1,3 +1,4 @@
+""" Rackspace Cloud Load Balancer provider and celery tasks """
 import copy
 import logging
 
@@ -21,13 +22,13 @@ REGION_MAP = {'dallas': 'DFW',
 
 PROTOCOL_PAIRS = {
     'https': 'http',
-    'pop3s': 'pop3',
     'sftp': 'ftp',
     'ldaps': 'ldap',
     'pop3s': 'pop3'}
 
 
 class Provider(ProviderBase):
+    """Rackspace load balancer provider"""
     name = 'load-balancer'
     vendor = 'rackspace'
 
@@ -170,7 +171,6 @@ class Provider(ProviderBase):
 
     def _add_node_connection(self, resource, key, relation, relation_key,
                              wfspec, deployment, context, interface):
-
         comp = self.find_components(context, id="rsCloudLB")
         if not comp:
             raise CheckmateException("Could not locate component for id "
@@ -199,25 +199,27 @@ class Provider(ProviderBase):
             target = relation['target']
         # determine the port based on protocol
         #Create the add node task
-        add_node = Celery(wfspec,
-                          "Add Node %s to LB %s" % (relation['target'], key),
-                          'checkmate.providers.rackspace.loadbalancer.'
-                          'add_node',
-                          call_args=[
-                              context.get_queued_task_dict(
-                                  deployment=deployment['id'],
-                                  resource=key),
-                              PathAttrib('instance:%s/id' % key),
-                              PathAttrib('instance:%s/private_ip' % target),
-                              resource['region']],
-                          defines=dict(relation=relation_key,
-                                       provider=self.key,
-                                       task_tags=['final']),
-                          properties={'estimated_duration': 20})
+        add_node_task = Celery(wfspec,
+                               "Add Node %s to LB %s" % (relation['target'],
+                                                         key),
+                               'checkmate.providers.rackspace.loadbalancer.'
+                               'add_node',
+                               call_args=[
+                                   context.get_queued_task_dict(
+                                       deployment=deployment['id'],
+                                       resource=key),
+                                   PathAttrib('instance:%s/id' % key),
+                                   PathAttrib('instance:%s/private_ip' %
+                                              target),
+                                   resource['region']],
+                               defines=dict(relation=relation_key,
+                                            provider=self.key,
+                                            task_tags=['final']),
+                               properties={'estimated_duration': 20})
 
         #Make it wait on all other provider completions
         finals.append(create_lb)
-        wait_for(wfspec, add_node, finals,
+        wait_for(wfspec, add_node_task, finals,
                  name="Wait before adding %s to LB %s" % (relation['target'],
                                                           key),
                  description="Wait for Load Balancer ID "
@@ -330,6 +332,7 @@ class Provider(ProviderBase):
             region = REGION_MAP[region]
 
         def find_url(catalog, region):
+            """Find endpoint URL for region"""
             for service in catalog:
                 if service['type'] == 'rax:load-balancer':
                     endpoints = service['endpoints']
@@ -362,9 +365,8 @@ class Provider(ProviderBase):
 
         return api
 
-"""
-  Celery tasks to manipulate Rackspace Cloud Load Balancers
-"""
+""" Celery tasks to manipulate Rackspace Cloud Load Balancers """
+
 import cloudlb
 from celery.task import task
 
@@ -386,6 +388,7 @@ def create_loadbalancer(context, name, vip_type, protocol, region, api=None,
                         monitor_path='/', monitor_delay=10, monitor_timeout=10,
                         monitor_attempts=3, monitor_body='(.*)',
                         monitor_status='^[234][0-9][0-9]$', parent_lb=None):
+    """Celery task to create Cloud Load Balancer"""
     match_celery_logging(LOG)
     if api is None:
         api = Provider._connect(context, region)
@@ -426,23 +429,21 @@ def create_loadbalancer(context, name, vip_type, protocol, region, api=None,
         #   "meta" : {"key" : "value" , "key2" : "value2"}
         for key in meta:
             new_meta.append({"key": key, "value": meta[key]})
-        lb = api.loadbalancers.create(name=name, port=port,
-                                      protocol=protocol.upper(),
-                                      nodes=[fakenode], virtualIps=[vip],
-                                      algorithm=algorithm,
-                                      metadata=new_meta)
+        loadbalancer = api.loadbalancers.create(
+            name=name, port=port, protocol=protocol.upper(),
+            nodes=[fakenode], virtualIps=[vip],
+            algorithm=algorithm, metadata=new_meta)
     else:
-        lb = api.loadbalancers.create(name=name, port=port,
-                                      protocol=protocol.upper(),
-                                      nodes=[fakenode], virtualIps=[vip],
-                                      algorithm=algorithm)
+        loadbalancer = api.loadbalancers.create(
+            name=name, port=port, protocol=protocol.upper(),
+            nodes=[fakenode], virtualIps=[vip], algorithm=algorithm)
 
     # update our assigned vip
-    for ip in lb.virtualIps:
-        if ip.ipVersion == 'IPV4' and ip.type == "PUBLIC":
-            vip = ip.address
+    for ip_data in loadbalancer.virtualIps:
+        if ip_data.ipVersion == 'IPV4' and ip_data.type == "PUBLIC":
+            vip = ip_data.address
 
-    LOG.debug('Load balancer %d created.  VIP = %s' % (lb.id, vip))
+    LOG.debug('Load balancer %d created.  VIP = %s' % (loadbalancer.id, vip))
 
     #FIXME: This should be handled by the DNS provider, not this one!
     if dns:
@@ -452,14 +453,15 @@ def create_loadbalancer(context, name, vip_type, protocol, region, api=None,
 
     # attach an appropriate monitor for our nodes
     monitor_type = protocol.upper()
-    set_monitor.delay(context, lb.id, monitor_type, region, monitor_path,
-                      monitor_delay, monitor_timeout, monitor_attempts,
-                      monitor_body, monitor_status)
+    set_monitor.delay(context, loadbalancer.id, monitor_type, region,
+                      monitor_path, monitor_delay, monitor_timeout,
+                      monitor_attempts, monitor_body, monitor_status)
 
-    results = {'instance:%s' % context['resource']: {'id': lb.id,
-                                                     'public_ip': vip,
-                                                     'port': lb.port,
-                                                     'protocol': lb.protocol}}
+    results = {'instance:%s' % context['resource']: {
+        'id': loadbalancer.id,
+        'public_ip': vip,
+        'port': loadbalancer.port,
+        'protocol': loadbalancer.protocol}}
 
     # Send data back to deployment
     resource_postback.delay(context['deployment'], results)
@@ -468,38 +470,40 @@ def create_loadbalancer(context, name, vip_type, protocol, region, api=None,
 
 @task
 def delete_loadbalancer(context, lbid, region, api=None):
+    """Celery task to delete a Cloud Load Balancer"""
     match_celery_logging(LOG)
     if api is None:
         api = Provider._connect(context, region)
 
-    lb = api.loadbalancers.get(lbid)
-    lb.delete()
+    loadbalancer = api.loadbalancers.get(lbid)
+    loadbalancer.delete()
     LOG.debug('Load balancer %d deleted.' % lbid)
 
 
 @task(default_retry_delay=10, max_retries=10)
-def add_node(context, lbid, ip, region, api=None):
+def add_node(context, lbid, ipaddr, region, api=None):
+    """Celery task to add a node to a Cloud Load Balancer"""
     match_celery_logging(LOG)
     if api is None:
         api = Provider._connect(context, region)
 
-    if ip == PLACEHOLDER_IP:
+    if ipaddr == PLACEHOLDER_IP:
         raise CheckmateException("IP %s is reserved as a placeholder IP by "
-                                 "checkmate" % ip)
+                                 "checkmate" % ipaddr)
 
-    lb = api.loadbalancers.get(lbid)
-    if not (lb and lb.port):
+    loadbalancer = api.loadbalancers.get(lbid)
+    if not (loadbalancer and loadbalancer.port):
         return add_node.retry(
             exc=CheckmateBadState("Could not retrieve data for load balancer "
                                   "{}".format(lbid)))
     results = None
-    port = lb.port
+    port = loadbalancer.port
 
     # Check existing nodes and asses what we need to do
     new_node = None  # We store our new node here
     placeholder = None  # We store our placeholder node here
-    for node in lb.nodes:
-        if node.address == ip:
+    for node in loadbalancer.nodes:
+        if node.address == ipaddr:
             if node.port == port and node.condition == "ENABLED":
                 new_node = node
             else:
@@ -511,7 +515,6 @@ def add_node(context, lbid, ip, region, api=None):
                 node.update()
                 LOG.debug("Updated %s:%d from load balancer %d" % (
                     node.address, node.port, lbid))
-                new_node - node
             # We return this at the end of the call
             results = {'id': node.id}
         elif node.address == PLACEHOLDER_IP:
@@ -520,19 +523,19 @@ def add_node(context, lbid, ip, region, api=None):
 
     # Create new node
     if not new_node:
-        node = cloudlb.Node(address=ip, port=port, condition="ENABLED")
+        node = cloudlb.Node(address=ipaddr, port=port, condition="ENABLED")
         try:
-            results = lb.add_nodes([node])
+            results = loadbalancer.add_nodes([node])
             # I don't believe you! Check... this has been unreliable. Possible
             # because we need to refresh nodes
             lb_fresh = api.loadbalancers.get(lbid)
-            if [n for n in lb_fresh.nodes if n.address == ip]:
+            if [n for n in lb_fresh.nodes if n.address == ipaddr]:
                 #OK!
                 results = {'id': results[0].id}
             else:
                 LOG.warning("CloudLB says node %s (ID=%s) was added to LB %s, "
                             "but upon validating, it does not look like that "
-                            "is the case!" % (ip, results[0].id, lbid))
+                            "is the case!" % (ipaddr, results[0].id, lbid))
                 # Try again!
                 return add_node.retry(
                     exc=CheckmateException("Validation failed - Node was not "
@@ -540,15 +543,16 @@ def add_node(context, lbid, ip, region, api=None):
         except cloudlb.errors.ResponseError, exc:
             if exc.status == 422:
                 LOG.debug("Cannot modify load balancer %d. Will retry "
-                          "adding %s (%d %s)" % (lbid, ip, exc.status,
+                          "adding %s (%d %s)" % (lbid, ipaddr, exc.status,
                                                  exc.reason))
                 return add_node.retry(exc=exc)
             LOG.debug("Response error from load balancer %d. Will retry "
-                      "adding %s (%d %s)" % (lbid, ip, exc.status, exc.reason))
+                      "adding %s (%d %s)" % (lbid, ipaddr, exc.status,
+                                             exc.reason))
             return add_node.retry(exc=exc)
         except Exception, exc:
             LOG.debug("Error adding %s behind load balancer %d. Error: "
-                      "%s. Retrying" % (ip, lbid, str(exc)))
+                      "%s. Retrying" % (ipaddr, lbid, str(exc)))
             return add_node.retry(exc=exc)
 
     # Delete placeholder
@@ -564,68 +568,72 @@ def add_node(context, lbid, ip, region, api=None):
 
 
 @task(default_retry_delay=10, max_retries=10)
-def delete_node(context, lbid, ip, port, region, api=None):
+def delete_node(context, lbid, ipaddr, port, region, api=None):
+    """Celery task to delete a node from a Cloud Load Balancer"""
     match_celery_logging(LOG)
     if api is None:
         api = Provider._connect(context, region)
 
-    lb = api.loadbalancers.get(lbid)
+    loadbalancer = api.loadbalancers.get(lbid)
     node_to_delete = None
-    for node in lb.nodes:
-        if node.address == ip and node.port == port:
+    for node in loadbalancer.nodes:
+        if node.address == ipaddr and node.port == port:
             node_to_delete = node
-    if node_to_delete is not None:
+    if node_to_delete:
         try:
-            node.delete()
+            node_to_delete.delete()
             LOG.debug('Removed %s:%d from load balancer %d' % (
-                ip, port, lbid))
+                ipaddr, port, lbid))
         except cloudlb.errors.ResponseError, exc:
             if exc.status == 422:
                 LOG.debug("Cannot modify load balancer %d. Will retry "
-                          "deleting %s:%d (%d %s)" % (lbid, ip, port,
+                          "deleting %s:%d (%d %s)" % (lbid, ipaddr, port,
                                                       exc.status, exc.reason))
                 delete_node.retry(exc=exc)
             LOG.debug('Response error from load balancer %d. Will retry '
-                      'deleting %s:%d (%d %s)' % (lbid, ip, port, exc.status,
-                                                  exc.reason))
+                      'deleting %s:%d (%d %s)' % (lbid, ipaddr, port,
+                                                  exc.status, exc.reason))
             delete_node.retry(exc=exc)
         except Exception, exc:
             LOG.debug("Error deleting %s:%d from load balancer %d. Error: %s. "
-                      "Retrying" % (ip, port, lbid, str(exc)))
+                      "Retrying" % (ipaddr, port, lbid, str(exc)))
             delete_node.retry(exc=exc)
     else:
         LOG.debug('No LB node matching %s:%d on LB %d' % (
-            ip, port, lbid))
+            ipaddr, port, lbid))
 
 
 @task(default_retry_delay=10, max_retries=10)
 def set_monitor(context, lbid, mon_type, region, path='/', delay=10,
                 timeout=10, attempts=3, body='(.*)',
                 status='^[234][0-9][0-9]$', api=None):
+    """Create a monitor for a Cloud Load Balancer"""
     match_celery_logging(LOG)
     if api is None:
         api = Provider._connect(context, region)
 
-    lb = api.loadbalancers.get(lbid)
+    loadbalancer = api.loadbalancers.get(lbid)
 
     try:
-        hm_monitor = lb.healthmonitor()
-        hm = cloudlb.healthmonitor.HealthMonitor(
+        hm_monitor = loadbalancer.healthmonitor()
+        monitor = cloudlb.healthmonitor.HealthMonitor(
             type=mon_type, delay=delay,
             timeout=timeout,
             attemptsBeforeDeactivation=attempts,
             path=path,
             statusRegex=status,
             bodyRegex=body)
-        hm_monitor.add(hm)
-    except cloudlb.errors.ResponseError as re:
-        if re.status == 422:
+        hm_monitor.add(monitor)
+    except cloudlb.errors.ResponseError as response_error:
+        if response_error.status == 422:
             LOG.debug("Cannot modify load balancer %d. Will retry setting %s "
-                      "monitor (%d %s)" % (lbid, type, re.status, re.reason))
-            set_monitor.retry(exc=re)
+                      "monitor (%d %s)" % (lbid, type, response_error.status,
+                                           response_error.reason))
+            set_monitor.retry(exc=response_error)
         LOG.debug("Response error from load balancer %d. Will retry setting "
-                  "%s monitor (%d %s)" % (lbid, type, re.status, re.reason))
-        set_monitor.retry(exc=re)
+                  "%s monitor (%d %s)" % (lbid, type, response_error.status,
+                                          response_error.reason))
+        set_monitor.retry(exc=response_error)
     except Exception as exc:
         LOG.debug("Error setting %s monitor on load balancer %d. Error: %s. "
                   "Retrying" % (type, lbid, str(exc)))
