@@ -390,7 +390,7 @@ def create_loadbalancer(context, name, vip_type, protocol, region, api=None,
                         dns=False, port=None, algorithm='ROUND_ROBIN',
                         monitor_path='/', monitor_delay=10, monitor_timeout=10,
                         monitor_attempts=3, monitor_body='(.*)',
-                        monitor_status='^[234][0-9][0-9]$', parent_lb=None):
+                        monitor_status=None, parent_lb=None):
     """Celery task to create Cloud Load Balancer"""
     match_celery_logging(LOG)
     if api is None:
@@ -455,7 +455,13 @@ def create_loadbalancer(context, name, vip_type, protocol, region, api=None,
                             'A', vip, rec_ttl=300, makedomain=True)
 
     # attach an appropriate monitor for our nodes
-    monitor_type = protocol.upper()
+    if protocol.upper() in ['HTTP', 'HTTPS']:
+        monitor_type = protocol.upper()
+        if not monitor_status:
+            monitor_status = '^[234][0-9][0-9]$'
+    else:
+        monitor_type = 'CONNECT'
+
     set_monitor.delay(context, loadbalancer.id, monitor_type, region,
                       monitor_path, monitor_delay, monitor_timeout,
                       monitor_attempts, monitor_body, monitor_status)
