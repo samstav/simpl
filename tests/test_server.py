@@ -82,7 +82,6 @@ class TestServer(unittest.TestCase):
     def rest_tenant_exercise(self, model_name, id='id'):
         #PUT
         entity = "%s: &e1\n    %s: '1'" % (model_name, id)
-        print "ENTITY: %s" % entity
         res = self.app.put('/T1000/%ss/1' % model_name, entity,
                             content_type='application/x-yaml')
         self.assertEqual(res.status, '200 OK', res)

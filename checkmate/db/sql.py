@@ -154,7 +154,7 @@ class Driver(DbBase):
     def get_deployments(self, tenant_id=None, with_secrets=None,
                         offset=None, limit=None):
         return self.get_objects(Deployment, tenant_id, with_secrets,
-                                offset=None, limit=None)
+                                offset=offset, limit=limit)
 
     def save_deployment(self, id, body, secrets=None, tenant_id=None):
         return self.save_object(Deployment, id, body, secrets, tenant_id)
@@ -185,7 +185,8 @@ class Driver(DbBase):
 
     def get_workflows(self, tenant_id=None, with_secrets=None,
                       offset=None, limit=None):
-        return self.get_objects(Workflow, tenant_id, with_secrets)
+        return self.get_objects(Workflow, tenant_id, with_secrets,
+                                offset=offset, limit=limit))
 
     def save_workflow(self, id, body, secrets=None, tenant_id=None):
         return self.save_object(Workflow, id, body, secrets, tenant_id)
