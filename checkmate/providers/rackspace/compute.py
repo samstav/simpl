@@ -348,11 +348,18 @@ class Provider(RackspaceComputeProviderBase):
     def _images(api):
         """Gets current tenant's images and formats them in Checkmate format"""
         images = api.images.list()
-        results = {
-                str(i.id): {
+        results = {}
+        for i in images:
+            if 'LAMP' in i.name:
+                continue
+            image = {
                     'name': i.name,
-                    'os': i.name.split(' LTS ')[0].split(' (')[0],
-                    } for i in images if 'LAMP' not in i.name}
+                    'os': i.name.split(' LTS ')[0].split(' (')[0]
+                    }
+            #FIXME: hack to make our blueprints work with Private OpenStack
+            if 'precise' in image['os']:
+                image['os'] = 'Ubuntu 12.04'
+            results[str(i.id)] = image
         return results
 
     @staticmethod
@@ -383,20 +390,35 @@ class Provider(RackspaceComputeProviderBase):
             raise CheckmateNoTokenError()
 
         def find_url(catalog, region):
+            fall_back = None
             for service in catalog:
                 if service['name'] == 'cloudServersOpenStack':
                     endpoints = service['endpoints']
                     for endpoint in endpoints:
                         if endpoint.get('region') == region:
                             return endpoint['publicURL']
+                elif (service['type'] == 'compute' and
+                      service['name'] != 'cloudServers'):
+                    endpoints = service['endpoints']
+                    for endpoint in endpoints:
+                        if endpoint.get('region') == region:
+                            fall_back = endpoint['publicURL']
+            return fall_back
 
         def find_a_region(catalog):
             """Any region"""
+            fall_back = None
             for service in catalog:
                 if service['name'] == 'cloudServersOpenStack':
                     endpoints = service['endpoints']
                     for endpoint in endpoints:
                         return endpoint['region']
+                elif (service['type'] == 'compute' and
+                      service['name'] != 'cloudServers'):
+                    endpoints = service['endpoints']
+                    for endpoint in endpoints:
+                        fall_back = endpoint.get('region')
+            return fall_back
 
         if not region:
             region = find_a_region(context.catalog) or 'DFW'
@@ -414,16 +436,17 @@ class Provider(RackspaceComputeProviderBase):
 
         return api
 
-"""
-  Celery tasks to manipulate OpenStack Compute with support for
-  the Rackspace Cloud.
-"""
 
+#
+#  Celery tasks to manipulate OpenStack Compute with support for
+#  the Rackspace Cloud.
+#
 from celery.task import task
 
 REGION_MAP = {'dallas': 'DFW',
               'chicago': 'ORD',
               'london': 'LON'}
+
 
 #
 # Celery Tasks
