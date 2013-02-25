@@ -1,0 +1,4 @@
+# A test deployment wth blank objects
+blueprint:
+environment:
+inputs:

@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 import copy
 import logging
+import os
 import unittest2 as unittest
 
 # Init logging before we load the database, 3rd party, and 'noisy' modules
@@ -1623,6 +1624,27 @@ class TestDeploymentPlanning(unittest.TestCase):
         plan.evaluate_defaults()  # test idempotency
         self.assertEqual(defpass, options['defpass']['default'])
         self.assertEqual(defuuid, options['defuuid']['default'])
+
+
+class TestDeploymentScenarios(unittest.TestCase):
+
+    def test_deployment_scenarios(self):
+        base.PROVIDER_CLASSES['test.base'] = ProviderBase
+
+        data_dir = os.path.join(os.path.dirname(__file__), 'data')
+
+        # No objects
+        path = os.path.join(data_dir, "deployment - none objects.yaml")
+        with file(path, 'r') as f:
+            content = f.read()
+        self.assertRaisesRegexp(CheckmateValidationException, "Blueprint not "
+                                "found. Nothing to do.",
+                                self.plan_deployment, content)
+
+    def plan_deployment(self, content):
+        """ Wrapper for deployment planning """
+        deployment = Deployment(yaml_to_dict(content))
+        return plan(deployment, RequestContext())
 
 
 if __name__ == '__main__':
