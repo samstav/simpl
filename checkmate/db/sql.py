@@ -183,7 +183,8 @@ class Driver(DbBase):
     def get_workflow(self, id, with_secrets=None):
         return self.get_object(Workflow, id, with_secrets)
 
-    def get_workflows(self, tenant_id=None, with_secrets=None):
+    def get_workflows(self, tenant_id=None, with_secrets=None,
+                      offset=None, limit=None):
         return self.get_objects(Workflow, tenant_id, with_secrets)
 
     def save_workflow(self, id, body, secrets=None, tenant_id=None):
