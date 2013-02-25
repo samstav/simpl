@@ -212,14 +212,14 @@ class Driver(DbBase):
         results = Session.query(klass)
         if tenant_id:
             results = results.filter_by(tenant_id=tenant_id)
-        if offset and (limit is None):
-            results = results.offset(offest).all()
-        if limit:
-           if offset is None:
-               offset = 0
-           results = results.limit(limit).offset(offset).all()
         if results and results.count() > 0:
             response = {}
+            if offset and (limit is None):
+                results = results.offset(offest).all()
+            if limit:
+                if offset is None:
+                    offset = 0
+                results = results.limit(limit).offset(offset).all()
             if with_secrets == True:
                 for e in results:
                     if e.secrets:
