@@ -186,7 +186,7 @@ class Driver(DbBase):
     def get_workflows(self, tenant_id=None, with_secrets=None,
                       offset=None, limit=None):
         return self.get_objects(Workflow, tenant_id, with_secrets,
-                                offset=offset, limit=limit))
+                                offset=offset, limit=limit)
 
     def save_workflow(self, id, body, secrets=None, tenant_id=None):
         return self.save_object(Workflow, id, body, secrets, tenant_id)
