@@ -40,16 +40,23 @@ LOG = logging.getLogger(__name__)
 @get('/workflows')
 @with_tenant
 def get_workflows(tenant_id=None):
+    offset = request.query.get('offset')
+    limit = request.query.get('limit')
+    if offset:
+        offset=int(offset)
+    if limit:
+        limit=int(limit)
     if 'with_secrets' in request.query:
         if request.context.is_admin == True:
             LOG.info("Administrator accessing workflows with secrets: %s" %
                     request.context.username)
-            results = db.get_workflows(tenant_id=tenant_id,
-                    with_secrets=True)
+            results = db.get_workflows(tenant_id=tenant_id, with_secrets=True,
+                                       offset=offset, limit=limit)
         else:
             abort(403, "Administrator privileges needed for this operation")
     else:
-        results = db.get_workflows(tenant_id=tenant_id)
+        results = db.get_workflows(tenant_id=tenant_id, offset=offset,
+                                   limit=limit)
     return write_body(results, request, response)
 
 

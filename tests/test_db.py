@@ -9,7 +9,7 @@ import uuid
 
 os.environ['CHECKMATE_CONNECTION_STRING'] = 'sqlite://'
 
-from checkmate.db.sql import Deployment
+from checkmate.db.sql import Deployment, Workflow
 init_console_logging()
 LOG = logging.getLogger(__name__)
 
@@ -22,6 +22,7 @@ class TestDatabase(unittest.TestCase):
 
     def setUp(self):
         self.driver = db.get_driver('checkmate.db.sql.Driver', reset=True)
+        self.klass = Deployment
 
     def _decode_dict(self, dictionary):
         decoded_dict = {}
@@ -40,6 +41,54 @@ class TestDatabase(unittest.TestCase):
                 value = self._decode_dict(value)
             decoded_dict[key] = value
         return decoded_dict
+
+    def test_pagination(self):
+        entity = {'id': 1,
+                  'name': 'My Component',
+                  'credentials': ['My Secrets']
+                 }
+        body, secrets = extract_sensitive_data(entity)
+        self.driver.save_object(self.klass, entity['id'], body, secrets,
+            tenant_id='T1000')
+
+        entity['id'] = 2
+        entity['name'] = 'My Second Component'
+        body, secrets = extract_sensitive_data(entity)
+        self.driver.save_object(self.klass, entity['id'], body, secrets,
+            tenant_id='T1000')
+
+        entity['id'] = 3
+        entity['name'] = 'My Third Component'
+        body, secrets = extract_sensitive_data(entity)
+        self.driver.save_object(self.klass, entity['id'], body, secrets,
+            tenant_id='T1000')
+
+        expected = {1:
+                      {'id': 1,
+                       'name': 'My Component',
+                       'tenantId': 'T1000'},
+                    2: 
+                      {'id': 2,
+                       'name': 'My Second Component',
+                       'tenantId': 'T1000'}}
+        results = self.driver.get_objects(self.klass, tenant_id='T1000', limit=2)
+        results_decode = self._decode_dict(results)
+        self.assertEqual(len(results_decode), 2)
+        self.assertDictEqual(results_decode, expected)
+
+        expected = {2:
+                      {'id': 2,
+                       'name': 'My Second Component',
+                       'tenantId': 'T1000'},
+                    3: 
+                      {'id': 3,
+                       'name': 'My Third Component',
+                       'tenantId': 'T1000'}}
+        results = self.driver.get_objects(self.klass, tenant_id='T1000',
+                                          offset=1, limit=2)
+        results_decode = self._decode_dict(results)
+        self.assertEqual(len(results_decode), 2)
+        self.assertDictEqual(results_decode, expected)
 
     def test_update_secrets(self):
         _id = str(uuid.uuid4())

@@ -188,6 +188,8 @@ class Deployment(ExtensibleDict):
             entity = self.get('environment')
             if entity:
                 self._environment = Environment(entity)
+            else:
+                return Environment({})
         return self._environment
 
     def inputs(self):

@@ -223,7 +223,7 @@ def validate_inputs(deployment):
     """Validates deployment inputs"""
     errors = []
     if deployment:
-        inputs = deployment.get('inputs', {})
+        inputs = deployment.get('inputs') or {}
         for key, value in inputs.iteritems():
             if key == 'blueprint':
                 for k, v in value.iteritems():
