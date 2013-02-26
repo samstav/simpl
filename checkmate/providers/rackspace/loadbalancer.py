@@ -62,6 +62,12 @@ class Provider(ProviderBase):
                                        provider_key=self.key,
                                        default="http").lower()
 
+        port = deployment.get_setting("port",
+                                       resource_type=resource_type,
+                                       service_name=service_name,
+                                       provider_key=self.key,
+                                       default="80")
+
         algorithm = deployment.get_setting("algorithm",
                                        resource_type=resource_type,
                                        service_name=service_name,
@@ -116,7 +122,8 @@ class Provider(ProviderBase):
                                        'task_tags': ['create', 'root',
                                                      'final']},
                            dns=dns,
-                           algorithm=algorithm)
+                           algorithm=algorithm,
+                           port=port)
         final = create_lb
         for extra_protocol in extra_protocols:
             # FIXME: these resources should be generated during
@@ -170,7 +177,8 @@ class Provider(ProviderBase):
                            properties={'estimated_duration': 30,
                                        'task_tags': []},
                            parent_lb=PathAttrib("instance:%s/id" % key),
-                           algorithm=algorithm)
+                           algorithm=algorithm,
+                           port=port)
             final.follow(create_lb)
         final.properties['task_tags'].append('final')
         return dict(root=create_lb, final=final)
