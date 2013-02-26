@@ -61,10 +61,18 @@ class Provider(ProviderBase):
                                        service_name=service_name,
                                        provider_key=self.key,
                                        default="http").lower()
+
+        algorithm = deployment.get_setting("algorithm",
+                                       resource_type=resource_type,
+                                       service_name=service_name,
+                                       provider_key=self.key,
+                                       default="ROUND_ROBIN")
+
         dns = str(deployment.get_setting("create_dns",
                                          resource_type=resource_type,
                                          service_name=service_name,
                                          default="false"))
+
         dns = (dns.lower() == 'true' or dns == '1' or dns.lower() == 'yes')
 
         allow_insecure = deployment.get_setting("allow_insecure",
@@ -107,7 +115,8 @@ class Provider(ProviderBase):
                            properties={'estimated_duration': 30,
                                        'task_tags': ['create', 'root',
                                                      'final']},
-                           dns=dns)
+                           dns=dns,
+                           algorithm=algorithm)
         final = create_lb
         for extra_protocol in extra_protocols:
             # FIXME: these resources should be generated during
@@ -160,7 +169,8 @@ class Provider(ProviderBase):
                                     'provider': self.key},
                            properties={'estimated_duration': 30,
                                        'task_tags': []},
-                           parent_lb=PathAttrib("instance:%s/id" % key))
+                           parent_lb=PathAttrib("instance:%s/id" % key),
+                           algorithm=algorithm)
             final.follow(create_lb)
         final.properties['task_tags'].append('final')
         return dict(root=create_lb, final=final)
