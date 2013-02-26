@@ -16,7 +16,7 @@ environment:
 """
 
 from checkmate.providers import register_providers
-
+import checkmate.providers.opscode.knife
 
 def register():
     from checkmate.providers.opscode.server import Provider as server
