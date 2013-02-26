@@ -462,8 +462,11 @@ class Provider(ProviderBase):
             for key, option in component.get('options', {}).iteritems():
                 if 'default' in option:
                     default = option['default']
-                    if default.startswith('=generate'):
-                        default = self.evaluate(default[1:])
+                    try:
+                        if default.startswith('=generate'):
+                            default = self.evaluate(default[1:])
+                    except AttributeError:
+                        pass  # default probably not a string type
                     defaults[key] = default
             kwargs['defaults'] = defaults
         parsed = self.map_file.parse(self.map_file.raw, **kwargs)
