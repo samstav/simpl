@@ -66,7 +66,7 @@ class Provider(ProviderBase):
                                        resource_type=resource_type,
                                        service_name=service_name,
                                        provider_key=self.key,
-                                       default="80")
+                                       default=None)
 
         algorithm = deployment.get_setting("algorithm",
                                        resource_type=resource_type,
