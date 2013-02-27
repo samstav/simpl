@@ -25,6 +25,17 @@ class TestLoadBalancer(test.ProviderTester):
         provider = loadbalancer.Provider({})
         self.assertEqual(provider.key, 'rackspace.load-balancer')
 
+
+class TestCeleryTasks(unittest.TestCase):
+
+    """ Test Celery tasks """
+
+    def setUp(self):
+        self.mox = mox.Mox()
+
+    def tearDown(self):
+        self.mox.UnsetStubs()
+
     def test_create_load_balancer(self):
         name = 'fake_lb'
         vip_type = 'SERVICENET'
