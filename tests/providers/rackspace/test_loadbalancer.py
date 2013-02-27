@@ -3,6 +3,7 @@ import logging
 import unittest2 as unittest
 
 import cloudlb
+import mox
 from mox import IsA
 
 from checkmate.utils import init_console_logging
@@ -11,6 +12,8 @@ LOG = logging.getLogger(__name__)
 
 from checkmate import test
 from checkmate.deployments import resource_postback
+from checkmate.middleware import RequestContext
+from checkmate.providers import ProviderBase
 from checkmate.providers.rackspace import loadbalancer
 
 
@@ -85,6 +88,45 @@ class TestLoadBalancer(test.ProviderTester):
         results = loadbalancer.create_loadbalancer(context, name, vip_type,
                                                    protocol, region,
                                                    api=api_mock)
+
+        self.assertDictEqual(results, expected)
+        self.mox.VerifyAll()
+
+
+class TestLoadBalancerGenerateTemplate(unittest.TestCase):
+    """Test Load Balancer Provider's functions"""
+
+    def setUp(self):
+        self.mox = mox.Mox()
+
+    def tearDown(self):
+        self.mox.UnsetStubs()
+
+    def test_template_generation(self):
+        """Test template generation"""
+        provider = loadbalancer.Provider({})
+
+        #Mock Base Provider, context and deployment
+        deployment = self.mox.CreateMockAnything()
+        deployment['id'].AndReturn('Mock')
+        context = RequestContext()
+
+        deployment.get_setting('region', resource_type='load-balancer',
+                               service_name='lb',
+                               provider_key=provider.key).AndReturn('NORTH')
+
+        expected = {
+            'service': 'lb',
+            'region': 'NORTH',
+            'dns-name': 'fake_name',
+            'instance': {},
+            'type': 'load-balancer',
+            'provider': provider.key,
+        }
+
+        self.mox.ReplayAll()
+        results = provider.generate_template(deployment, 'load-balancer', 'lb',
+                                             context, name='fake_name')
 
         self.assertDictEqual(results, expected)
         self.mox.VerifyAll()
