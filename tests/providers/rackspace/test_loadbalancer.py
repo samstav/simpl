@@ -10,11 +10,12 @@ from checkmate.utils import init_console_logging
 init_console_logging()
 LOG = logging.getLogger(__name__)
 
-from checkmate import test
-from checkmate.deployments import resource_postback
+from checkmate import test, utils
+from checkmate.deployments import resource_postback, Deployment, plan
 from checkmate.middleware import RequestContext
-from checkmate.providers import ProviderBase
+from checkmate.providers import base, register_providers
 from checkmate.providers.rackspace import loadbalancer
+from checkmate.workflows import create_workflow_deploy
 
 
 class TestLoadBalancer(test.ProviderTester):
@@ -140,6 +141,158 @@ class TestLoadBalancerGenerateTemplate(unittest.TestCase):
                                              context, name='fake_name')
 
         self.assertDictEqual(results, expected)
+        self.mox.VerifyAll()
+
+
+class TestBasicWorkflow(test.StubbedWorkflowBase):
+
+    """
+
+    Test that workflow tasks are generated and workflow completes
+
+    """
+
+    def setUp(self):
+        test.StubbedWorkflowBase.setUp(self)
+        base.PROVIDER_CLASSES = {}
+        register_providers([loadbalancer.Provider, test.TestProvider])
+        self.deployment = Deployment(utils.yaml_to_dict("""
+                id: 'DEP-ID-1000'
+                blueprint:
+                  name: LB Test
+                  services:
+                    lb:
+                      component:
+                        resource_type: load-balancer
+                        interface: http
+                        constraints:
+                          - region: North
+                      relations:
+                        server: http
+                    server:
+                      component:
+                        resource_type: compute
+
+                environment:
+                  name: test
+                  providers:
+                    load-balancer:
+                      vendor: rackspace
+                      catalog:
+                        load-balancer:
+                          rsCloudLB:
+                            provides:
+                            - load-balancer: http
+                            requires:
+                            - application: http
+                            options:
+                              protocol:
+                                type: list
+                                choice: [http]
+                    base:
+                      vendor: test
+                      catalog:
+                        compute:
+                          linux_instance:
+                            provides:
+                            - application: http
+                            - compute: linux
+            """))
+        context = RequestContext(auth_token='MOCK_TOKEN',
+                                 username='MOCK_USER')
+        plan(self.deployment, context)
+
+    def test_workflow_task_generation(self):
+        """Verify workflow task creation"""
+        context = RequestContext(auth_token='MOCK_TOKEN',
+                                 username='MOCK_USER')
+        workflow = create_workflow_deploy(self.deployment, context)
+
+        task_list = workflow.spec.task_specs.keys()
+        expected = [
+            'Root',
+            'Start',
+            'Add Node 1 to LB 0',
+            'Create HTTP Loadbalancer (0)',
+            'Create Resource 1',
+            'Wait before adding 1 to LB 0',
+        ]
+        task_list.sort()
+        expected.sort()
+        self.assertListEqual(task_list, expected, msg=task_list)
+
+    def test_workflow_completion(self):
+        """Verify workflow sequence and data flow"""
+
+        expected = []
+
+        for key, resource in self.deployment['resources'].iteritems():
+            if resource.get('type') == 'compute':
+                expected.append({
+                        'call': 'checkmate.providers.test.create_resource',
+                        'args': [IsA(dict), resource],
+                        'kwargs': None,
+                        'result': {'instance:%s' % key: {
+                            'id': 'server9',
+                            'status': 'ACTIVE',
+                            'ip': '4.4.4.1',
+                            'private_ip': '10.1.2.1',
+                            'addresses': {'public': [{'version': 4,
+                                          'addr': '4.4.4.1'}, {'version': 6,
+                                          'addr': '2001:babe::ff04:36c1'}],
+                                          'private': [{'version': 4,
+                                          'addr': '10.1.2.1'}]},
+                            }},
+                        'post_back_result': True,
+                        })
+            elif resource.get('type') == 'load-balancer':
+
+                # Create Load Balancer
+
+                expected.append({
+                    'call': 'checkmate.providers.rackspace.loadbalancer.'
+                            'create_loadbalancer',
+                    'args': [
+                            IsA(dict),
+                            'CM-DEP-ID--lb1.checkmate.local',
+                            'PUBLIC',
+                            'HTTP',
+                            'North',
+                        ],
+                    'kwargs': {
+                            'dns': False,
+                            'algorithm': 'ROUND_ROBIN',
+                            'port': None,
+                        },
+                    'post_back_result': True,
+                    'result': {
+                            'instance:0': {
+                                    'id': 121212,
+                                    'public_ip': '8.8.8.8',
+                                    'port': 80,
+                                    'protocol': 'http'
+                                }
+                        },
+                    'resource': key,
+                    })
+
+                expected.append({
+                    'call': 'checkmate.providers.rackspace.loadbalancer.'
+                            'add_node',
+                    'args': [IsA(dict), 121212, '10.1.2.1', 'North'],
+                    'kwargs': None,
+                    'result': None,
+                    'resource': key,
+                    })
+
+        self.workflow = self._get_stubbed_out_workflow(expected_calls=expected)
+
+        self.mox.ReplayAll()
+
+        self.workflow.complete_all()
+        self.assertTrue(self.workflow.is_completed(),
+                        'Workflow did not complete')
+
         self.mox.VerifyAll()
 
 
