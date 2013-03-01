@@ -303,6 +303,8 @@ Some commands can be issued with a '+command' URL. Example:
 
 All calls are supported flat off of the root or under a tenant ID. Calls off of the root require administrative privileges and will return all objects from all tenants (ex. /environments vs /T1000/environments)
 
+All calls to GET /deployments and GET /workflows may be optionally paginated by offset and limit.
+
 
 ### List of all calls
 *:tid* is the tenant ID and is optional.
@@ -318,14 +320,16 @@ All calls are supported flat off of the root or under a tenant ID. Calls off of 
     GET/POST [/:tid]/blueprints
     PUT/GET/POST [/:tid]/blueprints/:id
 
-    GET/POST [/:tid]/deployments
+    GET  [/:tid]/deployments/[?offset=OFFSET&limit=LIMIT]
+    POST [/:tid]/deployments
     PUT/GET/POST [/:tid]/deployments/:id
     POST [/:tid]/deployments/+parse
     POST [/:tid]/deployments/+preview
 
     GET [/:tid]/deployments/:id/status
 
-    GET/POST [/:tid]/workflows
+    GET  [/:tid]/workflows/[?offset=OFFSET&limit=LIMIT]
+    POST [/:tid]/workflows
     PUT/GET/POST [/:tid]/workflows/:id
 
     GET [/:tid]/workflows/:id/status
@@ -437,6 +441,8 @@ Note: to connect to mongodb, also install the pymongo client library:
     /var/local/checkmate/deployments.
 
 **CHECKMATE_CHEF_PATH**: when using checkmate with a server, checkmate needs to know the path for the chef client deployment. This points to that path. The kniofe.rb file should be in there.
+
+**CHECKMATE_CHEF_OMNIBUS_VERSION**: the omnibus version to use by default. If not specified, 10.12.0-1 is used. This can also be overridden by a constraint in a deployment.
 
 **CHECKMATE_BROKER_USERNAME**: the username to use to connect to the message queue
 
