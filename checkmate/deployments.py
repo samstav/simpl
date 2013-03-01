@@ -309,6 +309,7 @@ def get_deployment_status(oid, tenant_id=None):
 
     resources = deployment.get('resources', {})
     results = {}
+    results['status'] = deployment.get('status')
     workflow_id = deployment.get('workflow')
     if workflow_id:
         workflow = DB.get_workflow(workflow_id)
