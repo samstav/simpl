@@ -303,6 +303,8 @@ Some commands can be issued with a '+command' URL. Example:
 
 All calls are supported flat off of the root or under a tenant ID. Calls off of the root require administrative privileges and will return all objects from all tenants (ex. /environments vs /T1000/environments)
 
+All calls to GET /deployments and GET /workflows may be optionally paginated by offset and limit.
+
 
 ### List of all calls
 *:tid* is the tenant ID and is optional.
@@ -318,14 +320,16 @@ All calls are supported flat off of the root or under a tenant ID. Calls off of 
     GET/POST [/:tid]/blueprints
     PUT/GET/POST [/:tid]/blueprints/:id
 
-    GET/POST [/:tid]/deployments
+    GET  [/:tid]/deployments/[?offset=OFFSET&limit=LIMIT]
+    POST [/:tid]/deployments
     PUT/GET/POST [/:tid]/deployments/:id
     POST [/:tid]/deployments/+parse
     POST [/:tid]/deployments/+preview
 
     GET [/:tid]/deployments/:id/status
 
-    GET/POST [/:tid]/workflows
+    GET  [/:tid]/workflows/[?offset=OFFSET&limit=LIMIT]
+    POST [/:tid]/workflows
     PUT/GET/POST [/:tid]/workflows/:id
 
     GET [/:tid]/workflows/:id/status
