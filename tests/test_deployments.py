@@ -1034,7 +1034,6 @@ class TestDeploymentSettings(unittest.TestCase):
                           "my_option", constraint, option=option,
                           option_key="my_option")
 
-
 class TestDeploymentCounts(unittest.TestCase):
     """ Tests getting deployment numbers """
 

@@ -23,10 +23,10 @@ from checkmate.keys import hash_SHA512
 from checkmate.providers import ProviderBase
 from checkmate.workflows import wait_for
 from checkmate.utils import merge_dictionary  # Spiff version used by transform
-from jinja2.runtime import Undefined
-from jinja2.filters import do_indent
 
 LOG = logging.getLogger(__name__)
+OMNIBUS_DEFAULT = os.environ.get('CHECKMATE_CHEF_OMNIBUS_DEFAULT',
+                                 "10.12.0-1")
 
 
 def register_scheme(scheme):
@@ -462,8 +462,11 @@ class Provider(ProviderBase):
             for key, option in component.get('options', {}).iteritems():
                 if 'default' in option:
                     default = option['default']
-                    if default.startswith('=generate'):
-                        default = self.evaluate(default[1:])
+                    try:
+                        if default.startswith('=generate'):
+                            default = self.evaluate(default[1:])
+                    except AttributeError:
+                        pass  # default probably not a string type
                     defaults[key] = default
             kwargs['defaults'] = defaults
         parsed = self.map_file.parse(self.map_file.raw, **kwargs)
@@ -583,6 +586,11 @@ class Provider(ProviderBase):
                                          "'%s'" % relation_key)
             attributes = map_with_context.get_attributes(resource['component'],
                                                          deployment)
+            service_name = resource['service']
+            omnibus_version = deployment.get_setting('omnibus-version',
+                                                     provider_key=self.key,
+                                                     service_name=service_name,
+                                                     default=OMNIBUS_DEFAULT)
             # Create chef setup tasks
             register_node_task = Celery(wfspec,
                     'Register Server %s (%s)' % (relation['target'],
@@ -595,7 +603,7 @@ class Provider(ProviderBase):
                             relation['target']),
                     kitchen_name='kitchen',
                     attributes=attributes,
-                    omnibus_version="10.12.0-1",
+                    omnibus_version=omnibus_version,
                     identity_file=Attrib('private_key_path'),
                     defines=dict(resource=key,
                                 relation=relation_key,
@@ -606,7 +614,7 @@ class Provider(ProviderBase):
 
             bootstrap_task = Celery(wfspec,
                     'Pre-Configure Server %s (%s)' % (relation['target'],
-                                                      resource['service']),
+                                                      service_name),
                     'checkmate.providers.opscode.knife.cook',
                     call_args=[
                             PathAttrib('instance:%s/ip' % relation['target']),
@@ -627,7 +635,7 @@ class Provider(ProviderBase):
             wait_on.append(self.prep_task)
             root = wait_for(wfspec, register_node_task, wait_on,
                     name="After Environment is Ready and Server %s (%s) is Up"
-                            % (relation['target'], resource['service']),
+                            % (relation['target'], service_name),
                     resource=key, relation=relation_key, provider=self.key)
             if 'task_tags' in root.properties:
                 root.properties['task_tags'].append('root')

@@ -64,8 +64,10 @@ class Driver(DbBase):
     def get_deployment(self, id, with_secrets=None):
         return self.get_object('deployments', id, with_secrets)
 
-    def get_deployments(self, tenant_id=None, with_secrets=None):
-        return self.get_objects('deployments', tenant_id, with_secrets)
+    def get_deployments(self, tenant_id=None, with_secrets=None,
+                        limit=None, offset=None):
+        return self.get_objects('deployments', tenant_id, with_secrets, 
+                                offset=offset, limit=limit)
 
     def save_deployment(self, id, body, secrets=None, tenant_id=None):
         return self.save_object('deployments', id, body, secrets, tenant_id)
@@ -94,8 +96,10 @@ class Driver(DbBase):
     def get_workflow(self, id, with_secrets=None):
         return self.get_object('workflows', id, with_secrets)
 
-    def get_workflows(self, tenant_id=None, with_secrets=None):
-        return self.get_objects('workflows', tenant_id, with_secrets)
+    def get_workflows(self, tenant_id=None, with_secrets=None,
+                      limit=None, offset=None):
+        return self.get_objects('workflows', tenant_id, with_secrets,
+                                offset=offset, limit=limit)
 
     def save_workflow(self, id, body, secrets=None, tenant_id=None):
         return self.save_object('workflows', id, body, secrets, tenant_id)
@@ -111,12 +115,31 @@ class Driver(DbBase):
                     merge_dictionary(results, secrets)
             return results
 
-    def get_objects(self, klass, tenant_id=None, with_secrets=None):
+    def get_objects(self, klass, tenant_id=None, with_secrets=None,
+                    offset=None, limit=None):                       
         if tenant_id:
-            results = self.database()[klass].find({'tenantId': tenant_id},
-                    {'_id': 0})
+            if limit:
+                if offset is None:
+                    offset = 0
+                results = (self.database()[klass].find({'tenantId': tenant_id},
+                           {'_id': 0}).skip(offset).limit(limit))
+            elif offset and (limit is None):
+                 results = (self.database()[klass].find({'tenantId': tenant_id},
+                           {'_id': 0}).skip(offset))
+            else:
+                results = self.database()[klass].find({'tenantId': tenant_id},
+                                                      {'_id': 0})
         else:
-            results = self.database()[klass].find(None, {'_id': 0})
+            if limit:
+                if offset is None:
+                    offset = 0
+                results = (self.database()[klass].find(None,
+                           {'_id': 0}).skip(offset).limit(limit))
+            elif offset and (limit is None):
+                results = (self.database()[klass].find(None,
+                           {'_id': 0}).skip(offset))
+            else:
+                results = self.database()[klass].find(None, {'_id': 0})
         if results:
             response = {}
             if with_secrets is True:
