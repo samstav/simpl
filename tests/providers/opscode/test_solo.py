@@ -371,7 +371,10 @@ class TestMySQLMaplessWorkflow(test.StubbedWorkflowBase):
                 expected.append({
                     'call': 'checkmate.providers.opscode.knife.register_node',
                     'args': ['4.4.4.1', self.deployment['id']],
-                    'kwargs': In('password'),
+                    'kwargs': And(In('password'),
+                                  ContainsKeyValue('omnibus_version',
+                                                   '10.12.0-1')
+                                 ),
                     'result': None,
                     'resource': key,
                     })
@@ -729,7 +732,9 @@ class TestMappedSingleWorkflow(test.StubbedWorkflowBase):
                         'args': ["4.4.4.4", self.deployment['id']],
                         'kwargs': And(In('password'),
                                       ContainsKeyValue('attributes',
-                                                        attributes)),
+                                                        attributes),
+                                      ContainsKeyValue('omnibus_version',
+                                                       '10.12.0-1')),
                         'result': None,
                         'resource': key,
                     }, {
@@ -1092,6 +1097,8 @@ class TestMappedMultipleWorkflow(test.StubbedWorkflowBase):
                                 'register_node',
                         'args': ["4.4.4.4", self.deployment['id']],
                         'kwargs': And(In('password'),
+                                      ContainsKeyValue('omnibus_version',
+                                                       '10.12.0-1'),
                                       ContainsKeyValue('attributes',
                                               {'connections': 10,
                                                'widgets': 10})),
