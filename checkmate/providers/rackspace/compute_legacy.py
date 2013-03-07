@@ -465,7 +465,8 @@ def create_server(context, name, api_object=None, flavor=2, files=None,
 
     instance_key = 'instance:%s' % context['resource']
     results = {instance_key: dict(id=server.id, ip=ip_address,
-            password=server.adminPass, private_ip=private_ip_address)}
+            password=server.adminPass, private_ip=private_ip_address,
+            status="BUILD")}
     # Send data back to deployment
     resource_postback.delay(context['deployment'],
                             results) #@UndefinedVariable
@@ -495,6 +496,8 @@ def wait_on_build(context, server_id, ip_address_type='public',
             }
 
     if server.status == 'ERROR':
+        results = {'status': "ERROR"}
+        resource_postback.delay(context['deployment'], results)
         raise CheckmateServerBuildFailed("Server %s build failed" % server_id)
 
     ip = None
@@ -553,6 +556,7 @@ def wait_on_build(context, server_id, ip_address_type='public',
                 private_key=private_key)
         if up:
             LOG.info("Server %s is up" % server_id)
+            results['status'] = "ACTIVE"
             instance_key = 'instance:%s' % context['resource']
             results = {instance_key: results}
             # Send data back to deployment

@@ -125,6 +125,13 @@ class Provider(ProviderBase):
                            algorithm=algorithm,
                            port=port)
         final = create_lb
+
+        task_name = 'Wait for Loadbalancer %s (%s) build' % (key,
+                                                             resource['service'])
+        celery_call = 'checkmate.providers.rackspace.loadbalancer.wait_on_build'
+        build_wait_task = Celery(wfspec, task_name, celery_call, **kwargs)
+        create_lb.connect(build_wait_task)
+
         for extra_protocol in extra_protocols:
             # FIXME: these resources should be generated during
             # planning, not here
@@ -488,7 +495,8 @@ def create_loadbalancer(context, name, vip_type, protocol, region, api=None,
         'id': loadbalancer.id,
         'public_ip': vip,
         'port': loadbalancer.port,
-        'protocol': loadbalancer.protocol}}
+        'protocol': loadbalancer.protocol,
+        'status': "BUILD"}}
 
     # Send data back to deployment
     resource_postback.delay(context['deployment'], results)
@@ -665,3 +673,37 @@ def set_monitor(context, lbid, mon_type, region, path='/', delay=10,
         LOG.debug("Error setting %s monitor on load balancer %d. Error: %s. "
                   "Retrying" % (type, lbid, str(exc)))
         set_monitor.retry(exc=exc)
+
+@task(default_retry_delay=30, max_retries=120, acks_late=True)
+def wait_on_build(context, lbid, region, api=None):
+    """ Checks to see if a lb's status is ACTIVE, so we can change
+        resource status in deployment """
+
+    match_celery_loggin(LOG)
+    assert lbid, "ID must be provided"
+    LOG.debug("Getting loadbalancer %s" % lbid)
+
+    if api is None:
+        api = Provider._connect(context, region)
+
+    loadbalancer = api.loadbalancers.get(lbid)
+
+    results = {}
+
+    if loadbalancer.status == "ERROR":
+        results['status'] = "ERROR"
+        results['errmessage'] = ("Loadbalancer %s build failed" % (lbid))
+        instance_key = 'instance:%s' % context['resource']
+        results = {instance_key: results}
+        resource_postback.delay(context['deployment'], results)
+        return results
+    elif loadbalancer.status == "ACTIVE":
+        results['status'] = "ACTIVE"
+        instance_key = 'instance:%s' % context['resource']
+        results = {instance_key: results}
+        resource_postback.delay(context['deployment'], results)
+        return results
+    else:
+        msg = ("Loadbalancer status is %s, retrying" % (loadbalancer.status))
+        return wait_on_build.retry(exc=CheckmateException(msg))
+    

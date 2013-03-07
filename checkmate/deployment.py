@@ -809,6 +809,7 @@ class Deployment(ExtensibleDict):
         resource = provider.generate_template(self, component.get('is'),
                                               service_name, context, name=name)
         resource['component'] = definition['id']
+        resource['status'] = "NEW"
         Resource.validate(resource)
         return resource
 
@@ -831,6 +832,7 @@ class Deployment(ExtensibleDict):
                     if not resource:
                         raise IndexError("Resource %s not found" % resource_id)
                     # Check the value
+                    print "UPDATING RESOURCE %s" % resource
                     if not isinstance(value, dict):
                         raise (CheckmateException("Postback value for "
                                "instance '%s' was not a dictionary"
