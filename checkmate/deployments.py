@@ -316,9 +316,12 @@ def get_deployment_status(oid, tenant_id=None):
         serializer = DictionarySerializer()
         wf = Workflow.deserialize(serializer, workflow)
         for task in wf.get_tasks(state=Task.ANY_MASK):
+            print "DEFINES: %s" % task.task_spec.defines
+            print "TASK ID: %s " % task.id
             if 'resource' in task.task_spec.defines:
                 resource_id = str(task.task_spec.defines['resource'])
                 resource = resources.get(resource_id, None)
+                print "PROCESSING RESOURCE: %s" % resource
                 if resource:
                     result = {}
                     result['state'] = task.get_state_name()
@@ -345,7 +348,6 @@ def get_deployment_status(oid, tenant_id=None):
     results['resources'] = resources
 
     return write_body(results, request, response)
-
 
 def execute(oid, timeout=180, tenant_id=None):
     """Process a checkmate deployment workflow
@@ -430,12 +432,41 @@ def resource_postback(deployment_id, contents):
 
     The contents are a hash (dict) of all the above
     """
+    print "HERE"
+    print "POST_BACK: %s" % dict(data=contents)
+
     deployment = DB.get_deployment(deployment_id, with_secrets=True)
     if not deployment:
         raise IndexError("Deployment %s not found" % deployment_id)
 
     deployment = Deployment(deployment)
     deployment.on_resource_postback(contents)
+
+
+    # Update deployment status
+    # If any resource status is error, deployment status = ERROR
+    # Else, unless all resources are new, deployment status = BUILD
+    if isinstance(contents, dict):
+        for key, value in contents.items():
+            if key.startswith('instance'):
+                r_status = contents[key].get('status')
+                if r_status and r_status is "ERROR":
+                    deployment['status'] = "ERROR"
+                else:
+                    status = ""
+                    resources = deployment.get('resources')
+                    for key, value in resources:
+                        if value['status'] is "BUILD":
+                            status = "BUILD"
+                            continue
+                        if value['status'] is "ERROR":
+                            status = "ERROR"
+                            deployment['errmessage'] = value['errmessage']
+                            break
+                        if value['status'] is "NEW"
+                            continue
+                    if status:
+                        deployment['status'] = status
 
     body, secrets = extract_sensitive_data(deployment)
     DB.save_deployment(deployment_id, body, secrets)

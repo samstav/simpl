@@ -523,6 +523,7 @@ def create_workflow_spec_deploy(deployment, context):
               ', '.join(provider_keys))
 
     for key in provider_keys:
+        print "KEY: %s " % key
         provider = environment.get_provider(key)
         providers[provider.key] = provider
         prep_result = provider.prep_environment(wfspec, deployment, context)
@@ -565,6 +566,8 @@ def create_workflow_spec_deploy(deployment, context):
                 not provider_result['root'].inputs:
             # Attach unattached tasks
             wfspec.start.connect(provider_result['root'])
+            print "PROVIDER RESULT: %s FOR RESOURCE %s " % (provider_result, resource)
+            print "CURRENT SPECS: %s" % wfspec.task_specs
         # Process hosting relationship before the hosted resource
         if 'hosts' in resource:
             for index in resource['hosts']:
