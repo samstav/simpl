@@ -166,13 +166,13 @@ RESOURCE_TYPES = ['compute', 'database', 'wordpress', 'php5', 'load-balancer',
 
 RESOURCE_SCHEMA = ['id', 'index', 'name', 'provider', 'relations', 'hosted_on',
         'hosts', 'type', 'component', 'dns-name', 'instance', 'flavor',
-        'image', 'disk', 'region', 'service']
+        'image', 'disk', 'region', 'service', 'status']
 
 BLUEPRINT_SCHEMA = ['id', 'name', 'services', 'options', 'resources']
 
 DEPLOYMENT_SCHEMA = ['id', 'name', 'blueprint', 'environment', 'inputs',
         'includes', 'resources', 'workflow', 'status', 'created',
-        'tenantId']
+        'tenantId', 'errmessage']
 
 COMPONENT_SCHEMA = ['id', 'options', 'requires', 'provides', 'summary',
         'dependencies', 'version', 'is', 'role', 'roles', 'source_name']

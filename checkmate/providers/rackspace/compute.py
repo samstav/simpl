@@ -502,6 +502,7 @@ def create_server(context, name, region, api_object=None, flavor="2",
 
     server = api_object.servers.create(name, image_object, flavor_object,
             meta=context.get("metadata", None), files=files)
+    # Update task in workflow
     create_server.update_state(state="PROGRESS",
                                meta={"server.id": server.id})
     LOG.debug('Created server %s (%s).  Admin pass = %s' % (
@@ -511,6 +512,7 @@ def create_server(context, name, region, api_object=None, flavor="2",
     results = {instance_key: {'id': server.id,
                               'password': server.adminPass,
                               'region': api_object.client.region_name,
+                              'status': "BUILD"
                               }}
 
     # Send data back to deployment
@@ -552,6 +554,11 @@ def wait_on_build(context, server_id, region, ip_address_type='public',
             }
 
     if server.status == 'ERROR':
+        results = {'status': 'ERROR'}
+        results['errmesage': "Server %s build failed" % server_id
+        instance_key = 'instance:%s' % context['resource']
+        results = {instance_key: results}
+        resource_postback.delay(context['deployment'], results)
         raise CheckmateServerBuildFailed("Server %s build failed" % server_id)
 
     if server.status == 'BUILD':
@@ -650,6 +657,8 @@ def wait_on_build(context, server_id, region, ip_address_type='public',
                                       max_retries=240)
     else:
         LOG.info("Server '%s' is ACTIVE. Not verified to be up" % server_id)
+
+    results['status'] = "ACTIVE"
 
     instance_key = 'instance:%s' % context['resource']
     results = {instance_key: results}
