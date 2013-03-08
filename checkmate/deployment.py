@@ -837,16 +837,21 @@ class Deployment(ExtensibleDict):
                                "instance '%s' was not a dictionary"
                                % resource_id))
                     # Canonicalize it
+                    print "before canon: %s" % value
                     value = schema.translate_dict(value)
+                    print "after canon: %s" % value
                     # Only apply instance
                     if 'instance' in value:
                         value = value['instance']
+                        print "isnt in value: %" % value
                     # Merge it in
                     if 'instance' not in resource:
                         resource['instance'] = {}
                     LOG.debug("Merging postback data for resource %s: %s" % (
                               resource_id, value), extra=dict(data=resource))
+                    print "pre merge: %s" % resource['instance']
                     merge_dictionary(resource['instance'], value)
+                    print "post merge: %s" % resource['instance']
 
                 elif key.startswith('connection:'):
                     # Find the connection

@@ -692,7 +692,6 @@ def set_monitor(context, lbid, mon_type, region, path='/', delay=10,
                 status='^[234][0-9][0-9]$', api=None):
     """Create a monitor for a Cloud Load Balancer"""
     print "CREATING MONITOR"
-    print "LB STATUS: %s" % lb_status
     match_celery_logging(LOG)
     if api is None:
         api = Provider._connect(context, region)
