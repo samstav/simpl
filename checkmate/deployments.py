@@ -316,12 +316,9 @@ def get_deployment_status(oid, tenant_id=None):
         serializer = DictionarySerializer()
         wf = Workflow.deserialize(serializer, workflow)
         for task in wf.get_tasks(state=Task.ANY_MASK):
-            print "DEFINES: %s" % task.task_spec.defines
-            print "TASK ID: %s " % task.id
             if 'resource' in task.task_spec.defines:
                 resource_id = str(task.task_spec.defines['resource'])
                 resource = resources.get(resource_id, None)
-                print "PROCESSING RESOURCE: %s" % resource
                 if resource:
                     result = {}
                     result['state'] = task.get_state_name()
@@ -432,7 +429,6 @@ def resource_postback(deployment_id, contents):
 
     The contents are a hash (dict) of all the above
     """
-    print "HERE"
     print "POST_BACK: %s" % dict(data=contents)
 
     deployment = DB.get_deployment(deployment_id, with_secrets=True)
@@ -457,16 +453,18 @@ def resource_postback(deployment_id, contents):
                 else:
                     status = ""
                     resources = deployment.get('resources')
-                    for key, value in resources:
-                        if value['status'] is "BUILD":
-                            status = "BUILD"
-                            continue
-                        if value['status'] is "ERROR":
-                            status = "ERROR"
-                            deployment['errmessage'] = value.get('errmessage')
-                            break
-                        if value['status'] is "NEW":
-                            continue
+                    for key, value in resources.items():
+                        if key.isdigit():
+                            print "%s:%s" % (key, value['status'])
+                            if value['status'] is "BUILD":
+                                status = "BUILD"
+                                continue
+                            if value['status'] is "ERROR":
+                                status = "ERROR"
+                                deployment['errmessage'] = value.get('errmessage')
+                                break
+                            if value['status'] is "NEW":
+                                continue
                     if status:
                         print "STATUS: %s" % status
                         deployment['status'] = status
