@@ -129,7 +129,16 @@ class Provider(ProviderBase):
         task_name = 'Wait for Loadbalancer %s (%s) build' % (key,
                                                              resource['service'])
         celery_call = 'checkmate.providers.rackspace.loadbalancer.wait_on_build'
-        build_wait_task = Celery(wfspec, task_name, celery_call, **kwargs)
+        build_wait_task = Celery(wfspec, task_name, celery_call,
+                                 call_args=[context.get_queued_task_dict(
+                                            deployment=deployment['id'],
+                                            resource=key),
+                                            PathAttrib('instance:%s/id' % key),
+                                            resource['region']],
+                                 properties={'estimated_druation':150},
+                                 defines=dict(resource=key,
+                                              provider=self.key,
+                                              task_tags=['complete']))
         create_lb.connect(build_wait_task)
 
         for extra_protocol in extra_protocols:
@@ -669,7 +678,7 @@ def set_monitor(context, lbid, mon_type, region, path='/', delay=10,
         set_monitor.retry(exc=exc)
 
 @task(default_retry_delay=30, max_retries=120, acks_late=True)
-def wait_on_build(context, lbid, region, api=None):
+def wait_on_build(context, lbid, region, api=None, **kwargs):
     """ Checks to see if a lb's status is ACTIVE, so we can change
         resource status in deployment """
 
