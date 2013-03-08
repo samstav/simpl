@@ -119,13 +119,12 @@ class Provider(ProviderBase):
                            # FIXME: final task should be the one that finishes
                            # when all extra_protocols are done, not this one
                            properties={'estimated_duration': 30,
-                                       'task_tags': ['create', 'root',
-                                                     'final']},
+                                       'task_tags': ['create', 'root']},
                            dns=dns,
                            algorithm=algorithm,
                            port=port)
-        final = create_lb
-
+        # final = create_lb
+        
         task_name = 'Wait for Loadbalancer %s (%s) build' % (key,
                                                              resource['service'])
         celery_call = 'checkmate.providers.rackspace.loadbalancer.wait_on_build'
@@ -140,6 +139,26 @@ class Provider(ProviderBase):
                                               provider=self.key,
                                               task_tags=['complete']))
         create_lb.connect(build_wait_task)
+
+        task_name = 'Add monitor to Loadbalancer %s (%s) build' % (key,
+                                                                   resource['service'])
+        celery_call = 'checkmate.providers.rackspace.loadbalancer.set_monitor'
+        set_monitor_task = Celery(wfspec, task_name, celery_call,
+                                  call_args=[context.get_queued_task_dict(
+                                             deployment=deployment['id'],
+                                             resource=key),
+                                             PathAttrib('instance:%s/id' % key),
+                                             proto.upper(),
+                                             resource['region'],
+                                             '/', 10, 10, 3, '(.*)',
+                                             '^[234][0-9][0-9]$'],
+                                  defines=dict(resource=key,
+                                               provider=self.key,
+                                               task_tags=['final']))
+
+        build_wait_task.connect(set_monitor_task)
+
+        final = set_monitor_task
 
         for extra_protocol in extra_protocols:
             # FIXME: these resources should be generated during
@@ -175,7 +194,7 @@ class Provider(ProviderBase):
             LOG.debug("Added resource '%s' for extra protocol '%s'" %
                       (resource2['index'], extra_protocol))
 
-            final = Celery(wfspec,
+            create_lb2 = Celery(wfspec,
                            'Create %s Loadbalancer (%s)' % (
                                extra_protocol.upper(), resource2['index']),
                            'checkmate.providers.rackspace.loadbalancer.'
@@ -195,8 +214,41 @@ class Provider(ProviderBase):
                            parent_lb=PathAttrib("instance:%s/id" % key),
                            algorithm=algorithm,
                            port=port)
-            final.follow(create_lb)
-        final.properties['task_tags'].append('final')
+            create_lb2.follow(create_lb)
+            task_name = 'Wait for Loadbalancer %s (%s) build' % (key,
+                                                             resource['service'])
+            celery_call = 'checkmate.providers.rackspace.loadbalancer.wait_on_build'
+            build_wait_task2 = Celery(wfspec, task_name, celery_call,
+                                     call_args=[context.get_queued_task_dict(
+                                                deployment=deployment['id'],
+                                                resource=key),
+                                                PathAttrib('instance:%s/id' % key),
+                                                resource['region']],
+                                     properties={'estimated_druation':150},
+                                     defines=dict(resource=key,
+                                                  provider=self.key,
+                                                  task_tags=['complete']))
+            create_lb2.connect(build_wait_task2)
+
+            task_name = 'Add monitor to Loadbalancer %s (%s) build' % (key,
+                                                                       resource['service'])
+            celery_call = 'checkmate.providers.rackspace.loadbalancer.set_monitor'
+            set_monitor_task2 = Celery(wfspec, task_name, celery_call,
+                                      call_args=[context.get_queued_task_dict(
+                                                 deployment=deployment['id'],
+                                                 resource=key),
+                                                 PathAttrib('instance:%s/id' % key),
+                                                 proto.upper(),
+                                                 resource['region'],
+                                                 '/', 10, 10, 3, '(.*)',
+                                                 '^[234][0-9][0-9]$'],
+                                      defines=dict(resource=key,
+                                                   provider=self.key,
+                                                   task_tags=['final']))
+
+            build_wait_task.connect(set_monitor_task2)
+            final = set_monitor_task2
+
         return dict(root=create_lb, final=final)
 
     def add_connection_tasks(self, resource, key, relation, relation_key,
@@ -488,12 +540,6 @@ def create_loadbalancer(context, name, vip_type, protocol, region, api=None,
                             '.'.join(name.split('.')[1:]),
                             'A', vip, rec_ttl=300, makedomain=True)
 
-    # attach an appropriate monitor for our nodes
-    monitor_type = protocol.upper()
-    set_monitor.delay(context, loadbalancer.id, monitor_type, region,
-                      monitor_path, monitor_delay, monitor_timeout,
-                      monitor_attempts, monitor_body, monitor_status)
-
     results = {'instance:%s' % context['resource']: {
         'id': loadbalancer.id,
         'public_ip': vip,
@@ -646,6 +692,8 @@ def set_monitor(context, lbid, mon_type, region, path='/', delay=10,
                 timeout=10, attempts=3, body='(.*)',
                 status='^[234][0-9][0-9]$', api=None):
     """Create a monitor for a Cloud Load Balancer"""
+    print "CREATING MONITOR"
+    print "LB STATUS: %s" % lb_status
     match_celery_logging(LOG)
     if api is None:
         api = Provider._connect(context, region)
@@ -678,11 +726,12 @@ def set_monitor(context, lbid, mon_type, region, path='/', delay=10,
         set_monitor.retry(exc=exc)
 
 @task(default_retry_delay=30, max_retries=120, acks_late=True)
-def wait_on_build(context, lbid, region, api=None, **kwargs):
+def wait_on_build(context, lbid, region, api=None):
     """ Checks to see if a lb's status is ACTIVE, so we can change
         resource status in deployment """
 
-    match_celery_loggin(LOG)
+    print "WAITING ON BUILD"
+    match_celery_logging(LOG)
     assert lbid, "ID must be provided"
     LOG.debug("Getting loadbalancer %s" % lbid)
 
@@ -695,12 +744,14 @@ def wait_on_build(context, lbid, region, api=None, **kwargs):
 
     if loadbalancer.status == "ERROR":
         results['status'] = "ERROR"
-        results['errmessage'] = ("Loadbalancer %s build failed" % (lbid))
+        msg = ("Loadbalancer %s build failed" % (lbid))
+        results['errmessage'] = msg
         instance_key = 'instance:%s' % context['resource']
         results = {instance_key: results}
         resource_postback.delay(context['deployment'], results)
-        return results
+        raise CheckmateException(msg)
     elif loadbalancer.status == "ACTIVE":
+        print "LB IS ACTIVE"
         results['status'] = "ACTIVE"
         instance_key = 'instance:%s' % context['resource']
         results = {instance_key: results}

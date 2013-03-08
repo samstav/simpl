@@ -799,7 +799,6 @@ class Deployment(ExtensibleDict):
                     if not resource:
                         raise IndexError("Resource %s not found" % resource_id)
                     # Check the value
-                    print "UPDATING RESOURCE %s" % resource
                     if not isinstance(value, dict):
                         raise (CheckmateException("Postback value for "
                                "instance '%s' was not a dictionary"
