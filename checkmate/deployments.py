@@ -450,8 +450,10 @@ def resource_postback(deployment_id, contents):
         for key, value in contents.items():
             if key.startswith('instance'):
                 r_status = contents[key].get('status')
+                print "R_STATUS: %s" % r_status
                 if r_status and r_status is "ERROR":
                     deployment['status'] = "ERROR"
+                    deployment['errmessage'] = contents[key].get('errmessage')
                 else:
                     status = ""
                     resources = deployment.get('resources')
@@ -461,11 +463,12 @@ def resource_postback(deployment_id, contents):
                             continue
                         if value['status'] is "ERROR":
                             status = "ERROR"
-                            deployment['errmessage'] = value['errmessage']
+                            deployment['errmessage'] = value.get('errmessage')
                             break
-                        if value['status'] is "NEW"
+                        if value['status'] is "NEW":
                             continue
                     if status:
+                        print "STATUS: %s" % status
                         deployment['status'] = status
 
     body, secrets = extract_sensitive_data(deployment)
