@@ -368,7 +368,7 @@ def create_instance(context, instance_name, flavor, size, databases, region,
             'instance:%s' % context['resource']: {
                     'id': instance.id,
                     'name': instance.name,
-                    'status': instance.status,
+                    'status': "BUILD",
                     'region': region,
                     'interfaces': {
                             'mysql': {
