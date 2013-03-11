@@ -436,8 +436,6 @@ def resource_postback(deployment_id, contents):
         raise IndexError("Deployment %s not found" % deployment_id)
 
     deployment = Deployment(deployment)
-    deployment.on_resource_postback(contents)
-
 
     # Update deployment status
     # If any resource status is error, deployment status = ERROR
@@ -445,8 +443,10 @@ def resource_postback(deployment_id, contents):
     if isinstance(contents, dict):
         for key, value in contents.items():
             if key.startswith('instance'):
+                r_id = key.split(':')[1]
                 r_status = contents[key].get('status')
-                print "R_STATUS: %s" % r_status
+                deployment['resources'][r_id]['status'] = r_status
+                contents[key].pop('status', None) # Don't want to write status to resource instance
                 if r_status and r_status is "ERROR":
                     deployment['status'] = "ERROR"
                     deployment['errmessage'] = contents[key].get('errmessage')
@@ -466,11 +466,13 @@ def resource_postback(deployment_id, contents):
                             if value['status'] is "NEW":
                                 continue
                     if status:
-                        print "STATUS: %s" % status
                         deployment['status'] = status
 
+
+    deployment.on_resource_postback(contents)
     body, secrets = extract_sensitive_data(deployment)
     DB.save_deployment(deployment_id, body, secrets)
 
     LOG.debug("Updated deployment %s with post-back" % deployment_id,
               extra=dict(data=contents))
+

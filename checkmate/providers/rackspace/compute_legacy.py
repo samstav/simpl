@@ -496,9 +496,13 @@ def wait_on_build(context, server_id, ip_address_type='public',
             }
 
     if server.status == 'ERROR':
+        msg = "Server %s build failed" % server_id
         results = {'status': "ERROR"}
+        results['errmessage'] = msg
+        instance_key = 'instance:%s' % context['resource']
+        results = {instance_key: results}
         resource_postback.delay(context['deployment'], results)
-        raise CheckmateServerBuildFailed("Server %s build failed" % server_id)
+        raise CheckmateServerBuildFailed(msg)
 
     ip = None
     if server.addresses:
@@ -540,8 +544,14 @@ def wait_on_build(context, server_id, ip_address_type='public',
         return wait_on_build.retry()
 
     if server.status == 'ERROR':
-        raise CheckmateException("Server %s creation error: %" % (server_id,
-                                 server.status))
+        msg = "Server %s creation error: %" % (server_id,
+                                               server.status)
+        results = {'status': "ERROR"}
+        results['errmessage'] = msg
+        instance_key = 'instance:%s' % context['resource']
+        results = {instance_key: results}
+        resource_postback.delay(context['deployment'], results)
+        raise CheckmateException(msg)
 
 
     if server.status != 'ACTIVE':
