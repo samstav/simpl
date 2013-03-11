@@ -691,7 +691,6 @@ def set_monitor(context, lbid, mon_type, region, path='/', delay=10,
                 timeout=10, attempts=3, body='(.*)',
                 status='^[234][0-9][0-9]$', api=None):
     """Create a monitor for a Cloud Load Balancer"""
-    print "CREATING MONITOR"
     match_celery_logging(LOG)
     if api is None:
         api = Provider._connect(context, region)
@@ -728,7 +727,6 @@ def wait_on_build(context, lbid, region, api=None):
     """ Checks to see if a lb's status is ACTIVE, so we can change
         resource status in deployment """
 
-    print "WAITING ON BUILD"
     match_celery_logging(LOG)
     assert lbid, "ID must be provided"
     LOG.debug("Getting loadbalancer %s" % lbid)
@@ -749,8 +747,8 @@ def wait_on_build(context, lbid, region, api=None):
         resource_postback.delay(context['deployment'], results)
         raise CheckmateException(msg)
     elif loadbalancer.status == "ACTIVE":
-        print "LB IS ACTIVE"
         results['status'] = "ACTIVE"
+        results['id'] = lbid # need to return so we can pass on to set_monitor task
         instance_key = 'instance:%s' % context['resource']
         results = {instance_key: results}
         resource_postback.delay(context['deployment'], results)
