@@ -455,7 +455,7 @@ def resource_postback(deployment_id, contents):
                     resources = deployment.get('resources')
                     for key, value in resources.items():
                         if key.isdigit():
-                            print "%s:%s" % (key, value['status'])
+                            print "%s:%s, %s" % (key, value.get('status'), value.get('type'))
                             if value['status'] is "BUILD":
                                 status = "BUILD"
                                 continue

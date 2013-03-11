@@ -184,16 +184,31 @@ class Provider(ProviderBase):
                                                            resource.get('type', None)),
                                 interface=resource.get('interface'),
                                 provider=self.key,
-                                task_tags=['create', 'final']),
+                                task_tags=['create']),
                    properties={
                         'estimated_duration': 80
                    })
             root = wait_for(wfspec, create_instance_task, wait_on)
+
+            task_name = "Wait for DB Instance %s (%s) build" % (key,
+                                                                resource['service'])
+            celery_call = 'checkmate.providers.rackspace.database.wait_on_build'
+            build_wait_task = Celery(wfspec, task_name, celery_call,
+                                     call_args=[context.get_queued_task_dict(
+                                                deployment=deployment['id'],
+                                                resource=key),
+                                                PathAttrib('instance:%s/id' % key),
+                                                region],
+                                     defines=dict(resource=key,
+                                                  provider=self.key,
+                                                  task_tags=['final']))
+            root.connect(build_wait_task)
+
             if 'task_tags' in root.properties:
                 root.properties['task_tags'].append('root')
             else:
                 root.properties['task_tags'] = ['root']
-            return dict(root=root, final=create_instance_task)
+            return dict(root=root, final=build_wait_task)
         else:
             raise CheckmateException("Unsupported component type '%s' for "
                     "provider %s" % (component['is'], self.key))
@@ -396,6 +411,40 @@ def create_instance(context, instance_name, flavor, size, databases, region,
 
     return results
 
+@task(default_retry_delay=30, max_retries=120, acks_late=True)
+def wait_on_build(context, instance_id, region, api=None):
+    """ Checks to see if DB instance status is ACTIVE """
+    
+    match_celery_logging(LOG)
+    assert instance_id, "ID must be provided"
+    LOG.debug("Getting instance %s" % instance_id)
+
+    if not api:
+        api = Provider._connect(context, region)
+
+    instance = api.get_instance(instance_id)
+
+    results = {}
+
+    if instance.status == "ERROR":
+        results['status'] = "ERROR"
+        msg = ("DB instance %s build failed" % (lbid))
+        results['errmessage'] = msg
+        instance_key = 'instance:%s' % context['resource']
+        results = {instance_key: results}
+        resource_postback.delay(context['deployment'], results)
+        raise CheckmateException(msg)
+    elif instance.status == "ACTIVE":
+        results['status'] = "ACTIVE"
+        results['id'] = instance_id
+        instance_key = 'instance:%s' % context['resource']
+        results = {instance_key: results}
+        resource_postback.delay(context['deployment'], results)
+        return results
+    else:
+        msg = ("DB Instance status is %s, retrying" % (instance.status))
+        return wait_on_build.retry(exc=CheckmateException(msg))
+
 
 @task(default_retry_delay=15, max_retries=40) # max 10 minute wait
 def create_database(context, name, region, character_set=None, collate=None,
@@ -457,6 +506,7 @@ def create_database(context, name, region, character_set=None, collate=None,
                         'name': name,
                         'host_instance': instance_id,
                         'host_region': region,
+                        'status': "ACTIVE",
                         'interfaces': {
                                 'mysql': {
                                         'host': instance.hostname,  # pylint: disable=E1103
