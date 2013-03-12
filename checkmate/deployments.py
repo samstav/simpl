@@ -443,31 +443,38 @@ def resource_postback(deployment_id, contents):
     if isinstance(contents, dict):
         for key, value in contents.items():
             if key.startswith('instance'):
-                r_id = key.split(':')[1]
-                r_status = contents[key].get('status')
-                deployment['resources'][r_id]['status'] = r_status
-                contents[key].pop('status', None) # Don't want to write status to resource instance
-                if r_status and r_status is "ERROR":
-                    deployment['status'] = "ERROR"
-                    deployment['errmessage'] = contents[key].get('errmessage')
-                else:
-                    status = ""
-                    resources = deployment.get('resources')
-                    for key, value in resources.items():
-                        if key.isdigit():
-                            print "%s:%s, %s" % (key, value.get('status'), value.get('type'))
-                            if value['status'] is "BUILD":
-                                status = "BUILD"
-                                continue
-                            if value['status'] is "ERROR":
-                                status = "ERROR"
-                                deployment['errmessage'] = value.get('errmessage')
-                                break
-                            if value['status'] is "NEW":
-                                continue
-                    if status:
-                        deployment['status'] = status
-
+                if 'status' in contents[key]:
+                    r_id = key.split(':')[1]
+                    r_status = contents[key].get('status')
+                    deployment['resources'][r_id]['status'] = r_status
+                    contents[key].pop('status', None) # Don't want to write status to resource instance
+                    if r_status and r_status is "ERROR":
+                        deployment['status'] = "ERROR"
+                        deployment['errmessage'] = contents[key].get('errmessage')
+                    else:
+                        status = ""
+                        resources = deployment.get('resources')
+                        for key, value in resources.items():
+                            if key.isdigit():
+                                print "%s:%s, %s" % (key, value.get('status'), value.get('type'))
+                                if value['status'] is "BUILD":
+                                    status = "BUILD"
+                                    continue
+                                if value['status'] is "ERROR":
+                                    status = "ERROR"
+                                    deployment['errmessage'] = value.get('errmessage')
+                                    break
+                        if status:
+                            deployment['status'] = status
+                        else: # No builds/Errors, either active or new
+                            status = "ACTIVE"
+                            for key, value in resources.items():
+                                if key.isdigit():
+                                    if value['status'] is "NEW":
+                                        status = ""
+                                        break
+                            if status:
+                                deployment['status'] = status 
 
     deployment.on_resource_postback(contents)
     body, secrets = extract_sensitive_data(deployment)
