@@ -63,7 +63,7 @@ class Provider(ProviderBase):
                     service_name=service, provider_key=self.key)
             if not region:
                 raise CheckmateException("Could not identify which region to "
-                        "create database in")
+                                         "create database in")
 
             template['flavor'] = flavor
             template['disk'] = volume
@@ -184,31 +184,16 @@ class Provider(ProviderBase):
                                                            resource.get('type', None)),
                                 interface=resource.get('interface'),
                                 provider=self.key,
-                                task_tags=['create']),
+                                task_tags=['create', 'final']),
                    properties={
                         'estimated_duration': 80
                    })
             root = wait_for(wfspec, create_instance_task, wait_on)
-
-            task_name = "Wait for DB Instance %s (%s) build" % (key,
-                                                                resource['service'])
-            celery_call = 'checkmate.providers.rackspace.database.wait_on_build'
-            build_wait_task = Celery(wfspec, task_name, celery_call,
-                                     call_args=[context.get_queued_task_dict(
-                                                deployment=deployment['id'],
-                                                resource=key),
-                                                PathAttrib('instance:%s/id' % key),
-                                                region],
-                                     defines=dict(resource=key,
-                                                  provider=self.key,
-                                                  task_tags=['final']))
-            root.connect(build_wait_task)
-
             if 'task_tags' in root.properties:
                 root.properties['task_tags'].append('root')
             else:
                 root.properties['task_tags'] = ['root']
-            return dict(root=root, final=build_wait_task)
+            return dict(root=root, final=create_instance_task)
         else:
             raise CheckmateException("Unsupported component type '%s' for "
                     "provider %s" % (component['is'], self.key))
@@ -378,6 +363,8 @@ def create_instance(context, instance_name, flavor, size, databases, region,
             "Databases = %s" % (instance.name, instance.id, size, flavor,
             databases))
 
+    # print "INSTANCE CREATED %s" % instance.id
+
     # Return instance and its interfaces
     results = {
             'instance:%s' % context['resource']: {
@@ -413,14 +400,15 @@ def create_instance(context, instance_name, flavor, size, databases, region,
 
 @task(default_retry_delay=30, max_retries=120, acks_late=True)
 def wait_on_build(context, instance_id, region, api=None):
-    """ Checks to see if DB instance status is ACTIVE """
-    
-    match_celery_logging(LOG)
-    assert instance_id, "ID must be provided"
-    LOG.debug("Getting instance %s" % instance_id)
+    """ Check to see if DB Instance has finished building """
 
-    if not api:
+    print "WAITING ON BUILD %s" % instance_id
+    match_celery_logging(LOG)
+    if api is None:
         api = Provider._connect(context, region)
+
+    assert instance_id, "ID must be provided"
+    LOG.debug("Getting Instance %s" % instance_id)
 
     instance = api.get_instance(instance_id)
 
@@ -428,21 +416,21 @@ def wait_on_build(context, instance_id, region, api=None):
 
     if instance.status == "ERROR":
         results['status'] = "ERROR"
-        msg = ("DB instance %s build failed" % (lbid))
+        msg = ("Instance %s build failed" % instance_id)
         results['errmessage'] = msg
-        instance_key = 'instance:%s' % context['resource']
+        instance_key = "instance:%s" % context['resource']
         results = {instance_key: results}
         resource_postback.delay(context['deployment'], results)
         raise CheckmateException(msg)
     elif instance.status == "ACTIVE":
         results['status'] = "ACTIVE"
         results['id'] = instance_id
-        instance_key = 'instance:%s' % context['resource']
+        instance_key = "instance:%s" % context['resource']
         results = {instance_key: results}
         resource_postback.delay(context['deployment'], results)
         return results
     else:
-        msg = ("DB Instance status is %s, retrying" % (instance.status))
+        msg = ("DB Instance status is %s, retrying" % instance.status)
         return wait_on_build.retry(exc=CheckmateException(msg))
 
 
@@ -464,6 +452,8 @@ def create_database(context, name, region, character_set=None, collate=None,
     :param instance_attributes: kwargs used to create the instance (used if
             instance_id not supplied)
     """
+
+    # print "CREATING DB %s" % instance_id
     match_celery_logging(LOG)
     database = {'name': name}
     if character_set:
@@ -478,6 +468,7 @@ def create_database(context, name, region, character_set=None, collate=None,
     instance_key = 'instance:%s' % context['resource']
     if not instance_id:
         # Create instance & database
+        # print "NO INSTANCE FOUND. CREATING NEW"
         instance_name = '%s_instance' % name
         size = 1
         flavor = '1'
@@ -488,6 +479,7 @@ def create_database(context, name, region, character_set=None, collate=None,
 
         instance = create_instance(context, instance_name, size, flavor,
             databases, region, api=api)
+        # wait_on_build.delay(context, instance.id, region, api=api)
         # create_instance calls its own postback
         results = {
                 instance_key: instance['instance']['databases'][name]
