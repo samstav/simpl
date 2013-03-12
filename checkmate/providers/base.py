@@ -80,7 +80,7 @@ class ProviderBaseWorkflowMixIn():
         service_name = resource['service']
         if not service_name:
             raise CheckmateException("Service not found for resource %s" %
-                    key)
+                                     key)
         return wait_on, service_name, component
 
     def add_connection_tasks(self, resource, key, relation, relation_key,
