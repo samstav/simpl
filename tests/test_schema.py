@@ -1,11 +1,14 @@
-#!/usr/bin/env python
+""" tests for schema.py """
 import unittest2 as unittest
 
 from checkmate.common import schema
 
 #Commented out test correspond to removal of '.-_' translations
 
+
 class TestSchema(unittest.TestCase):
+    """ Test various schema related functions """
+
     def test_translation_apache(self):
         self.assertEqual(schema.translate('apache2'), 'apache')
 
@@ -23,21 +26,31 @@ class TestSchema(unittest.TestCase):
         self.assertEqual(schema.translate('/'), '/')
         #self.assertEqual(schema.translate('.'), '_')
 
-    """
-    def test_translation_composite(self):
-        self.assertEqual(schema.translate('db_hostname'), 'database_host')
-        self.assertEqual(schema.translate('db.hostname'), 'database_host')
-        self.assertEqual(schema.translate('db-hostname'), 'database_host')
-    """
+#    def test_translation_composite(self):
+#        self.assertEqual(schema.translate('db_hostname'), 'database_host')
+#        self.assertEqual(schema.translate('db.hostname'), 'database_host')
+#        self.assertEqual(schema.translate('db-hostname'), 'database_host')
+
+    def test_validate_options(self):
+        errors = schema.validate(
+            {
+                "name": "foo",
+                "type": "string",
+                "default": "None",
+                "display-hints": {
+                    "group": "test group",
+                    "weight": 5
+                }
+            },
+            schema.OPTION_SCHEMA)
+        self.assertEqual([], errors)
 
     def test_translation_path(self):
         self.assertEqual(schema.translate('db/hostname'), 'database/host')
 
-    """
-    def test_translation_combined(self):
-        self.assertEqual(schema.translate('dest.directory/pub_conf'),
-                'destination_directory/public_configuration')
-    """
+#    def test_translation_combined(self):
+#        self.assertEqual(schema.translate('dest.directory/pub_conf'),
+#                'destination_directory/public_configuration')
 
 if __name__ == '__main__':
     unittest.main()

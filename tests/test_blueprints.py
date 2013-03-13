@@ -25,6 +25,46 @@ class TestBlueprints(unittest.TestCase):
         valid = Blueprint(blueprint)
         self.assertDictEqual(valid._data, blueprint)
 
+    def test_schema_with_options(self):
+        blueprint = {
+                'id': 'test',
+                'name': 'test',
+                'services': {},
+                'options': [
+                    {
+                        "name": "foo",
+                        "type": "int",
+                        "default": 4,
+                        "constrains": [
+                            {
+                               "service": "service1",
+                               "type": "application",
+                               "interface": "none"
+                            }
+                        ]
+                    },
+                    {
+                        "name": "bar",
+                        "type": "string",
+                        "default": "Empty",
+                        "display-hints": {
+                            "group": "An option group",
+                            "weight": 1
+                        },
+                        "constrains": [
+                            {
+                               "service": "service2",
+                               "type": "application",
+                               "interface": "another"
+                            }
+                        ]
+                    }
+                ],
+                'resources': {},
+                }
+        valid = Blueprint(blueprint)
+        self.assertDictEqual(valid._data, blueprint)
+
     def test_schema_negative(self):
         """Test the schema validates a blueprint with bad fields"""
         blueprint = {
