@@ -37,8 +37,10 @@ class TestSchema(unittest.TestCase):
                 "name": "foo",
                 "type": "string",
                 "default": "None",
-                "group": "test group",
-                "weight": 5
+                "display-hints": {
+                    "group": "test group",
+                    "weight": 5
+                }
             },
             schema.OPTION_SCHEMA)
         self.assertEqual([], errors)

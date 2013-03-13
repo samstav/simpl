@@ -47,8 +47,10 @@ class TestBlueprints(unittest.TestCase):
                         "name": "bar",
                         "type": "string",
                         "default": "Empty",
-                        "group": "An option group",
-                        "weight": 1,
+                        "display-hints": {
+                            "group": "An option group",
+                            "weight": 1
+                        },
                         "constrains": [
                             {
                                "service": "service2",
