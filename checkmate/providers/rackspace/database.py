@@ -363,7 +363,7 @@ def create_instance(context, instance_name, flavor, size, databases, region,
             "Databases = %s" % (instance.name, instance.id, size, flavor,
             databases))
 
-    # print "INSTANCE CREATED %s" % instance.id
+    print "INSTANCE CREATED %s" % instance.id
 
     # Return instance and its interfaces
     results = {
@@ -396,6 +396,7 @@ def create_instance(context, instance_name, flavor, size, databases, region,
     # Send data back to deployment
     resource_postback.delay(context['deployment'], results) #@UndefinedVariable
 
+    wait_on_build.delay(context, instance.id, region, api=api)
     return results
 
 @task(default_retry_delay=30, max_retries=120, acks_late=True)
@@ -453,7 +454,7 @@ def create_database(context, name, region, character_set=None, collate=None,
             instance_id not supplied)
     """
 
-    # print "CREATING DB %s" % instance_id
+    print "CREATING DB %s" % instance_id
     match_celery_logging(LOG)
     database = {'name': name}
     if character_set:
@@ -468,7 +469,7 @@ def create_database(context, name, region, character_set=None, collate=None,
     instance_key = 'instance:%s' % context['resource']
     if not instance_id:
         # Create instance & database
-        # print "NO INSTANCE FOUND. CREATING NEW"
+        print "NO INSTANCE FOUND. CREATING NEW"
         instance_name = '%s_instance' % name
         size = 1
         flavor = '1'
@@ -479,7 +480,7 @@ def create_database(context, name, region, character_set=None, collate=None,
 
         instance = create_instance(context, instance_name, size, flavor,
             databases, region, api=api)
-        # wait_on_build.delay(context, instance.id, region, api=api)
+        wait_on_build.delay(context, instance.id, region, api=api)
         # create_instance calls its own postback
         results = {
                 instance_key: instance['instance']['databases'][name]
