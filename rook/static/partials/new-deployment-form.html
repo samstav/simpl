@@ -1,190 +1,231 @@
+<!--
+Display updates based on the following values in the scope:
+
+Headers:
+- blueprints | blueprint: displays list or only one entry
+  - branches: will diplay branches/tags if they exist
+- environments | environment: determines if list or single one shows up
+  - region: if an option with id=region exists, it is displayed after region
+
+Options:
+- url: if an option with id=url exists, it is displayed as a URL control at the top of the options list
+  - domain: if an option with the id=domain exists, it is assumed to be part of the url control group
+    Note: This is also then populated with an autocomplete list of domains from the server
+  - web_server_protocol: if an option with id=web_server_protocol exists, it is assumed to be part of the url control group
+  - path: if an option with id=path exists, it is assumed to be part of the url control group
+
+  - register_dns: if an option with id=register_dns exists, it is assumed to be part of the url control group
+
+  - ssl_certificate, ssl_intermediate_certificate, ssl_private_key are also handled this way
+- username: if an option with id=username exists, it is displayed at the top of the options list
+- password: if an option with id=password exists, it is displayed at the top of the options list
+
+All other options are placed uhnder the "Show More Options" group
+
+Special Type Handling:
+string: displayed as a text control
+password: displayed as a password control which only shows asterisks for characters. Also has generate and show buttons added.
+text: displayed as a textarea
+int: displayed as number control (with up/down buttons)
+boolean: displayed as a checkbox
+select: displayed as a drop-down with 'choice' providing the list of items
+  Note: If choice is a key/value list, it is displayed using a separate template called select-kv
+combo: composite controlshowing a textbox and dropdown so that the dropdown is optional (used in domains, for example)
+url: shows "Address Builder" to handle url options
+
+-->
 <form id="new-deployment-form" class="form-horizontal" ng-cloak ng-show="blueprint">
-    <fieldset>
-      <div class="row-fluid">
-          <img class="span2" style="width: 60px; height: 60px;" src="/img/design-icon.png"/>
-          <div class="control-group span10">
-              <legend>Blueprint</legend>
-              <label class="control-label required" for="blueprint">What to deploy?</label>
-              <div class="controls">
-                  <!-- Show list if list exists -->
-                  <select ng-cloak ng-show="blueprints" id="blueprint" ng-class="{span7: branches, span9: !branches}" ng-model="blueprint" ng-change="setBlueprint(blueprint)"
-                          ng-options="blueprint.name for (id, blueprint) in blueprints" required>
-                  </select>
-                  <!-- Show text if only one exists -->
-                  <input ng-cloak ng-show="!blueprints" readonly="" type="text" value="{{blueprint.name}}" ng-class="{span7: branches, span9: !branches}"><span ng-cloak ng-show="branches"> branch/tag: <select id="branch" name="branch" class="span3" ng-model="$parent.remote.branch" ng-change="loadBlueprint()" ng-options="branch.name for branch in branches"></select></span>
-                  <p class="help-block">
-                    {{blueprint.description}}
-                  </p>
-              </div>
-          </div>
-      </div>
-
-      <div class="row-fluid">
-          <img class="span2" style="width: 60px; height: 60px" src="/img/world-icon.png"/>
-          <div class="control-group span10">
-            <legend>Environment</legend>
-            <label class="control-label required" for="environment">Where to deploy?</label>
+  <fieldset>
+    <!-- Blueprint -->
+    <div class="row-fluid">
+        <img class="span2" style="width: 60px; height: 60px;" src="/img/design-icon.png"/>
+        <div class="control-group span10">
+            <legend>Blueprint</legend>
+            <label class="control-label required" for="blueprint">What to deploy?</label>
             <div class="controls">
-              <!-- Show list if list exists -->
-              <select ng-cloak ng-show="environments" id="environment" class="span6" ng-model="environment" ng-change="setEnvironment(environment)" ng-options="environment.name for (id,environment) in environments" required>
-              </select>
-              <!-- Show text if only one exists -->
-              <input ng-cloak ng-show="!environments" readonly="" type="text" value="{{environment.name}}" class="input-xlarge">
-              <!-- region -->
-              <span ng-repeat="setting in settings | filter:{id: 'region'}">
-                  in <select id="region" style="width: 80px;" ng-model="answers['region']" ng-options="o for o in setting.choice"></select>
-                  <span ng-hide="!setting.description" class="help-block">{{setting.description}}</span>
-              </span>
+                <!-- Show list if list exists -->
+                <select ng-cloak ng-show="blueprints" id="blueprint" ng-class="{span7: branches, span9: !branches}" ng-model="blueprint" ng-change="setBlueprint(blueprint)"
+                        ng-options="blueprint.name for (id, blueprint) in blueprints" required>
+                </select>
+                <!-- Show text if only one exists -->
+                <input ng-cloak ng-show="!blueprints" readonly="" type="text" value="{{blueprint.name}}" ng-class="{span7: branches, span9: !branches}"><span ng-cloak ng-show="branches"> branch/tag: <select id="branch" name="branch" class="span3" ng-model="$parent.remote.branch" ng-change="loadBlueprint()" ng-options="branch.name for branch in branches"></select></span>
+                <p class="help-block">
+                  {{blueprint.description}}
+                </p>
             </div>
-          </div>
+        </div>
+    </div>
+
+    <!-- Environment -->
+    <div class="row-fluid">
+      <img class="span2" style="width: 60px; height: 60px" src="/img/world-icon.png"/>
+      <div class="control-group span10">
+        <legend>Environment</legend>
+        <label class="control-label required" for="environment">Where to deploy?</label>
+        <div class="controls">
+          <!-- Show list if list exists -->
+          <select ng-cloak ng-show="environments" id="environment" class="span6" ng-model="environment" ng-change="setEnvironment(environment)" ng-options="environment.name for (id,environment) in environments" required>
+          </select>
+          <!-- Show text if only one exists -->
+          <input ng-cloak ng-show="!environments" readonly="" type="text" value="{{environment.name}}" class="input-xlarge">
+          <!-- region -->
+          <span ng-repeat="setting in settings | filter:{id: 'region'}">
+              in <select id="region" style="width: 80px;" ng-model="answers['region']" ng-options="o for o in setting.choice"></select>
+              <span ng-hide="!setting.description" class="help-block">{{setting.description}}</span>
+          </span>
+        </div>
       </div>
+    </div>
 
-      <div class="row-fluid">
-          <img class="span2" style="width: 60px; height: 60px;" src="/img/control-panel-icon.png"/>
-          <div class="control-group span10">
-            <legend>Options</legend>
+    <div class="row-fluid">
+        <img class="span2" style="width: 60px; height: 60px;" src="/img/control-panel-icon.png"/>
+        <div class="control-group span10">
+          <legend>Options</legend>
 
-            <!-- url setting -->
-            <div class="control-group" ng-repeat="setting in settings | idIn:['url']" compile-html="renderSetting(setting)">
-                              </div>
+          <!-- url setting -->
+          <div class="control-group" ng-repeat="setting in settings | idIn:['url']" compile-html="renderSetting(setting)">
+          </div>
 
-            <!-- legacy site_address setting -->
-            <label ng-cloak ng-show="show_site_address_controls" class="control-label required" for="site_address">Your site's address</label>
+          <!-- legacy site_address setting -->
+          <label ng-cloak ng-show="show_site_address_controls" class="control-label required" for="site_address">Your site's address</label>
+          <div class="controls">
+            <div class="input-append span12" ng-cloak ng-show="show_site_address_controls" >
+                <input class="input-xlarge span9" ng-model="manual_site_address" id="site_address" name="site_address" type="url" ng-change="UpdateSiteAddress(manual_site_address)" value="{{answers['web_server_protocol']}}://{{answers['domain'] || ''}}{{answers['path']}}">
+                <button class="btn" ng-class="{'active': builder}" ng-click="builder = !builder">Address Details</button>
+            </div>
+            <p class="help-block" ng-cloak ng-show="show_site_address_controls" >This also controls the protocol, domain, and path fields below. {{setting.description}}</p>
+          </div>
+        </div>
+    </div>
+
+     <!-- protocol (web_server_protocol), domain, path, register-dns -->
+     <div id="url_controls" ng-cloak ng-show="builder" class="well offset1">
+
+        <!-- protocol -->
+        <div class="row-fluid">
+          <div class="control-group" ng-repeat="setting in settings | idIn: ['web_server_protocol']">
+            <label class="control-label required" for="web_server_protocol">{{setting.label}}</label>
             <div class="controls">
-              <div class="input-append span12" ng-cloak ng-show="show_site_address_controls" >
-                  <input class="input-xlarge span9" ng-model="manual_site_address" id="site_address" name="site_address" type="url" ng-change="UpdateSiteAddress(manual_site_address)" value="{{answers['web_server_protocol']}}://{{answers['domain'] || ''}}{{answers['path']}}">
-                  <button class="btn" ng-class="{'active': builder}" ng-click="builder = !builder">Address Details</button>
-              </div>
-              <p class="help-block" ng-cloak ng-show="show_site_address_controls" >This also controls the protocol, domain, and path fields below. {{setting.description}}</p>
-            </div>
-          </div>
-      </div>
-      <div id="url_controls" ng-cloak ng-show="builder" class="well offset1">
-          <div class="row-fluid">
-              <!-- protocol -->
-              <div class="control-group" ng-repeat="setting in settings | idIn: ['web_server_protocol']">
-                <label class="control-label required" for="web_server_protocol">{{setting.label}}</label>
-                <div class="controls">
-                  <select style="width:150px;" id="web_server_protocol" ng-model="answers['web_server_protocol']" ng-options="o.value as o.name for o in setting.choice"></select>
-                  <p ng-hide="!setting.description" class="help-block">{{setting.description}}</p>
-                </div>
-              </div>
-          </div>
-
-          <div class="row-fluid">
-            <!-- domain -->
-            <div class="control-group" ng-repeat="setting in settings | idIn: ['domain']">
-              <label class="control-label required" for="domain">{{setting.label}}</label>
-              <div class="controls">
-                <div class="input-append">
-                    <input id="domain" type="text" class="input" data-provide="typeahead" data-source="{{domain_names}}" ng-model="answers['domain']" placeholder="{{setting.sample | prepend:'ex. '}}"></input>
-                    <button class="btn dropdown-toggle" type="button" data-toggle="dropdown" data-target="#domains_menu"><b class="caret"></b></button>
-                    <div id="domains_menu" class="dropdown">
-                        <ul class="dropdown-menu" role="menu" aria-labelledby="dLabel">
-                          <li ng-hide="auth.identity.loggedIn"><a href="#" ng-click="loginPrompt()">Log in (to see your domains)</a></li>
-                          <li ng-cloak ng-show="domain_names==[]"><i class="icon-question-sign"></i> No domains registered for account {{auth.context.tenantId}}</li>
-                          <li ng-repeat="o in domain_names"><a href="#" ng-click="answers['domain']=o">{{o}}</a></li>
-                        </ul>
-                    </div>
-                </div>
-                <p ng-hide="!setting.description" class="help-block">{{setting.description}}</p>
-              </div>
-            </div>
-          </div>
-
-          <div class="row-fluid">
-              <!-- register DNS -->
-              <div class="control-group" ng-repeat="dns_setting in settings | filter:{id: 'register-dns'}">
-                  <label class="control-label required" for="register_dns">{{dns_setting.label || id}}</label>
-                  <div class="controls">
-                    <input type="checkbox" class="input-xlarge" id="register_dns" ng-model="answers['register-dns']">
-                    <p ng-hide="!dns_setting.description" class="help-block">{{dns_setting.description}}</p>
-                  </div>
-              </div>
-          </div>
-
-          <div class="row-fluid">
-              <!-- path -->
-              <div class="control-group" ng-repeat="setting in settings | filter:{id: 'path'}">
-                <label class="control-label required" for="path">{{setting.label}}</label>
-                <div class="controls">
-                  <input style="width:80px;" type="text" name="path" class="input-xlarge" id="path" ng-model="answers['path']" placeholder="{{setting.sample | prepend:'ex. '}}">
-                  <p ng-hide="!setting.description" class="help-block">{{setting.description}}</p>
-                </div>
-              </div>
-          </div>
-
-          <div class="row-fluid">
-              <!-- ssl certificate -->
-              <div class="control-group offset1" ng-cloak ng-show="ShowCerts()" ng-repeat="setting in settings | filter:{id: 'ssl_certificate'}">
-                  <label class="control-label capitalize" for="ssl_certificate">{{setting.label}}</label>
-                  <div class="controls">
-                      <textarea cols="80" rolws="20" class="input-xlarge" id="ssl_certificate" ng-model="answers['ssl_certificate']" placeholder="{{setting.sample | prepend:'ex. '}}"></textarea>
-                      <p class="help-block">{{setting.description}} To generate internal certificates for testing, go to <a href="https://ssl.corp.rackspace.com/" target="_blank">https://ssl.corp.rackspace.com/</a></p>
-                  </div>
-              </div>
-          </div>
-
-          <div class="row-fluid">
-              <!-- ssl key -->
-              <div class="control-group offset1" ng-cloak ng-show="ShowCerts()" ng-repeat="setting in settings | filter:{id: 'ssl_private_key'}">
-                  <label class="control-label capitalize" for="ssl_certificate">{{setting.label}}</label>
-                  <div class="controls">
-                      <textarea cols="80" rolws="20" class="input-xlarge" id="ssl_private_key" ng-model="answers['ssl_private_key']" placeholder="{{setting.sample | prepend:'ex. '}}"></textarea>
-                      <p ng-hide="!setting.description" class="help-block">{{setting.description}}</p>
-                  </div>
-              </div>
-          </div>
-
-          <div class="row-fluid">
-              <!-- ssl CA certificate -->
-              <div class="control-group offset1" ng-cloak ng-show="ShowCerts()" ng-repeat="setting in settings | filter:{id: 'ssl_intermediate_certificate'}">
-                  <label class="control-label capitalize" for="ssl_intermediate_certificate">{{setting.label}}</label>
-                  <div class="controls">
-                      <textarea cols="80" rolws="20" class="input-xlarge" id="ssl_intermediate_certificate" ng-model="answers['ssl_intermediate_certificate']" placeholder="{{setting.sample | prepend:'ex. '}}"></textarea>
-                      <p ng-hide="!setting.description" class="help-block">{{setting.description}}</p>
-                  </div>
-              </div>
-          </div>
-      </div>
-
-      <div class="row-fluid">
-          <!-- username -->
-          <div class="control-group offset1" ng-repeat="setting in settings | idIn: ['username']">
-            <label class="control-label required" for="path">{{setting.label}}</label>
-            <div class="controls">
-              <input type="text" name="username" class="input-xlarge" id="path" ng-model="answers['username']" placeholder="{{setting.sample | prepend:'ex. '}}">
+              <select style="width:150px;" id="web_server_protocol" ng-model="answers['web_server_protocol']" ng-options="o.value as o.name for o in setting.choice"></select>
               <p ng-hide="!setting.description" class="help-block">{{setting.description}}</p>
             </div>
           </div>
-      </div>
+        </div>
 
-    </fieldset>
-
-    <fieldset ng-hide="!showSettings()">
-      <div class="accordion offset1">
-          <div class="accordion-group">
-              <div class="accordion-heading">
-                  <a class="accordion-toggle" data-toggle="collapse" data-parent="#accordion2" data-target="#collapseOne" href="#">
-                    Show More Options
-                  </a>
+        <!-- domain -->
+        <div class="row-fluid">
+          <div class="control-group" ng-repeat="setting in settings | idIn: ['domain']">
+            <label class="control-label required" for="domain">{{setting.label}}</label>
+            <div class="controls">
+              <div class="input-append">
+                <input id="domain" type="text" class="input" data-provide="typeahead" data-source="{{domain_names}}" ng-model="answers['domain']" placeholder="{{setting.sample | prepend:'ex. '}}"></input>
+                <button class="btn dropdown-toggle" type="button" data-toggle="dropdown" data-target="#domains_menu"><b class="caret"></b></button>
+                <div id="domains_menu" class="dropdown">
+                  <ul class="dropdown-menu" role="menu" aria-labelledby="dLabel">
+                    <li ng-hide="auth.identity.loggedIn"><a href="#" ng-click="loginPrompt()">Log in (to see your domains)</a></li>
+                    <li ng-cloak ng-show="domain_names==[]"><i class="icon-question-sign"></i> No domains registered for account {{auth.context.tenantId}}</li>
+                    <li ng-repeat="o in domain_names"><a href="#" ng-click="answers['domain']=o">{{o}}</a></li>
+                  </ul>
+                </div>
               </div>
-              <div id="collapseOne" class="accordion-body collapse out">
-              <div class="accordion-inner">
-                  <div class="control-group" ng-repeat="setting in settings | idNotIn:['url', 'domain', 'web_server_protocol', 'path', 'register-dns', 'ssl_certificate', 'ssl_private_key', 'ssl_intermediate_certificate', 'username', 'region']" compile-html="renderSetting(setting)">
-                  </div>
+              <p ng-hide="!setting.description" class="help-block">{{setting.description}}</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- register DNS -->
+        <div class="row-fluid">
+          <div class="control-group" ng-repeat="dns_setting in settings | filter:{id: 'register-dns'}">
+            <label class="control-label required" for="register_dns">{{dns_setting.label || id}}</label>
+            <div class="controls">
+              <input type="checkbox" class="input-xlarge" id="register_dns" ng-model="answers['register-dns']">
+              <p ng-hide="!dns_setting.description" class="help-block">{{dns_setting.description}}</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- path -->
+        <div class="row-fluid">
+          <div class="control-group" ng-repeat="setting in settings | filter:{id: 'path'}">
+            <label class="control-label required" for="path">{{setting.label}}</label>
+            <div class="controls">
+              <input style="width:80px;" type="text" name="path" class="input-xlarge" id="path" ng-model="answers['path']" placeholder="{{setting.sample | prepend:'ex. '}}">
+              <p ng-hide="!setting.description" class="help-block">{{setting.description}}</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- ssl certificate -->
+        <div class="row-fluid">
+          <div class="control-group offset1" ng-cloak ng-show="ShowCerts()" ng-repeat="setting in settings | filter:{id: 'ssl_certificate'}">
+            <label class="control-label capitalize" for="ssl_certificate">{{setting.label}}</label>
+            <div class="controls">
+              <textarea cols="80" rolws="20" class="input-xlarge" id="ssl_certificate" ng-model="answers['ssl_certificate']" placeholder="{{setting.sample | prepend:'ex. '}}"></textarea>
+              <p class="help-block">{{setting.description}} To generate internal certificates for testing, go to <a href="https://ssl.corp.rackspace.com/" target="_blank">https://ssl.corp.rackspace.com/</a></p>
+            </div>
+          </div>
+        </div>
+
+        <!-- ssl key -->
+        <div class="row-fluid">
+          <div class="control-group offset1" ng-cloak ng-show="ShowCerts()" ng-repeat="setting in settings | filter:{id: 'ssl_private_key'}">
+            <label class="control-label capitalize" for="ssl_certificate">{{setting.label}}</label>
+            <div class="controls">
+              <textarea cols="80" rolws="20" class="input-xlarge" id="ssl_private_key" ng-model="answers['ssl_private_key']" placeholder="{{setting.sample | prepend:'ex. '}}"></textarea>
+              <p ng-hide="!setting.description" class="help-block">{{setting.description}}</p>
               </div>
           </div>
-      </div>
+        </div>
 
-      <div class="form-actions">
-        <button ng-click="submit(false)" class="btn btn-primary" ng-disabled="!auth.identity.loggedIn || is_unsupported_account() || submitting">Build It!</button>
-        <button ng-cloak ng-show="simulator" ng-click="simulate()" class="btn" ng-disabled="!auth.identity.loggedIn || submitting">Simulate It</button>
-        <button ng-click="preview()" class="btn" ng-disabled="!auth.identity.loggedIn || submitting">Preview It</button>
-        <button ng-click="loginPrompt()" class="btn" ng-hide="auth.identity.loggedIn">Log in to execute this workflow</button>
+        <!-- ssl CA certificate -->
+        <div class="row-fluid">
+          <div class="control-group offset1" ng-cloak ng-show="ShowCerts()" ng-repeat="setting in settings | filter:{id: 'ssl_intermediate_certificate'}">
+            <label class="control-label capitalize" for="ssl_intermediate_certificate">{{setting.label}}</label>
+            <div class="controls">
+              <textarea cols="80" rolws="20" class="input-xlarge" id="ssl_intermediate_certificate" ng-model="answers['ssl_intermediate_certificate']" placeholder="{{setting.sample | prepend:'ex. '}}"></textarea>
+              <p ng-hide="!setting.description" class="help-block">{{setting.description}}</p>
+            </div>
+          </div>
+        </div>
+    </div>
+
+    <!-- username -->
+    <div class="row-fluid">
+      <div class="control-group offset1" ng-repeat="setting in settings | idIn: ['username']">
+        <label class="control-label required" for="path">{{setting.label}}</label>
+        <div class="controls">
+          <input type="text" name="username" class="input-xlarge" id="path" ng-model="answers['username']" placeholder="{{setting.sample | prepend:'ex. '}}">
+          <p ng-hide="!setting.description" class="help-block">{{setting.description}}</p>
+        </div>
       </div>
-    </fieldset>
+    </div>
+  </fieldset>
+
+  <fieldset ng-hide="!showSettings()">
+    <div class="accordion offset1">
+      <div class="accordion-group">
+        <div class="accordion-heading">
+          <a class="accordion-toggle" data-toggle="collapse" data-parent="#accordion2" data-target="#collapseOne" href="#">
+            Show More Options
+          </a>
+        </div>
+        <div id="collapseOne" class="accordion-body collapse out">
+        <div class="accordion-inner">
+          <div class="control-group" ng-repeat="setting in settings | idNotIn:['url', 'domain', 'web_server_protocol', 'path', 'register-dns', 'ssl_certificate', 'ssl_private_key', 'ssl_intermediate_certificate', 'username', 'region']" compile-html="renderSetting(setting)">
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="form-actions">
+      <button ng-click="submit(false)" class="btn btn-primary" ng-disabled="!auth.identity.loggedIn || is_unsupported_account() || submitting">Build It!</button>
+      <button ng-cloak ng-show="simulator" ng-click="simulate()" class="btn" ng-disabled="!auth.identity.loggedIn || submitting">Simulate It</button>
+      <button ng-click="preview()" class="btn" ng-disabled="!auth.identity.loggedIn || submitting">Preview It</button>
+      <button ng-click="loginPrompt()" class="btn" ng-hide="auth.identity.loggedIn">Log in to execute this workflow</button>
+    </div>
+  </fieldset>
 </form>
+
 <div id="debug_yaml" class="well summary" style="display: none;">
   <ul class="nav nav-list">
     <li class="nav-header">YAML</li>
@@ -231,7 +272,7 @@
   </div>
 </script>
 
- <script id="setting-int" type="text/ng-template">
+<script id="setting-int" type="text/ng-template">
   <label class="control-label capitalize" ng-class="{required: required}" for="{{setting.id}}">{{setting.label || setting.id}}</label>
   <div class="controls">
     <input type="number" class="input-small" id="{{setting.id}}" ng-model="answers[setting.id]"
@@ -273,7 +314,7 @@
 <script id="setting-combo" type="text/ng-template">
   <label class="control-label capitalize" ng-class="{required: required}" for="{{setting.id}}">{{setting.label || setting.id}}</label>
   <div class="controls">
-     <input type="text" name="state" class="input-xlarge ng-model" id="{{setting.id}}" ng-model="answers[setting.id]"
+     <input type="text" name="state" class="input-xlarge" id="{{setting.id}}" ng-model="answers[setting.id]"
             ng-required="required" ng-pattern="{{setting.regex || ''}}"
             placeholder="{{setting.sample | prepend:'ex. '}}"/>
      <br />
@@ -289,8 +330,8 @@
       <label class="control-label" ng-class="{required: required}" for="{{setting.id}}">{{setting.label}}</label>
       <div class="controls">
         <div class="input-append span12">
-            <input class="input-xlarge span9" ng-model="answers[setting.id]" id="{{setting.id}}" type="text" ng-change="UpdateParts(this, setting.id)">
-            <button class="btn" ng-class="{'active': builder}" ng-click="builder = !builder">Address Details</button>
+          <input class="input-xlarge span9" ng-model="answers[setting.id]" id="{{setting.id}}" type="text" ng-change="UpdateParts(this, setting.id)">
+          <button class="btn" ng-class="{'active': builder}" ng-click="builder = !builder">Address Details</button>
         </div>
       </div>
     </div>
