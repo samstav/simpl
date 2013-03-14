@@ -153,7 +153,7 @@ def execute_workflow(id, tenant_id=None):
 #
 @post('/workflows/<workflow_id>/specs/<spec_id>')
 @with_tenant
-def post_workflow_task(workflow_id, spec_id, tenant_id=None):
+def post_workflow_spec(workflow_id, spec_id, tenant_id=None):
     """Update a workflow spec
 
     :param workflow_id: checkmate workflow id
