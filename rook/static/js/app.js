@@ -1675,7 +1675,7 @@ function DeploymentNewRemoteController($scope, $location, $routeParams, $resourc
 function DeploymentNewController($scope, $location, $routeParams, $resource, options, workflow, blueprint, environment) {
   $scope.environment = environment;
   $scope.options = [];
-  $scope.answers = {};
+  $scope.inputs = {};
   $scope.domain_names = null;
   $scope.manual_site_address = null;
   $scope.show_site_address_controls = false;
@@ -1721,7 +1721,7 @@ function DeploymentNewController($scope, $location, $routeParams, $resource, opt
                 if (option.id == 'region') {
                     option['default'] = $scope.auth.context.user['RAX-AUTH:defaultRegion'];
                     option.choice = [option['default']];
-                    $scope.answers[option.id] = option['default'];
+                    $scope.inputs[option.id] = option['default'];
                     option.description = "Your legacy cloud servers region is '" + option['default'] + "'. You can only deploy to this region";
                 }
             });
@@ -1739,7 +1739,7 @@ function DeploymentNewController($scope, $location, $routeParams, $resource, opt
 
   $scope.updateOptions = function() {
     $scope.options = [];
-    $scope.answers = {};
+    $scope.inputs = {};
 
     if ($scope.blueprint) {
       $scope.options = $scope.options.concat(options.getOptionsFromBlueprint($scope.blueprint));
@@ -1752,9 +1752,9 @@ function DeploymentNewController($scope, $location, $routeParams, $resource, opt
 
     _.each($scope.options, function(option) {
       if ('default' in option && (typeof option['default'] != 'string' || option['default'].indexOf('=generate') === -1)) {
-        $scope.answers[option.id] = option['default'];
+        $scope.inputs[option.id] = option['default'];
       } else
-        $scope.answers[option.id] = null;
+        $scope.inputs[option.id] = null;
       if (option.id == 'region' && $scope.auth.identity.loggedIn === true)
         option.choice = $scope.auth.context.regions;
     });
@@ -1784,9 +1784,9 @@ function DeploymentNewController($scope, $location, $routeParams, $resource, opt
         return;
     }
     $('#site_address_error').text("");
-    $scope.answers['web_server_protocol'] = parsed.protocol;
-    $scope.answers['domain'] = parsed.hostname;
-    $scope.answers['path'] = parsed.path || "/";
+    $scope.inputs['web_server_protocol'] = parsed.protocol;
+    $scope.inputs['domain'] = parsed.hostname;
+    $scope.inputs['path'] = parsed.path || "/";
   };
 
   $scope.UpdateURL = function(scope, option_id) {
@@ -1801,12 +1801,12 @@ function DeploymentNewController($scope, $location, $routeParams, $resource, opt
         return;
     }
     $('#site_address_error').text("");
-    $scope.answers[option_id] = new_address;
+    $scope.inputs[option_id] = new_address;
   };
 
   $scope.UpdateParts = function(scope, option_id) {
     try {
-      var parsed = URI.parse($scope.answers[option_id]);
+      var parsed = URI.parse($scope.inputs[option_id]);
       if (!('hostname' in parsed)) {
           $('#site_address_error').text("Domain name or IP address missing");
           return;
@@ -1823,9 +1823,9 @@ function DeploymentNewController($scope, $location, $routeParams, $resource, opt
   };
 
   $scope.ShowCerts = function() {
-    if ('web_server_protocol' in $scope.answers && $scope.answers['web_server_protocol'].indexOf('https') != -1)
+    if ('web_server_protocol' in $scope.inputs && $scope.inputs['web_server_protocol'].indexOf('https') != -1)
       return true;
-    if ('url' in $scope.answers && $scope.answers['url'].indexOf('https') != -1)
+    if ('url' in $scope.inputs && $scope.inputs['url'].indexOf('https') != -1)
       return true;
     return false;
   };
@@ -1887,9 +1887,9 @@ function DeploymentNewController($scope, $location, $routeParams, $resource, opt
 
     break_flag = false;
 
-    // Have to fix some of the answers so they are in the right format, specifically the select
+    // Have to fix some of the inputs so they are in the right format, specifically the select
     // and checkboxes. This is lame and slow and I should figure out a better way to do this.
-    _.each($scope.answers, function(element, key) {
+    _.each($scope.inputs, function(element, key) {
       var option = _.find($scope.options, function(item) {
         if (item.id == key)
           return item;
@@ -1903,7 +1903,7 @@ function DeploymentNewController($scope, $location, $routeParams, $resource, opt
 
       //Check that all required fields are set
       if (option.required === true) {
-        if ($scope.answers[key] === null) {
+        if ($scope.inputs[key] === null) {
           err_msg = "Required field "+key+" not set. Aborting deployment.";
           $scope.notify(err_msg);
           break_flag = true;
@@ -1911,13 +1911,13 @@ function DeploymentNewController($scope, $location, $routeParams, $resource, opt
       }
 
       if (option.type === "boolean") {
-        if ($scope.answers[key] === null) {
+        if ($scope.inputs[key] === null) {
           deployment.inputs.blueprint[key] = false;
         } else {
-          deployment.inputs.blueprint[key] = $scope.answers[key];
+          deployment.inputs.blueprint[key] = $scope.inputs[key];
         }
       } else {
-        deployment.inputs.blueprint[key] = $scope.answers[key];
+        deployment.inputs.blueprint[key] = $scope.inputs[key];
       }
     });
 

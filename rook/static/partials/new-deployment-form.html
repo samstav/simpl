@@ -72,7 +72,7 @@ url: shows "Address Builder" to handle url options
           <input ng-cloak ng-show="!environments" readonly="" type="text" value="{{environment.name}}" class="input-xlarge">
           <!-- region -->
           <span ng-repeat="option in options | filter:{id: 'region'}">
-              in <select id="region" style="width: 80px;" ng-model="answers['region']" ng-options="o for o in option.choice"></select>
+              in <select id="region" style="width: 80px;" ng-model="inputs['region']" ng-options="o for o in option.choice"></select>
               <span ng-hide="!option.description" class="help-block">{{option.description}}</span>
           </span>
         </div>
@@ -92,7 +92,7 @@ url: shows "Address Builder" to handle url options
           <label ng-cloak ng-show="show_site_address_controls" class="control-label required" for="site_address">Your site's address</label>
           <div class="controls">
             <div class="input-append span12" ng-cloak ng-show="show_site_address_controls" >
-                <input class="input-xlarge span9" ng-model="manual_site_address" id="site_address" name="site_address" type="url" ng-change="UpdateSiteAddress(manual_site_address)" value="{{answers['web_server_protocol']}}://{{answers['domain'] || ''}}{{answers['path']}}">
+                <input class="input-xlarge span9" ng-model="manual_site_address" id="site_address" name="site_address" type="url" ng-change="UpdateSiteAddress(manual_site_address)" value="{{inputs['web_server_protocol']}}://{{inputs['domain'] || ''}}{{inputs['path']}}">
                 <button class="btn" ng-class="{'active': builder}" ng-click="builder = !builder">Address Details</button>
             </div>
             <p class="help-block" ng-cloak ng-show="show_site_address_controls" >This also controls the protocol, domain, and path fields below. {{option.description}}</p>
@@ -108,7 +108,7 @@ url: shows "Address Builder" to handle url options
           <div class="control-group" ng-repeat="option in options | idIn: ['web_server_protocol']">
             <label class="control-label required" for="web_server_protocol">{{option.label}}</label>
             <div class="controls">
-              <select style="width:150px;" id="web_server_protocol" ng-model="answers['web_server_protocol']" ng-options="o.value as o.name for o in option.choice"></select>
+              <select style="width:150px;" id="web_server_protocol" ng-model="inputs['web_server_protocol']" ng-options="o.value as o.name for o in option.choice"></select>
               <p ng-hide="!option.description" class="help-block">{{option.description}}</p>
             </div>
           </div>
@@ -120,13 +120,13 @@ url: shows "Address Builder" to handle url options
             <label class="control-label required" for="domain">{{option.label}}</label>
             <div class="controls">
               <div class="input-append">
-                <input id="domain" type="text" class="input" data-provide="typeahead" data-source="{{domain_names}}" ng-model="answers['domain']" placeholder="{{option.sample | prepend:'ex. '}}"></input>
+                <input id="domain" type="text" class="input" data-provide="typeahead" data-source="{{domain_names}}" ng-model="inputs['domain']" placeholder="{{option.sample | prepend:'ex. '}}"></input>
                 <button class="btn dropdown-toggle" type="button" data-toggle="dropdown" data-target="#domains_menu"><b class="caret"></b></button>
                 <div id="domains_menu" class="dropdown">
                   <ul class="dropdown-menu" role="menu" aria-labelledby="dLabel">
                     <li ng-hide="auth.identity.loggedIn"><a href="#" ng-click="loginPrompt()">Log in (to see your domains)</a></li>
                     <li ng-cloak ng-show="domain_names==[]"><i class="icon-question-sign"></i> No domains registered for account {{auth.context.tenantId}}</li>
-                    <li ng-repeat="o in domain_names"><a href="#" ng-click="answers['domain']=o">{{o}}</a></li>
+                    <li ng-repeat="o in domain_names"><a href="#" ng-click="inputs['domain']=o">{{o}}</a></li>
                   </ul>
                 </div>
               </div>
@@ -140,7 +140,7 @@ url: shows "Address Builder" to handle url options
           <div class="control-group" ng-repeat="dns_option in options | filter:{id: 'register-dns'}">
             <label class="control-label required" for="register_dns">{{dns_option.label || id}}</label>
             <div class="controls">
-              <input type="checkbox" class="input-xlarge" id="register_dns" ng-model="answers['register-dns']">
+              <input type="checkbox" class="input-xlarge" id="register_dns" ng-model="inputs['register-dns']">
               <p ng-hide="!dns_option.description" class="help-block">{{dns_option.description}}</p>
             </div>
           </div>
@@ -151,7 +151,7 @@ url: shows "Address Builder" to handle url options
           <div class="control-group" ng-repeat="option in options | filter:{id: 'path'}">
             <label class="control-label required" for="path">{{option.label}}</label>
             <div class="controls">
-              <input style="width:80px;" type="text" name="path" class="input-xlarge" id="path" ng-model="answers['path']" placeholder="{{option.sample | prepend:'ex. '}}">
+              <input style="width:80px;" type="text" name="path" class="input-xlarge" id="path" ng-model="inputs['path']" placeholder="{{option.sample | prepend:'ex. '}}">
               <p ng-hide="!option.description" class="help-block">{{option.description}}</p>
             </div>
           </div>
@@ -162,7 +162,7 @@ url: shows "Address Builder" to handle url options
           <div class="control-group offset1" ng-cloak ng-show="ShowCerts()" ng-repeat="option in options | filter:{id: 'ssl_certificate'}">
             <label class="control-label capitalize" for="ssl_certificate">{{option.label}}</label>
             <div class="controls">
-              <textarea cols="80" rows="20" class="input-xlarge" id="ssl_certificate" ng-model="answers['ssl_certificate']" placeholder="{{option.sample | prepend:'ex. '}}"></textarea>
+              <textarea cols="80" rows="20" class="input-xlarge" id="ssl_certificate" ng-model="inputs['ssl_certificate']" placeholder="{{option.sample | prepend:'ex. '}}"></textarea>
               <p class="help-block">{{option.description}} To generate internal certificates for testing, go to <a href="https://ssl.corp.rackspace.com/" target="_blank">https://ssl.corp.rackspace.com/</a></p>
             </div>
           </div>
@@ -173,7 +173,7 @@ url: shows "Address Builder" to handle url options
           <div class="control-group offset1" ng-cloak ng-show="ShowCerts()" ng-repeat="option in options | filter:{id: 'ssl_private_key'}">
             <label class="control-label capitalize" for="ssl_certificate">{{option.label}}</label>
             <div class="controls">
-              <textarea cols="80" rows="20" class="input-xlarge" id="ssl_private_key" ng-model="answers['ssl_private_key']" placeholder="{{option.sample | prepend:'ex. '}}"></textarea>
+              <textarea cols="80" rows="20" class="input-xlarge" id="ssl_private_key" ng-model="inputs['ssl_private_key']" placeholder="{{option.sample | prepend:'ex. '}}"></textarea>
               <p ng-hide="!option.description" class="help-block">{{option.description}}</p>
               </div>
           </div>
@@ -184,7 +184,7 @@ url: shows "Address Builder" to handle url options
           <div class="control-group offset1" ng-cloak ng-show="ShowCerts()" ng-repeat="option in options | filter:{id: 'ssl_intermediate_certificate'}">
             <label class="control-label capitalize" for="ssl_intermediate_certificate">{{option.label}}</label>
             <div class="controls">
-              <textarea cols="80" rows="20" class="input-xlarge" id="ssl_intermediate_certificate" ng-model="answers['ssl_intermediate_certificate']" placeholder="{{option.sample | prepend:'ex. '}}"></textarea>
+              <textarea cols="80" rows="20" class="input-xlarge" id="ssl_intermediate_certificate" ng-model="inputs['ssl_intermediate_certificate']" placeholder="{{option.sample | prepend:'ex. '}}"></textarea>
               <p ng-hide="!option.description" class="help-block">{{option.description}}</p>
             </div>
           </div>
@@ -196,7 +196,7 @@ url: shows "Address Builder" to handle url options
       <div class="control-group offset1" ng-repeat="option in options | idIn: ['username']">
         <label class="control-label required" for="path">{{option.label}}</label>
         <div class="controls">
-          <input type="text" name="username" class="input-xlarge" id="path" ng-model="answers['username']" placeholder="{{option.sample | prepend:'ex. '}}">
+          <input type="text" name="username" class="input-xlarge" id="path" ng-model="inputs['username']" placeholder="{{option.sample | prepend:'ex. '}}">
           <p ng-hide="!option.description" class="help-block">{{option.description}}</p>
         </div>
       </div>
@@ -232,7 +232,7 @@ url: shows "Address Builder" to handle url options
   <ul class="nav nav-list">
     <li class="nav-header">YAML</li>
     <li>
-      <pre class="prettyprint lang-yaml">{{answers | yaml}}</pre>
+      <pre class="prettyprint lang-yaml">{{inputs | yaml}}</pre>
     </li>
   </ul>
 </div>
@@ -241,7 +241,7 @@ url: shows "Address Builder" to handle url options
 <script id="option-string" type="text/ng-template">
   <label class="control-label capitalize" ng-class="{required: required}" for="{{option.id}}">{{option.label || option.id}}</label>
   <div class="controls">
-    <input type="text" class="input-xlarge" id="{{option.id}}" ng-model="answers[option.id]"
+    <input type="text" class="input-xlarge" id="{{option.id}}" ng-model="inputs[option.id]"
             ng-required="required" ng-pattern="{{option.regex || ''}}"
             placeholder="{{option.sample | prepend:'ex. '}}">
     <p ng-hide="!option.description" class="help-block">{{option.description}}</p>
@@ -252,14 +252,14 @@ url: shows "Address Builder" to handle url options
   <label class="control-label capitalize" ng-class="{required: required}" for="{{option.id}}">{{option.label || option.id}}</label>
   <div class="controls" ng-init="show=false">
     <div class="input-append">
-      <input ng-hide="show" type="password" class="input-large" id="{{option.id}}" ng-model="answers[option.id]"
+      <input ng-hide="show" type="password" class="input-large" id="{{option.id}}" ng-model="inputs[option.id]"
               ng-required="required" ng-pattern="{{option.regex || ''}}"
               placeholder="{{option.sample | prepend:'ex. '}}">
-      <input ng-cloak ng-show="show" type="text" class="input-large" id="{{option.id}}" ng-model="answers[option.id]"
+      <input ng-cloak ng-show="show" type="text" class="input-large" id="{{option.id}}" ng-model="inputs[option.id]"
               ng-required="required" ng-pattern="{{option.regex || ''}}"
               placeholder="{{option.sample | prepend:'ex. '}}">
       <button class="btn" ng-class="{'active': show}" ng-click="show = !show">Show</button>
-      <button ng-click="answers[option.id]=generatePassword()" class="btn">Generate</button>
+      <button ng-click="inputs[option.id]=generatePassword()" class="btn">Generate</button>
     </div>
     <p ng-hide="!option.description" class="help-block">{{option.description}} Click the generate button to generate a random password.</p>
   </div>
@@ -268,7 +268,7 @@ url: shows "Address Builder" to handle url options
 <script id="option-text" type="text/ng-template">
   <label class="control-label capitalize" ng-class="{required: required}" for="{{option.id}}">{{option.label || option.id}}</label>
   <div class="controls">
-    <textarea cols="80" rows="20" class="input-xlarge ng-model" id="{{option.id}}" ng-model="answers[option.id]"
+    <textarea cols="80" rows="20" class="input-xlarge ng-model" id="{{option.id}}" ng-model="inputs[option.id]"
             ng-required="required" ng-pattern="{{option.regex || ''}}" placeholder="{{option.sample | prepend:'ex. '}}">{{option.default}}</textarea>
     <p ng-hide="!option.description" class="help-block">{{option.description}}</p>
   </div>
@@ -277,7 +277,7 @@ url: shows "Address Builder" to handle url options
 <script id="option-int" type="text/ng-template">
   <label class="control-label capitalize" ng-class="{required: required}" for="{{option.id}}">{{option.label || option.id}}</label>
   <div class="controls">
-    <input type="number" class="input-small" id="{{option.id}}" ng-model="answers[option.id]"
+    <input type="number" class="input-small" id="{{option.id}}" ng-model="inputs[option.id]"
             ng-required="required" ng-pattern="{{option.regex || ''}}"
             placeholder="{{option.sample | prepend:'ex. '}}" >
     <p ng-hide="!option.description" class="help-block">{{option.description}}</p>
@@ -288,7 +288,7 @@ url: shows "Address Builder" to handle url options
   <label class="control-label capitalize" ng-class="{required: required}" for="{{option.id}}">{{option.label || option.id}}</label>
   <div class="controls">
     <label class="checkbox">
-      <input type="checkbox" class="input-xlarge" id="{{option.id}}" ng-model="answers[option.id]"
+      <input type="checkbox" class="input-xlarge" id="{{option.id}}" ng-model="inputs[option.id]"
             ng-required="required" >
       {{description}}
     </label>
@@ -298,7 +298,7 @@ url: shows "Address Builder" to handle url options
 <script id="option-select" type="text/ng-template">
   <label class="control-label capitalize" ng-class="{required: required}" for="{{option.id}}">{{option.label || option.id}}</label>
   <div class="controls">
-    <select id="{{option.id}}" ng-model="answers[option.id]" ng-required="required" ng-options="o for o in option.choice">
+    <select id="{{option.id}}" ng-model="inputs[option.id]" ng-required="required" ng-options="o for o in option.choice">
     </select>
     <p ng-hide="!option.description" class="help-block">{{option.description}}</p>
   </div>
@@ -307,7 +307,7 @@ url: shows "Address Builder" to handle url options
 <script id="option-select-kv" type="text/ng-template">
   <label class="control-label capitalize" ng-class="{required: required}" for="{{option.id}}">{{option.label || option.id}}</label>
   <div class="controls">
-    <select id="{{option.id}}" ng-model="answers[option.id]" ng-required="required" ng-options="o.value as o.name for o in option.choice">
+    <select id="{{option.id}}" ng-model="inputs[option.id]" ng-required="required" ng-options="o.value as o.name for o in option.choice">
     </select>
     <p ng-hide="!option.description" class="help-block">{{option.description}}</p>
   </div>
@@ -316,11 +316,11 @@ url: shows "Address Builder" to handle url options
 <script id="option-combo" type="text/ng-template">
   <label class="control-label capitalize" ng-class="{required: required}" for="{{option.id}}">{{option.label || option.id}}</label>
   <div class="controls">
-     <input type="text" name="state" class="input-xlarge" id="{{option.id}}" ng-model="answers[option.id]"
+     <input type="text" name="state" class="input-xlarge" id="{{option.id}}" ng-model="inputs[option.id]"
             ng-required="required" ng-pattern="{{option.regex || ''}}"
             placeholder="{{option.sample | prepend:'ex. '}}"/>
      <br />
-     <select name="s" id="{{option.id}}" ng-model="answers[option.id]" ng-options="o for o in option.choice" onchange="document.ex.state.value=document.ex.s.options[document.ex.s.selectedindex].value;document.ex.s.value="""><option value="" selected="selected">
+     <select name="s" id="{{option.id}}" ng-model="inputs[option.id]" ng-options="o for o in option.choice" onchange="document.ex.state.value=document.ex.s.options[document.ex.s.selectedindex].value;document.ex.s.value="""><option value="" selected="selected">
      </select>
     <p ng-hide="!option.description" class="help-block">{{option.description}}</p>
   </div>
@@ -332,7 +332,7 @@ url: shows "Address Builder" to handle url options
       <label class="control-label" ng-class="{required: required}" for="{{option.id}}">{{option.label}}</label>
       <div class="controls">
         <div class="input-append span12">
-          <input class="input-xlarge span9" ng-model="answers[option.id]" id="{{option.id}}" type="text" ng-change="UpdateParts(this, option.id)">
+          <input class="input-xlarge span9" ng-model="inputs[option.id]" id="{{option.id}}" type="text" ng-change="UpdateParts(this, option.id)">
           <button class="btn" ng-class="{'active': builder}" ng-click="builder = !builder">Address Details</button>
         </div>
       </div>
@@ -372,7 +372,7 @@ url: shows "Address Builder" to handle url options
       <div class="control-group" ng-repeat="dns_option in options | filter:{id: 'register-dns'}">
           <label class="control-label required" for="register_dns">{{dns_option.label || id}}</label>
           <div class="controls">
-            <input type="checkbox" class="input-xlarge" id="register_dns" ng-model="answers['register-dns']">
+            <input type="checkbox" class="input-xlarge" id="register_dns" ng-model="inputs['register-dns']">
             <p ng-hide="!dns_option.description" class="help-block">{{dns_option.description}}</p>
           </div>
       </div>
@@ -391,7 +391,7 @@ url: shows "Address Builder" to handle url options
         <div class="control-group offset1" ng-cloak ng-show="ShowCerts()" ng-repeat="option in options | filter:{id: 'ssl_certificate'}">
             <label class="control-label capitalize" for="ssl_certificate">{{option.label}}</label>
             <div class="controls">
-                <textarea cols="80" rows="20" class="input-xlarge" id="ssl_certificate" ng-model="answers['ssl_certificate']" placeholder="{{option.sample | prepend:'ex. '}}"></textarea>
+                <textarea cols="80" rows="20" class="input-xlarge" id="ssl_certificate" ng-model="inputs['ssl_certificate']" placeholder="{{option.sample | prepend:'ex. '}}"></textarea>
                 <p class="help-block">{{option.description}} To generate internal certificates for testing, go to <a href="https://ssl.corp.rackspace.com/" target="_blank">https://ssl.corp.rackspace.com/</a></p>
             </div>
         </div>
@@ -402,7 +402,7 @@ url: shows "Address Builder" to handle url options
         <div class="control-group offset1" ng-cloak ng-show="ShowCerts()" ng-repeat="option in options | filter:{id: 'ssl_private_key'}">
             <label class="control-label capitalize" for="ssl_certificate">{{option.label}}</label>
             <div class="controls">
-                <textarea cols="80" rows="20" class="input-xlarge" id="ssl_private_key" ng-model="answers['ssl_private_key']" placeholder="{{option.sample | prepend:'ex. '}}"></textarea>
+                <textarea cols="80" rows="20" class="input-xlarge" id="ssl_private_key" ng-model="inputs['ssl_private_key']" placeholder="{{option.sample | prepend:'ex. '}}"></textarea>
                 <p ng-hide="!option.description" class="help-block">{{option.description}}</p>
             </div>
         </div>
@@ -413,7 +413,7 @@ url: shows "Address Builder" to handle url options
         <div class="control-group offset1" ng-cloak ng-show="ShowCerts()" ng-repeat="option in options | filter:{id: 'ssl_intermediate_certificate'}">
             <label class="control-label capitalize" for="ssl_intermediate_certificate">{{option.label}}</label>
             <div class="controls">
-                <textarea cols="80" rows="20" class="input-xlarge" id="ssl_intermediate_certificate" ng-model="answers['ssl_intermediate_certificate']" placeholder="{{option.sample | prepend:'ex. '}}"></textarea>
+                <textarea cols="80" rows="20" class="input-xlarge" id="ssl_intermediate_certificate" ng-model="inputs['ssl_intermediate_certificate']" placeholder="{{option.sample | prepend:'ex. '}}"></textarea>
                 <p ng-hide="!option.description" class="help-block">{{option.description}}</p>
             </div>
         </div>
