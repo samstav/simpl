@@ -430,8 +430,8 @@ services.value('scroll', {
   }
 });
 
-services.value('settings', {
-  getSettingsFromBlueprint: function(blueprint) {
+services.value('options', {
+  getOptionsFromBlueprint: function(blueprint) {
     var options = []; // The accumulating array
 
     var opts = blueprint.options;
@@ -444,7 +444,7 @@ services.value('settings', {
     _.each(options, function(option) {
       if (option.regex) {
         if (!_.isRegExp(option.regex)) {
-          console.log("Regex '" + option.regex + "' is invalid for setting " + option.id);
+          console.log("Regex '" + option.regex + "' is invalid for option " + option.id);
           delete option["regex"];
         }
       }
@@ -453,7 +453,7 @@ services.value('settings', {
     return options;
   },
 
-  getSettingsFromEnvironment: function(env) {
+  getOptionsFromEnvironment: function(env) {
     var options = [];
     return options;
   },
