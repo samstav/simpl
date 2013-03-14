@@ -262,15 +262,17 @@ class BrowserMiddleware(object):
             if request.method == 'OPTIONS':
                 origin = request.get_header('origin', 'http://noaccess')
                 u = urlparse(origin)
-                if (u.netloc in ['localhost:8080', 'checkmate.rackspace.com',
-                                 'checkmate.rackspace.net'] or
-                    u.netloc.endswith('chkmate.rackspace.net:8080')):
+                is_rax_pre_prod = 'chkmate.rackspace.net' in u.netloc
+                is_rax_prod = (u.netloc == 'checkmate.rackspace.com')
+                is_dev_box = (u.netloc == 'localhost:8080')
+                if (is_rax_prod or is_rax_pre_prod or is_dev_box):
                     response.add_header('Access-Control-Allow-Origin', origin)
                     response.add_header('Access-Control-Allow-Methods',
                                         'POST, OPTIONS')
                     response.add_header('Access-Control-Allow-Headers',
                                         'Origin, Accept, Content-Type, '
-                                        'X-Requested-With, X-CSRF-Token')
+                                        'X-Requested-With, X-CSRF-Token, '
+                                        'X-Auth-Source, X-Auth-Token')
                 return write_body({}, request, response)
             user_feedback = read_body(request)
             if not user_feedback or 'feedback' not in user_feedback:

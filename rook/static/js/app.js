@@ -454,7 +454,9 @@ function NavBarController($scope, $location) {
             "username": $scope.auth.identity.username,
             "tenantId": $scope.auth.context.tenantId,
             "location": $location.absUrl(),
-            "auth": $scope.auth,
+            "auth": {
+                "identity": $scope.auth.identity,
+                "context": $scope.auth.context},
             "api_version": $scope.api_version,
             "rook_version": $scope.rook_version
             }
