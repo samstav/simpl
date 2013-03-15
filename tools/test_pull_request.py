@@ -72,7 +72,6 @@ tests_passed = []
 tests_failed = []
 
 #move to the checkmate workspace root
-os.chdir("..")
 bash('''
     cp .git/config .git/config.bak
     git config --add remote.origin.fetch '+refs/pull/*/head:refs/remotes/origin/pr/*'
