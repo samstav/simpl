@@ -114,9 +114,16 @@ for branch in PULL_REQUESTS:
 bash("mv .git/config.bak .git/config")
 
 if len(TESTS_PASSED) + len(TESTS_FAILED) > 0:
-
+    print "#" * 30
     print "Pull Requests PASSED:" + ", ".join(TESTS_PASSED)
     print "Pull Requests FAILED:" + ", ".join(TESTS_FAILED)
+    print "#" * 30
+
+    print "Failed branch commit detail:"
+    for branch in TESTS_FAILED:
+        print "Branch %s:" % branch
+        bash("git log master.." + branch)
+        print
 
     with open(TESTED_PULL_REQUEST_PATH, 'a') as tested_pull_request_file:
         tested_pull_request_file.write("\n".join(PULL_REQUESTS))
