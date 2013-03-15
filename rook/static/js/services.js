@@ -446,20 +446,32 @@ services.value('options', {
 
       var dh = option['display-hints'];
       // Guess region option for legacy compatibility
-      if (region_option === null && (option.id == 'region' || option['type'] == 'region') && dh === undefined)
+      if (region_option === null && (key == 'region' || option['type'] == 'region') && dh === undefined)
         region_option = option;
 
       var group;
       if ('display-hints' in option) {
-        if ('group' in dh && !(dh.group in groups)) {
+        if ('group' in dh) {
           group = dh.group;
           // Detect region (overrides legacy guess)
           if (option['type'] == 'region' && group == 'deployment')
-              region_option = option;
-          else
-              groups[dh.group] = [option];  // Don't add region to group as it will be displayed in environment section
-        } else
-          groups[dh.group].push(option);
+            region_option = option;
+        }
+      } else if (['site_address', 'url'].indexOf(key) != -1) {
+        group = "application";
+        option['type'] = 'url';
+      } else if (['domain', 'register-dns', 'web_server_protocol', 'path', 'ssl_certificate', 'ssl_private_key', 'ssl_intermediate_certificate'].indexOf(key) != -1) {
+        group = "hidden";
+      } else if (['username', 'password', 'prefix'].indexOf(key) != -1) {
+        group = "application";
+      } else if (option != region_option)
+        group = "application";
+
+      if (group !== undefined) {
+        if (group in groups)
+          groups[group].push(option);
+        else
+          groups[group] = [option];
       }
 
       var constraints = option.constraints || [];
