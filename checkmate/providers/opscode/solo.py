@@ -51,6 +51,7 @@ class Provider(ProviderBase):
     vendor = 'opscode'
 
     def __init__(self, provider, key=None):
+        print "INIT KEY: %s" % key
         ProviderBase.__init__(self, provider, key=key)
         self.prep_task = None
 
@@ -66,6 +67,8 @@ class Provider(ProviderBase):
         if self.prep_task:
             return  # already prepped
         self._hash_all_user_resource_passwords(deployment)
+
+        print "KEY: %s" % self.key
 
         # Create Celery Task
         settings = deployment.settings()
@@ -598,7 +601,7 @@ class Provider(ProviderBase):
                     'checkmate.providers.opscode.knife.register_node',
                     call_args=[
                             PathAttrib('instance:%s/ip' % relation['target']),
-                            deployment['id']],
+                            deployment['id'], resource],
                     password=PathAttrib('instance:%s/password' %
                             relation['target']),
                     kitchen_name='kitchen',
