@@ -730,7 +730,6 @@ def wait_on_build(context, lbid, region, api=None):
     match_celery_logging(LOG)
     assert lbid, "ID must be provided"
     LOG.debug("Getting loadbalancer %s" % lbid)
-    print "CONTEXT: %s" % context
 
     if api is None:
         api = Provider._connect(context, region)
