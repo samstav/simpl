@@ -41,7 +41,6 @@ register_scheme('git')  # without this, urlparse won't handle git:// correctly
 def update_dep_error(msg):
     """ Updates a deployment's status to ERROR """
 
-    print "RECIEVED ERROR: %s" % msg
     deployment = DB.get_deployment(DEP_ID, with_secrets=True)
 
     if not deployment:
@@ -52,7 +51,6 @@ def update_dep_error(msg):
     deployment['errmessage'] = msg
     body, secrets = utils.extract_sensitive_data(deployment)
     DB.save_deployment(DEP_ID, body, secrets)
-    print "SUCCESSFULLY SAVED %s \n %s" % (DEP_ID, body)
     LOG.error(msg)
 
 
@@ -348,6 +346,7 @@ def _init_repo(path, source_repo=None):
     if source_repo:  # Pull remote if supplied
         source_repo, ref = urlparse.urldefrag(source_repo)
         LOG.debug("Fetching ref %s from %s" % (ref or 'master', source_repo))
+        print ("Fetching ref %s from %s" % (ref or 'master', source_repo))
         remotes = [r for r in repo.remotes
                      if r.config_reader.get('url') == source_repo]
         if remotes:

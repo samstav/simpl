@@ -363,8 +363,6 @@ def create_instance(context, instance_name, flavor, size, databases, region,
             "Databases = %s" % (instance.name, instance.id, size, flavor,
             databases))
 
-    print "INSTANCE CREATED %s" % instance.id
-
     # Return instance and its interfaces
     results = {
             'instance:%s' % context['resource']: {
@@ -403,7 +401,6 @@ def create_instance(context, instance_name, flavor, size, databases, region,
 def wait_on_build(context, instance_id, region, api=None):
     """ Check to see if DB Instance has finished building """
 
-    print "WAITING ON BUILD %s" % instance_id
     match_celery_logging(LOG)
     if api is None:
         api = Provider._connect(context, region)
@@ -454,7 +451,6 @@ def create_database(context, name, region, character_set=None, collate=None,
             instance_id not supplied)
     """
 
-    print "CREATING DB %s" % instance_id
     match_celery_logging(LOG)
     database = {'name': name}
     if character_set:
@@ -469,7 +465,6 @@ def create_database(context, name, region, character_set=None, collate=None,
     instance_key = 'instance:%s' % context['resource']
     if not instance_id:
         # Create instance & database
-        print "NO INSTANCE FOUND. CREATING NEW"
         instance_name = '%s_instance' % name
         size = 1
         flavor = '1'
@@ -499,7 +494,7 @@ def create_database(context, name, region, character_set=None, collate=None,
                         'name': name,
                         'host_instance': instance_id,
                         'host_region': region,
-                        'status': "ACTIVE",
+                        'status': "BUILD", # status not active till user is added successfully
                         'interfaces': {
                                 'mysql': {
                                         'host': instance.hostname,  # pylint: disable=E1103
@@ -556,6 +551,11 @@ def add_user(context, instance_id, databases, username, password, region,
     match_celery_logging(LOG)
 
     assert instance_id, "Instance ID not supplied"
+
+    instance_key = 'instance:%s' % context['resource']
+    results = {instance_key: {'status': "CONFIGURE"}}
+    resource_postback.delay(context['deployment'], results) 
+
     if not api:
         api = Provider._connect(context, region)
 
@@ -574,11 +574,11 @@ def add_user(context, instance_id, databases, username, password, region,
         else:
             raise exc
 
-    instance_key = 'instance:%s' % context['resource']
     results = {
                 instance_key: {
                         'username': username,
                         'password': password,
+                        'status' : "ACTIVE",
                         'interfaces': {
                                 'mysql': {
                                         'host': instance.hostname,
