@@ -10,9 +10,13 @@ def bash(cmd, verbose=True):
     raises CalledProcessError - if the run cmd returns a non-zero exit code. 
         Inspect CalledProcessError.output or CalledProcessError.returncode for information.
     """
-    result = subprocess.check_output("#!/bin/bash\nset -e\n" + cmd, shell=True, stderr=subprocess.STDOUT)
-    if verbose: print result
-    return result
+    try:
+        result = subprocess.check_output("#!/bin/bash\nset -e\n" + cmd, shell=True, stderr=subprocess.STDOUT)
+        if verbose: print result
+        return result
+    except subprocess.CalledProcessError as cpe:
+        print cpe.returncode + "\n" + cpe.output  
+        raise cpe
 
 def getPullRequests():
     """
