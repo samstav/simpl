@@ -87,10 +87,10 @@ bash('''
     ''')
 
 REMOTE_PULL_REQUESTS = get_pull_requests()
-print "REMOTE_PULL_REQUESTS " + " ,".join(REMOTE_PULL_REQUESTS)
+#print "REMOTE_PULL_REQUESTS " + " ,".join(REMOTE_PULL_REQUESTS)
 
 TESTED_PULL_REQUESTS = get_tested_pull_requests(TESTED_PULL_REQUEST_PATH)
-print "TESTED_PULL_REQUESTS %s" % " ,".join(TESTED_PULL_REQUESTS)
+#print "TESTED_PULL_REQUESTS %s" % " ,".join(TESTED_PULL_REQUESTS)
 
 PULL_REQUESTS = [pr for pr in REMOTE_PULL_REQUESTS 
                     if pr not in TESTED_PULL_REQUESTS]
