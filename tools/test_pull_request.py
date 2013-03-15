@@ -45,7 +45,6 @@ def test():
         fi
 
         find ./checkmate -type d -name chef-stockton -exec rm -rf {} \; || exit 0
-
         . ~/.rvm/environments/ruby-1.9.3-p125@checkmate
         if [ -d /tmp/checkmate/test ]; then
         rm -rf /tmp/checkmate/test
