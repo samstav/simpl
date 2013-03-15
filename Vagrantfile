@@ -41,20 +41,14 @@ Vagrant::Config.run do |config|
           :gems => {
             'ruby-1.9.3-p125@checkmate' => [
               { 'name' => 'bundler' },
-              { 'name' => 'net-ssh',
-                'version' => '2.2.2' },
-              { 'name' => 'net-ssh-multi',
-                'version' => '1.1' },
-              { 'name' => 'net-ssh-gateway',
-                'version' => '1.1.0' },
               { 'name' => 'chef',
-                'version' => '10.12.0' },
+                'version' => '11.4.0' },
               { 'name' => 'librarian'},
               { 'name' => 'berkshelf'},
               { 'name' => 'knife-solo',
-                'version' => '0.0.13' },
+                'version' => '0.2.0' },
               { 'name' => 'knife-solo_data_bag',
-                'version' => '0.2.1' }
+                'version' => '0.3.1' }
             ]
           }
         }],
