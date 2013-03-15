@@ -438,44 +438,50 @@ def resource_postback(deployment_id, contents):
     deployment = Deployment(deployment)
 
     # Update deployment status
-    # If any resource status is error, deployment status = ERROR
-    # Else, unless all resources are new, deployment status = BUILD
-    if isinstance(contents, dict):
-        for key, value in contents.items():
-            if key.startswith('instance'):
-                if 'status' in contents[key]:
-                    r_id = key.split(':')[1]
-                    r_status = contents[key].get('status')
-                    deployment['resources'][r_id]['status'] = r_status
-                    contents[key].pop('status', None) # Don't want to write status to resource instance
-                    if r_status and r_status is "ERROR":
-                        deployment['status'] = "ERROR"
-                        deployment['errmessage'] = contents[key].get('errmessage')
-                    else:
-                        status = ""
-                        resources = deployment.get('resources')
-                        for key, value in resources.items():
-                            if key.isdigit():
-                                print "%s:%s, %s" % (key, value.get('status'), value.get('type'))
-                                if value['status'] is "BUILD":
-                                    status = "BUILD"
-                                    continue
-                                if value['status'] is "ERROR":
-                                    status = "ERROR"
-                                    deployment['errmessage'] = value.get('errmessage')
-                                    break
-                        if status:
-                            deployment['status'] = status
-                        else: # No builds/Errors, either active or new
-                            status = "ACTIVE"
-                            for key, value in resources.items():
-                                if key.isdigit():
-                                    if value['status'] is "NEW":
-                                        status = ""
-                                        break
-                            if status:
-                                deployment['status'] = status 
+    count = 0
+    statuses = {"NEW": 0,
+                "BUILD": 0,
+                "CONFIGURE": 0,
+                "ACTIVE": 0}
 
+    assert isinstance(contents, dict), "Must postback data in dict"
+
+    for key, value in contents.items():
+        if 'status' in contents[key]:
+            r_id = key.split(':')[1]
+            r_status = contents[key].get('status')
+            print "%s:%s, %s" % (r_id, r_status, deployment['resources'][r_id]['type'])
+            deployment['resources'][r_id]['status'] = r_status
+            contents[key].pop('status', None) # Don't want to write status to resource instance
+            if r_status == "ERROR":
+                r_msg = contents[key].get('errmessage')
+                deployment['status'] = "ERROR"
+                if "errmessage" not in deployment:
+                    deployment['errmessage'] = []
+                if r_msg not in deployment['errmessage']:
+                    deployment['errmessage'].append(r_msg)
+            statuses[r_status] += 1
+            count += 1
+
+    if deployment['status'] != "ERROR":
+        # Case 1: status is NEW
+        if statuses['NEW'] == count:
+            deployment['status'] = "NEW"
+        # Case 2: status is BUILD
+        elif statuses['BUILD'] >= 1:
+            deployment['status'] = "BUILD"
+        # Case 3: status is CONFIGURE
+        elif (statuses['ACTIVE'] + statuses['CONFIGURE']) == count:
+            deployment['status'] = "CONFIGURE"
+        # Case 4: status is ACTIVE
+        elif statuses['ACTIVE'] == count:
+            deployment['status'] = "ACTIVE"
+        else:
+            LOG.debug("Could not identify a deployment status update")
+
+    print "DEP STATUS: %s" % deployment['status']
+    if 'errmessage' in deployment:
+        print "ERRMESSAGE: %s" % deployment['errmessage']
     deployment.on_resource_postback(contents)
     body, secrets = extract_sensitive_data(deployment)
     DB.save_deployment(deployment_id, body, secrets)

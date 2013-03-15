@@ -1,6 +1,9 @@
 from checkmate import utils
 from checkmate.exceptions import CheckmateException, CheckmateCalledProcessError
 from checkmate.ssh import execute as ssh_execute
+from checkmate.deployments import resource_postback
+from checkmate.deployment import Deployment
+from checkmate.db import get_driver
 from celery import task  # @UnresolvedImport
 from subprocess import (CalledProcessError, check_output, Popen, PIPE)
 from collections import deque
@@ -18,8 +21,10 @@ import urlparse
 from git.exc import GitCommandError
 
 LOG = logging.getLogger(__name__)
+DB = get_driver()
 
 CHECKMATE_CHEF_REPO = None
+DEP_ID = ""
 
 
 def register_scheme(scheme):
@@ -31,6 +36,24 @@ def register_scheme(scheme):
         getattr(urlparse, method).append(scheme)
 
 register_scheme('git')  # without this, urlparse won't handle git:// correctly
+
+
+def update_dep_error(msg):
+    """ Updates a deployment's status to ERROR """
+
+    print "RECIEVED ERROR: %s" % msg
+    deployment = DB.get_deployment(DEP_ID, with_secrets=True)
+
+    if not deployment:
+        raise IndexError("Deployment %s not found" % name)
+            
+    deployment = Deployment(deployment)
+    deployment['status'] = "ERROR"
+    deployment['errmessage'] = msg
+    body, secrets = utils.extract_sensitive_data(deployment)
+    DB.save_deployment(DEP_ID, body, secrets)
+    print "SUCCESSFULLY SAVED %s \n %s" % (DEP_ID, body)
+    LOG.error(msg)
 
 
 def _get_repo_path():
@@ -55,7 +78,9 @@ def _get_root_environments_path(path=None):
     root = path or os.environ.get("CHECKMATE_CHEF_LOCAL_PATH",
             "/var/local/checkmate/deployments")
     if not os.path.exists(root):
-        raise CheckmateException("Invalid root path: %s" % root)
+        msg = "Invalid root path: %s" % root
+        update_dep_error(msg)
+        raise CheckmateException(msg)
     return root
 
 
@@ -97,6 +122,8 @@ def check_all_output(params):
     if retcode == 0:
         return '%s%s' % (''.join(errors), ''.join(queue))
     else:
+        msg = "Output: %s \n Knife Errors: %s" % (queue, errors)
+        update_dep_error(msg)
         # Raise CalledProcessError, but include the Knife-specifc errors
         raise CheckmateCalledProcessError(retcode, ' '.join(params),
                 output='\n'.join(queue), error_info='\n'.join(errors))
@@ -133,17 +160,20 @@ def _run_ruby_command(path, command, params, lock=True):
                 except CalledProcessError:
                     pass
                 if not output:
-                    raise CheckmateException("'%s' is not installed or not "
-                                             "accessible on the server" %
-                                             command)
+                    msg =("'%s' is not installed or not accessible on the "
+                          "server" % command)
+                    update_dep_error(msg)
+                    raise CheckmateException(msg)
             raise exc
         except CalledProcessError, exc:
             #retry and pass ex
             # CalledProcessError cannot be serialized using Pickle, so raising
             # it would fail in celery; we wrap the exception in something
             # Pickle-able.
+            msg = exc.output
+            update_dep_error(msg)
             raise CheckmateCalledProcessError(exc.returncode, exc.cmd,
-                                              output=exc.output)
+                                              output=msg)
         finally:
             path_lock.release()
     else:
@@ -208,8 +238,10 @@ def _run_kitchen_command(kitchen_path, params, lock=True):
             # Get the string after a Knife-Solo error::
             error = last_error.split('Error:')[-1]
             if error:
+                msg = "Knife error encountered: %s" % error
+                update_dep_error(msg)
                 raise CheckmateCalledProcessError(1, ' '.join(params),
-                        output="Knife error encountered: %s" % error)
+                        output=msg)
             # Don't raise on all errors. They don't all mean failure!
     return result
 
@@ -228,9 +260,10 @@ def _create_environment_keys(environment_path, private_key=None,
             with file(private_key_path, 'r') as f:
                 data = f.read()
             if data != private_key:
-                raise CheckmateException("A private key already exists in "
-                        "environment %s and does not match the value provided "
-                        % environment_path)
+                msg = ("A private key already exists in environment %s and "
+                      "does not match the value provided" % environment_path)
+                update_dep_error(msg)
+                raise CheckmateException(msg)
     else:
         if private_key:
             with file(private_key_path, 'w') as f:
@@ -325,7 +358,8 @@ def _init_repo(path, source_repo=None):
         try:
             remote.fetch(refspec=ref or 'master')
         except GitCommandError as gce:
-            LOG.error("Error fetching source repo: %s" % str(gce))
+            msg = "Error fetching source repo: %s" % str(gce)
+            update_dep_error(msg)
             raise gce
         git_binary = git.Git(path)
         git_binary.checkout('FETCH_HEAD')
@@ -363,8 +397,10 @@ def _create_kitchen(name, path, secret_key=None):
     nodes_path = os.path.join(kitchen_path, 'nodes')
     if os.path.exists(nodes_path):
         if any((f.endswith('.json') for f in os.listdir(nodes_path))):
-            raise CheckmateException("Kitchen already exists and seems to "
-                    "have nodes defined in it: %s" % nodes_path)
+            msg = ("Kitchen already exists and seems to have nodes defined "
+                   "in it: %s" % nodes_path)
+            update_dep_error(msg)
+            raise CheckmateException(msg)
     else:
         # we don't pass the config file here becasuse we're creating the
         # kitchen for the first time and knife will overwrite our config file
@@ -377,8 +413,10 @@ def _create_kitchen(name, path, secret_key=None):
     repo_path = _get_repo_path()
     bootstrap_path = os.path.join(repo_path, 'bootstrap.json')
     if not os.path.exists(bootstrap_path):
-        raise CheckmateException("Invalid master repo. {} not found"
-                                 .format(bootstrap_path))
+        msg = ("Invalid master repo. {} not found".format(bootstrap_path))
+        update_dep_error(msg)
+        raise CheckmateException(msg)
+
     shutil.copy(bootstrap_path, os.path.join(kitchen_path, 'bootstrap.json'))
 
     # Create certificates folder
@@ -395,9 +433,10 @@ def _create_kitchen(name, path, secret_key=None):
             with file(secret_key_path, 'r') as f:
                 data = f.read(secret_key)
             if data != secret_key:
-                raise CheckmateException("Kitchen secrets key file '%s' "
-                        "already exists and does not match the provided value"
-                        % secret_key_path)
+                msg = ("Kitchen secrets key file '%s' already exists and does "
+                       "not match the provided value" % secret_key_path)
+                update_dep_error(msg)
+                raise CheckmateException(msg)
         LOG.debug("Stored secrets file exists: %s" % secret_key_path)
     else:
         if not secret_key:
@@ -728,6 +767,9 @@ def create_environment(name, service_name, path=None, private_key=None,
     :param source_repo: provides cookbook repository in valid git syntax
     """
     utils.match_celery_logging(LOG)
+    global DEP_ID #set dep ID to use in other functions
+    DEP_ID = name
+
     # Get path
     root = _get_root_environments_path(path)
     fullpath = os.path.join(root, name)
@@ -741,8 +783,9 @@ def create_environment(name, service_name, path=None, private_key=None,
             LOG.warn("Environment directory %s already exists", fullpath,
                      exc_info=True)
         else:
-            raise CheckmateException(
-                "Could not create environment %s" % fullpath, ose)
+            msg = "Could not create environment %s" % fullpath
+            update_dep_error(msg)
+            raise CheckmateException(msg, ose)
 
     results = {"environment": fullpath}
 
@@ -791,7 +834,7 @@ def create_environment(name, service_name, path=None, private_key=None,
 
 
 @task
-def register_node(host, environment, path=None, password=None,
+def register_node(host, environment, resource, path=None, password=None,
         omnibus_version=None, attributes=None, identity_file=None,
         kitchen_name='kitchen'):
     """Register a node in Chef.
@@ -805,7 +848,8 @@ def register_node(host, environment, path=None, password=None,
 
     :param host: the public IP of the host (that's how knife solo tracks the
         nodes)
-    :param environment: the ID of the environment
+    :param environment: the ID of the environment/deployment
+    :param resource: dict of resource information
     :param path: an optional override for path to the environment root
     :param password: the node's password
     :param omnibus_version: override for knife bootstrap (default=latest)
@@ -813,12 +857,33 @@ def register_node(host, environment, path=None, password=None,
     :param identity_file: private key file to use to connect to the node
     """
     utils.match_celery_logging(LOG)
+
+    # Update status of host resource to CONFIGURE
+    host_results = {}
+    host_results['status'] = "CONFIGURE"
+    host_key = 'instance:%s' % resource['hosted_on']
+    results = {host_key: results}
+    resource_postback.delay(environment, host_results)
+
+    # Update status of current resource to BUILD
+    results = {}
+    results['status'] = "BUILD"
+    instance_key = 'instance:%s' % resource['index']
+    results = {instance_key: results}
+    resource_postback.delay(environment, results)
+    
+    results = {}
+
     # Get path
     root = _get_root_environments_path(path)
     kitchen_path = os.path.join(root, environment, kitchen_name)
+    results = {}
     if not os.path.exists(kitchen_path):
-        raise CheckmateException("Environment kitchen does not exist: %s" %
-                kitchen_path)
+        msg = "Environment kitchen does not exist: %s" % kitchen_path
+        results['status'] = "ERROR"
+        results['errmessage'] = msg
+        resource_postback.delay(environment, {instance_key: results})
+        raise CheckmateException(msg)
 
     # Rsync problem with creating path (missing -p so adding it ourselves) and
     # doing this before the complex prepare work
