@@ -109,14 +109,20 @@ for branch in PULL_REQUESTS:
         TESTS_FAILED.append(branch)
 
     bash("git checkout master")
-    bash("git branch -d %s" % pr_branch)
 
 bash("mv .git/config.bak .git/config")
 
 if len(TESTS_PASSED) + len(TESTS_FAILED) > 0:
-
+    print "#" * 30
     print "Pull Requests PASSED:" + ", ".join(TESTS_PASSED)
     print "Pull Requests FAILED:" + ", ".join(TESTS_FAILED)
+    print "#" * 30
+
+    print "Failed branch commit detail:"
+    for branch in TESTS_FAILED:
+        print "Branch %s:" % branch
+        bash("git log master..pr/" + branch)
+        bash("git branch -d pr/%s" % branch, False)
 
     with open(TESTED_PULL_REQUEST_PATH, 'a') as tested_pull_request_file:
         tested_pull_request_file.write("\n".join(PULL_REQUESTS))
@@ -124,8 +130,7 @@ if len(TESTS_PASSED) + len(TESTS_FAILED) > 0:
     bash('''
         #commit the tested pull request file
         git commit -a -m 'Jenkins tested the pull request(s): %s'
-        git remote add fork https://github.rackspace.com/andr5956/checkmate.git
-        git push fork master
+        git push origin master
     ''' % ", ".join(PULL_REQUESTS))
 
 if not SUCCESS: 
