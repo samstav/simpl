@@ -24,16 +24,15 @@ def getPullRequests():
 def getTestedPullRequests(pull_request_file):
     """
     Splits the pull request file's contents into an array
-
     """
     with open(pull_request_file, 'r') as pull_request_file:
         return pull_request_file.read().split('\n')
 
 def test():
-    '''
+    """
     Runs unit tests and linting... this was copied directly from the checkmate jenkins job.
-    '''
-	return bash('''
+    """
+    return bash('''
         PYENV_HOME=$WORKSPACE/../.checkmate_pyenv/
         . $PYENV_HOME/bin/activate
 
