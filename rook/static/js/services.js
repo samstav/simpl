@@ -434,6 +434,7 @@ services.value('options', {
   getOptionsFromBlueprint: function(blueprint) {
     var options = []; // The accumulating array
     var groups = {}; // The options grouped by groups in display-hints
+    var region_option = null; // The option identified as the deployment region
 
     var opts = blueprint.options;
     _.each(opts, function(item, key) {
@@ -444,11 +445,19 @@ services.value('options', {
       options.push(option);
 
       var dh = option['display-hints'];
+      // Guess region option for legacy compatibility
+      if (region_option === null && (option.id == 'region' || option['type'] == 'region') && dh === undefined)
+        region_option = option;
+
       var group;
       if ('display-hints' in option) {
         if ('group' in dh && !(dh.group in groups)) {
           group = dh.group;
-          groups[dh.group] = [option];
+          // Detect region (overrides legacy guess)
+          if (option['type'] == 'region' && group == 'deployment')
+              region_option = option;
+          else
+              groups[dh.group] = [option];  // Don't add region to group as it will be displayed in environment section
         } else
           groups[dh.group].push(option);
       }
@@ -464,7 +473,7 @@ services.value('options', {
       }
     });
 
-    return {options: options, groups: groups};
+    return {options: options, groups: groups, region_option: region_option};
   },
 
   getOptionsFromEnvironment: function(env) {

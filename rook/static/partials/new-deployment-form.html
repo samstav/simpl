@@ -71,7 +71,7 @@ url: shows "Address Builder" to handle url options
           <!-- Show text if only one exists -->
           <input ng-cloak ng-show="!environments" readonly="" type="text" value="{{environment.name}}" class="input-xlarge">
           <!-- region -->
-          <span ng-repeat="option in options | filter:{id: 'region'}">
+          <span ng-repeat="option in [region_option]" ng-cloak ng-show="region_option">
               in <select id="region" style="width: 80px;" ng-model="inputs['region']" ng-options="o for o in option.choice"></select>
               <span ng-hide="!option.description" class="help-block">{{option.description}}</span>
           </span>
