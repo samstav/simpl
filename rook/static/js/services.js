@@ -479,6 +479,8 @@ services.value('options', {
         // If protocols is in constraints, write out to the option so the form can read it
         if ('protocols' in constraint)
           option.protocols = constraint.protocols;
+        if ('in' in constraint && (!('choice' in option)))
+          option.choice = constraint['in'];
       });
 
     });
