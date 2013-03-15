@@ -35,6 +35,7 @@ Vagrant::Config.run do |config|
       :rvm => {
         :version => "1.17.10",
         :branch => "none",
+        :installer_url => "https://raw.github.com/wayneeseguin/rvm/master/binscripts/rvm-installer",
         :user_installs => [{
           :user => 'vagrant',
           :default_ruby => 'ruby-1.9.3-p125@checkmate',
