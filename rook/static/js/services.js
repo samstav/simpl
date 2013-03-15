@@ -462,6 +462,13 @@ services.value('options', {
           groups[dh.group].push(option);
       }
 
+      var constraints = option.constraints || [];
+      _.each(constraints, function(constraint) {
+        // If protocols is in constraints, write out to the option so the form can read it
+        if ('protocols' in constraint)
+          option.protocols = constraint.protocols;
+      });
+
     });
 
     _.each(options, function(option) {
