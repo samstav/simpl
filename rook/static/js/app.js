@@ -1854,6 +1854,10 @@ function DeploymentNewController($scope, $location, $routeParams, $resource, opt
         option.choice = $scope.domain_names;
     }
 
+    if (["compute.os", "compute.memory", "region"].indexOf(lowerType) !== -1) {
+      lowerType = "select";
+    }
+
     if (lowerType == "select") {
       if ("choice" in option) {
         if (!_.isString(option.choice[0]))
