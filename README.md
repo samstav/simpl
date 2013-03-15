@@ -1,3 +1,4 @@
+#Checkmate
 ![Checkmate](https://github.rackspace.com/checkmate/rook/raw/master/rook/static/img/checkmate.png)
 
 ## Overview
