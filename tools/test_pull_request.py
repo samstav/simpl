@@ -15,7 +15,7 @@ def bash(cmd, verbose=True):
         if verbose: print result
         return result
     except subprocess.CalledProcessError as cpe:
-        print cpe.returncode + "\n" + cpe.output  
+        print str(cpe.returncode) + "\n" + cpe.output  
         raise cpe
 
 def getPullRequests():
