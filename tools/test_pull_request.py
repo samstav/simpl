@@ -110,11 +110,13 @@ print "Pull Requests FAILED:" + ", ".join(tests_failed)
 with open(tested_pull_request_path, 'a') as tested_pull_request_file:
     tested_pull_request_file.write("\n".join(test_pull_requests))
 
-bash('''
-    mv .git/config.bak .git/config
-    #commit the tested pull request file
-    git commit -a -m 'Jenkins tested the pull request(s): %s'
-    git push origin master
-''' % ", ".join(test_pull_requests))
+bash("mv .git/config.bak .git/config")
+
+if len(tests_passed) + len(tests_failed) > 0:
+    bash('''
+        #commit the tested pull request file
+        git commit -a -m 'Jenkins tested the pull request(s): %s'
+        git push origin master
+    ''' % ", ".join(test_pull_requests))
 
 if not success: raise RuntimeError("There was a failure running tests!")
