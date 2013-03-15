@@ -122,7 +122,7 @@ if len(TESTS_PASSED) + len(TESTS_FAILED) > 0:
     print "Failed branch commit detail:"
     for branch in TESTS_FAILED:
         print "Branch %s:" % branch
-        bash("git log master.." + branch)
+        bash("git log master..pr/" + branch)
         print
 
     with open(TESTED_PULL_REQUEST_PATH, 'a') as tested_pull_request_file:
