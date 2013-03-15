@@ -9,7 +9,7 @@ Vagrant::Config.run do |config|
   config.vm.box = "precise"
   config.vm.box_url = "http://files.vagrantup.com/precise64.box"
 
-  config.vm.provision :shell, :inline => "if [ \"$(chef-client --version |awk '{print $2}')\" != \"10.18.2\" ]; then bash <(wget http://www.opscode.com/chef/install.sh --tries=10 -O -) -v 10.18.2 2>> /dev/null; fi"
+  config.vm.provision :shell, :inline => "if [ \"$(chef-client --version |awk '{print $2}')\" != \"11.4.0\" ]; then bash <(wget http://www.opscode.com/chef/install.sh --tries=10 -O -) -v 11.4.0 2>> /dev/null; fi"
 
   config.vm.provision :chef_solo do |chef|
     chef.log_level = :debug
