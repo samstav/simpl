@@ -1739,10 +1739,13 @@ function DeploymentNewController($scope, $location, $routeParams, $resource, opt
 
   $scope.updateOptions = function() {
     $scope.options = [];
+    $scope.option_groups = {};
     $scope.inputs = {};
 
     if ($scope.blueprint) {
-      $scope.options = $scope.options.concat(options.getOptionsFromBlueprint($scope.blueprint));
+      var opts = options.getOptionsFromBlueprint($scope.blueprint);
+      $scope.options = $scope.options.concat(opts.options);
+      $scope.option_groups = opts.groups;
     }
 
     if ($scope.environment) {

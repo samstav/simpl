@@ -433,12 +433,26 @@ services.value('scroll', {
 services.value('options', {
   getOptionsFromBlueprint: function(blueprint) {
     var options = []; // The accumulating array
+    var groups = {}; // The options grouped by groups in display-hints
 
     var opts = blueprint.options;
-    _.each(opts, function(option, key) {
-      options.push($.extend({
+    _.each(opts, function(item, key) {
+      // Make a copy and add the ID to it
+      var option = $.extend({
         id: key
-      }, option));
+      }, item);
+      options.push(option);
+
+      var dh = option['display-hints'];
+      var group;
+      if ('display-hints' in option) {
+        if ('group' in dh && !(dh.group in groups)) {
+          group = dh.group;
+          groups[dh.group] = [option];
+        } else
+          groups[dh.group].push(option);
+      }
+
     });
 
     _.each(options, function(option) {
@@ -450,7 +464,7 @@ services.value('options', {
       }
     });
 
-    return options;
+    return {options: options, groups: groups};
   },
 
   getOptionsFromEnvironment: function(env) {
