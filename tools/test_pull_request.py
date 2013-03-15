@@ -124,6 +124,7 @@ if len(TESTS_PASSED) + len(TESTS_FAILED) > 0:
     bash('''
         #commit the tested pull request file
         git commit -a -m 'Jenkins tested the pull request(s): %s'
+        git push origin master
     ''' % ", ".join(PULL_REQUESTS))
 
 if not SUCCESS: 
