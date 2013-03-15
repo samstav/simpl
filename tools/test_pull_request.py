@@ -1,5 +1,5 @@
 #!/usr/bin/python
-import os, re, subprocess
+import re, subprocess
 
 def bash(cmd, verbose=True):
     """
@@ -11,21 +11,24 @@ def bash(cmd, verbose=True):
         Inspect CalledProcessError.output or CalledProcessError.returncode for information.
     """
     try:
-        result = subprocess.check_output("#!/bin/bash\nset -e\n" + cmd, shell=True, stderr=subprocess.STDOUT)
-        if verbose: print result
+        result = subprocess.check_output("#!/bin/bash\nset -e\n" + cmd, 
+            shell=True, 
+            stderr=subprocess.STDOUT)
+        if verbose: 
+            print result
         return result
-    except subprocess.CalledProcessError as cpe:
-        print str(cpe.returncode) + "\n" + cpe.output  
-        raise cpe
+    except subprocess.CalledProcessError as proc_error:
+        print str(proc_error.returncode) + "\n" + proc_error.output  
+        raise proc_error
 
-def getPullRequests():
+def get_pull_requests():
     """
     Parses git fetch origin for any pull request branches.
     """
     pull_requests = bash("git fetch origin")
     return re.findall(r'\s*\*.*origin/pr/(\d+)', pull_requests)
 
-def getTestedPullRequests(pull_request_file):
+def get_tested_pull_requests(pull_request_file):
     """
     Splits the pull request file's contents into an array
     """
@@ -35,6 +38,8 @@ def getTestedPullRequests(pull_request_file):
 def test():
     """
     Runs unit tests and linting... this was copied directly from the checkmate jenkins job.
+    TODO: check in the checkmate job's scripts instead of keeping them in the web console,
+        that way we can reuse the code instead of copying it here.
     """
     return bash('''
         PYENV_HOME=$WORKSPACE/../.checkmate_pyenv/
@@ -70,10 +75,10 @@ def test():
         pylint -f parseable checkmate/ | tee pylint.out
         ''')
 
-tested_pull_request_path = "tools/tested_pull_requests"
-success = True
-tests_passed = []
-tests_failed = []
+TESTED_PULL_REQUEST_PATH = "tools/tested_pull_requests"
+SUCCESS = True
+TESTS_PASSED = []
+TESTS_FAILED = []
 
 #move to the checkmate workspace root
 bash('''
@@ -81,42 +86,47 @@ bash('''
     git config --add remote.origin.fetch '+refs/pull/*/head:refs/remotes/origin/pr/*'
     ''')
 
-remote_pull_requests = getPullRequests()
-print "remote_pull_requests " + " ,".join(remote_pull_requests)
+REMOTE_PULL_REQUESTS = get_pull_requests()
+print "REMOTE_PULL_REQUESTS " + " ,".join(REMOTE_PULL_REQUESTS)
 
-tested_pull_requests = getTestedPullRequests(tested_pull_request_path)
-print "tested_pull_requests %s" % " ,".join(tested_pull_requests)
+TESTED_PULL_REQUESTS = get_tested_pull_requests(TESTED_PULL_REQUEST_PATH)
+print "TESTED_PULL_REQUESTS %s" % " ,".join(TESTED_PULL_REQUESTS)
 
-test_pull_requests = [pr for pr in remote_pull_requests if pr not in tested_pull_requests]
-for branch in test_pull_requests:
+PULL_REQUESTS = [pr for pr in REMOTE_PULL_REQUESTS 
+                    if pr not in TESTED_PULL_REQUESTS]
+
+for branch in PULL_REQUESTS:
     pr_branch = "pr/%s" % branch
     bash("git checkout %s" % pr_branch)
 
     try:
         test()
-        tests_passed.append(branch)
+        TESTS_PASSED.append(branch)
     except subprocess.CalledProcessError as cpe:
         print cpe.output
         print "Pull Request %s failed!" % branch
-        success=False
-        tests_failed.append(branch)
+        SUCCESS = False
+        TESTS_FAILED.append(branch)
 
     bash("git checkout master")
     bash("git branch -d %s" % pr_branch)
 
-print "Pull Requests PASSED:" + ", ".join(tests_passed)
-print "Pull Requests FAILED:" + ", ".join(tests_failed)
-
-with open(tested_pull_request_path, 'a') as tested_pull_request_file:
-    tested_pull_request_file.write("\n".join(test_pull_requests))
-
 bash("mv .git/config.bak .git/config")
 
-if len(tests_passed) + len(tests_failed) > 0:
+if len(TESTS_PASSED) + len(TESTS_FAILED) > 0:
+
+    print "Pull Requests PASSED:" + ", ".join(TESTS_PASSED)
+    print "Pull Requests FAILED:" + ", ".join(TESTS_FAILED)
+
+    with open(TESTED_PULL_REQUEST_PATH, 'a') as tested_pull_request_file:
+        tested_pull_request_file.write("\n".join(PULL_REQUESTS))
+
     bash('''
         #commit the tested pull request file
         git commit -a -m 'Jenkins tested the pull request(s): %s'
-        git push origin master
-    ''' % ", ".join(test_pull_requests))
+        git remote add fork https://github.rackspace.com/andr5956/checkmate.git
+        git push fork master
+    ''' % ", ".join(PULL_REQUESTS))
 
-if not success: raise RuntimeError("There was a failure running tests!")
+if not SUCCESS: 
+    raise RuntimeError("There was a failure running tests!")
