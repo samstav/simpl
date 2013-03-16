@@ -95,6 +95,7 @@ class Blueprint(ExtensibleDict):
     def validate(cls, obj):
         errors = schema.validate(obj, schema.BLUEPRINT_SCHEMA)
         errors.extend(schema.validate_inputs(obj))
+        errors.extend(schema.validate_options(obj.get('options')))
         if errors:
             raise CheckmateValidationException("Invalid %s: %s" % (
                 cls.__name__, '\n'.join(errors)))

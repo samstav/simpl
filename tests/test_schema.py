@@ -31,8 +31,24 @@ class TestSchema(unittest.TestCase):
 #        self.assertEqual(schema.translate('db.hostname'), 'database_host')
 #        self.assertEqual(schema.translate('db-hostname'), 'database_host')
 
-    def test_validate_options(self):
+    def test_validate(self):
         errors = schema.validate(
+            {
+                "label": "foo",
+            },
+            schema.OPTION_SCHEMA)
+        self.assertEqual([], errors)
+
+    def test_validate_negative(self):
+        errors = schema.validate(
+            {
+                "name": "deprecated",
+            },
+            schema.OPTION_SCHEMA)
+        self.assertEqual(len(errors), 1)
+
+    def test_validate_option(self):
+        errors = schema.validate_option("any",
             {
                 "label": "foo",
                 "type": "string",
@@ -50,17 +66,16 @@ class TestSchema(unittest.TestCase):
                 'constrains': [],
                 'constraints': [],
                 'display-hints': {},
-            },
-            schema.OPTION_SCHEMA)
+            })
         self.assertEqual([], errors)
 
-    def test_validate_options_negative(self):
-        errors = schema.validate(
+    def test_validate_option_negative(self):
+        errors = schema.validate_option("key",
             {
                 "name": "deprecated",
-            },
-            schema.OPTION_SCHEMA)
-        self.assertEqual(len(errors), 1)
+                "type": "foo",
+            })
+        self.assertEqual(len(errors), 2, msg=errors)
 
     def test_translation_path(self):
         self.assertEqual(schema.translate('db/hostname'), 'database/host')

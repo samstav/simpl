@@ -301,6 +301,37 @@ def validate_input(key, value):
 
     return errors
 
+
+def validate_option(key, option):
+    """Validates a blueprint option"""
+    errors = []
+    if option:
+        if isinstance(option, dict):
+            errors = validate(option, OPTION_SCHEMA)
+            option_type = option.get('type')
+            if option_type not in OPTION_TYPES:
+                errors.append("Option '%s' type is invalid. It is '%s' and "
+                              "the only allowed types are: %s" % (key,
+                              option_type, OPTION_TYPES))
+        else:
+            errors.append("Option '%s' must be a map" % key)
+    return errors
+
+
+def validate_options(options):
+    """Validates a blueprint's options"""
+    errors = []
+    if options:
+        if isinstance(options, dict):
+            for key, option in options.items():
+                option_errors = validate_option(key, option)
+                if option_errors:
+                    errors.extend(option_errors)
+        else:
+            errors.append("Blueprint `options` key must be a map")
+    return errors
+
+
 # The list of 'allowed' names in options, resources, and relations in checkmate
 # and the other possible aliases for them. Checkmate will convert aliases into
 # the canonical name
