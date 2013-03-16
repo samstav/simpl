@@ -203,6 +203,7 @@ OPTION_TYPES = [
                 'url',
                 'password',
                 'region',
+                'text',
                ]
 
 WORKFLOW_SCHEMA = ['id', 'attributes', 'last_task', 'task_tree', 'workflow',

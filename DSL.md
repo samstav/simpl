@@ -187,7 +187,7 @@ Blueprint Options
 **....always-accept-certificates**: if a blueprint always accepts and handles the certificates (especially if the url is entered in free-form supporting any protocol)
 
 **default**: The default value to use. YAML will assume numbers are ints, so enclose strings in "quotation marks" as a best practice. Special values for this are `=generate_password()` which will generate a random password on the server. We are considering adding parameters to `generate_password()` so the blueprint author can make the password generated match their (or their application's) requirements. This would be used by the blueprint author in tandem with constraints (below) for validation on the client side.
-**type**: the data type of this option. Valid types are: string, integer, boolean, password, url, and region. See later for a description of the `url` type which has some special attributes.
+**type**: the data type of this option. Valid types are: string, integer, boolean, password, url, region, and text (multi-line string). See later for a description of the `url` type which has some special attributes.
 **choice**: a list of items to select from (used to display a drop-down). The entries are either plain strings or a mapping with `value` and `name` entries where `value` is what is passed to Checkmate and `name` is what is displayed to the user. Note: does not apply validation. If you want validation, use an `in` constraint. This is used for display only.
 Example:
 
