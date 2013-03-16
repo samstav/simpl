@@ -135,12 +135,12 @@ services: like tiers, but not restricted to the concept of tiers. Currently, the
         db:
           interface: mysql
           service: my_db_thang
-options: KEY piece (don't forget it!). This lists the options (levers or dials) that the blueprint author is exposing to me. SImilar in syntax to component options, but the main difference is in the constraints
+options: KEY piece (don't forget it!). This lists the options (levers or dials) that the blueprint author is exposing to me. Similar in syntax to component options, but the main difference is in the constraints. See dedicated section on Blueprint Options below.
   "database_bigness":
     description: the size of the database
     default: 2GB
     # we need to define the syntax for more complex logic, like greater than, less than, etc....
-    constrains:  # what values swithin components that this option constrains. Key value to select the options, and then the optoin name. Example:
+    constrains:  # what values within components that this option constrains. Key value to select the options, and then the option name. Example:
     - service: my_database_thang
       setting: memory
     - service: my_database_log_thang
@@ -157,6 +157,183 @@ resources: static resources to be created at planning time and shared across the
     - service: my_database_thang
       setting: key
       attribute: private_key # this will take the private_key value from the generated keys and apply it as the value for 'key' in the my_database_thang component.
+
+
+Blueprint Options
+=================
+## Fields
+
+**label**: the short label to use when displaying the option to the user.
+**description**: A full description of this option (what it is)
+**help**: Detailed help on this option (how to use it)
+**sample**: an example of what the data will look like. This could be shown as the background of a text control.
+
+**display-hints**: a mapping (key, value pairs) of hints for how to order and display this option in relation to other options
+**....group**: a random group name used to group options together. Note that Reach would use this and would expect one of the following (to be finalized with Reach):
+* _deployment_: this is a deployment option and shows right under the deployment name
+* _application_: this is an application option and shows on the first screen of options
+* _servers_: this is an option that should be shown under the server options section
+* _load-balancer_: this is an option that should be shown under the load balancer options section
+* _database_: this is an option that should be shown under the database options section
+* _dns_: this is an option that should be shown under the dns options section
+
+**....order**: relative order of this option within its group (as an integer)
+**....list-type**: what is the type of the entries in the list. This is used to identify if it should be a specific resource type and list or attribute. The format is resource-type.list where resource-type is a known Checkmate resource type (compute, database, etc...) and the list is one of the lists from the provider [TODO: define these `lists` more precisely in the DSL or schema. Right now, they exist only in the provider catalogs]. Examples (and what we will initially support):
+* _compute.memory_: list of available compute image sizes
+* _compute.os: list of available compute operating systems
+* _load-balancer.algorithm_: list of available load balancer algorithms
+
+**....encrypted-protocols**: The subset of protocols that are encrypted so that we know when to show ssl cert controls. Ex. [https, pop3s]
+**....always-accept-certificates**: if a blueprint always accepts and handles the certificates (especially if the url is entered in free-form supporting any protocol)
+
+**default**: The default value to use. YAML will assume numbers are ints, so enclose strings in "quotation marks" as a best practice. Special values for this are `=generate_password()` which will generate a random password on the server. We are considering adding parameters to `generate_password()` so the blueprint author can make the password generated match their (or their application's) requirements. This would be used by the blueprint author in tandem with constraints (below) for validation on the client side.
+**type**: the data type of this option. Valid types are: string, integer, boolean, password, url, and region. See later for a description of the `url` type which has some special attributes.
+**choice**: a list of items to select from (used to display a drop-down). The entries are either plain strings or a mapping with `value` and `name` entries where `value` is what is passed to Checkmate and `name` is what is displayed to the user. Note: does not apply validation. If you want validation, use an `in` constraint. This is used for display only.
+Example:
+
+```
+choice:
+- name: Ubuntu 12.04
+  value: q340958723409587230459872345
+- name: Ubuntu 12.10
+  value: 2384729387w0tw9879t87ywt3y42
+```
+**constrains**: a list of mappings that are used as a way to set or limit aspects of the blueprint with the value (or parts of) the option.
+**required**: true/false. Set to true if this option must be supplied by the user.
+**constraints**: an array of mappings (key/value pairs) in the standard Checkmate constraints syntax. Supported constraints are:
+* _greater-than_: self-explanatory
+* _less-than_: self-explanatory
+* _greater-than-or-equal-to_: self-explanatory
+* _less-than-or-equal-to_: self-explanatory
+* _min-length_: for strings
+* _max-length_: for strings
+* _allowed-chars_: Ex. "ABCDEFGabcdefg01234565789!&@"- self-explanatory [TODO: see if regex can be used]
+* _required-chars_: Ex. "ABCDEFG" - self-explanatory [TODO: see if regex can be used]
+* _in_: a list of acceptable values (these could also be used by clients to display drop-downs)
+* _protocols_: unique to URL types. This lists allowed protocols in the URL.
+* _regex_: do not use look-forward/behind. Keep these simple so they are supported in javascript (client) and python (server). While many of the above can also be written as regex rules, both are available to blueprint authors to use the one that suits them best.
+
+**....message**: you can add a message key/value pair to any of these constraints. Always add a message to regex constraints so it is easy to understand what they do when read and so clients (rook, etc) and the server can generate useful error messages and people reading the blueprint don't have to decipher the regexs. Ex. "must have 8-16 characters"
+
+Browser clients will parse constraints and apply validation rules. A good practice it to have multiple, simple regex constraints to allow browser clients to provide clear and useful feedback to the user for each rule they may break. For example, list lowercase, uppercase, and numeric requirements for a password as three constraints with a message unique to each.
+
+See example below.
+
+```yaml
+blueprint:
+  options:
+    database_name:
+      label:  Database Name
+      sample: db1
+      display-hints:
+        order: 1
+        group: database
+     default: wp_db
+     description: "This is the name of the database that will be created to host your application's data"
+     type: string
+     constraints:
+     - regex: ^(?=.*).{2,15}$
+       message: must be between 2 and 15 characters long
+     - regex: ^[A-Za-z0-9]*$
+       message: can only contain alphanumeric characters
+    database_password:
+      label:  Database Password
+      display-hints:
+        order: 2
+        group: database
+     description: "This is the password to use to access the database that will host your application's data"
+     type: password
+     constraints:
+     - regex: ^(?=.*).{8,15}$
+       message: must be between 8 and 15 characters long
+     - regex: ^(?=.*\d)
+       message: must contain a digit
+     - regex: ^(?=.*[a-z])
+       message: must contain a lower case letter
+     - regex: ^(?=.*[A-Z])
+       message: must contain an upper case letter
+```
+
+
+## The URL Type
+
+Options of type url provide some advanced handling of common url use cases. The option can be used simply as a string that accepts a url. In this case, the only benefit of setting the type to url is that a client application can perform certain validation to make sure the provided value is a valid URL (according to [RFC 3986](http://tools.ietf.org/html/rfc3986)). Example:
+
+```
+option:
+  my_web_site:
+    type: url
+```
+
+It is useful, however, to be able to handle different parts of a URL (i.e the scheme or protocol, domain, path, port, username, password, etc...) separately. They may be validated independently (e.g. make sure the protocol is http or https only). The parts may be wired up to different parts of the blueprint using constraints (e.g. use the domain part for a dns setting). The way that is supported is that the url type has attributes that can be accessed in the blueprint or other parts of Checkmate. These attributes are:
+
+* scheme: this is the first part of the URL
+* protocol: this is the first part of the URL as well (an alias to scheme)
+* netloc: the dns name or address part
+* port: this is the port if specified (e.g. the port in http://localhost:8080 is 8080)
+* path: the path of the resource or file
+* private_key: the private_key of a certificate to use if the protocol is an encrypted one
+* public_key: the public_key of a certificate to use if the protocol is an encrypted one
+* intermediate_key: the intermediate key chain of a certificate to use if the protocol is an encrypted one
+
+These attributes can be specified in constraints:
+
+```yaml:
+options:
+  my_url:
+    label: Site Address
+    type: url
+    constraints:
+    - protocols: [http, https]
+    constrains:
+    - type: load-balancer
+      service: lb
+      attribute: protocol  # This picks out the 'http' or 'https' part of the URL
+      setting: protocol
+    - type: compute
+      service: web
+      attribute: "private_key"  # This picks out the cert
+      setting: ssl_certificate
+    - type: compute
+      service: web
+      attribute: "intermediate_key"  # This picks up the intermediate cert
+      setting: ssl_intermediate_certificate
+```
+
+You can constrain a list of protocols using the `protocols` constraint.
+
+```yaml:
+options:
+  my_url:
+    label: Site Address
+    type: url
+    constraints:
+    - protocols: [http, https]
+```
+
+And there are special display-hints used to aid a client in rendering and validating the url. These are `encrypted-protocols` and `always-accept-certificates` which are documented in constraints.
+
+When supplying the value for a url as an input, it can be supplied as a string or as a mapping with attributes.
+
+As a string it would be `my_site_address: https://mydomain.com/blog`.
+
+As a mapping, it would look be:
+
+```yaml:
+inputs:
+  my_url:
+    url: https://domain.com/path  # 'url' is a special shortcut - see note below
+    private_key: |
+      -----  BEGIN ...
+    intermediate_key: |
+      -----  BEGIN ...
+    public_key: |
+      -----  BEGIN ...
+```
+
+Note:  A common use case is to supply the url and keys. A shortcut is available that accepts a key called `url` that can be used to supply the url without having to provide all the components of the url.
+
+
 
 Deployments
 ===========
