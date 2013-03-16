@@ -30,36 +30,34 @@ class TestBlueprints(unittest.TestCase):
                 'id': 'test',
                 'name': 'test',
                 'services': {},
-                'options': [
-                    {
-                        "name": "foo",
-                        "type": "int",
-                        "default": 4,
-                        "constrains": [
-                            {
-                               "service": "service1",
-                               "type": "application",
-                               "interface": "none"
-                            }
-                        ]
-                    },
-                    {
-                        "name": "bar",
-                        "type": "string",
-                        "default": "Empty",
-                        "display-hints": {
-                            "group": "An option group",
-                            "weight": 1
+                'options': {
+                        "foo": {
+                            "type": "integer",
+                            "default": 4,
+                            "constrains": [
+                                {
+                                   "service": "service1",
+                                   "type": "application",
+                                   "interface": "none"
+                                }
+                            ]
                         },
-                        "constrains": [
-                            {
-                               "service": "service2",
-                               "type": "application",
-                               "interface": "another"
-                            }
-                        ]
-                    }
-                ],
+                        "bar": {
+                            "type": "string",
+                            "default": "Empty",
+                            "display-hints": {
+                                "group": "An option group",
+                                "weight": 1
+                            },
+                            "constrains": [
+                                {
+                                   "service": "service2",
+                                   "type": "application",
+                                   "interface": "another"
+                                }
+                            ]
+                        },
+                    },
                 'resources': {},
                 }
         valid = Blueprint(blueprint)
