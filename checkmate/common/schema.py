@@ -177,23 +177,32 @@ DEPLOYMENT_SCHEMA = ['id', 'name', 'blueprint', 'environment', 'inputs',
 COMPONENT_SCHEMA = ['id', 'options', 'requires', 'provides', 'summary',
         'dependencies', 'version', 'is', 'role', 'roles', 'source_name']
 
-OPTION_SCHEMA = ['name',
+OPTION_SCHEMA = [
                  'label',
                  'default',
                  'help',
+                 'sample',
+                 'choice',
                  'description',
-                 'source',
-                 'source_field_name',
                  'required',
                  'type',
                  'constrains',
+                 'constraints',
                  'display-hints',
                 ]
+# Add parts used internally by providers, but not part of the public schema
+OPTION_SCHEMA_INTERNAL = OPTION_SCHEMA + [
+                 'source',
+                 'source_field_name',
+                ]
 
-OPTION_TYPES = ['string',
-                'int',
-                'array',
-                'hash',
+OPTION_TYPES = [
+                'string',
+                'integer',
+                'boolean',
+                'url',
+                'password',
+                'region',
                ]
 
 WORKFLOW_SCHEMA = ['id', 'attributes', 'last_task', 'task_tree', 'workflow',
