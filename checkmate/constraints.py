@@ -112,6 +112,48 @@ class RegExConstraint(Constraint):
         return self.expression.match(value)
 
 
+
+class ProtocolsConstraint(Constraint):
+    """
+
+    URL Protocols Constraint
+
+    Syntax:
+
+    - protocols: [list]
+    - message: optional validation message
+
+    Example:
+
+     constraints:
+     - protocols: ['http', 'https']
+       message: only http and https URLs are supported
+
+    """
+    required_keys = ['protocols']
+    allowed_keys = ['protocols', 'message']
+
+    def __init__(self, constraint):
+        Constraint.__init__(self, constraint)
+        protocols = constraint['protocols']
+        if not isinstance(protocols, list):
+            raise CheckmateValidationException("Protocols constraint does not "
+                    "have a list of protocols supplied: %s" % protocols)
+        self.protocols = protocols
+        if 'message' in constraint:
+            self.message = constraint['message']
+
+    def test(self, value):
+        if isinstance(value, dict):
+            value = value.get('url')
+        if not isinstance(value, basestring):
+            return False
+        if '://' not in value:
+            return False
+        protocol = value[0:value.index('://')]
+        return protocol in self.protocols
+
+
 CONSTRAINT_CLASSES = [k for n, k in inspect.getmembers(sys.modules[__name__],
                                                        inspect.isclass)
                       if issubclass(k, Constraint)]
