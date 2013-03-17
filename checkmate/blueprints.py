@@ -90,8 +90,14 @@ class Blueprint(ExtensibleDict):
     """
     def __init__(self, *args, **kwargs):
         obj = dict(*args, **kwargs)
+        Blueprint.convert(obj)
+        ExtensibleDict.__init__(self, obj)
+
+    @classmethod
+    def convert(cls, obj):
+        """Detect version and convert to current if necessaary and able"""
         converters = {
-            'v0.6': self.from_v0_6,
+            'v0.6': cls.from_v0_6,
             }
         version = obj.get('version', 'v0.6')
         if version in converters:
@@ -100,7 +106,6 @@ class Blueprint(ExtensibleDict):
             raise CheckmateValidationException("This server does not support "
                                                "version '%s' blueprints" %
                                                version)
-        ExtensibleDict.__init__(self, obj)
 
     @classmethod
     def from_v0_6(cls, data):
