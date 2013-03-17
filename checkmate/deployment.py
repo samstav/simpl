@@ -56,7 +56,7 @@ def verify_inputs_against_constraints(deployment):
                     continue
                 if (isinstance(value, basestring) and
                         value.startswith("=generate")):
-                    value = evaluate(value)
+                    value = evaluate(value[1:])
                 for entry in constraints:
                     constraint = Constraint.from_constraint(entry)
                     if not constraint.test(value):
