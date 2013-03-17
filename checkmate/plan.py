@@ -10,7 +10,7 @@ from checkmate.exceptions import CheckmateException,\
 from checkmate.providers import ProviderBase
 from checkmate import utils
 from checkmate.deployment import verify_required_blueprint_options_supplied,\
-    Resource
+    Resource, verify_inputs_against_constraints
 
 LOG = logging.getLogger(__name__)
 DB = get_driver()
@@ -79,6 +79,7 @@ class Plan(ExtensibleDict):
 
         # Quick validations
         verify_required_blueprint_options_supplied(deployment)
+        verify_inputs_against_constraints(deployment)
 
     def plan(self, context):
         """Perform plan analysis. Returns a reference to planned resources"""
