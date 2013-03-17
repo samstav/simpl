@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+import copy
 import logging
 import unittest2 as unittest
 
@@ -17,6 +18,7 @@ class TestBlueprints(unittest.TestCase):
         """Test the schema validates a blueprint with all possible fields"""
         blueprint = {
                 'id': 'test',
+                'version': 'v0.7',
                 'name': 'test',
                 'services': {},
                 'options': {},
@@ -60,8 +62,10 @@ class TestBlueprints(unittest.TestCase):
                     },
                 'resources': {},
                 }
+        expected = copy.deepcopy(blueprint)
+        expected['version'] = 'v0.7'
         valid = Blueprint(blueprint)
-        self.assertDictEqual(valid._data, blueprint)
+        self.assertDictEqual(valid._data, expected)
 
     def test_schema_negative(self):
         """Test the schema validates a blueprint with bad fields"""
@@ -69,6 +73,70 @@ class TestBlueprints(unittest.TestCase):
                 'nope': None
                 }
         self.assertRaises(CheckmateValidationException, Blueprint, blueprint)
+
+
+    def test_conversion_from_pre_v0_dot_7(self):
+        """Test that blueprints syntax from pre v0.7 gets converted"""
+        blueprint = {
+                'id': 'test',
+                'name': 'test',
+                'services': {},
+                'options': {
+                    'old_format_int': {
+                        'type': 'int',
+                        'regex': '^[a-zA-Z]$'
+                    },
+                    'old_format_select': {
+                        'type': 'select',
+                        'choice': [{'name': 'First', 'value': 'A'},
+                                   {'name': 'Second', 'value': 'B'}]
+                    },
+                    'old_format_combo': {
+                        'type': 'combo',
+                        'choice': [1, 2]
+                    },'old_format_url': {
+                        'type': 'url',
+                        'protocols': ['http', 'https'],
+                    },
+                },
+                'resources': {},
+                }
+        expected = {
+                'id': 'test',
+                'version': 'v0.7',
+                'name': 'test',
+                'services': {},
+                'options': {
+                    'old_format_int': {
+                        'type': 'integer',
+                        'constraints': [{'regex': '^[a-zA-Z]$'}]
+                    },
+                    'old_format_select': {
+                        'type': 'string',
+                        'choice': [{'name': 'First', 'value': 'A'},
+                                   {'name': 'Second', 'value': 'B'}]
+                    },
+                    'old_format_combo': {
+                        'type': 'string',
+                        'choice': [1, 2]
+                    },'old_format_url': {
+                        'type': 'url',
+                        'constraints': [{'protocols': ['http', 'https']}],
+                    },
+                },
+                'resources': {},
+                }
+        converted = Blueprint(blueprint)
+        self.assertDictEqual(converted._data, expected)
+
+    def test_future_blueprint_version(self):
+        """Test the an unsupported blueprint version is rejected"""
+        blueprint = {
+                'version': 'unrecognized'
+                }
+        self.assertRaisesRegexp(CheckmateValidationException, "This server "
+                                "does not support version 'unrecognized' "
+                                "blueprints", Blueprint, blueprint)
 
 
 if __name__ == '__main__':

@@ -168,7 +168,8 @@ RESOURCE_SCHEMA = ['id', 'index', 'name', 'provider', 'relations', 'hosted_on',
         'hosts', 'type', 'component', 'dns-name', 'instance', 'flavor',
         'image', 'disk', 'region', 'service']
 
-BLUEPRINT_SCHEMA = ['id', 'name', 'services', 'options', 'resources']
+BLUEPRINT_SCHEMA = ['id', 'name', 'services', 'options', 'resources',
+                    'version']
 
 DEPLOYMENT_SCHEMA = ['id', 'name', 'blueprint', 'environment', 'inputs',
         'includes', 'resources', 'workflow', 'status', 'created',
