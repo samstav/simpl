@@ -4,6 +4,7 @@ import copy
 import logging
 import uuid
 
+from checkmate import utils
 from checkmate.classes import ExtensibleDict
 from checkmate.common import schema
 from checkmate.db import get_driver, any_id_problems
@@ -165,7 +166,15 @@ class Blueprint(ExtensibleDict):
                 LOG.warn("Converted 'protocols' attribute in an option in "
                          "blueprint '%s'" % data.get('id'))
         if data.get('version', 'v0.1') < 'v0.7':
+            event = {
+                     'date': utils.get_time_string(),
+                     'event': "Converted from %s to %s" % (
+                              data.get('version'),'v0.7')
+                    }
             data['version'] = 'v0.7'
+            if 'log' not in data:
+                data['log'] = []
+            data['log'].append(event)
         return data
 
     @classmethod
