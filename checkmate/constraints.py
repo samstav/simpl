@@ -61,6 +61,57 @@ class Constraint(object):
         return False
 
 
+class RegExConstraint(Constraint):
+    """
+
+    RegEx Constraint
+
+    Syntax:
+
+    - regex: {regular expression}
+    - message: optional validation message
+
+    Notes:
+
+    - forward and backward lookups in the regexes are not supported on browsers
+    - use a clear message for users but also for other who read your blueprint
+
+    Example:
+
+     constraints:
+     - regex: ^(?=.*).{8,15}$
+       message: must be between 8 and 15 characters long
+     - regex: ^(?=.*\d)
+       message: must contain a digit
+     - regex: ^(?=.*[a-z])
+       message: must contain a lower case letter
+     - regex: ^(?=.*[A-Z])
+       message: must contain an upper case letter
+
+    """
+    required_keys = ['regex']
+    allowed_keys = ['regex', 'message']
+
+    @classmethod
+    def is_syntax_valid(cls, constraint):
+        if not super(RegExConstraint, cls).is_syntax_valid(constraint):
+            return False
+        return True
+
+    def __init__(self, constraint):
+        Constraint.__init__(self, constraint)
+        try:
+            self.expression = re.compile(constraint['regex'])
+        except re.error:
+            raise CheckmateValidationException("Constraint has an invalid "
+                    "regular expression: %s" % constraint['regex'])
+        if 'message' in constraint:
+            self.message = constraint['message']
+
+    def test(self, value):
+        return self.expression.match(value)
+
+
 CONSTRAINT_CLASSES = [k for n, k in inspect.getmembers(sys.modules[__name__],
                                                        inspect.isclass)
                       if issubclass(k, Constraint)]

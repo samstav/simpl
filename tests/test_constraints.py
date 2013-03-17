@@ -31,6 +31,37 @@ class TestConstraint(unittest.TestCase):
         self.assertFalse(Constraint.is_syntax_valid(1))
 
 
+class TestRegexConstraint(unittest.TestCase):
+
+    klass = constraints.RegExConstraint
+    test_data = utils.yaml_to_dict("""
+        - regex: ^(?=.*).{2,5}$
+          message: between 2 and 5 characters
+        """)
+
+    def test_constraint_syntax_check(self):
+        self.assertTrue(self.klass.is_syntax_valid({'regex': ''}))
+        self.assertTrue(self.klass.is_syntax_valid({'regex': '', 'message': ''}))
+
+    def test_constraint_syntax_check_negative(self):
+        self.assertRaises(CheckmateValidationException, self.klass,
+                          {'regex': '['})
+
+    def test_constraint_detection(self):
+        constraint = Constraint.from_constraint(self.test_data[0])
+        self.assertIsInstance(constraint, self.klass)
+
+    def test_constraint_tests(self):
+        constraint = Constraint.from_constraint(self.test_data[0])
+        self.assertFalse(constraint.test("1"))
+        self.assertTrue(constraint.test("12"))
+        self.assertFalse(constraint.test("123456"))
+
+    def test_constraint_message(self):
+        constraint = Constraint.from_constraint(self.test_data[0])
+        self.assertEquals(constraint.message, "between 2 and 5 characters")
+
+
 if __name__ == '__main__':
     # Run tests. Handle our paramaters separately
     import sys
