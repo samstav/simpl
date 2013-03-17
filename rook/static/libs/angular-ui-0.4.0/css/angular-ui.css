@@ -1,11 +1,3 @@
-/* highlight */
-
-.ui-match {
-  background: yellow;
-}
-
-
-
 /**
  * import components to builds angular-ui.css
  */
@@ -45,8 +37,14 @@
   color: blue;
 }
 
+.ui-currency-pos.ui-bignum,
+.ui-currency-neg.ui-smallnum {
+  font-size: 110%;
+}
+
 /* highlight */
 
 .ui-match {
   background: yellow;
 }
+
