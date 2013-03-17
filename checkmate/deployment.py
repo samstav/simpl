@@ -174,13 +174,13 @@ class Deployment(ExtensibleDict):
             self['created'] = get_time_string()
 
     @classmethod
-    def validate(cls, obj):
-        """ Validate Schema """
+    def inspect(cls, obj):
         errors = schema.validate(obj, schema.DEPLOYMENT_SCHEMA)
         errors.extend(schema.validate_inputs(obj))
         if errors:
             raise (CheckmateValidationException("Invalid %s: %s" % (
                    cls.__name__, '\n'.join(errors))))
+        return errors
 
     def environment(self):
         """ Initialize environment from Deployment """
