@@ -54,8 +54,28 @@ class ExtensibleDict(collections.MutableMapping):
 
     @classmethod
     def validate(cls, obj):
-        errors = schema.validate(obj, None)
+        """
 
+        Checks schema and validates data. Raises error if errors exist.
+
+        Call inspect if you want to check the data without raising and error.
+
+        """
+        errors = cls.inspect(obj)
         if errors:
             raise CheckmateValidationException("Invalid %s: %s" % (
                 cls.__name__, '\n'.join(errors)))
+
+    @classmethod
+    def inspect(cls, obj):
+        """
+
+        Checks schema and validates data
+
+        This can be callecd to inspect syntax without raising and error.
+        Validate will raise an error if called.
+
+        returns: list of errors
+
+        """
+        return schema.validate(obj, None)

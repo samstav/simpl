@@ -694,9 +694,7 @@ class Workflow(ExtensibleDict):
         self.id = self.get('id', uuid.uuid4().hex)
 
     @classmethod
-    def validate(cls, obj):
+    def inspect(cls, obj):
         errors = schema.validate(obj, schema.WORKFLOW_SCHEMA)
         errors.extend(schema.validate_inputs(obj))
-        if errors:
-            raise CheckmateValidationException("Invalid %s: %s" % (
-                    cls.__name__, '\n'.join(errors)))
+        return errors
