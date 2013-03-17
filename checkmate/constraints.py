@@ -154,6 +154,45 @@ class ProtocolsConstraint(Constraint):
         return protocol in self.protocols
 
 
+class InConstraint(Constraint):
+    """
+
+    Constraint to limit to a list
+
+    Syntax:
+
+    - in: [list]
+    - message: optional validation message
+
+    Notes:
+
+    - clients (browsers) can use this to display a drop-down if 'choice' is not
+      provided
+
+    Example:
+
+     constraints:
+     - in: ['Ubuntu 12.04']
+       message: only http and https URLs are supported
+
+    """
+    required_keys = ['in']
+    allowed_keys = ['in', 'message']
+
+    def __init__(self, constraint):
+        Constraint.__init__(self, constraint)
+        allowed = constraint['in']
+        if not isinstance(allowed, list):
+            raise CheckmateValidationException("In constraint does not "
+                    "have a list of values supplied: %s" % allowed)
+        self.allowed = allowed
+        if 'message' in constraint:
+            self.message = constraint['message']
+
+    def test(self, value):
+        return value in self.allowed
+
+
 CONSTRAINT_CLASSES = [k for n, k in inspect.getmembers(sys.modules[__name__],
                                                        inspect.isclass)
                       if issubclass(k, Constraint)]
