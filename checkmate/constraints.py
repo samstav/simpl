@@ -193,6 +193,96 @@ class InConstraint(Constraint):
         return value in self.allowed
 
 
+class SimpleComparisonConstraint(Constraint):
+    """
+
+    Constraint to for simple comparisons: >, <, >=, <=
+
+    Syntax (one or more of the following):
+
+    - less-than: {value}
+    - greater-than: {value}
+    - less-than-or-equal-to: {value}
+    - less-than-or-equal-to: {value}
+
+    - message: optional validation message
+
+    Note:
+    - a default message will be generated automatically but can be overridden
+    - you can combine more than one rule in one constraint (split them up for
+      clarity or to supply different validation messages)
+
+    Example:
+
+     constraints:
+     - less-than: 8
+       greater-than: 1
+       message: must be between 3 and 7
+
+    """
+    required_keys = [
+                     'less-than',
+                     'greater-than',
+                     'less-than-or-equal-to',
+                     'greater-than-or-equal-to',
+                    ]
+    allowed_keys = [
+                     'less-than',
+                     'greater-than',
+                     'less-than-or-equal-to',
+                     'greater-than-or-equal-to',
+                     'message',
+                    ]
+
+    @classmethod
+    def is_syntax_valid(cls, constraint):
+        if not isinstance(constraint, dict):
+            return False
+        if not all(k in cls.allowed_keys for k in constraint.keys()):
+            return False
+
+        # We use 'any' here instead of 'all'. We don't call the superclass
+
+        if not any(k in constraint.keys() for k in cls.required_keys):
+            return False
+        return True
+
+    def __init__(self, constraint):
+        Constraint.__init__(self, constraint)
+
+        comparisons = {
+                'less-than': lambda x, y: x < y,
+                'greater-than': lambda x, y: x > y,
+                'less-than-or-equal-to': lambda x, y: x <= y,
+                'greater-than-or-equal-to': lambda x, y: x >= y,
+            }
+
+        rules = []
+        message = None
+        for k, v in constraint.items():
+            if k == 'less-than':
+                rules.append(lambda x: x < v)
+                message = "must be less than %s" % v
+            elif k == 'less-than-or-equal-to':
+                rules.append(lambda x: x <= v)
+                message = "must be less than or equal to %s" % v
+            elif k == 'greater-than':
+                rules.append(lambda x: x > v)
+                message = "must be greater than %s" % v
+            elif k == 'greater-than-or-equal-to':
+                rules.append(lambda x: x >= v)
+                message = "must be greater than or equal to %s" % v
+        self.rules = rules
+
+        if 'message' in constraint:
+            self.message = constraint['message']
+        elif message:
+            self.message = message
+
+    def test(self, value):
+        return all(rule(value) for rule in self.rules)
+
+
 CONSTRAINT_CLASSES = [k for n, k in inspect.getmembers(sys.modules[__name__],
                                                        inspect.isclass)
                       if issubclass(k, Constraint)]
