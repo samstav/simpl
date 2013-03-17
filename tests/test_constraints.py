@@ -93,6 +93,67 @@ class TestProtocolConstraint(unittest.TestCase):
         self.assertEquals(constraint.message, "Nope. Only http(s)")
 
 
+class TestSimpleComparisonConstraint(unittest.TestCase):
+
+    klass = constraints.SimpleComparisonConstraint
+    test_data = utils.yaml_to_dict("""
+            - less-than: 8
+              message: Nope! Less than 8
+            - greater-than: 2
+            - less-than-or-equal-to: 9
+            - greater-than-or-equal-to: 1
+        """)
+
+    def test_constraint_syntax_check(self):
+        self.assertTrue(self.klass.is_syntax_valid({'less-than': ''}))
+        self.assertTrue(self.klass.is_syntax_valid({'greater-than': ''}))
+        self.assertTrue(self.klass.is_syntax_valid({'less-than-or-equal-to':
+                                                    ''}))
+        self.assertTrue(self.klass.is_syntax_valid({'greater-than-or-equal-to':
+                                                    ''}))
+
+        # Test with message
+
+        self.assertTrue(self.klass.is_syntax_valid({'greater-than': '',
+                                                    'message': ''}))
+
+        # Test multiples
+
+        self.assertTrue(self.klass.is_syntax_valid({'less-than': '',
+                                                    'greater-than': ''}))
+
+    def test_constraint_detection(self):
+        for test in self.test_data:
+            constraint = Constraint.from_constraint(test)
+            self.assertIsInstance(constraint, self.klass, msg=test)
+
+    def test_constraint_tests(self):
+        constraint = Constraint.from_constraint(self.test_data[0])
+        self.assertFalse(constraint.test(9))
+        self.assertFalse(constraint.test(8))
+        self.assertTrue(constraint.test(7))
+
+        constraint = Constraint.from_constraint(self.test_data[1])
+        self.assertFalse(constraint.test(1))
+        self.assertFalse(constraint.test(2))
+        self.assertTrue(constraint.test(3))
+
+        constraint = Constraint.from_constraint(self.test_data[2])
+        self.assertFalse(constraint.test(10))
+        self.assertTrue(constraint.test(9))
+        self.assertTrue(constraint.test(8))
+
+        constraint = Constraint.from_constraint(self.test_data[3])
+        self.assertFalse(constraint.test(0))
+        self.assertTrue(constraint.test(1))
+        self.assertTrue(constraint.test(2))
+
+
+    def test_constraint_message(self):
+        constraint = Constraint.from_constraint(self.test_data[0])
+        self.assertEquals(constraint.message, "Nope! Less than 8")
+
+
 class TestInConstraint(unittest.TestCase):
 
     klass = constraints.InConstraint
