@@ -172,5 +172,6 @@ class Blueprint(ExtensibleDict):
     def inspect(cls, obj):
         errors = schema.validate(obj, schema.BLUEPRINT_SCHEMA)
         errors.extend(schema.validate_inputs(obj))
-        errors.extend(schema.validate_options(obj.get('options')))
+        if obj:
+            errors.extend(schema.validate_options(obj.get('options')))
         return errors
