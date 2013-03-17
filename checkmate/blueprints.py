@@ -108,7 +108,7 @@ class Blueprint(ExtensibleDict):
 
     @classmethod
     def convert(cls, obj):
-        """Detect version and convert to current if necessaary and able"""
+        """Detect version and convert to current if necessary and able"""
         converters = {
             'v0.6': cls.from_v0_6,
             }
@@ -134,15 +134,9 @@ class Blueprint(ExtensibleDict):
 
         """
         for option in data.get('options', {}).values():
-            if 'regex' in option:
-                constraint = {'regex': option['regex']}
-                if 'constraints' not in option:
-                    option['constraints'] = [constraint]
-                else:
-                    option['constraints'].append(constraint)
-                del option['regex']
-                LOG.warn("Converted 'regex' attribute in an option in "
-                         "blueprint '%s'" % data.get('id'))
+
+            # convert types
+
             option_type = option.get('type')
             if option_type is None:
                 option['type'] = 'string'
@@ -156,6 +150,21 @@ class Blueprint(ExtensibleDict):
                 option['type'] = 'integer'
                 LOG.warn("Converted 'type' from 'int' to 'integer' "
                          " in blueprint '%s'" % data.get('id'))
+
+            # move 'regex' to constraint
+
+            if 'regex' in option:
+                constraint = {'regex': option['regex']}
+                if 'constraints' not in option:
+                    option['constraints'] = [constraint]
+                else:
+                    option['constraints'].append(constraint)
+                del option['regex']
+                LOG.warn("Converted 'regex' attribute in an option in "
+                         "blueprint '%s'" % data.get('id'))
+
+            # move 'protocols' to constraint
+
             if 'protocols' in option:
                 constraint = {'protocols': option['protocols']}
                 if 'constraints' not in option:
@@ -165,6 +174,9 @@ class Blueprint(ExtensibleDict):
                 del option['protocols']
                 LOG.warn("Converted 'protocols' attribute in an option in "
                          "blueprint '%s'" % data.get('id'))
+
+        # tag version and log conversion
+
         if data.get('version', 'v0.1') < 'v0.7':
             event = {
                      'date': utils.get_time_string(),
@@ -175,6 +187,7 @@ class Blueprint(ExtensibleDict):
             if 'log' not in data:
                 data['log'] = []
             data['log'].append(event)
+
         return data
 
     @classmethod
