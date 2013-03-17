@@ -62,6 +62,37 @@ class TestRegexConstraint(unittest.TestCase):
         self.assertEquals(constraint.message, "between 2 and 5 characters")
 
 
+class TestProtocolConstraint(unittest.TestCase):
+
+    klass = constraints.ProtocolsConstraint
+    test_data = utils.yaml_to_dict("""
+        - protocols: [http, https]
+          message: Nope. Only http(s)
+        """)
+
+    def test_constraint_syntax_check(self):
+        self.assertTrue(self.klass.is_syntax_valid({'protocols': ''}))
+        self.assertTrue(self.klass.is_syntax_valid({'protocols': '',
+                                                    'message': ''}))
+
+    def test_constraint_syntax_check_negative(self):
+        self.assertRaises(CheckmateValidationException, self.klass,
+                          {'protocols': 'http'})
+
+    def test_constraint_detection(self):
+        constraint = Constraint.from_constraint(self.test_data[0])
+        self.assertIsInstance(constraint, self.klass)
+
+    def test_constraint_tests(self):
+        constraint = Constraint.from_constraint(self.test_data[0])
+        self.assertFalse(constraint.test("git://github.com"))
+        self.assertTrue(constraint.test("http://me.com"))
+
+    def test_constraint_message(self):
+        constraint = Constraint.from_constraint(self.test_data[0])
+        self.assertEquals(constraint.message, "Nope. Only http(s)")
+
+
 if __name__ == '__main__':
     # Run tests. Handle our paramaters separately
     import sys
