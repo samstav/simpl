@@ -7,13 +7,15 @@ from urlparse import urlparse
 from checkmate import keys
 from checkmate.blueprints import Blueprint
 from checkmate.classes import ExtensibleDict
+from checkmate.constraints import Constraint
 from checkmate.common import schema
 from checkmate.db import get_driver
 from checkmate.environments import Environment
 from checkmate.exceptions import (CheckmateException,
                                   CheckmateValidationException)
 from checkmate.providers import ProviderBase
-from checkmate.utils import (merge_dictionary, get_time_string, is_ssh_key)
+from checkmate.utils import (merge_dictionary, get_time_string, is_ssh_key,
+                             evaluate)
 from bottle import abort
 
 LOG = logging.getLogger(__name__)
@@ -35,6 +37,33 @@ def verify_required_blueprint_options_supplied(deployment):
                 if key not in bp_inputs:
                     raise CheckmateValidationException("Required blueprint "
                             "input '%s' not supplied" % key)
+
+
+def verify_inputs_against_constraints(deployment):
+    """Check that inputs meet the option constraint criteria
+
+    Raise error if not
+    """
+    blueprint = deployment['blueprint']
+    if 'options' in blueprint:
+        inputs = deployment.get('inputs', {})
+        bp_inputs = inputs.get('blueprint', {})
+        for key, option in blueprint['options'].iteritems():
+            constraints = option.get('constraints')
+            if constraints:
+                value = bp_inputs.get(key, option.get('default'))
+                if not value:
+                    continue
+                if (isinstance(value, basestring) and
+                        value.startswith("=generate")):
+                    value = evaluate(value)
+                for entry in constraints:
+                    constraint = Constraint.from_constraint(entry)
+                    if not constraint.test(value):
+                        raise CheckmateValidationException("The input for "
+                            "option '%s' did not pass validation. The value "
+                            "was '%s'. The validation rule was %s" % (key,
+                            value, constraint.message))
 
 
 def get_os_env_keys():
