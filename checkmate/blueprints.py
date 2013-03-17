@@ -112,6 +112,7 @@ class Blueprint(ExtensibleDict):
         - no select or comobo types (convert them to strings)
         - no regex attirbute (move to constraint)
         - no protocols attribute (move to constraint)
+        - set missing 'type' to 'string'
 
         """
         for option in data.get('options', {}).values():
@@ -124,11 +125,16 @@ class Blueprint(ExtensibleDict):
                 del option['regex']
                 LOG.warn("Converted 'regex' attribute in an option in "
                          "blueprint '%s'" % data.get('id'))
-            if option.get('type') in ['select', 'combo']:
+            option_type = option.get('type')
+            if option_type is None:
                 option['type'] = 'string'
-                LOG.warn("Converted 'type' from 'select' or 'combo' to "
-                         "'string'  in blueprint '%s'" % data.get('id'))
-            if option.get('type') == 'int':
+                LOG.warn("Converted option with missing 'type' to 'string' in "
+                         "blueprint '%s'" % data.get('id'))
+            elif option_type in ['select', 'combo']:
+                option['type'] = 'string'
+                LOG.warn("Converted 'type' from '%s' to 'string' in "
+                         "blueprint '%s'" % (option_type, data.get('id')))
+            elif option_type == 'int':
                 option['type'] = 'integer'
                 LOG.warn("Converted 'type' from 'int' to 'integer' "
                          " in blueprint '%s'" % data.get('id'))
