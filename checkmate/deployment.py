@@ -5,6 +5,7 @@ import os
 from urlparse import urlparse
 
 from checkmate import keys
+from checkmate.blueprints import Blueprint
 from checkmate.classes import ExtensibleDict
 from checkmate.common import schema
 from checkmate.db import get_driver
@@ -178,9 +179,9 @@ class Deployment(ExtensibleDict):
     def inspect(cls, obj):
         errors = schema.validate(obj, schema.DEPLOYMENT_SCHEMA)
         errors.extend(schema.validate_inputs(obj))
-        if errors:
-            raise (CheckmateValidationException("Invalid %s: %s" % (
-                   cls.__name__, '\n'.join(errors))))
+        if 'blueprint' in obj:
+            if not Blueprint.is_supported_syntax(obj['blueprint']):
+                errors.extend(Blueprint.inspect(obj['blueprint']))
         return errors
 
     def environment(self):

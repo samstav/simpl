@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 from bottle import get, post, put, request, response, abort
+import copy
 import logging
 import uuid
 
@@ -92,6 +93,17 @@ class Blueprint(ExtensibleDict):
         obj = dict(*args, **kwargs)
         Blueprint.convert(obj)
         ExtensibleDict.__init__(self, obj)
+
+    @classmethod
+    def is_supported_syntax(cls, obj):
+        """Tests if the blueprint is in a supported syntax"""
+        try:
+            obj = copy.deepcopy(obj)
+            Blueprint.convert(obj)
+            return Blueprint.inspect(obj) == []
+        except:
+            return False
+
 
     @classmethod
     def convert(cls, obj):
