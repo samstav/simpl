@@ -11,6 +11,9 @@ def bash(cmd, verbose=True):
         Inspect CalledProcessError.output or CalledProcessError.returncode for information.
     """
     try:
+        script_heading = "#!/bin/bash\nset -e\n"
+        if verbose:
+            script_heading = script_heading + "set -x\n"
         result = subprocess.check_output("#!/bin/bash\nset -e\n" + cmd, 
             shell=True, 
             stderr=subprocess.STDOUT)
@@ -46,8 +49,6 @@ def test():
         it here.
     """
     return bash('''
-        set -x
-        set -e
         ### Set up virtual environment ###
         PYENV_HOME=$WORKSPACE/../.checkmate_pyenv/
 
@@ -99,7 +100,7 @@ def test():
         PYENV_HOME=$WORKSPACE/../.checkmate_pyenv/
         . $PYENV_HOME/bin/activate
         pylint -f parseable checkmate/ | tee pylint.out
-        ''')
+        ''', True)
 
 TESTED_PULL_REQUEST_PATH = "tools/tested_pull_requests"
 SUCCESS = True
