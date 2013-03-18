@@ -76,7 +76,7 @@ directives.directive('calculator', function factory() {
           $('head').append('<script src="/static/RackspaceCalculator/js/backbone.subset.js"></script>');
           $('head').append('<script src="/static/RackspaceCalculator/js/calcapp.js"></script>');
         }
-      }
+      };
     }
   };
   return calculator;
@@ -118,7 +118,7 @@ directives.directive('compat', function factory($scope) {
           $('head').append('<script src="/static/RackspaceCalculator/js/backbone.subset.js"></script>');
           $('head').append('<script src="/static/RackspaceCalculator/js/calcapp.js"></script>');
         }
-      }
+      };
     }
   };
   return compat;
@@ -131,7 +131,7 @@ directives.directive('clippy', function factory() {
     controller: function($scope) {
         $scope.encode = function(data) {
             return encodeURIComponent(data);
-            }
+            };
     },
     replace: true,
     transclude: false,
@@ -168,16 +168,32 @@ directives.directive('clippy', function factory() {
                   }
                 });
             }
-        }
+        };
     }
   };
   return directiveDefinitionObject;
 });
 
-directives.directive('popover', function(expression, compiledElement){
-    return function(linkElement) {
-        linkElement.popover();
-        $tip.appendTo($('body'));
+
+directives.directive('popover', function(){
+    return function(scope, element, attrs) {
+      var popover = element.popover({
+        content: function() {
+          if ('target' in attrs)
+            return $(attrs['target']).html();
+        }
+      });
+
+      //Update when scope changes
+      if ('target' in attrs) {
+        scope.$parent.$watch(function() {
+          popover.data('popover').setContent($(attrs['target']).html());
+          popover.data('popover').$tip.addClass(popover.data('popover').options.placement);
+        });
+      }
+    };
+});
+
 //Validates a control against the supplied option's constraints and sets the
 //constraint.valid and option.invalid values
 directives.directive('validateOption', function () {

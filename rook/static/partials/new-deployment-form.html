@@ -179,6 +179,12 @@ url: shows "Address Builder" to handle url options
         <button class="btn" ng-class="{'active': show}" ng-click="show = !show">Show</button>
         <button ng-click="inputs[option.id]=generatePassword()" class="btn">Generate</button>
       </div>
+      <i class="icon-question-sign"
+        title="Validation Rules" data-trigger="click" data-target="#{{option.id}}_rules" data-html="true" data-placement="bottom" data-animation="true" popover
+        ng-cloak ng-show="option.constraints"></i>
+      <div id="{{option.id}}_rules" ng-hide="true">
+        <div ng-repeat="constraint in option.constraints"><span ng-class="{'text-success': constraint.valid, 'text-error': !constraint.valid}"><i ng-class="{'icon-ok': constraint.valid, 'icon-remove': !constraint.valid}"></i> {{constraint.message}}</span></div>
+      </div>
       <p ng-hide="!option.description" class="help-block">{{option.description}} Click the generate button to generate a random password.
       </p>
     </div>
