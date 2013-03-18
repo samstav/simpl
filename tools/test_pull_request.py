@@ -11,10 +11,10 @@ def bash(cmd, verbose=True):
         Inspect CalledProcessError.output or CalledProcessError.returncode for information.
     """
     try:
-        script_heading = "#!/bin/bash\nset -e\n"
+        script_heading = "\nset -e\n"
         if verbose:
             script_heading = script_heading + "set -x\n"
-        result = subprocess.check_output("#!/bin/bash\nset -e\n" + cmd, 
+        result = subprocess.check_output(script_heading + cmd, 
             shell=True, 
             stderr=subprocess.STDOUT)
         if verbose: 
