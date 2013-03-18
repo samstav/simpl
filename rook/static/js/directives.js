@@ -178,5 +178,46 @@ directives.directive('popover', function(expression, compiledElement){
     return function(linkElement) {
         linkElement.popover();
         $tip.appendTo($('body'));
+//Validates a control against the supplied option's constraints and sets the
+//constraint.valid and option.invalid values
+directives.directive('validateOption', function () {
+    return {
+        restrict: 'A',
+        require: 'ngModel',
+        link: function (scope, elm, attrs, ctrl) {
+
+            function validate(value) {
+              var option = scope[attrs.validateOption];
+              var constraints = option.constraints;
+              var index = 0;
+              var valid = true;
+              console.log("validating", constraints, "from", option);
+              _.each(constraints, function(constraint) {
+                if ('regex' in constraint) {
+                  var patt = new RegExp(constraint.regex);
+                  constraint.valid = patt.test(value || '');
+                  if (!patt.test(value || ''))
+                    valid = false;
+                } else {
+                  constraint.valid = true;
+                }
+                ctrl.$setValidity('constraints', valid);
+                option.invalid = !valid;
+                index += 1;
+              });
+              return valid ? value : undefined;
+            }
+
+            //For DOM -> model validation
+            ctrl.$parsers.unshift(function(viewValue) {
+                return validate(viewValue) ? viewValue : undefined;
+            });
+
+            //For model -> DOM validation
+            ctrl.$formatters.unshift(function(value) {
+               ctrl.$setValidity('constraints', validate(value));
+               return value;
+            });
+        }
     };
 });
