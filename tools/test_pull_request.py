@@ -158,7 +158,7 @@ if len(TESTS_PASSED) + len(TESTS_FAILED) > 0:
         #commit the tested pull request file
         git commit -a -m 'Jenkins tested the pull request(s): %s'
         git push origin master
-    ''' % ", ".join(PULL_REQUESTS))
+        ''' % ", ".join(PULL_REQUESTS))
 
 if not SUCCESS: 
     raise RuntimeError("There was a failure running tests!")
