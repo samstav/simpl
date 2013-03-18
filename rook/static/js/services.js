@@ -450,7 +450,8 @@ services.value('options', {
         region_option = option;
 
       var group;
-      if ('display-hints' in option) {
+      if (dh !== undefined) {
+        option.order = dh.order || 'XXX';
         if ('group' in dh) {
           group = dh.group;
           // Detect region (overrides legacy guess)
