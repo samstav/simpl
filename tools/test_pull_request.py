@@ -5,8 +5,8 @@ def bash(cmd, verbose=True):
     """
     Executes the specified cmd using the bash shell, redirects stderr to stdout.
 
-    param verbose - true if the command's output should be printed to the console
-    param cmd - the command to execute
+    :param verbose: true if the command's output should be printed to the console
+    :param cmd: the command to execute
     raises CalledProcessError - if the run cmd returns a non-zero exit code. 
         Inspect CalledProcessError.output or CalledProcessError.returncode for information.
     """
@@ -31,6 +31,8 @@ def get_pull_requests():
 def get_tested_pull_requests(pull_request_file):
     """
     Splits the pull request file's contents into an array
+
+    :param pull_request_file: the file with pull requests to read
     """
     with open(pull_request_file, 'r') as pull_request_file:
         return pull_request_file.read().split('\n')
@@ -38,11 +40,18 @@ def get_tested_pull_requests(pull_request_file):
 def test():
     """
     Runs unit tests and linting... this was copied directly from the checkmate jenkins job.
-    TODO: check in the checkmate job's scripts instead of keeping them in the web console,
-        that way we can reuse the code instead of copying it here.
+
+    TODO: check in the checkmate job's scripts instead of keeping them in
+        the web console, that way we can reuse the code instead of copying 
+        it here.
     """
     return bash('''
+        set -x
+        set -e
+        ### Set up virtual environment ###
         PYENV_HOME=$WORKSPACE/../.checkmate_pyenv/
+
+        # Create virtualenv and install necessary packages
         . $PYENV_HOME/bin/activate
 
         if [ "$CLEAN_DEPS" != "false" ]
@@ -52,25 +61,42 @@ def test():
         pip install -r $WORKSPACE/pip-requirements.txt $WORKSPACE/
         fi
 
+        # make sure we pull the latest chef recipies
         find ./checkmate -type d -name chef-stockton -exec rm -rf {} \; || exit 0
+
+
+        ### Run tests ###
+
+        ### Configure rvm use for chef tests.
         . ~/.rvm/environments/ruby-1.9.3-p125@checkmate
+
+        ### Clean up tmp directory
         if [ -d /tmp/checkmate/test ]; then
         rm -rf /tmp/checkmate/test
         fi
+
+        ### Set up virtual environment ###
+        PYENV_HOME=$WORKSPACE/../.checkmate_pyenv/
+        ### Activate virtual environment ###
         . $PYENV_HOME/bin/activate
+
+        ### Set chef-stockton location for chef provider tests.
         export CHECKMATE_CHEF_REPO=$WORKSPACE/chef-stockton
 
-        if [ -e $CHECKMATE_CHEF_REPO ]
-        then
-        cd $CHECKMATE_CHEF_REPO
-        git pull origin master
-        cd -
-        else
+        ### Clone the chef-stockton repo
         git clone -b master git://github.rackspace.com/checkmate/chef-stockton.git $CHECKMATE_CHEF_REPO
-        fi
 
+        # return success so the build does not fail on test failures/errors by appending || exit 0 below
+        # the JUnit Report publisher should take care of marking build status appropriately
         nosetests --with-coverage --cover-package=checkmate --with-xunit -w tests/
+
+        # Create coverage.xml for Cobertura
         coverage xml --include="checkmate/**"
+
+
+        ### Run Pylint ###
+
+        PYENV_HOME=$WORKSPACE/../.checkmate_pyenv/
         . $PYENV_HOME/bin/activate
         pylint -f parseable checkmate/ | tee pylint.out
         ''')
