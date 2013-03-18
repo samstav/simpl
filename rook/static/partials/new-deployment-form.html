@@ -79,29 +79,60 @@ url: shows "Address Builder" to handle url options
       </div>
     </div>
 
+    <!-- Options header -->
+    <div class="row-fluid">
+      <img class="span2" style="width: 60px; height: 60px;" src="/img/control-panel-icon.png"/>
+      <div class="control-group span10">
+        <legend>Options</legend>
+      </div>
+    </div>
+
+    <!-- Application options -->
     <div class="row-fluid" ng-cloak ng-show="option_groups['application']">
-        <img class="span2" style="width: 60px; height: 60px;" src="/img/control-panel-icon.png"/>
-        <div class="control-group span10">
-          <legend>Application Options</legend>
-
-          <div class="control-group" ng-repeat="option in option_groups['application']" compile-html="renderOption(option)">
-          </div>
+      <div class="control-group span10">
+        <h4>Application Options</h4>
+        <div ng-repeat="option in option_groups['application'] | orderBy:'order'" compile-html="renderOption(option)">
         </div>
+      </div>
     </div>
 
-  </fieldset>
-
-  <fieldset>
-    <!-- Group Examples -->
-    <div class="row-fluid" ng-repeat="(group, options) in option_groups" ng-hide="group == 'application' || group == 'hidden'">
-        <img class="span2" style="width: 60px; height: 60px;" src="/img/design-icon.png"/>
-        <div class="control-group span10">
-          <legend>{{group | capitalize}} Options</legend>
-          <div class="control-group" ng-repeat="option in options" compile-html="renderOption(option)">
-          </div>
+    <!-- Server options -->
+    <div class="row-fluid" ng-cloak ng-show="option_groups['server']">
+      <div class="control-group span10">
+        <h4>Server Options</h4>
+        <div ng-repeat="option in option_groups['server'] | orderBy:'order'" compile-html="renderOption(option)">
         </div>
+      </div>
+    </div>
+
+    <!-- Load Balancer options -->
+    <div class="row-fluid" ng-cloak ng-show="option_groups['load-balancer']">
+      <div class="control-group span10">
+        <h4>Load Balancer Options</h4>
+        <div ng-repeat="option in option_groups['load-balancer'] | orderBy:'order'" compile-html="renderOption(option)">
+        </div>
+      </div>
+    </div>
+
+    <!-- Database options -->
+    <div class="row-fluid" ng-cloak ng-show="option_groups['database']">
+      <div class="control-group span10">
+        <h4>Database Options</h4>
+        <div ng-repeat="option in option_groups['database'] | orderBy:'order'" compile-html="renderOption(option)">
+        </div>
+      </div>
+    </div>
+
+    <!-- DNS options -->
+    <div class="row-fluid" ng-cloak ng-show="option_groups['dns']">
+      <div class="control-group span10">
+        <h4>DNS Options</h4>
+        <div ng-repeat="option in option_groups['dns'] | orderBy:'order'" compile-html="renderOption(option)">
+        </div>
+      </div>
     </div>
   </fieldset>
+
 
   <div class="form-actions">
     <button ng-click="submit(false)" class="btn btn-primary" ng-disabled="!auth.identity.loggedIn || is_unsupported_account() || submitting">Build It!</button>
@@ -123,12 +154,14 @@ url: shows "Address Builder" to handle url options
 
 <!-- Templates -->
 <script id="option-string" type="text/ng-template">
-  <label class="control-label capitalize" ng-class="{required: required}" for="{{option.id}}">{{option.label || option.id}}</label>
-  <div class="controls">
-    <input type="text" class="input-xlarge" id="{{option.id}}" ng-model="inputs[option.id]"
-            ng-required="required" ng-pattern="{{option.regex || ''}}"
-            placeholder="{{option.sample | prepend:'ex. '}}">
-    <p ng-hide="!option.description" class="help-block">{{option.description}}</p>
+  <div class="control-group" ng-class="{error: option.invalid}">
+    <label class="control-label capitalize" ng-class="{required: required}" for="{{option.id}}">{{option.label || option.id}}</label>
+    <div class="controls">
+      <input type="text" class="input-xlarge" id="{{option.id}}" ng-model="inputs[option.id]"
+              ng-required="required" ng-pattern="{{option.regex || ''}}"
+              placeholder="{{option.sample | prepend:'ex. '}}">
+      <p ng-hide="!option.description" class="help-block">{{option.description}}</p>
+    </div>
   </div>
 </script>
 
@@ -150,69 +183,93 @@ url: shows "Address Builder" to handle url options
 </script>
 
 <script id="option-text" type="text/ng-template">
-  <label class="control-label capitalize" ng-class="{required: required}" for="{{option.id}}">{{option.label || option.id}}</label>
-  <div class="controls">
-    <textarea cols="80" rows="20" class="input-xlarge ng-model" id="{{option.id}}" ng-model="inputs[option.id]"
-            ng-required="required" ng-pattern="{{option.regex || ''}}" placeholder="{{option.sample | prepend:'ex. '}}">{{option.default}}</textarea>
-    <p ng-hide="!option.description" class="help-block">{{option.description}}</p>
+  <div class="control-group" ng-class="{error: option.invalid}">
+    <label class="control-label capitalize" ng-class="{required: required}" for="{{option.id}}">{{option.label || option.id}}</label>
+    <div class="controls">
+      <textarea cols="80" rows="20" class="input-xlarge ng-model" id="{{option.id}}" ng-model="inputs[option.id]"
+              ng-required="required" ng-pattern="{{option.regex || ''}}" placeholder="{{option.sample | prepend:'ex. '}}">{{option.default}}</textarea>
+      <p ng-hide="!option.description" class="help-block">{{option.description}}</p>
+    </div>
   </div>
 </script>
 
 <script id="option-int" type="text/ng-template">
-  <label class="control-label capitalize" ng-class="{required: required}" for="{{option.id}}">{{option.label || option.id}}</label>
-  <div class="controls">
-    <input type="number" class="input-small" id="{{option.id}}" ng-model="inputs[option.id]"
-            ng-required="required" ng-pattern="{{option.regex || ''}}"
-            placeholder="{{option.sample | prepend:'ex. '}}" >
-    <p ng-hide="!option.description" class="help-block">{{option.description}}</p>
+  <div class="control-group" ng-class="{error: option.invalid}">
+    <label class="control-label capitalize" ng-class="{required: required}" for="{{option.id}}">{{option.label || option.id}}</label>
+    <div class="controls">
+      <input type="number" class="input-small" id="{{option.id}}" ng-model="inputs[option.id]"
+              ng-required="required" ng-pattern="{{option.regex || ''}}"
+              placeholder="{{option.sample | prepend:'ex. '}}" >
+      <p ng-hide="!option.description" class="help-block">{{option.description}}</p>
+    </div>
+  </div>
+</script>
+
+<script id="option-integer" type="text/ng-template">
+  <div class="control-group" ng-class="{error: option.invalid}">
+    <label class="control-label capitalize" ng-class="{required: required}" for="{{option.id}}">{{option.label || option.id}}</label>
+    <div class="controls">
+      <input type="number" class="input-small" id="{{option.id}}" ng-model="inputs[option.id]"
+              ng-required="required" ng-pattern="{{option.regex || ''}}"
+              placeholder="{{option.sample | prepend:'ex. '}}" >
+      <p ng-hide="!option.description" class="help-block">{{option.description}}</p>
+    </div>
   </div>
 </script>
 
 <script id="option-boolean" type="text/ng-template">
-  <label class="control-label capitalize" ng-class="{required: required}" for="{{option.id}}">{{option.label || option.id}}</label>
-  <div class="controls">
-    <label class="checkbox">
-      <input type="checkbox" class="input-xlarge" id="{{option.id}}" ng-model="inputs[option.id]"
-            ng-required="required" >
-      {{description}}
-    </label>
+  <div class="control-group" ng-class="{error: option.invalid}">
+    <label class="control-label capitalize" ng-class="{required: required}" for="{{option.id}}">{{option.label || option.id}}</label>
+    <div class="controls">
+      <label class="checkbox">
+        <input type="checkbox" class="input-xlarge" id="{{option.id}}" ng-model="inputs[option.id]"
+              ng-required="required" >
+        {{description}}
+      </label>
+    </div>
   </div>
 </script>
 
 <script id="option-select" type="text/ng-template">
-  <label class="control-label capitalize" ng-class="{required: required}" for="{{option.id}}">{{option.label || option.id}}</label>
-  <div class="controls">
-    <select id="{{option.id}}" ng-model="inputs[option.id]" ng-required="required" ng-options="o for o in option.choice">
-    </select>
-    <p ng-hide="!option.description" class="help-block">{{option.description}}</p>
+  <div class="control-group" ng-class="{error: option.invalid}">
+    <label class="control-label capitalize" ng-class="{required: required}" for="{{option.id}}">{{option.label || option.id}}</label>
+    <div class="controls">
+      <select id="{{option.id}}" ng-model="inputs[option.id]" ng-required="required" ng-options="o for o in option.choice">
+      </select>
+      <p ng-hide="!option.description" class="help-block">{{option.description}}</p>
+    </div>
   </div>
 </script>
 
 <script id="option-select-kv" type="text/ng-template">
-  <label class="control-label capitalize" ng-class="{required: required}" for="{{option.id}}">{{option.label || option.id}}</label>
-  <div class="controls">
-    <select id="{{option.id}}" ng-model="inputs[option.id]" ng-required="required" ng-options="o.value as o.name for o in option.choice">
-    </select>
-    <p ng-hide="!option.description" class="help-block">{{option.description}}</p>
+  <div class="control-group" ng-class="{error: option.invalid}">
+    <label class="control-label capitalize" ng-class="{required: required}" for="{{option.id}}">{{option.label || option.id}}</label>
+    <div class="controls">
+      <select id="{{option.id}}" ng-model="inputs[option.id]" ng-required="required" ng-options="o.value as o.name for o in option.choice">
+      </select>
+      <p ng-hide="!option.description" class="help-block">{{option.description}}</p>
+    </div>
   </div>
 </script>
 
 <script id="option-combo" type="text/ng-template">
-  <label class="control-label capitalize" ng-class="{required: required}" for="{{option.id}}">{{option.label || option.id}}</label>
-  <div class="controls">
-     <input type="text" name="state" class="input-xlarge" id="{{option.id}}" ng-model="inputs[option.id]"
-            ng-required="required" ng-pattern="{{option.regex || ''}}"
-            placeholder="{{option.sample | prepend:'ex. '}}"/>
-     <br />
-     <select name="s" id="{{option.id}}" ng-model="inputs[option.id]" ng-options="o for o in option.choice" onchange="document.ex.state.value=document.ex.s.options[document.ex.s.selectedindex].value;document.ex.s.value="""><option value="" selected="selected">
-     </select>
-    <p ng-hide="!option.description" class="help-block">{{option.description}}</p>
+  <div class="control-group" ng-class="{error: option.invalid}">
+    <label class="control-label capitalize" ng-class="{required: required}" for="{{option.id}}">{{option.label || option.id}}</label>
+    <div class="controls">
+       <input type="text" name="state" class="input-xlarge" id="{{option.id}}" ng-model="inputs[option.id]"
+              ng-required="required" ng-pattern="{{option.regex || ''}}"
+              placeholder="{{option.sample | prepend:'ex. '}}"/>
+       <br />
+       <select name="s" id="{{option.id}}" ng-model="inputs[option.id]" ng-options="o for o in option.choice" onchange="document.ex.state.value=document.ex.s.options[document.ex.s.selectedindex].value;document.ex.s.value="""><option value="" selected="selected">
+       </select>
+      <p ng-hide="!option.description" class="help-block">{{option.description}}</p>
+    </div>
   </div>
 </script>
 
 <script id="option-url" type="text/ng-template">
   <div class="row-fluid" ng-init="builder=false;UpdateParts(this, option.id)">
-    <div class="control-group">
+    <div class="control-group" ng-class="{error: option.invalid}">
       <label class="control-label" ng-class="{required: required}" for="{{option.id}}">{{option.label}}</label>
       <div class="controls">
         <div class="input-append span12">
