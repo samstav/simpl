@@ -11,7 +11,7 @@ def bash(cmd, verbose=True):
         Inspect CalledProcessError.output or CalledProcessError.returncode for information.
     """
     try:
-        script_heading = "#!/bin/bash\nset -e\n"
+        script_heading = "set -e\n"
         if verbose:
             script_heading = script_heading + "set -x\n"
         result = subprocess.check_output(script_heading + cmd, 
@@ -49,7 +49,9 @@ def test():
         the web console, that way we can reuse the code instead of copying 
         it here.
     """
-    return bash("bash tools/jenkins_tests.sh", True)
+    bash("bash tools/pip_setup.sh", True)
+    bash("bash tools/run_tests.sh", True)
+    bash("bash tools/run_pylint.sh", True)
 
 TESTED_PULL_REQUEST_PATH = "tools/tested_pull_requests"
 SUCCESS = True

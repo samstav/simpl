@@ -1,34 +1,11 @@
-#!/bin/bash
-
-source ~/.bashrc
-
-### Set up virtual environment ###
-PYENV_HOME=$WORKSPACE/../.checkmate_pyenv/
-
-# Create virtualenv and install necessary packages
-. $PYENV_HOME/bin/activate
-
-if [ "$CLEAN_DEPS" != "false" ]
-then
-        pip install -U --force-reinstall -r $WORKSPACE/pip-requirements.txt $WORKSPACE/
-else
-        pip install -r $WORKSPACE/pip-requirements.txt $WORKSPACE/
-fi
-
-# make sure we pull the latest chef recipies
-find ./checkmate -type d -name chef-stockton -exec rm -rf {} \; || exit 0
-
-
 ### Run tests ###
+
 ### Configure rvm use for chef tests.
 . ~/.rvm/environments/ruby-1.9.3-p125@checkmate
 
-env
-which knife        
-
 ### Clean up tmp directory
 if [ -d /tmp/checkmate/test ]; then
-        rm -rf /tmp/checkmate/test
+    rm -rf /tmp/checkmate/test
 fi
 
 ### Set up virtual environment ###
@@ -48,10 +25,3 @@ nosetests --with-coverage --cover-package=checkmate --with-xunit -w tests/
 
 # Create coverage.xml for Cobertura
 coverage xml --include="checkmate/**"
-
-
-### Run Pylint ###
-
-PYENV_HOME=$WORKSPACE/../.checkmate_pyenv/
-. $PYENV_HOME/bin/activate
-pylint -f parseable checkmate/ | tee pylint.out
