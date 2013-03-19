@@ -2,7 +2,7 @@
 import re, subprocess
 import test_functions as tf
 
-def post_pull_request_comment(status=True, branch):
+def post_pull_request_comment(status, branch):
     oauth_token = "607ba2c45f86d44f0c53653163b3420b5e728cf0"
     git_repo = "test-checkmate"
     git_user = "andr5956"
