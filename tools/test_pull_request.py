@@ -126,20 +126,26 @@ TESTED_PULL_REQUESTS = get_tested_pull_requests(TESTED_PULL_REQUEST_PATH)
 PULL_REQUESTS = [pr for pr in REMOTE_PULL_REQUESTS 
                     if pr not in TESTED_PULL_REQUESTS]
 
-for branch in PULL_REQUESTS:
-    pr_branch = "pr/%s" % branch
-    bash("git checkout %s" % pr_branch)
+if len(PULL_REQUESTS) > 0:
 
-    try:
-        test()
-        TESTS_PASSED.append(branch)
-    except subprocess.CalledProcessError as cpe:
-        print cpe.output
-        print "Pull Request %s failed!" % branch
-        SUCCESS = False
-        TESTS_FAILED.append(branch)
+    for branch in PULL_REQUESTS:
+        pr_branch = "pr/%s" % branch
+        bash("git checkout %s" % pr_branch)
 
-    bash("git checkout master")
+        try:
+            test()
+            TESTS_PASSED.append(branch)
+        except subprocess.CalledProcessError as cpe:
+            print cpe.output
+            print "Pull Request %s failed!" % branch
+            SUCCESS = False
+            TESTS_FAILED.append(branch)
+
+        bash("git checkout master")
+else:
+    #if no tests were run we need to make a no-op test output file or jenkins will fail
+    with open("nosetests.xml", 'w') as nosetests:
+        nosetests.write('<?xml version="1.0" encoding="UTF-8"?><testsuite name="nosetests" tests="0" errors="0" failures="0" skip="0"></testsuite>')
 
 bash("mv .git/config.bak .git/config")
 
