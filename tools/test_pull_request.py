@@ -48,7 +48,7 @@ def test():
         the web console, that way we can reuse the code instead of copying 
         it here.
     """
-    return bash("bash jenkins_tests.sh", True)
+    return bash("bash tools/jenkins_tests.sh", True)
 
 TESTED_PULL_REQUEST_PATH = "tools/tested_pull_requests"
 SUCCESS = True
