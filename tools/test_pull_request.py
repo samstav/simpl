@@ -149,7 +149,7 @@ if len(TESTS_PASSED) + len(TESTS_FAILED) > 0:
     for branch in TESTS_FAILED:
         print "Branch %s:" % branch
         bash("git log master..pr/" + branch)
-        bash("git branch -d pr/%s" % branch, False)
+        bash("git branch -D pr/%s" % branch, False)
 
     with open(TESTED_PULL_REQUEST_PATH, 'a') as tested_pull_request_file:
         tested_pull_request_file.write("\n".join(PULL_REQUESTS))
