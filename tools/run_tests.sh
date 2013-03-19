@@ -1,3 +1,4 @@
+set -e
 ### Run tests ###
 
 ### Configure rvm use for chef tests.
@@ -19,7 +20,7 @@ export CHECKMATE_CHEF_REPO=$WORKSPACE/chef-stockton
 ### Clone the chef-stockton repo
 git clone -b master git://github.rackspace.com/checkmate/chef-stockton.git $CHECKMATE_CHEF_REPO
 
-nosetests --with-coverage --cover-package=checkmate --with-xunit -w tests/ --stop
+nosetests --with-coverage --cover-package=checkmate --with-xunit -w tests/
 
 # Create coverage.xml for Cobertura
 coverage xml --include="checkmate/**"
