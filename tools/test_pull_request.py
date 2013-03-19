@@ -1,6 +1,6 @@
 #!/usr/bin/python
 import re, subprocess
-from test_functions import bash, setup_pull_request_branches, teardown_pull_request_branches
+from test_functions import bash, setup_pull_request_branches, teardown_pull_request_branches, test
 
 def post_pull_request_comment(status, branch):
     oauth_token = "607ba2c45f86d44f0c53653163b3420b5e728cf0"
