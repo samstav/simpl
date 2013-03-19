@@ -62,6 +62,7 @@ TESTS_FAILED = []
 bash('''
     cp .git/config .git/config.bak
     git config --add remote.origin.fetch '+refs/pull/*/head:refs/remotes/origin/pr/*'
+
     ''')
 
 REMOTE_PULL_REQUESTS = get_pull_requests()
