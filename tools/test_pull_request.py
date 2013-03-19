@@ -53,28 +53,28 @@ def test():
     bash("bash tools/run_tests.sh", True)
     bash("bash tools/run_pylint.sh", True)
 
-TESTED_PULL_REQUEST_PATH = "tools/tested_pull_requests"
+def setup_pull_request_branches():
+    TESTED_PULL_REQUEST_PATH = "tools/tested_pull_requests"
+    #move to the checkmate workspace root
+    bash('''
+        cp .git/config .git/config.bak
+        git config --add remote.origin.fetch '+refs/pull/*/head:refs/remotes/origin/pr/*'
+        ''')
+    REMOTE_PULL_REQUESTS = get_pull_requests()
+    #print "REMOTE_PULL_REQUESTS " + " ,".join(REMOTE_PULL_REQUESTS)
+    TESTED_PULL_REQUESTS = get_tested_pull_requests(TESTED_PULL_REQUEST_PATH)
+    #print "TESTED_PULL_REQUESTS %s" % " ,".join(TESTED_PULL_REQUESTS)
+    return [pr for pr in REMOTE_PULL_REQUESTS 
+                    if pr not in TESTED_PULL_REQUESTS]
+
+def teardown_pull_request_branches():
+    bash("mv .git/config.bak .git/config")
+
 SUCCESS = True
 TESTS_PASSED = []
 TESTS_FAILED = []
 
-#move to the checkmate workspace root
-bash('''
-    cp .git/config .git/config.bak
-    git config --add remote.origin.fetch '+refs/pull/*/head:refs/remotes/origin/pr/*'
-
-    ''')
-
-REMOTE_PULL_REQUESTS = get_pull_requests()
-print "REMOTE_PULL_REQUESTS " + " ,".join(REMOTE_PULL_REQUESTS)
-
-TESTED_PULL_REQUESTS = get_tested_pull_requests(TESTED_PULL_REQUEST_PATH)
-print "TESTED_PULL_REQUESTS %s" % " ,".join(TESTED_PULL_REQUESTS)
-
-PULL_REQUESTS = [pr for pr in REMOTE_PULL_REQUESTS 
-                    if pr not in TESTED_PULL_REQUESTS]
-
-
+PULL_REQUESTS = setup_pull_request_branches()
 
 for branch in PULL_REQUESTS:
     pr_branch = "pr/%s" % branch
@@ -90,8 +90,8 @@ for branch in PULL_REQUESTS:
         TESTS_FAILED.append(branch)
 
     bash("git checkout master")
-
-bash("mv .git/config.bak .git/config")
+    
+teardown_pull_request_branches()
 
 if len(TESTS_PASSED) + len(TESTS_FAILED) > 0:
     print "#" * 30
