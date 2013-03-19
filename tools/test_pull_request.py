@@ -16,7 +16,8 @@ def bash(cmd, verbose=True):
             script_heading = script_heading + "set -x\n"
         result = subprocess.check_output(script_heading + cmd, 
             shell=True, 
-            stderr=subprocess.STDOUT)
+            stderr=subprocess.STDOUT,
+            executable = "/bin/bash")
         if verbose: 
             print result
         return result
