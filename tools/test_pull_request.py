@@ -2,6 +2,21 @@
 import re, subprocess
 import test_functions as tf
 
+def post_pull_request_comment(status=True, branch):
+    oauth_token = "607ba2c45f86d44f0c53653163b3420b5e728cf0"
+    git_repo = "test-checkmate"
+    git_user = "andr5956"
+
+    status_string = status ? "PASSED" : "FAILED"
+
+    return tf.bash('''
+    curl -H "Authorization: token %s" -H "Content-Type: application/json" -X POST -d \\
+    '{ \\
+        "body": "Pull request:%s %s testing: http://cimaster-n01.cloudplatform.rackspace.net:8080/view/Checkmate/job/checkmate-test-pull-request/$BUILD_NUMBER/" \\
+    }' https://github.rackspace.com/api/v3/repos/%s/%s/issues/%s/comments
+    ''', oauth_token, branch, status_string, git_user, git_repo, branch)
+
+
 TESTED_PULL_REQUEST_PATH = "tools/tested_pull_requests"
 SUCCESS = True
 TESTS_PASSED = []
@@ -37,6 +52,10 @@ if len(TESTS_PASSED) + len(TESTS_FAILED) > 0:
         print "Branch %s:" % branch
         tf.bash("git log master..pr/" + branch)
         tf.bash("git branch -D pr/%s" % branch, False)
+        post_pull_request_comment(False, branch)
+
+    for branch in TESTS_PASSED:
+        post_pull_request_comment(True, branch)
 
     with open(TESTED_PULL_REQUEST_PATH, 'a') as tested_pull_request_file:
         tested_pull_request_file.write("\n" + "\n".join(PULL_REQUESTS))
