@@ -14,8 +14,6 @@ def post_pull_request_comment(status, branch):
         '-d \'{ "body": "Pull request:%s %s testing!" }\' '
         'https://github.rackspace.com/api/v3/repos/%s/%s/issues/%s/comments') % (oauth_token, branch, status_string, git_user, git_repo, branch))
 
-post_pull_request_comment(True, '4')
-
 TESTED_PULL_REQUEST_PATH = "tools/tested_pull_requests"
 SUCCESS = True
 TESTS_PASSED = []
