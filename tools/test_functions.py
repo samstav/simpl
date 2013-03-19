@@ -1,4 +1,5 @@
 #!/usr/bin/python
+import re, subprocess
 
 def bash(cmd, verbose=True):
     """
@@ -52,19 +53,17 @@ def test():
     bash("bash tools/run_tests.sh", True)
     bash("bash tools/run_pylint.sh", True)
 
-def setup_pull_request_branches():
-    TESTED_PULL_REQUEST_PATH = "tools/tested_pull_requests"
-    #move to the checkmate workspace root
+def setup_pull_request_branches(tested_pull_request_path):
     bash('''
         cp .git/config .git/config.bak
         git config --add remote.origin.fetch '+refs/pull/*/head:refs/remotes/origin/pr/*'
         ''')
-    REMOTE_PULL_REQUESTS = get_pull_requests()
-    #print "REMOTE_PULL_REQUESTS " + " ,".join(REMOTE_PULL_REQUESTS)
-    TESTED_PULL_REQUESTS = get_tested_pull_requests(TESTED_PULL_REQUEST_PATH)
-    #print "TESTED_PULL_REQUESTS %s" % " ,".join(TESTED_PULL_REQUESTS)
-    return [pr for pr in REMOTE_PULL_REQUESTS 
-                    if pr not in TESTED_PULL_REQUESTS]
+    remote_pull_requests = get_pull_requests()
+    #print "remote_pull_requests " + " ,".join(remote_pull_requests)
+    tested_pull_requests = get_tested_pull_requests(tested_pull_request_path)
+    #print "tested_pull_requests %s" % " ,".join(tested_pull_requests)
+    return [pr for pr in remote_pull_requests 
+                    if pr not in tested_pull_requests]
 
 def teardown_pull_request_branches():
     bash("mv .git/config.bak .git/config")
