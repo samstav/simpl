@@ -1,5 +1,5 @@
 #!/usr/bin/python
-from test_functions import *
+import test_functions import *
 
 TESTED_PULL_REQUEST_PATH = "tools/tested_pull_requests"
 

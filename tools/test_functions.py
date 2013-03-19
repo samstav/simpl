@@ -1,4 +1,5 @@
 #!/usr/bin/python
+import re, subprocess
 
 def bash(cmd, verbose=True):
     """
