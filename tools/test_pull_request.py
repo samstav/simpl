@@ -49,6 +49,8 @@ def test():
         it here.
     """
     return bash('''
+        which knife
+        
         ### Set up virtual environment ###
         PYENV_HOME=$WORKSPACE/../.checkmate_pyenv/
 
