@@ -11,7 +11,7 @@ def bash(cmd, verbose=True):
         Inspect CalledProcessError.output or CalledProcessError.returncode for information.
     """
     try:
-        script_heading = "\nset -e\n"
+        script_heading = "#!/bin/bash\nset -e\n"
         if verbose:
             script_heading = script_heading + "set -x\n"
         result = subprocess.check_output(script_heading + cmd, 
@@ -49,8 +49,6 @@ def test():
         it here.
     """
     return bash('''
-        which knife        
-
         ### Set up virtual environment ###
         PYENV_HOME=$WORKSPACE/../.checkmate_pyenv/
 
@@ -72,6 +70,9 @@ def test():
 
         ### Configure rvm use for chef tests.
         . ~/.rvm/environments/ruby-1.9.3-p125@checkmate
+
+        env
+        which knife        
 
         ### Clean up tmp directory
         if [ -d /tmp/checkmate/test ]; then
@@ -151,7 +152,7 @@ if len(TESTS_PASSED) + len(TESTS_FAILED) > 0:
     for branch in TESTS_FAILED:
         print "Branch %s:" % branch
         bash("git log master..pr/" + branch)
-        bash("git branch -d pr/%s" % branch, False)
+        bash("git branch -D pr/%s" % branch, False)
 
     with open(TESTED_PULL_REQUEST_PATH, 'a') as tested_pull_request_file:
         tested_pull_request_file.write("\n".join(PULL_REQUESTS))
