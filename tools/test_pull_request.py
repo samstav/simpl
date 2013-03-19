@@ -1,5 +1,5 @@
 #!/usr/bin/python
-import re, subprocess
+import re, subprocess, sys
 
 def bash(cmd, verbose=True):
     """
@@ -11,34 +11,20 @@ def bash(cmd, verbose=True):
         Inspect CalledProcessError.output or CalledProcessError.returncode for information.
     """
     try:
-        script_heading = "\nset -e\n"
+        script_heading = "set -e\n"
         if verbose:
             script_heading = script_heading + "set -x\n"
+
         result = subprocess.check_output(script_heading + cmd, 
             shell=True, 
-            stderr=subprocess.STDOUT)
+            stderr=subprocess.STDOUT,
+            executable = "/bin/bash")
         if verbose: 
             print result
         return result
     except subprocess.CalledProcessError as proc_error:
         print str(proc_error.returncode) + "\n" + proc_error.output  
         raise proc_error
-
-def get_pull_requests():
-    """
-    Parses git fetch origin for any pull request branches.
-    """
-    pull_requests = bash("git fetch origin")
-    return re.findall(r'\s*\*.*origin/pr/(\d+)', pull_requests)
-
-def get_tested_pull_requests(pull_request_file):
-    """
-    Splits the pull request file's contents into an array
-
-    :param pull_request_file: the file with pull requests to read
-    """
-    with open(pull_request_file, 'r') as pull_request_file:
-        return pull_request_file.read().split('\n')
 
 def test():
     """
@@ -48,119 +34,78 @@ def test():
         the web console, that way we can reuse the code instead of copying 
         it here.
     """
-    return bash('''
-        which knife
-        
-        ### Set up virtual environment ###
-        PYENV_HOME=$WORKSPACE/../.checkmate_pyenv/
+    bash("bash tools/pip_setup.sh", True)
+    bash("bash tools/jenkins_tests.sh", True)
+    bash("bash tools/run_pylint.sh", True)
 
-        # Create virtualenv and install necessary packages
-        . $PYENV_HOME/bin/activate
+def setup_pull_request_branches():
+    """
+    Adds the remote pull request refspec, backs up the .git/config, and returns the
+    difference between the remote pull requests and the pull requests that we have already
+    tested.
+    """
+    bash('''
+        cp .git/config .git/config.bak
+        git config --add remote.origin.fetch '+refs/pull/*/head:refs/remotes/origin/pr/*'
+        git fetch origin
+        ''')
 
-        if [ "$CLEAN_DEPS" != "false" ]
-        then
-        pip install -U --force-reinstall -r $WORKSPACE/pip-requirements.txt $WORKSPACE/
-        else
-        pip install -r $WORKSPACE/pip-requirements.txt $WORKSPACE/
-        fi
+def post_pull_request_comment(status, branch):
+    """
+    Posts a comment on the pull request specified by the branch, indicating if testing passed or failed.
 
-        # make sure we pull the latest chef recipies
-        find ./checkmate -type d -name chef-stockton -exec rm -rf {} \; || exit 0
+    :param status: True if PASSED False if FAILED
+    :param branch: the pull request to comment on
+    """
+    oauth_token = "b143f3770463ee1baf1273a326dcbefca966358f"
+    git_repo = "checkmate"
+    git_user = "checkmate"
 
+    status_string = "PASSED" if status else "FAILED"
 
-        ### Run tests ###
+    return bash(
+    ('curl -H "Authorization: token %s" -X POST '
+        '-d \'{ "body": "Pull request:%s %s testing!" }\' '
+        'https://github.rackspace.com/api/v3/repos/%s/%s/issues/%s/comments') % (oauth_token, branch, status_string, git_user, git_repo, branch))
 
-        ### Configure rvm use for chef tests.
-        . ~/.rvm/environments/ruby-1.9.3-p125@checkmate
+def main():
+    """
+    :command line arg 1: the pull request branch to build
+    """
+    success = False
+    branch = sys.argv[1]
 
-        ### Clean up tmp directory
-        if [ -d /tmp/checkmate/test ]; then
-        rm -rf /tmp/checkmate/test
-        fi
-
-        ### Set up virtual environment ###
-        PYENV_HOME=$WORKSPACE/../.checkmate_pyenv/
-        ### Activate virtual environment ###
-        . $PYENV_HOME/bin/activate
-
-        ### Set chef-stockton location for chef provider tests.
-        export CHECKMATE_CHEF_REPO=$WORKSPACE/chef-stockton
-
-        ### Clone the chef-stockton repo
-        git clone -b master git://github.rackspace.com/checkmate/chef-stockton.git $CHECKMATE_CHEF_REPO
-
-        # return success so the build does not fail on test failures/errors by appending || exit 0 below
-        # the JUnit Report publisher should take care of marking build status appropriately
-        nosetests --with-coverage --cover-package=checkmate --with-xunit -w tests/
-
-        # Create coverage.xml for Cobertura
-        coverage xml --include="checkmate/**"
-
-
-        ### Run Pylint ###
-
-        PYENV_HOME=$WORKSPACE/../.checkmate_pyenv/
-        . $PYENV_HOME/bin/activate
-        pylint -f parseable checkmate/ | tee pylint.out
-        ''', True)
-
-TESTED_PULL_REQUEST_PATH = "tools/tested_pull_requests"
-SUCCESS = True
-TESTS_PASSED = []
-TESTS_FAILED = []
-
-#move to the checkmate workspace root
-bash('''
-    cp .git/config .git/config.bak
-    git config --add remote.origin.fetch '+refs/pull/*/head:refs/remotes/origin/pr/*'
-    ''')
-
-REMOTE_PULL_REQUESTS = get_pull_requests()
-#print "REMOTE_PULL_REQUESTS " + " ,".join(REMOTE_PULL_REQUESTS)
-
-TESTED_PULL_REQUESTS = get_tested_pull_requests(TESTED_PULL_REQUEST_PATH)
-#print "TESTED_PULL_REQUESTS %s" % " ,".join(TESTED_PULL_REQUESTS)
-
-PULL_REQUESTS = [pr for pr in REMOTE_PULL_REQUESTS 
-                    if pr not in TESTED_PULL_REQUESTS]
-
-for branch in PULL_REQUESTS:
+    setup_pull_request_branches()
     pr_branch = "pr/%s" % branch
     bash("git checkout %s" % pr_branch)
 
     try:
         test()
-        TESTS_PASSED.append(branch)
+        success = True
     except subprocess.CalledProcessError as cpe:
         print cpe.output
         print "Pull Request %s failed!" % branch
-        SUCCESS = False
-        TESTS_FAILED.append(branch)
+        success = False
 
     bash("git checkout master")
+    bash("mv .git/config.bak .git/config")
 
-bash("mv .git/config.bak .git/config")
-
-if len(TESTS_PASSED) + len(TESTS_FAILED) > 0:
-    print "#" * 30
-    print "Pull Requests PASSED:" + ", ".join(TESTS_PASSED)
-    print "Pull Requests FAILED:" + ", ".join(TESTS_FAILED)
-    print "#" * 30
-
-    print "Failed branch commit detail:"
-    for branch in TESTS_FAILED:
+    if success:
+        post_pull_request_comment(True, branch)
+    else:
+        print "Failed branch commit detail:"
         print "Branch %s:" % branch
-        bash("git log master..pr/" + branch)
-        bash("git branch -D pr/%s" % branch, False)
-
-    with open(TESTED_PULL_REQUEST_PATH, 'a') as tested_pull_request_file:
-        tested_pull_request_file.write("\n".join(PULL_REQUESTS))
+        bash("git log master.." + pr_branch)
+        bash("git branch -D " + pr_branch, False)
+        post_pull_request_comment(False, branch)
 
     bash('''
         #commit the tested pull request file
-        git commit -a -m 'Jenkins tested the pull request(s): %s'
+        git commit -a -m 'Jenkins tested the pull request: %s'
         git push origin master
-        ''' % ", ".join(PULL_REQUESTS))
+        ''' % branch)
 
-if not SUCCESS: 
-    raise RuntimeError("There was a failure running tests!")
+    if not success: 
+        raise RuntimeError("There was a failure running tests!")
+
+if  __name__ =='__main__':main()
