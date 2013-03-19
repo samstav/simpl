@@ -2,11 +2,12 @@
 import re, subprocess
 from test_functions import *
 
+TESTED_PULL_REQUEST_PATH = "tools/tested_pull_requests"
 SUCCESS = True
 TESTS_PASSED = []
 TESTS_FAILED = []
 
-PULL_REQUESTS = setup_pull_request_branches()
+PULL_REQUESTS = setup_pull_request_branches(TESTED_PULL_REQUEST_PATH)
 
 for branch in PULL_REQUESTS:
     pr_branch = "pr/%s" % branch
