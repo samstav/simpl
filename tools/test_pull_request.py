@@ -7,7 +7,7 @@ def post_pull_request_comment(status=True, branch):
     git_repo = "test-checkmate"
     git_user = "andr5956"
 
-    status_string = status ? "PASSED" : "FAILED"
+    status_string = "PASSED" if status else "FAILED"
 
     return tf.bash('''
     curl -H "Authorization: token %s" -H "Content-Type: application/json" -X POST -d \\
