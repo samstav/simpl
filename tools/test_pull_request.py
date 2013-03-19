@@ -1,6 +1,6 @@
 #!/usr/bin/python
 import re, subprocess
-from test_functions as tf
+import test_functions as tf
 
 TESTED_PULL_REQUEST_PATH = "tools/tested_pull_requests"
 SUCCESS = True
