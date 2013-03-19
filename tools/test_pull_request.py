@@ -74,6 +74,8 @@ print "TESTED_PULL_REQUESTS %s" % " ,".join(TESTED_PULL_REQUESTS)
 PULL_REQUESTS = [pr for pr in REMOTE_PULL_REQUESTS 
                     if pr not in TESTED_PULL_REQUESTS]
 
+
+
 for branch in PULL_REQUESTS:
     pr_branch = "pr/%s" % branch
     bash("git checkout %s" % pr_branch)
@@ -104,7 +106,7 @@ if len(TESTS_PASSED) + len(TESTS_FAILED) > 0:
         bash("git branch -D pr/%s" % branch, False)
 
     with open(TESTED_PULL_REQUEST_PATH, 'a') as tested_pull_request_file:
-        tested_pull_request_file.write("\n" + "\n".join(PULL_REQUESTS))
+        tested_pull_request_file.write("\n".join(PULL_REQUESTS))
 
     bash('''
         #commit the tested pull request file
