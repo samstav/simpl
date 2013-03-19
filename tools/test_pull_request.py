@@ -24,7 +24,7 @@ for branch in PULL_REQUESTS:
 
     tf.bash("git checkout master")
     
-teardown_pull_request_branches()
+tf.teardown_pull_request_branches()
 
 if len(TESTS_PASSED) + len(TESTS_FAILED) > 0:
     print "#" * 30
