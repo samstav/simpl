@@ -14,7 +14,7 @@ def post_pull_request_comment(status, branch):
     '{ \\
         "body": "Pull request:%s %s testing: http://cimaster-n01.cloudplatform.rackspace.net:8080/view/Checkmate/job/checkmate-test-pull-request/$BUILD_NUMBER/" \\
     }' https://github.rackspace.com/api/v3/repos/%s/%s/issues/%s/comments
-    ''', oauth_token, branch, status_string, git_user, git_repo, branch)
+    ''' % (oauth_token, branch, status_string, git_user, git_repo, branch))
 
 
 TESTED_PULL_REQUEST_PATH = "tools/tested_pull_requests"
