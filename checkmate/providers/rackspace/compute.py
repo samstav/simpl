@@ -220,7 +220,7 @@ class Provider(RackspaceComputeProviderBase):
                                 deployment=deployment['id'],
                                 resource=key),
                         PathAttrib('instance:%s/id' % key),
-                        resource['region']],
+                        resource['region'], resource],
                 verify_up=True,
                 password=PathAttrib('instance:%s/password' % key),
                 private_key=deployment.settings().get('keys', {}).get(
@@ -488,8 +488,6 @@ def create_server(context, name, region, api_object=None, flavor="2",
 
     """
 
-    print "CONTEXT: %s" % context
-    print "RESOURCE: %s" % context['resource']
     match_celery_logging(LOG)
     if api_object is None:
         api_object = Provider._connect(context, region)
@@ -525,7 +523,7 @@ def create_server(context, name, region, api_object=None, flavor="2",
 
 # max 60 minute wait
 @task(default_retry_delay=30, max_retries=120, acks_late=True)
-def wait_on_build(context, server_id, region, ip_address_type='public',
+def wait_on_build(context, server_id, region, resource, ip_address_type='public',
             verify_up=True, username='root', timeout=10, password=None,
             identity_file=None, port=22, api_object=None, private_key=None):
     """Checks build is complete and. optionally, that SSH is working.
@@ -662,8 +660,11 @@ def wait_on_build(context, server_id, region, ip_address_type='public',
         LOG.info("Server '%s' is ACTIVE. Not verified to be up" % server_id)
 
 
-    # If no relations exist:
-    results['status'] = "ACTIVE"
+    # Check to see if we have another resource that needs to install on this server
+    if 'hosts' in resource:
+        results['status'] = "CONFIGURE"
+    else:
+        results['status'] = "ACTIVE"
 
     instance_key = 'instance:%s' % context['resource']
     results = {instance_key: results}

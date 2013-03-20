@@ -302,7 +302,7 @@ class Provider(ProviderBase):
                                    PathAttrib('instance:%s/id' % key),
                                    PathAttrib('instance:%s/private_ip' %
                                               target),
-                                   resource['region']],
+                                   resource['region'], resource],
                                defines=dict(relation=relation_key,
                                             provider=self.key,
                                             task_tags=['final']),
@@ -566,9 +566,16 @@ def delete_loadbalancer(context, lbid, region, api=None):
 
 
 @task(default_retry_delay=10, max_retries=10)
-def add_node(context, lbid, ipaddr, region, api=None):
+def add_node(context, lbid, ipaddr, region, resource, api=None):
     """Celery task to add a node to a Cloud Load Balancer"""
     match_celery_logging(LOG)
+
+    status_results = {'status': "CONFIGURE"}
+    instance_key = 'instance:%s' % context['resource']
+    results = {instance_key: status_results}
+    resource_postback.delay(context['deployment'], status_results)
+
+
     if api is None:
         api = Provider._connect(context, region)
 
@@ -648,6 +655,23 @@ def add_node(context, lbid, ipaddr, region, api=None):
                       placeholder.address, placeholder.port, lbid))
         except Exception, exc:
             return add_node.retry(exc=exc)
+
+    relations = resource['relations']
+    relations_count = 0
+    for relation in relations:
+        relations_count += 1
+
+    node_count = 0
+    for node in loadbalancer.nodes:
+        if node.port == port and node.condition == "ENABLED":
+            node_count += 1
+
+    if relations_count == node_count:
+        status_results = {'status': "ACTIVE"}
+        instance_key = 'instance:%s' % context['resource']
+        results = {instance_key: status_results}
+        resource_postback.delay(context['deployment'], status_results)
+    
 
     return results
 
