@@ -487,6 +487,9 @@ def create_server(context, name, region, api_object=None, flavor="2",
     }
 
     """
+
+    print "CONTEXT: %s" % context
+    print "RESOURCE: %s" % context['resource']
     match_celery_logging(LOG)
     if api_object is None:
         api_object = Provider._connect(context, region)
@@ -658,6 +661,8 @@ def wait_on_build(context, server_id, region, ip_address_type='public',
     else:
         LOG.info("Server '%s' is ACTIVE. Not verified to be up" % server_id)
 
+
+    # If no relations exist:
     results['status'] = "ACTIVE"
 
     instance_key = 'instance:%s' % context['resource']
