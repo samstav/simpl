@@ -455,7 +455,7 @@ services.value('options', {
         if ('group' in dh) {
           group = dh.group;
           // Detect region (overrides legacy guess)
-          if (option['type'] == 'region' && group == 'deployment')
+          if (dh['list-type'] == 'region' && group == 'deployment')
             region_option = option;
         }
         if ('sample' in dh)
