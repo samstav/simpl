@@ -86,10 +86,9 @@ def post_pull_request_comment(status, branch):
     :param status: True if PASSED False if FAILED
     :param branch: the pull request to comment on
     """
-    #TODO: replace these with the proper values for the checkmate repo
-    oauth_token = "607ba2c45f86d44f0c53653163b3420b5e728cf0"
-    git_repo = "test-checkmate"
-    git_user = "andr5956"
+    oauth_token = "b143f3770463ee1baf1273a326dcbefca966358f"
+    git_repo = "checkmate"
+    git_user = "checkmate"
 
     status_string = "PASSED" if status else "FAILED"
 
