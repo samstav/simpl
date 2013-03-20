@@ -14,6 +14,7 @@ def bash(cmd, verbose=True):
         script_heading = "set -e\n"
         if verbose:
             script_heading = script_heading + "set -x\n"
+
         result = subprocess.check_output(script_heading + cmd, 
             shell=True, 
             stderr=subprocess.STDOUT,
