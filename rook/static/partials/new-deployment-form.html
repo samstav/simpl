@@ -206,18 +206,6 @@ url: shows "Address Builder" to handle url options
   </div>
 </script>
 
-<script id="option-int" type="text/ng-template">
-  <div class="control-group" ng-class="{error: option.invalid}">
-    <label class="control-label capitalize" ng-class="{required: required}" for="{{option.id}}">{{option.label || option.id}}</label>
-    <div class="controls">
-      <input type="number" class="input-small" id="{{option.id}}" ng-model="inputs[option.id]"
-              ng-required="required" ng-pattern="{{option.regex || ''}}"
-              placeholder="{{option.sample | prepend:'ex. '}}" >
-      <p ng-hide="!option.description" class="help-block">{{option.description}}</p>
-    </div>
-  </div>
-</script>
-
 <script id="option-integer" type="text/ng-template">
   <div class="control-group" ng-class="{error: option.invalid}">
     <label class="control-label capitalize" ng-class="{required: required}" for="{{option.id}}">{{option.label || option.id}}</label>
@@ -243,43 +231,6 @@ url: shows "Address Builder" to handle url options
               ng-required="required" >
         {{description}}
       </label>
-    </div>
-  </div>
-</script>
-
-<script id="option-select" type="text/ng-template">
-  <div class="control-group" ng-class="{error: option.invalid}">
-    <label class="control-label capitalize" ng-class="{required: required}" for="{{option.id}}">{{option.label || option.id}}</label>
-    <div class="controls">
-      <select id="{{option.id}}" ng-model="inputs[option.id]" ng-required="required" ng-options="o for o in option.choice">
-      </select>
-      <p ng-hide="!option.description" class="help-block">{{option.description}}</p>
-    </div>
-  </div>
-</script>
-
-<script id="option-select-kv" type="text/ng-template">
-  <div class="control-group" ng-class="{error: option.invalid}">
-    <label class="control-label capitalize" ng-class="{required: required}" for="{{option.id}}">{{option.label || option.id}}</label>
-    <div class="controls">
-      <select id="{{option.id}}" ng-model="inputs[option.id]" ng-required="required" ng-options="o.value as o.name for o in option.choice">
-      </select>
-      <p ng-hide="!option.description" class="help-block">{{option.description}}</p>
-    </div>
-  </div>
-</script>
-
-<script id="option-combo" type="text/ng-template">
-  <div class="control-group" ng-class="{error: option.invalid}">
-    <label class="control-label capitalize" ng-class="{required: required}" for="{{option.id}}">{{option.label || option.id}}</label>
-    <div class="controls">
-       <input type="text" name="state" class="input-xlarge" id="{{option.id}}" ng-model="inputs[option.id]"
-              ng-required="required" ng-pattern="{{option.regex || ''}}"
-              placeholder="{{option.sample | prepend:'ex. '}}"/>
-       <br />
-       <select name="s" id="{{option.id}}" ng-model="inputs[option.id]" ng-options="o for o in option.choice" onchange="document.ex.state.value=document.ex.s.options[document.ex.s.selectedindex].value;document.ex.s.value="""><option value="" selected="selected">
-       </select>
-      <p ng-hide="!option.description" class="help-block">{{option.description}}</p>
     </div>
   </div>
 </script>
@@ -375,6 +326,56 @@ url: shows "Address Builder" to handle url options
                 <p ng-hide="!option.description" class="help-block">{{option.description}}</p>
             </div>
         </div>
+    </div>
+  </div>
+</script>
+
+<!-- prepare to deprecate -->
+<script id="option-int" type="text/ng-template">
+  <div class="control-group" ng-class="{error: option.invalid}">
+    <label class="control-label capitalize" ng-class="{required: required}" for="{{option.id}}">{{option.label || option.id}}</label>
+    <div class="controls">
+      <input type="number" class="input-small" id="{{option.id}}" ng-model="inputs[option.id]"
+              ng-required="required" ng-pattern="{{option.regex || ''}}"
+              placeholder="{{option.sample | prepend:'ex. '}}" >
+      <p ng-hide="!option.description" class="help-block">{{option.description}}</p>
+    </div>
+  </div>
+</script>
+
+<script id="option-select" type="text/ng-template">
+  <div class="control-group" ng-class="{error: option.invalid}">
+    <label class="control-label capitalize" ng-class="{required: required}" for="{{option.id}}">{{option.label || option.id}}</label>
+    <div class="controls">
+      <select id="{{option.id}}" ng-model="inputs[option.id]" ng-required="required" ng-options="o for o in option.choice">
+      </select>
+      <p ng-hide="!option.description" class="help-block">{{option.description}}</p>
+    </div>
+  </div>
+</script>
+
+<script id="option-select-kv" type="text/ng-template">
+  <div class="control-group" ng-class="{error: option.invalid}">
+    <label class="control-label capitalize" ng-class="{required: required}" for="{{option.id}}">{{option.label || option.id}}</label>
+    <div class="controls">
+      <select id="{{option.id}}" ng-model="inputs[option.id]" ng-required="required" ng-options="o.value as o.name for o in option.choice">
+      </select>
+      <p ng-hide="!option.description" class="help-block">{{option.description}}</p>
+    </div>
+  </div>
+</script>
+
+<script id="option-combo" type="text/ng-template">
+  <div class="control-group" ng-class="{error: option.invalid}">
+    <label class="control-label capitalize" ng-class="{required: required}" for="{{option.id}}">{{option.label || option.id}}</label>
+    <div class="controls">
+       <input type="text" name="state" class="input-xlarge" id="{{option.id}}" ng-model="inputs[option.id]"
+              ng-required="required" ng-pattern="{{option.regex || ''}}"
+              placeholder="{{option.sample | prepend:'ex. '}}"/>
+       <br />
+       <select name="s" id="{{option.id}}" ng-model="inputs[option.id]" ng-options="o for o in option.choice" onchange="document.ex.state.value=document.ex.s.options[document.ex.s.selectedindex].value;document.ex.s.value="""><option value="" selected="selected">
+       </select>
+      <p ng-hide="!option.description" class="help-block">{{option.description}}</p>
     </div>
   </div>
 </script>

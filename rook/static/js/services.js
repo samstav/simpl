@@ -391,7 +391,6 @@ services.factory('items', [ 'filterFilter', function($resource, filter) {
   return items;
 }]);
 
-
 services.value('navbar', {
   highlight: function(menu_name) {
     $(document).ready(function() {
