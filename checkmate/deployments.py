@@ -482,9 +482,13 @@ def resource_postback(deployment_id, contents):
     print "DEP STATUS: %s" % deployment['status']
     if 'errmessage' in deployment:
         print "ERRMESSAGE: %s" % deployment['errmessage']
-    deployment.on_resource_postback(contents)
-    body, secrets = extract_sensitive_data(deployment)
-    DB.save_deployment(deployment_id, body, secrets)
+
+    # Check for case where we only updated status - TODO: make this smarter
+    for key, value in contents.items():
+        if contents[key]:    
+            deployment.on_resource_postback(contents)
+            body, secrets = extract_sensitive_data(deployment)
+            DB.save_deployment(deployment_id, body, secrets)
 
     LOG.debug("Updated deployment %s with post-back" % deployment_id,
               extra=dict(data=contents))
