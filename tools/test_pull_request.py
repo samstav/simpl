@@ -47,6 +47,7 @@ def setup_pull_request_branches():
     bash('''
         cp .git/config .git/config.bak
         git config --add remote.origin.fetch '+refs/pull/*/head:refs/remotes/origin/pr/*'
+        git fetch origin master
         ''')
 
 def post_pull_request_comment(status, branch):
