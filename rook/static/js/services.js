@@ -458,6 +458,8 @@ services.value('options', {
           if (option['type'] == 'region' && group == 'deployment')
             region_option = option;
         }
+        if ('choice' in dh)
+          option.choice = dh.choice;
       } else if (['site_address', 'url'].indexOf(key) != -1) {
         group = "application";
         option['type'] = 'url';

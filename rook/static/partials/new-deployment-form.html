@@ -157,9 +157,13 @@ url: shows "Address Builder" to handle url options
   <div class="control-group" ng-class="{error: option.invalid}">
     <label class="control-label capitalize" ng-class="{required: required}" for="{{option.id}}">{{option.label || option.id}}</label>
     <div class="controls">
-      <input type="text" class="input-xlarge" id="{{option.id}}" ng-model="inputs[option.id]"
+      <input ui-if="!option.choice" type="text" class="input-xlarge" id="{{option.id}}" ng-model="inputs[option.id]"
               ng-required="required" ng-pattern="{{option.regex || ''}}"
               placeholder="{{option.sample | prepend:'ex. '}}">
+      <select ui-if="option.choice && !option.choice[0].name" id="{{option.id}}" ng-model="inputs[option.id]" ng-required="required" ng-options="o for o in option.choice">
+      </select>
+      <select ui-if="option.choice[0].name" id="{{option.id}}" ng-model="inputs[option.id]" ng-required="required" ng-options="o.value as o.name for o in option.choice">
+      </select>
       <p ng-hide="!option.description" class="help-block">{{option.description}}</p>
     </div>
   </div>
@@ -218,9 +222,13 @@ url: shows "Address Builder" to handle url options
   <div class="control-group" ng-class="{error: option.invalid}">
     <label class="control-label capitalize" ng-class="{required: required}" for="{{option.id}}">{{option.label || option.id}}</label>
     <div class="controls">
-      <input type="number" class="input-small" id="{{option.id}}" ng-model="inputs[option.id]"
+      <input ui-if="!option.choice" type="number" class="input-small" id="{{option.id}}" ng-model="inputs[option.id]"
               ng-required="required" ng-pattern="{{option.regex || ''}}"
               placeholder="{{option.sample | prepend:'ex. '}}" >
+      <select ui-if="option.choice && !option.choice[0].name" id="{{option.id}}" ng-model="inputs[option.id]" ng-required="required" ng-options="o for o in option.choice">
+      </select>
+      <select ui-if="option.choice[0].name" id="{{option.id}}" ng-model="inputs[option.id]" ng-required="required" ng-options="o.value as o.name for o in option.choice">
+      </select>
       <p ng-hide="!option.description" class="help-block">{{option.description}}</p>
     </div>
   </div>
