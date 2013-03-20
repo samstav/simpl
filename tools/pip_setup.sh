@@ -1,3 +1,5 @@
+#!/bin/bash
+
 ### Set up virtual environment ###
 PYENV_HOME=$WORKSPACE/../.checkmate_pyenv/
 
