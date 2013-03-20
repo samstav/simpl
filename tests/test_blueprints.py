@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 import logging
 import unittest2 as unittest
+
 # Init logging before we load the database, 3rd party, and 'noisy' modules
 from checkmate.utils import init_console_logging
 init_console_logging()
