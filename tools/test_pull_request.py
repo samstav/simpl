@@ -100,6 +100,9 @@ def main():
         post_pull_request_comment(False, branch)
 
     bash('''
+        echo "chef-stockton" >> .gitignore
+        echo "pylint.out" >> .gitignore
+
         #commit the tested pull request file
         git commit -a -m 'Jenkins tested the pull request: %s'
         git push origin master
