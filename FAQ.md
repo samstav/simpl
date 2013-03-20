@@ -1,4 +1,4 @@
-Q: what if I deploy a blueprint that uses CLoud Databases in a region that does not have Cloud Databases?
+Q: What if I deploy a blueprint that uses CLoud Databases in a region that does not have Cloud Databases?
 
 A: You'll get an error before the deployment runs.
 
