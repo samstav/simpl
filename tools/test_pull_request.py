@@ -1,5 +1,5 @@
 #!/usr/bin/python
-import re, subprocess
+import re, subprocess, sys
 
 def bash(cmd, verbose=True):
     """
@@ -26,22 +26,6 @@ def bash(cmd, verbose=True):
         print str(proc_error.returncode) + "\n" + proc_error.output  
         raise proc_error
 
-def get_pull_requests():
-    """
-    Parses git fetch origin for any pull request branches.
-    """
-    pull_requests = bash("git fetch origin")
-    return re.findall(r'\s*\*.*origin/pr/(\d+)', pull_requests)
-
-def get_tested_pull_requests(pull_request_file):
-    """
-    Splits the pull request file's contents into an array
-
-    :param pull_request_file: the file with pull requests to read
-    """
-    with open(pull_request_file, 'r') as pull_request_file:
-        return pull_request_file.read().split('\n')
-
 def test():
     """
     Runs unit tests and linting... this was copied directly from the checkmate jenkins job.
@@ -54,31 +38,16 @@ def test():
     bash("bash tools/jenkins_tests.sh", True)
     bash("bash tools/run_pylint.sh", True)
 
-def setup_pull_request_branches(tested_pull_request_path):
+def setup_pull_request_branches():
     """
     Adds the remote pull request refspec, backs up the .git/config, and returns the
     difference between the remote pull requests and the pull requests that we have already
     tested.
-
-    :param tested_pull_request_path: the path to the file 
-        tracking pull requests we have already tested
     """
     bash('''
         cp .git/config .git/config.bak
         git config --add remote.origin.fetch '+refs/pull/*/head:refs/remotes/origin/pr/*'
         ''')
-    remote_pull_requests = get_pull_requests()
-    #print "remote_pull_requests " + " ,".join(remote_pull_requests)
-    tested_pull_requests = get_tested_pull_requests(tested_pull_request_path)
-    #print "tested_pull_requests %s" % " ,".join(tested_pull_requests)
-    return [pr for pr in remote_pull_requests 
-                    if pr not in tested_pull_requests]
-
-def teardown_pull_request_branches():
-    """
-    Restores the backed up .git/config
-    """
-    bash("mv .git/config.bak .git/config")
 
 def post_pull_request_comment(status, branch):
     """
@@ -99,56 +68,43 @@ def post_pull_request_comment(status, branch):
         'https://github.rackspace.com/api/v3/repos/%s/%s/issues/%s/comments') % (oauth_token, branch, status_string, git_user, git_repo, branch))
 
 def main():
-    TESTED_PULL_REQUEST_PATH = "tools/tested_pull_requests"
-    SUCCESS = True
-    TESTS_PASSED = []
-    TESTS_FAILED = []
+    """
+    :command line arg 1: the pull request branch to build
+    """
+    success = False
+    branch = sys.argv[1]
 
-    PULL_REQUESTS = setup_pull_request_branches(TESTED_PULL_REQUEST_PATH)
+    setup_pull_request_branches()
+    pr_branch = "pr/%s" % branch
+    bash("git checkout %s" % pr_branch)
 
-    for branch in PULL_REQUESTS:
-        pr_branch = "pr/%s" % branch
-        bash("git checkout %s" % pr_branch)
+    try:
+        test()
+        success = True
+    except subprocess.CalledProcessError as cpe:
+        print cpe.output
+        print "Pull Request %s failed!" % branch
+        success = False
 
-        try:
-            test()
-            TESTS_PASSED.append(branch)
-        except subprocess.CalledProcessError as cpe:
-            print cpe.output
-            print "Pull Request %s failed!" % branch
-            SUCCESS = False
-            TESTS_FAILED.append(branch)
+    bash("git checkout master")
+    bash("mv .git/config.bak .git/config")
 
-        bash("git checkout master")
-    
-    teardown_pull_request_branches()
-
-    if len(TESTS_PASSED) + len(TESTS_FAILED) > 0:
-        print "#" * 30
-        print "Pull Requests PASSED:" + ", ".join(TESTS_PASSED)
-        print "Pull Requests FAILED:" + ", ".join(TESTS_FAILED)
-        print "#" * 30
-
+    if success:
+        post_pull_request_comment(True, branch)
+    else:
         print "Failed branch commit detail:"
-        for branch in TESTS_FAILED:
-            print "Branch %s:" % branch
-            bash("git log master..pr/" + branch)
-            bash("git branch -D pr/%s" % branch, False)
-            post_pull_request_comment(False, branch)
+        print "Branch %s:" % branch
+        bash("git log master.." + pr_branch)
+        bash("git branch -D " + pr_branch, False)
+        post_pull_request_comment(False, branch)
 
-        for branch in TESTS_PASSED:
-            post_pull_request_comment(True, branch)
+    bash('''
+        #commit the tested pull request file
+        git commit -a -m 'Jenkins tested the pull request: %s'
+        git push origin master
+        ''' % branch)
 
-        with open(TESTED_PULL_REQUEST_PATH, 'a') as tested_pull_request_file:
-            tested_pull_request_file.write("\n" + "\n".join(PULL_REQUESTS))
-
-        bash('''
-            #commit the tested pull request file
-            git commit -a -m 'Jenkins tested the pull request(s): %s'
-            git push origin master
-            ''' % ", ".join(PULL_REQUESTS))
-
-    if not SUCCESS: 
+    if not success: 
         raise RuntimeError("There was a failure running tests!")
 
 if  __name__ =='__main__':main()
