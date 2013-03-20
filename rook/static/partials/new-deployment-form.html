@@ -290,7 +290,7 @@ url: shows "Address Builder" to handle url options
       <label class="control-label" ng-class="{required: required}" for="{{option.id}}">{{option.label}}</label>
       <div class="controls">
         <div class="input-append span12">
-          <input class="input-xlarge span9" ng-model="inputs[option.id]" id="{{option.id}}" type="url" ng-change="UpdateParts(this, option.id)">
+          <input class="input-xlarge span9" ng-model="inputs[option.id]" id="{{option.id}}" type="url" ng-change="UpdateParts(this, option.id)" placeholder="{{option.sample | prepend:'ex. '}}">
           <button class="btn" ng-class="{'active': builder}" ng-click="builder = !builder">Address Details</button>
         </div>
       </div>
