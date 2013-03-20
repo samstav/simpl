@@ -1,3 +1,4 @@
+#!/bin/bash
 ### Run Pylint ###
 
 PYENV_HOME=$WORKSPACE/../.checkmate_pyenv/
