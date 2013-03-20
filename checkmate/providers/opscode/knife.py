@@ -193,10 +193,12 @@ def _run_ruby_command(path, command, params, lock=True):
             # Get the string after Chef::Exceptions::
             error = last_fatal.split('::')[-1]
             if error:
-                raise CheckmateCalledProcessError(1, command,
-                        output="Chef/Knife error encountered: %s" % error)
-        output = '\n'.join(fatal)
-        raise CheckmateCalledProcessError(1, command, output=output)
+                msg = "Chef/Knife error encountered: %s" % error
+                update_dep_error(msg)
+                raise CheckmateCalledProcessError(1, command, output=msg)
+        msg = '\n'.join(fatal)
+        update_dep_error(msg)
+        raise CheckmateCalledProcessError(1, command, output=msg)
 
     return result
 
@@ -464,7 +466,7 @@ def _create_kitchen(name, path, secret_key=None):
 
 
 @task
-def write_databag(environment, bagname, itemname, contents,
+def write_databag(environment, bagname, itemname, contents, resource,
         path=None, secret_file=None, merge=True, kitchen_name='kitchen'):
     """Updates a data_bag or encrypted_data_bag
 
@@ -485,9 +487,13 @@ def write_databag(environment, bagname, itemname, contents,
     kitchen_path = os.path.join(root, environment, kitchen_name)
     databags_root = os.path.join(kitchen_path, 'data_bags')
     if not os.path.exists(databags_root):
-        raise CheckmateException("Data bags path does not exist: %s" %
-                databags_root)
-
+        msg = ("Data bags path does not exist: %s" % databags_root)
+        results['status'] = "ERROR"
+        results['errmessage'] = msg
+        instance_key = 'instance:%s' % resource['index']
+        results = {instance_key: results}
+        resource_postback.delay(environment, results)
+        raise CheckmateException(msg)
     # Check if the bag already exists (create it if not)
     config_file = os.path.join(kitchen_path, 'solo.rb')
     params = ['knife', 'solo', 'data', 'bag', 'list', '-F', 'json',
@@ -534,8 +540,14 @@ def write_databag(environment, bagname, itemname, contents,
                                                 lock=False)
         except CalledProcessError, exc:
             # Reraise pickleable exception
+            msg = exc.output
+            results['status'] = "ERROR"
+            results['errmessage'] = msg
+            instance_key = 'instance:%s' % resource['index']
+            results = {instance_key: results}
+            resource_postback.delay(environment, results)
             raise CheckmateCalledProcessError(exc.returncode, exc.cmd,
-                    output=exc.output)
+                    output=msg)
         finally:
             lock.release()
         LOG.debug(result)
@@ -564,7 +576,7 @@ def write_databag(environment, bagname, itemname, contents,
 
 
 @task(countdown=20, max_retries=3)
-def cook(host, environment, recipes=None, roles=None, path=None,
+def cook(host, environment, resource, recipes=None, roles=None, path=None,
          username='root', password=None, identity_file=None, port=22,
          attributes=None, kitchen_name='kitchen'):
     """Apply recipes/roles to a server"""
@@ -632,6 +644,26 @@ def cook(host, environment, recipes=None, roles=None, path=None,
     if port:
         params.extend(['-p', str(port)])
     _run_kitchen_command(kitchen_path, params)
+
+    # TODO: When hosted_on resource can host more than one resource, need to make sure all
+    # other hosted resources are ACTIVE before we can change hosted_on resource itself
+    # to ACTIVE
+
+    # Update status of host resource to ACTIVE
+    host_results = {}
+    host_results['status'] = "ACTIVE"
+    host_key = 'instance:%s' % resource['hosted_on']
+    results = {host_key: results}
+    resource_postback.delay(environment, host_results)
+   
+    # Update status of current resource to ACTIVE
+    results = {}
+    results['status'] = "ACTIVE"
+    instance_key = 'instance:%s' % resource['index']
+    results = {instance_key: results}
+    resource_postback.delay(environment, results)
+
+    
 
 
 def download_cookbooks(environment, service_name, path=None, cookbooks=None,
@@ -851,12 +883,16 @@ def register_node(host, environment, resource, path=None, password=None,
     """
     utils.match_celery_logging(LOG)
 
+    # Server provider updates status to CONFIGURE, but sometimes the server is configured
+    # twice, so we need to do this update anyway just to be safe
+
     # Update status of host resource to CONFIGURE
     host_results = {}
     host_results['status'] = "CONFIGURE"
     host_key = 'instance:%s' % resource['hosted_on']
     results = {host_key: results}
     resource_postback.delay(environment, host_results)
+
 
     # Update status of current resource to BUILD
     results = {}
@@ -920,11 +956,13 @@ def register_node(host, environment, resource, path=None, password=None,
 
 
 @task(countdown=20, max_retries=3)
-def manage_role(name, environment, path=None, desc=None,
+def manage_role(name, environment, resource, path=None, desc=None,
         run_list=None, default_attributes=None, override_attributes=None,
         env_run_lists=None, kitchen_name='kitchen'):
     """Write/Update role"""
     utils.match_celery_logging(LOG)
+    results = {}
+
     root = _get_root_environments_path(path)
     kitchen_path = os.path.join(root, environment, kitchen_name)
     if not os.path.exists(kitchen_path):
@@ -933,8 +971,14 @@ def manage_role(name, environment, path=None, desc=None,
                              kitchen_path))
     the_ruby = os.path.join(kitchen_path, 'roles', '%s.rb' % name)
     if os.path.exists(the_ruby):
-        raise CheckmateException("Encountered a chef role in Ruby. Only JSON "
+        msg = ("Encountered a chef role in Ruby. Only JSON "
                 "roles can be manipulated by Checkmate: %s" % the_ruby)
+        results['status'] = "ERROR"
+        results['errmessage'] = msg
+        instance_key = 'instance:%s' % resource['index']
+        results = {instance_key: results}
+        resource_postback.delay(environment, results)
+        raise CheckmateException(msg)
 
     role_path = os.path.join(kitchen_path, 'roles', '%s.json' % name)
 

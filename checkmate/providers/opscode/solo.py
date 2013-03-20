@@ -68,8 +68,6 @@ class Provider(ProviderBase):
             return  # already prepped
         self._hash_all_user_resource_passwords(deployment)
 
-        print "KEY: %s" % self.key
-
         # Create Celery Task
         settings = deployment.settings()
         keys = settings.get('keys', {})
@@ -145,7 +143,7 @@ class Provider(ProviderBase):
                 call_args=[
                         PathAttrib('instance:%s/ip' %
                                 resource.get('hosted_on', key)),
-                        deployment['id']],
+                        deployment['id'], resource],
                 password=PathAttrib('instance:%s/password' %
                                     resource.get('hosted_on', key)),
                 attributes=PathAttrib('chef_options/attributes:%s' % key),
@@ -352,7 +350,7 @@ class Provider(ProviderBase):
             write_databag = Celery(wfspec, name,
                    'checkmate.providers.opscode.knife.write_databag',
                     call_args=[deployment['id'], bag_name, item_name,
-                               PathAttrib(path)],
+                               PathAttrib(path), resource],
                     secret_file=secret_file,
                     merge=True,
                     defines={
@@ -411,7 +409,7 @@ class Provider(ProviderBase):
                                                       collect_tag.capitalize())
             write_role = Celery(wfspec, name,
                     'checkmate.providers.opscode.knife.manage_role',
-                    call_args=[role_name, deployment['id']],
+                    call_args=[role_name, deployment['id'], resource],
                     kitchen_name='kitchen',
                     override_attributes=PathAttrib(path),
                     run_list=run_list,
@@ -621,7 +619,7 @@ class Provider(ProviderBase):
                     'checkmate.providers.opscode.knife.cook',
                     call_args=[
                             PathAttrib('instance:%s/ip' % relation['target']),
-                            deployment['id']],
+                            deployment['id'], resource],
                     password=PathAttrib('instance:%s/password' %
                                         relation['target']),
                     identity_file=Attrib('private_key_path'),
@@ -727,7 +725,7 @@ class Provider(ProviderBase):
                     name, 'checkmate.providers.opscode.knife.cook',
                     call_args=[
                             PathAttrib('instance:%s/public_ip' % host_idx),
-                            deployment['id']],
+                            deployment['id'], client],
                     password=PathAttrib('instance:%s/password' % host_idx),
                     attributes=PathAttrib('chef_options/attributes:%s' %
                                           server['index']),
