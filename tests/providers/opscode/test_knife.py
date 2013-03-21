@@ -219,8 +219,9 @@ class TestKnife(unittest.TestCase):
                              expected)
         self.mox.VerifyAll()
 
-    def test_create_environment_repo(self):
-        """Test create_environment with source repository"""
+    def test_create_environment_repo_cheffile(self):
+        """Test create_environment with a source repository containing
+           a Cheffile"""
         path = '/fake_path'
         fullpath = os.path.join(path, "test")
         service = "test_service"
@@ -258,6 +259,7 @@ class TestKnife(unittest.TestCase):
         git.Git(kitchen_path).AndReturn(gb_mock)
         gb_mock.checkout('FETCH_HEAD').AndReturn(True)
 
+        os.path.exists(os.path.join(kitchen_path, 'Berksfile')).AndReturn(False)
         os.path.exists(os.path.join(kitchen_path, 'Cheffile')).AndReturn(True)
         self.mox.StubOutWithMock(os, 'chdir')
         os.chdir(kitchen_path).AndReturn(True)
@@ -276,6 +278,70 @@ class TestKnife(unittest.TestCase):
                                                       source_repo="git://ggg"),
                              expected)
         self.mox.VerifyAll()
+
+
+
+
+    def test_create_environment_repo_berksfile(self):
+        """Test create_environment with a source repository containing
+           a Berksfile"""
+        path = '/fake_path'
+        fullpath = os.path.join(path, "test")
+        service = "test_service"
+        #Stub out checks for paths
+        self.mox.StubOutWithMock(os, 'mkdir')
+        os.mkdir(fullpath, 0770).AndReturn(True)
+        self.mox.StubOutWithMock(knife, '_get_root_environments_path')
+        knife._get_root_environments_path(path).AndReturn(path)
+        self.mox.StubOutWithMock(knife, '_create_environment_keys')
+        knife._create_environment_keys(fullpath, private_key="PPP",
+                                       public_key_ssh="SSH").AndReturn(
+                                       dict(keys="keys"))
+        self.mox.StubOutWithMock(knife, '_create_kitchen')
+        knife._create_kitchen(service, fullpath, secret_key="SSS")\
+                .AndReturn(dict(kitchen="kitchen_path"))
+        kitchen_path = os.path.join(fullpath, service)
+        public_key_path = os.path.join(fullpath, 'checkmate.pub')
+        kitchen_key_path = os.path.join(kitchen_path, 'certificates',
+                                        'checkmate-environment.pub')
+        self.mox.StubOutWithMock(shutil, 'copy')
+        shutil.copy(public_key_path, kitchen_key_path).AndReturn(True)
+
+        self.mox.StubOutWithMock(os.path, 'exists')
+        os.path.exists(kitchen_path).AndReturn(True)
+        repo = self.mox.CreateMockAnything()
+        remote = self.mox.CreateMockAnything()
+        self.mox.StubOutWithMock(git.Repo, 'init')
+        git.Repo.init(kitchen_path).AndReturn(repo)
+        repo.remotes = []
+        repo.create_remote('origin', "git://ggg").AndReturn(remote)
+        remote.fetch(refspec='master').AndReturn(True)
+
+        self.mox.StubOutWithMock(git, 'Git')
+        gb_mock = self.mox.CreateMockAnything()
+        git.Git(kitchen_path).AndReturn(gb_mock)
+        gb_mock.checkout('FETCH_HEAD').AndReturn(True)
+
+        os.path.exists(os.path.join(kitchen_path, 'Berksfile')).AndReturn(True)
+        self.mox.StubOutWithMock(os, 'chdir')
+        os.chdir(kitchen_path).AndReturn(True)
+        self.mox.StubOutWithMock(knife, 'check_all_output')
+        knife.check_all_output(['berks', 'install', '--path',
+                os.path.join(kitchen_path, 'cookbooks')]).AndReturn('OK')
+
+        self.mox.ReplayAll()
+        expected = {'environment': '/fake_path/test',
+                    'keys': 'keys',
+                    'kitchen': 'kitchen_path'}
+        self.assertDictEqual(knife.create_environment("test",
+                                                      service, path=path,
+                                                      private_key="PPP",
+                                                      public_key_ssh="SSH",
+                                                      secret_key="SSS",
+                                                      source_repo="git://ggg"),
+                             expected)
+        self.mox.VerifyAll()
+
 
 
 if __name__ == '__main__':
