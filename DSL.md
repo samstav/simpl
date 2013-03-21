@@ -163,6 +163,8 @@ Blueprint Options
 =================
 ## Fields
 
+Note: this is the schema that is being supported in v0.7 of the engine. The schema had not been formalized, firmed up, or sufficiently validated prior to this. Validation will start to be more aggressive as we proceed towards a v1.0 release of the Checkmate API.
+
 **label**: the short label to use when displaying the option to the user.
 **description**: A full description of this option (what it is)
 **help**: Detailed help on this option (how to use it)

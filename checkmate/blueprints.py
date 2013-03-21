@@ -175,14 +175,36 @@ class Blueprint(ExtensibleDict):
                 LOG.warn("Converted 'protocols' attribute in an option in "
                          "blueprint '%s'" % data.get('id'))
 
+            # move 'choice' to display-hints
+
+            if 'choice' in option:
+                if 'display-hints' not in option:
+                    option['display-hints'] = {'choice': option['choice']}
+                else:
+                    option['display-hints']['choice'] = option['choice']
+                del option['choice']
+                LOG.warn("Converted 'choice' attribute in an option in "
+                         "blueprint '%s'" % data.get('id'))
+
+            # move 'sample' to display-hints
+
+            if 'sample' in option:
+                if 'display-hints' not in option:
+                    option['display-hints'] = {'sample': option['sample']}
+                else:
+                    option['display-hints']['sample'] = option['sample']
+                del option['sample']
+                LOG.warn("Converted 'sample' attribute in an option in "
+                         "blueprint '%s'" % data.get('id'))
+
         # tag version and log conversion
 
         if data.get('version', 'v0.1') < 'v0.7':
             event = {
-                     'date': utils.get_time_string(),
-                     'event': "Converted from %s to %s" % (
-                              data.get('version'),'v0.7')
-                    }
+                'date': utils.get_time_string(),
+                'event': "Converted from %s to %s" % (data.get('version'),
+                                                      'v0.7')
+            }
             data['version'] = 'v0.7'
             if 'log' not in data:
                 data['log'] = []
