@@ -739,7 +739,7 @@ def create_environment(name, service_name, path=None, private_key=None,
     except OSError as ose:
         if ose.errno == errno.EEXIST:
             LOG.warn("Environment directory %s already exists", fullpath,
-                      exc_info=True)
+                     exc_info=True)
         else:
             raise CheckmateException(
                 "Could not create environment %s" % fullpath, ose)
@@ -747,18 +747,18 @@ def create_environment(name, service_name, path=None, private_key=None,
     results = {"environment": fullpath}
 
     key_data = _create_environment_keys(fullpath, private_key=private_key,
-            public_key_ssh=public_key_ssh)
+                                        public_key_ssh=public_key_ssh)
 
     # Kitchen is created in a /kitchen subfolder since it gets completely
     # rsynced to hosts. We don't want the whole environment rsynced
     kitchen_data = _create_kitchen(service_name, fullpath,
-            secret_key=secret_key)
+                                   secret_key=secret_key)
     kitchen_path = os.path.join(fullpath, service_name)
 
     # Copy environment public key to kitchen certs folder
     public_key_path = os.path.join(fullpath, 'checkmate.pub')
     kitchen_key_path = os.path.join(kitchen_path, 'certificates',
-            'checkmate-environment.pub')
+                                    'checkmate-environment.pub')
     shutil.copy(public_key_path, kitchen_key_path)
     LOG.debug("Wrote environment public key to kitchen: %s" % kitchen_key_path)
 
