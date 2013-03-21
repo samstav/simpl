@@ -413,9 +413,9 @@ def _create_kitchen(dep_id, service_name, path, secret_key=None, source_repo=Non
                    "in it: %s" % nodes_path)
             raise CheckmateException(msg)
     else:
-        # we don't pass the config file here becasuse we're creating the
+        # we don't pass the config file here because we're creating the
         # kitchen for the first time and knife will overwrite our config file
-        params = ['knife', 'kitchen', '.']
+        params = ['knife', 'solo', 'init', '.']
         _run_kitchen_command(dep_id, kitchen_path, params)
 
     solo_file, secret_key_path = _write_knife_config_file(kitchen_path)
@@ -709,7 +709,7 @@ def cook(host, environment, resource, recipes=None, roles=None, path=None,
     # Build and run command
     if not username:
         username = 'root'
-    params = ['knife', 'cook', '%s@%s' % (username, host),
+    params = ['knife', 'solo', 'cook', '%s@%s' % (username, host),
               '-c', os.path.join(kitchen_path, 'solo.rb')]
     if not (run_list or attributes):
         params.extend(['bootstrap.json'])
@@ -1062,7 +1062,7 @@ def register_node(host, environment, resource, path=None, password=None,
                 node_path)
 
     # Build and execute command 'knife prepare' command
-    params = ['knife', 'prepare', 'root@%s' % host,
+    params = ['knife', 'solo', 'prepare', 'root@%s' % host,
               '-c', os.path.join(kitchen_path, 'solo.rb')]
     if password:
         params.extend(['-P', password])
