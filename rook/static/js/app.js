@@ -1808,7 +1808,15 @@ function DeploymentNewController($scope, $location, $routeParams, $resource, opt
         return;
     }
     $('#site_address_error').text("");
-    $scope.inputs[option_id] = new_address;
+    if ($scope.AcceptsSSLCertificate(scope) === true) {
+      $scope.inputs[option_id] = {
+        url: new_address,
+        certificate: scope.certificate,
+        private_key: scope.private_key,
+        intermediate_key: scope.intermediate_key
+      };
+    } else
+      $scope.inputs[option_id] = new_address;
   };
 
   $scope.UpdateParts = function(scope, option_id) {
@@ -1827,6 +1835,14 @@ function DeploymentNewController($scope, $location, $routeParams, $resource, opt
       scope.path = parsed.path;
     } catch(err) {}
     $('#site_address_error').text("");
+  };
+
+  $scope.AcceptsSSLCertificate = function(scope) {
+    if ((scope.option['encrypted-protocols'] || []).indexOf(scope.protocol) > -1)
+      return true;
+    if (scope.option['always-accept-certificates'] === true)
+      return true;
+    return false;
   };
 
   $scope.ShowCerts = function() {

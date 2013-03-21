@@ -461,6 +461,10 @@ services.value('options', {
           option.sample = dh.sample;
         if ('choice' in dh)
           option.choice = dh.choice;
+        if ('encrypted-protocols' in dh)
+          option['encrypted-protocols'] = dh['encrypted-protocols'];
+        if ('always-accept-certificates' in dh)
+          option['always-accept-certificates'] = dh['always-accept-certificates'];
       } else if (['site_address', 'url'].indexOf(key) != -1) {
         group = "application";
         option['type'] = 'url';

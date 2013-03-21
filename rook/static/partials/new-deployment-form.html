@@ -288,44 +288,78 @@ url: shows "Address Builder" to handle url options
     </div>
     <div class="row-fluid">
         <!-- path -->
+
+    <!-- New Certificate Format -->
+    <div class="row-fluid" ng-cloak ng-show="AcceptsSSLCertificate(this)">
+      <hr>
+      <h6>SSL Certificate</h6>
+      <p class="help-block">To generate internal certificates for testing, go to <a href="https://ssl.corp.rackspace.com/" target="_blank">https://ssl.corp.rackspace.com/</a></p>
+      <br>
+
+      <!-- Certificate -->
+      <div class="row-fluid">
         <div class="control-group">
-          <label class="control-label required" for="path_for_{{option.id}}">Path</label>
+          <label class="control-label capitalize" for="ssl_certificate">SSL Certificate</label>
           <div class="controls">
-            <input style="width:80px;" type="text" name="path_for_{{option.id}}" class="input-xlarge" id="path_for_{{option.id}}" placeholder="ex. /blog" ng-model="path" ng-change="UpdateURL(this, option.id)">
+            <textarea rows="3" class="input-xlarge" id="ssl_certificate" ng-model="certificate" ng-change="UpdateURL(this, option.id)" placeholder="Ex. ----- BEGIN CERTIFICATE ----- ..."></textarea>
           </div>
         </div>
-    </div>
-    <div class="row-fluid">
-        <!-- ssl certificate -->
-        <div class="control-group offset1" ng-cloak ng-show="ShowCerts()" ng-repeat="option in options | filter:{id: 'ssl_certificate'}">
-            <label class="control-label capitalize" for="ssl_certificate">{{option.label}}</label>
-            <div class="controls">
-                <textarea cols="80" rows="20" class="input-xlarge" id="ssl_certificate" ng-model="inputs['ssl_certificate']" placeholder="{{option.sample | prepend:'ex. '}}"></textarea>
-                <p class="help-block">{{option.description}} To generate internal certificates for testing, go to <a href="https://ssl.corp.rackspace.com/" target="_blank">https://ssl.corp.rackspace.com/</a></p>
-            </div>
+      </div>
+
+      <!-- Private Key -->
+      <div class="row-fluid">
+        <div class="control-group">
+          <label class="control-label capitalize" for="private_key">Private Key</label>
+          <div class="controls">
+            <textarea rows="3" class="input-xlarge" id="private_key" ng-model="private_key" ng-change="UpdateURL(this, option.id)" placeholder="Ex. ----- BEGIN PRIVATE KEY ----- ..."></textarea>
+          </div>
         </div>
+      </div>
+
+      <!-- Intermediate Key -->
+      <div class="row-fluid">
+        <div class="control-group">
+          <label class="control-label capitalize" for="intermediate_key">Intermediate Key</label>
+          <div class="controls">
+            <textarea rows="3" class="input-xlarge" id="intermediate_key" ng-model="intermediate_key" ng-change="UpdateURL(this, option.id)" placeholder="Ex. ----- BEGIN CERTIFICATE ----- ..."></textarea>
+          </div>
+        </div>
+      </div>
+
     </div>
 
+    <!-- LEGACY FIELDS -->
+    <!-- ssl certificate -->
     <div class="row-fluid">
-        <!-- ssl key -->
-        <div class="control-group offset1" ng-cloak ng-show="ShowCerts()" ng-repeat="option in options | filter:{id: 'ssl_private_key'}">
-            <label class="control-label capitalize" for="ssl_certificate">{{option.label}}</label>
-            <div class="controls">
-                <textarea cols="80" rows="20" class="input-xlarge" id="ssl_private_key" ng-model="inputs['ssl_private_key']" placeholder="{{option.sample | prepend:'ex. '}}"></textarea>
-                <p ng-hide="!option.description" class="help-block">{{option.description}}</p>
-            </div>
+      <div class="control-group offset1" ng-cloak ng-show="ShowCerts()" ng-repeat="option in options | filter:{id: 'ssl_certificate'}">
+        <label class="control-label capitalize" for="ssl_certificate">{{option.label}}</label>
+        <div class="controls">
+          <textarea cols="80" rows="20" class="input-xlarge" id="ssl_certificate" ng-model="inputs['ssl_certificate']" placeholder="{{option.sample | prepend:'ex. '}}"></textarea>
+          <p class="help-block">{{option.description}} To generate internal certificates for testing, go to <a href="https://ssl.corp.rackspace.com/" target="_blank">https://ssl.corp.rackspace.com/</a></p>
         </div>
+      </div>
     </div>
 
+    <!-- ssl key -->
     <div class="row-fluid">
-        <!-- ssl CA certificate -->
-        <div class="control-group offset1" ng-cloak ng-show="ShowCerts()" ng-repeat="option in options | filter:{id: 'ssl_intermediate_certificate'}">
-            <label class="control-label capitalize" for="ssl_intermediate_certificate">{{option.label}}</label>
-            <div class="controls">
-                <textarea cols="80" rows="20" class="input-xlarge" id="ssl_intermediate_certificate" ng-model="inputs['ssl_intermediate_certificate']" placeholder="{{option.sample | prepend:'ex. '}}"></textarea>
-                <p ng-hide="!option.description" class="help-block">{{option.description}}</p>
-            </div>
+      <div class="control-group offset1" ng-cloak ng-show="ShowCerts()" ng-repeat="option in options | filter:{id: 'ssl_private_key'}">
+        <label class="control-label capitalize" for="ssl_certificate">{{option.label}}</label>
+        <div class="controls">
+          <textarea cols="80" rows="20" class="input-xlarge" id="ssl_private_key" ng-model="inputs['ssl_private_key']" placeholder="{{option.sample | prepend:'ex. '}}"></textarea>
+          <p ng-hide="!option.description" class="help-block">{{option.description}}</p>
         </div>
+      </div>
+    </div>
+
+    <!-- ssl CA certificate -->
+    <div class="row-fluid">
+      <div class="control-group offset1" ng-cloak ng-show="ShowCerts()" ng-repeat="option in options | filter:{id: 'ssl_intermediate_certificate'}">
+        <label class="control-label capitalize" for="ssl_intermediate_certificate">{{option.label}}</label>
+        <div class="controls">
+          <textarea cols="80" rows="20" class="input-xlarge" id="ssl_intermediate_certificate" ng-model="inputs['ssl_intermediate_certificate']" placeholder="{{option.sample | prepend:'ex. '}}"></textarea>
+          <p ng-hide="!option.description" class="help-block">{{option.description}}</p>
+        </div>
+      </div>
     </div>
   </div>
 </script>
