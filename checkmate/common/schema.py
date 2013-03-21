@@ -182,7 +182,6 @@ OPTION_SCHEMA = [
                  'label',
                  'default',
                  'help',
-                 'sample',
                  'choice',
                  'description',
                  'required',
