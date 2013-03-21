@@ -58,7 +58,6 @@ class TestSchema(unittest.TestCase):
                     "weight": 5
                 },
                 'help': "Here's how...",
-                'sample': "foo",
                 'choice': [],
                 'description': "Yada yada",
                 'required': False,
