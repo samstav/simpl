@@ -248,8 +248,8 @@ url: shows "Address Builder" to handle url options
     </div>
   </div>
   <div id="url_controls_for_{{option.id}}" ng-cloak ng-show="builder" class="well offset1">
+    <!-- protocol -->
     <div class="row-fluid">
-      <!-- protocol -->
       <div class="control-group">
         <label class="control-label required" for="protocol_for_{{option.id}}">Protocol</label>
         <div class="controls">
@@ -257,8 +257,9 @@ url: shows "Address Builder" to handle url options
         </div>
       </div>
     </div>
+
+    <!-- domain -->
     <div class="row-fluid">
-      <!-- domain -->
       <div class="control-group">
         <label class="control-label required" for="domain_for_{{option.id}}">Domain</label>
         <div class="controls">
@@ -276,18 +277,27 @@ url: shows "Address Builder" to handle url options
         </div>
       </div>
     </div>
+
+    <!-- register DNS -->
     <div class="row-fluid">
-      <!-- register DNS -->
       <div class="control-group" ng-repeat="dns_option in options | filter:{id: 'register-dns'}">
-          <label class="control-label required" for="register_dns">{{dns_option.label || id}}</label>
-          <div class="controls">
-            <input type="checkbox" class="input-xlarge" id="register_dns" ng-model="inputs['register-dns']">
-            <p ng-hide="!dns_option.description" class="help-block">{{dns_option.description}}</p>
-          </div>
+        <label class="control-label required" for="register_dns">{{dns_option.label || id}}</label>
+        <div class="controls">
+          <input type="checkbox" class="input-xlarge" id="register_dns" ng-model="inputs['register-dns']">
+          <p ng-hide="!dns_option.description" class="help-block">{{dns_option.description}}</p>
+        </div>
       </div>
     </div>
+
+    <!-- path -->
     <div class="row-fluid">
-        <!-- path -->
+      <div class="control-group">
+        <label class="control-label required" for="path_for_{{option.id}}">Path</label>
+        <div class="controls">
+          <input style="width:80px;" type="text" name="path_for_{{option.id}}" class="input-xlarge" id="path_for_{{option.id}}" placeholder="ex. /blog" ng-model="path" ng-change="UpdateURL(this, option.id)">
+        </div>
+      </div>
+    </div>
 
     <!-- New Certificate Format -->
     <div class="row-fluid" ng-cloak ng-show="AcceptsSSLCertificate(this)">
