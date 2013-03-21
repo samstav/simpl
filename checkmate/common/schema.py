@@ -202,7 +202,6 @@ OPTION_TYPES = [
                 'boolean',
                 'url',
                 'password',
-                'region',
                 'text',
                ]
 
