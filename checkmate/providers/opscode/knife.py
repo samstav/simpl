@@ -766,7 +766,7 @@ def create_environment(name, service_name, path=None, private_key=None,
         _init_repo(kitchen_path, source_repo=source_repo)
         # if Berksfile exists, run berks to pull in cookbooks
         if os.path.exists(os.path.join(kitchen_path, 'Berksfile')):
-            _run_ruby_command(kitchen_path, 'berks', ['install','--path',
+            _run_ruby_command(kitchen_path, 'berks', ['install', '--path',
                               os.path.join(kitchen_path, 'cookbooks')],
                               lock=True)
             LOG.debug("Ran 'berks install' in: %s" % kitchen_path)
