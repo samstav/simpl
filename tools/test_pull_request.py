@@ -45,10 +45,6 @@ def get_tested_pull_requests(pull_request_file):
 def test():
     """
     Runs unit tests and linting... this was copied directly from the checkmate jenkins job.
-
-    TODO: check in the checkmate job's scripts instead of keeping them in
-        the web console, that way we can reuse the code instead of copying 
-        it here.
     """
     bash("bash tools/pip_setup.sh", True)
     bash("bash tools/jenkins_tests.sh", True)
@@ -82,8 +78,7 @@ def post_pull_request_comment(status, branch):
     return bash(
     ('curl -H "Authorization: token %s" -X POST '
         '-d \'{ "body": "Pull request:%s %s testing!" }\' '
-        'https://github.rackspace.com/api/v3/repos/%s/%s/issues/%s/comments') % 
-        (oauth_token, branch, status_string, git_user, git_repo, branch))
+        'https://github.rackspace.com/api/v3/repos/%s/%s/issues/%s/comments') % (oauth_token, branch, status_string, git_user, git_repo, branch))
 
 def main():
     """
