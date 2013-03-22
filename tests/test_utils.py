@@ -346,6 +346,12 @@ class TestUtils(unittest.TestCase):
             result = utils.read_path(case['start'], case['path'])
             self.assertEqual(result, case['expected'], msg=case['name'])
 
+    def test_is_evaluable(self):
+        self.assertTrue(utils.is_evaluable('=generate_password()'))
+        self.assertTrue(utils.is_evaluable('=generate_uuid()'))
+        self.assertFalse(utils.is_evaluable('=generate_something_else()'))
+        self.assertFalse(utils.is_evaluable({'not-a-string': 'boom!'}))
+
 
 if __name__ == '__main__':
     # Run tests. Handle our parameters separately

@@ -559,6 +559,15 @@ def read_path(source, path):
     return current.get(parts[-1])
 
 
+def is_evaluable(value):
+    """ Check if value is a function that can be passed to evaluate() """
+    try:
+        return (value.startswith('=generate_password(') or
+                value.startswith('=generate_uuid('))
+    except AttributeError:
+        return False
+
+
 def evaluate(function_string):
     """Evaluate an option value.
 
