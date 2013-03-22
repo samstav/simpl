@@ -368,4 +368,87 @@ Minimal, canonical deployment (hello world) available [here](https://github.rack
 **Action Item**: improve syntax for indicating a generated value, or remove it and let a generated value be the default.  Or create system for code to be included in blueprint to be used to generate, validate values. See artifacts prototype in app.yaml.
 
 
+Schema History
+==============
+
+This is the rough history of the Checkmate blueprint schema.
+
+v0.1 [circa April 2012]:
+
+- first prototype released
+- providers as a list
+- services as a keys under a blueprint
+- commit 6c74e2ee3f3a91cf3075bbcff7e64c71450b327a
+
+```yaml
+
+  deployment:
+    blueprint:
+        name: Simple Wordpress
+        wordpress:
+          config: *wordpress  # points to wordpress component
+          relations: {db: mysql}
+    environment:
+          name: rackcloudtech-test
+          providers:
+          - compute:
+            vendor: rackspace
+            constraints:
+            - region: ORD
+          - loadbalancer: &rax-lbaas
+          - database: &rax-dbaas
+          - common:
+            vendor: rackspace
+            credentials:
+            - rackspace:
+              ...
+```
+
+v0.2 [May 26 2012]: alpha release
+
+- providers as keys
+- `provides` and `requires` in components
+- commit 6fdda01fda53f47f7cb11104aa8bd57a0a5a746d
+
+```yaml
+
+  deployment:
+    environment:
+      providers:
+        nova:
+          provides:
+          - compute
+          vendor: rackspace
+```
+
+v0.3 [July 2012]: beta/v0.1 release
+
+- services syntax updated at some point
+- canonicalization of names
+- '=generate_...'
+- postbacks
+
+v0.4 [Fall 2012]: v0.2 released
+
+- canonicalization of settings (memory instead of flavor)
+- use of catalogs
+- support static resources
+
+
+v0.5 []: v0.3 release
+
+- `attribute` in relations
+- used relations for data routing
+- chef-local
+
+v0.6 [Jan 2013]: v0.4 release (chef-solo + maps)
+
+- keyed `provides` and `requires`
+- relation `attribute` deprecated (but suppported)
+- url type
+
+v0.7: []: Upcoming release (v0.8 of engine)
+
+- new options syntax
+- blueprint schema versioning
 
