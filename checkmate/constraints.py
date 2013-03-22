@@ -144,9 +144,7 @@ class ProtocolsConstraint(Constraint):
             self.message = constraint['message']
 
     def test(self, value):
-        if isinstance(value, dict):
-            value = value.get('url')
-        if not isinstance(value, basestring):
+        if not issubclass(value.__class__, basestring):
             return False
         if '://' not in value:
             return False
