@@ -51,7 +51,6 @@ class Provider(ProviderBase):
     vendor = 'opscode'
 
     def __init__(self, provider, key=None):
-        print "INIT KEY: %s" % key
         ProviderBase.__init__(self, provider, key=key)
         self.prep_task = None
 

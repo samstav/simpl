@@ -348,7 +348,6 @@ def _init_repo(path, source_repo=None):
     if source_repo:  # Pull remote if supplied
         source_repo, ref = urlparse.urldefrag(source_repo)
         LOG.debug("Fetching ref %s from %s" % (ref or 'master', source_repo))
-        print ("Fetching ref %s from %s" % (ref or 'master', source_repo))
         remotes = [r for r in repo.remotes
                      if r.config_reader.get('url') == source_repo]
         if remotes:
@@ -653,7 +652,7 @@ def cook(host, environment, resource, recipes=None, roles=None, path=None,
     host_results = {}
     host_results['status'] = "ACTIVE"
     host_key = 'instance:%s' % resource['hosted_on']
-    results = {host_key: results}
+    host_results = {host_key: host_results}
     resource_postback.delay(environment, host_results)
    
     # Update status of current resource to ACTIVE
@@ -890,7 +889,7 @@ def register_node(host, environment, resource, path=None, password=None,
     host_results = {}
     host_results['status'] = "CONFIGURE"
     host_key = 'instance:%s' % resource['hosted_on']
-    results = {host_key: results}
+    host_results = {host_key: host_results}
     resource_postback.delay(environment, host_results)
 
 
