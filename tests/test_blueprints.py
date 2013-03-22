@@ -27,7 +27,9 @@ class TestBlueprints(unittest.TestCase):
         """Test the schema validates a blueprint with all possible fields"""
         blueprint = {
             'id': 'test',
-            'version': 'v0.7',
+            'meta-data': {
+                'schema-version': 'v0.7',
+            },
             'name': 'test',
             'services': {},
             'options': {},
@@ -72,7 +74,7 @@ class TestBlueprints(unittest.TestCase):
             'resources': {},
         }
         expected = copy.deepcopy(blueprint)
-        expected['version'] = 'v0.7'
+        expected['meta-data'] = {'schema-version': 'v0.7'}
         expected['log'] = [{'date': '2000-01-01 00:00:00 +0000',
                             'event': 'Converted from None to v0.7'}]
         self.mox.StubOutWithMock(utils, 'get_time_string')
@@ -118,7 +120,9 @@ class TestBlueprints(unittest.TestCase):
         }
         expected = {
             'id': 'test',
-            'version': 'v0.7',
+            'meta-data': {
+                'schema-version': 'v0.7',
+            },
             'name': 'test',
             'services': {},
             'options': {
@@ -158,7 +162,9 @@ class TestBlueprints(unittest.TestCase):
     def test_future_blueprint_version(self):
         """Test the an unsupported blueprint version is rejected"""
         blueprint = {
-            'version': 'unrecognized'
+            'meta-data': {
+                'schema-version': 'unrecognized',
+            },
         }
         self.assertRaisesRegexp(CheckmateValidationException, "This server "
                                 "does not support version 'unrecognized' "
