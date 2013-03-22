@@ -91,8 +91,7 @@ url: shows "Address Builder" to handle url options
     <div class="row-fluid" ng-cloak ng-show="option_groups['application']">
       <div class="control-group span10">
         <h4>Application Options</h4>
-        <div ng-repeat="option in option_groups['application'] | orderBy:'order'" compile-html="renderOption(option)">
-        </div>
+        <cm-option ng-repeat="option in option_groups['application'] | orderBy:'order'" />
       </div>
     </div>
 
@@ -100,7 +99,7 @@ url: shows "Address Builder" to handle url options
     <div class="row-fluid" ng-cloak ng-show="option_groups['server']">
       <div class="control-group span10">
         <h4>Server Options</h4>
-        <div ng-repeat="option in option_groups['server'] | orderBy:'order'" compile-html="renderOption(option)">
+        <cm-option ng-repeat="option in option_groups['server'] | orderBy:'order'" />
         </div>
       </div>
     </div>
@@ -109,7 +108,7 @@ url: shows "Address Builder" to handle url options
     <div class="row-fluid" ng-cloak ng-show="option_groups['load-balancer']">
       <div class="control-group span10">
         <h4>Load Balancer Options</h4>
-        <div ng-repeat="option in option_groups['load-balancer'] | orderBy:'order'" compile-html="renderOption(option)">
+        <cm-option ng-repeat="option in option_groups['load-balancer'] | orderBy:'order'" />
         </div>
       </div>
     </div>
@@ -118,7 +117,7 @@ url: shows "Address Builder" to handle url options
     <div class="row-fluid" ng-cloak ng-show="option_groups['database']">
       <div class="control-group span10">
         <h4>Database Options</h4>
-        <div ng-repeat="option in option_groups['database'] | orderBy:'order'" compile-html="renderOption(option)">
+        <cm-option ng-repeat="option in option_groups['database'] | orderBy:'order'" />
         </div>
       </div>
     </div>
@@ -127,7 +126,7 @@ url: shows "Address Builder" to handle url options
     <div class="row-fluid" ng-cloak ng-show="option_groups['dns']">
       <div class="control-group span10">
         <h4>DNS Options</h4>
-        <div ng-repeat="option in option_groups['dns'] | orderBy:'order'" compile-html="renderOption(option)">
+        <cm-option ng-repeat="option in option_groups['dns'] | orderBy:'order'" />
         </div>
       </div>
     </div>

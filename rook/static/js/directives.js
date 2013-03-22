@@ -43,6 +43,50 @@ directives.directive('compileHtml', function($compile) {
   };
 });
 
+//New HTML tag hard-coded for use in New Deployment Form to display options
+directives.directive('cmOption', function($compile) {
+  return {
+    restrict: 'E',
+    scope: false,
+    replace: true,
+    link: function(scope, element, attrs) {
+      var option = scope.option;
+      var message;
+      var template = '';
+      if (!option) {
+        message = "The requested option is null";
+        console.log(message);
+        template = "<em>" + message + "</em>";
+      } else if (!option.type || !_.isString(option.type)) {
+        message = "The requested option '" + option.id + "' has no type or the type is not a string.";
+        console.log(message);
+        template = "<em>" + message + "</em>";
+      } else {
+        var lowerType = option.type.toLowerCase().trim();
+
+        if (option.label == "Domain") {
+            option.choice = $scope.domain_names;
+        }
+
+        if (lowerType == "select") {
+          if ("choice" in option) {
+            if (!_.isString(option.choice[0]))
+              lowerType = lowerType + "-kv";
+          }
+        }
+        template = $('#option-' + lowerType).html();
+        if (template === null) {
+          message = "No template for option type '" + option.type + "'.";
+          console.log(message);
+          template = "<em>" + message + "</em>";
+        }
+      }
+      template = (template || "").trim();
+      element.append($compile(template)(scope));
+    }
+  };
+});
+
 directives.directive('calculator', function factory() {
   var calculator = {
     templateUrl: '/static/RackspaceCalculator/index.html',
@@ -173,7 +217,6 @@ directives.directive('clippy', function factory() {
   };
   return directiveDefinitionObject;
 });
-
 
 directives.directive('popover', function(){
     return function(scope, element, attrs) {

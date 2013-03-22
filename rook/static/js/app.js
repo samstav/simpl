@@ -1853,44 +1853,6 @@ function DeploymentNewController($scope, $location, $routeParams, $resource, opt
     return false;
   };
 
-  // Display options using templates for each type
-  $scope.renderOption = function(option) {
-    var message;
-    if (!option) {
-      message = "The requested option is null";
-      console.log(message);
-      return "<em>" + message + "</em>";
-    }
-    if (!option.type || !_.isString(option.type)) {
-      message = "The requested option '" + option.id + "' has no type or the type is not a string.";
-      console.log(message);
-      return "<em>" + message + "</em>";
-    }
-    var lowerType = option.type.toLowerCase().trim();
-
-    if (option.label == "Domain") {
-        option.choice = $scope.domain_names;
-    }
-
-    if (["compute.os", "compute.memory", "region"].indexOf(lowerType) !== -1) {
-      lowerType = "select";
-    }
-
-    if (lowerType == "select") {
-      if ("choice" in option) {
-        if (!_.isString(option.choice[0]))
-          lowerType = lowerType + "-kv";
-      }
-    }
-    var template = $('#option-' + lowerType).html();
-    if (template === null) {
-      message = "No template for option type '" + option.type + "'.";
-      console.log(message);
-      return "<em>" + message + "</em>";
-    }
-      return (template || "").trim();
-  };
-
   $scope.showOptions = function() {
     return ($scope.environment && $scope.blueprint);
   };
