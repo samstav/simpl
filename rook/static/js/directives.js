@@ -244,26 +244,30 @@ directives.directive('validateOption', function () {
         restrict: 'A',
         require: 'ngModel',
         link: function (scope, elm, attrs, ctrl) {
+            var option = scope[attrs.validateOption];
 
             function validate(value) {
-              var option = scope[attrs.validateOption];
               var constraints = option.constraints;
               var index = 0;
               var valid = true;
-              console.log("validating", constraints, "from", option);
               _.each(constraints, function(constraint) {
                 if ('regex' in constraint) {
                   var patt = new RegExp(constraint.regex);
                   constraint.valid = patt.test(value || '');
-                  if (!patt.test(value || ''))
-                    valid = false;
+                } else if ('protocols' in constraint) {
+                  constraint.valid = constraint.protocols.indexOf((value || '').split(":")[0]) > -1;
                 } else {
                   constraint.valid = true;
                 }
-                ctrl.$setValidity('constraints', valid);
-                option.invalid = !valid;
+                if (constraint.valid === false)
+                    valid = false;
                 index += 1;
               });
+              var error_key = 'constraints' + option.id.replace('-', '');
+              ctrl.$setValidity(error_key, valid);
+              //FIXME: hack! dynamically generated control validation is not bubbling up otherwise
+              angular.element($('#newDeploymentForm')).scope().newDeploymentForm.$setValidity(error_key, valid, ctrl);
+              option.invalid = !valid;
               return valid ? value : undefined;
             }
 
@@ -274,8 +278,8 @@ directives.directive('validateOption', function () {
 
             //For model -> DOM validation
             ctrl.$formatters.unshift(function(value) {
-               ctrl.$setValidity('constraints', validate(value));
-               return value;
+              validate(value);
+              return value;
             });
         }
     };

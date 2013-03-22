@@ -438,7 +438,7 @@ services.value('options', {
     var opts = blueprint.options;
     _.each(opts, function(item, key) {
       // Make a copy and add the ID to it
-      var option = $.extend({
+      var option = $.extend(true, {
         id: key
       }, item);
       options.push(option);
@@ -485,8 +485,11 @@ services.value('options', {
       var constraints = option.constraints || [];
       _.each(constraints, function(constraint) {
         // If protocols is in constraints, write out to the option so the form can read it
-        if ('protocols' in constraint)
+        if ('protocols' in constraint) {
           option.protocols = constraint.protocols;
+          if (constraint.message === undefined)
+            constraint.message = "supported protocols are: " + constraint.protocols;
+        }
         if ('in' in constraint && (!('choice' in option)))
           option.choice = constraint['in'];
       });
