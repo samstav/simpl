@@ -140,8 +140,7 @@ class ProtocolsConstraint(Constraint):
             raise CheckmateValidationException("Protocols constraint does not "
                     "have a list of protocols supplied: %s" % protocols)
         self.protocols = protocols
-        if 'message' in constraint:
-            self.message = constraint['message']
+        self.message = constraint.get('message') or "invalid protocol"
 
     def test(self, value):
         if not issubclass(value.__class__, basestring):
@@ -247,35 +246,27 @@ class SimpleComparisonConstraint(Constraint):
 
     def __init__(self, constraint):
         Constraint.__init__(self, constraint)
-
-        comparisons = {
-                'less-than': lambda x, y: x < y,
-                'greater-than': lambda x, y: x > y,
-                'less-than-or-equal-to': lambda x, y: x <= y,
-                'greater-than-or-equal-to': lambda x, y: x >= y,
-            }
-
         rules = []
-        message = None
+        messages = []
         for k, v in constraint.items():
             if k == 'less-than':
                 rules.append(lambda x: x < v)
-                message = "must be less than %s" % v
+                messages.append("must be less than %s" % v)
             elif k == 'less-than-or-equal-to':
                 rules.append(lambda x: x <= v)
-                message = "must be less than or equal to %s" % v
+                messages.append("must be less than or equal to %s" % v)
             elif k == 'greater-than':
                 rules.append(lambda x: x > v)
-                message = "must be greater than %s" % v
+                messages.append("must be greater than %s" % v)
             elif k == 'greater-than-or-equal-to':
                 rules.append(lambda x: x >= v)
-                message = "must be greater than or equal to %s" % v
+                messages.append("must be greater than or equal to %s" % v)
         self.rules = rules
 
         if 'message' in constraint:
             self.message = constraint['message']
-        elif message:
-            self.message = message
+        elif messages:
+            self.message = ', '.join(messages)
 
     def test(self, value):
         return all(rule(value) for rule in self.rules)

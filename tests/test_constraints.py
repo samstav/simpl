@@ -98,10 +98,11 @@ class TestSimpleComparisonConstraint(unittest.TestCase):
     klass = constraints.SimpleComparisonConstraint
     test_data = utils.yaml_to_dict("""
             - less-than: 8
-              message: Nope! Less than 8
             - greater-than: 2
             - less-than-or-equal-to: 9
             - greater-than-or-equal-to: 1
+            - less-than: 18
+              message: Nope! Less than 18
         """)
 
     def test_constraint_syntax_check(self):
@@ -127,31 +128,39 @@ class TestSimpleComparisonConstraint(unittest.TestCase):
             constraint = Constraint.from_constraint(test)
             self.assertIsInstance(constraint, self.klass, msg=test)
 
-    def test_constraint_tests(self):
+    def test_constraint_tests_less_than(self):
         constraint = Constraint.from_constraint(self.test_data[0])
         self.assertFalse(constraint.test(9))
         self.assertFalse(constraint.test(8))
         self.assertTrue(constraint.test(7))
+        self.assertEquals(constraint.message, "must be less than 8")
 
+    def test_constraint_tests_greater_than(self):
         constraint = Constraint.from_constraint(self.test_data[1])
         self.assertFalse(constraint.test(1))
         self.assertFalse(constraint.test(2))
         self.assertTrue(constraint.test(3))
+        self.assertEquals(constraint.message, "must be greater than 2")
 
+    def test_constraint_tests_less_than_or_equal_to(self):
         constraint = Constraint.from_constraint(self.test_data[2])
         self.assertFalse(constraint.test(10))
         self.assertTrue(constraint.test(9))
         self.assertTrue(constraint.test(8))
+        self.assertEquals(constraint.message, "must be less than or equal to "
+                                              "9")
 
+    def test_constraint_tests_greater_than_or_equal_to(self):
         constraint = Constraint.from_constraint(self.test_data[3])
         self.assertFalse(constraint.test(0))
         self.assertTrue(constraint.test(1))
         self.assertTrue(constraint.test(2))
-
+        self.assertEquals(constraint.message, "must be greater than or equal "
+                                              "to 1")
 
     def test_constraint_message(self):
-        constraint = Constraint.from_constraint(self.test_data[0])
-        self.assertEquals(constraint.message, "Nope! Less than 8")
+        constraint = Constraint.from_constraint(self.test_data[4])
+        self.assertEquals(constraint.message, "Nope! Less than 18")
 
 
 class TestInConstraint(unittest.TestCase):
