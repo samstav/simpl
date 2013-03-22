@@ -170,7 +170,7 @@ RESOURCE_SCHEMA = ['id', 'index', 'name', 'provider', 'relations', 'hosted_on',
         'image', 'disk', 'region', 'service']
 
 BLUEPRINT_SCHEMA = ['id', 'name', 'services', 'options', 'resources',
-                    'meta-data', 'log', 'description']
+                    'meta-data', 'description']
 
 DEPLOYMENT_SCHEMA = ['id', 'name', 'blueprint', 'environment', 'inputs',
         'includes', 'resources', 'workflow', 'status', 'created',

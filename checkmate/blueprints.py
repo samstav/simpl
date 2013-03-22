@@ -200,16 +200,12 @@ class Blueprint(ExtensibleDict):
 
         version = data.get('meta-data', {}).get('schema-version')
         if (version or 'v0.6') < 'v0.7':
-            event = {
-                'date': utils.get_time_string(),
-                'event': "Converted from %s to %s" % (version, 'v0.7')
-            }
+
             if 'meta-data' not in data:
                 data['meta-data'] = {}
             data['meta-data']['schema-version'] = 'v0.7'
-            if 'log' not in data:
-                data['log'] = []
-            data['log'].append(event)
+            LOG.info("Converted blueprint '%s' from %s to %s" % (
+                     data.get('id'), version, 'v0.7'))
 
         return data
 
