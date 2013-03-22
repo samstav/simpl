@@ -100,7 +100,7 @@ def _deploy(deployment, context):
     workflow = _create_deploy_workflow(deployment, context)
     workflow['id'] = deployment['id']  # TODO: need to support multi workflows
     deployment['workflow'] = workflow['id']
-    deployment['status'] = "LAUNCHED"
+    # deployment['status'] = "LAUNCHED"
 
     body, secrets = extract_sensitive_data(workflow)
     DB.save_workflow(workflow['id'], body, secrets,
@@ -438,24 +438,46 @@ def resource_postback(deployment_id, contents):
     deployment = Deployment(deployment)
 
     # Update deployment status
+    
+    assert isinstance(contents, dict), "Must postback data in dict"
+
+    # Set status of resource if post_back includes status
+    for key, value in contents.items():
+        if 'status' in contents[key]:
+            r_id = key.split(':')[1]
+            r_status = contents[key].get('status')
+            deployment['resources'][r_id]['status'] = r_status
+            contents[key].pop('status', None) # Don't want to write status to resource instance
+            if r_status == "ERROR":
+                r_msg = contents[key].get('errmessage')
+                deployment['resources'][r_id]['errmessage'] = r_msg
+                contents[key].pop('errmessage', None)
+                deployment['status'] = "ERROR"
+                if "errmessage" not in deployment:
+                    deployment['errmessage'] = []
+                if r_msg not in deployment['errmessage']:
+                    deployment['errmessage'].append(r_msg)
+
+    # Update contents dict _only_ if we didn't only update status
+    # TODO: make this smarter
+    for key, value in contents.items():
+        if contents[key]:    
+            deployment.on_resource_postback(contents)
+
+    # Check all resources statuses and update DEP status
     count = 0
     statuses = {"NEW": 0,
                 "BUILD": 0,
                 "CONFIGURE": 0,
                 "ACTIVE": 0}
 
-    assert isinstance(contents, dict), "Must postback data in dict"
-
-    for key, value in contents.items():
-        if 'status' in contents[key]:
-            r_id = key.split(':')[1]
-            r_status = contents[key].get('status')
-            print "%s:%s, %s" % (r_id, r_status, deployment['resources'][r_id]['type'])
-            deployment['resources'][r_id]['status'] = r_status
-            contents[key].pop('status', None) # Don't want to write status to resource instance
+    resources = deployment['resources']
+    for key, value in resources.items():
+        if key.isdigit():
+            r_status = resources[key].get('status')
+            print "%s:%s, %s" % (key, r_status, deployment['resources'][key]['type'])
             if r_status == "ERROR":
-                r_msg = contents[key].get('errmessage')
-                deployment['status'] = "ERROR"
+                r_msg = resources[key].get('errmessage')
                 if "errmessage" not in deployment:
                     deployment['errmessage'] = []
                 if r_msg not in deployment['errmessage']:
@@ -483,12 +505,10 @@ def resource_postback(deployment_id, contents):
     if 'errmessage' in deployment:
         print "ERRMESSAGE: %s" % deployment['errmessage']
 
-    # Check for case where we only updated status - TODO: make this smarter
-    for key, value in contents.items():
-        if contents[key]:    
-            deployment.on_resource_postback(contents)
-            body, secrets = extract_sensitive_data(deployment)
-            DB.save_deployment(deployment_id, body, secrets)
+    body, secrets = extract_sensitive_data(deployment)
+    print "BODY: %s" % body
+    print "SECRETS: %s" % secrets
+    DB.save_deployment(deployment_id, body, secrets)
 
     LOG.debug("Updated deployment %s with post-back" % deployment_id,
               extra=dict(data=contents))
