@@ -15,7 +15,7 @@ from checkmate.exceptions import (CheckmateException,
                                   CheckmateValidationException)
 from checkmate.providers import ProviderBase
 from checkmate.utils import (merge_dictionary, get_time_string, is_ssh_key, 
-                            generate_resource_name, evaluate)
+                            generate_resource_name, evaluate, is_evaluable)
 from bottle import abort
 
 LOG = logging.getLogger(__name__)
@@ -54,9 +54,11 @@ def verify_inputs_against_constraints(deployment):
                 value = bp_inputs.get(key, option.get('default'))
                 if not value:
                     continue
-                if (isinstance(value, basestring) and
-                        value.startswith("=generate")):
+
+                # Handle special defaults
+                if is_evaluable(value):
                     value = evaluate(value[1:])
+
                 for entry in constraints:
                     constraint = Constraint.from_constraint(entry)
                     if not constraint.test(value):
