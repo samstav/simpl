@@ -429,7 +429,6 @@ def resource_postback(deployment_id, contents):
 
     The contents are a hash (dict) of all the above
     """
-    print "POST_BACK: %s" % dict(data=contents)
 
     deployment = DB.get_deployment(deployment_id, with_secrets=True)
     if not deployment:
@@ -475,7 +474,6 @@ def resource_postback(deployment_id, contents):
     for key, value in resources.items():
         if key.isdigit():
             r_status = resources[key].get('status')
-            print "%s:%s, %s" % (key, r_status, deployment['resources'][key]['type'])
             if r_status == "ERROR":
                 r_msg = resources[key].get('errmessage')
                 if "errmessage" not in deployment:
@@ -501,15 +499,7 @@ def resource_postback(deployment_id, contents):
         else:
             LOG.debug("Could not identify a deployment status update")
 
-    print "DEP STATUS: %s" % deployment['status']
-    if 'errmessage' in deployment:
-        print "ERRMESSAGE: %s" % deployment['errmessage']
-
     body, secrets = extract_sensitive_data(deployment)
-    for key, value in contents.items():
-        if not contents[key]:   
-            print "BODY: %s" % body
-            print "SECRETS: %s" % secrets
     DB.save_deployment(deployment_id, body, secrets)
 
     LOG.debug("Updated deployment %s with post-back" % deployment_id,
