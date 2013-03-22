@@ -37,7 +37,8 @@ def verify_required_blueprint_options_supplied(deployment):
                     option.get('required') in ['true', True]:
                 if key not in bp_inputs:
                     raise CheckmateValidationException("Required blueprint "
-                            "input '%s' not supplied" % key)
+                                                       "input '%s' not "
+                                                       "supplied" % key)
 
 
 def verify_inputs_against_constraints(deployment):
@@ -62,11 +63,13 @@ def verify_inputs_against_constraints(deployment):
 
                 for entry in constraints:
                     constraint = Constraint.from_constraint(entry)
-                        raise CheckmateValidationException("The input for "
-                            "option '%s' did not pass validation. The value "
-                            "was '%s'. The validation rule was %s" % (key,
-                            value, constraint.message))
                     if not constraint.test(Input(value)):
+                        msg = ("The input for option '%s' did not pass "
+                               "validation. The value was '%s'. The "
+                               "validation rule was %s" % (key, value if
+                               option.get('type') != 'password' else '*******',
+                               constraint.message))
+                        raise CheckmateValidationException(msg)
 
 
 def get_os_env_keys():
