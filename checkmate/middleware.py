@@ -738,7 +738,7 @@ class AuthTokenRouterMiddleware():
                     # We got an authorized response
                     if environ.get('HTTP_X_AUTHORIZED') == "Confirmed":
                         LOG.debug("Token Auth Router successfully authorized "
-                                  "against %s" % source)
+                                  "against %s" % source.endpoint.get('uri'))
                     else:
                         LOG.debug("Token Auth Router authorized an "
                                   "unauthenticated call")
