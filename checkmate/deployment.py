@@ -637,7 +637,7 @@ class Deployment(ExtensibleDict):
                 value = option.get('default')
                 LOG.debug("Default setting '%s' obtained from constraint "
                           "in blueprint input '%s': default=%s" % (
-                            name, option_key, value))
+                          name, option_key, value))
 
         # objectify the value it if it is a typed option
 

@@ -239,7 +239,7 @@ def validate(obj, schema):
             for key, value in obj.iteritems():
                 if key not in schema:
                     errors.append("'%s' not a valid value. Only %s allowed" %
-                            (key, ', '.join(schema)))
+                                  (key, ', '.join(schema)))
     return errors
 
 
@@ -264,14 +264,14 @@ def validate_inputs(deployment):
                 for service_name, service_input in value.iteritems():
                     if service_name not in deployment['blueprint']['services']:
                         errors.append("Invalid service name in inputs: %s" %
-                                service_name)
+                                      service_name)
                     errors.extend(validate_type_inputs(service_input))
             elif key == 'providers':
                 for provider_key, provider_input in value.iteritems():
-                    if provider_key not in deployment['environment'][\
+                    if provider_key not in deployment['environment'][
                             'providers']:
                         errors.append("Invalid provider key in inputs: %s" %
-                                provider_key)
+                                      provider_key)
                     errors.extend(validate_type_inputs(provider_input))
             else:
                 if not isinstance(value, int):
@@ -297,7 +297,7 @@ def validate_type_inputs(inputs):
                             errors.extend(validate_input(k, v))
                     else:
                         errors.append("Input '%s' is not a key/value pair" %
-                                value)
+                                      value)
         else:
             errors.append("Input '%s' is not a key/value pair" % inputs)
     return errors

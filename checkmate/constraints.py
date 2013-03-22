@@ -14,7 +14,6 @@ import logging
 import re
 import sys
 
-from checkmate import utils
 from checkmate.exceptions import CheckmateValidationException
 
 
@@ -104,13 +103,13 @@ class RegExConstraint(Constraint):
             self.expression = re.compile(constraint['regex'])
         except re.error:
             raise CheckmateValidationException("Constraint has an invalid "
-                    "regular expression: %s" % constraint['regex'])
+                                               "regular expression: %s" %
+                                               constraint['regex'])
         if 'message' in constraint:
             self.message = constraint['message']
 
     def test(self, value):
         return self.expression.match(value)
-
 
 
 class ProtocolsConstraint(Constraint):
@@ -138,7 +137,8 @@ class ProtocolsConstraint(Constraint):
         protocols = constraint['protocols']
         if not isinstance(protocols, list):
             raise CheckmateValidationException("Protocols constraint does not "
-                    "have a list of protocols supplied: %s" % protocols)
+                                               "have a list of protocols "
+                                               "supplied: %s" % protocols)
         self.protocols = protocols
         self.message = constraint.get('message') or "invalid protocol"
 
@@ -181,7 +181,8 @@ class InConstraint(Constraint):
         allowed = constraint['in']
         if not isinstance(allowed, list):
             raise CheckmateValidationException("In constraint does not "
-                    "have a list of values supplied: %s" % allowed)
+                                               "have a list of values "
+                                               "supplied: %s" % allowed)
         self.allowed = allowed
         if 'message' in constraint:
             self.message = constraint['message']
@@ -218,18 +219,18 @@ class SimpleComparisonConstraint(Constraint):
 
     """
     required_keys = [
-                     'less-than',
-                     'greater-than',
-                     'less-than-or-equal-to',
-                     'greater-than-or-equal-to',
-                    ]
+        'less-than',
+        'greater-than',
+        'less-than-or-equal-to',
+        'greater-than-or-equal-to',
+    ]
     allowed_keys = [
-                     'less-than',
-                     'greater-than',
-                     'less-than-or-equal-to',
-                     'greater-than-or-equal-to',
-                     'message',
-                    ]
+        'less-than',
+        'greater-than',
+        'less-than-or-equal-to',
+        'greater-than-or-equal-to',
+        'message',
+    ]
 
     @classmethod
     def is_syntax_valid(cls, constraint):
