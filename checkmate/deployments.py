@@ -506,8 +506,10 @@ def resource_postback(deployment_id, contents):
         print "ERRMESSAGE: %s" % deployment['errmessage']
 
     body, secrets = extract_sensitive_data(deployment)
-    print "BODY: %s" % body
-    print "SECRETS: %s" % secrets
+    for key, value in contents.items():
+        if not contents[key]:   
+            print "BODY: %s" % body
+            print "SECRETS: %s" % secrets
     DB.save_deployment(deployment_id, body, secrets)
 
     LOG.debug("Updated deployment %s with post-back" % deployment_id,
