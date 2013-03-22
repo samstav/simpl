@@ -8,20 +8,12 @@ from checkmate.utils import init_console_logging
 init_console_logging()
 LOG = logging.getLogger(__name__)
 
-import mox
-
 from checkmate.blueprints import Blueprint
 from checkmate.exceptions import CheckmateValidationException
 from checkmate import utils
 
 
 class TestBlueprints(unittest.TestCase):
-
-    def setUp(self):
-        self.mox = mox.Mox()
-
-    def tearDown(self):
-        self.mox.UnsetStubs()
 
     def test_schema(self):
         """Test the schema validates a blueprint with all possible fields"""
@@ -75,11 +67,6 @@ class TestBlueprints(unittest.TestCase):
         }
         expected = copy.deepcopy(blueprint)
         expected['meta-data'] = {'schema-version': 'v0.7'}
-        expected['log'] = [{'date': '2000-01-01 00:00:00 +0000',
-                            'event': 'Converted from None to v0.7'}]
-        self.mox.StubOutWithMock(utils, 'get_time_string')
-        utils.get_time_string().AndReturn('2000-01-01 00:00:00 +0000')
-        self.mox.ReplayAll()
         valid = Blueprint(blueprint)
         self.assertDictEqual(valid._data, expected)
 
@@ -150,12 +137,7 @@ class TestBlueprints(unittest.TestCase):
                 },
             },
             'resources': {},
-            'log': [{'date': '2000-01-01 00:00:00 +0000',
-                     'event': 'Converted from None to v0.7'}],
         }
-        self.mox.StubOutWithMock(utils, 'get_time_string')
-        utils.get_time_string().AndReturn('2000-01-01 00:00:00 +0000')
-        self.mox.ReplayAll()
         converted = Blueprint(blueprint)
         self.assertDictEqual(converted._data, expected)
 
