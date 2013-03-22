@@ -282,12 +282,10 @@ class Provider(ProviderBase):
         create_lb = self.find_tasks(wfspec, resource=key, provider=self.key,
                                     tag='final')[0]
         target_resource = deployment['resources'][relation['target']]
-        print "TARGET RESOURCE: %s" % target_resource
         if 'hosted_on' in target_resource:
             target = target_resource['hosted_on']
         else:
             target = relation['target']
-        print "TARGET: %s" % target
         # determine the port based on protocol
         #Create the add node task
         add_node_task = Celery(wfspec,
