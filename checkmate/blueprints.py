@@ -105,14 +105,13 @@ class Blueprint(ExtensibleDict):
         except:
             return False
 
-
     @classmethod
     def convert(cls, obj):
         """Detect version and convert to current if necessary and able"""
         converters = {
             'v0.6': cls.from_v0_6,
-            }
-        version = obj.get('version', 'v0.6')
+        }
+        version = obj.get('meta-data', {}).get('schema-version', 'v0.6')
         if version in converters:
             converters[version](obj)
         elif version != 'v0.7':
@@ -199,13 +198,15 @@ class Blueprint(ExtensibleDict):
 
         # tag version and log conversion
 
-        if data.get('version', 'v0.1') < 'v0.7':
+        version = data.get('meta-data', {}).get('schema-version')
+        if (version or 'v0.6') < 'v0.7':
             event = {
                 'date': utils.get_time_string(),
-                'event': "Converted from %s to %s" % (data.get('version'),
-                                                      'v0.7')
+                'event': "Converted from %s to %s" % (version, 'v0.7')
             }
-            data['version'] = 'v0.7'
+            if 'meta-data' not in data:
+                data['meta-data'] = {}
+            data['meta-data']['schema-version'] = 'v0.7'
             if 'log' not in data:
                 data['log'] = []
             data['log'].append(event)

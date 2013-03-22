@@ -14,6 +14,10 @@ Checkmate DSL
 - Simplicity for the user (blueprint architects and deployment end-users) first. It trumps structure, code, DRY, object orientation, etc...
 - It's more acceptable for a deployment to fail than for a blueprint to be complicated to author.
 
+
+Current schema version: v0.7
+
+
 Components
 ==========
 id: a unique identifier (not necessarily a UUID, but a string) within the provider that provides that component.
@@ -450,5 +454,53 @@ v0.6 [Jan 2013]: v0.4 release (chef-solo + maps)
 v0.7: []: Upcoming release (v0.8 of engine)
 
 - new options syntax
-- blueprint schema versioning
+- blueprint meta-data and schema versioning
 
+```yaml
+
+blueprint:
+  id: 0255a076c7cf4fd38c69b6727f0b37ea
+  name: Managed Cloud WordPress w/ MySQL on VMs
+  meta-data:
+    schema-version: 0.7
+  services:
+    lb:
+      component:
+        interface: http
+        type: load-balancer
+        constraints:
+        - algorithm: ROUND_ROBIN
+      relations:
+        web: http
+        master: http
+    ...
+  options:
+    url:
+      label: Site Address
+      description: 'The domain you wish to host your blog on. (ex: example.com)'
+      type: url
+      required: true
+      default: http://example.com/
+      display-hints:
+        group: application
+        order: 1
+        encrypted-protocols: [https]
+        sample: http://example.com/
+      constraints:
+      - protocols: [http, https]
+      - regex: '^([a-zA-Z]{2,}?\:\/\/[a-zA-Z0-9\-]+(?:\.[a-zA-Z0-9\-]+)*\.[a-zA-Z]{2,6}(?:\/?|(?:\/[\w\-]+)*)(?:\/?|\/\w+\.[a-zA-Z]{2,4}(?:\?[\w]+\=[\w\-]+)?)?(?:\&[\w]+\=[\w\-]+)*)$'
+        message: must be a valid web address
+      constrains:
+      - setting: allow_insecure
+        service: lb
+        resource_type: load-balancer
+        value: true  # turn on HTTP if protocol is HTTPS (provider handles it)
+  resources:
+    sync-keys:
+      type: key-pair
+      constrains:
+      - setting: private_sync_key
+        resource_type: application
+        service: master
+        attribute: private_key
+```
