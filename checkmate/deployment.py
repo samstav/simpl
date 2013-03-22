@@ -13,6 +13,7 @@ from checkmate.db import get_driver
 from checkmate.environments import Environment
 from checkmate.exceptions import (CheckmateException,
                                   CheckmateValidationException)
+from checkmate.inputs import Input
 from checkmate.providers import ProviderBase
 from checkmate.utils import (merge_dictionary, get_time_string, is_ssh_key,
                              evaluate, is_evaluable)
@@ -61,11 +62,11 @@ def verify_inputs_against_constraints(deployment):
 
                 for entry in constraints:
                     constraint = Constraint.from_constraint(entry)
-                    if not constraint.test(value):
                         raise CheckmateValidationException("The input for "
                             "option '%s' did not pass validation. The value "
                             "was '%s'. The validation rule was %s" % (key,
                             value, constraint.message))
+                    if not constraint.test(Input(value)):
 
 
 def get_os_env_keys():
@@ -646,14 +647,19 @@ class Deployment(ExtensibleDict):
             attribute = constraint['attribute']
 
             if value:
-                if not isinstance(value, collections.Mapping):
+                result = None
+                if isinstance(value, Input):
+                    if hasattr(value, attribute):
+                        result = getattr(value, attribute)
+                elif isinstance(value, collections.Mapping):
+                    if attribute in value:
+                        result = value[attribute]
+                else:
                     raise CheckmateException("Could not read attribute '%s' "
                                              "while obtaining option '%s' "
                                              "since value is of type %s" % (
                                              attribute, name,
                                              type(value).__name__))
-                if attribute in value:
-                    result = value[attribute]
                 if result:
                     LOG.debug("Found setting '%s' from constraint. %s=%s" % (
                               name, option_key or name, result))
@@ -670,19 +676,10 @@ class Deployment(ExtensibleDict):
         if 'type' not in option:
             return value
         if option['type'] == 'url':
-            parts = urlparse(value)
-            return {
-                    'scheme': parts.scheme,
-                    'protocol': parts.scheme,
-                    'netloc': parts.netloc,
-                    'hostname': parts.hostname,
-                    'port': parts.port,
-                    'username': parts.username,
-                    'password': parts.password,
-                    'path': parts.path.strip('/'),
-                    'query': parts.query,
-                    'fragment': parts.fragment,
-                   }
+            result = Input(value)
+            if isinstance(value, basestring):
+                result.parse_url()
+            return result
         else:
             return value
 

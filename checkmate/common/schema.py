@@ -7,6 +7,7 @@ schema.
 """
 import logging
 
+from checkmate.inputs import Input
 from checkmate.utils import yaml_to_dict
 
 LOG = logging.getLogger(__name__)
@@ -247,10 +248,18 @@ def validate_inputs(deployment):
     errors = []
     if deployment:
         inputs = deployment.get('inputs') or {}
+        blueprint = deployment.get('blueprint') or {}
+        options = blueprint.get('options') or {}
         for key, value in inputs.iteritems():
             if key == 'blueprint':
                 for k, v in value.iteritems():
-                    errors.extend(validate_input(k, v))
+                    option = options.get(k)
+                    if not option:
+                        pass
+                    elif option.get('type') == 'url':
+                        pass
+                    else:
+                        errors.extend(validate_input(k, v))
             elif key == 'services':
                 for service_name, service_input in value.iteritems():
                     if service_name not in deployment['blueprint']['services']:
@@ -265,6 +274,8 @@ def validate_inputs(deployment):
                                 provider_key)
                     errors.extend(validate_type_inputs(provider_input))
             else:
+                if not isinstance(value, int):
+                    value = Input(value)
                 errors.extend(validate_input(key, value))  # global input
 
     return errors
