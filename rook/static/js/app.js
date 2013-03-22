@@ -1796,45 +1796,32 @@ function DeploymentNewController($scope, $location, $routeParams, $resource, opt
     $scope.inputs['path'] = parsed.path || "/";
   };
 
-  $scope.UpdateURL = function(scope, option_id) {
-    var new_address = scope.protocol + '://' + scope.domain + scope.path;
-    var parsed = URI.parse(new_address);
-    if (!('hostname' in parsed)) {
-        $('#site_address_error').text("Domain name or IP address missing");
-        return;
-    }
-    if (!('protocol' in parsed)){
-        $('#site_address_error').text("Protocol (http or https) is missing");
-        return;
-    }
-    $('#site_address_error').text("");
+  $scope.UpdateURLOption = function(scope, option_id) {
     if ($scope.AcceptsSSLCertificate(scope) === true) {
       $scope.inputs[option_id] = {
-        url: new_address,
+        url: scope.url,
         certificate: scope.certificate,
         private_key: scope.private_key,
         intermediate_key: scope.intermediate_key
       };
     } else
-      $scope.inputs[option_id] = new_address;
+      $scope.inputs[option_id] = scope.url;
+  };
+
+  $scope.UpdateURL = function(scope, option_id) {
+    var new_address = scope.protocol + '://' + scope.domain + scope.path;
+    var parsed = URI.parse(new_address);
+    scope.url = new_address;
+    $scope.UpdateURLOption(scope, option_id);
   };
 
   $scope.UpdateParts = function(scope, option_id) {
-    try {
-      var parsed = URI.parse($scope.inputs[option_id]);
-      if (!('hostname' in parsed)) {
-          $('#site_address_error').text("Domain name or IP address missing");
-          return;
-      }
-      if (!('protocol' in parsed)){
-          $('#site_address_error').text("Protocol (http or https) is missing");
-          return;
-      }
-      scope.protocol = parsed.protocol;
-      scope.domain = parsed.hostname;
-      scope.path = parsed.path;
-    } catch(err) {}
-    $('#site_address_error').text("");
+    var input = scope.url || $scope.inputs[option_id];
+    var address = input.url || input;
+    var parsed = URI.parse(address);
+    scope.protocol = parsed.protocol;
+    scope.domain = parsed.hostname;
+    scope.path = parsed.path;
   };
 
   $scope.AcceptsSSLCertificate = function(scope) {
