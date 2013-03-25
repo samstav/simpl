@@ -767,8 +767,7 @@ class Deployment(ExtensibleDict):
 
         :returns: a validated dict of the resource ready to add to deployment
         """
-        # Generate a default name
-        name = 'CM-%s-%s%s.%s' % (self['id'][0:7], service_name, index, domain)
+        name = self['name']
         # Call provider to give us a resource template
         provider_key = definition['provider-key']
         provider = self.environment().get_provider(provider_key)
