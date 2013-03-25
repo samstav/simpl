@@ -197,6 +197,19 @@ OPTION_SCHEMA_INTERNAL = OPTION_SCHEMA + [
                  'source_field_name',
                 ]
 
+OPTION_SCHEMA_URL = [
+    'url',
+    'protocol',
+    'scheme',
+    'netloc',
+    'hostname',
+    'port',
+    'path',
+    'certificate',
+    'private_key',
+    'intermediate_key',
+]
+
 OPTION_TYPES = [
                 'string',
                 'integer',
@@ -257,7 +270,7 @@ def validate_inputs(deployment):
                     if not option:
                         pass
                     elif option.get('type') == 'url':
-                        pass
+                        errors.extend(validate_url_input(k, v))
                     else:
                         errors.extend(validate_input(k, v))
             elif key == 'services':
@@ -309,6 +322,20 @@ def validate_input(key, value):
     if value:
         if isinstance(value, dict):
             errors.append("Option '%s' should be a scalar" % key)
+
+    return errors
+
+
+def validate_url_input(key, value):
+    """Validates a deployment input of type url"""
+    errors = []
+    if value:
+        if isinstance(value, dict):
+            errors.extend(validate(value, OPTION_SCHEMA_URL))
+        elif not isinstance(value, basestring):
+            errors.append("Option '%s' should be a string or valid url "
+                          "mapping. It is a '%s' which is not valid" % (
+                          key, value.__class__.__name__))
 
     return errors
 
