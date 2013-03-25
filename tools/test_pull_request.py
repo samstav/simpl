@@ -79,6 +79,7 @@ def post_pull_request_comment(status, branch, github_creds):
 def main():
     """
     :command line arg 1: the pull request branch to build
+    :command line arg 2: the file to read github auth credentials from
     """
     success = False
     branch = sys.argv[1]
