@@ -801,6 +801,7 @@ class Deployment(ExtensibleDict):
         """
         name = generate_resource_name(self, "%s%s.%s" % (
             service_name, index, domain))
+        
         # Call provider to give us a resource template
         provider_key = definition['provider-key']
         provider = self.environment().get_provider(provider_key)
