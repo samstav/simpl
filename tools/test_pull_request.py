@@ -49,7 +49,6 @@ def setup_pull_request_branches():
 def get_github_credentials(filepath):
     with open(filepath, 'r') as cred_file:
         lines = cred_file.read()
-        print "lines:" + lines
 
         oauth_token = re.findall(r'oauth_token\s*=\s*(.*)', lines)
         git_repo = re.findall(r'git_repo\s*=\s*(.*)', lines)
