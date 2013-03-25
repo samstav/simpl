@@ -27,23 +27,27 @@ class TestProviderBasePlanningMixIn(unittest.TestCase):
         self._mox = mox.Mox()
         self._prov_planner = ProviderBasePlanningMixIn()
         self._prov_planner.key = "test_key"
+        self._req_context = RequestContext()
         unittest.TestCase.__init__(self, methodName=methodName)
 
     def test_template(self):
-        req_context = RequestContext()
-        template = self._prov_planner.generate_template({'id': "1234567890"}, "test_type", None, req_context)
+        template = self._prov_planner.generate_template(
+          {'id': "1234567890", 'name':'test_deployment'}, "test_type", None, self._req_context)
         self.assertIn("type", template, "No type")
         self.assertEqual("test_type", template.get("type", "NONE"), "Type not set")
         self.assertIn("provider", template, "No provider in template")
         self.assertEqual("test_key", template.get("provider", "NONE"), "Provider not set")
         self.assertIn("instance", template, "No instance in template")
         self.assertIn("dns-name", template, "No dns-name in template")
-        self.assertEqual("CM-1234567-test_type", template.get("dns-name", "NONE"), "dns-name not set")
-        req_ctx_dict = req_context.get_queued_task_dict()
+        self.assertEqual("test_deployment-test_type", template.get("dns-name", "NONE"), "dns-name not set")
+        req_ctx_dict = self._req_context.get_queued_task_dict()
         self.assertIn("metadata", req_ctx_dict, "No metadata in template")
         self.assertIn("RAX-CHKMT", req_ctx_dict.get("metadata", {}), "No metadata set")
         LOG.info("RAX-CHKMT: {}".format(req_ctx_dict.get("metadata").get("RAX-CHKMT")))
 
+    def test_template_without_deployment_name(self):
+      template = self._prov_planner.generate_template({'id': "1234567890"}, "test_type", None, self._req_context)
+      self.assertEqual("CM-1234567-test_type", template.get("dns-name", "NONE"), "dns-name not set")
 
 class TestProviderBase(unittest.TestCase):
     def test_provider_bad_override(self):
