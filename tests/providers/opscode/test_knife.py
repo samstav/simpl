@@ -289,6 +289,8 @@ class TestKnife(unittest.TestCase):
         fullpath = os.path.join(path, "test")
         service = "test_service"
         #Stub out checks for paths
+        self.mox.StubOutWithMock(knife, "_ensure_berkshelf_environment")
+        knife._ensure_berkshelf_environment().AndReturn(True)
         self.mox.StubOutWithMock(os, 'mkdir')
         os.mkdir(fullpath, 0770).AndReturn(True)
         self.mox.StubOutWithMock(knife, '_get_root_environments_path')

@@ -709,6 +709,23 @@ def download_roles(environment, service_name, path=None, roles=None,
             count += 1
     return count
 
+def _ensure_berkshelf_environment():
+    """Checks the Berkshelf environment and sets it up if necessary."""
+    berkshelf_path = os.environ.get("BERKSHELF_PATH")
+    if not berkshelf_path:
+        local_path = os.environ.get("CHECKMATE_CHEF_LOCAL_PATH")
+        if not local_path:
+            local_path = "/var/checkmate/deployments"
+            LOG.warning("CHECKMATE_CHEF_LOCAL_PATH not defined. Using "
+                        "%s" % local_path)
+        berkshelf_path = os.path.join(local_path, "berkshelf")
+        LOG.warning("BERKSHELF_PATH variable not set. Defaulting "
+                    "to %s" % berkshelf_path)
+        # Berkshelf relies on this being set as an environent variable
+        os.environ["BERKSHELF_PATH"] = berkshelf_path
+    if not os.path.exists(berkshelf_path):
+        os.makedirs(berkshelf_path)
+        LOG.debug("Created berkshelf_path: %s" % berkshelf_path)
 
 #TODO: full search, fix module reference all below here!!
 @task
@@ -762,10 +779,13 @@ def create_environment(name, service_name, path=None, private_key=None,
     shutil.copy(public_key_path, kitchen_key_path)
     LOG.debug("Wrote environment public key to kitchen: %s" % kitchen_key_path)
 
+    LOG.debug("kitchen_path: %s" % kitchen_path)
+    LOG.debug("source_repo: %s" % source_repo)
     if source_repo:
         _init_repo(kitchen_path, source_repo=source_repo)
         # if Berksfile exists, run berks to pull in cookbooks
         if os.path.exists(os.path.join(kitchen_path, 'Berksfile')):
+            _ensure_berkshelf_environment()
             _run_ruby_command(kitchen_path, 'berks', ['install', '--path',
                               os.path.join(kitchen_path, 'cookbooks')],
                               lock=True)

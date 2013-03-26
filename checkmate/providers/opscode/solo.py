@@ -1,10 +1,12 @@
 """Chef Solo configuration management provider"""
 import copy
-import httplib
 import json
 import logging
 import os
 import urlparse
+import git
+import time
+import hashlib
 
 from jinja2 import DictLoader, TemplateError
 from jinja2.sandbox import ImmutableSandboxedEnvironment
@@ -937,7 +939,7 @@ class ChefMap():
     def raw(self):
         """Returns the raw file contents"""
         if self._raw is None:
-            self._raw = self.get_remote_map_file()
+            self._raw = self.get_map_file()
         return self._raw
 
     @property
@@ -965,50 +967,63 @@ class ChefMap():
                                           url.params, url.query, url.fragment))
         return result
 
-    def get_remote_map_file(self):
-        """Gets the remote map file from a repo"""
-        target_url = self.get_remote_raw_url(self.url)
-        url = urlparse.urlparse(target_url)
-        if url.scheme == 'https':
-            http_class = httplib.HTTPSConnection
-            port = url.port or 443
-        elif url.scheme == 'file':
-            try:
-                with file(url.path, 'r') as f:
-                    body = f.read()
-            except StandardError as exc:
-                raise CheckmateException("Map file could not be retrieved "
-                                     "from '%s'. The error returned was '%s'" %
-                                     (target_url, exc))
-            return body
+    def _cache_path(self):
+        """Return the path of the blueprint cache directory"""
+        prefix = os.environ.get("CHECKMATE_CHEF_LOCAL_PATH")
+        suffix = hashlib.md5(self.url).hexdigest()
+        return os.path.join(prefix, "cache", "opscode-solo", suffix)
+
+    def _cache_blueprint(self):
+        """Cache a blueprint repo or update an existing cache, if necessary"""
+        LOG.debug("Running providers.opscode.solo.cache_blueprint()...")
+        cache_expire_time = os.environ.get("CHECKMATE_BLUEPRINT_CACHE_EXPIRE")
+        if not cache_expire_time:
+            cache_expire_time = 3600
+            LOG.warning("CHECKMATE_BLUEPRINT_CACHE_EXPIRE variable not set. "
+                        "Defaulting to %s" % cache_expire_time)
+        cache_expire_time = int(cache_expire_time)
+        repo_cache = self._cache_path()
+        if os.path.exists(repo_cache):
+            # The mtime of .git/FETCH_HEAD changes upon every "git
+            # fetch".  FETCH_HEAD is only created after the first
+            # fetch, so use HEAD if it's not there
+            if os.path.isfile(os.path.join(repo_cache, ".git", "FETCH_HEAD")):
+                head_file = os.path.join(repo_cache, ".git", "FETCH_HEAD")
+            else:
+                head_file = os.path.join(repo_cache, ".git", "HEAD")
+            last_update = time.time() - os.path.getmtime(head_file)
+            LOG.debug("cache_expire_time: %s" % cache_expire_time)
+            LOG.debug("last_update: %s" % last_update)
+            if last_update > cache_expire_time:
+                LOG.debug("Updating repo: %s" % repo_cache)
+                repo = git.Repo(repo_cache)
+                try:
+                    repo.remotes.origin.pull()
+                except git.GitCommandError as exc:
+                    LOG.debug("Unable to pull from git repository at %s.  "
+                              "Using the cached repository" % self.url)
+            else:
+                LOG.debug("Using cached repo: %s" % repo_cache)
         else:
-            http_class = httplib.HTTPConnection
-            port = url.port or 80
-        host = url.hostname
+            LOG.debug("Cloning repo to %s" % repo_cache)
+            os.makedirs(repo_cache)
+            try:
+                git.Repo.clone_from(self.url, repo_cache)
+            except git.GitCommandError as exc:
+                raise CheckmateException("Git repository could not be cloned "
+                                         "from '%s'.  The error returned was "
+                                         "'%s'" % (self.url, exc))
 
-        http = http_class(host, port)
-        headers = {
-            'Accept': 'text/plain',
-        }
-
-        # TODO: implement some caching to not overload the server
-        try:
-            LOG.debug('Connecting to %s' % self.url)
-            http.request('GET', url.path, headers=headers)
-            resp = http.getresponse()
-            body = resp.read()
-        except StandardError as exc:
-            LOG.exception(exc)
-            raise exc
-        finally:
-            http.close()
-
-        if resp.status != 200:
-            raise CheckmateException("Map file could not be retrieved from "
-                                     "'%s'. The error returned was '%s'" %
-                                     (target_url, resp.reason))
-
-        return body
+    def get_map_file(self):
+        """Return the Chefmap file as a string"""
+        self._cache_blueprint()
+        repo_cache = self._cache_path()
+        if os.path.exists(os.path.join(repo_cache, "Chefmap")):
+            with open(os.path.join(repo_cache, "Chefmap")) as chef_map:
+                return chef_map.read()
+        else:
+            raise CheckmateException("No Chefmap in repository %s" %
+                                     repo_cache)
 
     @property
     def components(self):
