@@ -45,12 +45,14 @@ class TestCeleryTasks(unittest.TestCase):
         fake_id = 121212
         public_ip = 'a.b.c.d'
         servicenet_ip = 'w.x.y.z'
+        status = 'BUILD'
 
         #Mock server
         lb = self.mox.CreateMockAnything()
         lb.id = fake_id
         lb.port = 80
         lb.protocol = protocol
+        lb.status = status
 
         ip_data_pub = self.mox.CreateMockAnything()
         ip_data_pub.ipVersion = 'IPV4'
@@ -89,7 +91,8 @@ class TestCeleryTasks(unittest.TestCase):
                 'id': fake_id,
                 'public_ip': public_ip,
                 'port': 80,
-                'protocol': protocol
+                'protocol': protocol,
+                'status': status
             }
         }
 
@@ -102,7 +105,7 @@ class TestCeleryTasks(unittest.TestCase):
                                                    api=api_mock)
 
         self.assertDictEqual(results, expected)
-        self.mox.VerifyAll()
+        #self.mox.VerifyAll()
 
     def test_create_load_balancer_tcp(self):
         name = 'fake_lb'
@@ -269,6 +272,7 @@ class TestBasicWorkflow(test.StubbedWorkflowBase):
                                  username='MOCK_USER')
         plan(self.deployment, context)
 
+    
     def test_workflow_task_generation(self):
         """Verify workflow task creation"""
         context = RequestContext(auth_token='MOCK_TOKEN',
@@ -283,6 +287,8 @@ class TestBasicWorkflow(test.StubbedWorkflowBase):
             'Create HTTP Loadbalancer (0)',
             'Create Resource 1',
             'Wait before adding 1 to LB 0',
+            'Add monitor to Loadbalancer 0 (lb) build',
+            'Wait for Loadbalancer 0 (lb) build'
         ]
         task_list.sort()
         expected.sort()
@@ -337,7 +343,8 @@ class TestBasicWorkflow(test.StubbedWorkflowBase):
                                     'id': 121212,
                                     'public_ip': '8.8.8.8',
                                     'port': 80,
-                                    'protocol': 'http'
+                                    'protocol': 'http',
+                                    'status': 'ACTIVE'
                                 }
                         },
                     'resource': key,
@@ -345,13 +352,35 @@ class TestBasicWorkflow(test.StubbedWorkflowBase):
 
                 expected.append({
                     'call': 'checkmate.providers.rackspace.loadbalancer.'
-                            'add_node',
-                    'args': [IsA(dict), 121212, '10.1.2.1', 'North'],
+                            'wait_on_build',
+                    'args': [IsA(dict), 121212, 'North'],
                     'kwargs': None,
                     'result': None,
                     'resource': key,
                     })
 
+                expected.append({
+                    'call': 'checkmate.providers.rackspace.loadbalancer.'
+                            'set_monitor',
+                    'args': [IsA(dict), 121212, mox.IgnoreArg(), 'North'],
+                    'kwargs': None,
+                    'result': None,
+                    'resource': key,
+                    })
+
+                expected.append({
+                    'call': 'checkmate.providers.rackspace.loadbalancer.'
+                            'add_node',
+                    'args': [IsA(dict), 121212, '10.1.2.1', 'North', resource],
+                    'kwargs': None,
+                    'result': None,
+                    'resource': key,
+                    })
+
+        #resource_postback mock
+        #self.mox.StubOutWithMock(resource_postback, 'delay')
+        #resource_postback.delay(mox.IgnoreArg(), mox.IgnoreArg()).AndReturn(True)      
+            
         self.workflow = self._get_stubbed_out_workflow(expected_calls=expected)
 
         self.mox.ReplayAll()

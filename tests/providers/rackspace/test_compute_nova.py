@@ -69,8 +69,9 @@ class TestNovaCompute(test.ProviderTester):
                                           ).AndReturn(server)
         openstack_api_mock.client.region_name = "NORTH"
 
-        expected = {
+        expected = {            
             'instance:1': {
+                'status': 'BUILD',
                 'id': server.id,
                 'password': server.adminPass,
                 'region': "NORTH",
@@ -135,7 +136,7 @@ class TestNovaCompute(test.ProviderTester):
 
         self.mox.ReplayAll()
         self.assertRaises(CheckmateException, compute.wait_on_build, context,
-                           server.id, 'North', api_object=openstack_api_mock)
+                           server.id, 'North', [], api_object=openstack_api_mock)
 
     def test_wait_on_build_rackconnect_ready(self):
         """ Test that Rack Connect waits on metadata """
@@ -214,7 +215,7 @@ class TestNovaCompute(test.ProviderTester):
 
         self.mox.ReplayAll()
         results = compute.wait_on_build(context, server.id, 'North',
-                                        api_object=openstack_api_mock)
+                                        [], api_object=openstack_api_mock)
 
         self.assertDictEqual(results, expected)
         self.mox.VerifyAll()
@@ -296,7 +297,7 @@ class TestNovaCompute(test.ProviderTester):
 
         self.mox.ReplayAll()
         results = compute.wait_on_build(context, server.id, 'North',
-                                        api_object=openstack_api_mock)
+                                        [],api_object=openstack_api_mock)
 
         self.assertDictEqual(results, expected)
         self.mox.VerifyAll()
