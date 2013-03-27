@@ -7,6 +7,7 @@ schema.
 """
 import logging
 
+from checkmate.inputs import Input
 from checkmate.utils import yaml_to_dict
 
 LOG = logging.getLogger(__name__)
@@ -168,19 +169,55 @@ RESOURCE_SCHEMA = ['id', 'index', 'name', 'provider', 'relations', 'hosted_on',
         'hosts', 'type', 'component', 'dns-name', 'instance', 'flavor',
         'image', 'disk', 'region', 'service']
 
-BLUEPRINT_SCHEMA = ['id', 'name', 'services', 'options', 'resources']
+BLUEPRINT_SCHEMA = ['id', 'name', 'services', 'options', 'resources',
+                    'meta-data', 'description']
 
 DEPLOYMENT_SCHEMA = ['id', 'name', 'blueprint', 'environment', 'inputs',
         'includes', 'resources', 'workflow', 'status', 'created',
-        'tenantId']
+        'tenantId', 'description']
 
 COMPONENT_SCHEMA = ['id', 'options', 'requires', 'provides', 'summary',
         'dependencies', 'version', 'is', 'role', 'roles', 'source_name']
 
-OPTION_SCHEMA = ['name', 'label', 'default', 'help', 'description', 'source',
-        'source_field_name', 'required', 'type', 'constrains', 'display-hints']
+OPTION_SCHEMA = [
+                 'label',
+                 'default',
+                 'help',
+                 'choice',
+                 'description',
+                 'required',
+                 'type',
+                 'constrains',
+                 'constraints',
+                 'display-hints',
+                ]
+# Add parts used internally by providers, but not part of the public schema
+OPTION_SCHEMA_INTERNAL = OPTION_SCHEMA + [
+                 'source',
+                 'source_field_name',
+                ]
 
-OPTION_TYPES = ['string', 'int', 'array', 'hash']
+OPTION_SCHEMA_URL = [
+    'url',
+    'protocol',
+    'scheme',
+    'netloc',
+    'hostname',
+    'port',
+    'path',
+    'certificate',
+    'private_key',
+    'intermediate_key',
+]
+
+OPTION_TYPES = [
+                'string',
+                'integer',
+                'boolean',
+                'url',
+                'password',
+                'text',
+               ]
 
 WORKFLOW_SCHEMA = ['id', 'attributes', 'last_task', 'task_tree', 'workflow',
         'success', 'wf_spec', 'tenantId']
@@ -215,7 +252,7 @@ def validate(obj, schema):
             for key, value in obj.iteritems():
                 if key not in schema:
                     errors.append("'%s' not a valid value. Only %s allowed" %
-                            (key, ', '.join(schema)))
+                                  (key, ', '.join(schema)))
     return errors
 
 
@@ -224,24 +261,34 @@ def validate_inputs(deployment):
     errors = []
     if deployment:
         inputs = deployment.get('inputs') or {}
+        blueprint = deployment.get('blueprint') or {}
+        options = blueprint.get('options') or {}
         for key, value in inputs.iteritems():
             if key == 'blueprint':
                 for k, v in value.iteritems():
-                    errors.extend(validate_input(k, v))
+                    option = options.get(k)
+                    if not option:
+                        pass
+                    elif option.get('type') == 'url':
+                        errors.extend(validate_url_input(k, v))
+                    else:
+                        errors.extend(validate_input(k, v))
             elif key == 'services':
                 for service_name, service_input in value.iteritems():
                     if service_name not in deployment['blueprint']['services']:
                         errors.append("Invalid service name in inputs: %s" %
-                                service_name)
+                                      service_name)
                     errors.extend(validate_type_inputs(service_input))
             elif key == 'providers':
                 for provider_key, provider_input in value.iteritems():
-                    if provider_key not in deployment['environment'][\
+                    if provider_key not in deployment['environment'][
                             'providers']:
                         errors.append("Invalid provider key in inputs: %s" %
-                                provider_key)
+                                      provider_key)
                     errors.extend(validate_type_inputs(provider_input))
             else:
+                if not isinstance(value, int):
+                    value = Input(value)
                 errors.extend(validate_input(key, value))  # global input
 
     return errors
@@ -263,7 +310,7 @@ def validate_type_inputs(inputs):
                             errors.extend(validate_input(k, v))
                     else:
                         errors.append("Input '%s' is not a key/value pair" %
-                                value)
+                                      value)
         else:
             errors.append("Input '%s' is not a key/value pair" % inputs)
     return errors
@@ -277,6 +324,51 @@ def validate_input(key, value):
             errors.append("Option '%s' should be a scalar" % key)
 
     return errors
+
+
+def validate_url_input(key, value):
+    """Validates a deployment input of type url"""
+    errors = []
+    if value:
+        if isinstance(value, dict):
+            errors.extend(validate(value, OPTION_SCHEMA_URL))
+        elif not isinstance(value, basestring):
+            errors.append("Option '%s' should be a string or valid url "
+                          "mapping. It is a '%s' which is not valid" % (
+                          key, value.__class__.__name__))
+
+    return errors
+
+
+def validate_option(key, option):
+    """Validates a blueprint option"""
+    errors = []
+    if option:
+        if isinstance(option, dict):
+            errors = validate(option, OPTION_SCHEMA)
+            option_type = option.get('type')
+            if option_type not in OPTION_TYPES:
+                errors.append("Option '%s' type is invalid. It is '%s' and "
+                              "the only allowed types are: %s" % (key,
+                              option_type, OPTION_TYPES))
+        else:
+            errors.append("Option '%s' must be a map" % key)
+    return errors
+
+
+def validate_options(options):
+    """Validates a blueprint's options"""
+    errors = []
+    if options:
+        if isinstance(options, dict):
+            for key, option in options.items():
+                option_errors = validate_option(key, option)
+                if option_errors:
+                    errors.extend(option_errors)
+        else:
+            errors.append("Blueprint `options` key must be a map")
+    return errors
+
 
 # The list of 'allowed' names in options, resources, and relations in checkmate
 # and the other possible aliases for them. Checkmate will convert aliases into

@@ -21,6 +21,7 @@ from checkmate.deployments import (Deployment, plan, get_deployments_count,
                                    generate_keys)
 from checkmate.exceptions import (CheckmateValidationException,
                                   CheckmateException)
+from checkmate.inputs import Input
 from checkmate.providers import base
 from checkmate.providers.base import ProviderBase
 from checkmate.middleware import RequestContext
@@ -1013,7 +1014,7 @@ class TestDeploymentSettings(unittest.TestCase):
         msg = "Typed option should return type"
         self.assertIsInstance(deployment._objectify({'type': 'url'},
                                                     'http://fqdn'),
-                              dict, msg=msg)
+                              Input, msg=msg)
 
     def test_apply_constraint_attribute(self):
         deployment = yaml_to_dict("""
