@@ -1,8 +1,9 @@
 import json
 import logging
 import os
+import time
 
-from sqlalchemy import Column, Integer, String, Text, PickleType
+from sqlalchemy import Column, Integer, String, Text, PickleType, Boolean
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.pool import StaticPool
 from sqlalchemy import create_engine
@@ -27,6 +28,8 @@ __all__ = ['Base', 'Environment', 'Blueprint', 'Deployment', 'Component',
            'Workflow']
 
 LOG = logging.getLogger(__name__)
+DEFAULT_TIMEOUT = 1
+DEFAULT_RETRIES = 5
 
 CONNECTION_STRING = os.environ.get('CHECKMATE_CONNECTION_STRING', 'sqlite://')
 if CONNECTION_STRING == 'sqlite://':
@@ -83,6 +86,7 @@ class Environment(Base):
     __tablename__ = 'environments'
     dbid = Column(Integer, primary_key=True, autoincrement=True)
     id = Column(String(32), index=True, unique=True)
+    locked = Column(Boolean, default=True)
     tenant_id = Column(String(255), index=True)
     secrets = Column(TextPickleType(pickler=json))
     body = Column(TextPickleType(pickler=json))
@@ -92,6 +96,7 @@ class Deployment(Base):
     __tablename__ = 'deployments'
     dbid = Column(Integer, primary_key=True, autoincrement=True)
     id = Column(String(32), index=True, unique=True)
+    locked = Column(Boolean, default=True)
     tenant_id = Column(String(255), index=True)
     secrets = Column(TextPickleType(pickler=json))
     body = Column(TextPickleType(pickler=json))
@@ -101,6 +106,7 @@ class Blueprint(Base):
     __tablename__ = 'blueprints'
     dbid = Column(Integer, primary_key=True, autoincrement=True)
     id = Column(String(32), index=True, unique=True)
+    locked = Column(Boolean, default=True)
     tenant_id = Column(String(255), index=True)
     secrets = Column(TextPickleType(pickler=json))
     body = Column(TextPickleType(pickler=json))
@@ -110,6 +116,7 @@ class Component(Base):
     __tablename__ = 'components'
     dbid = Column(Integer, primary_key=True, autoincrement=True)
     id = Column(String(32), index=True, unique=True)
+    locked = Column(Boolean, default=True)
     tenant_id = Column(String(255), index=True)
     secrets = Column(TextPickleType(pickler=json))
     body = Column(TextPickleType(pickler=json))
@@ -119,6 +126,7 @@ class Workflow(Base):
     __tablename__ = 'workflows'
     dbid = Column(Integer, primary_key=True, autoincrement=True)
     id = Column(String(32), index=True, unique=True)
+    locked = Column(Boolean, default=True)
     tenant_id = Column(String(255), index=True)
     secrets = Column(TextPickleType(pickler=json))
     body = Column(TextPickleType(pickler=json))
@@ -248,9 +256,34 @@ class Driver(DbBase):
             body = body.__dict__()
         assert isinstance(body, dict), "dict required by sqlalchemy backend"
 
-        results = Session.query(klass).filter_by(id=id)
+        '''
+        TODO: test new object, existing object, locked object timeout, locked then unlocked object
+        '''
+        #object locking logic
+        results = None
+        tries = 0
+        while not results or results.count() == 0:
+            assert tries <= DEFAULT_RETRIES, "Attempted to query the database the maximum amount of retries."
+            #try to get the lock
+            results = Session.query(klass)
+                            .filter_by(id=id, locked=0)
+                            .update({'locked' : 1})
+            if results == 0:
+                print "RESULTS == 0"
+                time.sleep(DEFAULT_TIMEOUT)
+                tries += 1
+                object_exists = Session.query(klass).filter_by(id=id)
+                if not object_exists or object_exists.count() <= 0:
+                    #this is a new object
+                    break
+            else:
+                #get the object that we just locked
+                results = Session.query(klass).filter_by(id=id, locked=1)
+                break
+
         if results and results.count() > 0:
             e = results.first()
+            e.locked = 0
             e.body = body
             if tenant_id:
                 e.tenant_id = tenant_id
@@ -272,8 +305,9 @@ class Driver(DbBase):
         else:
             assert tenant_id or 'tenantId' in body, \
                     "tenantId must be specified"
+            #new item
             e = klass(id=id, body=body, tenant_id=tenant_id,
-                    secrets=secrets)
+                    secrets=secrets, locked=0)
         Session.add(e)
         Session.commit()
         return body
