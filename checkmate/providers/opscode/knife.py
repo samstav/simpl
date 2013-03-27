@@ -21,10 +21,8 @@ import urlparse
 from git.exc import GitCommandError
 
 LOG = logging.getLogger(__name__)
-DB = get_driver()
 
 CHECKMATE_CHEF_REPO = None
-DEP_ID = ""
 
 
 def register_scheme(scheme):
@@ -38,19 +36,20 @@ def register_scheme(scheme):
 register_scheme('git')  # without this, urlparse won't handle git:// correctly
 
 
-def update_dep_error(msg):
+def update_dep_error(dep_id, msg):
     """ Updates a deployment's status to ERROR """
 
-    deployment = DB.get_deployment(DEP_ID, with_secrets=True)
+    DB = get_driver()
+    deployment = DB.get_deployment(dep_id, with_secrets=True)
 
     if not deployment:
-        raise IndexError("Deployment %s not found" % name)
+        raise IndexError("Deployment %s not found" % dep_id)
             
     deployment = Deployment(deployment)
     deployment['status'] = "ERROR"
     deployment['errmessage'] = msg
     body, secrets = utils.extract_sensitive_data(deployment)
-    DB.save_deployment(DEP_ID, body, secrets)
+    DB.save_deployment(dep_id, body, secrets)
     LOG.error(msg)
 
 
@@ -70,19 +69,19 @@ def _get_repo_path():
     return CHECKMATE_CHEF_REPO
 
 
-def _get_root_environments_path(path=None):
+def _get_root_environments_path(dep_id, path=None):
     """Build the path using provided inputs and using any environment variables
     or configuration settings"""
     root = path or os.environ.get("CHECKMATE_CHEF_LOCAL_PATH",
             "/var/local/checkmate/deployments")
     if not os.path.exists(root):
         msg = "Invalid root path: %s" % root
-        update_dep_error(msg)
+        update_dep_error(dep_id, msg)
         raise CheckmateException(msg)
     return root
 
 
-def check_all_output(params):
+def check_all_output(dep_id, params):
     """Similar to subprocess check_output, but returns all output in error if
     an error is raised.
 
@@ -121,13 +120,13 @@ def check_all_output(params):
         return '%s%s' % (''.join(errors), ''.join(queue))
     else:
         msg = "Output: %s \n Knife Errors: %s" % (queue, errors)
-        update_dep_error(msg)
+        update_dep_error(dep_id, msg)
         # Raise CalledProcessError, but include the Knife-specifc errors
         raise CheckmateCalledProcessError(retcode, ' '.join(params),
                 output='\n'.join(queue), error_info='\n'.join(errors))
 
 
-def _run_ruby_command(path, command, params, lock=True):
+def _run_ruby_command(dep_id, path, command, params, lock=True):
     """Runs a knife-like command (ex. librarian-chef).
 
     Since knife-ike command errors are returned to stderr, we need to capture
@@ -148,7 +147,7 @@ def _run_ruby_command(path, command, params, lock=True):
         try:
             if path:
                 os.chdir(path)
-            result = check_all_output(params)  # check_output(params)
+            result = check_all_output(dep_id, params)  # check_output(params)
         except OSError as exc:
             if exc.errno == errno.ENOENT:
                 # Check if command is installed
@@ -160,7 +159,7 @@ def _run_ruby_command(path, command, params, lock=True):
                 if not output:
                     msg =("'%s' is not installed or not accessible on the "
                           "server" % command)
-                    update_dep_error(msg)
+                    update_dep_error(dep_id, msg)
                     raise CheckmateException(msg)
             raise exc
         except CalledProcessError, exc:
@@ -169,7 +168,7 @@ def _run_ruby_command(path, command, params, lock=True):
             # it would fail in celery; we wrap the exception in something
             # Pickle-able.
             msg = exc.output
-            update_dep_error(msg)
+            update_dep_error(dep_id, msg)
             raise CheckmateCalledProcessError(exc.returncode, exc.cmd,
                                               output=msg)
         finally:
@@ -177,7 +176,7 @@ def _run_ruby_command(path, command, params, lock=True):
     else:
         if path:
             os.chdir(path)
-        result = check_all_output(params)
+        result = check_all_output(dep_id, params)
     LOG.debug(result)
     # Knife-like commands succeed even if there is an error. This code tries to
     # parse the output to return a useful error
@@ -194,16 +193,16 @@ def _run_ruby_command(path, command, params, lock=True):
             error = last_fatal.split('::')[-1]
             if error:
                 msg = "Chef/Knife error encountered: %s" % error
-                update_dep_error(msg)
+                update_dep_error(dep_id, msg)
                 raise CheckmateCalledProcessError(1, command, output=msg)
         msg = '\n'.join(fatal)
-        update_dep_error(msg)
+        update_dep_error(dep_id, msg)
         raise CheckmateCalledProcessError(1, command, output=msg)
 
     return result
 
 
-def _run_kitchen_command(kitchen_path, params, lock=True):
+def _run_kitchen_command(dep_id, kitchen_path, params, lock=True):
     """Runs the 'knife xxx' command.
 
     This also needs to handle knife command errors, which are returned to
@@ -223,7 +222,7 @@ def _run_kitchen_command(kitchen_path, params, lock=True):
         if os.path.exists(config_file):
             LOG.debug("Defaulting to config file '%s'" % config_file)
             params.extend(['-c', config_file])
-    result = _run_ruby_command(kitchen_path, params[0], params[1:], lock=lock)
+    result = _run_ruby_command(dep_id, kitchen_path, params[0], params[1:], lock=lock)
 
     # Knife succeeds even if there is an error. This code tries to parse the
     # output to return a useful error. Note that FATAL erros will be picked up
@@ -239,14 +238,14 @@ def _run_kitchen_command(kitchen_path, params, lock=True):
             error = last_error.split('Error:')[-1]
             if error:
                 msg = "Knife error encountered: %s" % error
-                update_dep_error(msg)
+                update_dep_error(dep_id, msg)
                 raise CheckmateCalledProcessError(1, ' '.join(params),
                         output=msg)
             # Don't raise on all errors. They don't all mean failure!
     return result
 
 
-def _create_environment_keys(environment_path, private_key=None,
+def _create_environment_keys(dep_id, environment_path, private_key=None,
         public_key_ssh=None):
     """Put keys in an existing environment
 
@@ -262,7 +261,7 @@ def _create_environment_keys(environment_path, private_key=None,
             if data != private_key:
                 msg = ("A private key already exists in environment %s and "
                       "does not match the value provided" % environment_path)
-                update_dep_error(msg)
+                update_dep_error(dep_id, msg)
                 raise CheckmateException(msg)
     else:
         if private_key:
@@ -328,7 +327,7 @@ encrypted_data_bag_secret "%s"
     return (solo_file, secret_key_path)
 
 
-def _init_repo(path, source_repo=None):
+def _init_repo(dep_id, path, source_repo=None):
     """
 
     Initialize a git repo.
@@ -359,7 +358,7 @@ def _init_repo(path, source_repo=None):
             remote.fetch(refspec=ref or 'master')
         except GitCommandError as gce:
             msg = "Error fetching source repo: %s" % str(gce)
-            update_dep_error(msg)
+            update_dep_error(dep_id, msg)
             raise gce
         git_binary = git.Git(path)
         git_binary.checkout('FETCH_HEAD')
@@ -377,17 +376,18 @@ def _init_repo(path, source_repo=None):
         LOG.debug("Initialized blank repo: %s" % path)
 
 
-def _create_kitchen(name, path, secret_key=None):
+def _create_kitchen(dep_id, service_name, path, secret_key=None):
     """Creates a new knife-solo kitchen in path
-
-    :param name: the name of the kitchen
+    
+    :param dep_id: the deployment id
+    :param service_name: the name of the kitchen
     :param path: where to create the kitchen
     :param secret_key: PEM-formatted private key for data bag encryption
     """
     if not os.path.exists(path):
         raise CheckmateException("Invalid path: %s" % path)
 
-    kitchen_path = os.path.join(path, name)
+    kitchen_path = os.path.join(path, service_name)
     if not os.path.exists(kitchen_path):
         os.mkdir(kitchen_path, 0770)
         LOG.debug("Created kitchen directory: %s" % kitchen_path)
@@ -399,13 +399,13 @@ def _create_kitchen(name, path, secret_key=None):
         if any((f.endswith('.json') for f in os.listdir(nodes_path))):
             msg = ("Kitchen already exists and seems to have nodes defined "
                    "in it: %s" % nodes_path)
-            update_dep_error(msg)
+            update_dep_error(dep_id, msg)
             raise CheckmateException(msg)
     else:
         # we don't pass the config file here becasuse we're creating the
         # kitchen for the first time and knife will overwrite our config file
         params = ['knife', 'kitchen', '.']
-        _run_kitchen_command(kitchen_path, params)
+        _run_kitchen_command(dep_id, kitchen_path, params)
 
     solo_file, secret_key_path = _write_knife_config_file(kitchen_path)
 
@@ -414,7 +414,7 @@ def _create_kitchen(name, path, secret_key=None):
     bootstrap_path = os.path.join(repo_path, 'bootstrap.json')
     if not os.path.exists(bootstrap_path):
         msg = ("Invalid master repo. {} not found".format(bootstrap_path))
-        update_dep_error(msg)
+        update_dep_error(dep_id, msg)
         raise CheckmateException(msg)
 
     shutil.copy(bootstrap_path, os.path.join(kitchen_path, 'bootstrap.json'))
@@ -435,7 +435,7 @@ def _create_kitchen(name, path, secret_key=None):
             if data != secret_key:
                 msg = ("Kitchen secrets key file '%s' already exists and does "
                        "not match the provided value" % secret_key_path)
-                update_dep_error(msg)
+                update_dep_error(dep_id, msg)
                 raise CheckmateException(msg)
         LOG.debug("Stored secrets file exists: %s" % secret_key_path)
     else:
@@ -482,7 +482,8 @@ def write_databag(environment, bagname, itemname, contents, resource,
 
     """
     utils.match_celery_logging(LOG)
-    root = _get_root_environments_path(path)
+    root = _get_root_environments_path(environment, path)
+    
     kitchen_path = os.path.join(root, environment, kitchen_name)
     databags_root = os.path.join(kitchen_path, 'data_bags')
     if not os.path.exists(databags_root):
@@ -497,12 +498,12 @@ def write_databag(environment, bagname, itemname, contents, resource,
     config_file = os.path.join(kitchen_path, 'solo.rb')
     params = ['knife', 'solo', 'data', 'bag', 'list', '-F', 'json',
               '-c', config_file]
-    data_bags = _run_kitchen_command(kitchen_path, params)
+    data_bags = _run_kitchen_command(environment, kitchen_path, params)
     if data_bags:
         data_bags = json.loads(data_bags)
     if bagname not in data_bags:
         merge = False  # Nothing to merge if it is new!
-        _run_kitchen_command(kitchen_path, ['knife', 'solo', 'data',
+        _run_kitchen_command(environment, kitchen_path, ['knife', 'solo', 'data',
                                    'bag', 'create', bagname, '-c',
                                     config_file])
         LOG.debug("Created data bag '%s' in '%s'" % (bagname, databags_root))
@@ -510,7 +511,7 @@ def write_databag(environment, bagname, itemname, contents, resource,
     # Check if the item already exists (create it if not)
     params = ['knife', 'solo', 'data', 'bag', 'show', bagname, '-F', 'json',
               '-c', config_file]
-    existing_contents = _run_kitchen_command(kitchen_path, params)
+    existing_contents = _run_kitchen_command(environment, kitchen_path, params)
     if existing_contents:
         existing_contents = json.loads(existing_contents)
     if itemname not in existing_contents:
@@ -526,7 +527,7 @@ def write_databag(environment, bagname, itemname, contents, resource,
         lock = threading.Lock()
         lock.acquire()
         try:
-            data = _run_kitchen_command(kitchen_path, params)
+            data = _run_kitchen_command(environment, kitchen_path, params)
             existing = json.loads(data)
             contents = utils.merge_dictionary(existing, contents)
             if isinstance(contents, dict):
@@ -535,7 +536,7 @@ def write_databag(environment, bagname, itemname, contents, resource,
                       itemname, '-c', config_file, '-d', '--json', contents]
             if secret_file:
                 params.extend(['--secret-file', secret_file])
-            result = _run_kitchen_command(kitchen_path, params,
+            result = _run_kitchen_command(environment, kitchen_path, params,
                                                 lock=False)
         except CalledProcessError, exc:
             # Reraise pickleable exception
@@ -568,7 +569,7 @@ def write_databag(environment, bagname, itemname, contents, resource,
                        itemname, '-d', '-c', config_file, '--json', contents]
             if secret_file:
                 params.extend(['--secret-file', secret_file])
-            result = _run_kitchen_command(kitchen_path, params)
+            result = _run_kitchen_command(environment, kitchen_path, params)
             LOG.debug(result)
         else:
             LOG.warning("write_databag was called with no contents")
@@ -580,7 +581,8 @@ def cook(host, environment, resource, recipes=None, roles=None, path=None,
          attributes=None, kitchen_name='kitchen'):
     """Apply recipes/roles to a server"""
     utils.match_celery_logging(LOG)
-    root = _get_root_environments_path(path)
+    root = _get_root_environments_path(environment, path)
+
     kitchen_path = os.path.join(root, environment, kitchen_name)
     if not os.path.exists(kitchen_path):
         raise CheckmateException("Environment kitchen does not exist: %s" %
@@ -642,7 +644,7 @@ def cook(host, environment, resource, recipes=None, roles=None, path=None,
         params.extend(['-P', password])
     if port:
         params.extend(['-p', str(port)])
-    _run_kitchen_command(kitchen_path, params)
+    _run_kitchen_command(environment, kitchen_path, params)
 
     # TODO: When hosted_on resource can host more than one resource, need to make sure all
     # other hosted resources are ACTIVE before we can change hosted_on resource itself
@@ -682,7 +684,7 @@ def download_cookbooks(environment, service_name, path=None, cookbooks=None,
     # not) and we copy the cookbooks from there
 
     # Get path
-    root = _get_root_environments_path(path)
+    root = _get_root_environments_path(environment, path)
     fullpath = os.path.join(root, environment)
     if not os.path.exists(fullpath):
         raise CheckmateException("Environment does not exist: %s" % fullpath)
@@ -739,7 +741,7 @@ def download_roles(environment, service_name, path=None, roles=None,
     # not) and we copy the roles from there
 
     # Get path
-    root = _get_root_environments_path(path)
+    root = _get_root_environments_path(environment, path)
     fullpath = os.path.join(root, environment)
     if not os.path.exists(fullpath):
         raise CheckmateException("Environment does not exist: %s" % fullpath)
@@ -797,11 +799,9 @@ def create_environment(name, service_name, path=None, private_key=None,
     :param source_repo: provides cookbook repository in valid git syntax
     """
     utils.match_celery_logging(LOG)
-    global DEP_ID #set dep ID to use in other functions
-    DEP_ID = name
-
+    
     # Get path
-    root = _get_root_environments_path(path)
+    root = _get_root_environments_path(name, path)
     fullpath = os.path.join(root, name)
 
     # Create environment
@@ -814,17 +814,17 @@ def create_environment(name, service_name, path=None, private_key=None,
                       exc_info=True)
         else:
             msg = "Could not create environment %s" % fullpath
-            update_dep_error(msg)
+            update_dep_error(name, msg)
             raise CheckmateException(msg, ose)
 
     results = {"environment": fullpath}
 
-    key_data = _create_environment_keys(fullpath, private_key=private_key,
+    key_data = _create_environment_keys(name, fullpath, private_key=private_key,
             public_key_ssh=public_key_ssh)
 
     # Kitchen is created in a /kitchen subfolder since it gets completely
     # rsynced to hosts. We don't want the whole environment rsynced
-    kitchen_data = _create_kitchen(service_name, fullpath,
+    kitchen_data = _create_kitchen(name, service_name, fullpath,
             secret_key=secret_key)
     kitchen_path = os.path.join(fullpath, service_name)
 
@@ -836,14 +836,14 @@ def create_environment(name, service_name, path=None, private_key=None,
     LOG.debug("Wrote environment public key to kitchen: %s" % kitchen_key_path)
 
     if source_repo:
-        _init_repo(kitchen_path, source_repo=source_repo)
+        _init_repo(name, kitchen_path, source_repo=source_repo)
         # If Cheffile exists, all librarian-chef to pull in cookbooks
         if os.path.exists(os.path.join(kitchen_path, 'Cheffile')):
-            _run_ruby_command(kitchen_path, 'librarian-chef', ['install'],
+            _run_ruby_command(name, kitchen_path, 'librarian-chef', ['install'],
                               lock=True)
             LOG.debug("Ran 'librarian-chef install' in: %s" % kitchen_path)
     else:
-        _init_repo(os.path.join(kitchen_path, 'cookbooks'))
+        _init_repo(name, os.path.join(kitchen_path, 'cookbooks'))
         # Keep for backwards compatibility, but source_repo should be provided
         # Temporary Hack: load all cookbooks and roles from chef-stockton
         # TODO: Undo this and use more git
@@ -903,7 +903,7 @@ def register_node(host, environment, resource, path=None, password=None,
     results = {}
 
     # Get path
-    root = _get_root_environments_path(path)
+    root = _get_root_environments_path(environment, path)
     kitchen_path = os.path.join(root, environment, kitchen_name)
     results = {}
     if not os.path.exists(kitchen_path):
@@ -933,7 +933,7 @@ def register_node(host, environment, resource, path=None, password=None,
         params.extend(['--omnibus-version', omnibus_version])
     if identity_file:
         params.extend(['-i', identity_file])
-    _run_kitchen_command(kitchen_path, params)
+    _run_kitchen_command(environment, kitchen_path, params)
     LOG.info("Knife prepare succeeded for %s" % host)
 
     if attributes:
@@ -962,7 +962,7 @@ def manage_role(name, environment, resource, path=None, desc=None,
     utils.match_celery_logging(LOG)
     results = {}
 
-    root = _get_root_environments_path(path)
+    root = _get_root_environments_path(environment, path)
     kitchen_path = os.path.join(root, environment, kitchen_name)
     if not os.path.exists(kitchen_path):
         manage_role.retry(exc=CheckmateException(

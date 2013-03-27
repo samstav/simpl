@@ -149,9 +149,7 @@ class Provider(ProviderBase):
                                              resource=key),
                                              PathAttrib('instance:%s/id' % key),
                                              proto.upper(),
-                                             resource['region'],
-                                             '/', 10, 10, 3, '(.*)',
-                                             '^[234][0-9][0-9]$'],
+                                             resource['region']],
                                   defines=dict(resource=key,
                                                provider=self.key,
                                                task_tags=['final']))
