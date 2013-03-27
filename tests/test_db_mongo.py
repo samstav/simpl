@@ -81,7 +81,7 @@ class TestDatabase(unittest.TestCase):
             db.collection_name.drop()
             LOG.debug("Deleted test mongodb collection: %s" % self.collection_name)
         except Exception as exc:
-            LOG.error("Error deleting test mongodb collection '%s': %s" % (self.collection_name,))
+            LOG.error("Error deleting test mongodb collection '%s'" % self.collection_name, exc_info=True)
 
   
     @unittest.skipIf(SKIP, REASON)

@@ -89,11 +89,24 @@ class TestKnife(unittest.TestCase):
 
         #Stub out process call to knife
         self.mox.StubOutWithMock(knife, 'check_all_output')
-        knife.check_all_output(params).AndReturn(results)
+        knife.check_all_output("myEnv", params).AndReturn(results)
+
+        #Stub out call to resource_postback
+        self.mox.StubOutWithMock(knife.resource_postback, 'delay')
+        host_results={'instance:rackspace': {'status': 'ACTIVE'}}
+        knife.resource_postback.delay('myEnv', host_results).AndReturn(True)
+        
+        #Stub out call to update_dep_error
+        self.mox.StubOutWithMock(knife, 'update_dep_error')
+        knife.update_dep_error(IsA(str), IsA(str)).AndReturn(True)
 
         self.mox.ReplayAll()
         try:
-            knife.cook('a.b.c.d', 'myEnv', recipes=None,
+            resource = {
+                'index':1, 
+                'hosted_on': 'rackspace'
+            }
+            knife.cook('a.b.c.d', 'myEnv', resource, recipes=None,
                        roles=['build', 'not-a-role'])
         except Exception as exc:
             if 'MissingRole' in exc.__str__():
@@ -101,6 +114,7 @@ class TestKnife(unittest.TestCase):
                 self.assertIn("Chef/Knife error encountered: MissingRole",
                         exc.__str__())
             else:
+                LOG.error("This should be a trace here", exc_info=True)
                 self.assertIn("OutOfKitchenError",
                         exc.__str__())
 
@@ -118,9 +132,14 @@ class TestKnife(unittest.TestCase):
                         'ml_goes': 'Bye!',
                     },
             }
+        resource = {
+            'index':1, 
+            'hosted_on': 'rackspace'
+        }
         bag = uuid.uuid4().hex
-        knife.write_databag('test_env', bag, 'test', original)
+        knife.write_databag('test_env', bag, 'test', original, resource)
         stored = knife._run_kitchen_command(
+                "dep_id",
                 "/tmp/checkmate/test/test_env/kitchen/",
                 ['knife', 'solo', 'data', 'bag', 'show', bag, 'test', '-F',
                 'json'])
@@ -156,9 +175,13 @@ class TestKnife(unittest.TestCase):
                     },
             }
         bag = uuid.uuid4().hex
-        knife.write_databag('test_env', bag, 'test', original)
-        knife.write_databag('test_env', bag, 'test', merge, merge=True)
+        resource  = {'index': 1234,
+                     'hosted_on':"rackspace"
+                     }
+        knife.write_databag('test_env', bag, 'test', original, resource)
+        knife.write_databag('test_env', bag, 'test', merge, resource, merge=True)
         stored = knife._run_kitchen_command(
+                'test',
                 "/tmp/checkmate/test/test_env/kitchen/",
                 ['knife', 'solo', 'data', 'bag', 'show', bag, 'test', '-F',
                 'json'])
@@ -170,9 +193,10 @@ class TestKnife(unittest.TestCase):
         original = {
                 'id': 'Not-the-tem-name',
             }
+        resource = {'index':1234}
         bag = uuid.uuid4().hex
         self.assertRaises(CheckmateException, knife.write_databag,
-                'test_env', bag, 'test', original)
+                'test_env', bag, 'test', original, resource)
 
     def test_create_environment(self):
         """Test create_environment"""
@@ -183,13 +207,13 @@ class TestKnife(unittest.TestCase):
         self.mox.StubOutWithMock(os, 'mkdir')
         os.mkdir(fullpath, 0770).AndReturn(True)
         self.mox.StubOutWithMock(knife, '_get_root_environments_path')
-        knife._get_root_environments_path(path).AndReturn(path)
+        knife._get_root_environments_path("test", path).AndReturn(path)
         self.mox.StubOutWithMock(knife, '_create_environment_keys')
-        knife._create_environment_keys(fullpath, private_key="PPP",
+        knife._create_environment_keys("test", fullpath, private_key="PPP",
                                        public_key_ssh="SSH").AndReturn(
                                        dict(keys="keys"))
         self.mox.StubOutWithMock(knife, '_create_kitchen')
-        knife._create_kitchen(service, fullpath, secret_key="SSS")\
+        knife._create_kitchen("test", service, fullpath, secret_key="SSS")\
                 .AndReturn(dict(kitchen="kitchen_path"))
         kitchen_path = os.path.join(fullpath, service)
         public_key_path = os.path.join(fullpath, 'checkmate.pub')
@@ -198,7 +222,7 @@ class TestKnife(unittest.TestCase):
         self.mox.StubOutWithMock(shutil, 'copy')
         shutil.copy(public_key_path, kitchen_key_path).AndReturn(True)
         self.mox.StubOutWithMock(knife, '_init_repo')
-        knife._init_repo(os.path.join(kitchen_path, 'cookbooks'))\
+        knife._init_repo("test", os.path.join(kitchen_path, 'cookbooks'))\
                 .AndReturn(True)
         self.mox.StubOutWithMock(knife, 'download_cookbooks')
         knife.download_cookbooks("test", service, path=path).AndReturn(True)
@@ -229,13 +253,13 @@ class TestKnife(unittest.TestCase):
         self.mox.StubOutWithMock(os, 'mkdir')
         os.mkdir(fullpath, 0770).AndReturn(True)
         self.mox.StubOutWithMock(knife, '_get_root_environments_path')
-        knife._get_root_environments_path(path).AndReturn(path)
+        knife._get_root_environments_path("test", path).AndReturn(path)
         self.mox.StubOutWithMock(knife, '_create_environment_keys')
-        knife._create_environment_keys(fullpath, private_key="PPP",
+        knife._create_environment_keys("test", fullpath, private_key="PPP",
                                        public_key_ssh="SSH").AndReturn(
                                        dict(keys="keys"))
         self.mox.StubOutWithMock(knife, '_create_kitchen')
-        knife._create_kitchen(service, fullpath, secret_key="SSS")\
+        knife._create_kitchen("test", service, fullpath, secret_key="SSS")\
                 .AndReturn(dict(kitchen="kitchen_path"))
         kitchen_path = os.path.join(fullpath, service)
         public_key_path = os.path.join(fullpath, 'checkmate.pub')
@@ -264,7 +288,7 @@ class TestKnife(unittest.TestCase):
         self.mox.StubOutWithMock(os, 'chdir')
         os.chdir(kitchen_path).AndReturn(True)
         self.mox.StubOutWithMock(knife, 'check_all_output')
-        knife.check_all_output(['librarian-chef', 'install']).AndReturn('OK')
+        knife.check_all_output("test", ['librarian-chef', 'install']).AndReturn('OK')
 
         self.mox.ReplayAll()
         expected = {'environment': '/fake_path/test',
