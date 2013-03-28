@@ -1,6 +1,5 @@
 import logging
 import os
-import time 
 
 from checkmate import utils
 
