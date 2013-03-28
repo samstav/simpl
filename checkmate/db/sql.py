@@ -255,10 +255,6 @@ class Driver(DbBase):
             body = body.__dict__()
         assert isinstance(body, dict), "dict required by sqlalchemy backend"
 
-        '''
-        TODO: test new object, existing object, 
-        locked object timeout, locked then unlocked object
-        '''
         #object locking logic
         results = None
         tries = 0
