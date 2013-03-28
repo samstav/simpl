@@ -248,7 +248,7 @@ class TestDatabase(unittest.TestCase):
         try:
             self.driver.save_deployment(self.default_deployment['id'], 
                 body, secrets, tenant_id='T1000')
-            raise AssertionError("self.default_Deployment:%s should have been locked!" % self.default_deployment['id'])
+            raise Exception("self.default_Deployment:%s should have been locked!" % self.default_deployment['id'])
         except AssertionError:
             pass
 
