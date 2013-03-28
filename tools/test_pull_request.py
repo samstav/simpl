@@ -50,9 +50,9 @@ def get_github_credentials(filepath):
     with open(filepath, 'r') as cred_file:
         lines = cred_file.read()
 
-        oauth_token = re.findall(r'oauth_token\s*=\s*(.*)', lines)
-        git_repo = re.findall(r'git_repo\s*=\s*(.*)', lines)
-        git_user = re.findall(r'git_user\s*=\s*(.*)', lines)
+        oauth_token = re.search(r'oauth_token\s*=\s*(\S+)\s*', lines).group(1)
+        git_repo = re.search(r'git_repo\s*=\s*(\S+)\s*', lines).group(1)
+        git_user = re.search(r'git_user\s*=\s*(\S+)\s*', lines).group(1)
 
         return {
             "oauth_token" : oauth_token,
