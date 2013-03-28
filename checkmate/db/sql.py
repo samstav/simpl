@@ -28,8 +28,7 @@ __all__ = ['Base', 'Environment', 'Blueprint', 'Deployment', 'Component',
            'Workflow']
 
 LOG = logging.getLogger(__name__)
-DEFAULT_TIMEOUT = 1
-DEFAULT_RETRIES = 5
+
 
 CONNECTION_STRING = os.environ.get('CHECKMATE_CONNECTION_STRING', 'sqlite://')
 if CONNECTION_STRING == 'sqlite://':
@@ -257,32 +256,37 @@ class Driver(DbBase):
         assert isinstance(body, dict), "dict required by sqlalchemy backend"
 
         '''
-        TODO: test new object, existing object, locked object timeout, locked then unlocked object
+        TODO: test new object, existing object, 
+        locked object timeout, locked then unlocked object
         '''
         #object locking logic
         results = None
         tries = 0
         while not results or results.count() == 0:
-            assert tries <= DEFAULT_RETRIES, "Attempted to query the database the maximum amount of retries."
+            assert tries <= DEFAULT_RETRIES, \
+                ("Attempted to query the database the maximum amount of"
+                    "retries.")
             #try to get the lock
-            results = Session.query(klass)
-                            .filter_by(id=id, locked=0)
-                            .update({'locked' : 1})
-            if results == 0:
-                print "RESULTS == 0"
+            updated = Session.query(klass).filter_by(id=id, locked=0).\
+                update({'locked': 1})
+            if updated > 0:
+                #get the object that we just locked
+                results = Session.query(klass).filter_by(id=id, locked=1)
+                assert results.count() > 0, ("There was a fatal error. The"
+                    "object %s with id %s could not be locked!") % (klass, id)
+                break
+            else:
                 time.sleep(DEFAULT_TIMEOUT)
                 tries += 1
                 object_exists = Session.query(klass).filter_by(id=id)
                 if not object_exists or object_exists.count() <= 0:
                     #this is a new object
                     break
-            else:
-                #get the object that we just locked
-                results = Session.query(klass).filter_by(id=id, locked=1)
-                break
 
         if results and results.count() > 0:
+            print "got a result!"
             e = results.first()
+            print e.locked
             e.locked = 0
             e.body = body
             if tenant_id:

@@ -3,14 +3,12 @@ import logging
 import os
 
 from checkmate.classes import ExtensibleDict
-from checkmate.db.common import DbBase
+from checkmate.db.common import *
 from checkmate.exceptions import CheckmateDatabaseConnectionError
 from checkmate.utils import merge_dictionary
 from SpiffWorkflow.util import merge_dictionary as collate
 
-
 LOG = logging.getLogger(__name__)
-
 
 class Driver(DbBase):
     """MongoDB Database Driver"""
@@ -106,11 +104,19 @@ class Driver(DbBase):
 
     # GENERIC
     def get_object(self, klass, id, with_secrets=None):
-        results = self.database()[klass].find_one({'_id': id}, {'_id': 0})
+        '''
+        Get an object by klass and id. We are filtering out the 
+        _id and _locked fields with a projection on all db queries.
+
+        :param klass: The collection to query from
+        :param id: The collection item to get
+        :param with_secrets: Merge secrets with the results
+        '''
+        results = self.database()[klass].find_one({'_id': id}, {'_id': 0, '_locked' : 0})
         if results:
             if with_secrets is True:
                 secrets = self.database()['%s_secrets' % klass].find_one(
-                        {'_id': id}, {'_id': 0})
+                        {'_id': id}, {'_id': 0, '_locked' : 0})
                 if secrets:
                     merge_dictionary(results, secrets)
             return results
@@ -122,30 +128,30 @@ class Driver(DbBase):
                 if offset is None:
                     offset = 0
                 results = (self.database()[klass].find({'tenantId': tenant_id},
-                           {'_id': 0}).skip(offset).limit(limit))
+                           {'_id': 0, '_locked' : 0}).skip(offset).limit(limit))
             elif offset and (limit is None):
                  results = (self.database()[klass].find({'tenantId': tenant_id},
-                           {'_id': 0}).skip(offset))
+                           {'_id': 0, '_locked' : 0}).skip(offset))
             else:
                 results = self.database()[klass].find({'tenantId': tenant_id},
-                                                      {'_id': 0})
+                                                      {'_id': 0, '_locked' : 0})
         else:
             if limit:
                 if offset is None:
                     offset = 0
                 results = (self.database()[klass].find(None,
-                           {'_id': 0}).skip(offset).limit(limit))
+                           {'_id': 0, '_locked' : 0}).skip(offset).limit(limit))
             elif offset and (limit is None):
                 results = (self.database()[klass].find(None,
-                           {'_id': 0}).skip(offset))
+                           {'_id': 0, '_locked' : 0}).skip(offset))
             else:
-                results = self.database()[klass].find(None, {'_id': 0})
+                results = self.database()[klass].find(None, {'_id': 0, '_locked' : 0})
         if results:
             response = {}
             if with_secrets is True:
                 for entry in results:
                     secrets = self.database()['%s_secrets' % klass].find_one(
-                            {'_id': entry['id']}, {'_id': 0})
+                            {'_id': entry['id']}, {'_id': 0, '_locked' : 0})
                     if secrets:
                         response[entry['id']] = merge_dictionary(entry,
                                                                        secrets)
@@ -162,12 +168,47 @@ class Driver(DbBase):
         """Clients that wish to save the body but do/did not have access to
         secrets will by default send in None for secrets. We must not have that
         overwrite the secrets. To clear the secrets for an object, a non-None
-        dict needs to be passed in: ex. {}
+        dict needs to be passed in: ex. {}. This method can only save objects
+        that do not have a lock in the database. It will attempt to obtain the 
+        lock for (DEFAULT_RETRIES * DEFAULT_TIMEOUT) seconds, before raising 
+        an exception.
         """
         if isinstance(body, ExtensibleDict):
             body = body.__dict__()
         assert isinstance(body, dict), "dict required by backend"
         assert 'id' in body, "id required to be in body by backend"
+
+        #object locking logic
+        results = None
+        tries = 0
+        while not results or results.count() == 0:
+            assert tries <= DEFAULT_RETRIES, \
+                ("Attempted to query the database the maximum amount of "
+                    "retries.")
+            #try to get the lock
+            updated = self.database()[klass].find_and_modify(
+                query={'_id' : obj_id, '_locked' : 0},
+                update={'_locked' : 1}
+            )
+            if updated:
+              #we have the locked object
+              break
+            else:
+                object_exists = self.database()[klass].find_one({'_id': obj_id})
+                if not object_exists:
+                    #this is a new object
+                    break
+                elif '_locked' not in object_exists:
+                    print "MIGRATING %s" % obj_id
+                    #this is an object without a lock field
+                    #create the lock field with the locked status
+                    self.database()[klass].update(
+                        {'_id': obj_id},
+                        {'$set': {'_locked' : 1}}
+                    )
+                    break
+                time.sleep(DEFAULT_TIMEOUT)
+                tries += 1
 
         if secrets is not None:
             if not secrets:
@@ -184,12 +225,14 @@ class Driver(DbBase):
             body['tenantId'] = tenant_id
         assert tenant_id or 'tenantId' in body, "tenantId must be specified"
         body['_id'] = obj_id
+        body['_locked'] = 0
         self.database()[klass].update({'_id': obj_id}, body, True, False)
         if secrets:
             secrets['_id'] = obj_id
             self.database()['%s_secrets' % klass].update({'_id': obj_id},
                 secrets, True, False)
         del body['_id']
+        del body['_locked']
         return body
 
     def delete_object(self, klass, id, body):
