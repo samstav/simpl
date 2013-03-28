@@ -12,7 +12,6 @@ import bottle
 import json
 from celery.app.task import Context
 import os
-import re
 init_console_logging()
 LOG = logging.getLogger(__name__)
 
@@ -29,7 +28,6 @@ from checkmate.middleware import RequestContext
 from checkmate.utils import yaml_to_dict, dict_to_yaml
 
 os.environ['CHECKMATE_DOMAIN'] = 'checkmate.local'
-
 
 class TestDeployments(unittest.TestCase):
     def test_schema(self):
@@ -287,8 +285,8 @@ class TestDeploymentResourceGenerator(unittest.TestCase):
         #test resource dns-names without a deployment name
         for k, resource in deployment['resources'].iteritems():
             if k != "connections":
-                regex = re.compile("CM-test-%s\d+.checkmate.local" % resource['service'])
-                self.assertTrue(re.match(regex, resource['dns-name']))
+                regex = "CM-test-%s\d+.checkmate.local" % resource['service']
+                self.assertRegexpMatches(resource['dns-name'], regex)
                 resource_count += 1
         self.assertEqual(resource_count, 8)
 
