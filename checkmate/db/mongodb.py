@@ -199,7 +199,6 @@ class Driver(DbBase):
                     #this is a new object
                     break
                 elif '_locked' not in object_exists:
-                    print "MIGRATING %s" % obj_id
                     #this is an object without a lock field
                     #create the lock field with the locked status
                     self.database()[klass].update(
