@@ -51,10 +51,11 @@ filters.filter('snippet', function() {
 });
 
 filters.filter('checkmark', function() {
-    return function(input) {
-      return input ? '\u2713' : '\u2718';
-    };
-  });
+  return function(input) {
+    return input ? '\u2713' : '\u2718';
+  };
+});
+
 
 filters.filter('truncate', function() {
     return function(input, max_length) {
@@ -85,3 +86,14 @@ filters.filter('idNotIn', function() {
     }
   };
 });
+
+filters.filter('capitalize',
+  function() {
+    return function(input) {
+      if(angular.isString(input) && input.length){
+        return input.charAt(0).toUpperCase() + input.slice(1);
+      }
+      return input;
+    };
+  }
+);

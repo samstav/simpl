@@ -76,7 +76,7 @@ directives.directive('calculator', function factory() {
           $('head').append('<script src="/static/RackspaceCalculator/js/backbone.subset.js"></script>');
           $('head').append('<script src="/static/RackspaceCalculator/js/calcapp.js"></script>');
         }
-      }
+      };
     }
   };
   return calculator;
@@ -118,7 +118,7 @@ directives.directive('compat', function factory($scope) {
           $('head').append('<script src="/static/RackspaceCalculator/js/backbone.subset.js"></script>');
           $('head').append('<script src="/static/RackspaceCalculator/js/calcapp.js"></script>');
         }
-      }
+      };
     }
   };
   return compat;
@@ -131,7 +131,7 @@ directives.directive('clippy', function factory() {
     controller: function($scope) {
         $scope.encode = function(data) {
             return encodeURIComponent(data);
-            }
+            };
     },
     replace: true,
     transclude: false,
@@ -168,15 +168,72 @@ directives.directive('clippy', function factory() {
                   }
                 });
             }
-        }
+        };
     }
   };
   return directiveDefinitionObject;
 });
 
-directives.directive('popover', function(expression, compiledElement){
-    return function(linkElement) {
-        linkElement.popover();
-        $tip.appendTo($('body'));
+
+directives.directive('popover', function(){
+    return function(scope, element, attrs) {
+      var popover = element.popover({
+        content: function() {
+          if ('target' in attrs)
+            return $(attrs['target']).html();
+        }
+      });
+
+      //Update when scope changes
+      if ('target' in attrs) {
+        scope.$parent.$watch(function() {
+          popover.data('popover').setContent($(attrs['target']).html());
+          popover.data('popover').$tip.addClass(popover.data('popover').options.placement);
+        });
+      }
+    };
+});
+
+//Validates a control against the supplied option's constraints and sets the
+//constraint.valid and option.invalid values
+directives.directive('validateOption', function () {
+    return {
+        restrict: 'A',
+        require: 'ngModel',
+        link: function (scope, elm, attrs, ctrl) {
+
+            function validate(value) {
+              var option = scope[attrs.validateOption];
+              var constraints = option.constraints;
+              var index = 0;
+              var valid = true;
+              console.log("validating", constraints, "from", option);
+              _.each(constraints, function(constraint) {
+                if ('regex' in constraint) {
+                  var patt = new RegExp(constraint.regex);
+                  constraint.valid = patt.test(value || '');
+                  if (!patt.test(value || ''))
+                    valid = false;
+                } else {
+                  constraint.valid = true;
+                }
+                ctrl.$setValidity('constraints', valid);
+                option.invalid = !valid;
+                index += 1;
+              });
+              return valid ? value : undefined;
+            }
+
+            //For DOM -> model validation
+            ctrl.$parsers.unshift(function(viewValue) {
+                return validate(viewValue) ? viewValue : undefined;
+            });
+
+            //For model -> DOM validation
+            ctrl.$formatters.unshift(function(value) {
+               ctrl.$setValidity('constraints', validate(value));
+               return value;
+            });
+        }
     };
 });

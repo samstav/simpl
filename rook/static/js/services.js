@@ -391,7 +391,6 @@ services.factory('items', [ 'filterFilter', function($resource, filter) {
   return items;
 }]);
 
-
 services.value('navbar', {
   highlight: function(menu_name) {
     $(document).ready(function() {
@@ -430,30 +429,83 @@ services.value('scroll', {
   }
 });
 
-services.value('settings', {
-  getSettingsFromBlueprint: function(blueprint) {
+services.value('options', {
+  getOptionsFromBlueprint: function(blueprint) {
     var options = []; // The accumulating array
+    var groups = {}; // The options grouped by groups in display-hints
+    var region_option = null; // The option identified as the deployment region
 
     var opts = blueprint.options;
-    _.each(opts, function(option, key) {
-      options.push($.extend({
+    _.each(opts, function(item, key) {
+      // Make a copy and add the ID to it
+      var option = $.extend({
         id: key
-      }, option));
+      }, item);
+      options.push(option);
+
+      var dh = option['display-hints'];
+      // Guess region option for legacy compatibility
+      if (region_option === null && (key == 'region' || option['type'] == 'region') && dh === undefined)
+        region_option = option;
+
+      var group;
+      if (dh !== undefined) {
+        option.order = dh.order || 'XXX';
+        if ('group' in dh) {
+          group = dh.group;
+          // Detect region (overrides legacy guess)
+          if (dh['list-type'] == 'region' && group == 'deployment')
+            region_option = option;
+        }
+        if ('sample' in dh)
+          option.sample = dh.sample;
+        if ('choice' in dh)
+          option.choice = dh.choice;
+        if ('encrypted-protocols' in dh)
+          option['encrypted-protocols'] = dh['encrypted-protocols'];
+        if ('always-accept-certificates' in dh)
+          option['always-accept-certificates'] = dh['always-accept-certificates'];
+      } else if (['site_address', 'url'].indexOf(key) != -1) {
+        group = "application";
+        option['type'] = 'url';
+      } else if (['domain', 'register-dns', 'web_server_protocol', 'path', 'ssl_certificate', 'ssl_private_key', 'ssl_intermediate_certificate'].indexOf(key) != -1) {
+        group = "hidden";
+      } else if (['username', 'password', 'prefix'].indexOf(key) != -1) {
+        group = "application";
+      } else if (option != region_option)
+        group = "application";
+
+      if (group !== undefined) {
+        if (group in groups)
+          groups[group].push(option);
+        else
+          groups[group] = [option];
+      }
+
+      var constraints = option.constraints || [];
+      _.each(constraints, function(constraint) {
+        // If protocols is in constraints, write out to the option so the form can read it
+        if ('protocols' in constraint)
+          option.protocols = constraint.protocols;
+        if ('in' in constraint && (!('choice' in option)))
+          option.choice = constraint['in'];
+      });
+
     });
 
     _.each(options, function(option) {
       if (option.regex) {
         if (!_.isRegExp(option.regex)) {
-          console.log("Regex '" + option.regex + "' is invalid for setting " + option.id);
+          console.log("Regex '" + option.regex + "' is invalid for option " + option.id);
           delete option["regex"];
         }
       }
     });
 
-    return options;
+    return {options: options, groups: groups, region_option: region_option};
   },
 
-  getSettingsFromEnvironment: function(env) {
+  getOptionsFromEnvironment: function(env) {
     var options = [];
     return options;
   },

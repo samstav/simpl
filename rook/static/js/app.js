@@ -454,7 +454,9 @@ function NavBarController($scope, $location) {
             "username": $scope.auth.identity.username,
             "tenantId": $scope.auth.context.tenantId,
             "location": $location.absUrl(),
-            "auth": $scope.auth,
+            "auth": {
+                "identity": $scope.auth.identity,
+                "context": $scope.auth.context},
             "api_version": $scope.api_version,
             "rook_version": $scope.rook_version
             }
@@ -550,7 +552,7 @@ function ActivityFeedController($scope, $http, items) {
   $scope.load();
 }
 
-function TestController($scope, $location, $routeParams, $resource, $http, items, navbar, settings, workflow) {
+function TestController($scope, $location, $routeParams, $resource, $http, items, navbar, options, workflow) {
   $scope.prices = {
     single: {
       blueprint: 'https://github.rackspace.com/Blueprints/wordpress-single.git',
@@ -1263,7 +1265,7 @@ function WorkflowController($scope, $resource, $http, $routeParams, $location, $
 }
 
 //Blueprint controllers
-function BlueprintListController($scope, $location, $routeParams, $resource, items, navbar, settings, workflow, blueprints, initial_blueprint, environments, initial_environment) {
+function BlueprintListController($scope, $location, $routeParams, $resource, items, navbar, options, workflow, blueprints, initial_blueprint, environments, initial_environment) {
   //Model: UI
   $scope.showSummaries = true;
   $scope.showStatus = true;
@@ -1297,7 +1299,7 @@ function BlueprintListController($scope, $location, $routeParams, $resource, ite
   }
 
   //Inherit from Deployment Initializer
-  DeploymentNewController($scope, $location, $routeParams, $resource, settings, workflow, $scope.selected, $scope.environment);
+  DeploymentNewController($scope, $location, $routeParams, $resource, options, workflow, $scope.selected, $scope.environment);
 
   //Wire Blueprints to Deployment
   $scope.$watch('selected', function(newVal, oldVal, scope) {
@@ -1307,9 +1309,9 @@ function BlueprintListController($scope, $location, $routeParams, $resource, ite
   });
 }
 
-function BlueprintRemoteListController($scope, $location, $routeParams, $resource, $http, items, navbar, settings, workflow, github) {
+function BlueprintRemoteListController($scope, $location, $routeParams, $resource, $http, items, navbar, options, workflow, github) {
   //Inherit from Blueprint List Controller
-  BlueprintListController($scope, $location, $routeParams, $resource, items, navbar, settings, workflow, {}, null, {}, null);
+  BlueprintListController($scope, $location, $routeParams, $resource, items, navbar, options, workflow, {}, null, {}, null);
   //Model: UI
   $scope.loading_remote_blueprints = false;
 
@@ -1394,7 +1396,7 @@ function BlueprintRemoteListController($scope, $location, $routeParams, $resourc
       $scope.blueprint = null;
     }
 
-    $scope.updateSettings();
+    $scope.updateOptions();
   };
 
   $scope.loadBlueprint = function() {
@@ -1475,7 +1477,7 @@ function DeploymentListController($scope, $location, $http, $resource, scroll, i
 }
 
 //Hard-coded for Managed Cloud Wordpress
-function DeploymentManagedCloudController($scope, $location, $routeParams, $resource, $http, items, navbar, settings, workflow, github) {
+function DeploymentManagedCloudController($scope, $location, $routeParams, $resource, $http, items, navbar, options, workflow, github) {
 
   $scope.receive_blueprint = function(data, remote) {
     if ('blueprint' in data) {
@@ -1593,7 +1595,7 @@ function DeploymentManagedCloudController($scope, $location, $routeParams, $reso
 
   //Show list of supported Managed Cloud blueprints
   items.clear();
-  BlueprintListController($scope, $location, $routeParams, $resource, items, navbar, settings, workflow,
+  BlueprintListController($scope, $location, $routeParams, $resource, items, navbar, options, workflow,
                           WPBP, null, ENVIRONMENTS, 'next-gen');
 
   $scope.updateDatabaseProvider = function() {
@@ -1636,7 +1638,7 @@ function DeploymentManagedCloudController($scope, $location, $routeParams, $reso
 }
 
 //Select one remote blueprint
-function DeploymentNewRemoteController($scope, $location, $routeParams, $resource, $http, items, navbar, settings, workflow, github) {
+function DeploymentNewRemoteController($scope, $location, $routeParams, $resource, $http, items, navbar, options, workflow, github) {
 
   var blueprint = $location.search().blueprint;
   if (blueprint === undefined)
@@ -1648,7 +1650,7 @@ function DeploymentNewRemoteController($scope, $location, $routeParams, $resourc
     $location.search('blueprint', u.normalize());
   }
 
-  BlueprintRemoteListController($scope, $location, $routeParams, $resource, $http, items, navbar, settings, workflow, github);
+  BlueprintRemoteListController($scope, $location, $routeParams, $resource, $http, items, navbar, options, workflow, github);
 
   //Override it with a one repo load
   $scope.load = function() {
@@ -1671,11 +1673,11 @@ function DeploymentNewRemoteController($scope, $location, $routeParams, $resourc
   $scope.remote = github.parse_org_url(blueprint, $scope.load);
 }
 
-// Handles the option setting and deployment launching
-function DeploymentNewController($scope, $location, $routeParams, $resource, settings, workflow, blueprint, environment) {
+// Handles the option option and deployment launching
+function DeploymentNewController($scope, $location, $routeParams, $resource, options, workflow, blueprint, environment) {
   $scope.environment = environment;
-  $scope.settings = [];
-  $scope.answers = {};
+  $scope.options = [];
+  $scope.inputs = {};
   $scope.domain_names = null;
   $scope.manual_site_address = null;
   $scope.show_site_address_controls = false;
@@ -1705,7 +1707,7 @@ function DeploymentNewController($scope, $location, $routeParams, $resource, set
 
   $scope.setBlueprint = function(blueprint) {
     $scope.blueprint = blueprint;
-    $scope.updateSettings();
+    $scope.updateOptions();
   };
 
   $scope.setEnvironment = function(environment) {
@@ -1716,53 +1718,58 @@ function DeploymentNewController($scope, $location, $routeParams, $resource, set
   $scope.updateRegions = function() {
     if ($scope.environment) {
       if ('providers' in $scope.environment && 'legacy' in $scope.environment.providers) {
-        if ($scope.settings && $scope.auth.identity.loggedIn === true && 'RAX-AUTH:defaultRegion' in $scope.auth.context.user) {
-            _.each($scope.settings, function(setting) {
-                if (setting.id == 'region') {
-                    setting['default'] = $scope.auth.context.user['RAX-AUTH:defaultRegion'];
-                    setting.choice = [setting['default']];
-                    $scope.answers[setting.id] = setting['default'];
-                    setting.description = "Your legacy cloud servers region is '" + setting['default'] + "'. You can only deploy to this region";
+        if ($scope.options && $scope.auth.identity.loggedIn === true && 'RAX-AUTH:defaultRegion' in $scope.auth.context.user) {
+            _.each($scope.options, function(option) {
+                if (option.id == 'region') {
+                    option['default'] = $scope.auth.context.user['RAX-AUTH:defaultRegion'];
+                    option.choice = [option['default']];
+                    $scope.inputs[option.id] = option['default'];
+                    option.description = "Your legacy cloud servers region is '" + option['default'] + "'. You can only deploy to this region";
                 }
             });
         }
       } else {
-        _.each($scope.settings, function(setting) {
-          if (setting.id == 'region' && $scope.auth.identity.loggedIn === true) {
-            setting.choice = $scope.auth.context.regions;
-            setting.description = "";
+        _.each($scope.options, function(option) {
+          if (option.id == 'region' && $scope.auth.identity.loggedIn === true) {
+            option.choice = $scope.auth.context.regions;
+            option.description = "";
           }
         });
       }
     }
   };
 
-  $scope.updateSettings = function() {
-    $scope.settings = [];
-    $scope.answers = {};
+  $scope.updateOptions = function() {
+    $scope.options = [];
+    $scope.option_groups = {};
+    $scope.region_option = null;
+    $scope.inputs = {};
 
     if ($scope.blueprint) {
-      $scope.settings = $scope.settings.concat(settings.getSettingsFromBlueprint($scope.blueprint));
+      var opts = options.getOptionsFromBlueprint($scope.blueprint);
+      $scope.options = $scope.options.concat(opts.options);
+      $scope.option_groups = opts.groups;
+      $scope.region_option = opts.region_option;
     }
 
     if ($scope.environment) {
-      $scope.settings = $scope.settings.concat(settings.getSettingsFromEnvironment($scope.environment));
+      $scope.options = $scope.options.concat(options.getOptionsFromEnvironment($scope.environment));
       $scope.updateRegions();
     }
 
-    _.each($scope.settings, function(setting) {
-      if ('default' in setting && (typeof setting['default'] != 'string' || setting['default'].indexOf('=generate') === -1)) {
-        $scope.answers[setting.id] = setting['default'];
+    _.each($scope.options, function(option) {
+      if ('default' in option && (typeof option['default'] != 'string' || option['default'].indexOf('=generate') === -1)) {
+        $scope.inputs[option.id] = option['default'];
       } else
-        $scope.answers[setting.id] = null;
-      if (setting.id == 'region' && $scope.auth.identity.loggedIn === true)
-        setting.choice = $scope.auth.context.regions;
+        $scope.inputs[option.id] = null;
+      if (option.id == 'region' && $scope.auth.identity.loggedIn === true)
+        option.choice = $scope.auth.context.regions;
     });
-    $scope.show_site_address_controls = _.any($scope.settings, function(setting) {return ['domain', 'web_server_protocol'].indexOf(setting.id) > -1;});
-    if (_.any($scope.settings, function(setting) {
-        if (setting.id == 'domain')
+    $scope.show_site_address_controls = _.any($scope.options, function(option) {return ['domain', 'web_server_protocol'].indexOf(option.id) > -1;});
+    if (_.any($scope.options, function(option) {
+        if (option.id == 'domain')
           return true;
-        if ('type' in setting && setting['type'] == 'url')
+        if ('type' in option && option['type'] == 'url')
           return true;
         return false;
         }) && $scope.domain_names === null)
@@ -1784,12 +1791,12 @@ function DeploymentNewController($scope, $location, $routeParams, $resource, set
         return;
     }
     $('#site_address_error').text("");
-    $scope.answers['web_server_protocol'] = parsed.protocol;
-    $scope.answers['domain'] = parsed.hostname;
-    $scope.answers['path'] = parsed.path || "/";
+    $scope.inputs['web_server_protocol'] = parsed.protocol;
+    $scope.inputs['domain'] = parsed.hostname;
+    $scope.inputs['path'] = parsed.path || "/";
   };
 
-  $scope.UpdateURL = function(scope, setting_id) {
+  $scope.UpdateURL = function(scope, option_id) {
     var new_address = scope.protocol + '://' + scope.domain + scope.path;
     var parsed = URI.parse(new_address);
     if (!('hostname' in parsed)) {
@@ -1801,12 +1808,20 @@ function DeploymentNewController($scope, $location, $routeParams, $resource, set
         return;
     }
     $('#site_address_error').text("");
-    $scope.answers[setting_id] = new_address;
+    if ($scope.AcceptsSSLCertificate(scope) === true) {
+      $scope.inputs[option_id] = {
+        url: new_address,
+        certificate: scope.certificate,
+        private_key: scope.private_key,
+        intermediate_key: scope.intermediate_key
+      };
+    } else
+      $scope.inputs[option_id] = new_address;
   };
 
-  $scope.UpdateParts = function(scope, setting_id) {
+  $scope.UpdateParts = function(scope, option_id) {
     try {
-      var parsed = URI.parse($scope.answers[setting_id]);
+      var parsed = URI.parse($scope.inputs[option_id]);
       if (!('hostname' in parsed)) {
           $('#site_address_error').text("Domain name or IP address missing");
           return;
@@ -1822,49 +1837,61 @@ function DeploymentNewController($scope, $location, $routeParams, $resource, set
     $('#site_address_error').text("");
   };
 
-  $scope.ShowCerts = function() {
-    if ('web_server_protocol' in $scope.answers && $scope.answers['web_server_protocol'].indexOf('https') != -1)
+  $scope.AcceptsSSLCertificate = function(scope) {
+    if ((scope.option['encrypted-protocols'] || []).indexOf(scope.protocol) > -1)
       return true;
-    if ('url' in $scope.answers && $scope.answers['url'].indexOf('https') != -1)
+    if (scope.option['always-accept-certificates'] === true)
       return true;
     return false;
   };
 
-  // Display settings using templates for each type
-  $scope.renderSetting = function(setting) {
-    var message;
-    if (!setting) {
-      message = "The requested setting is null";
-      console.log(message);
-      return "<em>" + message + "</em>";
-    }
-    if (!setting.type || !_.isString(setting.type)) {
-      message = "The requested setting '" + setting.id + "' has no type or the type is not a string.";
-      console.log(message);
-      return "<em>" + message + "</em>";
-    }
-    var lowerType = setting.type.toLowerCase().trim();
+  $scope.ShowCerts = function() {
+    if ('web_server_protocol' in $scope.inputs && $scope.inputs['web_server_protocol'].indexOf('https') != -1)
+      return true;
+    if ('url' in $scope.inputs && $scope.inputs['url'].indexOf('https') != -1)
+      return true;
+    return false;
+  };
 
-    if (setting.label == "Domain") {
-        setting.choice = $scope.domain_names;
+  // Display options using templates for each type
+  $scope.renderOption = function(option) {
+    var message;
+    if (!option) {
+      message = "The requested option is null";
+      console.log(message);
+      return "<em>" + message + "</em>";
+    }
+    if (!option.type || !_.isString(option.type)) {
+      message = "The requested option '" + option.id + "' has no type or the type is not a string.";
+      console.log(message);
+      return "<em>" + message + "</em>";
+    }
+    var lowerType = option.type.toLowerCase().trim();
+
+    if (option.label == "Domain") {
+        option.choice = $scope.domain_names;
+    }
+
+    if (["compute.os", "compute.memory", "region"].indexOf(lowerType) !== -1) {
+      lowerType = "select";
     }
 
     if (lowerType == "select") {
-      if ("choice" in setting) {
-        if (!_.isString(setting.choice[0]))
+      if ("choice" in option) {
+        if (!_.isString(option.choice[0]))
           lowerType = lowerType + "-kv";
       }
     }
-    var template = $('#setting-' + lowerType).html();
+    var template = $('#option-' + lowerType).html();
     if (template === null) {
-      message = "No template for setting type '" + setting.type + "'.";
+      message = "No template for option type '" + option.type + "'.";
       console.log(message);
       return "<em>" + message + "</em>";
     }
       return (template || "").trim();
   };
 
-  $scope.showSettings = function() {
+  $scope.showOptions = function() {
     return ($scope.environment && $scope.blueprint);
   };
 
@@ -1883,41 +1910,41 @@ function DeploymentNewController($scope, $location, $routeParams, $resource, set
     deployment.inputs.blueprint = {};
     var remote = $scope.selected.remote || $scope.remote;
     if (typeof remote == 'object' && remote.url !== undefined)
-      settings.substituteVariables(deployment, {"%repo_url%": remote.url});
+      options.substituteVariables(deployment, {"%repo_url%": remote.url});
 
     break_flag = false;
 
-    // Have to fix some of the answers so they are in the right format, specifically the select
+    // Have to fix some of the inputs so they are in the right format, specifically the select
     // and checkboxes. This is lame and slow and I should figure out a better way to do this.
-    _.each($scope.answers, function(element, key) {
-      var setting = _.find($scope.settings, function(item) {
+    _.each($scope.inputs, function(element, key) {
+      var option = _.find($scope.options, function(item) {
         if (item.id == key)
           return item;
         return null;
       });
 
-      if (setting === undefined){
-        console.log("WARNING: expected setting '" + key + "' is undefined");
+      if (option === undefined){
+        console.log("WARNING: expected option '" + key + "' is undefined");
         return;
       }
 
       //Check that all required fields are set
-      if (setting.required === true) {
-        if ($scope.answers[key] === null) {
+      if (option.required === true) {
+        if ($scope.inputs[key] === null) {
           err_msg = "Required field "+key+" not set. Aborting deployment.";
           $scope.notify(err_msg);
           break_flag = true;
         }
       }
 
-      if (setting.type === "boolean") {
-        if ($scope.answers[key] === null) {
+      if (option.type === "boolean") {
+        if ($scope.inputs[key] === null) {
           deployment.inputs.blueprint[key] = false;
         } else {
-          deployment.inputs.blueprint[key] = $scope.answers[key];
+          deployment.inputs.blueprint[key] = $scope.inputs[key];
         }
       } else {
-        deployment.inputs.blueprint[key] = $scope.answers[key];
+        deployment.inputs.blueprint[key] = $scope.inputs[key];
       }
     });
 
@@ -1963,7 +1990,7 @@ function DeploymentNewController($scope, $location, $routeParams, $resource, set
   // Event Listeners
   $scope.OnLogIn = function(e) {
     $scope.getDomains();
-    $scope.updateSettings();
+    $scope.updateOptions();
   };
   $scope.$on('logIn', $scope.OnLogIn);
 }
