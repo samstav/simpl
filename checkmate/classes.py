@@ -10,11 +10,14 @@ class ExtensibleDict(collections.MutableMapping):
     """
     TODO: docstring
     """
+    #used to define if the object is locked or not
+    LOCK = {'INITIAL' : 0, 'LOCKED' : 1, 'UNLOCKED' : 2}
 
     def __init__(self, *args, **kwargs):
         obj = dict(*args, **kwargs)
         self.validate(obj)
         self._data = obj
+        self._lock_state = self.LOCK['INITIAL']
 
     def __len__(self):
         return len(self._data)
@@ -59,3 +62,10 @@ class ExtensibleDict(collections.MutableMapping):
         if errors:
             raise CheckmateValidationException("Invalid %s: %s" % (
                 cls.__name__, '\n'.join(errors)))
+
+    @classmethod
+    def enum(*sequential, **named):
+        enums = dict(zip(sequential, range(len(sequential))), **named)
+        return type('Enum', (), enums)
+
+

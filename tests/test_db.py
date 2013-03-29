@@ -23,7 +23,24 @@ class TestDatabase(unittest.TestCase):
     def setUp(self):
         self.driver = db.get_driver('checkmate.db.sql.Driver', reset=True)
         self.klass = Deployment
-
+        self.default_deployment = {
+            'id': 'test',
+            'name': 'test',
+            'inputs': {},
+            'includes': {},
+            'resources': {},
+            'workflow': "abcdef",
+            'status': "NEW",
+            'created': "yesterday",
+            'tenantId': "T1000",
+            'blueprint': {
+                'name': 'test bp',
+                },
+            'environment': {
+                'name': 'environment',
+                'providers': {},
+                },
+            }
     def _decode_dict(self, dictionary):
         decoded_dict = {}
         for key, value in dictionary.iteritems():
@@ -198,6 +215,45 @@ class TestDatabase(unittest.TestCase):
         self.assertNotIn('credentials', results)
         body['tenantId'] = 'T1000'  # gets added
         self.assertDictEqual(results, body)
+
+    def test_new_deployment_locking(self):
+        db.sql.Session.query(self.klass).filter_by(
+            id=self.default_deployment['id']).delete()
+        body, secrets = extract_sensitive_data(self.default_deployment)
+        results = self.driver.save_deployment(self.default_deployment['id'], body, secrets,
+        tenant_id='T1000')
+
+        result = db.sql.Session.query(self.klass).filter_by(id=self.default_deployment['id'])
+        saved_deployment = result.first()
+        self.assertEqual(saved_deployment.locked, 0)
+        self.assertEqual(saved_deployment.body, self.default_deployment)
+        
+        db.sql.Session.query(self.klass).filter_by(
+            id=self.default_deployment['id']).delete()
+  
+
+    def test_locked_deployment(self):
+        db.sql.Session.query(self.klass).filter_by(
+            id=self.default_deployment['id']).delete()
+ 
+        body, secrets = extract_sensitive_data(self.default_deployment)
+        e = self.klass(id=self.default_deployment['id'], body=body, secrets=secrets,
+        tenant_id='T1000', locked=1)
+
+        db.sql.Session.add(e)
+        db.sql.Session.commit()
+        db.sql.DEFAULT_RETRIES = 1
+
+        try:
+            self.driver.save_deployment(self.default_deployment['id'], 
+                body, secrets, tenant_id='T1000')
+            raise Exception("self.default_Deployment:%s should have been locked!" % self.default_deployment['id'])
+        except AssertionError:
+            pass
+
+        db.sql.Session.query(self.klass).filter_by(
+            id=self.default_deployment['id']).delete()
+  
 
 
 if __name__ == '__main__':
