@@ -597,5 +597,5 @@ def generate_resource_name(deployment, suffix):
     prefix = "CM-" + deployment['id'][0:7]
     #generate the resource name based on the deployment name if exists
     if 'name' in deployment:
-        prefix = deployment['name']
+        prefix = re.sub(r'\s+', '-', deployment['name'].strip())
     return '%s-%s' % (prefix, suffix)

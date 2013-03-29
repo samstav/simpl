@@ -294,7 +294,7 @@ class TestDeploymentResourceGenerator(unittest.TestCase):
         """Test the parser generates the right number of static resources"""
         deployment = Deployment(yaml_to_dict("""
                 id: test
-                name: test_deployment
+                name: test deplo yment\n
                 blueprint:
                   name: test bp
                   services:
@@ -330,7 +330,7 @@ class TestDeploymentResourceGenerator(unittest.TestCase):
         self.assertIn("myResource", resources)
         expected = {'component': 'small_widget',
                     #dns-name with a deployment name
-                    'dns-name': 'test_deployment-sharedmyResource.checkmate.local',
+                    'dns-name': 'test-deplo-yment-sharedmyResource.checkmate.local',
                     'index': 'myResource',
                     'instance': {},
                     'provider': 'base',
