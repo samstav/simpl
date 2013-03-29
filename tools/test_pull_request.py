@@ -25,7 +25,8 @@ def bash(cmd, verbose=True, set_e=True, set_x=False):
             print result
         return result
     except subprocess.CalledProcessError as proc_error:
-        print str(proc_error.returncode) + "\n" + proc_error.output  
+        if verbose:
+            print str(proc_error.returncode) + "\n" + proc_error.output  
         raise proc_error
 
 def setup_pull_request_branches():
