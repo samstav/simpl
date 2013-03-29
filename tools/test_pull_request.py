@@ -87,10 +87,10 @@ def main():
     bash("git checkout %s" % pr_branch)
 
     try:
-        for test in ("pip_setup.sh", "jenkins_test.sh", "run_pylint.sh"):
+        for test in ("tools/pip_setup.sh", "tools/jenkins_test.sh", "tools/run_pylint.sh"):
             #raise IOError if test file does not exist
             with open(test): pass
-            bash("tools/" + test, set_x=True)
+            bash(test, set_x=True)
         success = True
     except subprocess.CalledProcessError as cpe:
         print cpe.output
