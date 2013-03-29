@@ -85,14 +85,12 @@ def main():
     setup_pull_request_branches()
     pr_branch = "pr/%s" % branch
     bash("git checkout %s" % pr_branch)
-    script_location = os.path.dirname(__file__)
     try:
         for test in ("tools/pip_setup.sh", "tools/jenkins_tests.sh", "tools/run_pylint.sh"):
             #raise IOError if test file does not exist
-            test_path = os.path.join(script_location, test)
-            with open(test_path): pass
-            bash("chmod +x %s" % test_path, set_x=True)
-            bash(test_path, set_x=True)
+            with open(test): pass
+            bash("chmod +x %s" % test, set_x=True)
+            bash(test, set_x=True)
         success = True
     except subprocess.CalledProcessError as cpe:
         print cpe.output
