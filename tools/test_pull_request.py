@@ -90,6 +90,7 @@ def main():
         for test in ("tools/pip_setup.sh", "tools/jenkins_test.sh", "tools/run_pylint.sh"):
             #raise IOError if test file does not exist
             with open(test): pass
+            bash("chmod +x %s" % test, set_x=True)
             bash(test, set_x=True)
         success = True
     except subprocess.CalledProcessError as cpe:
