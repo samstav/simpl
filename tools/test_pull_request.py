@@ -1,7 +1,7 @@
 #!/usr/bin/python
 import re, subprocess, sys
 
-def bash(cmd, verbose=True):
+def bash(cmd, verbose=True, set_e=True, set_x=False):
     """
     Executes the specified cmd using the bash shell, redirects stderr to stdout.
 
@@ -11,9 +11,11 @@ def bash(cmd, verbose=True):
         Inspect CalledProcessError.output or CalledProcessError.returncode for information.
     """
     try:
-        script_heading = "set -e\n"
-        if verbose:
-            script_heading = script_heading + "set -x\n"
+        script_heading = ""
+        if set_e:
+            script_heading += "set -e\n"
+        if set_x:
+            script_heading += "set -x\n"
 
         result = subprocess.check_output(script_heading + cmd, 
             shell=True, 
@@ -25,14 +27,6 @@ def bash(cmd, verbose=True):
     except subprocess.CalledProcessError as proc_error:
         print str(proc_error.returncode) + "\n" + proc_error.output  
         raise proc_error
-
-def test():
-    """
-    Runs unit tests and linting... this was copied directly from the checkmate jenkins job.
-    """
-    bash("bash tools/pip_setup.sh", True)
-    bash("bash tools/jenkins_tests.sh", True)
-    bash("bash tools/run_pylint.sh", True)
 
 def setup_pull_request_branches():
     """
@@ -73,7 +67,9 @@ def post_pull_request_comment(status, branch, github_creds):
     ('curl -H "Authorization: token %s" -X POST '
         '-d \'{ "body": "Pull request:%s %s testing!" }\' '
         'https://github.rackspace.com/api/v3/repos/%s/%s/issues/%s/comments') % (github_creds['oauth_token'], 
-        branch, status_string, github_creds['git_user'], github_creds['git_repo'], branch))
+        branch, status_string, github_creds['git_user'], github_creds['git_repo'], branch),
+        verbose=False
+    )
 
 def main():
     """
@@ -90,7 +86,10 @@ def main():
     bash("git checkout %s" % pr_branch)
 
     try:
-        test()
+        for test in ("pip_setup.sh", "jenkins_test.sh", "run_pylint.sh"):
+            #raise IOError if test file does not exist
+            with open(test): pass
+            bash("tools/" + test, set_x=True)
         success = True
     except subprocess.CalledProcessError as cpe:
         print cpe.output
