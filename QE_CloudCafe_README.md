@@ -25,9 +25,9 @@ where \<config\> is the .config file to run the tests against (i.e. localhost/de
 
 ## SPECIAL: Offline Blueprint development testing
 
-Set blueprint_test_path variable set in your localhost.config file
+Set blueprint_test_path variable in your localhost.config file
 
-To run tests against blueprints that you (blueprint developer) are actively developing, please run:
+To run tests against blueprints that you (the blueprint developer) are actively developing, please run:
 
 
 __cd \<workspace\>/CloudCafe-Python__
