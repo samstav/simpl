@@ -15,7 +15,7 @@ DB = get_driver()
 
 
 #
-# Blueprintss
+# Blueprints
 #
 @get('/blueprints')
 @with_tenant
