@@ -29,7 +29,6 @@ from checkmate.utils import yaml_to_dict, dict_to_yaml
 
 os.environ['CHECKMATE_DOMAIN'] = 'checkmate.local'
 
-
 class TestDeployments(unittest.TestCase):
     def test_schema(self):
         """Test the schema validates a deployment with all possible fields"""
@@ -211,7 +210,6 @@ class TestDeploymentDeployer(unittest.TestCase):
         self.assertIn("wf_spec", workflow)
         self.assertEqual(parsed['status'], "LAUNCHED")
 
-
 class TestDeploymentResourceGenerator(unittest.TestCase):
     def test_component_resource_generator(self):
         """Test the parser generates the right number of resources"""
@@ -283,10 +281,20 @@ class TestDeploymentResourceGenerator(unittest.TestCase):
                               if r.get('service') == 'side']), 2,
                          msg="Expecting constraint to generate 2 resources")
 
+        resource_count = 0
+        #test resource dns-names without a deployment name
+        for k, resource in deployment['resources'].iteritems():
+            if k != "connections":
+                regex = "CM-test-%s\d+.checkmate.local" % resource['service']
+                self.assertRegexpMatches(resource['dns-name'], regex)
+                resource_count += 1
+        self.assertEqual(resource_count, 8)
+
     def test_static_resource_generator(self):
         """Test the parser generates the right number of static resources"""
         deployment = Deployment(yaml_to_dict("""
                 id: test
+                name: test deplo yment\n
                 blueprint:
                   name: test bp
                   services:
@@ -321,7 +329,8 @@ class TestDeploymentResourceGenerator(unittest.TestCase):
         resources = parsed['resources']
         self.assertIn("myResource", resources)
         expected = {'component': 'small_widget',
-                    'dns-name': 'CM-test-sharedmyResource.checkmate.local',
+                    #dns-name with a deployment name
+                    'dns-name': 'test-deplo-yment-sharedmyResource.checkmate.local',
                     'index': 'myResource',
                     'instance': {},
                     'provider': 'base',
@@ -333,6 +342,7 @@ class TestDeploymentResourceGenerator(unittest.TestCase):
         private, public = keys.generate_key_pair()
         deployment = Deployment(yaml_to_dict("""
                 id: test
+                name: test_deployment
                 blueprint:
                   name: test bp
                   resources:
