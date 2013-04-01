@@ -440,6 +440,9 @@ def resource_postback(deployment_id, contents):
     
     assert isinstance(contents, dict), "Must postback data in dict"
 
+    print "POST BACK: %s" % contents
+    print ""
+
     # Set status of resource if post_back includes status
     for key, value in contents.items():
         if 'status' in contents[key]:
@@ -474,6 +477,7 @@ def resource_postback(deployment_id, contents):
     for key, value in resources.items():
         if key.isdigit():
             r_status = resources[key].get('status')
+            print "%s:%s, %s" % (key, r_status, resources[key].get('type'))
             if r_status == "ERROR":
                 r_msg = resources[key].get('errmessage')
                 if "errmessage" not in deployment:
@@ -483,6 +487,7 @@ def resource_postback(deployment_id, contents):
             statuses[r_status] += 1
             count += 1
 
+    print ""
     if deployment['status'] != "ERROR":
         # Case 1: status is NEW
         if statuses['NEW'] == count:
