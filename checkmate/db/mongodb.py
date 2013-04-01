@@ -113,11 +113,11 @@ class Driver(DbBase):
         :param id: The collection item to get
         :param with_secrets: Merge secrets with the results
         '''
-        results = self.database()[klass].find_one({'_id': id}, {'_id': 0, '_locked' : 0})
+        results = self.database()[klass].find_one({'_id': id}, {'_id': 0})
         if results:
             if with_secrets is True:
                 secrets = self.database()['%s_secrets' % klass].find_one(
-                        {'_id': id}, {'_id': 0, '_locked' : 0})
+                        {'_id': id}, {'_id': 0})
                 if secrets:
                     merge_dictionary(results, secrets)
             return results
@@ -129,30 +129,30 @@ class Driver(DbBase):
                 if offset is None:
                     offset = 0
                 results = (self.database()[klass].find({'tenantId': tenant_id},
-                           {'_id': 0, '_locked' : 0}).skip(offset).limit(limit))
+                           {'_id': 0}).skip(offset).limit(limit))
             elif offset and (limit is None):
                  results = (self.database()[klass].find({'tenantId': tenant_id},
-                           {'_id': 0, '_locked' : 0}).skip(offset))
+                           {'_id': 0}).skip(offset))
             else:
                 results = self.database()[klass].find({'tenantId': tenant_id},
-                                                      {'_id': 0, '_locked' : 0})
+                                                      {'_id': 0})
         else:
             if limit:
                 if offset is None:
                     offset = 0
                 results = (self.database()[klass].find(None,
-                           {'_id': 0, '_locked' : 0}).skip(offset).limit(limit))
+                           {'_id': 0}).skip(offset).limit(limit))
             elif offset and (limit is None):
                 results = (self.database()[klass].find(None,
-                           {'_id': 0, '_locked' : 0}).skip(offset))
+                           {'_id': 0}).skip(offset))
             else:
-                results = self.database()[klass].find(None, {'_id': 0, '_locked' : 0})
+                results = self.database()[klass].find(None, {'_id': 0})
         if results:
             response = {}
             if with_secrets is True:
                 for entry in results:
                     secrets = self.database()['%s_secrets' % klass].find_one(
-                            {'_id': entry['id']}, {'_id': 0, '_locked' : 0})
+                            {'_id': entry['id']}, {'_id': 0})
                     if secrets:
                         response[entry['id']] = merge_dictionary(entry,
                                                                        secrets)
@@ -174,6 +174,7 @@ class Driver(DbBase):
         lock for (DEFAULT_RETRIES * DEFAULT_TIMEOUT) seconds, before raising 
         an exception.
         """
+        print "SAVING"
         if isinstance(body, ExtensibleDict):
             body = body.__dict__()
         assert isinstance(body, dict), "dict required by backend"
@@ -187,11 +188,13 @@ class Driver(DbBase):
                 ("Attempted to query the database the maximum amount of "
                     "retries.")
             #try to get the lock
+            print "TRYING FOR LOCK"
             updated = self.database()[klass].find_and_modify(
                 query={'_id' : obj_id, '_locked' : 0},
                 update={'_locked' : 1}
             )
             if updated:
+              print "LOCK OBTAINED"
               #we have the locked object
               break
             else:
