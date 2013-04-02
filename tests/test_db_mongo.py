@@ -9,6 +9,7 @@ from pymongo.errors import AutoReconnect, InvalidURI
 
 # Init logging before we load the database, 3rd party, and 'noisy' modules
 from checkmate.utils import init_console_logging
+from checkmate.db.common import DatabaseTimeoutException
 from copy import deepcopy
 init_console_logging()
 LOG = logging.getLogger(__name__)
@@ -331,13 +332,39 @@ class TestDatabase(unittest.TestCase):
                 update={'_locked' : 1}
         )
 
-        try:
-            self.driver.save_deployment(self.default_deployment['id'], 
-                body, secrets, tenant_id='T1000')
-            raise Exception("self.default_Deployment:%s should have been locked!" % self.default_deployment['id'])
-        except AssertionError:
-            pass
+        with self.assertRaises(DatabaseTimeoutException):
+            self.driver.save_deployment(self.default_deployment['id'],body, secrets, tenant_id='T1000')
             
+        self.driver.database()['deployments'].remove({'_id': self.default_deployment['id']})
+
+    @unittest.skipIf(SKIP, REASON)
+    def test_no_locked_field_deployment(self):
+        mongodb.DEFAULT_RETRIES = 1
+        self.driver.database()['deployments'].remove({'_id': self.default_deployment['id']})
+        body, secrets = extract_sensitive_data(self.default_deployment)
+
+        print "body%s" % body
+        #insert into db
+        print self.driver.database()['deployments'].insert(
+            {'_id': self.default_deployment['id']},
+            body
+        )
+        #check that it was inserted, and has no _locked
+        self.assertTrue(
+            self.driver.database()['deployments'].find_one(
+                {'_id': self.default_deployment['id'],
+                '_locked': {'$exists': False}}
+            )
+        )
+        #save, should get a _locked here
+        self.driver.save_deployment(self.default_deployment['id'], body, secrets, tenant_id='T1000')
+        #check for _locked
+        self.assertTrue(
+            self.driver.database()['deployments'].find_one(
+                {'_id': self.default_deployment['id'],
+                '_locked': {'$exists': True}}
+            )
+        )
         self.driver.database()['deployments'].remove({'_id': self.default_deployment['id']})
 
 if __name__ == '__main__':

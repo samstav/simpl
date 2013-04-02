@@ -2,9 +2,11 @@ import pymongo
 import logging
 import os
 import time
+import json
 
 from checkmate.classes import ExtensibleDict
-from checkmate.db.common import *
+from checkmate.db.common import DbBase, DEFAULT_RETRIES, DEFAULT_TIMEOUT, \
+    DatabaseTimeoutException
 from checkmate.exceptions import CheckmateDatabaseConnectionError
 from checkmate.utils import merge_dictionary
 from SpiffWorkflow.util import merge_dictionary as collate
@@ -107,7 +109,7 @@ class Driver(DbBase):
     def get_object(self, klass, id, with_secrets=None):
         '''
         Get an object by klass and id. We are filtering out the 
-        _id and _locked fields with a projection on all db queries.
+        _id field with a projection on all db queries.
 
         :param klass: The collection to query from
         :param id: The collection item to get
@@ -115,6 +117,9 @@ class Driver(DbBase):
         '''
         results = self.database()[klass].find_one({'_id': id}, {'_id': 0})
         if results:
+            if '_locked' in results:
+                del results['_locked']
+  
             if with_secrets is True:
                 secrets = self.database()['%s_secrets' % klass].find_one(
                         {'_id': id}, {'_id': 0})
@@ -160,6 +165,8 @@ class Driver(DbBase):
                         response[entry['id']] = entry
             else:
                 for entry in results:
+                    if '_locked' in entry:
+                        del entry['_locked']
                     response[entry['id']] = entry
             return response
         else:
@@ -174,7 +181,6 @@ class Driver(DbBase):
         lock for (DEFAULT_RETRIES * DEFAULT_TIMEOUT) seconds, before raising 
         an exception.
         """
-        print "SAVING"
         if isinstance(body, ExtensibleDict):
             body = body.__dict__()
         assert isinstance(body, dict), "dict required by backend"
@@ -184,32 +190,40 @@ class Driver(DbBase):
         results = None
         tries = 0
         while not results or results.count() == 0:
-            assert tries <= DEFAULT_RETRIES, \
-                ("Attempted to query the database the maximum amount of "
-                    "retries.")
+            if tries > DEFAULT_RETRIES:
+                raise DatabaseTimeoutException("Attempted to query the "
+                    "database the maximum amount of retries.")
+
             #try to get the lock
             print "TRYING FOR LOCK"
             updated = self.database()[klass].find_and_modify(
                 query={'_id' : obj_id, '_locked' : 0},
                 update={'_locked' : 1}
             )
+
             if updated:
-              print "LOCK OBTAINED"
-              #we have the locked object
-              break
+
+                LOG.debug("LOCKED: %s" % updated['_id'])
+                #we have the locked object
+                break
             else:
-                object_exists = self.database()[klass].find_one({'_id': obj_id})
+                object_exists = self.database()[klass].find_one(
+                    {'_id': obj_id}
+                )
                 if not object_exists:
+                    LOG.debug("NEW OBJECT: %s" % obj_id)
                     #this is a new object
                     break
                 elif '_locked' not in object_exists:
-                    #this is an object without a lock field
-                    #create the lock field with the locked status
-                    self.database()[klass].update(
-                        {'_id': obj_id},
-                        {'$set': {'_locked' : 1}}
+                    #the object does not have a locked field, try for the lock.
+                    update_locked = self.database()[klass].find_and_modify(
+                        query={'_id': obj_id,'_locked': {'$exists': False}},
+                        update={ '$set': {'_locked': 1}}
                     )
-                    break
+                    if update_locked:
+                        #the locked field was inserted and set to locked
+                        break
+                LOG.debug("FAILED to LOCK: %s:%s" % (klass, obj_id))
                 time.sleep(DEFAULT_TIMEOUT)
                 tries += 1
 
