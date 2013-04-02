@@ -4,6 +4,7 @@ import os
 import unittest2 as unittest
 
 from checkmate.utils import init_console_logging
+from checkmate.db.common import DatabaseTimeoutException
 from copy import deepcopy
 import uuid
 
@@ -244,13 +245,9 @@ class TestDatabase(unittest.TestCase):
         db.sql.Session.commit()
         db.sql.DEFAULT_RETRIES = 1
 
-        try:
-            self.driver.save_deployment(self.default_deployment['id'], 
-                body, secrets, tenant_id='T1000')
-            raise Exception("self.default_Deployment:%s should have been locked!" % self.default_deployment['id'])
-        except AssertionError:
-            pass
-
+        with self.assertRaises(DatabaseTimeoutException):
+            self.driver.save_deployment(self.default_deployment['id'],body, secrets, tenant_id='T1000')
+  
         db.sql.Session.query(self.klass).filter_by(
             id=self.default_deployment['id']).delete()
   

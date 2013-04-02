@@ -86,3 +86,6 @@ def any_tenant_id_problems(id):
             return "Invalid character '%s' in Tenant ID. Allowed charaters "\
                     "are '%s'" % (c, allowed_chars)
     return None
+
+class DatabaseTimeoutException(Exception):
+    pass
