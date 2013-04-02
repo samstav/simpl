@@ -814,7 +814,7 @@ def create_environment(name, service_name, path=None, private_key=None,
     except OSError as ose:
         if ose.errno == errno.EEXIST:
             LOG.warn("Environment directory %s already exists", fullpath,
-                     exc_info=True)
+                      exc_info=True)
         else:
             msg = "Could not create environment %s" % fullpath
             update_dep_error(name, msg)
@@ -835,7 +835,7 @@ def create_environment(name, service_name, path=None, private_key=None,
     # Copy environment public key to kitchen certs folder
     public_key_path = os.path.join(fullpath, 'checkmate.pub')
     kitchen_key_path = os.path.join(kitchen_path, 'certificates',
-                                    'checkmate-environment.pub')
+            'checkmate-environment.pub')
     shutil.copy(public_key_path, kitchen_key_path)
     LOG.debug("Wrote environment public key to kitchen: %s" % kitchen_key_path)
 

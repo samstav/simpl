@@ -474,7 +474,7 @@ def create_loadbalancer(context, name, vip_type, protocol, region, api=None,
                         dns=False, port=None, algorithm='ROUND_ROBIN',
                         monitor_path='/', monitor_delay=10, monitor_timeout=10,
                         monitor_attempts=3, monitor_body='(.*)',
-                        monitor_status=None, parent_lb=None):
+                        monitor_status='^[234][0-9][0-9]$', parent_lb=None):
     """Celery task to create Cloud Load Balancer"""
     match_celery_logging(LOG)
     if api is None:
@@ -537,6 +537,7 @@ def create_loadbalancer(context, name, vip_type, protocol, region, api=None,
         create_record.delay(context, parse_domain(name),
                             '.'.join(name.split('.')[1:]),
                             'A', vip, rec_ttl=300, makedomain=True)
+
     results = {'instance:%s' % context['resource']: {
         'id': loadbalancer.id,
         'public_ip': vip,
