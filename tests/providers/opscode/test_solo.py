@@ -247,6 +247,11 @@ class TestCeleryTasks(unittest.TestCase):
         self.mox.StubOutWithMock(knife, '_run_kitchen_command')
         knife._run_kitchen_command("env_test",kitchen_path, params).AndReturn("OK")
 
+        #TODO: better test for postback?
+        self.mox.StubOutWithMock(checkmate.deployments.resource_postback, "delay")
+        knife.resource_postback.delay(IgnoreArg(), IgnoreArg()).AndReturn(None)
+        knife.resource_postback.delay(IgnoreArg(), IgnoreArg()).AndReturn(None)
+
         self.mox.ReplayAll()
         resource={'index':1234,
                   'hosted_on':'rack cloud'
