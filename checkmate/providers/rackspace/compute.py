@@ -661,10 +661,10 @@ def wait_on_build(context, server_id, region, resource, ip_address_type='public'
 
 
     # Check to see if we have another resource that needs to install on this server
-    if 'hosts' in resource:
-        results['status'] = "CONFIGURE"
-    else:
-        results['status'] = "ACTIVE"
+    # if 'hosts' in resource:
+    #    results['status'] = "CONFIGURE"
+    # else:
+    results['status'] = "ACTIVE"
 
     instance_key = 'instance:%s' % context['resource']
     results = {instance_key: results}

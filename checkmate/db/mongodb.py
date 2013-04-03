@@ -68,7 +68,7 @@ class Driver(DbBase):
         return self.get_objects('deployments', tenant_id, with_secrets, 
                                 offset=offset, limit=limit)
 
-    def save_deployment(self, id, body, secrets=None, tenant_id=None):
+    def save_deployment(self, id, body, secrets=None, tenant_id=None, resource=None):
         return self.save_object('deployments', id, body, secrets, tenant_id)
 
     #BLUEPRINTS
@@ -174,7 +174,6 @@ class Driver(DbBase):
         lock for (DEFAULT_RETRIES * DEFAULT_TIMEOUT) seconds, before raising 
         an exception.
         """
-        print "SAVING"
         if isinstance(body, ExtensibleDict):
             body = body.__dict__()
         assert isinstance(body, dict), "dict required by backend"
@@ -188,13 +187,11 @@ class Driver(DbBase):
                 ("Attempted to query the database the maximum amount of "
                     "retries.")
             #try to get the lock
-            print "TRYING FOR LOCK"
             updated = self.database()[klass].find_and_modify(
                 query={'_id' : obj_id, '_locked' : 0},
                 update={'_locked' : 1}
             )
             if updated:
-              print "LOCK OBTAINED"
               #we have the locked object
               break
             else:

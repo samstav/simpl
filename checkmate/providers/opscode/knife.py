@@ -654,11 +654,11 @@ def cook(host, environment, resource, recipes=None, roles=None, path=None,
     # to ACTIVE
 
     # Update status of host resource to ACTIVE
-    host_results = {}
-    host_results['status'] = "ACTIVE"
-    host_key = 'instance:%s' % resource['hosted_on']
-    host_results = {host_key: host_results}
-    resource_postback.delay(environment, host_results)
+    # host_results = {}
+    # host_results['status'] = "ACTIVE"
+    # host_key = 'instance:%s' % resource['hosted_on']
+    # host_results = {host_key: host_results}
+    # resource_postback.delay(environment, host_results)
    
     # Update status of current resource to ACTIVE
     results = {}
@@ -890,16 +890,16 @@ def register_node(host, environment, resource, path=None, password=None,
     # twice, so we need to do this update anyway just to be safe
 
     # Update status of host resource to CONFIGURE
-    host_results = {}
-    host_results['status'] = "CONFIGURE"
-    host_key = 'instance:%s' % resource['hosted_on']
-    host_results = {host_key: host_results}
-    resource_postback.delay(environment, host_results)
+    # host_results = {}
+    # host_results['status'] = "CONFIGURE"
+    # host_key = 'instance:%s' % resource['hosted_on']
+    # host_results = {host_key: host_results}
+    # resource_postback.delay(environment, host_results)
 
 
     # Update status of current resource to BUILD
     results = {}
-    results['status'] = "BUILD"
+    results['status'] = "INSTALLING"
     instance_key = 'instance:%s' % resource['index']
     results = {instance_key: results}
     resource_postback.delay(environment, results)

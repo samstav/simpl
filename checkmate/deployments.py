@@ -471,6 +471,7 @@ def resource_postback(deployment_id, contents):
     statuses = {"NEW": 0,
                 "BUILD": 0,
                 "CONFIGURE": 0,
+                "INSTALLING": 0,
                 "ACTIVE": 0}
 
     resources = deployment['resources']
@@ -496,7 +497,7 @@ def resource_postback(deployment_id, contents):
         elif statuses['BUILD'] >= 1:
             deployment['status'] = "BUILD"
         # Case 3: status is CONFIGURE
-        elif (statuses['ACTIVE'] + statuses['CONFIGURE']) == count:
+        elif (statuses['ACTIVE'] + statuses['CONFIGURE'] + statuses['INSTALLING']) == count:
             deployment['status'] = "CONFIGURE"
         # Case 4: status is ACTIVE
         elif statuses['ACTIVE'] == count:

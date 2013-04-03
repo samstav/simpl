@@ -13,7 +13,7 @@ DbBase = dbBaseClass
 LOG = logging.getLogger(__name__)
 DB = None
 #locking timeout in seconds
-DEFAULT_TIMEOUT = 1
+DEFAULT_TIMEOUT = 2
 #amount of retries to lock an object
 DEFAULT_RETRIES = 30
 
