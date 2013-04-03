@@ -439,6 +439,17 @@ function AppController($scope, $http, $location, $resource, auth) {
     };
     return {default_openstack: nova, default_legacy: legacy};
   };
+
+  //Return markdown as HTML
+  $scope.render_markdown = function(raw) {
+    if (raw !== undefined) {
+      try {
+        return marked(raw);
+      } catch(err) {}
+    }
+    return '';
+  };
+
 }
 
 function NavBarController($scope, $location) {
