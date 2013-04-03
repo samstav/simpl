@@ -71,6 +71,7 @@ def check_all_output(dep_id, params):
 
     We use this for processing Knife output where the details of the error are
     piped to stdout and the actual error does not have everything we need"""
+    #TODO: return stderr and stdout seperately so either can be reviewed
     ON_POSIX = 'posix' in sys.builtin_module_names
 
     def start_thread(func, *args):
@@ -130,7 +131,7 @@ def _run_ruby_command(dep_id, path, command, params, lock=True):
         try:
             if path:
                 os.chdir(path)
-            result = check_all_output(dep_id, params)  # check_output(params)
+            result = check_output(params)
         except OSError as exc:
             if exc.errno == errno.ENOENT:
                 # Check if command is installed
@@ -157,7 +158,8 @@ def _run_ruby_command(dep_id, path, command, params, lock=True):
     else:
         if path:
             os.chdir(path)
-        result = check_all_output(dep_id, params)
+
+        result = check_output(params)
     LOG.debug(result)
     # Knife-like commands succeed even if there is an error. This code tries to
     # parse the output to return a useful error
@@ -559,9 +561,10 @@ def write_databag(environment, bagname, itemname, contents, resource,
         lock = threading.Lock()
         lock.acquire()
         try:
-            data = _run_kitchen_command(environment, kitchen_path, params)
-            existing = json.loads(data)
-            contents = utils.merge_dictionary(existing, contents)
+            data = _run_kitchen_command(kitchen_path, params)
+            if data:
+                existing = json.loads(data)
+                contents = utils.merge_dictionary(existing, contents)
             if isinstance(contents, dict):
                 contents = json.dumps(contents)
             params = ['knife', 'solo', 'data', 'bag', 'create', bagname,

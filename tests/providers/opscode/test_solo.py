@@ -241,7 +241,7 @@ class TestCeleryTasks(unittest.TestCase):
         __builtin__.file(node_path, 'w').AndReturn(mock_file)
 
         #Stub out process call to knife
-        params = ['knife', 'cook', 'root@a.b.c.d',
+        params = ['knife', 'solo', 'cook', 'root@a.b.c.d',
                   '-c', os.path.join(kitchen_path, "solo.rb"),
                   '-p', '22']
         self.mox.StubOutWithMock(knife, '_run_kitchen_command')

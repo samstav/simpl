@@ -58,7 +58,7 @@ class TestKnife(unittest.TestCase):
 [Mon, 21 May 2012 17:25:55 +0000] FATAL: Stacktrace dumped to /tmp/checkmate/environments/myEnv/chef-stacktrace.out
 [Mon, 21 May 2012 17:25:55 +0000] FATAL: Chef::Exceptions::MissingRole: Chef::Exceptions::MissingRole
 """
-        params = ['knife', 'cook', 'root@a.b.c.d',
+        params = ['knife', 'solo', 'cook', 'root@a.b.c.d',
                   '-c', "/tmp/checkmate/test/myEnv/kitchen/solo.rb",
                   '-p', '22']
 
@@ -108,7 +108,7 @@ class TestKnife(unittest.TestCase):
         self.mox.ReplayAll()
         try:
             resource = {
-                'index':1, 
+                'index':1,
                 'hosted_on': 'rackspace'
             }
             knife.cook('a.b.c.d', 'myEnv', resource, recipes=None,
@@ -138,7 +138,7 @@ class TestKnife(unittest.TestCase):
                     },
             }
         resource = {
-            'index':1, 
+            'index':1,
             'hosted_on': 'rackspace'
         }
         bag = uuid.uuid4().hex
@@ -274,7 +274,7 @@ class TestKnife(unittest.TestCase):
         os.path.exists(os.path.join(kitchen_path, 'Cheffile')).AndReturn(True)
         self.mox.StubOutWithMock(os, 'chdir')
         os.chdir(kitchen_path).AndReturn(True)
-        self.mox.StubOutWithMock(knife, 'check_all_output')
+        self.mox.StubOutWithMock(knife, 'check_output')
         knife.check_all_output("test", ['librarian-chef', 'install']).AndReturn('OK')
 
         self.mox.ReplayAll()
