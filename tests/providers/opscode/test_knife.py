@@ -329,10 +329,10 @@ class TestKnife(unittest.TestCase):
         #os.path.exists(os.path.join(kitchen_path, 'Cheffile')).AndReturn(False)
         self.mox.StubOutWithMock(os, 'chdir')
         os.chdir(kitchen_path).AndReturn(True)
-        self.mox.StubOutWithMock(knife, 'check_all_output')
-        knife.check_all_output("test", ['berks', 'install', '--path',
-                                os.path.join(kitchen_path, 'cookbooks')])\
-             .AndReturn('OK')
+
+        self.mox.StubOutWithMock(knife, 'check_output')
+        knife.check_output(['berks', 'install', '--path',
+                os.path.join(kitchen_path, 'cookbooks')]).AndReturn('OK')
 
         self.mox.ReplayAll()
         expected = {'environment': '/fake_path/test',
