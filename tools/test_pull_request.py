@@ -55,7 +55,7 @@ def get_github_credentials(filepath):
             "git_user" : git_user
         }
 
-def post_pull_request_comment(status, branch, github_creds):
+def post_pull_request_comment(status, branch, github_creds, url):
     """
     Posts a comment on the pull request specified by the branch, indicating if testing passed or failed.
 
@@ -66,9 +66,9 @@ def post_pull_request_comment(status, branch, github_creds):
 
     return bash(
     ('curl -H "Authorization: token %s" -X POST '
-        '-d \'{ "body": "Pull request:%s %s testing!" }\' '
+        '-d \'{ "body": "Pull request:%s %s testing! %s" }\' '
         'https://github.rackspace.com/api/v3/repos/%s/%s/issues/%s/comments') % (github_creds['oauth_token'], 
-        branch, status_string, github_creds['git_user'], github_creds['git_repo'], branch),
+        branch, status_string, url, github_creds['git_user'], github_creds['git_repo'], branch),
         verbose=False
     )
 
@@ -80,7 +80,9 @@ def main():
     success = False
     branch = sys.argv[1]
     github_cred_file = sys.argv[2]
+    jenkins_job_url = sys.argv[3]
     github_creds = get_github_credentials(github_cred_file)
+    bash("git config core.filemode false")
 
     setup_pull_request_branches()
     pr_branch = "pr/%s" % branch
@@ -101,13 +103,13 @@ def main():
     bash("mv .git/config.bak .git/config")
 
     if success:
-        post_pull_request_comment(True, branch, github_creds)
+        post_pull_request_comment(True, branch, github_creds, jenkins_job_url)
     else:
         print "Failed branch commit detail:"
         print "Branch %s:" % branch
         bash("git log master.." + pr_branch)
         bash("git branch -D " + pr_branch, False)
-        post_pull_request_comment(False, branch, github_creds)
+        post_pull_request_comment(False, branch, github_creds, jenkins_job_url)
         raise RuntimeError("There was a failure running tests!")
 
 if  __name__ =='__main__':main()
