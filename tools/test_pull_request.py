@@ -81,6 +81,7 @@ def main():
     branch = sys.argv[1]
     github_cred_file = sys.argv[2]
     github_creds = get_github_credentials(github_cred_file)
+    bash("git config core.filemode false")
 
     setup_pull_request_branches()
     pr_branch = "pr/%s" % branch
