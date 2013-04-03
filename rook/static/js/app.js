@@ -284,6 +284,14 @@ function AppController($scope, $http, $location, $resource, auth) {
 
   // Log in using credentials delivered through bound_credentials
   $scope.logIn = function() {
+    //Handle auto_complete sync issues
+    if ($scope.bound_creds.username != window.username.value)
+      $scope.bound_creds.username = window.username.value;
+    if ($scope.bound_creds.password != window.password.value)
+      $scope.bound_creds.password = window.password.value;
+    if ($scope.bound_creds.apikey != window.apikey.value)
+      $scope.bound_creds.apikey = window.apikey.value;
+
     var username = $scope.bound_creds.username;
     var password = $scope.bound_creds.password;
     var apikey = $scope.bound_creds.apikey;
@@ -439,6 +447,17 @@ function AppController($scope, $http, $location, $resource, auth) {
     };
     return {default_openstack: nova, default_legacy: legacy};
   };
+
+  //Return markdown as HTML
+  $scope.render_markdown = function(raw) {
+    if (raw !== undefined) {
+      try {
+        return marked(raw);
+      } catch(err) {}
+    }
+    return '';
+  };
+
 }
 
 function NavBarController($scope, $location) {
@@ -1796,45 +1815,32 @@ function DeploymentNewController($scope, $location, $routeParams, $resource, opt
     $scope.inputs['path'] = parsed.path || "/";
   };
 
-  $scope.UpdateURL = function(scope, option_id) {
-    var new_address = scope.protocol + '://' + scope.domain + scope.path;
-    var parsed = URI.parse(new_address);
-    if (!('hostname' in parsed)) {
-        $('#site_address_error').text("Domain name or IP address missing");
-        return;
-    }
-    if (!('protocol' in parsed)){
-        $('#site_address_error').text("Protocol (http or https) is missing");
-        return;
-    }
-    $('#site_address_error').text("");
+  $scope.UpdateURLOption = function(scope, option_id) {
     if ($scope.AcceptsSSLCertificate(scope) === true) {
       $scope.inputs[option_id] = {
-        url: new_address,
+        url: scope.url,
         certificate: scope.certificate,
         private_key: scope.private_key,
         intermediate_key: scope.intermediate_key
       };
     } else
-      $scope.inputs[option_id] = new_address;
+      $scope.inputs[option_id] = scope.url;
+  };
+
+  $scope.UpdateURL = function(scope, option_id) {
+    var new_address = scope.protocol + '://' + scope.domain + scope.path;
+    var parsed = URI.parse(new_address);
+    scope.url = new_address;
+    $scope.UpdateURLOption(scope, option_id);
   };
 
   $scope.UpdateParts = function(scope, option_id) {
-    try {
-      var parsed = URI.parse($scope.inputs[option_id]);
-      if (!('hostname' in parsed)) {
-          $('#site_address_error').text("Domain name or IP address missing");
-          return;
-      }
-      if (!('protocol' in parsed)){
-          $('#site_address_error').text("Protocol (http or https) is missing");
-          return;
-      }
-      scope.protocol = parsed.protocol;
-      scope.domain = parsed.hostname;
-      scope.path = parsed.path;
-    } catch(err) {}
-    $('#site_address_error').text("");
+    var input = scope.url || $scope.inputs[option_id];
+    var address = input.url || input;
+    var parsed = URI.parse(address);
+    scope.protocol = parsed.protocol;
+    scope.domain = parsed.hostname;
+    scope.path = parsed.path;
   };
 
   $scope.AcceptsSSLCertificate = function(scope) {
@@ -1851,44 +1857,6 @@ function DeploymentNewController($scope, $location, $routeParams, $resource, opt
     if ('url' in $scope.inputs && $scope.inputs['url'].indexOf('https') != -1)
       return true;
     return false;
-  };
-
-  // Display options using templates for each type
-  $scope.renderOption = function(option) {
-    var message;
-    if (!option) {
-      message = "The requested option is null";
-      console.log(message);
-      return "<em>" + message + "</em>";
-    }
-    if (!option.type || !_.isString(option.type)) {
-      message = "The requested option '" + option.id + "' has no type or the type is not a string.";
-      console.log(message);
-      return "<em>" + message + "</em>";
-    }
-    var lowerType = option.type.toLowerCase().trim();
-
-    if (option.label == "Domain") {
-        option.choice = $scope.domain_names;
-    }
-
-    if (["compute.os", "compute.memory", "region"].indexOf(lowerType) !== -1) {
-      lowerType = "select";
-    }
-
-    if (lowerType == "select") {
-      if ("choice" in option) {
-        if (!_.isString(option.choice[0]))
-          lowerType = lowerType + "-kv";
-      }
-    }
-    var template = $('#option-' + lowerType).html();
-    if (template === null) {
-      message = "No template for option type '" + option.type + "'.";
-      console.log(message);
-      return "<em>" + message + "</em>";
-    }
-      return (template || "").trim();
   };
 
   $scope.showOptions = function() {

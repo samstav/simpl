@@ -43,6 +43,50 @@ directives.directive('compileHtml', function($compile) {
   };
 });
 
+//New HTML tag hard-coded for use in New Deployment Form to display options
+directives.directive('cmOption', function($compile) {
+  return {
+    restrict: 'E',
+    scope: false,
+    replace: true,
+    link: function(scope, element, attrs) {
+      var option = scope.option;
+      var message;
+      var template = '';
+      if (!option) {
+        message = "The requested option is null";
+        console.log(message);
+        template = "<em>" + message + "</em>";
+      } else if (!option.type || !_.isString(option.type)) {
+        message = "The requested option '" + option.id + "' has no type or the type is not a string.";
+        console.log(message);
+        template = "<em>" + message + "</em>";
+      } else {
+        var lowerType = option.type.toLowerCase().trim();
+
+        if (option.label == "Domain") {
+            option.choice = $scope.domain_names;
+        }
+
+        if (lowerType == "select") {
+          if ("choice" in option) {
+            if (!_.isString(option.choice[0]))
+              lowerType = lowerType + "-kv";
+          }
+        }
+        template = $('#option-' + lowerType).html();
+        if (template === null) {
+          message = "No template for option type '" + option.type + "'.";
+          console.log(message);
+          template = "<em>" + message + "</em>";
+        }
+      }
+      template = (template || "").trim();
+      element.append($compile(template)(scope));
+    }
+  };
+});
+
 directives.directive('calculator', function factory() {
   var calculator = {
     templateUrl: '/static/RackspaceCalculator/index.html',
@@ -174,7 +218,6 @@ directives.directive('clippy', function factory() {
   return directiveDefinitionObject;
 });
 
-
 directives.directive('popover', function(){
     return function(scope, element, attrs) {
       var popover = element.popover({
@@ -201,26 +244,30 @@ directives.directive('validateOption', function () {
         restrict: 'A',
         require: 'ngModel',
         link: function (scope, elm, attrs, ctrl) {
+            var option = scope[attrs.validateOption];
 
             function validate(value) {
-              var option = scope[attrs.validateOption];
               var constraints = option.constraints;
               var index = 0;
               var valid = true;
-              console.log("validating", constraints, "from", option);
               _.each(constraints, function(constraint) {
                 if ('regex' in constraint) {
                   var patt = new RegExp(constraint.regex);
                   constraint.valid = patt.test(value || '');
-                  if (!patt.test(value || ''))
-                    valid = false;
+                } else if ('protocols' in constraint) {
+                  constraint.valid = constraint.protocols.indexOf((value || '').split(":")[0]) > -1;
                 } else {
                   constraint.valid = true;
                 }
-                ctrl.$setValidity('constraints', valid);
-                option.invalid = !valid;
+                if (constraint.valid === false)
+                    valid = false;
                 index += 1;
               });
+              var error_key = 'constraints' + option.id.replace('-', '');
+              ctrl.$setValidity(error_key, valid);
+              //FIXME: hack! dynamically generated control validation is not bubbling up otherwise
+              angular.element($('#newDeploymentForm')).scope().newDeploymentForm.$setValidity(error_key, valid, ctrl);
+              option.invalid = !valid;
               return valid ? value : undefined;
             }
 
@@ -231,8 +278,8 @@ directives.directive('validateOption', function () {
 
             //For model -> DOM validation
             ctrl.$formatters.unshift(function(value) {
-               ctrl.$setValidity('constraints', validate(value));
-               return value;
+              validate(value);
+              return value;
             });
         }
     };
