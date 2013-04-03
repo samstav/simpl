@@ -196,36 +196,41 @@ class Driver(DbBase):
 
             #try to get the lock
             print "TRYING FOR LOCK"
-            updated = self.database()[klass].find_and_modify(
+            locked_object = self.database()[klass].find_and_modify(
                 query={'_id' : obj_id, '_locked' : 0},
                 update={'_locked' : 1}
             )
 
-            if updated:
-
-                LOG.debug("LOCKED: %s" % updated['_id'])
+            if locked_object:
+                print "LOCKED: %s" % locked_object['_id']
+                collate(locked_object, body, extend_lists=False)
+                body = locked_object
                 #we have the locked object
                 break
             else:
-                object_exists = self.database()[klass].find_one(
+                existing_object = self.database()[klass].find_one(
                     {'_id': obj_id}
                 )
-                if not object_exists:
+                if not existing_object:
                     LOG.debug("NEW OBJECT: %s" % obj_id)
                     #this is a new object
                     break
-                elif '_locked' not in object_exists:
+                elif '_locked' not in existing_object:
                     #the object does not have a locked field, try for the lock.
-                    update_locked = self.database()[klass].find_and_modify(
+                    no_lock_object = self.database()[klass].find_and_modify(
                         query={'_id': obj_id,'_locked': {'$exists': False}},
                         update={ '$set': {'_locked': 1}}
                     )
-                    if update_locked:
+                    print "LOCKED: %s" % no_lock_object['_id']
+                    if no_lock_object:
+                        collate(no_lock_object, body, extend_lists=False)
+                        body = no_lock_object
                         #the locked field was inserted and set to locked
                         break
                 LOG.debug("FAILED to LOCK: %s:%s" % (klass, obj_id))
                 time.sleep(DEFAULT_TIMEOUT)
                 tries += 1
+
 
         if secrets is not None:
             if not secrets:
