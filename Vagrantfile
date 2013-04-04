@@ -44,6 +44,7 @@ Vagrant::Config.run do |config|
               { 'name' => 'chef',
                 'version' => '11.4.0' },
               { 'name' => 'librarian'},
+              { 'name' => 'berkshelf'},
               { 'name' => 'knife-solo',
                 'version' => '0.2.0' },
               { 'name' => 'knife-solo_data_bag',
