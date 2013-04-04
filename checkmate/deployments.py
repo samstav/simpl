@@ -433,20 +433,9 @@ def resource_postback(deployment_id, contents):
     The contents are a hash (dict) of all the above
     """
 
-    tries = 0
-    print "BEFORE WHILE: %s" % deployment_id
-    while tries < DEFAULT_RETRIES:
-        print "WHILE POSTBACK: %s" % deployment_id
-        deployment = DB.get_deployment(deployment_id, with_secrets=True)
-        if deployment:
-            print ("Deployment %s FOUND" % deployment_id)
-            break
-        else:
-            if tries == (DEFAULT_RETRIES - 1):
-                raise DatabaseTimeoutException("Deployment %s not found" % deployment_id)
-            print ("Deployment %s not found" % deployment_id)
-        tries += 1
-        time.sleep(DEFAULT_TIMEOUT)
+    deployment = DB.get_deployment(deployment_id, with_secrets=True)
+    if not deployment:
+        raise DatabaseTimeoutException("Deployment %s not found" % deployment_id)
 
     deployment = Deployment(deployment)
 
