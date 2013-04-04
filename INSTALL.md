@@ -110,6 +110,7 @@ knife-solo_data_bag:
     gem install knife-solo
     gem install knife-solo_data_bag
     gem install librarian
+    gem install berkshelf
 
 LKG: To install the last known good and tested config of Chef for the Checkmate
 server:
@@ -134,20 +135,22 @@ server:
     rvm gemset use checkmate
     # Install know good versions
     gem install bundler --no-rdoc --no-ri
-    gem install chef --version 10.12.0 --no-rdoc --no-ri
-    gem install knife-solo --version 0.0.13 --no-rdoc --no-ri
-    gem install knife-solo_data_bag --version 0.2.1 --no-rdoc --no-ri
+    gem install chef --version 11.4.0 --no-rdoc --no-ri
+    gem install knife-solo --version 0.2.0 --no-rdoc --no-ri
+    gem install knife-solo_data_bag --version 0.3.2 --no-rdoc --no-ri
     gem install librarian --version 0.0.24 --no-rdoc --no-ri
+    gem install berkshelf --version 1.2.1 --no-rdoc --no-ri
 
     # Install the same gems in global, because root from cron needs them
     rvm gemset use global
     gem install bundler --no-rdoc --no-ri
-    gem install chef --version 10.12.0 --no-rdoc --no-ri
-    gem install knife-solo --version 0.0.13 --no-rdoc --no-ri
+    gem install chef --version 11.4.0 --no-rdoc --no-ri
+    gem install knife-solo --version 0.2.0 --no-rdoc --no-ri
+    gem install knife-solo_data_bag --version 0.3.2 --no-rdoc --no-ri
     gem install librarian --version 0.0.24 --no-rdoc --no-ri
     # Verify
-    knife -v  # should show '10.12.0'
-    gem list knife  # should show solo at 0.0.13 and data_bag at 0.2.1
+    knife -v  # should show 'Chef: 11.4.0'
+    gem list knife  # should show solo at 0.2.0 and data_bag at 0.3.2
 
 ### MongoDB Installation
 
