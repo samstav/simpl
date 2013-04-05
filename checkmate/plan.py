@@ -10,7 +10,7 @@ from checkmate.exceptions import CheckmateException,\
 from checkmate.providers import ProviderBase
 from checkmate import utils
 from checkmate.deployment import verify_required_blueprint_options_supplied,\
-    Resource
+    Resource, verify_inputs_against_constraints
 
 LOG = logging.getLogger(__name__)
 DB = get_driver()
@@ -79,6 +79,7 @@ class Plan(ExtensibleDict):
 
         # Quick validations
         verify_required_blueprint_options_supplied(deployment)
+        verify_inputs_against_constraints(deployment)
 
     def plan(self, context):
         """Perform plan analysis. Returns a reference to planned resources"""
@@ -234,9 +235,10 @@ class Plan(ExtensibleDict):
                                                 provider_key=provider.key,
                                                 resource_type=resource['type'],
                                                 default=default_domain)
-                # Generate a default name
-                name = 'CM-%s-shared%s.%s' % (deployment['id'][0:7], key,
-                                              domain)
+                
+                name = utils.generate_resource_name(deployment, "shared%s.%s" % 
+                    (key, domain))
+
                 # Call provider to give us a resource template
                 result = (provider.generate_template(deployment,
                           resource['type'], None, context, name=name))

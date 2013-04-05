@@ -211,9 +211,10 @@ class ProviderBasePlanningMixIn():
         if service:
             result['service'] = service
         if not name:
-            name = 'CM-%s-%s' % (deployment['id'][0:7], resource_type)
-        if name:
-            result['dns-name'] = name
+            name = utils.generate_resource_name(deployment, resource_type)
+
+        result['dns-name'] = name
+
         context.kwargs["metadata"] = {"RAX-CHKMT": "1 {}-{} {} {}".format(
             checkmate.__version__, checkmate.__release__,
             deployment["id"], platform.node())}

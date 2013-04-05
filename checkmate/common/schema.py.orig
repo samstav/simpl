@@ -174,7 +174,11 @@ BLUEPRINT_SCHEMA = ['id', 'name', 'services', 'options', 'resources',
 
 DEPLOYMENT_SCHEMA = ['id', 'name', 'blueprint', 'environment', 'inputs',
         'includes', 'resources', 'workflow', 'status', 'created',
+<<<<<<< HEAD
+        'tenantId', 'errmessage', '_locked']
+=======
         'tenantId', 'errmessage']
+>>>>>>> 7cd584b59803b5a517e03d30de514092a4041855
 
 COMPONENT_SCHEMA = ['id', 'options', 'requires', 'provides', 'summary',
         'dependencies', 'version', 'is', 'role', 'roles', 'source_name']

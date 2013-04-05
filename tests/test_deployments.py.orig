@@ -209,6 +209,10 @@ class TestDeploymentDeployer(unittest.TestCase):
         #print json.dumps(parsed._data, indent=2)
         self.assertIn("wf_spec", workflow)
         self.assertEqual(parsed['status'], "PLANNED")
+<<<<<<< HEAD
+
+=======
+>>>>>>> 7cd584b59803b5a517e03d30de514092a4041855
 
 class TestDeploymentResourceGenerator(unittest.TestCase):
     def test_component_resource_generator(self):

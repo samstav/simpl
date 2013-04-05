@@ -70,6 +70,13 @@ class ExtensibleDict(collections.MutableMapping):
                 cls.__name__, '\n'.join(errors)))
 
     @classmethod
+<<<<<<< HEAD
+    def enum(*sequential, **named):
+        enums = dict(zip(sequential, range(len(sequential))), **named)
+        return type('Enum', (), enums)
+
+
+=======
     def inspect(cls, obj):
         """
 
@@ -82,3 +89,4 @@ class ExtensibleDict(collections.MutableMapping):
 
         """
         return schema.validate(obj, None)
+>>>>>>> 7cd584b59803b5a517e03d30de514092a4041855

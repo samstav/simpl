@@ -306,6 +306,41 @@ class TestDatabase(unittest.TestCase):
         body, secrets = extract_sensitive_data(self.default_deployment)
         results = self.driver.save_deployment(self.default_deployment['id'], body, secrets,
         tenant_id='T1000')
+<<<<<<< HEAD
+
+        self.driver.get_deployment(self.default_deployment['id'])
+        saved_deployment = self.driver.database()['deployments'].find_one(
+            {'_id': self.default_deployment['id']},
+            {'_id': 0}
+        )
+
+        self.assertEqual(saved_deployment['_locked'], 0)
+        del saved_deployment['_locked']
+        self.assertEqual(saved_deployment, self.default_deployment)
+        self.driver.database()['deployments'].remove({'_id': self.default_deployment['id']})
+
+    @unittest.skipIf(SKIP, REASON)
+    def test_locked_deployment(self):
+        mongodb.DEFAULT_RETRIES = 1
+        self.driver.database()['deployments'].remove({'_id': self.default_deployment['id']})
+        body, secrets = extract_sensitive_data(self.default_deployment)
+
+        results = self.driver.save_deployment(self.default_deployment['id'], body, secrets,
+        tenant_id='T1000')
+
+        updated = self.driver.database()['deployments'].find_and_modify(
+                query={'_id' : self.default_deployment['id'], '_locked' : 0},
+                update={'_locked' : 1}
+        )
+
+        try:
+            self.driver.save_deployment(self.default_deployment['id'], 
+                body, secrets, tenant_id='T1000')
+            raise Exception("self.default_Deployment:%s should have been locked!" % self.default_deployment['id'])
+        except AssertionError:
+            pass
+            
+=======
 
         self.driver.get_deployment(self.default_deployment['id'])
         saved_deployment = self.driver.database()['deployments'].find_one(
@@ -365,6 +400,7 @@ class TestDatabase(unittest.TestCase):
                 '_locked': {'$exists': True}}
             )
         )
+>>>>>>> 7cd584b59803b5a517e03d30de514092a4041855
         self.driver.database()['deployments'].remove({'_id': self.default_deployment['id']})
 
 if __name__ == '__main__':

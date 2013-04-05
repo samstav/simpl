@@ -19,6 +19,7 @@ from checkmate import utils
 from checkmate.common import schema
 from checkmate.exceptions import (CheckmateException,
                                   CheckmateValidationException)
+from checkmate.inputs import Input
 from checkmate.keys import hash_SHA512
 from checkmate.providers import ProviderBase
 from checkmate.workflows import wait_for
@@ -1354,11 +1355,15 @@ class ChefMap():
 
             Parse a url into its components.
 
+            :returns: Input parsed as url to support full option parsing
+
             returns a blank URL if none provided to make this a safe function
             to call from within a Jinja template which will generally not cause
-            exceptions and wqill always return a url object
+            exceptions and will always return a url object
             """
-            return urlparse.urlparse(value or '')
+            result = Input(value or '')
+            result.parse_url()
+            return result
         env.globals['parse_url'] = parse_url
         deployment = kwargs.get('deployment')
         resource = kwargs.get('resource')

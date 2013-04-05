@@ -460,20 +460,57 @@ def resource_postback(deployment_id, contents):
                 if r_msg not in deployment['errmessage']:
                     deployment['errmessage'].append(r_msg)
 
-    # Create new contents dict if values existed 
+    # Update contents dict _only_ if we didn't only update status
     # TODO: make this smarter
-    new_contents = {}
     for key, value in contents.items():
         if contents[key]:    
-            new_contents[key] = value
+            deployment.on_resource_postback(contents)
 
-    if new_contents:
-        deployment.on_resource_postback(new_contents)
+    # Check all resources statuses and update DEP status
+    count = 0
+    statuses = {"NEW": 0,
+                "BUILD": 0,
+                "CONFIGURE": 0,
+<<<<<<< HEAD
+                "INSTALLING": 0,
+=======
+>>>>>>> 7cd584b59803b5a517e03d30de514092a4041855
+                "ACTIVE": 0}
 
-    
-    print "DEP STATUS: %s" % deployment['status']
-    if deployment['status'] is "ERROR":
-        print "errmessage: %s" % deployment.get('errmessage')
+    resources = deployment['resources']
+    for key, value in resources.items():
+        if key.isdigit():
+            r_status = resources[key].get('status')
+            print "%s:%s, %s" % (key, r_status, resources[key].get('type'))
+            if r_status == "ERROR":
+                r_msg = resources[key].get('errmessage')
+                if "errmessage" not in deployment:
+                    deployment['errmessage'] = []
+                if r_msg not in deployment['errmessage']:
+                    deployment['errmessage'].append(r_msg)
+            statuses[r_status] += 1
+            count += 1
+
+    print ""
+    if deployment['status'] != "ERROR":
+        # Case 1: status is NEW
+        if statuses['NEW'] == count:
+            deployment['status'] = "NEW"
+        # Case 2: status is BUILD
+        elif statuses['BUILD'] >= 1:
+            deployment['status'] = "BUILD"
+        # Case 3: status is CONFIGURE
+<<<<<<< HEAD
+        elif (statuses['ACTIVE'] + statuses['CONFIGURE'] + statuses['INSTALLING']) == count:
+=======
+        elif (statuses['ACTIVE'] + statuses['CONFIGURE']) == count:
+>>>>>>> 7cd584b59803b5a517e03d30de514092a4041855
+            deployment['status'] = "CONFIGURE"
+        # Case 4: status is ACTIVE
+        elif statuses['ACTIVE'] == count:
+            deployment['status'] = "ACTIVE"
+        else:
+            LOG.debug("Could not identify a deployment status update")
 
     body, secrets = extract_sensitive_data(deployment)
     DB.save_deployment(deployment_id, body, secrets)

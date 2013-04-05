@@ -245,9 +245,19 @@ class TestDatabase(unittest.TestCase):
         db.sql.Session.commit()
         db.sql.DEFAULT_RETRIES = 1
 
+<<<<<<< HEAD
+        try:
+            self.driver.save_deployment(self.default_deployment['id'], 
+                body, secrets, tenant_id='T1000')
+            raise Exception("self.default_Deployment:%s should have been locked!" % self.default_deployment['id'])
+        except AssertionError:
+            pass
+
+=======
         with self.assertRaises(DatabaseTimeoutException):
             self.driver.save_deployment(self.default_deployment['id'],body, secrets, tenant_id='T1000')
   
+>>>>>>> 7cd584b59803b5a517e03d30de514092a4041855
         db.sql.Session.query(self.klass).filter_by(
             id=self.default_deployment['id']).delete()
   

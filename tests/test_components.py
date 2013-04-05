@@ -130,7 +130,7 @@ class TestComponents(unittest.TestCase):
 
 
 if __name__ == '__main__':
-    # Run tests. Handle our paramsters separately
+    # Run tests. Handle our paramaters separately
     import sys
     args = sys.argv[:]
     # Our --debug means --verbose for unitest

@@ -23,6 +23,7 @@ LOG = logging.getLogger(__name__)
 
 from checkmate import test, utils
 from checkmate.deployments import Deployment, plan
+from checkmate.inputs import Input
 from checkmate.middleware import RequestContext
 from checkmate.providers import base, register_providers
 from checkmate.providers.opscode import solo, knife
@@ -1794,6 +1795,37 @@ class TestTemplating(unittest.TestCase):
             'path': '/checkmate',
             'a': {'b': {'c': {'d': '/checkmate'}}}
             }
+        self.assertDictEqual(result, expected)
+
+    def test_parsing_functions_parse_url_Input(self):
+        """Test 'parse_url' function use in parsing of Inputs"""
+        chef_map = solo.ChefMap('')
+        chef_map._raw = """
+            id: foo
+            maps:
+            - value: {{ 1 }}
+              targets:
+              - attributes://here
+            \n--- # component bar
+            id: bar
+            maps:
+            - value: {{ parse_url({'url': 'http://github.com', 'certificate': 'TEST_CERT'}).certificate }}
+              targets:
+              - attributes://cert_target/certificate
+            - value: {{ parse_url({'url': 'http://github.com', 'certificate': 'TEST_CERT'}).protocol }}
+              targets:
+              - attributes://protocol_target/scheme
+        """
+        chef_map.parse(chef_map.raw)
+        result = chef_map.get_attributes('bar', None)
+        expected = {
+            'protocol_target': {
+                'scheme': 'http',
+            },
+            'cert_target': {
+                'certificate': 'TEST_CERT',
+            },
+        }
         self.assertDictEqual(result, expected)
 
     def test_parsing_functions_hash(self):

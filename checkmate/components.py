@@ -109,7 +109,7 @@ class Component(ExtensibleDict):
                                                self.get('id'), provider)
 
     @classmethod
-    def validate(cls, obj):
+    def inspect(cls, obj):
         errors = schema.validate(obj, schema.COMPONENT_SCHEMA)
         if 'provides' in obj:
             if not isinstance(obj['provides'], list):
@@ -154,9 +154,7 @@ class Component(ExtensibleDict):
         if 'is' in obj:
             if obj['is'] not in schema.RESOURCE_TYPES:
                 errors.append("Invalid resource type: %s" % obj['is'])
-        if errors:
-            raise CheckmateValidationException("Invalid component: %s" %
-                                               '\n'.join(errors))
+        return errors
 
     @property
     def provides(self):

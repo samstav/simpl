@@ -5,14 +5,18 @@ import os
 from urlparse import urlparse
 
 from checkmate import keys
+from checkmate.blueprints import Blueprint
 from checkmate.classes import ExtensibleDict
+from checkmate.constraints import Constraint
 from checkmate.common import schema
 from checkmate.db import get_driver
 from checkmate.environments import Environment
 from checkmate.exceptions import (CheckmateException,
                                   CheckmateValidationException)
+from checkmate.inputs import Input
 from checkmate.providers import ProviderBase
-from checkmate.utils import (merge_dictionary, get_time_string, is_ssh_key)
+from checkmate.utils import (merge_dictionary, get_time_string, is_ssh_key, 
+                            generate_resource_name, evaluate, is_evaluable)
 from bottle import abort
 
 LOG = logging.getLogger(__name__)
@@ -33,7 +37,39 @@ def verify_required_blueprint_options_supplied(deployment):
                     option.get('required') in ['true', True]:
                 if key not in bp_inputs:
                     raise CheckmateValidationException("Required blueprint "
-                            "input '%s' not supplied" % key)
+                                                       "input '%s' not "
+                                                       "supplied" % key)
+
+
+def verify_inputs_against_constraints(deployment):
+    """Check that inputs meet the option constraint criteria
+
+    Raise error if not
+    """
+    blueprint = deployment['blueprint']
+    if 'options' in blueprint:
+        inputs = deployment.get('inputs', {})
+        bp_inputs = inputs.get('blueprint', {})
+        for key, option in blueprint['options'].iteritems():
+            constraints = option.get('constraints')
+            if constraints:
+                value = bp_inputs.get(key, option.get('default'))
+                if not value:
+                    continue
+
+                # Handle special defaults
+                if is_evaluable(value):
+                    value = evaluate(value[1:])
+
+                for entry in constraints:
+                    constraint = Constraint.from_constraint(entry)
+                    if not constraint.test(Input(value)):
+                        msg = ("The input for option '%s' did not pass "
+                               "validation. The value was '%s'. The "
+                               "validation rule was %s" % (key, value if
+                               option.get('type') != 'password' else '*******',
+                               constraint.message))
+                        raise CheckmateValidationException(msg)
 
 
 def get_os_env_keys():
@@ -174,13 +210,13 @@ class Deployment(ExtensibleDict):
             self['created'] = get_time_string()
 
     @classmethod
-    def validate(cls, obj):
-        """ Validate Schema """
+    def inspect(cls, obj):
         errors = schema.validate(obj, schema.DEPLOYMENT_SCHEMA)
         errors.extend(schema.validate_inputs(obj))
-        if errors:
-            raise (CheckmateValidationException("Invalid %s: %s" % (
-                   cls.__name__, '\n'.join(errors))))
+        if 'blueprint' in obj:
+            if not Blueprint.is_supported_syntax(obj['blueprint']):
+                errors.extend(Blueprint.inspect(obj['blueprint']))
+        return errors
 
     def environment(self):
         """ Initialize environment from Deployment """
@@ -601,7 +637,7 @@ class Deployment(ExtensibleDict):
                 value = option.get('default')
                 LOG.debug("Default setting '%s' obtained from constraint "
                           "in blueprint input '%s': default=%s" % (
-                            name, option_key, value))
+                          name, option_key, value))
 
         # objectify the value it if it is a typed option
 
@@ -614,14 +650,19 @@ class Deployment(ExtensibleDict):
             attribute = constraint['attribute']
 
             if value:
-                if not isinstance(value, collections.Mapping):
+                result = None
+                if isinstance(value, Input):
+                    if hasattr(value, attribute):
+                        result = getattr(value, attribute)
+                elif isinstance(value, collections.Mapping):
+                    if attribute in value:
+                        result = value[attribute]
+                else:
                     raise CheckmateException("Could not read attribute '%s' "
                                              "while obtaining option '%s' "
                                              "since value is of type %s" % (
                                              attribute, name,
                                              type(value).__name__))
-                if attribute in value:
-                    result = value[attribute]
                 if result:
                     LOG.debug("Found setting '%s' from constraint. %s=%s" % (
                               name, option_key or name, result))
@@ -638,19 +679,10 @@ class Deployment(ExtensibleDict):
         if 'type' not in option:
             return value
         if option['type'] == 'url':
-            parts = urlparse(value)
-            return {
-                    'scheme': parts.scheme,
-                    'protocol': parts.scheme,
-                    'netloc': parts.netloc,
-                    'hostname': parts.hostname,
-                    'port': parts.port,
-                    'username': parts.username,
-                    'password': parts.password,
-                    'path': parts.path.strip('/'),
-                    'query': parts.query,
-                    'fragment': parts.fragment,
-                   }
+            result = Input(value)
+            if isinstance(value, basestring):
+                result.parse_url()
+            return result
         else:
             return value
 
@@ -767,8 +799,9 @@ class Deployment(ExtensibleDict):
 
         :returns: a validated dict of the resource ready to add to deployment
         """
-        # Generate a default name
-        name = 'CM-%s-%s%s.%s' % (self['id'][0:7], service_name, index, domain)
+        name = generate_resource_name(self, "%s%s.%s" % (
+            service_name, index, domain))
+        
         # Call provider to give us a resource template
         provider_key = definition['provider-key']
         provider = self.environment().get_provider(provider_key)
@@ -841,3 +874,40 @@ class Deployment(ExtensibleDict):
                         value = schema.translate(value)
                     raise (NotImplementedError("Global post-back values not "
                            "yet supported: %s" % key))
+
+            # Check all resources statuses and update DEP status
+            count = 0
+            statuses = {"NEW": 0,
+                        "BUILD": 0,
+                        "CONFIGURE": 0,
+                        "ACTIVE": 0}
+
+            resources = self['resources']
+            for key, value in resources.items():
+                if key.isdigit():
+                    r_status = resources[key].get('status')
+                    print "%s:%s, %s" % (key, r_status, resources[key].get('type'))
+                    if r_status == "ERROR":
+                        r_msg = resources[key].get('errmessage')
+                        if "errmessage" not in self:
+                            self['errmessage'] = []
+                        if r_msg not in self['errmessage']:
+                            self['errmessage'].append(r_msg)
+                    statuses[r_status] += 1
+                    count += 1
+
+            if self['status'] != "ERROR":
+                # Case 1: status is NEW
+                if statuses['NEW'] == count:
+                    self['status'] = "NEW"
+                # Case 2: status is BUILD
+                elif statuses['BUILD'] >= 1:
+                    self['status'] = "BUILD"
+                 # Case 3: status is CONFIGURE
+                elif (statuses['ACTIVE'] + statuses['CONFIGURE']) == count:
+                    self['status'] = "CONFIGURE"
+                # Case 4: status is ACTIVE
+                elif statuses['ACTIVE'] == count:
+                    self['status'] = "ACTIVE"
+                else:
+                    LOG.debug("Could not identify a deployment status update")

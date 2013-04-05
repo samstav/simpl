@@ -153,7 +153,7 @@ def execute_workflow(id, tenant_id=None):
 #
 @post('/workflows/<workflow_id>/specs/<spec_id>')
 @with_tenant
-def post_workflow_task(workflow_id, spec_id, tenant_id=None):
+def post_workflow_spec(workflow_id, spec_id, tenant_id=None):
     """Update a workflow spec
 
     :param workflow_id: checkmate workflow id
@@ -694,9 +694,7 @@ class Workflow(ExtensibleDict):
         self.id = self.get('id', uuid.uuid4().hex)
 
     @classmethod
-    def validate(cls, obj):
+    def inspect(cls, obj):
         errors = schema.validate(obj, schema.WORKFLOW_SCHEMA)
         errors.extend(schema.validate_inputs(obj))
-        if errors:
-            raise CheckmateValidationException("Invalid %s: %s" % (
-                    cls.__name__, '\n'.join(errors)))
+        return errors
