@@ -15,7 +15,8 @@ import sys
 import git
 import shutil
 import urlparse
-from git.exc import GitCommandError
+import time
+import hashlib
 
 LOG = logging.getLogger(__name__)
 
@@ -295,70 +296,102 @@ encrypted_data_bag_secret "%s"
     return (solo_file, secret_key_path)
 
 
-def _init_repo(path, source_repo=None):
-    """
+def _get_blueprints_cache_path(url):
+    """Return the path of the blueprint cache directory"""
+    utils.match_celery_logging(LOG)
+    LOG.debug("url: %s" % url)
+    prefix = os.environ.get("CHECKMATE_CHEF_LOCAL_PATH")
+    suffix = hashlib.md5(url).hexdigest()
+    return os.path.join(prefix, "cache", "blueprints", suffix)
 
-    Initialize a git repo.
 
-    If a remote is supplied, we pull it in.
-
-    If the remote has a reference appended as a fragment, we fetch that and
-    check it out as a detached head.
-
-    """
-    if not os.path.exists(path):
-        raise CheckmateException("Invalid repo path: %s" % path)
-
-    # Init git repo
-    repo = git.Repo.init(path)
-
-    if source_repo:  # Pull remote if supplied
-        source_repo, ref = urlparse.urldefrag(source_repo)
-        LOG.debug("Fetching ref %s from %s" % (ref or 'master', source_repo))
-        remotes = [r for r in repo.remotes
-                     if r.config_reader.get('url') == source_repo]
-        if remotes:
-            remote = remotes[0]
+def _cache_blueprint(url):
+    """Cache a blueprint repo or update an existing cache, if necessary"""
+    LOG.debug("Running providers.opscode.knife._cache_blueprint()...")
+    cache_expire_time = os.environ.get("CHECKMATE_BLUEPRINT_CACHE_EXPIRE")
+    if not cache_expire_time:
+        cache_expire_time = 3600
+        LOG.warning("CHECKMATE_BLUEPRINT_CACHE_EXPIRE variable not set. "
+                    "Defaulting to %s" % cache_expire_time)
+    cache_expire_time = int(cache_expire_time)
+    repo_cache = _get_blueprints_cache_path(url)
+    if os.path.exists(repo_cache):
+        # The mtime of .git/FETCH_HEAD changes upon every "git
+        # fetch".  FETCH_HEAD is only created after the first
+        # fetch, so use HEAD if it's not there
+        if os.path.isfile(os.path.join(repo_cache, ".git", "FETCH_HEAD")):
+            head_file = os.path.join(repo_cache, ".git", "FETCH_HEAD")
         else:
-            #FIXME: there's a gap here. We don't check if origin exists.
-            remote = repo.create_remote('origin', source_repo)
-        try:
-            remote.fetch(refspec=ref or 'master')
-        except GitCommandError as gce:
-            LOG.error("Error fetching source repo: %s" % str(gce))
-            raise gce
-        git_binary = git.Git(path)
-        git_binary.checkout('FETCH_HEAD')
-        LOG.debug("Fetched '%s' ref '%s' into repo: %s" % (source_repo,
-                                                          ref or 'master',
-                                                          path))
+            head_file = os.path.join(repo_cache, ".git", "HEAD")
+        last_update = time.time() - os.path.getmtime(head_file)
+        LOG.debug("cache_expire_time: %s" % cache_expire_time)
+        LOG.debug("last_update: %s" % last_update)
+        if last_update > cache_expire_time:
+            LOG.debug("Updating repo: %s" % repo_cache)
+            repo = git.Repo(repo_cache)
+            try:
+                repo.remotes.origin.pull()
+            except git.GitCommandError as exc:
+                LOG.debug("Unable to pull from git repository at %s.  "
+                          "Using the cached repository" % url)
+        else:
+            LOG.debug("Using cached repo: %s" % repo_cache)
     else:
-        # Make path a git repo
-        file_path = os.path.join(path, '.gitignore')
-        with file(file_path, 'w') as f:
-            f.write("#Checkmate Created Repo")
-        index = repo.index
-        index.add(['.gitignore'])
-        index.commit("Initial commit")
-        LOG.debug("Initialized blank repo: %s" % path)
+        LOG.debug("Cloning repo to %s" % repo_cache)
+        os.makedirs(repo_cache)
+        try:
+            git.Repo.clone_from(url, repo_cache)
+        except git.GitCommandError as exc:
+            raise CheckmateException("Git repository could not be cloned "
+                                     "from '%s'.  The error returned was "
+                                     "'%s'" % (url, exc))
 
 
-def _create_kitchen(name, path, secret_key=None):
+def _copy_kitchen_blueprint(dest, source_repo):
+    """Update the blueprint cache and copy the blueprint to the kitchen.
+
+    Arguments:
+    - `dest`: Path to the kitchen
+    - `source_repo`: URL of the git-hosted blueprint
+    """
+    utils.match_celery_logging(LOG)
+    _cache_blueprint(source_repo)
+    repo_cache = _get_blueprints_cache_path(source_repo)
+    if not os.path.exists(repo_cache):
+        raise CheckmateException("No blueprint repository found in %s" %
+                                 repo_cache)
+    LOG.debug("repo_cache: %s" % repo_cache)
+    LOG.debug("dest: %s" % dest)
+    blueprint_files = ["Berksfile", "Berksfile.lock", "Cheffile",
+                       "Cheffile.lock", "Chefmap"]
+    for blueprint_file in blueprint_files:
+        LOG.debug("blueprint_file: %s" % blueprint_file)
+        if os.path.exists(os.path.join(repo_cache, blueprint_file)):
+            shutil.copyfile(os.path.join(repo_cache, blueprint_file),
+                            os.path.join(dest, blueprint_file))
+
+
+def _create_kitchen(name, path, secret_key=None, source_repo=None):
     """Creates a new knife-solo kitchen in path
 
-    :param name: the name of the kitchen
-    :param path: where to create the kitchen
-    :param secret_key: PEM-formatted private key for data bag encryption
+    Arguments:
+    - `name`: The name of the kitchen
+    - `path`: Where to create the kitchen
+    - `source_repo`: URL of the git-hosted blueprint
+    - `secret_key`: PEM-formatted private key for data bag encryption
     """
+    utils.match_celery_logging(LOG)
     if not os.path.exists(path):
         raise CheckmateException("Invalid path: %s" % path)
 
     kitchen_path = os.path.join(path, name)
+
     if not os.path.exists(kitchen_path):
         os.mkdir(kitchen_path, 0770)
         LOG.debug("Created kitchen directory: %s" % kitchen_path)
     else:
         LOG.debug("Kitchen directory exists: %s" % kitchen_path)
+    _copy_kitchen_blueprint(kitchen_path, source_repo)
 
     nodes_path = os.path.join(kitchen_path, 'nodes')
     if os.path.exists(nodes_path):
@@ -595,7 +628,6 @@ def cook(host, environment, recipes=None, roles=None, path=None,
         params.extend(['-p', str(port)])
     _run_kitchen_command(kitchen_path, params)
 
-
 def download_cookbooks(environment, service_name, path=None, cookbooks=None,
         source=None, use_site=False):
     """Download cookbooks from a remote repo
@@ -652,7 +684,6 @@ def download_cookbooks(environment, service_name, path=None, cookbooks=None,
                     target)
             count += 1
     return count
-
 
 def download_roles(environment, service_name, path=None, roles=None,
                    source=None):
@@ -712,13 +743,14 @@ def download_roles(environment, service_name, path=None, roles=None,
 def _ensure_berkshelf_environment():
     """Checks the Berkshelf environment and sets it up if necessary."""
     berkshelf_path = os.environ.get("BERKSHELF_PATH")
+    utils.match_celery_logging(LOG)
     if not berkshelf_path:
         local_path = os.environ.get("CHECKMATE_CHEF_LOCAL_PATH")
         if not local_path:
             local_path = "/var/checkmate/deployments"
             LOG.warning("CHECKMATE_CHEF_LOCAL_PATH not defined. Using "
                         "%s" % local_path)
-        berkshelf_path = os.path.join(local_path, "berkshelf")
+        berkshelf_path = os.path.join(local_path, "cache")
         LOG.warning("BERKSHELF_PATH variable not set. Defaulting "
                     "to %s" % berkshelf_path)
         # Berkshelf relies on this being set as an environent variable
@@ -769,7 +801,8 @@ def create_environment(name, service_name, path=None, private_key=None,
     # Kitchen is created in a /kitchen subfolder since it gets completely
     # rsynced to hosts. We don't want the whole environment rsynced
     kitchen_data = _create_kitchen(service_name, fullpath,
-                                   secret_key=secret_key)
+                                   secret_key=secret_key,
+                                   source_repo=source_repo)
     kitchen_path = os.path.join(fullpath, service_name)
 
     # Copy environment public key to kitchen certs folder
@@ -782,7 +815,6 @@ def create_environment(name, service_name, path=None, private_key=None,
     LOG.debug("kitchen_path: %s" % kitchen_path)
     LOG.debug("source_repo: %s" % source_repo)
     if source_repo:
-        _init_repo(kitchen_path, source_repo=source_repo)
         # if Berksfile exists, run berks to pull in cookbooks
         if os.path.exists(os.path.join(kitchen_path, 'Berksfile')):
             _ensure_berkshelf_environment()
@@ -796,7 +828,6 @@ def create_environment(name, service_name, path=None, private_key=None,
                               lock=True)
             LOG.debug("Ran 'librarian-chef install' in: %s" % kitchen_path)
     else:
-        _init_repo(os.path.join(kitchen_path, 'cookbooks'))
         # Keep for backwards compatibility, but source_repo should be provided
         # Temporary Hack: load all cookbooks and roles from chef-stockton
         # TODO: Undo this and use more git

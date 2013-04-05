@@ -19,14 +19,12 @@ from mox import In, IsA, And, IgnoreArg, ContainsKeyValue, Not
 # Init logging before we load the database, 3rd party, and 'noisy' modules
 
 from checkmate.utils import init_console_logging
-from unittest.case import skip
 import checkmate
 init_console_logging()
 LOG = logging.getLogger(__name__)
 
 from checkmate import test, utils
 from checkmate.deployments import Deployment, plan
-from checkmate.inputs import Input
 from checkmate.middleware import RequestContext
 from checkmate.providers import base, register_providers
 from checkmate.providers.opscode import solo, knife
@@ -1237,7 +1235,7 @@ class TestChefMap(unittest.TestCase):
         os.environ['CHECKMATE_CHEF_LOCAL_PATH'] = '/tmp/checkmate-chefmap'
         self.local_path = '/tmp/checkmate-chefmap'
         self.url = 'https://github.com/checkmate/app.git'
-        self.cache_path = self.local_path + "/cache/opscode-solo/" + \
+        self.cache_path = self.local_path + "/cache/blueprints/" + \
             hashlib.md5(self.url).hexdigest()
         self.fetch_head_path = os.path.join(self.cache_path, ".git",
                                             "FETCH_HEAD")
@@ -1253,56 +1251,6 @@ class TestChefMap(unittest.TestCase):
         if os.path.exists(self.local_path):
             shutil.rmtree('/tmp/checkmate-chefmap')
         os.environ['CHECKMATE_CHEF_LOCAL_PATH'] = self.original_local_path
-
-    def test_remote_url_parser(self):
-        map_class = solo.ChefMap
-        cases = [
-            {
-                'name': 'github file',
-                'url': 'http://github.com/user/repo',
-                'file': 'test.yaml',
-                'expected': 'http://github.com/user/repo/raw/master/test.yaml',
-                },
-            {
-                'name': 'github path',
-                'url': 'http://github.com/user/repo/',
-                'file': 'dir/file.txt',
-                'expected':
-                        'http://github.com/user/repo/raw/master/dir/file.txt',
-                },
-            {
-                'name': 'with branch',
-                'url': 'http://github.com/user/repo#myBranch',
-                'file': 'file.txt',
-                'expected':
-                        'http://github.com/user/repo/raw/myBranch/file.txt',
-                },
-            {
-                'name': 'with .git extension',
-                'url': 'http://github.com/user/repo.git',
-                'file': 'file.txt',
-                'expected': 'http://github.com/user/repo/raw/master/file.txt',
-                },
-            {
-                'name': 'enterprise https',
-                'url': 'https://gh.acme.com/user/repo#a-branch',
-                'file': 'file.txt',
-                'expected':
-                        'https://gh.acme.com/user/repo/raw/a-branch/file.txt',
-                },
-            {
-                'name': 'git protocol',
-                'url': 'git://github.com/user/repo/',
-                'file': 'dir/file.txt',
-                'expected':
-                        'https://github.com/user/repo/raw/master/dir/file.txt',
-                },
-            ]
-
-        for case in cases:
-            result = map_class.get_remote_raw_url(case['url'],
-                    case['file'])
-            self.assertEqual(result, case['expected'], msg=case['name'])
 
     def test_get_map_file_hit_cache(self):
         """Test remote map file retrieval (cache hit)"""

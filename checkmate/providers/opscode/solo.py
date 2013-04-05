@@ -4,9 +4,6 @@ import json
 import logging
 import os
 import urlparse
-import git
-import time
-import hashlib
 
 from jinja2 import DictLoader, TemplateError
 from jinja2.sandbox import ImmutableSandboxedEnvironment
@@ -24,6 +21,7 @@ from checkmate.exceptions import (CheckmateException,
 from checkmate.inputs import Input
 from checkmate.keys import hash_SHA512
 from checkmate.providers import ProviderBase
+from checkmate.providers.opscode import knife
 from checkmate.workflows import wait_for
 from checkmate.utils import merge_dictionary  # Spiff version used by transform
 
@@ -949,75 +947,10 @@ class ChefMap():
             self._parsed = self.parse(self.raw)
         return self._parsed
 
-    @staticmethod
-    def get_remote_raw_url(source, path="Chefmap"):
-        """Calculates the raw URL for a file based off a source repo"""
-        source_repo, ref = urlparse.urldefrag(source)
-        url = urlparse.urlparse(source_repo)
-        if url.scheme == 'file':
-            result = os.path.join(source_repo, path)
-        else:
-            if url.path.endswith('.git'):
-                repo_path = url.path[:-4]
-            else:
-                repo_path = url.path
-            scheme = url.scheme if url.scheme != 'git' else 'https'
-            full_path = os.path.join(repo_path, 'raw', ref or 'master', path)
-            result = urlparse.urlunparse((scheme, url.netloc, full_path,
-                                          url.params, url.query, url.fragment))
-        return result
-
-    def _cache_path(self):
-        """Return the path of the blueprint cache directory"""
-        prefix = os.environ.get("CHECKMATE_CHEF_LOCAL_PATH")
-        suffix = hashlib.md5(self.url).hexdigest()
-        return os.path.join(prefix, "cache", "opscode-solo", suffix)
-
-    def _cache_blueprint(self):
-        """Cache a blueprint repo or update an existing cache, if necessary"""
-        LOG.debug("Running providers.opscode.solo.cache_blueprint()...")
-        cache_expire_time = os.environ.get("CHECKMATE_BLUEPRINT_CACHE_EXPIRE")
-        if not cache_expire_time:
-            cache_expire_time = 3600
-            LOG.warning("CHECKMATE_BLUEPRINT_CACHE_EXPIRE variable not set. "
-                        "Defaulting to %s" % cache_expire_time)
-        cache_expire_time = int(cache_expire_time)
-        repo_cache = self._cache_path()
-        if os.path.exists(repo_cache):
-            # The mtime of .git/FETCH_HEAD changes upon every "git
-            # fetch".  FETCH_HEAD is only created after the first
-            # fetch, so use HEAD if it's not there
-            if os.path.isfile(os.path.join(repo_cache, ".git", "FETCH_HEAD")):
-                head_file = os.path.join(repo_cache, ".git", "FETCH_HEAD")
-            else:
-                head_file = os.path.join(repo_cache, ".git", "HEAD")
-            last_update = time.time() - os.path.getmtime(head_file)
-            LOG.debug("cache_expire_time: %s" % cache_expire_time)
-            LOG.debug("last_update: %s" % last_update)
-            if last_update > cache_expire_time:
-                LOG.debug("Updating repo: %s" % repo_cache)
-                repo = git.Repo(repo_cache)
-                try:
-                    repo.remotes.origin.pull()
-                except git.GitCommandError as exc:
-                    LOG.debug("Unable to pull from git repository at %s.  "
-                              "Using the cached repository" % self.url)
-            else:
-                LOG.debug("Using cached repo: %s" % repo_cache)
-        else:
-            LOG.debug("Cloning repo to %s" % repo_cache)
-            os.makedirs(repo_cache)
-            try:
-                git.Repo.clone_from(self.url, repo_cache)
-            except git.GitCommandError as exc:
-                raise CheckmateException("Git repository could not be cloned "
-                                         "from '%s'.  The error returned was "
-                                         "'%s'" % (self.url, exc))
-
     def get_map_file(self):
         """Return the Chefmap file as a string"""
-        self._cache_blueprint()
-        repo_cache = self._cache_path()
+        knife._cache_blueprint(self.url)
+        repo_cache = knife._get_blueprints_cache_path(self.url)
         if os.path.exists(os.path.join(repo_cache, "Chefmap")):
             with open(os.path.join(repo_cache, "Chefmap")) as chef_map:
                 return chef_map.read()
