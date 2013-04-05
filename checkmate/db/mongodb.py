@@ -11,7 +11,9 @@ from checkmate.exceptions import CheckmateDatabaseConnectionError
 from checkmate.utils import merge_dictionary
 from SpiffWorkflow.util import merge_dictionary as collate
 
+
 LOG = logging.getLogger(__name__)
+
 
 class Driver(DbBase):
     """MongoDB Database Driver"""

@@ -29,6 +29,7 @@ from checkmate.utils import yaml_to_dict, dict_to_yaml
 
 os.environ['CHECKMATE_DOMAIN'] = 'checkmate.local'
 
+
 class TestDeployments(unittest.TestCase):
     def test_schema(self):
         """Test the schema validates a deployment with all possible fields"""
@@ -1024,7 +1025,7 @@ class TestDeploymentSettings(unittest.TestCase):
         msg = "Typed option should return type"
         self.assertIsInstance(deployment._objectify({'type': 'url'},
                                                     'http://fqdn'),
-                              Input, msg=msg)
+                              dict, msg=msg)
 
     def test_apply_constraint_attribute(self):
         deployment = yaml_to_dict("""

@@ -23,6 +23,7 @@ from checkmate.exceptions import CheckmateDatabaseMigrationError
 from checkmate.utils import merge_dictionary
 from SpiffWorkflow.util import merge_dictionary as collate
 
+
 __all__ = ['Base', 'Environment', 'Blueprint', 'Deployment', 'Component',
            'Workflow']
 
