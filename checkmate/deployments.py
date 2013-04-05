@@ -470,7 +470,11 @@ def resource_postback(deployment_id, contents):
     if new_contents:
         deployment.on_resource_postback(new_contents)
 
-    
+    resources = deployment['resources']
+    for k, v in resources.items():
+        if k.isdigit():
+            print "%s:%s, %s" % (k, resources[k]['status'], resources[k].get('type'))
+
     print "DEP STATUS: %s" % deployment['status']
     if deployment['status'] is "ERROR":
         print "errmessage: %s" % deployment.get('errmessage')

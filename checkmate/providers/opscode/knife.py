@@ -583,6 +583,22 @@ def cook(host, environment, resource, recipes=None, roles=None, path=None,
          username='root', password=None, identity_file=None, port=22,
          attributes=None, kitchen_name='kitchen'):
     """Apply recipes/roles to a server"""
+
+    results = {}
+
+    # Update status of host resource to CONFIGURE incase this is a re-build
+    host_results = {}
+    host_results['status'] = "CONFIGURE"
+    host_key = 'instance:%s' % resource['hosted_on']
+    results[host_key] = host_results
+
+    # Update status of current resource to BUILD incase this is a re-build
+    resource_results = {}
+    resource_results['status'] = "BUILD"
+    instance_key = 'instance:%s' % resource['index']
+    results[instance_key] = resource_results
+    resource_postback.delay(environment, results)
+
     utils.match_celery_logging(LOG)
     root = _get_root_environments_path(environment, path)
 

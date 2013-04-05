@@ -886,7 +886,6 @@ class Deployment(ExtensibleDict):
             for key, value in resources.items():
                 if key.isdigit():
                     r_status = resources[key].get('status')
-                    print "%s:%s, %s" % (key, r_status, resources[key].get('type'))
                     if r_status == "ERROR":
                         r_msg = resources[key].get('errmessage')
                         if "errmessage" not in self:
@@ -896,6 +895,8 @@ class Deployment(ExtensibleDict):
                     statuses[r_status] += 1
                     count += 1
 
+            print "STATUSES: %s" % statuses
+            print "COUNT: %s" % count
             if self['status'] != "ERROR":
                 # Case 1: status is NEW
                 if statuses['NEW'] == count:
@@ -903,11 +904,11 @@ class Deployment(ExtensibleDict):
                 # Case 2: status is BUILD
                 elif statuses['BUILD'] >= 1:
                     self['status'] = "BUILD"
-                 # Case 3: status is CONFIGURE
-                elif (statuses['ACTIVE'] + statuses['CONFIGURE']) == count:
-                    self['status'] = "CONFIGURE"
                 # Case 4: status is ACTIVE
                 elif statuses['ACTIVE'] == count:
                     self['status'] = "ACTIVE"
+                # Case 3: status is CONFIGURE
+                elif (statuses['ACTIVE'] + statuses['CONFIGURE']) == count:
+                    self['status'] = "CONFIGURE"
                 else:
                     LOG.debug("Could not identify a deployment status update")
