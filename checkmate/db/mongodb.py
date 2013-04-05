@@ -11,7 +11,9 @@ from checkmate.exceptions import CheckmateDatabaseConnectionError
 from checkmate.utils import merge_dictionary
 from SpiffWorkflow.util import merge_dictionary as collate
 
+
 LOG = logging.getLogger(__name__)
+
 
 class Driver(DbBase):
     """MongoDB Database Driver"""
@@ -106,6 +108,23 @@ class Driver(DbBase):
         return self.save_object('workflows', id, body, secrets, tenant_id)
 
     # GENERIC
+    def retry_for_lock(self, id, query):
+        '''
+        Retries the specified query, just incase a lock is blocking reads.
+        :param id : used for displaying an error
+        :param query: the db query to run 
+        '''
+        tries = 0
+        while tries < DEFAULT_RETRIES:
+            results = query()
+            if results:
+                return results
+            else:
+                if tries == (DEFAULT_RETRIES - 1):
+                    raise DatabaseTimeoutException("%s not found" % id)
+            tries += 1
+            time.sleep(DEFAULT_TIMEOUT)
+
     def get_object(self, klass, id, with_secrets=None):
         '''
         Get an object by klass and id. We are filtering out the 
@@ -115,14 +134,23 @@ class Driver(DbBase):
         :param id: The collection item to get
         :param with_secrets: Merge secrets with the results
         '''
-        results = self.database()[klass].find_one({'_id': id}, {'_id': 0})
+        results = self.retry_for_lock(
+            id, 
+            lambda: self.database()[klass].find_one({'_id': id}, {'_id': 0})
+        )
+
         if results:
             if '_locked' in results:
                 del results['_locked']
   
             if with_secrets is True:
-                secrets = self.database()['%s_secrets' % klass].find_one(
-                        {'_id': id}, {'_id': 0})
+                secrets = self.retry_for_lock(
+                    id,
+                    lambda: self.database()['%s_secrets' % klass].find_one(
+                        {'_id': id}, {'_id': 0}
+                    )
+                )
+
                 if secrets:
                     merge_dictionary(results, secrets)
             return results
@@ -133,31 +161,58 @@ class Driver(DbBase):
             if limit:
                 if offset is None:
                     offset = 0
-                results = (self.database()[klass].find({'tenantId': tenant_id},
-                           {'_id': 0}).skip(offset).limit(limit))
+                results = self.retry_for_lock(
+                    tenant_id, 
+                    lambda: (self.database()[klass].find({'tenantId': tenant_id},
+                       {'_id': 0}).skip(offset).limit(limit)
+                    )
+                )
             elif offset and (limit is None):
-                 results = (self.database()[klass].find({'tenantId': tenant_id},
-                           {'_id': 0}).skip(offset))
+                results = self.retry_for_lock(
+                    tenant_id, 
+                    lambda: (self.database()[klass].find({'tenantId': tenant_id},
+                       {'_id': 0}).skip(offset)
+                    )
+                )
             else:
-                results = self.database()[klass].find({'tenantId': tenant_id},
-                                                      {'_id': 0})
+                results = self.retry_for_lock(
+                    tenant_id, 
+                    lambda: self.database()[klass].find({'tenantId': tenant_id},
+                        {'_id': 0}
+                    )
+                )
         else:
             if limit:
                 if offset is None:
                     offset = 0
-                results = (self.database()[klass].find(None,
-                           {'_id': 0}).skip(offset).limit(limit))
+                results = self.retry_for_lock(
+                    tenant_id, 
+                    lambda: (self.database()[klass].find(None,
+                           {'_id': 0}).skip(offset).limit(limit)
+                    )
+                )
             elif offset and (limit is None):
-                results = (self.database()[klass].find(None,
-                           {'_id': 0}).skip(offset))
+                results = self.retry_for_lock(
+                    tenant_id, 
+                    lambda: (self.database()[klass].find(None,
+                           {'_id': 0}).skip(offset)
+                    )
+                )
             else:
-                results = self.database()[klass].find(None, {'_id': 0})
+                results = self.retry_for_lock(
+                    tenant_id, 
+                    lambda: self.database()[klass].find(None, {'_id': 0})
+                )
         if results:
             response = {}
             if with_secrets is True:
                 for entry in results:
-                    secrets = self.database()['%s_secrets' % klass].find_one(
-                            {'_id': entry['id']}, {'_id': 0})
+                    secrets = self.retry_for_lock(
+                        entry['id'],
+                        lambda: self.database()['%s_secrets' % klass].find_one(
+                            {'_id': entry['id']}, {'_id': 0}
+                        )
+                    )
                     if secrets:
                         response[entry['id']] = merge_dictionary(entry,
                                                                        secrets)
@@ -195,36 +250,42 @@ class Driver(DbBase):
                     "database the maximum amount of retries.")
 
             #try to get the lock
-            updated = self.database()[klass].find_and_modify(
+            print "TRYING FOR LOCK"
+            locked_object = self.database()[klass].find_and_modify(
                 query={'_id' : obj_id, '_locked' : 0},
                 update={'_locked' : 1}
             )
 
-            if updated:
-
-                LOG.debug("LOCKED: %s" % updated['_id'])
+            if locked_object:
+                print "LOCKED: %s" % locked_object['_id']
+                collate(locked_object, body, extend_lists=False)
+                body = locked_object
                 #we have the locked object
                 break
             else:
-                object_exists = self.database()[klass].find_one(
+                existing_object = self.database()[klass].find_one(
                     {'_id': obj_id}
                 )
-                if not object_exists:
+                if not existing_object:
                     LOG.debug("NEW OBJECT: %s" % obj_id)
                     #this is a new object
                     break
-                elif '_locked' not in object_exists:
+                elif '_locked' not in existing_object:
                     #the object does not have a locked field, try for the lock.
-                    update_locked = self.database()[klass].find_and_modify(
+                    no_lock_object = self.database()[klass].find_and_modify(
                         query={'_id': obj_id,'_locked': {'$exists': False}},
                         update={ '$set': {'_locked': 1}}
                     )
-                    if update_locked:
+                    print "LOCKED: %s" % no_lock_object['_id']
+                    if no_lock_object:
+                        collate(no_lock_object, body, extend_lists=False)
+                        body = no_lock_object
                         #the locked field was inserted and set to locked
                         break
                 LOG.debug("FAILED to LOCK: %s:%s" % (klass, obj_id))
                 time.sleep(DEFAULT_TIMEOUT)
                 tries += 1
+
 
         if secrets is not None:
             if not secrets:

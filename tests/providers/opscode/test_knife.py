@@ -316,13 +316,13 @@ class TestKnife(unittest.TestCase):
         self.mox.StubOutWithMock(os, 'mkdir')
         os.mkdir(fullpath, 0770).AndReturn(True)
         self.mox.StubOutWithMock(knife, '_get_root_environments_path')
-        knife._get_root_environments_path(path).AndReturn(path)
+        knife._get_root_environments_path('test', path).AndReturn(path)
         self.mox.StubOutWithMock(knife, '_create_environment_keys')
-        knife._create_environment_keys(fullpath, private_key="PPP",
+        knife._create_environment_keys('test', fullpath, private_key="PPP",
                                        public_key_ssh="SSH").AndReturn(
                                        dict(keys="keys"))
         self.mox.StubOutWithMock(knife, '_create_kitchen')
-        knife._create_kitchen(service, fullpath, secret_key="SSS")\
+        knife._create_kitchen('test', service, fullpath, secret_key="SSS")\
                 .AndReturn(dict(kitchen="kitchen_path"))
         kitchen_path = os.path.join(fullpath, service)
         public_key_path = os.path.join(fullpath, 'checkmate.pub')
@@ -347,10 +347,11 @@ class TestKnife(unittest.TestCase):
         gb_mock.checkout('FETCH_HEAD').AndReturn(True)
 
         os.path.exists(os.path.join(kitchen_path, 'Berksfile')).AndReturn(True)
+        #os.path.exists(os.path.join(kitchen_path, 'Cheffile')).AndReturn(False)
         self.mox.StubOutWithMock(os, 'chdir')
         os.chdir(kitchen_path).AndReturn(True)
         self.mox.StubOutWithMock(knife, 'check_all_output')
-        knife.check_all_output(['berks', 'install', '--path',
+        knife.check_all_output('test', ['berks', 'install', '--path',
                 os.path.join(kitchen_path, 'cookbooks')]).AndReturn('OK')
 
         self.mox.ReplayAll()
@@ -362,8 +363,7 @@ class TestKnife(unittest.TestCase):
                                                       private_key="PPP",
                                                       public_key_ssh="SSH",
                                                       secret_key="SSS",
-                                                      source_repo="git://ggg"),
-                             expected)
+                                                      source_repo="git://ggg"), expected)
         self.mox.VerifyAll()
 
 

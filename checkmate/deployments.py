@@ -1,5 +1,6 @@
 import logging
 import uuid
+import time
 
 from bottle import request, response, abort, \
     get, post, route  # @UnresolvedImport
@@ -11,6 +12,8 @@ from checkmate import orchestrator
 from checkmate.db import get_driver, any_id_problems
 from checkmate.exceptions import CheckmateDoesNotExist, \
     CheckmateValidationException, CheckmateBadState
+from checkmate.db.common import DEFAULT_RETRIES, DEFAULT_TIMEOUT, \
+    DatabaseTimeoutException
 from checkmate.workflows import create_workflow_deploy, \
     create_workflow_spec_deploy
 from checkmate.utils import (write_body, read_body, extract_sensitive_data,
@@ -432,7 +435,7 @@ def resource_postback(deployment_id, contents):
 
     deployment = DB.get_deployment(deployment_id, with_secrets=True)
     if not deployment:
-        raise IndexError("Deployment %s not found" % deployment_id)
+        raise DatabaseTimeoutException("Deployment %s not found" % deployment_id)
 
     deployment = Deployment(deployment)
 

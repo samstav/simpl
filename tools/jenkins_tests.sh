@@ -1,5 +1,5 @@
 #!/bin/bash
-
+set -e
 ### Run tests ###
 ### Configure rvm use for chef tests.
 . ~/.rvm/environments/ruby-1.9.3-p125@checkmate

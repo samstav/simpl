@@ -7,6 +7,8 @@ import uuid
 from pymongo import Connection, uri_parser
 from pymongo.errors import AutoReconnect, InvalidURI
 
+
+
 # Init logging before we load the database, 3rd party, and 'noisy' modules
 from checkmate.utils import init_console_logging
 from checkmate.db.common import DatabaseTimeoutException
