@@ -666,7 +666,11 @@ def add_node(context, lbid, ipaddr, region, resource, api=None):
     if relations_count == node_count:
         status_results = {'status': "ACTIVE"}
         instance_key = 'instance:%s' % context['resource']
+<<<<<<< HEAD
         status_results = {instance_key: status_results}
+=======
+        results = {instance_key: status_results}
+>>>>>>> 7cd584b59803b5a517e03d30de514092a4041855
         resource_postback.delay(context['deployment'], status_results)
     
 

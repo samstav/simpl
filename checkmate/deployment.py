@@ -874,3 +874,41 @@ class Deployment(ExtensibleDict):
                         value = schema.translate(value)
                     raise (NotImplementedError("Global post-back values not "
                            "yet supported: %s" % key))
+
+            # Check all resources statuses and update DEP status
+            count = 0
+            statuses = {"NEW": 0,
+                        "BUILD": 0,
+                        "CONFIGURE": 0,
+                        "ACTIVE": 0}
+
+            resources = self['resources']
+            for key, value in resources.items():
+                if key.isdigit():
+                    r_status = resources[key].get('status')
+                    if r_status == "ERROR":
+                        r_msg = resources[key].get('errmessage')
+                        if "errmessage" not in self:
+                            self['errmessage'] = []
+                        if r_msg not in self['errmessage']:
+                            self['errmessage'].append(r_msg)
+                    statuses[r_status] += 1
+                    count += 1
+
+            print "STATUSES: %s" % statuses
+            print "COUNT: %s" % count
+            if self['status'] != "ERROR":
+                # Case 1: status is NEW
+                if statuses['NEW'] == count:
+                    self['status'] = "NEW"
+                # Case 2: status is BUILD
+                elif statuses['BUILD'] >= 1:
+                    self['status'] = "BUILD"
+                # Case 4: status is ACTIVE
+                elif statuses['ACTIVE'] == count:
+                    self['status'] = "ACTIVE"
+                # Case 3: status is CONFIGURE
+                elif (statuses['ACTIVE'] + statuses['CONFIGURE']) == count:
+                    self['status'] = "CONFIGURE"
+                else:
+                    LOG.debug("Could not identify a deployment status update")
