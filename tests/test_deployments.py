@@ -1023,9 +1023,7 @@ class TestDeploymentSettings(unittest.TestCase):
                          msg=msg)
 
         msg = "Typed option should return type"
-        self.assertIsInstance(deployment._objectify({'type': 'url'},
-                                                    'http://fqdn'),
-                              dict, msg=msg)
+        self.assertIsInstance(deployment._objectify({'type': 'url'},'http://fqdn'), Input, msg=msg)
 
     def test_apply_constraint_attribute(self):
         deployment = yaml_to_dict("""
