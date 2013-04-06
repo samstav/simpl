@@ -161,8 +161,12 @@ def main_func():
                                          with_admin=with_admin)
         except ImportError as exc:
             LOG.exception(exc)
-            LOG.warning("Unable to load UI middleware. Make sure rook is "
-                        "installed.")
+            msg = ("Unable to load the UI (rook.middleware). Make sure rook "
+                   "is installed or run without the --with-ui argument.")
+            LOG.error(msg)
+            print msg
+            sys.exit(1)
+
     next_app = middleware.TenantMiddleware(next_app)
     next_app = middleware.ContextMiddleware(next_app)
     next_app = middleware.StripPathMiddleware(next_app)

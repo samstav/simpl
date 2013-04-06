@@ -3,7 +3,8 @@ import os
 from subprocess import call
 import sys
 
-if len(sys.argv) > 1 and sys.argv[1] == 'START':
+if (len(sys.argv) > 1 and sys.argv[1] == 'START' and '-h' not in sys.argv and
+        '--help' not in sys.argv):
     path = os.path.normpath(os.path.join(os.path.dirname(__file__), os.pardir,
                                          'checkmate', 'server.py'))
     params = ["python", path]
