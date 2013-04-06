@@ -4,15 +4,14 @@ import os
 import unittest2 as unittest
 import uuid
 import json
+import time
 
 from pymongo import Connection, uri_parser
 from pymongo.errors import AutoReconnect, InvalidURI
 
-
-
 # Init logging before we load the database, 3rd party, and 'noisy' modules
 from checkmate.utils import init_console_logging
-from checkmate.db.common import DatabaseTimeoutException
+from checkmate.db.common import DatabaseTimeoutException, DEFAULT_STALE_LOCK_TIMEOUT
 from copy import deepcopy
 init_console_logging()
 LOG = logging.getLogger(__name__)
@@ -332,7 +331,7 @@ class TestDatabase(unittest.TestCase):
 
         updated = self.driver.database()['deployments'].find_and_modify(
                 query={'_id' : self.default_deployment['id'], '_locked' : 0},
-                update={'_locked' : 1}
+                update={'_locked' : time.time()}
         )
 
         with self.assertRaises(DatabaseTimeoutException):
@@ -371,12 +370,42 @@ class TestDatabase(unittest.TestCase):
         self.driver.database()['deployments'].remove({'_id': self.default_deployment['id']})
 
     @unittest.skipIf(SKIP, REASON)
-    def drewtest(self):
-        print "before"
-        print self.driver.get_deployment(self.default_deployment['id'])
-        print "after"
-        raise IndexError("here")
+    def test_stale_lock(self):
+        mongodb.DEFAULT_RETRIES = 1
+        self.driver.database()['deployments'].remove({'_id': self.default_deployment['id']})
+        body, secrets = extract_sensitive_data(self.default_deployment)
 
+        #insert into db
+        print self.driver.database()['deployments'].insert(
+            {'_id': self.default_deployment['id']},
+            body
+        )
+        #save, should get a _locked here
+        self.driver.save_deployment(self.default_deployment['id'], body, secrets, tenant_id='T1000')
+        #check unlocked
+        self.assertTrue(
+            self.driver.database()['deployments'].find_one(
+                {'_id': self.default_deployment['id'],
+                '_locked': 0
+                }
+            )
+        )
+        #set timestamp to a stale time
+        self.driver.database()['deployments'].update(
+            {'_id': self.default_deployment['id']},
+            {'$set' : {'_locked': time.time() - DEFAULT_STALE_LOCK_TIMEOUT}}
+        )
+        #test remove stale lock
+        self.driver.save_deployment(self.default_deployment['id'], body, secrets, tenant_id='T1000')
+        #check unlocked
+        self.assertTrue(
+            self.driver.database()['deployments'].find_one(
+                {'_id': self.default_deployment['id'],
+                '_locked': 0
+                }
+            )
+        )
+        self.driver.database()['deployments'].remove({'_id': self.default_deployment['id']})
 
 if __name__ == '__main__':
     # Run tests. Handle our paramsters separately

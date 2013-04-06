@@ -6,7 +6,7 @@ import json
 
 from checkmate.classes import ExtensibleDict
 from checkmate.db.common import DbBase, DEFAULT_RETRIES, DEFAULT_TIMEOUT, \
-    DatabaseTimeoutException
+    DEFAULT_STALE_LOCK_TIMEOUT, DatabaseTimeoutException
 from checkmate.exceptions import CheckmateDatabaseConnectionError
 from checkmate.utils import merge_dictionary
 from SpiffWorkflow.util import merge_dictionary as collate
@@ -195,6 +195,7 @@ class Driver(DbBase):
         #object locking logic
         results = None
         tries = 0
+        lock_timestamp = time.time()
         while not results or results.count() == 0:
             if tries > DEFAULT_RETRIES:
                 raise DatabaseTimeoutException("Attempted to query the "
@@ -204,7 +205,7 @@ class Driver(DbBase):
             print "TRYING FOR LOCK"
             locked_object = self.database()[klass].find_and_modify(
                 query={'_id' : obj_id, '_locked' : 0},
-                update={'_locked' : 1}
+                update={'_locked' : time.time()}
             )
 
             if locked_object:
@@ -217,22 +218,36 @@ class Driver(DbBase):
                 existing_object = self.database()[klass].find_one(
                     {'_id': obj_id}
                 )
+
                 if not existing_object:
                     LOG.debug("NEW OBJECT: %s" % obj_id)
                     #this is a new object
                     break
+
                 elif '_locked' not in existing_object:
                     #the object does not have a locked field, try for the lock.
                     no_lock_object = self.database()[klass].find_and_modify(
                         query={'_id': obj_id,'_locked': {'$exists': False}},
-                        update={ '$set': {'_locked': 1}}
+                        update={ '$set': {'_locked': time.time()}}
                     )
-                    print "LOCKED: %s" % no_lock_object['_id']
                     if no_lock_object:
                         collate(no_lock_object, body, extend_lists=False)
                         body = no_lock_object
                         #the locked field was inserted and set to locked
                         break
+
+                elif (lock_timestamp - existing_object['_locked']) >= \
+                    DEFAULT_STALE_LOCK_TIMEOUT:
+                    #the lock is stale, remove it
+                    print 'STALE %s:%s' % (lock_timestamp, existing_object['_locked'])
+                    stale_lock_object = self.database()[klass].find_and_modify(
+                        query={'_id' : obj_id, '_locked' : existing_object['_locked']},
+                        update={'_locked' : lock_timestamp}
+                    )
+                    if stale_lock_object:
+                        #updated the stale lock
+                        break
+
                 LOG.debug("FAILED to LOCK: %s:%s" % (klass, obj_id))
                 time.sleep(DEFAULT_TIMEOUT)
                 tries += 1

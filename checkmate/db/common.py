@@ -16,6 +16,8 @@ DB = None
 DEFAULT_TIMEOUT = 1
 #amount of retries to lock an object
 DEFAULT_RETRIES = 30
+#amount of time before a lock can be force deleted
+DEFAULT_STALE_LOCK_TIMEOUT = 10
 
 def any_id_problems(id):
     """Validates the ID provided is safe and returns problems as a string.
