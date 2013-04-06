@@ -18,6 +18,7 @@ LOG = logging.getLogger(__name__)
 class Driver(DbBase):
     """MongoDB Database Driver"""
     _connection = None
+    _client = None
 
     def __init__(self, *args, **kwargs):
         """Initializes globals for this driver"""
@@ -30,16 +31,17 @@ class Driver(DbBase):
         self._database = None
 
     def database(self):
-        """Connects to and returns mongodb database object"""
+        """ Connects to and returns mongodb database object """
         if self._database is None:
-            if self._connection is None:
+            if self._client is None:
                 try:
-                    self._connection = pymongo.Connection(
-                            self.connection_string)
+                    self._client = (pymongo.MongoClient(
+                                    self.connection_string))
                 except pymongo.errors.AutoReconnect as exc:
                     raise CheckmateDatabaseConnectionError(exc.__str__())
-
-            self._database = self._connection[self.db_name]
+            client = self._client
+            db_name = self.db_name
+            self._database = client.db_name
             LOG.info("Connected to mongodb on %s (database=%s)" %
                      (self.connection_string, self.db_name))
         return self._database
@@ -143,14 +145,14 @@ class Driver(DbBase):
         '''
         request = self.start_request()
         try:
-            results = self.database()[klass].find_one({'_id': id}, {'_id': 0})
+            results = self.database().klass.find_one({'_id': id}, {'_id': 0})
         
             if results:
                 if '_locked' in results:
                     del results['_locked']
   
                 if with_secrets is True:
-                    secrets = (self.database()['%s_secrets' % klass].find_one(
+                    secrets = (self.database().('%s_secrets' % klass).find_one(
                                {'_id': id}, {'_id': 0}))
                 if secrets:
                     merge_dictionary(results, secrets)
@@ -169,22 +171,22 @@ class Driver(DbBase):
                 if limit:
                     if offset is None:
                         offset = 0
-                    results = (self.database()[klass].find({'tenantId': tenant_id},
+                    results = (self.database().klass.find({'tenantId': tenant_id},
                                {'_id': 0}).skip(offset).limit(limit))
                 elif offset and (limit is None):
-                    results = (self.database()[klass].find({'tenantId': tenant_id},
+                    results = (self.database().klass.find({'tenantId': tenant_id},
                                {'_id': 0}).skip(offset))
                 else:
-                    results = (self.database()[klass].find({'tenantId': tenant_id},
+                    results = (self.database().klass.find({'tenantId': tenant_id},
                                {'_id': 0}))
             else:
                 if limit:
                     if offset is None:
                         offset = 0
-                    results = (self.database()[klass].find(None,
+                    results = (self.database().klass.find(None,
                                {'_id': 0}).skip(offset).limit(limit))
                 elif offset and (limit is None):
-                    results = (self.database()[klass].find(None,
+                    results = (self.database().klass.find(None,
                                {'_id': 0}).skip(offset))
                 else:
                     results = self.database()[klass].find(None, {'_id': 0})
@@ -192,7 +194,7 @@ class Driver(DbBase):
                 response = {}
                 if with_secrets is True:
                     for entry in results:
-                        secrets = (self.database()['%s_secrets' % klass].find_one(
+                        secrets = (self.database().('%s_secrets' % klass).find_one(
                                    {'_id': entry['id']}, {'_id': 0}))
                         if secrets:
                             response[entry['id']] = merge_dictionary(entry,
@@ -234,7 +236,7 @@ class Driver(DbBase):
                     # TODO: to catch bugs. We can remove when we're comfortable
                     assert False, "CLEARING CREDS! Is that intended?!!!!"
                 else:
-                    cur_secrets = (self.database()['%s_secrets' % klass].find_one(
+                    cur_secrets = (self.database().('%s_secrets' % klass).find_one(
                                    {'_id': obj_id}, {'_id': 0}))
                     if cur_secrets:
                         collate(cur_secrets, secrets, extend_lists=False)
@@ -244,10 +246,10 @@ class Driver(DbBase):
             assert tenant_id or 'tenantId' in body, "tenantId must be specified"
             body['_id'] = obj_id
             body['_locked'] = 0
-            self.database()[klass].update({'_id': obj_id}, body, True, False)
+            self.database().klass.update({'_id': obj_id}, body, True, False)
             if secrets:
                 secrets['_id'] = obj_id
-                self.database()['%s_secrets' % klass].update({'_id': obj_id},
+                self.database().('%s_secrets' % klass).update({'_id': obj_id},
                                                              secrets, True, False)
             del body['_id']
             del body['_locked']
@@ -256,4 +258,4 @@ class Driver(DbBase):
             return body
 
     def delete_object(self, klass, id, body):
-        result = self.database()[klass].remove(body)
+        result = self.database().klass.remove(body)
