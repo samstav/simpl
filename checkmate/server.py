@@ -170,7 +170,15 @@ def main_func():
 
     # Load NewRelic inspection if requested
     if '--newrelic' in sys.argv:
-        import newrelic.agent
+        try:
+            import newrelic.agent
+        except ImportError as exc:
+            LOG.exception(exc)
+            msg = ("The newrelic python agent could not be loaded. Make sure "
+                   "it is installed or run without the --newrelic argument")
+            LOG.error(msg)
+            print msg
+            sys.exit(1)
         newrelic.agent.initialize(os.path.normpath(os.path.join(
                                   os.path.dirname(__file__), os.path.pardir,
                                   'newrelic.ini')))  # optional param
