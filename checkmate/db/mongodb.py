@@ -25,9 +25,11 @@ class Driver(DbBase):
         DbBase.__init__(self, *args, **kwargs)
         self.connection_string = os.environ.get('CHECKMATE_CONNECTION_STRING',
                                                 'mongodb://localhost')
+        print "CONNECTION STRING: %s" % self.connection_string
         self.db_name = pymongo.uri_parser.parse_uri(self.connection_string
                                                     ).get('database',
                                                           'checkmate')
+        print "DB NAME: %s" % self.db_name
         self._database = None
 
     def database(self):
@@ -39,9 +41,8 @@ class Driver(DbBase):
                                     self.connection_string))
                 except pymongo.errors.AutoReconnect as exc:
                     raise CheckmateDatabaseConnectionError(exc.__str__())
-            client = self._client
-            db_name = self.db_name
-            self._database = client.db_name
+            self._database = getattr(self._client, self.db_name)
+            print "DATABASE: %s" % self._database
             LOG.info("Connected to mongodb on %s (database=%s)" %
                      (self.connection_string, self.db_name))
         return self._database
@@ -143,58 +144,62 @@ class Driver(DbBase):
         :param id: The collection item to get
         :param with_secrets: Merge secrets with the results
         '''
-        request = self.start_request()
-        try:
-            results = self.database().klass.find_one({'_id': id}, {'_id': 0})
+        print "PRE CLIENT: %s" % self._client
+        if not self._client:
+            self.database()
+        print "CLIENT: %s" % self._client
+        client = self._client
+        with client.start_request():
+            results = getattr(self.database(), klass).find_one({'_id': id}, {'_id': 0})
         
             if results:
                 if '_locked' in results:
                     del results['_locked']
   
                 if with_secrets is True:
-                    secrets = (self.database().('%s_secrets' % klass).find_one(
-                               {'_id': id}, {'_id': 0}))
-                if secrets:
-                    merge_dictionary(results, secrets)
-        finally:
-            request.end_request()
-            if results:
-                return results
-            else:
-                return {}
+                    secrets = getattr((self.database(),'%s_secrets' % klass).find_one(
+                                       {'_id': id}, {'_id': 0}))
+                    if secrets:
+                        merge_dictionary(results, secrets)
+        if results:
+            return results
+        else:
+            return {}
 
     def get_objects(self, klass, tenant_id=None, with_secrets=None,
                     offset=None, limit=None):
-        request = self.start_request()
-        try:                       
+        if not self._client:
+            self.database()
+        client = self._client
+        with client.start_request():                      
             if tenant_id:
                 if limit:
                     if offset is None:
                         offset = 0
-                    results = (self.database().klass.find({'tenantId': tenant_id},
-                               {'_id': 0}).skip(offset).limit(limit))
+                    results = getattr((self.database(), klass).find({'tenantId': tenant_id},
+                                      {'_id': 0}).skip(offset).limit(limit))
                 elif offset and (limit is None):
-                    results = (self.database().klass.find({'tenantId': tenant_id},
-                               {'_id': 0}).skip(offset))
+                    results = getattr((self.database(), klass).find({'tenantId': tenant_id},
+                                      {'_id': 0}).skip(offset))
                 else:
-                    results = (self.database().klass.find({'tenantId': tenant_id},
-                               {'_id': 0}))
+                    results = getattr((self.database(), klass).find({'tenantId': tenant_id},
+                                      {'_id': 0}))
             else:
                 if limit:
                     if offset is None:
                         offset = 0
-                    results = (self.database().klass.find(None,
-                               {'_id': 0}).skip(offset).limit(limit))
+                    results = getattr((self.database(), klass).find(None,
+                                      {'_id': 0}).skip(offset).limit(limit))
                 elif offset and (limit is None):
-                    results = (self.database().klass.find(None,
-                               {'_id': 0}).skip(offset))
+                    results = getattr((self.database(), klass).find(None,
+                                      {'_id': 0}).skip(offset))
                 else:
-                    results = self.database()[klass].find(None, {'_id': 0})
+                    results = getattr(self.database(), klass).find(None, {'_id': 0})
             if results:
                 response = {}
                 if with_secrets is True:
                     for entry in results:
-                        secrets = (self.database().('%s_secrets' % klass).find_one(
+                        secrets = getattr((self.database(), '%s_secrets' % klass).find_one(
                                    {'_id': entry['id']}, {'_id': 0}))
                         if secrets:
                             response[entry['id']] = merge_dictionary(entry,
@@ -206,13 +211,11 @@ class Driver(DbBase):
                         if '_locked' in entry:
                             del entry['_locked']
                         response[entry['id']] = entry
-        finally:
-            request.end_request()
-            if results:
-                if response:
-                    return response
-            else:
-                return {}
+        if results:
+            if response:
+                return response
+        else:
+            return {}
 
     def save_object(self, klass, obj_id, body, secrets=None, tenant_id=None):
         """Clients that wish to save the body but do/did not have access to
@@ -228,15 +231,17 @@ class Driver(DbBase):
         assert isinstance(body, dict), "dict required by backend"
         assert 'id' in body, "id required to be in body by backend"
 
-        request = self.start_request()
-        try:
+        if not self._client:
+            self.database()
+        client = self._client
+        with client.start_request():
             if secrets is not None:
                 if not secrets:
                     LOG.warning("Clearing secrets for %s:%s" % (klass, obj_id))
                     # TODO: to catch bugs. We can remove when we're comfortable
                     assert False, "CLEARING CREDS! Is that intended?!!!!"
                 else:
-                    cur_secrets = (self.database().('%s_secrets' % klass).find_one(
+                    cur_secrets = getattr((self.database(), '%s_secrets' % klass).find_one(
                                    {'_id': obj_id}, {'_id': 0}))
                     if cur_secrets:
                         collate(cur_secrets, secrets, extend_lists=False)
@@ -246,16 +251,15 @@ class Driver(DbBase):
             assert tenant_id or 'tenantId' in body, "tenantId must be specified"
             body['_id'] = obj_id
             body['_locked'] = 0
-            self.database().klass.update({'_id': obj_id}, body, True, False)
+            getattr(self.database(), klass).update({'_id': obj_id}, body, True, False)
             if secrets:
                 secrets['_id'] = obj_id
-                self.database().('%s_secrets' % klass).update({'_id': obj_id},
+                getattr(self.database(), '%s_secrets' % klass).update({'_id': obj_id},
                                                              secrets, True, False)
             del body['_id']
             del body['_locked']
-        finally:
-            request.end_request()
-            return body
+
+        return body
 
     def delete_object(self, klass, id, body):
-        result = self.database().klass.remove(body)
+        result = getattr(self.database(), klass).remove(body)
