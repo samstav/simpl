@@ -114,8 +114,12 @@ class Driver(DbBase):
         :param id : used for displaying an error
         :param query: the db query to run 
         '''
+        return query()
+        '''
         tries = 0
+        print "in RETRY for LOCK"
         while tries < DEFAULT_RETRIES:
+            print "RETRYING"
             results = query()
             if results:
                 return results
@@ -124,6 +128,7 @@ class Driver(DbBase):
                     raise DatabaseTimeoutException("%s not found" % id)
             tries += 1
             time.sleep(DEFAULT_TIMEOUT)
+            '''
 
     def get_object(self, klass, id, with_secrets=None):
         '''
@@ -138,17 +143,13 @@ class Driver(DbBase):
             id, 
             lambda: self.database()[klass].find_one({'_id': id}, {'_id': 0})
         )
-
         if results:
             if '_locked' in results:
                 del results['_locked']
   
             if with_secrets is True:
-                secrets = self.retry_for_lock(
-                    id,
-                    lambda: self.database()['%s_secrets' % klass].find_one(
-                        {'_id': id}, {'_id': 0}
-                    )
+                secrets = self.database()['%s_secrets' % klass].find_one(
+                    {'_id': id}, {'_id': 0}
                 )
 
                 if secrets:
@@ -207,12 +208,9 @@ class Driver(DbBase):
             response = {}
             if with_secrets is True:
                 for entry in results:
-                    secrets = self.retry_for_lock(
-                        entry['id'],
-                        lambda: self.database()['%s_secrets' % klass].find_one(
+                    secrets = self.database()['%s_secrets' % klass].find_one(
                             {'_id': entry['id']}, {'_id': 0}
                         )
-                    )
                     if secrets:
                         response[entry['id']] = merge_dictionary(entry,
                                                                        secrets)
