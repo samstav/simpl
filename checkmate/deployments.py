@@ -433,15 +433,13 @@ def resource_postback(deployment_id, contents):
     The contents are a hash (dict) of all the above
     """
 
-    #TODO is this still needed?
     tries = 0
-    print "DEFAULT retries" + str(DEFAULT_RETRIES)
     while tries < DEFAULT_RETRIES:
         deployment = DB.get_deployment(deployment_id, with_secrets=True)
         if deployment:
             break
         else:
-            print "RETRY:::%s" % deployment_id
+            LOG.debug("Retry get_deployment(%s)" % deployment_id)
             if tries == (DEFAULT_RETRIES - 1):
                 raise DatabaseTimeoutException("Deployment %s not found" % deployment_id)
         time.sleep(DEFAULT_TIMEOUT)

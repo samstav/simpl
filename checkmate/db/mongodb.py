@@ -108,28 +108,6 @@ class Driver(DbBase):
         return self.save_object('workflows', id, body, secrets, tenant_id)
 
     # GENERIC
-    def retry_for_lock(self, id, query):
-        '''
-        Retries the specified query, just incase a lock is blocking reads.
-        :param id : used for displaying an error
-        :param query: the db query to run 
-        '''
-        return query()
-        '''
-        tries = 0
-        print "in RETRY for LOCK"
-        while tries < DEFAULT_RETRIES:
-            print "RETRYING"
-            results = query()
-            if results:
-                return results
-            else:
-                if tries == (DEFAULT_RETRIES - 1):
-                    raise DatabaseTimeoutException("%s not found" % id)
-            tries += 1
-            time.sleep(DEFAULT_TIMEOUT)
-            '''
-
     def get_object(self, klass, id, with_secrets=None):
         '''
         Get an object by klass and id. We are filtering out the 
@@ -139,10 +117,7 @@ class Driver(DbBase):
         :param id: The collection item to get
         :param with_secrets: Merge secrets with the results
         '''
-        results = self.retry_for_lock(
-            id, 
-            lambda: self.database()[klass].find_one({'_id': id}, {'_id': 0})
-        )
+        results = self.database()[klass].find_one({'_id': id}, {'_id': 0})
         if results:
             if '_locked' in results:
                 del results['_locked']
@@ -162,48 +137,26 @@ class Driver(DbBase):
             if limit:
                 if offset is None:
                     offset = 0
-                results = self.retry_for_lock(
-                    tenant_id, 
-                    lambda: (self.database()[klass].find({'tenantId': tenant_id},
+                results = self.database()[klass].find({'tenantId': tenant_id},
                        {'_id': 0}).skip(offset).limit(limit)
-                    )
-                )
             elif offset and (limit is None):
-                results = self.retry_for_lock(
-                    tenant_id, 
-                    lambda: (self.database()[klass].find({'tenantId': tenant_id},
+                results = self.database()[klass].find({'tenantId': tenant_id},
                        {'_id': 0}).skip(offset)
-                    )
-                )
             else:
-                results = self.retry_for_lock(
-                    tenant_id, 
-                    lambda: self.database()[klass].find({'tenantId': tenant_id},
+                results = self.database()[klass].find({'tenantId': tenant_id},
                         {'_id': 0}
-                    )
                 )
         else:
             if limit:
                 if offset is None:
                     offset = 0
-                results = self.retry_for_lock(
-                    tenant_id, 
-                    lambda: (self.database()[klass].find(None,
+                results = self.database()[klass].find(None,
                            {'_id': 0}).skip(offset).limit(limit)
-                    )
-                )
             elif offset and (limit is None):
-                results = self.retry_for_lock(
-                    tenant_id, 
-                    lambda: (self.database()[klass].find(None,
+                results = self.database()[klass].find(None,
                            {'_id': 0}).skip(offset)
-                    )
-                )
             else:
-                results = self.retry_for_lock(
-                    tenant_id, 
-                    lambda: self.database()[klass].find(None, {'_id': 0})
-                )
+                results = self.database()[klass].find(None, {'_id': 0})
         if results:
             response = {}
             if with_secrets is True:
