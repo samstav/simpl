@@ -65,6 +65,11 @@ class TestKnife(unittest.TestCase):
         mock_file.__enter__().AndReturn(mock_file)
         mock_file.__exit__(None, None, None).AndReturn(None)
 
+          #Stub out call to resource_postback
+        self.mox.StubOutWithMock(knife.resource_postback, 'delay')
+        host_results={'instance:1': {'status': 'BUILD'}, 'instance:rackspace': {'status': 'CONFIGURE'}}
+        knife.resource_postback.delay('myEnv', host_results).AndReturn(True)
+
         #Stub out file reads
         node = json.loads('{ "run_list": [] }')
         self.mox.StubOutWithMock(json, 'load')
@@ -92,7 +97,7 @@ class TestKnife(unittest.TestCase):
         knife.check_all_output("myEnv", params).AndReturn(results)
 
         #Stub out call to resource_postback
-        self.mox.StubOutWithMock(knife.resource_postback, 'delay')
+        #self.mox.StubOutWithMock(knife.resource_postback, 'delay')
         host_results={'instance:rackspace': {'status': 'ACTIVE'}}
         knife.resource_postback.delay('myEnv', host_results).AndReturn(True)
         

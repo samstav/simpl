@@ -209,7 +209,7 @@ class Driver(DbBase):
             )
 
             if locked_object:
-                print "LOCKED: %s" % locked_object['_id']
+                LOG.debug("LOCKED: %s" % locked_object['_id'])
                 collate(locked_object, body, extend_lists=False)
                 body = locked_object
                 #we have the locked object
@@ -239,9 +239,11 @@ class Driver(DbBase):
                 elif (lock_timestamp - existing_object['_locked']) >= \
                     DEFAULT_STALE_LOCK_TIMEOUT:
                     #the lock is stale, remove it
-                    print 'STALE %s:%s' % (lock_timestamp, existing_object['_locked'])
+                    LOG.debug('STALE %s:%s' % \
+                        (lock_timestamp, existing_object['_locked']))
                     stale_lock_object = self.database()[klass].find_and_modify(
-                        query={'_id' : obj_id, '_locked' : existing_object['_locked']},
+                        query={'_id' : obj_id, '_locked' : \
+                            existing_object['_locked']},
                         update={'_locked' : lock_timestamp}
                     )
                     if stale_lock_object:
