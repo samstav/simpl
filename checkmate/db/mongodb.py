@@ -41,8 +41,7 @@ class Driver(DbBase):
                                     self.connection_string))
                 except pymongo.errors.AutoReconnect as exc:
                     raise CheckmateDatabaseConnectionError(exc.__str__())
-            self._database = getattr(self._client, self.db_name)
-            print "DATABASE: %s" % self._database
+            self._database = self._client[self.db_name]
             LOG.info("Connected to mongodb on %s (database=%s)" %
                      (self.connection_string, self.db_name))
         return self._database
@@ -109,31 +108,6 @@ class Driver(DbBase):
 
     def save_workflow(self, id, body, secrets=None, tenant_id=None):
         return self.save_object('workflows', id, body, secrets, tenant_id)
-
-    # GENERIC
-    def retry_for_lock(self, id, query):
-        '''
-        Retries the specified query, just incase a lock is blocking reads.
-        :param id : used for displaying an error
-        :param query: the db query to run 
-        '''
-        tries = 0
-        results = {}
-        while tries < DEFAULT_RETRIES:
-            in_request = self.in_request()
-            if not in_request:
-                with self.start_request():
-                    results = query()
-                    break
-            else:
-                if tries == (DEFAULT_RETRIES - 1):
-                    self.in_request() # Just in case
-                    raise DatabaseTimeoutException("%s not found" % id)
-            tries += 1
-            time.sleep(DEFAULT_TIMEOUT)
-        self.in_request() # Automatically releases any current requests
-        if results:
-            return results
             
     def get_object(self, klass, id, with_secrets=None):
         '''
@@ -144,21 +118,19 @@ class Driver(DbBase):
         :param id: The collection item to get
         :param with_secrets: Merge secrets with the results
         '''
-        print "PRE CLIENT: %s" % self._client
         if not self._client:
             self.database()
-        print "CLIENT: %s" % self._client
         client = self._client
         with client.start_request():
-            results = getattr(self.database(), klass).find_one({'_id': id}, {'_id': 0})
+            results = self.database()[klass].find_one({'_id': id}, {'_id': 0})
         
             if results:
                 if '_locked' in results:
                     del results['_locked']
   
                 if with_secrets is True:
-                    secrets = getattr((self.database(),'%s_secrets' % klass).find_one(
-                                       {'_id': id}, {'_id': 0}))
+                    secrets = (self.database()['%s_secrets' % klass].find_one(
+                               {'_id': id}, {'_id': 0}))
                     if secrets:
                         merge_dictionary(results, secrets)
         if results:
@@ -176,30 +148,30 @@ class Driver(DbBase):
                 if limit:
                     if offset is None:
                         offset = 0
-                    results = getattr((self.database(), klass).find({'tenantId': tenant_id},
-                                      {'_id': 0}).skip(offset).limit(limit))
+                    results = (self.database()[klass].find({'tenantId': tenant_id},
+                               {'_id': 0}).skip(offset).limit(limit))
                 elif offset and (limit is None):
-                    results = getattr((self.database(), klass).find({'tenantId': tenant_id},
-                                      {'_id': 0}).skip(offset))
+                    results = (self.database()[klass].find({'tenantId': tenant_id},
+                               {'_id': 0}).skip(offset))
                 else:
-                    results = getattr((self.database(), klass).find({'tenantId': tenant_id},
-                                      {'_id': 0}))
+                    results = (self.database()[klass].find({'tenantId': tenant_id},
+                               {'_id': 0}))
             else:
                 if limit:
                     if offset is None:
                         offset = 0
-                    results = getattr((self.database(), klass).find(None,
+                    results = (self.database()[klass].find(None,
                                       {'_id': 0}).skip(offset).limit(limit))
                 elif offset and (limit is None):
-                    results = getattr((self.database(), klass).find(None,
-                                      {'_id': 0}).skip(offset))
+                    results = (self.database()[klass].find(None,
+                               {'_id': 0}).skip(offset))
                 else:
-                    results = getattr(self.database(), klass).find(None, {'_id': 0})
+                    results = self.database()[klass].find(None, {'_id': 0})
             if results:
                 response = {}
                 if with_secrets is True:
                     for entry in results:
-                        secrets = getattr((self.database(), '%s_secrets' % klass).find_one(
+                        secrets = (self.database()['%s_secrets' % klass].find_one(
                                    {'_id': entry['id']}, {'_id': 0}))
                         if secrets:
                             response[entry['id']] = merge_dictionary(entry,
@@ -230,18 +202,25 @@ class Driver(DbBase):
             body = body.__dict__()
         assert isinstance(body, dict), "dict required by backend"
         assert 'id' in body, "id required to be in body by backend"
-
         if not self._client:
             self.database()
         client = self._client
         with client.start_request():
+
+            # Pull current deployment in DB incase another task has modified its' contents
+            current_deployment = self.get_object(klass, obj_id)
+
+            if current_deployment:
+                collate(current_deployment, body, extend_lists=False)
+                body = current_deployment
+
             if secrets is not None:
                 if not secrets:
                     LOG.warning("Clearing secrets for %s:%s" % (klass, obj_id))
                     # TODO: to catch bugs. We can remove when we're comfortable
                     assert False, "CLEARING CREDS! Is that intended?!!!!"
                 else:
-                    cur_secrets = getattr((self.database(), '%s_secrets' % klass).find_one(
+                    cur_secrets = (self.database()['%s_secrets' % klass].find_one(
                                    {'_id': obj_id}, {'_id': 0}))
                     if cur_secrets:
                         collate(cur_secrets, secrets, extend_lists=False)
@@ -250,16 +229,19 @@ class Driver(DbBase):
                 body['tenantId'] = tenant_id
             assert tenant_id or 'tenantId' in body, "tenantId must be specified"
             body['_id'] = obj_id
-            body['_locked'] = 0
-            getattr(self.database(), klass).update({'_id': obj_id}, body, True, False)
+            # body['_locked'] = 0
+            self.database()[klass].update({'_id': obj_id}, body, True, False, check_keys=False)
             if secrets:
                 secrets['_id'] = obj_id
-                getattr(self.database(), '%s_secrets' % klass).update({'_id': obj_id},
+                self.database()['%s_secrets' % klass].update({'_id': obj_id},
                                                              secrets, True, False)
             del body['_id']
-            del body['_locked']
+            if '_locked' in body:
+                del body['_locked']
 
         return body
 
     def delete_object(self, klass, id, body):
-        result = getattr(self.database(), klass).remove(body)
+        result = self.database()[klass].remove(body)
+
+   

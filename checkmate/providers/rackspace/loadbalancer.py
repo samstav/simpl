@@ -567,12 +567,6 @@ def add_node(context, lbid, ipaddr, region, resource, api=None):
     """Celery task to add a node to a Cloud Load Balancer"""
     match_celery_logging(LOG)
 
-    status_results = {'status': "CONFIGURE"}
-    instance_key = 'instance:%s' % context['resource']
-    status_results = {instance_key: status_results}
-    resource_postback.delay(context['deployment'], status_results)
-
-
     if api is None:
         api = Provider._connect(context, region)
 
@@ -581,12 +575,23 @@ def add_node(context, lbid, ipaddr, region, resource, api=None):
                                  "checkmate" % ipaddr)
 
     loadbalancer = api.loadbalancers.get(lbid)
+
+    if loadbalancer.status is not "ACTIVE":
+        return add_node.retry(exc=CheckmateException("Loadbalancer %s cannot be "
+                                                     "modified while status is %s"
+                                                     % loadbalancer.status))
     if not (loadbalancer and loadbalancer.port):
         return add_node.retry(
             exc=CheckmateBadState("Could not retrieve data for load balancer "
                                   "{}".format(lbid)))
     results = None
     port = loadbalancer.port
+
+    status_results = {'status': "CONFIGURE"}
+    instance_key = 'instance:%s' % context['resource']
+    status_results = {instance_key: status_results}
+    resource_postback.delay(context['deployment'], status_results)
+
 
     # Check existing nodes and asses what we need to do
     new_node = None  # We store our new node here
