@@ -290,8 +290,7 @@ class Driver(DbBase):
                 if not secrets:
                     LOG.warning("Clearing secrets for %s:%s" % (klass.__name__,
                             id))
-                    # TODO: to catch bugs. We can remove when we're comfortable
-                    raise Exception("CLEARING CREDS! Why?!!!!")
+                    e.secrets = None
                 else:
                     if not e.secrets:
                         e.secrets = {}

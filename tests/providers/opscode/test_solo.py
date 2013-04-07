@@ -250,7 +250,7 @@ class TestCeleryTasks(unittest.TestCase):
         #TODO: better test for postback?
         self.mox.StubOutWithMock(checkmate.deployments.resource_postback, "delay")
         knife.resource_postback.delay(IgnoreArg(), IgnoreArg()).AndReturn(None)
-        knife.resource_postback.delay(IgnoreArg(), IgnoreArg()).AndReturn(None)
+#        knife.resource_postback.delay(IgnoreArg(), IgnoreArg()).AndReturn(None)
 
         self.mox.ReplayAll()
         resource={'index':1234,

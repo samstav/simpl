@@ -26,6 +26,18 @@ class ProviderBaseWorkflowMixIn():
 
     This class is mixed in to the ProviderBase
     """
+
+    def _verify_existing_resource(self, resource, key):
+        msg = None
+        if resource.get("provider") != self.name:
+            msg = "%s did not provide resource %s" % (self.name, key)
+        if not resource.get("region"):
+            msg = "No region defined in resource %s" % key
+        if not resource.get("instance", {}).get("id"):
+            msg = "Resource %s does not have an id" % key
+        if msg:
+            raise CheckmateException(msg)
+
     def prep_environment(self, wfspec, deployment, context):
         """Add any tasks that are needed for an environment setup
 
@@ -53,6 +65,18 @@ class ProviderBaseWorkflowMixIn():
               providers top look this task up and connect to it if needed
         """
         LOG.debug("%s.%s.add_resource_tasks called, but was not implemented" %
+                (self.vendor, self.name))
+
+    # pylint: disable=W0613
+    def delete_resource_tasks(self, context, deployment_id, resource, key):
+        """Return a celery task/canvas for deleting the resource"""
+        LOG.debug("%s.%s.delete_resource_tasks called, but was not "
+                  "implemented" % (self.vendor, self.name))
+
+    def sync_resource_status(self, request_context, deployment_id, resource, key):
+        """ Update the status of the supplied resource based on the
+        actual deployed item """
+        LOG.debug("%s.%s.sync_resource_status called, but was not implemented" %
                 (self.vendor, self.name))
 
     def _add_resource_tasks_helper(self, resource, key, wfspec, deployment,

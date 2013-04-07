@@ -836,6 +836,11 @@ class Deployment(ExtensibleDict):
                         raise (CheckmateException("Postback value for "
                                "instance '%s' was not a dictionary"
                                % resource_id))
+                    if not value:
+                        LOG.warn("Deployment %s resource postback for resource"
+                                 " %s was empty!" % (self.get('id'),
+                                                     resource_id))
+                        continue
                     # Canonicalize it
                     value = schema.translate_dict(value)
                     # Only apply instance

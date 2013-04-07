@@ -1,7 +1,8 @@
 from checkmate import utils
 from checkmate.exceptions import CheckmateException, CheckmateCalledProcessError
 from checkmate.ssh import execute as ssh_execute
-from checkmate.deployments import resource_postback
+from checkmate.deployments import resource_postback, update_deployment_status,\
+    update_all_provider_resources
 from checkmate.deployment import Deployment
 from checkmate.db import get_driver
 from celery import task  # @UnresolvedImport
@@ -36,23 +37,6 @@ def register_scheme(scheme):
 register_scheme('git')  # without this, urlparse won't handle git:// correctly
 
 
-def update_dep_error(dep_id, msg):
-    """ Updates a deployment's status to ERROR """
-
-    DB = get_driver()
-    deployment = DB.get_deployment(dep_id, with_secrets=True)
-
-    if not deployment:
-        raise IndexError("Deployment %s not found" % dep_id)
-            
-    deployment = Deployment(deployment)
-    deployment['status'] = "ERROR"
-    deployment['errmessage'] = msg
-    body, secrets = utils.extract_sensitive_data(deployment)
-    DB.save_deployment(dep_id, body, secrets)
-    LOG.error(msg)
-
-
 def _get_repo_path():
     """Find the master repo path for chef cookbooks"""
     global CHECKMATE_CHEF_REPO
@@ -76,7 +60,6 @@ def _get_root_environments_path(dep_id, path=None):
             "/var/local/checkmate/deployments")
     if not os.path.exists(root):
         msg = "Invalid root path: %s" % root
-        update_dep_error(dep_id, msg)
         raise CheckmateException(msg)
     return root
 
@@ -120,7 +103,6 @@ def check_all_output(dep_id, params):
         return '%s%s' % (''.join(errors), ''.join(queue))
     else:
         msg = "Output: %s \n Knife Errors: %s" % (queue, errors)
-        update_dep_error(dep_id, msg)
         # Raise CalledProcessError, but include the Knife-specifc errors
         raise CheckmateCalledProcessError(retcode, ' '.join(params),
                 output='\n'.join(queue), error_info='\n'.join(errors))
@@ -159,7 +141,6 @@ def _run_ruby_command(dep_id, path, command, params, lock=True):
                 if not output:
                     msg =("'%s' is not installed or not accessible on the "
                           "server" % command)
-                    update_dep_error(dep_id, msg)
                     raise CheckmateException(msg)
             raise exc
         except CalledProcessError, exc:
@@ -168,7 +149,6 @@ def _run_ruby_command(dep_id, path, command, params, lock=True):
             # it would fail in celery; we wrap the exception in something
             # Pickle-able.
             msg = exc.output
-            update_dep_error(dep_id, msg)
             raise CheckmateCalledProcessError(exc.returncode, exc.cmd,
                                               output=msg)
         finally:
@@ -193,10 +173,8 @@ def _run_ruby_command(dep_id, path, command, params, lock=True):
             error = last_fatal.split('::')[-1]
             if error:
                 msg = "Chef/Knife error encountered: %s" % error
-                update_dep_error(dep_id, msg)
                 raise CheckmateCalledProcessError(1, command, output=msg)
         msg = '\n'.join(fatal)
-        update_dep_error(dep_id, msg)
         raise CheckmateCalledProcessError(1, command, output=msg)
 
     return result
@@ -238,7 +216,6 @@ def _run_kitchen_command(dep_id, kitchen_path, params, lock=True):
             error = last_error.split('Error:')[-1]
             if error:
                 msg = "Knife error encountered: %s" % error
-                update_dep_error(dep_id, msg)
                 raise CheckmateCalledProcessError(1, ' '.join(params),
                         output=msg)
             # Don't raise on all errors. They don't all mean failure!
@@ -261,7 +238,6 @@ def _create_environment_keys(dep_id, environment_path, private_key=None,
             if data != private_key:
                 msg = ("A private key already exists in environment %s and "
                       "does not match the value provided" % environment_path)
-                update_dep_error(dep_id, msg)
                 raise CheckmateException(msg)
     else:
         if private_key:
@@ -358,7 +334,6 @@ def _init_repo(dep_id, path, source_repo=None):
             remote.fetch(refspec=ref or 'master')
         except GitCommandError as gce:
             msg = "Error fetching source repo: %s" % str(gce)
-            update_dep_error(dep_id, msg)
             raise gce
         git_binary = git.Git(path)
         git_binary.checkout('FETCH_HEAD')
@@ -378,7 +353,7 @@ def _init_repo(dep_id, path, source_repo=None):
 
 def _create_kitchen(dep_id, service_name, path, secret_key=None):
     """Creates a new knife-solo kitchen in path
-    
+
     :param dep_id: the deployment id
     :param service_name: the name of the kitchen
     :param path: where to create the kitchen
@@ -400,7 +375,6 @@ def _create_kitchen(dep_id, service_name, path, secret_key=None):
         if any((f.endswith('.json') for f in os.listdir(nodes_path))):
             msg = ("Kitchen already exists and seems to have nodes defined "
                    "in it: %s" % nodes_path)
-            update_dep_error(dep_id, msg)
             raise CheckmateException(msg)
     else:
         # we don't pass the config file here becasuse we're creating the
@@ -415,7 +389,6 @@ def _create_kitchen(dep_id, service_name, path, secret_key=None):
     bootstrap_path = os.path.join(repo_path, 'bootstrap.json')
     if not os.path.exists(bootstrap_path):
         msg = ("Invalid master repo. {} not found".format(bootstrap_path))
-        update_dep_error(dep_id, msg)
         raise CheckmateException(msg)
 
     shutil.copy(bootstrap_path, os.path.join(kitchen_path, 'bootstrap.json'))
@@ -436,7 +409,6 @@ def _create_kitchen(dep_id, service_name, path, secret_key=None):
             if data != secret_key:
                 msg = ("Kitchen secrets key file '%s' already exists and does "
                        "not match the provided value" % secret_key_path)
-                update_dep_error(dep_id, msg)
                 raise CheckmateException(msg)
         LOG.debug("Stored secrets file exists: %s" % secret_key_path)
     else:
@@ -485,17 +457,40 @@ def write_databag(environment, bagname, itemname, contents, resource,
 
     """
     utils.match_celery_logging(LOG)
+
+    def on_failure(exc, task_id, args, kwargs, einfo):
+        """ Handle task failure """
+        if args and len(args) >= 3:
+            resource = args[2]
+            dep_id = args[1]
+            host = args[0]
+            if resource:
+                k = "instance:%s" % resource.get('index')
+                host_k = "instance:%s" % resource.get('hosted_on')
+                ret = {}
+                ret.update({k: {'status': 'ERROR',
+                                'errmessage': ('Error writing software '
+                                               'configuration to host '
+                                               '%s: %s' % (host, exc.message)),
+                                'trace': 'Task %s: %s' % (task_id,
+                                                           einfo.traceback)}})
+                if host_k:
+                    ret.update({host_k: {'status': 'ERROR',
+                                         'errmessage': ('Error installing '
+                                                        'software resource %s'
+                                                    % resource.get('index'))}})
+                resource_postback.delay(dep_id, ret)
+        else:
+            LOG.warn("Error callback for cook task %s did not get appropriate args" % task_id)
+
+    write_databag.on_failure = on_failure
+
     root = _get_root_environments_path(environment, path)
-    
+
     kitchen_path = os.path.join(root, environment, kitchen_name)
     databags_root = os.path.join(kitchen_path, 'data_bags')
     if not os.path.exists(databags_root):
         msg = ("Data bags path does not exist: %s" % databags_root)
-        results['status'] = "ERROR"
-        results['errmessage'] = msg
-        instance_key = 'instance:%s' % resource['index']
-        results = {instance_key: results}
-        resource_postback.delay(environment, results)
         raise CheckmateException(msg)
     # Check if the bag already exists (create it if not)
     config_file = os.path.join(kitchen_path, 'solo.rb')
@@ -543,12 +538,6 @@ def write_databag(environment, bagname, itemname, contents, resource,
                                                 lock=False)
         except CalledProcessError, exc:
             # Reraise pickleable exception
-            msg = exc.output
-            results['status'] = "ERROR"
-            results['errmessage'] = msg
-            instance_key = 'instance:%s' % resource['index']
-            results = {instance_key: results}
-            resource_postback.delay(environment, results)
             raise CheckmateCalledProcessError(exc.returncode, exc.cmd,
                     output=msg)
         finally:
@@ -584,6 +573,36 @@ def cook(host, environment, resource, recipes=None, roles=None, path=None,
          attributes=None, kitchen_name='kitchen'):
     """Apply recipes/roles to a server"""
     utils.match_celery_logging(LOG)
+
+    def on_failure(exc, task_id, args, kwargs, einfo):
+        """ Handle task failure """
+        if args and len(args) >= 3:
+            resource = args[2]
+            dep_id = args[1]
+            host = args[0]
+            roles = kwargs.get('roles')
+            recipes = kwargs.get('recipes')
+            attributes = kwargs.get('attributes')
+            if resource:
+                k = "instance:%s" % resource.get('index')
+                host_k = "instance:%s" % resource.get('hosted_on')
+                ret = {}
+                ret.update({k: {'status': 'ERROR',
+                                'errmessage': ('Error installing to host %s:'
+                                               '%s' % (host, exc.message)),
+                                'trace': 'Task %s: %s' % (task_id,
+                                                           einfo.traceback)}})
+                if host_k:
+                    ret.update({host_k: {'status': 'ERROR',
+                                         'errmessage': ('Error installing '
+                                                        'software resource %s'
+                                                    % resource.get('index'))}})
+                resource_postback.delay(dep_id, ret)
+        else:
+            LOG.warn("Error callback for cook task %s did not get appropriate args" % task_id)
+
+    cook.on_failure = on_failure
+
     root = _get_root_environments_path(environment, path)
 
     kitchen_path = os.path.join(root, environment, kitchen_name)
@@ -652,22 +671,22 @@ def cook(host, environment, resource, recipes=None, roles=None, path=None,
     # TODO: When hosted_on resource can host more than one resource, need to make sure all
     # other hosted resources are ACTIVE before we can change hosted_on resource itself
     # to ACTIVE
-
+    pb_res = {}
     # Update status of host resource to ACTIVE
     host_results = {}
     host_results['status'] = "ACTIVE"
     host_key = 'instance:%s' % resource['hosted_on']
     host_results = {host_key: host_results}
-    resource_postback.delay(environment, host_results)
-   
+    pb_res.update(host_results)
+
     # Update status of current resource to ACTIVE
     results = {}
     results['status'] = "ACTIVE"
     instance_key = 'instance:%s' % resource['index']
     results = {instance_key: results}
-    resource_postback.delay(environment, results)
+    pb_res.update(results)
 
-    
+    resource_postback.delay(environment, pb_res)
 
 
 def download_cookbooks(environment, service_name, path=None, cookbooks=None,
@@ -787,7 +806,8 @@ def download_roles(environment, service_name, path=None, roles=None,
 #TODO: full search, fix module reference all below here!!
 @task
 def create_environment(name, service_name, path=None, private_key=None,
-                       public_key_ssh=None, secret_key=None, source_repo=None):
+                       public_key_ssh=None, secret_key=None, source_repo=None,
+                       provider='chef-solo'):
     """Create a knife-solo environment
 
     The environment is a directory structure that is self-contained and
@@ -802,7 +822,20 @@ def create_environment(name, service_name, path=None, private_key=None,
     :param source_repo: provides cookbook repository in valid git syntax
     """
     utils.match_celery_logging(LOG)
-    
+
+    def on_failure(exc, task_id, args, kwargs, einfo):
+        """ Handle task failure """
+        if kwargs and kwargs.get('provider'):
+            update_all_provider_resources.delay(kwargs.get('provider'),
+                                                args[0],
+                                                'ERROR',
+                                                message=('Error creating chef '
+                                                         'environment: %s'
+                                                         % exc.message),
+                                                trace=einfo.traceback)
+
+    create_environment.on_failure = on_failure
+
     # Get path
     root = _get_root_environments_path(name, path)
     fullpath = os.path.join(root, name)
@@ -817,7 +850,6 @@ def create_environment(name, service_name, path=None, private_key=None,
                       exc_info=True)
         else:
             msg = "Could not create environment %s" % fullpath
-            update_dep_error(name, msg)
             raise CheckmateException(msg, ose)
 
     results = {"environment": fullpath}
@@ -892,24 +924,52 @@ def register_node(host, environment, resource, path=None, password=None,
     """
     utils.match_celery_logging(LOG)
 
+    def on_failure(exc, task_id, args, kwargs, einfo):
+        """ Handle task failure """
+        if args and len(args) >= 3:
+            resource = args[2]
+            dep_id = args[1]
+            host = args[0]
+            if resource:
+                k = "instance:%s" % resource.get('index')
+                host_k = "instance:%s" % resource.get('hosted_on')
+                ret = {}
+                ret.update({k: {'status': 'ERROR',
+                                'errmessage': ('Error registering host %s: %s'
+                                               % (host, exc.message)),
+                                'trace': 'Task %s: %s' % (task_id,
+                                                          einfo.traceback)}})
+                if host_k:
+                    ret.update({host_k: {'status': 'ERROR',
+                                         'errmessage': ('Error installing '
+                                                        'software resource %s'
+                                                    % resource.get('index'))}})
+                resource_postback.delay(dep_id, ret)
+        else:
+            LOG.warn("Error callback for cook task %s did not get appropriate"
+                     " args" % task_id)
+
+    register_node.on_failure = on_failure
+
     # Server provider updates status to CONFIGURE, but sometimes the server is configured
     # twice, so we need to do this update anyway just to be safe
-
     # Update status of host resource to CONFIGURE
+    res = {}
     host_results = {}
     host_results['status'] = "CONFIGURE"
     host_key = 'instance:%s' % resource['hosted_on']
     host_results = {host_key: host_results}
-    resource_postback.delay(environment, host_results)
-
+    res.update(host_results)
 
     # Update status of current resource to BUILD
     results = {}
     results['status'] = "BUILD"
     instance_key = 'instance:%s' % resource['index']
     results = {instance_key: results}
-    resource_postback.delay(environment, results)
-    
+    res.update(results)
+
+    resource_postback.delay(environment, res)
+
     results = {}
 
     # Get path
@@ -917,11 +977,8 @@ def register_node(host, environment, resource, path=None, password=None,
     kitchen_path = os.path.join(root, environment, kitchen_name)
     results = {}
     if not os.path.exists(kitchen_path):
-        msg = "Environment kitchen does not exist: %s" % kitchen_path
-        results['status'] = "ERROR"
-        results['errmessage'] = msg
-        resource_postback.delay(environment, {instance_key: results})
-        raise CheckmateException(msg)
+        raise CheckmateException("Kitchen path %s does not exist!"
+                                 % kitchen_path)
 
     # Rsync problem with creating path (missing -p so adding it ourselves) and
     # doing this before the complex prepare work

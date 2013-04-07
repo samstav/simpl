@@ -95,10 +95,6 @@ class TestKnife(unittest.TestCase):
         self.mox.StubOutWithMock(knife.resource_postback, 'delay')
         host_results={'instance:rackspace': {'status': 'ACTIVE'}}
         knife.resource_postback.delay('myEnv', host_results).AndReturn(True)
-        
-        #Stub out call to update_dep_error
-        self.mox.StubOutWithMock(knife, 'update_dep_error')
-        knife.update_dep_error(IsA(str), IsA(str)).AndReturn(True)
 
         self.mox.ReplayAll()
         try:

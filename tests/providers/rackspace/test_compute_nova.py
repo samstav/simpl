@@ -3,6 +3,7 @@ import logging
 import unittest2 as unittest
 
 from checkmate.utils import init_console_logging
+from mox import IgnoreArg
 init_console_logging()
 LOG = logging.getLogger(__name__)
 
@@ -69,9 +70,9 @@ class TestNovaCompute(test.ProviderTester):
                                           ).AndReturn(server)
         openstack_api_mock.client.region_name = "NORTH"
 
-        expected = {            
+        expected = {
             'instance:1': {
-                'status': 'BUILD',
+                'status': 'NEW',
                 'id': server.id,
                 'password': server.adminPass,
                 'region': "NORTH",
@@ -133,6 +134,8 @@ class TestNovaCompute(test.ProviderTester):
         ssh.test_connection(context, "4.4.4.4", "root", timeout=10,
                 password=None, identity_file=None, port=22,
                 private_key=None).AndReturn(True)
+        resource_postback.delay(context['deployment'],
+                                IgnoreArg()).AndReturn(True)
 
         self.mox.ReplayAll()
         self.assertRaises(CheckmateException, compute.wait_on_build, context,

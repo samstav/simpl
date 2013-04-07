@@ -231,12 +231,10 @@ class Driver(DbBase):
                 time.sleep(DEFAULT_TIMEOUT)
                 tries += 1
 
-
         if secrets is not None:
             if not secrets:
                 LOG.warning("Clearing secrets for %s:%s" % (klass, obj_id))
-                # TODO: to catch bugs. We can remove when we're comfortable
-                assert False, "CLEARING CREDS! Is that intended?!!!!"
+                self.database()['%s_secrets' % klass].remove({'_id': obj_id})
             else:
                 cur_secrets = self.database()['%s_secrets' % klass].find_one(
                             {'_id': obj_id}, {'_id': 0})

@@ -87,6 +87,7 @@ class Provider(ProviderBase):
                                 private_key=private_key,
                                 secret_key=secret_key,
                                 source_repo=source_repo,
+                                provider=Provider.name,
                                 defines=defines,
                                 properties=properties)
 

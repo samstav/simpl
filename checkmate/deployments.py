@@ -2,21 +2,22 @@ import logging
 import uuid
 
 from bottle import request, response, abort, \
-    get, post, route  # @UnresolvedImport
-from celery.task import task  # @UnresolvedImport
+    get, post, delete, route
+from celery.task import task
 from SpiffWorkflow import Workflow, Task
 from SpiffWorkflow.storage import DictionarySerializer
 
 from checkmate import orchestrator
 from checkmate.db import get_driver, any_id_problems
 from checkmate.exceptions import CheckmateDoesNotExist, \
-    CheckmateValidationException, CheckmateBadState
+    CheckmateValidationException, CheckmateBadState, CheckmateException
 from checkmate.workflows import create_workflow_deploy, \
     create_workflow_spec_deploy
 from checkmate.utils import (write_body, read_body, extract_sensitive_data,
-                             with_tenant)
+                             with_tenant, match_celery_logging)
 from checkmate.plan import Plan
 from checkmate.deployment import Deployment, generate_keys
+from celery.canvas import chord, chain, group
 
 LOG = logging.getLogger(__name__)
 DB = get_driver()
@@ -290,13 +291,118 @@ def deploy_deployment(oid, tenant_id=None):
 @with_tenant
 def get_deployment(oid, tenant_id=None):
     """Return deployment with given ID"""
+    return write_body(_get_a_deployment(oid, tenant_id=tenant_id),
+                      request, response)
+
+
+def _get_a_deployment(oid, tenant_id=None):
+    """ Lookup a deployment with secrets if needed """
     if 'with_secrets' in request.query:  # TODO: verify admin-ness
         entity = DB.get_deployment(oid, with_secrets=True)
     else:
         entity = DB.get_deployment(oid)
-    if not entity:
+    if not entity or (tenant_id and tenant_id != entity.get("tenantId")):
         raise CheckmateDoesNotExist('No deployment with id %s' % oid)
-    return write_body(entity, request, response)
+    return entity
+
+
+def _get_dep_resources(deployment):
+    """ Return the resources for the deployment or abort if not found """
+    if deployment and "resources" in deployment:
+        return deployment.get("resources")
+    abort(404, "No resources found for deployment %s" % deployment.get("id"))
+
+
+@get('/deployments/<oid>/resources')
+@with_tenant
+def get_deployment_resources(oid, tenant_id=None):
+    """ Return the resources for a deployment """
+    return write_body(_get_dep_resources(
+                        _get_a_deployment(oid,
+                            tenant_id=tenant_id)),
+                      request, response)
+
+
+@get('/deployments/<oid>/resources/status')
+@with_tenant
+def get_resources_statuses(oid, tenant_id=None):
+    """ Get basic status of all deployment resources """
+    resources = _get_dep_resources(
+                        _get_a_deployment(oid,
+                            tenant_id=tenant_id))
+    resp = {}
+
+    for key, val in resources.iteritems():
+        if key.isdigit():
+            resp.update({
+                key: {
+                    'service': val.get('service', 'UNKNOWN'),
+                    "status": (val.get("status") or
+                               val.get("instance", {}).get("status")),
+                    'message': (val.get('errmessage') or
+                                val.get('instance', {}).get("errmessage") or
+                                val.get('statusmsg') or
+                                val.get("instance", {}).get("statusmsg")),
+                    "type": val.get("type", "UNKNOWN"),
+                    "component": val.get("component", "UNKNOWN"),
+                    "provider": val.get("provider", "core")
+                }
+            })
+            if "trace" in request.query_string and ('trace' in val or
+                                        'trace' in val.get('instance', {})):
+                resp.get(key, {})['trace'] = (val.get('trace') or
+                                              val.get('instance',
+                                                      {}).get('trace'))
+    for val in resp.values():
+        if not val.get('status'):
+            val['status'] = 'UNKNOWN'
+        if 'message' in val and not val.get('message'):
+            del val['message']
+    return write_body(resp, request, response)
+
+
+@get('/deployments/<oid>/resources/<rid>')
+@with_tenant
+def get_resource(oid, rid, tenant_id=None):
+    """ Get a specific resource from a deployment """
+    resources = _get_dep_resources(
+                        _get_a_deployment(oid,
+                            tenant_id=tenant_id))
+    if rid in resources:
+        return write_body(resources.get(rid), request, response)
+    abort(404, "No resource %s in deployment %s" % (rid, oid))
+
+
+@delete('/deployments/<oid>')
+@with_tenant
+def delete_deployment(oid, tenant_id=None):
+    """
+    Delete the specified deployment
+    """
+    deployment = DB.get_deployment(oid, with_secrets=True)
+    if not deployment:
+        abort(404, "No deployment with id %s" % oid)
+    deployment = Deployment(deployment)
+    del_statuses = ["PLANNED", "NEW", "RUNNING", "ERROR"]
+    if deployment.get("status", "UNKNOWN") not in del_statuses:
+        abort(400, "Deployment %s cannot be deleted while in status %s."
+              " A deployment must have one of the following statuses before "
+              "being deleted: [%s]" % (oid,
+                                       deployment.get("status", "UNKNOWN"),
+                                       ", ".join(del_statuses)))
+    planner = Plan(deployment)
+    tasks = planner.plan_delete(request.context)
+    if tasks:
+        update_deployment_status.s(oid, "DELETING").delay()
+        chord(tasks)(delete_deployment_task.si(oid), interval=2, max_retries=120)
+        loc = "/deployments/%s" % oid
+        if tenant_id:
+            loc = "/%s%s" % (tenant_id, loc)
+    else:
+        LOG.warn("No delete tasks for deployment %s" % oid)
+        delete_deployment_task.delay(oid)
+    response.set_header("Location", loc)
+    response.status = 202
 
 
 @get('/deployments/<oid>/status')
@@ -345,6 +451,7 @@ def get_deployment_status(oid, tenant_id=None):
     results['resources'] = resources
 
     return write_body(results, request, response)
+
 
 def execute(oid, timeout=180, tenant_id=None):
     """Process a checkmate deployment workflow
@@ -400,6 +507,69 @@ def plan(deployment, context):
 
 
 @task
+def update_deployment_status(dep_id, new_status):
+    """ Update the status of the specified deployment """
+    if new_status:
+        deployment = DB.get_deployment(dep_id)
+        if deployment:
+            deployment['status'] = new_status
+            DB.save_deployment(dep_id, deployment)
+
+
+@task(default_retry_delay=2, max_retries=60)
+def delete_deployment_task(dep_id):
+    """ Mark the specified deployment as deleted """
+    match_celery_logging(LOG)
+    deployment = DB.get_deployment(dep_id)
+    if not deployment:
+        raise CheckmateException("Could not finalize delete for deployment %s."
+                                 " The deployment was not found.")
+    deployment['status'] = "DELETED"
+    if "resources" in deployment:
+        deletes = []
+        for key, resource in deployment.get('resources').items():
+            if not str(key).isdigit():
+                deletes.append(key)
+            else:
+                if resource.get('status', 'DELETED') != 'DELETED':
+                    resource['statusmsg'] = ('WARNING: Resource should have '
+                                             'been in status DELETED but was '
+                                             'in %s.' % resource.get('status'))
+                    resource['status'] = 'ERROR'
+                else:
+                    resource['status'] = 'DELETED'
+                    resource.pop('instance', None)
+        for key in deletes:
+            deployment['resources'].pop(key, None)
+
+    return DB.save_deployment(dep_id, deployment, secrets={})
+
+
+@task(default_retry_delay=0.25, max_retries=4)
+def alt_resource_postback(contents, deployment_id):
+    """ This is just an argument shuffle to make it easier
+    to chain this with other tasks """
+    resource_postback.delay(deployment_id, contents)
+
+
+@task(default_retry_delay=0.25, max_retries=4)
+def update_all_provider_resources(provider, deployment_id, status, message=None, trace=None):
+    dep = DB.get_deployment(deployment_id)
+    if dep:
+        rupdate = {'status': status}
+        if message:
+            rupdate['statusmsg'] = message
+        if trace:
+            rupdate['trace'] = trace
+        ret = {}
+        for resource in [res for res in dep.get('resources', {}) if res.get('provider') == provider]:
+            rkey = "instance:%s" % resource.get('key')
+            ret.update({rkey: rupdate})
+        if ret:
+            resource_postback.delay(deployment_id, ret)
+
+
+@task(default_retry_delay=0.25, max_retries=4)
 def resource_postback(deployment_id, contents):
     #FIXME: we need to receive a context and check access
     """Accepts back results from a remote call and updates the deployment with
@@ -432,12 +602,12 @@ def resource_postback(deployment_id, contents):
 
     deployment = DB.get_deployment(deployment_id, with_secrets=True)
     if not deployment:
-        raise IndexError("Deployment %s not found" % deployment_id)
+        resource_postback.retry(exc=IndexError("Deployment %s not found" % deployment_id))
 
     deployment = Deployment(deployment)
 
     # Update deployment status
-    
+
     assert isinstance(contents, dict), "Must postback data in dict"
 
     print "POST BACK: %s" % contents
@@ -450,6 +620,9 @@ def resource_postback(deployment_id, contents):
             r_status = contents[key].get('status')
             deployment['resources'][r_id]['status'] = r_status
             contents[key].pop('status', None) # Don't want to write status to resource instance
+            if 'statusmsg' in value:
+                deployment['resources'][r_id]['statusmsg'] = value['statusmsg']
+                value.pop('statusmsg', None)
             if r_status == "ERROR":
                 r_msg = contents[key].get('errmessage')
                 deployment['resources'][r_id]['errmessage'] = r_msg
@@ -462,16 +635,18 @@ def resource_postback(deployment_id, contents):
 
     # Update contents dict _only_ if we didn't only update status
     # TODO: make this smarter
-    for key, value in contents.items():
-        if contents[key]:    
-            deployment.on_resource_postback(contents)
+    deployment.on_resource_postback(contents)
 
     # Check all resources statuses and update DEP status
     count = 0
     statuses = {"NEW": 0,
                 "BUILD": 0,
                 "CONFIGURE": 0,
-                "ACTIVE": 0}
+                "ACTIVE": 0,
+                "PLANNED": 0,
+                'DELETED': 0,
+                'DELETING': 0,
+                'ERROR': 0}
 
     resources = deployment['resources']
     for key, value in resources.items():
