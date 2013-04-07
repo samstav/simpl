@@ -251,16 +251,16 @@ class SimpleComparisonConstraint(Constraint):
         messages = []
         for k, v in constraint.items():
             if k == 'less-than':
-                rules.append(lambda x: x < v)
+                rules.append(lambda x, v=v: x < v)
                 messages.append("must be less than %s" % v)
             elif k == 'less-than-or-equal-to':
-                rules.append(lambda x: x <= v)
+                rules.append(lambda x, v=v: x <= v)
                 messages.append("must be less than or equal to %s" % v)
             elif k == 'greater-than':
-                rules.append(lambda x: x > v)
+                rules.append(lambda x, v=v: x > v)
                 messages.append("must be greater than %s" % v)
             elif k == 'greater-than-or-equal-to':
-                rules.append(lambda x: x >= v)
+                rules.append(lambda x, v=v: x >= v)
                 messages.append("must be greater than or equal to %s" % v)
         self.rules = rules
 
