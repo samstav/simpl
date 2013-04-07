@@ -13,7 +13,6 @@ from checkmate.exceptions import CheckmateValidationException
 from checkmate import utils
 
 
-
 class TestConstraint(unittest.TestCase):
     def test_init_method(self):
         self.assertIsInstance(Constraint({}), Constraint)
@@ -103,6 +102,8 @@ class TestSimpleComparisonConstraint(unittest.TestCase):
             - greater-than-or-equal-to: 1
             - less-than: 18
               message: Nope! Less than 18
+            - less-than: 100
+              greater-than: 98
         """)
 
     def test_constraint_syntax_check(self):
@@ -161,6 +162,14 @@ class TestSimpleComparisonConstraint(unittest.TestCase):
     def test_constraint_message(self):
         constraint = Constraint.from_constraint(self.test_data[4])
         self.assertEquals(constraint.message, "Nope! Less than 18")
+
+    def test_constraint_combined_keys(self):
+        constraint = Constraint.from_constraint(self.test_data[5])
+        #self.assertFalse(constraint.test(98))
+        #self.assertFalse(constraint.test(101))
+        self.assertTrue(constraint.test(99))
+        self.assertEquals(constraint.message, "must be less than 100, must be "
+                                              "greater than 98")
 
 
 class TestInConstraint(unittest.TestCase):
