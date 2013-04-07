@@ -390,14 +390,14 @@ def delete_deployment(oid, tenant_id=None):
               "being deleted: [%s]" % (oid,
                                        deployment.get("status", "UNKNOWN"),
                                        ", ".join(del_statuses)))
+    loc = "/deployments/%s" % oid
+    if tenant_id:
+        loc = "/%s%s" % (tenant_id, loc)
     planner = Plan(deployment)
     tasks = planner.plan_delete(request.context)
     if tasks:
         update_deployment_status.s(oid, "DELETING").delay()
         chord(tasks)(delete_deployment_task.si(oid), interval=2, max_retries=120)
-        loc = "/deployments/%s" % oid
-        if tenant_id:
-            loc = "/%s%s" % (tenant_id, loc)
     else:
         LOG.warn("No delete tasks for deployment %s" % oid)
         delete_deployment_task.delay(oid)
@@ -562,11 +562,12 @@ def update_all_provider_resources(provider, deployment_id, status, message=None,
         if trace:
             rupdate['trace'] = trace
         ret = {}
-        for resource in [res for res in dep.get('resources', {}) if res.get('provider') == provider]:
-            rkey = "instance:%s" % resource.get('key')
+        for resource in [res for res in dep.get('resources', {}).values() if res.get('provider') == provider]:
+            rkey = "instance:%s" % resource.get('index')
             ret.update({rkey: rupdate})
         if ret:
             resource_postback.delay(deployment_id, ret)
+            return ret
 
 
 @task(default_retry_delay=0.25, max_retries=4)

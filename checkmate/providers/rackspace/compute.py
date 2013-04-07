@@ -587,7 +587,7 @@ def delete_server_task(context, api=None):
         ret.update({inst_key: {"status": "DELETING",
                            "statusmsg": "Waiting on resource deletion"}})
         if 'hosts' in resource:
-            for comp_key in resource.get('hosts'):
+            for comp_key in resource.get('hosts', []):
                 ret.update({'instance:%s' % comp_key: {'status': 'DELETING',
                             'statusmsg': 'Host %s is being deleted.' % key}})
         server.delete()
@@ -618,8 +618,8 @@ def wait_on_delete_server(context, api=None):
         if dep_id and key:
             k = "instance:%s" % key
             ret = {k: {'status': 'ERROR',
-                       'errmessage': ('Unexpected error while waiting on compute instance'
-                                      ' %s delete' % key),
+                       'errmessage': ('Unexpected error while waiting on '
+                                      'compute instance %s delete' % key),
                        'trace': 'Task %s: %s' % (task_id, einfo.traceback)}}
             resource_postback.delay(dep_id, ret)
         else:
@@ -628,7 +628,9 @@ def wait_on_delete_server(context, api=None):
 
     wait_on_delete_server.on_failure = on_failure
 
-    inst_key = "instance:%s" % context.get("resource_key")
+    key = context.get("resource_key")
+    inst_key = "instance:%s" % key
+    resource = context.get('resource')
     if api is None:
         api = Provider._connect(context, region=context.get("region"))
     server = None
@@ -638,8 +640,16 @@ def wait_on_delete_server(context, api=None):
     except (NotFound, NoUniqueMatch):
         pass
     if (not server) or (server.status == "DELETED"):
-        
-        return {inst_key: {'status': 'DELETED'}}
+        ret = {inst_key: {'status': 'DELETED'}}
+        if 'hosts' in resource:
+            for hosted in resource.get('hosts', []):
+                ret.update({
+                    'instance:%s' % hosted: {
+                        'status': 'DELETED',
+                        'statusmsg': 'Host %s was deleted' % key
+                    }
+                })
+        return ret
     else:
         msg = ('Instance is in state %s. Waiting on DELETED resource.'
                % server.status)

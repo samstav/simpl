@@ -7,6 +7,8 @@ import mox
 from mox import IsA
 
 from checkmate.utils import init_console_logging
+from checkmate.providers.rackspace.loadbalancer import delete_lb_task,\
+    wait_on_lb_delete
 init_console_logging()
 LOG = logging.getLogger(__name__)
 
@@ -106,6 +108,42 @@ class TestCeleryTasks(unittest.TestCase):
 
         self.assertDictEqual(results, expected)
         #self.mox.VerifyAll()
+
+    def test_delete_lb_task(self):
+        """ Test delete task """
+        context = {}
+        expect = {
+            "instance:1": {
+                "status": "DELETING",
+                "status_msg": "Waiting on resource deletion"
+            }
+        }
+        api = self.mox.CreateMockAnything()
+        api.loadbalancers = self.mox.CreateMockAnything()
+        m_lb = self.mox.CreateMockAnything()
+        api.loadbalancers.get('lb14nuai-asfjb').AndReturn(m_lb)
+        m_lb.__str__().AndReturn("Mock LB")
+        m_lb.status = 'ACTIVE'
+        m_lb.delete().AndReturn(True)
+        self.mox.ReplayAll()
+        ret = delete_lb_task(context, '1', 'lb14nuai-asfjb', 'ORD', api=api)
+        self.assertDictEqual(expect, ret)
+        self.mox.VerifyAll()
+
+    def test_wait_on_lb_delete(self):
+        """ Test wait on delte task """
+        context = {}
+        expect = {'instance:1': {'status': 'DELETED'}}
+        api = self.mox.CreateMockAnything()
+        api.loadbalancers = self.mox.CreateMockAnything()
+        m_lb = self.mox.CreateMockAnything()
+        m_lb.status = 'DELETED'
+        api.loadbalancers.get('lb14nuai-asfjb').AndReturn(m_lb)
+        self.mox.ReplayAll()
+        ret = wait_on_lb_delete(context, '1', '1234', 'lb14nuai-asfjb',
+                                'ORD', api=api)
+        self.assertDictEqual(expect, ret)
+        self.mox.VerifyAll()
 
 
 class TestLoadBalancerGenerateTemplate(unittest.TestCase):
@@ -312,8 +350,8 @@ class TestBasicWorkflow(test.StubbedWorkflowBase):
 
         #resource_postback mock
         #self.mox.StubOutWithMock(resource_postback, 'delay')
-        #resource_postback.delay(mox.IgnoreArg(), mox.IgnoreArg()).AndReturn(True)      
-            
+        #resource_postback.delay(mox.IgnoreArg(), mox.IgnoreArg()).AndReturn(True)
+
         self.workflow = self._get_stubbed_out_workflow(expected_calls=expected)
 
         self.mox.ReplayAll()
@@ -323,7 +361,6 @@ class TestBasicWorkflow(test.StubbedWorkflowBase):
                         'Workflow did not complete')
 
         self.mox.VerifyAll()
-
 
 if __name__ == '__main__':
     # Run tests. Handle our parameters separately

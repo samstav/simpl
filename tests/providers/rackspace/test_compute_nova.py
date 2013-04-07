@@ -4,6 +4,8 @@ import unittest2 as unittest
 
 from checkmate.utils import init_console_logging
 from mox import IgnoreArg
+from checkmate.providers.rackspace.compute import delete_server_task,\
+    wait_on_delete_server
 init_console_logging()
 LOG = logging.getLogger(__name__)
 
@@ -303,6 +305,80 @@ class TestNovaCompute(test.ProviderTester):
                                         [],api_object=openstack_api_mock)
 
         self.assertDictEqual(results, expected)
+        self.mox.VerifyAll()
+
+    def test_delete_server(self):
+        """ Test delete server task """
+        context = {
+            'deployment_id': "1234",
+            'resource_key': '1',
+            'region': 'ORD',
+            'instance_id': 'abcdef-ghig-1234',
+            'resource': {
+                'index': '1',
+                'status': 'ACTIVE',
+                'instance': {
+                    'id': 'abcdef-ghig-1234'
+                },
+                'hosts': ['0']
+            }
+        }
+        expect = {
+            "instance:1": {
+                'status': 'DELETING',
+                "statusmsg": "Waiting on resource deletion"
+            },
+            'instance:0': {
+                'status': 'DELETING',
+                'statusmsg': 'Host 1 is being deleted.'
+            }
+        }
+        api = self.mox.CreateMockAnything()
+        mock_servers = self.mox.CreateMockAnything()
+        api.servers = mock_servers
+        mock_server = self.mox.CreateMockAnything()
+        mock_server.status = 'ACTIVE'
+        mock_server.delete().AndReturn(True)
+        mock_servers.find(id='abcdef-ghig-1234').AndReturn(mock_server)
+        self.mox.ReplayAll()
+        ret = delete_server_task(context, api=api)
+        self.assertDictEqual(expect, ret)
+        self.mox.VerifyAll()
+
+    def test_wait_on_delete(self):
+        """ Test wait on delete server task """
+        context = {
+            'deployment_id': "1234",
+            'resource_key': '1',
+            'region': 'ORD',
+            'instance_id': 'abcdef-ghig-1234',
+            'resource': {
+                'index': '1',
+                'status': 'DELETING',
+                'instance': {
+                    'id': 'abcdef-ghig-1234'
+                },
+                'hosts': ['0']
+            }
+        }
+        expect = {
+            "instance:1": {
+                'status': 'DELETED'
+            },
+            'instance:0': {
+                'status': 'DELETED',
+                'statusmsg': 'Host 1 was deleted'
+            }
+        }
+        api = self.mox.CreateMockAnything()
+        mock_servers = self.mox.CreateMockAnything()
+        api.servers = mock_servers
+        mock_server = self.mox.CreateMockAnything()
+        mock_server.status = 'DELETED'
+        mock_servers.find(id='abcdef-ghig-1234').AndReturn(mock_server)
+        self.mox.ReplayAll()
+        ret = wait_on_delete_server(context, api=api)
+        self.assertDictEqual(expect, ret)
         self.mox.VerifyAll()
 
 
