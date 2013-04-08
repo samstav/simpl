@@ -1081,8 +1081,7 @@ class TestMappedMultipleWorkflow(test.StubbedWorkflowBase):
         # Create new mox queue for running workflow
         self.mox.ResetAll()
         self.assertEqual(self.deployment.get('status'), 'PLANNED')
-        
-        
+
         expected_calls = [{
                 # Create Chef Environment
                 'call': 'checkmate.providers.opscode.knife.create_environment',
@@ -1231,7 +1230,6 @@ class TestMappedMultipleWorkflow(test.StubbedWorkflowBase):
             stub = transmerge.transforms[0].replace('postback.', call_me)
             transmerge.transforms[0] = stub
 
-        
         self.mox.ReplayAll()
         workflow.complete_all()
         self.assertTrue(workflow.is_completed(), msg=workflow.get_dump())

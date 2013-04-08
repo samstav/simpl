@@ -2,7 +2,6 @@ import collections
 import copy
 import logging
 import os
-from urlparse import urlparse
 
 from checkmate import keys
 from checkmate.blueprints import Blueprint
@@ -801,7 +800,7 @@ class Deployment(ExtensibleDict):
         """
         name = generate_resource_name(self, "%s%s.%s" % (
             service_name, index, domain))
-        
+
         # Call provider to give us a resource template
         provider_key = definition['provider-key']
         provider = self.environment().get_provider(provider_key)
@@ -885,7 +884,12 @@ class Deployment(ExtensibleDict):
             statuses = {"NEW": 0,
                         "BUILD": 0,
                         "CONFIGURE": 0,
-                        "ACTIVE": 0}
+                        "ACTIVE": 0,
+                        'PLANNED': 0,
+                        'ERROR': 0,
+                        'DELETED': 0,
+                        'DELETING': 0
+                        }
 
             resources = self['resources']
             for key, value in resources.items():
