@@ -505,6 +505,25 @@ def create_server(context, name, region, api_object=None, flavor="2",
     """
 
     match_celery_logging(LOG)
+
+    def on_failure(exc, task_id, args, kwargs, einfo):
+        """ Handle task failure """
+        dep_id = args[0].get('deployment')
+        key = args[0].get('resource')
+
+        if dep_id and key:
+            k = "instance:%s" % key
+            ret = {k: {'status': 'ERROR',
+                'errmessage': ('Unexpected error deleting compute instance'
+                               ' %s: %s' % (key, exc.message)),
+                'trace': 'Task %s: %s' % (task_id, einfo.traceback)}}
+            resource_postback.delay(dep_id, ret)
+        else:
+            LOG.error("Missing deployment id and/or resource key in "
+                      "delete_server_task error callback.")
+
+    create_server.on_failure = on_failure
+
     if api_object is None:
         api_object = Provider._connect(context, region)
 
