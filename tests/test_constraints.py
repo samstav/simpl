@@ -165,8 +165,8 @@ class TestSimpleComparisonConstraint(unittest.TestCase):
 
     def test_constraint_combined_keys(self):
         constraint = Constraint.from_constraint(self.test_data[5])
-        #self.assertFalse(constraint.test(98))
-        #self.assertFalse(constraint.test(101))
+        self.assertFalse(constraint.test(98))
+        self.assertFalse(constraint.test(101))
         self.assertTrue(constraint.test(99))
         self.assertEquals(constraint.message, "must be less than 100, must be "
                                               "greater than 98")
