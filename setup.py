@@ -57,7 +57,6 @@ setup(
                       'pam==0.1.4',
                       'paramiko==1.7.7.2',
                       'pycrypto==2.6',
-                      'pymongo==2.3',  # 2.4.2 causes errors in saving objects
                       #Note: python-clouddb would end up being ".01", but that
                       #is not valid (with a leading ".") so we exclude it here.
                       'python-clouddb',
