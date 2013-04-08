@@ -26,7 +26,7 @@ setup(
                       'SQLAlchemy==0.7.8',
                       'sqlalchemy-migrate==0.7.2',
                       'WebOb==1.2.2',
-                      'pymongo==2.3',
+                      'pymongo==2.5',
                       ],
     packages=find_packages(exclude=['vagrant', 'tests', 'examples', 'doc']),
     include_package_data=True,
