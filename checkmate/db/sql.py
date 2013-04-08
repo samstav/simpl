@@ -342,8 +342,4 @@ class Driver(DbBase):
         Session.add(e)
         Session.commit()
         return body
-
-def merge(old, new):
-   collate(new_secrets, secrets, extend_lists=False)
-   return new_secrets
-   
+        
