@@ -719,7 +719,7 @@ def add_node(context, lbid, ipaddr, region, resource, api=None):
 
     loadbalancer = api.loadbalancers.get(lbid)
 
-    if loadbalancer.status is not "ACTIVE":
+    if loadbalancer.status != "ACTIVE":
         return add_node.retry(exc=CheckmateException("Loadbalancer %s cannot be "
                                                      "modified while status is %s"
                                                      % (lbid, loadbalancer.status)))
