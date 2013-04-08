@@ -3,13 +3,15 @@ import logging
 import os
 import unittest2 as unittest
 import uuid
+import json
+import time
 
 from pymongo import Connection, uri_parser
 from pymongo.errors import AutoReconnect, InvalidURI
 
 # Init logging before we load the database, 3rd party, and 'noisy' modules
 from checkmate.utils import init_console_logging
-from checkmate.db.common import DatabaseTimeoutException
+from checkmate.db.common import DatabaseTimeoutException, DEFAULT_STALE_LOCK_TIMEOUT
 from copy import deepcopy
 init_console_logging()
 LOG = logging.getLogger(__name__)
@@ -63,7 +65,7 @@ class TestDatabase(unittest.TestCase):
                 os.environ['CHECKMATE_CONNECTION_STRING'] = 'mongodb://localhost'
         self.collection_name = 'checkmate_test_%s' % uuid.uuid4().hex
         self.driver = db.get_driver('checkmate.db.mongodb.Driver', True)
-        self.driver.connection_string = 'mongodb://checkmate:%s@mongo-n01.dev.chkmate.rackspace.net:27017/checkmate' % ('c%40m3yt1ttttt',)
+        self.driver.connection_string = 'mongodb://checkmate:%s@mongo-n01.dev.chkmate.rackspace.net:27017/checkmate' % ('c%40m3yt1ttttt')
         #self.connection_string = 'localhost'
         self.driver._connection = self.driver._database = None  # reset driver
         self.driver.db_name = 'checkmate'
@@ -297,75 +299,6 @@ class TestDatabase(unittest.TestCase):
             self.assertIn(i, results)
             self.assertNotIn('_id', results[i])
             self.assertEqual(results[i]['id'], i)
-
-   
-    @unittest.skipIf(SKIP, REASON)
-    def test_new_deployment_locking(self):
-        mongodb.DEFAULT_RETRIES = 1
-        self.driver.database()['deployments'].remove({'_id': self.default_deployment['id']})
-        body, secrets = extract_sensitive_data(self.default_deployment)
-        results = self.driver.save_deployment(self.default_deployment['id'], body, secrets,
-        tenant_id='T1000')
-
-        self.driver.get_deployment(self.default_deployment['id'])
-        saved_deployment = self.driver.database()['deployments'].find_one(
-            {'_id': self.default_deployment['id']},
-            {'_id': 0}
-        )
-
-        self.assertEqual(saved_deployment['_locked'], 0)
-        del saved_deployment['_locked']
-        self.assertEqual(saved_deployment, self.default_deployment)
-        self.driver.database()['deployments'].remove({'_id': self.default_deployment['id']})
-
-    @unittest.skipIf(SKIP, REASON)
-    def test_locked_deployment(self):
-        mongodb.DEFAULT_RETRIES = 1
-        self.driver.database()['deployments'].remove({'_id': self.default_deployment['id']})
-        body, secrets = extract_sensitive_data(self.default_deployment)
-
-        results = self.driver.save_deployment(self.default_deployment['id'], body, secrets,
-        tenant_id='T1000')
-
-        updated = self.driver.database()['deployments'].find_and_modify(
-                query={'_id' : self.default_deployment['id'], '_locked' : 0},
-                update={'_locked' : 1}
-        )
-
-        with self.assertRaises(DatabaseTimeoutException):
-            self.driver.save_deployment(self.default_deployment['id'],body, secrets, tenant_id='T1000')
-            
-        self.driver.database()['deployments'].remove({'_id': self.default_deployment['id']})
-
-    @unittest.skipIf(SKIP, REASON)
-    def test_no_locked_field_deployment(self):
-        mongodb.DEFAULT_RETRIES = 1
-        self.driver.database()['deployments'].remove({'_id': self.default_deployment['id']})
-        body, secrets = extract_sensitive_data(self.default_deployment)
-
-        print "body%s" % body
-        #insert into db
-        print self.driver.database()['deployments'].insert(
-            {'_id': self.default_deployment['id']},
-            body
-        )
-        #check that it was inserted, and has no _locked
-        self.assertTrue(
-            self.driver.database()['deployments'].find_one(
-                {'_id': self.default_deployment['id'],
-                '_locked': {'$exists': False}}
-            )
-        )
-        #save, should get a _locked here
-        self.driver.save_deployment(self.default_deployment['id'], body, secrets, tenant_id='T1000')
-        #check for _locked
-        self.assertTrue(
-            self.driver.database()['deployments'].find_one(
-                {'_id': self.default_deployment['id'],
-                '_locked': {'$exists': True}}
-            )
-        )
-        self.driver.database()['deployments'].remove({'_id': self.default_deployment['id']})
 
 if __name__ == '__main__':
     # Run tests. Handle our paramsters separately

@@ -3,7 +3,8 @@ import logging
 import os
 import time
 
-from sqlalchemy import Column, Integer, String, Text, PickleType, Boolean
+from sqlalchemy import Column, Integer, String, Text, PickleType, Boolean,\
+    Float
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.pool import StaticPool
 from sqlalchemy import create_engine
@@ -22,6 +23,7 @@ from checkmate.db.common import *
 from checkmate.exceptions import CheckmateDatabaseMigrationError
 from checkmate.utils import merge_dictionary
 from SpiffWorkflow.util import merge_dictionary as collate
+
 
 __all__ = ['Base', 'Environment', 'Blueprint', 'Deployment', 'Component',
            'Workflow']
@@ -83,7 +85,7 @@ class Environment(Base):
     __tablename__ = 'environments'
     dbid = Column(Integer, primary_key=True, autoincrement=True)
     id = Column(String(32), index=True, unique=True)
-    locked = Column(Boolean, default=False)
+    locked = Column(Float, default=0)
     tenant_id = Column(String(255), index=True)
     secrets = Column(TextPickleType(pickler=json))
     body = Column(TextPickleType(pickler=json))
@@ -93,7 +95,7 @@ class Deployment(Base):
     __tablename__ = 'deployments'
     dbid = Column(Integer, primary_key=True, autoincrement=True)
     id = Column(String(32), index=True, unique=True)
-    locked = Column(Boolean, default=False)
+    locked = Column(Float, default=0)
     tenant_id = Column(String(255), index=True)
     secrets = Column(TextPickleType(pickler=json))
     body = Column(TextPickleType(pickler=json))
@@ -103,7 +105,7 @@ class Blueprint(Base):
     __tablename__ = 'blueprints'
     dbid = Column(Integer, primary_key=True, autoincrement=True)
     id = Column(String(32), index=True, unique=True)
-    locked = Column(Boolean, default=False)
+    locked = Column(Float, default=0)
     tenant_id = Column(String(255), index=True)
     secrets = Column(TextPickleType(pickler=json))
     body = Column(TextPickleType(pickler=json))
@@ -113,7 +115,7 @@ class Component(Base):
     __tablename__ = 'components'
     dbid = Column(Integer, primary_key=True, autoincrement=True)
     id = Column(String(32), index=True, unique=True)
-    locked = Column(Boolean, default=False)
+    locked = Column(Float, default=0)
     tenant_id = Column(String(255), index=True)
     secrets = Column(TextPickleType(pickler=json))
     body = Column(TextPickleType(pickler=json))
@@ -123,7 +125,7 @@ class Workflow(Base):
     __tablename__ = 'workflows'
     dbid = Column(Integer, primary_key=True, autoincrement=True)
     id = Column(String(32), index=True, unique=True)
-    locked = Column(Boolean, default=False)
+    locked = Column(Float, default=0)
     tenant_id = Column(String(255), index=True)
     secrets = Column(TextPickleType(pickler=json))
     body = Column(TextPickleType(pickler=json))
@@ -256,36 +258,68 @@ class Driver(DbBase):
         #object locking logic
         results = None
         tries = 0
-        while not results or results.count() == 0:
-            if tries > DEFAULT_RETRIES:
-                raise DatabaseTimeoutException("Attempted to query the "
-                    "database the maximum amount of retries.")
+        lock_timestamp = time.time() 
+        while tries < DEFAULT_RETRIES:
             #try to get the lock
-            updated = Session.query(klass).filter_by(id=id, locked=0).\
-                update({'locked': 1})
+            updated = Session.query(klass).filter_by(
+                id=id, 
+                locked=0
+            ).update({'locked': lock_timestamp})
+            Session.commit()
+
             if updated > 0:
                 #get the object that we just locked
-                results = Session.query(klass).filter_by(id=id, locked=1)
+                results = Session.query(klass).filter_by(id=id, 
+                    locked=lock_timestamp)
                 assert results.count() > 0, ("There was a fatal error. The"
                     "object %s with id %s could not be locked!") % (klass, id)
                 break
             else:
-                time.sleep(DEFAULT_TIMEOUT)
-                tries += 1
-                object_exists = Session.query(klass).filter_by(id=id)
-                if not object_exists or object_exists.count() <= 0:
+                existing_object = Session.query(klass).filter_by(id=id).first()
+                if not existing_object:
                     #this is a new object
                     break
+
+                elif (lock_timestamp - existing_object.locked) >= \
+                    DEFAULT_STALE_LOCK_TIMEOUT:
+
+                    #the lock is stale, remove it
+                    stale_lock_object = \
+                        Session.query(klass).filter_by(
+                            id=id, 
+                            locked=existing_object.locked
+                        ).update({'locked' : lock_timestamp})
+                    Session.commit()
+
+                    results = Session.query(klass).filter_by(id=id)
+
+                    if stale_lock_object:
+                        print "stale break"
+                        #updated the stale lock
+                        break
+
+                if (tries + 1) == DEFAULT_TIMEOUT:
+                    raise DatabaseTimeoutException("Attempted to query the "
+                "   database the maximum amount of retries.")
+                time.sleep(DEFAULT_TIMEOUT)
+                tries += 1
 
         if results and results.count() > 0:
             e = results.first()
             e.locked = 0
-            e.body = body
+            
+            #merge the results
+            saved_body = deepcopy(e.body)
+            collate(saved_body, body)
+            e.body = saved_body
+
             if tenant_id:
                 e.tenant_id = tenant_id
             elif "tenantId" in body:
                 e.tenant_id = body.get("tenantId")
-            assert tenant_id or e.tenant_id, "tenantId must be specified"
+
+            assert tenant_id or e.tenant_id, "tenantId must be specified"                
+
             if secrets is not None:
                 if not secrets:
                     LOG.warning("Clearing secrets for %s:%s" % (klass.__name__,
@@ -299,10 +333,12 @@ class Driver(DbBase):
                     e.secrets = new_secrets
         else:
             assert tenant_id or 'tenantId' in body, \
-                    "tenantId must be specified"
+                "tenantId must be specified"
             #new item
             e = klass(id=id, body=body, tenant_id=tenant_id,
                     secrets=secrets, locked=0)
+
         Session.add(e)
         Session.commit()
         return body
+        

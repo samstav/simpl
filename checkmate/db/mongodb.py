@@ -11,33 +11,37 @@ from checkmate.exceptions import CheckmateDatabaseConnectionError
 from checkmate.utils import merge_dictionary
 from SpiffWorkflow.util import merge_dictionary as collate
 
+
 LOG = logging.getLogger(__name__)
+
 
 class Driver(DbBase):
     """MongoDB Database Driver"""
     _connection = None
+    _client = None
 
     def __init__(self, *args, **kwargs):
         """Initializes globals for this driver"""
         DbBase.__init__(self, *args, **kwargs)
         self.connection_string = os.environ.get('CHECKMATE_CONNECTION_STRING',
                                                 'mongodb://localhost')
+        print "CONNECTION STRING: %s" % self.connection_string
         self.db_name = pymongo.uri_parser.parse_uri(self.connection_string
                                                     ).get('database',
                                                           'checkmate')
+        print "DB NAME: %s" % self.db_name
         self._database = None
 
     def database(self):
-        """Connects to and returns mongodb database object"""
+        """ Connects to and returns mongodb database object """
         if self._database is None:
-            if self._connection is None:
+            if self._client is None:
                 try:
-                    self._connection = pymongo.Connection(
-                            self.connection_string)
+                    self._client = (pymongo.MongoClient(
+                                    self.connection_string))
                 except pymongo.errors.AutoReconnect as exc:
                     raise CheckmateDatabaseConnectionError(exc.__str__())
-
-            self._database = self._connection[self.db_name]
+            self._database = self._client[self.db_name]
             LOG.info("Connected to mongodb on %s (database=%s)" %
                      (self.connection_string, self.db_name))
         return self._database
@@ -104,8 +108,7 @@ class Driver(DbBase):
 
     def save_workflow(self, id, body, secrets=None, tenant_id=None):
         return self.save_object('workflows', id, body, secrets, tenant_id)
-
-    # GENERIC
+            
     def get_object(self, klass, id, with_secrets=None):
         '''
         Get an object by klass and id. We are filtering out the 
@@ -115,60 +118,74 @@ class Driver(DbBase):
         :param id: The collection item to get
         :param with_secrets: Merge secrets with the results
         '''
-        results = self.database()[klass].find_one({'_id': id}, {'_id': 0})
-        if results:
-            if '_locked' in results:
-                del results['_locked']
+        if not self._client:
+            self.database()
+        client = self._client
+        with client.start_request():
+            results = self.database()[klass].find_one({'_id': id}, {'_id': 0})
+        
+            if results:
+                if '_locked' in results:
+                    del results['_locked']
   
-            if with_secrets is True:
-                secrets = self.database()['%s_secrets' % klass].find_one(
-                        {'_id': id}, {'_id': 0})
-                if secrets:
-                    merge_dictionary(results, secrets)
+                if with_secrets is True:
+                    secrets = (self.database()['%s_secrets' % klass].find_one(
+                               {'_id': id}, {'_id': 0}))
+                    if secrets:
+                        merge_dictionary(results, secrets)
+        if results:
             return results
+        else:
+            return {}
 
     def get_objects(self, klass, tenant_id=None, with_secrets=None,
-                    offset=None, limit=None):                       
-        if tenant_id:
-            if limit:
-                if offset is None:
-                    offset = 0
-                results = (self.database()[klass].find({'tenantId': tenant_id},
-                           {'_id': 0}).skip(offset).limit(limit))
-            elif offset and (limit is None):
-                 results = (self.database()[klass].find({'tenantId': tenant_id},
-                           {'_id': 0}).skip(offset))
+                    offset=None, limit=None):
+        if not self._client:
+            self.database()
+        client = self._client
+        with client.start_request():                      
+            if tenant_id:
+                if limit:
+                    if offset is None:
+                        offset = 0
+                    results = (self.database()[klass].find({'tenantId': tenant_id},
+                               {'_id': 0}).skip(offset).limit(limit))
+                elif offset and (limit is None):
+                    results = (self.database()[klass].find({'tenantId': tenant_id},
+                               {'_id': 0}).skip(offset))
+                else:
+                    results = (self.database()[klass].find({'tenantId': tenant_id},
+                               {'_id': 0}))
             else:
-                results = self.database()[klass].find({'tenantId': tenant_id},
-                                                      {'_id': 0})
-        else:
-            if limit:
-                if offset is None:
-                    offset = 0
-                results = (self.database()[klass].find(None,
-                           {'_id': 0}).skip(offset).limit(limit))
-            elif offset and (limit is None):
-                results = (self.database()[klass].find(None,
-                           {'_id': 0}).skip(offset))
-            else:
-                results = self.database()[klass].find(None, {'_id': 0})
-        if results:
-            response = {}
-            if with_secrets is True:
-                for entry in results:
-                    secrets = self.database()['%s_secrets' % klass].find_one(
-                            {'_id': entry['id']}, {'_id': 0})
-                    if secrets:
-                        response[entry['id']] = merge_dictionary(entry,
-                                                                       secrets)
-                    else:
+                if limit:
+                    if offset is None:
+                        offset = 0
+                    results = (self.database()[klass].find(None,
+                                      {'_id': 0}).skip(offset).limit(limit))
+                elif offset and (limit is None):
+                    results = (self.database()[klass].find(None,
+                               {'_id': 0}).skip(offset))
+                else:
+                    results = self.database()[klass].find(None, {'_id': 0})
+            if results:
+                response = {}
+                if with_secrets is True:
+                    for entry in results:
+                        secrets = (self.database()['%s_secrets' % klass].find_one(
+                                   {'_id': entry['id']}, {'_id': 0}))
+                        if secrets:
+                            response[entry['id']] = merge_dictionary(entry,
+                                                                     secrets)
+                        else:
+                            response[entry['id']] = entry
+                else:
+                    for entry in results:
+                        if '_locked' in entry:
+                            del entry['_locked']
                         response[entry['id']] = entry
-            else:
-                for entry in results:
-                    if '_locked' in entry:
-                        del entry['_locked']
-                    response[entry['id']] = entry
-            return response
+        if results:
+            if response:
+                return response
         else:
             return {}
 
@@ -185,75 +202,46 @@ class Driver(DbBase):
             body = body.__dict__()
         assert isinstance(body, dict), "dict required by backend"
         assert 'id' in body, "id required to be in body by backend"
+        if not self._client:
+            self.database()
+        client = self._client
+        with client.start_request():
 
-        #object locking logic
-        results = None
-        tries = 0
-        while not results or results.count() == 0:
-            if tries > DEFAULT_RETRIES:
-                raise DatabaseTimeoutException("Attempted to query the "
-                    "database the maximum amount of retries.")
+            # Pull current deployment in DB incase another task has modified its' contents
+            current_deployment = self.get_object(klass, obj_id)
 
-            #try to get the lock
-            print "TRYING FOR LOCK"
-            locked_object = self.database()[klass].find_and_modify(
-                query={'_id' : obj_id, '_locked' : 0},
-                update={'_locked' : 1}
-            )
+            if current_deployment:
+                collate(current_deployment, body, extend_lists=False)
+                body = current_deployment
 
-            if locked_object:
-                print "LOCKED: %s" % locked_object['_id']
-                collate(locked_object, body, extend_lists=False)
-                body = locked_object
-                #we have the locked object
-                break
-            else:
-                existing_object = self.database()[klass].find_one(
-                    {'_id': obj_id}
-                )
-                if not existing_object:
-                    LOG.debug("NEW OBJECT: %s" % obj_id)
-                    #this is a new object
-                    break
-                elif '_locked' not in existing_object:
-                    #the object does not have a locked field, try for the lock.
-                    no_lock_object = self.database()[klass].find_and_modify(
-                        query={'_id': obj_id,'_locked': {'$exists': False}},
-                        update={ '$set': {'_locked': 1}}
-                    )
-                    print "LOCKED: %s" % no_lock_object['_id']
-                    if no_lock_object:
-                        collate(no_lock_object, body, extend_lists=False)
-                        body = no_lock_object
-                        #the locked field was inserted and set to locked
-                        break
-                LOG.debug("FAILED to LOCK: %s:%s" % (klass, obj_id))
-                time.sleep(DEFAULT_TIMEOUT)
-                tries += 1
+            if secrets is not None:
+                if not secrets:
+                    LOG.warning("Clearing secrets for %s:%s" % (klass, obj_id))
+                    # TODO: to catch bugs. We can remove when we're comfortable
+                    assert False, "CLEARING CREDS! Is that intended?!!!!"
+                else:
+                    cur_secrets = (self.database()['%s_secrets' % klass].find_one(
+                                   {'_id': obj_id}, {'_id': 0}))
+                    if cur_secrets:
+                        collate(cur_secrets, secrets, extend_lists=False)
+                        secrets = cur_secrets
+            if tenant_id:
+                body['tenantId'] = tenant_id
+            assert tenant_id or 'tenantId' in body, "tenantId must be specified"
+            body['_id'] = obj_id
+            # body['_locked'] = 0
+            self.database()[klass].update({'_id': obj_id}, body, True, False, check_keys=False)
+            if secrets:
+                secrets['_id'] = obj_id
+                self.database()['%s_secrets' % klass].update({'_id': obj_id},
+                                                             secrets, True, False)
+            del body['_id']
+            if '_locked' in body:
+                del body['_locked']
 
-        if secrets is not None:
-            if not secrets:
-                LOG.warning("Clearing secrets for %s:%s" % (klass, obj_id))
-                self.database()['%s_secrets' % klass].remove({'_id': obj_id})
-            else:
-                cur_secrets = self.database()['%s_secrets' % klass].find_one(
-                            {'_id': obj_id}, {'_id': 0})
-                if cur_secrets:
-                    collate(cur_secrets, secrets, extend_lists=False)
-                    secrets = cur_secrets
-        if tenant_id:
-            body['tenantId'] = tenant_id
-        assert tenant_id or 'tenantId' in body, "tenantId must be specified"
-        body['_id'] = obj_id
-        body['_locked'] = 0
-        self.database()[klass].update({'_id': obj_id}, body, True, False)
-        if secrets:
-            secrets['_id'] = obj_id
-            self.database()['%s_secrets' % klass].update({'_id': obj_id},
-                secrets, True, False)
-        del body['_id']
-        del body['_locked']
         return body
 
     def delete_object(self, klass, id, body):
         result = self.database()[klass].remove(body)
+
+   

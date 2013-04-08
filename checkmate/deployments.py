@@ -1,5 +1,6 @@
 import logging
 import uuid
+import time
 
 from bottle import request, response, abort, \
     get, post, delete, route
@@ -601,14 +602,11 @@ def resource_postback(deployment_id, contents):
     The contents are a hash (dict) of all the above
     """
 
-    deployment = DB.get_deployment(deployment_id, with_secrets=True)
-    if not deployment:
-        resource_postback.retry(exc=IndexError("Deployment %s not found" % deployment_id))
-
+    deployment = DB.get_deployment(deployment_id, with_secrets=True) 
     deployment = Deployment(deployment)
 
     # Update deployment status
-
+    
     assert isinstance(contents, dict), "Must postback data in dict"
 
     print "POST BACK: %s" % contents
@@ -621,9 +619,6 @@ def resource_postback(deployment_id, contents):
             r_status = contents[key].get('status')
             deployment['resources'][r_id]['status'] = r_status
             contents[key].pop('status', None) # Don't want to write status to resource instance
-            if 'statusmsg' in value:
-                deployment['resources'][r_id]['statusmsg'] = value['statusmsg']
-                value.pop('statusmsg', None)
             if r_status == "ERROR":
                 r_msg = contents[key].get('errmessage')
                 deployment['resources'][r_id]['errmessage'] = r_msg
@@ -634,51 +629,24 @@ def resource_postback(deployment_id, contents):
                 if r_msg not in deployment['errmessage']:
                     deployment['errmessage'].append(r_msg)
 
-    # Update contents dict _only_ if we didn't only update status
+    # Create new contents dict if values existed 
     # TODO: make this smarter
-    deployment.on_resource_postback(contents)
+    new_contents = {}
+    for key, value in contents.items():
+        if contents[key]:    
+            new_contents[key] = value
 
-    # Check all resources statuses and update DEP status
-    count = 0
-    statuses = {"NEW": 0,
-                "BUILD": 0,
-                "CONFIGURE": 0,
-                "ACTIVE": 0,
-                "PLANNED": 0,
-                'DELETED': 0,
-                'DELETING': 0,
-                'ERROR': 0}
+    if new_contents:
+        deployment.on_resource_postback(new_contents)
 
     resources = deployment['resources']
-    for key, value in resources.items():
-        if key.isdigit():
-            r_status = resources[key].get('status')
-            print "%s:%s, %s" % (key, r_status, resources[key].get('type'))
-            if r_status == "ERROR":
-                r_msg = resources[key].get('errmessage')
-                if "errmessage" not in deployment:
-                    deployment['errmessage'] = []
-                if r_msg not in deployment['errmessage']:
-                    deployment['errmessage'].append(r_msg)
-            statuses[r_status] += 1
-            count += 1
+    for k, v in resources.items():
+        if k.isdigit():
+            print "%s:%s, %s" % (k, resources[k]['status'], resources[k].get('type'))
 
-    print ""
-    if deployment['status'] != "ERROR":
-        # Case 1: status is NEW
-        if statuses['NEW'] == count:
-            deployment['status'] = "NEW"
-        # Case 2: status is BUILD
-        elif statuses['BUILD'] >= 1:
-            deployment['status'] = "BUILD"
-        # Case 3: status is CONFIGURE
-        elif (statuses['ACTIVE'] + statuses['CONFIGURE']) == count:
-            deployment['status'] = "CONFIGURE"
-        # Case 4: status is ACTIVE
-        elif statuses['ACTIVE'] == count:
-            deployment['status'] = "ACTIVE"
-        else:
-            LOG.debug("Could not identify a deployment status update")
+    print "DEP STATUS: %s" % deployment['status']
+    if deployment['status'] is "ERROR":
+        print "errmessage: %s" % deployment.get('errmessage')
 
     body, secrets = extract_sensitive_data(deployment)
     DB.save_deployment(deployment_id, body, secrets)

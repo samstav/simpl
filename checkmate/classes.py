@@ -58,7 +58,6 @@ class ExtensibleDict(collections.MutableMapping):
     @classmethod
     def validate(cls, obj):
         """
-
         Checks schema and validates data. Raises error if errors exist.
 
         Call inspect if you want to check the data without raising and error.

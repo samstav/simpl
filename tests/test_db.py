@@ -2,9 +2,11 @@
 import logging
 import os
 import unittest2 as unittest
+import time
 
 from checkmate.utils import init_console_logging
-from checkmate.db.common import DatabaseTimeoutException
+from checkmate.db.common import DatabaseTimeoutException, \
+    DEFAULT_STALE_LOCK_TIMEOUT
 from copy import deepcopy
 import uuid
 
@@ -24,6 +26,7 @@ class TestDatabase(unittest.TestCase):
     def setUp(self):
         self.driver = db.get_driver('checkmate.db.sql.Driver', reset=True)
         self.klass = Deployment
+        db.sql.DEFAULT_RETRIES = 1
         self.default_deployment = {
             'id': 'test',
             'name': 'test',
@@ -231,19 +234,20 @@ class TestDatabase(unittest.TestCase):
         
         db.sql.Session.query(self.klass).filter_by(
             id=self.default_deployment['id']).delete()
-  
 
     def test_locked_deployment(self):
         db.sql.Session.query(self.klass).filter_by(
             id=self.default_deployment['id']).delete()
  
         body, secrets = extract_sensitive_data(self.default_deployment)
-        e = self.klass(id=self.default_deployment['id'], body=body, secrets=secrets,
-        tenant_id='T1000', locked=1)
+        item = db.sql.Session.query(self.klass).filter_by(
+            id=self.default_deployment['id']
+        ).update({'locked': time.time()})
 
+        e = self.klass(id=self.default_deployment['id'], body=body, tenant_id='T1000',
+            secrets=secrets, locked=time.time())
         db.sql.Session.add(e)
         db.sql.Session.commit()
-        db.sql.DEFAULT_RETRIES = 1
 
         with self.assertRaises(DatabaseTimeoutException):
             self.driver.save_deployment(self.default_deployment['id'],body, secrets, tenant_id='T1000')
@@ -251,7 +255,67 @@ class TestDatabase(unittest.TestCase):
         db.sql.Session.query(self.klass).filter_by(
             id=self.default_deployment['id']).delete()
   
+    def test_no_locked_field_deployment(self):
+        db.sql.Session.query(self.klass).filter_by(
+            id=self.default_deployment['id']).delete()
+ 
+        body, secrets = extract_sensitive_data(self.default_deployment)
+  
+        #insert without locked field
+        e = self.klass(id=self.default_deployment['id'], body=body, tenant_id='T1000',
+            secrets=secrets)
+        db.sql.Session.add(e)
+        db.sql.Session.commit()
 
+        #save, should get a locked here
+        self.driver.save_deployment(self.default_deployment['id'], body, secrets, tenant_id='T1000')
+
+        #get saved deployment
+        deployment = db.sql.Session.query(self.klass).filter_by(
+            id=self.default_deployment['id']
+        ).first()
+
+        #check unlocked
+        self.assertEquals(deployment.locked, 0)
+
+        db.sql.Session.query(self.klass).filter_by(
+            id=self.default_deployment['id']).delete()
+ 
+    def test_stale_lock(self):
+        db.sql.Session.query(self.klass).filter_by(
+            id=self.default_deployment['id']).delete()
+ 
+        body, secrets = extract_sensitive_data(self.default_deployment)
+  
+        #insert without locked field
+        e = self.klass(id=self.default_deployment['id'], body=body, tenant_id='T1000',
+            secrets=secrets)
+        db.sql.Session.add(e)
+        db.sql.Session.commit()
+
+        #save, should get a _locked here
+        self.driver.save_deployment(self.default_deployment['id'], body, secrets, tenant_id='T1000')
+
+        #set timestamp to a stale time
+        timeout = time.time()
+        db.sql.Session.query(self.klass).filter_by(
+                id=self.default_deployment['id']
+            ).update({'locked': timeout - DEFAULT_STALE_LOCK_TIMEOUT})
+        db.sql.Session.commit()
+
+        #test remove stale lock
+        self.driver.save_deployment(self.default_deployment['id'], body, secrets, tenant_id='T1000')
+
+        #get saved deployment
+        deployment = db.sql.Session.query(self.klass).filter_by(
+            id=self.default_deployment['id']
+        ).first()
+
+        #check for unlocked
+        self.assertEquals(deployment.locked, 0)
+
+        db.sql.Session.query(self.klass).filter_by(
+            id=self.default_deployment['id']).delete()
 
 if __name__ == '__main__':
     # Run tests. Handle our parameters seprately
