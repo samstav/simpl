@@ -36,9 +36,6 @@ class TestDatabase(ProviderTester):
 
         #Stub out postback call
         self.mox.StubOutWithMock(resource_postback, 'delay')
-        
-        #Stub out wiat_on_build
-        self.mox.StubOutWithMock(wait_on_build, 'delay')
 
         #Create clouddb mock
         clouddb_api_mock = self.mox.CreateMockAnything()
@@ -74,9 +71,7 @@ class TestDatabase(ProviderTester):
         context = dict(deployment='DEP', resource='1')
         resource_postback.delay(context['deployment'], expected).AndReturn(
                 True)
-        
-        wait_on_build.delay(context, instance.id, 'NORTH', api=clouddb_api_mock).AndReturn(expected)
-        
+
         self.mox.ReplayAll()
         results = database.create_instance(context, instance.name,  1,  '1',
                 [{'name': 'db1'}], 'NORTH', api=clouddb_api_mock)
