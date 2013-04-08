@@ -202,9 +202,10 @@ class Provider(ProviderBase):
     def delete_resource_tasks(self, context, deployment_id, resource, key):
         self._verify_existing_resource(resource, key)
         ctx = context.get_queued_task_dict(deployment_id=deployment_id,
-                                           resource_key=key,
-                                           resource=resource,
-                                           region=resource.get('region'))
+                        resource_key=key,
+                        resource=resource,
+                        region=resource.get('region') or
+                               resource.get('instance', {}).get('host_region'))
         if resource.get('type') == 'compute':
             return self._delete_comp_res_tasks(ctx, deployment_id,
                                                resource, key)
@@ -677,6 +678,9 @@ def delete_instance(context, api=None):
         else:
             # not too sure what this is, so maybe retry a time or two
             delete_instance.retry(exc=rese)
+    except Exception as exc:
+        # might be an api fluke, try again
+        delete_instance.retry(exc=exc)
     res = {inst_key: {'status': 'DELETING'}}
     for hosted in resource.get('hosts', []):
         res.update({'instance:%s' % hosted: {'status': 'DELETING',

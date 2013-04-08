@@ -31,10 +31,12 @@ class ProviderBaseWorkflowMixIn():
         msg = None
         if resource.get("provider") != self.name:
             msg = "%s did not provide resource %s" % (self.name, key)
-        if not resource.get("region"):
+        if (("region" not in resource) and
+            ('host_region' not in resource.get('instance', {}))):
             msg = "No region defined in resource %s" % key
-        if not resource.get("instance", {}).get("id"):
-            msg = "Resource %s does not have an id" % key
+        if (("id" not in resource.get("instance", {})) and
+            ("host_instance" not in resource.get('instance', {}))):
+            msg = "Resource %s does not have an id or host_instance" % key
         if msg:
             raise CheckmateException(msg)
 
