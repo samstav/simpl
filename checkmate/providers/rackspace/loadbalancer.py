@@ -134,7 +134,8 @@ class Provider(ProviderBase):
                                             resource=key),
                                             PathAttrib('instance:%s/id' % key),
                                             resource['region']],
-                                 properties={'estimated_druation':150},
+                                 properties={'estimated_druation': 150},
+                                 merge_results=True,
                                  defines=dict(resource=key,
                                               provider=self.key,
                                               task_tags=['complete']))
@@ -701,7 +702,8 @@ def wait_on_lb_delete(req_context, key, dep_id, lbid, region, api=None):
     else:
         msg = ("Waiting on state DELETED. Load balancer is in state %s"
                % dlb.status)
-        resource_postback.delay(dep_id, {inst_key: {"status_msg": msg}})
+        resource_postback.delay(dep_id, {inst_key: {'status': 'DELETING',
+                                                    "status_msg": msg}})
         wait_on_lb_delete.retry(exc=CheckmateException(msg))
 
 
@@ -800,21 +802,7 @@ def add_node(context, lbid, ipaddr, region, resource, api=None):
                       placeholder.address, placeholder.port, lbid))
         except Exception, exc:
             return add_node.retry(exc=exc)
-#    relations = resource['relations']
-#    relations_count = 0
-#    for relation in relations:
-#        relations_count += 1
-#
-#    node_count = 0
-#    for node in loadbalancer.nodes:
-#        if node.port == port and node.condition == "ENABLED":
-#            node_count += 1
-#
-#    if relations_count == node_count:
-#        status_results = {'status': "ACTIVE"}
-#        instance_key = 'instance:%s' % context['resource']
-#        status_results = {instance_key: status_results}
-#        resource_postback.delay(context['deployment'], status_results)
+
     return results
 
 
@@ -920,7 +908,7 @@ def wait_on_build(context, lbid, region, api=None):
         raise CheckmateException(msg)
     elif loadbalancer.status == "ACTIVE":
         results['status'] = "ACTIVE"
-        results['id'] = lbid # need to return so we can pass on to set_monitor task
+        results['id'] = lbid
         instance_key = 'instance:%s' % context['resource']
         results = {instance_key: results}
         resource_postback.delay(context['deployment'], results)
@@ -928,4 +916,3 @@ def wait_on_build(context, lbid, region, api=None):
     else:
         msg = ("Loadbalancer status is %s, retrying" % (loadbalancer.status))
         return wait_on_build.retry(exc=CheckmateException(msg))
-    

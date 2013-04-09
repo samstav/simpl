@@ -591,7 +591,7 @@ def delete_server_task(context, api=None):
     inst_id = context.get("instance_id")
     resource = context.get('resource')
     try:
-        server = api.servers.find(id=inst_id)
+        server = api.servers.get(inst_id)
     except (NotFound, NoUniqueMatch):
         LOG.warn("Server %s already deleted" % inst_id)
     if (not server) or (server.status == 'DELETED'):

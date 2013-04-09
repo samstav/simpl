@@ -185,16 +185,25 @@ class Provider(ProviderBase):
                                                            resource.get('type', None)),
                                 interface=resource.get('interface'),
                                 provider=self.key,
-                                task_tags=['create', 'final']),
+                                task_tags=['create', 'root']),
                    properties={
                         'estimated_duration': 80
                    })
             root = wait_for(wfspec, create_instance_task, wait_on)
-            if 'task_tags' in root.properties:
-                root.properties['task_tags'].append('root')
-            else:
-                root.properties['task_tags'] = ['root']
-            return dict(root=root, final=create_instance_task)
+            wait_on_build = Celery(wfspec, 'Wait on Database Instance %s' % key,
+                    'checkmate.providers.rackspace.database.wait_on_build',
+                    call_args=[context.get_queued_task_dict(
+                                    deployment=deployment['id'],
+                                    resource=key),
+                               PathAttrib("instance:%s/id" % key),
+                               region],
+                    defines=dict(resource=key, provider=self.key,
+                                 task_tags=['final'],
+                    properties={
+                        'estimated_duration': 80
+                   }))
+            wait_on_build.follow(create_instance_task)
+            return dict(root=root, final=wait_on_build)
         else:
             raise CheckmateException("Unsupported component type '%s' for "
                     "provider %s" % (component['is'], self.key))
@@ -521,12 +530,14 @@ def create_database(context, name, region, character_set=None, collate=None,
         results = {
                 instance_key: {
                         'name': name,
+                        'id': name,
                         'host_instance': instance_id,
                         'host_region': region,
-                        'status': "BUILD", # status not active till user is added successfully
+                        'status': "BUILD",
                         'interfaces': {
                                 'mysql': {
-                                        'host': instance.hostname,  # pylint: disable=E1103
+                                        # pylint: disable=E1103
+                                        'host': instance.hostname,
                                         'database_name': name
                                     },
                             }
@@ -619,7 +630,7 @@ def add_user(context, instance_id, databases, username, password, region,
                     }
               }
     # Send data back to deployment
-    resource_postback.delay(context['deployment'], results) #@UndefinedVariable
+    resource_postback.delay(context['deployment'], results)
 
     return results
 
@@ -666,7 +677,7 @@ def delete_instance(context, api=None):
         api = Provider._connect(context, region)
 
     try:
-        api.delete_instance(instanceid=instance_id)
+        api.delete_instance(instance_id)
         LOG.info('Database instance %s deleted.' % instance_id)
     except ResponseError as rese:
         if rese.status == 404:  # already deleted

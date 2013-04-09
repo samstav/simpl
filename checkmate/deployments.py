@@ -384,13 +384,14 @@ def delete_deployment(oid, tenant_id=None):
     if not deployment:
         abort(404, "No deployment with id %s" % oid)
     deployment = Deployment(deployment)
-    del_statuses = ["PLANNED", "NEW", "RUNNING", "ERROR"]
-    if deployment.get("status", "UNKNOWN") not in del_statuses:
-        abort(400, "Deployment %s cannot be deleted while in status %s."
-              " A deployment must have one of the following statuses before "
-              "being deleted: [%s]" % (oid,
-                                       deployment.get("status", "UNKNOWN"),
-                                       ", ".join(del_statuses)))
+    if 'force' not in request.query_string:
+        del_statuses = ["PLANNED", "NEW", "RUNNING", "ERROR"]
+        if deployment.get("status", "UNKNOWN") not in del_statuses:
+            abort(400, "Deployment %s cannot be deleted while in status %s."
+                  " A deployment must have one of the following statuses before "
+                  "being deleted: [%s]" % (oid,
+                                           deployment.get("status", "UNKNOWN"),
+                                           ", ".join(del_statuses)))
     loc = "/deployments/%s" % oid
     if tenant_id:
         loc = "/%s%s" % (tenant_id, loc)
