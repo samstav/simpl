@@ -730,10 +730,10 @@ def add_node(context, lbid, ipaddr, region, resource, api=None):
     results = None
     port = loadbalancer.port
 
-    status_results = {'status': "CONFIGURE"}
-    instance_key = 'instance:%s' % context['resource']
-    status_results = {instance_key: status_results}
-    resource_postback.delay(context['deployment'], status_results)
+#    status_results = {'status': "CONFIGURE"}
+#    instance_key = 'instance:%s' % context['resource']
+#    status_results = {instance_key: status_results}
+#    resource_postback.delay(context['deployment'], status_results)
 
 
     # Check existing nodes and asses what we need to do
@@ -800,24 +800,21 @@ def add_node(context, lbid, ipaddr, region, resource, api=None):
                       placeholder.address, placeholder.port, lbid))
         except Exception, exc:
             return add_node.retry(exc=exc)
-
-    relations = resource['relations']
-    relations_count = 0
-    for relation in relations:
-        relations_count += 1
-
-    node_count = 0
-    for node in loadbalancer.nodes:
-        if node.port == port and node.condition == "ENABLED":
-            node_count += 1
-
-    if relations_count == node_count:
-        status_results = {'status': "ACTIVE"}
-        instance_key = 'instance:%s' % context['resource']
-        status_results = {instance_key: status_results}
-        resource_postback.delay(context['deployment'], status_results)
-    
-
+#    relations = resource['relations']
+#    relations_count = 0
+#    for relation in relations:
+#        relations_count += 1
+#
+#    node_count = 0
+#    for node in loadbalancer.nodes:
+#        if node.port == port and node.condition == "ENABLED":
+#            node_count += 1
+#
+#    if relations_count == node_count:
+#        status_results = {'status': "ACTIVE"}
+#        instance_key = 'instance:%s' % context['resource']
+#        status_results = {instance_key: status_results}
+#        resource_postback.delay(context['deployment'], status_results)
     return results
 
 
