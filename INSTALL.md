@@ -1,4 +1,3 @@
-
 # Installing Checkmate
 ![Checkmate](https://github.rackspace.com/checkmate/checkmate/raw/master/checkmate/static/img/checkmate.png)
 
