@@ -238,39 +238,39 @@ class Provider(ProviderBase):
                            defines={'resource': resource2['index'],
                                     'provider': self.key},
                            properties={'estimated_duration': 30,
-                                       'task_tags': []},
-                           parent_lb=PathAttrib("instance:%s/id" % key),
+                                       'task_tags': ['create']},
+                           parent_lb=PathAttrib("instance:%s/id" % resource2['index']),
                            algorithm=algorithm,
                            port=port)
             create_lb2.follow(create_lb)
-            task_name = 'Wait for Loadbalancer %s (%s) build' % (key,
-                                                             resource['service'])
+            task_name = 'Wait for Loadbalancer %s (%s) build' % (
+                resource2['index'], resource['service'])
             celery_call = 'checkmate.providers.rackspace.loadbalancer.wait_on_build'
             build_wait_task2 = Celery(wfspec, task_name, celery_call,
                                      call_args=[context.get_queued_task_dict(
                                                 deployment=deployment['id'],
-                                                resource=key),
-                                                PathAttrib('instance:%s/id' % key),
+                                                resource=resource2['index']),
+                                                PathAttrib('instance:%s/id' % resource2['index']),
                                                 resource['region']],
                                      properties={'estimated_druation':150},
-                                     defines=dict(resource=key,
+                                     defines=dict(resource=resource2['index'],
                                                   provider=self.key,
                                                   task_tags=['complete']))
             create_lb2.connect(build_wait_task2)
 
-            task_name = 'Add monitor to Loadbalancer %s (%s) build' % (key,
-                                                                       resource['service'])
+            task_name = 'Add monitor to Loadbalancer %s (%s) build' % (
+                resource2['index'], resource['service'])
             celery_call = 'checkmate.providers.rackspace.loadbalancer.set_monitor'
             set_monitor_task2 = Celery(wfspec, task_name, celery_call,
                                       call_args=[context.get_queued_task_dict(
                                                  deployment=deployment['id'],
-                                                 resource=key),
-                                                 PathAttrib('instance:%s/id' % key),
+                                                 resource=resource2['index']),
+                                                 PathAttrib('instance:%s/id' % resource2['index']),
                                                  proto.upper(),
                                                  resource['region'],
                                                  '/', 10, 10, 3, '(.*)',
                                                  '^[234][0-9][0-9]$'],
-                                      defines=dict(resource=key,
+                                      defines=dict(resource=resource2['index'],
                                                    provider=self.key,
                                                    task_tags=['final']))
 
