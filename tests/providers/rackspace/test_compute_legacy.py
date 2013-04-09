@@ -63,6 +63,7 @@ class TestLegacyCompute(test.ProviderTester):
 
         expected = {
             'instance:1': {
+                'status':'BUILD',
                 'id': server.id,
                 'ip': server.ip,
                 'password': server.adminPass,

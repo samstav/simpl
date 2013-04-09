@@ -3,14 +3,15 @@ import logging
 import os
 import unittest2 as unittest
 import uuid
+import json
+import time
 
 from pymongo import Connection, uri_parser
 from pymongo.errors import AutoReconnect, InvalidURI
 
-
-
 # Init logging before we load the database, 3rd party, and 'noisy' modules
 from checkmate.utils import init_console_logging
+from checkmate.db.common import DatabaseTimeoutException, DEFAULT_STALE_LOCK_TIMEOUT
 from copy import deepcopy
 init_console_logging()
 LOG = logging.getLogger(__name__)
@@ -64,11 +65,28 @@ class TestDatabase(unittest.TestCase):
                 os.environ['CHECKMATE_CONNECTION_STRING'] = 'mongodb://localhost'
         self.collection_name = 'checkmate_test_%s' % uuid.uuid4().hex
         self.driver = db.get_driver('checkmate.db.mongodb.Driver', True)
-        self.driver.connection_string = 'mongodb://checkmate:%s@mongo-n01.dev.chkmate.rackspace.net:27017/checkmate' % ('c%40m3yt1ttttt',)
+        self.driver.connection_string = 'mongodb://checkmate:%s@mongo-n01.dev.chkmate.rackspace.net:27017/checkmate' % ('c%40m3yt1ttttt')
         #self.connection_string = 'localhost'
         self.driver._connection = self.driver._database = None  # reset driver
         self.driver.db_name = 'checkmate'
-
+        self.default_deployment = {
+            'id': 'test',
+            'name': 'test',
+            'inputs': {},
+            'includes': {},
+            'resources': {},
+            'workflow': "abcdef",
+            'status': "NEW",
+            'created': "yesterday",
+            'tenantId': "T1000",
+            'blueprint': {
+                'name': 'test bp',
+                },
+            'environment': {
+                'name': 'environment',
+                'providers': {},
+                },
+            }
     
     def tearDown(self):
         LOG.debug("Deleting test mongodb collection: %s" % self.collection_name)
@@ -81,7 +99,7 @@ class TestDatabase(unittest.TestCase):
             db.collection_name.drop()
             LOG.debug("Deleted test mongodb collection: %s" % self.collection_name)
         except Exception as exc:
-            LOG.error("Error deleting test mongodb collection '%s': %s" % (self.collection_name,))
+            LOG.error("Error deleting test mongodb collection '%s'" % self.collection_name, exc_info=True)
 
   
     @unittest.skipIf(SKIP, REASON)
@@ -281,9 +299,6 @@ class TestDatabase(unittest.TestCase):
             self.assertIn(i, results)
             self.assertNotIn('_id', results[i])
             self.assertEqual(results[i]['id'], i)
-
-   
-
 
 if __name__ == '__main__':
     # Run tests. Handle our paramsters separately

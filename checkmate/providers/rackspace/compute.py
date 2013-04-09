@@ -12,7 +12,7 @@ from SpiffWorkflow.specs import Celery
 
 import checkmate.ssh
 import checkmate.rdp
-from checkmate.deployments import resource_postback
+from checkmate.deployments import resource_postback, alt_resource_postback
 from checkmate.exceptions import CheckmateNoTokenError, \
                                  CheckmateNoMapping, \
                                  CheckmateServerBuildFailed, \
@@ -23,7 +23,7 @@ from checkmate.utils import match_celery_logging, \
                             yaml_to_dict
 from checkmate.workflows import wait_for
 from novaclient.exceptions import NotFound, NoUniqueMatch
-from celery import states
+from celery.canvas import chain, chord, group
 
 
 LOG = logging.getLogger(__name__)
@@ -220,7 +220,7 @@ class Provider(RackspaceComputeProviderBase):
                                 deployment=deployment['id'],
                                 resource=key),
                         PathAttrib('instance:%s/id' % key),
-                        resource['region']],
+                        resource['region'], resource],
                 verify_up=True,
                 password=PathAttrib('instance:%s/password' % key),
                 private_key=deployment.settings().get('keys', {}).get(
@@ -257,13 +257,29 @@ class Provider(RackspaceComputeProviderBase):
 
         if wait_on is None:
             wait_on = []
-        if getattr(self, 'prep_task', None):
-            wait_on.append(self.prep_task)
+        # refactor to remove pylint error on missing attribute
+        preps = getattr(self, 'prep_task', None)
+        if preps:
+            wait_on.append(preps)
         join = wait_for(wfspec, create_server_task, wait_on,
                 name="Server Wait on:%s (%s)" % (key, resource['service']))
 
         return dict(root=join, final=build_wait_task,
                 create=create_server_task)
+
+    def delete_resource_tasks(self, context, deployment_id, resource, key):
+        self._verify_existing_resource(resource, key)
+        inst_id = resource.get("instance", {}).get("id")
+        region = resource.get("region")
+        ctx = context.get_queued_task_dict(deployment_id=deployment_id,
+                                           resource_key=key,
+                                           resource=resource,
+                                           region=region,
+                                           instance_id=inst_id)
+        return chain(delete_server_task.s(ctx),
+                     alt_resource_postback.s(deployment_id),
+                     wait_on_delete_server.si(ctx),
+                     alt_resource_postback.s(deployment_id))
 
     def get_catalog(self, context, type_filter=None):
         """Return stored/override catalog if it exists, else connect, build,
@@ -487,7 +503,27 @@ def create_server(context, name, region, api_object=None, flavor="2",
     }
 
     """
+
     match_celery_logging(LOG)
+
+    def on_failure(exc, task_id, args, kwargs, einfo):
+        """ Handle task failure """
+        dep_id = args[0].get('deployment')
+        key = args[0].get('resource')
+
+        if dep_id and key:
+            k = "instance:%s" % key
+            ret = {k: {'status': 'ERROR',
+                'errmessage': ('Unexpected error deleting compute instance'
+                               ' %s: %s' % (key, exc.message)),
+                'trace': 'Task %s: %s' % (task_id, einfo.traceback)}}
+            resource_postback.delay(dep_id, ret)
+        else:
+            LOG.error("Missing deployment id and/or resource key in "
+                      "delete_server_task error callback.")
+
+    create_server.on_failure = on_failure
+
     if api_object is None:
         api_object = Provider._connect(context, region)
 
@@ -502,6 +538,7 @@ def create_server(context, name, region, api_object=None, flavor="2",
 
     server = api_object.servers.create(name, image_object, flavor_object,
             meta=context.get("metadata", None), files=files)
+    # Update task in workflow
     create_server.update_state(state="PROGRESS",
                                meta={"server.id": server.id})
     LOG.debug('Created server %s (%s).  Admin pass = %s' % (
@@ -511,6 +548,7 @@ def create_server(context, name, region, api_object=None, flavor="2",
     results = {instance_key: {'id': server.id,
                               'password': server.adminPass,
                               'region': api_object.client.region_name,
+                              'status': 'NEW'
                               }}
 
     # Send data back to deployment
@@ -518,9 +556,131 @@ def create_server(context, name, region, api_object=None, flavor="2",
     return results
 
 
+@task(default_retry_delay=30, max_retries=120)
+def delete_server_task(context, api=None):
+    match_celery_logging(LOG)
+
+    assert "deployment_id" in context, "No deployment id in context"
+    assert "resource_key" in context, "No resource key in context"
+    assert "region" in context, "No region provided"
+    assert "instance_id" in context, "No server id provided"
+    assert 'resource' in context, "No resource definition provided"
+
+    def on_failure(exc, task_id, args, kwargs, einfo):
+        """ Handle task failure """
+        dep_id = args[0].get('deployment_id')
+        key = args[0].get('resource_key')
+        if dep_id and key:
+            k = "instance:%s" % key
+            ret = {k: {'status': 'ERROR',
+                'errmessage': ('Unexpected error deleting compute instance'
+                               ' %s: %s' % (key, exc.message)),
+                'trace': 'Task %s: %s' % (task_id, einfo.traceback)}}
+            resource_postback.delay(dep_id, ret)
+        else:
+            LOG.error("Missing deployment id and/or resource key in "
+                      "delete_server_task error callback.")
+
+    delete_server_task.on_failure = on_failure
+
+    key = context.get("resource_key")
+    inst_key = "instance:%s" % key
+    if api is None:
+        api = Provider._connect(context, region=context.get("region"))
+    server = None
+    inst_id = context.get("instance_id")
+    resource = context.get('resource')
+    try:
+        server = api.servers.get(inst_id)
+    except (NotFound, NoUniqueMatch):
+        LOG.warn("Server %s already deleted" % inst_id)
+    if (not server) or (server.status == 'DELETED'):
+        ret = {inst_key: {"status": "DELETED"}}
+        if 'hosts' in resource:
+            for comp_key in resource.get('hosts', []):
+                ret.update({'instance:%s' % comp_key: {'status': 'DELETED',
+                            'statusmsg': 'Host %s was deleted.' % key}})
+        return ret
+    if server.status == "ACTIVE":
+        ret = {}
+        ret.update({inst_key: {"status": "DELETING",
+                           "statusmsg": "Waiting on resource deletion"}})
+        if 'hosts' in resource:
+            for comp_key in resource.get('hosts', []):
+                ret.update({'instance:%s' % comp_key: {'status': 'DELETING',
+                            'statusmsg': 'Host %s is being deleted.' % key}})
+        server.delete()
+        return ret
+    else:
+        msg = ('Instance is in state %s. Waiting on ACTIVE resource.'
+               % server.state)
+        resource_postback.delay(context.get("deployment_id"),
+                                {inst_key: {'status': 'DELETING',
+                                            'statusmsg': msg}})
+        delete_server_task.retry(exc=CheckmateException(msg))
+
+
+@task(default_retry_delay=30, max_retries=120)
+def wait_on_delete_server(context, api=None):
+    """ Wait for a server resource to be deleted """
+    match_celery_logging(LOG)
+    assert "deployment_id" in context, "No deployment id in context"
+    assert "resource_key" in context, "No resource key in context"
+    assert "region" in context, "No region provided"
+    assert "instance_id" in context, "No server id provided"
+    assert 'resource' in context, "No resource definition provided"
+
+    def on_failure(exc, task_id, args, kwargs, einfo):
+        """ Handle task failure """
+        dep_id = args[0].get('deployment_id')
+        key = args[0].get('resource_key')
+        if dep_id and key:
+            k = "instance:%s" % key
+            ret = {k: {'status': 'ERROR',
+                       'errmessage': ('Unexpected error while waiting on '
+                                      'compute instance %s delete' % key),
+                       'trace': 'Task %s: %s' % (task_id, einfo.traceback)}}
+            resource_postback.delay(dep_id, ret)
+        else:
+            LOG.error("Missing deployment id and/or resource key in "
+                      "wait_on_delete_server error callback.")
+
+    wait_on_delete_server.on_failure = on_failure
+
+    key = context.get("resource_key")
+    inst_key = "instance:%s" % key
+    resource = context.get('resource')
+    if api is None:
+        api = Provider._connect(context, region=context.get("region"))
+    server = None
+    inst_id = context.get("instance_id")
+    try:
+        server = api.servers.find(id=inst_id)
+    except (NotFound, NoUniqueMatch):
+        pass
+    if (not server) or (server.status == "DELETED"):
+        ret = {inst_key: {'status': 'DELETED'}}
+        if 'hosts' in resource:
+            for hosted in resource.get('hosts', []):
+                ret.update({
+                    'instance:%s' % hosted: {
+                        'status': 'DELETED',
+                        'statusmsg': 'Host %s was deleted' % key
+                    }
+                })
+        return ret
+    else:
+        msg = ('Instance is in state %s. Waiting on DELETED resource.'
+               % server.status)
+        resource_postback.delay(context.get("deployment_id"),
+                                {inst_key: {'status': 'DELETING',
+                                            'status_msg': msg}})
+        wait_on_delete_server.retry(exc=CheckmateException(msg))
+
+
 # max 60 minute wait
 @task(default_retry_delay=30, max_retries=120, acks_late=True)
-def wait_on_build(context, server_id, region, ip_address_type='public',
+def wait_on_build(context, server_id, region, resource, ip_address_type='public',
             verify_up=True, username='root', timeout=10, password=None,
             identity_file=None, port=22, api_object=None, private_key=None):
     """Checks build is complete and. optionally, that SSH is working.
@@ -550,12 +710,18 @@ def wait_on_build(context, server_id, region, ip_address_type='public',
             'addresses': server.addresses,
             'region': api_object.client.region_name,
             }
+    instance_key = 'instance:%s' % context['resource']
 
     if server.status == 'ERROR':
+        results = {'status': 'ERROR'}
+        results['errmessage'] = "Server %s build failed" % server_id
+        results = {instance_key: results}
+        resource_postback.delay(context['deployment'], results)
         raise CheckmateServerBuildFailed("Server %s build failed" % server_id)
 
     if server.status == 'BUILD':
         results['progress'] = server.progress
+        results['statusmsg'] = "%s%% Complete" % server.progress
         #countdown = 100 - server.progress
         #if countdown <= 0:
         #    countdown = 15  # progress is not accurate. Allow at least 15s
@@ -569,6 +735,8 @@ def wait_on_build(context, server_id, region, ip_address_type='public',
         msg = ("Server '%s' progress is %s. Retrying after 30 seconds" % (
                   server_id, server.progress))
         LOG.debug(msg)
+        results['progress'] = server.progress
+        resource_postback.delay(context['deployment'], {instance_key: results})
         return wait_on_build.retry(exc=CheckmateException(msg))
 
     if server.status != 'ACTIVE':
@@ -577,6 +745,8 @@ def wait_on_build(context, server_id, region, ip_address_type='public',
         # so lets retry instead and notify via the normal task mechanisms
         msg = ("Server '%s' status is %s, which is not recognized. "
               "Not assuming it is active" % (server_id, server.status))
+        results['statusmsg'] = msg
+        resource_postback.delay(context['deployment'], {instance_key: results})
         return wait_on_build.retry(exc=CheckmateException(msg))
 
     # if a rack_connect account, wait for rack_connect configuration to finish
@@ -584,7 +754,9 @@ def wait_on_build(context, server_id, region, ip_address_type='public',
         if 'rackconnect_automation_status' not in server.metadata:
             msg = ("Rack Connect server still does not have the "
                    "'rackconnect_automation_status' metadata tag")
-            return wait_on_build.retry(exc=CheckmateException(msg))
+            results['statusmsg'] = msg
+            resource_postback.delay(context['deployment'], {instance_key: results})
+            wait_on_build.retry(exc=CheckmateException(msg))
         else:
             if server.metadata['rackconnect_automation_status'] == 'DEPLOYED':
                 LOG.debug("Rack Connect server ready. Metadata found'")
@@ -592,7 +764,9 @@ def wait_on_build(context, server_id, region, ip_address_type='public',
                 msg = ("Rack Connect server 'rackconnect_automation_status' "
                        "metadata tag is still not 'DEPLOPYED'. It is '%s'" %
                        server.metadata.get('rackconnect_automation_status'))
-                return wait_on_build.retry(exc=CheckmateException(msg))
+                results['statusmsg'] = msg
+                resource_postback.delay(context['deployment'], {instance_key: results})
+                wait_on_build.retry(exc=CheckmateException(msg))
 
     # should be active now, grab an appropriate address and check connectivity
     ip = None
@@ -644,12 +818,23 @@ def wait_on_build(context, server_id, region, ip_address_type='public',
 
         if not isup:
             # try again in half a second but only wait for another 2 minutes
-            raise wait_on_build.retry(exc=CheckmateException("Server "
-                "'%s' is ACTIVE but cannot be contacted." % server_id),
+            msg = ("Server "
+                   "'%s' is ACTIVE but cannot be contacted." % server_id)
+            results['statusmsg'] = msg
+            resource_postback.delay(context['deployment'],
+                                    {instance_key: results})
+            raise wait_on_build.retry(exc=CheckmateException(msg),
                                       countdown=0.5,
                                       max_retries=240)
     else:
         LOG.info("Server '%s' is ACTIVE. Not verified to be up" % server_id)
+
+
+    # Check to see if we have another resource that needs to install on this server
+    # if 'hosts' in resource:
+    #    results['status'] = "CONFIGURE"
+    # else:
+    results['status'] = "ACTIVE"
 
     instance_key = 'instance:%s' % context['resource']
     results = {instance_key: results}

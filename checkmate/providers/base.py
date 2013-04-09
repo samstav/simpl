@@ -26,6 +26,20 @@ class ProviderBaseWorkflowMixIn():
 
     This class is mixed in to the ProviderBase
     """
+
+    def _verify_existing_resource(self, resource, key):
+        msg = None
+        if resource.get("provider") != self.name:
+            msg = "%s did not provide resource %s" % (self.name, key)
+        if (("region" not in resource) and
+            ('host_region' not in resource.get('instance', {}))):
+            msg = "No region defined in resource %s" % key
+        if (("id" not in resource.get("instance", {})) and
+            ("host_instance" not in resource.get('instance', {}))):
+            msg = "Resource %s does not have an id or host_instance" % key
+        if msg:
+            raise CheckmateException(msg)
+
     def prep_environment(self, wfspec, deployment, context):
         """Add any tasks that are needed for an environment setup
 
@@ -55,6 +69,18 @@ class ProviderBaseWorkflowMixIn():
         LOG.debug("%s.%s.add_resource_tasks called, but was not implemented" %
                 (self.vendor, self.name))
 
+    # pylint: disable=W0613
+    def delete_resource_tasks(self, context, deployment_id, resource, key):
+        """Return a celery task/canvas for deleting the resource"""
+        LOG.debug("%s.%s.delete_resource_tasks called, but was not "
+                  "implemented" % (self.vendor, self.name))
+
+    def sync_resource_status(self, request_context, deployment_id, resource, key):
+        """ Update the status of the supplied resource based on the
+        actual deployed item """
+        LOG.debug("%s.%s.sync_resource_status called, but was not implemented" %
+                (self.vendor, self.name))
+
     def _add_resource_tasks_helper(self, resource, key, wfspec, deployment,
                 context, wait_on):
         """Common algoprithm for all providers. Gets service_name, finds
@@ -80,7 +106,7 @@ class ProviderBaseWorkflowMixIn():
         service_name = resource['service']
         if not service_name:
             raise CheckmateException("Service not found for resource %s" %
-                    key)
+                                     key)
         return wait_on, service_name, component
 
     def add_connection_tasks(self, resource, key, relation, relation_key,

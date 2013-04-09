@@ -65,6 +65,10 @@ class CheckmateCalledProcessError(CheckmateException):
         self.returncode = returncode
         self.cmd = cmd
         self.output = output
+        self.message = ("Call %s failed with return code %s: %s" %
+                        (self.cmd,
+                         self.returncode,
+                         self.output or '(No output)'))
         self.error_info = error_info
         super(CheckmateException, self).__init__(returncode, cmd, output)
 

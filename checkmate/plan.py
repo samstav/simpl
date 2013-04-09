@@ -11,6 +11,7 @@ from checkmate.providers import ProviderBase
 from checkmate import utils
 from checkmate.deployment import verify_required_blueprint_options_supplied,\
     Resource, verify_inputs_against_constraints
+from celery.canvas import group
 
 LOG = logging.getLogger(__name__)
 DB = get_driver()
@@ -102,6 +103,35 @@ class Plan(ExtensibleDict):
         LOG.debug("RESOURCES\n%s", utils.dict_to_yaml(self.resources))
         return self.resources
 
+    def plan_delete(self, context):
+        """
+        Collect delete resource tasks from the deployment
+        :return: a celery.canvas.group of the delete tasks
+        """
+        del_tasks = []
+        dep_id = self.deployment.get("id")
+        for res_key, resource in self.deployment.get("resources",
+                                                     {}).iteritems():
+            prov_key = resource.get('provider')
+            if not prov_key:
+                LOG.warn("Deployment %s resource %s does not specify a provider"
+                         % (dep_id, res_key))
+                continue
+            provider = self.environment.get_provider(resource.get("provider"))
+            if not provider:
+                LOG.warn("Deployment %s resource %s has an unknown provider:"
+                         " %s" % (dep_id, res_key, resource.get("provider")))
+                continue
+            new_tasks = provider.delete_resource_tasks(context, dep_id,
+                                                       resource, res_key)
+            if new_tasks:
+                del_tasks.append(new_tasks)
+        if del_tasks:
+            return del_tasks
+        else:
+            LOG.warn("No delete resource tasks for deployment %s" %
+                     dep_id)
+
     def evaluate_defaults(self):
         """
 
@@ -167,6 +197,7 @@ class Plan(ExtensibleDict):
                                                                definition,
                                                                service_name,
                                                                domain, context)
+                resource['status'] = 'PLANNED'
                 # Add it to resources
                 self.add_resource(resource, definition)
 

@@ -16,6 +16,7 @@ from checkmate.deployments import Deployment, resource_postback
 from checkmate.providers import base, register_providers
 from checkmate.test import StubbedWorkflowBase, ProviderTester
 from checkmate.utils import yaml_to_dict
+from checkmate.providers.rackspace.database import wait_on_build
 
 from celery.exceptions import RetryTaskError
 
@@ -35,6 +36,9 @@ class TestDatabase(ProviderTester):
 
         #Stub out postback call
         self.mox.StubOutWithMock(resource_postback, 'delay')
+        
+        #Stub out wiat_on_build
+        self.mox.StubOutWithMock(wait_on_build, 'delay')
 
         #Create clouddb mock
         clouddb_api_mock = self.mox.CreateMockAnything()
@@ -43,6 +47,7 @@ class TestDatabase(ProviderTester):
 
         expected = {
                 'instance:1':  {
+                    'status':'BUILD',
                     'id': instance.id,
                     'name': instance.name,
                     'status': instance.status,
@@ -71,7 +76,7 @@ class TestDatabase(ProviderTester):
                 True)
 
         self.mox.ReplayAll()
-        results = database.create_instance(context, instance.name,  1,  '1',
+        results = database.create_instance(context, instance.name, 1, '1',
                 [{'name': 'db1'}], 'NORTH', api=clouddb_api_mock)
 
         self.assertDictEqual(results, expected)
@@ -122,6 +127,7 @@ class TestDatabase(ProviderTester):
 
         expected = {
                 'instance:1': {
+                        'status':'BUILD',
                         'host_instance': instance.id,
                         'interfaces': {
                                 'mysql': {
@@ -130,6 +136,7 @@ class TestDatabase(ProviderTester):
                                     }
                             },
                         'name': 'db1',
+                        'id': 'db1',
                         'host_region': 'NORTH'
                     }
             }

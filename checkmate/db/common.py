@@ -6,12 +6,18 @@ from checkmate import utils
 DEFAULT_DATA_PATH = os.path.join(os.path.dirname(__file__), '..', 'data')
 ACTUAL_DATA_PATH = os.path.join(os.environ.get('CHECKMATE_DATA_PATH',
                                           DEFAULT_DATA_PATH))
+
 from checkmate.db.base import DbBase as dbBaseClass
 DbBase = dbBaseClass
 
 LOG = logging.getLogger(__name__)
 DB = None
-
+#locking timeout in seconds
+DEFAULT_TIMEOUT = 1
+#amount of retries to lock an object
+DEFAULT_RETRIES = 30
+#amount of time before a lock can be force deleted
+DEFAULT_STALE_LOCK_TIMEOUT = 10
 
 def any_id_problems(id):
     """Validates the ID provided is safe and returns problems as a string.
@@ -82,3 +88,6 @@ def any_tenant_id_problems(id):
             return "Invalid character '%s' in Tenant ID. Allowed charaters "\
                     "are '%s'" % (c, allowed_chars)
     return None
+
+class DatabaseTimeoutException(Exception):
+    pass
