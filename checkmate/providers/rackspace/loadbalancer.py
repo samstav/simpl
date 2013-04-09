@@ -254,6 +254,7 @@ class Provider(ProviderBase):
                                                 PathAttrib('instance:%s/id' % resource2['index']),
                                                 resource['region']],
                                      properties={'estimated_druation':150},
+                                     merge_results=True,
                                      defines=dict(resource=resource2['index'],
                                                   provider=self.key,
                                                   task_tags=['complete']))
@@ -275,7 +276,7 @@ class Provider(ProviderBase):
                                                    provider=self.key,
                                                    task_tags=['final']))
 
-            build_wait_task.connect(set_monitor_task2)
+            build_wait_task2.connect(set_monitor_task2)
             final = set_monitor_task2
 
         return dict(root=create_lb, final=final)
@@ -851,6 +852,7 @@ def set_monitor(context, lbid, mon_type, region, path='/', delay=10,
     if api is None:
         api = Provider._connect(context, region)
 
+    LOG.debug("lbid: %s" % lbid)
     loadbalancer = api.loadbalancers.get(lbid)
 
     try:
