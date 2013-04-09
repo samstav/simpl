@@ -336,7 +336,6 @@ class Provider(ProviderBase):
         # Get all tasks we need to precede the LB Add Node task
         finals = self.find_tasks(wfspec, resource=relation['target'],
                                  tag='final')
-        LOG.debug("self.find_tasks(wfspec, resource=key, provider=self.key, tag='final'): %s" % self.find_tasks(wfspec, resource=key, provider=self.key, tag='final'))
         create_lb = self.find_tasks(wfspec, resource=key, provider=self.key,
                                     tag='final')[0]
         target_resource = deployment['resources'][relation['target']]
