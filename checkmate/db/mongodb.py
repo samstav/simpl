@@ -1,12 +1,9 @@
 import pymongo
 import logging
 import os
-import time
-import json
 
 from checkmate.classes import ExtensibleDict
-from checkmate.db.common import DbBase, DEFAULT_RETRIES, DEFAULT_TIMEOUT, \
-    DatabaseTimeoutException
+from checkmate.db.common import DbBase
 from checkmate.exceptions import CheckmateDatabaseConnectionError
 from checkmate.utils import merge_dictionary
 from SpiffWorkflow.util import merge_dictionary as collate
@@ -108,7 +105,7 @@ class Driver(DbBase):
 
     def save_workflow(self, id, body, secrets=None, tenant_id=None):
         return self.save_object('workflows', id, body, secrets, tenant_id)
-            
+
     def get_object(self, klass, id, with_secrets=None):
         '''
         Get an object by klass and id. We are filtering out the 
@@ -123,11 +120,11 @@ class Driver(DbBase):
         client = self._client
         with client.start_request():
             results = self.database()[klass].find_one({'_id': id}, {'_id': 0})
-        
+
             if results:
                 if '_locked' in results:
                     del results['_locked']
-  
+
                 if with_secrets is True:
                     secrets = (self.database()['%s_secrets' % klass].find_one(
                                {'_id': id}, {'_id': 0}))
@@ -143,7 +140,7 @@ class Driver(DbBase):
         if not self._client:
             self.database()
         client = self._client
-        with client.start_request():                      
+        with client.start_request():
             if tenant_id:
                 if limit:
                     if offset is None:
@@ -208,17 +205,17 @@ class Driver(DbBase):
         with client.start_request():
 
             # Pull current deployment in DB incase another task has modified its' contents
-            current_deployment = self.get_object(klass, obj_id)
+            if klass == "deployments":
+                current = self.get_object(klass, obj_id)
 
-            if current_deployment:
-                collate(current_deployment, body, extend_lists=False)
-                body = current_deployment
+                if current:
+                    merge_dictionary(current, body)
+                    body = current
 
             if secrets is not None:
                 if not secrets:
                     LOG.warning("Clearing secrets for %s:%s" % (klass, obj_id))
-                    # TODO: to catch bugs. We can remove when we're comfortable
-                    assert False, "CLEARING CREDS! Is that intended?!!!!"
+                    self.database()['%s_secrets' % klass].remove()
                 else:
                     cur_secrets = (self.database()['%s_secrets' % klass].find_one(
                                    {'_id': obj_id}, {'_id': 0}))
