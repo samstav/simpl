@@ -65,7 +65,7 @@ directives.directive('cmOption', function($compile) {
         var lowerType = option.type.toLowerCase().trim();
 
         if (option.label == "Domain") {
-            option.choice = $scope.domain_names;
+            option.choice = scope.domain_names;
         }
 
         if (lowerType == "select") {
