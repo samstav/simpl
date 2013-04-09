@@ -339,7 +339,7 @@ class TestNovaCompute(test.ProviderTester):
         mock_server = self.mox.CreateMockAnything()
         mock_server.status = 'ACTIVE'
         mock_server.delete().AndReturn(True)
-        mock_servers.find(id='abcdef-ghig-1234').AndReturn(mock_server)
+        mock_servers.get('abcdef-ghig-1234').AndReturn(mock_server)
         self.mox.ReplayAll()
         ret = delete_server_task(context, api=api)
         self.assertDictEqual(expect, ret)

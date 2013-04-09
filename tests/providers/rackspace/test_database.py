@@ -136,6 +136,7 @@ class TestDatabase(ProviderTester):
                                     }
                             },
                         'name': 'db1',
+                        'id': 'db1',
                         'host_region': 'NORTH'
                     }
             }
