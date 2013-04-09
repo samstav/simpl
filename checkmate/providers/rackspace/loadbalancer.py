@@ -268,7 +268,7 @@ class Provider(ProviderBase):
                                                  deployment=deployment['id'],
                                                  resource=resource2['index']),
                                                  PathAttrib('instance:%s/id' % resource2['index']),
-                                                 proto.upper(),
+                                                 extra_protocol.upper(),
                                                  resource['region'],
                                                  '/', 10, 10, 3, '(.*)',
                                                  '^[234][0-9][0-9]$'],
