@@ -251,7 +251,7 @@ def delete_record(context, domain_id, record_id):
     match_celery_logging(LOG)
     api = _get_dns_object(context)
     try:
-        domain = api.get_domain(id=domain_id)
+        domain = api.get_domain_details(id=domain_id)
     except UnknownDomain, exc:
         LOG.debug('Cannot delete record %s because %s does not exist. '
                   'Refusing to retry.' % (record_id, domain_id))
