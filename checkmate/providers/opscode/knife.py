@@ -392,7 +392,7 @@ def _create_kitchen(dep_id, service_name, path, secret_key=None, source_repo=Non
     if not os.path.exists(path):
         raise CheckmateException("Invalid path: %s" % path)
 
-    kitchen_path = os.path.join(path, name)
+    kitchen_path = os.path.join(path, dep_id)
 
     if not os.path.exists(kitchen_path):
         os.mkdir(kitchen_path, 0770)
