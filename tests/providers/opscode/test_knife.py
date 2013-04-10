@@ -93,7 +93,7 @@ class TestKnife(unittest.TestCase):
 
         #Stub out call to resource_postback
         self.mox.StubOutWithMock(knife.resource_postback, 'delay')
-        host_results={'instance:rackspace': {'status': 'ACTIVE'}}
+        host_results={'instance:1': {'status': 'BUILD'}, 'instance:rackspace': {'status': 'CONFIGURE'}}
         knife.resource_postback.delay('myEnv', host_results).AndReturn(True)
 
         self.mox.ReplayAll()
