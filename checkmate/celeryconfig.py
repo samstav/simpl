@@ -8,6 +8,10 @@ import sys
 
 LOG = logging.getLogger(__name__)
 
+# XXX: Enable back-ported error propagation for chords. Not needed
+# after update to Celery 3.1 as its the default behavior
+CELERY_CHORD_PROPAGATES = True
+
 # For debugging, thise makes all calls synchronous
 if '--eager' in sys.argv:
     CELERY_ALWAYS_EAGER = True

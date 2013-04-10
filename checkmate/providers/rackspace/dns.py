@@ -143,7 +143,7 @@ def get_domains(deployment, limit=None, offset=None):
         get_domains.retry(exc=exc)
 
 
-@task(default_retry_delay=10, max_retries=10)
+@task(default_retry_delay=3, max_retries=20)
 def create_domain(context, domain, email=None,
                   dom_ttl=300):
     match_celery_logging(LOG)
@@ -151,8 +151,14 @@ def create_domain(context, domain, email=None,
     if not email:
         email = "admin@%s" % domain
     try:
-        api.create_domain(name=domain, ttl=dom_ttl, emailAddress=email)
+        doms = api.create_domain(name=domain, ttl=dom_ttl, emailAddress=email)
         LOG.debug('Domain %s created.' % domain)
+        if hasattr(doms, "append"):
+            doms = doms[0]
+        ser_dom = doms.__dict__
+        if "connection" in ser_dom:
+            del ser_dom["connection"]
+        return ser_dom
     except InvalidDomainName as exc:
         LOG.debug('Domain %s is invalid.  Refusing to retry.' % domain)
         raise exc
@@ -194,51 +200,86 @@ def delete_domain(context, name):
         delete_domain.retry(exc=exc)
 
 
-@task(default_retry_delay=20, max_retries=10)
+@task(default_retry_delay=3, max_retries=20)
 def create_record(context, domain, name, dnstype, data,
                   rec_ttl=1800, makedomain=False,
                   email=None):
+    """ Create a DNS record of the specified type for the specified domain """
+
     match_celery_logging(LOG)
     api = _get_dns_object(context)
     try:
         domain_object = api.get_domain(name=domain)
-    except UnknownDomain, exc:
+    except UnknownDomain:
         if makedomain:
-            LOG.debug('Cannot create %s record (%s->%s) because %s does not '
-                      'exist. Creating %s and retrying.' % (
+            LOG.debug('Cannot create %s record (%s->%s) because domain "%s" '
+                      'does not exist. Creating domain "%s".' % (
                       dnstype, name, data, domain, domain))
             if not email:
                 email = "admin@%s" % domain
-            create_domain.delay(context, domain, email=email)
-            create_record.retry(exc=exc)
+            domain_object = api.create_domain(domain, 300, emailAddress=email)
         else:
-            LOG.debug('Cannot create %s record (%s->%s) because %s does not '
-                      'exist. Refusing to retry.' % (
+            msg = ('Cannot create %s record (%s->%s) because domain "%s" '
+                      'does not exist.' % (
                       dnstype, name, data, domain))
-            return
-    except Exception, exc:
-        LOG.debug('Error finding domain %s.  Wanting to create %s record (%s'
-                  '->%s TTL: %s). Error %s. Retrying.' % (
-                  domain, dnstype, name, data, rec_ttl, str(exc)))
-        create_record.retry(exc=exc)
+            LOG.error(msg)
+            raise CheckmateException(msg)
 
     try:
-        domain_object.create_record(name, data, dnstype, ttl=rec_ttl)
+        rec = domain_object.create_record(name, data, dnstype, ttl=rec_ttl)
         LOG.debug('Created DNS %s record %s -> %s. TTL: %s' % (
-                  dnstype, name, data, rec_ttl))
-    except ResponseError, r:
-        LOG.debug('Error creating DNS %s record %s -> %s. TTL: %s Error: %s '
-                  '%s. Retrying.' % (
-                  dnstype, name, data, rec_ttl, r.status, r.reason))
-        create_record.retry(exc=r)
-    except Exception, exc:
-        LOG.debug('Error creating DNS %s record %s -> %s. TTL: %s Error: %s.'
-                  ' Retrying.' % (dnstype, name, data, rec_ttl, str(exc)))
-        create_record.retry(exc=exc)
+              dnstype, name, data, rec_ttl))
+    except ResponseError as res_err:
+        if "duplicate of" not in res_err.reason:
+            create_record.retry(exc=res_err)
+        else:
+            LOG.warn('DNS record "%s" already exists for domain "%s"'
+                     % (name, domain))
+            rec = domain_object.get_record(name=name)
+
+    ser_rec = rec.__dict__
+    if rec.domain:
+        ser_rec['domain'] = str(rec.domain.id)
+    for key, val in ser_rec.iteritems():
+        ser_rec[key] = str(val)
+    return ser_rec
+
+
+@task(default_retry_delay=5, max_retries=12)
+def delete_record(context, domain_id, record_id):
+    """ Delete the specified record """
+    match_celery_logging(LOG)
+    api = _get_dns_object(context)
+    try:
+        domain = api.get_domain(id=domain_id)
+    except UnknownDomain, exc:
+        LOG.debug('Cannot delete record %s because %s does not exist. '
+                  'Refusing to retry.' % (record_id, domain_id))
+        return
+    except Exception as exc:
+        msg = ('Error finding domain %s. Cannot delete record %s.'
+               % (domain_id, record_id))
+        LOG.error(msg, exc_info=True)
+        raise CheckmateException(msg)
+    try:
+        record = domain.get_record(id=record_id)
+        domain.delete_record(record.id)
+        LOG.debug('Deleted DNS record %s.' % record_id)
+        return True
+    except ResponseError as res_err:
+        LOG.debug('Error deleting DNS record %s. Error %s %s. Retrying.' % (
+                  record_id, res_err.status, res_err.reason))
+        delete_record.retry(exc=res_err)
+    except Exception as exc:
+        if "Not found" in exc.message:
+            return
+        LOG.debug('Error deleting DNS record %s. Retrying.' % record_id,
+                  exc_info=True)
+        delete_record.retry(exc=exc)
 
 
 @task(default_retry_delay=20, max_retries=10)
-def delete_record(context, domain, name):
+def delete_record_by_name(context, domain, name):
     match_celery_logging(LOG)
     api = _get_dns_object(context)
     try:

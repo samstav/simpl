@@ -567,7 +567,7 @@ class StubbedWorkflowBase(unittest.TestCase):
                         'resource': key,
                     })
             elif resource.get('type') == 'compute' and 'disk' in resource:
-                expected_calls.append({
+                expected_calls.extend([{
                         # Create Instance
                         'call': 'checkmate.providers.rackspace.database.'
                                 'create_instance',
@@ -601,7 +601,27 @@ class StubbedWorkflowBase(unittest.TestCase):
                             },
                         'post_back_result': True,
                         'resource': key,
-                    })
+                    }, {  # wait_on_build
+                        'call': 'checkmate.providers.rackspace.database.'
+                                'wait_on_build',
+                        'args': [Func(is_good_context),
+                                IgnoreArg(),
+                                self.deployment.get_setting('region',
+                                        resource_type='compute',
+                                        service_name=resource['service'],
+                                        provider_key=resource['provider'],
+                                        default='testonia')],
+                        'kwargs': IgnoreArg(),
+                        'result': {
+                                #'id': 'db-inst-1',
+                                'instance:%s' % key: {
+                                    'id': 'db-inst-1',
+                                    'status': 'ACTIVE'
+                                    },
+                            },
+                        'post_back_result': True,
+                        'resource': key,
+                    }])
             elif resource.get('type') == 'database':
                 username = self.deployment.get_setting('username',
                         resource_type=resource.get('type'),
@@ -611,13 +631,8 @@ class StubbedWorkflowBase(unittest.TestCase):
                         # Create Database
                         'call': 'checkmate.providers.rackspace.database.'
                                 'create_database',
-                        'args': [Func(is_good_context),
-                                'db1',
-                                self.deployment.get_setting('region',
-                                        default='testonia'),
-                                ],
-                        'kwargs': And(ContainsKeyValue('instance_id',
-                                'db-inst-1')),
+                        'args': IgnoreArg(),
+                        'kwargs': IgnoreArg(),
                         'result': {
                                 'instance:%s' % key: {
                                     'name': 'db1',
