@@ -359,7 +359,6 @@ def _create_kitchen(dep_id, service_name, path, secret_key=None):
     :param path: where to create the kitchen
     :param secret_key: PEM-formatted private key for data bag encryption
     """
-    print "PATH: %s" % path
     if not os.path.exists(path):
         raise CheckmateException("Invalid path: %s" % path)
 
@@ -426,12 +425,10 @@ def _create_kitchen(dep_id, service_name, path, secret_key=None):
     # Knife defaults to knife.rb, but knife-solo looks for solo.rb, so we link
     # both files so that knife and knife-solo commands will work and anyone
     # editing one will also change the other
-    print "KITCHEN PATH: %s" % kitchen_path
     knife_file = os.path.join(kitchen_path, 'knife.rb')
     if os.path.exists(knife_file):
         LOG.debug("Knife.rb already exists: %s" % knife_file)
     else:
-        print "KNIFE_FILE: %s, SOLO_FILE: %s" % (knife_file, solo_file)
         os.link(solo_file, knife_file)
         LOG.debug("Linked knife.rb: %s" % knife_file)
 
@@ -602,6 +599,25 @@ def cook(host, environment, resource, recipes=None, roles=None, path=None,
             LOG.warn("Error callback for cook task %s did not get appropriate args" % task_id)
 
     cook.on_failure = on_failure
+
+    # Server provider updates status to CONFIGURE, but sometimes the server is configured
+    # twice, so we need to do this update anyway just to be safe
+    # Update status of host resource to CONFIGURE
+    res = {}
+    host_results = {}
+    host_results['status'] = "CONFIGURE"
+    host_key = 'instance:%s' % resource['hosted_on']
+    host_results = {host_key: host_results}
+    res.update(host_results)
+
+    # Update status of current resource to BUILD
+    results = {}
+    results['status'] = "BUILD"
+    instance_key = 'instance:%s' % resource['index']
+    results = {instance_key: results}
+    res.update(results)
+
+    resource_postback.delay(environment, res)
 
     root = _get_root_environments_path(environment, path)
 
@@ -859,7 +875,6 @@ def create_environment(name, service_name, path=None, private_key=None,
 
     # Kitchen is created in a /kitchen subfolder since it gets completely
     # rsynced to hosts. We don't want the whole environment rsynced
-    print "NAME: %s" % name
     kitchen_data = _create_kitchen(name, service_name, fullpath,
             secret_key=secret_key)
     kitchen_path = os.path.join(fullpath, service_name)

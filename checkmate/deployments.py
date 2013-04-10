@@ -610,9 +610,6 @@ def resource_postback(deployment_id, contents):
     
     assert isinstance(contents, dict), "Must postback data in dict"
 
-    print "POST BACK: %s" % contents
-    print ""
-
     # Set status of resource if post_back includes status
     for key, value in contents.items():
         if 'status' in contents[key]:
@@ -640,18 +637,55 @@ def resource_postback(deployment_id, contents):
     if new_contents:
         deployment.on_resource_postback(new_contents)
 
-    resources = deployment['resources']
-    for k, v in resources.items():
-        if k.isdigit():
-            print "%s:%s, %s" % (k, resources[k]['status'], resources[k].get('type'))
-
-    print "DEP STATUS: %s" % deployment['status']
-    if deployment['status'] is "ERROR":
-        print "errmessage: %s" % deployment.get('errmessage')
+    check_and_set_dep_status(deployment)
 
     body, secrets = extract_sensitive_data(deployment)
-    DB.save_deployment(deployment_id, body, secrets)
+    temp = DB.save_deployment(deployment_id, body, secrets)
 
     LOG.debug("Updated deployment %s with post-back" % deployment_id,
               extra=dict(data=contents))
 
+
+def check_and_set_dep_status(deployment):
+     # Check all resources statuses and update DEP status
+            count = 0
+            statuses = {"NEW": 0,
+                        "BUILD": 0,
+                        "CONFIGURE": 0,
+                        "ACTIVE": 0,
+                        'PLANNED': 0,
+                        'ERROR': 0,
+                        'DELETED': 0,
+                        'DELETING': 0
+                        }
+
+            resources = deployment['resources']
+            for key, value in resources.items():
+                if key.isdigit():
+                    r_status = resources[key].get('status')
+                    if r_status == "ERROR":
+                        r_msg = resources[key].get('errmessage')
+                        if "errmessage" not in deployment:
+                            deployment['errmessage'] = []
+                        if r_msg not in deployment['errmessage']:
+                            deployment['errmessage'].append(r_msg)
+                    statuses[r_status] += 1
+                    count += 1
+
+            if deployment['status'] != "ERROR":
+                if statuses['DELETING'] >=1:
+                    deployment['status'] = "DELETING"
+                elif statuses['DELETED'] == count:
+                    deployment['status'] = "DELETED"
+                elif statuses['PLANNED'] == count:
+                    deployment['status'] = "PLANNED"
+                elif statuses['NEW'] == count:
+                    deployment['status'] = "NEW"
+                elif statuses['ACTIVE'] == count:
+                    deployment['status'] = "ACTIVE"
+                elif statuses['CONFIGURE'] >=1:
+                    deployment['status'] = "CONFIGURE"
+                elif statuses['BUILD'] >= 1:
+                    deployment['status'] = "BUILD"
+                else:
+                    LOG.debug("Could not identify a deployment status update")
