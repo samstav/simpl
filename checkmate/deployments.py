@@ -640,7 +640,7 @@ def resource_postback(deployment_id, contents):
     check_and_set_dep_status(deployment)
 
     body, secrets = extract_sensitive_data(deployment)
-    temp = DB.save_deployment(deployment_id, body, secrets)
+    DB.save_deployment(deployment_id, body, secrets)
 
     LOG.debug("Updated deployment %s with post-back" % deployment_id,
               extra=dict(data=contents))
