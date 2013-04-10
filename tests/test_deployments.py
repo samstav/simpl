@@ -56,6 +56,7 @@ class TestDeployments(unittest.TestCase):
                     'name': 'environment',
                     'providers': {},
                     },
+                'display-outputs': {},
                 }
         valid = Deployment(deployment)
         self.assertDictEqual(valid._data, deployment)
