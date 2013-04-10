@@ -392,7 +392,7 @@ def _create_kitchen(dep_id, service_name, path, secret_key=None, source_repo=Non
     if not os.path.exists(path):
         raise CheckmateException("Invalid path: %s" % path)
 
-    kitchen_path = os.path.join(path, dep_id)
+    kitchen_path = os.path.join(path, 'kitchen')
 
     if not os.path.exists(kitchen_path):
         os.mkdir(kitchen_path, 0770)
@@ -920,8 +920,6 @@ def create_environment(name, service_name, path=None, private_key=None,
     shutil.copy(public_key_path, kitchen_key_path)
     LOG.debug("Wrote environment public key to kitchen: %s" % kitchen_key_path)
 
-    LOG.debug("kitchen_path: %s" % kitchen_path)
-    LOG.debug("source_repo: %s" % source_repo)
     if source_repo:
         # if Berksfile exists, run berks to pull in cookbooks
         if os.path.exists(os.path.join(kitchen_path, 'Berksfile')):
