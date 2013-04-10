@@ -7,6 +7,8 @@ import mox
 from mox import IsA
 
 from checkmate.utils import init_console_logging
+from checkmate.providers.rackspace.loadbalancer import delete_lb_task,\
+    wait_on_lb_delete
 init_console_logging()
 LOG = logging.getLogger(__name__)
 
@@ -37,20 +39,22 @@ class TestCeleryTasks(unittest.TestCase):
     def tearDown(self):
         self.mox.UnsetStubs()
 
-    def test_create_load_balancer_http(self):
+    def test_create_load_balancer(self):
         name = 'fake_lb'
         vip_type = 'SERVICENET'
-        protocol = 'HTTP'
+        protocol = 'notHTTP'
         region = 'North'
         fake_id = 121212
         public_ip = 'a.b.c.d'
         servicenet_ip = 'w.x.y.z'
+        status = 'BUILD'
 
         #Mock server
         lb = self.mox.CreateMockAnything()
         lb.id = fake_id
         lb.port = 80
         lb.protocol = protocol
+        lb.status = status
 
         ip_data_pub = self.mox.CreateMockAnything()
         ip_data_pub.ipVersion = 'IPV4'
@@ -89,7 +93,8 @@ class TestCeleryTasks(unittest.TestCase):
                 'id': fake_id,
                 'public_ip': public_ip,
                 'port': 80,
-                'protocol': protocol
+                'protocol': protocol,
+                'status': status
             }
         }
 
@@ -102,73 +107,42 @@ class TestCeleryTasks(unittest.TestCase):
                                                    api=api_mock)
 
         self.assertDictEqual(results, expected)
+        #self.mox.VerifyAll()
+
+    def test_delete_lb_task(self):
+        """ Test delete task """
+        context = {}
+        expect = {
+            "instance:1": {
+                "status": "DELETING",
+                "status_msg": "Waiting on resource deletion"
+            }
+        }
+        api = self.mox.CreateMockAnything()
+        api.loadbalancers = self.mox.CreateMockAnything()
+        m_lb = self.mox.CreateMockAnything()
+        api.loadbalancers.get('lb14nuai-asfjb').AndReturn(m_lb)
+        m_lb.__str__().AndReturn("Mock LB")
+        m_lb.status = 'ACTIVE'
+        m_lb.delete().AndReturn(True)
+        self.mox.ReplayAll()
+        ret = delete_lb_task(context, '1', 'lb14nuai-asfjb', 'ORD', api=api)
+        self.assertDictEqual(expect, ret)
         self.mox.VerifyAll()
 
-    def test_create_load_balancer_tcp(self):
-        name = 'fake_lb'
-        vip_type = 'SERVICENET'
-        protocol = 'TCP'
-        region = 'North'
-        fake_id = 121212
-        public_ip = 'a.b.c.d'
-        servicenet_ip = 'w.x.y.z'
-
-        #Mock server
-        lb = self.mox.CreateMockAnything()
-        lb.id = fake_id
-        lb.port = 80
-        lb.protocol = protocol
-
-        ip_data_pub = self.mox.CreateMockAnything()
-        ip_data_pub.ipVersion = 'IPV4'
-        ip_data_pub.type = 'PUBLIC'
-        ip_data_pub.address = public_ip
-
-        ip_data_svc = self.mox.CreateMockAnything()
-        ip_data_svc.ipVersion = 'IPV4'
-        ip_data_svc.type = 'SERVICENET'
-        ip_data_svc.address = servicenet_ip
-
-        lb.virtualIps = [ip_data_pub, ip_data_svc]
-
-        context = dict(deployment='DEP', resource='1')
-
-        #Stub out postback call
-        self.mox.StubOutWithMock(resource_postback, 'delay')
-
-        #Stub out set_monitor call
-        self.mox.StubOutWithMock(loadbalancer, 'set_monitor')
-
-        #Create appropriate api mocks
-        api_mock = self.mox.CreateMockAnything()
-        api_mock.loadbalancers = self.mox.CreateMockAnything()
-        api_mock.loadbalancers.create(name=name, port=80,
-                                      protocol=protocol.upper(),
-                                      nodes=[IsA(cloudlb.Node)],
-                                      virtualIps=[IsA(cloudlb.VirtualIP)],
-                                      algorithm='ROUND_ROBIN').AndReturn(lb)
-
-        loadbalancer.set_monitor.delay(context, fake_id, 'CONNECT',
-                                       region, '/', 10, 10, 3, '(.*)',
-                                       None).AndReturn(None)
-        expected = {
-            'instance:%s' % context['resource']: {
-                'id': fake_id,
-                'public_ip': public_ip,
-                'port': 80,
-                'protocol': protocol
-            }
-        }
-
-        resource_postback.delay(context['deployment'],
-                                expected).AndReturn(True)
-
+    def test_wait_on_lb_delete(self):
+        """ Test wait on delte task """
+        context = {}
+        expect = {'instance:1': {'status': 'DELETED'}}
+        api = self.mox.CreateMockAnything()
+        api.loadbalancers = self.mox.CreateMockAnything()
+        m_lb = self.mox.CreateMockAnything()
+        m_lb.status = 'DELETED'
+        api.loadbalancers.get('lb14nuai-asfjb').AndReturn(m_lb)
         self.mox.ReplayAll()
-        results = loadbalancer.create_loadbalancer(context, name, vip_type,
-                                                   protocol, region,
-                                                   api=api_mock)
-
-        self.assertDictEqual(results, expected)
+        ret = wait_on_lb_delete(context, '1', '1234', 'lb14nuai-asfjb',
+                                'ORD', api=api)
+        self.assertDictEqual(expect, ret)
         self.mox.VerifyAll()
 
 
@@ -269,6 +243,7 @@ class TestBasicWorkflow(test.StubbedWorkflowBase):
                                  username='MOCK_USER')
         plan(self.deployment, context)
 
+    
     def test_workflow_task_generation(self):
         """Verify workflow task creation"""
         context = RequestContext(auth_token='MOCK_TOKEN',
@@ -283,6 +258,8 @@ class TestBasicWorkflow(test.StubbedWorkflowBase):
             'Create HTTP Loadbalancer (0)',
             'Create Resource 1',
             'Wait before adding 1 to LB 0',
+            'Add monitor to Loadbalancer 0 (lb) build',
+            'Wait for Loadbalancer 0 (lb) build'
         ]
         task_list.sort()
         expected.sort()
@@ -337,7 +314,8 @@ class TestBasicWorkflow(test.StubbedWorkflowBase):
                                     'id': 121212,
                                     'public_ip': '8.8.8.8',
                                     'port': 80,
-                                    'protocol': 'http'
+                                    'protocol': 'http',
+                                    'status': 'ACTIVE'
                                 }
                         },
                     'resource': key,
@@ -345,12 +323,34 @@ class TestBasicWorkflow(test.StubbedWorkflowBase):
 
                 expected.append({
                     'call': 'checkmate.providers.rackspace.loadbalancer.'
-                            'add_node',
-                    'args': [IsA(dict), 121212, '10.1.2.1', 'North'],
+                            'wait_on_build',
+                    'args': [IsA(dict), 121212, 'North'],
                     'kwargs': None,
                     'result': None,
                     'resource': key,
                     })
+
+                expected.append({
+                    'call': 'checkmate.providers.rackspace.loadbalancer.'
+                            'set_monitor',
+                    'args': [IsA(dict), 121212, mox.IgnoreArg(), 'North'],
+                    'kwargs': None,
+                    'result': None,
+                    'resource': key,
+                    })
+
+                expected.append({
+                    'call': 'checkmate.providers.rackspace.loadbalancer.'
+                            'add_node',
+                    'args': [IsA(dict), 121212, '10.1.2.1', 'North', resource],
+                    'kwargs': None,
+                    'result': None,
+                    'resource': key,
+                    })
+
+        #resource_postback mock
+        #self.mox.StubOutWithMock(resource_postback, 'delay')
+        #resource_postback.delay(mox.IgnoreArg(), mox.IgnoreArg()).AndReturn(True)
 
         self.workflow = self._get_stubbed_out_workflow(expected_calls=expected)
 
@@ -361,7 +361,6 @@ class TestBasicWorkflow(test.StubbedWorkflowBase):
                         'Workflow did not complete')
 
         self.mox.VerifyAll()
-
 
 if __name__ == '__main__':
     # Run tests. Handle our parameters separately

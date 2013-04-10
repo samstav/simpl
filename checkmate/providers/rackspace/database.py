@@ -8,11 +8,12 @@ import clouddb
 from SpiffWorkflow.operators import PathAttrib
 from SpiffWorkflow.specs import Celery
 
-from checkmate.deployments import resource_postback
+from checkmate.deployments import resource_postback, alt_resource_postback
 from checkmate.exceptions import CheckmateException,  CheckmateNoTokenError
 from checkmate.providers import ProviderBase
 from checkmate.utils import match_celery_logging
 from checkmate.workflows import wait_for
+from clouddb.errors import ResponseError
 
 LOG = logging.getLogger(__name__)
 
@@ -63,7 +64,7 @@ class Provider(ProviderBase):
                     service_name=service, provider_key=self.key)
             if not region:
                 raise CheckmateException("Could not identify which region to "
-                        "create database in")
+                                         "create database in")
 
             template['flavor'] = flavor
             template['disk'] = volume
@@ -184,19 +185,56 @@ class Provider(ProviderBase):
                                                            resource.get('type', None)),
                                 interface=resource.get('interface'),
                                 provider=self.key,
-                                task_tags=['create', 'final']),
+                                task_tags=['create', 'root']),
                    properties={
                         'estimated_duration': 80
                    })
             root = wait_for(wfspec, create_instance_task, wait_on)
-            if 'task_tags' in root.properties:
-                root.properties['task_tags'].append('root')
-            else:
-                root.properties['task_tags'] = ['root']
-            return dict(root=root, final=create_instance_task)
+            wait_on_build = Celery(wfspec, 'Wait on Database Instance %s' % key,
+                    'checkmate.providers.rackspace.database.wait_on_build',
+                    call_args=[context.get_queued_task_dict(
+                                    deployment=deployment['id'],
+                                    resource=key),
+                               PathAttrib("instance:%s/id" % key),
+                               region],
+                    defines=dict(resource=key, provider=self.key,
+                                 task_tags=['final'],
+                    properties={
+                        'estimated_duration': 80
+                   }))
+            wait_on_build.follow(create_instance_task)
+            return dict(root=root, final=wait_on_build)
         else:
             raise CheckmateException("Unsupported component type '%s' for "
                     "provider %s" % (component['is'], self.key))
+
+    def delete_resource_tasks(self, context, deployment_id, resource, key):
+        self._verify_existing_resource(resource, key)
+        ctx = context.get_queued_task_dict(deployment_id=deployment_id,
+                        resource_key=key,
+                        resource=resource,
+                        region=resource.get('region') or
+                               resource.get('instance', {}).get('host_region'))
+        if resource.get('type') == 'compute':
+            return self._delete_comp_res_tasks(ctx, deployment_id,
+                                               resource, key)
+        if resource.get('type') == 'database':
+            return self._delete_db_res_tasks(ctx, deployment_id, resource,
+                                            key)
+        raise CheckmateException("Cannot provide delete tasks for resource %s:"
+                                 " Invalid resource type '%s'"
+                                 % (key, resource.get('type')))
+
+    def _delete_comp_res_tasks(self, ctx, deployment_id, resource, key):
+        return (delete_instance.s(ctx) |
+                alt_resource_postback.s(deployment_id) |
+                wait_on_del_instance.si(ctx) |
+                alt_resource_postback.s(deployment_id))
+
+    def _delete_db_res_tasks(self, context, deployment_id, resource, key):
+        """ Return delete tasks for the specified database instance """
+        return (delete_database.s(context) |
+                alt_resource_postback.s(deployment_id))
 
     def get_catalog(self, context, type_filter=None):
         """Return stored/override catalog if it exists, else connect, build,
@@ -368,7 +406,7 @@ def create_instance(context, instance_name, flavor, size, databases, region,
             'instance:%s' % context['resource']: {
                     'id': instance.id,
                     'name': instance.name,
-                    'status': instance.status,
+                    'status': 'BUILD',
                     'region': region,
                     'interfaces': {
                             'mysql': {
@@ -392,9 +430,43 @@ def create_instance(context, instance_name, flavor, size, databases, region,
             db_results[database['name']] = data
 
     # Send data back to deployment
-    resource_postback.delay(context['deployment'], results) #@UndefinedVariable
-
+    resource_postback.delay(context['deployment'], results)
     return results
+
+
+@task(default_retry_delay=30, max_retries=120, acks_late=True)
+def wait_on_build(context, instance_id, region, api=None):
+    """ Check to see if DB Instance has finished building """
+
+    match_celery_logging(LOG)
+    if api is None:
+        api = Provider._connect(context, region)
+
+    assert instance_id, "ID must be provided"
+    LOG.debug("Getting Instance %s" % instance_id)
+
+    instance = api.get_instance(instance_id)
+
+    results = {}
+
+    if instance.status == "ERROR":
+        results['status'] = "ERROR"
+        msg = ("Instance %s build failed" % instance_id)
+        results['errmessage'] = msg
+        instance_key = "instance:%s" % context['resource']
+        results = {instance_key: results}
+        resource_postback.delay(context['deployment'], results)
+        raise CheckmateException(msg)
+    elif instance.status == "ACTIVE":
+        results['status'] = "ACTIVE"
+        results['id'] = instance_id
+        instance_key = "instance:%s" % context['resource']
+        results = {instance_key: results}
+        resource_postback.delay(context['deployment'], results)
+        return results
+    else:
+        msg = ("DB Instance status is %s, retrying" % instance.status)
+        return wait_on_build.retry(exc=CheckmateException(msg))
 
 
 @task(default_retry_delay=15, max_retries=40) # max 10 minute wait
@@ -415,6 +487,7 @@ def create_database(context, name, region, character_set=None, collate=None,
     :param instance_attributes: kwargs used to create the instance (used if
             instance_id not supplied)
     """
+
     match_celery_logging(LOG)
     database = {'name': name}
     if character_set:
@@ -439,11 +512,13 @@ def create_database(context, name, region, character_set=None, collate=None,
 
         instance = create_instance(context, instance_name, size, flavor,
             databases, region, api=api)
+        instance_id = instance.get(instance_key, {}).get('id')
+        wait_on_build.delay(context, instance_id, region, api=api)
         # create_instance calls its own postback
         results = {
                 instance_key: instance['instance']['databases'][name]
             }
-        results[instance_key]['host_instance'] = instance['id']
+        results[instance_key]['host_instance'] = instance_id
         results[instance_key]['host_region'] = instance['region']
         return results
 
@@ -455,11 +530,14 @@ def create_database(context, name, region, character_set=None, collate=None,
         results = {
                 instance_key: {
                         'name': name,
+                        'id': name,
                         'host_instance': instance_id,
                         'host_region': region,
+                        'status': "BUILD",
                         'interfaces': {
                                 'mysql': {
-                                        'host': instance.hostname,  # pylint: disable=E1103
+                                        # pylint: disable=E1103
+                                        'host': instance.hostname,
                                         'database_name': name
                                     },
                             }
@@ -513,6 +591,11 @@ def add_user(context, instance_id, databases, username, password, region,
     match_celery_logging(LOG)
 
     assert instance_id, "Instance ID not supplied"
+
+    instance_key = 'instance:%s' % context['resource']
+    results = {instance_key: {'status': "CONFIGURE"}}
+    resource_postback.delay(context['deployment'], results) 
+
     if not api:
         api = Provider._connect(context, region)
 
@@ -531,11 +614,11 @@ def add_user(context, instance_id, databases, username, password, region,
         else:
             raise exc
 
-    instance_key = 'instance:%s' % context['resource']
     results = {
                 instance_key: {
                         'username': username,
                         'password': password,
+                        'status' : "ACTIVE",
                         'interfaces': {
                                 'mysql': {
                                         'host': instance.hostname,
@@ -547,34 +630,198 @@ def add_user(context, instance_id, databases, username, password, region,
                     }
               }
     # Send data back to deployment
-    resource_postback.delay(context['deployment'], results) #@UndefinedVariable
+    resource_postback.delay(context['deployment'], results)
 
     return results
 
 
-@task(default_retry_delay=10, max_retries=10)
-def delete_instance(context, instance_id, region, api=None):
+@task(default_retry_delay=2, max_retries=60)
+def delete_instance(context, api=None):
     """Deletes a database server instance and its associated databases and
     users.
     """
+
     match_celery_logging(LOG)
+
+    def on_failure(exc, task_id, args, kwargs, einfo):
+        """ Handle task failure """
+        dep_id = args[0].get('deployment_id')
+        key = args[0].get('resource_key')
+        if dep_id and key:
+            k = "instance:%s" % key
+            ret = {k: {'status': 'ERROR',
+                       'errmessage': ('Unexpected error while deleting '
+                                      'database instance %s' % key),
+                       'trace': 'Task %s: %s' % (task_id, einfo.traceback)}}
+            resource_postback.delay(dep_id, ret)
+        else:
+            LOG.error("Missing deployment id and/or resource key in "
+                      "delete_instance error callback.")
+
+    delete_instance.on_failure = on_failure
+
+    assert 'region' in context, "No region defined in context"
+    assert 'resource_key' in context, 'No resource key in context'
+    assert 'resource' in context, 'No resource defined in context'
+
+    region = context.get('region')
+    key = context.get('resource_key')
+    resource = context.get('resource')
+    inst_key = "instance:%s" % key
+    instance_id = resource.get('instance', {}).get('id')
+    if not instance_id:
+        raise CheckmateException("No instance id supplied for resource %s"
+                                 % key)
+
     if not api:
         api = Provider._connect(context, region)
 
-    api.delete_instance(instanceid=instance_id)
-    LOG.info('Database instance %s deleted.' % instance_id)
+    try:
+        api.delete_instance(instance_id)
+        LOG.info('Database instance %s deleted.' % instance_id)
+    except ResponseError as rese:
+        if rese.status == 404:  # already deleted
+            res = {inst_key: {'status': 'DELETED'}}
+            for hosted in resource.get('hosts', []):
+                res.update({'instance:%s' % hosted: {'status': 'DELETED',
+                                    'statusmsg': 'Host %s was deleted'}})
+            return res
+        else:
+            # not too sure what this is, so maybe retry a time or two
+            delete_instance.retry(exc=rese)
+    except Exception as exc:
+        # might be an api fluke, try again
+        delete_instance.retry(exc=exc)
+    res = {inst_key: {'status': 'DELETING'}}
+    for hosted in resource.get('hosts', []):
+        res.update({'instance:%s' % hosted: {'status': 'DELETING',
+                            'statusmsg': 'Host %s is being deleted'}})
+    return res
 
 
-@task(default_retry_delay=10, max_retries=10)
-def delete_database(context, instance_id, db, region, api=None):
+@task(default_retry_delay=5, max_retries=60)
+def wait_on_del_instance(context, api=None):
+    """ Wait for the specified instance to be deleted """
+
+    match_celery_logging(LOG)
+
+    def on_failure(exc, task_id, args, kwargs, einfo):
+        """ Handle task failure """
+        dep_id = args[0].get('deployment_id')
+        key = args[0].get('resource_key')
+        if dep_id and key:
+            k = "instance:%s" % key
+            ret = {k: {'status': 'ERROR',
+                       'errmessage': ('Unexpected error while deleting '
+                                      'database instance %s' % key),
+                       'trace': 'Task %s: %s' % (task_id, einfo.traceback)}}
+            resource_postback.delay(dep_id, ret)
+        else:
+            LOG.error("Missing deployment id and/or resource key in "
+                      "delete_instance error callback.")
+
+    wait_on_del_instance.on_failure = on_failure
+
+    assert 'region' in context, "No region defined in context"
+    assert 'resource_key' in context, 'No resource key in context'
+    assert 'resource' in context, 'No resource defined in context'
+
+    region = context.get('region')
+    key = context.get('resource_key')
+    resource = context.get('resource')
+    inst_key = "instance:%s" % key
+    instance_id = resource.get('instance', {}).get('id')
+    if not instance_id:
+        raise CheckmateException("No instance id supplied for resource %s"
+                                 % key)
+    if not api:
+        api = Provider._connect(context, region)
+    instance = None
+    try:
+        instance = api.get_instance(instance_id)
+    except ResponseError as respe:
+        if 404 == respe.status:  # already gone
+            res = {inst_key: {'status': 'DELETED'}}
+            for hosted in resource.get('hosts', []):
+                res.update({'instance:%s' % hosted: {'status': 'DELETED',
+                                    'statusmsg': 'Host %s was deleted'}})
+            return res
+        else:
+            # not too sure what this is, so maybe retry a time or two
+            wait_on_del_instance.retry(exc=respe)
+    if not instance or ('DELETED' == instance.status):
+        res = {inst_key: {'status': 'DELETED'}}
+        for hosted in resource.get('hosts', []):
+            res.update({'instance:%s' % hosted: {'status': 'DELETED',
+                                'statusmsg': 'Host %s was deleted'}})
+        return res
+    else:
+        wait_on_del_instance.retry(exc=CheckmateException("Timeout waiting on "
+                                                "instance %s delete" % key))
+
+
+@task(default_retry_delay=2, max_retries=30)
+def delete_database(context, api=None):
     """Delete a database from an instance"""
+
     match_celery_logging(LOG)
+
+    def on_failure(exc, task_id, args, kwargs, einfo):
+        """ Handle task failure """
+        dep_id = args[0].get('deployment_id')
+        key = args[0].get('resource_key')
+        if dep_id and key:
+            k = "instance:%s" % key
+            ret = {k: {'status': 'ERROR',
+                       'errmessage': ('Unexpected error while deleting '
+                                      'database %s' % key),
+                       'trace': 'Task %s: %s' % (task_id, einfo.traceback)}}
+            resource_postback.delay(dep_id, ret)
+        else:
+            LOG.error("Missing deployment id and/or resource key in "
+                      "delete_database error callback.")
+
+    delete_database.on_failure = on_failure
+
+    assert 'region' in context, "Region not supplied in context"
+    region = context.get('region')
+    assert 'resource' in context, "Resource not supplied in context"
+    resource = context.get('resource')
+    assert 'index' in resource, 'Resource does not have an index'
+    key = resource.get('index')
+    inst_key = "instance:%s" % key
+    assert 'instance' in resource, 'Instance data not in resource'
+    assert 'host_instance' in resource.get('instance', {}), ('Instance id not'
+                                                             ' in resource '
+                                                             'instance')
+    instance_id = resource.get('instance', {}).get('host_instance')
+    assert 'name' in resource.get('instance', {}), ('Database name not in'
+                                                    ' resource instance')
+    db_name = resource.get('instance', {}).get('name')
+
     if not api:
         api = Provider._connect(context, region)
 
-    instance = api.get_instance(instance_id)
-    instance.delete_database(db)
-    LOG.info('Database %s deleted from instance %s' % (db, instance_id))
+    instance = None
+    try:
+        instance = api.get_instance(instance_id)
+    except ResponseError as respe:
+        if respe.status != 404:
+            delete_database.retry(exc=respe)
+    if not instance or (instance.status == 'DELETED'):
+        # instance is gone, so is the db
+        return {inst_key: {'status': 'DELETED',
+                           'statusmsg': ('Host %s was deleted'
+                                         % resource.get('hosted_on'))}}
+    elif instance.status == 'BUILD':  # can't delete when instance in BUILD
+        delete_database.retry(exc=CheckmateException("Waiting on instance to "
+                                                     "be out of BUILD status"))
+    try:
+        instance.delete_database(db_name)
+    except ResponseError as respe:
+        delete_database.retry(exc=respe)
+    LOG.info('Database %s deleted from instance %s' % (db_name, instance_id))
+    return {inst_key: {'status': 'DELETED'}}
 
 
 @task(default_retry_delay=10, max_retries=10)

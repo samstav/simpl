@@ -10,7 +10,7 @@ also need the headers and compilers for your platform, for example OSX will requ
 Install [Vagrant](http://vagrantup.com/) (make sure you have version >= v1.0.3)
 and [VirtualBox](https://www.virtualbox.org/), then execute these commands:
 
-    $ gem install librarian
+    $ gem install librarian-chef
     $ git clone git://github.rackspace.com/checkmate/checkmate.git
     $ cd checkmate/vagrant
     $ librarian-chef install

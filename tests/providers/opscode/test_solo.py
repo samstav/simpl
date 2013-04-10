@@ -209,7 +209,7 @@ class TestCeleryTasks(unittest.TestCase):
 
         #Stub out checks for paths
         self.mox.StubOutWithMock(knife, '_get_root_environments_path')
-        knife._get_root_environments_path(None).AndReturn(root_path)
+        knife._get_root_environments_path("env_test", None).AndReturn(root_path)
         self.mox.StubOutWithMock(os.path, 'exists')
         os.path.exists(kitchen_path).AndReturn(True)
         os.path.exists(node_path).AndReturn(True)
@@ -245,10 +245,18 @@ class TestCeleryTasks(unittest.TestCase):
                   '-c', os.path.join(kitchen_path, "solo.rb"),
                   '-p', '22']
         self.mox.StubOutWithMock(knife, '_run_kitchen_command')
-        knife._run_kitchen_command(kitchen_path, params).AndReturn("OK")
+        knife._run_kitchen_command("env_test",kitchen_path, params).AndReturn("OK")
+
+        #TODO: better test for postback?
+        self.mox.StubOutWithMock(checkmate.deployments.resource_postback, "delay")
+        knife.resource_postback.delay(IgnoreArg(), IgnoreArg()).AndReturn(None)
+#        knife.resource_postback.delay(IgnoreArg(), IgnoreArg()).AndReturn(None)
 
         self.mox.ReplayAll()
-        knife.cook("a.b.c.d", "env_test", roles=['role1'], recipes=['recipe1'],
+        resource={'index':1234,
+                  'hosted_on':'rack cloud'
+                  }
+        knife.cook("a.b.c.d", "env_test", resource, roles=['role1'], recipes=['recipe1'],
                   attributes={'id': 1})
         self.mox.VerifyAll()
 
@@ -351,6 +359,7 @@ class TestMySQLMaplessWorkflow(test.StubbedWorkflowBase):
                 },
             })
 
+
         for key, resource in self.deployment['resources'].iteritems():
             if resource['type'] == 'compute':
                 expected.append({
@@ -371,7 +380,7 @@ class TestMySQLMaplessWorkflow(test.StubbedWorkflowBase):
                         })
                 expected.append({
                     'call': 'checkmate.providers.opscode.knife.register_node',
-                    'args': ['4.4.4.1', self.deployment['id']],
+                    'args': ['4.4.4.1', self.deployment['id'], ContainsKeyValue('index', IgnoreArg())],
                     'kwargs': And(In('password'),
                                   ContainsKeyValue('omnibus_version',
                                                    '10.12.0-1')
@@ -380,11 +389,11 @@ class TestMySQLMaplessWorkflow(test.StubbedWorkflowBase):
                     'resource': key,
                     })
 
-                # build-essential (now just cook with bootstrap.json)
-
+                # build-essential (now just cook with bootstrap.json)              
+                            
                 expected.append({
                     'call': 'checkmate.providers.opscode.knife.cook',
-                    'args': ['4.4.4.1', self.deployment['id']],
+                    'args': ['4.4.4.1', self.deployment['id'], ContainsKeyValue('index', IgnoreArg())],
                     'kwargs': And(In('password'),
                                   Not(In('recipes')),
                                   Not(In('roles')),
@@ -401,7 +410,7 @@ class TestMySQLMaplessWorkflow(test.StubbedWorkflowBase):
 
                 expected.append({
                     'call': 'checkmate.providers.opscode.knife.cook',
-                    'args': ['4.4.4.1', self.deployment['id']],
+                    'args': ['4.4.4.1', self.deployment['id'], ContainsKeyValue('index', IgnoreArg())],
                     'kwargs': And(In('password'), ContainsKeyValue('recipes',
                                   ['mysql::server']),
                                   ContainsKeyValue('identity_file',
@@ -704,7 +713,7 @@ class TestMappedSingleWorkflow(test.StubbedWorkflowBase):
                         # Register host - knife prepare
                         'call': 'checkmate.providers.opscode.knife.'
                                 'register_node',
-                        'args': ["4.4.4.4", self.deployment['id']],
+                        'args': ["4.4.4.4", self.deployment['id'], ContainsKeyValue('index', IgnoreArg())],
                         'kwargs': And(In('password'),
                                       ContainsKeyValue('attributes',
                                                         attributes),
@@ -715,7 +724,7 @@ class TestMappedSingleWorkflow(test.StubbedWorkflowBase):
                     }, {
                         # Prep host - bootstrap.json means no recipes passed in
                         'call': 'checkmate.providers.opscode.knife.cook',
-                        'args': ['4.4.4.4', self.deployment['id']],
+                        'args': ['4.4.4.4', self.deployment['id'], ContainsKeyValue('index', IgnoreArg())],
                         'kwargs': And(In('password'),
                                       Not(In('recipes')),
                                       ContainsKeyValue('identity_file',
@@ -727,7 +736,7 @@ class TestMappedSingleWorkflow(test.StubbedWorkflowBase):
                 expected_calls.extend([{
                         # Cook mysql
                         'call': 'checkmate.providers.opscode.knife.cook',
-                        'args': ['4.4.4.4', self.deployment['id']],
+                        'args': ['4.4.4.4', self.deployment['id'], ContainsKeyValue('index', IgnoreArg())],
                         'kwargs': And(In('password'),
                                         ContainsKeyValue('recipes',
                                                 ['mysql::server']),
@@ -1036,6 +1045,7 @@ class TestMappedMultipleWorkflow(test.StubbedWorkflowBase):
         # Create new mox queue for running workflow
         self.mox.ResetAll()
         self.assertEqual(self.deployment.get('status'), 'PLANNED')
+
         expected_calls = [{
                 # Create Chef Environment
                 'call': 'checkmate.providers.opscode.knife.create_environment',
@@ -1060,7 +1070,7 @@ class TestMappedMultipleWorkflow(test.StubbedWorkflowBase):
                         # Register foo - knife prepare
                         'call': 'checkmate.providers.opscode.knife.'
                                 'register_node',
-                        'args': ["4.4.4.4", self.deployment['id']],
+                        'args': ["4.4.4.4", self.deployment['id'], ContainsKeyValue('index', IgnoreArg())],
                         'kwargs': And(In('password'),
                                       ContainsKeyValue('omnibus_version',
                                                        '10.12.0-1'),
@@ -1072,7 +1082,7 @@ class TestMappedMultipleWorkflow(test.StubbedWorkflowBase):
                     }, {
                         # Prep foo - bootstrap.json
                         'call': 'checkmate.providers.opscode.knife.cook',
-                        'args': ['4.4.4.4', self.deployment['id']],
+                        'args': ['4.4.4.4', self.deployment['id'], ContainsKeyValue('index', IgnoreArg())],
                         'kwargs': And(In('password'),
                                       Not(ContainsKeyValue('recipes',
                                                            ['foo'])),
@@ -1109,7 +1119,7 @@ class TestMappedMultipleWorkflow(test.StubbedWorkflowBase):
                         'call': 'checkmate.providers.opscode.'
                                 'knife.write_databag',
                         'args': ['DEP-ID-1000', 'app_bag', 'mysql',
-                                 {'db_name': 'foo-db'}],
+                                 {'db_name': 'foo-db'}, IgnoreArg()],
                         'kwargs': {'merge': True,
                                    'secret_file': 'certificates/chef.pem'},
                         'result': None
@@ -1117,7 +1127,7 @@ class TestMappedMultipleWorkflow(test.StubbedWorkflowBase):
                         # Write foo-master role
                         'call': 'checkmate.providers.opscode.knife.'
                                 'manage_role',
-                        'args': ['foo-master', 'DEP-ID-1000'],
+                        'args': ['foo-master', 'DEP-ID-1000', IgnoreArg()],
                         'kwargs': {
                                    'run_list': ['recipe[apt]',
                                                 'recipe[foo::server]'],
@@ -1128,7 +1138,7 @@ class TestMappedMultipleWorkflow(test.StubbedWorkflowBase):
                     }, {
                         # Cook foo - run using runlist
                         'call': 'checkmate.providers.opscode.knife.cook',
-                        'args': ['4.4.4.4', self.deployment['id']],
+                        'args': ['4.4.4.4', self.deployment['id'], ContainsKeyValue('index', IgnoreArg())],
                         'kwargs': And(In('password'),
                                       ContainsKeyValue('recipes',
                                               ['something',
@@ -1150,7 +1160,7 @@ class TestMappedMultipleWorkflow(test.StubbedWorkflowBase):
                 expected_calls.extend([{
                         # Cook bar
                         'call': 'checkmate.providers.opscode.knife.cook',
-                        'args': [None, self.deployment['id']],
+                        'args': [None, self.deployment['id'], ContainsKeyValue('index', IgnoreArg())],
                         'kwargs': And(In('password'),
                                       ContainsKeyValue('recipes', ['bar']),
                                       ContainsKeyValue('identity_file',
@@ -1160,7 +1170,7 @@ class TestMappedMultipleWorkflow(test.StubbedWorkflowBase):
                     }, {
                         # Re-cook bar
                         'call': 'checkmate.providers.opscode.knife.cook',
-                        'args': [None, self.deployment['id']],
+                        'args': [None, self.deployment['id'], ContainsKeyValue('index', IgnoreArg())],
                         'kwargs': And(In('password'),
                                       ContainsKeyValue('recipes', ['bar']),
                                       ContainsKeyValue('identity_file',
