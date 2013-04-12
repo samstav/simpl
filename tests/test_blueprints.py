@@ -19,6 +19,7 @@ class TestBlueprints(unittest.TestCase):
         """Test the schema validates a blueprint with all possible fields"""
         blueprint = {
             'id': 'test',
+            'version': '1.1.0',
             'meta-data': {
                 'schema-version': 'v0.7',
             },
@@ -26,6 +27,8 @@ class TestBlueprints(unittest.TestCase):
             'services': {},
             'options': {},
             'resources': {},
+            'display-outputs': {},
+            'documentation': {},
         }
         valid = Blueprint(blueprint)
         self.assertDictEqual(valid._data, blueprint)
