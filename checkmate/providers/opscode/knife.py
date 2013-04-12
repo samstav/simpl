@@ -313,7 +313,7 @@ def _get_blueprints_cache_path(url):
     return os.path.join(prefix, "cache", "blueprints", suffix)
 
 
-def _cache_blueprint(url):
+def _cache_blueprint(source_repo):
     """Cache a blueprint repo or update an existing cache, if necessary"""
     LOG.debug("Running providers.opscode.knife._cache_blueprint()...")
     cache_expire_time = os.environ.get("CHECKMATE_BLUEPRINT_CACHE_EXPIRE")
@@ -322,6 +322,11 @@ def _cache_blueprint(url):
         LOG.warning("CHECKMATE_BLUEPRINT_CACHE_EXPIRE variable not set. "
                     "Defaulting to %s" % cache_expire_time)
     cache_expire_time = int(cache_expire_time)
+    if "#" in source_repo:
+        url, branch = source_repo.split("#")
+    else:
+        url = source_repo
+        branch = None
     repo_cache = _get_blueprints_cache_path(url)
     if os.path.exists(repo_cache):
         # The mtime of .git/FETCH_HEAD changes upon every "git
@@ -348,7 +353,7 @@ def _cache_blueprint(url):
         LOG.debug("Cloning repo to %s" % repo_cache)
         os.makedirs(repo_cache)
         try:
-            git.Repo.clone_from(url, repo_cache)
+            git.Repo.clone_from(url, repo_cache, branch=branch)
         except git.GitCommandError as exc:
             raise CheckmateException("Git repository could not be cloned "
                                      "from '%s'.  The error returned was "

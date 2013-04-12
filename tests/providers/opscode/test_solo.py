@@ -1340,7 +1340,7 @@ class TestChefMap(unittest.TestCase):
     def test_get_map_file_no_cache(self):
         """Test remote map file retrieval (not cached)"""
         chefmap = solo.ChefMap()
-        def fake_clone(url=None, path=None):
+        def fake_clone(url=None, path=None, branch=None):
             os.makedirs(os.path.join(self.cache_path, ".git"))
             with file(self.fetch_head_path, 'a'):
                 os.utime(self.fetch_head_path, None)
@@ -1348,7 +1348,7 @@ class TestChefMap(unittest.TestCase):
                 f.write(TEMPLATE)
 
         self.mox.StubOutWithMock(git.Repo, 'clone_from')
-        git.Repo.clone_from(IgnoreArg(), IgnoreArg())\
+        git.Repo.clone_from(IgnoreArg(), IgnoreArg(), branch=IgnoreArg())\
             .WithSideEffects(fake_clone)
         self.mox.ReplayAll()
 
