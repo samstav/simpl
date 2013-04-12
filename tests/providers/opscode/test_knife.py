@@ -275,7 +275,7 @@ class TestKnife(unittest.TestCase):
         self.mox.StubOutWithMock(os, 'chdir')
         os.chdir(kitchen_path).AndReturn(True)
         self.mox.StubOutWithMock(knife, 'check_output')
-        knife.check_all_output("test", ['librarian-chef', 'install']).AndReturn('OK')
+        knife.check_output(['librarian-chef', 'install']).AndReturn('OK')
 
         self.mox.ReplayAll()
         expected = {'environment': '/fake_path/test',

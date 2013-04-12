@@ -561,7 +561,7 @@ def write_databag(environment, bagname, itemname, contents, resource,
         lock = threading.Lock()
         lock.acquire()
         try:
-            data = _run_kitchen_command(kitchen_path, params)
+            data = _run_kitchen_command(environment, kitchen_path, params)
             if data:
                 existing = json.loads(data)
                 contents = utils.merge_dictionary(existing, contents)
