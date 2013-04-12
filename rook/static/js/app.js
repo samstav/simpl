@@ -285,12 +285,13 @@ function AppController($scope, $http, $location, $resource, auth) {
   // Log in using credentials delivered through bound_credentials
   $scope.logIn = function() {
     //Handle auto_complete sync issues
-    if ($scope.bound_creds.username != window.username.value)
-      $scope.bound_creds.username = window.username.value;
-    if ($scope.bound_creds.password != window.password.value)
-      $scope.bound_creds.password = window.password.value;
-    if ($scope.bound_creds.apikey != window.apikey.value)
-      $scope.bound_creds.apikey = window.apikey.value;
+    var login_form = window.document.forms.loginForm;
+    if ($scope.bound_creds.username != login_form.username.value)
+      $scope.bound_creds.username = login_form.username.value;
+    if ($scope.bound_creds.password != login_form.password.value)
+      $scope.bound_creds.password = login_form.password.value;
+    if ($scope.bound_creds.apikey != login_form.apikey.value)
+      $scope.bound_creds.apikey = login_form.apikey.value;
 
     var username = $scope.bound_creds.username;
     var password = $scope.bound_creds.password;
