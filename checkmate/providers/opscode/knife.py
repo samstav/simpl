@@ -304,12 +304,12 @@ encrypted_data_bag_secret "%s"
     return (solo_file, secret_key_path)
 
 
-def _get_blueprints_cache_path(url):
+def _get_blueprints_cache_path(source_repo):
     """Return the path of the blueprint cache directory"""
     utils.match_celery_logging(LOG)
-    LOG.debug("url: %s" % url)
+    LOG.debug("source_repo: %s" % source_repo)
     prefix = os.environ.get("CHECKMATE_CHEF_LOCAL_PATH")
-    suffix = hashlib.md5(url).hexdigest()
+    suffix = hashlib.md5(source_repo).hexdigest()
     return os.path.join(prefix, "cache", "blueprints", suffix)
 
 
@@ -322,12 +322,12 @@ def _cache_blueprint(source_repo):
         LOG.warning("CHECKMATE_BLUEPRINT_CACHE_EXPIRE variable not set. "
                     "Defaulting to %s" % cache_expire_time)
     cache_expire_time = int(cache_expire_time)
+    repo_cache = _get_blueprints_cache_path(source_repo)
     if "#" in source_repo:
         url, branch = source_repo.split("#")
     else:
         url = source_repo
         branch = None
-    repo_cache = _get_blueprints_cache_path(url)
     if os.path.exists(repo_cache):
         # The mtime of .git/FETCH_HEAD changes upon every "git
         # fetch".  FETCH_HEAD is only created after the first
