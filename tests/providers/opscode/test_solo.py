@@ -248,9 +248,10 @@ class TestCeleryTasks(unittest.TestCase):
         knife._run_kitchen_command("env_test",kitchen_path, params).AndReturn("OK")
 
         #TODO: better test for postback?
-        self.mox.StubOutWithMock(checkmate.deployments.resource_postback, "delay")
-        knife.resource_postback.delay(IgnoreArg(), IgnoreArg()).AndReturn(None)
-#        knife.resource_postback.delay(IgnoreArg(), IgnoreArg()).AndReturn(None)
+        #Stub out call to resource_postback
+        self.mox.StubOutWithMock(knife.resource_postback, 'delay')
+        knife.resource_postback.delay(IgnoreArg(), IgnoreArg()).AndReturn(True)
+        knife.resource_postback.delay(IgnoreArg(), IgnoreArg()).AndReturn(True)
 
         self.mox.ReplayAll()
         resource={'index':1234,
