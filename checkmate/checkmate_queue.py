@@ -6,21 +6,33 @@ import sys
 
 def main_func():
     if len(sys.argv) > 1 and sys.argv[1] == 'START':
-        params = [sys.executable]
+        params = []
         if '--newrelic' in sys.argv:
             sys.argv.pop(sys.argv.index('--newrelic'))
-            params = ['NEW_RELIC_CONFIG_FILE=newrelic.ini', 'newrelic-admin',
-                    'run-program']
-#        params.extend(['celeryd', '--config=checkmate.celeryconfig', '-I',
+            params = ['newrelic-admin', 'run-python']
+            if 'NEW_RELIC_CONFIG_FILE' not in os.environ:
+                os.environ['NEW_RELIC_CONFIG_FILE'] = 'newrelic.ini'
+        else:
+            params = [sys.executable]
 
-        params.extend(['-m', 'celery.bin.celeryd',
-                       '--config=checkmate.celeryconfig', '-I',
-                'checkmate.orchestrator,checkmate.ssh,checkmate.deployments,'
-                'checkmate.providers.rackspace,checkmate.providers.opscode,'
-                'checkmate.celeryapp',
-                '--events',
-                ])
+        task_modules = [
+            'checkmate.orchestrator',
+            'checkmate.ssh',
+            'checkmate.deployments',
+            'checkmate.providers.rackspace',
+            'checkmate.providers.opscode',
+            'checkmate.celeryapp',
+        ]
+
+        params.extend([
+            '-m', 'celery.bin.celeryd',
+            '--config=checkmate.celeryconfig',
+            '-I', ','.join(task_modules),
+            '--events',
+        ])
+
         if '--verbose' in sys.argv:
+            # convert our --verbose into celery's -l debug
             sys.argv.pop(sys.argv.index('--verbose'))
             params.extend(['-l', 'debug'])
 
@@ -31,6 +43,14 @@ def main_func():
         try:
             print 'Running: %s' % ' '.join(params)
             call(params)
+        except OSError as exc:
+            if params[0] == 'newrelic-admin':
+                print ("I got a 'File not found' error trying to run "
+                       "newrelic-admin. Make sure the newrelic python agent "
+                       "is installed")
+            else:
+                print exc
+
         except KeyboardInterrupt:
             print "\nExiting by keyboard request"
     elif len(sys.argv) > 1 and sys.argv[1] == 'MONITOR':
