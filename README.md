@@ -397,6 +397,8 @@ To execute deployments, checkmate uses a message queue. You need to have celery 
 
 The following environment variables can be set to configure checkmate:
 
+**BERKSHELF_PATH**: the directory that will be used for Berkshelf's centralized cookbooks repository.  This directory is effectively a cookbook cache for any blueprint that uses Berkshelf (has a Berksfile file).  Using Berkshelf makes a blueprint more fault-tolerant (less reliant on the git hosts being up).
+
 **CHECKMATE_AUTH_ENDPOINTS**: a json string representation of a list of auth endpoints to support. The uri and middleware keys are required. A sample is:
 
 ```
@@ -443,6 +445,8 @@ Note: to connect to mongodb, also install the pymongo client library:
 **CHECKMATE_CHEF_PATH**: when using checkmate with a server, checkmate needs to know the path for the chef client deployment. This points to that path. The kniofe.rb file should be in there.
 
 **CHECKMATE_CHEF_OMNIBUS_VERSION**: the omnibus version to use by default. If not specified, 10.12.0-1 is used. This can also be overridden by a constraint in a deployment.
+
+**CHECKMATE_BLUEPRINT_CACHE_EXPIRE**: the number of seconds before the blueprint cache expires.  When the cache is expired, there will be an attempt to update the blueprint repository via a "git pull".  If the git host is down, the expired cache will be used.  All of this logic happens at deployment time.
 
 **CHECKMATE_BROKER_USERNAME**: the username to use to connect to the message queue
 

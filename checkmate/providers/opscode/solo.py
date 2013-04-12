@@ -1,6 +1,5 @@
 """Chef Solo configuration management provider"""
 import copy
-import httplib
 import json
 import logging
 import os
@@ -22,6 +21,7 @@ from checkmate.exceptions import (CheckmateException,
 from checkmate.inputs import Input
 from checkmate.keys import hash_SHA512
 from checkmate.providers import ProviderBase
+from checkmate.providers.opscode import knife
 from checkmate.workflows import wait_for
 from checkmate.utils import merge_dictionary  # Spiff version used by transform
 
@@ -938,7 +938,7 @@ class ChefMap():
     def raw(self):
         """Returns the raw file contents"""
         if self._raw is None:
-            self._raw = self.get_remote_map_file()
+            self._raw = self.get_map_file()
         return self._raw
 
     @property
@@ -948,68 +948,16 @@ class ChefMap():
             self._parsed = self.parse(self.raw)
         return self._parsed
 
-    @staticmethod
-    def get_remote_raw_url(source, path="Chefmap"):
-        """Calculates the raw URL for a file based off a source repo"""
-        source_repo, ref = urlparse.urldefrag(source)
-        url = urlparse.urlparse(source_repo)
-        if url.scheme == 'file':
-            result = os.path.join(source_repo, path)
+    def get_map_file(self):
+        """Return the Chefmap file as a string"""
+        knife._cache_blueprint(self.url)
+        repo_cache = knife._get_blueprints_cache_path(self.url)
+        if os.path.exists(os.path.join(repo_cache, "Chefmap")):
+            with open(os.path.join(repo_cache, "Chefmap")) as chef_map:
+                return chef_map.read()
         else:
-            if url.path.endswith('.git'):
-                repo_path = url.path[:-4]
-            else:
-                repo_path = url.path
-            scheme = url.scheme if url.scheme != 'git' else 'https'
-            full_path = os.path.join(repo_path, 'raw', ref or 'master', path)
-            result = urlparse.urlunparse((scheme, url.netloc, full_path,
-                                          url.params, url.query, url.fragment))
-        return result
-
-    def get_remote_map_file(self):
-        """Gets the remote map file from a repo"""
-        target_url = self.get_remote_raw_url(self.url)
-        url = urlparse.urlparse(target_url)
-        if url.scheme == 'https':
-            http_class = httplib.HTTPSConnection
-            port = url.port or 443
-        elif url.scheme == 'file':
-            try:
-                with file(url.path, 'r') as f:
-                    body = f.read()
-            except StandardError as exc:
-                raise CheckmateException("Map file could not be retrieved "
-                                     "from '%s'. The error returned was '%s'" %
-                                     (target_url, exc))
-            return body
-        else:
-            http_class = httplib.HTTPConnection
-            port = url.port or 80
-        host = url.hostname
-
-        http = http_class(host, port)
-        headers = {
-            'Accept': 'text/plain',
-        }
-
-        # TODO: implement some caching to not overload the server
-        try:
-            LOG.debug('Connecting to %s' % self.url)
-            http.request('GET', url.path, headers=headers)
-            resp = http.getresponse()
-            body = resp.read()
-        except StandardError as exc:
-            LOG.exception(exc)
-            raise exc
-        finally:
-            http.close()
-
-        if resp.status != 200:
-            raise CheckmateException("Map file could not be retrieved from "
-                                     "'%s'. The error returned was '%s'" %
-                                     (target_url, resp.reason))
-
-        return body
+            raise CheckmateException("No Chefmap in repository %s" %
+                                     repo_cache)
 
     @property
     def components(self):

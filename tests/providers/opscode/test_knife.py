@@ -13,13 +13,10 @@ from checkmate.utils import init_console_logging
 init_console_logging()
 LOG = logging.getLogger(__name__)
 
-import git
 import mox
-from mox import In, IsA, And, IgnoreArg, ContainsKeyValue, Not
 
 from checkmate.exceptions import CheckmateException
 from checkmate.providers.opscode import knife
-from checkmate.test import StubbedWorkflowBase
 
 
 class TestKnife(unittest.TestCase):
@@ -32,9 +29,21 @@ class TestKnife(unittest.TestCase):
         if not os.path.exists(local_path):
             shutil.os.makedirs(local_path)
             LOG.info("Created '%s'" % local_path)
-        test_path = os.path.join(local_path, 'test_env', 'kitchen', 'roles')
-        if not os.path.exists(test_path):
-            knife.create_environment('test_env', 'kitchen')
+
+        # Fake a call to create_environment
+        url = 'https://example.com/checkmate/app.git'
+        cache_path = knife._get_blueprints_cache_path(url)
+        kitchen_path = os.path.join(local_path, 'test_env', 'kitchen')
+        databag_path = os.path.join(kitchen_path, "data_bags")
+        if not os.path.exists(databag_path):
+            os.makedirs(os.path.join(databag_path))
+            with open(os.path.join(kitchen_path, "Cheffile"), 'w') as f:
+                f.write(CHEFFILE)
+            with open(os.path.join(kitchen_path, "Berksfile"), 'w') as f:
+                f.write(BERKSFILE)
+            knife._write_knife_config_file(kitchen_path)
+        if not os.path.exists(cache_path):
+            os.makedirs(os.path.join(cache_path, ".git"))
 
     def tearDown(self):
         self.mox.UnsetStubs()
@@ -206,26 +215,19 @@ class TestKnife(unittest.TestCase):
         knife._get_root_environments_path("test", path).AndReturn(path)
         self.mox.StubOutWithMock(knife, '_create_environment_keys')
         knife._create_environment_keys("test", fullpath, private_key="PPP",
-                                       public_key_ssh="SSH").AndReturn(
-                                       dict(keys="keys"))
+                                       public_key_ssh="SSH")\
+             .AndReturn(dict(keys="keys"))
         self.mox.StubOutWithMock(knife, '_create_kitchen')
-        knife._create_kitchen("test", service, fullpath, secret_key="SSS")\
-                .AndReturn(dict(kitchen="kitchen_path"))
+        knife._create_kitchen("test", service, fullpath, secret_key="SSS",
+                              source_repo="git://ggg")\
+             .AndReturn(dict(kitchen="kitchen_path"))
         kitchen_path = os.path.join(fullpath, service)
         public_key_path = os.path.join(fullpath, 'checkmate.pub')
         kitchen_key_path = os.path.join(kitchen_path, 'certificates',
                                         'checkmate-environment.pub')
         self.mox.StubOutWithMock(shutil, 'copy')
         shutil.copy(public_key_path, kitchen_key_path).AndReturn(True)
-        self.mox.StubOutWithMock(knife, '_init_repo')
-        knife._init_repo("test", os.path.join(kitchen_path, 'cookbooks'))\
-                .AndReturn(True)
         self.mox.StubOutWithMock(knife, 'download_cookbooks')
-        knife.download_cookbooks("test", service, path=path).AndReturn(True)
-        knife.download_cookbooks("test", service, path=path, use_site=True)\
-                .AndReturn(True)
-        self.mox.StubOutWithMock(knife, 'download_roles')
-        knife.download_roles("test", service, path=path).AndReturn(True)
 
         self.mox.ReplayAll()
         expected = {'environment': '/fake_path/test',
@@ -235,7 +237,8 @@ class TestKnife(unittest.TestCase):
                                                       service, path=path,
                                                       private_key="PPP",
                                                       public_key_ssh="SSH",
-                                                      secret_key="SSS"),
+                                                      secret_key="SSS",
+                                                      source_repo="git://ggg"),
                              expected)
         self.mox.VerifyAll()
 
@@ -252,34 +255,22 @@ class TestKnife(unittest.TestCase):
         knife._get_root_environments_path("test", path).AndReturn(path)
         self.mox.StubOutWithMock(knife, '_create_environment_keys')
         knife._create_environment_keys("test", fullpath, private_key="PPP",
-                                       public_key_ssh="SSH").AndReturn(
-                                       dict(keys="keys"))
+                                       public_key_ssh="SSH")\
+             .AndReturn(dict(keys="keys"))
         self.mox.StubOutWithMock(knife, '_create_kitchen')
-        knife._create_kitchen("test", service, fullpath, secret_key="SSS")\
-                .AndReturn(dict(kitchen="kitchen_path"))
+        knife._create_kitchen("test", service, fullpath, secret_key="SSS",
+                              source_repo="git://ggg")\
+             .AndReturn(dict(kitchen="kitchen_path"))
         kitchen_path = os.path.join(fullpath, service)
         public_key_path = os.path.join(fullpath, 'checkmate.pub')
         kitchen_key_path = os.path.join(kitchen_path, 'certificates',
                                         'checkmate-environment.pub')
         self.mox.StubOutWithMock(shutil, 'copy')
         shutil.copy(public_key_path, kitchen_key_path).AndReturn(True)
-
         self.mox.StubOutWithMock(os.path, 'exists')
-        os.path.exists(kitchen_path).AndReturn(True)
-        repo = self.mox.CreateMockAnything()
-        remote = self.mox.CreateMockAnything()
-        self.mox.StubOutWithMock(git.Repo, 'init')
-        git.Repo.init(kitchen_path).AndReturn(repo)
-        repo.remotes = []
-        repo.create_remote('origin', "git://ggg").AndReturn(remote)
-        remote.fetch(refspec='master').AndReturn(True)
 
-        self.mox.StubOutWithMock(git, 'Git')
-        gb_mock = self.mox.CreateMockAnything()
-        git.Git(kitchen_path).AndReturn(gb_mock)
-        gb_mock.checkout('FETCH_HEAD').AndReturn(True)
-
-        os.path.exists(os.path.join(kitchen_path, 'Berksfile')).AndReturn(False)
+        os.path.exists(os.path.join(kitchen_path, 'Berksfile'))\
+               .AndReturn(False)
         os.path.exists(os.path.join(kitchen_path, 'Cheffile')).AndReturn(True)
         self.mox.StubOutWithMock(os, 'chdir')
         os.chdir(kitchen_path).AndReturn(True)
@@ -299,8 +290,11 @@ class TestKnife(unittest.TestCase):
                              expected)
         self.mox.VerifyAll()
 
-
-
+    # Note: The logic in knife._cache_blueprint() is being tested in
+    # the following methods in test_solo.py:
+    # - TestChefMap.test_get_map_file_hit_cache()
+    # - TestChefMap.test_get_map_file_miss_cache()
+    # - TestChefMap.test_get_map_file_no_cache()
 
     def test_create_environment_repo_berksfile(self):
         """Test create_environment with a source repository containing
@@ -309,17 +303,20 @@ class TestKnife(unittest.TestCase):
         fullpath = os.path.join(path, "test")
         service = "test_service"
         #Stub out checks for paths
+        self.mox.StubOutWithMock(knife, "_ensure_berkshelf_environment")
+        knife._ensure_berkshelf_environment().AndReturn(True)
         self.mox.StubOutWithMock(os, 'mkdir')
         os.mkdir(fullpath, 0770).AndReturn(True)
         self.mox.StubOutWithMock(knife, '_get_root_environments_path')
         knife._get_root_environments_path('test', path).AndReturn(path)
         self.mox.StubOutWithMock(knife, '_create_environment_keys')
-        knife._create_environment_keys('test', fullpath, private_key="PPP",
-                                       public_key_ssh="SSH").AndReturn(
-                                       dict(keys="keys"))
+        knife._create_environment_keys("test", fullpath, private_key="PPP",
+                                       public_key_ssh="SSH")\
+             .AndReturn(dict(keys="keys"))
         self.mox.StubOutWithMock(knife, '_create_kitchen')
-        knife._create_kitchen('test', service, fullpath, secret_key="SSS")\
-                .AndReturn(dict(kitchen="kitchen_path"))
+        knife._create_kitchen("test", service, fullpath, secret_key="SSS",
+                              source_repo="git://ggg")\
+             .AndReturn(dict(kitchen="kitchen_path"))
         kitchen_path = os.path.join(fullpath, service)
         public_key_path = os.path.join(fullpath, 'checkmate.pub')
         kitchen_key_path = os.path.join(kitchen_path, 'certificates',
@@ -328,27 +325,14 @@ class TestKnife(unittest.TestCase):
         shutil.copy(public_key_path, kitchen_key_path).AndReturn(True)
 
         self.mox.StubOutWithMock(os.path, 'exists')
-        os.path.exists(kitchen_path).AndReturn(True)
-        repo = self.mox.CreateMockAnything()
-        remote = self.mox.CreateMockAnything()
-        self.mox.StubOutWithMock(git.Repo, 'init')
-        git.Repo.init(kitchen_path).AndReturn(repo)
-        repo.remotes = []
-        repo.create_remote('origin', "git://ggg").AndReturn(remote)
-        remote.fetch(refspec='master').AndReturn(True)
-
-        self.mox.StubOutWithMock(git, 'Git')
-        gb_mock = self.mox.CreateMockAnything()
-        git.Git(kitchen_path).AndReturn(gb_mock)
-        gb_mock.checkout('FETCH_HEAD').AndReturn(True)
-
         os.path.exists(os.path.join(kitchen_path, 'Berksfile')).AndReturn(True)
         #os.path.exists(os.path.join(kitchen_path, 'Cheffile')).AndReturn(False)
         self.mox.StubOutWithMock(os, 'chdir')
         os.chdir(kitchen_path).AndReturn(True)
         self.mox.StubOutWithMock(knife, 'check_all_output')
-        knife.check_all_output('test', ['berks', 'install', '--path',
-                os.path.join(kitchen_path, 'cookbooks')]).AndReturn('OK')
+        knife.check_all_output("test", ['berks', 'install', '--path',
+                                os.path.join(kitchen_path, 'cookbooks')])\
+             .AndReturn('OK')
 
         self.mox.ReplayAll()
         expected = {'environment': '/fake_path/test',
@@ -362,7 +346,79 @@ class TestKnife(unittest.TestCase):
                                                       source_repo="git://ggg"), expected)
         self.mox.VerifyAll()
 
+CHEFFILE = """#!/usr/bin/env ruby
+#^syntax detection
 
+site 'http://community.opscode.com/api/v1'
+
+cookbook 'chef-client'
+cookbook 'memcached'
+cookbook 'build-essential'
+
+cookbook 'apache2',
+  :git => 'https://github.rackspace.com/Cookbooks/apache2.git',
+  :ref => 'origin/checkmate-solo-apache2'
+cookbook 'mysql',
+  :git => 'https://github.rackspace.com/Cookbooks/checkmate-solo-mysql.git'
+cookbook 'php5',
+  :git => 'https://github.rackspace.com/Cookbooks/php5.git',
+  :ref => 'origin/checkmate-solo'
+cookbook 'apt',
+  :git => 'https://github.rackspace.com/Cookbooks/apt.git'
+cookbook 'holland',
+  :git => 'https://github.rackspace.com/Cookbooks/holland.git'
+cookbook 'lsyncd',
+  :git => 'https://github.rackspace.com/Cookbooks/checkmate-solo-lsyncd.git'
+cookbook 'varnish',
+  :git => 'https://github.rackspace.com/Cookbooks/checkmate-solo-varnish.git'
+cookbook 'monit',
+  :git => 'https://github.rackspace.com/Cookbooks/monit.git'
+cookbook 'vsftpd',
+  :git => 'https://github.rackspace.com/Cookbooks/checkmate-solo-vsftpd.git'
+cookbook 'wordpress',
+  :git => 'https://github.rackspace.com/Cookbooks/checkmate-solo-wordpress.git'
+cookbook 'firewall',
+  :git => 'https://github.rackspace.com/Cookbooks/firewall.git'
+cookbook 'suhosin',
+  :git => 'https://github.rackspace.com/Cookbooks/suhosin.git'
+"""
+
+BERKSFILE = """#!/usr/bin/env ruby
+#^syntax detection
+
+site :opscode
+
+cookbook 'chef-client'
+cookbook 'memcached'
+cookbook 'build-essential'
+
+cookbook 'apache2',
+  :git => 'https://github.rackspace.com/Cookbooks/apache2.git',
+  :ref => 'origin/checkmate-solo-apache2'
+cookbook 'mysql',
+  :git => 'https://github.rackspace.com/Cookbooks/checkmate-solo-mysql.git'
+cookbook 'php5',
+  :git => 'https://github.rackspace.com/Cookbooks/php5.git',
+  :ref => 'origin/checkmate-solo'
+cookbook 'apt',
+  :git => 'https://github.rackspace.com/Cookbooks/apt.git'
+cookbook 'holland',
+  :git => 'https://github.rackspace.com/Cookbooks/holland.git'
+cookbook 'lsyncd',
+  :git => 'https://github.rackspace.com/Cookbooks/checkmate-solo-lsyncd.git'
+cookbook 'varnish',
+  :git => 'https://github.rackspace.com/Cookbooks/checkmate-solo-varnish.git'
+cookbook 'monit',
+  :git => 'https://github.rackspace.com/Cookbooks/monit.git'
+cookbook 'vsftpd',
+  :git => 'https://github.rackspace.com/Cookbooks/checkmate-solo-vsftpd.git'
+cookbook 'wordpress',
+  :git => 'https://github.rackspace.com/Cookbooks/checkmate-solo-wordpress.git'
+cookbook 'firewall',
+  :git => 'https://github.rackspace.com/Cookbooks/firewall.git'
+cookbook 'suhosin',
+  :git => 'https://github.rackspace.com/Cookbooks/suhosin.git'
+"""
 
 if __name__ == '__main__':
     # Run tests. Handle our parameters separately
