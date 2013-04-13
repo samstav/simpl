@@ -34,16 +34,19 @@ class Provider(ProviderBase):
     vendor = 'rackspace'
 
     def generate_template(self, deployment, resource_type, service, context,
-            name=None):
-        template = ProviderBase.generate_template(self,
-                deployment, resource_type, service, context, name=name)
+                          name=None):
+        template = ProviderBase.generate_template(self, deployment,
+                                                  resource_type, service,
+                                                  context, name=name)
 
         catalog = self.get_catalog(context)
 
         if resource_type == 'compute':
             # Get flavor
-            memory = deployment.get_setting('memory', resource_type=resource_type,
-                    service_name=service, provider_key=self.key) or 512
+            memory = deployment.get_setting('memory',
+                                            resource_type=resource_type,
+                                            service_name=service,
+                                            provider_key=self.key) or 512
 
             # Find same or next largest size and get flavor ID
             size = '512'
@@ -56,12 +59,16 @@ class Provider(ProviderBase):
                         flavor = str(key)
 
             # Get volume size
-            volume = deployment.get_setting('disk', resource_type=resource_type,
-                    service_name=service, provider_key=self.key, default=1)
+            volume = deployment.get_setting('disk',
+                                            resource_type=resource_type,
+                                            service_name=service,
+                                            provider_key=self.key, default=1)
 
             # Get region
-            region = deployment.get_setting('region', resource_type=resource_type,
-                    service_name=service, provider_key=self.key)
+            region = deployment.get_setting('region',
+                                            resource_type=resource_type,
+                                            service_name=service,
+                                            provider_key=self.key)
             if not region:
                 raise CheckmateException("Could not identify which region to "
                                          "create database in")
@@ -74,30 +81,33 @@ class Provider(ProviderBase):
         return template
 
     def add_resource_tasks(self, resource, key, wfspec, deployment, context,
-            wait_on=None):
+                           wait_on=None):
         wait_on, service_name, component = self._add_resource_tasks_helper(
-                resource, key, wfspec, deployment, context, wait_on)
+            resource, key, wfspec, deployment, context, wait_on)
 
         resource_type = resource.get('type', resource.get('resource_type'))
         if component['is'] == 'database':
             # Database name
             db_name = deployment.get_setting('database/name',
-                    resource_type=resource.get('type'), provider_key=self.key,
-                    service_name=service_name)
+                                             resource_type=resource_type,
+                                             provider_key=self.key,
+                                             service_name=service_name)
             if not db_name:
                 db_name = 'db1'
 
             # User name
             username = deployment.get_setting('database/username',
-                    resource_type=resource.get('type'), provider_key=self.key,
-                    service_name=service_name)
+                                              resource_type=resource_type,
+                                              provider_key=self.key,
+                                              service_name=service_name)
             if not username:
                 username = 'wp_user_%s' % db_name
 
             # Password
             password = deployment.get_setting('database/password',
-                    resource_type=resource.get('type'), provider_key=self.key,
-                    service_name=service_name)
+                                              resource_type=resource_type,
+                                              provider_key=self.key,
+                                              service_name=service_name)
             if not password:
                 password = self.evaluate("generate_password()")
             elif password.startswith('=generate'):
@@ -107,10 +117,10 @@ class Provider(ProviderBase):
                 start_with = string.ascii_uppercase + string.ascii_lowercase
                 if password[0] not in start_with:
                     raise CheckmateException("Database password must start "
-                            "with one of '%s'" % start_with)
+                                             "with one of '%s'" % start_with)
 
             # Create resource tasks
-            create_database_task = Celery(wfspec, 'Create Database',
+            create_database_task = Celery(wfspec,'Create Database',
                    'checkmate.providers.rackspace.database.create_database',
                    call_args=[context.get_queued_task_dict(
                                     deployment=deployment['id'],
@@ -202,21 +212,23 @@ class Provider(ProviderBase):
             return dict(root=root, final=wait_on_build)
         else:
             raise CheckmateException("Unsupported component type '%s' for "
-                    "provider %s" % (component['is'], self.key))
+                                     "provider %s" % (component['is'],
+                                                      self.key))
 
     def delete_resource_tasks(self, context, deployment_id, resource, key):
         self._verify_existing_resource(resource, key)
+        region = resource.get('region') or \
+            resource.get('instance', {}).get('host_region')
         ctx = context.get_queued_task_dict(deployment_id=deployment_id,
-                        resource_key=key,
-                        resource=resource,
-                        region=resource.get('region') or
-                               resource.get('instance', {}).get('host_region'))
+                                           resource_key=key,
+                                           resource=resource,
+                                           region=region)
         if resource.get('type') == 'compute':
             return self._delete_comp_res_tasks(ctx, deployment_id,
                                                resource, key)
         if resource.get('type') == 'database':
             return self._delete_db_res_tasks(ctx, deployment_id, resource,
-                                            key)
+                                             key)
         raise CheckmateException("Cannot provide delete tasks for resource %s:"
                                  " Invalid resource type '%s'"
                                  % (key, resource.get('type')))
@@ -590,7 +602,7 @@ def add_user(context, instance_id, databases, username, password, region,
 
     instance_key = 'instance:%s' % context['resource']
     results = {instance_key: {'status': "CONFIGURE"}}
-    resource_postback.delay(context['deployment'], results) 
+    resource_postback.delay(context['deployment'], results)
 
     if not api:
         api = Provider._connect(context, region)
