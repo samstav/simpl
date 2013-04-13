@@ -199,7 +199,7 @@ class Provider(ProviderBase):
                                            deployment=deployment['id'],
                                            resource=key),
                                        PathAttrib("instance:%s/id" % key),
-                                       region
+                                       resource['region']
                                    ],
                                    merge_results=True,
                                    defines=dict(resource=key,
