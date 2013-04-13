@@ -148,6 +148,94 @@ class TestDatabase(ProviderTester):
         self.assertDictEqual(results, expected)
         self.mox.VerifyAll()
 
+    def test_template_generation_database(self):
+        catalog = {
+            'database': {
+                'mysql_database': {
+                    'id': 'mysql_database',
+                    'is': 'database',
+                }
+            }
+        }
+        provider = database.Provider({'catalog': catalog})
+
+        #Mock Base Provider, context and deployment
+        deployment = self.mox.CreateMockAnything()
+        deployment['id'].AndReturn('Mock')
+        context = self.mox.CreateMockAnything()
+        context.kwargs = {}
+
+        expected = {
+            'instance': {},
+            'dns-name': 'fake_name',
+            'type': 'database',
+            'provider': provider.key,
+            'service': 'master',
+        }
+
+        self.mox.ReplayAll()
+        results = provider.generate_template(deployment, 'database', 'master',
+                                             context, name='fake_name')
+
+        self.assertDictEqual(results, expected)
+        self.mox.VerifyAll()
+
+    def test_template_generation_compute_sizing(self):
+        """Test that flavor and volume selection pick >-= sizes"""
+        catalog = {
+            'compute': {
+                'mysql_instance': {
+                    'id': 'mysql_instance',
+                    'is': 'compute',
+                },
+            },
+            'lists': {
+                'sizes': {
+                    '1': {
+                        'memory': 1024
+                    },
+                    '2': {
+                        'memory': 2048
+                    }
+                }
+            }
+        }
+        provider = database.Provider({'catalog': catalog})
+
+        #Mock Base Provider, context and deployment
+        deployment = self.mox.CreateMockAnything()
+        deployment['id'].AndReturn('Mock')
+        context = self.mox.CreateMockAnything()
+        context.kwargs = {}
+
+        deployment.get_setting('memory', resource_type='compute',
+                               service_name='master',
+                               provider_key=provider.key).AndReturn(1025)
+        deployment.get_setting('disk', resource_type='compute',
+                               service_name='master',
+                               provider_key=provider.key,
+                               default=1).AndReturn(2)
+        deployment.get_setting('region', resource_type='compute',
+                               service_name='master',
+                               provider_key=provider.key).AndReturn('North')
+        expected = {
+            'instance': {},
+            'dns-name': 'fake_name',
+            'type': 'compute',
+            'provider': provider.key,
+            'service': 'master',
+            'region': 'North',
+            'disk': 2,
+            'flavor': '2'
+        }
+
+        self.mox.ReplayAll()
+        results = provider.generate_template(deployment, 'compute', 'master',
+                                             context, name='fake_name')
+
+        self.assertDictEqual(results, expected)
+        self.mox.VerifyAll()
+
 
 class TestDBWorkflow(StubbedWorkflowBase):
     """ Test MySQL and DBaaS Resource Creation Workflow """
@@ -200,16 +288,16 @@ environment:
             DFW: https://dfw.databases.api.rackspacecloud.com/v1.0/T1000
             ORD: https://ord.databases.api.rackspacecloud.com/v1.0/T1000
           sizes:
-            1:
+            '1':
               memory: 512
               name: m1.tiny
-            2:
+            '2':
               memory: 1024
               name: m1.small
-            3:
+            '3':
               memory: 2048
               name: m1.medium
-            4:
+            '4':
               memory: 4096
               name: m1.large
     base:

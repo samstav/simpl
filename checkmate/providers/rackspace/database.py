@@ -22,12 +22,6 @@ REGION_MAP = {'dallas': 'DFW',
               'chicago': 'ORD',
               'london': 'LON'}
 
-MEMORY_FLAVOR_MAP = {512: 1,
-                     1024: 2,
-                     2048: 3,
-                     4096: 4
-                     }
-
 
 class Provider(ProviderBase):
     name = 'database'
@@ -43,20 +37,29 @@ class Provider(ProviderBase):
 
         if resource_type == 'compute':
             # Get flavor
-            memory = deployment.get_setting('memory',
-                                            resource_type=resource_type,
-                                            service_name=service,
-                                            provider_key=self.key) or 512
-
             # Find same or next largest size and get flavor ID
-            size = '512'
-            flavor = '1'
-            number = str(memory).split(' ')[0]
+            flavor = None
+            memory = self.parse_memory_setting(deployment.get_setting('memory',
+                                               resource_type=resource_type,
+                                               service_name=service,
+                                               provider_key=self.key) or 512)
+
+            # Find the available memory size that satisfies this
+            matches = [e['memory'] for e in catalog['lists']['sizes'].values()
+                       if int(e['memory']) >= memory]
+            if not matches:
+                raise CheckmateNoMapping("No flavor has at least '%s' memory" %
+                                         memory)
+            match = str(min(matches))
             for key, value in catalog['lists']['sizes'].iteritems():
-                if int(number) <= int(value['memory']):
-                    if key > size:
-                        size = str(value['memory'])
-                        flavor = str(key)
+                if match == str(value['memory']):
+                    LOG.debug("Mapping flavor from '%s' to '%s'" % (memory,
+                                                                    key))
+                    flavor = key
+                    break
+            if not flavor:
+                raise CheckmateNoMapping("No flavor mapping for '%s' in '%s'" %
+                                         (memory, self.key))
 
             # Get volume size
             volume = deployment.get_setting('disk',
