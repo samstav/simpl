@@ -1,3 +1,25 @@
+GIT
+  remote: git://github.com/jasondunsmore/berkshelf.git
+  revision: 97c73bb0b807de10498c3b0fc09535bec8363476
+  branch: git-caching
+  specs:
+    berkshelf (1.4.0.rc1)
+      activesupport (>= 3.2.0)
+      celluloid (>= 0.13.0)
+      chozo (>= 0.6.1)
+      faraday (>= 0.8.5)
+      hashie (>= 2.0.2)
+      json (>= 1.5.0)
+      minitar
+      mixlib-config (~> 1.1)
+      mixlib-shellout (~> 1.1)
+      multi_json (~> 1.5)
+      retryable
+      ridley (~> 0.9.0)
+      solve (>= 0.4.2)
+      thor (~> 0.18.0)
+      yajl-ruby
+
 GEM
   remote: https://www.rubygems.org/
   specs:
@@ -6,23 +28,6 @@ GEM
       multi_json (~> 1.0)
     addressable (2.3.3)
     archive-tar-minitar (0.5.2)
-    berkshelf (1.2.1)
-      activesupport
-      chozo (>= 0.6.1)
-      faraday (>= 0.8.5)
-      hashie (>= 2.0.2)
-      json (>= 1.5.0)
-      minitar
-      mixlib-config
-      mixlib-shellout
-      moneta (~> 0.6.0)
-      multi_json (~> 1.5)
-      net-ssh-gateway (= 1.1.0)
-      retryable
-      ridley (>= 0.8.3)
-      solve (>= 0.4.2)
-      thor (~> 0.16.0)
-      yajl-ruby
     celluloid (0.13.0)
       timers (>= 1.0.0)
     chef (11.4.0)
@@ -69,13 +74,12 @@ GEM
     mixlib-config (1.1.2)
     mixlib-log (1.6.0)
     mixlib-shellout (1.1.0)
-    moneta (0.6.0)
     multi_json (1.7.2)
     multipart-post (1.2.0)
     net-http-persistent (2.8)
-    net-ssh (2.6.6)
-    net-ssh-gateway (1.1.0)
-      net-ssh (>= 1.99.1)
+    net-ssh (2.6.7)
+    net-ssh-gateway (1.2.0)
+      net-ssh (>= 2.6.5)
     net-ssh-multi (1.1)
       net-ssh (>= 2.1.4)
       net-ssh-gateway (>= 0.99.0)
@@ -110,7 +114,7 @@ GEM
     solve (0.4.2)
       json
     systemu (2.5.2)
-    thor (0.16.0)
+    thor (0.18.1)
     timers (1.1.0)
     yajl-ruby (1.1.0)
 
@@ -118,7 +122,7 @@ PLATFORMS
   ruby
 
 DEPENDENCIES
-  berkshelf (= 1.2.1)
+  berkshelf!
   chef (= 11.4.0)
   knife-solo (= 0.2.0)
   knife-solo_data_bag (= 0.3.2)
