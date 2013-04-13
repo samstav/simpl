@@ -123,42 +123,51 @@ class Provider(ProviderBase):
                                              "with one of '%s'" % start_with)
 
             # Create resource tasks
-            create_database_task = Celery(wfspec,'Create Database',
-                   'checkmate.providers.rackspace.database.create_database',
-                   call_args=[context.get_queued_task_dict(
-                                    deployment=deployment['id'],
-                                    resource=key),
-                            db_name,
-                            PathAttrib('instance:%s/region' %
-                                    resource['hosted_on']),
-                        ],
-                   instance_id=PathAttrib('instance:%s/id' %
-                            resource['hosted_on']),
-
-                   merge_results=True,
-                   defines=dict(resource=key,
-                                provider=self.key,
-                                task_tags=['create']),
-                   properties={
-                            'estimated_duration': 80
-                    })
-            create_db_user = Celery(wfspec, "Add DB User: %s" % username,
-                   'checkmate.providers.rackspace.database.add_user',
-                   call_args=[context.get_queued_task_dict(
-                                    deployment=deployment['id'],
-                                    resource=key),
-                            PathAttrib('instance:%s/host_instance' % key),
-                            [db_name],
-                            username, password,
-                            PathAttrib('instance:%s/host_region' % key),
-                            ],
-                   merge_results=True,
-                   defines=dict(resource=key,
-                                provider=self.key,
-                                task_tags=['final']),
-                   properties={
-                        'estimated_duration': 20
-                    })
+            create_database_task = Celery(wfspec,
+                                          'Create Database',
+                                          'checkmate.providers.rackspace.'
+                                          'database.create_database',
+                                          call_args=[
+                                              context.get_queued_task_dict(
+                                                  deployment=deployment['id'],
+                                                  resource=key),
+                                              db_name,
+                                              PathAttrib(
+                                                  'instance:%s/region' %
+                                                  resource['hosted_on']),
+                                          ],
+                                          instance_id=PathAttrib(
+                                              'instance:%s/id' %
+                                              resource['hosted_on']),
+                                          merge_results=True,
+                                          defines=dict(resource=key,
+                                                       provider=self.key,
+                                                       task_tags=['create']),
+                                          properties={
+                                              'estimated_duration': 80
+                                          })
+            create_db_user = Celery(wfspec,
+                                    "Add DB User: %s" % username,
+                                    'checkmate.providers.rackspace.database.'
+                                    'add_user',
+                                    call_args=[
+                                        context.get_queued_task_dict(
+                                            deployment=deployment['id'],
+                                            resource=key),
+                                        PathAttrib(
+                                            'instance:%s/host_instance' % key),
+                                        [db_name],
+                                        username, password,
+                                        PathAttrib(
+                                            'instance:%s/host_region' % key),
+                                    ],
+                                    merge_results=True,
+                                    defines=dict(resource=key,
+                                                 provider=self.key,
+                                                 task_tags=['final']),
+                                    properties={
+                                        'estimated_duration': 20
+                                    })
 
             create_db_user.follow(create_database_task)
             root = wait_for(wfspec, create_database_task, wait_on)
@@ -254,12 +263,12 @@ class Provider(ProviderBase):
         # TODO: maybe implement this an on_get_catalog so we don't have to do
         #        this for every provider
         results = ProviderBase.get_catalog(self, context,
-            type_filter=type_filter)
+                                           type_filter=type_filter)
         if results:
             # We have a prexisting or overridecatalog stored
             return results
 
-        # build a live catalog ()this would be the on_get_catalog called if no
+        # build a live catalog this would be the on_get_catalog called if no
         # stored/override existed
         api = self._connect(context)
         if type_filter is None or type_filter == 'database':
@@ -268,17 +277,17 @@ class Provider(ProviderBase):
                 'is': 'database',
                 'provides': [{'database': 'mysql'}],
                 'requires': [{'compute': dict(relation='host',
-                        interface='mysql', type='compute')}],
+                             interface='mysql', type='compute')}],
                 'options': {
-                    'database/name':{
+                    'database/name': {
                         'type': 'string',
                         'default': 'db1'
                     },
-                    'database/username':{
+                    'database/username': {
                         'type': 'string',
                         'required': "true"
                     },
-                    'database/password':{
+                    'database/password': {
                         'type': 'string',
                         'required': "false"
                     }
@@ -334,8 +343,9 @@ class Provider(ProviderBase):
         if function_string.startswith('generate_password('):
             start_with = string.ascii_uppercase + string.ascii_lowercase
             password = '%s%s' % (random.choice(start_with),
-                ''.join(random.choice(start_with + string.digits + '@?#_')
-                for x in range(11))) #@UnusedVariable for randomization?
+                                 ''.join(random.choice(start_with +
+                                                       string.digits + '@?#_')
+                                 for x in range(11)))
             return password
         return ProviderBase.evaluate(self, function_string)
 
@@ -376,7 +386,7 @@ class Provider(ProviderBase):
         url = find_url(context.catalog, region)
         if not url:
             raise CheckmateException("Unable to locate region url for DBaaS "
-                    "for region '%s'" % region)
+                                     "for region '%s'" % region)
         api = clouddb.CloudDB(context.username, 'dummy', region)
         api.client.auth_token = context.auth_token
         api.client.region_account_url = url
@@ -389,7 +399,7 @@ class Provider(ProviderBase):
 #
 @task(default_retry_delay=10, max_retries=2)
 def create_instance(context, instance_name, flavor, size, databases, region,
-        api=None):
+                    api=None):
     """Creates a Cloud Database instance with optional initial databases.
 
     :param databases: an array of dictionaries with keys to set the database
@@ -407,37 +417,37 @@ def create_instance(context, instance_name, flavor, size, databases, region,
         databases = []
 
     instance = api.create_instance(instance_name, flavor, size,
-                                          databases=databases)
+                                   databases=databases)
     LOG.info("Created database instance %s (%s). Size %s, Flavor %s. "
-            "Databases = %s" % (instance.name, instance.id, size, flavor,
-            databases))
+             "Databases = %s" % (instance.name, instance.id, size, flavor,
+                                 databases))
 
     # Return instance and its interfaces
     results = {
-            'instance:%s' % context['resource']: {
-                    'id': instance.id,
-                    'name': instance.name,
-                    'status': 'BUILD',
-                    'region': region,
-                    'interfaces': {
-                            'mysql': {
-                                    'host': instance.hostname
-                                }
-                        },
-                    'databases': {}
+        'instance:%s' % context['resource']: {
+            'id': instance.id,
+            'name': instance.name,
+            'status': 'BUILD',
+            'region': region,
+            'interfaces': {
+                'mysql': {
+                    'host': instance.hostname
                 }
+            },
+            'databases': {}
         }
+    }
     # Return created databases and their interfaces
     if databases:
         db_results = results['instance:%s' % context['resource']]['databases']
         for database in databases:
             data = copy.copy(database)
             data['interfaces'] = {
-                    'mysql': {
-                            'host': instance.hostname,
-                            'database_name': database['name'],
-                        }
+                'mysql': {
+                    'host': instance.hostname,
+                    'database_name': database['name'],
                 }
+            }
             db_results[database['name']] = data
 
     # Send data back to deployment
@@ -480,9 +490,9 @@ def wait_on_build(context, instance_id, region, api=None):
         return wait_on_build.retry(exc=CheckmateException(msg))
 
 
-@task(default_retry_delay=15, max_retries=40) # max 10 minute wait
+@task(default_retry_delay=15, max_retries=40)  # max 10 minute wait
 def create_database(context, name, region, character_set=None, collate=None,
-        instance_id=None, instance_attributes=None, api=None):
+                    instance_id=None, instance_attributes=None, api=None):
     """Create a database resource.
 
     This call also creates a server instance if it is not supplied.
@@ -522,13 +532,13 @@ def create_database(context, name, region, character_set=None, collate=None,
             flavor = instance_attributes.get('flavor', flavor)
 
         instance = create_instance(context, instance_name, size, flavor,
-            databases, region, api=api)
+                                   databases, region, api=api)
         instance_id = instance.get(instance_key, {}).get('id')
         wait_on_build.delay(context, instance_id, region, api=api)
         # create_instance calls its own postback
         results = {
-                instance_key: instance['instance']['databases'][name]
-            }
+            instance_key: instance['instance']['databases'][name]
+        }
         results[instance_key]['host_instance'] = instance_id
         results[instance_key]['host_region'] = instance['region']
         return results
@@ -539,24 +549,24 @@ def create_database(context, name, region, character_set=None, collate=None,
     try:
         instance.create_databases(databases)
         results = {
-                instance_key: {
-                        'name': name,
-                        'id': name,
-                        'host_instance': instance_id,
-                        'host_region': region,
-                        'status': "BUILD",
-                        'interfaces': {
-                                'mysql': {
-                                        # pylint: disable=E1103
-                                        'host': instance.hostname,
-                                        'database_name': name
-                                    },
-                            }
-                    }
+            instance_key: {
+                'name': name,
+                'id': name,
+                'host_instance': instance_id,
+                'host_region': region,
+                'status': "BUILD",
+                'interfaces': {
+                    'mysql': {
+                        # pylint: disable=E1103
+                        'host': instance.hostname,
+                        'database_name': name
+                    },
+                }
             }
+        }
         LOG.info('Created database(s) %s on instance %s' % (
-                [db['name'] for db in
-                databases], instance_id))
+                 [db['name'] for db in
+                  databases], instance_id))
         # Send data back to deployment
         resource_postback.delay(context['deployment'], results)
         return results
@@ -597,7 +607,7 @@ def add_databases(context, instance_id, databases, region, api=None):
 
 @task(default_retry_delay=10, max_retries=10)
 def add_user(context, instance_id, databases, username, password, region,
-        api=None):
+             api=None):
     """Add a database user to an instance for one or more databases"""
     match_celery_logging(LOG)
 
@@ -616,7 +626,7 @@ def add_user(context, instance_id, databases, username, password, region,
     try:
         instance.create_user(username, password, databases)
         LOG.info('Added user %s to %s on instance %s' % (username, databases,
-                instance_id))
+                 instance_id))
     except clouddb.errors.ResponseError as exc:
         # This could be '422 Unprocessable Entity', meaning the instance is not
         # up yet
@@ -626,20 +636,20 @@ def add_user(context, instance_id, databases, username, password, region,
             raise exc
 
     results = {
-                instance_key: {
-                        'username': username,
-                        'password': password,
-                        'status' : "ACTIVE",
-                        'interfaces': {
-                                'mysql': {
-                                        'host': instance.hostname,
-                                        'database_name': databases[0],
-                                        'username': username,
-                                        'password': password,
-                                    }
-                            }
-                    }
-              }
+        instance_key: {
+            'username': username,
+            'password': password,
+            'status': "ACTIVE",
+            'interfaces': {
+                'mysql': {
+                    'host': instance.hostname,
+                    'database_name': databases[0],
+                    'username': username,
+                    'password': password,
+                }
+            }
+        }
+    }
     # Send data back to deployment
     resource_postback.delay(context['deployment'], results)
 
@@ -694,8 +704,12 @@ def delete_instance(context, api=None):
         if rese.status == 404:  # already deleted
             res = {inst_key: {'status': 'DELETED'}}
             for hosted in resource.get('hosts', []):
-                res.update({'instance:%s' % hosted: {'status': 'DELETED',
-                                    'statusmsg': 'Host %s was deleted'}})
+                res.update({
+                    'instance:%s' % hosted: {
+                        'status': 'DELETED',
+                        'statusmsg': 'Host %s was deleted'
+                    }
+                })
             return res
         else:
             # not too sure what this is, so maybe retry a time or two
@@ -705,8 +719,12 @@ def delete_instance(context, api=None):
         delete_instance.retry(exc=exc)
     res = {inst_key: {'status': 'DELETING'}}
     for hosted in resource.get('hosts', []):
-        res.update({'instance:%s' % hosted: {'status': 'DELETING',
-                            'statusmsg': 'Host %s is being deleted'}})
+        res.update({
+            'instance:%s' % hosted: {
+                'status': 'DELETING',
+                'statusmsg': 'Host %s is being deleted'
+            }
+        })
     return res
 
 
@@ -754,8 +772,12 @@ def wait_on_del_instance(context, api=None):
         if 404 == respe.status:  # already gone
             res = {inst_key: {'status': 'DELETED'}}
             for hosted in resource.get('hosts', []):
-                res.update({'instance:%s' % hosted: {'status': 'DELETED',
-                                    'statusmsg': 'Host %s was deleted'}})
+                res.update({
+                    'instance:%s' % hosted: {
+                        'status': 'DELETED',
+                        'statusmsg': 'Host %s was deleted'
+                    }
+                })
             return res
         else:
             # not too sure what this is, so maybe retry a time or two
@@ -763,12 +785,16 @@ def wait_on_del_instance(context, api=None):
     if not instance or ('DELETED' == instance.status):
         res = {inst_key: {'status': 'DELETED'}}
         for hosted in resource.get('hosts', []):
-            res.update({'instance:%s' % hosted: {'status': 'DELETED',
-                                'statusmsg': 'Host %s was deleted'}})
+            res.update({
+                'instance:%s' % hosted: {
+                    'status': 'DELETED',
+                    'statusmsg': 'Host %s was deleted'
+                }
+            })
         return res
     else:
         wait_on_del_instance.retry(exc=CheckmateException("Timeout waiting on "
-                                                "instance %s delete" % key))
+                                   "instance %s delete" % key))
 
 
 @task(default_retry_delay=2, max_retries=30)
@@ -845,4 +871,4 @@ def delete_user(context, instance_id, username, region, api=None):
     instance = api.get_instance(instanceid=instance_id)
     instance.delete_user(username)
     LOG.info('Deleted user %s from database instance %d' % (username,
-            instance_id))
+             instance_id))
