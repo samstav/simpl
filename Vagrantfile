@@ -9,7 +9,7 @@ Vagrant::Config.run do |config|
   config.vm.box = "precise"
   config.vm.box_url = "http://files.vagrantup.com/precise64.box"
 
-  config.vm.provision :shell, :inline => "if [ \"$(chef-client --version |awk '{print $2}')\" != \"10.18.2\" ]; then bash <(wget http://www.opscode.com/chef/install.sh --tries=10 -O -) -v 10.18.2 2>> /dev/null; fi"
+  config.vm.provision :shell, :inline => "if [ \"$(chef-client --version |awk '{print $2}')\" != \"11.4.0\" ]; then bash <(wget http://www.opscode.com/chef/install.sh --tries=10 -O -) -v 11.4.0 2>> /dev/null; fi"
 
   config.vm.provision :chef_solo do |chef|
     chef.log_level = :debug
@@ -35,26 +35,21 @@ Vagrant::Config.run do |config|
       :rvm => {
         :version => "1.17.10",
         :branch => "none",
+        :installer_url => "https://raw.github.com/wayneeseguin/rvm/master/binscripts/rvm-installer",
         :user_installs => [{
           :user => 'vagrant',
           :default_ruby => 'ruby-1.9.3-p125@checkmate',
           :gems => {
             'ruby-1.9.3-p125@checkmate' => [
               { 'name' => 'bundler' },
-              { 'name' => 'net-ssh',
-                'version' => '2.2.2' },
-              { 'name' => 'net-ssh-multi',
-                'version' => '1.1' },
-              { 'name' => 'net-ssh-gateway',
-                'version' => '1.1.0' },
               { 'name' => 'chef',
-                'version' => '10.12.0' },
+                'version' => '11.4.0' },
               { 'name' => 'librarian'},
               { 'name' => 'berkshelf'},
               { 'name' => 'knife-solo',
-                'version' => '0.0.13' },
+                'version' => '0.2.0' },
               { 'name' => 'knife-solo_data_bag',
-                'version' => '0.2.1' }
+                'version' => '0.3.1' }
             ]
           }
         }],

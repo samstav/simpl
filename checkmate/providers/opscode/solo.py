@@ -27,7 +27,7 @@ from checkmate.utils import merge_dictionary  # Spiff version used by transform
 
 LOG = logging.getLogger(__name__)
 OMNIBUS_DEFAULT = os.environ.get('CHECKMATE_CHEF_OMNIBUS_DEFAULT',
-                                 "10.12.0-1")
+                                 "10.24.0")
 
 
 def register_scheme(scheme):

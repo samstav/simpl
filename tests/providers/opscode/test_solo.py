@@ -241,7 +241,7 @@ class TestCeleryTasks(unittest.TestCase):
         __builtin__.file(node_path, 'w').AndReturn(mock_file)
 
         #Stub out process call to knife
-        params = ['knife', 'cook', 'root@a.b.c.d',
+        params = ['knife', 'solo', 'cook', 'root@a.b.c.d',
                   '-c', os.path.join(kitchen_path, "solo.rb"),
                   '-p', '22']
         self.mox.StubOutWithMock(knife, '_run_kitchen_command')
@@ -384,7 +384,7 @@ class TestMySQLMaplessWorkflow(test.StubbedWorkflowBase):
                     'args': ['4.4.4.1', self.deployment['id'], ContainsKeyValue('index', IgnoreArg())],
                     'kwargs': And(In('password'),
                                   ContainsKeyValue('omnibus_version',
-                                                   '10.12.0-1')
+                                                   '10.24.0')
                                  ),
                     'result': None,
                     'resource': key,
@@ -719,7 +719,7 @@ class TestMappedSingleWorkflow(test.StubbedWorkflowBase):
                                       ContainsKeyValue('attributes',
                                                         attributes),
                                       ContainsKeyValue('omnibus_version',
-                                                       '10.12.0-1')),
+                                                       '10.24.0')),
                         'result': None,
                         'resource': key,
                     }, {
@@ -1074,7 +1074,7 @@ class TestMappedMultipleWorkflow(test.StubbedWorkflowBase):
                         'args': ["4.4.4.4", self.deployment['id'], ContainsKeyValue('index', IgnoreArg())],
                         'kwargs': And(In('password'),
                                       ContainsKeyValue('omnibus_version',
-                                                       '10.12.0-1'),
+                                                       '10.24.0'),
                                       ContainsKeyValue('attributes',
                                               {'connections': 10,
                                                'widgets': 10})),
