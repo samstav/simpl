@@ -150,7 +150,6 @@ class TestKnife(unittest.TestCase):
                                         'checkmate-environment.pub')
         self.mox.StubOutWithMock(shutil, 'copy')
         shutil.copy(public_key_path, kitchen_key_path).AndReturn(True)
-        self.mox.StubOutWithMock(knife, 'download_cookbooks')
 
         self.mox.ReplayAll()
         expected = {'environment': '/fake_path/test',

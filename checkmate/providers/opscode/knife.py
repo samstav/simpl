@@ -25,8 +25,6 @@ from checkmate.db import get_driver
 
 LOG = logging.getLogger(__name__)
 
-CHECKMATE_CHEF_REPO = None
-
 
 def register_scheme(scheme):
     '''
@@ -37,21 +35,6 @@ def register_scheme(scheme):
         getattr(urlparse, method).append(scheme)
 
 register_scheme('git')  # without this, urlparse won't handle git:// correctly
-
-
-def _get_repo_path():
-    """Find the master repo path for chef cookbooks"""
-    try:
-        CHECKMATE_CHEF_REPO = os.environ.get('CHECKMATE_CHEF_REPO')
-    except KeyError:
-        CHECKMATE_CHEF_REPO = "/var/local/checkmate/chef-stockton"
-        LOG.warning("CHECKMATE_CHEF_REPO variable not set. Defaulting to %s" % CHECKMATE_CHEF_REPO)
-
-    if not os.path.exists(CHECKMATE_CHEF_REPO):
-        git.Repo.clone_from('git://github.rackspace.com/checkmate/chef-stockton.git', CHECKMATE_CHEF_REPO)
-        LOG.info("Cloned chef-stockton to %s" % CHECKMATE_CHEF_REPO)
-
-    return CHECKMATE_CHEF_REPO
 
 
 def _get_root_environments_path(dep_id, path=None):
@@ -358,14 +341,11 @@ def _create_kitchen(dep_id, service_name, path, secret_key=None, source_repo=Non
 
     solo_file, secret_key_path = _write_knife_config_file(kitchen_path)
 
-    # Copy bootstrap.json to the kitchen
-    repo_path = _get_repo_path()
-    bootstrap_path = os.path.join(repo_path, 'bootstrap.json')
+    # Create bootstrap.json in the kitchen
+    bootstrap_path = os.path.join(kitchen_path, 'bootstrap.json')
     if not os.path.exists(bootstrap_path):
-        msg = ("Invalid master repo. {} not found".format(bootstrap_path))
-        raise CheckmateException(msg)
-
-    shutil.copy(bootstrap_path, os.path.join(kitchen_path, 'bootstrap.json'))
+        with file(bootstrap_path, 'w') as f:
+            json.dump({"run_list": ["recipe[build-essential]"]}, f)
 
     # Create certificates folder
     certs_path = os.path.join(kitchen_path, 'certificates')
@@ -681,119 +661,6 @@ def cook(host, environment, resource, recipes=None, roles=None, path=None,
     resource_postback.delay(environment, pb_res)
 
 
-def download_cookbooks(environment, service_name, path=None, cookbooks=None,
-        source=None, use_site=False):
-    """Download cookbooks from a remote repo
-    :param environment: the name of the kitchen/environment environment.
-        It should have cookbooks and site-cookbooks subfolders
-    :param path: points to the root of environments.
-        It should have cookbooks and site-cookbooks subfolders
-    :param cookbooks: the names of the cookbooks to download (blank=all)
-    :param source: the source repos (a github URL)
-    :param use_site: use site-cookbooks instead of cookbooks
-    :returns: count of cookbooks copied"""
-    utils.match_celery_logging(LOG)
-    # Until we figure out a better solution, I'm assuming the chef-stockton
-    # repo is cloned as a subfolder under the provider (and cloning it if
-    # not) and we copy the cookbooks from there
-
-    # Get path
-    root = _get_root_environments_path(environment, path)
-    fullpath = os.path.join(root, environment)
-    if not os.path.exists(fullpath):
-        raise CheckmateException("Environment does not exist: %s" % fullpath)
-    kitchen_path = os.path.join(fullpath, service_name)
-    if not os.path.exists(kitchen_path):
-        raise CheckmateException("Kitchen does not exist: %s" % kitchen_path)
-
-    # Find/get cookbook source
-    repo_path = _get_repo_path()
-
-    if use_site:
-        cookbook_subdir = 'site-cookbooks'
-    else:
-        cookbook_subdir = 'cookbooks'
-
-    # Check that cookbooks requested exist
-    if cookbooks:
-        for cookbook in cookbooks:
-            if not os.path.exists(os.path.join(repo_path, cookbook_subdir,
-                    cookbook)):
-                raise CheckmateException("Cookbook '%s' not available in repo:"
-                        " %s" % (cookbook, repo_path))
-    else:
-        # If none specificed, assume all
-        cookbooks = [p for p in os.listdir(os.path.join(repo_path,
-                cookbook_subdir)) if os.path.isdir(os.path.join(repo_path,
-                cookbook_subdir, p))]
-
-    # Copy the cookbooks over
-    count = 0
-    for cookbook in cookbooks:
-        target = os.path.join(kitchen_path, cookbook_subdir, cookbook)
-        if not os.path.exists(target):
-            LOG.debug("Copying cookbook '%s' to %s" % (cookbook, repo_path))
-            shutil.copytree(os.path.join(repo_path, cookbook_subdir, cookbook),
-                    target)
-            count += 1
-    return count
-
-
-def download_roles(environment, service_name, path=None, roles=None,
-                   source=None):
-    """Download roles from a remote repo
-    :param environment: the name of the kitchen/environment environment.
-        It should have a roles subfolder.
-    :param path: points to the root of environments.
-        It should have a roles subfolders
-    :param roles: the names of the roles to download (blank=all)
-    :param source: the source repos (a github URL)
-    :returns: count of roles copied"""
-    utils.match_celery_logging(LOG)
-    # Until we figure out a better solution, I'm assuming the chef-stockton
-    # repo is cloned as a subfolder under python-stockton (and cloning it if
-    # not) and we copy the roles from there
-
-    # Get path
-    root = _get_root_environments_path(environment, path)
-    fullpath = os.path.join(root, environment)
-    if not os.path.exists(fullpath):
-        raise CheckmateException("Environment does not exist: %s" % fullpath)
-    kitchen_path = os.path.join(fullpath, service_name)
-    if not os.path.exists(kitchen_path):
-        raise CheckmateException("Kitchen does not exist: %s" % kitchen_path)
-
-    # Find/get cookbook source
-    repo_path = _get_repo_path()
-
-    if not os.path.exists(repo_path):
-        rax_repo = 'git://github.rackspace.com/ManagedCloud/chef-stockton.git'
-        git.Repo.clone_from(rax_repo, repo_path)
-        LOG.info("Cloned chef-stockton from %s to %s" % (rax_repo, repo_path))
-    else:
-        LOG.debug("Getting roles from %s" % repo_path)
-
-    # Check that roles requested exist
-    if roles:
-        for role in roles:
-            if not os.path.exists(os.path.join(repo_path, 'roles',
-                    role)):
-                raise CheckmateException("Role '%s' not available in repo: "
-                        "%s" % (role, repo_path))
-    else:
-        # If none specificed, assume all
-        roles = [p for p in os.listdir(os.path.join(repo_path, 'roles'))]
-
-    # Copy the roles over
-    count = 0
-    for role in roles:
-        target = os.path.join(kitchen_path, 'roles', role)
-        if not os.path.exists(target):
-            LOG.debug("Copying role '%s' to %s" % (role, repo_path))
-            shutil.copy(os.path.join(repo_path, 'roles', role), target)
-            count += 1
-    return count
-
 def _ensure_berkshelf_environment():
     """Checks the Berkshelf environment and sets it up if necessary."""
     berkshelf_path = os.environ.get("BERKSHELF_PATH")
@@ -812,6 +679,7 @@ def _ensure_berkshelf_environment():
     if not os.path.exists(berkshelf_path):
         os.makedirs(berkshelf_path)
         LOG.debug("Created berkshelf_path: %s" % berkshelf_path)
+
 
 #TODO: full search, fix module reference all below here!!
 @task
@@ -895,12 +763,7 @@ def create_environment(name, service_name, path=None, private_key=None,
                               lock=True)
             LOG.debug("Ran 'librarian-chef install' in: %s" % kitchen_path)
     else:
-        # Keep for backwards compatibility, but source_repo should be provided
-        # Temporary Hack: load all cookbooks and roles from chef-stockton
-        # TODO: Undo this and use more git
-        download_cookbooks(name, service_name, path=root)
-        download_cookbooks(name, service_name, path=root, use_site=True)
-        download_roles(name, service_name, path=root)
+        raise CheckmateException("Source repo not supplied and is required")
 
     results.update(kitchen_data)
     results.update(key_data)
