@@ -289,18 +289,18 @@ class Provider(ProviderBase):
                 'is': 'compute',
                 'provides': [{'compute': 'mysql'}],
                 'options': {
-                        'disk': {
-                                'type': 'int',
-                                'choice': [1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
-                                'unit': 'Gb',
-                            },
-                        'memory': {
-                                'type': 'int',
-                                'choice': [512, 1024, 2048, 4096],
-                                'unit': 'Mb',
-                            },
-                    }
-                })
+                    'disk': {
+                        'type': 'integer',
+                        'choice': [1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
+                        'unit': 'Gb',
+                    },
+                    'memory': {
+                        'type': 'integer',
+                        'choice': [512, 1024, 2048, 4096],
+                        'unit': 'Mb',
+                    },
+                }
+            })
 
         if type_filter is None or type_filter == 'regions':
             regions = {}

@@ -2,6 +2,8 @@
 import logging
 import unittest2 as unittest
 
+import mox
+
 # Init logging before we load the database, 3rd party, and 'noisy' modules
 from checkmate.utils import init_console_logging
 init_console_logging()
@@ -234,6 +236,113 @@ class TestDatabase(ProviderTester):
                                              context, name='fake_name')
 
         self.assertDictEqual(results, expected)
+        self.mox.VerifyAll()
+
+
+class TestCatalog(unittest.TestCase):
+
+    def setUp(self):
+        self.mox = mox.Mox()
+
+    def tearDown(self):
+        self.mox.UnsetStubs()
+
+    def test_generation(self):
+        provider = database.Provider({})
+        context = self.mox.CreateMockAnything()
+        api = self.mox.CreateMockAnything()
+        flavors = self.mox.CreateMockAnything()
+        flavor1 = self.mox.CreateMockAnything()
+        flavor1.id = '1'
+        flavor1.ram = 1024
+        flavor1.name = 'm1.tiny'
+
+        context.catalog = [{
+            "endpoints": [
+                {
+                    "publicURL": "https://north.databases.com/v1/55BB",
+                    "region": "North",
+                    "tenantId": "55BB"
+                },
+                {
+                    "publicURL": "https://south.databases.com/v1/55BB",
+                    "region": "South",
+                    "tenantId": "55BB"
+                }
+            ],
+            "name": "cloudDatabases",
+            "type": "rax:database"
+        }]
+        expected = {
+            'compute': {
+                'mysql_instance': {
+                    'is': 'compute',
+                    'id': 'mysql_instance',
+                    'provides': [{'compute': 'mysql'}],
+                    'options': {
+                        'disk': {
+                            'type': 'integer',
+                            'unit': 'Gb',
+                            'choice': [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+                        },
+                        'memory': {
+                            'type': 'integer',
+                            'unit': 'Mb',
+                            'choice': [512, 1024, 2048, 4096]
+                        }
+                    }
+                }
+            },
+            'lists': {
+                'regions': {
+                    'North': 'https://north.databases.com/v1/55BB',
+                    'South': 'https://south.databases.com/v1/55BB'
+                },
+                'sizes': {
+                    '1': {
+                        'name': 'm1.tiny',
+                        'memory': 1024,
+                    },
+                }
+            },
+            'database': {
+                'mysql_database': {
+                    'is': 'database',
+                    'requires': [{
+                        'compute': {
+                            'interface': 'mysql',
+                            'type': 'compute',
+                            'relation': 'host'
+                        }
+                    }],
+                    'id': 'mysql_database',
+                    'provides': [{'database': 'mysql'}],
+                    'options': {
+                        'database/password': {
+                            'required': 'false',
+                            'type': 'string'
+                        },
+                        'database/name': {
+                            'default': 'db1',
+                            'type': 'string'
+                        },
+                        'database/username': {
+                            'required': 'true',
+                            'type': 'string'
+                        }
+                    }
+                }
+            }
+        }
+
+        self.mox.StubOutWithMock(provider, '_connect')
+        provider._connect(context).AndReturn(api)
+        api.flavors = flavors
+        flavors.list_flavors().AndReturn([flavor1])
+
+        self.mox.ReplayAll()
+        results = provider.get_catalog(context)
+        self.assertDictEqual(expected, results, results)
         self.mox.VerifyAll()
 
 
