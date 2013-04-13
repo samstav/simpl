@@ -78,6 +78,7 @@ class Provider(ProviderBase):
         wait_on, service_name, component = self._add_resource_tasks_helper(
                 resource, key, wfspec, deployment, context, wait_on)
 
+        resource_type = resource.get('type', resource.get('resource_type'))
         if component['is'] == 'database':
             # Database name
             db_name = deployment.get_setting('database/name',
@@ -179,18 +180,24 @@ class Provider(ProviderBase):
                                               'estimated_duration': 80
                                           })
             root = wait_for(wfspec, create_instance_task, wait_on)
-            wait_on_build = Celery(wfspec, 'Wait on Database Instance %s' % key,
-                    'checkmate.providers.rackspace.database.wait_on_build',
-                    call_args=[context.get_queued_task_dict(
-                                    deployment=deployment['id'],
-                                    resource=key),
-                               PathAttrib("instance:%s/id" % key),
-                               region],
-                    defines=dict(resource=key, provider=self.key,
-                                 task_tags=['final'],
-                    properties={
-                        'estimated_duration': 80
-                   }))
+            wait_on_build = Celery(wfspec,
+                                   'Wait on Database Instance %s' % key,
+                                   'checkmate.providers.rackspace.database.'
+                                   'wait_on_build',
+                                   call_args=[
+                                       context.get_queued_task_dict(
+                                           deployment=deployment['id'],
+                                           resource=key),
+                                       PathAttrib("instance:%s/id" % key),
+                                       region
+                                   ],
+                                   merge_results=True,
+                                   defines=dict(resource=key,
+                                                provider=self.key,
+                                                task_tags=['final']),
+                                   properties={
+                                       'estimated_duration': 80
+                                   })
             wait_on_build.follow(create_instance_task)
             return dict(root=root, final=wait_on_build)
         else:
