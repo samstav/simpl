@@ -1,3 +1,4 @@
+from subprocess import (CalledProcessError, check_output)
 from checkmate import utils
 from checkmate.exceptions import CheckmateException, CheckmateCalledProcessError
 from checkmate.ssh import execute as ssh_execute
@@ -6,8 +7,6 @@ from checkmate.deployments import resource_postback, update_deployment_status,\
 from checkmate.deployment import Deployment
 from checkmate.db import get_driver
 from celery import task  # @UnresolvedImport
-from subprocess import (CalledProcessError, check_output, Popen, PIPE)
-from collections import deque
 from Crypto.PublicKey import RSA
 from Crypto.Random import atfork
 import json
@@ -64,51 +63,6 @@ def _get_root_environments_path(dep_id, path=None):
     return root
 
 
-def check_all_output(dep_id, params):
-    """Similar to subprocess check_output, but returns all output in error if
-    an error is raised.
-
-    We use this for processing Knife output where the details of the error are
-    piped to stdout and the actual error does not have everything we need"""
-    #TODO: return stderr and stdout seperately so either can be reviewed
-    ON_POSIX = 'posix' in sys.builtin_module_names
-
-    def start_thread(func, *args):
-        t = threading.Thread(target=func, args=args)
-        t.daemon = True
-        t.start()
-        return t
-
-    def consume(infile, output, errors):
-        for line in iter(infile.readline, ''):
-            output(line)
-            if 'FATAL' in line:
-                errors(line)
-        infile.close()
-
-    p = Popen(params, stdout=PIPE, stderr=PIPE, bufsize=1, close_fds=ON_POSIX)
-
-    # preserve last N lines of stdout and stderr
-    N = 100
-    queue = deque(maxlen=N)  # will capture output
-    errors = deque(maxlen=N)  # will capture Knife errors (contain 'FATAL')
-    threads = [start_thread(consume, *args)
-                for args in (p.stdout, queue.append, errors.append),
-                (p.stderr, queue.append, errors.append)]
-    for t in threads:
-        t.join()  # wait for IO completion
-
-    retcode = p.wait()
-
-    if retcode == 0:
-        return '%s%s' % (''.join(errors), ''.join(queue))
-    else:
-        msg = "Output: %s \n Knife Errors: %s" % (queue, errors)
-        # Raise CalledProcessError, but include the Knife-specifc errors
-        raise CheckmateCalledProcessError(retcode, ' '.join(params),
-                output='\n'.join(queue), error_info='\n'.join(errors))
-
-
 def _run_ruby_command(dep_id, path, command, params, lock=True):
     """Runs a knife-like command (ex. librarian-chef).
 
@@ -157,28 +111,8 @@ def _run_ruby_command(dep_id, path, command, params, lock=True):
     else:
         if path:
             os.chdir(path)
-
         result = check_output(params)
     LOG.debug(result)
-    # Knife-like commands succeed even if there is an error. This code tries to
-    # parse the output to return a useful error
-    fatal = []
-    last_fatal = ''
-    for line in result.split('\n'):
-        if 'FATAL:' in line:
-            fatal.append(line)
-            last_fatal = line
-    if fatal:
-        command = ' '.join(params)
-        if 'Chef::Exceptions::' in last_fatal:
-            # Get the string after Chef::Exceptions::
-            error = last_fatal.split('::')[-1]
-            if error:
-                msg = "Chef/Knife error encountered: %s" % error
-                raise CheckmateCalledProcessError(1, command, output=msg)
-        msg = '\n'.join(fatal)
-        raise CheckmateCalledProcessError(1, command, output=msg)
-
     return result
 
 
