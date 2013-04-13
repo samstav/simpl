@@ -245,7 +245,8 @@ def _get_blueprints_cache_path(source_repo):
     """Return the path of the blueprint cache directory"""
     utils.match_celery_logging(LOG)
     LOG.debug("source_repo: %s" % source_repo)
-    prefix = os.environ.get("CHECKMATE_CHEF_LOCAL_PATH")
+    prefix = os.environ.get("CHECKMATE_CHEF_LOCAL_PATH",
+                            "/var/local/checkmate/deployments")
     suffix = hashlib.md5(source_repo).hexdigest()
     return os.path.join(prefix, "cache", "blueprints", suffix)
 
