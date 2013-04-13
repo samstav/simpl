@@ -51,80 +51,80 @@ class TestKnife(unittest.TestCase):
     def test_databag_create(self):
         """Test databag item creation (with checkmate filling in ID)"""
         original = {
-                'a': 1,
-                'b': '2',
-                'boolean': False,
-                'blank': None,
-                'multi-level': {
-                        'ml_stays': "I'm here!",
-                        'ml_goes': 'Bye!',
-                    },
-            }
+            'a': 1,
+            'b': '2',
+            'boolean': False,
+            'blank': None,
+            'multi-level': {
+                'ml_stays': "I'm here!",
+                'ml_goes': 'Bye!',
+            },
+        }
         resource = {
-            'index':1,
+            'index': 1,
             'hosted_on': 'rackspace'
         }
         bag = uuid.uuid4().hex
         knife.write_databag('test_env', bag, 'test', original, resource)
-        stored = knife._run_kitchen_command(
-                "dep_id",
-                "/tmp/checkmate/test/test_env/kitchen/",
-                ['knife', 'solo', 'data', 'bag', 'show', bag, 'test', '-F',
-                'json'])
+        params = ['knife', 'solo', 'data', 'bag', 'show', bag, 'test', '-F',
+                  'json']
+        stored = knife._run_kitchen_command("dep_id", "/tmp/checkmate/test/"
+                                            "test_env/kitchen/", params)
         self.assertDictEqual(json.loads(stored), original)
 
     def test_databag_merge(self):
         """Test databag item merging"""
         original = {
-                'a': 1,
-                'b': '2',
-                'boolean': False,
-                'blank': None,
-                'multi-level': {
-                        'ml_stays': "I'm here!",
-                        'ml_goes': 'Bye!',
-                    },
-            }
+            'a': 1,
+            'b': '2',
+            'boolean': False,
+            'blank': None,
+            'multi-level': {
+                'ml_stays': "I'm here!",
+                'ml_goes': 'Bye!',
+            },
+        }
         merge = {
-                'b': 3,
-                'multi-level': {
-                        'ml_goes': 'fishing',
-                    },
+            'b': 3,
+            'multi-level': {
+                'ml_goes': 'fishing',
+            },
         }
         expected = {
-                'id': 'test',
-                'a': 1,
-                'b': 3,
-                'boolean': False,
-                'blank': None,
-                'multi-level': {
-                        'ml_stays': "I'm here!",
-                        'ml_goes': 'fishing',
-                    },
-            }
+            'id': 'test',
+            'a': 1,
+            'b': 3,
+            'boolean': False,
+            'blank': None,
+            'multi-level': {
+                'ml_stays': "I'm here!",
+                'ml_goes': 'fishing',
+            },
+        }
         bag = uuid.uuid4().hex
-        resource  = {'index': 1234,
-                     'hosted_on':"rackspace"
-                     }
+        resource = {
+            'index': 1234,
+            'hosted_on': "rackspace"
+        }
         knife.write_databag('test_env', bag, 'test', original, resource)
-        knife.write_databag('test_env', bag, 'test', merge, resource, merge=True)
-        stored = knife._run_kitchen_command(
-                'test',
-                "/tmp/checkmate/test/test_env/kitchen/",
-                ['knife', 'solo', 'data', 'bag', 'show', bag, 'test', '-F',
-                'json'])
+        knife.write_databag('test_env', bag, 'test', merge, resource,
+                            merge=True)
+        params = ['knife', 'solo', 'data', 'bag', 'show', bag, 'test', '-F',
+                  'json']
+        stored = knife._run_kitchen_command('test', "/tmp/checkmate/test/"
+                                            "test_env/kitchen/", params)
         self.assertDictEqual(json.loads(stored),
                              json.loads(json.dumps(expected)))
 
     def test_databag_create_bad_id(self):
         """Test databag item creation (with supplied ID not matching)"""
         original = {
-                'id': 'Not-the-tem-name',
-            }
-        resource = {'index':1234}
+            'id': 'Not-the-tem-name',
+        }
+        resource = {'index': 1234}
         bag = uuid.uuid4().hex
         self.assertRaises(CheckmateException, knife.write_databag,
-                'test_env', bag, 'test', original, resource)
+                          'test_env', bag, 'test', original, resource)
 
     def test_create_environment(self):
         """Test create_environment"""
@@ -254,7 +254,8 @@ class TestKnife(unittest.TestCase):
 
         self.mox.StubOutWithMock(knife, 'check_output')
         knife.check_output(['berks', 'install', '--path',
-                os.path.join(kitchen_path, 'cookbooks')]).AndReturn('OK')
+                            os.path.join(kitchen_path, 'cookbooks')
+                           ]).AndReturn('OK')
 
         self.mox.ReplayAll()
         expected = {'environment': '/fake_path/test',
@@ -265,7 +266,8 @@ class TestKnife(unittest.TestCase):
                                                       private_key="PPP",
                                                       public_key_ssh="SSH",
                                                       secret_key="SSS",
-                                                      source_repo="git://ggg"), expected)
+                                                      source_repo="git://ggg"),
+                             expected)
         self.mox.VerifyAll()
 
 CHEFFILE = """#!/usr/bin/env ruby
