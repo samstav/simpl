@@ -1,25 +1,27 @@
+import errno
+import git
+import hashlib
+import json
+import logging
+import os
+import shutil
 from subprocess import (CalledProcessError, check_output)
+import threading
+import time
+import urlparse
+
+from celery import task
+from Crypto.PublicKey import RSA
+from Crypto.Random import atfork
+
 from checkmate import utils
-from checkmate.exceptions import CheckmateException, CheckmateCalledProcessError
+from checkmate.exceptions import (CheckmateException,
+                                  CheckmateCalledProcessError)
 from checkmate.ssh import execute as ssh_execute
 from checkmate.deployments import resource_postback, update_deployment_status,\
     update_all_provider_resources
 from checkmate.deployment import Deployment
 from checkmate.db import get_driver
-from celery import task  # @UnresolvedImport
-from Crypto.PublicKey import RSA
-from Crypto.Random import atfork
-import json
-import logging
-import os
-import threading
-import errno
-import sys
-import git
-import shutil
-import urlparse
-import time
-import hashlib
 
 LOG = logging.getLogger(__name__)
 

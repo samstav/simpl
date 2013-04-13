@@ -86,8 +86,7 @@ system python, you can set up all requirements using the following commands:
 
 ### Install Chef
 
-We'll document two configs. The latest, bleeding edge config for hacking and the
-last known good (LKG) config.
+We'll document two configs. The latest, bleeding edge config for hacking and the last known good (LKG) config.
 
 Bleeding Edge: To install the latest Chef client, knife-solo, and
 knife-solo_data_bag:
@@ -141,7 +140,7 @@ server:
     gem install librarian --version 0.0.24 --no-rdoc --no-ri
     gem install berkshelf --version 1.2.1 --no-rdoc --no-ri
 
-    # Install the same gems in global, because root from cron needs them
+    # If this is a production system, install the same gems in global, because root from cron needs them
     rvm gemset use global
     gem install bundler --no-rdoc --no-ri
     gem install chef --version 11.4.0 --no-rdoc --no-ri
