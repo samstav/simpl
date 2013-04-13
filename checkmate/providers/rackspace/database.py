@@ -154,41 +154,30 @@ class Provider(ProviderBase):
                 root.properties['task_tags'] = ['root']
             return dict(root=root, final=create_db_user)
         elif component['is'] == 'compute':
-            # Region
-            if 'region' in resource:
-                region = resource['region']
-            else:
-                region = deployment.get_setting('region',
-                        resource_type=resource.get('type'),
-                        provider_key=self.key, service_name=service_name)
-            db_memory = deployment.get_setting('memory',
-                    resource_type=resource.get('type'), provider_key=self.key,
-                    service_name=service_name, default=512)
-            db_disk = deployment.get_setting('disk',
-                    resource_type=resource.get('type'), provider_key=self.key,
-                    service_name=service_name, default=1)
-
-            create_instance_task = Celery(wfspec, 'Create Database Server',
-                   'checkmate.providers.rackspace.database.create_instance',
-                   call_args=[context.get_queued_task_dict(
-                                    deployment=deployment['id'],
-                                    resource=key),
-                            resource.get('dns-name'),
-                            MEMORY_FLAVOR_MAP[db_memory],
-                            db_disk,
-                            None,
-                            region,
-                        ],
-                   merge_results=True,
-                   defines=dict(resource=key,
-                                resource_type=resource.get('resource_type',
-                                                           resource.get('type', None)),
-                                interface=resource.get('interface'),
-                                provider=self.key,
-                                task_tags=['create', 'root']),
-                   properties={
-                        'estimated_duration': 80
-                   })
+            defines = dict(resource=key,
+                           resource_type=resource_type,
+                           interface=resource.get('interface'),
+                           provider=self.key,
+                           task_tags=['create', 'root'])
+            create_instance_task = Celery(wfspec,
+                                          'Create Database Server',
+                                          'checkmate.providers.rackspace.'
+                                          'database.create_instance',
+                                          call_args=[
+                                              context.get_queued_task_dict(
+                                                  deployment=deployment['id'],
+                                                  resource=key),
+                                              resource.get('dns-name'),
+                                              resource['flavor'],
+                                              resource['disk'],
+                                              None,
+                                              resource['region'],
+                                          ],
+                                          merge_results=True,
+                                          defines=defines,
+                                          properties={
+                                              'estimated_duration': 80
+                                          })
             root = wait_for(wfspec, create_instance_task, wait_on)
             wait_on_build = Celery(wfspec, 'Wait on Database Instance %s' % key,
                     'checkmate.providers.rackspace.database.wait_on_build',
