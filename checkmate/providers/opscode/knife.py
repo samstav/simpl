@@ -248,7 +248,7 @@ def _cache_blueprint(source_repo):
         url, branch = source_repo.split("#")
     else:
         url = source_repo
-        branch = None
+        branch = "master"
     if os.path.exists(repo_cache):
         # The mtime of .git/FETCH_HEAD changes upon every "git
         # fetch".  FETCH_HEAD is only created after the first
