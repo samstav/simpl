@@ -241,6 +241,12 @@ function AppController($scope, $http, $location, $resource, auth) {
 
   // Display log in prompt
   $scope.loginPrompt = function(success_callback, failure_callback) {
+    //reset controls
+    $scope.bound_creds.username = '';
+    $scope.bound_creds.password = '';
+    $scope.bound_creds.apikey = '';
+    $("#auth_error").hide();
+
     var modal = $('#modalAuth');
     modal.modal({
       keyboard: false,
@@ -284,18 +290,29 @@ function AppController($scope, $http, $location, $resource, auth) {
 
   // Log in using credentials delivered through bound_credentials
   $scope.logIn = function() {
-    //Handle auto_complete sync issues
-    var login_form = window.document.forms.loginForm;
-    if ($scope.bound_creds.username != login_form.username.value)
-      $scope.bound_creds.username = login_form.username.value;
-    if ($scope.bound_creds.password != login_form.password.value)
-      $scope.bound_creds.password = login_form.password.value;
-    if ($scope.bound_creds.apikey != login_form.apikey.value)
-      $scope.bound_creds.apikey = login_form.apikey.value;
-
     var username = $scope.bound_creds.username;
     var password = $scope.bound_creds.password;
     var apikey = $scope.bound_creds.apikey;
+
+    //Handle auto_complete sync issues (1Pass, LastPass do not update scope)
+    var login_form = window.document.forms.loginForm;
+
+    var realvalue = loginForm.username.value;
+    if (realvalue !== undefined && username != realvalue)
+      username = realvalue;
+
+    realvalue = loginForm.password.value;
+    if (realvalue !== undefined && password != realvalue)
+      password = realvalue;
+
+    realvalue = loginForm.apikey.value;
+    if (realvalue !== undefined && apikey != realvalue);
+      apikey = realvalue;
+
+    //!Pass puts the password in the apikey field too
+    if (password !== undefined && apikey !== undefined)
+      apikey = undefined;
+
     var endpoint = $scope.selected_endpoint || auth.endpoints[0];
     return auth.authenticate(endpoint, username, apikey, password, null,
       $scope.on_auth_success, $scope.on_auth_failed);
