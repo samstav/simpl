@@ -121,9 +121,9 @@ def simulate(tenant_id=None):
         response.add_header('Link', '</deployments/simulate>; rel="workflow"; '
                             'title="Deploy"')
 
-    PACKAGE[tenant_id] = deployment
+    PACKAGE[tenant_id] = {'deployment': deployment}
     results = plan(deployment, request.context)
-    PACKAGE[tenant_id] = results
+    PACKAGE[tenant_id]['deployment'] = results
 
     serializer = DictionarySerializer()
     workflow = create_workflow_deploy(deployment, request.context)
@@ -139,9 +139,8 @@ def simulate(tenant_id=None):
             spec.transforms[0] = stub
 
     serialized_workflow = workflow.serialize(serializer)
-    results['workflow'] = serialized_workflow
-    results['workflow']['id'] = 'simulate'
-    PACKAGE[tenant_id] = results
+    results['workflow'] = 'simulate'
+    PACKAGE[tenant_id]['workflow'] = serialized_workflow
 
     return write_body(results, request, response)
 
@@ -152,7 +151,7 @@ def display(tenant_id=None):
     global PACKAGE
     if not PACKAGE.get(tenant_id):
         abort(404, "No simulated deployment exists for %s" % tenant_id)
-    return write_body(PACKAGE[tenant_id], request, response)
+    return write_body(PACKAGE[tenant_id]['deployment'], request, response)
 
 
 @get('/workflows/simulate')
@@ -251,7 +250,7 @@ def process(tenant_id, complete=False):
                 elif k.startswith('connection:'):
                     postback[k] = v
             if postback:
-                PACKAGE[tenant_id].on_resource_postback(postback)
+                PACKAGE[tenant_id]['deployment'].on_resource_postback(postback)
         return True
 
     # Hack to hijack postback in Transform which is called as a string in
@@ -259,7 +258,7 @@ def process(tenant_id, complete=False):
     # We make the call hit our deployment directly
     # TODO: remove hack
     call_me = 'dep.on_resource_postback(output_template) #'
-    deployment = Deployment(PACKAGE[tenant_id])
+    deployment = Deployment(PACKAGE[tenant_id]['deployment'])
     for spec in workflow.spec.task_specs.values():
         if (isinstance(spec, TransMerge) and
                 call_me in spec.transforms[0]):
@@ -324,7 +323,7 @@ def simulate_result(tenant_id, my_task, workflow):
     result = None
     call = getattr(spec, 'call', None)
     provider = props.get('provider')
-    deployment = PACKAGE[tenant_id]
+    deployment = PACKAGE[tenant_id]['deployment']
     arg, kwargs = None, None
     if spec.args:
         args = eval_args(spec.args, my_task)
