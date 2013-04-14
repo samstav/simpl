@@ -16,7 +16,7 @@ import logging
 from time import sleep
 import uuid
 
-from bottle import get, post, request, response, abort
+from bottle import get, post, request, response, abort, put
 try:
     from SpiffWorkflow.specs import Celery
 except ImportError:
@@ -143,6 +143,24 @@ def simulate(tenant_id=None):
     PACKAGE[tenant_id]['workflow'] = serialized_workflow
 
     return write_body(results, request, response)
+
+
+@put('/deployments/simulate')
+@with_tenant
+def update_simulation(tenant_id=None):
+    """ Update simulation """
+    global PACKAGE
+    entity = read_body(request)
+    if 'deployment' in entity:
+        entity = entity['deployment']
+
+    deployment = Deployment(entity)
+    if 'includes' in deployment:
+        del deployment['includes']
+
+    PACKAGE[tenant_id]['deployment'] = deployment
+
+    return write_body(deployment, request, response)
 
 
 @get('/deployments/simulate')
