@@ -1698,6 +1698,7 @@ function DeploymentNewController($scope, $location, $routeParams, $resource, opt
   $scope.environment = environment;
   $scope.options = [];
   $scope.inputs = {};
+  $scope.deployment_name = '';
   $scope.domain_names = null;
   $scope.manual_site_address = null;
   $scope.show_site_address_controls = false;
@@ -1873,6 +1874,8 @@ function DeploymentNewController($scope, $location, $routeParams, $resource, opt
       url += '/' + action;
     var Deployment = $resource((checkmate_server_base || '') + url, {tenantId: $scope.auth.context.tenantId});
     var deployment = new Deployment({});
+    if ($scope.deployment_name !== undefined && $scope.deployment_name.trim().length > 0)
+        deployment.name = $scope.deployment_name;
     deployment.blueprint = jQuery.extend({}, $scope.blueprint);  //Copy
     deployment.environment = jQuery.extend({}, $scope.environment);  //Copy
     deployment.inputs = {};

@@ -47,6 +47,15 @@ url: shows "Address Builder" to handle url options
 
 <form id="newDeploymentForm" name="newDeploymentForm" class="form-horizontal" autocomplete="off" ng-cloak ng-show="blueprint" style="background-position: right top; background-repeat: no-repeat; background-size: auto 140px; background-image: url({{blueprint['meta-data']['reach-info'].tattoo}})">
   <fieldset>
+    <!-- Name -->
+    <div class="row-fluid">
+        <div class="control-group span10">
+            <label class="control-label required" for="deployment_name">Deployment Name</label>
+            <div class="controls">
+                <input id="deployment_name" type="text" ng-model="$parent.deployment_name" class="input-xlarge" required placeholder="My Favorite App">
+            </div>
+        </div>
+    </div>
     <!-- Blueprint -->
     <div class="row-fluid">
         <img class="span2" style="width: 60px; height: 60px;" src="/img/design-icon.png"/>
