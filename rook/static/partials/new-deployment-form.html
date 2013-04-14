@@ -60,12 +60,9 @@ url: shows "Address Builder" to handle url options
                 </select>
                 <!-- Show text if only one exists -->
                 <input ng-cloak ng-show="!blueprints" readonly="" type="text" value="{{blueprint.name}}" ng-class="{span7: branches, span9: !branches}"><span ng-cloak ng-show="branches"> branch/tag: <select id="branch" name="branch" class="span3" ng-model="$parent.remote.branch" ng-change="loadBlueprint()" ng-options="branch.name for branch in branches"></select></span>
-                <p class="help-block">
-                  {{blueprint.description}}
+                <p class="help-block" ng-cloak ng-show="blueprint.documentation.abstract" ng-bind-html-unsafe="render_markdown(blueprint.documentation.abstract)">
                 </p>
             </div>
-            <label class="control-label" for="instructions" ng-cloak ng-show="blueprint.instructions">Instructions</label>
-            <div class="controls" ng-cloak ng-show="blueprint.instructions"><div style="margin-top: 5px;" ng-bind-html-unsafe="render_markdown(blueprint.instructions)"></div></div>
         </div>
     </div>
 
