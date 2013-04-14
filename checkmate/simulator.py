@@ -16,7 +16,7 @@ import logging
 from time import sleep
 import uuid
 
-from bottle import get, post, request, response, abort, put
+from bottle import get, post, request, response, abort, put, delete
 try:
     from SpiffWorkflow.specs import Celery
 except ImportError:
@@ -160,6 +160,50 @@ def update_simulation(tenant_id=None):
 
     PACKAGE[tenant_id]['deployment'] = deployment
 
+    return write_body(deployment, request, response)
+
+
+@delete('/deployments/simulate')
+@with_tenant
+def delete_simulation(tenant_id=None):
+    """ Delete simulation """
+    global PACKAGE
+
+    if not PACKAGE.get(tenant_id):
+        abort(404, "No simulated deployment exists for %s" % tenant_id)
+
+    oid = "simulate"
+    deployment = PACKAGE[tenant_id]['deployment']
+    if 'force' not in request.query_string:
+        del_statuses = ["PLANNED", "NEW", "RUNNING", "ERROR", "ACTIVE"]
+        if deployment.get("status", "UNKNOWN") not in del_statuses:
+            abort(400, "Deployment %s cannot be deleted while in status %s. "
+                  "A deployment must have one of the following statuses "
+                  "before being deleted: [%s]" %
+                  (oid, deployment.get("status", "UNKNOWN"),
+                   ", ".join(del_statuses)))
+    loc = "/deployments/%s" % oid
+    link = "/canvases/%s" % oid
+    if tenant_id:
+        loc = "/%s%s" % (tenant_id, loc)
+        link = "/%s%s" % (tenant_id, loc)
+    """
+    planner = Plan(deployment)
+    tasks = planner.plan_delete(request.context)
+    if tasks:
+        pass
+        # update_deployment_status.s(oid, "DELETING").delay()
+        # chord(tasks)(delete_deployment_task.si(oid), interval=2,
+        #             max_retries=120)
+    else:
+        LOG.warn("No delete tasks for deployment %s" % oid)
+        # delete_deployment_task.delay(oid)
+    """
+    deployment['status'] = 'DELETING'
+    response.set_header("Location", loc)
+    response.status = 202
+    response.set_header("Link", '<%s>; rel="canvas"; title="Delete Deployment"'
+                        % link)
     return write_body(deployment, request, response)
 
 
