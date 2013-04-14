@@ -1312,6 +1312,10 @@ class ChefMap():
             """
             result = Input(value or '')
             result.parse_url()
+            for attribute in ['certificate', 'private_key',
+                              'intermediate_key']:
+                if getattr(result, attribute) is None:
+                    setattr(result, attribute, '')
             return result
         env.globals['parse_url'] = parse_url
         deployment = kwargs.get('deployment')
