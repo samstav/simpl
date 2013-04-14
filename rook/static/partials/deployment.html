@@ -7,7 +7,7 @@
             Commands
           </li>
           <li><a href="#" ng-click="save()" class="tip" title="Save any edits of the JSON. The JSON on the right is editable!"><i class="icon-ok"></i> Save</a></li>
-          <li><a ng-href="#deleteWarning" ng-click="" class="tip" title="Delete Resources and Deployment" data-toggle="modal"><i class="icon-remove"></i> Delete</a></li>
+          <li><a href="#deleteWarning" class="tip" title="Delete Resources and Deployment" data-toggle="modal"><i class="icon-remove"></i> Delete</a></li>
             <!-- deleteWarning -->
             <div id="deleteWarning" class="modal hide fade" tabindex="-1" role="dialog" aria-labelledby="myModalLabel" aria-hidden="true">
               <div class="modal-header">
@@ -17,7 +17,7 @@
                 <p>Deleting the deployment will also delete all resources and data in it.</p>
               </div>
               <div class="modal-footer">
-                <button class="btn btn-primary" ng-href="#{{current_task.task_spec}}" ng-click="delete_deployment()">Go ahead and Delete</button>
+                <button class="btn btn-primary" data-dismiss="modal" href="#" ng-click="delete_deployment()">Go ahead and Delete</button>
                 <button class="btn" data-dismiss="modal" aria-hidden="true">Cancel</button>
               </div>
             </div>
