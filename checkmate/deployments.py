@@ -406,8 +406,10 @@ def delete_deployment(oid, tenant_id=None):
                   (oid, deployment.get("status", "UNKNOWN"),
                    ", ".join(del_statuses)))
     loc = "/deployments/%s" % oid
+    link = "/canvases/%s" % oid
     if tenant_id:
         loc = "/%s%s" % (tenant_id, loc)
+        link = "/%s%s" % (tenant_id, loc)
     planner = Plan(deployment)
     tasks = planner.plan_delete(request.context)
     if tasks:
@@ -418,7 +420,11 @@ def delete_deployment(oid, tenant_id=None):
         LOG.warn("No delete tasks for deployment %s" % oid)
         delete_deployment_task.delay(oid)
     response.set_header("Location", loc)
+    response.set_header("Link", '<%s>; rel="canvas"; title="Delete Deployment"'
+                        % loc)
+
     response.status = 202
+    return write_body(deployment, request, response)
 
 
 @get('/deployments/<oid>/status')
