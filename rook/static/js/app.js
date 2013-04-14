@@ -1930,7 +1930,18 @@ function DeploymentNewController($scope, $location, $routeParams, $resource, opt
         } else {
             var deploymentId = getHeaders('location').split('/')[3];
             console.log("Posted deployment", deploymentId);
-            $location.path('/' + $scope.auth.context.tenantId + '/workflows/' + deploymentId + '/status');
+            //Hack to get link
+            try {
+              var workflowId = getHeaders('link').split(';')[0]; //Get first part
+              workflowId = workflowId.split('/'); //split URL
+              workflowId = workflowId[workflowId.length - 1].trim(); //get ID
+              workflowId = workflowId.substr(0, workflowId.length - 1);  //trim
+              $location.path('/' + $scope.auth.context.tenantId + '/workflows/' + workflowId + '/status');
+            } catch(err) {
+              //Fail-safe to old logic of deploymentId=workflowId
+              console.log("Error processing link header", err);
+              $location.path('/' + $scope.auth.context.tenantId + '/workflows/' + deploymentId + '/status');
+            }
         }
       }, function(error) {
         console.log("Error " + error.data + "(" + error.status + ") creating new deployment.");
@@ -2194,6 +2205,7 @@ document.addEventListener('DOMContentLoaded', function(e) {
   $(".cmpop").popover();  //anything with a 'cmpop' class will attempt to pop over using the data-content and title attributes
   $(".cmtip").tooltip();  //anything with a 'cmtip' class will attempt to show a tooltip of the title attribute
   $(".cmcollapse").collapse();  //anything with a 'cmcollapse' class will be collapsible
+
 }, false);
 
 $(window).load(function () {
@@ -2214,4 +2226,5 @@ $(window).load(function () {
     }, "json");
     return false;
   });
+
 });
