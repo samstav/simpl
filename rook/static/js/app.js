@@ -1715,6 +1715,7 @@ function DeploymentNewController($scope, $location, $routeParams, $resource, opt
   $scope.environment = environment;
   $scope.options = [];
   $scope.inputs = {};
+  $scope.deployment_name = '';
   $scope.domain_names = null;
   $scope.manual_site_address = null;
   $scope.show_site_address_controls = false;
@@ -1890,6 +1891,8 @@ function DeploymentNewController($scope, $location, $routeParams, $resource, opt
       url += '/' + action;
     var Deployment = $resource((checkmate_server_base || '') + url, {tenantId: $scope.auth.context.tenantId});
     var deployment = new Deployment({});
+    if ($scope.deployment_name !== undefined && $scope.deployment_name.trim().length > 0)
+        deployment.name = $scope.deployment_name;
     deployment.blueprint = jQuery.extend({}, $scope.blueprint);  //Copy
     deployment.environment = jQuery.extend({}, $scope.environment);  //Copy
     deployment.inputs = {};
@@ -1947,7 +1950,18 @@ function DeploymentNewController($scope, $location, $routeParams, $resource, opt
         } else {
             var deploymentId = getHeaders('location').split('/')[3];
             console.log("Posted deployment", deploymentId);
-            $location.path('/' + $scope.auth.context.tenantId + '/workflows/' + deploymentId + '/status');
+            //Hack to get link
+            try {
+              var workflowId = getHeaders('link').split(';')[0]; //Get first part
+              workflowId = workflowId.split('/'); //split URL
+              workflowId = workflowId[workflowId.length - 1].trim(); //get ID
+              workflowId = workflowId.substr(0, workflowId.length - 1);  //trim
+              $location.path('/' + $scope.auth.context.tenantId + '/workflows/' + workflowId + '/status');
+            } catch(err) {
+              //Fail-safe to old logic of deploymentId=workflowId
+              console.log("Error processing link header", err);
+              $location.path('/' + $scope.auth.context.tenantId + '/workflows/' + deploymentId + '/status');
+            }
         }
       }, function(error) {
         console.log("Error " + error.data + "(" + error.status + ") creating new deployment.");
@@ -2031,11 +2045,27 @@ function DeploymentController($scope, $location, $resource, $routeParams) {
     }
   };
 
-  //Setup
-  $scope.$watch('items.selectedIdx', function(newVal, oldVal, scope) {
-    if (newVal !== null) scroll.toCurrent();
-  });
+  $scope.delete_deployment = function() {
+    if ($scope.auth.identity.loggedIn) {
+      var klass = $resource((checkmate_server_base || '') + '/:tenantId/deployments/:id/.json', null, {'get': {method:'GET'}, 'save': {method:'PUT'}});
+      var thang = new klass();
+      thang.$delete($routeParams, function(returned, getHeaders){
+          // Update model
+          console.log(getHeaders('link'), returned);
+          $scope.data = returned;
+          $scope.data_json = JSON.stringify(returned, null, 2);
+          $scope.notify(returned.status);
+        }, function(error) {
+          $scope.$root.error = {data: error.data, status: error.status, title: "Error Deleting",
+                  message: "There was an error deleting your deployment"};
+          $('#modalError').modal('show');
+        });
+    } else {
+      $scope.loginPrompt(this, function() {console.log("Failed");}); //TODO: implement a callback
+    }
+  };
 
+  //Setup
   $scope.load();
 }
 
@@ -2079,10 +2109,6 @@ function FeedbackListController($scope, $location, $resource, items, scroll) {
   };
 
   //Setup
-  $scope.$watch('items.selectedIdx', function(newVal, oldVal, scope) {
-    if (newVal !== null) scroll.toCurrent();
-  });
-
   $scope.load();
 }
 
@@ -2211,6 +2237,7 @@ document.addEventListener('DOMContentLoaded', function(e) {
   $(".cmpop").popover();  //anything with a 'cmpop' class will attempt to pop over using the data-content and title attributes
   $(".cmtip").tooltip();  //anything with a 'cmtip' class will attempt to show a tooltip of the title attribute
   $(".cmcollapse").collapse();  //anything with a 'cmcollapse' class will be collapsible
+
 }, false);
 
 $(window).load(function () {
@@ -2231,4 +2258,5 @@ $(window).load(function () {
     }, "json");
     return false;
   });
+
 });

@@ -247,6 +247,7 @@ directives.directive('validateOption', function () {
             var option = scope[attrs.validateOption];
 
             function validate(value) {
+              //Check constraints
               var constraints = option.constraints;
               var index = 0;
               var valid = true;

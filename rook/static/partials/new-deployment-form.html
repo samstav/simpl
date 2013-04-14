@@ -36,14 +36,32 @@ url: shows "Address Builder" to handle url options
 
 
 -->
-<form id="newDeploymentForm" name="newDeploymentForm" class="form-horizontal" autocomplete="off" ng-cloak ng-show="blueprint" novalidate>
+
+<style>
+.required:after {
+    color: #b94a48;
+    content: ' *';
+    display:inline;
+}
+</style>
+
+<form id="newDeploymentForm" name="newDeploymentForm" class="form-horizontal" autocomplete="off" ng-cloak ng-show="blueprint" style="background-position: right top; background-repeat: no-repeat; background-size: auto 140px; background-image: url({{blueprint['meta-data']['reach-info'].tattoo}})">
   <fieldset>
+    <!-- Name -->
+    <div class="row-fluid">
+        <div class="control-group span10">
+            <label class="control-label required" for="deployment_name">Deployment Name</label>
+            <div class="controls">
+                <input id="deployment_name" type="text" ng-model="$parent.deployment_name" class="input-xlarge" required placeholder="My Favorite App">
+            </div>
+        </div>
+    </div>
     <!-- Blueprint -->
     <div class="row-fluid">
         <img class="span2" style="width: 60px; height: 60px;" src="/img/design-icon.png"/>
         <div class="control-group span10">
             <legend>Blueprint</legend>
-            <label class="control-label required" for="blueprint">What to deploy?</label>
+            <label class="control-label" for="blueprint">What to deploy?</label>
             <div class="controls">
                 <!-- Show list if list exists -->
                 <select ng-cloak ng-show="blueprints" id="blueprint" ng-class="{span7: branches, span9: !branches}" ng-model="blueprint" ng-change="setBlueprint(blueprint)"
@@ -51,12 +69,9 @@ url: shows "Address Builder" to handle url options
                 </select>
                 <!-- Show text if only one exists -->
                 <input ng-cloak ng-show="!blueprints" readonly="" type="text" value="{{blueprint.name}}" ng-class="{span7: branches, span9: !branches}"><span ng-cloak ng-show="branches"> branch/tag: <select id="branch" name="branch" class="span3" ng-model="$parent.remote.branch" ng-change="loadBlueprint()" ng-options="branch.name for branch in branches"></select></span>
-                <p class="help-block">
-                  {{blueprint.description}}
+                <p class="help-block" ng-cloak ng-show="blueprint.documentation.abstract" ng-bind-html-unsafe="render_markdown(blueprint.documentation.abstract)">
                 </p>
             </div>
-            <label class="control-label" for="instructions" ng-cloak ng-show="blueprint.instructions">Instructions</label>
-            <div class="controls" ng-cloak ng-show="blueprint.instructions"><div style="margin-top: 5px;" ng-bind-html-unsafe="render_markdown(blueprint.instructions)"></div></div>
         </div>
     </div>
 
@@ -65,7 +80,7 @@ url: shows "Address Builder" to handle url options
       <img class="span2" style="width: 60px; height: 60px" src="/img/world-icon.png"/>
       <div class="control-group span10">
         <legend>Environment</legend>
-        <label class="control-label required" for="environment">Where to deploy?</label>
+        <label class="control-label" for="environment">Where to deploy?</label>
         <div class="controls">
           <!-- Show list if list exists -->
           <select ng-cloak ng-show="environments" id="environment" class="span6" ng-model="environment" ng-change="setEnvironment(environment)" ng-options="environment.name for (id,environment) in environments" required>
@@ -140,7 +155,7 @@ url: shows "Address Builder" to handle url options
     <button ng-cloak ng-show="simulator" ng-click="simulate()" class="btn" ng-disabled="!auth.identity.loggedIn || submitting">Simulate It</button>
     <button ng-click="preview()" class="btn" ng-disabled="!auth.identity.loggedIn || submitting">Preview It</button>
     <button ng-click="loginPrompt()" class="btn" ng-hide="auth.identity.loggedIn">Log in to execute this workflow</button>
-    <div class="alert" ng-cloak ng-show="newDeploymentForm.$invalid"><strong>WARNING!</strong> There seem to be some fields with invalid data. Fields with bad data should be shown in red. You may still submit this form if you believe the data is valid.</div>
+    <div class="alert" ng-cloak ng-show="newDeploymentForm.$invalid"><strong>WARNING!</strong> There seem to be some fields with invalid data. Fields with bad data should be shown in red. You can still try to launch this deployment if you believe the data is valid.</div>
 
   </div>
 
@@ -157,24 +172,29 @@ url: shows "Address Builder" to handle url options
 
 <!-- Templates -->
 <script id="option-string" type="text/ng-template">
-  <div class="control-group" ng-class="{error: option.invalid}" ng-form="subForm">
-    <label class="control-label capitalize" ng-class="{required: required}" for="{{option.id}}">{{option.label || option.id}}</label>
+  <div class="control-group" ng-class="{error: (option.invalid || subForm.$invalid) && subForm.$dirty}" ng-form="subForm">
+    <label class="control-label capitalize" ng-class="{required: option.required}" for="{{option.id}}">{{option.label || option.id}}</label>
     <div class="controls">
       <input ui-if="!option.choice" type="text" class="input-xlarge" id="{{option.id}}" ng-model="inputs[option.id]"
-              ng-required="required" ng-pattern="{{option.regex || ''}}"
-              placeholder="{{option.sample | prepend:'ex. '}}">
-      <select ui-if="option.choice && !option.choice[0].name" id="{{option.id}}" ng-model="inputs[option.id]" ng-required="required" ng-options="o for o in option.choice">
+              ng-required="option.required" ng-pattern="{{option.regex || ''}}"
+              placeholder="{{option.sample | prepend:'ex. '}}" validate-option="option">
+      <select ui-if="option.choice && !option.choice[0].name" id="{{option.id}}" ng-model="inputs[option.id]" ng-required="option.required" ng-options="o for o in option.choice">
       </select>
-      <select ui-if="option.choice[0].name" id="{{option.id}}" ng-model="inputs[option.id]" ng-required="required" ng-options="o.value as o.name for o in option.choice">
+      <select ui-if="option.choice[0].name" id="{{option.id}}" ng-model="inputs[option.id]" ng-required="option.required" ng-options="o.value as o.name for o in option.choice">
       </select>
+      <i class="icon-question-sign" title="Validation Rules" data-trigger="click" data-target="#{{option.id}}_rules" data-html="true" data-placement="bottom" data-animation="true" popover
+        ng-cloak ng-show="option.constraints"></i>
+      <div id="{{option.id}}_rules" ng-hide="true">
+        <div ng-repeat="constraint in option.constraints"><span ng-class="{'text-success': constraint.valid, 'text-error': !constraint.valid}"><i ng-class="{'icon-ok': constraint.valid, 'icon-remove': !constraint.valid}"></i> {{constraint.message}}</span></div>
+      </div>
       <p ng-hide="!option.description" class="help-block">{{option.description}}</p>
     </div>
   </div>
 </script>
 
 <script id="option-password" type="text/ng-template">
-  <div class="control-group" ng-class="{error: option.invalid}" ng-init="show=false" ng-form="subForm">
-    <label class="control-label capitalize" ng-class="{required: required}" for="{{option.id}}">{{option.label || option.id}}</label>
+  <div class="control-group" ng-class="{error: (option.invalid || subForm.$invalid) && subForm.$dirty}" ng-init="show=false" ng-form="subForm">
+    <label class="control-label capitalize" ng-class="{required: option.required}" for="{{option.id}}">{{option.label || option.id}}</label>
     <div class="controls">
       <div class="input-append">
         <input ng-hide="show" type="password" class="input-large" name="{{option.id}}_safe" ng-model="inputs[option.id]"
@@ -198,26 +218,26 @@ url: shows "Address Builder" to handle url options
 </script>
 
 <script id="option-text" type="text/ng-template">
-  <div class="control-group" ng-class="{error: option.invalid}" ng-form="subForm">
-    <label class="control-label capitalize" ng-class="{required: required}" for="{{option.id}}">{{option.label || option.id}}</label>
+  <div class="control-group" ng-class="{error: (option.invalid || subForm.$invalid) && subForm.$dirty}" ng-form="subForm">
+    <label class="control-label capitalize" ng-class="{required: option.required}" for="{{option.id}}">{{option.label || option.id}}</label>
     <div class="controls">
       <textarea cols="80" rows="20" class="input-xlarge ng-model" id="{{option.id}}" ng-model="inputs[option.id]"
-              ng-required="required" ng-pattern="{{option.regex || ''}}" placeholder="{{option.sample | prepend:'ex. '}}">{{option.default}}</textarea>
+              ng-required="option.required" ng-pattern="{{option.regex || ''}}" placeholder="{{option.sample | prepend:'ex. '}}">{{option.default}}</textarea>
       <p ng-hide="!option.description" class="help-block">{{option.description}}</p>
     </div>
   </div>
 </script>
 
 <script id="option-integer" type="text/ng-template">
-  <div class="control-group" ng-class="{error: option.invalid}" ng-form="subForm">
-    <label class="control-label capitalize" ng-class="{required: required}" for="{{option.id}}">{{option.label || option.id}}</label>
+  <div class="control-group" ng-class="{error: (option.invalid || subForm.$invalid) && subForm.$dirty}" ng-form="subForm">
+    <label class="control-label capitalize" ng-class="{required: option.required}" for="{{option.id}}">{{option.label || option.id}}</label>
     <div class="controls">
       <input ui-if="!option.choice" type="number" class="input-small" id="{{option.id}}" ng-model="inputs[option.id]"
-              ng-required="required" ng-pattern="{{option.regex || ''}}"
+              ng-required="option.required" ng-pattern="{{option.regex || ''}}"
               placeholder="{{option.sample | prepend:'ex. '}}" >
-      <select ui-if="option.choice && !option.choice[0].name" id="{{option.id}}" ng-model="inputs[option.id]" ng-required="required" ng-options="o for o in option.choice">
+      <select ui-if="option.choice && !option.choice[0].name" id="{{option.id}}" ng-model="inputs[option.id]" ng-required="option.required" ng-options="o for o in option.choice">
       </select>
-      <select ui-if="option.choice[0].name" id="{{option.id}}" ng-model="inputs[option.id]" ng-required="required" ng-options="o.value as o.name for o in option.choice">
+      <select ui-if="option.choice[0].name" id="{{option.id}}" ng-model="inputs[option.id]" ng-required="option.required" ng-options="o.value as o.name for o in option.choice">
       </select>
       <p ng-hide="!option.description" class="help-block">{{option.description}}</p>
     </div>
@@ -225,12 +245,11 @@ url: shows "Address Builder" to handle url options
 </script>
 
 <script id="option-boolean" type="text/ng-template">
-  <div class="control-group" ng-class="{error: option.invalid}" ng-form="subForm">
-    <label class="control-label capitalize" ng-class="{required: required}" for="{{option.id}}">{{option.label || option.id}}</label>
+  <div class="control-group" ng-class="{error: (option.invalid || subForm.$invalid) && subForm.$dirty}" ng-form="subForm">
+    <label class="control-label capitalize" ng-class="{required: option.required}" for="{{option.id}}">{{option.label || option.id}}</label>
     <div class="controls">
       <label class="checkbox">
-        <input type="checkbox" class="input-xlarge" id="{{option.id}}" ng-model="inputs[option.id]"
-              ng-required="required" >
+        <input type="checkbox" class="input-xlarge" id="{{option.id}}" ng-model="inputs[option.id]" ng-required="option.required" >
         {{description}}
       </label>
     </div>
@@ -240,8 +259,8 @@ url: shows "Address Builder" to handle url options
 <script id="option-url" type="text/ng-template">
   <div ng-init="builder=false;UpdateParts(this, option.id);url=inputs[option.id].url || inputs[option.id]" ng-form="subForm">
     <div class="row-fluid">
-      <div class="control-group" ng-class="{error: option.invalid}">
-        <label class="control-label" ng-class="{required: required}" for="{{option.id}}">{{option.label}}</label>
+      <div class="control-group" ng-class="{error: (option.invalid || subForm.$invalid) && subForm.$dirty}">
+        <label class="control-label" ng-class="{required: option.required}" for="{{option.id}}">{{option.label}}</label>
         <div class="controls">
           <div class="input-append span12">
             <input class="input-xlarge span9" ng-model="url" id="{{option.id}}" type="url" ng-change="UpdateParts(this, option.id);UpdateURLOption(this, option.id)" placeholder="{{option.sample | prepend:'ex. '}}" validate-option="option">
@@ -385,11 +404,11 @@ url: shows "Address Builder" to handle url options
 
 <!-- prepare to deprecate -->
 <script id="option-int" type="text/ng-template">
-  <div class="control-group" ng-class="{error: option.invalid}">
-    <label class="control-label capitalize" ng-class="{required: required}" for="{{option.id}}">{{option.label || option.id}}</label>
+  <div class="control-group" ng-class="{error: (option.invalid || subForm.$invalid) && subForm.$dirty}">
+    <label class="control-label capitalize" ng-class="{required: option.required}" for="{{option.id}}">{{option.label || option.id}}</label>
     <div class="controls">
       <input type="number" class="input-small" id="{{option.id}}" ng-model="inputs[option.id]"
-              ng-required="required" ng-pattern="{{option.regex || ''}}"
+              ng-required="option.required" ng-pattern="{{option.regex || ''}}"
               placeholder="{{option.sample | prepend:'ex. '}}" >
       <p ng-hide="!option.description" class="help-block">{{option.description}}</p>
     </div>
@@ -397,10 +416,10 @@ url: shows "Address Builder" to handle url options
 </script>
 
 <script id="option-select" type="text/ng-template">
-  <div class="control-group" ng-class="{error: option.invalid}">
-    <label class="control-label capitalize" ng-class="{required: required}" for="{{option.id}}">{{option.label || option.id}}</label>
+  <div class="control-group" ng-class="{error: (option.invalid || subForm.$invalid) && subForm.$dirty}">
+    <label class="control-label capitalize" ng-class="{required: option.required}" for="{{option.id}}">{{option.label || option.id}}</label>
     <div class="controls">
-      <select id="{{option.id}}" ng-model="inputs[option.id]" ng-required="required" ng-options="o for o in option.choice">
+      <select id="{{option.id}}" ng-model="inputs[option.id]" ng-required="option.required" ng-options="o for o in option.choice">
       </select>
       <p ng-hide="!option.description" class="help-block">{{option.description}}</p>
     </div>
@@ -408,10 +427,10 @@ url: shows "Address Builder" to handle url options
 </script>
 
 <script id="option-select-kv" type="text/ng-template">
-  <div class="control-group" ng-class="{error: option.invalid}">
-    <label class="control-label capitalize" ng-class="{required: required}" for="{{option.id}}">{{option.label || option.id}}</label>
+  <div class="control-group" ng-class="{error: (option.invalid || subForm.$invalid) && subForm.$dirty}">
+    <label class="control-label capitalize" ng-class="{required: option.required}" for="{{option.id}}">{{option.label || option.id}}</label>
     <div class="controls">
-      <select id="{{option.id}}" ng-model="inputs[option.id]" ng-required="required" ng-options="o.value as o.name for o in option.choice">
+      <select id="{{option.id}}" ng-model="inputs[option.id]" ng-required="option.required" ng-options="o.value as o.name for o in option.choice">
       </select>
       <p ng-hide="!option.description" class="help-block">{{option.description}}</p>
     </div>
@@ -419,11 +438,11 @@ url: shows "Address Builder" to handle url options
 </script>
 
 <script id="option-combo" type="text/ng-template">
-  <div class="control-group" ng-class="{error: option.invalid}">
-    <label class="control-label capitalize" ng-class="{required: required}" for="{{option.id}}">{{option.label || option.id}}</label>
+  <div class="control-group" ng-class="{error: (option.invalid || subForm.$invalid) && subForm.$dirty}">
+    <label class="control-label capitalize" ng-class="{required: option.required}" for="{{option.id}}">{{option.label || option.id}}</label>
     <div class="controls">
        <input type="text" name="state" class="input-xlarge" id="{{option.id}}" ng-model="inputs[option.id]"
-              ng-required="required" ng-pattern="{{option.regex || ''}}"
+              ng-required="option.required" ng-pattern="{{option.regex || ''}}"
               placeholder="{{option.sample | prepend:'ex. '}}"/>
        <br />
        <select name="s" id="{{option.id}}" ng-model="inputs[option.id]" ng-options="o for o in option.choice" onchange="document.ex.state.value=document.ex.s.options[document.ex.s.selectedindex].value;document.ex.s.value="""><option value="" selected="selected">
