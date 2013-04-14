@@ -409,7 +409,7 @@ def delete_deployment(oid, tenant_id=None):
     link = "/canvases/%s" % oid
     if tenant_id:
         loc = "/%s%s" % (tenant_id, loc)
-        link = "/%s%s" % (tenant_id, loc)
+        link = "/%s%s" % (tenant_id, link)
     planner = Plan(deployment)
     tasks = planner.plan_delete(request.context)
     if tasks:
