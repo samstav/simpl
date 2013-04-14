@@ -2025,11 +2025,27 @@ function DeploymentController($scope, $location, $resource, $routeParams) {
     }
   };
 
-  //Setup
-  $scope.$watch('items.selectedIdx', function(newVal, oldVal, scope) {
-    if (newVal !== null) scroll.toCurrent();
-  });
+  $scope.delete_deployment = function() {
+    if ($scope.auth.identity.loggedIn) {
+      var klass = $resource((checkmate_server_base || '') + '/:tenantId/deployments/:id/.json', null, {'get': {method:'GET'}, 'save': {method:'PUT'}});
+      var thang = new klass();
+      thang.$delete($routeParams, function(returned, getHeaders){
+          // Update model
+          console.log(getHeaders('link'), returned);
+          $scope.data = returned;
+          $scope.data_json = JSON.stringify(returned, null, 2);
+          $scope.notify(returned.status);
+        }, function(error) {
+          $scope.$root.error = {data: error.data, status: error.status, title: "Error Deleting",
+                  message: "There was an error deleting your deployment"};
+          $('#modalError').modal('show');
+        });
+    } else {
+      $scope.loginPrompt(this, function() {console.log("Failed");}); //TODO: implement a callback
+    }
+  };
 
+  //Setup
   $scope.load();
 }
 
@@ -2073,10 +2089,6 @@ function FeedbackListController($scope, $location, $resource, items, scroll) {
   };
 
   //Setup
-  $scope.$watch('items.selectedIdx', function(newVal, oldVal, scope) {
-    if (newVal !== null) scroll.toCurrent();
-  });
-
   $scope.load();
 }
 
