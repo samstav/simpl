@@ -1,27 +1,75 @@
-<div class="row-fluid">
-  <div class="span3">
-    <ul class="nav nav-list">
-      <li class="nav-header">
-        Commands
-      </li>
-      <li><a href="#" ng-click="save()" class="tip" title="Save any edits of the JSON. The JSON on the right is editable!"><i class="icon-ok"></i> Save</a></li>
-      <!--<li class="nav-header">
-        Resources
-      </li>
-      <li ng-repeat="(key, resource) in data.resources">{{key}} - {{resource.type}}</li>
-      -->
-    </ul>
-  </div>
-  <div class="span9">
-    <h3>Deployment: {{data.id}}</h3>
-    <table>
-        <tr><td style="width: 30%">Blueprint:</td><td>{{data.blueprint.name}}</td></tr>
-        <tr><td>Environment:</td><td>{{data.environment.name}}</td></tr>
-    </table>
-    <textarea id="source" ui-codemirror="{ theme: 'lesser-dark', mode: {name: 'javascript', json: true}, lineNumbers: true, autoFocus: true, lineWrapping: true, dragDrop: false, matchBrackets: true }"
-              ng-model="data_json"></textarea>
-    <div class="alert">
-      <button type="button" class="close" data-dismiss="alert">&times;</button> <strong>Warning!</strong> If your updates include any 'secret' values (like password or private keys) and you have not opened this screen with a ?with_secrets query parameter, then any existing secrets will be overwritten and lost
+<div class="entries container-fluid">
+  <div class="entry well">
+    <div class="row-fluid">
+      <div class="span2">
+        <ul class="nav nav-list">
+          <li class="nav-header">
+            Commands
+          </li>
+          <li><a href="#" ng-click="save()" class="tip" title="Save any edits of the JSON. The JSON on the right is editable!"><i class="icon-ok"></i> Save</a></li>
+        </ul>
+      </div>
+
+
+
+      <div class="span10" style="background-position: right top; background-repeat: no-repeat; background-size: auto 140px; background-image: url({{data.blueprint['meta-data']['reach-info'].tattoo}})">
+        <div class="page-header">
+          <p class="lead">Cloud Deployment</p>
+          <h3 style="display: inline">{{data.name || data.blueprint.name}}  </h3><span id="status" class="label" ng-class="{'label-success': data.status == 'PLANNED' || data.status == 'LAUNCHED', 'label-warning': data.status == 'DELETING', 'label-important': data.status == 'DELETED'}">{{data.status}}</span>
+        </div>
+        <p class="lead">{{data.blueprint['meta-data']['application']}} Details</p>
+        <form class="form-horizontal">
+          <fieldset>
+            <div class="control-group" ng-repeat="(name, output) in data['display-outputs']">
+              <label class="control-label" for="{{'output' + $index}}">{{name}}</label>
+              <div class="controls">
+                <input type="text" readonly id="{{'output' + $index}}" value="{{output.value}}">
+              </div>
+            </div>
+
+            <div class="control-group">
+              <label class="control-label" for="environment">Environment</label>
+              <div class="controls">
+                <input type="text" class="input-xxlarge" readonly id="environment" value="{{data.environment.name}}">
+              </div>
+            </div>
+
+            <div class="control-group">
+              <label class="control-label" for="environment">Blueprint</label>
+              <div class="controls">
+                <input type="text" class="input-xxlarge" readonly id="blueprint" value="{{data.blueprint.name}}">
+              </div>
+            </div>
+
+          </fieldset>
+        </form>
+
+        <p class="lead">Infrastructure</p>
+
+        <table class="table table-bordered table-condensed">
+          <thead><tr><th>Name</th><th>Type</th><th>Build Status</th></tr></thead>
+          <tbody>
+            <tr ng-repeat="resource in data.resources">
+              <td><a target="_blank" ng-href="https://mycloud.rackspace.com/a/{{auth.context.username}}/#compute%2CcloudServersOpenStack%2C{{resource.region}}/{{resource.instance.id}}">{{resource['dns-name']}}</a></td>
+              <td>{{resource.type}}{{resource.service | prepend: ' - '}}</td>
+              <td>{{resource.status}}</td>
+            </tr>
+          </tbody>
+        </table>
+
+
+        <p class="lead" ng-cloak ng-show="data.blueprint.documentation.instructions">Instructions</p>
+        <p class="help-block" ng-cloak ng-show="data.blueprint.documentation.instructions" ng-bind-html-unsafe="render_markdown(data.blueprint.documentation.instructions)"></p>
+
+        <p class="lead">Raw Source</p>
+
+        <textarea id="source" ui-codemirror="{ theme: 'lesser-dark', mode: {name: 'javascript', json: true}, lineNumbers: true, autoFocus: true, lineWrapping: true, dragDrop: false, matchBrackets: true }" ng-model="data_json"></textarea>
+
+        <div class="alert">
+          <button type="button" class="close" data-dismiss="alert">&times;</button> <strong>Warning!</strong> If your updates include any 'secret' values (like password or private keys) and you have not opened this screen with a ?with_secrets query parameter, then any existing secrets will be overwritten and lost
+        </div>
+
+      </div>
     </div>
   </div>
 </div>
