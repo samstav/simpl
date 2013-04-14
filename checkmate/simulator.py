@@ -114,8 +114,12 @@ def simulate(tenant_id=None):
 
     if tenant_id:
         response.add_header('Location', "/%s/deployments/simulate" % tenant_id)
+        response.add_header('Link', '</%s/deployments/simulate>; '
+                            'rel="workflow"; title="Deploy"' % tenant_id)
     else:
         response.add_header('Location', "/deployments/simulate")
+        response.add_header('Link', '</deployments/simulate>; rel="workflow"; '
+                            'title="Deploy"')
 
     PACKAGE[tenant_id] = deployment
     results = plan(deployment, request.context)

@@ -180,8 +180,13 @@ def post_deployment(tenant_id=None):
     if tenant_id:
         response.add_header('Location', "/%s/deployments/%s" % (tenant_id,
                                                                 oid))
+        response.add_header('Link', '</%s/deployments/%s>; '
+                            'rel="workflow"; title="Deploy"' % (tenant_id,
+                                                                oid))
     else:
         response.add_header('Location', "/deployments/%s" % oid)
+        response.add_header('Link', '</deployments/%s>; '
+                            'rel="workflow"; title="Deploy"' % oid)
 
     #Assess work to be done & resources to be created
     parsed_deployment = plan(deployment, request.context)
