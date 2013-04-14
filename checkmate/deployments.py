@@ -2,20 +2,29 @@ import logging
 import uuid
 import time
 
-from bottle import request, response, abort, \
-    get, post, delete, route
+from bottle import request, response, abort, get, post, delete, route
 from celery.task import task
 from SpiffWorkflow import Workflow, Task
 from SpiffWorkflow.storage import DictionarySerializer
 
 from checkmate import orchestrator
 from checkmate.db import get_driver, any_id_problems
-from checkmate.exceptions import CheckmateDoesNotExist, \
-    CheckmateValidationException, CheckmateBadState, CheckmateException
-from checkmate.workflows import create_workflow_deploy, \
-    create_workflow_spec_deploy
-from checkmate.utils import (write_body, read_body, extract_sensitive_data,
-                             with_tenant, match_celery_logging)
+from checkmate.exceptions import (
+    CheckmateDoesNotExist,
+    CheckmateValidationException,
+    CheckmateBadState,
+    CheckmateException,
+)
+from checkmate.workflows import (
+    create_workflow_deploy,
+    create_workflow_spec_deploy,
+)
+from checkmate.utils import (
+    write_body,
+    read_body,
+    extract_sensitive_data,
+    with_tenant, match_celery_logging
+)
 from checkmate.plan import Plan
 from checkmate.deployment import Deployment, generate_keys
 from celery.canvas import chord, chain, group
@@ -123,11 +132,12 @@ def get_deployments(tenant_id=None):
     offset = request.query.get('offset')
     limit = request.query.get('limit')
     if offset:
-        offset=int(offset)
+        offset = int(offset)
     if limit:
-        limit=int(limit)
+        limit = int(limit)
     return write_body(DB.get_deployments(tenant_id=tenant_id, offset=offset,
                                          limit=limit), request, response)
+
 
 @get('/deployments/count')
 @with_tenant
@@ -157,9 +167,9 @@ def get_deployments_by_bp_count(blueprint_id, tenant_id=None):
         if "blueprint" in dep:
             LOG.debug("Found blueprint {} in deployment {}"
                       .format(dep.get("blueprint"), dep_id))
-            if (blueprint_id == dep["blueprint"]) or \
-            ("id" in dep["blueprint"] and
-             blueprint_id == dep["blueprint"]["id"]):
+            if ((blueprint_id == dep["blueprint"]) or
+                    ("id" in dep["blueprint"] and
+                     blueprint_id == dep["blueprint"]["id"])):
                 ret["count"] += 1
         else:
             LOG.debug("No blueprint defined in deployment {}".format(dep_id))
@@ -180,8 +190,13 @@ def post_deployment(tenant_id=None):
     if tenant_id:
         response.add_header('Location', "/%s/deployments/%s" % (tenant_id,
                                                                 oid))
+        response.add_header('Link', '</%s/deployments/%s>; '
+                            'rel="workflow"; title="Deploy"' % (tenant_id,
+                                                                oid))
     else:
         response.add_header('Location', "/deployments/%s" % oid)
+        response.add_header('Link', '</deployments/%s>; '
+                            'rel="workflow"; title="Deploy"' % oid)
 
     #Assess work to be done & resources to be created
     parsed_deployment = plan(deployment, request.context)
@@ -318,19 +333,17 @@ def _get_dep_resources(deployment):
 @with_tenant
 def get_deployment_resources(oid, tenant_id=None):
     """ Return the resources for a deployment """
-    return write_body(_get_dep_resources(
-                        _get_a_deployment(oid,
-                            tenant_id=tenant_id)),
-                      request, response)
+    deployment = _get_a_deployment(oid, tenant_id=tenant_id)
+    resources = _get_dep_resources(deployment)
+    return write_body(resources, request, response)
 
 
 @get('/deployments/<oid>/resources/status')
 @with_tenant
 def get_resources_statuses(oid, tenant_id=None):
     """ Get basic status of all deployment resources """
-    resources = _get_dep_resources(
-                        _get_a_deployment(oid,
-                            tenant_id=tenant_id))
+    deployment = _get_a_deployment(oid, tenant_id=tenant_id)
+    resources = _get_dep_resources(deployment)
     resp = {}
 
     for key, val in resources.iteritems():
@@ -349,8 +362,9 @@ def get_resources_statuses(oid, tenant_id=None):
                     "provider": val.get("provider", "core")
                 }
             })
-            if "trace" in request.query_string and ('trace' in val or
-                                        'trace' in val.get('instance', {})):
+            if ("trace" in request.query_string and
+                    ('trace' in val or
+                     'trace' in val.get('instance', {}))):
                 resp.get(key, {})['trace'] = (val.get('trace') or
                                               val.get('instance',
                                                       {}).get('trace'))
@@ -366,9 +380,8 @@ def get_resources_statuses(oid, tenant_id=None):
 @with_tenant
 def get_resource(oid, rid, tenant_id=None):
     """ Get a specific resource from a deployment """
-    resources = _get_dep_resources(
-                        _get_a_deployment(oid,
-                            tenant_id=tenant_id))
+    deployment = _get_a_deployment(oid, tenant_id=tenant_id)
+    resources = _get_dep_resources(deployment)
     if rid in resources:
         return write_body(resources.get(rid), request, response)
     abort(404, "No resource %s in deployment %s" % (rid, oid))
@@ -387,11 +400,11 @@ def delete_deployment(oid, tenant_id=None):
     if 'force' not in request.query_string:
         del_statuses = ["PLANNED", "NEW", "RUNNING", "ERROR", "ACTIVE"]
         if deployment.get("status", "UNKNOWN") not in del_statuses:
-            abort(400, "Deployment %s cannot be deleted while in status %s."
-                  " A deployment must have one of the following statuses before "
-                  "being deleted: [%s]" % (oid,
-                                           deployment.get("status", "UNKNOWN"),
-                                           ", ".join(del_statuses)))
+            abort(400, "Deployment %s cannot be deleted while in status %s. "
+                  "A deployment must have one of the following statuses "
+                  "before being deleted: [%s]" %
+                  (oid, deployment.get("status", "UNKNOWN"),
+                   ", ".join(del_statuses)))
     loc = "/deployments/%s" % oid
     if tenant_id:
         loc = "/%s%s" % (tenant_id, loc)
@@ -399,7 +412,8 @@ def delete_deployment(oid, tenant_id=None):
     tasks = planner.plan_delete(request.context)
     if tasks:
         update_deployment_status.s(oid, "DELETING").delay()
-        chord(tasks)(delete_deployment_task.si(oid), interval=2, max_retries=120)
+        chord(tasks)(delete_deployment_task.si(oid), interval=2,
+                     max_retries=120)
     else:
         LOG.warn("No delete tasks for deployment %s" % oid)
         delete_deployment_task.delay(oid)
@@ -555,7 +569,8 @@ def alt_resource_postback(contents, deployment_id):
 
 
 @task(default_retry_delay=0.25, max_retries=4)
-def update_all_provider_resources(provider, deployment_id, status, message=None, trace=None):
+def update_all_provider_resources(provider, deployment_id, status,
+                                  message=None, trace=None):
     dep = DB.get_deployment(deployment_id)
     if dep:
         rupdate = {'status': status}
@@ -564,7 +579,8 @@ def update_all_provider_resources(provider, deployment_id, status, message=None,
         if trace:
             rupdate['trace'] = trace
         ret = {}
-        for resource in [res for res in dep.get('resources', {}).values() if res.get('provider') == provider]:
+        for resource in [res for res in dep.get('resources', {}).values()
+                         if res.get('provider') == provider]:
             rkey = "instance:%s" % resource.get('index')
             ret.update({rkey: rupdate})
         if ret:
@@ -603,11 +619,11 @@ def resource_postback(deployment_id, contents):
     The contents are a hash (dict) of all the above
     """
 
-    deployment = DB.get_deployment(deployment_id, with_secrets=True) 
+    deployment = DB.get_deployment(deployment_id, with_secrets=True)
     deployment = Deployment(deployment)
 
     # Update deployment status
-    
+
     assert isinstance(contents, dict), "Must postback data in dict"
 
     # Set status of resource if post_back includes status
@@ -616,7 +632,8 @@ def resource_postback(deployment_id, contents):
             r_id = key.split(':')[1]
             r_status = contents[key].get('status')
             deployment['resources'][r_id]['status'] = r_status
-            contents[key].pop('status', None) # Don't want to write status to resource instance
+            # Don't want to write status to resource instance
+            contents[key].pop('status', None)
             if r_status == "ERROR":
                 r_msg = contents[key].get('errmessage')
                 deployment['resources'][r_id]['errmessage'] = r_msg
@@ -627,11 +644,11 @@ def resource_postback(deployment_id, contents):
                 if r_msg not in deployment['errmessage']:
                     deployment['errmessage'].append(r_msg)
 
-    # Create new contents dict if values existed 
+    # Create new contents dict if values existed
     # TODO: make this smarter
     new_contents = {}
     for key, value in contents.items():
-        if contents[key]:    
+        if contents[key]:
             new_contents[key] = value
 
     if new_contents:
@@ -673,7 +690,7 @@ def check_and_set_dep_status(deployment):
                     count += 1
 
             if deployment['status'] != "ERROR":
-                if statuses['DELETING'] >=1:
+                if statuses['DELETING'] >= 1:
                     deployment['status'] = "DELETING"
                 elif statuses['DELETED'] == count:
                     deployment['status'] = "DELETED"
@@ -683,7 +700,7 @@ def check_and_set_dep_status(deployment):
                     deployment['status'] = "NEW"
                 elif statuses['ACTIVE'] == count:
                     deployment['status'] = "ACTIVE"
-                elif statuses['CONFIGURE'] >=1:
+                elif statuses['CONFIGURE'] >= 1:
                     deployment['status'] = "CONFIGURE"
                 elif statuses['BUILD'] >= 1:
                     deployment['status'] = "BUILD"

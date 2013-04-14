@@ -16,7 +16,7 @@ import logging
 from time import sleep
 import uuid
 
-from bottle import get, post, request, response, abort
+from bottle import get, post, request, response, abort, put
 try:
     from SpiffWorkflow.specs import Celery
 except ImportError:
@@ -114,12 +114,16 @@ def simulate(tenant_id=None):
 
     if tenant_id:
         response.add_header('Location', "/%s/deployments/simulate" % tenant_id)
+        response.add_header('Link', '</%s/deployments/simulate>; '
+                            'rel="workflow"; title="Deploy"' % tenant_id)
     else:
         response.add_header('Location', "/deployments/simulate")
+        response.add_header('Link', '</deployments/simulate>; rel="workflow"; '
+                            'title="Deploy"')
 
-    PACKAGE[tenant_id] = deployment
+    PACKAGE[tenant_id] = {'deployment': deployment}
     results = plan(deployment, request.context)
-    PACKAGE[tenant_id] = results
+    PACKAGE[tenant_id]['deployment'] = results
 
     serializer = DictionarySerializer()
     workflow = create_workflow_deploy(deployment, request.context)
@@ -135,11 +139,28 @@ def simulate(tenant_id=None):
             spec.transforms[0] = stub
 
     serialized_workflow = workflow.serialize(serializer)
-    results['workflow'] = serialized_workflow
-    results['workflow']['id'] = 'simulate'
-    PACKAGE[tenant_id] = results
+    results['workflow'] = 'simulate'
+    PACKAGE[tenant_id]['workflow'] = serialized_workflow
 
     return write_body(results, request, response)
+
+
+@put('/deployments/simulate')
+@with_tenant
+def update_simulation(tenant_id=None):
+    """ Update simulation """
+    global PACKAGE
+    entity = read_body(request)
+    if 'deployment' in entity:
+        entity = entity['deployment']
+
+    deployment = Deployment(entity)
+    if 'includes' in deployment:
+        del deployment['includes']
+
+    PACKAGE[tenant_id]['deployment'] = deployment
+
+    return write_body(deployment, request, response)
 
 
 @get('/deployments/simulate')
@@ -148,7 +169,7 @@ def display(tenant_id=None):
     global PACKAGE
     if not PACKAGE.get(tenant_id):
         abort(404, "No simulated deployment exists for %s" % tenant_id)
-    return write_body(PACKAGE[tenant_id], request, response)
+    return write_body(PACKAGE[tenant_id]['deployment'], request, response)
 
 
 @get('/workflows/simulate')
@@ -247,7 +268,7 @@ def process(tenant_id, complete=False):
                 elif k.startswith('connection:'):
                     postback[k] = v
             if postback:
-                PACKAGE[tenant_id].on_resource_postback(postback)
+                PACKAGE[tenant_id]['deployment'].on_resource_postback(postback)
         return True
 
     # Hack to hijack postback in Transform which is called as a string in
@@ -255,7 +276,7 @@ def process(tenant_id, complete=False):
     # We make the call hit our deployment directly
     # TODO: remove hack
     call_me = 'dep.on_resource_postback(output_template) #'
-    deployment = Deployment(PACKAGE[tenant_id])
+    deployment = Deployment(PACKAGE[tenant_id]['deployment'])
     for spec in workflow.spec.task_specs.values():
         if (isinstance(spec, TransMerge) and
                 call_me in spec.transforms[0]):
@@ -320,7 +341,7 @@ def simulate_result(tenant_id, my_task, workflow):
     result = None
     call = getattr(spec, 'call', None)
     provider = props.get('provider')
-    deployment = PACKAGE[tenant_id]
+    deployment = PACKAGE[tenant_id]['deployment']
     arg, kwargs = None, None
     if spec.args:
         args = eval_args(spec.args, my_task)
