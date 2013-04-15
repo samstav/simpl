@@ -152,7 +152,7 @@
             >Cloud Control</a>.
           </div>
 
-          <!-- Load Blaancer -->
+          <!-- Load Balancer -->
           <div class="alert alert-success" ng-cloak ng-show="was_loadbalancer_created()">
             <button type="button" class="close" data-dismiss="alert">&times;</button> Load balancer <a target="_blank" href="https://mycloud.rackspace.com/a/{{auth.context.username}}/load_balancers#rax%3Aload-balancer%2CcloudLoadBalancers%2C{{current_task.attributes.region}}/{{resource(current_task).id}}">{{resource(current_task).id}}</a> was created and assigned the public virtual IP (VIP) <a target="_blank" href="http://{{resource(current_task).public_ip}}/">{{resource(current_task).public_ip}}</a>. Open it in <a target="_blank" href="{{CloudControlURL(resource(current_task).region)}}/customer/{{auth.context.tenantId}}/load_balancers/{{current_task.attributes.region}}/{{resource(current_task).id}}">Cloud Control</a>.
           </div>

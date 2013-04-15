@@ -2040,7 +2040,6 @@ function DeploymentController($scope, $location, $resource, $routeParams) {
       var thang = new klass();
       thang.$delete($routeParams, function(returned, getHeaders){
           // Update model
-          console.log(getHeaders('link'), returned);
           $scope.data = returned;
           $scope.data_json = JSON.stringify(returned, null, 2);
           $scope.notify(returned.status);
