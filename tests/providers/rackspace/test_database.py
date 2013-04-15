@@ -39,7 +39,7 @@ class TestDatabase(ProviderTester):
 
         #Create clouddb mock
         clouddb_api_mock = self.mox.CreateMockAnything()
-        clouddb_api_mock.create_instance(instance.name, 1, '1',
+        clouddb_api_mock.create_instance(instance.name, 1, 1,
                                          databases=[{'name': 'db1'}])\
             .AndReturn(instance)
 
@@ -74,7 +74,7 @@ class TestDatabase(ProviderTester):
             True)
 
         self.mox.ReplayAll()
-        results = database.create_instance(context, instance.name, 1, '1',
+        results = database.create_instance(context, instance.name, 1, 1,
                                            [{'name': 'db1'}], 'NORTH',
                                            api=clouddb_api_mock)
 
