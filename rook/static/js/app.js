@@ -880,7 +880,7 @@ function WorkflowController($scope, $resource, $http, $routeParams, $location, $
         }
       } else if ($location.hash().length > 1) {
         $scope.selectSpec($location.hash());
-        $('#spec_list').css('top', $('.summaryHeader').outerHeight()); // Not sure if this is the right place for this. -Chris.Burrell (chri5089)
+        $('#spec_list').css('top', $('.summaryHeader').outerHeight() + 10); // Not sure if this is the right place for this. -Chris.Burrell (chri5089)
       } else
         $scope.selectSpec($scope.current_spec_index || Object.keys(object.wf_spec.task_specs)[0]);
       //$scope.play();
@@ -1502,6 +1502,7 @@ function DeploymentListController($scope, $location, $http, $resource, scroll, i
 
 //Hard-coded for Managed Cloud Wordpress
 function DeploymentManagedCloudController($scope, $location, $routeParams, $resource, $http, items, navbar, options, workflow, github) {
+  $('#mcspec_list').css('top', $('.summaryHeader').outerHeight() + 20); // Not sure if this is the right place for this. -Chris.Burrell (chri5089)
 
   $scope.receive_blueprint = function(data, remote) {
     if ('blueprint' in data) {
