@@ -241,7 +241,7 @@ The above setting would apply to (constrains) any setting called 'foo' under a '
 
 More precisely scoped options will override broader options. For example, a service or provider option will override a global option.
 
-TODO: fix terminology. 'setting', 'option' and/or 'input'. And update code, schema, and docsa accordingly
+TODO: fix terminology. 'setting', 'option' and/or 'input'. And update code, schema, and docs accordingly
 
 
 ## Semantic: The API
@@ -358,6 +358,37 @@ All calls to GET /deployments and GET /workflows may be optionally paginated by 
     GET [/:tid]/deployments/simulate
     GET [/:tid]/workflows/simulate/status  #progresses the workflow by one task
     GET [/:tid]/workflows/simulate/status?complete  #cmpletes the workflow
+
+## Setup
+
+For running the service:
+
+    sudo python setup.py install
+
+For development (only checkmate hacking):
+
+    sudo pip install -r pip-requirements.py
+    sudo python setup.py develop
+
+For development (hacking on other dependencies)
+
+    #clone and pythons setup.py develop all the depend git repositores
+    sudo python setup.py develop
+
+Run tests:
+
+    # any of these
+    tox
+
+    nosetests
+
+    python setup.py test
+
+Requiremernts list:
+
+- production: pip-requirements.txt
+- development: pip-test-requirements.txt
+
 
 ## Usage
 

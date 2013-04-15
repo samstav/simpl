@@ -1,9 +1,48 @@
-from setuptools import setup, find_packages
+'''
+Setup for Checkmate
+
+All dependencies are listed in:
+
+- pip-requiremets.txt for production
+- pip-test-requiremets.txt for test and development
+
+'''
+import os
+import sys
+
 from ConfigParser import ConfigParser
+from setuptools import setup, find_packages
+from setuptools.command.test import test as TestCommand
+
+from checkmate.common import setup as setup_tools
+
+
+requires = setup_tools.parse_requirements()
+if 'develop' in sys.argv:
+    print ("We are assuming that since you're developing you have the\n"
+           "dependency repos set up for development as well. If not,\n"
+           "run 'pip install -r pip-requirements.txt' to install them")
+    dependency_links = []
+else:
+    dependency_links = setup_tools.parse_dependency_links()
+
+
+class Tox(TestCommand):
+    '''Use Tox for setup.py test command'''
+
+    def finalize_options(self):
+        TestCommand.finalize_options(self)
+        self.test_args = []
+        self.test_suite = True
+
+    def run_tests(self):
+        #import here, cause outside the eggs aren't loaded
+        import tox
+        errno = tox.cmdline(self.test_args)
+        sys.exit(errno)
 
 
 def get_config():
-    import os
     import __main__
     pwd = os.path.dirname(__file__)
     configfile = 'checkmate/checkmate.cfg'
@@ -14,27 +53,6 @@ def get_config():
     return config
 
 
-# Provide URLs to Github projects if they're not pip-aware
-gh = 'https://github.com'
-github_projects = [
-                   {'project': 'pychef', 'user': 'calebgroom',
-                        'version': '-0.2.dev'},
-                   {'project': 'rackspace-monitoring', 'user': 'racker'},
-#    The following are shoud be built from the github.rackspace checkmate org, which contains patched code
-#    In stalls this by running pip install -r pip-requirements.txt
-#                   {'project': 'python-novaclient', 'user': 'openstack'},
-#                   {'project': 'python-clouddb', 'user': 'slizadel', 'version': '-.01'},
-#                   {'project': 'openstack.compute', 'user': 'jacobian', 'version': '-2.0a1'},
-#                   {'project': 'python-clouddns', 'user': 'rackspace'},
-#                   {'project': 'SpiffWorkflow', 'user': 'ziadsawalha','branch': 'celery', 'version': '-0.3.2-rackspace'},
-                   ]
-
-github_urls = []
-for p in github_projects:
-    github_urls.append('https://github.com/%s/%s/tarball/%s#egg=%s%s' % (
-                       p['user'], p['project'], p.get('branch', 'master'),
-                       p['project'], p.get('version', '')))
-
 setup(
     name='checkmate',
     description='Configuration management and orchestration',
@@ -42,56 +60,27 @@ setup(
     version=get_config().get("checkmate", "version"),
     author='Rackspace Cloud',
     author_email='checkmate@lists.rackspace.com',
-    dependency_links=github_urls,
-    install_requires=['amqp==1.0.8',
-                      'anyjson==0.3.3',
-                      'billiard==2.7.3.21',
-                      'bottle==0.10.11',
-                      'pymongo==2.5',
-                      'celery==3.0.15',
-                      'eventlet==0.9.17',
-                      'GitPython==0.3.2.RC1',
-                      'Jinja2==2.6',
-                      'kombu==2.5.6',
-                      'openstack.compute==2.0a1',
-                      'pam==0.1.4',
-                      'paramiko==1.7.7.2',
-                      'pycrypto==2.6',
-                      #Note: python-clouddb would end up being ".01", but that
-                      #is not valid (with a leading ".") so we exclude it here.
-                      'python-clouddb',
-                      'python-novaclient==2012.2',
-                      'python-cloudlb',
-                      'python-keystoneclient==0.2.0',
-                      'python-clouddns',
-                      'python-cloudfiles',
-                      'rackspace-monitoring',
-                      'PyChef==0.2.dev',
-                      'PyYAML==3.10',
-                      'SpiffWorkflow==0.3.2-rackspace',
-                      'SQLAlchemy==0.7.8',
-                      'sqlalchemy-migrate==0.7.2',
-                      'WebOb==1.2.2',
-                      'prettytable==0.6',
-                      'tldextract==1.1.2',
-                      ],
+    dependency_links=dependency_links,
+    install_requires=requires,
     entry_points={
         'console_scripts': [
-          'checkmate-server=checkmate.server:main_func',
-          'checkmate=checkmate.checkmate_client:main_func',
-          'checkmate-queue=checkmate.checkmate_queue:main_func',
-          'checkmate-database=checkmate.checkmate_database:main_func',
-          'checkmate-simulation=checkmate.sample.checkmate_simulation:main_func',
+            'checkmate-server=checkmate.server:main_func',
+            'checkmate=checkmate.checkmate_client:main_func',
+            'checkmate-queue=checkmate.checkmate_queue:main_func',
+            'checkmate-database=checkmate.checkmate_database:main_func',
+            'checkmate-simulation=checkmate.sample.checkmate_simulation:'
+                'main_func',
         ]
     },
-    tests_require=['nose', 'unittest2', 'mox', 'webtest', 'pep8', 'coverage'],
-    packages=find_packages(exclude=['tests', 'bin', 'examples', 'doc',
-            'checkmate.openstack.*']),
+    tests_require=['tox'],
+    cmdclass={'test': Tox},
+    packages=find_packages(exclude=['tests', 'bin', 'examples',
+                                    'doc', 'checkmate.openstack.*']),
     include_package_data=True,
     package_data={
         '': ['*.yaml'],
     },
-    data_files=[('checkmate', ['checkmate/simulator.json'])],
+    #data_files=[('checkmate', ['checkmate/simulator.json'])],
     license='Apache License (2.0)',
     classifiers=["Programming Language :: Python"],
     url='https://rackspace.github.com/checkmate/checkmate'
