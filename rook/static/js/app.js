@@ -215,12 +215,12 @@ function AppController($scope, $http, $location, $resource, auth) {
     $('#modalError').modal('show');
   };
 
-  $scope.$on('logOn', function() {
+  $scope.$on('logIn', function() {
     $scope.message = auth.message;
-    $scope.notify("Welcome FROM ON_LOGIN, " + $scope.auth.identity.username + "! You are logged in");
+    $scope.notify("Welcome, " + $scope.auth.identity.username + "! You are logged in");
   });
 
-  $scope.$on('logOff', function() {
+  $scope.$on('logOut', function() {
     $location.path('/');
   });
 
@@ -268,7 +268,6 @@ function AppController($scope, $http, $location, $resource, auth) {
         password: '',
         apikey: ''
       };
-    $scope.notify("Welcome, " + $scope.auth.identity.username + "! You are logged in");
     if (typeof $('#modalAuth')[0].success_callback == 'function') {
         $('#modalAuth')[0].success_callback();
         delete $('#modalAuth')[0].success_callback;
@@ -365,11 +364,16 @@ function AppController($scope, $http, $location, $resource, auth) {
   });
 
   console.log("Getting rook version");
+  $scope.$root.blueprint_ref = 'master';
   var rook = $resource((checkmate_server_base || '') + '/rookversion');
   rook.get(function(rookdata, getResponseHeaders){
     $scope.rook_version = rookdata.version;
+    $scope.$root.canonical_version = rookdata.version.split('-')[0];
+    if (rookdata.version.indexOf('dev') == -1)
+      $scope.$root.blueprint_ref = $scope.$root.canonical_version;
     console.log("Got rook version: " + $scope.rook_version);
     console.log("Got version: " + $scope.api_version);
+    console.log("Blueprint ref to use: " + $scope.blueprint_ref);
   });
 
   //Check for a supported account
@@ -893,7 +897,7 @@ function WorkflowController($scope, $resource, $http, $routeParams, $location, $
         }
       } else if ($location.hash().length > 1) {
         $scope.selectSpec($location.hash());
-        $('#spec_list').css('top', $('.summaryHeader').outerHeight()); // Not sure if this is the right place for this. -Chris.Burrell (chri5089)
+        $('#spec_list').css('top', $('.summaryHeader').outerHeight() + 10); // Not sure if this is the right place for this. -Chris.Burrell (chri5089)
       } else
         $scope.selectSpec($scope.current_spec_index || Object.keys(object.wf_spec.task_specs)[0]);
       //$scope.play();
@@ -1515,6 +1519,7 @@ function DeploymentListController($scope, $location, $http, $resource, scroll, i
 
 //Hard-coded for Managed Cloud Wordpress
 function DeploymentManagedCloudController($scope, $location, $routeParams, $resource, $http, items, navbar, options, workflow, github) {
+  $('#mcspec_list').css('top', $('.summaryHeader').outerHeight() + 20); // Not sure if this is the right place for this. -Chris.Burrell (chri5089)
 
   $scope.receive_blueprint = function(data, remote) {
     if ('blueprint' in data) {
@@ -1542,15 +1547,16 @@ function DeploymentManagedCloudController($scope, $location, $routeParams, $reso
     remote.server = u.protocol() + '://' + u.host(); //includes port
     remote.repo = {name: parts[1]};
     remote.url = repo_url;
-    github.get_branch_from_name(remote, u.fragment() || 'master', function(branch) {
+    var ref = u.fragment() || 'master';
+    github.get_branch_from_name(remote, ref, function(branch) {
       remote.branch = branch;
       github.get_blueprint(remote, $scope.auth.identity.username, $scope.receive_blueprint, function(data) {
-        $scope.notify('Unable to load latest version of ' + remote.repo.name + ' from github: ' + data);
-        console.log('Unable to load latest version of ' + remote.repo.name + ' from github: ' + data);
+        $scope.notify("Unable to load '" + ref + "' version of " + remote.repo.name + ' from github: ' + JSON.stringify(data));
+        console.log("Unable to load '" + ref + "' version of " + remote.repo.name + ' from github', data);
       });
     }, function(data) {
-        $scope.notify('Unable to load latest version of ' + remote.repo.name + ' from github: ' + data);
-        console.log('Unable to load latest version of ' + remote.repo.name + ' from github: ' + data);
+        $scope.notify("Unable to find branch or tag '" + ref +  "' of " + remote.repo.name + ' from github: ' + JSON.stringify(data));
+        console.log("Unable to find branch or tag '" + ref +  "' of " + remote.repo.name + ' from github',  data);
     });
   };
 
@@ -1666,8 +1672,8 @@ function DeploymentManagedCloudController($scope, $location, $routeParams, $reso
   });
 
   //Load the latest supported blueprints (tagged) from github
-  $scope.loadRemoteBlueprint('https://github.rackspace.com/Blueprints/wordpress#v0.5');
-  $scope.loadRemoteBlueprint('https://github.rackspace.com/Blueprints/wordpress-clouddb#v0.5');
+  $scope.loadRemoteBlueprint('https://github.rackspace.com/Blueprints/wordpress#' + $scope.rook_version.split('-')[0]);
+  $scope.loadRemoteBlueprint('https://github.rackspace.com/Blueprints/wordpress-clouddb#' + $scope.rook_version.split('-')[0]);
 
   //Load the latest master from github
   $scope.loadRemoteBlueprint('https://github.rackspace.com/Blueprints/wordpress');
@@ -2051,7 +2057,6 @@ function DeploymentController($scope, $location, $resource, $routeParams) {
       var thang = new klass();
       thang.$delete($routeParams, function(returned, getHeaders){
           // Update model
-          console.log(getHeaders('link'), returned);
           $scope.data = returned;
           $scope.data_json = JSON.stringify(returned, null, 2);
           $scope.notify(returned.status);
