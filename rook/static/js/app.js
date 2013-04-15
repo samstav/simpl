@@ -215,12 +215,12 @@ function AppController($scope, $http, $location, $resource, auth) {
     $('#modalError').modal('show');
   };
 
-  $scope.$on('logOn', function() {
+  $scope.$on('logIn', function() {
     $scope.message = auth.message;
-    $scope.notify("Welcome FROM ON_LOGIN, " + $scope.auth.identity.username + "! You are logged in");
+    $scope.notify("Welcome, " + $scope.auth.identity.username + "! You are logged in");
   });
 
-  $scope.$on('logOff', function() {
+  $scope.$on('logOut', function() {
     $location.path('/');
   });
 
@@ -262,7 +262,6 @@ function AppController($scope, $http, $location, $resource, auth) {
         password: '',
         apikey: ''
       };
-    $scope.notify("Welcome, " + $scope.auth.identity.username + "! You are logged in");
     if (typeof $('#modalAuth')[0].success_callback == 'function') {
         $('#modalAuth')[0].success_callback();
         delete $('#modalAuth')[0].success_callback;
