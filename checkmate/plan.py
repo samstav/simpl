@@ -267,8 +267,7 @@ class Plan(ExtensibleDict):
                                                 resource_type=resource['type'],
                                                 default=default_domain)
                 
-                name = utils.generate_resource_name(deployment, "shared%s.%s" % 
-                    (key, domain))
+                name = "shared%s.%s" % (key, domain)
 
                 # Call provider to give us a resource template
                 result = (provider.generate_template(deployment,
