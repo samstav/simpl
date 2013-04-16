@@ -112,6 +112,9 @@ def simulate(tenant_id=None):
     if 'includes' in deployment:
         del deployment['includes']
 
+    # Store deployment and start responding
+    PACKAGE[tenant_id] = {'deployment': deployment}
+    response.status = 202  # Accepted (i.e. not done yet)
     if tenant_id:
         response.add_header('Location', "/%s/deployments/simulate" % tenant_id)
         response.add_header('Link', '</%s/deployments/simulate>; '
@@ -121,7 +124,7 @@ def simulate(tenant_id=None):
         response.add_header('Link', '</deployments/simulate>; rel="workflow"; '
                             'title="Deploy"')
 
-    PACKAGE[tenant_id] = {'deployment': deployment}
+    # Process workflow
     results = plan(deployment, request.context)
     PACKAGE[tenant_id]['deployment'] = results
 
@@ -139,7 +142,7 @@ def simulate(tenant_id=None):
             spec.transforms[0] = stub
 
     serialized_workflow = workflow.serialize(serializer)
-    results['workflow'] = 'simulate'
+    results['workflow'] = 'simulate'  # TODO: deprecate this
     PACKAGE[tenant_id]['workflow'] = serialized_workflow
 
     return write_body(results, request, response)
@@ -158,7 +161,18 @@ def update_simulation(tenant_id=None):
     if 'includes' in deployment:
         del deployment['includes']
 
-    PACKAGE[tenant_id]['deployment'] = deployment
+    if tenant_id in PACKAGE:
+        PACKAGE[tenant_id]['deployment'] = deployment
+        response.status = 200  # OK - updated
+    else:
+        PACKAGE[tenant_id] = {'deployment': deployment}
+        response.status = 201  # Created
+
+        if tenant_id:
+            response.add_header('Location', "/%s/deployments/simulate" %
+                                tenant_id)
+        else:
+            response.add_header('Location', "/deployments/simulate")
 
     return write_body(deployment, request, response)
 
@@ -201,7 +215,7 @@ def delete_simulation(tenant_id=None):
     """
     deployment['status'] = 'DELETING'
     response.set_header("Location", loc)
-    response.status = 202
+    response.status = 202  # Accepted (i.e. not done yet)
     response.set_header("Link", '<%s>; rel="canvas"; title="Delete Deployment"'
                         % link)
     return write_body(deployment, request, response)
