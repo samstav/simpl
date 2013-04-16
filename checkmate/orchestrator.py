@@ -68,6 +68,7 @@ def run_workflow(w_id, timeout=900, wait=1, counter=1):
     # Get the workflow
     serializer = DictionarySerializer()
     workflow = DB.get_workflow(w_id, with_secrets=True)
+
     d_wf = Workflow.deserialize(serializer, workflow)
     LOG.debug("Deserialized workflow %s" % w_id,
               extra=dict(data=d_wf.get_dump()))
@@ -120,6 +121,10 @@ def run_workflow(w_id, timeout=900, wait=1, counter=1):
             run_workflow.update_state(state="PROGRESS",
                                       meta={'complete': completed,
                                       'total': total})
+            deployment = DB.get_deployment(w_id)
+            deployment['operation']['tasks'] = total
+            deployment['operation']['complete'] = completed
+            DB.save_deployment(w_id, deployment)
 
         else:
             # No progress made. So drop priority (to max of 20s wait)

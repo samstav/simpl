@@ -538,6 +538,26 @@ def update_deployment_status(dep_id, new_status):
             DB.save_deployment(dep_id, deployment)
 
 
+def update_deployment_operation(dep_id):
+    """Update the status of the operation according to the task states"""
+    LOG.debug("Running update_deployment_operation...")
+    deployment = DB.get_deployment(dep_id)
+    workflow = DB.get_workflow(dep_id)
+    #import pdb; pdb.set_trace()
+    if workflow:
+        serializer = DictionarySerializer()
+        d_wf = Workflow.deserialize(serializer, workflow)
+
+        root = workflow.task_tree
+        tasks = root.children[:]
+        for task in tasks:
+            LOG.debug("task: %s" % task)
+            LOG.debug("task.name: %s" % task.name)
+            LOG.debug("task.children: %s" % task.children)
+            LOG.debug("task.task_spec.get_property('estimated_duration'): %s" % task.task_spec.get_property('estimated_duration'))
+        DB.save_deployment(dep_id, deployment)
+
+
 @task(default_retry_delay=2, max_retries=60)
 def delete_deployment_task(dep_id):
     """ Mark the specified deployment as deleted """
