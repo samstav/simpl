@@ -798,7 +798,7 @@ class Deployment(ExtensibleDict):
 
         :returns: a validated dict of the resource ready to add to deployment
         """
-        name = "%s%s.%s" % (service_name, index, domain)
+        name = "%s%02d.%s" % (service_name, index, domain)
 
         # Call provider to give us a resource template
         provider_key = definition['provider-key']
