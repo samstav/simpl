@@ -798,12 +798,20 @@ class Deployment(ExtensibleDict):
 
         :returns: a validated dict of the resource ready to add to deployment
         """
-        name = "%s%02d.%s" % (service_name, index, domain)
-
         # Call provider to give us a resource template
         provider_key = definition['provider-key']
         provider = self.environment().get_provider(provider_key)
         component = provider.get_component(context, definition['id'])
+
+        # If resource is constrained to 1, don't append a number to the name
+        blueprint_resource = self['blueprint']['services'][service_name]
+        name = "%s%02d.%s" % (service_name, index, domain)
+        if 'constraints' in blueprint_resource:
+            for constraint in blueprint_resource['constraints']:
+                if 'count' in constraint:
+                    if constraint['count'] == 1:
+                        name = "%s.%s" % (service_name, domain)
+
         resource = provider.generate_template(self, component.get('is'),
                                               service_name, context, name=name)
         resource['component'] = definition['id']
