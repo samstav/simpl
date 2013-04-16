@@ -787,6 +787,29 @@ class Deployment(ExtensibleDict):
             results[service_name] = component
         return results
 
+    def _constrained_to_one(self, service_name):
+        """Return true if a service is constrained to 1, false otherwise.
+
+        Example:
+
+        blueprint:
+          [...]
+          services:
+            [...]
+            master:
+              [...]
+              constraints:
+              - count: 1
+              [...]
+        """
+        blueprint_resource = self['blueprint']['services'][service_name]
+        if 'constraints' in blueprint_resource:
+            for constraint in blueprint_resource['constraints']:
+                if 'count' in constraint:
+                    if constraint['count'] == 1:
+                        return True
+        return False
+
     def create_resource_template(self, index, definition, service_name, domain,
                                  context):
         """Create a new resource dict to add to the deployment
@@ -804,13 +827,10 @@ class Deployment(ExtensibleDict):
         component = provider.get_component(context, definition['id'])
 
         # If resource is constrained to 1, don't append a number to the name
-        blueprint_resource = self['blueprint']['services'][service_name]
-        name = "%s%02d.%s" % (service_name, index, domain)
-        if 'constraints' in blueprint_resource:
-            for constraint in blueprint_resource['constraints']:
-                if 'count' in constraint:
-                    if constraint['count'] == 1:
-                        name = "%s.%s" % (service_name, domain)
+        if self._constrained_to_one(service_name):
+            name = "%s.%s" % (service_name, domain)
+        else:
+            name = "%s%02d.%s" % (service_name, index, domain)
 
         resource = provider.generate_template(self, component.get('is'),
                                               service_name, context, name=name)
