@@ -416,6 +416,9 @@ def create_instance(context, instance_name, flavor, size, databases, region,
     if databases is None:
         databases = []
 
+    flavor = int(flavor)
+    size = int(size)
+
     instance = api.create_instance(instance_name, flavor, size,
                                    databases=databases)
     LOG.info("Created database instance %s (%s). Size %s, Flavor %s. "
