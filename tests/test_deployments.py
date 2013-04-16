@@ -293,7 +293,7 @@ class TestDeploymentResourceGenerator(unittest.TestCase):
         #test resource dns-names without a deployment name
         for k, resource in deployment['resources'].iteritems():
             if k != "connections":
-                regex = "CM-test-%s\d+.checkmate.local" % resource['service']
+                regex = "%s\d+.checkmate.local" % resource['service']
                 self.assertRegexpMatches(resource['dns-name'], regex)
                 resource_count += 1
         self.assertEqual(resource_count, 8)
@@ -338,7 +338,7 @@ class TestDeploymentResourceGenerator(unittest.TestCase):
         self.assertIn("myResource", resources)
         expected = {'component': 'small_widget',
                     #dns-name with a deployment name
-                    'dns-name': 'test-deplo-yment-sharedmyResource.checkmate.local',
+                    'dns-name': 'sharedmyResource.checkmate.local',
                     'index': 'myResource',
                     'instance': {},
                     'provider': 'base',

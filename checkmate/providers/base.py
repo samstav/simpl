@@ -237,7 +237,7 @@ class ProviderBasePlanningMixIn():
         if service:
             result['service'] = service
         if not name:
-            name = utils.generate_resource_name(deployment, resource_type)
+            name = resource_type
 
         result['dns-name'] = name
 

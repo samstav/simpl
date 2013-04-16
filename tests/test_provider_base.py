@@ -39,7 +39,7 @@ class TestProviderBasePlanningMixIn(unittest.TestCase):
         self.assertEqual("test_key", template.get("provider", "NONE"), "Provider not set")
         self.assertIn("instance", template, "No instance in template")
         self.assertIn("dns-name", template, "No dns-name in template")
-        self.assertEqual("test_deployment-test_type", template.get("dns-name", "NONE"), "dns-name not set")
+        self.assertEqual("test_type", template.get("dns-name", "NONE"), "dns-name not set")
         req_ctx_dict = self._req_context.get_queued_task_dict()
         self.assertIn("metadata", req_ctx_dict, "No metadata in template")
         self.assertIn("RAX-CHKMT", req_ctx_dict.get("metadata", {}), "No metadata set")
@@ -47,7 +47,7 @@ class TestProviderBasePlanningMixIn(unittest.TestCase):
 
     def test_template_without_deployment_name(self):
       template = self._prov_planner.generate_template({'id': "1234567890"}, "test_type", None, self._req_context)
-      self.assertEqual("CM-1234567-test_type", template.get("dns-name", "NONE"), "dns-name not set")
+      self.assertEqual("test_type", template.get("dns-name", "NONE"), "dns-name not set")
 
 class TestProviderBase(unittest.TestCase):
     def test_provider_bad_override(self):
@@ -238,7 +238,7 @@ class TestProviderBaseWorkflow(StubbedWorkflowBase):
                     'call': 'checkmate.providers.test.create_resource',
                     'args': [IsA(dict),
                             {'index': '1', 'component': 'database_instance',
-                            'dns-name': 'CM-DEP-ID--db1.checkmate.local',
+                            'dns-name': 'db1.checkmate.local',
                             'instance': {}, 'provider': 'base',
                             'service': 'db', 'type': 'database',
                             'relations': {
@@ -248,7 +248,7 @@ class TestProviderBaseWorkflow(StubbedWorkflowBase):
                     'kwargs': None,
                     'result': {
                           'instance:0': {
-                              'name': 'CM-DEP-ID--db1.checkmate.local',
+                              'name': 'db1.checkmate.local',
                               'interfaces': {
                                 'mysql': {
                                     'username': 'mysql_user',
@@ -266,12 +266,12 @@ class TestProviderBaseWorkflow(StubbedWorkflowBase):
                     'call': 'checkmate.providers.test.create_resource',
                     'args': [IsA(dict),
                             {'index': '0', 'component': 'web_app',
-                            'dns-name': 'CM-DEP-ID--web1.checkmate.local',
+                            'dns-name': 'web1.checkmate.local',
                             'instance': {'interfaces': {'mysql': {
                                 'username': 'mysql_user', 'host': 'db.local',
                                 'password': 'secret', 'database_name': 'dbX',
                                 'port': 8888}},
-                                'name': 'CM-DEP-ID--db1.checkmate.local'},
+                                'name': 'db1.checkmate.local'},
                             'provider': 'base', 'service': 'web',
                             'type': 'application', 'relations': {'web-db': {
                                 'interface': 'mysql', 'state': 'planned',

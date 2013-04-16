@@ -15,7 +15,7 @@ from checkmate.exceptions import (CheckmateException,
 from checkmate.inputs import Input
 from checkmate.providers import ProviderBase
 from checkmate.utils import (merge_dictionary, get_time_string, is_ssh_key, 
-                            generate_resource_name, evaluate, is_evaluable)
+                             evaluate, is_evaluable)
 from bottle import abort
 
 LOG = logging.getLogger(__name__)
@@ -798,8 +798,7 @@ class Deployment(ExtensibleDict):
 
         :returns: a validated dict of the resource ready to add to deployment
         """
-        name = generate_resource_name(self, "%s%s.%s" % (
-            service_name, index, domain))
+        name = "%s%02d.%s" % (service_name, index, domain)
 
         # Call provider to give us a resource template
         provider_key = definition['provider-key']
