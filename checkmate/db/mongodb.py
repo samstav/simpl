@@ -5,8 +5,7 @@ import time
 import uuid
 
 from checkmate.classes import ExtensibleDict
-from checkmate.db.common import (DbBase, DEFAULT_STALE_LOCK_TIMEOUT, 
-                                ObjectLockedError)
+from checkmate.db.common import DbBase, ObjectLockedError
 from checkmate.exceptions import CheckmateDatabaseConnectionError
 from checkmate.utils import merge_dictionary
 from SpiffWorkflow.util import merge_dictionary as collate
@@ -73,14 +72,14 @@ class Driver(DbBase):
         return self.get_objects('deployments', tenant_id, with_secrets, 
                                 offset=offset, limit=limit)
 
-    def save_deployment(self, id, body, secrets=None, tenant_id=None, 
-                        merge_existing=True):
+    def save_deployment(self, id, body, secrets=None, tenant_id=None):
         '''
         Pull current deployment in DB incase another task has modified its' 
         contents
         '''
 
-        return self.save_object('deployments', id, body, secrets, tenant_id)
+        return self.save_object('deployments', id, body, secrets, tenant_id,
+                                merge_existing=True)
 
     #BLUEPRINTS
     def get_blueprint(self, id, with_secrets=None):
@@ -195,8 +194,9 @@ class Driver(DbBase):
             if(object_exists):
                 #object exists but we were not able to get the lock
                 if '_lock' in object_exists:
+                    #the lock is stale if it is greater than two hours old
                     if ((lock_timestamp - object_exists['_lock_timestamp']) 
-                        >= DEFAULT_STALE_LOCK_TIMEOUT):
+                        >= 7200):
                         #key is stale, force the lock
                         locked_object = self.database()[klass].find_and_modify(
                                                 query={'_id': obj_id}, 
