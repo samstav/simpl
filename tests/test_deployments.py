@@ -1616,6 +1616,55 @@ class TestDeploymentPlanning(unittest.TestCase):
             """)
         self.assertDictEqual(resources['connections'], expected)
 
+    def test_resource_name(self):
+        """Test the Plan() class handles resource naming correctly"""
+        deployment = Deployment(yaml_to_dict("""
+                id: test
+                environment:
+                  providers:
+                    base:
+                      vendor: test
+                      catalog:
+                        widget:
+                          bar: {}
+                blueprint:
+                  services:
+                    web:
+                      component:
+                        id: bar
+            """))
+        base.PROVIDER_CLASSES['test.base'] = ProviderBase
+        plan(deployment, RequestContext())
+        assigned_name = deployment['resources']['0']['dns-name']
+        expected_name = "web01.checkmate.local"
+        self.assertEqual(assigned_name, expected_name)
+
+    def test_constrained_resource_name(self):
+        """Test the Plan() class handles resource naming correctly"""
+        deployment = Deployment(yaml_to_dict("""
+                id: test
+                environment:
+                  providers:
+                    base:
+                      vendor: test
+                      catalog:
+                        widget:
+                          bar: {}
+                blueprint:
+                  services:
+                    web:
+                      component:
+                        id: bar
+                      constraints:
+                        - count: 1
+                inputs: {}
+            """))
+        base.PROVIDER_CLASSES['test.base'] = ProviderBase
+        plan(deployment, RequestContext())
+        assigned_name = deployment['resources']['0']['dns-name']
+        expected_name = "web.checkmate.local"
+        self.assertEqual(assigned_name, expected_name)
+
     def test_evaluate_defaults(self):
         plan = Plan(Deployment(yaml_to_dict("""
                 id: test
