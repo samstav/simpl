@@ -822,8 +822,6 @@ class Deployment(ExtensibleDict):
 
         :returns: a validated dict of the resource ready to add to deployment
         """
-        assert type(service_name) is types.StringType, \
-            "service_name is not a string: %r" % service_name
 
         # Call provider to give us a resource template
         provider_key = definition['provider-key']
@@ -831,10 +829,13 @@ class Deployment(ExtensibleDict):
         component = provider.get_component(context, definition['id'])
 
         # If resource is constrained to 1, don't append a number to the name
-        if self._constrained_to_one(service_name):
-            name = "%s.%s" % (service_name, domain)
+        if service_name:
+            if self._constrained_to_one(service_name):
+                name = "%s.%s" % (service_name, domain)
+            else:
+                name = "%s%02d.%s" % (service_name, index, domain)
         else:
-            name = "%s%02d.%s" % (service_name, index, domain)
+            name = "resource%02d.%s" % (index, domain)
 
         resource = provider.generate_template(self, component.get('is'),
                                               service_name, context, name=name)
