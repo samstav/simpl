@@ -2,6 +2,7 @@ import collections
 import copy
 import logging
 import os
+import types
 
 from checkmate import keys
 from checkmate.blueprints import Blueprint
@@ -821,6 +822,9 @@ class Deployment(ExtensibleDict):
 
         :returns: a validated dict of the resource ready to add to deployment
         """
+        assert type(service_name) is types.StringType, \
+            "service_name is not a string: %r" % service_name
+
         # Call provider to give us a resource template
         provider_key = definition['provider-key']
         provider = self.environment().get_provider(provider_key)
