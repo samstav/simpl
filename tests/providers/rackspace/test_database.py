@@ -50,6 +50,7 @@ class TestDatabase(ProviderTester):
                 'name': instance.name,
                 'status': instance.status,
                 'region': 'NORTH',
+                'flavor': 1,
                 'interfaces': {
                     'mysql': {
                         'host': instance.hostname,
