@@ -11,7 +11,7 @@ from pymongo.errors import AutoReconnect, InvalidURI
 
 # Init logging before we load the database, 3rd party, and 'noisy' modules
 from checkmate.utils import init_console_logging
-from checkmate.db.common import DatabaseTimeoutException, DEFAULT_STALE_LOCK_TIMEOUT
+from checkmate.db.common import ObjectLockedError, DEFAULT_STALE_LOCK_TIMEOUT
 from copy import deepcopy
 init_console_logging()
 LOG = logging.getLogger(__name__)
@@ -33,7 +33,7 @@ except InvalidURI:
 from checkmate.utils import extract_sensitive_data
 
 tester = { 'some': 'random',
-               'tenantId': 'T100',
+               'tenantId': 'T1000',
                'id' : 1 }
 
 class TestDatabase(unittest.TestCase):
@@ -299,6 +299,60 @@ class TestDatabase(unittest.TestCase):
             self.assertIn(i, results)
             self.assertNotIn('_id', results[i])
             self.assertEqual(results[i]['id'], i)
+
+    @unittest.skipIf(SKIP, REASON)
+    def test_lock_existing_object(self):
+        klass = 'workflow'
+        obj_id = 1
+        self.driver.save_object(klass, obj_id, {"id": obj_id, "test": obj_id}, tenant_id='T1000')
+
+        locked_object, key = self.driver.lock_object(klass, obj_id)
+        #is the returned object what we expected?
+        self.assertEqual(locked_object, {"id": obj_id, "tenantId": "T1000", "test": obj_id})
+        #was a key generated?
+        self.assertTrue(key)
+        stored_object = self.driver.database()[klass].find_one({"_id": obj_id})
+        #was the key stored correctly?
+        self.assertEqual(key, stored_object['_lock'])
+        #was a _lock_timestamp generated
+        self.assertTrue('_lock_timestamp' in stored_object)
+
+    @unittest.skipIf(SKIP, REASON)
+    def test_unlock_existing_object(self):
+        klass = 'workflow'
+        obj_id = 1
+        setup_obj = {"_lock": 0, "id": obj_id, "tenantId": "T1000", "test": obj_id}
+        #setup unlocked workflow
+        self.driver.database()[klass].find_and_modify(
+                                        query={"_id": obj_id},
+                                        update=setup_obj,
+                                        fields={
+                                            '_id': 0,
+                                            '_lock': 0, 
+                                            '_lock_timestamp': 0
+                                        },
+                                        upsert=True
+                                    )
+
+        locked_object, key = self.driver.lock_object(klass, obj_id)
+        print "lockedobj:%s \n key:%s" % (locked_object, key)
+        unlocked_object = self.driver.unlock_object(klass, obj_id, key)
+
+        self.assertEqual(locked_object, unlocked_object)
+
+    @unittest.skipIf(SKIP, REASON)
+    def test_lock_locked_object(self): 
+        klass = 'workflow'
+        obj_id = 1
+        stored = {"_id": obj_id, "id": obj_id, "tenantId": "T1000", "test": obj_id}
+        self.driver.database()[klass].save(stored)
+
+        locked_obj = self.driver.lock_object(klass, obj_id)
+
+        with self.assertRaises(ObjectLockedError):
+            self.driver.lock_object(klass, obj_id)
+
+  
 
 if __name__ == '__main__':
     # Run tests. Handle our paramsters separately
