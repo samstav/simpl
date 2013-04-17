@@ -548,7 +548,9 @@ def create_server(context, name, region, api_object=None, flavor="2",
     results = {instance_key: {'id': server.id,
                               'password': server.adminPass,
                               'region': api_object.client.region_name,
-                              'status': 'NEW'
+                              'status': 'NEW',
+                              'flavor': flavor,
+                              'image': image
                               }}
 
     # Send data back to deployment
