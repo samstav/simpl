@@ -18,7 +18,7 @@ class Driver(DbBase):
     _connection = None
     _client = None
     #db fields we do not want returned to the client
-    _lock_projection = {'_lock':0, '_lock_timestamp': 0, '_id': 0}
+    _object_projection = {'_lock':0, '_lock_timestamp': 0, '_id': 0}
 
     def __init__(self, *args, **kwargs):
         """Initializes globals for this driver"""
@@ -150,7 +150,7 @@ class Driver(DbBase):
                                             '_lock': key
                                         }, 
                                         update={'_lock': 0},
-                                        fields=self._lock_projection
+                                        fields=self._object_projection
                                     )
         #remove state added to passed in dict
         if unlocked_object:
@@ -183,7 +183,7 @@ class Driver(DbBase):
         locked_object = self.database()[klass].find_and_modify(
                                             query={'_id': obj_id, '_lock': 0}, 
                                             update=lock_update,
-                                            fields=self._lock_projection
+                                            fields=self._object_projection
                                         )
         if(locked_object):
             return (locked_object, key)
@@ -201,7 +201,7 @@ class Driver(DbBase):
                         locked_object = self.database()[klass].find_and_modify(
                                                 query={'_id': obj_id}, 
                                                 update=lock_update,
-                                                fields=self._lock_projection
+                                                fields=self._object_projection
                                             )
                         return (locked_object, key)
                     #lock is not stale
@@ -214,7 +214,7 @@ class Driver(DbBase):
                     locked_object = self.database()[klass].find_and_modify(
                                                 query={'_id': obj_id}, 
                                                 update=lock_update,
-                                                fields=self._lock_projection
+                                                fields=self._object_projection
                                             ) 
                     #delete instead of projection so that we can 
                     #use existing save_object
@@ -240,7 +240,8 @@ class Driver(DbBase):
             self.database()
         client = self._client
         with client.start_request():
-            results = self.database()[klass].find_one({'_id': id}, {'_id': 0})
+            results = self.database()[klass].find_one({'_id': id}, 
+                                                    self._object_projection)
 
             if results:
                 if with_secrets is True:
@@ -270,26 +271,38 @@ class Driver(DbBase):
                         offset = 0
                     results = (self.database()[klass].find(
                                                 {'tenantId': tenant_id},
-                                                {'_id': 0}
+                                                self._object_projection
                                             ).skip(offset).limit(limit))
 
                 elif offset and (limit is None):
-                    results = (self.database()[klass].find({'tenantId': tenant_id},
-                               {'_id': 0}).skip(offset))
+                    results = (self.database()[klass].find(
+                                                    {'tenantId': tenant_id},
+                                                    self._object_projection
+                                                ).skip(offset))
                 else:
-                    results = (self.database()[klass].find({'tenantId': tenant_id},
-                               {'_id': 0}))
+                    results = (self.database()[klass].find(
+                                                    {'tenantId': tenant_id},
+                                                    self._object_projection)
+                                                )
             else:
                 if limit:
                     if offset is None:
                         offset = 0
-                    results = (self.database()[klass].find(None,
-                                      {'_id': 0}).skip(offset).limit(limit))
+                    results = (self.database()[klass].find(
+                                                        None,
+                                                        self._object_projection
+                                                    ).skip(offset
+                                                    ).limit(limit))
                 elif offset and (limit is None):
-                    results = (self.database()[klass].find(None,
-                               {'_id': 0}).skip(offset))
+                    results = (self.database()[klass].find(
+                                                        None,
+                                                        self._object_projection
+                                                    ).skip(offset))
                 else:
-                    results = self.database()[klass].find(None, {'_id': 0})
+                    results = self.database()[klass].find(
+                                                        None, 
+                                                        self._object_projection
+                                                    )
             if results:
                 response = {}
                 if with_secrets is True:
