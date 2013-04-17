@@ -1,9 +1,12 @@
 import pymongo
 import logging
 import os
+import time
+import uuid
 
 from checkmate.classes import ExtensibleDict
-from checkmate.db.common import DbBase
+from checkmate.db.common import (DbBase, DEFAULT_STALE_LOCK_TIMEOUT, 
+                                ObjectLockedError)
 from checkmate.exceptions import CheckmateDatabaseConnectionError
 from checkmate.utils import merge_dictionary
 from SpiffWorkflow.util import merge_dictionary as collate
@@ -11,11 +14,12 @@ from SpiffWorkflow.util import merge_dictionary as collate
 
 LOG = logging.getLogger(__name__)
 
-
 class Driver(DbBase):
     """MongoDB Database Driver"""
     _connection = None
     _client = None
+    #db fields we do not want returned to the client
+    _lock_projection = {'_lock':0, '_lock_timestamp': 0, '_id': 0}
 
     def __init__(self, *args, **kwargs):
         """Initializes globals for this driver"""
@@ -69,7 +73,13 @@ class Driver(DbBase):
         return self.get_objects('deployments', tenant_id, with_secrets, 
                                 offset=offset, limit=limit)
 
-    def save_deployment(self, id, body, secrets=None, tenant_id=None):
+    def save_deployment(self, id, body, secrets=None, tenant_id=None, 
+                        merge_existing=True):
+        '''
+        Pull current deployment in DB incase another task has modified its' 
+        contents
+        '''
+
         return self.save_object('deployments', id, body, secrets, tenant_id)
 
     #BLUEPRINTS
@@ -104,6 +114,118 @@ class Driver(DbBase):
     def save_workflow(self, id, body, secrets=None, tenant_id=None):
         return self.save_object('workflows', id, body, secrets, tenant_id)
 
+    def lock_workflow(self, obj_id, with_secrets=None):
+        return self.lock_object('workflows', obj_id, with_secrets)
+
+    def unlock_workflow(obj_id, key):
+        return self.unlocked_object('workflows', obj_id, key)
+
+    def lock_object(self, klass, obj_id, with_secrets=None):
+        """
+        :param klass: the class of the object to unlock.
+        :param obj_id: the object's _id.
+        :param with_secrets: true if secrets should be merged into the results.
+        :returns (locked_object, key): a tupal of the locked_object and the
+            key that should be used to unlock it.
+        """
+        if with_secrets:
+            locked_object, key = self._lock_find_object(klass, obj_id)
+            return (self.merge_secrets(klass, obj_id, locked_object), key)
+        return self._lock_find_object(klass, obj_id)
+
+
+    def unlock_object(self, klass, obj_id, key):
+        """
+        Unlocks a locked object if the key is correct.
+
+        :param klass: the class of the object to unlock.
+        :param obj_id: the object's _id.
+        :param key: the key used to lock the object (see lock_object()).
+        :raises ValueError: If the unlocked object does not exist or the lock
+            was incorrect.
+        """
+
+        unlocked_object = self.database()[klass].find_and_modify(
+                                        query={
+                                            '_id': obj_id, 
+                                            '_lock': key
+                                        }, 
+                                        update={'_lock': 0},
+                                        fields=self._lock_projection
+                                    )
+        #remove state added to passed in dict
+        if unlocked_object:
+            return unlocked_object
+        else:
+            raise ValueError("The lock was invalid or the object %s "
+                                    "does not exist." % (obj_id))
+
+
+    def _lock_find_object(self, klass, obj_id):
+        """
+        Finds, attempts to lock, and returns an object by id.
+
+        :param klass: the class of the object to unlock.
+        :param obj_id: the object's _id.
+        :raises ValueError: if the obj_id is of a non-existent object
+        :returns (locked_object, key): a tupal of the locked_object and the
+            key that should be used to unlock it.
+        """
+
+        key = str(uuid.uuid4())
+        lock_timestamp = time.time()
+        lock_update = {
+                        '$set' : {
+                            '_lock': key,
+                            '_lock_timestamp': lock_timestamp,
+                        }
+                    }
+
+        locked_object = self.database()[klass].find_and_modify(
+                                            query={'_id': obj_id, '_lock': 0}, 
+                                            update=lock_update,
+                                            fields=self._lock_projection
+                                        )
+        if(locked_object):
+            return (locked_object, key)
+
+        else:
+            #could not get the lock
+            object_exists = self.database()[klass].find_one({'_id': obj_id})
+            if(object_exists):
+                #object exists but we were not able to get the lock
+                if '_lock' in object_exists:
+                    if ((lock_timestamp - object_exists['_lock_timestamp']) 
+                        >= DEFAULT_STALE_LOCK_TIMEOUT):
+                        #key is stale, force the lock
+                        locked_object = self.database()[klass].find_and_modify(
+                                                query={'_id': obj_id}, 
+                                                update=lock_update,
+                                                fields=self._lock_projection
+                                            )
+                        return (locked_object, key)
+                    #lock is not stale
+                    else:
+                        raise ObjectLockedError("%s(%s) was already locked!" % (
+                                                klass, obj_id)) 
+
+                #object has no _lock field
+                else:
+                    locked_object = self.database()[klass].find_and_modify(
+                                                query={'_id': obj_id}, 
+                                                update=lock_update,
+                                                fields=self._lock_projection
+                                            ) 
+                    #delete instead of projection so that we can 
+                    #use existing save_object
+                    return (locked_object, key)
+
+            #new object
+            else:
+                raise ValueError("Cannot get the object:%s that has"
+                                " never been saved" % obj_id)
+
+
     def get_object(self, klass, id, with_secrets=None):
         '''
         Get an object by klass and id. We are filtering out the 
@@ -113,6 +235,7 @@ class Driver(DbBase):
         :param id: The collection item to get
         :param with_secrets: Merge secrets with the results
         '''
+
         if not self._client:
             self.database()
         client = self._client
@@ -120,18 +243,20 @@ class Driver(DbBase):
             results = self.database()[klass].find_one({'_id': id}, {'_id': 0})
 
             if results:
-                if '_locked' in results:
-                    del results['_locked']
-
                 if with_secrets is True:
-                    secrets = (self.database()['%s_secrets' % klass].find_one(
-                               {'_id': id}, {'_id': 0}))
-                    if secrets:
-                        merge_dictionary(results, secrets)
+                    self.merge_secrets(klass, id, results)
+
         if results:
             return results
         else:
             return {}
+
+    def merge_secrets(self, klass, obj_id, body):
+        secrets = (self.database()['%s_secrets' % klass].find_one(
+            {'_id': obj_id}, {'_id': 0}))
+        if secrets:
+            merge_dictionary(body, secrets)
+        return body
 
     def get_objects(self, klass, tenant_id=None, with_secrets=None,
                     offset=None, limit=None):
@@ -143,8 +268,11 @@ class Driver(DbBase):
                 if limit:
                     if offset is None:
                         offset = 0
-                    results = (self.database()[klass].find({'tenantId': tenant_id},
-                               {'_id': 0}).skip(offset).limit(limit))
+                    results = (self.database()[klass].find(
+                                                {'tenantId': tenant_id},
+                                                {'_id': 0}
+                                            ).skip(offset).limit(limit))
+
                 elif offset and (limit is None):
                     results = (self.database()[klass].find({'tenantId': tenant_id},
                                {'_id': 0}).skip(offset))
@@ -166,13 +294,8 @@ class Driver(DbBase):
                 response = {}
                 if with_secrets is True:
                     for entry in results:
-                        secrets = (self.database()['%s_secrets' % klass].find_one(
-                                   {'_id': entry['id']}, {'_id': 0}))
-                        if secrets:
-                            response[entry['id']] = merge_dictionary(entry,
-                                                                     secrets)
-                        else:
-                            response[entry['id']] = entry
+                        response[entry['id']] = self.merge_secrets(klass, 
+                                                            entry['id'], entry)
                 else:
                     for entry in results:
                         if '_locked' in entry:
@@ -184,14 +307,12 @@ class Driver(DbBase):
         else:
             return {}
 
-    def save_object(self, klass, obj_id, body, secrets=None, tenant_id=None):
+    def save_object(self, klass, obj_id, body, secrets=None, tenant_id=None, 
+                    merge_existing=False):
         """Clients that wish to save the body but do/did not have access to
         secrets will by default send in None for secrets. We must not have that
         overwrite the secrets. To clear the secrets for an object, a non-None
-        dict needs to be passed in: ex. {}. This method can only save objects
-        that do not have a lock in the database. It will attempt to obtain the 
-        lock for (DEFAULT_RETRIES * DEFAULT_TIMEOUT) seconds, before raising 
-        an exception.
+        dict needs to be passed in: ex. {}.        
         """
         if isinstance(body, ExtensibleDict):
             body = body.__dict__()
@@ -202,8 +323,7 @@ class Driver(DbBase):
         client = self._client
         with client.start_request():
 
-            # Pull current deployment in DB incase another task has modified its' contents
-            if klass == "deployments":
+            if merge_existing:
                 current = self.get_object(klass, obj_id)
 
                 if current:
@@ -224,15 +344,12 @@ class Driver(DbBase):
                 body['tenantId'] = tenant_id
             assert tenant_id or 'tenantId' in body, "tenantId must be specified"
             body['_id'] = obj_id
-            # body['_locked'] = 0
             self.database()[klass].update({'_id': obj_id}, body, True, False, check_keys=False)
             if secrets:
                 secrets['_id'] = obj_id
                 self.database()['%s_secrets' % klass].update({'_id': obj_id},
                                                              secrets, True, False)
             del body['_id']
-            if '_locked' in body:
-                del body['_locked']
 
         return body
 

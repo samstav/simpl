@@ -53,3 +53,10 @@ class DbBase(object):
 
     def save_workflow(self, id, body):
         raise NotImplementedError()
+
+    def unlock_workflow(obj_id, key):
+        raise NotImplementedError()
+
+    def lock_workflow(self, obj_id, with_secrets):
+        raise NotImplementedError()
+

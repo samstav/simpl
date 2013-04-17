@@ -51,7 +51,7 @@ def count_seconds(seconds):
 
 
 @task(default_retry_delay=10, max_retries=300)
-def run_workflow(w_id, timeout=900, wait=1, counter=1):
+def run_workflow(w_id, timeout=900, wait=1, counter=1, key=None):
     """Loop through trying to complete the workflow and periodically log
     status updates. Each time we cycle through, if nothing happens we
     extend the wait time between cycles so we don't load the system.
@@ -62,12 +62,20 @@ def run_workflow(w_id, timeout=900, wait=1, counter=1):
     :param id: the workflow id
     :param timeout: the timeout in seconds. Unless we complete before then
     :param wait: how long to wait between runs. Grows without activity
+    :param key: the key to unlock a locked workflow. Outside meth
     :returns: True if workflow is complete
     """
+
     match_celery_logging(LOG)
     # Get the workflow
     serializer = DictionarySerializer()
-    workflow = DB.get_workflow(w_id, with_secrets=True)
+
+    workflow = None
+    if key:
+        workflow = DB.get_workflow(w_id, with_secrets=True)
+    else:
+        workflow, key = DB.lock_workflow(w_id, with_secrets=True)
+
     d_wf = Workflow.deserialize(serializer, workflow)
     LOG.debug("Deserialized workflow %s" % w_id,
               extra=dict(data=d_wf.get_dump()))
@@ -86,6 +94,8 @@ def run_workflow(w_id, timeout=900, wait=1, counter=1):
                       w_id)
         else:
             LOG.debug("Workflow '%s' is already complete. Nothing to do." % w_id)
+
+        DB.unlock_workflow(w_id, key)
         return True
 
     before = d_wf.get_dump()
@@ -95,6 +105,7 @@ def run_workflow(w_id, timeout=900, wait=1, counter=1):
         d_wf.complete_all()
     except Exception as exc:
         LOG.exception(exc)
+        DB.unlock_workflow(w_id, key)
         return False
     finally:
         # Save any changes, even if we errored out
@@ -131,6 +142,7 @@ def run_workflow(w_id, timeout=900, wait=1, counter=1):
 
     # Assess impact of run
     if d_wf.is_completed():
+        DB.unlock_workflow(w_id, key)
         return True
 
     timeout = timeout - wait if timeout > wait else 0
@@ -141,7 +153,7 @@ def run_workflow(w_id, timeout=900, wait=1, counter=1):
                                                                  wait,
                                                                  counter))
         retry_kwargs = {'timeout': timeout, 'wait': wait,
-                        'counter': counter + 1}
+                        'counter': counter + 1, 'key': key}
         return run_workflow.retry([w_id], kwargs=retry_kwargs, countdown=wait,
                                   Throw=False)
     else:
