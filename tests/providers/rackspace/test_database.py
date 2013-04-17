@@ -113,6 +113,7 @@ class TestDatabase(ProviderTester):
         #Mock instance
         instance = self.mox.CreateMockAnything()
         instance.id = 'fake_instance_id'
+        instance.flavor = {'id': '1'}
         instance.name = 'fake_instance'
         instance.status = 'ACTIVE'
         instance.hostname = 'fake.cloud.local'

@@ -559,7 +559,7 @@ def create_database(context, name, region, character_set=None, collate=None,
                 'id': name,
                 'host_instance': instance_id,
                 'host_region': region,
-                'flavor': instance.flavor['id']
+                'flavor': instance.flavor['id'],
                 'status': "BUILD",
                 'interfaces': {
                     'mysql': {
