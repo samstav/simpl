@@ -137,7 +137,8 @@ class TestDatabase(ProviderTester):
                 },
                 'name': 'db1',
                 'id': 'db1',
-                'host_region': 'NORTH'
+                'host_region': 'NORTH',
+                'flavor': '1'
             }
         }
         resource_postback.delay(context['deployment'], expected).AndReturn(
