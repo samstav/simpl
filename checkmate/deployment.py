@@ -827,13 +827,10 @@ class Deployment(ExtensibleDict):
         component = provider.get_component(context, definition['id'])
 
         # If resource is constrained to 1, don't append a number to the name
-        if service_name:
-            if self._constrained_to_one(service_name):
-                name = "%s.%s" % (service_name, domain)
-            else:
-                name = "%s%02d.%s" % (service_name, index, domain)
+        if self._constrained_to_one(service_name):
+            name = "%s.%s" % (service_name, domain)
         else:
-            name = None
+            name = "%s%02d.%s" % (service_name, index, domain)
 
         resource = provider.generate_template(self, component.get('is'),
                                               service_name, context, name=name)
