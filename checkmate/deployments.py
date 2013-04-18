@@ -117,6 +117,7 @@ def _deploy(deployment, context):
     DB.save_workflow(workflow['id'], body, secrets,
                      tenant_id=deployment['tenantId'])
 
+    deployment['display-outputs'] = deployment.calculate_outputs()
     _save_deployment(deployment)
 
     return workflow
