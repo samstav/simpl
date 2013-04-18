@@ -122,7 +122,7 @@ class Driver(DbBase):
         :returns (locked_object, key): a tuple of the locked_object and the
             key that should be used to unlock it.
         """
-        return self.lock_object('workflows', obj_id, with_secrets)
+        return self.lock_object('workflows', obj_id, with_secrets, key)
 
     def unlock_workflow(obj_id, key):
         """
@@ -178,7 +178,7 @@ class Driver(DbBase):
         """
         Finds, attempts to lock, and returns an object by id.
 
-        :param klass: the class of the object to unlock.
+        :param klass: the class of the object unlock.
         :param obj_id: the object's _id.
         :param key: if the object has already been locked, the key used must be
             passed in
@@ -192,28 +192,32 @@ class Driver(DbBase):
             # The object has already been locked
             # TODO: see if we can merge the existing key logic into below
             locked_object = self.database()[klass].find_and_modify(
-                                            query={'_id': obj_id, _lock: key},
+                                            query={
+                                                '_id': obj_id, 
+                                                '_lock': key
+                                            },
                                             update={
                                                 '$set': {
                                                     '_lock_timestamp': 
                                                         lock_timestamp
                                                 }
                                             },
-                                            fields=self._object_projection
+                                            fields=self._object_projection,
+                                            new=True
                                         )
             if locked_object:
                 # The passed in key matched
                 return (locked_object, key) 
             else:
-                raise InvalidKeyError("The key:%s could not unlock: %s(%s)" %
-                                        key, klass, obj_id)
+                raise InvalidKeyError("The key:%s could not unlock: %s(%s)" % (
+                                    key, klass, obj_id))
 
         # A key was not passed in
         key = str(uuid.uuid4())
         lock_update = {
                         '$set' : {
                             '_lock': key,
-                            '_lock_timestamp': lock_timestamp,
+                            '_lock_timestamp': lock_timestamp
                         }
                     }
 
@@ -238,8 +242,8 @@ class Driver(DbBase):
                     # The lock is stale if it is greater than two hours old
                     if lock_time_delta >= 30:
                         # Key is stale, force the lock
-                        LOG.warning("%s(%s) had a stale lock of %s seconds!" %
-                                    (klass, obj_id, lock_time_delta))
+                        LOG.warning("%s(%s) had a stale lock of %s seconds!" %(
+                                    klass, obj_id, lock_time_delta))
                         locked_object = self.database()[klass].find_and_modify(
                                                 query={'_id': obj_id}, 
                                                 update=lock_update,
@@ -248,15 +252,16 @@ class Driver(DbBase):
                         return (locked_object, key)
                     else:
                         # Lock is not stale
-                        raise ObjectLockedError("%s(%s) was already locked!" %
-                                                (klass, obj_id)) 
+                        raise ObjectLockedError("%s(%s) was already locked!" %(
+                                                klass, obj_id)) 
 
                 else:
                     # Object has no _lock field
                     locked_object = self.database()[klass].find_and_modify(
                                                 query={'_id': obj_id}, 
                                                 update=lock_update,
-                                                fields=self._object_projection
+                                                fields=self._object_projection,
+                                                new=True
                                             ) 
                     # Delete instead of projection so that we can 
                     # use existing save_object
@@ -353,8 +358,6 @@ class Driver(DbBase):
                                                             entry['id'], entry)
                 else:
                     for entry in results:
-                        if '_locked' in entry:
-                            del entry['_locked']
                         response[entry['id']] = entry
         if results:
             if response:
@@ -377,6 +380,13 @@ class Driver(DbBase):
             self.database()
         client = self._client
         with client.start_request():
+
+            # TODO: pull this out of save_object
+            if klass == 'workflows':
+                current = self.database()[klass].find_one({'_id': obj_id})
+                if current and '_lock' in current:
+                    body['_lock'] = current['_lock']
+                    body['_lock_timestamp'] = current['_lock_timestamp']
 
             if merge_existing:
                 current = self.get_object(klass, obj_id)

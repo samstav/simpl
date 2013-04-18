@@ -168,7 +168,7 @@ def run_one_task(context, workflow_id, task_id, timeout=60):
     match_celery_logging(LOG)
    
     # Lock the workflow
-    workflow, key = DB.lock_workflow(w_id, with_secrets=True)
+    workflow, key = DB.lock_workflow(workflow_id, with_secrets=True)
     try:
         if not workflow:
             raise IndexError("Workflow %s not found" % workflow_id)
@@ -217,7 +217,8 @@ def run_one_task(context, workflow_id, task_id, timeout=60):
             body, secrets = extract_sensitive_data(updated)
             body['tenantId'] = workflow.get('tenantId')
             body['id'] = workflow_id
+            #TODO remove these from this whole class to the db layer
             DB.save_workflow(workflow_id, body, secrets)
         return result
     finally:
-        DB.unlock_workflow(w_id, key)
+        DB.unlock_workflow(workflow_id, key)

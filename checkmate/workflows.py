@@ -59,13 +59,16 @@ def get_workflows(tenant_id=None):
                                    limit=limit)
     return write_body(results, request, response)
 
-def safe_save(obj_id, body, secrets=None, tenant_id=None):
+def safe_workflow_save(obj_id, body, secrets=None, tenant_id=None):
+    """
+    Locks, saves, and unlocks a workflow.
+    """
+
     _, key = db.lock_workflow(obj_id)
     results = db.save_workflow(obj_id, body, secrets=secrets,
             tenant_id=tenant_id)
     db.unlock_workflow(obj_id, key)
     return results
-
 
 @post('/workflows')
 @with_tenant
@@ -111,7 +114,7 @@ def save_workflow(id, tenant_id=None):
 
     body, secrets = extract_sensitive_data(entity)
 
-    results = safe_save(id, body, secrets=secrets, tenant_id=tenant_id)
+    results = safe_workflow_save(id, body, secrets=secrets, tenant_id=tenant_id)
     return write_body(results, request, response)
 
 
@@ -195,7 +198,7 @@ def post_workflow_spec(workflow_id, spec_id, tenant_id=None):
     body, secrets = extract_sensitive_data(workflow)
     body['tenantId'] = workflow.get('tenantId', tenant_id)
     body['id'] = workflow_id
-    updated = safe_save(workflow_id, body, secrets=secrets, tenant_id=tenant_id)
+    updated = safe_workflow_save(workflow_id, body, secrets=secrets, tenant_id=tenant_id)
 
     return write_body(entity, request, response)
 
@@ -284,7 +287,7 @@ def post_workflow_task(id, task_id, tenant_id=None):
     body['tenantId'] = workflow.get('tenantId', tenant_id)
     body['id'] = id
 
-    updated = safe_save(id, body, secrets=secrets, tenant_id=tenant_id)
+    updated = safe_workflow_save(id, body, secrets=secrets, tenant_id=tenant_id)
     # Updated does not have secrets, so we deserialize that
     serializer = DictionarySerializer()
     wf = SpiffWorkflow.deserialize(serializer, updated)
@@ -337,7 +340,7 @@ def reset_workflow_task(id, task_id, tenant_id=None):
     body, secrets = extract_sensitive_data(entity)
     body['tenantId'] = workflow.get('tenantId', tenant_id)
     body['id'] = id
-    safe_save(id, body, secrets=secrets, tenant_id=tenant_id)
+    safe_workflow_save(id, body, secrets=secrets, tenant_id=tenant_id)
 
     task = wf.get_task(task_id)
     if not task:
@@ -400,7 +403,7 @@ def resubmit_workflow_task(workflow_id, task_id, tenant_id=None):
     body, secrets = extract_sensitive_data(entity)
     body['tenantId'] = workflow.get('tenantId', tenant_id)
     body['id'] = workflow_id
-    safe_save(workflow_id, body, secrets=secrets, tenant_id=tenant_id)
+    safe_workflow_save(workflow_id, body, secrets=secrets, tenant_id=tenant_id)
 
     task = wf.get_task(task_id)
     if not task:
