@@ -304,6 +304,7 @@ class TestDatabase(unittest.TestCase):
     def test_lock_existing_object(self):
         klass = 'workflows'
         obj_id = 1
+        self.driver.database()[klass].remove({'_id': obj_id})
         self.driver.save_object(klass, obj_id, {"id": obj_id, "test": obj_id}, tenant_id='T1000')
 
         locked_object, key = self.driver.lock_object(klass, obj_id)
@@ -321,6 +322,7 @@ class TestDatabase(unittest.TestCase):
     def test_unlock_existing_object(self):
         klass = 'workflows'
         obj_id = 1
+        self.driver.database()[klass].remove({'_id': obj_id})
         setup_obj = {"_lock": 0, "id": obj_id, "tenantId": "T1000", "test": obj_id}
         #setup unlocked workflow
         self.driver.database()[klass].find_and_modify(
@@ -344,6 +346,7 @@ class TestDatabase(unittest.TestCase):
     def test_lock_locked_object(self): 
         klass = 'workflows'
         obj_id = 1
+        self.driver.database()[klass].remove({'_id': obj_id})
         stored = {"_id": obj_id, "id": obj_id, "tenantId": "T1000", "test": obj_id}
         self.driver.database()[klass].save(stored)
 
@@ -352,11 +355,11 @@ class TestDatabase(unittest.TestCase):
         with self.assertRaises(ObjectLockedError):
             self.driver.lock_object(klass, obj_id)
 
-
     @unittest.skipIf(SKIP, REASON)
     def test_lock_workflow_stale_lock(self):
         klass = 'workflows'
         obj_id = 1
+        self.driver.database()[klass].remove({'_id': obj_id})
         lock = "test_lock"
         lock_timestamp = time.time() - 31
         stored = {"_id": obj_id, "id": obj_id, "tenantId": "T1000", 
@@ -366,7 +369,6 @@ class TestDatabase(unittest.TestCase):
         # object
         locked_obj, key = self.driver.lock_workflow(obj_id)
         self.driver.unlock_workflow(obj_id, key)
-
 
 
 if __name__ == '__main__':

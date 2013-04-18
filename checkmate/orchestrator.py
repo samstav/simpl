@@ -167,9 +167,11 @@ def run_one_task(context, workflow_id, task_id, timeout=60):
     returns True/False indicating if task completed"""
     match_celery_logging(LOG)
    
-    # Lock the workflow
-    workflow, key = DB.lock_workflow(workflow_id, with_secrets=True)
+    workflow = None
+    key = None
     try:
+        # Lock the workflow
+        workflow, key = DB.lock_workflow(workflow_id, with_secrets=True)
         if not workflow:
             raise IndexError("Workflow %s not found" % workflow_id)
         LOG.debug("Deserializing workflow '%s'" % workflow_id)
@@ -221,4 +223,5 @@ def run_one_task(context, workflow_id, task_id, timeout=60):
             DB.save_workflow(workflow_id, body, secrets)
         return result
     finally:
-        DB.unlock_workflow(workflow_id, key)
+        if key:
+            DB.unlock_workflow(workflow_id, key)

@@ -22,7 +22,7 @@ from SpiffWorkflow.storage import DictionarySerializer
 
 from checkmate.common import schema
 from checkmate.classes import ExtensibleDict
-from checkmate.db import get_driver, any_id_problems
+from checkmate.db import get_driver, any_id_problems, InvalidKeyError
 from checkmate.exceptions import CheckmateException, \
         CheckmateValidationException
 from checkmate.utils import write_body, read_body, extract_sensitive_data,\
@@ -254,7 +254,7 @@ def post_workflow_task(id, task_id, tenant_id=None):
     if not workflow:
         abort(404, 'No workflow with id %s' % id)
 
-    serializer = DictionarySerializer()
+    serializer = DictionarySerailizer()
     wf = SpiffWorkflow.deserialize(serializer, workflow)
 
     task = wf.get_task(task_id)
@@ -434,8 +434,13 @@ def execute_workflow_task(id, task_id, tenant_id=None):
     if not task:
         abort(404, 'No task with id %s' % task_id)
 
-    #Synchronous call
-    orchestrator.run_one_task(request.context, id, task_id, timeout=10)
+    try:
+        #Synchronous call
+        orchestrator.run_one_task(request.context, id, task_id, timeout=10)
+    except InvalidKeyError as already_locked:
+        abort(404, "Cannot execute task(%s) while workflow(%s) is executing." %
+                (task_id, id))
+
     entity = db.get_workflow(id)
 
     workflow = SpiffWorkflow.deserialize(serializer, entity)
