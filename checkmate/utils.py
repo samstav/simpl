@@ -589,21 +589,6 @@ def evaluate(function_string):
     raise NameError("Unsupported function: %s" % function_string)
 
 
-def generate_resource_name(deployment, suffix):
-    """
-    Generates a checkmate resource name based on the deployment id,
-    and if the deployment has a name.
-
-    :param deployment: the deployment dict, must have an id set
-    :param suffix: the last part of the name, typically a domain
-    """
-    prefix = "CM-" + deployment['id'][0:7]
-    #generate the resource name based on the deployment name if exists
-    if 'name' in deployment:
-        prefix = re.sub(r'\s+', '-', deployment['name'].strip())
-    return '%s-%s' % (prefix, suffix)
-
-
 def check_all_output(params, find="ERROR"):
     """
 

@@ -117,6 +117,7 @@ def _deploy(deployment, context):
     DB.save_workflow(workflow['id'], body, secrets,
                      tenant_id=deployment['tenantId'])
 
+    deployment['display-outputs'] = deployment.calculate_outputs()
     _save_deployment(deployment)
 
     return workflow
@@ -208,6 +209,7 @@ def post_deployment(tenant_id=None):
     async_task = execute(oid)
     LOG.debug("Triggered workflow (task='%s')" % async_task)
 
+    response.status = 202  # Accepted (i.e. not done yet)
     return write_body(parsed_deployment, request, response)
 
 
@@ -245,14 +247,19 @@ def update_deployment(oid, tenant_id=None):
     """Store a deployment on this server"""
     deployment = _content_to_deployment(request, deployment_id=oid,
                                         tenant_id=tenant_id)
+    entity = DB.get_deployment(oid)
     results = _save_deployment(deployment, deployment_id=oid,
                                tenant_id=tenant_id)
     # Return response (with new resource location in header)
-    if tenant_id:
-        response.add_header('Location', "/%s/deployments/%s" % (tenant_id,
-                                                                oid))
+    if entity:
+        response.status = 200  # OK - updated
     else:
-        response.add_header('Location', "/deployments/%s" % oid)
+        response.status = 201  # Created
+        if tenant_id:
+            response.add_header('Location', "/%s/deployments/%s" % (tenant_id,
+                                                                    oid))
+        else:
+            response.add_header('Location', "/deployments/%s" % oid)
     return write_body(results, request, response)
 
 
@@ -423,7 +430,7 @@ def delete_deployment(oid, tenant_id=None):
     response.set_header("Link", '<%s>; rel="canvas"; title="Delete Deployment"'
                         % loc)
 
-    response.status = 202
+    response.status = 202  # Accepted (i.e. not done yet)
     return write_body(deployment, request, response)
 
 
