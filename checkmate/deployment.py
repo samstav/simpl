@@ -2,7 +2,7 @@ import collections
 import copy
 import logging
 import os
-import types
+import urlparse
 
 from checkmate import keys
 from checkmate.blueprints import Blueprint
@@ -11,12 +11,19 @@ from checkmate.constraints import Constraint
 from checkmate.common import schema
 from checkmate.db import get_driver
 from checkmate.environments import Environment
-from checkmate.exceptions import (CheckmateException,
-                                  CheckmateValidationException)
+from checkmate.exceptions import (
+    CheckmateException,
+    CheckmateValidationException,
+)
 from checkmate.inputs import Input
 from checkmate.providers import ProviderBase
-from checkmate.utils import (merge_dictionary, get_time_string, is_ssh_key, 
-                             evaluate, is_evaluable)
+from checkmate.utils import (
+    merge_dictionary,
+    get_time_string,
+    is_ssh_key,
+    evaluate,
+    is_evaluable,
+)
 from bottle import abort
 
 LOG = logging.getLogger(__name__)
@@ -258,7 +265,7 @@ class Deployment(ExtensibleDict):
             else:
                 LOG.debug("No credentials supplied in environment/common/"
                           "credentials")
-        except Exception as exc:
+        except Exception:
             LOG.debug("No credentials supplied in environment/common/"
                       "credentials")
 
@@ -335,14 +342,14 @@ class Deployment(ExtensibleDict):
                   service_name=service_name, resource_type=resource_type))
         if result:
             LOG.debug("Setting '%s' matched in "
-                          "_get_constrained_static_resource_setting" % name)
+                      "_get_constrained_static_resource_setting" % name)
             return result
 
         result = (self._get_input_blueprint_option_constraint(name,
                   service_name=service_name, resource_type=resource_type))
         if result:
             LOG.debug("Setting '%s' matched in "
-                          "_get_input_blueprint_option_constraint" % name)
+                      "_get_input_blueprint_option_constraint" % name)
             return result
 
         result = self._get_input_simple(name)
@@ -470,9 +477,10 @@ class Deployment(ExtensibleDict):
                 if 'constrains' in option:  # the verb 'constrains' (not noun)
                     constraints = self.parse_constraints(option['constrains'])
                     for constraint in constraints:
-                        if (self.constraint_applies(constraint, name,
-                            service_name=service_name,
-                            resource_type=resource_type)):
+                        if self.constraint_applies(constraint, name,
+                                                   service_name=service_name,
+                                                   resource_type=resource_type
+                                                   ):
                             result = self._apply_constraint(name, constraint,
                                                             option=option,
                                                             option_key=key)
@@ -497,9 +505,10 @@ class Deployment(ExtensibleDict):
                     constraints = resource['constrains']
                     constraints = self.parse_constraints(constraints)
                     for constraint in constraints:
-                        if (self.constraint_applies(constraint, name,
-                            service_name=service_name,
-                            resource_type=resource_type)):
+                        if self.constraint_applies(constraint, name,
+                                                   service_name=service_name,
+                                                   resource_type=resource_type
+                                                   ):
                             instance = self['resources'][key]['instance']
                             result = self._apply_constraint(name, constraint,
                                                             resource=instance)
@@ -811,6 +820,62 @@ class Deployment(ExtensibleDict):
                         return True
         return False
 
+    @staticmethod
+    def parse_source_URI(uri):
+        """
+        Parses the URI format of source
+
+        :param uri: string uri based on display-output sources
+        :returns: dict
+
+        """
+        try:
+            parts = urlparse.urlparse(uri)
+        except AttributeError:
+            # probably a scalar
+            parts = urlparse.urlparse('')
+
+        result = {
+            'scheme': parts.scheme,
+            'netloc': parts.netloc,
+            'path': parts.path.strip('/'),
+            'query': parts.query,
+            'fragment': parts.fragment,
+        }
+        if parts.scheme in ['options', 'resources']:
+            result['path'] = os.path.join(parts.netloc.strip('/'),
+                                          parts.path.strip('/')).strip('/')
+        return result
+
+    def evaluator(self, parsed_url):
+        '''given a parsed source URI, evaluate and return the value'''
+        if parsed_url['scheme'] == 'options':
+            return self.get_setting(parsed_url['netloc'])
+        return None
+
+    def calculate_outputs(self):
+        '''Parse display-outputs definitions and generate display-outputs'''
+        if 'blueprint' not in self:
+            return
+        definitions = self['blueprint'].get('display-outputs', {})
+        if not definitions:
+            return
+        results = {}
+        for name, definition in definitions.items():
+            entry = {}
+            if 'type' in definition:
+                entry['type'] = definition['type']
+            try:
+                parsed = Deployment.parse_source_URI(definition['source'])
+                value = self.evaluator(parsed)
+                if value is not None:
+                    entry['value'] = value
+                    results[name] = entry
+            except (KeyError, AttributeError):
+                pass
+
+        return results
+
     def create_resource_template(self, index, definition, service_name, domain,
                                  context):
         """Create a new resource dict to add to the deployment
@@ -910,4 +975,3 @@ class Deployment(ExtensibleDict):
                         value = schema.translate(value)
                     raise (NotImplementedError("Global post-back values not "
                            "yet supported: %s" % key))
-

@@ -3,6 +3,7 @@ import copy
 import logging
 import os
 import unittest2 as unittest
+from urlparse import urlunparse
 
 # Init logging before we load the database, 3rd party, and 'noisy' modules
 from checkmate.utils import init_console_logging
@@ -2056,6 +2057,67 @@ class TestPostbackHelpers(unittest.TestCase):
         self._mox.ReplayAll()
         update_deployment_status('1234', 'CHANGED')
         self._mox.VerifyAll()
+
+
+class TestDeploymentDisplayOutputs(unittest.TestCase):
+    def test_parse_source_URI_options(self):
+        fxn = Deployment.parse_source_URI
+        result = fxn("options://username")
+        expected = {
+            'scheme': 'options',
+            'netloc': 'username',
+            'path': 'username',
+            'query': '',
+            'fragment': '',
+        }
+        self.assertDictEqual(result, expected)
+
+    @unittest.skip('Looks like there is a python 2.7.4/2.7.1 issue')
+    def test_parse_source_URI_python24(self):
+        '''
+        This seems to fail in python 2.7.1, but not 2.7.4
+
+        2.7.1 parses ?type=compute as /?type=compute
+        '''
+        fxn = Deployment.parse_source_URI
+        result = fxn("resources://status?type=compute")
+        expected = {
+            'scheme': 'resources',
+            'netloc': 'status',
+            'path': 'status',
+            'query': 'type=compute',
+            'fragment': '',
+        }
+        self.assertDictEqual(result, expected)
+
+    def test_generation(self):
+        """ Test Display Output Processing """
+        deployment = Deployment(yaml_to_dict("""
+            blueprint:
+              id: 0255a076c7cf4fd38c69b6727f0b37ea
+              services: {}
+              options:
+                region:
+                  type: string
+                  default: South
+              display-outputs:
+                "Region":
+                  type: string
+                  source: options://region
+            environment:
+              providers: {}
+            inputs:
+              blueprint:
+                region: North
+            """))
+        outputs = deployment.calculate_outputs()
+        expected = {
+            "Region": {
+                "type": "string",
+                "value": "North"
+            }
+        }
+        self.assertDictEqual(expected, outputs)
 
 
 if __name__ == '__main__':
