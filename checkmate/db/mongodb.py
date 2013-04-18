@@ -124,7 +124,7 @@ class Driver(DbBase):
         """
         return self.lock_object('workflows', obj_id, with_secrets, key)
 
-    def unlock_workflow(obj_id, key):
+    def unlock_workflow(self, obj_id, key):
         """
         :param obj_id: the object's _id.
         :param key: the key used to lock the object (see lock_object()).
