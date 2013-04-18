@@ -820,6 +820,62 @@ class Deployment(ExtensibleDict):
                         return True
         return False
 
+    @staticmethod
+    def parse_source_URI(uri):
+        """
+        Parses the URI format of source
+
+        :param uri: string uri based on display-output sources
+        :returns: dict
+
+        """
+        try:
+            parts = urlparse.urlparse(uri)
+        except AttributeError:
+            # probably a scalar
+            parts = urlparse.urlparse('')
+
+        result = {
+            'scheme': parts.scheme,
+            'netloc': parts.netloc,
+            'path': parts.path.strip('/'),
+            'query': parts.query,
+            'fragment': parts.fragment,
+        }
+        if parts.scheme in ['options', 'resources']:
+            result['path'] = os.path.join(parts.netloc.strip('/'),
+                                          parts.path.strip('/')).strip('/')
+        return result
+
+    def evaluator(self, parsed_url):
+        '''given a parsed source URI, evaluate and return the value'''
+        if parsed_url['scheme'] == 'options':
+            return self.get_setting(parsed_url['netloc'])
+        return None
+
+    def calculate_outputs(self):
+        '''Parse display-outputs definitions and generate display-outputs'''
+        if 'blueprint' not in self:
+            return
+        definitions = self['blueprint'].get('display-outputs', {})
+        if not definitions:
+            return
+        results = {}
+        for name, definition in definitions.items():
+            entry = {}
+            if 'type' in definition:
+                entry['type'] = definition['type']
+            try:
+                parsed = Deployment.parse_source_URI(definition['source'])
+                value = self.evaluator(parsed)
+                if value is not None:
+                    entry['value'] = value
+                    results[name] = entry
+            except (KeyError, AttributeError):
+                pass
+
+        return results
+
     def create_resource_template(self, index, definition, service_name, domain,
                                  context):
         """Create a new resource dict to add to the deployment

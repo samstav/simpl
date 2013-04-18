@@ -126,6 +126,7 @@ def simulate(tenant_id=None):
 
     # Process workflow
     results = plan(deployment, request.context)
+    deployment['display-outputs'] = deployment.calculate_outputs()
     PACKAGE[tenant_id]['deployment'] = results
 
     serializer = DictionarySerializer()
