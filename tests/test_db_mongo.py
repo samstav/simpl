@@ -302,7 +302,7 @@ class TestDatabase(unittest.TestCase):
 
     @unittest.skipIf(SKIP, REASON)
     def test_lock_existing_object(self):
-        klass = 'workflow'
+        klass = 'workflows'
         obj_id = 1
         self.driver.save_object(klass, obj_id, {"id": obj_id, "test": obj_id}, tenant_id='T1000')
 
@@ -319,7 +319,7 @@ class TestDatabase(unittest.TestCase):
 
     @unittest.skipIf(SKIP, REASON)
     def test_unlock_existing_object(self):
-        klass = 'workflow'
+        klass = 'workflows'
         obj_id = 1
         setup_obj = {"_lock": 0, "id": obj_id, "tenantId": "T1000", "test": obj_id}
         #setup unlocked workflow
@@ -342,7 +342,7 @@ class TestDatabase(unittest.TestCase):
 
     @unittest.skipIf(SKIP, REASON)
     def test_lock_locked_object(self): 
-        klass = 'workflow'
+        klass = 'workflows'
         obj_id = 1
         stored = {"_id": obj_id, "id": obj_id, "tenantId": "T1000", "test": obj_id}
         self.driver.database()[klass].save(stored)
@@ -352,7 +352,22 @@ class TestDatabase(unittest.TestCase):
         with self.assertRaises(ObjectLockedError):
             self.driver.lock_object(klass, obj_id)
 
-  
+
+    @unittest.skipIf(SKIP, REASON)
+    def test_lock_workflow_stale_lock(self):
+        klass = 'workflows'
+        obj_id = 1
+        lock = "test_lock"
+        lock_timestamp = time.time() - 31
+        stored = {"_id": obj_id, "id": obj_id, "tenantId": "T1000", 
+            "test": obj_id, "_lock": lock, "_lock_timestamp": lock_timestamp}
+        self.driver.database()[klass].save(stored)
+        # the lock is older than 30 seconds so we should be able to lock the
+        # object
+        locked_obj, key = self.driver.lock_workflow(obj_id)
+        self.driver.unlock_workflow(obj_id, key)
+
+
 
 if __name__ == '__main__':
     # Run tests. Handle our paramsters separately

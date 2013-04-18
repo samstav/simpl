@@ -129,7 +129,7 @@ class Driver(DbBase):
         :param obj_id: the object's _id.
         :param key: the key used to lock the object (see lock_object()).
         """
-        return self.unlocked_object('workflows', obj_id, key)
+        return self.unlock_object('workflows', obj_id, key)
 
     def lock_object(self, klass, obj_id, with_secrets=None, key=None):
         """
@@ -170,7 +170,7 @@ class Driver(DbBase):
         if unlocked_object:
             return unlocked_object
         else:
-            raise ValueError("The lock was invalid or the object %s "
+            raise InvalidKeyError("The lock was invalid or the object %s "
                                     "does not exist." % (obj_id))
 
 
