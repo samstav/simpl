@@ -4,6 +4,9 @@ checkmate.egg-info/
 .coverage
 covhtml
 pep8.txt
+pylint.out
+coverage.xml
+newrelic.ini
 nosetests.xml
 doc/build
 doc/source/modules.rst

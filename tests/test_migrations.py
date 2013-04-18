@@ -40,12 +40,9 @@ class TestMigrations(unittest.TestCase):
     TEST_DATABASES = {'sqlite': 'sqlite:///migration.db'}
 
     REPOSITORY_PATH = os.path.abspath(os.path.join(os.path.abspath(__file__),
-                                os.pardir, os.pardir, 'checkmate',
-                                'db', 'repository'))
+                                      os.pardir, os.pardir, 'checkmate',
+                                      'db', 'repository'))
     REPOSITORY = Repository(REPOSITORY_PATH)
-
-    def __init__(self, *args, **kwargs):
-        super(TestMigrations, self).__init__(*args, **kwargs)
 
     def setUp(self):
         # Load test databases
@@ -126,7 +123,7 @@ class TestMigrations(unittest.TestCase):
         # Now walk it back down to 0 from the latest, testing
         # the downgrade paths.
         for version in reversed(
-            xrange(0, TestMigrations.REPOSITORY.latest)):
+                xrange(0, TestMigrations.REPOSITORY.latest)):
             migration_api.downgrade(sql_connection, version)
             cur_version = migration_api.db_version(sql_connection)
             self.assertEqual(cur_version, version)
