@@ -977,7 +977,7 @@ services.factory('auth', ['$resource', '$rootScope', function($resource, $rootSc
       localStorage.removeItem('auth');
       delete checkmate.config.header_defaults.headers.common['X-Auth-Token'];
       delete checkmate.config.header_defaults.headers.common['X-Auth-Source'];
-      $rootScope.$broadcast('logOff');
+      $rootScope.$broadcast('logOut');
     },
     impersonate: function(tenant, callback, error_callback) {
       var data;

@@ -294,23 +294,27 @@ function AppController($scope, $http, $location, $resource, auth) {
     var apikey = $scope.bound_creds.apikey;
 
     //Handle auto_complete sync issues (1Pass, LastPass do not update scope)
-    var login_form = window.document.forms.loginForm;
+    try {
+      var login_form = window.document.forms.loginForm;
 
-    var realvalue = loginForm.username.value;
-    if (realvalue !== undefined && username != realvalue)
-      username = realvalue;
+      var realvalue = loginForm.username.value;
+      if (realvalue !== undefined && username != realvalue)
+        username = realvalue;
 
-    realvalue = loginForm.password.value;
-    if (realvalue !== undefined && password != realvalue)
-      password = realvalue;
+      realvalue = loginForm.password.value;
+      if (realvalue !== undefined && password != realvalue)
+        password = realvalue;
 
-    realvalue = loginForm.apikey.value;
-    if (realvalue !== undefined && apikey != realvalue);
-      apikey = realvalue;
+      realvalue = loginForm.apikey.value;
+      if (realvalue !== undefined && apikey != realvalue);
+        apikey = realvalue;
 
-    //!Pass puts the password in the apikey field too
-    if (password !== undefined && apikey !== undefined)
-      apikey = undefined;
+      //!Pass puts the password in the apikey field too. Assume it's password
+      if (password == apikey)
+        apikey = undefined;
+    } catch(err) {
+      console.log(err);
+    }
 
     var endpoint = $scope.selected_endpoint || auth.endpoints[0];
     return auth.authenticate(endpoint, username, apikey, password, null,
@@ -368,7 +372,7 @@ function AppController($scope, $http, $location, $resource, auth) {
   var rook = $resource((checkmate_server_base || '') + '/rookversion');
   rook.get(function(rookdata, getResponseHeaders){
     $scope.rook_version = rookdata.version;
-    $scope.$root.canonical_version = rookdata.version.split('-')[0];
+    $scope.$root.canonical_version = 'v' + rookdata.version.split('-')[0];
     if (rookdata.version.indexOf('dev') == -1)
       $scope.$root.blueprint_ref = $scope.$root.canonical_version;
     console.log("Got rook version: " + $scope.rook_version);
@@ -1303,6 +1307,13 @@ function WorkflowController($scope, $resource, $http, $routeParams, $location, $
       }
      });
   };
+
+  $scope.$on('$digest', function() {
+    var foldFunc = CodeMirror.newFoldFunction(CodeMirror.braceRangeFinder);
+    _.each($('.CodeMirror'), function(c) {
+      c.CodeMirror.on("gutterClick", foldFunc);
+    });
+  });
 }
 
 //Blueprint controllers
@@ -1672,8 +1683,8 @@ function DeploymentManagedCloudController($scope, $location, $routeParams, $reso
   });
 
   //Load the latest supported blueprints (tagged) from github
-  $scope.loadRemoteBlueprint('https://github.rackspace.com/Blueprints/wordpress#' + $scope.rook_version.split('-')[0]);
-  $scope.loadRemoteBlueprint('https://github.rackspace.com/Blueprints/wordpress-clouddb#' + $scope.rook_version.split('-')[0]);
+  $scope.loadRemoteBlueprint('https://github.rackspace.com/Blueprints/wordpress#v' + $scope.rook_version.split('-')[0]);
+  $scope.loadRemoteBlueprint('https://github.rackspace.com/Blueprints/wordpress-clouddb#v' + $scope.rook_version.split('-')[0]);
 
   //Load the latest master from github
   $scope.loadRemoteBlueprint('https://github.rackspace.com/Blueprints/wordpress');
