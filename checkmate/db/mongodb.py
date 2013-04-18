@@ -187,10 +187,18 @@ class Driver(DbBase):
             key that should be used to unlock it.
         """
 
+        lock_timestamp = time.time()
         if key:
             # The object has already been locked
-            locked_object = self.database()[klass].find_one(
+            # TODO: see if we can merge the existing key logic into below
+            locked_object = self.database()[klass].find_and_modify(
                                             query={'_id': obj_id, _lock: key},
+                                            update={
+                                                '$set': {
+                                                    '_lock_timestamp': 
+                                                        lock_timestamp
+                                                }
+                                            },
                                             fields=self._object_projection
                                         )
             if locked_object:
@@ -202,7 +210,6 @@ class Driver(DbBase):
 
         # A key was not passed in
         key = str(uuid.uuid4())
-        lock_timestamp = time.time()
         lock_update = {
                         '$set' : {
                             '_lock': key,
@@ -225,10 +232,14 @@ class Driver(DbBase):
             if(object_exists):
                 # Object exists but we were not able to get the lock
                 if '_lock' in object_exists:
+                    lock_time_delta = (lock_timestamp - 
+                            object_exists['_lock_timestamp']) 
+                    
                     # The lock is stale if it is greater than two hours old
-                    if ((lock_timestamp - object_exists['_lock_timestamp']) 
-                        >= 7200):
+                    if lock_time_delta >= 30:
                         # Key is stale, force the lock
+                        LOG.warning("%s(%s) had a stale lock of %s seconds!" %
+                                    (klass, obj_id, lock_time_delta))
                         locked_object = self.database()[klass].find_and_modify(
                                                 query={'_id': obj_id}, 
                                                 update=lock_update,
@@ -237,8 +248,8 @@ class Driver(DbBase):
                         return (locked_object, key)
                     else:
                         # Lock is not stale
-                        raise ObjectLockedError("%s(%s) was already locked!" % (
-                                                klass, obj_id)) 
+                        raise ObjectLockedError("%s(%s) was already locked!" %
+                                                (klass, obj_id)) 
 
                 else:
                     # Object has no _lock field
