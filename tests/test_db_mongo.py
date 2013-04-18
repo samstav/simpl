@@ -323,7 +323,7 @@ class TestDatabase(unittest.TestCase):
         klass = 'workflows'
         obj_id = 1
         self.driver.database()[klass].remove({'_id': obj_id})
-        setup_obj = {"_lock": 0, "id": obj_id, "tenantId": "T1000", "test": obj_id}
+        setup_obj = {"_lock": 0, "_id": obj_id, "tenantId": "T1000", "test": obj_id}
         #setup unlocked workflow
         self.driver.database()[klass].find_and_modify(
                                         query={"_id": obj_id},
@@ -337,7 +337,6 @@ class TestDatabase(unittest.TestCase):
                                     )
 
         locked_object, key = self.driver.lock_object(klass, obj_id)
-        print "lockedobj:%s \n key:%s" % (locked_object, key)
         unlocked_object = self.driver.unlock_object(klass, obj_id, key)
 
         self.assertEqual(locked_object, unlocked_object)

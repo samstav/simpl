@@ -141,7 +141,6 @@ class Driver(DbBase):
         :returns (locked_object, key): a tuple of the locked_object and the
             key that should be used to unlock it.
         """
-        print "lock object"
         if with_secrets:
             locked_object, key = self._lock_find_object(klass, obj_id, key)
             return (self.merge_secrets(klass, obj_id, locked_object), key)
@@ -190,7 +189,6 @@ class Driver(DbBase):
         assert klass, "klass must not be None."
         assert obj_id, "obj_id must not be None"
 
-        print "in lock"
         lock_timestamp = time.time()
         if key:
             # The object has already been locked
