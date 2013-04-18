@@ -163,22 +163,6 @@ class TestWorkflow(unittest.TestCase):
         new = SpiffWorkflow.deserialize(serializer, workflow)
         self.assertIsInstance(new, SpiffWorkflow)
 
-
-class TestWorkflowFunctions(unittest.TestCase):
-    def test_new_safe_workflow_save(self):
-        #test that a new object can be saved with the lock
-        db.database()['workflows'].remove({'_id': "1"})
-        safe_workflow_save("1", {"id": "yolo"}, tenant_id=2412423)
-
-    def test_existing_workflow_save(self):
-        #test locking an already locked workflow
-        db.database()['workflows'].remove({'_id': "1"})
-        timestamp = time.time()
-        db.database()['workflows'].save({'_id': "1", "_lock": "1", "_lock_timestamp": timestamp})
-
-        with self.assertRaises(HTTPError):
-            safe_workflow_save("1", {"id": "yolo"}, tenant_id=2412423)
-
 if __name__ == '__main__':
     # Run tests. Handle our paramsters separately
     import sys

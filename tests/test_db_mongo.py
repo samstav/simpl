@@ -5,6 +5,7 @@ import unittest2 as unittest
 import uuid
 import json
 import time
+from bottle import HTTPError
 
 from pymongo import Connection, uri_parser
 from pymongo.errors import AutoReconnect, InvalidURI
@@ -13,6 +14,9 @@ from pymongo.errors import AutoReconnect, InvalidURI
 from checkmate.utils import init_console_logging
 from checkmate.db.common import (ObjectLockedError, DEFAULT_STALE_LOCK_TIMEOUT,
                                 InvalidKeyError)
+
+from checkmate.workflows import wait_for, Workflow, safe_workflow_save
+
 from copy import deepcopy
 init_console_logging()
 LOG = logging.getLogger(__name__)
@@ -417,6 +421,24 @@ class TestDatabase(unittest.TestCase):
         locked_obj2, key = self.driver.lock_workflow(obj_id, key=key)
         self.assertEqual(locked_obj1, locked_obj2)
         self.driver.database()[klass].remove({'_id': obj_id})
+
+    @unittest.skipIf(SKIP, REASON)
+    def test_new_safe_workflow_save(self):
+        from checkmate.workflows import db 
+        #test that a new object can be saved with the lock
+        db.database()['workflows'].remove({'_id': "1"})
+        safe_workflow_save("1", {"id": "yolo"}, tenant_id=2412423)
+
+    @unittest.skipIf(SKIP, REASON)
+    def test_existing_workflow_save(self):
+        from checkmate.workflows import db 
+        #test locking an already locked workflow
+        db.database()['workflows'].remove({'_id': "1"})
+        timestamp = time.time()
+        db.database()['workflows'].save({'_id': "1", "_lock": "1", "_lock_timestamp": timestamp})
+
+        with self.assertRaises(HTTPError):
+            safe_workflow_save("1", {"id": "yolo"}, tenant_id=2412423)
 
 if __name__ == '__main__':
     # Run tests. Handle our paramsters separately
