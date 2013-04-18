@@ -11,8 +11,16 @@ from checkmate.utils import init_console_logging
 from checkmate.middleware import TokenAuthMiddleware, RequestContext
 init_console_logging()
 # pylint: disable=E0611
-from bottle import get, post, request, response, abort, route, \
-        static_file, HTTPError
+from bottle import (
+    get,
+    post,
+    request,
+    response,
+    abort,
+    route,
+    static_file,
+    HTTPError,
+)
 from Crypto.Hash import MD5
 import webob
 import webob.dec
@@ -22,11 +30,15 @@ import rook
 
 LOG = logging.getLogger(__name__)
 
-
-from rook.db import get_driver
-from checkmate.utils import HANDLERS, RESOURCES, STATIC, write_body, \
-        read_body, support_only, \
-        get_time_string, import_class
+from checkmate.utils import (
+    HANDLERS, RESOURCES,
+    STATIC,
+    write_body,
+    read_body,
+    support_only,
+    get_time_string,
+    import_class,
+)
 
 __version_string__ = None
 
@@ -75,13 +87,15 @@ class BrowserMiddleware(object):
             """Without this, browsers keep getting a 404 and users perceive
             slow response """
             return static_file('favicon.ico',
-                    root=os.path.join(os.path.dirname(__file__), 'static'))
+                               root=os.path.join(os.path.dirname(__file__),
+                               'static'))
 
         @get('/apple-touch-icon.png')
         def apple_touch():
             """For iOS devices"""
             return static_file('apple-touch-icon.png',
-                    root=os.path.join(os.path.dirname(__file__), 'static'))
+                               root=os.path.join(os.path.dirname(__file__),
+                               'static'))
 
         @get('/rookversion')
         def get_rook_version():
@@ -96,15 +110,15 @@ class BrowserMiddleware(object):
         def images(path):
             """Expose image files"""
             root = os.path.join(os.path.dirname(__file__), 'static',
-                    'RackspaceCalculator', 'images')
+                                'RackspaceCalculator', 'images')
             return static_file(path, root=root)
 
         @get('/marketing/<path:path>')
         @support_only(['text/html', 'text/css', 'text/javascript'])
         def marketing(path):
             return static_file(path,
-                    root=os.path.join(os.path.dirname(__file__), 'static',
-                        'marketing'))
+                               root=os.path.join(os.path.dirname(__file__),
+                                                 'static', 'marketing'))
 
         @post('/authproxy')
         @route('/authproxy/<path:path>', method=['POST', 'GET'])
@@ -205,8 +219,8 @@ class BrowserMiddleware(object):
             source = request.get_header('X-Target-Url')
             if not source:
                 abort(406, "X-Target-Url header not supplied. The header is "
-                        "required and must point to a valid and permitted "
-                        "git endpoint.")
+                      "required and must point to a valid and permitted "
+                      "git endpoint.")
 
             url = urlparse(source)
             if url.scheme == 'https':
@@ -220,7 +234,7 @@ class BrowserMiddleware(object):
             http = http_class(host, port)
             headers = {
                 'Accept': request.get_header('Accept', ['application/json']),
-                }
+            }
             body = None
             try:
                 LOG.debug('Proxying github call to %s' % source)
@@ -230,7 +244,7 @@ class BrowserMiddleware(object):
             except gaierror, e:
                 LOG.error('HTTP connection exception: %s' % e)
                 raise HTTPError(500, output="Unable to communicate with "
-                        "github server: %s" % source)
+                                "github server: %s" % source)
             except Exception, e:
                 LOG.error("HTTP connection exception of type '%s': %s" % (
                           e.__class__.__name__, e))
@@ -291,9 +305,9 @@ class BrowserMiddleware(object):
                 if 'text/html' in request.get_header('Accept', ['text/html']):
                     return static(path=None)
                 else:
-                    if request.context.is_admin == True:
+                    if request.context.is_admin is True:
                         LOG.info("Administrator accessing feedback: %s" %
-                                request.context.username)
+                                 request.context.username)
                         results = self.feedback_db.get_feedback()
                         return write_body(results, request, response)
                     else:
@@ -318,9 +332,11 @@ class BrowserMiddleware(object):
             root = os.path.join(os.path.dirname(__file__), 'static')
             # Ensure correct mimetype (bottle does not handle css)
             mimetype = 'auto'
-            if path and path.endswith('.css'):  # bottle does not write this for css
+            # bottle does not write this for css
+            if path and path.endswith('.css'):
                 mimetype = 'text/css'
-            return static_file(path or '/index.html', root=root, mimetype=mimetype)
+            return static_file(path or '/index.html', root=root,
+                               mimetype=mimetype)
 
     def __call__(self, e, h):
         """
@@ -389,7 +405,7 @@ class RackspaceSSOAuthMiddleware(object):
             self.service_token = result['access']['token']['id']
         except:
             LOG.error("Unable to authenticate to Global Auth. Endpoint '%s' "
-                      "will be disabled" % endpoint.get('kwargs', {}).\
+                      "will be disabled" % endpoint.get('kwargs', {}).
                       get('realm'))
 
     def __call__(self, environ, start_response):
