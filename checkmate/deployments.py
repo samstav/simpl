@@ -539,23 +539,23 @@ def plan(deployment, context):
 def deployment_operation(dep_id):
     """Update the status of the operation according to the task states"""
     LOG.debug("Running deployment_operation...")
-    import pdb; pdb.set_trace()
-    workflow = DB.get_workflow(dep_id)
+    operation = {'foo': "bar"}
+    workflow = DB.get_workflow("0de97ea155814501a84e7d7d5137ae55")
     if not workflow:
         return
+    tasks = workflow['wf_spec']['task_specs']
     deployment = DB.get_deployment(dep_id)
-    operation = {'foo': "bar"}
-    def tasks():
-        try:
-            return workflow.task_tree.children[:]
-        except (NameError, AttributeError):
-            return False
-    if tasks():
-        for task in tasks():
-            LOG.debug("task: %s" % task)
-            LOG.debug("task.name: %s" % task.name)
-            LOG.debug("task.children: %s" % task.children)
-            LOG.debug("task.task_spec.get_property('estimated_duration'): %s" % task.task_spec.get_property('estimated_duration'))
+    estimated_duration = 0
+    complete = 0
+    for task_name in tasks:
+        task = tasks[task_name]
+        estimated_duration += task['properties']['estimated_duration']
+        LOG.debug("task: %s" % task)
+        LOG.debug("task.name: %s" % task.name)
+        LOG.debug("task.children: %s" % task.children)
+        LOG.debug("task.task_spec.get_property('estimated_duration'): %s" % task.task_spec.get_property('estimated_duration'))
+    operation['tasks'] = len(tasks)
+    operation['estimated-duration'] = estimated_duration
     return operation
 
 
