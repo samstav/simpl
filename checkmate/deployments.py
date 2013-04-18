@@ -530,38 +530,44 @@ def plan(deployment, context):
 
     # Mark deployment as planned and return it (nothing has been saved so far)
     deployment['status'] = 'PLANNED'
+    update_deployment_status(deployment['id'], 'PLANNED')
     LOG.info("Deployment '%s' planning complete and status changed to %s" %
             (deployment['id'], deployment['status']))
     return deployment
 
 
-@task
-def update_deployment_status(dep_id, new_status):
-    """ Update the status of the specified deployment """
-    if new_status:
-        deployment = DB.get_deployment(dep_id)
-        if deployment:
-            deployment['status'] = new_status
-            DB.save_deployment(dep_id, deployment)
-
-
-def update_deployment_operation(dep_id):
+def deployment_operation(dep_id):
     """Update the status of the operation according to the task states"""
-    LOG.debug("Running update_deployment_operation...")
-    deployment = DB.get_deployment(dep_id)
+    LOG.debug("Running deployment_operation...")
+    import pdb; pdb.set_trace()
     workflow = DB.get_workflow(dep_id)
-    #import pdb; pdb.set_trace()
-    if workflow:
-        serializer = DictionarySerializer()
-        d_wf = Workflow.deserialize(serializer, workflow)
-
-        root = workflow.task_tree
-        tasks = root.children[:]
-        for task in tasks:
+    if not workflow:
+        return
+    deployment = DB.get_deployment(dep_id)
+    operation = {'foo': "bar"}
+    def tasks():
+        try:
+            return workflow.task_tree.children[:]
+        except (NameError, AttributeError):
+            return False
+    if tasks():
+        for task in tasks():
             LOG.debug("task: %s" % task)
             LOG.debug("task.name: %s" % task.name)
             LOG.debug("task.children: %s" % task.children)
             LOG.debug("task.task_spec.get_property('estimated_duration'): %s" % task.task_spec.get_property('estimated_duration'))
+    return operation
+
+
+@task
+def update_deployment_status(dep_id, new_status):
+    """ Update the status of the specified deployment """
+    deployment = DB.get_deployment(dep_id)
+    operation = deployment_operation(dep_id)
+    if deployment:
+        deployment['status'] = new_status
+        if operation:
+            deployment['operation'] = operation
         DB.save_deployment(dep_id, deployment)
 
 
