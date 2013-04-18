@@ -63,11 +63,16 @@ def safe_workflow_save(obj_id, body, secrets=None, tenant_id=None):
     """
     Locks, saves, and unlocks a workflow.
     """
-
-    _, key = db.lock_workflow(obj_id)
-    results = db.save_workflow(obj_id, body, secrets=secrets,
-            tenant_id=tenant_id)
-    db.unlock_workflow(obj_id, key)
+    results = None
+    try:
+        _, key = db.lock_workflow(obj_id)
+        results = db.save_workflow(obj_id, body, secrets=secrets,
+                                tenant_id=tenant_id)
+        db.unlock_workflow(obj_id, key)
+    except ValueError:
+        #the object has never been saved
+         results = db.save_workflow(obj_id, body, secrets=secrets,
+                                tenant_id=tenant_id)
     return results
 
 @post('/workflows')

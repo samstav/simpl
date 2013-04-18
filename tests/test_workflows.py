@@ -1,6 +1,8 @@
 #!/usr/bin/env python
 import logging
 import unittest2 as unittest
+import os
+import uuid
 
 # Init logging before we load the database, 3rd party, and 'noisy' modules
 from checkmate.utils import init_console_logging
@@ -11,10 +13,37 @@ from SpiffWorkflow import Workflow as SpiffWorkflow
 from SpiffWorkflow.storage import DictionarySerializer
 from SpiffWorkflow.specs import WorkflowSpec, Simple, Merge, Join
 
-from checkmate.workflows import wait_for, Workflow
+from checkmate.workflows import wait_for, Workflow, safe_workflow_save
 
+from checkmate import db
+
+SKIP = False
+REASON = ""
+try:
+    from checkmate.db import mongodb
+except AutoReconnect:
+    LOG.warn("Could not connect to mongodb. Skipping mongodb tests")
+    SKIP = True
+    REASON = "Could not connect to mongodb"
+except InvalidURI:
+    LOG.warn("Not configured for mongodb. Skipping mongodb tests")
+    SKIP = True
+    REASON = "Configured to connect to non-mongo URI"
+from checkmate.utils import extract_sensitive_data
 
 class TestWorkflowTools(unittest.TestCase):
+    def setUp(self):
+        if os.environ.get('CHECKMATE_CONNECTION_STRING') is not None:
+            if 'sqlite' in os.environ.get('CHECKMATE_CONNECTION_STRING'):
+                #If our test suite is using sqlite, we need to set this particular process (test) to use mongo
+                os.environ['CHECKMATE_CONNECTION_STRING'] = 'mongodb://localhost'
+        self.collection_name = 'checkmate_test_%s' % uuid.uuid4().hex
+        self.driver = db.get_driver('checkmate.db.mongodb.Driver', True)
+        self.driver.connection_string = 'mongodb://checkmate:%s@mongo-n01.dev.chkmate.rackspace.net:27017/checkmate' % ('c%40m3yt1ttttt')
+        #self.connection_string = 'localhost'
+        self.driver._connection = self.driver._database = None  # reset driver
+        self.driver.db_name = 'checkmate'
+
     def test_simple_wait_for(self):
         """Test that adding a wait_for task works"""
         wf_spec = WorkflowSpec()
@@ -136,6 +165,17 @@ class TestWorkflowTools(unittest.TestCase):
 
         wait_for(wf_spec, A, [C])
         self.assertListEqual(A.inputs, [M])
+
+    def test_new_safe_workflow_save(self):
+        klass = 'workflows'
+        obj_id = 1
+        self.driver.database()[klass].remove({'_id': obj_id})
+        lock = "test_lock"
+        stored = {"_id": obj_id, "id": obj_id, "tenantId": "T1000", 
+            "test": obj_id}
+  
+        results = safe_workflow_save(obj_id, stored)
+        self.assertEqual(stored, results)
 
 
 class TestWorkflow(unittest.TestCase):
