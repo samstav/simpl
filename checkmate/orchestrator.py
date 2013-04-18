@@ -62,7 +62,8 @@ def run_workflow(w_id, timeout=900, wait=1, counter=1, key=None):
     :param id: the workflow id
     :param timeout: the timeout in seconds. Unless we complete before then
     :param wait: how long to wait between runs. Grows without activity
-    :param key: the key to unlock a locked workflow. Outside meth
+    :param key: the key to unlock a locked workflow. Only should be passed in
+        if the workfow has already been locked.
     :returns: True if workflow is complete
     """
 
@@ -70,11 +71,8 @@ def run_workflow(w_id, timeout=900, wait=1, counter=1, key=None):
     # Get the workflow
     serializer = DictionarySerializer()
 
-    workflow = None
-    if key:
-        workflow = DB.get_workflow(w_id, with_secrets=True)
-    else:
-        workflow, key = DB.lock_workflow(w_id, with_secrets=True)
+    # Lock the workflow
+    workflow, key = DB.lock_workflow(w_id, with_secrets=True, key=key)
 
     d_wf = Workflow.deserialize(serializer, workflow)
     LOG.debug("Deserialized workflow %s" % w_id,
@@ -152,6 +150,8 @@ def run_workflow(w_id, timeout=900, wait=1, counter=1, key=None):
                                                                  timeout,
                                                                  wait,
                                                                  counter))
+        # If we have to retry the run, pass in the key so that 
+        # we will not try to re-lock the workflow.
         retry_kwargs = {'timeout': timeout, 'wait': wait,
                         'counter': counter + 1, 'key': key}
         return run_workflow.retry([w_id], kwargs=retry_kwargs, countdown=wait,

@@ -5,7 +5,7 @@ import time
 import uuid
 
 from checkmate.classes import ExtensibleDict
-from checkmate.db.common import DbBase, ObjectLockedError
+from checkmate.db.common import DbBase, ObjectLockedError, InvalidKeyError
 from checkmate.exceptions import CheckmateDatabaseConnectionError
 from checkmate.utils import merge_dictionary
 from SpiffWorkflow.util import merge_dictionary as collate
@@ -113,24 +113,38 @@ class Driver(DbBase):
     def save_workflow(self, id, body, secrets=None, tenant_id=None):
         return self.save_object('workflows', id, body, secrets, tenant_id)
 
-    def lock_workflow(self, obj_id, with_secrets=None):
+    def lock_workflow(self, obj_id, with_secrets=None, key=None):
+        """ 
+        :param obj_id: the object's _id.
+        :param with_secrets: true if secrets should be merged into the results.
+        :param key: if the object has already been locked, the key used must be
+            passed in
+        :returns (locked_object, key): a tuple of the locked_object and the
+            key that should be used to unlock it.
+        """
         return self.lock_object('workflows', obj_id, with_secrets)
 
     def unlock_workflow(obj_id, key):
+        """
+        :param obj_id: the object's _id.
+        :param key: the key used to lock the object (see lock_object()).
+        """
         return self.unlocked_object('workflows', obj_id, key)
 
-    def lock_object(self, klass, obj_id, with_secrets=None):
+    def lock_object(self, klass, obj_id, with_secrets=None, key=None):
         """
         :param klass: the class of the object to unlock.
         :param obj_id: the object's _id.
         :param with_secrets: true if secrets should be merged into the results.
-        :returns (locked_object, key): a tupal of the locked_object and the
+        :param key: if the object has already been locked, the key used must be
+            passed in
+        :returns (locked_object, key): a tuple of the locked_object and the
             key that should be used to unlock it.
         """
         if with_secrets:
-            locked_object, key = self._lock_find_object(klass, obj_id)
+            locked_object, key = self._lock_find_object(klass, obj_id, key)
             return (self.merge_secrets(klass, obj_id, locked_object), key)
-        return self._lock_find_object(klass, obj_id)
+        return self._lock_find_object(klass, obj_id, key)
 
 
     def unlock_object(self, klass, obj_id, key):
@@ -160,17 +174,33 @@ class Driver(DbBase):
                                     "does not exist." % (obj_id))
 
 
-    def _lock_find_object(self, klass, obj_id):
+    def _lock_find_object(self, klass, obj_id, key=None):
         """
         Finds, attempts to lock, and returns an object by id.
 
         :param klass: the class of the object to unlock.
         :param obj_id: the object's _id.
+        :param key: if the object has already been locked, the key used must be
+            passed in
         :raises ValueError: if the obj_id is of a non-existent object
-        :returns (locked_object, key): a tupal of the locked_object and the
+        :returns (locked_object, key): a tuple of the locked_object and the
             key that should be used to unlock it.
         """
 
+        if key:
+            # The object has already been locked
+            locked_object = self.database()[klass].find_one(
+                                            query={'_id': obj_id, _lock: key},
+                                            fields=self._object_projection
+                                        )
+            if locked_object:
+                # The passed in key matched
+                return (locked_object, key) 
+            else:
+                raise InvalidKeyError("The key:%s could not unlock: %s(%s)" %
+                                        key, klass, obj_id)
+
+        # A key was not passed in
         key = str(uuid.uuid4())
         lock_timestamp = time.time()
         lock_update = {
@@ -186,42 +216,43 @@ class Driver(DbBase):
                                             fields=self._object_projection
                                         )
         if(locked_object):
+            # We were able to lock the object
             return (locked_object, key)
 
         else:
-            #could not get the lock
+            # Could not get the lock
             object_exists = self.database()[klass].find_one({'_id': obj_id})
             if(object_exists):
-                #object exists but we were not able to get the lock
+                # Object exists but we were not able to get the lock
                 if '_lock' in object_exists:
-                    #the lock is stale if it is greater than two hours old
+                    # The lock is stale if it is greater than two hours old
                     if ((lock_timestamp - object_exists['_lock_timestamp']) 
                         >= 7200):
-                        #key is stale, force the lock
+                        # Key is stale, force the lock
                         locked_object = self.database()[klass].find_and_modify(
                                                 query={'_id': obj_id}, 
                                                 update=lock_update,
                                                 fields=self._object_projection
                                             )
                         return (locked_object, key)
-                    #lock is not stale
                     else:
+                        # Lock is not stale
                         raise ObjectLockedError("%s(%s) was already locked!" % (
                                                 klass, obj_id)) 
 
-                #object has no _lock field
                 else:
+                    # Object has no _lock field
                     locked_object = self.database()[klass].find_and_modify(
                                                 query={'_id': obj_id}, 
                                                 update=lock_update,
                                                 fields=self._object_projection
                                             ) 
-                    #delete instead of projection so that we can 
-                    #use existing save_object
+                    # Delete instead of projection so that we can 
+                    # use existing save_object
                     return (locked_object, key)
 
-            #new object
             else:
+                # New object
                 raise ValueError("Cannot get the object:%s that has"
                                 " never been saved" % obj_id)
 

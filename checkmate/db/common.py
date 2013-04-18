@@ -92,3 +92,6 @@ class DatabaseTimeoutException(Exception):
 
 class ObjectLockedError(Exception):
     pass
+
+class InvalidKeyError(Exception):
+    pass
