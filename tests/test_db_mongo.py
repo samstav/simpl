@@ -416,6 +416,7 @@ class TestDatabase(unittest.TestCase):
         locked_obj1, key = self.driver.lock_workflow(obj_id)
         locked_obj2, key = self.driver.lock_workflow(obj_id, key=key)
         self.assertEqual(locked_obj1, locked_obj2)
+        self.driver.database()[klass].remove({'_id': obj_id})
 
 if __name__ == '__main__':
     # Run tests. Handle our paramsters separately
