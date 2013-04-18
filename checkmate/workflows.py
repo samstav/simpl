@@ -22,7 +22,8 @@ from SpiffWorkflow.storage import DictionarySerializer
 
 from checkmate.common import schema
 from checkmate.classes import ExtensibleDict
-from checkmate.db import get_driver, any_id_problems, InvalidKeyError
+from checkmate.db import (get_driver, any_id_problems, InvalidKeyError, 
+                            ObjectLockedError)
 from checkmate.exceptions import CheckmateException, \
         CheckmateValidationException
 from checkmate.utils import write_body, read_body, extract_sensitive_data,\
@@ -62,6 +63,7 @@ def get_workflows(tenant_id=None):
 def safe_workflow_save(obj_id, body, secrets=None, tenant_id=None):
     """
     Locks, saves, and unlocks a workflow.
+    TODO: should this be moved to the db layer?
     """
     results = None
     try:
@@ -69,10 +71,14 @@ def safe_workflow_save(obj_id, body, secrets=None, tenant_id=None):
         results = db.save_workflow(obj_id, body, secrets=secrets,
                                 tenant_id=tenant_id)
         db.unlock_workflow(obj_id, key)
+
     except ValueError:
         #the object has never been saved
-         results = db.save_workflow(obj_id, body, secrets=secrets,
-                                tenant_id=tenant_id)
+        results = db.save_workflow(obj_id, body, secrets=secrets,
+                                    tenant_id=tenant_id)
+    except ObjectLockedError:
+        abort(404, "The workflow is already locked, cannot obtain lock.")
+
     return results
 
 @post('/workflows')

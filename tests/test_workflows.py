@@ -3,6 +3,8 @@ import logging
 import unittest2 as unittest
 import os
 import uuid
+import time
+from bottle import HTTPError
 
 # Init logging before we load the database, 3rd party, and 'noisy' modules
 from checkmate.utils import init_console_logging
@@ -13,8 +15,8 @@ from SpiffWorkflow import Workflow as SpiffWorkflow
 from SpiffWorkflow.storage import DictionarySerializer
 from SpiffWorkflow.specs import WorkflowSpec, Simple, Merge, Join
 
-from checkmate.workflows import wait_for, Workflow
-
+from checkmate.workflows import wait_for, Workflow, safe_workflow_save, db
+from checkmate.db import ObjectLockedError
 class TestWorkflowTools(unittest.TestCase):
     def test_simple_wait_for(self):
         """Test that adding a wait_for task works"""
@@ -161,6 +163,21 @@ class TestWorkflow(unittest.TestCase):
         new = SpiffWorkflow.deserialize(serializer, workflow)
         self.assertIsInstance(new, SpiffWorkflow)
 
+
+class TestWorkflowFunctions(unittest.TestCase):
+    def test_new_safe_workflow_save(self):
+        #test that a new object can be saved with the lock
+        db.database()['workflows'].remove({'_id': "1"})
+        safe_workflow_save("1", {"id": "yolo"}, tenant_id=2412423)
+
+    def test_existing_workflow_save(self):
+        #test locking an already locked workflow
+        db.database()['workflows'].remove({'_id': "1"})
+        timestamp = time.time()
+        db.database()['workflows'].save({'_id': "1", "_lock": "1", "_lock_timestamp": timestamp})
+
+        with self.assertRaises(HTTPError):
+            safe_workflow_save("1", {"id": "yolo"}, tenant_id=2412423)
 
 if __name__ == '__main__':
     # Run tests. Handle our paramsters separately
