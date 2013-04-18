@@ -324,7 +324,8 @@ def _create_kitchen(dep_id, service_name, path, secret_key=None, source_repo=Non
         LOG.debug("Created kitchen directory: %s" % kitchen_path)
     else:
         LOG.debug("Kitchen directory exists: %s" % kitchen_path)
-    _copy_kitchen_blueprint(kitchen_path, source_repo)
+    if source_repo:
+        _copy_kitchen_blueprint(kitchen_path, source_repo)
 
     nodes_path = os.path.join(kitchen_path, 'nodes')
     if os.path.exists(nodes_path):

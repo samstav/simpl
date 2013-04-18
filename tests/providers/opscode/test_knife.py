@@ -1,6 +1,5 @@
 """Tests for Knife commands"""
 #!/usr/bin/env python
-import __builtin__
 import json
 import logging
 import os
@@ -19,34 +18,45 @@ from checkmate.exceptions import CheckmateException
 from checkmate.providers.opscode import knife
 
 
+TEST_PATH = '/tmp/checkmate/test'
+
+
 class TestKnife(unittest.TestCase):
 
     def setUp(self):
         self.mox = mox.Mox()
-
-        local_path = '/tmp/checkmate/test'
-        os.environ['CHECKMATE_CHEF_LOCAL_PATH'] = local_path
-        if not os.path.exists(local_path):
-            shutil.os.makedirs(local_path)
-            LOG.info("Created '%s'" % local_path)
+        self.orignal_dir = os.getcwd()  # our knife calls will change it
+        self.deploymentId = uuid.uuid4().hex
+        os.environ['CHECKMATE_CHEF_LOCAL_PATH'] = TEST_PATH
+        if not os.path.exists(TEST_PATH):
+            shutil.os.makedirs(TEST_PATH)
+            LOG.info("Created '%s'" % TEST_PATH)
 
         # Fake a call to create_environment
         url = 'https://example.com/checkmate/app.git'
         cache_path = knife._get_blueprints_cache_path(url)
-        kitchen_path = os.path.join(local_path, 'test_env', 'kitchen')
+        environment_path = os.path.join(TEST_PATH, self.deploymentId)
+        kitchen_path = os.path.join(environment_path, 'kitchen')
+
+        if not os.path.exists(kitchen_path):
+            os.makedirs(kitchen_path)
+            knife._create_kitchen(self.deploymentId, 'kitchen', environment_path)
+            LOG.info("Created kitchen '%s'" % kitchen_path)
+
         databag_path = os.path.join(kitchen_path, "data_bags")
         if not os.path.exists(databag_path):
-            os.makedirs(os.path.join(databag_path))
-            with open(os.path.join(kitchen_path, "Cheffile"), 'w') as f:
-                f.write(CHEFFILE)
-            with open(os.path.join(kitchen_path, "Berksfile"), 'w') as f:
-                f.write(BERKSFILE)
-            knife._write_knife_config_file(kitchen_path)
+            os.makedirs(databag_path)
+        with open(os.path.join(kitchen_path, "Cheffile"), 'w') as f:
+            f.write(CHEFFILE)
+        with open(os.path.join(kitchen_path, "Berksfile"), 'w') as f:
+            f.write(BERKSFILE)
         if not os.path.exists(cache_path):
             os.makedirs(os.path.join(cache_path, ".git"))
 
     def tearDown(self):
         self.mox.UnsetStubs()
+        os.chdir(self.orignal_dir)  # restore what knife may have changed
+        shutil.rmtree(os.path.join(TEST_PATH, self.deploymentId))
 
     def test_databag_create(self):
         """Test databag item creation (with checkmate filling in ID)"""
@@ -65,11 +75,12 @@ class TestKnife(unittest.TestCase):
             'hosted_on': 'rackspace'
         }
         bag = uuid.uuid4().hex
-        knife.write_databag('test_env', bag, 'test', original, resource)
+        knife.write_databag(self.deploymentId, bag, 'test', original, resource)
         params = ['knife', 'solo', 'data', 'bag', 'show', bag, 'test', '-F',
                   'json']
         stored = knife._run_kitchen_command("dep_id", "/tmp/checkmate/test/"
-                                            "test_env/kitchen/", params)
+                                            "%s/kitchen/" % self.deploymentId,
+                                            params)
         self.assertDictEqual(json.loads(stored), original)
 
     def test_databag_merge(self):
@@ -106,13 +117,14 @@ class TestKnife(unittest.TestCase):
             'index': 1234,
             'hosted_on': "rackspace"
         }
-        knife.write_databag('test_env', bag, 'test', original, resource)
-        knife.write_databag('test_env', bag, 'test', merge, resource,
+        knife.write_databag(self.deploymentId, bag, 'test', original, resource)
+        knife.write_databag(self.deploymentId, bag, 'test', merge, resource,
                             merge=True)
         params = ['knife', 'solo', 'data', 'bag', 'show', bag, 'test', '-F',
                   'json']
         stored = knife._run_kitchen_command('test', "/tmp/checkmate/test/"
-                                            "test_env/kitchen/", params)
+                                            "%s/kitchen/" % self.deploymentId,
+                                            params)
         self.assertDictEqual(json.loads(stored),
                              json.loads(json.dumps(expected)))
 
@@ -124,7 +136,7 @@ class TestKnife(unittest.TestCase):
         resource = {'index': 1234}
         bag = uuid.uuid4().hex
         self.assertRaises(CheckmateException, knife.write_databag,
-                          'test_env', bag, 'test', original, resource)
+                          self.deploymentId, bag, 'test', original, resource)
 
     def test_create_environment(self):
         """Test create_environment"""

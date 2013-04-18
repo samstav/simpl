@@ -78,6 +78,8 @@ class TestNovaCompute(test.ProviderTester):
                 'id': server.id,
                 'password': server.adminPass,
                 'region': "NORTH",
+                'flavor': flavor.id,
+                'image': image.id
             }
         }
 
