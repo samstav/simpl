@@ -311,7 +311,8 @@ class Provider(RackspaceComputeProviderBase):
             results['lists']['regions'] = regions
 
         if type_filter is None or type_filter == 'compute':
-            results['compute'] = copy.copy(CATALOG_TEMPLATE['compute'])
+            #TODO: add regression tests - copy.copy was leakin g across tenants
+            results['compute'] = copy.deepcopy(CATALOG_TEMPLATE['compute'])
             linux = results['compute']['linux_instance']
             windows = results['compute']['windows_instance']
             if not images:
