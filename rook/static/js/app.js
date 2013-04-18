@@ -368,7 +368,7 @@ function AppController($scope, $http, $location, $resource, auth) {
   var rook = $resource((checkmate_server_base || '') + '/rookversion');
   rook.get(function(rookdata, getResponseHeaders){
     $scope.rook_version = rookdata.version;
-    $scope.$root.canonical_version = rookdata.version.split('-')[0];
+    $scope.$root.canonical_version = 'v' + rookdata.version.split('-')[0];
     if (rookdata.version.indexOf('dev') == -1)
       $scope.$root.blueprint_ref = $scope.$root.canonical_version;
     console.log("Got rook version: " + $scope.rook_version);
@@ -1672,8 +1672,8 @@ function DeploymentManagedCloudController($scope, $location, $routeParams, $reso
   });
 
   //Load the latest supported blueprints (tagged) from github
-  $scope.loadRemoteBlueprint('https://github.rackspace.com/Blueprints/wordpress#' + $scope.rook_version.split('-')[0]);
-  $scope.loadRemoteBlueprint('https://github.rackspace.com/Blueprints/wordpress-clouddb#' + $scope.rook_version.split('-')[0]);
+  $scope.loadRemoteBlueprint('https://github.rackspace.com/Blueprints/wordpress#v' + $scope.rook_version.split('-')[0]);
+  $scope.loadRemoteBlueprint('https://github.rackspace.com/Blueprints/wordpress-clouddb#v' + $scope.rook_version.split('-')[0]);
 
   //Load the latest master from github
   $scope.loadRemoteBlueprint('https://github.rackspace.com/Blueprints/wordpress');
