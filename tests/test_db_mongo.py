@@ -400,6 +400,23 @@ class TestDatabase(unittest.TestCase):
         with self.assertRaises(InvalidKeyError):
             _, key = self.driver.lock_workflow(obj_id, key="bad_key")
 
+    @unittest.skipIf(SKIP, REASON)
+    def test_valid_key_lock(self):
+        """
+        Test that we can lock an object with a valid key.
+        """
+        klass = 'workflows'
+        obj_id = 1
+        self.driver.database()[klass].remove({'_id': obj_id})
+        lock = "test_lock"
+        stored = {"_id": obj_id, "id": obj_id, "tenantId": "T1000", 
+            "test": obj_id}
+        self.driver.database()[klass].save(stored)
+
+        locked_obj1, key = self.driver.lock_workflow(obj_id)
+        locked_obj2, key = self.driver.lock_workflow(obj_id, key=key)
+        self.assertEqual(locked_obj1, locked_obj2)
+
 if __name__ == '__main__':
     # Run tests. Handle our paramsters separately
     import sys
