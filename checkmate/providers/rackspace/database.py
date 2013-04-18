@@ -432,6 +432,7 @@ def create_instance(context, instance_name, flavor, size, databases, region,
             'name': instance.name,
             'status': 'BUILD',
             'region': region,
+            'flavor': flavor,
             'interfaces': {
                 'mysql': {
                     'host': instance.hostname
@@ -544,6 +545,7 @@ def create_database(context, name, region, character_set=None, collate=None,
         }
         results[instance_key]['host_instance'] = instance_id
         results[instance_key]['host_region'] = instance['region']
+        results[instance_key]['flavor'] = flavor
         return results
 
     instance = api.get_instance(instance_id)
@@ -557,6 +559,7 @@ def create_database(context, name, region, character_set=None, collate=None,
                 'id': name,
                 'host_instance': instance_id,
                 'host_region': region,
+                'flavor': instance.flavor['id'],
                 'status': "BUILD",
                 'interfaces': {
                     'mysql': {
