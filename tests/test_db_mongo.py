@@ -11,7 +11,8 @@ from pymongo.errors import AutoReconnect, InvalidURI
 
 # Init logging before we load the database, 3rd party, and 'noisy' modules
 from checkmate.utils import init_console_logging
-from checkmate.db.common import ObjectLockedError, DEFAULT_STALE_LOCK_TIMEOUT
+from checkmate.db.common import (ObjectLockedError, DEFAULT_STALE_LOCK_TIMEOUT,
+                                InvalidKeyError)
 from copy import deepcopy
 init_console_logging()
 LOG = logging.getLogger(__name__)
@@ -369,6 +370,35 @@ class TestDatabase(unittest.TestCase):
         locked_obj, key = self.driver.lock_workflow(obj_id)
         self.driver.unlock_workflow(obj_id, key)
 
+    @unittest.skipIf(SKIP, REASON)
+    def test_invalid_key_unlock(self):
+        klass = 'workflows'
+        obj_id = 1
+        self.driver.database()[klass].remove({'_id': obj_id})
+        lock = "test_lock"
+        stored = {"_id": obj_id, "id": obj_id, "tenantId": "T1000", 
+            "test": obj_id}
+        self.driver.database()[klass].save(stored)
+
+        _, key = self.driver.lock_workflow(obj_id)
+
+        with self.assertRaises(InvalidKeyError):
+            self.driver.unlock_workflow(obj_id, "bad_key")
+
+    @unittest.skipIf(SKIP, REASON)
+    def test_invalid_key_lock(self):
+        klass = 'workflows'
+        obj_id = 1
+        self.driver.database()[klass].remove({'_id': obj_id})
+        lock = "test_lock"
+        stored = {"_id": obj_id, "id": obj_id, "tenantId": "T1000", 
+            "test": obj_id}
+        self.driver.database()[klass].save(stored)
+
+        _, key = self.driver.lock_workflow(obj_id)
+
+        with self.assertRaises(InvalidKeyError):
+            _, key = self.driver.lock_workflow(obj_id, key="bad_key")
 
 if __name__ == '__main__':
     # Run tests. Handle our paramsters separately

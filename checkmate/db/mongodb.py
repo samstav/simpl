@@ -122,14 +122,15 @@ class Driver(DbBase):
         :returns (locked_object, key): a tuple of the locked_object and the
             key that should be used to unlock it.
         """
-        return self.lock_object('workflows', obj_id, with_secrets, key)
+        return self.lock_object('workflows', obj_id, with_secrets=with_secrets, 
+                                key=key)
 
     def unlock_workflow(self, obj_id, key):
         """
         :param obj_id: the object's _id.
         :param key: the key used to lock the object (see lock_object()).
         """
-        return self.unlock_object('workflows', obj_id, key)
+        return self.unlock_object('workflows', obj_id, key=key)
 
     def lock_object(self, klass, obj_id, with_secrets=None, key=None):
         """
@@ -142,9 +143,9 @@ class Driver(DbBase):
             key that should be used to unlock it.
         """
         if with_secrets:
-            locked_object, key = self._lock_find_object(klass, obj_id, key)
+            locked_object, key = self._lock_find_object(klass, obj_id, key=key)
             return (self.merge_secrets(klass, obj_id, locked_object), key)
-        return self._lock_find_object(klass, obj_id, key)
+        return self._lock_find_object(klass, obj_id, key=key)
 
 
     def unlock_object(self, klass, obj_id, key):
@@ -258,7 +259,6 @@ class Driver(DbBase):
                                                 klass, obj_id)) 
 
                 else:
-                    print "no locked"
                     # Object has no _lock field
                     locked_object = self.database()[klass].find_and_modify(
                                                 query={'_id': obj_id}, 
