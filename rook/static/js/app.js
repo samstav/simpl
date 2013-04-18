@@ -294,23 +294,27 @@ function AppController($scope, $http, $location, $resource, auth) {
     var apikey = $scope.bound_creds.apikey;
 
     //Handle auto_complete sync issues (1Pass, LastPass do not update scope)
-    var login_form = window.document.forms.loginForm;
+    try {
+      var login_form = window.document.forms.loginForm;
 
-    var realvalue = loginForm.username.value;
-    if (realvalue !== undefined && username != realvalue)
-      username = realvalue;
+      var realvalue = loginForm.username.value;
+      if (realvalue !== undefined && username != realvalue)
+        username = realvalue;
 
-    realvalue = loginForm.password.value;
-    if (realvalue !== undefined && password != realvalue)
-      password = realvalue;
+      realvalue = loginForm.password.value;
+      if (realvalue !== undefined && password != realvalue)
+        password = realvalue;
 
-    realvalue = loginForm.apikey.value;
-    if (realvalue !== undefined && apikey != realvalue);
-      apikey = realvalue;
+      realvalue = loginForm.apikey.value;
+      if (realvalue !== undefined && apikey != realvalue);
+        apikey = realvalue;
 
-    //!Pass puts the password in the apikey field too
-    if (password !== undefined && apikey !== undefined)
-      apikey = undefined;
+      //!Pass puts the password in the apikey field too. Assume it's password
+      if (password == apikey)
+        apikey = undefined;
+    } catch(err) {
+      console.log(err);
+    }
 
     var endpoint = $scope.selected_endpoint || auth.endpoints[0];
     return auth.authenticate(endpoint, username, apikey, password, null,
@@ -1303,6 +1307,13 @@ function WorkflowController($scope, $resource, $http, $routeParams, $location, $
       }
      });
   };
+
+  $scope.$on('$digest', function() {
+    var foldFunc = CodeMirror.newFoldFunction(CodeMirror.braceRangeFinder);
+    _.each($('.CodeMirror'), function(c) {
+      c.CodeMirror.on("gutterClick", foldFunc);
+    });
+  });
 }
 
 //Blueprint controllers
