@@ -424,18 +424,16 @@ class TestDatabase(unittest.TestCase):
 
     @unittest.skipIf(SKIP, REASON)
     def test_new_safe_workflow_save(self):
-        from checkmate.workflows import db 
         #test that a new object can be saved with the lock
-        db.database()['workflows'].remove({'_id': "1"})
+        self.driver.database()['workflows'].remove({'_id': "1"})
         safe_workflow_save("1", {"id": "yolo"}, tenant_id=2412423)
 
     @unittest.skipIf(SKIP, REASON)
     def test_existing_workflow_save(self):
-        from checkmate.workflows import db 
         #test locking an already locked workflow
-        db.database()['workflows'].remove({'_id': "1"})
+        self.driver.database()['workflows'].remove({'_id': "1"})
         timestamp = time.time()
-        db.database()['workflows'].save({'_id': "1", "_lock": "1", "_lock_timestamp": timestamp})
+        self.driver.database()['workflows'].save({'_id': "1", "_lock": "1", "_lock_timestamp": timestamp})
 
         with self.assertRaises(HTTPError):
             safe_workflow_save("1", {"id": "yolo"}, tenant_id=2412423)
