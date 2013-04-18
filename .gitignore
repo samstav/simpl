@@ -5,6 +5,7 @@ checkmate.egg-info/
 covhtml
 pep8.txt
 pylint.out
+flake8.out
 coverage.xml
 newrelic.ini
 nosetests.xml
