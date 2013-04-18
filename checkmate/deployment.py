@@ -2,6 +2,7 @@ import collections
 import copy
 import logging
 import os
+import types
 
 from checkmate import keys
 from checkmate.blueprints import Blueprint
@@ -787,6 +788,29 @@ class Deployment(ExtensibleDict):
             results[service_name] = component
         return results
 
+    def _constrained_to_one(self, service_name):
+        """Return true if a service is constrained to 1, false otherwise.
+
+        Example:
+
+        blueprint:
+          [...]
+          services:
+            [...]
+            master:
+              [...]
+              constraints:
+              - count: 1
+              [...]
+        """
+        blueprint_resource = self['blueprint']['services'][service_name]
+        if 'constraints' in blueprint_resource:
+            for constraint in blueprint_resource['constraints']:
+                if 'count' in constraint:
+                    if constraint['count'] == 1:
+                        return True
+        return False
+
     def create_resource_template(self, index, definition, service_name, domain,
                                  context):
         """Create a new resource dict to add to the deployment
@@ -798,12 +822,21 @@ class Deployment(ExtensibleDict):
 
         :returns: a validated dict of the resource ready to add to deployment
         """
-        name = "%s%02d.%s" % (service_name, index, domain)
 
         # Call provider to give us a resource template
         provider_key = definition['provider-key']
         provider = self.environment().get_provider(provider_key)
         component = provider.get_component(context, definition['id'])
+
+        # If resource is constrained to 1, don't append a number to the name
+        if service_name:
+            if self._constrained_to_one(service_name):
+                name = "%s.%s" % (service_name, domain)
+            else:
+                name = "%s%02d.%s" % (service_name, index, domain)
+        else:
+            name = "resource%02d.%s" % (index, domain)
+
         resource = provider.generate_template(self, component.get('is'),
                                               service_name, context, name=name)
         resource['component'] = definition['id']
