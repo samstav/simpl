@@ -544,7 +544,7 @@ def _task_status(task):
             return final_spiff['status']
 
 def deployment_operation(dep_id):
-    """Update the operation object in the deployment.
+    """Return the operation object for a given deployment.
 
     Example:
 
