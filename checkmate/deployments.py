@@ -530,7 +530,6 @@ def plan(deployment, context):
 
     # Mark deployment as planned and return it (nothing has been saved so far)
     deployment['status'] = 'PLANNED'
-    deployment['operation'] = deployment_operation(deployment['id'])
     LOG.info("Deployment '%s' planning complete and status changed to %s" %
             (deployment['id'], deployment['status']))
     return deployment
