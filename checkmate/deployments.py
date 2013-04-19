@@ -1,6 +1,7 @@
 import logging
 import uuid
 import time
+import copy
 
 from bottle import request, response, abort, get, post, delete, route
 from celery.task import task
@@ -191,26 +192,46 @@ def post_deployment(tenant_id=None):
     if tenant_id:
         response.add_header('Location', "/%s/deployments/%s" % (tenant_id,
                                                                 oid))
-        response.add_header('Link', '</%s/deployments/%s>; '
+        response.add_header('Link', '</%s/workflows/%s>; '
                             'rel="workflow"; title="Deploy"' % (tenant_id,
                                                                 oid))
     else:
         response.add_header('Location', "/deployments/%s" % oid)
-        response.add_header('Link', '</deployments/%s>; '
+        response.add_header('Link', '</workflows/%s>; '
                             'rel="workflow"; title="Deploy"' % oid)
 
+    # can't pass actual request
+    request_context = copy.deepcopy(request.context)
+    async_task = execute_plan(oid, request_context)
+    
+    response.status = 202
+
+    return write_body(deployment, request, response)    
+
+def execute_plan(depid, request_context):
+    if any_id_problems(depid):
+        abort(406, any_id_problems(depid))
+
+    deployment = DB.get_deployment(depid)
+    if not deployment:
+        abort(404, 'No deployment with id %s' % depid)
+
+    process_post_deployment.delay(deployment, request_context)
+
+@task
+def process_post_deployment(deployment, request_context):
+
+    deployment = Deployment(deployment)
+    
     #Assess work to be done & resources to be created
-    parsed_deployment = plan(deployment, request.context)
+    parsed_deployment = plan(deployment, request_context)
 
     # Create a 'new deployment' workflow
-    workflow = _deploy(parsed_deployment, request.context)
+    workflow = _deploy(parsed_deployment, request_context)
 
     #Trigger the workflow in the queuing service
-    async_task = execute(oid)
+    async_task = execute(deployment['id'])
     LOG.debug("Triggered workflow (task='%s')" % async_task)
-
-    response.status = 202  # Accepted (i.e. not done yet)
-    return write_body(parsed_deployment, request, response)
 
 
 @post('/deployments/+parse')
@@ -533,7 +554,6 @@ def plan(deployment, context):
     LOG.info("Deployment '%s' planning complete and status changed to %s" %
             (deployment['id'], deployment['status']))
     return deployment
-
 
 @task
 def update_deployment_status(dep_id, new_status):
