@@ -56,7 +56,7 @@ def _content_to_deployment(bottle_request, deployment_id=None, tenant_id=None):
         assert deployment['tenantId'] == tenant_id, ("tenantId must match "
                                                      "with current tenant ID")
     else:
-        assert tenant_id, "Tenant ID musft be specified in deployment "
+        assert tenant_id, "Tenant ID must be specified in deployment "
         deployment['tenantId'] = tenant_id
     return deployment
 
@@ -195,10 +195,15 @@ def post_deployment(tenant_id=None):
         response.add_header('Link', '</%s/workflows/%s>; '
                             'rel="workflow"; title="Deploy"' % (tenant_id,
                                                                 oid))
+        response.add_header('Link', '</%s/deployments/%s>; '
+                            'rel="deployment"; title="Deploy"' % (tenant_id,
+                                                                oid))
     else:
         response.add_header('Location', "/deployments/%s" % oid)
         response.add_header('Link', '</workflows/%s>; '
                             'rel="workflow"; title="Deploy"' % oid)
+        response.add_header('Link', '</deployments/%s>; '
+                            'rel="deployment"; title="Deploy"' % oid)
 
     # can't pass actual request
     request_context = copy.deepcopy(request.context)
