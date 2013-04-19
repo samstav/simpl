@@ -626,13 +626,11 @@ def deployment_operation(dep_id):
 @task
 def update_deployment_status(dep_id, new_status):
     """ Update the status of the specified deployment """
-    deployment = DB.get_deployment(dep_id)
-    operation = deployment_operation(dep_id)
-    if deployment:
-        deployment['status'] = new_status
-        if operation:
-            deployment['operation'] = operation
-        DB.save_deployment(dep_id, deployment)
+    if new_status:
+        deployment = DB.get_deployment(dep_id)
+        if deployment:
+            deployment['status'] = new_status
+            DB.save_deployment(dep_id, deployment)
 
 
 @task(default_retry_delay=2, max_retries=60)
@@ -721,9 +719,17 @@ def resource_postback(deployment_id, contents):
 
     The contents are a hash (dict) of all the above
     """
+    print "JASON Running resource_postback..."
 
     deployment = DB.get_deployment(deployment_id, with_secrets=True)
     deployment = Deployment(deployment)
+
+    operation = deployment_operation(deployment_id)
+    if operation:
+        deployment['operation'] = operation
+        print "JASON Found operation:", operation
+    else:
+        print "JASON Did not find operation"
 
     # Update deployment status
 
