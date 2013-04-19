@@ -198,6 +198,12 @@ class Driver(DbBase):
     def save_workflow(self, id, body, secrets=None, tenant_id=None):
         return self.save_object(Workflow, id, body, secrets, tenant_id)
 
+    def unlock_workflow(self, obj_id, key):
+        pass
+
+    def lock_workflow(self, obj_id):
+        pass
+
     # GENERIC
     def get_object(self, klass, id, with_secrets=None):
         results = Session.query(klass).filter_by(id=id)

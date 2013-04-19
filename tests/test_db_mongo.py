@@ -5,13 +5,18 @@ import unittest2 as unittest
 import uuid
 import json
 import time
+from bottle import HTTPError
 
 from pymongo import Connection, uri_parser
 from pymongo.errors import AutoReconnect, InvalidURI
 
 # Init logging before we load the database, 3rd party, and 'noisy' modules
 from checkmate.utils import init_console_logging
-from checkmate.db.common import DatabaseTimeoutException, DEFAULT_STALE_LOCK_TIMEOUT
+from checkmate.db.common import (ObjectLockedError, DEFAULT_STALE_LOCK_TIMEOUT,
+                                InvalidKeyError)
+
+from checkmate.workflows import wait_for, Workflow, safe_workflow_save
+
 from copy import deepcopy
 init_console_logging()
 LOG = logging.getLogger(__name__)
@@ -33,7 +38,7 @@ except InvalidURI:
 from checkmate.utils import extract_sensitive_data
 
 tester = { 'some': 'random',
-               'tenantId': 'T100',
+               'tenantId': 'T1000',
                'id' : 1 }
 
 class TestDatabase(unittest.TestCase):
@@ -299,6 +304,143 @@ class TestDatabase(unittest.TestCase):
             self.assertIn(i, results)
             self.assertNotIn('_id', results[i])
             self.assertEqual(results[i]['id'], i)
+
+    @unittest.skipIf(SKIP, REASON)
+    def test_lock_existing_object(self):
+        klass = 'workflows'
+        obj_id = 1
+        self.driver.database()[klass].remove({'_id': obj_id})
+        self.driver.save_object(klass, obj_id, {"id": obj_id, "test": obj_id}, tenant_id='T1000')
+
+        locked_object, key = self.driver.lock_object(klass, obj_id)
+        #is the returned object what we expected?
+        self.assertEqual(locked_object, {"id": obj_id, "tenantId": "T1000", "test": obj_id})
+        #was a key generated?
+        self.assertTrue(key)
+        stored_object = self.driver.database()[klass].find_one({"_id": obj_id})
+        #was the key stored correctly?
+        self.assertEqual(key, stored_object['_lock'])
+        #was a _lock_timestamp generated
+        self.assertTrue('_lock_timestamp' in stored_object)
+
+    @unittest.skipIf(SKIP, REASON)
+    def test_unlock_existing_object(self):
+        klass = 'workflows'
+        obj_id = 1
+        self.driver.database()[klass].remove({'_id': obj_id})
+        setup_obj = {"_lock": 0, "_id": obj_id, "tenantId": "T1000", "test": obj_id}
+        #setup unlocked workflow
+        self.driver.database()[klass].find_and_modify(
+                                        query={"_id": obj_id},
+                                        update=setup_obj,
+                                        fields={
+                                            '_id': 0,
+                                            '_lock': 0, 
+                                            '_lock_timestamp': 0
+                                        },
+                                        upsert=True
+                                    )
+
+        locked_object, key = self.driver.lock_object(klass, obj_id)
+        unlocked_object = self.driver.unlock_object(klass, obj_id, key)
+
+        self.assertEqual(locked_object, unlocked_object)
+
+    @unittest.skipIf(SKIP, REASON)
+    def test_lock_locked_object(self): 
+        klass = 'workflows'
+        obj_id = 1
+        self.driver.database()[klass].remove({'_id': obj_id})
+        stored = {"_id": obj_id, "id": obj_id, "tenantId": "T1000", "test": obj_id}
+        self.driver.database()[klass].save(stored)
+
+        locked_obj = self.driver.lock_object(klass, obj_id)
+
+        with self.assertRaises(ObjectLockedError):
+            self.driver.lock_object(klass, obj_id)
+
+    @unittest.skipIf(SKIP, REASON)
+    def test_lock_workflow_stale_lock(self):
+        klass = 'workflows'
+        obj_id = 1
+        self.driver.database()[klass].remove({'_id': obj_id})
+        lock = "test_lock"
+        lock_timestamp = time.time() - 31
+        stored = {"_id": obj_id, "id": obj_id, "tenantId": "T1000", 
+            "test": obj_id, "_lock": lock, "_lock_timestamp": lock_timestamp}
+        self.driver.database()[klass].save(stored)
+        # the lock is older than 30 seconds so we should be able to lock the
+        # object
+        locked_obj, key = self.driver.lock_workflow(obj_id)
+        self.driver.unlock_workflow(obj_id, key)
+
+    @unittest.skipIf(SKIP, REASON)
+    def test_invalid_key_unlock(self):
+        klass = 'workflows'
+        obj_id = 1
+        self.driver.database()[klass].remove({'_id': obj_id})
+        lock = "test_lock"
+        stored = {"_id": obj_id, "id": obj_id, "tenantId": "T1000", 
+            "test": obj_id}
+        self.driver.database()[klass].save(stored)
+
+        _, key = self.driver.lock_workflow(obj_id)
+
+        with self.assertRaises(InvalidKeyError):
+            self.driver.unlock_workflow(obj_id, "bad_key")
+
+    @unittest.skipIf(SKIP, REASON)
+    def test_invalid_key_lock(self):
+        klass = 'workflows'
+        obj_id = 1
+        self.driver.database()[klass].remove({'_id': obj_id})
+        lock = "test_lock"
+        stored = {"_id": obj_id, "id": obj_id, "tenantId": "T1000", 
+            "test": obj_id}
+        self.driver.database()[klass].save(stored)
+
+        _, key = self.driver.lock_workflow(obj_id)
+
+        with self.assertRaises(InvalidKeyError):
+            _, key = self.driver.lock_workflow(obj_id, key="bad_key")
+
+    @unittest.skipIf(SKIP, REASON)
+    def test_valid_key_lock(self):
+        """
+        Test that we can lock an object with a valid key.
+        """
+        klass = 'workflows'
+        obj_id = 1
+        self.driver.database()[klass].remove({'_id': obj_id})
+        lock = "test_lock"
+        stored = {"_id": obj_id, "id": obj_id, "tenantId": "T1000", 
+            "test": obj_id}
+        self.driver.database()[klass].save(stored)
+
+        locked_obj1, key = self.driver.lock_workflow(obj_id)
+        locked_obj2, key = self.driver.lock_workflow(obj_id, key=key)
+        self.assertEqual(locked_obj1, locked_obj2)
+        self.driver.database()[klass].remove({'_id': obj_id})
+
+    @unittest.skipIf(SKIP, REASON)
+    def test_new_safe_workflow_save(self):
+        import checkmate.workflows as workflows
+        workflows.db = self.driver
+        #test that a new object can be saved with the lock
+        self.driver.database()['workflows'].remove({'_id': "1"})
+        safe_workflow_save("1", {"id": "yolo"}, tenant_id=2412423)
+
+    @unittest.skipIf(SKIP, REASON)
+    def test_existing_workflow_save(self):
+        import checkmate.workflows as workflows
+        workflows.db = self.driver
+        #test locking an already locked workflow
+        self.driver.database()['workflows'].remove({'_id': "1"})
+        timestamp = time.time()
+        self.driver.database()['workflows'].save({'_id': "1", "_lock": "1", "_lock_timestamp": timestamp})
+
+        with self.assertRaises(HTTPError):
+            safe_workflow_save("1", {"id": "yolo"}, tenant_id=2412423)
 
 if __name__ == '__main__':
     # Run tests. Handle our paramsters separately
