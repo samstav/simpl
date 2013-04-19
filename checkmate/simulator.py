@@ -31,7 +31,7 @@ from SpiffWorkflow.specs import TransMerge
 from SpiffWorkflow.storage import DictionarySerializer
 
 from checkmate.db import any_id_problems
-from checkmate.deployments import plan, Deployment, deployment_operation
+from checkmate.deployments import plan, Deployment
 from checkmate.workflows import (get_SpiffWorkflow_status,
                                  create_workflow_deploy)
 from checkmate.utils import (write_body, read_body, with_tenant,
@@ -364,9 +364,6 @@ def process(tenant_id, complete=False):
 
     results = workflow.serialize(serializer)
     results['id'] = 'simulate'
-    LOG.debug("Calling debugger")
-    import pdb; pdb.set_trace()
-    deployment_operation(deployment)
     PACKAGE[tenant_id]['workflow'] = results
     return results
 
