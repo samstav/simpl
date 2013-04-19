@@ -18,7 +18,7 @@ import struct
 from subprocess import CalledProcessError, Popen, PIPE
 import sys
 import threading
-from time import gmtime, strftime
+from time import localtime, strftime
 import uuid
 
 from bottle import abort, request
@@ -520,7 +520,7 @@ def get_time_string():
 
     Changing this function will change all times that checkmate uses in
     blueprints, deployments, etc..."""
-    return strftime("%Y-%m-%d %H:%M:%S +0000", gmtime())
+    return strftime("%Y-%m-%d %H:%M:%S %Z", localtime())
 
 
 def isUUID(value):

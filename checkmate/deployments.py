@@ -530,8 +530,6 @@ def plan(deployment, context):
 
     # Mark deployment as planned and return it (nothing has been saved so far)
     deployment['status'] = 'PLANNED'
-    # Testing
-    deployment['operation'] = deployment_operation(deployment['id'])
     LOG.info("Deployment '%s' planning complete and status changed to %s" %
             (deployment['id'], deployment['status']))
     return deployment
@@ -581,7 +579,6 @@ def deployment_operation(dep_id):
         "link": "/v1/{tenant_id}/workflows/982h3f28937h4f23847"
     }
     """
-    dep_id = "346e03d67e604a13aa61cbf0c9339ae6"
     operation = {}
 
     raw_workflow = DB.get_workflow(dep_id)
@@ -609,15 +606,10 @@ def deployment_operation(dep_id):
     operation['estimated-duration'] = duration
 
     # Calculate the elapsed time
-    created = time.strptime(deployment['created'], "%Y-%m-%d %H:%M:%S +0000")
-    created_utc_epoch = time.mktime(created)
-    timezone = pytz.timezone('America/Chicago')
-    timezone_abbrev = datetime.datetime.now(timezone).strftime('%Z')
-    
-    created_local_epoch = created_utc_epoch - 18000
-    current_local_epoch = time.time()
-    elapsed = current_local_epoch - created_local_epoch
-    import pdb; pdb.set_trace()
+    created = time.strptime(deployment['created'], "%Y-%m-%d %H:%M:%S %Z")
+    created_epoch = time.mktime(created)
+    current_epoch = time.time()
+    elapsed = current_epoch - created_epoch
     operation['elapsed'] = "%d" % elapsed
 
     # Operation link
