@@ -531,19 +531,37 @@ def plan(deployment, context):
     # Mark deployment as planned and return it (nothing has been saved so far)
     deployment['status'] = 'PLANNED'
     # Testing
-    deployment['operation'] = deployment_operation(deployment['id'])
+    #deployment['operation'] = deployment_operation(deployment['id'])
     LOG.info("Deployment '%s' planning complete and status changed to %s" %
             (deployment['id'], deployment['status']))
     return deployment
 
 
-def _task_status(task):
-    """Return the status of a task."""
-    if 'args' in task:
-        status_idx = len(task['args'])-1
-        final_spiff = task['args'][status_idx][1]
-        if 'status' in final_spiff:
-            return final_spiff['status']
+def _task_stats(tasks):
+    """Search through task tree to gather task stats."""
+    spiff_status = {
+        1: "FUTURE",
+        2: "LIKELY",
+        4: "MAYBE",
+        8: "WAITING",
+        16: "READY",
+        32: "CANCELLED",
+        64: "COMPLETED",
+        128: "TRIGGERED"
+    }
+    duration = 0
+    complete = 0
+    failure = 0
+    while tasks:
+        task = tasks.pop(0)
+        tasks.extend(task.children)
+        status = spiff_status[task._state]
+        if status == "COMPLETED":
+            complete += 1
+        elif status == "FAILURE":
+            failure += 1
+        duration += task._get_internal_attribute('estimated_completed_in')
+    return duration, complete, failure
 
 
 def deployment_operation(dep_id):
@@ -564,30 +582,16 @@ def deployment_operation(dep_id):
     LOG.debug("Running deployment_operation...")
     operation = {}
     # Testing
-    dep_id = "d1cc97e7c13d4eb09f942807c47e9f2a"
-    workflow = DB.get_workflow(dep_id)
-    if not workflow:
+    #dep_id = "d1cc97e7c13d4eb09f942807c47e9f2a"
+    raw_workflow = DB.get_workflow(dep_id)
+    if not raw_workflow:
         return
-    tasks = workflow['wf_spec']['task_specs']
-    total = len(tasks)
+    total = len(raw_workflow['wf_spec']['task_specs'])
+    serializer = DictionarySerializer()
+    workflow = Workflow.deserialize(serializer, raw_workflow)
+    tasks = workflow.task_tree.children
     deployment = DB.get_deployment(dep_id)
-    duration = 0
-    complete = 0
-    failure = 0
-    start_time = time.strptime(deployment['created'], "%Y-%m-%d %H:%M:%S +0000")
-    elapsed = time.time() - time.mktime(start_time)
-    #operation['elapsed'] = "%d" % elapsed
-    import pdb; pdb.set_trace()
-    for task_name in tasks:
-        task = tasks[task_name]
-        status = _task_status(task)
-        if 'estimated_duration' in task['properties']:
-            duration += task['properties']['estimated_duration']
-        LOG.debug("_task_status(task): %s" % _task_status(task))
-        if status == "COMPLETED":
-            complete += 1
-        elif status == "FAILURE":
-            failure += 1
+    duration, complete, failure = _task_stats(tasks)
     if failure > 0:
         operation['status'] = "ERROR"
     elif total > complete:
@@ -596,6 +600,9 @@ def deployment_operation(dep_id):
         operation['status'] = "COMPLETE"
     else:
         operation['status'] = "UNKNOWN"
+    start_time = time.strptime(deployment['created'], "%Y-%m-%d %H:%M:%S +0000")
+    elapsed = time.time() - time.mktime(start_time)
+    operation['elapsed'] = "%d" % elapsed
     operation['link'] = "/v1/%s/workflows/%s" % (deployment['tenantId'],
                                                  dep_id)
     status_type = {
