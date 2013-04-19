@@ -2,6 +2,7 @@
 import json
 import os
 import sys
+import uuid
 
 from bottle import default_app, load
 import unittest2 as unittest
@@ -150,6 +151,23 @@ class TestServer(unittest.TestCase):
 
         #TODO: test posting object with bad tenant_id in it
 
+    def rest_add_workflow_test(self):
+        obj_id = str(uuid.uuid4())
+        entity = {"id": obj_id, 'tenantId': 'T1000'}
+        res = self.app.post_json('/T1000/workflows', entity)
+        self.assertEqual(res.status, '200 OK')
+
+    def rest_save_workflow_test(self):
+        obj_id = str(uuid.uuid4())
+        entity = {"id": obj_id, 'tenantId': 'T1000'}
+        res = self.app.post_json('/T1000/workflows/' + obj_id, entity)
+        self.assertEqual(res.status, '200 OK')
+
+    def rest_post_workflow_task_test(self):
+        obj_id = str(uuid.uuid4())
+        entity = {"id": obj_id}#, 'tenantId': 'T1000'}
+        res = self.app.post_json('/T1000/workflows/1/tasks/1', entity)
+        self.assertEqual(res.status, '200 OK')
 
 if __name__ == '__main__':
     # Run tests. Handle our paramsters separately

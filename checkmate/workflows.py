@@ -77,6 +77,7 @@ def safe_workflow_save(obj_id, body, secrets=None, tenant_id=None):
         results = db.save_workflow(obj_id, body, secrets=secrets,
                                     tenant_id=tenant_id)
     except ObjectLockedError:
+        print "object lock"
         abort(404, "The workflow is already locked, cannot obtain lock.")
 
     return results
@@ -97,10 +98,10 @@ def add_workflow(tenant_id=None):
 
     key = None
     results = None
-    if db.get_workflow(obj_id):
+    if db.get_workflow(entity['id']):
         # TODO: this case should be considered invalid
         # trying to add an existing workflow
-        _, key = db.lock_workflow(obj_id)
+        _, key = db.lock_workflow(entity['id'])
 
     results = db.save_workflow(entity['id'], body, secrets=secrets)
 
@@ -113,6 +114,7 @@ def add_workflow(tenant_id=None):
 @route('/workflows/<id>', method=['POST', 'PUT'])
 @with_tenant
 def save_workflow(id, tenant_id=None):
+    print "SAVING WORKFLOW"
     entity = read_body(request)
 
     if 'workflow' in entity and isinstance(entity['workflow'], dict):
@@ -125,6 +127,7 @@ def save_workflow(id, tenant_id=None):
 
     body, secrets = extract_sensitive_data(entity)
 
+    print 'BEFORE SAFE SAVE'
     results = safe_workflow_save(id, body, secrets=secrets, tenant_id=tenant_id)
     return write_body(results, request, response)
 
