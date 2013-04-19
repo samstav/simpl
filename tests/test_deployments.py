@@ -2057,8 +2057,6 @@ class TestPostbackHelpers(unittest.TestCase):
         expected['status'] = 'CHANGED'
         checkmate.deployments.DB.get_deployment('1234')\
             .AndReturn(self._deployment)
-        checkmate.deployments.DB.get_workflow('1234')\
-            .AndReturn(None)
         checkmate.deployments.DB.save_deployment('1234',
                                                  expected).AndReturn(expected)
         self._mox.ReplayAll()
