@@ -531,7 +531,7 @@ def plan(deployment, context):
     # Mark deployment as planned and return it (nothing has been saved so far)
     deployment['status'] = 'PLANNED'
     # Testing
-    #deployment['operation'] = deployment_operation(deployment['id'])
+    deployment['operation'] = deployment_operation(deployment['id'])
     LOG.info("Deployment '%s' planning complete and status changed to %s" %
             (deployment['id'], deployment['status']))
     return deployment
@@ -552,6 +552,7 @@ def _task_stats(tasks):
     duration = 0
     complete = 0
     failure = 0
+    total = 0
     while tasks:
         task = tasks.pop(0)
         tasks.extend(task.children)
@@ -561,7 +562,8 @@ def _task_stats(tasks):
         elif status == "FAILURE":
             failure += 1
         duration += task._get_internal_attribute('estimated_completed_in')
-    return duration, complete, failure
+        total += 1
+    return duration, total, complete, failure
 
 
 def deployment_operation(dep_id):
@@ -579,19 +581,22 @@ def deployment_operation(dep_id):
         "link": "/v1/{tenant_id}/workflows/982h3f28937h4f23847"
     }
     """
-    LOG.debug("Running deployment_operation...")
+    dep_id = "346e03d67e604a13aa61cbf0c9339ae6"
     operation = {}
-    # Testing
-    #dep_id = "d1cc97e7c13d4eb09f942807c47e9f2a"
+
     raw_workflow = DB.get_workflow(dep_id)
     if not raw_workflow:
         return
     total = len(raw_workflow['wf_spec']['task_specs'])
+    operation['tasks'] = total
+
     serializer = DictionarySerializer()
     workflow = Workflow.deserialize(serializer, raw_workflow)
     tasks = workflow.task_tree.children
     deployment = DB.get_deployment(dep_id)
-    duration, complete, failure = _task_stats(tasks)
+
+    # Misc task stats
+    duration, total, complete, failure = _task_stats(tasks)
     if failure > 0:
         operation['status'] = "ERROR"
     elif total > complete:
@@ -600,11 +605,26 @@ def deployment_operation(dep_id):
         operation['status'] = "COMPLETE"
     else:
         operation['status'] = "UNKNOWN"
-    start_time = time.strptime(deployment['created'], "%Y-%m-%d %H:%M:%S +0000")
-    elapsed = time.time() - time.mktime(start_time)
+    operation['complete'] = complete
+    operation['estimated-duration'] = duration
+
+    # Calculate the elapsed time
+    created = time.strptime(deployment['created'], "%Y-%m-%d %H:%M:%S +0000")
+    created_utc_epoch = time.mktime(created)
+    timezone = pytz.timezone('America/Chicago')
+    timezone_abbrev = datetime.datetime.now(timezone).strftime('%Z')
+    
+    created_local_epoch = created_utc_epoch - 18000
+    current_local_epoch = time.time()
+    elapsed = current_local_epoch - created_local_epoch
+    import pdb; pdb.set_trace()
     operation['elapsed'] = "%d" % elapsed
+
+    # Operation link
     operation['link'] = "/v1/%s/workflows/%s" % (deployment['tenantId'],
                                                  dep_id)
+
+    # Operation type
     status_type = {
         "ACTIVE": "deploy",
         "BUILD": "deploy",
@@ -617,9 +637,7 @@ def deployment_operation(dep_id):
         "RUNNING": "deploy"
     }
     operation['type'] = status_type[deployment['status']]
-    operation['tasks'] = total
-    operation['complete'] = complete
-    operation['estimated-duration'] = duration
+
     return operation
 
 
@@ -719,17 +737,14 @@ def resource_postback(deployment_id, contents):
 
     The contents are a hash (dict) of all the above
     """
-    print "JASON Running resource_postback..."
 
     deployment = DB.get_deployment(deployment_id, with_secrets=True)
     deployment = Deployment(deployment)
 
+    # Update operation
     operation = deployment_operation(deployment_id)
     if operation:
         deployment['operation'] = operation
-        print "JASON Found operation:", operation
-    else:
-        print "JASON Did not find operation"
 
     # Update deployment status
 
