@@ -562,7 +562,7 @@ def deployment_operation(dep_id):
     LOG.debug("Running deployment_operation...")
     operation = {}
     # Testing
-    dep_id = "0de97ea155814501a84e7d7d5137ae55"
+    #dep_id = "0de97ea155814501a84e7d7d5137ae55"
     workflow = DB.get_workflow(dep_id)
     if not workflow:
         return
@@ -570,7 +570,6 @@ def deployment_operation(dep_id):
     deployment = DB.get_deployment(dep_id)
     duration = 0
     complete = 0
-    #import pdb; pdb.set_trace()
     for task_name in tasks:
         task = tasks[task_name]
         if 'estimated_duration' in task['properties']:

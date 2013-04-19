@@ -150,6 +150,11 @@ class TestDeploymentParser(unittest.TestCase):
             'blueprint': {
                 'name': 'test bp',
             },
+            'operation': {
+                'complete': 0,
+                'estimated-duration': 0,
+                'tasks': 3
+            },
             'environment': {
                 'name': 'environment',
                 'providers': {},
@@ -2052,6 +2057,8 @@ class TestPostbackHelpers(unittest.TestCase):
         expected['status'] = 'CHANGED'
         checkmate.deployments.DB.get_deployment('1234')\
             .AndReturn(self._deployment)
+        checkmate.deployments.DB.get_workflow('1234')\
+            .AndReturn(None)
         checkmate.deployments.DB.save_deployment('1234',
                                                  expected).AndReturn(expected)
         self._mox.ReplayAll()
