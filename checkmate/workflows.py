@@ -73,6 +73,7 @@ def safe_workflow_save(obj_id, body, secrets=None, tenant_id=None):
         db.unlock_workflow(obj_id, key)
 
     except ValueError:
+        print "valueerror"
         #the object has never been saved
         results = db.save_workflow(obj_id, body, secrets=secrets,
                                     tenant_id=tenant_id)
