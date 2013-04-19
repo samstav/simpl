@@ -530,6 +530,8 @@ def plan(deployment, context):
 
     # Mark deployment as planned and return it (nothing has been saved so far)
     deployment['status'] = 'PLANNED'
+    # Testing
+    deployment['operation'] = deployment_operation(deployment['id'])
     LOG.info("Deployment '%s' planning complete and status changed to %s" %
             (deployment['id'], deployment['status']))
     return deployment
@@ -543,8 +545,9 @@ def _task_status(task):
         if 'status' in final_spiff:
             return final_spiff['status']
 
+
 def deployment_operation(dep_id):
-    """Return the operation object for a given deployment.
+    """Return the operation dictionary for a given deployment.
 
     Example:
 
@@ -561,24 +564,53 @@ def deployment_operation(dep_id):
     LOG.debug("Running deployment_operation...")
     operation = {}
     # Testing
-    #dep_id = "0de97ea155814501a84e7d7d5137ae55"
+    dep_id = "d1cc97e7c13d4eb09f942807c47e9f2a"
     workflow = DB.get_workflow(dep_id)
     if not workflow:
         return
     tasks = workflow['wf_spec']['task_specs']
+    total = len(tasks)
     deployment = DB.get_deployment(dep_id)
     duration = 0
     complete = 0
-    for task_name in tasks:
-        task = tasks[task_name]
-        if 'estimated_duration' in task['properties']:
-            duration += task['properties']['estimated_duration']
-        if _task_status(task) == "COMPLETE":
-            complete += 1
+    failure = 0
     start_time = time.strptime(deployment['created'], "%Y-%m-%d %H:%M:%S +0000")
     elapsed = time.time() - time.mktime(start_time)
     #operation['elapsed'] = "%d" % elapsed
-    operation['tasks'] = len(tasks)
+    import pdb; pdb.set_trace()
+    for task_name in tasks:
+        task = tasks[task_name]
+        status = _task_status(task)
+        if 'estimated_duration' in task['properties']:
+            duration += task['properties']['estimated_duration']
+        LOG.debug("_task_status(task): %s" % _task_status(task))
+        if status == "COMPLETED":
+            complete += 1
+        elif status == "FAILURE":
+            failure += 1
+    if failure > 0:
+        operation['status'] = "ERROR"
+    elif total > complete:
+        operation['status'] = "IN PROGRESS"
+    elif total == complete:
+        operation['status'] = "COMPLETE"
+    else:
+        operation['status'] = "UNKNOWN"
+    operation['link'] = "/v1/%s/workflows/%s" % (deployment['tenantId'],
+                                                 dep_id)
+    status_type = {
+        "ACTIVE": "deploy",
+        "BUILD": "deploy",
+        "CONFIGURE": "deploy",
+        "DELETED": "delete",
+        "DELETING": "delete",
+        "LAUNCHED": "deploy",
+        "NEW": "deploy",
+        "PLANNED": "deploy",
+        "RUNNING": "deploy"
+    }
+    operation['type'] = status_type[deployment['status']]
+    operation['tasks'] = total
     operation['complete'] = complete
     operation['estimated-duration'] = duration
     return operation
