@@ -530,32 +530,59 @@ def plan(deployment, context):
 
     # Mark deployment as planned and return it (nothing has been saved so far)
     deployment['status'] = 'PLANNED'
-    update_deployment_status(deployment['id'], 'PLANNED')
+    deployment['operation'] = deployment_operation(deployment['id'])
     LOG.info("Deployment '%s' planning complete and status changed to %s" %
             (deployment['id'], deployment['status']))
     return deployment
 
 
+def _task_status(task):
+    """Return the status of a task."""
+    if 'args' in task:
+        status_idx = len(task['args'])-1
+        final_spiff = task['args'][status_idx][1]
+        if 'status' in final_spiff:
+            return final_spiff['status']
+
 def deployment_operation(dep_id):
-    """Update the status of the operation according to the task states"""
+    """Update the operation object in the deployment.
+
+    Example:
+
+    "operation": {
+        "type": "deploy",
+        "status": "IN PROGRESS",
+        "estimated-duration": 2400,
+        "elapsed": 1702,
+        "tasks": 175,
+        "complete": 100,
+        "link": "/v1/{tenant_id}/workflows/982h3f28937h4f23847"
+    }
+    """
     LOG.debug("Running deployment_operation...")
-    operation = {'foo': "bar"}
-    workflow = DB.get_workflow("0de97ea155814501a84e7d7d5137ae55")
+    operation = {}
+    # Testing
+    dep_id = "0de97ea155814501a84e7d7d5137ae55"
+    workflow = DB.get_workflow(dep_id)
     if not workflow:
         return
     tasks = workflow['wf_spec']['task_specs']
     deployment = DB.get_deployment(dep_id)
-    estimated_duration = 0
+    duration = 0
     complete = 0
+    #import pdb; pdb.set_trace()
     for task_name in tasks:
         task = tasks[task_name]
-        estimated_duration += task['properties']['estimated_duration']
-        LOG.debug("task: %s" % task)
-        LOG.debug("task.name: %s" % task.name)
-        LOG.debug("task.children: %s" % task.children)
-        LOG.debug("task.task_spec.get_property('estimated_duration'): %s" % task.task_spec.get_property('estimated_duration'))
+        if 'estimated_duration' in task['properties']:
+            duration += task['properties']['estimated_duration']
+        if _task_status(task) == "COMPLETE":
+            complete += 1
+    start_time = time.strptime(deployment['created'], "%Y-%m-%d %H:%M:%S +0000")
+    elapsed = time.time() - time.mktime(start_time)
+    operation['elapsed'] = "%d" % elapsed
     operation['tasks'] = len(tasks)
-    operation['estimated-duration'] = estimated_duration
+    operation['complete'] = complete
+    operation['estimated-duration'] = duration
     return operation
 
 
