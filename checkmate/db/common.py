@@ -12,10 +12,8 @@ DbBase = dbBaseClass
 
 LOG = logging.getLogger(__name__)
 DB = None
-#locking timeout in seconds
 DEFAULT_TIMEOUT = 1
-#amount of retries to lock an object
-DEFAULT_RETRIES = 30
+DEFAULT_RETRIES = 5
 #amount of time before a lock can be force deleted
 DEFAULT_STALE_LOCK_TIMEOUT = 10
 
@@ -90,4 +88,10 @@ def any_tenant_id_problems(id):
     return None
 
 class DatabaseTimeoutException(Exception):
+    pass
+
+class ObjectLockedError(Exception):
+    pass
+
+class InvalidKeyError(Exception):
     pass

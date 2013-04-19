@@ -56,7 +56,7 @@ def _content_to_deployment(bottle_request, deployment_id=None, tenant_id=None):
         assert deployment['tenantId'] == tenant_id, ("tenantId must match "
                                                      "with current tenant ID")
     else:
-        assert tenant_id, "Tenant ID must be specified in deployment "
+        assert tenant_id, "Tenant ID musft be specified in deployment "
         deployment['tenantId'] = tenant_id
     return deployment
 
@@ -118,6 +118,7 @@ def _deploy(deployment, context):
     DB.save_workflow(workflow['id'], body, secrets,
                      tenant_id=deployment['tenantId'])
 
+    deployment['display-outputs'] = deployment.calculate_outputs()
     _save_deployment(deployment)
 
     return workflow
@@ -184,11 +185,9 @@ def post_deployment(tenant_id=None):
     Creates deployment and wokflow based on sent information
     and triggers workflow execution
     """
-    print "RECIEVED"
     deployment = _content_to_deployment(request, tenant_id=tenant_id)
     oid = str(deployment['id'])
     _save_deployment(deployment, deployment_id=oid, tenant_id=tenant_id)
-    print "SAVED"
     # Return response (with new resource location in header)
     if tenant_id:
         response.add_header('Location', "/%s/deployments/%s" % (tenant_id,
@@ -200,18 +199,16 @@ def post_deployment(tenant_id=None):
         response.add_header('Location', "/deployments/%s" % oid)
         response.add_header('Link', '</workflows/%s>; '
                             'rel="workflow"; title="Deploy"' % oid)
-    print "CALLING PLAN"
+
+    # can't pass actual request
     request_context = copy.deepcopy(request.context)
     async_task = execute_plan(oid, request_context)
-    print "PLANNING"
-    deployment['status'] = "PLANNING"
     
-    response.status = 201
-    print "RETURNING"
+    response.status = 202
+
     return write_body(deployment, request, response)    
 
 def execute_plan(depid, request_context):
-    print "TEST"
     if any_id_problems(depid):
         abort(406, any_id_problems(depid))
 
@@ -232,12 +229,9 @@ def process_post_deployment(deployment, request_context):
     # Create a 'new deployment' workflow
     workflow = _deploy(parsed_deployment, request_context)
 
-    oid = deployment['id']
     #Trigger the workflow in the queuing service
-    async_task = execute(oid)
+    async_task = execute(deployment['id'])
     LOG.debug("Triggered workflow (task='%s')" % async_task)
-    
-    return "PLANNING"
 
 
 @post('/deployments/+parse')
@@ -274,14 +268,19 @@ def update_deployment(oid, tenant_id=None):
     """Store a deployment on this server"""
     deployment = _content_to_deployment(request, deployment_id=oid,
                                         tenant_id=tenant_id)
+    entity = DB.get_deployment(oid)
     results = _save_deployment(deployment, deployment_id=oid,
                                tenant_id=tenant_id)
     # Return response (with new resource location in header)
-    if tenant_id:
-        response.add_header('Location', "/%s/deployments/%s" % (tenant_id,
-                                                                oid))
+    if entity:
+        response.status = 200  # OK - updated
     else:
-        response.add_header('Location', "/deployments/%s" % oid)
+        response.status = 201  # Created
+        if tenant_id:
+            response.add_header('Location', "/%s/deployments/%s" % (tenant_id,
+                                                                    oid))
+        else:
+            response.add_header('Location', "/deployments/%s" % oid)
     return write_body(results, request, response)
 
 
@@ -452,7 +451,7 @@ def delete_deployment(oid, tenant_id=None):
     response.set_header("Link", '<%s>; rel="canvas"; title="Delete Deployment"'
                         % loc)
 
-    response.status = 202
+    response.status = 202  # Accepted (i.e. not done yet)
     return write_body(deployment, request, response)
 
 
@@ -555,7 +554,6 @@ def plan(deployment, context):
     LOG.info("Deployment '%s' planning complete and status changed to %s" %
             (deployment['id'], deployment['status']))
     return deployment
-    
 
 @task
 def update_deployment_status(dep_id, new_status):

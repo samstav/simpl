@@ -39,7 +39,7 @@ class TestDatabase(ProviderTester):
 
         #Create clouddb mock
         clouddb_api_mock = self.mox.CreateMockAnything()
-        clouddb_api_mock.create_instance(instance.name, 1, '1',
+        clouddb_api_mock.create_instance(instance.name, 1, 1,
                                          databases=[{'name': 'db1'}])\
             .AndReturn(instance)
 
@@ -50,6 +50,7 @@ class TestDatabase(ProviderTester):
                 'name': instance.name,
                 'status': instance.status,
                 'region': 'NORTH',
+                'flavor': 1,
                 'interfaces': {
                     'mysql': {
                         'host': instance.hostname,
@@ -74,7 +75,7 @@ class TestDatabase(ProviderTester):
             True)
 
         self.mox.ReplayAll()
-        results = database.create_instance(context, instance.name, 1, '1',
+        results = database.create_instance(context, instance.name, 1, 1,
                                            [{'name': 'db1'}], 'NORTH',
                                            api=clouddb_api_mock)
 
@@ -112,6 +113,7 @@ class TestDatabase(ProviderTester):
         #Mock instance
         instance = self.mox.CreateMockAnything()
         instance.id = 'fake_instance_id'
+        instance.flavor = {'id': '1'}
         instance.name = 'fake_instance'
         instance.status = 'ACTIVE'
         instance.hostname = 'fake.cloud.local'
@@ -136,7 +138,8 @@ class TestDatabase(ProviderTester):
                 },
                 'name': 'db1',
                 'id': 'db1',
-                'host_region': 'NORTH'
+                'host_region': 'NORTH',
+                'flavor': '1'
             }
         }
         resource_postback.delay(context['deployment'], expected).AndReturn(

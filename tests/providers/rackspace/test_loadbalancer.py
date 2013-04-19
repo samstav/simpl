@@ -298,7 +298,7 @@ class TestBasicWorkflow(test.StubbedWorkflowBase):
                             'create_loadbalancer',
                     'args': [
                             IsA(dict),
-                            'CM-DEP-ID--lb1.checkmate.local',
+                            'lb01.checkmate.local',
                             'PUBLIC',
                             'HTTP',
                             'North',

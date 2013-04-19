@@ -22,7 +22,8 @@ from SpiffWorkflow.storage import DictionarySerializer
 
 from checkmate.common import schema
 from checkmate.classes import ExtensibleDict
-from checkmate.db import get_driver, any_id_problems
+from checkmate.db import (get_driver, any_id_problems, InvalidKeyError, 
+                            ObjectLockedError)
 from checkmate.exceptions import CheckmateException, \
         CheckmateValidationException
 from checkmate.utils import write_body, read_body, extract_sensitive_data,\
@@ -59,6 +60,26 @@ def get_workflows(tenant_id=None):
                                    limit=limit)
     return write_body(results, request, response)
 
+def safe_workflow_save(obj_id, body, secrets=None, tenant_id=None):
+    """
+    Locks, saves, and unlocks a workflow.
+    TODO: should this be moved to the db layer?
+    """
+    results = None
+    try:
+        _, key = db.lock_workflow(obj_id)
+        results = db.save_workflow(obj_id, body, secrets=secrets,
+                                tenant_id=tenant_id)
+        db.unlock_workflow(obj_id, key)
+
+    except ValueError:
+        #the object has never been saved
+        results = db.save_workflow(obj_id, body, secrets=secrets,
+                                    tenant_id=tenant_id)
+    except ObjectLockedError:
+        abort(404, "The workflow is already locked, cannot obtain lock.")
+
+    return results
 
 @post('/workflows')
 @with_tenant
@@ -73,8 +94,18 @@ def add_workflow(tenant_id=None):
         abort(406, any_id_problems(entity['id']))
 
     body, secrets = extract_sensitive_data(entity)
-    results = db.save_workflow(entity['id'], body, secrets=secrets,
-            tenant_id=tenant_id)
+
+    key = None
+    results = None
+    if db.get_workflow(entity['id']):
+        # TODO: this case should be considered invalid
+        # trying to add an existing workflow
+        _, key = db.lock_workflow(entity['id'])
+
+    results = db.save_workflow(entity['id'], body, secrets=secrets)
+
+    if key:
+        db.unlock_workflow(entity['id'], key)
 
     return write_body(results, request, response)
 
@@ -93,8 +124,8 @@ def save_workflow(id, tenant_id=None):
         entity['id'] = str(id)
 
     body, secrets = extract_sensitive_data(entity)
-    results = db.save_workflow(id, body, secrets, tenant_id=tenant_id)
 
+    results = safe_workflow_save(id, body, secrets=secrets, tenant_id=tenant_id)
     return write_body(results, request, response)
 
 
@@ -178,7 +209,7 @@ def post_workflow_spec(workflow_id, spec_id, tenant_id=None):
     body, secrets = extract_sensitive_data(workflow)
     body['tenantId'] = workflow.get('tenantId', tenant_id)
     body['id'] = workflow_id
-    updated = db.save_workflow(workflow_id, body, secrets, tenant_id=tenant_id)
+    updated = safe_workflow_save(workflow_id, body, secrets=secrets, tenant_id=tenant_id)
 
     return write_body(entity, request, response)
 
@@ -267,7 +298,7 @@ def post_workflow_task(id, task_id, tenant_id=None):
     body['tenantId'] = workflow.get('tenantId', tenant_id)
     body['id'] = id
 
-    updated = db.save_workflow(id, body, secrets, tenant_id=tenant_id)
+    updated = safe_workflow_save(id, body, secrets=secrets, tenant_id=tenant_id)
     # Updated does not have secrets, so we deserialize that
     serializer = DictionarySerializer()
     wf = SpiffWorkflow.deserialize(serializer, updated)
@@ -320,7 +351,7 @@ def reset_workflow_task(id, task_id, tenant_id=None):
     body, secrets = extract_sensitive_data(entity)
     body['tenantId'] = workflow.get('tenantId', tenant_id)
     body['id'] = id
-    db.save_workflow(id, body, secrets, tenant_id=tenant_id)
+    safe_workflow_save(id, body, secrets=secrets, tenant_id=tenant_id)
 
     task = wf.get_task(task_id)
     if not task:
@@ -383,7 +414,7 @@ def resubmit_workflow_task(workflow_id, task_id, tenant_id=None):
     body, secrets = extract_sensitive_data(entity)
     body['tenantId'] = workflow.get('tenantId', tenant_id)
     body['id'] = workflow_id
-    db.save_workflow(workflow_id, body, secrets, tenant_id=tenant_id)
+    safe_workflow_save(workflow_id, body, secrets=secrets, tenant_id=tenant_id)
 
     task = wf.get_task(task_id)
     if not task:
@@ -414,8 +445,13 @@ def execute_workflow_task(id, task_id, tenant_id=None):
     if not task:
         abort(404, 'No task with id %s' % task_id)
 
-    #Synchronous call
-    orchestrator.run_one_task(request.context, id, task_id, timeout=10)
+    try:
+        #Synchronous call
+        orchestrator.run_one_task(request.context, id, task_id, timeout=10)
+    except InvalidKeyError as already_locked:
+        abort(404, "Cannot execute task(%s) while workflow(%s) is executing." %
+                (task_id, id))
+
     entity = db.get_workflow(id)
 
     workflow = SpiffWorkflow.deserialize(serializer, entity)
