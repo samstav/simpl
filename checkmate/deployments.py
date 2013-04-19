@@ -579,7 +579,7 @@ def deployment_operation(dep_id):
             complete += 1
     start_time = time.strptime(deployment['created'], "%Y-%m-%d %H:%M:%S +0000")
     elapsed = time.time() - time.mktime(start_time)
-    operation['elapsed'] = "%d" % elapsed
+    #operation['elapsed'] = "%d" % elapsed
     operation['tasks'] = len(tasks)
     operation['complete'] = complete
     operation['estimated-duration'] = duration
