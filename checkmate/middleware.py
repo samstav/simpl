@@ -1,3 +1,10 @@
+'''
+
+Contains all Middleware used by the Checkmate Server
+
+This needs to be changed so the middleware is loaded by configuration.
+
+'''
 import base64
 import copy
 import httplib
@@ -9,13 +16,13 @@ import logging
 try:
     import pam
 except ImportError:
-    import PAM
+    import PAM  # pylint: disable=W0611,F0401,W0402
 from urlparse import urlparse
 
 # Init logging before we load the database, 3rd party, and 'noisy' modules
 from checkmate.utils import init_console_logging
 init_console_logging()
-from bottle import get, request, response, abort
+from bottle import get, request, response, abort  # pylint: disable=E0611
 import webob
 import webob.dec
 from webob.exc import HTTPNotFound, HTTPUnauthorized, HTTPFound
@@ -89,8 +96,8 @@ class TenantMiddleware(object):
                     return HTTPNotFound(errors)(environ, start_response)
                 context = request.context
                 rewrite = "/%s" % '/'.join(path_parts[2:])
-                LOG.debug("Rewrite for tenant %s from '%s' "
-                          "to '%s'" % (tenant, environ['PATH_INFO'], rewrite))
+                LOG.debug("Rewrite for tenant %s from '%s' to '%s'", tenant,
+                          environ['PATH_INFO'], rewrite)
                 context.tenant = tenant
                 environ['PATH_INFO'] = rewrite
 
@@ -121,11 +128,12 @@ class TenantMiddleware(object):
         for k in keys:
             env_key = self._header_to_env_var(k)
             if env_key in env:
-                LOG.debug('Removing header from request environment: %s' %
+                LOG.debug('Removing header from request environment: %s',
                           env_key)
                 del env[env_key]
 
-    def _header_to_env_var(self, key):
+    @staticmethod
+    def _header_to_env_var(key):
         """Convert header to wsgi env variable.
 
         :param key: http header name (ex. 'X-Auth-Token')
@@ -153,7 +161,7 @@ class PAMAuthMiddleware(object):
     """
     def __init__(self, app, domain=None, all_admins=False):
         self.app = app
-        self.domain = None  # Which domain to authenticate in this instance
+        self.domain = domain  # Which domain to authenticate in this instance
         self.all_admins = all_admins  # Does this authenticate admins?
         self.auth_header = 'Basic realm="Checkmate PAM Module"'
 
@@ -184,7 +192,7 @@ class PAMAuthMiddleware(object):
                         LOG.debug('PAM failing request because of bad creds')
                         return (HTTPUnauthorized("Invalid credentials")
                                 (environ, start_response))
-                    LOG.debug("PAM authenticated '%s' as admin" % login)
+                    LOG.debug("PAM authenticated '%s' as admin", login)
                     context.domain = self.domain
                     context.username = username
                     context.authenticated = True
@@ -250,14 +258,12 @@ class TokenAuthMiddleware(object):
         """Authenticates to keystone"""
         url = urlparse(self.endpoint['uri'])
         if url.scheme == 'https':
-            http_class = httplib.HTTPSConnection
             port = url.port or 443
+            http = httplib.HTTPSConnection(url.hostname, port)
         else:
-            http_class = httplib.HTTPConnection
             port = url.port or 80
-        host = url.hostname
+            http = httplib.HTTPConnection(url.hostname, port)
 
-        http = http_class(host, port)
         if token:
             body = {"auth": {"token": {"id": token}}}
         elif password:
@@ -270,38 +276,37 @@ class TokenAuthMiddleware(object):
         if context.tenant:
             auth = body['auth']
             auth['tenantId'] = context.tenant
-            LOG.debug("Authenticating to tenant '%s'" % context.tenant)
+            LOG.debug("Authenticating to tenant '%s'", context.tenant)
         headers = {
             'Content-type': 'application/json',
             'Accept': 'application/json',
         }
         # TODO: implement some caching to not overload auth
         try:
-            LOG.debug('Authenticating to %s' % self.endpoint['uri'])
+            LOG.debug('Authenticating to %s', self.endpoint['uri'])
             http.request('POST', url.path, body=json.dumps(body),
                          headers=headers)
             resp = http.getresponse()
             body = resp.read()
         except Exception as exc:
-            LOG.error('HTTP connection exception: %s' % exc)
+            LOG.error('HTTP connection exception: %s', exc)
             raise HTTPUnauthorized('Unable to communicate with %s' %
                                    self.endpoint['uri'])
         finally:
             http.close()
 
         if resp.status != 200:
-            LOG.debug('Invalid token for tenant: %s' % resp.reason)
+            LOG.debug('Invalid token for tenant: %s', resp.reason)
             raise HTTPUnauthorized("Token invalid or not valid for this "
                                    "tenant (%s)" % resp.reason,
                                    [('WWW-Authenticate', self.auth_header)])
 
         try:
-            content = json.loads(body)
+            return json.loads(body)
         except ValueError:
             msg = 'Keystone did not return json-encoded body'
             LOG.debug(msg)
             raise HTTPUnauthorized(msg)
-        return content
 
     def start_response_callback(self, start_response):
         """Intercepts upstream start_response and adds our headers"""
@@ -548,7 +553,8 @@ class RequestContext(object):
         self.roles = self.get_roles(content)
         self.authenticated = True
 
-    def get_service_catalog(self, content):
+    @staticmethod
+    def get_service_catalog(content):
         """Returns Service Catalog"""
         return content['access'].get('serviceCatalog')
 
@@ -588,13 +594,15 @@ class RequestContext(object):
                         user_tenants[endpoint['tenantId']] = None
         return user_tenants.keys()
 
-    def get_username(self, content):
+    @staticmethod
+    def get_username(content):
         """Returns username"""
-        # FIXME: when GLobal Auth implements name, remove the logic for 'id'
+        # FIXME: when Global Auth implements name, remove the logic for 'id'
         user = content['access']['user']
         return user.get('name') or user.get('id')
 
-    def get_roles(self, content):
+    @staticmethod
+    def get_roles(content):
         """Returns roles for a given user"""
         user = content['access']['user']
         return [role['name'] for role in user.get('roles', [])]
@@ -720,7 +728,7 @@ class AuthTokenRouterMiddleware():
             if 'HTTP_X_AUTH_SOURCE' in environ:
                 source = environ['HTTP_X_AUTH_SOURCE']
                 if not source in self.middleware:
-                    LOG.info("Untrusted Auth Source supplied: %s" % source)
+                    LOG.info("Untrusted Auth Source supplied: %s", source)
                     return (HTTPUnauthorized("Untrusted Auth Source")
                             (environ, start_response))
 
@@ -728,9 +736,9 @@ class AuthTokenRouterMiddleware():
             else:
                 sources = self.middleware
 
-            sr = self.start_response_intercept(start_response)
+            sr_intercept = self.start_response_intercept(start_response)
             for source in sources.itervalues():
-                result = source.__call__(environ, sr)
+                result = source.__call__(environ, sr_intercept)
                 if self.last_status:
                     if self.last_status.startswith('401 '):
                         # Unauthorized, let's try next route
@@ -738,7 +746,7 @@ class AuthTokenRouterMiddleware():
                     # We got an authorized response
                     if environ.get('HTTP_X_AUTHORIZED') == "Confirmed":
                         LOG.debug("Token Auth Router successfully authorized "
-                                  "against %s" % source)
+                                  "against %s", source.endpoint.get('uri'))
                     else:
                         LOG.debug("Token Auth Router authorized an "
                                   "unauthenticated call")
@@ -748,11 +756,11 @@ class AuthTokenRouterMiddleware():
             # specified
             if 'HTTP_X_AUTH_SOURCE' not in environ and self.default_endpoint \
                     not in sources.values():
-                result = self.default_middleware.__call__(environ, sr)
+                result = self.default_middleware.__call__(environ, sr_intercept)
                 if not self.last_status.startswith('401 '):
                     # We got a good hit
                     LOG.debug("Token Auth Router got a successful response "
-                              "against %s" % self.default_endpoint)
+                              "against %s", self.default_endpoint)
                     return result
 
         return self.app(environ, start_response)
@@ -793,7 +801,7 @@ class CatchAll404(object):
         # routes have been added (and some routes are added in the __main__
         # code)
         @get('<path:path>')
-        def extensions(path):
+        def extensions(path):  # pylint: disable=W0612
             """Catch-all unmatched paths (so we know we got the request, but
                didn't match it)"""
             abort(404, "Path '%s' not recognized" % path)
