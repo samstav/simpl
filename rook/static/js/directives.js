@@ -223,15 +223,18 @@ directives.directive('popover', function(){
       var popover = element.popover({
         content: function() {
           if ('target' in attrs)
-            return $(attrs['target']).html();
+            if ($(attrs['target']).length > 0)
+              return $(attrs['target']).html();
         }
       });
 
       //Update when scope changes
       if ('target' in attrs) {
         scope.$parent.$watch(function() {
-          popover.data('popover').setContent($(attrs['target']).html());
-          popover.data('popover').$tip.addClass(popover.data('popover').options.placement);
+          if ($(attrs['target']).length > 0 && popover.data('popover') !== undefined) {
+            popover.data('popover').setContent($(attrs['target']).html());
+            popover.data('popover').$tip.addClass(popover.data('popover').options.placement);
+          }
         });
       }
     };
