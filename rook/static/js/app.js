@@ -1334,6 +1334,7 @@ function BlueprintListController($scope, $location, $routeParams, $resource, ite
   $scope.selectItem = function(index) {
     items.selectItem(index);
     $scope.selected = items.selected;
+    $scope.selected_key = $scope.selected.key;
   };
 
   for (var i=0;i<items.count;i++) {
