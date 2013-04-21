@@ -726,6 +726,13 @@ function WorkflowController($scope, $resource, $http, $routeParams, $location, $
     triggered: 0
   };
 
+  // Called by load to refresh the status page
+  $scope.reload = function(original_url) {
+    // Check that we are still on the same page, otherwise don't reload
+    if ($location.url() == original_url)
+      $scope.load();
+  };
+
   $scope.load = function() {
     this.klass = $resource((checkmate_server_base || '') + '/:tenantId/workflows/:id.json');
     this.klass.get($routeParams,
@@ -737,7 +744,8 @@ function WorkflowController($scope, $resource, $http, $routeParams, $location, $
       workflow.calculateStatistics($scope, items.all);
       if ($location.path().split('/').slice(-1)[0] == 'status') {
         if ($scope.taskStates.completed < $scope.count) {
-          setTimeout($scope.load, 2000);
+          var original_url = $location.url();
+          setTimeout(function() {$scope.reload(original_url);}, 2000);
         } else {
           var d = $resource((checkmate_server_base || '') + '/:tenantId/deployments/:id.json?with_secrets');
           d.get($routeParams, function(object, getResponseHeaders){
@@ -1401,6 +1409,7 @@ function BlueprintRemoteListController($scope, $location, $routeParams, $resourc
       $scope.loading_remote_blueprints = false;
       $scope.show_error(data);
     });
+    $('#spec_list').css('top', $('.summaryHeader').outerHeight());
   };
 
   $scope.reload_blueprints = function() {
@@ -1468,6 +1477,7 @@ function BlueprintRemoteListController($scope, $location, $routeParams, $resourc
       $scope.get_branches();  //calls loadBlueprint()
     }
   });
+
 }
 
 /*
@@ -1531,9 +1541,9 @@ function DeploymentListController($scope, $location, $http, $resource, scroll, i
 
 //Hard-coded for Managed Cloud Wordpress
 function DeploymentManagedCloudController($scope, $location, $routeParams, $resource, $http, items, navbar, options, workflow, github) {
-  $('#mcspec_list').css('top', $('.summaryHeader').outerHeight() + 20); // Not sure if this is the right place for this. -Chris.Burrell (chri5089)
 
-  $scope.receive_blueprint = function(data, remote) {
+   items.clear();
+   $scope.receive_blueprint = function(data, remote) {
     if ('blueprint' in data) {
       if ($scope.auth.identity.loggedIn === true) {
         data.blueprint.options.region['default'] = $scope.auth.context.user['RAX-AUTH:defaultRegion'] || $scope.auth.context.regions[0];
@@ -1690,6 +1700,9 @@ function DeploymentManagedCloudController($scope, $location, $routeParams, $reso
   //Load the latest master from github
   $scope.loadRemoteBlueprint('https://github.rackspace.com/Blueprints/wordpress');
   $scope.loadRemoteBlueprint('https://github.rackspace.com/Blueprints/wordpress-clouddb');
+
+  $('#mcspec_list').css('top', $('.summaryHeader').outerHeight()); // Not sure if this is the right place for this. -Chris.Burrell (chri5089)
+
 }
 
 //Select one remote blueprint
