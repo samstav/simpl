@@ -204,7 +204,7 @@ url: shows "Address Builder" to handle url options
                 ng-required="required && option.default != '=generate_password()'" ng-pattern="{{option.regex || ''}}" validate-option="option"
                 placeholder="{{option.sample | prepend:'ex. '}}">
         <button class="btn" ng-class="{'active': show}" ng-click="show = !show">Show</button>
-        <button ng-click="inputs[option.id]=generatePassword()" class="btn">Generate</button>
+        <button ng-click="inputs[option.id]=generatePassword();subForm.$dirty=true;" class="btn">Generate</button>
       </div>
       <i class="icon-question-sign" title="Validation Rules" data-trigger="click" data-target="#{{option.id}}_rules" data-html="true" data-placement="bottom" data-animation="true" popover
         ng-cloak ng-show="option.constraints"></i>
