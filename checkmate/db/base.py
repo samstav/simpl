@@ -60,34 +60,36 @@ class DbBase(object):
     def get_deployment(self, api_id, with_secrets=None):
         raise NotImplementedError()
 
-    def get_deployments(self, tenant_id=None, with_secrets=None):
+    def get_deployments(self, tenant_id=None, with_secrets=None,
+                        limit=None, offset=None):
         raise NotImplementedError()
 
     def save_deployment(self, api_id, body, secrets=None, tenant_id=None):
         raise NotImplementedError()
 
     # BLUEPRINTS
-    def get_blueprint(self, api_id):
+    def get_blueprint(self, api_id, with_secrets=None):
         raise NotImplementedError()
 
-    def get_blueprints(self):
+    def get_blueprints(self, tenant_id=None, with_secrets=None):
         raise NotImplementedError()
 
-    def save_blueprint(self, api_id, body):
+    def save_blueprint(self, api_id, body, secrets=None, tenant_id=None):
         raise NotImplementedError()
 
     # WORKFLOWS
-    def get_workflow(self, api_id):
+    def get_workflow(self, api_id, with_secrets=None):
         raise NotImplementedError()
 
-    def get_workflows(self):
+    def get_workflows(self, tenant_id=None, with_secrets=None,
+                      limit=None, offset=None):
         raise NotImplementedError()
 
-    def save_workflow(self, api_id, body):
+    def save_workflow(self, api_id, body, secrets=None, tenant_id=None):
         raise NotImplementedError()
 
     def unlock_workflow(self, api_id, key):
         raise NotImplementedError()
 
-    def lock_workflow(self, api_id):
+    def lock_workflow(self, api_id, with_secrets=None, key=None):
         raise NotImplementedError()
