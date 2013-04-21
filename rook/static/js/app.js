@@ -170,6 +170,7 @@ function RawController($scope, $location, $http) {
 function AppController($scope, $http, $location, $resource, auth) {
   $scope.showHeader = true;
   $scope.showStatus = false;
+  $scope.foldFunc = CodeMirror.newFoldFunction(CodeMirror.braceRangeFinder);
 
   $scope.safeApply = function(fn) {
     var phase = this.$root.$$phase;
@@ -484,6 +485,11 @@ function AppController($scope, $http, $location, $resource, auth) {
     return '';
   };
 
+  $scope.CloudControlURL = function(region) {
+    if (region == 'LON')
+      return "https://lon.cloudcontrol.rackspacecloud.com";
+    return "https://us.cloudcontrol.rackspacecloud.com";
+  };
 }
 
 function NavBarController($scope, $location) {
@@ -726,6 +732,13 @@ function WorkflowController($scope, $resource, $http, $routeParams, $location, $
     triggered: 0
   };
 
+  // Called by load to refresh the status page
+  $scope.reload = function(original_url) {
+    // Check that we are still on the same page, otherwise don't reload
+    if ($location.url() == original_url)
+      $scope.load();
+  };
+
   $scope.load = function() {
     this.klass = $resource((checkmate_server_base || '') + '/:tenantId/workflows/:id.json');
     this.klass.get($routeParams,
@@ -737,7 +750,8 @@ function WorkflowController($scope, $resource, $http, $routeParams, $location, $
       workflow.calculateStatistics($scope, items.all);
       if ($location.path().split('/').slice(-1)[0] == 'status') {
         if ($scope.taskStates.completed < $scope.count) {
-          setTimeout($scope.load, 2000);
+          var original_url = $location.url();
+          setTimeout(function() {$scope.reload(original_url);}, 2000);
         } else {
           var d = $resource((checkmate_server_base || '') + '/:tenantId/deployments/:id.json?with_secrets');
           d.get($routeParams, function(object, getResponseHeaders){
@@ -1133,12 +1147,6 @@ function WorkflowController($scope, $resource, $http, $routeParams, $location, $
     return false;
   };
 
-  $scope.CloudControlURL = function(region) {
-    if (region == 'LON')
-      return "https://lon.cloudcontrol.rackspacecloud.com";
-    return "https://us.cloudcontrol.rackspacecloud.com";
-  };
-
   $scope.resource = function(task) {
     if (typeof task == 'undefined')
       return null;
@@ -1308,12 +1316,6 @@ function WorkflowController($scope, $resource, $http, $routeParams, $location, $
      });
   };
 
-  $scope.$on('$digest', function() {
-    var foldFunc = CodeMirror.newFoldFunction(CodeMirror.braceRangeFinder);
-    _.each($('.CodeMirror'), function(c) {
-      c.CodeMirror.on("gutterClick", foldFunc);
-    });
-  });
 }
 
 //Blueprint controllers
@@ -1334,6 +1336,7 @@ function BlueprintListController($scope, $location, $routeParams, $resource, ite
   $scope.selectItem = function(index) {
     items.selectItem(index);
     $scope.selected = items.selected;
+    $scope.selected_key = $scope.selected.key;
   };
 
   for (var i=0;i<items.count;i++) {
@@ -1383,14 +1386,34 @@ function BlueprintRemoteListController($scope, $location, $routeParams, $resourc
     $scope.remote = github.parse_org_url(url, $scope.load);
   };
 
+  $scope.remember_repo_url = function(remote_url) {
+    if ($scope.remotes_used.indexOf(remote_url) == -1) {
+      $scope.remotes_used.push(remote_url);
+      localStorage.setItem('remotes', JSON.stringify($scope.remotes_used));
+    }
+  };
+
+  $scope.load_remotes_used = function() {
+    var data = localStorage.getItem('remotes');
+    if (data !== undefined && data !== null)
+      return JSON.parse(data);
+    return ['https://github.rackspace.com/Blueprints'];
+  };
+
+  $scope.remotes_used = $scope.load_remotes_used();
+
   //Handle results of loading repositories
   $scope.receive_blueprints = function(data) {
     items.clear();
     items.receive(data, function(item, key) {
-      return {key: item.id, id: item.html_url, name: item.name, description: item.description, git_url: item.git_url, selected: false};});
+      if (!('documentation' in item))
+        item.documentation = {abstract: item.description};
+      return {key: item.id, id: item.html_url, name: item.name, description: item.documentation.abstract, git_url: item.git_url, selected: false};});
     $scope.count = items.count;
     $scope.items = items.all;
     $scope.loading_remote_blueprints = false;
+    $('#spec_list').css('top', $('.summaryHeader').outerHeight());
+    $scope.remember_repo_url($scope.remote.url);
   };
 
   $scope.load = function() {
@@ -1467,6 +1490,9 @@ function BlueprintRemoteListController($scope, $location, $routeParams, $resourc
       $scope.get_branches();  //calls loadBlueprint()
     }
   });
+
+  $('#spec_list').css('top', $('.summaryHeader').outerHeight());
+
 }
 
 /*
@@ -1530,9 +1556,8 @@ function DeploymentListController($scope, $location, $http, $resource, scroll, i
 
 //Hard-coded for Managed Cloud Wordpress
 function DeploymentManagedCloudController($scope, $location, $routeParams, $resource, $http, items, navbar, options, workflow, github) {
-  $('#mcspec_list').css('top', $('.summaryHeader').outerHeight() + 20); // Not sure if this is the right place for this. -Chris.Burrell (chri5089)
 
-  $scope.receive_blueprint = function(data, remote) {
+   $scope.receive_blueprint = function(data, remote) {
     if ('blueprint' in data) {
       if ($scope.auth.identity.loggedIn === true) {
         data.blueprint.options.region['default'] = $scope.auth.context.user['RAX-AUTH:defaultRegion'] || $scope.auth.context.regions[0];
@@ -1682,6 +1707,8 @@ function DeploymentManagedCloudController($scope, $location, $routeParams, $reso
     $scope.setAllBlueprintRegions();
   });
 
+   items.clear();
+
   //Load the latest supported blueprints (tagged) from github
   $scope.loadRemoteBlueprint('https://github.rackspace.com/Blueprints/wordpress#v' + $scope.rook_version.split('-')[0]);
   $scope.loadRemoteBlueprint('https://github.rackspace.com/Blueprints/wordpress-clouddb#v' + $scope.rook_version.split('-')[0]);
@@ -1689,6 +1716,9 @@ function DeploymentManagedCloudController($scope, $location, $routeParams, $reso
   //Load the latest master from github
   $scope.loadRemoteBlueprint('https://github.rackspace.com/Blueprints/wordpress');
   $scope.loadRemoteBlueprint('https://github.rackspace.com/Blueprints/wordpress-clouddb');
+
+  $('#mcspec_list').css('top', $('.summaryHeader').outerHeight()); // Not sure if this is the right place for this. -Chris.Burrell (chri5089)
+
 }
 
 //Select one remote blueprint
@@ -2007,7 +2037,7 @@ function DeploymentNewController($scope, $location, $routeParams, $resource, opt
   // Event Listeners
   $scope.OnLogIn = function(e) {
     $scope.getDomains();
-    $scope.updateOptions();
+    $scope.updateRegions();
   };
   $scope.$on('logIn', $scope.OnLogIn);
 }
@@ -2245,6 +2275,8 @@ $(function() {
   });
 });
 
+var foldFunc = CodeMirror.newFoldFunction(CodeMirror.braceRangeFinder);
+
 document.addEventListener('DOMContentLoaded', function(e) {
   //On mobile devices, hide the address bar
   window.scrollTo(0, 0);
@@ -2253,7 +2285,6 @@ document.addEventListener('DOMContentLoaded', function(e) {
   $(".cmpop").popover();  //anything with a 'cmpop' class will attempt to pop over using the data-content and title attributes
   $(".cmtip").tooltip();  //anything with a 'cmtip' class will attempt to show a tooltip of the title attribute
   $(".cmcollapse").collapse();  //anything with a 'cmcollapse' class will be collapsible
-
 }, false);
 
 $(window).load(function () {
@@ -2276,3 +2307,5 @@ $(window).load(function () {
   });
 
 });
+
+

@@ -67,7 +67,7 @@
           <div id="user_control" class="nav pull-right">
             <ul class="nav">
               <li class="divider-vertical"></li>
-              <li class="dropdown pull-right" style="display: none;" ng-show="auth.identity.loggedIn">
+              <li class="dropdown pull-right" style="display: none;" ng-show="auth.identity.loggedIn" title="Token expires {{auth.context.token.expires | formattedDate}}">
                 <a href="#" class="dropdown-toggle" data-toggle="dropdown" id="user_button">
                       <i class="icon-user icon-white"></i> {{auth.context.username}}
                       <span ng-show="auth.context.tenantId"> ({{auth.context.tenantId}})</span>
