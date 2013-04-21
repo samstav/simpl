@@ -15,9 +15,26 @@ The API ID is not necessarily a UUID. Allowed charatcers are:
 The ID must start with an alphanumeric character.
 
 '''
+import logging
+
+LOG = logging.getLogger()
 
 
-class DbBase(object):
+class DbBase(object):  # pylint: disable=R0921
+    '''Interface for all database drivers'''
+
+    def __init__(self, connection_string, driver=None, *args, **kwargs):
+        '''Initialize database driver
+
+        :param driver: used to inject a driver for testing or connection
+                       sharing
+        '''
+        LOG.debug("Initializing driver %s with connection_string='%s', "
+                  "args=%s, driver=%s, and kwargs=%s", self.__class__.__name__,
+                  connection_string, args, driver, kwargs)
+        self.connection_string = connection_string
+        self.driver = driver
+
     def dump(self):
         '''Dump all data n the database'''
         raise NotImplementedError()

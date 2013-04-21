@@ -69,9 +69,11 @@ class TestDatabase(unittest.TestCase):
                 # particular process (test) to use mongo
                 os.environ['CHECKMATE_CONNECTION_STRING'] = TEST_MONGO_INSTANCE
         self.collection_name = 'checkmate_test_%s' % uuid.uuid4().hex
-        self.driver = db.get_driver('checkmate.db.mongodb.Driver', True)
-        self.driver.connection_string = os.environ.get(
+        self.connection_string = os.environ.get(
             'CHECKMATE_CONNECTION_STRING', TEST_MONGO_INSTANCE)
+        self.driver = db.get_driver(name='checkmate.db.mongodb.Driver',
+                                    reset=True,
+                                    connection_string=self.connection_string)
         self.driver._connection = self.driver._database = None  # reset driver
         self.driver.db_name = 'checkmate'
         self.default_deployment = {

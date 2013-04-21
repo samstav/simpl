@@ -7,7 +7,6 @@ TODO:
 '''
 import pymongo
 import logging
-import os
 import time
 import uuid
 
@@ -17,26 +16,25 @@ from checkmate.exceptions import CheckmateDatabaseConnectionError
 from checkmate.utils import merge_dictionary
 from SpiffWorkflow.util import merge_dictionary as collate
 
-
 LOG = logging.getLogger(__name__)
 
 
 class Driver(DbBase):
     """MongoDB Database Driver"""
-    _connection = None
-    _client = None
     #db fields we do not want returned to the client
     _object_projection = {'_lock': 0, '_lock_timestamp': 0, '_id': 0}
 
-    def __init__(self, *args, **kwargs):
-        """Initializes globals for this driver"""
-        DbBase.__init__(self, *args, **kwargs)
-        self.connection_string = os.environ.get('CHECKMATE_CONNECTION_STRING',
-                                                'mongodb://localhost')
+    def __init__(self, connection_string, driver=None, *args, **kwargs):
+        '''Initializes globals for this driver'''
+        DbBase.__init__(self, connection_string, driver=driver, *args,
+                        **kwargs)
+
         self.db_name = pymongo.uri_parser.parse_uri(self.connection_string
                                                     ).get('database',
                                                           'checkmate')
         self._database = None
+        self._connection = None
+        self._client = None
 
     def database(self):
         """ Connects to and returns mongodb database object """
@@ -140,6 +138,7 @@ class Driver(DbBase):
         :returns (locked_object, key): a tuple of the locked_object and the
             key that should be used to unlock it.
         """
+
         if with_secrets:
             locked_object, key = self._lock_find_object(klass, api_id, key=key)
             return (self.merge_secrets(klass, api_id, locked_object), key)

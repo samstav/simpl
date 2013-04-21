@@ -1,10 +1,18 @@
+'''
+Driver for SQL ALchemy
+'''
 import json
 import logging
-import os
 import time
 
-from sqlalchemy import Column, Integer, String, Text, PickleType,\
+from sqlalchemy import (
+    Column,
+    Integer,
+    String,
+    Text,
+    PickleType,
     Float
+)
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.pool import StaticPool
 from sqlalchemy import create_engine
@@ -19,60 +27,22 @@ except ImportError:
 
 from checkmate.classes import ExtensibleDict
 from checkmate.db import migration
-from checkmate.db.common import *
+from checkmate.db.common import (
+    DbBase,
+    DEFAULT_RETRIES,
+    DEFAULT_STALE_LOCK_TIMEOUT,
+    DEFAULT_TIMEOUT,
+    DatabaseTimeoutException,
+)
 from checkmate.exceptions import CheckmateDatabaseMigrationError
-from checkmate.utils import merge_dictionary
+from checkmate import utils
 from SpiffWorkflow.util import merge_dictionary as collate
 
 
-__all__ = ['Base', 'Environment', 'Blueprint', 'Deployment', 'Component',
-           'Workflow']
+__all__ = ['Environment', 'Blueprint', 'Deployment', 'Workflow']
 
 LOG = logging.getLogger(__name__)
-
-CONNECTION_STRING = os.environ.get('CHECKMATE_CONNECTION_STRING', 'sqlite://')
-if CONNECTION_STRING == 'sqlite://':
-    _ENGINE = create_engine(CONNECTION_STRING,
-                            connect_args={'check_same_thread': False},
-                            poolclass=StaticPool)
-    message = "Checkmate is connected to an in-memory sqlite database. No " \
-              "data will be persisted. To store your data, set the "\
-              "CHECKMATE_CONNECTION_STRING environment variable to a valid "\
-              "sqlalchemy connection string"
-    LOG.warning(message)
-    print message
-else:
-    _ENGINE = create_engine(CONNECTION_STRING)
-    LOG.info("Connected to '%s'" % CONNECTION_STRING)
-
-
-def _init_version_control():
-    """Verify the state of the database"""
-    if CONNECTION_STRING == "sqlite://":
-        return
-    repo_path = migration.get_migrate_repo_path()
-
-    try:
-        repo_version = migration.get_repo_version(repo_path)
-        db_version = migration.get_db_version(_ENGINE, repo_path)
-
-        if repo_version != db_version:
-            msg = ("Database (%s) is not up to date (current=%s, "
-                   "latest=%s); run `checkmate-database upgrade` or '"
-                   "override your migrate version manually (see docs)" %
-                   (CONNECTION_STRING, db_version, repo_version))
-            LOG.warning(msg)
-            raise CheckmateDatabaseMigrationError(msg)
-    except versioning_exceptions.DatabaseNotControlledError:
-        msg = ("Database (%s) is not version controlled; "
-               "run `checkmate-database version_control` or "
-               "override your migrate version manually (see docs)" %
-               (CONNECTION_STRING))
-        LOG.warning(msg)
-
-_init_version_control()
-Base = declarative_base(bind=_ENGINE)
-Session = scoped_session(sessionmaker(_ENGINE))
+Base = declarative_base()
 
 
 class TextPickleType(PickleType):
@@ -121,10 +91,56 @@ class Workflow(Base):
     body = Column(TextPickleType(pickler=json))
 
 
-Base.metadata.create_all(_ENGINE)
-
-
 class Driver(DbBase):
+
+    def __init__(self, connection_string, driver=None, *args, **kwargs):
+        '''Initializes globals for this driver'''
+        DbBase.__init__(self, connection_string, driver=driver, *args,
+                        **kwargs)
+
+        if connection_string == 'sqlite://':
+            self.engine = create_engine(connection_string,
+                                        connect_args={
+                                            'check_same_thread': False
+                                        },
+                                        poolclass=StaticPool)
+            message = ("Checkmate is connected to an in-memory sqlite "
+                       "database. No  data will be persisted. To store your "
+                       "data, set the CHECKMATE_CONNECTION_STRING environment "
+                       "variable to a valid sqlalchemy connection string")
+            LOG.warning(message)
+            print message
+        else:
+            self.engine = create_engine(connection_string)
+            LOG.info("Connected to '%s'", connection_string)
+
+        self._init_version_control()
+        self.session = scoped_session(sessionmaker(self.engine))
+        Base.metadata.create_all(self.engine)
+
+    def _init_version_control(self):
+        """Verify the state of the database"""
+        if self.connection_string == "sqlite://":
+            return
+        repo_path = migration.get_migrate_repo_path()
+
+        try:
+            repo_version = migration.get_repo_version(repo_path)
+            db_version = migration.get_db_version(self.engine, repo_path)
+
+            if repo_version != db_version:
+                msg = ("Database (%s) is not up to date (current=%s, "
+                       "latest=%s); run `checkmate-database upgrade` or '"
+                       "override your migrate version manually (see docs)")
+                LOG.warning(msg, self.connection_string, db_version,
+                            repo_version)
+                raise CheckmateDatabaseMigrationError(msg)
+        except versioning_exceptions.DatabaseNotControlledError:
+            msg = ("Database (%s) is not version controlled; "
+                   "run `checkmate-database version_control` or "
+                   "override your migrate version manually (see docs)")
+            LOG.warning(msg, self.connection_string)
+
     def dump(self):
         response = {}
         response['environments'] = self.get_environments()
@@ -187,7 +203,7 @@ class Driver(DbBase):
 
     # GENERIC
     def get_object(self, klass, id, with_secrets=None):
-        results = Session.query(klass).filter_by(id=id)
+        results = self.session.query(klass).filter_by(id=id)
         if results and results.count() > 0:
             first = results.first()
             body = first.body
@@ -197,7 +213,7 @@ class Driver(DbBase):
                 body['tenantId'] = first.tenant_id
             if with_secrets is True:
                 if first.secrets:
-                    return merge_dictionary(body, first.secrets)
+                    return utils.merge_dictionary(body, first.secrets)
                 else:
                     return body
             else:
@@ -205,13 +221,13 @@ class Driver(DbBase):
 
     def get_objects(self, klass, tenant_id=None, with_secrets=None,
                     offset=None, limit=None):
-        results = Session.query(klass)
+        results = self.session.query(klass)
         if tenant_id:
             results = results.filter_by(tenant_id=tenant_id)
         if results and results.count() > 0:
             response = {}
             if offset and (limit is None):
-                results = results.offset(offest).all()
+                results = results.offset(offset).all()
             if limit:
                 if offset is None:
                     offset = 0
@@ -248,38 +264,40 @@ class Driver(DbBase):
         lock_timestamp = time.time()
         while tries < DEFAULT_RETRIES:
             #try to get the lock
-            updated = Session.query(klass).filter_by(
+            updated = self.session.query(klass).filter_by(
                 id=id,
                 locked=0
             ).update({'locked': lock_timestamp})
-            Session.commit()
+            self.session.commit()
 
             if updated > 0:
                 #get the object that we just locked
-                results = Session.query(klass).filter_by(id=id,
-                                                         locked=lock_timestamp)
+                results = self.session.query(klass).filter_by(id=id,
+                                                              locked=
+                                                              lock_timestamp)
                 assert results.count() > 0, ("There was a fatal error. The "
                                              "object %s with id %s could not "
                                              "be locked!" % (klass, id))
                 break
             else:
-                existing_object = Session.query(klass).filter_by(id=id).first()
+                existing_object = self.session.query(klass).filter_by(id=id)\
+                    .first()
                 if not existing_object:
                     #this is a new object
                     break
 
-                elif (lock_timestamp - existing_object.locked) >= \
-                        DEFAULT_STALE_LOCK_TIMEOUT:
+                elif ((lock_timestamp - existing_object.locked) >=
+                      DEFAULT_STALE_LOCK_TIMEOUT):
 
                     #the lock is stale, remove it
                     stale_lock_object = \
-                        Session.query(klass).filter_by(
+                        self.session.query(klass).filter_by(
                             id=id,
                             locked=existing_object.locked
                         ).update({'locked': lock_timestamp})
-                    Session.commit()
+                    self.session.commit()
 
-                    results = Session.query(klass).filter_by(id=id)
+                    results = self.session.query(klass).filter_by(id=id)
 
                     if stale_lock_object:
                         print "stale break"
@@ -327,6 +345,6 @@ class Driver(DbBase):
             e = klass(id=id, body=body, tenant_id=tenant_id,
                       secrets=secrets, locked=0)
 
-        Session.add(e)
-        Session.commit()
+        self.session.add(e)
+        self.session.commit()
         return body

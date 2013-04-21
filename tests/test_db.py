@@ -24,7 +24,8 @@ class TestDatabase(unittest.TestCase):
     """ Test Database code """
 
     def setUp(self):
-        self.driver = db.get_driver('checkmate.db.sql.Driver', reset=True)
+        self.driver = db.get_driver(name='checkmate.db.sql.Driver', reset=True,
+                                    connection_string='sqlite://')
         self.klass = Deployment
         db.sql.DEFAULT_RETRIES = 1
         self.default_deployment = {
@@ -233,44 +234,44 @@ class TestDatabase(unittest.TestCase):
         self.assertDictEqual(results, body)
 
     def test_new_deployment_locking(self):
-        db.sql.Session.query(self.klass).filter_by(
+        self.driver.session.query(self.klass).filter_by(
             id=self.default_deployment['id']).delete()
         body, secrets = extract_sensitive_data(self.default_deployment)
         self.driver.save_deployment(self.default_deployment['id'],
                                     body, secrets,
                                     tenant_id='T1000')
 
-        result = db.sql.Session.query(self.klass).filter_by(
+        result = self.driver.session.query(self.klass).filter_by(
             id=self.default_deployment['id'])
         saved_deployment = result.first()
         self.assertEqual(saved_deployment.locked, 0)
         self.assertEqual(saved_deployment.body, self.default_deployment)
 
-        db.sql.Session.query(self.klass).filter_by(
+        self.driver.session.query(self.klass).filter_by(
             id=self.default_deployment['id']).delete()
 
     def test_locked_deployment(self):
-        db.sql.Session.query(self.klass).filter_by(
+        self.driver.session.query(self.klass).filter_by(
             id=self.default_deployment['id']).delete()
 
         body, secrets = extract_sensitive_data(self.default_deployment)
-        db.sql.Session.query(self.klass).filter_by(
+        self.driver.session.query(self.klass).filter_by(
             id=self.default_deployment['id']).update({'locked': time.time()})
 
         e = self.klass(id=self.default_deployment['id'], body=body,
                        tenant_id='T1000', secrets=secrets, locked=time.time())
-        db.sql.Session.add(e)
-        db.sql.Session.commit()
+        self.driver.session.add(e)
+        self.driver.session.commit()
 
         with self.assertRaises(DatabaseTimeoutException):
             self.driver.save_deployment(self.default_deployment['id'], body,
                                         secrets, tenant_id='T1000')
 
-        db.sql.Session.query(self.klass).filter_by(
+        self.driver.session.query(self.klass).filter_by(
             id=self.default_deployment['id']).delete()
 
     def test_no_locked_field_deployment(self):
-        db.sql.Session.query(self.klass).filter_by(
+        self.driver.session.query(self.klass).filter_by(
             id=self.default_deployment['id']).delete()
 
         body, secrets = extract_sensitive_data(self.default_deployment)
@@ -278,26 +279,26 @@ class TestDatabase(unittest.TestCase):
         #insert without locked field
         e = self.klass(id=self.default_deployment['id'], body=body,
                        tenant_id='T1000', secrets=secrets)
-        db.sql.Session.add(e)
-        db.sql.Session.commit()
+        self.driver.session.add(e)
+        self.driver.session.commit()
 
         #save, should get a locked here
         self.driver.save_deployment(self.default_deployment['id'], body,
                                     secrets, tenant_id='T1000')
 
         #get saved deployment
-        deployment = db.sql.Session.query(self.klass).filter_by(
+        deployment = self.driver.session.query(self.klass).filter_by(
             id=self.default_deployment['id']
         ).first()
 
         #check unlocked
         self.assertEquals(deployment.locked, 0)
 
-        db.sql.Session.query(self.klass).filter_by(
+        self.driver.session.query(self.klass).filter_by(
             id=self.default_deployment['id']).delete()
 
     def test_stale_lock(self):
-        db.sql.Session.query(self.klass).filter_by(
+        self.driver.session.query(self.klass).filter_by(
             id=self.default_deployment['id']).delete()
 
         body, secrets = extract_sensitive_data(self.default_deployment)
@@ -305,8 +306,8 @@ class TestDatabase(unittest.TestCase):
         #insert without locked field
         e = self.klass(id=self.default_deployment['id'], body=body,
                        tenant_id='T1000', secrets=secrets)
-        db.sql.Session.add(e)
-        db.sql.Session.commit()
+        self.driver.session.add(e)
+        self.driver.session.commit()
 
         #save, should get a _locked here
         self.driver.save_deployment(self.default_deployment['id'], body,
@@ -314,24 +315,41 @@ class TestDatabase(unittest.TestCase):
 
         #set timestamp to a stale time
         timeout = time.time()
-        db.sql.Session.query(self.klass).filter_by(
+        self.driver.session.query(self.klass).filter_by(
             id=self.default_deployment['id']).update({
                 'locked': timeout - DEFAULT_STALE_LOCK_TIMEOUT})
-        db.sql.Session.commit()
+        self.driver.session.commit()
 
         #test remove stale lock
         self.driver.save_deployment(self.default_deployment['id'], body,
                                     secrets, tenant_id='T1000')
 
         #get saved deployment
-        deployment = db.sql.Session.query(self.klass).filter_by(
+        deployment = self.driver.session.query(self.klass).filter_by(
             id=self.default_deployment['id']).first()
 
         #check for unlocked
         self.assertEquals(deployment.locked, 0)
 
-        db.sql.Session.query(self.klass).filter_by(
+        self.driver.session.query(self.klass).filter_by(
             id=self.default_deployment['id']).delete()
+
+    def test_driver_creation(self):
+        driver = db.get_driver(connection_string='sqlite://')
+        self.assertEquals(driver.connection_string, 'sqlite://')
+        self.assertEquals(driver.__class__.__name__, 'Driver')
+
+    def test_driver_creation_multiple(self):
+        driver1 = db.get_driver(connection_string='sqlite://')
+        driver2 = db.get_driver(connection_string='mongodb://fake')
+        self.assertNotEqual(driver1, driver2)
+        self.assertEquals(driver1.connection_string, 'sqlite://')
+        self.assertEquals(driver2.connection_string, 'mongodb://fake')
+
+    def test_driver_creation_multiple_same_class(self):
+        driver1 = db.get_driver(connection_string='mongodb://fake1')
+        driver2 = db.get_driver(connection_string='mongodb://fake2')
+        self.assertNotEqual(driver1, driver2)
 
 
 if __name__ == '__main__':
