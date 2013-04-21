@@ -3,7 +3,7 @@ import logging
 import os
 import time
 
-from sqlalchemy import Column, Integer, String, Text, PickleType, Boolean,\
+from sqlalchemy import Column, Integer, String, Text, PickleType,\
     Float
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.pool import StaticPool
@@ -33,8 +33,8 @@ LOG = logging.getLogger(__name__)
 CONNECTION_STRING = os.environ.get('CHECKMATE_CONNECTION_STRING', 'sqlite://')
 if CONNECTION_STRING == 'sqlite://':
     _ENGINE = create_engine(CONNECTION_STRING,
-                connect_args={'check_same_thread': False},
-                poolclass=StaticPool)
+                            connect_args={'check_same_thread': False},
+                            poolclass=StaticPool)
     message = "Checkmate is connected to an in-memory sqlite database. No " \
               "data will be persisted. To store your data, set the "\
               "CHECKMATE_CONNECTION_STRING environment variable to a valid "\
@@ -58,16 +58,16 @@ def _init_version_control():
 
         if repo_version != db_version:
             msg = ("Database (%s) is not up to date (current=%s, "
-                "latest=%s); run `checkmate-database upgrade` or '"
-                "override your migrate version manually (see docs)" %
-                (CONNECTION_STRING, db_version, repo_version))
+                   "latest=%s); run `checkmate-database upgrade` or '"
+                   "override your migrate version manually (see docs)" %
+                   (CONNECTION_STRING, db_version, repo_version))
             LOG.warning(msg)
             raise CheckmateDatabaseMigrationError(msg)
     except versioning_exceptions.DatabaseNotControlledError:
         msg = ("Database (%s) is not version controlled; "
-                "run `checkmate-database version_control` or "
-                "override your migrate version manually (see docs)" %
-                (CONNECTION_STRING))
+               "run `checkmate-database version_control` or "
+               "override your migrate version manually (see docs)" %
+               (CONNECTION_STRING))
         LOG.warning(msg)
 
 _init_version_control()
@@ -180,8 +180,10 @@ class Driver(DbBase):
     def unlock_workflow(self, obj_id, key):
         pass
 
-    def lock_workflow(self, obj_id):
-        pass
+    def lock_workflow(self, obj_id, with_secrets=None, key=None):
+        # FIXME: implement real locking in sql driver
+        return (self.get_object(Workflow, obj_id, with_secrets=with_secrets),
+                None)
 
     # GENERIC
     def get_object(self, klass, id, with_secrets=None):
@@ -193,7 +195,7 @@ class Driver(DbBase):
                 first.tenant_id = body["tenantId"]
             elif first.tenant_id:
                 body['tenantId'] = first.tenant_id
-            if with_secrets == True:
+            if with_secrets is True:
                 if first.secrets:
                     return merge_dictionary(body, first.secrets)
                 else:
@@ -214,11 +216,11 @@ class Driver(DbBase):
                 if offset is None:
                     offset = 0
                 results = results.limit(limit).offset(offset).all()
-            if with_secrets == True:
+            if with_secrets is True:
                 for e in results:
                     if e.secrets:
                         response[e.id] = utils.merge_dictionary(e.body,
-                                e.secrets)
+                                                                e.secrets)
                     else:
                         response[e.id] = e.body
                     response[e.id]['tenantId'] = e.tenant_id
@@ -243,21 +245,22 @@ class Driver(DbBase):
         #object locking logic
         results = None
         tries = 0
-        lock_timestamp = time.time() 
+        lock_timestamp = time.time()
         while tries < DEFAULT_RETRIES:
             #try to get the lock
             updated = Session.query(klass).filter_by(
-                id=id, 
+                id=id,
                 locked=0
             ).update({'locked': lock_timestamp})
             Session.commit()
 
             if updated > 0:
                 #get the object that we just locked
-                results = Session.query(klass).filter_by(id=id, 
-                    locked=lock_timestamp)
-                assert results.count() > 0, ("There was a fatal error. The"
-                    "object %s with id %s could not be locked!") % (klass, id)
+                results = Session.query(klass).filter_by(id=id,
+                                                         locked=lock_timestamp)
+                assert results.count() > 0, ("There was a fatal error. The "
+                                             "object %s with id %s could not "
+                                             "be locked!" % (klass, id))
                 break
             else:
                 existing_object = Session.query(klass).filter_by(id=id).first()
@@ -266,14 +269,14 @@ class Driver(DbBase):
                     break
 
                 elif (lock_timestamp - existing_object.locked) >= \
-                    DEFAULT_STALE_LOCK_TIMEOUT:
+                        DEFAULT_STALE_LOCK_TIMEOUT:
 
                     #the lock is stale, remove it
                     stale_lock_object = \
                         Session.query(klass).filter_by(
-                            id=id, 
+                            id=id,
                             locked=existing_object.locked
-                        ).update({'locked' : lock_timestamp})
+                        ).update({'locked': lock_timestamp})
                     Session.commit()
 
                     results = Session.query(klass).filter_by(id=id)
@@ -285,14 +288,15 @@ class Driver(DbBase):
 
                 if (tries + 1) == DEFAULT_TIMEOUT:
                     raise DatabaseTimeoutException("Attempted to query the "
-                "   database the maximum amount of retries.")
+                                                   "database the maximum "
+                                                   "amount of retries.")
                 time.sleep(DEFAULT_TIMEOUT)
                 tries += 1
 
         if results and results.count() > 0:
             e = results.first()
             e.locked = 0
-            
+
             #merge the results
             saved_body = deepcopy(e.body)
             collate(saved_body, body)
@@ -303,12 +307,12 @@ class Driver(DbBase):
             elif "tenantId" in body:
                 e.tenant_id = body.get("tenantId")
 
-            assert tenant_id or e.tenant_id, "tenantId must be specified"                
+            assert tenant_id or e.tenant_id, "tenantId must be specified"
 
             if secrets is not None:
                 if not secrets:
-                    LOG.warning("Clearing secrets for %s:%s" % (klass.__name__,
-                            id))
+                    LOG.warning("Clearing secrets for %s:%s", klass.__name__,
+                                id)
                     e.secrets = None
                 else:
                     if not e.secrets:
@@ -321,9 +325,8 @@ class Driver(DbBase):
                 "tenantId must be specified"
             #new item
             e = klass(id=id, body=body, tenant_id=tenant_id,
-                    secrets=secrets, locked=0)
+                      secrets=secrets, locked=0)
 
         Session.add(e)
         Session.commit()
         return body
-        

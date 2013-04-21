@@ -12,7 +12,7 @@ import uuid
 
 os.environ['CHECKMATE_CONNECTION_STRING'] = 'sqlite://'
 
-from checkmate.db.sql import Deployment, Workflow
+from checkmate.db.sql import Deployment
 init_console_logging()
 LOG = logging.getLogger(__name__)
 
@@ -45,6 +45,7 @@ class TestDatabase(unittest.TestCase):
                 'providers': {},
                 },
             }
+
     def _decode_dict(self, dictionary):
         decoded_dict = {}
         for key, value in dictionary.iteritems():
@@ -88,7 +89,7 @@ class TestDatabase(unittest.TestCase):
                       {'id': 1,
                        'name': 'My Component',
                        'tenantId': 'T1000'},
-                    2: 
+                    2:
                       {'id': 2,
                        'name': 'My Second Component',
                        'tenantId': 'T1000'}}
@@ -101,7 +102,7 @@ class TestDatabase(unittest.TestCase):
                       {'id': 2,
                        'name': 'My Second Component',
                        'tenantId': 'T1000'},
-                    3: 
+                    3:
                       {'id': 3,
                        'name': 'My Third Component',
                        'tenantId': 'T1000'}}
@@ -232,14 +233,14 @@ class TestDatabase(unittest.TestCase):
         saved_deployment = result.first()
         self.assertEqual(saved_deployment.locked, 0)
         self.assertEqual(saved_deployment.body, self.default_deployment)
-        
+
         db.sql.Session.query(self.klass).filter_by(
             id=self.default_deployment['id']).delete()
 
     def test_locked_deployment(self):
         db.sql.Session.query(self.klass).filter_by(
             id=self.default_deployment['id']).delete()
- 
+
         body, secrets = extract_sensitive_data(self.default_deployment)
         item = db.sql.Session.query(self.klass).filter_by(
             id=self.default_deployment['id']
@@ -252,16 +253,16 @@ class TestDatabase(unittest.TestCase):
 
         with self.assertRaises(DatabaseTimeoutException):
             self.driver.save_deployment(self.default_deployment['id'],body, secrets, tenant_id='T1000')
-  
+
         db.sql.Session.query(self.klass).filter_by(
             id=self.default_deployment['id']).delete()
-  
+
     def test_no_locked_field_deployment(self):
         db.sql.Session.query(self.klass).filter_by(
             id=self.default_deployment['id']).delete()
- 
+
         body, secrets = extract_sensitive_data(self.default_deployment)
-  
+
         #insert without locked field
         e = self.klass(id=self.default_deployment['id'], body=body, tenant_id='T1000',
             secrets=secrets)
@@ -281,13 +282,13 @@ class TestDatabase(unittest.TestCase):
 
         db.sql.Session.query(self.klass).filter_by(
             id=self.default_deployment['id']).delete()
- 
+
     def test_stale_lock(self):
         db.sql.Session.query(self.klass).filter_by(
             id=self.default_deployment['id']).delete()
- 
+
         body, secrets = extract_sensitive_data(self.default_deployment)
-  
+
         #insert without locked field
         e = self.klass(id=self.default_deployment['id'], body=body, tenant_id='T1000',
             secrets=secrets)
@@ -317,6 +318,7 @@ class TestDatabase(unittest.TestCase):
 
         db.sql.Session.query(self.klass).filter_by(
             id=self.default_deployment['id']).delete()
+
 
 if __name__ == '__main__':
     # Run tests. Handle our parameters seprately

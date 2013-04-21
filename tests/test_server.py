@@ -14,7 +14,7 @@ from checkmate.utils import init_console_logging
 init_console_logging()
 
 os.environ['CHECKMATE_DATA_PATH'] = os.path.join(os.path.dirname(__file__),
-                                              'data')
+                                                 'data')
 
 
 class TestServer(unittest.TestCase):
@@ -169,9 +169,9 @@ class TestServer(unittest.TestCase):
 
     #     get_obj = self.app.get("/T1000/workflows/1/tasks/"+ obj_id)
 
+
 if __name__ == '__main__':
     # Run tests. Handle our paramsters separately
-    import sys
     args = sys.argv[:]
     # Our --debug means --verbose for unitest
     if '--debug' in args:

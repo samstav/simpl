@@ -62,7 +62,6 @@ class TestDatabase(unittest.TestCase):
                 decoded_dict[key] = value
             return decoded_dict
 
-    
     def setUp(self):
         if os.environ.get('CHECKMATE_CONNECTION_STRING') is not None:
             if 'sqlite' in os.environ.get('CHECKMATE_CONNECTION_STRING'):
@@ -92,7 +91,7 @@ class TestDatabase(unittest.TestCase):
                 'providers': {},
                 },
             }
-    
+
     def tearDown(self):
         LOG.debug("Deleting test mongodb collection: %s" % self.collection_name)
         try:
@@ -106,7 +105,7 @@ class TestDatabase(unittest.TestCase):
         except Exception as exc:
             LOG.error("Error deleting test mongodb collection '%s'" % self.collection_name, exc_info=True)
 
-  
+
     @unittest.skipIf(SKIP, REASON)
     def test_update_secrets(self):
         _id = uuid.uuid4()
@@ -220,9 +219,9 @@ class TestDatabase(unittest.TestCase):
 
         results = self.driver.get_objects(self.collection_name, with_secrets=False)
         results = self._decode_dict(results)
-    
+
         #Since object was extraced in get_objects format, need to make sure format of body matches
-        expected_result_body = {1:body} 
+        expected_result_body = {1:body}
 
 	self.assertIn('id', results[1])
         self.assertEqual(results[1]['id'], 1)
@@ -254,7 +253,7 @@ class TestDatabase(unittest.TestCase):
                       {'id': 1,
                        'name': 'My Component',
                        'tenantId': 'T1000'},
-                    2: 
+                    2:
                       {'id': 2,
                        'name': 'My Second Component',
                        'tenantId': 'T1000'}}
@@ -267,7 +266,7 @@ class TestDatabase(unittest.TestCase):
                       {'id': 2,
                        'name': 'My Second Component',
                        'tenantId': 'T1000'},
-                    3: 
+                    3:
                       {'id': 3,
                        'name': 'My Third Component',
                        'tenantId': 'T1000'}}
@@ -335,7 +334,7 @@ class TestDatabase(unittest.TestCase):
                                         update=setup_obj,
                                         fields={
                                             '_id': 0,
-                                            '_lock': 0, 
+                                            '_lock': 0,
                                             '_lock_timestamp': 0
                                         },
                                         upsert=True
@@ -347,7 +346,7 @@ class TestDatabase(unittest.TestCase):
         self.assertEqual(locked_object, unlocked_object)
 
     @unittest.skipIf(SKIP, REASON)
-    def test_lock_locked_object(self): 
+    def test_lock_locked_object(self):
         klass = 'workflows'
         obj_id = 1
         self.driver.database()[klass].remove({'_id': obj_id})
@@ -366,7 +365,7 @@ class TestDatabase(unittest.TestCase):
         self.driver.database()[klass].remove({'_id': obj_id})
         lock = "test_lock"
         lock_timestamp = time.time() - 31
-        stored = {"_id": obj_id, "id": obj_id, "tenantId": "T1000", 
+        stored = {"_id": obj_id, "id": obj_id, "tenantId": "T1000",
             "test": obj_id, "_lock": lock, "_lock_timestamp": lock_timestamp}
         self.driver.database()[klass].save(stored)
         # the lock is older than 30 seconds so we should be able to lock the
@@ -380,7 +379,7 @@ class TestDatabase(unittest.TestCase):
         obj_id = 1
         self.driver.database()[klass].remove({'_id': obj_id})
         lock = "test_lock"
-        stored = {"_id": obj_id, "id": obj_id, "tenantId": "T1000", 
+        stored = {"_id": obj_id, "id": obj_id, "tenantId": "T1000",
             "test": obj_id}
         self.driver.database()[klass].save(stored)
 
@@ -395,7 +394,7 @@ class TestDatabase(unittest.TestCase):
         obj_id = 1
         self.driver.database()[klass].remove({'_id': obj_id})
         lock = "test_lock"
-        stored = {"_id": obj_id, "id": obj_id, "tenantId": "T1000", 
+        stored = {"_id": obj_id, "id": obj_id, "tenantId": "T1000",
             "test": obj_id}
         self.driver.database()[klass].save(stored)
 
@@ -413,7 +412,7 @@ class TestDatabase(unittest.TestCase):
         obj_id = 1
         self.driver.database()[klass].remove({'_id': obj_id})
         lock = "test_lock"
-        stored = {"_id": obj_id, "id": obj_id, "tenantId": "T1000", 
+        stored = {"_id": obj_id, "id": obj_id, "tenantId": "T1000",
             "test": obj_id}
         self.driver.database()[klass].save(stored)
 
