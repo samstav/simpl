@@ -40,6 +40,9 @@ from checkmate.utils import extract_sensitive_data
 tester = { 'some': 'random',
                'tenantId': 'T1000',
                'id' : 1 }
+TEST_MONGO_INSTANCE = ('mongodb://checkmate:%s@mongo-n01.dev.chkmate.rackspace'
+                       '.net:27017/checkmate' % 'c%40m3yt1ttttt')
+
 
 class TestDatabase(unittest.TestCase):
     """ Test Mongo Database code """
@@ -65,12 +68,14 @@ class TestDatabase(unittest.TestCase):
     def setUp(self):
         if os.environ.get('CHECKMATE_CONNECTION_STRING') is not None:
             if 'sqlite' in os.environ.get('CHECKMATE_CONNECTION_STRING'):
-                #If our test suite is using sqlite, we need to set this particular process (test) to use mongo
-                os.environ['CHECKMATE_CONNECTION_STRING'] = 'mongodb://localhost'
+                #If our test suite is using sqlite, we need to set this
+                # particular process (test) to use mongo
+                os.environ['CHECKMATE_CONNECTION_STRING'] = ('mongodb://'
+                                                             'localhost')
         self.collection_name = 'checkmate_test_%s' % uuid.uuid4().hex
         self.driver = db.get_driver('checkmate.db.mongodb.Driver', True)
-        self.driver.connection_string = 'mongodb://checkmate:%s@mongo-n01.dev.chkmate.rackspace.net:27017/checkmate' % ('c%40m3yt1ttttt')
-        #self.connection_string = 'localhost'
+        self.connection_string = os.environ.get('CHECKMATE_CONNECTION_STRING',
+                                                TEST_MONGO_INSTANCE)
         self.driver._connection = self.driver._database = None  # reset driver
         self.driver.db_name = 'checkmate'
         self.default_deployment = {
@@ -95,8 +100,7 @@ class TestDatabase(unittest.TestCase):
     def tearDown(self):
         LOG.debug("Deleting test mongodb collection: %s" % self.collection_name)
         try:
-            connection_string = 'mongodb://checkmate:%s@mongo-n01.dev.chkmate.rackspace.net:27017/checkmate' % ('c%40m3yt1ttttt', )
-            #connection_string = 'localhost'
+            connection_string = TEST_MONGO_INSTANCE
             c = Connection(connection_string)
             db = c.checkmate
             collection_name = self.collection_name
