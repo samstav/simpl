@@ -150,12 +150,13 @@ url: shows "Address Builder" to handle url options
   </fieldset>
 
 
+  <div ng-cloak ng-show="newDeploymentForm.$invalid"><hr><div class="alert"><strong>WARNING!</strong> There seem to be some fields with invalid or missing data. Fields with bad data should be shown in red. Fields that are required will have a <span style="color: #b94a48;">*</span> next to their label. You can still try to launch this deployment if you believe the data is valid.</div></div>
+
   <div class="form-actions">
     <button ng-click="submit(false)" class="btn btn-primary" ng-disabled="!auth.identity.loggedIn || is_unsupported_account() || submitting">Build It!</button>
     <button ng-cloak ng-show="simulator" ng-click="simulate()" class="btn" ng-disabled="!auth.identity.loggedIn || submitting">Simulate It</button>
     <button ng-click="preview()" class="btn" ng-disabled="!auth.identity.loggedIn || submitting">Preview It</button>
     <button ng-click="loginPrompt()" class="btn" ng-hide="auth.identity.loggedIn">Log in to execute this workflow</button>
-    <div class="alert" ng-cloak ng-show="newDeploymentForm.$invalid"><strong>WARNING!</strong> There seem to be some fields with invalid data. Fields with bad data should be shown in red. You can still try to launch this deployment if you believe the data is valid.</div>
 
   </div>
 
