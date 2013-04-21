@@ -1316,12 +1316,6 @@ function WorkflowController($scope, $resource, $http, $routeParams, $location, $
      });
   };
 
-  $scope.$on('$digest', function() {
-    var foldFunc = CodeMirror.newFoldFunction(CodeMirror.braceRangeFinder);
-    _.each($('.CodeMirror'), function(c) {
-      c.CodeMirror.on("gutterClick", foldFunc);
-    });
-  });
 }
 
 //Blueprint controllers
@@ -2291,11 +2285,6 @@ document.addEventListener('DOMContentLoaded', function(e) {
   $(".cmpop").popover();  //anything with a 'cmpop' class will attempt to pop over using the data-content and title attributes
   $(".cmtip").tooltip();  //anything with a 'cmtip' class will attempt to show a tooltip of the title attribute
   $(".cmcollapse").collapse();  //anything with a 'cmcollapse' class will be collapsible
-
-  _.each($('.CodeMirror'), function(c) {
-    console.log("Found one!");
-    c.CodeMirror.on("gutterClick", foldFunc);
-  });
 }, false);
 
 $(window).load(function () {
