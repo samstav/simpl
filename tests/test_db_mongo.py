@@ -18,7 +18,8 @@ from checkmate.workflows import safe_workflow_save
 from copy import deepcopy
 init_console_logging()
 LOG = logging.getLogger(__name__)
-
+print "OSENV", os.environ.get('CHECKMATE_CONNECTION_STRING')
+LOG.error("OSENV: %s", os.environ.get('CHECKMATE_CONNECTION_STRING'))
 from checkmate import db
 
 SKIP = False
@@ -66,12 +67,11 @@ class TestDatabase(unittest.TestCase):
             if 'sqlite' in os.environ.get('CHECKMATE_CONNECTION_STRING'):
                 #If our test suite is using sqlite, we need to set this
                 # particular process (test) to use mongo
-                os.environ['CHECKMATE_CONNECTION_STRING'] = ('mongodb://'
-                                                             'localhost')
+                os.environ['CHECKMATE_CONNECTION_STRING'] = TEST_MONGO_INSTANCE
         self.collection_name = 'checkmate_test_%s' % uuid.uuid4().hex
         self.driver = db.get_driver('checkmate.db.mongodb.Driver', True)
-        self.connection_string = os.environ.get('CHECKMATE_CONNECTION_STRING',
-                                                TEST_MONGO_INSTANCE)
+        self.driver.connection_string = os.environ.get(
+            'CHECKMATE_CONNECTION_STRING', TEST_MONGO_INSTANCE)
         self.driver._connection = self.driver._database = None  # reset driver
         self.driver.db_name = 'checkmate'
         self.default_deployment = {
@@ -96,7 +96,7 @@ class TestDatabase(unittest.TestCase):
     def tearDown(self):
         LOG.debug("Deleting test mongodb collection: %s", self.collection_name)
         try:
-            connection_string = TEST_MONGO_INSTANCE
+            connection_string = self.driver.connection_string
             c = Connection(connection_string)
             db = c.checkmate
             db.collection_name.drop()
