@@ -11,7 +11,7 @@
 <div class="span3 summaryBar" ng-init="parse_org_url('https://github.rackspace.com/Blueprints')">
   <div class="summaryHeader">
     <div class="top well" ng-cloak ng-show="showStatus">
-      <form name="RemoteSelector">
+      <form name="RemoteSelector" style="margin-bottom: 0;">
         <div class="row-fluid" style="height: 20px;">
           <div class="span10 actions">
             Remote Blueprints from
@@ -29,12 +29,12 @@
         <div class="control-group" style="padding-top: 5px;">
           <label class="control-label" for="url">Enter URL to an org or user:</label>
           <div class="controls">
-            <div class="input-append" ng-init="url_list = ['https://github.rackspace.com/Blueprints']">
-              <input id="url" type="text" class="input" data-provide="typeahead" data-source="{{url_list}}" ng-model="remote.url"></input>
+            <div class="input-append">
+              <input id="url" type="text" class="input" data-provide="typeahead" data-source="{{remotes_used}}" ng-model="remote.url"></input>
               <button class="btn dropdown-toggle" type="button" data-toggle="dropdown" data-target="#urls_menu"><b class="caret"></b></button>
               <div id="urls_menu" class="dropdown">
                 <ul class="dropdown-menu" role="menu" aria-labelledby="dLabel">
-                  <li ng-repeat="o in url_list"><a href="#" ng-click="$parent.remote.url=o;reload_blueprints();">{{o}}</a></li>
+                  <li ng-repeat="o in remotes_used"><a href="#" ng-click="$parent.remote.url=o;reload_blueprints();">{{o}}</a></li>
                 </ul>
               </div>
             </div>

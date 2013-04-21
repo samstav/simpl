@@ -1392,6 +1392,22 @@ function BlueprintRemoteListController($scope, $location, $routeParams, $resourc
     $scope.remote = github.parse_org_url(url, $scope.load);
   };
 
+  $scope.remember_repo_url = function(remote_url) {
+    if ($scope.remotes_used.indexOf(remote_url) == -1) {
+      $scope.remotes_used.push(remote_url);
+      localStorage.setItem('remotes', JSON.stringify($scope.remotes_used));
+    }
+  };
+
+  $scope.load_remotes_used = function() {
+    var data = localStorage.getItem('remotes');
+    if (data !== undefined && data !== null)
+      return JSON.parse(data);
+    return ['https://github.rackspace.com/Blueprints'];
+  };
+
+  $scope.remotes_used = $scope.load_remotes_used();
+
   //Handle results of loading repositories
   $scope.receive_blueprints = function(data) {
     items.clear();
@@ -1403,6 +1419,7 @@ function BlueprintRemoteListController($scope, $location, $routeParams, $resourc
     $scope.items = items.all;
     $scope.loading_remote_blueprints = false;
     $('#spec_list').css('top', $('.summaryHeader').outerHeight());
+    $scope.remember_repo_url($scope.remote.url);
   };
 
   $scope.load = function() {
