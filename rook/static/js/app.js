@@ -485,6 +485,11 @@ function AppController($scope, $http, $location, $resource, auth) {
     return '';
   };
 
+  $scope.CloudControlURL = function(region) {
+    if (region == 'LON')
+      return "https://lon.cloudcontrol.rackspacecloud.com";
+    return "https://us.cloudcontrol.rackspacecloud.com";
+  };
 }
 
 function NavBarController($scope, $location) {
@@ -1140,12 +1145,6 @@ function WorkflowController($scope, $resource, $http, $routeParams, $location, $
         $scope.resource($scope.current_task) !== null)
       return true;
     return false;
-  };
-
-  $scope.CloudControlURL = function(region) {
-    if (region == 'LON')
-      return "https://lon.cloudcontrol.rackspacecloud.com";
-    return "https://us.cloudcontrol.rackspacecloud.com";
   };
 
   $scope.resource = function(task) {
@@ -2319,4 +2318,5 @@ $(window).load(function () {
   });
 
 });
+
 

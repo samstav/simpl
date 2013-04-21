@@ -63,8 +63,14 @@
         <table class="table table-bordered table-condensed">
           <thead><tr><th>Name</th><th>Type</th><th>Build Status</th></tr></thead>
           <tbody>
-            <tr ng-repeat="resource in data.resources">
-              <td><a target="_blank" ng-href="https://mycloud.rackspace.com/a/{{auth.context.username}}/#compute%2CcloudServersOpenStack%2C{{resource.region}}/{{resource.instance.id}}">{{resource['dns-name']}}</a></td>
+            <tr ng-repeat="resource in data.resources" ng-hide="['application', 'key-pair', 'user', 'database', ''].indexOf(resource.type || '') > -1">
+              <td ng-switch="resource.provider">
+                <a ng-switch-when="nova" target="_blank" ng-href="{{CloudControlURL(rresource.region || resource.instance.region)}}/customer/{{auth.context.tenantId}}/next_gen_servers/{{resource.region || resource.instance.region}}/{{resource.instance.id}}">{{resource['dns-name']}}</a>
+                <a ng-switch-when="legacy" target="_blank" ng-href="{{CloudControlURL(resource.region || resource.instance.region)}}/customer/{{auth.context.tenantId}}/first_gen_servers/{{resource.instance.id}}">{{resource['dns-name']}}</a>
+                <a ng-switch-when="load-balancer" target="_blank" ng-href="{{CloudControlURL(resource.region || resource.instance.region)}}/customer/{{auth.context.tenantId}}/load_balancers/{{resource.region || resource.instance.region}}/{{resource.instance.id}}">{{resource['dns-name']}}</a>
+                <a ng-switch-when="databases" target="_blank" ng-href="{{CloudControlURL(resource.region || resource.instance.region)}}/customer/{{auth.context.tenantId}}/dbaas/instances/{{resource.region || resource.instance.region}}/{{resource.instance.id}}">{{resource['dns-name']}}</a>
+                <span ng-switch-default>{{resource['dns-name']}} ({{resource.provider}})</a>
+              </td>
               <td>{{resource.type}}{{resource.service | prepend: ' - '}}</td>
               <td>{{resource.status}}</td>
             </tr>
