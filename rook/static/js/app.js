@@ -2008,7 +2008,7 @@ function DeploymentNewController($scope, $location, $routeParams, $resource, opt
   // Event Listeners
   $scope.OnLogIn = function(e) {
     $scope.getDomains();
-    $scope.updateOptions();
+    $scope.updateRegions();
   };
   $scope.$on('logIn', $scope.OnLogIn);
 }
