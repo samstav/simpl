@@ -77,7 +77,7 @@
 
         <p class="lead">Raw Source</p>
 
-        <textarea id="source" ui-codemirror="{ theme: 'lesser-dark', mode: {name: 'javascript', json: true}, lineNumbers: true, autoFocus: true, lineWrapping: true, dragDrop: false, matchBrackets: true }" ng-model="data_json"></textarea>
+        <textarea id="source" ui-codemirror="{ theme: 'lesser-dark', mode: {name: 'javascript', json: true}, lineNumbers: true, autoFocus: true, lineWrapping: true, dragDrop: false, matchBrackets: true, onGutterClick: foldFunc }" ng-model="data_json"></textarea>
 
         <div class="alert">
           <button type="button" class="close" data-dismiss="alert">&times;</button> <strong>Warning!</strong> If your updates include any 'secret' values (like password or private keys) and you have not opened this screen with a ?with_secrets query parameter, then any existing secrets will be overwritten and lost

@@ -85,7 +85,7 @@
       </div>
 
       <div class="span9">
-        <textarea id="spec_source" ui-codemirror="{ theme: 'lesser-dark', mode: {name: 'javascript', json: true}, lineNumbers: true, autoFocus: true, lineWrapping: true, dragDrop: false, matchBrackets: true }" ng-model="current_spec_json">
+        <textarea id="spec_source" ui-codemirror="{ theme: 'lesser-dark', mode: {name: 'javascript', json: true}, lineNumbers: true, autoFocus: true, lineWrapping: true, dragDrop: false, matchBrackets: true, onGutterClick: foldFunc }" ng-model="current_spec_json">
 </textarea>
 
         <div class="alert">
@@ -160,7 +160,7 @@
           <div class="alert alert-success" ng-cloak ng-show="was_database_created()">
             <button type="button" class="close" data-dismiss="alert">&times;</button> Database instance <a target="_blank" href="https://mycloud.rackspace.com/a/{{auth.context.username}}/database#rax%3Adatabase%2CcloudDatabases%2C{{current_task.attributes.region}}/{{resource(current_task).id}}">{{resource(current_task).id}}</a> was created on host {{resource(current_task).interfaces.mysql.host}}. Open it in <a target="_blank" href="{{CloudControlURL(resource(current_task).region)}}/customer/{{auth.context.tenantId}}/dbaas/instances/{{current_task.attributes.region}}/{{resource(current_task).id}}">Cloud Control</a>.
           </div>
-          <textarea id="task_source" ui-codemirror="{ theme: 'lesser-dark', mode: {name: 'javascript', json: true}, lineNumbers: true, autoFocus: true, lineWrapping: true, dragDrop: false, matchBrackets: true }" ng-model="current_task_json"></textarea>
+          <textarea id="task_source" ui-codemirror="{ theme: 'lesser-dark', mode: {name: 'javascript', json: true}, lineNumbers: true, autoFocus: true, lineWrapping: true, dragDrop: false, matchBrackets: true, onGutterClick: foldFunc }" ng-model="current_task_json"></textarea>
         </div>
       </div>
     </div>

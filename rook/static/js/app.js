@@ -170,6 +170,7 @@ function RawController($scope, $location, $http) {
 function AppController($scope, $http, $location, $resource, auth) {
   $scope.showHeader = true;
   $scope.showStatus = false;
+  $scope.foldFunc = CodeMirror.newFoldFunction(CodeMirror.braceRangeFinder);
 
   $scope.safeApply = function(fn) {
     var phase = this.$root.$$phase;
@@ -2281,6 +2282,8 @@ $(function() {
   });
 });
 
+var foldFunc = CodeMirror.newFoldFunction(CodeMirror.braceRangeFinder);
+
 document.addEventListener('DOMContentLoaded', function(e) {
   //On mobile devices, hide the address bar
   window.scrollTo(0, 0);
@@ -2290,6 +2293,10 @@ document.addEventListener('DOMContentLoaded', function(e) {
   $(".cmtip").tooltip();  //anything with a 'cmtip' class will attempt to show a tooltip of the title attribute
   $(".cmcollapse").collapse();  //anything with a 'cmcollapse' class will be collapsible
 
+  _.each($('.CodeMirror'), function(c) {
+    console.log("Found one!");
+    c.CodeMirror.on("gutterClick", foldFunc);
+  });
 }, false);
 
 $(window).load(function () {
@@ -2312,3 +2319,4 @@ $(window).load(function () {
   });
 
 });
+
