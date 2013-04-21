@@ -26,7 +26,7 @@
       <div ng-cloak ng-show="remote.server">on {{remote.server}}</div>
 
       <div class="control-group" style="padding-top: 5px;">
-        <label class="control-label required" for="url">Enter URL to an org or user:</label>
+        <label class="control-label" for="url">Enter URL to an org or user:</label>
         <div class="controls">
           <div class="input-append" ng-init="url_list = ['https://github.rackspace.com/Blueprints']">
             <input id="url" type="text" class="input" data-provide="typeahead" data-source="{{url_list}}" ng-model="remote.url"></input>
