@@ -125,7 +125,14 @@ def save_workflow(id, tenant_id=None):
 
     body, secrets = extract_sensitive_data(entity)
 
-    results = safe_workflow_save(id, body, secrets=secrets, tenant_id=tenant_id)
+    existing = db.get_workflow(id)
+    results = safe_workflow_save(str(id), body, secrets=secrets,
+                                 tenant_id=tenant_id)
+    if existing:
+        response.status = 200  # OK - updated
+    else:
+        response.status = 201  # Created
+
     return write_body(results, request, response)
 
 
