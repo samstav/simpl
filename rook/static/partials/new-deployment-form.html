@@ -49,10 +49,10 @@ url: shows "Address Builder" to handle url options
   <fieldset>
     <!-- Name -->
     <div class="row-fluid">
-        <div class="control-group span10">
-            <label class="control-label required" for="deployment_name">Deployment Name</label>
+        <div class="control-group span10" ng-form="subForm" ng-class="{error: subForm.$invalid &amp;&amp; subForm.$dirty}">
+            <label class="control-label" for="deployment_name">Deployment Name</label>
             <div class="controls">
-                <input id="deployment_name" type="text" ng-model="$parent.deployment_name" class="input-xlarge" required placeholder="My Favorite App">
+                <input id="deployment_name" type="text" ng-model="$parent.deployment_name" class="input-xlarge" maxlength="32" ng-maxlength="32" placeholder="ex. My Favorite App">
             </div>
         </div>
     </div>
