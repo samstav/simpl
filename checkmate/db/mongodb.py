@@ -50,7 +50,6 @@ class Driver(DbBase):
         response['deployments'] = self.get_deployments()
         response['blueprints'] = self.get_blueprints()
         response['workflows'] = self.get_workflows()
-        response['components'] = self.get_components()
         return response
 
     # ENVIRONMENTS
@@ -90,16 +89,6 @@ class Driver(DbBase):
 
     def save_blueprint(self, id, body, secrets=None, tenant_id=None):
         return self.save_object('blueprints', id, body, secrets, tenant_id)
-
-    # COMPONENTS
-    def get_component(self, id, with_secrets=None):
-        return self.get_object('components', id, with_secrets)
-
-    def get_components(self, tenant_id=None, with_secrets=None):
-        return self.get_objects('components', tenant_id, with_secrets)
-
-    def save_component(self, id, body, secrets=None, tenant_id=None):
-        return self.save_object('components', id, body, secrets, tenant_id)
 
     # WORKFLOWS
     def get_workflow(self, id, with_secrets=None):

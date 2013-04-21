@@ -111,16 +111,6 @@ class Blueprint(Base):
     body = Column(TextPickleType(pickler=json))
 
 
-class Component(Base):
-    __tablename__ = 'components'
-    dbid = Column(Integer, primary_key=True, autoincrement=True)
-    id = Column(String(32), index=True, unique=True)
-    locked = Column(Float, default=0)
-    tenant_id = Column(String(255), index=True)
-    secrets = Column(TextPickleType(pickler=json))
-    body = Column(TextPickleType(pickler=json))
-
-
 class Workflow(Base):
     __tablename__ = 'workflows'
     dbid = Column(Integer, primary_key=True, autoincrement=True)
@@ -141,7 +131,6 @@ class Driver(DbBase):
         response['deployments'] = self.get_deployments()
         response['blueprints'] = self.get_blueprints()
         response['workflows'] = self.get_workflows()
-        response['components'] = self.get_components()
         return response
 
     # ENVIRONMENTS
@@ -175,16 +164,6 @@ class Driver(DbBase):
 
     def save_blueprint(self, id, body, secrets=None, tenant_id=None):
         return self.save_object(Blueprint, id, body, secrets, tenant_id)
-
-    # COMPONENTS
-    def get_component(self, id, with_secrets=None):
-        return self.get_object(Component, id, with_secrets)
-
-    def get_components(self, tenant_id=None, with_secrets=None):
-        return self.get_objects(Component, tenant_id, with_secrets)
-
-    def save_component(self, id, body, secrets=None, tenant_id=None):
-        return self.save_object(Component, id, body, secrets, tenant_id)
 
     # WORKFLOWS
     def get_workflow(self, id, with_secrets=None):

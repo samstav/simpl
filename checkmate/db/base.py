@@ -76,16 +76,6 @@ class DbBase(object):
     def save_blueprint(self, api_id, body):
         raise NotImplementedError()
 
-    # COMPONENTS
-    def get_component(self, api_id):
-        raise NotImplementedError()
-
-    def get_components(self):
-        raise NotImplementedError()
-
-    def save_component(self, api_id, body):
-        raise NotImplementedError()
-
     # WORKFLOWS
     def get_workflow(self, api_id):
         raise NotImplementedError()

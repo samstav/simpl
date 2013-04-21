@@ -247,7 +247,6 @@ TODO: fix terminology. 'setting', 'option' and/or 'input'. And update code, sche
 ## Semantic: The API
 The API is a **REST HTTP API**. It supports POST, PUT, GET, DELETE on:
 
-- /components[/:id]
 - /blueprints[/:id]
 - /environments[/:id]
 - /deployments[/:id]

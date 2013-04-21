@@ -22,7 +22,6 @@ class TestServer(unittest.TestCase):
 
     def setUp(self):
         load('checkmate.blueprints')
-        load('checkmate.components')
         load('checkmate.deployments')
         load('checkmate.environments')
         load('checkmate.workflows')
@@ -38,8 +37,6 @@ class TestServer(unittest.TestCase):
     def test_multitenant_environment(self):
         self.rest_tenant_exercise('environment')
 
-    def test_multitenant_component(self):
-        self.rest_tenant_exercise('component')
 
     def test_multitenant_blueprint(self):
         self.rest_tenant_exercise('blueprint', 'b_id')
@@ -50,8 +47,6 @@ class TestServer(unittest.TestCase):
     def test_crosstenant_environment(self):
         pass  # self.rest_cross_tenant_exercise('environment')
 
-    def test_crosstenant_component(self):
-        pass  # self.rest_cross_tenant_exercise('component')
 
     def test_crosstenant_blueprint(self):
         pass  # self.rest_cross_tenant_exercise('blueprint')

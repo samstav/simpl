@@ -192,30 +192,31 @@ class TestDatabase(unittest.TestCase):
         results = self.driver.get_object(Deployment, _id, with_secrets=True)
         self.assertDictEqual(original, self._decode_dict(results))
 
-    def test_components(self):
-        entity = {'id': 1,
-                  'name': 'My Component',
-                  'credentials': ['My Secrets']
-                 }
+    def test_workflows(self):
+        entity = {
+            'id': 1,
+            'name': 'My Workflow',
+            'credentials': ['My Secrets']
+        }
         body, secrets = extract_sensitive_data(entity)
-        results = self.driver.save_component(entity['id'], body, secrets,
-            tenant_id='T1000')
+        results = self.driver.save_workflow(entity['id'], body, secrets,
+                                            tenant_id='T1000')
         self.assertDictEqual(results, body)
 
-        results = self.driver.get_component(entity['id'], with_secrets=True)
+        results = self.driver.get_workflow(entity['id'], with_secrets=True)
         entity['tenantId'] = 'T1000'  # gets added
         self.assertDictEqual(results, entity)
         self.assertIn('credentials', results)
 
-        body['name'] = 'My Updated Component'
-        entity['name'] = 'My Updated Component'
-        results = self.driver.save_component(entity['id'], body)
+        body['name'] = 'My Updated Workflow'
+        entity['name'] = 'My Updated Workflow'
+        results = self.driver.save_workflow(entity['id'], body)
 
-        results = self.driver.get_component(entity['id'], with_secrets=True)
+        results = self.driver.get_workflow(entity['id'], with_secrets=True)
         self.assertIn('credentials', results)
         self.assertDictEqual(results, entity)
 
-        results = self.driver.get_component(entity['id'], with_secrets=False)
+        results = self.driver.get_workflow(entity['id'], with_secrets=False)
         self.assertNotIn('credentials', results)
         body['tenantId'] = 'T1000'  # gets added
         self.assertDictEqual(results, body)
