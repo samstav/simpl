@@ -1396,10 +1396,13 @@ function BlueprintRemoteListController($scope, $location, $routeParams, $resourc
   $scope.receive_blueprints = function(data) {
     items.clear();
     items.receive(data, function(item, key) {
-      return {key: item.id, id: item.html_url, name: item.name, description: item.description, git_url: item.git_url, selected: false};});
+      if (!('documentation' in item))
+        item.documentation = {abstract: item.description};
+      return {key: item.id, id: item.html_url, name: item.name, description: item.documentation.abstract, git_url: item.git_url, selected: false};});
     $scope.count = items.count;
     $scope.items = items.all;
     $scope.loading_remote_blueprints = false;
+    $('#spec_list').css('top', $('.summaryHeader').outerHeight());
   };
 
   $scope.load = function() {
@@ -1409,7 +1412,6 @@ function BlueprintRemoteListController($scope, $location, $routeParams, $resourc
       $scope.loading_remote_blueprints = false;
       $scope.show_error(data);
     });
-    $('#spec_list').css('top', $('.summaryHeader').outerHeight());
   };
 
   $scope.reload_blueprints = function() {
@@ -1478,6 +1480,8 @@ function BlueprintRemoteListController($scope, $location, $routeParams, $resourc
     }
   });
 
+  $('#spec_list').css('top', $('.summaryHeader').outerHeight());
+
 }
 
 /*
@@ -1542,7 +1546,6 @@ function DeploymentListController($scope, $location, $http, $resource, scroll, i
 //Hard-coded for Managed Cloud Wordpress
 function DeploymentManagedCloudController($scope, $location, $routeParams, $resource, $http, items, navbar, options, workflow, github) {
 
-   items.clear();
    $scope.receive_blueprint = function(data, remote) {
     if ('blueprint' in data) {
       if ($scope.auth.identity.loggedIn === true) {
@@ -1692,6 +1695,8 @@ function DeploymentManagedCloudController($scope, $location, $routeParams, $reso
   $scope.$on('logIn', function(e) {
     $scope.setAllBlueprintRegions();
   });
+
+   items.clear();
 
   //Load the latest supported blueprints (tagged) from github
   $scope.loadRemoteBlueprint('https://github.rackspace.com/Blueprints/wordpress#v' + $scope.rook_version.split('-')[0]);
