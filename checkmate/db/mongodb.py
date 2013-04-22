@@ -114,7 +114,7 @@ class Driver(DbBase):
 
     # WORKFLOWS
     def get_workflow(self, api_id, with_secrets=None):
-        return self.get_object('workflows', api_id, with_secrets)
+        return self.get_object('workflows', api_id, with_secrets=with_secrets)
 
     def get_workflows(self, tenant_id=None, with_secrets=None,
                       limit=None, offset=None):
@@ -396,7 +396,7 @@ class Driver(DbBase):
                 current = self.database()[klass].find_one({'_id': api_id})
                 if current and '_lock' in current:
                     body['_lock'] = current['_lock']
-                    body['_lock_timestamp'] = current['_lock_timestamp']
+                    body['_lock_timestamp'] = current.get('_lock_timestamp')
 
             if merge_existing:
                 current = self.get_object(klass, api_id)

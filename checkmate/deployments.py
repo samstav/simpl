@@ -1,4 +1,5 @@
 import logging
+import os
 import uuid
 import time
 import copy
@@ -24,7 +25,8 @@ from checkmate.utils import (
     write_body,
     read_body,
     extract_sensitive_data,
-    with_tenant, match_celery_logging
+    with_tenant,
+    match_celery_logging,
     is_simulation,
 )
 from checkmate.plan import Plan

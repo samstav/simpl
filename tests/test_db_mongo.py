@@ -18,8 +18,6 @@ from checkmate.workflows import safe_workflow_save
 from copy import deepcopy
 init_console_logging()
 LOG = logging.getLogger(__name__)
-print "OSENV", os.environ.get('CHECKMATE_CONNECTION_STRING')
-LOG.error("OSENV: %s", os.environ.get('CHECKMATE_CONNECTION_STRING'))
 from checkmate import db
 
 SKIP = False
@@ -101,7 +99,7 @@ class TestDatabase(unittest.TestCase):
             connection_string = self.driver.connection_string
             c = Connection(connection_string)
             db = c.checkmate
-            db.collection_name.drop()
+            db[self.collection_name].drop()
             LOG.debug("Deleted test mongodb collection: %s",
                       self.collection_name)
         except StandardError:
@@ -449,15 +447,16 @@ class TestDatabase(unittest.TestCase):
     @unittest.skipIf(SKIP, REASON)
     def test_new_safe_workflow_save(self):
         import checkmate.workflows as workflows
-        workflows.db = self.driver
+        workflows.DB = self.driver
         #test that a new object can be saved with the lock
         self.driver.database()['workflows'].remove({'_id': "1"})
-        safe_workflow_save("1", {"id": "yolo"}, tenant_id=2412423)
+        safe_workflow_save("1", {"id": "yolo"}, tenant_id=2412423,
+                           driver=self.driver)
 
     @unittest.skipIf(SKIP, REASON)
     def test_existing_workflow_save(self):
         import checkmate.workflows as workflows
-        workflows.db = self.driver
+        workflows.DB = self.driver
         #test locking an already locked workflow
         self.driver.database()['workflows'].remove({'_id': "1"})
         timestamp = time.time()
@@ -466,7 +465,8 @@ class TestDatabase(unittest.TestCase):
                                                   timestamp})
 
         with self.assertRaises(HTTPError):
-            safe_workflow_save("1", {"id": "yolo"}, tenant_id=2412423)
+            safe_workflow_save("1", {"id": "yolo"}, tenant_id=2412423,
+                               driver=self.driver)
 
 if __name__ == '__main__':
     # Run tests. Handle our paramsters separately
