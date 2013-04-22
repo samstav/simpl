@@ -116,6 +116,7 @@ For services in a blueprint:
 
 id: unique identifier provided by client (or user).
 name: user friendliness
+version: string, determined by the author.
 description: ...
 services: like tiers, but not restricted to the concept of tiers. Currently, there is one component defined per service.
   name -  arbitrary, determined by blueprint author. Exmplae:
@@ -161,7 +162,11 @@ resources: static resources to be created at planning time and shared across the
     - service: my_database_thang
       setting: key
       attribute: private_key # this will take the private_key value from the generated keys and apply it as the value for 'key' in the my_database_thang component.
-
+display-outputs: a map of entries to determine what values are relevant as final outputs for a client. TODO: document syntax
+documentation: a map of documentation text or URLs
+  abstract: one paragraph description in markdown.
+  instructions: one page description of how to use the deployment in markdown.
+  guide: a URL to an extrnal web resource containg the full. multi-page guide.
 
 Blueprint Options
 =================
@@ -362,6 +367,8 @@ inputs: - these are basically where I'm setting my levers and dials... there are
       compute:
         os: ubuntu
 Note: more specific inputs override more general ones (see get_setting code in deployment)
+
+display-outputs: a map of entries of final outputs for a client. TODO: document syntax and implement
 
 **Action Item**: determine the need for global inputs. Do we really need them? Or at least put them in a "globals" category
 

@@ -121,7 +121,7 @@ def main_func():
     # Load simulator if requested
     with_simulator = False
     if '--with-simulator' in sys.argv:
-        load("checkmate.simulator")
+        # deprecated load("checkmate.simulator")
         with_simulator = True
 
     # Load admin routes if requested
@@ -161,8 +161,12 @@ def main_func():
                                          with_admin=with_admin)
         except ImportError as exc:
             LOG.exception(exc)
-            LOG.warning("Unable to load UI middleware. Make sure rook is "
-                        "installed.")
+            msg = ("Unable to load the UI (rook.middleware). Make sure rook "
+                   "is installed or run without the --with-ui argument.")
+            LOG.error(msg)
+            print msg
+            sys.exit(1)
+
     next_app = middleware.TenantMiddleware(next_app)
     next_app = middleware.ContextMiddleware(next_app)
     next_app = middleware.StripPathMiddleware(next_app)
@@ -170,7 +174,15 @@ def main_func():
 
     # Load NewRelic inspection if requested
     if '--newrelic' in sys.argv:
-        import newrelic.agent
+        try:
+            import newrelic.agent
+        except ImportError as exc:
+            LOG.exception(exc)
+            msg = ("The newrelic python agent could not be loaded. Make sure "
+                   "it is installed or run without the --newrelic argument")
+            LOG.error(msg)
+            print msg
+            sys.exit(1)
         newrelic.agent.initialize(os.path.normpath(os.path.join(
                                   os.path.dirname(__file__), os.path.pardir,
                                   'newrelic.ini')))  # optional param

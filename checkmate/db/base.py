@@ -1,55 +1,139 @@
+'''
+Signature for Database Driver Modules
+
+The API defines IDs as 32 character strings. The API ID is passed in to the
+driver calls. It is up to the driver to map that to a native ID and abstract
+the native ID away from the API.
+
+The API ID is not necessarily a UUID. Allowed charatcers are:
+
+    abcdefghijklmnopqrstuvwxyz
+    ABCDEFGHIJKLMNOPQRSTUVWXYZ
+    0123456789
+    -_.+~@
+
+The ID must start with an alphanumeric character.
+
+TODO:
+- implement partial saves (formalize what we do in save_deployment)
+
+'''
+import logging
+
+LOG = logging.getLogger()
 
 
-class DbBase(object):
+class DbBase(object):  # pylint: disable=R0921
+    '''Interface for all database drivers'''
+
+    def __init__(self, connection_string, driver=None, *args, **kwargs):
+        '''Initialize database driver
+
+        Drivers can also be serialized/deserialized from strings which are
+        effectively the connection strings.
+
+        :param connection_string: required and determines the key for this
+                                  driver which will be used to share it between
+                                  modules
+        :param driver: used to inject a driver for testing or connection
+                       sharing
+        '''
+        LOG.debug("Initializing driver %s with connection_string='%s', "
+                  "args=%s, driver=%s, and kwargs=%s", self.__class__.__name__,
+                  connection_string, args, driver, kwargs)
+        self.connection_string = connection_string
+        self.driver = driver
+
+    def __getstate__(self):
+        '''Support serializing to connection string'''
+        return {'connection_string': self.connection_string}
+
+    def __setstate__(self, dict):  # pylint: disable=W0622
+        '''Support deserializing from connection string'''
+        self.connection_string = dict['connection_string']
+
+    def __str__(self):
+        '''Support serializing to connection string'''
+        return self.connection_string
+
+    def __repr__(self):
+        '''Support displaying connection string'''
+        return ("<%s.%s connection_string='%s'>" % (self.__class__.__module__,
+                self.__class__.__name__, self.connection_string))
+
     def dump(self):
+        '''Dump all data n the database'''
         raise NotImplementedError()
 
     # ENVIRONMENTS
-    def get_environment(self, id):
+    def get_environment(self, api_id, with_secrets=None):
+        '''Get the environment that matches the API ID supplied
+
+        :param api_id: the API ID of the environment to get
+        :param with_secrets: set to true to also return passwords and keys
+        :returns: dict -- the environment
+        '''
         raise NotImplementedError()
 
-    def get_environments(self):
+    def get_environments(self, tenant_id=None, with_secrets=None):
+        '''Get a list of environments that matches the tenant ID supplied
+
+        :param tenant_id: the tenant ID for which to return environments
+        :param with_secrets: set to true to also return passwords and keys
+        :returns: dict -- a dict of all environments where the key is the
+                  environment ID
+        '''
         raise NotImplementedError()
 
-    def save_environment(self, id, body):
+    def save_environment(self, api_id, body, secrets=None, tenant_id=None):
+        '''Save (Update or Create) an environment
+
+        :param api_id: the API ID of the environment to store
+        :param body: the dict of the environment to store
+        :param secrets: the dict of any secrets in the environment
+        :param tenant_id: the tenant ID for which to save the environment
+        :returns: dict -- the saved environment (some changes such as a
+                  _modified by_ date may have taken place)
+
+        Note:: Use utils.extract_sensitive_keys to split secrets from the body
+        '''
         raise NotImplementedError()
 
     # DEPLOYMENTS
-    def get_deployment(self, id):
+    def get_deployment(self, api_id, with_secrets=None):
         raise NotImplementedError()
 
-    def get_deployments(self):
+    def get_deployments(self, tenant_id=None, with_secrets=None,
+                        limit=None, offset=None):
         raise NotImplementedError()
 
-    def save_deployment(self, id, body):
+    def save_deployment(self, api_id, body, secrets=None, tenant_id=None,
+                        partial=False):
         raise NotImplementedError()
 
     # BLUEPRINTS
-    def get_blueprint(self, id):
+    def get_blueprint(self, api_id, with_secrets=None):
         raise NotImplementedError()
 
-    def get_blueprints(self):
+    def get_blueprints(self, tenant_id=None, with_secrets=None):
         raise NotImplementedError()
 
-    def save_blueprint(self, id, body):
-        raise NotImplementedError()
-
-    # COMPONENTS
-    def get_component(self, id):
-        raise NotImplementedError()
-
-    def get_components(self):
-        raise NotImplementedError()
-
-    def save_component(self, id, body):
+    def save_blueprint(self, api_id, body, secrets=None, tenant_id=None):
         raise NotImplementedError()
 
     # WORKFLOWS
-    def get_workflow(self, id):
+    def get_workflow(self, api_id, with_secrets=None):
         raise NotImplementedError()
 
-    def get_workflows(self):
+    def get_workflows(self, tenant_id=None, with_secrets=None,
+                      limit=None, offset=None):
         raise NotImplementedError()
 
-    def save_workflow(self, id, body):
+    def save_workflow(self, api_id, body, secrets=None, tenant_id=None):
+        raise NotImplementedError()
+
+    def unlock_workflow(self, api_id, key):
+        raise NotImplementedError()
+
+    def lock_workflow(self, api_id, with_secrets=None, key=None):
         raise NotImplementedError()

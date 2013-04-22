@@ -3,6 +3,7 @@ import copy
 import logging
 import os
 import unittest2 as unittest
+from urlparse import urlunparse
 
 # Init logging before we load the database, 3rd party, and 'noisy' modules
 from checkmate.utils import init_console_logging
@@ -20,13 +21,26 @@ init_console_logging()
 LOG = logging.getLogger(__name__)
 
 from checkmate import keys, deployments
-from checkmate.deployments import (Deployment, plan, get_deployments_count,
-                                   get_deployments_by_bp_count, _deploy, Plan,
-                                   generate_keys, delete_deployment,
-    delete_deployment_task, get_deployment_resources, get_resources_statuses,
-    update_all_provider_resources, update_deployment_status)
-from checkmate.exceptions import (CheckmateValidationException,
-                                  CheckmateException, CheckmateDoesNotExist)
+from checkmate.deployments import (
+    Deployment,
+    plan,
+    get_deployments_count,
+    get_deployments_by_bp_count,
+    _deploy,
+    Plan,
+    generate_keys,
+    delete_deployment,
+    delete_deployment_task,
+    get_deployment_resources,
+    get_resources_statuses,
+    update_all_provider_resources,
+    update_deployment_status,
+)
+from checkmate.exceptions import (
+    CheckmateValidationException,
+    CheckmateException,
+    CheckmateDoesNotExist,
+)
 from checkmate.inputs import Input
 from checkmate.providers import base
 from checkmate.providers.base import ProviderBase
@@ -40,87 +54,84 @@ class TestDeployments(unittest.TestCase):
     def test_schema(self):
         """Test the schema validates a deployment with all possible fields"""
         deployment = {
-                'id': 'test',
-                'name': 'test',
-                'inputs': {},
-                'includes': {},
-                'resources': {},
-                'workflow': "abcdef",
-                'status': "NEW",
-                'created': "yesterday",
-                'tenantId': "T1000",
-                'blueprint': {
-                    'name': 'test bp',
-                    },
-                'environment': {
-                    'name': 'environment',
-                    'providers': {},
-                    },
-                }
+            'id': 'test',
+            'name': 'test',
+            'inputs': {},
+            'includes': {},
+            'resources': {},
+            'workflow': "abcdef",
+            'status': "NEW",
+            'created': "yesterday",
+            'tenantId': "T1000",
+            'blueprint': {
+                'name': 'test bp',
+            },
+            'environment': {
+                'name': 'environment',
+                'providers': {},
+            },
+            'display-outputs': {},
+        }
         valid = Deployment(deployment)
         self.assertDictEqual(valid._data, deployment)
 
     def test_schema_negative(self):
         """Test the schema validates a deployment with bad fields"""
         deployment = {
-                'nope': None
-                }
+            'nope': None
+        }
         self.assertRaises(CheckmateValidationException, Deployment, deployment)
 
     def test_key_generation_all(self):
         """Test that key generation works"""
         deployment = Deployment({
-                'id': 'test',
-                'name': 'test',
-                })
+            'id': 'test',
+            'name': 'test',
+        })
         generate_keys(deployment)
         self.assertIn('resources', deployment)
         self.assertIn('deployment-keys', deployment['resources'])
-        self.assertItemsEqual(['instance', 'type'],
-                             deployment['resources']['deployment-keys'].keys())
+        keys_resource = deployment['resources']['deployment-keys']
+        self.assertItemsEqual(['instance', 'type'], keys_resource.keys())
         self.assertItemsEqual(['private_key', 'public_key', 'public_key_ssh'],
-                             deployment['resources']['deployment-keys']\
-                             ['instance'].keys())
-        self.assertEqual(deployment['resources']['deployment-keys']['type'],
-                         'key-pair')
+                              keys_resource['instance'].keys())
+        self.assertEqual(keys_resource['type'], 'key-pair')
 
     def test_key_generation_public(self):
         """Test that key generation works if a private key is supplied"""
         private, public = keys.generate_key_pair()
         deployment = Deployment({
-                'id': 'test',
-                'name': 'test',
-                'resources': {
-                    'deployment-keys': {
-                        'instance': {
-                            'private_key': private['PEM']
-                        }
+            'id': 'test',
+            'name': 'test',
+            'resources': {
+                'deployment-keys': {
+                    'instance': {
+                        'private_key': private['PEM']
                     }
                 }
-                })
+            }
+        })
         generate_keys(deployment)
-        self.assertItemsEqual(['instance', 'type'],
-                             deployment['resources']['deployment-keys'].keys())
+        keys_resource = deployment['resources']['deployment-keys']
+        self.assertItemsEqual(['instance', 'type'], keys_resource.keys())
         self.assertItemsEqual(['private_key', 'public_key', 'public_key_ssh'],
-                             deployment['resources']['deployment-keys']\
-                             ['instance'].keys())
-        self.assertEqual(deployment['resources']['deployment-keys']['type'],
-                         'key-pair')
+                              keys_resource['instance'].keys())
+        self.assertEqual(keys_resource['type'], 'key-pair')
 
     def test_key_generation_and_settings_sync(self):
         """Test that key generation refreshes settings"""
         private, public = keys.generate_key_pair()
         deployment = Deployment({
-                'id': 'test',
-                'name': 'test',
-                'resources': {
-                    'deployment-keys': {
-                        'instance': {
-                            'private_key': private['PEM']
-                        }
+            'id': 'test',
+            'name': 'test',
+            'resources': {
+                'deployment-keys': {
+                    'instance': {
+                        'private_key': private['PEM']
                     }
                 }
-                })
+            }
+        })
         # Should pick up keys
         settings = deployment.settings()
         self.assertDictEqual(settings.get('keys', {}).get('deployment', {}),
@@ -128,22 +139,22 @@ class TestDeployments(unittest.TestCase):
         generate_keys(deployment)
         settings = deployment.settings()
         self.assertItemsEqual(['private_key', 'public_key', 'public_key_ssh'],
-                             settings['keys']['deployment'].keys())
+                              settings['keys']['deployment'].keys())
 
 
 class TestDeploymentParser(unittest.TestCase):
     def test_parser(self):
         """Test the parser works on a minimal deployment"""
         deployment = {
-                'id': 'test',
-                'blueprint': {
-                    'name': 'test bp',
-                    },
-                'environment': {
-                    'name': 'environment',
-                    'providers': {},
-                    },
-                }
+            'id': 'test',
+            'blueprint': {
+                'name': 'test bp',
+            },
+            'environment': {
+                'name': 'environment',
+                'providers': {},
+            },
+        }
         original = copy.copy(deployment)
         parsed = plan(Deployment(deployment), RequestContext())
         del parsed['status']  # we expect this to get added
@@ -152,40 +163,40 @@ class TestDeploymentParser(unittest.TestCase):
 
     def test_constrain_format_handling(self):
         cases = {
-                    'full': {
-                              'parse': [{
-                                            'setting': 'my setting',
-                                            'service': 'web',
-                                            'type': 'compute'
-                                        }],
-                              'expected': [{
-                                            'setting': 'my setting',
-                                            'service': 'web',
-                                            'type': 'compute'
-                                           }],
-                            },
-                    'key/value': {
-                                    'parse': {
-                                                  'version': '1.2.3',
-                                                  'create': True,
-                                             },
-                                    'expected': [{
-                                                    'setting': 'version',
-                                                    'value': '1.2.3'
-                                                 }, {
-                                                    'setting': 'create',
-                                                    'value': True
-                                                 }]
-                                  },
-                    'option': {
-                              'parse': [{
-                                            'setting': '/resources/id/value'
-                                        }],
-                              'expected': [{
-                                            'setting': '/resources/id/value'
-                                           }],
-                            },
-                }
+            'full': {
+                'parse': [{
+                    'setting': 'my setting',
+                    'service': 'web',
+                    'type': 'compute'
+                }],
+                'expected': [{
+                    'setting': 'my setting',
+                    'service': 'web',
+                    'type': 'compute'
+                }],
+            },
+            'key/value': {
+                'parse': {
+                    'version': '1.2.3',
+                    'create': True,
+                },
+                'expected': [{
+                    'setting': 'version',
+                    'value': '1.2.3'
+                }, {
+                    'setting': 'create',
+                    'value': True
+                }]
+            },
+            'option': {
+                'parse': [{
+                    'setting': '/resources/id/value'
+                }],
+                'expected': [{
+                    'setting': '/resources/id/value'
+                }],
+            },
+        }
         for name, case in cases.iteritems():
             parsed = Deployment.parse_constraints(case['parse'])
             expected = case['expected']
@@ -200,22 +211,22 @@ class TestDeploymentDeployer(unittest.TestCase):
     def test_deployer(self):
         """Test the deployer works on a minimal deployment"""
         deployment = {
-                'id': 'test',
-                'tenantId': 'T1000',
-                'blueprint': {
-                    'name': 'test bp',
-                    },
-                'environment': {
-                    'name': 'environment',
-                    'providers': {},
-                    },
-                }
+            'id': 'test',
+            'tenantId': 'T1000',
+            'blueprint': {
+                'name': 'test bp',
+            },
+            'environment': {
+                'name': 'environment',
+                'providers': {},
+            },
+        }
         original = copy.copy(deployment)
         parsed = plan(Deployment(deployment), RequestContext())
         workflow = _deploy(parsed, RequestContext())
-        #print json.dumps(parsed._data, indent=2)
         self.assertIn("wf_spec", workflow)
         self.assertEqual(parsed['status'], "PLANNED")
+
 
 class TestDeploymentResourceGenerator(unittest.TestCase):
     def test_component_resource_generator(self):
@@ -292,7 +303,7 @@ class TestDeploymentResourceGenerator(unittest.TestCase):
         #test resource dns-names without a deployment name
         for k, resource in deployment['resources'].iteritems():
             if k != "connections":
-                regex = "CM-test-%s\d+.checkmate.local" % resource['service']
+                regex = "%s\d+.checkmate.local" % resource['service']
                 self.assertRegexpMatches(resource['dns-name'], regex)
                 resource_count += 1
         self.assertEqual(resource_count, 8)
@@ -337,7 +348,7 @@ class TestDeploymentResourceGenerator(unittest.TestCase):
         self.assertIn("myResource", resources)
         expected = {'component': 'small_widget',
                     #dns-name with a deployment name
-                    'dns-name': 'test-deplo-yment-sharedmyResource.checkmate.local',
+                    'dns-name': 'sharedmyResource.checkmate.local',
                     'index': 'myResource',
                     'instance': {},
                     'provider': 'base',
@@ -367,32 +378,33 @@ class TestDeploymentResourceGenerator(unittest.TestCase):
                   name: environment
                   providers: {}
             """ % "\n                        ".join(private['PEM'].split(
-                "\n"))))
+            "\n"))))
         parsed = plan(deployment, RequestContext())
         resources = parsed['resources']
 
         # User
         self.assertIn("myUser", resources)
-        expected = {'index': 'myUser',
-                    'type': 'user',
-                    'instance': {
-                        'name': 'test_user',
-                        'password': 'secret',
-                        }
-                    }
+        expected = {
+            'index': 'myUser',
+            'type': 'user',
+            'instance': {
+                'name': 'test_user',
+                'password': 'secret',
+            }
+        }
         self.assertDictEqual(resources['myUser'], expected)
 
         # Key pair
         self.assertIn("myKey", resources)
         self.assertItemsEqual(resources['myKey']['instance'].keys(),
-                            ["private_key", "public_key", "public_key_ssh"])
+                              ["private_key", "public_key", "public_key_ssh"])
         self.assertEqual(resources['myKey']['instance']['private_key'].strip(
                          '\n'),
                          private['PEM'])
 
         self.assertIn("anyKey", resources)
         self.assertItemsEqual(resources['anyKey']['instance'].keys(),
-                            ["private_key", "public_key", "public_key_ssh"])
+                              ["private_key", "public_key", "public_key_ssh"])
 
 
 class TestDeploymentRelationParser(unittest.TestCase):
@@ -449,9 +461,9 @@ class TestDeploymentRelationParser(unittest.TestCase):
 
         parsed = plan(deployment, RequestContext())
         expected_connections = {
-                                  'balanced-front': {'interface': 'foo'},
-                                  'allyourbase': {'interface': 'bar'},
-                                }
+            'balanced-front': {'interface': 'foo'},
+            'allyourbase': {'interface': 'bar'},
+        }
         self.assertDictEqual(parsed['resources']['connections'],
                              expected_connections)
 
@@ -484,7 +496,7 @@ class TestComponentSearch(unittest.TestCase):
         base.PROVIDER_CLASSES['test.base'] = ProviderBase
         plan(deployment, RequestContext())
         self.assertEquals(deployment['resources'].values()[0]['component'],
-                'small_widget')
+                          'small_widget')
 
     def test_component_find_by_type_and_interface(self):
         deployment = Deployment(yaml_to_dict("""
@@ -605,7 +617,7 @@ class TestComponentSearch(unittest.TestCase):
         base.PROVIDER_CLASSES['test.base'] = ProviderBase
         plan(deployment, RequestContext())
         self.assertEquals(deployment['resources'].values()[0]['component'],
-                'small_widget')
+                          'small_widget')
 
 
 class TestDeploymentSettings(unittest.TestCase):
@@ -706,125 +718,125 @@ class TestDeploymentSettings(unittest.TestCase):
                         compound: "value"
                         """))
         cases = [{
-                    'case': "Path in settings",
-                    'name': "keys/environment/public",
-                    'expected': "this is a public key"
-                }, {
-                    'case': "Path in settings 2",
-                    'name': "keys/count",
-                    'expected': 3
-                }, {
-                    'case': "Path in settings 3",
-                    'name': "setting_1",
-                    'expected': "Single value"
-                }, {
-                    'case': "Not in settings path",
-                    'name': "keys/bob/foo",
-                    'expected': None
-                }, {
-                    'case': "Partial path in settings",
-                    'name': "keys/environment/public/his",
-                    'expected': None
-                }, {
-                    'case': "Path in settings 4",
-                    'name': "setting_2/compound",
-                    'expected': "value"
-                }, {
-                    'case': "Set in blueprint/inputs",
-                    'name': "domain",
-                    'expected': "example.com",
-                }, {
-                    'case': "Set in blueprint/inputs with service/provider scope",
-                    'name': "os",
-                    'service': "web",
-                    'expected': "Ubuntu 11.10",
-                }, {
-                    'case': "Set in blueprint/inputs with no service scope",
-                    'name': "os",
-                    'expected': None,
-                }, {
-                    'case': "Set in blueprint/service under provider/resource",
-                    'name': "memory",
-                    'service': "web",
-                    'type': 'compute',
-                    'expected': "2 Gb",
-                }, {
-                    'case': "Set in environments/providers/common",
-                    'name': "region",
-                    'provider': "base",
-                    'expected': "place",
-                }, {
-                    'case': "Set in environments/providers/...",
-                    'name': "size",
-                    'provider': "base",
-                    'resource_type': "widget",
-                    'expected': "big",
-                },  {
-                    'case': "Provider setting is used even with service param",
-                    'name': "size",
-                    'provider': "base",
-                    'service': 'web',
-                    'resource_type': "widget",
-                    'expected': "big",
-                },  {
-                    'case': "Set in blueprint/service as constraint",
-                    'name': "count",
-                    'type': 'compute',
-                    'service': 'web',
-                    'expected': 2,
-                }, {  # FIXME: remove backwards compatibility
-                    'case': "Constraint as key/value pair",
-                    'name': "wordpress/version",
-                    'type': 'compute',
-                    'provider': "base",
-                    'service': 'wordpress',
-                    'expected': "3.1.4",
-                }, {  # FIXME: remove backwards compatibility
-                    'case': "Constraint with multiple key/value pairs",
-                    'name': "wordpress/create",
-                    'type': 'compute',
-                    'provider': "base",
-                    'service': 'wordpress',
-                    'expected': True,
-                }, {
-                    'case': "Constrains reading url scheme",
-                    'name': "protocol",
-                    'type': 'compute',
-                    'provider': "base",
-                    'service': 'master',
-                    'expected': "git",
-                }, {
-                    'case': "Url protocol is aliased to scheme",
-                    'name': "protocol",
-                    'type': 'compute',
-                    'provider': "base",
-                    'service': 'web',
-                    'expected': "git",
-                }, {
-                    'case': "Constrains reading url hostname",
-                    'name': "domain",
-                    'type': 'compute',
-                    'provider': "base",
-                    'service': 'web',
-                    'expected': "fqdn",
-                },  {
-                    'case': "Set in blueprint/providers",
-                    'name': "memory",
-                    'type': 'compute',
-                    'expected': "4 Gb",
-                }
-            ]
+            'case': "Path in settings",
+            'name': "keys/environment/public",
+            'expected': "this is a public key"
+        }, {
+            'case': "Path in settings 2",
+            'name': "keys/count",
+            'expected': 3
+        }, {
+            'case': "Path in settings 3",
+            'name': "setting_1",
+            'expected': "Single value"
+        }, {
+            'case': "Not in settings path",
+            'name': "keys/bob/foo",
+            'expected': None
+        }, {
+            'case': "Partial path in settings",
+            'name': "keys/environment/public/his",
+            'expected': None
+        }, {
+            'case': "Path in settings 4",
+            'name': "setting_2/compound",
+            'expected': "value"
+        }, {
+            'case': "Set in blueprint/inputs",
+            'name': "domain",
+            'expected': "example.com",
+        }, {
+            'case': "Set in blueprint/inputs with service/provider scope",
+            'name': "os",
+            'service': "web",
+            'expected': "Ubuntu 11.10",
+        }, {
+            'case': "Set in blueprint/inputs with no service scope",
+            'name': "os",
+            'expected': None,
+        }, {
+            'case': "Set in blueprint/service under provider/resource",
+            'name': "memory",
+            'service': "web",
+            'type': 'compute',
+            'expected': "2 Gb",
+        }, {
+            'case': "Set in environments/providers/common",
+            'name': "region",
+            'provider': "base",
+            'expected': "place",
+        }, {
+            'case': "Set in environments/providers/...",
+            'name': "size",
+            'provider': "base",
+            'resource_type': "widget",
+            'expected': "big",
+        },  {
+            'case': "Provider setting is used even with service param",
+            'name': "size",
+            'provider': "base",
+            'service': 'web',
+            'resource_type': "widget",
+            'expected': "big",
+        },  {
+            'case': "Set in blueprint/service as constraint",
+            'name': "count",
+            'type': 'compute',
+            'service': 'web',
+            'expected': 2,
+        }, {  # FIXME: remove backwards compatibility
+            'case': "Constraint as key/value pair",
+            'name': "wordpress/version",
+            'type': 'compute',
+            'provider': "base",
+            'service': 'wordpress',
+            'expected': "3.1.4",
+        }, {  # FIXME: remove backwards compatibility
+            'case': "Constraint with multiple key/value pairs",
+            'name': "wordpress/create",
+            'type': 'compute',
+            'provider': "base",
+            'service': 'wordpress',
+            'expected': True,
+        }, {
+            'case': "Constrains reading url scheme",
+            'name': "protocol",
+            'type': 'compute',
+            'provider': "base",
+            'service': 'master',
+            'expected': "git",
+        }, {
+            'case': "Url protocol is aliased to scheme",
+            'name': "protocol",
+            'type': 'compute',
+            'provider': "base",
+            'service': 'web',
+            'expected': "git",
+        }, {
+            'case': "Constrains reading url hostname",
+            'name': "domain",
+            'type': 'compute',
+            'provider': "base",
+            'service': 'web',
+            'expected': "fqdn",
+        },  {
+            'case': "Set in blueprint/providers",
+            'name': "memory",
+            'type': 'compute',
+            'expected': "4 Gb",
+        },
+        ]
 
         base.PROVIDER_CLASSES['test.base'] = ProviderBase
         parsed = plan(deployment, RequestContext())
         for test in cases[:-1]:  # TODO: last case broken without env providers
             value = parsed.get_setting(test['name'],
-                    service_name=test.get('service'),
-                    provider_key=test.get('provider'),
-                    resource_type=test.get('type'))
+                                       service_name=test.get('service'),
+                                       provider_key=test.get('provider'),
+                                       resource_type=test.get('type'))
             self.assertEquals(value, test['expected'], msg=test['case'])
             LOG.debug("Test '%s' success=%s" % (test['case'],
-                                                 value == test['expected']))
+                                                value == test['expected']))
 
         msg = "Coming from static resource constraint"
         value = parsed.get_setting("server_key", service_name="web",
@@ -918,36 +930,36 @@ class TestDeploymentSettings(unittest.TestCase):
 
     def test_get_bad_options(self):
         self.assertRaises(CheckmateValidationException, Deployment,
-                yaml_to_dict("""
-                environment:
-                  providers:
-                    base
-                blueprint:
-                  services:
-                    web:
-                  options:
-                    my_server_type:
-                      constrains:
-                      - resource_type: compute
-                        service: web
-                        setting: os
-                inputs:
-                  blueprint:
-                    domain: example.com
-                    my_server_type: Ubuntu 11.10
-                  providers:
-                    base:
-                      compute:
-                        # Missing!
-                  services:
-                    web:
-                      compute:
-                        case-whitespace-test: 512mb
-                        gigabyte-test: 8 gigabytes
-                        mb-test: 512 Mb
-                        memory: 2 Gb
-                        number-only-test: 512
-            """))
+                          yaml_to_dict("""
+            environment:
+              providers:
+                base
+            blueprint:
+              services:
+                web:
+              options:
+                my_server_type:
+                  constrains:
+                  - resource_type: compute
+                    service: web
+                    setting: os
+            inputs:
+              blueprint:
+                domain: example.com
+                my_server_type: Ubuntu 11.10
+              providers:
+                base:
+                  compute:
+                    # Missing!
+              services:
+                web:
+                  compute:
+                    case-whitespace-test: 512mb
+                    gigabyte-test: 8 gigabytes
+                    mb-test: 512 Mb
+                    memory: 2 Gb
+                    number-only-test: 512
+        """))
 
     def test_get_static_resource_constraint(self):
         deployment = Deployment(yaml_to_dict("""
@@ -1017,7 +1029,7 @@ class TestDeploymentSettings(unittest.TestCase):
             """))
         base.PROVIDER_CLASSES['test.base'] = ProviderBase
         self.assertRaises(CheckmateValidationException, plan, deployment,
-            RequestContext())
+                          RequestContext())
 
     def test_objectify(self):
         deployment = Deployment({})
@@ -1029,7 +1041,9 @@ class TestDeploymentSettings(unittest.TestCase):
                          msg=msg)
 
         msg = "Typed option should return type"
-        self.assertIsInstance(deployment._objectify({'type': 'url'},'http://fqdn'), Input, msg=msg)
+        self.assertIsInstance(deployment._objectify({'type': 'url'},
+                                                    'http://fqdn'),
+                              Input, msg=msg)
 
     def test_apply_constraint_attribute(self):
         deployment = yaml_to_dict("""
@@ -1061,7 +1075,7 @@ class TestDeploymentCounts(unittest.TestCase):
 
     def setUp(self):
         self._deploymets = json.load(open(os.path.join(
-                os.path.dirname(__file__), 'data', 'deployments.json')))
+            os.path.dirname(__file__), 'data', 'deployments.json')))
         self._mox.StubOutWithMock(checkmate.deployments, "DB")
         bottle.request.bind({})
         bottle.request.context = Context()
@@ -1076,23 +1090,24 @@ class TestDeploymentCounts(unittest.TestCase):
         checkmate.deployments.DB.get_deployments(tenant_id=mox.IgnoreArg()
                                                  ).AndReturn(self._deploymets)
         self._mox.ReplayAll()
-        self._assert_good_count(json.loads(get_deployments_count()), 3)
+        self._assert_good_count(json.loads(get_deployments_count(
+                                driver=checkmate.deployments.DB)), 3)
 
     def test_get_count_tenant(self):
         # remove the extra deployment
         self._deploymets.pop("3fgh")
         checkmate.deployments.DB.get_deployments(tenant_id="12345").AndReturn(
-                self._deploymets)
+            self._deploymets)
         self._mox.ReplayAll()
         self._assert_good_count(json.loads(get_deployments_count(
-                tenant_id="12345")), 2)
+            tenant_id="12345", driver=checkmate.deployments.DB)), 2)
 
     def test_get_count_deployment(self):
         checkmate.deployments.DB.get_deployments(tenant_id=None).AndReturn(
-                self._deploymets)
+            self._deploymets)
         self._mox.ReplayAll()
         self._assert_good_count(json.loads(get_deployments_by_bp_count(
-                "blp-123-aabc-efg")), 2)
+            "blp-123-aabc-efg", driver=checkmate.deployments.DB)), 2)
 
     def test_get_count_deployment_and_tenant(self):
         raw_deployments = self._deploymets.copy()
@@ -1105,9 +1120,11 @@ class TestDeploymentCounts(unittest.TestCase):
                                                  ).AndReturn(raw_deployments)
         self._mox.ReplayAll()
         self._assert_good_count(json.loads(get_deployments_by_bp_count(
-                "blp-123-aabc-efg", tenant_id="854673")), 1)
+            "blp-123-aabc-efg", tenant_id="854673",
+            driver=checkmate.deployments.DB)), 1)
         self._assert_good_count(json.loads(get_deployments_by_bp_count(
-                "blp123avc", tenant_id="12345")), 1)
+            "blp123avc", tenant_id="12345", driver=checkmate.deployments.DB)),
+            1)
 
     def _assert_good_count(self, ret, expected_count):
         self.assertIsNotNone(ret, "No count returned")
@@ -1292,16 +1309,17 @@ class TestDeploymentPlanning(unittest.TestCase):
         services = planner['services']
         component = services['main']['component']
         widget_foo = component['requires']['widget:foo']
-        expected = {'interface': 'foo',
-                    'resource_type': 'widget',
-                    'satisfied-by': {
-                        'name': 'main-explicit',
-                        'relation-key': 'main-explicit',
-                        'service': 'explicit',
-                        'component': 'foo_widget',
-                        'provides-key': 'widget:foo',
-                        }
-                    }
+        expected = {
+            'interface': 'foo',
+            'resource_type': 'widget',
+            'satisfied-by': {
+                'name': 'main-explicit',
+                'relation-key': 'main-explicit',
+                'service': 'explicit',
+                'component': 'foo_widget',
+                'provides-key': 'widget:foo',
+            }
+        }
         self.assertDictEqual(widget_foo, expected)
 
     #FIXME: re-enable this when done with v0.2
@@ -1503,41 +1521,44 @@ class TestDeploymentPlanning(unittest.TestCase):
 
         component = services['main']['component']
         widget_foo = component['requires']['widget:foo']
-        expected = {'interface': 'foo',
-                    'resource_type': 'widget',
-                    'satisfied-by': {
-                        'name': 'main-explicit',
-                        'relation-key': 'main-explicit',
-                        'service': 'explicit',
-                        'component': 'foo_widget',
-                        'provides-key': 'widget:foo',
-                        }
-                    }
+        expected = {
+            'interface': 'foo',
+            'resource_type': 'widget',
+            'satisfied-by': {
+                'name': 'main-explicit',
+                'relation-key': 'main-explicit',
+                'service': 'explicit',
+                'component': 'foo_widget',
+                'provides-key': 'widget:foo',
+            }
+        }
         self.assertDictEqual(widget_foo, expected)
 
         host_bar = component['requires']['host:bar']
-        expected = {'interface': 'bar',
-                    'relation': 'host',
-                    'satisfied-by': {
-                        'name': 'host:bar',
-                        'service': 'main',
-                        'component': 'bar_widget',
-                        'provides-key': 'widget:bar',
-                        }
-                    }
+        expected = {
+            'interface': 'bar',
+            'relation': 'host',
+            'satisfied-by': {
+                'name': 'host:bar',
+                'service': 'main',
+                'component': 'bar_widget',
+                'provides-key': 'widget:bar',
+            }
+        }
         self.assertDictEqual(host_bar, expected)
 
         self.assertIn('gadget:mysql', services['main']['extra-components'])
         recursive = services['main']['extra-components']['host:bar']
-        expected = {'interface': 'mysql',
-                    'resource_type': 'gadget',
-                    'satisfied-by': {
-                        'name': 'gadget:mysql',
-                        'service': 'main',
-                        'component': 'bar_gadget',
-                        'provides-key': 'gadget:mysql',
-                        }
-                    }
+        expected = {
+            'interface': 'mysql',
+            'resource_type': 'gadget',
+            'satisfied-by': {
+                'name': 'gadget:mysql',
+                'service': 'main',
+                'component': 'bar_gadget',
+                'provides-key': 'gadget:mysql',
+            }
+        }
         self.assertDictEqual(recursive['requires']['gadget:mysql'], expected)
 
         host = planner.resources['4']
@@ -1614,6 +1635,55 @@ class TestDeploymentPlanning(unittest.TestCase):
                                       # 'host' does not exist
             """)
         self.assertDictEqual(resources['connections'], expected)
+
+    def test_resource_name(self):
+        """Test the Plan() class handles resource naming correctly"""
+        deployment = Deployment(yaml_to_dict("""
+                id: test
+                environment:
+                  providers:
+                    base:
+                      vendor: test
+                      catalog:
+                        widget:
+                          bar: {}
+                blueprint:
+                  services:
+                    web:
+                      component:
+                        id: bar
+            """))
+        base.PROVIDER_CLASSES['test.base'] = ProviderBase
+        plan(deployment, RequestContext())
+        assigned_name = deployment['resources']['0']['dns-name']
+        expected_name = "web01.checkmate.local"
+        self.assertEqual(assigned_name, expected_name)
+
+    def test_constrained_resource_name(self):
+        """Test the Plan() class handles resource naming correctly"""
+        deployment = Deployment(yaml_to_dict("""
+                id: test
+                environment:
+                  providers:
+                    base:
+                      vendor: test
+                      catalog:
+                        widget:
+                          bar: {}
+                blueprint:
+                  services:
+                    web:
+                      component:
+                        id: bar
+                      constraints:
+                        - count: 1
+                inputs: {}
+            """))
+        base.PROVIDER_CLASSES['test.base'] = ProviderBase
+        plan(deployment, RequestContext())
+        assigned_name = deployment['resources']['0']['dns-name']
+        expected_name = "web.checkmate.local"
+        self.assertEqual(assigned_name, expected_name)
 
     def test_evaluate_defaults(self):
         plan = Plan(Deployment(yaml_to_dict("""
@@ -1693,7 +1763,7 @@ class TestDeleteDeployments(unittest.TestCase):
                                                 ).AndReturn(self._deployment)
         self._mox.ReplayAll()
         try:
-            delete_deployment('1234')
+            delete_deployment('1234', driver=checkmate.deployments.DB)
             self.fail("Delete deployment with bad status did not raise "
                       "exception")
         except HTTPError as exc:
@@ -1709,7 +1779,7 @@ class TestDeleteDeployments(unittest.TestCase):
                                                 ).AndReturn(None)
         self._mox.ReplayAll()
         try:
-            delete_deployment('1234')
+            delete_deployment('1234', driver=checkmate.deployments.DB)
             self.fail("Delete deployment with not found did not raise "
                       "exception")
         except HTTPError as exc:
@@ -1730,10 +1800,12 @@ class TestDeleteDeployments(unittest.TestCase):
         mock_plan.plan_delete(IgnoreArg()).AndReturn([])
         self._mox.StubOutWithMock(checkmate.deployments.delete_deployment_task,
                                   "delay")
-        checkmate.deployments.delete_deployment_task.delay('1234'
+        checkmate.deployments.delete_deployment_task.delay('1234',
+                                                           driver=checkmate.
+                                                           deployments.DB
                                                            ).AndReturn(True)
         self._mox.ReplayAll()
-        delete_deployment('1234')
+        delete_deployment('1234', driver=checkmate.deployments.DB)
         self._mox.VerifyAll()
         self.assertEqual(202, bottle.response.status_code)
 
@@ -1741,8 +1813,8 @@ class TestDeleteDeployments(unittest.TestCase):
         """ When it all goes right """
         self._mox.StubOutWithMock(checkmate.deployments, "DB")
         self._deployment['status'] = 'RUNNING'
-        checkmate.deployments.DB.get_deployment('1234',
-                                with_secrets=True).AndReturn(self._deployment)
+        checkmate.deployments.DB.get_deployment('1234', with_secrets=True)\
+            .AndReturn(self._deployment)
         self._mox.StubOutWithMock(checkmate.deployments, "Plan")
         checkmate.deployments.Plan = self._mox.CreateMockAnything()
         mock_plan = self._mox.CreateMockAnything()
@@ -1752,22 +1824,26 @@ class TestDeleteDeployments(unittest.TestCase):
         mock_steps = [mock_delete_step1, mock_delete_step2]
         mock_plan.plan_delete(IgnoreArg()).AndReturn(mock_steps)
         self._mox.StubOutWithMock(
-                        checkmate.deployments.update_deployment_status, "s")
+            checkmate.deployments.update_deployment_status, "s")
         mock_subtask = self._mox.CreateMockAnything()
-        checkmate.deployments.update_deployment_status.s('1234',
-                                            'DELETING').AndReturn(mock_subtask)
+        checkmate.deployments.update_deployment_status.s('1234', 'DELETING',
+                                                         driver=checkmate.
+                                                         deployments.DB)\
+            .AndReturn(mock_subtask)
         mock_subtask.delay().AndReturn(True)
         self._mox.StubOutClassWithMocks(checkmate.deployments, "chord")
         mock_chord = checkmate.deployments.chord(mock_steps)
         mock_delete_dep = self._mox.CreateMockAnything()
         self._mox.StubOutWithMock(checkmate.deployments.delete_deployment_task,
                                   "si")
-        checkmate.deployments.delete_deployment_task.si(IgnoreArg()
-                                                ).AndReturn(mock_delete_dep)
+        checkmate.deployments.delete_deployment_task.si(IgnoreArg(),
+                                                        driver=checkmate.
+                                                        deployments.DB)\
+            .AndReturn(mock_delete_dep)
         mock_chord.__call__(IgnoreArg(), interval=IgnoreArg(),
                             max_retries=IgnoreArg()).AndReturn(True)
         self._mox.ReplayAll()
-        delete_deployment('1234')
+        delete_deployment('1234', driver=checkmate.deployments.DB)
         self._mox.VerifyAll()
         self.assertEquals(202, bottle.response.status_code)
 
@@ -1779,8 +1855,8 @@ class TestDeleteDeployments(unittest.TestCase):
                                                 ).AndReturn(self._deployment)
         self._mox.StubOutWithMock(checkmate.deployments.DB, "save_deployment")
         checkmate.deployments.DB.save_deployment('1234', IgnoreArg(),
-                                                 secrets={}
-                                                ).AndReturn(self._deployment)
+                                                 secrets={})\
+            .AndReturn(self._deployment)
         self._mox.ReplayAll()
         ret = delete_deployment_task('1234')
         self.assertEquals('DELETED', ret.get('status'))
@@ -1824,33 +1900,37 @@ class TestGetResourceStuff(unittest.TestCase):
 
     def test_happy_resources(self):
         """ When getting the resources should work """
-        checkmate.deployments.DB.get_deployment('1234').AndReturn(
-                                                        self._deployment)
+        checkmate.deployments.DB.get_deployment('1234')\
+            .AndReturn(self._deployment)
         self._mox.ReplayAll()
-        ret = json.loads(get_deployment_resources('1234'))
+        ret = json.loads(get_deployment_resources('1234',
+                                                  driver=checkmate.deployments.
+                                                  DB))
         self.assertDictEqual(self._deployment.get('resources'), ret)
 
     def test_happy_status(self):
         """ When getting the resource statuses should work """
-        checkmate.deployments.DB.get_deployment('1234').AndReturn(
-                                                        self._deployment)
+        checkmate.deployments.DB.get_deployment('1234')\
+            .AndReturn(self._deployment)
         self._mox.ReplayAll()
-        ret = json.loads(get_resources_statuses('1234'))
+        ret = json.loads(get_resources_statuses('1234',
+                                                driver=checkmate.deployments.
+                                                DB))
         self.assertNotIn('fake', ret)
         for key in ['1', '2', '3', '9']:
             self.assertIn(key, ret)
-        self.assertEquals('A certain error happened', ret.get('2',
-                                                    {}).get('message'))
+        self.assertEquals('A certain error happened',
+                          ret.get('2', {}).get('message'))
         self.assertNotIn('trace', ret.get('3', {'trace': 'FAIL'}))
 
     def test_no_resources(self):
         """ Test when no resources in deployment """
         del self._deployment['resources']
-        checkmate.deployments.DB.get_deployment('1234').AndReturn(
-                                                    self._deployment)
+        checkmate.deployments.DB.get_deployment('1234')\
+            .AndReturn(self._deployment)
         self._mox.ReplayAll()
         try:
-            get_deployment_resources('1234')
+            get_deployment_resources('1234', driver=checkmate.deployments.DB)
             self.fail("get_deployment_resources with not found did not raise"
                       " exception")
         except HTTPError as exc:
@@ -1861,11 +1941,11 @@ class TestGetResourceStuff(unittest.TestCase):
     def test_no_res_status(self):
         """ Test when no resources in deployment """
         del self._deployment['resources']
-        checkmate.deployments.DB.get_deployment('1234').AndReturn(
-                                                        self._deployment)
+        checkmate.deployments.DB.get_deployment('1234')\
+            .AndReturn(self._deployment)
         self._mox.ReplayAll()
         try:
-            get_resources_statuses('1234')
+            get_resources_statuses('1234', driver=checkmate.deployments.DB)
             self.fail("get_resources_status with not found did not raise "
                       "exception")
         except HTTPError as exc:
@@ -1877,7 +1957,7 @@ class TestGetResourceStuff(unittest.TestCase):
         checkmate.deployments.DB.get_deployment('1234').AndReturn(None)
         self._mox.ReplayAll()
         try:
-            get_deployment_resources('1234')
+            get_deployment_resources('1234', driver=checkmate.deployments.DB)
             self.fail("get_deployment_resources with not found did not raise"
                       " exception")
         except CheckmateDoesNotExist as exc:
@@ -1888,7 +1968,7 @@ class TestGetResourceStuff(unittest.TestCase):
         checkmate.deployments.DB.get_deployment('1234').AndReturn(None)
         self._mox.ReplayAll()
         try:
-            get_resources_statuses('1234')
+            get_resources_statuses('1234', driver=checkmate.deployments.DB)
             self.fail("get_deployment_resources with not found did not raise"
                       " exception")
         except CheckmateDoesNotExist as exc:
@@ -1896,16 +1976,18 @@ class TestGetResourceStuff(unittest.TestCase):
 
     def test_status_trace(self):
         """ Make sure trace is included if query param present """
-        checkmate.deployments.DB.get_deployment('1234').AndReturn(
-                                                    self._deployment)
+        checkmate.deployments.DB.get_deployment('1234')\
+            .AndReturn(self._deployment)
         self._mox.ReplayAll()
         bottle.request.environ['QUERY_STRING'] = "?trace"
-        ret = json.loads(get_resources_statuses('1234'))
+        ret = json.loads(get_resources_statuses('1234',
+                                                driver=checkmate.
+                                                deployments.DB))
         self.assertNotIn('fake', ret)
         for key in ['1', '2', '3', '9']:
             self.assertIn(key, ret)
-        self.assertEquals('A certain error happened', ret.get('2',
-                                                    {}).get('message'))
+        self.assertEquals('A certain error happened',
+                          ret.get('2', {}).get('message'))
         self.assertIn('trace', ret.get('3', {}))
 
 
@@ -1955,17 +2037,20 @@ class TestPostbackHelpers(unittest.TestCase):
 
     def test_provider_update(self):
         """ Test mass provider resource updates """
-        checkmate.deployments.DB.get_deployment('1234').AndReturn(
-                                                self._deployment)
+        checkmate.deployments.DB.get_deployment('1234')\
+            .AndReturn(self._deployment)
         self._mox.StubOutWithMock(checkmate.deployments.resource_postback,
                                   "delay")
         checkmate.deployments.resource_postback.delay('1234',
-                                                      IgnoreArg()
+                                                      IgnoreArg(),
+                                                      driver=checkmate.
+                                                      deployments.DB
                                                       ).AndReturn(True)
         self._mox.ReplayAll()
         ret = update_all_provider_resources('foo', '1234', 'NEW',
-                                                       message='I test u',
-                                                       trace='A trace')
+                                            message='I test u',
+                                            trace='A trace',
+                                            driver=checkmate.deployments.DB)
         self.assertIn('instance:1', ret)
         self.assertIn('instance:9', ret)
         self.assertEquals('NEW', ret.get('instance:1', {}).get('status'))
@@ -1983,13 +2068,76 @@ class TestPostbackHelpers(unittest.TestCase):
         """ Test deployment status update """
         expected = deepcopy(self._deployment)
         expected['status'] = 'CHANGED'
-        checkmate.deployments.DB.get_deployment('1234').AndReturn(
-                                                    self._deployment)
+        checkmate.deployments.DB.get_deployment('1234')\
+            .AndReturn(self._deployment)
         checkmate.deployments.DB.save_deployment('1234',
                                                  expected).AndReturn(expected)
         self._mox.ReplayAll()
-        update_deployment_status('1234', 'CHANGED')
+        update_deployment_status('1234', 'CHANGED',
+                                 driver=checkmate.deployments.DB)
         self._mox.VerifyAll()
+
+
+class TestDeploymentDisplayOutputs(unittest.TestCase):
+    def test_parse_source_URI_options(self):
+        fxn = Deployment.parse_source_URI
+        result = fxn("options://username")
+        expected = {
+            'scheme': 'options',
+            'netloc': 'username',
+            'path': 'username',
+            'query': '',
+            'fragment': '',
+        }
+        self.assertDictEqual(result, expected)
+
+    @unittest.skip('Looks like there is a python 2.7.4/2.7.1 issue')
+    def test_parse_source_URI_python24(self):
+        '''
+        This seems to fail in python 2.7.1, but not 2.7.4
+
+        2.7.1 parses ?type=compute as /?type=compute
+        '''
+        fxn = Deployment.parse_source_URI
+        result = fxn("resources://status?type=compute")
+        expected = {
+            'scheme': 'resources',
+            'netloc': 'status',
+            'path': 'status',
+            'query': 'type=compute',
+            'fragment': '',
+        }
+        self.assertDictEqual(result, expected)
+
+    def test_generation(self):
+        """ Test Display Output Processing """
+        deployment = Deployment(yaml_to_dict("""
+            blueprint:
+              id: 0255a076c7cf4fd38c69b6727f0b37ea
+              services: {}
+              options:
+                region:
+                  type: string
+                  default: South
+              display-outputs:
+                "Region":
+                  type: string
+                  source: options://region
+            environment:
+              providers: {}
+            inputs:
+              blueprint:
+                region: North
+            """))
+        outputs = deployment.calculate_outputs()
+        expected = {
+            "Region": {
+                "type": "string",
+                "value": "North"
+            }
+        }
+        self.assertDictEqual(expected, outputs)
+
 
 if __name__ == '__main__':
     # Run tests. Handle our parameters separately

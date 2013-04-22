@@ -1,6 +1,5 @@
 """Tests for Knife commands"""
 #!/usr/bin/env python
-import __builtin__
 import json
 import logging
 import os
@@ -13,186 +12,131 @@ from checkmate.utils import init_console_logging
 init_console_logging()
 LOG = logging.getLogger(__name__)
 
-import git
 import mox
-from mox import In, IsA, And, IgnoreArg, ContainsKeyValue, Not
 
 from checkmate.exceptions import CheckmateException
 from checkmate.providers.opscode import knife
-from checkmate.test import StubbedWorkflowBase
+
+
+TEST_PATH = '/tmp/checkmate/test'
 
 
 class TestKnife(unittest.TestCase):
 
     def setUp(self):
         self.mox = mox.Mox()
+        self.orignal_dir = os.getcwd()  # our knife calls will change it
+        self.deploymentId = uuid.uuid4().hex
+        os.environ['CHECKMATE_CHEF_LOCAL_PATH'] = TEST_PATH
+        if not os.path.exists(TEST_PATH):
+            shutil.os.makedirs(TEST_PATH)
+            LOG.info("Created '%s'" % TEST_PATH)
 
-        local_path = '/tmp/checkmate/test'
-        os.environ['CHECKMATE_CHEF_LOCAL_PATH'] = local_path
-        if not os.path.exists(local_path):
-            shutil.os.makedirs(local_path)
-            LOG.info("Created '%s'" % local_path)
-        test_path = os.path.join(local_path, 'test_env', 'kitchen', 'roles')
-        if not os.path.exists(test_path):
-            knife.create_environment('test_env', 'kitchen')
+        # Fake a call to create_environment
+        url = 'https://example.com/checkmate/app.git'
+        cache_path = knife._get_blueprints_cache_path(url)
+        environment_path = os.path.join(TEST_PATH, self.deploymentId)
+        kitchen_path = os.path.join(environment_path, 'kitchen')
+
+        if not os.path.exists(kitchen_path):
+            os.makedirs(kitchen_path)
+            knife._create_kitchen(self.deploymentId, 'kitchen', environment_path)
+            LOG.info("Created kitchen '%s'" % kitchen_path)
+
+        databag_path = os.path.join(kitchen_path, "data_bags")
+        if not os.path.exists(databag_path):
+            os.makedirs(databag_path)
+        with open(os.path.join(kitchen_path, "Cheffile"), 'w') as f:
+            f.write(CHEFFILE)
+        with open(os.path.join(kitchen_path, "Berksfile"), 'w') as f:
+            f.write(BERKSFILE)
+        if not os.path.exists(cache_path):
+            os.makedirs(os.path.join(cache_path, ".git"))
 
     def tearDown(self):
         self.mox.UnsetStubs()
-
-    def test_cook_missing_role(self):
-        """Test that missing role error is correctly detected and reported"""
-        results = """Checking cookbook syntax...
-[Mon, 21 May 2012 17:25:54 +0000] INFO: *** Chef 0.10.10 ***
-[Mon, 21 May 2012 17:25:55 +0000] INFO: Setting the run_list to ["role[build]", "role[wordpress-web]"] from JSON
-[Mon, 21 May 2012 17:25:55 +0000] ERROR: Role build is in the runlist but does not exist. Skipping expand.
-[Mon, 21 May 2012 17:25:55 +0000] ERROR: Role wordpress-web is in the runlist but does not exist. Skipping expand.
-[Mon, 21 May 2012 17:25:55 +0000] FATAL: Stacktrace dumped to /tmp/checkmate/environments/myEnv/chef-stacktrace.out
-[Mon, 21 May 2012 17:25:55 +0000] FATAL: Chef::Exceptions::MissingRole: Chef::Exceptions::MissingRole
-"""
-        params = ['knife', 'cook', 'root@a.b.c.d',
-                  '-c', "/tmp/checkmate/test/myEnv/kitchen/solo.rb",
-                  '-p', '22']
-
-        #Stub out checks for paths
-        self.mox.StubOutWithMock(os.path, 'exists')
-        os.path.exists('/tmp/checkmate/test').AndReturn(True)
-        os.path.exists('/tmp/checkmate/test/myEnv/kitchen').AndReturn(True)
-        os.path.exists('/tmp/checkmate/test/myEnv/kitchen/nodes/a.b.c.d.json')\
-                .AndReturn(True)
-
-        #Stub out file access
-        mock_file = self.mox.CreateMockAnything()
-        mock_file.__enter__().AndReturn(mock_file)
-        mock_file.__exit__(None, None, None).AndReturn(None)
-
-        #Stub out file reads
-        node = json.loads('{ "run_list": [] }')
-        self.mox.StubOutWithMock(json, 'load')
-        json.load(mock_file).AndReturn(node)
-
-        #Stub out file write
-        mock_file.__enter__().AndReturn(mock_file)
-        self.mox.StubOutWithMock(json, 'dump')
-        json.dump(node, mock_file).AndReturn(None)
-        mock_file.__exit__(None, None, None).AndReturn(None)
-
-        #Stub out file opens
-        self.mox.StubOutWithMock(__builtin__, 'file')
-        __builtin__.file("/tmp/checkmate/test/myEnv/kitchen/nodes/a.b.c.d."
-                "json", 'r').AndReturn(mock_file)
-        __builtin__.file("/tmp/checkmate/test/myEnv/kitchen/nodes/a.b.c.d."
-                "json", 'w').AndReturn(mock_file)
-
-        #Stub out directory change
-        self.mox.StubOutWithMock(os, 'chdir')
-        os.chdir('/tmp/checkmate/test/myEnv/kitchen').AndReturn(None)
-
-        #Stub out process call to knife
-        self.mox.StubOutWithMock(knife, 'check_all_output')
-        knife.check_all_output("myEnv", params).AndReturn(results)
-
-        #Stub out call to resource_postback
-        self.mox.StubOutWithMock(knife.resource_postback, 'delay')
-        host_results={'instance:rackspace': {'status': 'ACTIVE'}}
-        knife.resource_postback.delay('myEnv', host_results).AndReturn(True)
-
-        self.mox.ReplayAll()
-        try:
-            resource = {
-                'index':1, 
-                'hosted_on': 'rackspace'
-            }
-            knife.cook('a.b.c.d', 'myEnv', resource, recipes=None,
-                       roles=['build', 'not-a-role'])
-        except Exception as exc:
-            if 'MissingRole' in exc.__str__():
-                # If got the right error, check that it is correctly formatted
-                self.assertIn("Chef/Knife error encountered: MissingRole",
-                        exc.__str__())
-            else:
-                LOG.error("This should be a trace here", exc_info=True)
-                self.assertIn("OutOfKitchenError",
-                        exc.__str__())
-
-        #TODO: check this self.mox.VerifyAll()
+        os.chdir(self.orignal_dir)  # restore what knife may have changed
+        shutil.rmtree(os.path.join(TEST_PATH, self.deploymentId))
 
     def test_databag_create(self):
         """Test databag item creation (with checkmate filling in ID)"""
         original = {
-                'a': 1,
-                'b': '2',
-                'boolean': False,
-                'blank': None,
-                'multi-level': {
-                        'ml_stays': "I'm here!",
-                        'ml_goes': 'Bye!',
-                    },
-            }
+            'a': 1,
+            'b': '2',
+            'boolean': False,
+            'blank': None,
+            'multi-level': {
+                'ml_stays': "I'm here!",
+                'ml_goes': 'Bye!',
+            },
+        }
         resource = {
-            'index':1, 
+            'index': 1,
             'hosted_on': 'rackspace'
         }
         bag = uuid.uuid4().hex
-        knife.write_databag('test_env', bag, 'test', original, resource)
-        stored = knife._run_kitchen_command(
-                "dep_id",
-                "/tmp/checkmate/test/test_env/kitchen/",
-                ['knife', 'solo', 'data', 'bag', 'show', bag, 'test', '-F',
-                'json'])
+        knife.write_databag(self.deploymentId, bag, 'test', original, resource)
+        params = ['knife', 'solo', 'data', 'bag', 'show', bag, 'test', '-F',
+                  'json']
+        stored = knife._run_kitchen_command("dep_id", "/tmp/checkmate/test/"
+                                            "%s/kitchen/" % self.deploymentId,
+                                            params)
         self.assertDictEqual(json.loads(stored), original)
 
     def test_databag_merge(self):
         """Test databag item merging"""
         original = {
-                'a': 1,
-                'b': '2',
-                'boolean': False,
-                'blank': None,
-                'multi-level': {
-                        'ml_stays': "I'm here!",
-                        'ml_goes': 'Bye!',
-                    },
-            }
+            'a': 1,
+            'b': '2',
+            'boolean': False,
+            'blank': None,
+            'multi-level': {
+                'ml_stays': "I'm here!",
+                'ml_goes': 'Bye!',
+            },
+        }
         merge = {
-                'b': 3,
-                'multi-level': {
-                        'ml_goes': 'fishing',
-                    },
+            'b': 3,
+            'multi-level': {
+                'ml_goes': 'fishing',
+            },
         }
         expected = {
-                'id': 'test',
-                'a': 1,
-                'b': 3,
-                'boolean': False,
-                'blank': None,
-                'multi-level': {
-                        'ml_stays': "I'm here!",
-                        'ml_goes': 'fishing',
-                    },
-            }
+            'id': 'test',
+            'a': 1,
+            'b': 3,
+            'boolean': False,
+            'blank': None,
+            'multi-level': {
+                'ml_stays': "I'm here!",
+                'ml_goes': 'fishing',
+            },
+        }
         bag = uuid.uuid4().hex
-        resource  = {'index': 1234,
-                     'hosted_on':"rackspace"
-                     }
-        knife.write_databag('test_env', bag, 'test', original, resource)
-        knife.write_databag('test_env', bag, 'test', merge, resource, merge=True)
-        stored = knife._run_kitchen_command(
-                'test',
-                "/tmp/checkmate/test/test_env/kitchen/",
-                ['knife', 'solo', 'data', 'bag', 'show', bag, 'test', '-F',
-                'json'])
+        resource = {
+            'index': 1234,
+            'hosted_on': "rackspace"
+        }
+        knife.write_databag(self.deploymentId, bag, 'test', original, resource)
+        knife.write_databag(self.deploymentId, bag, 'test', merge, resource,
+                            merge=True)
+        params = ['knife', 'solo', 'data', 'bag', 'show', bag, 'test', '-F',
+                  'json']
+        stored = knife._run_kitchen_command('test', "/tmp/checkmate/test/"
+                                            "%s/kitchen/" % self.deploymentId,
+                                            params)
         self.assertDictEqual(json.loads(stored),
                              json.loads(json.dumps(expected)))
 
     def test_databag_create_bad_id(self):
         """Test databag item creation (with supplied ID not matching)"""
         original = {
-                'id': 'Not-the-tem-name',
-            }
-        resource = {'index':1234}
+            'id': 'Not-the-tem-name',
+        }
+        resource = {'index': 1234}
         bag = uuid.uuid4().hex
         self.assertRaises(CheckmateException, knife.write_databag,
-                'test_env', bag, 'test', original, resource)
+                          self.deploymentId, bag, 'test', original, resource)
 
     def test_create_environment(self):
         """Test create_environment"""
@@ -206,26 +150,18 @@ class TestKnife(unittest.TestCase):
         knife._get_root_environments_path("test", path).AndReturn(path)
         self.mox.StubOutWithMock(knife, '_create_environment_keys')
         knife._create_environment_keys("test", fullpath, private_key="PPP",
-                                       public_key_ssh="SSH").AndReturn(
-                                       dict(keys="keys"))
+                                       public_key_ssh="SSH")\
+             .AndReturn(dict(keys="keys"))
         self.mox.StubOutWithMock(knife, '_create_kitchen')
-        knife._create_kitchen("test", service, fullpath, secret_key="SSS")\
-                .AndReturn(dict(kitchen="kitchen_path"))
+        knife._create_kitchen("test", service, fullpath, secret_key="SSS",
+                              source_repo="git://ggg")\
+             .AndReturn(dict(kitchen="kitchen_path"))
         kitchen_path = os.path.join(fullpath, service)
         public_key_path = os.path.join(fullpath, 'checkmate.pub')
         kitchen_key_path = os.path.join(kitchen_path, 'certificates',
                                         'checkmate-environment.pub')
         self.mox.StubOutWithMock(shutil, 'copy')
         shutil.copy(public_key_path, kitchen_key_path).AndReturn(True)
-        self.mox.StubOutWithMock(knife, '_init_repo')
-        knife._init_repo("test", os.path.join(kitchen_path, 'cookbooks'))\
-                .AndReturn(True)
-        self.mox.StubOutWithMock(knife, 'download_cookbooks')
-        knife.download_cookbooks("test", service, path=path).AndReturn(True)
-        knife.download_cookbooks("test", service, path=path, use_site=True)\
-                .AndReturn(True)
-        self.mox.StubOutWithMock(knife, 'download_roles')
-        knife.download_roles("test", service, path=path).AndReturn(True)
 
         self.mox.ReplayAll()
         expected = {'environment': '/fake_path/test',
@@ -235,7 +171,8 @@ class TestKnife(unittest.TestCase):
                                                       service, path=path,
                                                       private_key="PPP",
                                                       public_key_ssh="SSH",
-                                                      secret_key="SSS"),
+                                                      secret_key="SSS",
+                                                      source_repo="git://ggg"),
                              expected)
         self.mox.VerifyAll()
 
@@ -252,39 +189,27 @@ class TestKnife(unittest.TestCase):
         knife._get_root_environments_path("test", path).AndReturn(path)
         self.mox.StubOutWithMock(knife, '_create_environment_keys')
         knife._create_environment_keys("test", fullpath, private_key="PPP",
-                                       public_key_ssh="SSH").AndReturn(
-                                       dict(keys="keys"))
+                                       public_key_ssh="SSH")\
+             .AndReturn(dict(keys="keys"))
         self.mox.StubOutWithMock(knife, '_create_kitchen')
-        knife._create_kitchen("test", service, fullpath, secret_key="SSS")\
-                .AndReturn(dict(kitchen="kitchen_path"))
+        knife._create_kitchen("test", service, fullpath, secret_key="SSS",
+                              source_repo="git://ggg")\
+             .AndReturn(dict(kitchen="kitchen_path"))
         kitchen_path = os.path.join(fullpath, service)
         public_key_path = os.path.join(fullpath, 'checkmate.pub')
         kitchen_key_path = os.path.join(kitchen_path, 'certificates',
                                         'checkmate-environment.pub')
         self.mox.StubOutWithMock(shutil, 'copy')
         shutil.copy(public_key_path, kitchen_key_path).AndReturn(True)
-
         self.mox.StubOutWithMock(os.path, 'exists')
-        os.path.exists(kitchen_path).AndReturn(True)
-        repo = self.mox.CreateMockAnything()
-        remote = self.mox.CreateMockAnything()
-        self.mox.StubOutWithMock(git.Repo, 'init')
-        git.Repo.init(kitchen_path).AndReturn(repo)
-        repo.remotes = []
-        repo.create_remote('origin', "git://ggg").AndReturn(remote)
-        remote.fetch(refspec='master').AndReturn(True)
 
-        self.mox.StubOutWithMock(git, 'Git')
-        gb_mock = self.mox.CreateMockAnything()
-        git.Git(kitchen_path).AndReturn(gb_mock)
-        gb_mock.checkout('FETCH_HEAD').AndReturn(True)
-
-        os.path.exists(os.path.join(kitchen_path, 'Berksfile')).AndReturn(False)
+        os.path.exists(os.path.join(kitchen_path, 'Berksfile'))\
+               .AndReturn(False)
         os.path.exists(os.path.join(kitchen_path, 'Cheffile')).AndReturn(True)
         self.mox.StubOutWithMock(os, 'chdir')
         os.chdir(kitchen_path).AndReturn(True)
-        self.mox.StubOutWithMock(knife, 'check_all_output')
-        knife.check_all_output("test", ['librarian-chef', 'install']).AndReturn('OK')
+        self.mox.StubOutWithMock(knife, 'check_output')
+        knife.check_output(['librarian-chef', 'install']).AndReturn('OK')
 
         self.mox.ReplayAll()
         expected = {'environment': '/fake_path/test',
@@ -299,8 +224,11 @@ class TestKnife(unittest.TestCase):
                              expected)
         self.mox.VerifyAll()
 
-
-
+    # Note: The logic in knife._cache_blueprint() is being tested in
+    # the following methods in test_solo.py:
+    # - TestChefMap.test_get_map_file_hit_cache()
+    # - TestChefMap.test_get_map_file_miss_cache()
+    # - TestChefMap.test_get_map_file_no_cache()
 
     def test_create_environment_repo_berksfile(self):
         """Test create_environment with a source repository containing
@@ -309,17 +237,20 @@ class TestKnife(unittest.TestCase):
         fullpath = os.path.join(path, "test")
         service = "test_service"
         #Stub out checks for paths
+        self.mox.StubOutWithMock(knife, "_ensure_berkshelf_environment")
+        knife._ensure_berkshelf_environment().AndReturn(True)
         self.mox.StubOutWithMock(os, 'mkdir')
         os.mkdir(fullpath, 0770).AndReturn(True)
         self.mox.StubOutWithMock(knife, '_get_root_environments_path')
         knife._get_root_environments_path('test', path).AndReturn(path)
         self.mox.StubOutWithMock(knife, '_create_environment_keys')
-        knife._create_environment_keys('test', fullpath, private_key="PPP",
-                                       public_key_ssh="SSH").AndReturn(
-                                       dict(keys="keys"))
+        knife._create_environment_keys("test", fullpath, private_key="PPP",
+                                       public_key_ssh="SSH")\
+             .AndReturn(dict(keys="keys"))
         self.mox.StubOutWithMock(knife, '_create_kitchen')
-        knife._create_kitchen('test', service, fullpath, secret_key="SSS")\
-                .AndReturn(dict(kitchen="kitchen_path"))
+        knife._create_kitchen("test", service, fullpath, secret_key="SSS",
+                              source_repo="git://ggg")\
+             .AndReturn(dict(kitchen="kitchen_path"))
         kitchen_path = os.path.join(fullpath, service)
         public_key_path = os.path.join(fullpath, 'checkmate.pub')
         kitchen_key_path = os.path.join(kitchen_path, 'certificates',
@@ -328,27 +259,15 @@ class TestKnife(unittest.TestCase):
         shutil.copy(public_key_path, kitchen_key_path).AndReturn(True)
 
         self.mox.StubOutWithMock(os.path, 'exists')
-        os.path.exists(kitchen_path).AndReturn(True)
-        repo = self.mox.CreateMockAnything()
-        remote = self.mox.CreateMockAnything()
-        self.mox.StubOutWithMock(git.Repo, 'init')
-        git.Repo.init(kitchen_path).AndReturn(repo)
-        repo.remotes = []
-        repo.create_remote('origin', "git://ggg").AndReturn(remote)
-        remote.fetch(refspec='master').AndReturn(True)
-
-        self.mox.StubOutWithMock(git, 'Git')
-        gb_mock = self.mox.CreateMockAnything()
-        git.Git(kitchen_path).AndReturn(gb_mock)
-        gb_mock.checkout('FETCH_HEAD').AndReturn(True)
-
         os.path.exists(os.path.join(kitchen_path, 'Berksfile')).AndReturn(True)
         #os.path.exists(os.path.join(kitchen_path, 'Cheffile')).AndReturn(False)
         self.mox.StubOutWithMock(os, 'chdir')
         os.chdir(kitchen_path).AndReturn(True)
-        self.mox.StubOutWithMock(knife, 'check_all_output')
-        knife.check_all_output('test', ['berks', 'install', '--path',
-                os.path.join(kitchen_path, 'cookbooks')]).AndReturn('OK')
+
+        self.mox.StubOutWithMock(knife, 'check_output')
+        knife.check_output(['berks', 'install', '--path',
+                            os.path.join(kitchen_path, 'cookbooks')
+                           ]).AndReturn('OK')
 
         self.mox.ReplayAll()
         expected = {'environment': '/fake_path/test',
@@ -359,10 +278,83 @@ class TestKnife(unittest.TestCase):
                                                       private_key="PPP",
                                                       public_key_ssh="SSH",
                                                       secret_key="SSS",
-                                                      source_repo="git://ggg"), expected)
+                                                      source_repo="git://ggg"),
+                             expected)
         self.mox.VerifyAll()
 
+CHEFFILE = """#!/usr/bin/env ruby
+#^syntax detection
 
+site 'http://community.opscode.com/api/v1'
+
+cookbook 'chef-client'
+cookbook 'memcached'
+cookbook 'build-essential'
+
+cookbook 'apache2',
+  :git => 'https://github.rackspace.com/Cookbooks/apache2.git',
+  :ref => 'origin/checkmate-solo-apache2'
+cookbook 'mysql',
+  :git => 'https://github.rackspace.com/Cookbooks/checkmate-solo-mysql.git'
+cookbook 'php5',
+  :git => 'https://github.rackspace.com/Cookbooks/php5.git',
+  :ref => 'origin/checkmate-solo'
+cookbook 'apt',
+  :git => 'https://github.rackspace.com/Cookbooks/apt.git'
+cookbook 'holland',
+  :git => 'https://github.rackspace.com/Cookbooks/holland.git'
+cookbook 'lsyncd',
+  :git => 'https://github.rackspace.com/Cookbooks/checkmate-solo-lsyncd.git'
+cookbook 'varnish',
+  :git => 'https://github.rackspace.com/Cookbooks/checkmate-solo-varnish.git'
+cookbook 'monit',
+  :git => 'https://github.rackspace.com/Cookbooks/monit.git'
+cookbook 'vsftpd',
+  :git => 'https://github.rackspace.com/Cookbooks/checkmate-solo-vsftpd.git'
+cookbook 'wordpress',
+  :git => 'https://github.rackspace.com/Cookbooks/checkmate-solo-wordpress.git'
+cookbook 'firewall',
+  :git => 'https://github.rackspace.com/Cookbooks/firewall.git'
+cookbook 'suhosin',
+  :git => 'https://github.rackspace.com/Cookbooks/suhosin.git'
+"""
+
+BERKSFILE = """#!/usr/bin/env ruby
+#^syntax detection
+
+site :opscode
+
+cookbook 'chef-client'
+cookbook 'memcached'
+cookbook 'build-essential'
+
+cookbook 'apache2',
+  :git => 'https://github.rackspace.com/Cookbooks/apache2.git',
+  :ref => 'origin/checkmate-solo-apache2'
+cookbook 'mysql',
+  :git => 'https://github.rackspace.com/Cookbooks/checkmate-solo-mysql.git'
+cookbook 'php5',
+  :git => 'https://github.rackspace.com/Cookbooks/php5.git',
+  :ref => 'origin/checkmate-solo'
+cookbook 'apt',
+  :git => 'https://github.rackspace.com/Cookbooks/apt.git'
+cookbook 'holland',
+  :git => 'https://github.rackspace.com/Cookbooks/holland.git'
+cookbook 'lsyncd',
+  :git => 'https://github.rackspace.com/Cookbooks/checkmate-solo-lsyncd.git'
+cookbook 'varnish',
+  :git => 'https://github.rackspace.com/Cookbooks/checkmate-solo-varnish.git'
+cookbook 'monit',
+  :git => 'https://github.rackspace.com/Cookbooks/monit.git'
+cookbook 'vsftpd',
+  :git => 'https://github.rackspace.com/Cookbooks/checkmate-solo-vsftpd.git'
+cookbook 'wordpress',
+  :git => 'https://github.rackspace.com/Cookbooks/checkmate-solo-wordpress.git'
+cookbook 'firewall',
+  :git => 'https://github.rackspace.com/Cookbooks/firewall.git'
+cookbook 'suhosin',
+  :git => 'https://github.rackspace.com/Cookbooks/suhosin.git'
+"""
 
 if __name__ == '__main__':
     # Run tests. Handle our parameters separately

@@ -19,6 +19,7 @@ class TestBlueprints(unittest.TestCase):
         """Test the schema validates a blueprint with all possible fields"""
         blueprint = {
             'id': 'test',
+            'version': '1.1.0',
             'meta-data': {
                 'schema-version': 'v0.7',
             },
@@ -26,6 +27,8 @@ class TestBlueprints(unittest.TestCase):
             'services': {},
             'options': {},
             'resources': {},
+            'display-outputs': {},
+            'documentation': {},
         }
         valid = Blueprint(blueprint)
         self.assertDictEqual(valid._data, blueprint)
@@ -102,6 +105,9 @@ class TestBlueprints(unittest.TestCase):
                     'type': 'url',
                     'protocols': ['http', 'https'],
                 },
+                'old_format_region': {
+                    'type': 'region',
+                },
             },
             'resources': {},
         }
@@ -134,6 +140,9 @@ class TestBlueprints(unittest.TestCase):
                 'old_format_url': {
                     'type': 'url',
                     'constraints': [{'protocols': ['http', 'https']}],
+                },
+                'old_format_region': {
+                    'type': 'string',
                 },
             },
             'resources': {},

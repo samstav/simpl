@@ -22,46 +22,56 @@ REGION_MAP = {'dallas': 'DFW',
               'chicago': 'ORD',
               'london': 'LON'}
 
-MEMORY_FLAVOR_MAP = {512: 1,
-                     1024: 2,
-                     2048: 3,
-                     4096: 4
-                     }
-
 
 class Provider(ProviderBase):
     name = 'database'
     vendor = 'rackspace'
 
     def generate_template(self, deployment, resource_type, service, context,
-            name=None):
-        template = ProviderBase.generate_template(self,
-                deployment, resource_type, service, context, name=name)
+                          name=None):
+        template = ProviderBase.generate_template(self, deployment,
+                                                  resource_type, service,
+                                                  context, name=name)
 
         catalog = self.get_catalog(context)
 
         if resource_type == 'compute':
             # Get flavor
-            memory = deployment.get_setting('memory', resource_type=resource_type,
-                    service_name=service, provider_key=self.key) or 512
-
             # Find same or next largest size and get flavor ID
-            size = '512'
-            flavor = '1'
-            number = str(memory).split(' ')[0]
+            flavor = None
+            memory = self.parse_memory_setting(deployment.get_setting('memory',
+                                               resource_type=resource_type,
+                                               service_name=service,
+                                               provider_key=self.key) or 512)
+
+            # Find the available memory size that satisfies this
+            matches = [e['memory'] for e in catalog['lists']['sizes'].values()
+                       if int(e['memory']) >= memory]
+            if not matches:
+                raise CheckmateNoMapping("No flavor has at least '%s' memory" %
+                                         memory)
+            match = str(min(matches))
             for key, value in catalog['lists']['sizes'].iteritems():
-                if int(number) <= int(value['memory']):
-                    if key > size:
-                        size = str(value['memory'])
-                        flavor = str(key)
+                if match == str(value['memory']):
+                    LOG.debug("Mapping flavor from '%s' to '%s'" % (memory,
+                                                                    key))
+                    flavor = key
+                    break
+            if not flavor:
+                raise CheckmateNoMapping("No flavor mapping for '%s' in '%s'" %
+                                         (memory, self.key))
 
             # Get volume size
-            volume = deployment.get_setting('disk', resource_type=resource_type,
-                    service_name=service, provider_key=self.key, default=1)
+            volume = deployment.get_setting('disk',
+                                            resource_type=resource_type,
+                                            service_name=service,
+                                            provider_key=self.key, default=1)
 
             # Get region
-            region = deployment.get_setting('region', resource_type=resource_type,
-                    service_name=service, provider_key=self.key)
+            region = deployment.get_setting('region',
+                                            resource_type=resource_type,
+                                            service_name=service,
+                                            provider_key=self.key)
             if not region:
                 raise CheckmateException("Could not identify which region to "
                                          "create database in")
@@ -74,29 +84,33 @@ class Provider(ProviderBase):
         return template
 
     def add_resource_tasks(self, resource, key, wfspec, deployment, context,
-            wait_on=None):
+                           wait_on=None):
         wait_on, service_name, component = self._add_resource_tasks_helper(
-                resource, key, wfspec, deployment, context, wait_on)
+            resource, key, wfspec, deployment, context, wait_on)
 
+        resource_type = resource.get('type', resource.get('resource_type'))
         if component['is'] == 'database':
             # Database name
             db_name = deployment.get_setting('database/name',
-                    resource_type=resource.get('type'), provider_key=self.key,
-                    service_name=service_name)
+                                             resource_type=resource_type,
+                                             provider_key=self.key,
+                                             service_name=service_name)
             if not db_name:
                 db_name = 'db1'
 
             # User name
             username = deployment.get_setting('database/username',
-                    resource_type=resource.get('type'), provider_key=self.key,
-                    service_name=service_name)
+                                              resource_type=resource_type,
+                                              provider_key=self.key,
+                                              service_name=service_name)
             if not username:
                 username = 'wp_user_%s' % db_name
 
             # Password
             password = deployment.get_setting('database/password',
-                    resource_type=resource.get('type'), provider_key=self.key,
-                    service_name=service_name)
+                                              resource_type=resource_type,
+                                              provider_key=self.key,
+                                              service_name=service_name)
             if not password:
                 password = self.evaluate("generate_password()")
             elif password.startswith('=generate'):
@@ -106,45 +120,54 @@ class Provider(ProviderBase):
                 start_with = string.ascii_uppercase + string.ascii_lowercase
                 if password[0] not in start_with:
                     raise CheckmateException("Database password must start "
-                            "with one of '%s'" % start_with)
+                                             "with one of '%s'" % start_with)
 
             # Create resource tasks
-            create_database_task = Celery(wfspec, 'Create Database',
-                   'checkmate.providers.rackspace.database.create_database',
-                   call_args=[context.get_queued_task_dict(
-                                    deployment=deployment['id'],
-                                    resource=key),
-                            db_name,
-                            PathAttrib('instance:%s/region' %
-                                    resource['hosted_on']),
-                        ],
-                   instance_id=PathAttrib('instance:%s/id' %
-                            resource['hosted_on']),
-
-                   merge_results=True,
-                   defines=dict(resource=key,
-                                provider=self.key,
-                                task_tags=['create']),
-                   properties={
-                            'estimated_duration': 80
-                    })
-            create_db_user = Celery(wfspec, "Add DB User: %s" % username,
-                   'checkmate.providers.rackspace.database.add_user',
-                   call_args=[context.get_queued_task_dict(
-                                    deployment=deployment['id'],
-                                    resource=key),
-                            PathAttrib('instance:%s/host_instance' % key),
-                            [db_name],
-                            username, password,
-                            PathAttrib('instance:%s/host_region' % key),
-                            ],
-                   merge_results=True,
-                   defines=dict(resource=key,
-                                provider=self.key,
-                                task_tags=['final']),
-                   properties={
-                        'estimated_duration': 20
-                    })
+            create_database_task = Celery(wfspec,
+                                          'Create Database',
+                                          'checkmate.providers.rackspace.'
+                                          'database.create_database',
+                                          call_args=[
+                                              context.get_queued_task_dict(
+                                                  deployment=deployment['id'],
+                                                  resource=key),
+                                              db_name,
+                                              PathAttrib(
+                                                  'instance:%s/region' %
+                                                  resource['hosted_on']),
+                                          ],
+                                          instance_id=PathAttrib(
+                                              'instance:%s/id' %
+                                              resource['hosted_on']),
+                                          merge_results=True,
+                                          defines=dict(resource=key,
+                                                       provider=self.key,
+                                                       task_tags=['create']),
+                                          properties={
+                                              'estimated_duration': 80
+                                          })
+            create_db_user = Celery(wfspec,
+                                    "Add DB User: %s" % username,
+                                    'checkmate.providers.rackspace.database.'
+                                    'add_user',
+                                    call_args=[
+                                        context.get_queued_task_dict(
+                                            deployment=deployment['id'],
+                                            resource=key),
+                                        PathAttrib(
+                                            'instance:%s/host_instance' % key),
+                                        [db_name],
+                                        username, password,
+                                        PathAttrib(
+                                            'instance:%s/host_region' % key),
+                                    ],
+                                    merge_results=True,
+                                    defines=dict(resource=key,
+                                                 provider=self.key,
+                                                 task_tags=['final']),
+                                    properties={
+                                        'estimated_duration': 20
+                                    })
 
             create_db_user.follow(create_database_task)
             root = wait_for(wfspec, create_database_task, wait_on)
@@ -154,73 +177,70 @@ class Provider(ProviderBase):
                 root.properties['task_tags'] = ['root']
             return dict(root=root, final=create_db_user)
         elif component['is'] == 'compute':
-            # Region
-            if 'region' in resource:
-                region = resource['region']
-            else:
-                region = deployment.get_setting('region',
-                        resource_type=resource.get('type'),
-                        provider_key=self.key, service_name=service_name)
-            db_memory = deployment.get_setting('memory',
-                    resource_type=resource.get('type'), provider_key=self.key,
-                    service_name=service_name, default=512)
-            db_disk = deployment.get_setting('disk',
-                    resource_type=resource.get('type'), provider_key=self.key,
-                    service_name=service_name, default=1)
-
-            create_instance_task = Celery(wfspec, 'Create Database Server',
-                   'checkmate.providers.rackspace.database.create_instance',
-                   call_args=[context.get_queued_task_dict(
-                                    deployment=deployment['id'],
-                                    resource=key),
-                            resource.get('dns-name'),
-                            MEMORY_FLAVOR_MAP[db_memory],
-                            db_disk,
-                            None,
-                            region,
-                        ],
-                   merge_results=True,
-                   defines=dict(resource=key,
-                                resource_type=resource.get('resource_type',
-                                                           resource.get('type', None)),
-                                interface=resource.get('interface'),
-                                provider=self.key,
-                                task_tags=['create', 'root']),
-                   properties={
-                        'estimated_duration': 80
-                   })
+            defines = dict(resource=key,
+                           resource_type=resource_type,
+                           interface=resource.get('interface'),
+                           provider=self.key,
+                           task_tags=['create', 'root'])
+            create_instance_task = Celery(wfspec,
+                                          'Create Database Server',
+                                          'checkmate.providers.rackspace.'
+                                          'database.create_instance',
+                                          call_args=[
+                                              context.get_queued_task_dict(
+                                                  deployment=deployment['id'],
+                                                  resource=key),
+                                              resource.get('dns-name'),
+                                              resource['flavor'],
+                                              resource['disk'],
+                                              None,
+                                              resource['region'],
+                                          ],
+                                          merge_results=True,
+                                          defines=defines,
+                                          properties={
+                                              'estimated_duration': 80
+                                          })
             root = wait_for(wfspec, create_instance_task, wait_on)
-            wait_on_build = Celery(wfspec, 'Wait on Database Instance %s' % key,
-                    'checkmate.providers.rackspace.database.wait_on_build',
-                    call_args=[context.get_queued_task_dict(
-                                    deployment=deployment['id'],
-                                    resource=key),
-                               PathAttrib("instance:%s/id" % key),
-                               region],
-                    defines=dict(resource=key, provider=self.key,
-                                 task_tags=['final'],
-                    properties={
-                        'estimated_duration': 80
-                   }))
+            wait_on_build = Celery(wfspec,
+                                   'Wait on Database Instance %s' % key,
+                                   'checkmate.providers.rackspace.database.'
+                                   'wait_on_build',
+                                   call_args=[
+                                       context.get_queued_task_dict(
+                                           deployment=deployment['id'],
+                                           resource=key),
+                                       PathAttrib("instance:%s/id" % key),
+                                       resource['region']
+                                   ],
+                                   merge_results=True,
+                                   defines=dict(resource=key,
+                                                provider=self.key,
+                                                task_tags=['final']),
+                                   properties={
+                                       'estimated_duration': 80
+                                   })
             wait_on_build.follow(create_instance_task)
             return dict(root=root, final=wait_on_build)
         else:
             raise CheckmateException("Unsupported component type '%s' for "
-                    "provider %s" % (component['is'], self.key))
+                                     "provider %s" % (component['is'],
+                                                      self.key))
 
     def delete_resource_tasks(self, context, deployment_id, resource, key):
         self._verify_existing_resource(resource, key)
+        region = resource.get('region') or \
+            resource.get('instance', {}).get('host_region')
         ctx = context.get_queued_task_dict(deployment_id=deployment_id,
-                        resource_key=key,
-                        resource=resource,
-                        region=resource.get('region') or
-                               resource.get('instance', {}).get('host_region'))
+                                           resource_key=key,
+                                           resource=resource,
+                                           region=region)
         if resource.get('type') == 'compute':
             return self._delete_comp_res_tasks(ctx, deployment_id,
                                                resource, key)
         if resource.get('type') == 'database':
             return self._delete_db_res_tasks(ctx, deployment_id, resource,
-                                            key)
+                                             key)
         raise CheckmateException("Cannot provide delete tasks for resource %s:"
                                  " Invalid resource type '%s'"
                                  % (key, resource.get('type')))
@@ -243,12 +263,12 @@ class Provider(ProviderBase):
         # TODO: maybe implement this an on_get_catalog so we don't have to do
         #        this for every provider
         results = ProviderBase.get_catalog(self, context,
-            type_filter=type_filter)
+                                           type_filter=type_filter)
         if results:
             # We have a prexisting or overridecatalog stored
             return results
 
-        # build a live catalog ()this would be the on_get_catalog called if no
+        # build a live catalog this would be the on_get_catalog called if no
         # stored/override existed
         api = self._connect(context)
         if type_filter is None or type_filter == 'database':
@@ -257,17 +277,17 @@ class Provider(ProviderBase):
                 'is': 'database',
                 'provides': [{'database': 'mysql'}],
                 'requires': [{'compute': dict(relation='host',
-                        interface='mysql', type='compute')}],
+                             interface='mysql', type='compute')}],
                 'options': {
-                    'database/name':{
+                    'database/name': {
                         'type': 'string',
                         'default': 'db1'
                     },
-                    'database/username':{
+                    'database/username': {
                         'type': 'string',
                         'required': "true"
                     },
-                    'database/password':{
+                    'database/password': {
                         'type': 'string',
                         'required': "false"
                     }
@@ -278,18 +298,18 @@ class Provider(ProviderBase):
                 'is': 'compute',
                 'provides': [{'compute': 'mysql'}],
                 'options': {
-                        'disk': {
-                                'type': 'int',
-                                'choice': [1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
-                                'unit': 'Gb',
-                            },
-                        'memory': {
-                                'type': 'int',
-                                'choice': [512, 1024, 2048, 4096],
-                                'unit': 'Mb',
-                            },
-                    }
-                })
+                    'disk': {
+                        'type': 'integer',
+                        'choice': [1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
+                        'unit': 'Gb',
+                    },
+                    'memory': {
+                        'type': 'integer',
+                        'choice': [512, 1024, 2048, 4096],
+                        'unit': 'Mb',
+                    },
+                }
+            })
 
         if type_filter is None or type_filter == 'regions':
             regions = {}
@@ -323,8 +343,9 @@ class Provider(ProviderBase):
         if function_string.startswith('generate_password('):
             start_with = string.ascii_uppercase + string.ascii_lowercase
             password = '%s%s' % (random.choice(start_with),
-                ''.join(random.choice(start_with + string.digits + '@?#_')
-                for x in range(11))) #@UnusedVariable for randomization?
+                                 ''.join(random.choice(start_with +
+                                                       string.digits + '@?#_')
+                                 for x in range(11)))
             return password
         return ProviderBase.evaluate(self, function_string)
 
@@ -365,7 +386,7 @@ class Provider(ProviderBase):
         url = find_url(context.catalog, region)
         if not url:
             raise CheckmateException("Unable to locate region url for DBaaS "
-                    "for region '%s'" % region)
+                                     "for region '%s'" % region)
         api = clouddb.CloudDB(context.username, 'dummy', region)
         api.client.auth_token = context.auth_token
         api.client.region_account_url = url
@@ -378,7 +399,7 @@ class Provider(ProviderBase):
 #
 @task(default_retry_delay=10, max_retries=2)
 def create_instance(context, instance_name, flavor, size, databases, region,
-        api=None):
+                    api=None):
     """Creates a Cloud Database instance with optional initial databases.
 
     :param databases: an array of dictionaries with keys to set the database
@@ -389,44 +410,81 @@ def create_instance(context, instance_name, flavor, size, databases, region,
                     'collate': 'latin5_turkish_ci'}]
     """
     match_celery_logging(LOG)
+    if context.get('simulation') is True:
+        resource_key = context['resource']
+        hostname = "srv%s.rackdb.net" % resource_key
+        results = {
+            'instance:%s' % resource_key: {
+                'id': "DBS%s" % resource_key,
+                'name': instance_name,
+                'status': "ACTIVE",
+                'region': region,
+                'interfaces': {
+                    'mysql': {
+                        'host': "srv%s.rackdb.net" % resource_key
+                    }
+                },
+                'databases': {}
+            }
+        }
+        if databases:
+            db_results = results[resource_key]['databases']
+            for database in databases:
+                data = copy.copy(database)
+                data['interfaces'] = {
+                    'mysql': {
+                        'host': "srv%s.rackdb.net" % resource_key,
+                        'database_name': database['name'],
+                    }
+                }
+                db_results[database['name']] = data
+
+        # Send data back to deployment
+        resource_postback.delay(context['deployment'], results)
+        return results
+
     if not api:
         api = Provider._connect(context, region)
 
     if databases is None:
         databases = []
 
+    flavor = int(flavor)
+    size = int(size)
+
     instance = api.create_instance(instance_name, flavor, size,
-                                          databases=databases)
+                                   databases=databases)
     LOG.info("Created database instance %s (%s). Size %s, Flavor %s. "
-            "Databases = %s" % (instance.name, instance.id, size, flavor,
-            databases))
+             "Databases = %s" % (instance.name, instance.id, size, flavor,
+                                 databases))
 
     # Return instance and its interfaces
     results = {
-            'instance:%s' % context['resource']: {
-                    'id': instance.id,
-                    'name': instance.name,
-                    'status': 'BUILD',
-                    'region': region,
-                    'interfaces': {
-                            'mysql': {
-                                    'host': instance.hostname
-                                }
-                        },
-                    'databases': {}
+        'instance:%s' % context['resource']: {
+            'id': instance.id,
+            'name': instance.name,
+            'status': 'BUILD',
+            'region': region,
+            'flavor': flavor,
+            'interfaces': {
+                'mysql': {
+                    'host': instance.hostname
                 }
+            },
+            'databases': {}
         }
+    }
     # Return created databases and their interfaces
     if databases:
         db_results = results['instance:%s' % context['resource']]['databases']
         for database in databases:
             data = copy.copy(database)
             data['interfaces'] = {
-                    'mysql': {
-                            'host': instance.hostname,
-                            'database_name': database['name'],
-                        }
+                'mysql': {
+                    'host': instance.hostname,
+                    'database_name': database['name'],
                 }
+            }
             db_results[database['name']] = data
 
     # Send data back to deployment
@@ -439,6 +497,15 @@ def wait_on_build(context, instance_id, region, api=None):
     """ Check to see if DB Instance has finished building """
 
     match_celery_logging(LOG)
+    if context.get('simulation') is True:
+        results = {}
+        results['status'] = "ACTIVE"
+        results['id'] = instance_id
+        instance_key = "instance:%s" % context['resource']
+        results = {instance_key: results}
+        resource_postback.delay(context['deployment'], results)
+        return
+
     if api is None:
         api = Provider._connect(context, region)
 
@@ -469,9 +536,9 @@ def wait_on_build(context, instance_id, region, api=None):
         return wait_on_build.retry(exc=CheckmateException(msg))
 
 
-@task(default_retry_delay=15, max_retries=40) # max 10 minute wait
+@task(default_retry_delay=15, max_retries=40)  # max 10 minute wait
 def create_database(context, name, region, character_set=None, collate=None,
-        instance_id=None, instance_attributes=None, api=None):
+                    instance_id=None, instance_attributes=None, api=None):
     """Create a database resource.
 
     This call also creates a server instance if it is not supplied.
@@ -489,6 +556,28 @@ def create_database(context, name, region, character_set=None, collate=None,
     """
 
     match_celery_logging(LOG)
+
+    if context.get('simulation') is True:
+        resource_key = context['resource']
+        hostname = "srv%s.rackdb.net" % resource_key
+        database_name = name
+        results = {
+            'instance:%s' % resource_key: {
+                'name': database_name,
+                'host_instance': instance_id or 'DBS%s' % resource_key,
+                'host_region': region,
+                'interfaces': {
+                    'mysql': {
+                        'host': hostname,
+                        'database_name': database_name
+                    },
+                }
+            }
+        }
+        # Send data back to deployment
+        resource_postback.delay(context['deployment'], results)
+        return results
+
     database = {'name': name}
     if character_set:
         database['character_set'] = character_set
@@ -511,15 +600,16 @@ def create_database(context, name, region, character_set=None, collate=None,
             flavor = instance_attributes.get('flavor', flavor)
 
         instance = create_instance(context, instance_name, size, flavor,
-            databases, region, api=api)
+                                   databases, region, api=api)
         instance_id = instance.get(instance_key, {}).get('id')
         wait_on_build.delay(context, instance_id, region, api=api)
         # create_instance calls its own postback
         results = {
-                instance_key: instance['instance']['databases'][name]
-            }
+            instance_key: instance['instance']['databases'][name]
+        }
         results[instance_key]['host_instance'] = instance_id
         results[instance_key]['host_region'] = instance['region']
+        results[instance_key]['flavor'] = flavor
         return results
 
     instance = api.get_instance(instance_id)
@@ -528,24 +618,25 @@ def create_database(context, name, region, character_set=None, collate=None,
     try:
         instance.create_databases(databases)
         results = {
-                instance_key: {
-                        'name': name,
-                        'id': name,
-                        'host_instance': instance_id,
-                        'host_region': region,
-                        'status': "BUILD",
-                        'interfaces': {
-                                'mysql': {
-                                        # pylint: disable=E1103
-                                        'host': instance.hostname,
-                                        'database_name': name
-                                    },
-                            }
-                    }
+            instance_key: {
+                'name': name,
+                'id': name,
+                'host_instance': instance_id,
+                'host_region': region,
+                'flavor': instance.flavor['id'],
+                'status': "BUILD",
+                'interfaces': {
+                    'mysql': {
+                        # pylint: disable=E1103
+                        'host': instance.hostname,
+                        'database_name': name
+                    },
+                }
             }
+        }
         LOG.info('Created database(s) %s on instance %s' % (
-                [db['name'] for db in
-                databases], instance_id))
+                 [db['name'] for db in
+                  databases], instance_id))
         # Send data back to deployment
         resource_postback.delay(context['deployment'], results)
         return results
@@ -571,12 +662,16 @@ def add_databases(context, instance_id, databases, region, api=None):
         databases = [{'name': 'mydb3'}, {'name': 'mydb4'}]
     """
     match_celery_logging(LOG)
-    if not api:
-        api = Provider._connect(context, region)
 
     dbnames = []
     for db in databases:
         dbnames.append(db['name'])
+
+    if context.get('simulation') is True:
+        return dict(database_names=dbnames)
+
+    if not api:
+        api = Provider._connect(context, region)
 
     instance = api.get_instance(instance_id)
     instance.create_databases(databases)
@@ -586,15 +681,35 @@ def add_databases(context, instance_id, databases, region, api=None):
 
 @task(default_retry_delay=10, max_retries=10)
 def add_user(context, instance_id, databases, username, password, region,
-        api=None):
+             api=None):
     """Add a database user to an instance for one or more databases"""
     match_celery_logging(LOG)
 
     assert instance_id, "Instance ID not supplied"
 
     instance_key = 'instance:%s' % context['resource']
+    if context.get('simulation') is True:
+        results = {
+            instance_key: {
+                'username': username,
+                'password': password,
+                'status': "ACTIVE",
+                'interfaces': {
+                    'mysql': {
+                        'host': "srv%s.rackdb.net" % context['resource'],
+                        'database_name': databases[0],
+                        'username': username,
+                        'password': password,
+                    }
+                }
+            }
+        }
+        # Send data back to deployment
+        resource_postback.delay(context['deployment'], results)
+        return results
+
     results = {instance_key: {'status': "CONFIGURE"}}
-    resource_postback.delay(context['deployment'], results) 
+    resource_postback.delay(context['deployment'], results)
 
     if not api:
         api = Provider._connect(context, region)
@@ -605,7 +720,7 @@ def add_user(context, instance_id, databases, username, password, region,
     try:
         instance.create_user(username, password, databases)
         LOG.info('Added user %s to %s on instance %s' % (username, databases,
-                instance_id))
+                 instance_id))
     except clouddb.errors.ResponseError as exc:
         # This could be '422 Unprocessable Entity', meaning the instance is not
         # up yet
@@ -615,20 +730,20 @@ def add_user(context, instance_id, databases, username, password, region,
             raise exc
 
     results = {
-                instance_key: {
-                        'username': username,
-                        'password': password,
-                        'status' : "ACTIVE",
-                        'interfaces': {
-                                'mysql': {
-                                        'host': instance.hostname,
-                                        'database_name': databases[0],
-                                        'username': username,
-                                        'password': password,
-                                    }
-                            }
-                    }
-              }
+        instance_key: {
+            'username': username,
+            'password': password,
+            'status': "ACTIVE",
+            'interfaces': {
+                'mysql': {
+                    'host': instance.hostname,
+                    'database_name': databases[0],
+                    'username': username,
+                    'password': password,
+                }
+            }
+        }
+    }
     # Send data back to deployment
     resource_postback.delay(context['deployment'], results)
 
@@ -673,6 +788,19 @@ def delete_instance(context, api=None):
         raise CheckmateException("No instance id supplied for resource %s"
                                  % key)
 
+    if context.get('simulation') is True:
+        results = {inst_key: {'status': 'DELETED'}}
+        for hosted in resource.get('hosts', []):
+            results.update({
+                'instance:%s' % hosted: {
+                    'status': 'DELETED',
+                    'statusmsg': 'Host %s was deleted'
+                }
+            })
+        # Send data back to deployment
+        resource_postback.delay(context['deployment'], results)
+        return results
+
     if not api:
         api = Provider._connect(context, region)
 
@@ -683,8 +811,12 @@ def delete_instance(context, api=None):
         if rese.status == 404:  # already deleted
             res = {inst_key: {'status': 'DELETED'}}
             for hosted in resource.get('hosts', []):
-                res.update({'instance:%s' % hosted: {'status': 'DELETED',
-                                    'statusmsg': 'Host %s was deleted'}})
+                res.update({
+                    'instance:%s' % hosted: {
+                        'status': 'DELETED',
+                        'statusmsg': 'Host %s was deleted'
+                    }
+                })
             return res
         else:
             # not too sure what this is, so maybe retry a time or two
@@ -694,8 +826,12 @@ def delete_instance(context, api=None):
         delete_instance.retry(exc=exc)
     res = {inst_key: {'status': 'DELETING'}}
     for hosted in resource.get('hosts', []):
-        res.update({'instance:%s' % hosted: {'status': 'DELETING',
-                            'statusmsg': 'Host %s is being deleted'}})
+        res.update({
+            'instance:%s' % hosted: {
+                'status': 'DELETING',
+                'statusmsg': 'Host %s is being deleted'
+            }
+        })
     return res
 
 
@@ -743,8 +879,12 @@ def wait_on_del_instance(context, api=None):
         if 404 == respe.status:  # already gone
             res = {inst_key: {'status': 'DELETED'}}
             for hosted in resource.get('hosts', []):
-                res.update({'instance:%s' % hosted: {'status': 'DELETED',
-                                    'statusmsg': 'Host %s was deleted'}})
+                res.update({
+                    'instance:%s' % hosted: {
+                        'status': 'DELETED',
+                        'statusmsg': 'Host %s was deleted'
+                    }
+                })
             return res
         else:
             # not too sure what this is, so maybe retry a time or two
@@ -752,12 +892,16 @@ def wait_on_del_instance(context, api=None):
     if not instance or ('DELETED' == instance.status):
         res = {inst_key: {'status': 'DELETED'}}
         for hosted in resource.get('hosts', []):
-            res.update({'instance:%s' % hosted: {'status': 'DELETED',
-                                'statusmsg': 'Host %s was deleted'}})
+            res.update({
+                'instance:%s' % hosted: {
+                    'status': 'DELETED',
+                    'statusmsg': 'Host %s was deleted'
+                }
+            })
         return res
     else:
         wait_on_del_instance.retry(exc=CheckmateException("Timeout waiting on "
-                                                "instance %s delete" % key))
+                                   "instance %s delete" % key))
 
 
 @task(default_retry_delay=2, max_retries=30)
@@ -834,4 +978,4 @@ def delete_user(context, instance_id, username, region, api=None):
     instance = api.get_instance(instanceid=instance_id)
     instance.delete_user(username)
     LOG.info('Deleted user %s from database instance %d' % (username,
-            instance_id))
+             instance_id))

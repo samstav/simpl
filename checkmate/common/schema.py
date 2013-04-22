@@ -170,11 +170,12 @@ RESOURCE_SCHEMA = ['id', 'index', 'name', 'provider', 'relations', 'hosted_on',
         'image', 'disk', 'region', 'service', 'status']
 
 BLUEPRINT_SCHEMA = ['id', 'name', 'services', 'options', 'resources',
-                    'meta-data', 'description']
+                    'meta-data', 'description', 'display-outputs',
+                    'documentation', 'version']
 
 DEPLOYMENT_SCHEMA = ['id', 'name', 'blueprint', 'environment', 'inputs',
         'includes', 'resources', 'workflow', 'status', 'created',
-        'tenantId', 'errmessage']
+        'tenantId', 'errmessage', 'display-outputs']
 
 COMPONENT_SCHEMA = ['id', 'options', 'requires', 'provides', 'summary',
         'dependencies', 'version', 'is', 'role', 'roles', 'source_name']

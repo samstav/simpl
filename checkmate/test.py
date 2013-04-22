@@ -573,7 +573,7 @@ class StubbedWorkflowBase(unittest.TestCase):
                                 'create_instance',
                         'args': [Func(is_good_context),
                                 IsA(basestring),
-                                1,
+                                '1',
                                 1,
                                 None,
                                 self.deployment.get_setting('region',

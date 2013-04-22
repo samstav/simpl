@@ -1,11 +1,9 @@
-graft checkmate/static
 graft examples
 include setup.py
 include README.md
 include checkmate/checkmate.cfg
 include checkmate/db/repository/migrate.cfg
 include checkmate/providers/rackspace/managed_cloud/delay.sh
-include checkmate/simulator.json
 global-exclude *.pyc *.sdx *.log *.db *.swp
 
 

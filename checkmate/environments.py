@@ -68,9 +68,13 @@ def put_environment(eid, tenant_id=None):
     if 'id' not in entity:
         entity['id'] = str(eid)
 
+    existing = DB.get_environment(eid)
     body, secrets = extract_sensitive_data(entity)
     results = DB.save_environment(eid, body, secrets, tenant_id=tenant_id)
-
+    if existing:
+        response.status = 200  # OK - updated
+    else:
+        response.status = 201  # Created
     return write_body(results, request, response)
 
 

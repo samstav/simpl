@@ -241,13 +241,12 @@ The above setting would apply to (constrains) any setting called 'foo' under a '
 
 More precisely scoped options will override broader options. For example, a service or provider option will override a global option.
 
-TODO: fix terminology. 'setting', 'option' and/or 'input'. And update code, schema, and docsa accordingly
+TODO: fix terminology. 'setting', 'option' and/or 'input'. And update code, schema, and docs accordingly
 
 
 ## Semantic: The API
 The API is a **REST HTTP API**. It supports POST, PUT, GET, DELETE on:
 
-- /components[/:id]
 - /blueprints[/:id]
 - /environments[/:id]
 - /deployments[/:id]
@@ -359,6 +358,45 @@ All calls to GET /deployments and GET /workflows may be optionally paginated by 
     GET [/:tid]/workflows/simulate/status  #progresses the workflow by one task
     GET [/:tid]/workflows/simulate/status?complete  #cmpletes the workflow
 
+## Setup
+
+For running the service:
+
+    sudo python setup.py install
+
+For development (only checkmate hacking):
+
+    sudo pip install -r pip-requirements.py
+    sudo python setup.py develop
+
+For development (hacking on other dependencies)
+
+    #clone and pythons setup.py develop all the depend git repositores
+    sudo python setup.py develop
+
+Run tests:
+
+    # To quickly test one file (--verbose optional, extra -- needed for tox)
+    tox tests/test_schema.py -- --verbose
+    python tests/test_schema.py --verbose
+
+    # To run a full suite (with coverage and code inspection)
+    tox -e full
+
+
+    # but any of these will work
+    tox
+
+    nosetests
+
+    python setup.py test
+
+Requirements lists:
+
+- production: pip-requirements.txt
+- development: pip-test-requirements.txt
+
+
 ## Usage
 
 To start the checkmate REST API server:
@@ -397,6 +435,8 @@ To execute deployments, checkmate uses a message queue. You need to have celery 
 
 The following environment variables can be set to configure checkmate:
 
+**BERKSHELF_PATH**: the directory that will be used for Berkshelf's centralized cookbooks repository.  This directory is effectively a cookbook cache for any blueprint that uses Berkshelf (has a Berksfile file).  Using Berkshelf makes a blueprint more fault-tolerant (less reliant on the git hosts being up).
+
 **CHECKMATE_AUTH_ENDPOINTS**: a json string representation of a list of auth endpoints to support. The uri and middleware keys are required. A sample is:
 
 ```
@@ -428,6 +468,8 @@ Note: to connect to mongodb, also install the pymongo client library:
 
     $ pip install pymongo  # you probably need to sudo this
 
+**CHECKMATE_SIMULATOR_CONNECTION_STRING**: a sql-alchemy or mongodb connection string pointing to the database store for checkmate simulations.
+
 **CHECKMATE_DOMAIN**: a default DNS domain to use for resources created.
 
 **CHECKMATE_PUBLIC_KEY**: a public key string to push to all created servers to allow ssh access to them. If you set this to the contents of your ~/.ssh/id_rsa.pub file you will be able to log on to all checkmate-created servers without having to suply a password.
@@ -443,6 +485,8 @@ Note: to connect to mongodb, also install the pymongo client library:
 **CHECKMATE_CHEF_PATH**: when using checkmate with a server, checkmate needs to know the path for the chef client deployment. This points to that path. The kniofe.rb file should be in there.
 
 **CHECKMATE_CHEF_OMNIBUS_VERSION**: the omnibus version to use by default. If not specified, 10.12.0-1 is used. This can also be overridden by a constraint in a deployment.
+
+**CHECKMATE_BLUEPRINT_CACHE_EXPIRE**: the number of seconds before the blueprint cache expires.  When the cache is expired, there will be an attempt to update the blueprint repository via a "git pull".  If the git host is down, the expired cache will be used.  All of this logic happens at deployment time.
 
 **CHECKMATE_BROKER_USERNAME**: the username to use to connect to the message queue
 

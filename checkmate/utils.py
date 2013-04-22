@@ -4,8 +4,9 @@
 - handling templating (Jinja2)
 """
 # pylint: disable=E0611
+import argparse
 import base64
-from collections import MutableMapping
+from collections import MutableMapping, deque
 import inspect
 import json
 import logging.config
@@ -14,7 +15,9 @@ import random
 import re
 import string
 import struct
+from subprocess import CalledProcessError, Popen, PIPE
 import sys
+import threading
 from time import gmtime, strftime
 import uuid
 
@@ -24,7 +27,6 @@ from yaml.events import AliasEvent, ScalarEvent
 from yaml.composer import ComposerError
 from yaml.scanner import ScannerError
 from yaml.parser import ParserError
-import argparse
 
 from checkmate.exceptions import CheckmateNoData, CheckmateValidationException
 
@@ -586,16 +588,62 @@ def evaluate(function_string):
         return password
     raise NameError("Unsupported function: %s" % function_string)
 
-def generate_resource_name(deployment, suffix):
-    """
-    Generates a checkmate resource name based on the deployment id,
-    and if the deployment has a name.
 
-    :param deployment: the deployment dict, must have an id set
-    :param suffix: the last part of the name, typically a domain
+def check_all_output(params, find="ERROR"):
     """
-    prefix = "CM-" + deployment['id'][0:7]
-    #generate the resource name based on the deployment name if exists
-    if 'name' in deployment:
-        prefix = re.sub(r'\s+', '-', deployment['name'].strip())
-    return '%s-%s' % (prefix, suffix)
+
+    Similar to subprocess.check_output, but parses both stdout and stderr
+    and detects any string passed in as the find parameter.
+
+    :returns: tuple (stdout, stderr, lines with :param:find in them)
+
+    We used this for processing Knife output where the details of the error
+    were piped to stdout and the actual error did not have everything we
+    needed because knife did not exit with an error code, but now we're just
+    keeping it for the script provider (coming soon)
+
+    """
+    ON_POSIX = 'posix' in sys.builtin_module_names
+
+    def start_thread(func, *args):
+        t = threading.Thread(target=func, args=args)
+        t.daemon = True
+        t.start()
+        return t
+
+    def consume(infile, output, found):
+        for line in iter(infile.readline, ''):
+            output(line)
+            if find in line:
+                found(line)
+        infile.close()
+
+    p = Popen(params, stdout=PIPE, stderr=PIPE, bufsize=1, close_fds=ON_POSIX)
+
+    # preserve last N lines of stdout and stderr
+    N = 100
+    stdout = deque(maxlen=N)  # will capture stdout
+    stderr = deque(maxlen=N)  # will capture stderr
+    found = deque(maxlen=N)  # will capture found (contain param find)
+    threads = [start_thread(consume, *args)
+               for args in (p.stdout, stdout.append, found.append),
+               (p.stderr, stderr.append, found.append)]
+    for t in threads:
+        t.join()  # wait for IO completion
+
+    retcode = p.wait()
+
+    if retcode == 0:
+        return (stdout, stderr, found)
+    else:
+        msg = "stdout: %s \n stderr: %s \n Found: %s" % (stdout, stderr, found)
+        LOG.debug(msg)
+        raise CalledProcessError(retcode, ' '.join(params),
+                                 output='\n'.join(stdout),
+                                 error_info='%s%s' % ('\n'.join(stderr),
+                                                      '\n'.join(found)))
+
+
+def is_simulation(api_id):
+    '''Determine if the current object is in simulation'''
+    return api_id.startswith('simulate')

@@ -1,14 +1,25 @@
 # Use pip to install these requirements before running checkmate tests:
 # pip install -r pip-test-requirements.txt
 #
-# Note - uncomment the following line to have this also install checkmate 
+# Note - uncomment the following line to have this also install checkmate
 # (Note the relative directory, must run pip from the correct relative directory.)
-#-e ./  
+#-e ./
 #
 # Items from internal Enterprise github.rackspace.com
+
+# pymox
 #Upstream: http://pymox.googlecode.com/svn/trunk/
 -e git+https://github.rackspace.com/checkmate/mox.git@master#egg=mox
 
+nose
+unittest2
+webtest
+flake8
+coverage
+nosexcover
+pylint
+
+
 #
-# All other needed requirements should work as specified through the setup.py file.  
+# All other needed requirements should work as specified through the setup.py file.
 # Really, this file is only needed for the github.rackspace.com repositories.

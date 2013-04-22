@@ -9,6 +9,9 @@ import logging
 import os
 import unittest2 as unittest
 from urlparse import urlunparse
+import hashlib
+import git
+import shutil
 
 import mox
 from mox import In, IsA, And, IgnoreArg, ContainsKeyValue, Not
@@ -16,14 +19,12 @@ from mox import In, IsA, And, IgnoreArg, ContainsKeyValue, Not
 # Init logging before we load the database, 3rd party, and 'noisy' modules
 
 from checkmate.utils import init_console_logging
-from unittest.case import skip
 import checkmate
 init_console_logging()
 LOG = logging.getLogger(__name__)
 
 from checkmate import test, utils
 from checkmate.deployments import Deployment, plan
-from checkmate.inputs import Input
 from checkmate.middleware import RequestContext
 from checkmate.providers import base, register_providers
 from checkmate.providers.opscode import solo, knife
@@ -194,7 +195,6 @@ class TestCeleryTasks(unittest.TestCase):
     """ Test Celery tasks """
 
     def setUp(self):
-        os.environ['CHECKMATE_CHEF_LOCAL_PATH'] = '/test/checkmate'
         self.mox = mox.Mox()
 
     def tearDown(self):
@@ -241,16 +241,17 @@ class TestCeleryTasks(unittest.TestCase):
         __builtin__.file(node_path, 'w').AndReturn(mock_file)
 
         #Stub out process call to knife
-        params = ['knife', 'cook', 'root@a.b.c.d',
+        params = ['knife', 'solo', 'cook', 'root@a.b.c.d',
                   '-c', os.path.join(kitchen_path, "solo.rb"),
                   '-p', '22']
         self.mox.StubOutWithMock(knife, '_run_kitchen_command')
         knife._run_kitchen_command("env_test",kitchen_path, params).AndReturn("OK")
 
         #TODO: better test for postback?
-        self.mox.StubOutWithMock(checkmate.deployments.resource_postback, "delay")
-        knife.resource_postback.delay(IgnoreArg(), IgnoreArg()).AndReturn(None)
-#        knife.resource_postback.delay(IgnoreArg(), IgnoreArg()).AndReturn(None)
+        #Stub out call to resource_postback
+        self.mox.StubOutWithMock(knife.resource_postback, 'delay')
+        knife.resource_postback.delay(IgnoreArg(), IgnoreArg()).AndReturn(True)
+        knife.resource_postback.delay(IgnoreArg(), IgnoreArg()).AndReturn(True)
 
         self.mox.ReplayAll()
         resource={'index':1234,
@@ -383,7 +384,7 @@ class TestMySQLMaplessWorkflow(test.StubbedWorkflowBase):
                     'args': ['4.4.4.1', self.deployment['id'], ContainsKeyValue('index', IgnoreArg())],
                     'kwargs': And(In('password'),
                                   ContainsKeyValue('omnibus_version',
-                                                   '10.12.0-1')
+                                                   '10.24.0')
                                  ),
                     'result': None,
                     'resource': key,
@@ -486,23 +487,9 @@ class TestMapfileWithoutMaps(test.StubbedWorkflowBase):
     def test_workflow_task_generation(self):
         """Verify workflow sequence and data flow"""
 
-        self.mox.StubOutWithMock(solo, 'httplib')
-        connection_class_mock = self.mox.CreateMockAnything()
-        solo.httplib.HTTPConnection = connection_class_mock
-        connection_mock = self.mox.CreateMockAnything()
-        response_mock = self.mox.CreateMockAnything()
-        for i in range(1):  # will be called twice; planning and workflow
-                            # creation
-            connection_class_mock.__call__(IgnoreArg(),
-                    IgnoreArg()).AndReturn(connection_mock)
-
-            connection_mock.request('GET', IgnoreArg(),
-                                    headers=IgnoreArg()).AndReturn(True)
-            connection_mock.getresponse().AndReturn(response_mock)
-
-            response_mock.read().AndReturn(self.map_file)
-            connection_mock.close().AndReturn(True)
-            response_mock.status = 200
+        self.mox.StubOutWithMock(solo.ChefMap, "get_map_file")
+        chefmap = solo.ChefMap(IgnoreArg())
+        chefmap.get_map_file().AndReturn(self.map_file)
 
         self.mox.ReplayAll()
 
@@ -628,26 +615,12 @@ class TestMappedSingleWorkflow(test.StubbedWorkflowBase):
                           username: {{ setting('username') }}
             """
 
-        # Mock out remote catalog calls
-        self.mox.StubOutWithMock(solo, 'httplib')
-        connection_class_mock = self.mox.CreateMockAnything()
-        solo.httplib.HTTPConnection = connection_class_mock
-        connection_mock = self.mox.CreateMockAnything()
-        response_mock = self.mox.CreateMockAnything()
-
-        connection_class_mock.__call__(IgnoreArg(),
-                IgnoreArg()).AndReturn(connection_mock)
-
-        connection_mock.request('GET', IgnoreArg(),
-                                headers=IgnoreArg()).AndReturn(True)
-        connection_mock.getresponse().AndReturn(response_mock)
-
-        response_mock.read().AndReturn(self.map_file)
-        connection_mock.close().AndReturn(True)
-        response_mock.status = 200
-
     def test_workflow_task_creation(self):
         """Verify workflow sequence and data flow"""
+
+        self.mox.StubOutWithMock(solo.ChefMap, "get_map_file")
+        chefmap = solo.ChefMap(IgnoreArg())
+        chefmap.get_map_file().AndReturn(self.map_file)
 
         self.mox.ReplayAll()
         context = RequestContext(auth_token='MOCK_TOKEN',
@@ -677,7 +650,9 @@ class TestMappedSingleWorkflow(test.StubbedWorkflowBase):
     def test_workflow_execution(self):
         """Verify workflow executes"""
 
-        # Plan deployment (mocking remote catalog calls)
+        self.mox.StubOutWithMock(solo.ChefMap, "get_map_file")
+        chefmap = solo.ChefMap(IgnoreArg())
+        chefmap.get_map_file().AndReturn(self.map_file)
 
         self.mox.ReplayAll()
         context = RequestContext(auth_token='MOCK_TOKEN',
@@ -744,7 +719,7 @@ class TestMappedSingleWorkflow(test.StubbedWorkflowBase):
                                       ContainsKeyValue('attributes',
                                                         attributes),
                                       ContainsKeyValue('omnibus_version',
-                                                       '10.12.0-1')),
+                                                       '10.24.0')),
                         'result': None,
                         'resource': key,
                     }, {
@@ -924,26 +899,12 @@ class TestMappedMultipleWorkflow(test.StubbedWorkflowBase):
                   - attributes://connections
             """
 
-        # Mock out remote catalog calls
-        self.mox.StubOutWithMock(solo, 'httplib')
-        connection_class_mock = self.mox.CreateMockAnything()
-        solo.httplib.HTTPConnection = connection_class_mock
-        connection_mock = self.mox.CreateMockAnything()
-        response_mock = self.mox.CreateMockAnything()
-
-        connection_class_mock.__call__(IgnoreArg(),
-                IgnoreArg()).AndReturn(connection_mock)
-
-        connection_mock.request('GET', IgnoreArg(),
-                                headers=IgnoreArg()).AndReturn(True)
-        connection_mock.getresponse().AndReturn(response_mock)
-
-        response_mock.read().AndReturn(self.map_file)
-        connection_mock.close().AndReturn(True)
-        response_mock.status = 200
-
     def test_workflow_task_creation(self):
         """Verify workflow sequence and data flow"""
+
+        self.mox.StubOutWithMock(solo.ChefMap, "get_map_file")
+        chefmap = solo.ChefMap(IgnoreArg())
+        chefmap.get_map_file().AndReturn(self.map_file)
 
         self.mox.ReplayAll()
         context = RequestContext(auth_token='MOCK_TOKEN',
@@ -1071,6 +1032,10 @@ class TestMappedMultipleWorkflow(test.StubbedWorkflowBase):
     def test_workflow_execution(self):
         """Verify workflow executes"""
 
+        self.mox.StubOutWithMock(solo.ChefMap, "get_map_file")
+        chefmap = solo.ChefMap(IgnoreArg())
+        chefmap.get_map_file().AndReturn(self.map_file)
+
         # Plan deployment
         self.mox.ReplayAll()
         context = RequestContext(auth_token='MOCK_TOKEN',
@@ -1109,7 +1074,7 @@ class TestMappedMultipleWorkflow(test.StubbedWorkflowBase):
                         'args': ["4.4.4.4", self.deployment['id'], ContainsKeyValue('index', IgnoreArg())],
                         'kwargs': And(In('password'),
                                       ContainsKeyValue('omnibus_version',
-                                                       '10.12.0-1'),
+                                                       '10.24.0'),
                                       ContainsKeyValue('attributes',
                                               {'connections': 10,
                                                'widgets': 10})),
@@ -1277,83 +1242,120 @@ class TestChefMap(unittest.TestCase):
 
     def setUp(self):
         self.mox = mox.Mox()
+        self.original_local_path = os.environ.get('CHECKMATE_CHEF_LOCAL_PATH')
+        os.environ['CHECKMATE_CHEF_LOCAL_PATH'] = '/tmp/checkmate-chefmap'
+        self.local_path = '/tmp/checkmate-chefmap'
+        self.url = 'https://github.com/checkmate/app.git'
+        self.cache_path = self.local_path + "/cache/blueprints/" + \
+            hashlib.md5(self.url).hexdigest()
+        self.fetch_head_path = os.path.join(self.cache_path, ".git",
+                                            "FETCH_HEAD")
+        self.chef_map_path = os.path.join(self.cache_path, "Chefmap")
+
+        # Clean up from previous failed run
+        if os.path.exists(self.local_path):
+            shutil.rmtree(self.local_path)
+            LOG.info("Removed '%s'" % self.local_path)
 
     def tearDown(self):
         self.mox.UnsetStubs()
+        if os.path.exists(self.local_path):
+            shutil.rmtree('/tmp/checkmate-chefmap')
+        os.environ['CHECKMATE_CHEF_LOCAL_PATH'] = self.original_local_path
 
-    def test_remote_url_parser(self):
-        map_class = solo.ChefMap
-        cases = [
-            {
-                'name': 'github file',
-                'url': 'http://github.com/user/repo',
-                'file': 'test.yaml',
-                'expected': 'http://github.com/user/repo/raw/master/test.yaml',
-                },
-            {
-                'name': 'github path',
-                'url': 'http://github.com/user/repo/',
-                'file': 'dir/file.txt',
-                'expected':
-                        'http://github.com/user/repo/raw/master/dir/file.txt',
-                },
-            {
-                'name': 'with branch',
-                'url': 'http://github.com/user/repo#myBranch',
-                'file': 'file.txt',
-                'expected':
-                        'http://github.com/user/repo/raw/myBranch/file.txt',
-                },
-            {
-                'name': 'with .git extension',
-                'url': 'http://github.com/user/repo.git',
-                'file': 'file.txt',
-                'expected': 'http://github.com/user/repo/raw/master/file.txt',
-                },
-            {
-                'name': 'enterprise https',
-                'url': 'https://gh.acme.com/user/repo#a-branch',
-                'file': 'file.txt',
-                'expected':
-                        'https://gh.acme.com/user/repo/raw/a-branch/file.txt',
-                },
-            {
-                'name': 'git protocol',
-                'url': 'git://github.com/user/repo/',
-                'file': 'dir/file.txt',
-                'expected':
-                        'https://github.com/user/repo/raw/master/dir/file.txt',
-                },
-            ]
+    def test_get_map_file_hit_cache(self):
+        """Test remote map file retrieval (cache hit)"""
+        os.makedirs(os.path.join(self.cache_path, ".git"))
+        LOG.info("Created '%s'" % self.cache_path)
 
-        for case in cases:
-            result = map_class.get_remote_raw_url(case['url'],
-                    case['file'])
-            self.assertEqual(result, case['expected'], msg=case['name'])
+        # Create a dummy Chefmap and .git/FETCH_HEAD
+        with file(self.fetch_head_path, 'a'):
+            os.utime(self.fetch_head_path, None)
+        with file(self.chef_map_path, 'a') as f:
+            f.write(TEMPLATE)
 
-    def test_get_remote_map_file(self):
-        """Test remote map file retrieval"""
+        # Make sure cache_expire_time is set to something that
+        # shouldn't cause a cache miss
+        chefmap = solo.ChefMap()
+        os.environ["CHECKMATE_BLUEPRINT_CACHE_EXPIRE"] = "3600"
 
-        map_file = '---\nid: mysql'
-        self.mox.StubOutWithMock(solo, 'httplib')
-        connection_class_mock = self.mox.CreateMockAnything()
-        solo.httplib.HTTPSConnection = connection_class_mock
-
-        connection_mock = self.mox.CreateMockAnything()
-        connection_class_mock.__call__(IgnoreArg(),
-                IgnoreArg()).AndReturn(connection_mock)
-
-        response_mock = self.mox.CreateMockAnything()
-        connection_mock.request('GET', IgnoreArg(),
-                                headers=IgnoreArg()).AndReturn(True)
-        connection_mock.getresponse().AndReturn(response_mock)
-
-        response_mock.read().AndReturn(map_file)
-        connection_mock.close().AndReturn(True)
-        response_mock.status = 200
+        # Make the remotes property throw an AssertionError (it
+        # shouldn't be called)
+        git.Repo = self.mox.CreateMockAnything()
+        mock_repo = self.mox.CreateMockAnything()
+        repo_remotes = self.mox.CreateMockAnything()
+        repo_remotes_origin = self.mox.CreateMockAnything()
+        mock_repo.remotes = repo_remotes
+        repo_remotes.origin = repo_remotes_origin
+        repo_remotes_origin.pull().AndReturn(True)
         self.mox.ReplayAll()
-        chef_map = solo.ChefMap('https://github.com/checkmate/app.git')
-        self.assertEqual(chef_map.raw, map_file)
+
+        chefmap.url = self.url
+        map_file = chefmap.get_map_file()
+
+        self.assertEqual(map_file, TEMPLATE)
+
+        # Catch the exception that mox will throw when it doesn't get
+        # the call to repository
+        with self.assertRaises(mox.ExpectedMethodCallsError):
+            self.mox.VerifyAll()
+
+    def test_get_map_file_miss_cache(self):
+        """Test remote map file retrieval (cache miss)"""
+        os.makedirs(os.path.join(self.cache_path, ".git"))
+        LOG.info("Created '%s'" % self.cache_path)
+
+        # Create a dummy Chefmap and .git/FETCH_HEAD
+        with file(self.fetch_head_path, 'a'):
+            os.utime(self.fetch_head_path, None)
+        self.chef_map_path = os.path.join(self.cache_path, "Chefmap")
+        with file(self.chef_map_path, 'a') as f:
+            f.write(TEMPLATE)
+
+        chefmap = solo.ChefMap()
+        # Make sure the expire time is set to something that WILL
+        # cause a cache miss
+        os.environ["CHECKMATE_BLUEPRINT_CACHE_EXPIRE"] = "0"
+
+        git.Repo = self.mox.CreateMockAnything()
+        mock_repo = self.mox.CreateMockAnything()
+        repo_remotes = self.mox.CreateMockAnything()
+        repo_remotes_origin = self.mox.CreateMockAnything()
+        mock_repo.remotes = repo_remotes
+        repo_remotes.origin = repo_remotes_origin
+        git.Repo.__call__ = lambda x: mock_repo
+        def update_map():
+            with open(self.chef_map_path, 'a') as f:
+                f.write("new information")
+        repo_remotes_origin.pull().WithSideEffects(update_map)
+        self.mox.ReplayAll()
+
+        chefmap.url = self.url
+        map_file = chefmap.get_map_file()
+
+        self.assertNotEqual(map_file, TEMPLATE)
+        self.mox.VerifyAll()
+        self.mox.UnsetStubs()
+
+    def test_get_map_file_no_cache(self):
+        """Test remote map file retrieval (not cached)"""
+        chefmap = solo.ChefMap()
+        def fake_clone(url=None, path=None, branch=None):
+            os.makedirs(os.path.join(self.cache_path, ".git"))
+            with file(self.fetch_head_path, 'a'):
+                os.utime(self.fetch_head_path, None)
+            with open(self.chef_map_path, 'w') as f:
+                f.write(TEMPLATE)
+
+        self.mox.StubOutWithMock(git.Repo, 'clone_from')
+        git.Repo.clone_from(IgnoreArg(), IgnoreArg(), branch=IgnoreArg())\
+            .WithSideEffects(fake_clone)
+        self.mox.ReplayAll()
+
+        chefmap.url = self.url
+        map_file = chefmap.get_map_file()
+
+        self.assertEqual(map_file, TEMPLATE)
         self.mox.VerifyAll()
 
     def test_map_URI_parser(self):
@@ -1725,22 +1727,9 @@ class TestTemplating(unittest.TestCase):
                 constraints:
                 - source: git://gh.acme.com/user/repo.git#branch
                 """))
-        self.mox.StubOutWithMock(solo, 'httplib')
-        connection_class_mock = self.mox.CreateMockAnything()
-        solo.httplib.HTTPSConnection = connection_class_mock
-
-        connection_mock = self.mox.CreateMockAnything()
-        connection_class_mock.__call__(IgnoreArg(),
-                IgnoreArg()).AndReturn(connection_mock)
-
-        response_mock = self.mox.CreateMockAnything()
-        connection_mock.request('GET', IgnoreArg(),
-                                headers=IgnoreArg()).AndReturn(True)
-        connection_mock.getresponse().AndReturn(response_mock)
-
-        response_mock.read().AndReturn(TEMPLATE)
-        connection_mock.close().AndReturn(True)
-        response_mock.status = 200
+        self.mox.StubOutWithMock(solo.ChefMap, "get_map_file")
+        chefmap = solo.ChefMap(IgnoreArg())
+        chefmap.get_map_file().AndReturn(TEMPLATE)
         self.mox.ReplayAll()
 
         response = provider.get_catalog(RequestContext())
