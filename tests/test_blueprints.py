@@ -105,6 +105,9 @@ class TestBlueprints(unittest.TestCase):
                     'type': 'url',
                     'protocols': ['http', 'https'],
                 },
+                'old_format_region': {
+                    'type': 'region',
+                },
             },
             'resources': {},
         }
@@ -137,6 +140,9 @@ class TestBlueprints(unittest.TestCase):
                 'old_format_url': {
                     'type': 'url',
                     'constraints': [{'protocols': ['http', 'https']}],
+                },
+                'old_format_region': {
+                    'type': 'string',
                 },
             },
             'resources': {},

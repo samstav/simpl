@@ -247,7 +247,6 @@ TODO: fix terminology. 'setting', 'option' and/or 'input'. And update code, sche
 ## Semantic: The API
 The API is a **REST HTTP API**. It supports POST, PUT, GET, DELETE on:
 
-- /components[/:id]
 - /blueprints[/:id]
 - /environments[/:id]
 - /deployments[/:id]
@@ -468,6 +467,8 @@ The following environment variables can be set to configure checkmate:
 Note: to connect to mongodb, also install the pymongo client library:
 
     $ pip install pymongo  # you probably need to sudo this
+
+**CHECKMATE_SIMULATOR_CONNECTION_STRING**: a sql-alchemy or mongodb connection string pointing to the database store for checkmate simulations.
 
 **CHECKMATE_DOMAIN**: a default DNS domain to use for resources created.
 

@@ -8,12 +8,10 @@ from celery.task import task
 from SpiffWorkflow import Workflow, Task
 from SpiffWorkflow.storage import DictionarySerializer
 
-from checkmate.db import get_driver
 from checkmate.middleware import RequestContext
 from checkmate.utils import extract_sensitive_data, match_celery_logging
 
 LOG = logging.getLogger(__name__)
-DB = get_driver()
 
 
 def update_workflow_status(workflow):
@@ -51,7 +49,7 @@ def count_seconds(seconds):
 
 
 @task(default_retry_delay=10, max_retries=300)
-def run_workflow(w_id, timeout=900, wait=1, counter=1, key=None):
+def run_workflow(w_id, timeout=900, wait=1, counter=1, key=None, driver=None):
     """Loop through trying to complete the workflow and periodically log
     status updates. Each time we cycle through, if nothing happens we
     extend the wait time between cycles so we don't load the system.
@@ -68,11 +66,12 @@ def run_workflow(w_id, timeout=900, wait=1, counter=1, key=None):
     """
 
     match_celery_logging(LOG)
+    assert driver, "No driver supplied to orchestrator"
     # Get the workflow
     serializer = DictionarySerializer()
 
     # Lock the workflow
-    workflow, key = DB.lock_workflow(w_id, with_secrets=True, key=key)
+    workflow, key = driver.lock_workflow(w_id, with_secrets=True, key=key)
 
     d_wf = Workflow.deserialize(serializer, workflow)
     LOG.debug("Deserialized workflow %s" % w_id,
@@ -87,13 +86,13 @@ def run_workflow(w_id, timeout=900, wait=1, counter=1, key=None):
             body, secrets = extract_sensitive_data(updated)
             body['tenantId'] = workflow.get('tenantId')
             body['id'] = w_id
-            DB.save_workflow(w_id, body, secrets)
+            driver.save_workflow(w_id, body, secrets=secrets)
             LOG.debug("Workflow '%s' is already complete. Marked it so." %
                       w_id)
         else:
             LOG.debug("Workflow '%s' is already complete. Nothing to do." % w_id)
 
-        DB.unlock_workflow(w_id, key)
+        driver.unlock_workflow(w_id, key)
         return True
 
     before = d_wf.get_dump()
@@ -103,7 +102,7 @@ def run_workflow(w_id, timeout=900, wait=1, counter=1, key=None):
         d_wf.complete_all()
     except Exception as exc:
         LOG.exception(exc)
-        DB.unlock_workflow(w_id, key)
+        driver.unlock_workflow(w_id, key)
         return False
     finally:
         # Save any changes, even if we errored out
@@ -117,7 +116,7 @@ def run_workflow(w_id, timeout=900, wait=1, counter=1, key=None):
             body, secrets = extract_sensitive_data(updated)
             body['tenantId'] = workflow.get('tenantId')
             body['id'] = w_id
-            DB.save_workflow(w_id, body, secrets)
+            driver.save_workflow(w_id, body, secrets=secrets)
             wait = 1
 
             # Report progress
@@ -144,7 +143,7 @@ def run_workflow(w_id, timeout=900, wait=1, counter=1, key=None):
 
     # Assess impact of run
     if d_wf.is_completed():
-        DB.unlock_workflow(w_id, key)
+        driver.unlock_workflow(w_id, key)
         return True
 
     timeout = timeout - wait if timeout > wait else 0
@@ -156,8 +155,13 @@ def run_workflow(w_id, timeout=900, wait=1, counter=1, key=None):
                                                                  counter))
         # If we have to retry the run, pass in the key so that 
         # we will not try to re-lock the workflow.
-        retry_kwargs = {'timeout': timeout, 'wait': wait,
-                        'counter': counter + 1, 'key': key}
+        retry_kwargs = {
+            'timeout': timeout,
+            'wait': wait,
+            'counter': counter + 1,
+            'key': key,
+            'driver': driver,
+        }
         return run_workflow.retry([w_id], kwargs=retry_kwargs, countdown=wait,
                                   Throw=False)
     else:
@@ -166,20 +170,22 @@ def run_workflow(w_id, timeout=900, wait=1, counter=1, key=None):
 
 
 @task
-def run_one_task(context, workflow_id, task_id, timeout=60):
+def run_one_task(context, workflow_id, task_id, timeout=60, driver=None):
     """Attempt to complete one task.
     returns True/False indicating if task completed"""
     match_celery_logging(LOG)
-   
+    assert driver, "No driver supplied to orchestrator"
+
     workflow = None
     key = None
     try:
         # Lock the workflow
-        workflow, key = DB.lock_workflow(workflow_id, with_secrets=True)
+        workflow, key = driver.lock_workflow(workflow_id, with_secrets=True)
         if not workflow:
             raise IndexError("Workflow %s not found" % workflow_id)
         LOG.debug("Deserializing workflow '%s'" % workflow_id)
-        DB.unlock_workflow(w_id, key)
+        driver.unlock_workflow(workflow_id, key)
+        serializer = DictionarySerializer()
         d_wf = Workflow.deserialize(serializer, workflow)
         task = d_wf.get_task(task_id)
         original = serializer._serialize_task(task, skip_children=True)
@@ -224,8 +230,8 @@ def run_one_task(context, workflow_id, task_id, timeout=60):
             body['tenantId'] = workflow.get('tenantId')
             body['id'] = workflow_id
             #TODO remove these from this whole class to the db layer
-            DB.save_workflow(workflow_id, body, secrets)
+            driver.save_workflow(workflow_id, body, secrets)
         return result
     finally:
         if key:
-            DB.unlock_workflow(workflow_id, key)
+            driver.unlock_workflow(workflow_id, key)

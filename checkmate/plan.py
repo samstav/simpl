@@ -4,7 +4,6 @@ import os
 
 from checkmate import keys
 from checkmate.classes import ExtensibleDict
-from checkmate.db import get_driver
 from checkmate.exceptions import CheckmateException,\
     CheckmateValidationException
 from checkmate.providers import ProviderBase
@@ -14,7 +13,6 @@ from checkmate.deployment import verify_required_blueprint_options_supplied,\
 from celery.canvas import group
 
 LOG = logging.getLogger(__name__)
-DB = get_driver()
 
 
 class Plan(ExtensibleDict):
@@ -266,7 +264,7 @@ class Plan(ExtensibleDict):
                                                 provider_key=provider.key,
                                                 resource_type=resource['type'],
                                                 default=default_domain)
-                
+
                 name = "shared%s.%s" % (key, domain)
 
                 # Call provider to give us a resource template

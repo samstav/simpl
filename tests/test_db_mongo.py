@@ -1,26 +1,24 @@
 #!/usr/bin/env python
+import copy
 import logging
 import os
 import unittest2 as unittest
 import uuid
-import json
 import time
 from bottle import HTTPError
 
-from pymongo import Connection, uri_parser
+from pymongo import Connection
 from pymongo.errors import AutoReconnect, InvalidURI
 
 # Init logging before we load the database, 3rd party, and 'noisy' modules
 from checkmate.utils import init_console_logging
-from checkmate.db.common import (ObjectLockedError, DEFAULT_STALE_LOCK_TIMEOUT,
-                                InvalidKeyError)
+from checkmate.db.common import ObjectLockedError, InvalidKeyError
 
-from checkmate.workflows import wait_for, Workflow, safe_workflow_save
+from checkmate.workflows import safe_workflow_save
 
 from copy import deepcopy
 init_console_logging()
 LOG = logging.getLogger(__name__)
-
 from checkmate import db
 
 SKIP = False
@@ -37,41 +35,44 @@ except InvalidURI:
     REASON = "Configured to connect to non-mongo URI"
 from checkmate.utils import extract_sensitive_data
 
-tester = { 'some': 'random',
-               'tenantId': 'T1000',
-               'id' : 1 }
+
+TEST_MONGO_INSTANCE = ('mongodb://checkmate:%s@mongo-n01.dev.chkmate.rackspace'
+                       '.net:27017/checkmate' % 'c%40m3yt1ttttt')
+
 
 class TestDatabase(unittest.TestCase):
     """ Test Mongo Database code """
 
     def _decode_dict(self, dictionary):
-            decoded_dict = {}
-            for key, value in dictionary.iteritems():
-                if isinstance(key, unicode):
-                    key = key.encode('utf-8')
-                    try:
-                        key = int(key)
-                    except Exception:
-                        key = key
-                if isinstance(value, unicode):
-                    value = value.encode('utf-8')
-                    if isinstance(value, int):
-                        value = int(value)
-                elif isinstance (value, dict):
-                    value = self._decode_dict(value)
-                decoded_dict[key] = value
-            return decoded_dict
+        decoded_dict = {}
+        for key, value in dictionary.iteritems():
+            if isinstance(key, unicode):
+                key = key.encode('utf-8')
+                try:
+                    key = int(key)
+                except StandardError:
+                    key = key
+            if isinstance(value, unicode):
+                value = value.encode('utf-8')
+                if isinstance(value, int):
+                    value = int(value)
+            elif isinstance(value, dict):
+                value = self._decode_dict(value)
+            decoded_dict[key] = value
+        return decoded_dict
 
-    
     def setUp(self):
         if os.environ.get('CHECKMATE_CONNECTION_STRING') is not None:
             if 'sqlite' in os.environ.get('CHECKMATE_CONNECTION_STRING'):
-                #If our test suite is using sqlite, we need to set this particular process (test) to use mongo
-                os.environ['CHECKMATE_CONNECTION_STRING'] = 'mongodb://localhost'
+                #If our test suite is using sqlite, we need to set this
+                # particular process (test) to use mongo
+                os.environ['CHECKMATE_CONNECTION_STRING'] = TEST_MONGO_INSTANCE
         self.collection_name = 'checkmate_test_%s' % uuid.uuid4().hex
-        self.driver = db.get_driver('checkmate.db.mongodb.Driver', True)
-        self.driver.connection_string = 'mongodb://checkmate:%s@mongo-n01.dev.chkmate.rackspace.net:27017/checkmate' % ('c%40m3yt1ttttt')
-        #self.connection_string = 'localhost'
+        self.connection_string = os.environ.get(
+            'CHECKMATE_CONNECTION_STRING', TEST_MONGO_INSTANCE)
+        self.driver = db.get_driver(name='checkmate.db.mongodb.Driver',
+                                    reset=True,
+                                    connection_string=self.connection_string)
         self.driver._connection = self.driver._database = None  # reset driver
         self.driver.db_name = 'checkmate'
         self.default_deployment = {
@@ -86,27 +87,26 @@ class TestDatabase(unittest.TestCase):
             'tenantId': "T1000",
             'blueprint': {
                 'name': 'test bp',
-                },
+            },
             'environment': {
                 'name': 'environment',
                 'providers': {},
-                },
-            }
-    
+            },
+        }
+
     def tearDown(self):
-        LOG.debug("Deleting test mongodb collection: %s" % self.collection_name)
+        LOG.debug("Deleting test mongodb collection: %s", self.collection_name)
         try:
-            connection_string = 'mongodb://checkmate:%s@mongo-n01.dev.chkmate.rackspace.net:27017/checkmate' % ('c%40m3yt1ttttt', )
-            #connection_string = 'localhost'
+            connection_string = self.driver.connection_string
             c = Connection(connection_string)
             db = c.checkmate
-            collection_name = self.collection_name
-            db.collection_name.drop()
-            LOG.debug("Deleted test mongodb collection: %s" % self.collection_name)
-        except Exception as exc:
-            LOG.error("Error deleting test mongodb collection '%s'" % self.collection_name, exc_info=True)
+            db[self.collection_name].drop()
+            LOG.debug("Deleted test mongodb collection: %s",
+                      self.collection_name)
+        except StandardError:
+            LOG.error("Error deleting test mongodb collection '%s'",
+                      self.collection_name, exc_info=True)
 
-  
     @unittest.skipIf(SKIP, REASON)
     def test_update_secrets(self):
         _id = uuid.uuid4()
@@ -180,7 +180,8 @@ class TestDatabase(unittest.TestCase):
         self.assertDictEqual(original, results)
         # use the "safe" version and add a new secret
         results = self.driver.save_object("unittest", _id, safe,
-                                secrets={"global_password": "password secret"})
+                                          secrets={"global_password":
+                                                   "password secret"})
         self.assertDictEqual(safe, results)
         # update the copy with the new secret
         original['global_password'] = "password secret"
@@ -190,98 +191,117 @@ class TestDatabase(unittest.TestCase):
 
     @unittest.skipIf(SKIP, REASON)
     def test_objects(self):
-        entity = {'id': 1,
-                  'name': 'My Component',
-                  'credentials': ['My Secrets']
-                  }
+        entity = {
+            'id': 1,
+            'name': 'My Component',
+            'credentials': ['My Secrets']
+        }
         body, secrets = extract_sensitive_data(entity)
-        results = self.driver.save_object(self.collection_name, entity['id'], body, secrets,
-                                             tenant_id='T1000')
+        results = self.driver.save_object(self.collection_name, entity['id'],
+                                          body, secrets, tenant_id='T1000')
         self.assertDictEqual(results, body)
 
-        results = self.driver.get_object(self.collection_name, entity['id'], with_secrets=True)
+        results = self.driver.get_object(self.collection_name, entity['id'],
+                                         with_secrets=True)
         entity['tenantId'] = 'T1000'  # gets added
         self.assertDictEqual(results, entity)
         self.assertIn('credentials', results)
 
         body['name'] = 'My Updated Component'
         entity['name'] = 'My Updated Component'
-        results = self.driver.save_object(self.collection_name, entity['id'], body, secrets)
-        results = self.driver.get_object(self.collection_name, entity['id'], with_secrets=True)
+        results = self.driver.save_object(self.collection_name, entity['id'],
+                                          body, secrets)
+        results = self.driver.get_object(self.collection_name, entity['id'],
+                                         with_secrets=True)
         self.assertIn('credentials', results)
         self.assertDictEqual(results, entity)
 
-        results = self.driver.get_object(self.collection_name, entity['id'], with_secrets=False)
+        results = self.driver.get_object(self.collection_name, entity['id'],
+                                         with_secrets=False)
         self.assertNotIn('credentials', results)
         body['tenantId'] = 'T1000'  # gets added
         self.assertDictEqual(results, body)
         self.assertNotIn('_id', results, "Backend field '_id' should not be "
                          "exposed outside of driver")
 
-        results = self.driver.get_objects(self.collection_name, with_secrets=False)
+        results = self.driver.get_objects(self.collection_name,
+                                          with_secrets=False)
         results = self._decode_dict(results)
-    
-        #Since object was extraced in get_objects format, need to make sure format of body matches
-        expected_result_body = {1:body} 
 
-	self.assertIn('id', results[1])
+        #Since object was extraced in get_objects format, need to make sure
+        #format of body matches
+        expected_result_body = {1: body}
+
+        self.assertIn('id', results[1])
         self.assertEqual(results[1]['id'], 1)
         self.assertDictEqual(results, expected_result_body)
 
     @unittest.skipIf(SKIP, REASON)
     def test_pagination(self):
-        entity = {'id': 1,
-                  'name': 'My Component',
-                  'credentials': ['My Secrets']
-                 }
+        entity = {
+            'id': 1,
+            'name': 'My Component',
+            'credentials': ['My Secrets']
+        }
         body, secrets = extract_sensitive_data(entity)
-        self.driver.save_object(self.collection_name, entity['id'], body, secrets,
-                                tenant_id='T1000')
+        self.driver.save_object(self.collection_name, entity['id'], body,
+                                secrets, tenant_id='T1000')
         entity['id'] = 2
         entity['name'] = 'My Second Component'
         body, secrets = extract_sensitive_data(entity)
-        self.driver.save_object(self.collection_name, entity['id'], body, secrets,
-                                tenant_id='T1000')
+        self.driver.save_object(self.collection_name, entity['id'], body,
+                                secrets, tenant_id='T1000')
         entity['id'] = 3
         entity['name'] = 'My Third Component'
         body, secrets = extract_sensitive_data(entity)
-        self.driver.save_object(self.collection_name, entity['id'], body, secrets,
-                                tenant_id='T1000')
+        self.driver.save_object(self.collection_name, entity['id'], body,
+                                secrets, tenant_id='T1000')
 
-        results = self.driver.get_objects(self.collection_name, tenant_id='T1000',
+        results = self.driver.get_objects(self.collection_name,
+                                          tenant_id='T1000',
                                           with_secrets=False, limit=2)
-        expected = {1:
-                      {'id': 1,
-                       'name': 'My Component',
-                       'tenantId': 'T1000'},
-                    2: 
-                      {'id': 2,
-                       'name': 'My Second Component',
-                       'tenantId': 'T1000'}}
+        expected = {
+            1: {
+                'id': 1,
+                'name': 'My Component',
+                'tenantId': 'T1000'
+            },
+            2: {
+                'id': 2,
+                'name': 'My Second Component',
+                'tenantId': 'T1000'
+            }
+        }
         self.assertEqual(len(results), 2)
         self.assertDictEqual(results, expected)
 
-        results = self.driver.get_objects(self.collection_name, tenant_id='T1000',
-                                          with_secrets=False, offset=1, limit=2)
-        expected = {2:
-                      {'id': 2,
-                       'name': 'My Second Component',
-                       'tenantId': 'T1000'},
-                    3: 
-                      {'id': 3,
-                       'name': 'My Third Component',
-                       'tenantId': 'T1000'}}
+        results = self.driver.get_objects(self.collection_name,
+                                          tenant_id='T1000',
+                                          with_secrets=False, offset=1,
+                                          limit=2)
+        expected = {
+            2: {
+                'id': 2,
+                'name': 'My Second Component',
+                'tenantId': 'T1000'
+            },
+            3: {
+                'id': 3,
+                'name': 'My Third Component',
+                'tenantId': 'T1000'
+            }
+        }
         self.assertEqual(len(results), 2)
         self.assertDictEqual(results, expected)
 
     @unittest.skipIf(SKIP, REASON)
     def test_hex_id(self):
         id = uuid.uuid4().hex
-        body = self.driver.save_object(self.collection_name, id, dict(id=id), None,
-                                             tenant_id='T1000')
+        self.driver.save_object(self.collection_name, id, dict(id=id), None,
+                                tenant_id='T1000')
         unicode_results = self.driver.get_objects(self.collection_name)
         results = self._decode_dict(unicode_results)
-        self.assertDictEqual(results, {id:{"id":id, 'tenantId':'T1000'}})
+        self.assertDictEqual(results, {id: {"id": id, 'tenantId': 'T1000'}})
         self.assertNotIn('_id', results, "Backend field '_id' should not be "
                          "exposed outside of driver")
 
@@ -294,13 +314,14 @@ class TestDatabase(unittest.TestCase):
     @unittest.skipIf(SKIP, REASON)
     def test_multiple_objects(self):
         expected = {}
-        for i in range(1,5):
+        for i in range(1, 5):
             expected[i] = dict(id=i, tenantId='T1000')
-            body = self.driver.save_object(self.collection_name, i, dict(id=i), None, tenant_id='T1000')
+            self.driver.save_object(self.collection_name, i, dict(id=i), None,
+                                    tenant_id='T1000')
         unicode_results = self.driver.get_objects(self.collection_name)
         results = self._decode_dict(unicode_results)
         self.assertDictEqual(results, expected)
-        for i in range(1,5):
+        for i in range(1, 5):
             self.assertIn(i, results)
             self.assertNotIn('_id', results[i])
             self.assertEqual(results[i]['id'], i)
@@ -310,11 +331,13 @@ class TestDatabase(unittest.TestCase):
         klass = 'workflows'
         obj_id = 1
         self.driver.database()[klass].remove({'_id': obj_id})
-        self.driver.save_object(klass, obj_id, {"id": obj_id, "test": obj_id}, tenant_id='T1000')
+        self.driver.save_object(klass, obj_id, {"id": obj_id, "test": obj_id},
+                                tenant_id='T1000')
 
         locked_object, key = self.driver.lock_object(klass, obj_id)
         #is the returned object what we expected?
-        self.assertEqual(locked_object, {"id": obj_id, "tenantId": "T1000", "test": obj_id})
+        self.assertEqual(locked_object, {"id": obj_id, "tenantId": "T1000",
+                                         "test": obj_id})
         #was a key generated?
         self.assertTrue(key)
         stored_object = self.driver.database()[klass].find_one({"_id": obj_id})
@@ -328,18 +351,19 @@ class TestDatabase(unittest.TestCase):
         klass = 'workflows'
         obj_id = 1
         self.driver.database()[klass].remove({'_id': obj_id})
-        setup_obj = {"_lock": 0, "_id": obj_id, "tenantId": "T1000", "test": obj_id}
+        setup_obj = {"_lock": 0, "_id": obj_id, "tenantId": "T1000",
+                     "test": obj_id}
         #setup unlocked workflow
         self.driver.database()[klass].find_and_modify(
-                                        query={"_id": obj_id},
-                                        update=setup_obj,
-                                        fields={
-                                            '_id': 0,
-                                            '_lock': 0, 
-                                            '_lock_timestamp': 0
-                                        },
-                                        upsert=True
-                                    )
+            query={"_id": obj_id},
+            update=setup_obj,
+            fields={
+                '_id': 0,
+                '_lock': 0,
+                '_lock_timestamp': 0
+            },
+            upsert=True
+        )
 
         locked_object, key = self.driver.lock_object(klass, obj_id)
         unlocked_object = self.driver.unlock_object(klass, obj_id, key)
@@ -347,14 +371,52 @@ class TestDatabase(unittest.TestCase):
         self.assertEqual(locked_object, unlocked_object)
 
     @unittest.skipIf(SKIP, REASON)
-    def test_lock_locked_object(self): 
+    def test_unlock_safety(self):
+        '''Make sure we don't do update, but do $set'''
+        klass = 'workflows'
+        obj_id = 1
+        original = {
+            "tenantId": "T1000",
+            "test": obj_id,
+        }
+        setup_obj = copy.copy(original)
+        setup_obj.update({
+            "_lock": 0,
+            "_id": obj_id,
+        })
+        self.driver.database()[klass].remove({'_id': obj_id})
+
+        #setup unlocked workflow
+        self.driver.database()[klass].find_and_modify(
+            query={"_id": obj_id},
+            update=setup_obj,
+            fields={
+                '_id': 0,
+                '_lock': 0,
+                '_lock_timestamp': 0
+            },
+            upsert=True
+        )
+
+        locked_object, key = self.driver.lock_object(klass, obj_id)
+        unlocked_object = self.driver.unlock_object(klass, obj_id, key)
+
+        self.assertEqual(locked_object, unlocked_object)
+
+        # Confirm object is intact
+        final = self.driver.get_object(klass, obj_id)
+        self.assertDictEqual(final, original)
+
+    @unittest.skipIf(SKIP, REASON)
+    def test_lock_locked_object(self):
         klass = 'workflows'
         obj_id = 1
         self.driver.database()[klass].remove({'_id': obj_id})
-        stored = {"_id": obj_id, "id": obj_id, "tenantId": "T1000", "test": obj_id}
+        stored = {"_id": obj_id, "id": obj_id, "tenantId": "T1000",
+                  "test": obj_id}
         self.driver.database()[klass].save(stored)
 
-        locked_obj = self.driver.lock_object(klass, obj_id)
+        self.driver.lock_object(klass, obj_id)
 
         with self.assertRaises(ObjectLockedError):
             self.driver.lock_object(klass, obj_id)
@@ -366,12 +428,13 @@ class TestDatabase(unittest.TestCase):
         self.driver.database()[klass].remove({'_id': obj_id})
         lock = "test_lock"
         lock_timestamp = time.time() - 31
-        stored = {"_id": obj_id, "id": obj_id, "tenantId": "T1000", 
-            "test": obj_id, "_lock": lock, "_lock_timestamp": lock_timestamp}
+        stored = {"_id": obj_id, "id": obj_id, "tenantId": "T1000",
+                  "test": obj_id, "_lock": lock,
+                  "_lock_timestamp": lock_timestamp}
         self.driver.database()[klass].save(stored)
         # the lock is older than 30 seconds so we should be able to lock the
         # object
-        locked_obj, key = self.driver.lock_workflow(obj_id)
+        _, key = self.driver.lock_workflow(obj_id)
         self.driver.unlock_workflow(obj_id, key)
 
     @unittest.skipIf(SKIP, REASON)
@@ -379,12 +442,11 @@ class TestDatabase(unittest.TestCase):
         klass = 'workflows'
         obj_id = 1
         self.driver.database()[klass].remove({'_id': obj_id})
-        lock = "test_lock"
-        stored = {"_id": obj_id, "id": obj_id, "tenantId": "T1000", 
-            "test": obj_id}
+        stored = {"_id": obj_id, "id": obj_id, "tenantId": "T1000",
+                  "test": obj_id}
         self.driver.database()[klass].save(stored)
 
-        _, key = self.driver.lock_workflow(obj_id)
+        self.driver.lock_workflow(obj_id)
 
         with self.assertRaises(InvalidKeyError):
             self.driver.unlock_workflow(obj_id, "bad_key")
@@ -394,15 +456,14 @@ class TestDatabase(unittest.TestCase):
         klass = 'workflows'
         obj_id = 1
         self.driver.database()[klass].remove({'_id': obj_id})
-        lock = "test_lock"
-        stored = {"_id": obj_id, "id": obj_id, "tenantId": "T1000", 
-            "test": obj_id}
+        stored = {"_id": obj_id, "id": obj_id, "tenantId": "T1000",
+                  "test": obj_id}
         self.driver.database()[klass].save(stored)
 
-        _, key = self.driver.lock_workflow(obj_id)
+        self.driver.lock_workflow(obj_id)
 
         with self.assertRaises(InvalidKeyError):
-            _, key = self.driver.lock_workflow(obj_id, key="bad_key")
+            self.driver.lock_workflow(obj_id, key="bad_key")
 
     @unittest.skipIf(SKIP, REASON)
     def test_valid_key_lock(self):
@@ -412,9 +473,8 @@ class TestDatabase(unittest.TestCase):
         klass = 'workflows'
         obj_id = 1
         self.driver.database()[klass].remove({'_id': obj_id})
-        lock = "test_lock"
-        stored = {"_id": obj_id, "id": obj_id, "tenantId": "T1000", 
-            "test": obj_id}
+        stored = {"_id": obj_id, "id": obj_id, "tenantId": "T1000",
+                  "test": obj_id}
         self.driver.database()[klass].save(stored)
 
         locked_obj1, key = self.driver.lock_workflow(obj_id)
@@ -425,22 +485,26 @@ class TestDatabase(unittest.TestCase):
     @unittest.skipIf(SKIP, REASON)
     def test_new_safe_workflow_save(self):
         import checkmate.workflows as workflows
-        workflows.db = self.driver
+        workflows.DB = self.driver
         #test that a new object can be saved with the lock
         self.driver.database()['workflows'].remove({'_id': "1"})
-        safe_workflow_save("1", {"id": "yolo"}, tenant_id=2412423)
+        safe_workflow_save("1", {"id": "yolo"}, tenant_id=2412423,
+                           driver=self.driver)
 
     @unittest.skipIf(SKIP, REASON)
     def test_existing_workflow_save(self):
         import checkmate.workflows as workflows
-        workflows.db = self.driver
+        workflows.DB = self.driver
         #test locking an already locked workflow
         self.driver.database()['workflows'].remove({'_id': "1"})
         timestamp = time.time()
-        self.driver.database()['workflows'].save({'_id': "1", "_lock": "1", "_lock_timestamp": timestamp})
+        self.driver.database()['workflows'].save({'_id': "1", "_lock": "1",
+                                                  "_lock_timestamp":
+                                                  timestamp})
 
         with self.assertRaises(HTTPError):
-            safe_workflow_save("1", {"id": "yolo"}, tenant_id=2412423)
+            safe_workflow_save("1", {"id": "yolo"}, tenant_id=2412423,
+                               driver=self.driver)
 
 if __name__ == '__main__':
     # Run tests. Handle our paramsters separately

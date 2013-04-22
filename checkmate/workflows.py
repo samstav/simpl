@@ -7,6 +7,7 @@ Checkmate
 from bottle import get, post, put, route, request, response, abort
 import copy
 import logging
+import os
 import uuid
 
 try:
@@ -22,15 +23,27 @@ from SpiffWorkflow.storage import DictionarySerializer
 
 from checkmate.common import schema
 from checkmate.classes import ExtensibleDict
-from checkmate.db import (get_driver, any_id_problems, InvalidKeyError, 
-                            ObjectLockedError)
-from checkmate.exceptions import CheckmateException, \
-        CheckmateValidationException
-from checkmate.utils import write_body, read_body, extract_sensitive_data,\
-        merge_dictionary, with_tenant
+from checkmate.db import (
+    get_driver,
+    any_id_problems,
+    InvalidKeyError,
+    ObjectLockedError,
+)
+from checkmate.exceptions import CheckmateException
+from checkmate.utils import (
+    write_body,
+    read_body,
+    extract_sensitive_data,
+    merge_dictionary,
+    with_tenant,
+    is_simulation,
+)
 from checkmate import orchestrator
 
-db = get_driver()
+DB = get_driver()
+SIMULATOR_DB = get_driver(
+    connection_string=os.environ.get('CHECKMATE_SIMULATOR_CONNECTION_STRING',
+                                     'sqlite://'))
 
 LOG = logging.getLogger(__name__)
 
@@ -40,7 +53,7 @@ LOG = logging.getLogger(__name__)
 #
 @get('/workflows')
 @with_tenant
-def get_workflows(tenant_id=None):
+def get_workflows(tenant_id=None, driver=DB):
     offset = request.query.get('offset')
     limit = request.query.get('limit')
     if offset:
@@ -51,39 +64,42 @@ def get_workflows(tenant_id=None):
         if request.context.is_admin == True:
             LOG.info("Administrator accessing workflows with secrets: %s" %
                     request.context.username)
-            results = db.get_workflows(tenant_id=tenant_id, with_secrets=True,
-                                       offset=offset, limit=limit)
+            results = driver.get_workflows(tenant_id=tenant_id,
+                                           with_secrets=True,
+                                           offset=offset, limit=limit)
         else:
             abort(403, "Administrator privileges needed for this operation")
     else:
-        results = db.get_workflows(tenant_id=tenant_id, offset=offset,
-                                   limit=limit)
+        results = driver.get_workflows(tenant_id=tenant_id, offset=offset,
+                                       limit=limit)
     return write_body(results, request, response)
 
-def safe_workflow_save(obj_id, body, secrets=None, tenant_id=None):
+
+def safe_workflow_save(obj_id, body, secrets=None, tenant_id=None, driver=DB):
     """
     Locks, saves, and unlocks a workflow.
     TODO: should this be moved to the db layer?
     """
     results = None
     try:
-        _, key = db.lock_workflow(obj_id)
-        results = db.save_workflow(obj_id, body, secrets=secrets,
-                                tenant_id=tenant_id)
-        db.unlock_workflow(obj_id, key)
+        _, key = driver.lock_workflow(obj_id)
+        results = driver.save_workflow(obj_id, body, secrets=secrets,
+                                       tenant_id=tenant_id)
+        driver.unlock_workflow(obj_id, key)
 
     except ValueError:
         #the object has never been saved
-        results = db.save_workflow(obj_id, body, secrets=secrets,
-                                    tenant_id=tenant_id)
+        results = driver.save_workflow(obj_id, body, secrets=secrets,
+                                       tenant_id=tenant_id)
     except ObjectLockedError:
         abort(404, "The workflow is already locked, cannot obtain lock.")
 
     return results
 
+
 @post('/workflows')
 @with_tenant
-def add_workflow(tenant_id=None):
+def add_workflow(tenant_id=None, driver=DB):
     entity = read_body(request)
     if 'workflow' in entity and isinstance(entity['workflow'], dict):
         entity = entity['workflow']
@@ -97,22 +113,24 @@ def add_workflow(tenant_id=None):
 
     key = None
     results = None
-    if db.get_workflow(entity['id']):
+    if driver.get_workflow(entity['id']):
         # TODO: this case should be considered invalid
         # trying to add an existing workflow
-        _, key = db.lock_workflow(entity['id'])
+        _, key = driver.lock_workflow(entity['id'])
 
-    results = db.save_workflow(entity['id'], body, secrets=secrets)
+    results = driver.save_workflow(entity['id'], body, secrets=secrets)
 
     if key:
-        db.unlock_workflow(entity['id'], key)
+        driver.unlock_workflow(entity['id'], key)
 
     return write_body(results, request, response)
 
 
 @route('/workflows/<id>', method=['POST', 'PUT'])
 @with_tenant
-def save_workflow(id, tenant_id=None):
+def save_workflow(id, tenant_id=None, driver=DB):
+    if is_simulation(id):
+        driver = SIMULATOR_DB
     entity = read_body(request)
 
     if 'workflow' in entity and isinstance(entity['workflow'], dict):
@@ -125,19 +143,29 @@ def save_workflow(id, tenant_id=None):
 
     body, secrets = extract_sensitive_data(entity)
 
-    results = safe_workflow_save(id, body, secrets=secrets, tenant_id=tenant_id)
+    existing = driver.get_workflow(id)
+    results = safe_workflow_save(str(id), body, secrets=secrets,
+                                 tenant_id=tenant_id, driver=driver)
+    if existing:
+        response.status = 200  # OK - updated
+    else:
+        response.status = 201  # Created
+
     return write_body(results, request, response)
 
 
 @get('/workflows/<id>')
 @with_tenant
-def get_workflow(id, tenant_id=None):
+def get_workflow(id, tenant_id=None, driver=DB):
+    if is_simulation(id):
+        driver = SIMULATOR_DB
+
     if 'with_secrets' in request.query:
         LOG.info("Administrator accessing workflow %s with secrets: %s" %
                 (id, request.context.username))
-        results = db.get_workflow(id, with_secrets=True)
+        results = driver.get_workflow(id, with_secrets=True)
     else:
-        results = db.get_workflow(id)
+        results = driver.get_workflow(id)
     if not results:
         abort(404, 'No workflow with id %s' % id)
     if 'id' not in results:
@@ -149,8 +177,10 @@ def get_workflow(id, tenant_id=None):
 
 @get('/workflows/<id>/status')
 @with_tenant
-def get_workflow_status(id, tenant_id=None):
-    entity = db.get_workflow(id)
+def get_workflow_status(id, tenant_id=None, driver=DB):
+    if is_simulation(id):
+        driver = SIMULATOR_DB
+    entity = driver.get_workflow(id)
     if not entity:
         abort(404, 'No workflow with id %s' % id)
     serializer = DictionarySerializer()
@@ -160,7 +190,7 @@ def get_workflow_status(id, tenant_id=None):
 
 @route('/workflows/<id>/+execute', method=['GET', 'POST'])
 @with_tenant
-def execute_workflow(id, tenant_id=None):
+def execute_workflow(id, tenant_id=None, driver=DB):
     """Process a checkmate deployment workflow
 
     Executes and moves the workflow forward.
@@ -169,13 +199,16 @@ def execute_workflow(id, tenant_id=None):
 
     :param id: checkmate workflow id
     """
-    entity = db.get_workflow(id)
+    if is_simulation(id):
+        driver = SIMULATOR_DB
+    entity = driver.get_workflow(id)
     if not entity:
         abort(404, 'No workflow with id %s' % id)
 
-    async_call = orchestrator.run_workflow.delay(id, timeout=1800)
-    LOG.debug("Executed a task to run workflow '%s'" % async_call)
-    entity = db.get_workflow(id)
+    async_call = orchestrator.run_workflow.delay(id, timeout=1800,
+                                                 driver=driver)
+    LOG.debug("Executed a task to run workflow '%s'", async_call)
+    entity = driver.get_workflow(id)
     return write_body(entity, request, response)
 
 
@@ -184,16 +217,18 @@ def execute_workflow(id, tenant_id=None):
 #
 @post('/workflows/<workflow_id>/specs/<spec_id>')
 @with_tenant
-def post_workflow_spec(workflow_id, spec_id, tenant_id=None):
+def post_workflow_spec(workflow_id, spec_id, tenant_id=None, driver=DB):
     """Update a workflow spec
 
     :param workflow_id: checkmate workflow id
     :param spec_id: checkmate workflow spec id (a string)
     """
+    if is_simulation(workflow_id):
+        driver = SIMULATOR_DB
     entity = read_body(request)
 
     # Extracting with secrets
-    workflow = db.get_workflow(workflow_id, with_secrets=True)
+    workflow = driver.get_workflow(workflow_id, with_secrets=True)
     if not workflow:
         abort(404, 'No workflow with id %s' % workflow_id)
 
@@ -209,7 +244,8 @@ def post_workflow_spec(workflow_id, spec_id, tenant_id=None):
     body, secrets = extract_sensitive_data(workflow)
     body['tenantId'] = workflow.get('tenantId', tenant_id)
     body['id'] = workflow_id
-    updated = safe_workflow_save(workflow_id, body, secrets=secrets, tenant_id=tenant_id)
+    safe_workflow_save(workflow_id, body, secrets=secrets, tenant_id=tenant_id,
+                       driver=driver)
 
     return write_body(entity, request, response)
 
@@ -219,16 +255,18 @@ def post_workflow_spec(workflow_id, spec_id, tenant_id=None):
 #
 @get('/workflows/<id>/tasks/<task_id:int>')
 @with_tenant
-def get_workflow_task(id, task_id, tenant_id=None):
+def get_workflow_task(id, task_id, tenant_id=None, driver=DB):
     """Get a workflow task
 
     :param id: checkmate workflow id
     :param task_id: checkmate workflow task id
     """
+    if is_simulation(id):
+        driver = SIMULATOR_DB
     if 'with_secrets' in request.query:  # TODO: verify admin-ness
-        entity = db.get_workflow(id, with_secrets=True)
+        entity = driver.get_workflow(id, with_secrets=True)
     else:
-        entity = db.get_workflow(id)
+        entity = driver.get_workflow(id)
     if not entity:
         abort(404, 'No workflow with id %s' % id)
 
@@ -247,7 +285,7 @@ def get_workflow_task(id, task_id, tenant_id=None):
 
 @post('/workflows/<id>/tasks/<task_id:int>')
 @with_tenant
-def post_workflow_task(id, task_id, tenant_id=None):
+def post_workflow_task(id, task_id, tenant_id=None, driver=DB):
     """Update a workflow task
 
     Attributes that can be updated are:
@@ -258,10 +296,12 @@ def post_workflow_task(id, task_id, tenant_id=None):
     :param id: checkmate workflow id
     :param task_id: checkmate workflow task id
     """
+    if is_simulation(id):
+        driver = SIMULATOR_DB
     entity = read_body(request)
 
     # Extracting with secrets
-    workflow = db.get_workflow(id, with_secrets=True)
+    workflow = driver.get_workflow(id, with_secrets=True)
     if not workflow:
         abort(404, 'No workflow with id %s' % id)
 
@@ -298,7 +338,8 @@ def post_workflow_task(id, task_id, tenant_id=None):
     body['tenantId'] = workflow.get('tenantId', tenant_id)
     body['id'] = id
 
-    updated = safe_workflow_save(id, body, secrets=secrets, tenant_id=tenant_id)
+    updated = safe_workflow_save(id, body, secrets=secrets,
+                                 tenant_id=tenant_id, driver=driver)
     # Updated does not have secrets, so we deserialize that
     serializer = DictionarySerializer()
     wf = SpiffWorkflow.deserialize(serializer, updated)
@@ -310,7 +351,7 @@ def post_workflow_task(id, task_id, tenant_id=None):
 
 @route('/workflows/<id>/tasks/<task_id:int>/+reset', method=['GET', 'POST'])
 @with_tenant
-def reset_workflow_task(id, task_id, tenant_id=None):
+def reset_workflow_task(id, task_id, tenant_id=None, driver=DB):
     """Reset a Celery workflow task and retry it
 
     Checks if task is a celery task in waiting state.
@@ -320,8 +361,10 @@ def reset_workflow_task(id, task_id, tenant_id=None):
     :param id: checkmate workflow id
     :param task_id: checkmate workflow task id
     """
+    if is_simulation(id):
+        driver = SIMULATOR_DB
 
-    workflow = db.get_workflow(id, with_secrets=True)
+    workflow = driver.get_workflow(id, with_secrets=True)
     if not workflow:
         abort(404, 'No workflow with id %s' % id)
 
@@ -351,7 +394,8 @@ def reset_workflow_task(id, task_id, tenant_id=None):
     body, secrets = extract_sensitive_data(entity)
     body['tenantId'] = workflow.get('tenantId', tenant_id)
     body['id'] = id
-    safe_workflow_save(id, body, secrets=secrets, tenant_id=tenant_id)
+    safe_workflow_save(id, body, secrets=secrets, tenant_id=tenant_id,
+                       driver=driver)
 
     task = wf.get_task(task_id)
     if not task:
@@ -366,7 +410,7 @@ def reset_workflow_task(id, task_id, tenant_id=None):
 
 @route('/workflows/<workflow_id>/tasks/<task_id:int>/+resubmit', method=['GET', 'POST'])
 @with_tenant
-def resubmit_workflow_task(workflow_id, task_id, tenant_id=None):
+def resubmit_workflow_task(workflow_id, task_id, tenant_id=None, driver=DB):
     """Reset a Celery workflow task and retry it
 
     Checks if task is a celery task in waiting state.
@@ -375,8 +419,10 @@ def resubmit_workflow_task(workflow_id, task_id, tenant_id=None):
     :param id: checkmate workflow id
     :param task_id: checkmate workflow task id
     """
+    if is_simulation(workflow_id):
+        driver = SIMULATOR_DB
 
-    workflow = db.get_workflow(workflow_id, with_secrets=True)
+    workflow = driver.get_workflow(workflow_id, with_secrets=True)
     if not workflow:
         abort(404, "No workflow with id '%s' found" % workflow_id)
 
@@ -414,7 +460,8 @@ def resubmit_workflow_task(workflow_id, task_id, tenant_id=None):
     body, secrets = extract_sensitive_data(entity)
     body['tenantId'] = workflow.get('tenantId', tenant_id)
     body['id'] = workflow_id
-    safe_workflow_save(workflow_id, body, secrets=secrets, tenant_id=tenant_id)
+    safe_workflow_save(workflow_id, body, secrets=secrets, tenant_id=tenant_id,
+                       driver=driver)
 
     task = wf.get_task(task_id)
     if not task:
@@ -429,13 +476,16 @@ def resubmit_workflow_task(workflow_id, task_id, tenant_id=None):
 
 @route('/workflows/<id>/tasks/<task_id:int>/+execute', method=['GET', 'POST'])
 @with_tenant
-def execute_workflow_task(id, task_id, tenant_id=None):
+def execute_workflow_task(id, task_id, tenant_id=None, driver=DB):
     """Process a checkmate deployment workflow task
 
     :param id: checkmate workflow id
     :param task_id: task id
     """
-    entity = db.get_workflow(id)
+    if is_simulation(id):
+        driver = SIMULATOR_DB
+
+    entity = driver.get_workflow(id)
     if not entity:
         abort(404, 'No workflow with id %s' % id)
 
@@ -447,12 +497,13 @@ def execute_workflow_task(id, task_id, tenant_id=None):
 
     try:
         #Synchronous call
-        orchestrator.run_one_task(request.context, id, task_id, timeout=10)
-    except InvalidKeyError as already_locked:
+        orchestrator.run_one_task(request.context, id, task_id, timeout=10,
+                                  driver=driver)
+    except InvalidKeyError:
         abort(404, "Cannot execute task(%s) while workflow(%s) is executing." %
-                (task_id, id))
+              (task_id, id))
 
-    entity = db.get_workflow(id)
+    entity = driver.get_workflow(id)
 
     workflow = SpiffWorkflow.deserialize(serializer, entity)
 
