@@ -31,6 +31,8 @@ from checkmate.deployments import (
     generate_keys,
     delete_deployment,
     delete_deployment_task,
+    post_deployment,
+    execute_plan,
     get_deployment_resources,
     get_resources_statuses,
     update_all_provider_resources,
@@ -1737,6 +1739,46 @@ class TestDeploymentScenarios(unittest.TestCase):
         deployment = Deployment(yaml_to_dict(content))
         return plan(deployment, RequestContext())
 
+class TestPostDeployments(unittest.TestCase):
+    """ Test POST /deployments endpoint """
+
+    def __init__(self, methodName="runTest"):
+        self._mox = mox.Mox()
+        unittest.TestCase.__init__(self, methodName)
+
+    def setUp(self):
+        bottle.request.bind({})
+        self._deployment = {
+            'id': '1234',
+            'environment': {},
+            'blueprint': {}
+        }
+        bottle.request.context = Context()
+        bottle.request.context.tenant = None
+
+    def tearDown(self):
+        self._mox.UnsetStubs()
+        unittest.TestCase.tearDown(self)
+
+    def test_async_post(self):
+        """ Test that POST /deployments returns an asynchronous 202 """
+
+        self._mox.StubOutWithMock(checkmate.deployments, "_content_to_deployment")
+        checkmate.deployments._content_to_deployment(IgnoreArg(),
+                                                     tenant_id=IgnoreArg()).AndReturn(self._deployment)
+
+        self._mox.StubOutWithMock(checkmate.deployments, "_save_deployment")
+        checkmate.deployments._save_deployment(self._deployment, deployment_id='1234',
+                                               tenant_id=IgnoreArg()).AndReturn(True)
+
+        self._mox.StubOutWithMock(checkmate.deployments, "execute_plan")
+        checkmate.deployments.execute_plan = self._mox.CreateMockAnything()
+        checkmate.deployments.execute_plan.__call__('1234', IgnoreArg()).AndReturn(True)
+
+        self._mox.ReplayAll()
+        post_deployment()
+        self._mox.VerifyAll()
+        self.assertEquals(202, bottle.response.status_code)
 
 class TestDeleteDeployments(unittest.TestCase):
     """ Test delete_deployment """
