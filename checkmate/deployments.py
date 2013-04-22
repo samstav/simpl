@@ -671,12 +671,6 @@ def deployment_operation(dep_id):
     operation['complete'] = complete
     operation['estimated-duration'] = duration
 
-    # Calculate the elapsed time
-    created = time.strptime(deployment['created'], "%Y-%m-%d %H:%M:%S %Z")
-    created_epoch = time.mktime(created)
-    current_epoch = time.time()
-    elapsed = current_epoch - created_epoch
-    operation['elapsed'] = "%d" % elapsed
 
     # Operation link
     operation['link'] = "/v1/%s/workflows/%s" % (deployment['tenantId'],
