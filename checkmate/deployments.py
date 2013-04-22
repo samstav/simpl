@@ -601,6 +601,89 @@ def plan(deployment, context):
     return deployment
 
 
+def deployment_operation(dep_id):
+    """Return the operation dictionary for a given deployment.
+
+    Example:
+
+    "operation": {
+        "type": "deploy",
+        "status": "IN PROGRESS",
+        "estimated-duration": 2400,
+        "tasks": 175,
+        "complete": 100,
+        "link": "/v1/{tenant_id}/workflows/982h3f28937h4f23847"
+    }
+    """
+    operation = {}
+
+    # Fetch workflow & deployment data
+    raw_workflow = DB.get_workflow(dep_id)
+    if not raw_workflow:
+        return
+    serializer = DictionarySerializer()
+    workflow = Workflow.deserialize(serializer, raw_workflow)
+    tasks = workflow.task_tree.children
+    deployment = DB.get_deployment(dep_id)
+
+    # Loop through tasks and calculate statistics
+    spiff_status = {
+        1: "FUTURE",
+        2: "LIKELY",
+        4: "MAYBE",
+        8: "WAITING",
+        16: "READY",
+        32: "CANCELLED",
+        64: "COMPLETED",
+        128: "TRIGGERED"
+    }
+    duration = 0
+    complete = 0
+    failure = 0
+    total = 0
+    while tasks:
+        task = tasks.pop(0)
+        tasks.extend(task.children)
+        status = spiff_status[task._state]
+        if status == "COMPLETED":
+            complete += 1
+        elif status == "FAILURE":
+            failure += 1
+        duration += task._get_internal_attribute('estimated_completed_in')
+        total += 1
+    operation['tasks'] = total
+    operation['complete'] = complete
+    operation['estimated-duration'] = duration
+    if failure > 0:
+        operation['status'] = "ERROR"
+    elif total > complete:
+        operation['status'] = "IN PROGRESS"
+    elif total == complete:
+        operation['status'] = "COMPLETE"
+    else:
+        operation['status'] = "UNKNOWN"
+
+    # Operation link
+    operation['link'] = "/v1/%s/workflows/%s" % (deployment['tenantId'],
+                                                 dep_id)
+
+    # Operation type
+    status_type = {
+        "ACTIVE": "deploy",
+        "BUILD": "deploy",
+        "CONFIGURE": "deploy",
+        "DELETED": "delete",
+        "DELETING": "delete",
+        "LAUNCHED": "deploy",
+        "NEW": "deploy",
+        "PLANNED": "deploy",
+        "RUNNING": "deploy"
+    }
+    operation['type'] = status_type[deployment['status']]
+
+    return operation
+
+
 @task
 def update_deployment_status(deployment_id, new_status, driver=DB):
     """ Update the status of the specified deployment """
@@ -711,6 +794,11 @@ def resource_postback(deployment_id, contents, driver=DB):
 
     deployment = driver.get_deployment(deployment_id, with_secrets=True)
     deployment = Deployment(deployment)
+
+    # Update operation
+    operation = deployment_operation(deployment_id)
+    if operation:
+        deployment['operation'] = operation
 
     # Update deployment status
 

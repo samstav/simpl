@@ -150,6 +150,11 @@ class TestDeploymentParser(unittest.TestCase):
             'blueprint': {
                 'name': 'test bp',
             },
+            'operation': {
+                'complete': 0,
+                'estimated-duration': 0,
+                'tasks': 3
+            },
             'environment': {
                 'name': 'environment',
                 'providers': {},
