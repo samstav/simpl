@@ -538,6 +538,21 @@ def create_loadbalancer(context, name, vip_type, protocol, region, api=None,
                         monitor_status='^[234][0-9][0-9]$', parent_lb=None):
     """Celery task to create Cloud Load Balancer"""
     match_celery_logging(LOG)
+
+    if context.get('simulation') is True:
+        resource_key = context['resource']
+        results = {
+            'instance:%s' % resource_key: {
+                'id': "LB0%s" % resource_key,
+                'public_ip': "4.4.4.20%s" % resource_key,
+                'port': port,
+                'protocol': protocol,
+            }
+        }
+        # Send data back to deployment
+        resource_postback.delay(context['deployment'], results)
+        return results
+
     if api is None:
         api = Provider._connect(context, region)
 
@@ -645,6 +660,17 @@ def delete_lb_task(context, key, lbid, region, api=None):
     """Celery task to delete a Cloud Load Balancer"""
     match_celery_logging(LOG)
 
+    if context.get('simulation') is True:
+        resource_key = context['resource']
+        results = {
+            "instance:%s" % resource_key: {
+                "status": "DELETING",
+                "status_msg":
+                "Waiting on resource deletion"
+            }
+        }
+        return results
+
     def on_failure(exc, task_id, args, kwargs, einfo):
         k = "instance:%s" % args[1]
         ret = {k: {'status': 'ERROR',
@@ -678,6 +704,10 @@ def wait_on_lb_delete(req_context, key, dep_id, lbid, region, api=None):
 
     match_celery_logging(LOG)
     inst_key = "instance:%s" % key
+
+    if req_context.get('simulation') is True:
+        results = {inst_key: {'status': 'DELETED'}}
+        return results
 
     def on_failure(exc, task_id, args, kwargs, einfo):
         """ Handle task failure """
@@ -713,6 +743,10 @@ def add_node(context, lbid, ipaddr, region, resource, api=None):
     """Celery task to add a node to a Cloud Load Balancer"""
     match_celery_logging(LOG)
 
+    if context.get('simulation') is True:
+        results = {}
+        return results
+
     if api is None:
         api = Provider._connect(context, region)
 
@@ -737,7 +771,6 @@ def add_node(context, lbid, ipaddr, region, resource, api=None):
 #    instance_key = 'instance:%s' % context['resource']
 #    status_results = {instance_key: status_results}
 #    resource_postback.delay(context['deployment'], status_results)
-
 
     # Check existing nodes and asses what we need to do
     new_node = None  # We store our new node here
@@ -811,6 +844,10 @@ def add_node(context, lbid, ipaddr, region, resource, api=None):
 def delete_node(context, lbid, ipaddr, port, region, api=None):
     """Celery task to delete a node from a Cloud Load Balancer"""
     match_celery_logging(LOG)
+
+    if context.get('simulation') is True:
+        return
+
     if api is None:
         api = Provider._connect(context, region)
 
@@ -849,6 +886,10 @@ def set_monitor(context, lbid, mon_type, region, path='/', delay=10,
                 status='^[234][0-9][0-9]$', api=None):
     """Create a monitor for a Cloud Load Balancer"""
     match_celery_logging(LOG)
+
+    if context.get('simulation') is True:
+        return
+
     if api is None:
         api = Provider._connect(context, region)
 
@@ -892,6 +933,15 @@ def wait_on_build(context, lbid, region, api=None):
     match_celery_logging(LOG)
     assert lbid, "ID must be provided"
     LOG.debug("Getting loadbalancer %s" % lbid)
+
+    if context.get('simulation') is True:
+        results = {}
+        results['status'] = "ACTIVE"
+        results['id'] = lbid
+        instance_key = 'instance:%s' % context['resource']
+        results = {instance_key: results}
+        resource_postback.delay(context['deployment'], results)
+        return results
 
     if api is None:
         api = Provider._connect(context, region)
