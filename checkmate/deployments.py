@@ -212,7 +212,8 @@ def post_deployment(tenant_id=None, driver=DB):
 
     # can't pass actual request
     request_context = copy.deepcopy(request.context)
-    async_task = execute_plan(oid, request_context, driver=driver)
+    async_task = execute_plan(oid, request_context, driver=driver,
+                              asynchronous=('asynchronous' in request.query))
 
     response.status = 202
 
@@ -227,7 +228,7 @@ def simulate(tenant_id=None):
     return post_deployment(tenant_id=tenant_id, driver=SIMULATOR_DB)
 
 
-def execute_plan(depid, request_context, driver=DB):
+def execute_plan(depid, request_context, driver=DB, asynchronous=False):
     if any_id_problems(depid):
         abort(406, any_id_problems(depid))
 
@@ -235,8 +236,11 @@ def execute_plan(depid, request_context, driver=DB):
     if not deployment:
         abort(404, 'No deployment with id %s' % depid)
 
-    process_post_deployment.delay(deployment, request_context,
-                                  driver=driver)
+    if asynchronous is True:
+        process_post_deployment.delay(deployment, request_context,
+                                      driver=driver)
+    else:
+        process_post_deployment(deployment, request_context, driver=driver)
 
 
 @task
