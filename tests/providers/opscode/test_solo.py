@@ -1282,10 +1282,13 @@ class TestChefMap(unittest.TestCase):
         # Make the remotes property throw an AssertionError (it
         # shouldn't be called)
         git.Repo = self.mox.CreateMockAnything()
+        git.Repo.__call__ = lambda x: mock_repo
         mock_repo = self.mox.CreateMockAnything()
         repo_remotes = self.mox.CreateMockAnything()
         repo_remotes_origin = self.mox.CreateMockAnything()
         mock_repo.remotes = repo_remotes
+        mock_repo.tags = self.mox.CreateMockAnything()
+        mock_repo.tags.__contains__('master').AndReturn(False)
         repo_remotes.origin = repo_remotes_origin
         repo_remotes_origin.pull().AndReturn(True)
         self.mox.ReplayAll()
@@ -1323,6 +1326,8 @@ class TestChefMap(unittest.TestCase):
         repo_remotes_origin = self.mox.CreateMockAnything()
         mock_repo.remotes = repo_remotes
         repo_remotes.origin = repo_remotes_origin
+        mock_repo.tags = self.mox.CreateMockAnything()
+        mock_repo.tags.__contains__('master').AndReturn(False)
         git.Repo.__call__ = lambda x: mock_repo
         def update_map():
             with open(self.chef_map_path, 'a') as f:
@@ -1347,9 +1352,12 @@ class TestChefMap(unittest.TestCase):
             with open(self.chef_map_path, 'w') as f:
                 f.write(TEMPLATE)
 
-        self.mox.StubOutWithMock(git.Repo, 'clone_from')
+        git.Repo = self.mox.CreateMockAnything()
+        mock_repo = self.mox.CreateMockAnything()
         git.Repo.clone_from(IgnoreArg(), IgnoreArg(), branch=IgnoreArg())\
-            .WithSideEffects(fake_clone)
+            .WithSideEffects(fake_clone).AndReturn(mock_repo)
+        mock_repo.tags = self.mox.CreateMockAnything()
+        mock_repo.tags.__contains__('master').AndReturn(False)
         self.mox.ReplayAll()
 
         chefmap.url = self.url
