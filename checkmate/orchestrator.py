@@ -151,8 +151,13 @@ def run_workflow(w_id, timeout=900, wait=1, counter=1, key=None, driver=None):
                                                                  counter))
         # If we have to retry the run, pass in the key so that 
         # we will not try to re-lock the workflow.
-        retry_kwargs = {'timeout': timeout, 'wait': wait,
-                        'counter': counter + 1, 'key': key}
+        retry_kwargs = {
+            'timeout': timeout,
+            'wait': wait,
+            'counter': counter + 1,
+            'key': key,
+            'driver': driver,
+        }
         return run_workflow.retry([w_id], kwargs=retry_kwargs, countdown=wait,
                                   Throw=False)
     else:
