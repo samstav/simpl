@@ -67,10 +67,7 @@ def get_driver(name=None, reset=False, connection_string=None):
                 'default_connection_string']
 
     if not connection_string:
-        raise CheckmateException('Could not initialize a database driver. No '
-                                 'name or connection string were supplied and '
-                                 'no CHECKMATE_CONNECTION_STRING was not '
-                                 'defined')
+        connection_string = "sqlite://"
 
     if connection_string and not name:
         if connection_string.startswith('mongodb://'):
