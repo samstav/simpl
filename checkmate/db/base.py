@@ -26,6 +26,12 @@ class DbBase(object):  # pylint: disable=R0921
     def __init__(self, connection_string, driver=None, *args, **kwargs):
         '''Initialize database driver
 
+        Drivers can also be serialized/deserialized from strings which are
+        effectively the connection strings.
+
+        :param connection_string: required and determines the key for this
+                                  driver which will be used to share it between
+                                  modules
         :param driver: used to inject a driver for testing or connection
                        sharing
         '''
@@ -34,6 +40,23 @@ class DbBase(object):  # pylint: disable=R0921
                   connection_string, args, driver, kwargs)
         self.connection_string = connection_string
         self.driver = driver
+
+    def __getstate__(self):
+        '''Support serializing to connection string'''
+        return {'connection_string': self.connection_string}
+
+    def __setstate__(self, dict):  # pylint: disable=W0622
+        '''Support deserializing from connection string'''
+        self.connection_string = dict['connection_string']
+
+    def __str__(self):
+        '''Support serializing to connection string'''
+        return self.connection_string
+
+    def __repr__(self):
+        '''Support displaying connection string'''
+        return ("<%s.%s connection_string='%s'>" % (self.__class__.__module__,
+                self.__class__.__name__, self.connection_string))
 
     def dump(self):
         '''Dump all data n the database'''

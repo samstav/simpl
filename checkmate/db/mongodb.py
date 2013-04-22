@@ -36,6 +36,20 @@ class Driver(DbBase):
         self._connection = None
         self._client = None
 
+    def __getstate__(self):
+        '''Support serializing to connection string'''
+        data = DbBase.__getstate__(self)
+        data['db_name'] = self.db_name
+        return data
+
+    def __setstate__(self, dict):  # pylint: disable=W0622
+        '''Support deserializing from connection string'''
+        DbBase.__setstate__(self, dict)
+        self.db_name = dict['db_name']
+        self._database = None
+        self._connection = None
+        self._client = None
+
     def database(self):
         """ Connects to and returns mongodb database object """
         if self._database is None:

@@ -141,6 +141,29 @@ class Driver(DbBase):
                    "override your migrate version manually (see docs)")
             LOG.warning(msg, self.connection_string)
 
+    def __setstate__(self, dict):  # pylint: disable=W0622
+        '''Support deserializing from connection string'''
+        DbBase.__setstate__(self, dict)
+        #FIXME: make DRY
+        if self.connection_string == 'sqlite://':
+            self.engine = create_engine(self.connection_string,
+                                        connect_args={
+                                            'check_same_thread': False
+                                        },
+                                        poolclass=StaticPool)
+            message = ("Checkmate is connected to an in-memory sqlite "
+                       "database. No  data will be persisted. To store your "
+                       "data, set the CHECKMATE_CONNECTION_STRING environment "
+                       "variable to a valid sqlalchemy connection string")
+            LOG.warning(message)
+            print message
+        else:
+            self.engine = create_engine(self.connection_string)
+            LOG.info("Connected to '%s'", self.connection_string)
+
+        self.session = scoped_session(sessionmaker(self.engine))
+        Base.metadata.create_all(self.engine)
+
     def dump(self):
         response = {}
         response['environments'] = self.get_environments()
