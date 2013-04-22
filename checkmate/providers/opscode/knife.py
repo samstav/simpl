@@ -285,8 +285,7 @@ def _cache_blueprint(source_repo):
                                      "'%s'" % (url, exc))
         if branch in repo.tags:  # Does `branch' point to a tag?
             LOG.debug("`branch' points to a tag.")
-            head = repo.heads[0]
-            head.checkout(branch)
+            utils.git_checkout(repo_cache, branch)
 
 
 def _copy_kitchen_blueprint(dest, source_repo):
