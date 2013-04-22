@@ -601,8 +601,32 @@ def plan(deployment, context):
     return deployment
 
 
-def _task_stats(tasks):
-    """Search through task tree to gather task stats."""
+def deployment_operation(dep_id):
+    """Return the operation dictionary for a given deployment.
+
+    Example:
+
+    "operation": {
+        "type": "deploy",
+        "status": "IN PROGRESS",
+        "estimated-duration": 2400,
+        "tasks": 175,
+        "complete": 100,
+        "link": "/v1/{tenant_id}/workflows/982h3f28937h4f23847"
+    }
+    """
+    operation = {}
+
+    # Fetch workflow & deployment data
+    raw_workflow = DB.get_workflow(dep_id)
+    if not raw_workflow:
+        return
+    serializer = DictionarySerializer()
+    workflow = Workflow.deserialize(serializer, raw_workflow)
+    tasks = workflow.task_tree.children
+    deployment = DB.get_deployment(dep_id)
+
+    # Loop through tasks and calculate statistics
     spiff_status = {
         1: "FUTURE",
         2: "LIKELY",
@@ -627,39 +651,9 @@ def _task_stats(tasks):
             failure += 1
         duration += task._get_internal_attribute('estimated_completed_in')
         total += 1
-    return duration, total, complete, failure
-
-
-def deployment_operation(dep_id):
-    """Return the operation dictionary for a given deployment.
-
-    Example:
-
-    "operation": {
-        "type": "deploy",
-        "status": "IN PROGRESS",
-        "estimated-duration": 2400,
-        "elapsed": 1702,
-        "tasks": 175,
-        "complete": 100,
-        "link": "/v1/{tenant_id}/workflows/982h3f28937h4f23847"
-    }
-    """
-    operation = {}
-
-    raw_workflow = DB.get_workflow(dep_id)
-    if not raw_workflow:
-        return
-    total = len(raw_workflow['wf_spec']['task_specs'])
     operation['tasks'] = total
-
-    serializer = DictionarySerializer()
-    workflow = Workflow.deserialize(serializer, raw_workflow)
-    tasks = workflow.task_tree.children
-    deployment = DB.get_deployment(dep_id)
-
-    # Misc task stats
-    duration, total, complete, failure = _task_stats(tasks)
+    operation['complete'] = complete
+    operation['estimated-duration'] = duration
     if failure > 0:
         operation['status'] = "ERROR"
     elif total > complete:
@@ -668,9 +662,6 @@ def deployment_operation(dep_id):
         operation['status'] = "COMPLETE"
     else:
         operation['status'] = "UNKNOWN"
-    operation['complete'] = complete
-    operation['estimated-duration'] = duration
-
 
     # Operation link
     operation['link'] = "/v1/%s/workflows/%s" % (deployment['tenantId'],
