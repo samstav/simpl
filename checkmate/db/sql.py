@@ -191,7 +191,8 @@ class Driver(DbBase):
         return self.get_objects(Deployment, tenant_id, with_secrets,
                                 offset=offset, limit=limit)
 
-    def save_deployment(self, id, body, secrets=None, tenant_id=None):
+    def save_deployment(self, id, body, secrets=None, tenant_id=None,
+                        partial=False):
         return self.save_object(Deployment, id, body, secrets, tenant_id)
 
     #BLUEPRINTS

@@ -642,3 +642,8 @@ def check_all_output(params, find="ERROR"):
                                  output='\n'.join(stdout),
                                  error_info='%s%s' % ('\n'.join(stderr),
                                                       '\n'.join(found)))
+
+
+def is_simulation(api_id):
+    '''Determine if the current object is in simulation'''
+    return api_id.startswith('simulate')

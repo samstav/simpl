@@ -14,6 +14,9 @@ The API ID is not necessarily a UUID. Allowed charatcers are:
 
 The ID must start with an alphanumeric character.
 
+TODO:
+- implement partial saves (formalize what we do in save_deployment)
+
 '''
 import logging
 
@@ -104,7 +107,8 @@ class DbBase(object):  # pylint: disable=R0921
                         limit=None, offset=None):
         raise NotImplementedError()
 
-    def save_deployment(self, api_id, body, secrets=None, tenant_id=None):
+    def save_deployment(self, api_id, body, secrets=None, tenant_id=None,
+                        partial=False):
         raise NotImplementedError()
 
     # BLUEPRINTS

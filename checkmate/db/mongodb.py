@@ -92,14 +92,15 @@ class Driver(DbBase):
         return self.get_objects('deployments', tenant_id, with_secrets,
                                 offset=offset, limit=limit)
 
-    def save_deployment(self, api_id, body, secrets=None, tenant_id=None):
+    def save_deployment(self, api_id, body, secrets=None, tenant_id=None,
+                        partial=True):
         '''
         Pull current deployment in DB incase another task has modified its'
         contents
         '''
 
         return self.save_object('deployments', api_id, body, secrets,
-                                tenant_id, merge_existing=True)
+                                tenant_id, merge_existing=partial)
 
     #BLUEPRINTS
     def get_blueprint(self, api_id, with_secrets=None):

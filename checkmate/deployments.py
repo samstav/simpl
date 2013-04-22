@@ -25,6 +25,7 @@ from checkmate.utils import (
     read_body,
     extract_sensitive_data,
     with_tenant, match_celery_logging
+    is_simulation,
 )
 from checkmate.plan import Plan
 from checkmate.deployment import Deployment, generate_keys
@@ -64,7 +65,8 @@ def _content_to_deployment(bottle_request, deployment_id=None, tenant_id=None):
     return deployment
 
 
-def _save_deployment(deployment, deployment_id=None, tenant_id=None):
+def _save_deployment(deployment, deployment_id=None, tenant_id=None,
+                     driver=DB):
     """Sync ID and tenant and save deployment
 
     :returns: saved deployment
@@ -93,8 +95,8 @@ def _save_deployment(deployment, deployment_id=None, tenant_id=None):
         assert tenant_id, "Tenant ID must be specified in deployment"
         deployment['tenantId'] = tenant_id
     body, secrets = extract_sensitive_data(deployment)
-    return DB.save_deployment(deployment_id, body, secrets,
-                              tenant_id=tenant_id)
+    return driver.save_deployment(deployment_id, body, secrets,
+                                  tenant_id=tenant_id, partial=False)
 
 
 def _create_deploy_workflow(deployment, context):
@@ -183,14 +185,17 @@ def get_deployments_by_bp_count(blueprint_id, tenant_id=None):
 
 @post('/deployments')
 @with_tenant
-def post_deployment(tenant_id=None):
+def post_deployment(tenant_id=None, driver=DB):
     """
     Creates deployment and wokflow based on sent information
     and triggers workflow execution
     """
     deployment = _content_to_deployment(request, tenant_id=tenant_id)
+    if request.context.simulation is True:
+        deployment['id'] = 'simulate%s' % uuid.uuid4().hex[0:12]
     oid = str(deployment['id'])
-    _save_deployment(deployment, deployment_id=oid, tenant_id=tenant_id)
+    _save_deployment(deployment, deployment_id=oid, tenant_id=tenant_id,
+                     driver=driver)
     # Return response (with new resource location in header)
     if tenant_id:
         response.add_header('Location', "/%s/deployments/%s" % (tenant_id,
@@ -209,9 +214,18 @@ def post_deployment(tenant_id=None):
     
     response.status = 202
 
-    return write_body(deployment, request, response)    
+    return write_body(deployment, request, response)
 
-def execute_plan(depid, request_context):
+
+@post('/deployments/simulate')
+@with_tenant
+def simulate(tenant_id=None):
+    """ Run a simulation """
+    request.context.simulation = True
+    return post_deployment(tenant_id=tenant_id, driver=SIMULATOR_DB)
+
+
+def execute_plan(depid, request_context, driver=DB, asynchronous=False):
     if any_id_problems(depid):
         abort(406, any_id_problems(depid))
 
