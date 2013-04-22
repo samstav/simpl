@@ -153,6 +153,10 @@ class Blueprint(ExtensibleDict):
                 option['type'] = 'integer'
                 LOG.warn("Converted 'type' from 'int' to 'integer' "
                          " in blueprint '%s'" % data.get('id'))
+            elif option_type == 'region':
+                option['type'] = 'string'
+                LOG.warn("Converted 'type' from 'region' to 'string' "
+                         " in blueprint '%s'" % data.get('id'))
 
             # move 'regex' to constraint
 
