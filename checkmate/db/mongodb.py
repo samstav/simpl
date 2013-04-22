@@ -175,7 +175,11 @@ class Driver(DbBase):
                 '_id': api_id,
                 '_lock': key
             },
-            update={'_lock': 0},
+            update={
+                '$set': {
+                    '_lock': 0,
+                },
+            },
             fields=self._object_projection
         )
         #remove state added to passed in dict
