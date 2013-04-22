@@ -121,7 +121,7 @@ def main_func():
     # Load simulator if requested
     with_simulator = False
     if '--with-simulator' in sys.argv:
-        load("checkmate.simulator")
+        # deprecated load("checkmate.simulator")
         with_simulator = True
 
     # Load admin routes if requested

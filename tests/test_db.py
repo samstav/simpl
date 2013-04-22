@@ -12,7 +12,7 @@ import uuid
 
 os.environ['CHECKMATE_CONNECTION_STRING'] = 'sqlite://'
 
-from checkmate.db.sql import Deployment, Workflow
+from checkmate.db.sql import Deployment
 init_console_logging()
 LOG = logging.getLogger(__name__)
 
@@ -24,7 +24,8 @@ class TestDatabase(unittest.TestCase):
     """ Test Database code """
 
     def setUp(self):
-        self.driver = db.get_driver('checkmate.db.sql.Driver', reset=True)
+        self.driver = db.get_driver(name='checkmate.db.sql.Driver', reset=True,
+                                    connection_string='sqlite://')
         self.klass = Deployment
         db.sql.DEFAULT_RETRIES = 1
         self.default_deployment = {
@@ -39,12 +40,13 @@ class TestDatabase(unittest.TestCase):
             'tenantId': "T1000",
             'blueprint': {
                 'name': 'test bp',
-                },
+            },
             'environment': {
                 'name': 'environment',
                 'providers': {},
-                },
-            }
+            },
+        }
+
     def _decode_dict(self, dictionary):
         decoded_dict = {}
         for key, value in dictionary.iteritems():
@@ -64,47 +66,56 @@ class TestDatabase(unittest.TestCase):
         return decoded_dict
 
     def test_pagination(self):
-        entity = {'id': 1,
-                  'name': 'My Component',
-                  'credentials': ['My Secrets']
-                 }
+        entity = {
+            'id': 1,
+            'name': 'My Component',
+            'credentials': ['My Secrets']
+        }
         body, secrets = extract_sensitive_data(entity)
         self.driver.save_object(self.klass, entity['id'], body, secrets,
-            tenant_id='T1000')
+                                tenant_id='T1000')
 
         entity['id'] = 2
         entity['name'] = 'My Second Component'
         body, secrets = extract_sensitive_data(entity)
         self.driver.save_object(self.klass, entity['id'], body, secrets,
-            tenant_id='T1000')
+                                tenant_id='T1000')
 
         entity['id'] = 3
         entity['name'] = 'My Third Component'
         body, secrets = extract_sensitive_data(entity)
         self.driver.save_object(self.klass, entity['id'], body, secrets,
-            tenant_id='T1000')
+                                tenant_id='T1000')
 
-        expected = {1:
-                      {'id': 1,
-                       'name': 'My Component',
-                       'tenantId': 'T1000'},
-                    2: 
-                      {'id': 2,
-                       'name': 'My Second Component',
-                       'tenantId': 'T1000'}}
-        results = self.driver.get_objects(self.klass, tenant_id='T1000', limit=2)
+        expected = {
+            1: {
+                'id': 1,
+                'name': 'My Component',
+                'tenantId': 'T1000'},
+            2: {
+                'id': 2,
+                'name': 'My Second Component',
+                'tenantId': 'T1000',
+            }
+        }
+        results = self.driver.get_objects(self.klass, tenant_id='T1000',
+                                          limit=2)
         results_decode = self._decode_dict(results)
         self.assertEqual(len(results_decode), 2)
         self.assertDictEqual(results_decode, expected)
 
-        expected = {2:
-                      {'id': 2,
-                       'name': 'My Second Component',
-                       'tenantId': 'T1000'},
-                    3: 
-                      {'id': 3,
-                       'name': 'My Third Component',
-                       'tenantId': 'T1000'}}
+        expected = {
+            2: {
+                'id': 2,
+                'name': 'My Second Component',
+                'tenantId': 'T1000',
+            },
+            3: {
+                'id': 3,
+                'name': 'My Third Component',
+                'tenantId': 'T1000',
+            }
+        }
         results = self.driver.get_objects(self.klass, tenant_id='T1000',
                                           offset=1, limit=2)
         results_decode = self._decode_dict(results)
@@ -184,7 +195,8 @@ class TestDatabase(unittest.TestCase):
         self.assertDictEqual(original, results)
         # use the "safe" version and add a new secret
         results = self.driver.save_object(Deployment, _id, safe,
-                            secrets={"global_password": "password secret"})
+                                          secrets={"global_password":
+                                                   "password secret"})
         self.assertDictEqual(safe, results)
         # update the copy with the new secret
         original['global_password'] = "password secret"
@@ -192,130 +204,153 @@ class TestDatabase(unittest.TestCase):
         results = self.driver.get_object(Deployment, _id, with_secrets=True)
         self.assertDictEqual(original, self._decode_dict(results))
 
-    def test_components(self):
-        entity = {'id': 1,
-                  'name': 'My Component',
-                  'credentials': ['My Secrets']
-                 }
+    def test_workflows(self):
+        entity = {
+            'id': 1,
+            'name': 'My Workflow',
+            'credentials': ['My Secrets']
+        }
         body, secrets = extract_sensitive_data(entity)
-        results = self.driver.save_component(entity['id'], body, secrets,
-            tenant_id='T1000')
+        results = self.driver.save_workflow(entity['id'], body, secrets,
+                                            tenant_id='T1000')
         self.assertDictEqual(results, body)
 
-        results = self.driver.get_component(entity['id'], with_secrets=True)
+        results = self.driver.get_workflow(entity['id'], with_secrets=True)
         entity['tenantId'] = 'T1000'  # gets added
         self.assertDictEqual(results, entity)
         self.assertIn('credentials', results)
 
-        body['name'] = 'My Updated Component'
-        entity['name'] = 'My Updated Component'
-        results = self.driver.save_component(entity['id'], body)
+        body['name'] = 'My Updated Workflow'
+        entity['name'] = 'My Updated Workflow'
+        results = self.driver.save_workflow(entity['id'], body)
 
-        results = self.driver.get_component(entity['id'], with_secrets=True)
+        results = self.driver.get_workflow(entity['id'], with_secrets=True)
         self.assertIn('credentials', results)
         self.assertDictEqual(results, entity)
 
-        results = self.driver.get_component(entity['id'], with_secrets=False)
+        results = self.driver.get_workflow(entity['id'], with_secrets=False)
         self.assertNotIn('credentials', results)
         body['tenantId'] = 'T1000'  # gets added
         self.assertDictEqual(results, body)
 
     def test_new_deployment_locking(self):
-        db.sql.Session.query(self.klass).filter_by(
+        self.driver.session.query(self.klass).filter_by(
             id=self.default_deployment['id']).delete()
         body, secrets = extract_sensitive_data(self.default_deployment)
-        results = self.driver.save_deployment(self.default_deployment['id'], body, secrets,
-        tenant_id='T1000')
+        self.driver.save_deployment(self.default_deployment['id'],
+                                    body, secrets,
+                                    tenant_id='T1000')
 
-        result = db.sql.Session.query(self.klass).filter_by(id=self.default_deployment['id'])
+        result = self.driver.session.query(self.klass).filter_by(
+            id=self.default_deployment['id'])
         saved_deployment = result.first()
         self.assertEqual(saved_deployment.locked, 0)
         self.assertEqual(saved_deployment.body, self.default_deployment)
-        
-        db.sql.Session.query(self.klass).filter_by(
+
+        self.driver.session.query(self.klass).filter_by(
             id=self.default_deployment['id']).delete()
 
     def test_locked_deployment(self):
-        db.sql.Session.query(self.klass).filter_by(
+        self.driver.session.query(self.klass).filter_by(
             id=self.default_deployment['id']).delete()
- 
-        body, secrets = extract_sensitive_data(self.default_deployment)
-        item = db.sql.Session.query(self.klass).filter_by(
-            id=self.default_deployment['id']
-        ).update({'locked': time.time()})
 
-        e = self.klass(id=self.default_deployment['id'], body=body, tenant_id='T1000',
-            secrets=secrets, locked=time.time())
-        db.sql.Session.add(e)
-        db.sql.Session.commit()
+        body, secrets = extract_sensitive_data(self.default_deployment)
+        self.driver.session.query(self.klass).filter_by(
+            id=self.default_deployment['id']).update({'locked': time.time()})
+
+        e = self.klass(id=self.default_deployment['id'], body=body,
+                       tenant_id='T1000', secrets=secrets, locked=time.time())
+        self.driver.session.add(e)
+        self.driver.session.commit()
 
         with self.assertRaises(DatabaseTimeoutException):
-            self.driver.save_deployment(self.default_deployment['id'],body, secrets, tenant_id='T1000')
-  
-        db.sql.Session.query(self.klass).filter_by(
+            self.driver.save_deployment(self.default_deployment['id'], body,
+                                        secrets, tenant_id='T1000')
+
+        self.driver.session.query(self.klass).filter_by(
             id=self.default_deployment['id']).delete()
-  
+
     def test_no_locked_field_deployment(self):
-        db.sql.Session.query(self.klass).filter_by(
+        self.driver.session.query(self.klass).filter_by(
             id=self.default_deployment['id']).delete()
- 
+
         body, secrets = extract_sensitive_data(self.default_deployment)
-  
+
         #insert without locked field
-        e = self.klass(id=self.default_deployment['id'], body=body, tenant_id='T1000',
-            secrets=secrets)
-        db.sql.Session.add(e)
-        db.sql.Session.commit()
+        e = self.klass(id=self.default_deployment['id'], body=body,
+                       tenant_id='T1000', secrets=secrets)
+        self.driver.session.add(e)
+        self.driver.session.commit()
 
         #save, should get a locked here
-        self.driver.save_deployment(self.default_deployment['id'], body, secrets, tenant_id='T1000')
+        self.driver.save_deployment(self.default_deployment['id'], body,
+                                    secrets, tenant_id='T1000')
 
         #get saved deployment
-        deployment = db.sql.Session.query(self.klass).filter_by(
+        deployment = self.driver.session.query(self.klass).filter_by(
             id=self.default_deployment['id']
         ).first()
 
         #check unlocked
         self.assertEquals(deployment.locked, 0)
 
-        db.sql.Session.query(self.klass).filter_by(
+        self.driver.session.query(self.klass).filter_by(
             id=self.default_deployment['id']).delete()
- 
+
     def test_stale_lock(self):
-        db.sql.Session.query(self.klass).filter_by(
+        self.driver.session.query(self.klass).filter_by(
             id=self.default_deployment['id']).delete()
- 
+
         body, secrets = extract_sensitive_data(self.default_deployment)
-  
+
         #insert without locked field
-        e = self.klass(id=self.default_deployment['id'], body=body, tenant_id='T1000',
-            secrets=secrets)
-        db.sql.Session.add(e)
-        db.sql.Session.commit()
+        e = self.klass(id=self.default_deployment['id'], body=body,
+                       tenant_id='T1000', secrets=secrets)
+        self.driver.session.add(e)
+        self.driver.session.commit()
 
         #save, should get a _locked here
-        self.driver.save_deployment(self.default_deployment['id'], body, secrets, tenant_id='T1000')
+        self.driver.save_deployment(self.default_deployment['id'], body,
+                                    secrets, tenant_id='T1000')
 
         #set timestamp to a stale time
         timeout = time.time()
-        db.sql.Session.query(self.klass).filter_by(
-                id=self.default_deployment['id']
-            ).update({'locked': timeout - DEFAULT_STALE_LOCK_TIMEOUT})
-        db.sql.Session.commit()
+        self.driver.session.query(self.klass).filter_by(
+            id=self.default_deployment['id']).update({
+                'locked': timeout - DEFAULT_STALE_LOCK_TIMEOUT})
+        self.driver.session.commit()
 
         #test remove stale lock
-        self.driver.save_deployment(self.default_deployment['id'], body, secrets, tenant_id='T1000')
+        self.driver.save_deployment(self.default_deployment['id'], body,
+                                    secrets, tenant_id='T1000')
 
         #get saved deployment
-        deployment = db.sql.Session.query(self.klass).filter_by(
-            id=self.default_deployment['id']
-        ).first()
+        deployment = self.driver.session.query(self.klass).filter_by(
+            id=self.default_deployment['id']).first()
 
         #check for unlocked
         self.assertEquals(deployment.locked, 0)
 
-        db.sql.Session.query(self.klass).filter_by(
+        self.driver.session.query(self.klass).filter_by(
             id=self.default_deployment['id']).delete()
+
+    def test_driver_creation(self):
+        driver = db.get_driver(connection_string='sqlite://')
+        self.assertEquals(driver.connection_string, 'sqlite://')
+        self.assertEquals(driver.__class__.__name__, 'Driver')
+
+    def test_driver_creation_multiple(self):
+        driver1 = db.get_driver(connection_string='sqlite://')
+        driver2 = db.get_driver(connection_string='mongodb://fake')
+        self.assertNotEqual(driver1, driver2)
+        self.assertEquals(driver1.connection_string, 'sqlite://')
+        self.assertEquals(driver2.connection_string, 'mongodb://fake')
+
+    def test_driver_creation_multiple_same_class(self):
+        driver1 = db.get_driver(connection_string='mongodb://fake1')
+        driver2 = db.get_driver(connection_string='mongodb://fake2')
+        self.assertNotEqual(driver1, driver2)
+
 
 if __name__ == '__main__':
     # Run tests. Handle our parameters seprately

@@ -1090,7 +1090,8 @@ class TestDeploymentCounts(unittest.TestCase):
         checkmate.deployments.DB.get_deployments(tenant_id=mox.IgnoreArg()
                                                  ).AndReturn(self._deploymets)
         self._mox.ReplayAll()
-        self._assert_good_count(json.loads(get_deployments_count()), 3)
+        self._assert_good_count(json.loads(get_deployments_count(
+                                driver=checkmate.deployments.DB)), 3)
 
     def test_get_count_tenant(self):
         # remove the extra deployment
@@ -1099,14 +1100,14 @@ class TestDeploymentCounts(unittest.TestCase):
             self._deploymets)
         self._mox.ReplayAll()
         self._assert_good_count(json.loads(get_deployments_count(
-            tenant_id="12345")), 2)
+            tenant_id="12345", driver=checkmate.deployments.DB)), 2)
 
     def test_get_count_deployment(self):
         checkmate.deployments.DB.get_deployments(tenant_id=None).AndReturn(
             self._deploymets)
         self._mox.ReplayAll()
         self._assert_good_count(json.loads(get_deployments_by_bp_count(
-            "blp-123-aabc-efg")), 2)
+            "blp-123-aabc-efg", driver=checkmate.deployments.DB)), 2)
 
     def test_get_count_deployment_and_tenant(self):
         raw_deployments = self._deploymets.copy()
@@ -1119,9 +1120,11 @@ class TestDeploymentCounts(unittest.TestCase):
                                                  ).AndReturn(raw_deployments)
         self._mox.ReplayAll()
         self._assert_good_count(json.loads(get_deployments_by_bp_count(
-            "blp-123-aabc-efg", tenant_id="854673")), 1)
+            "blp-123-aabc-efg", tenant_id="854673",
+            driver=checkmate.deployments.DB)), 1)
         self._assert_good_count(json.loads(get_deployments_by_bp_count(
-            "blp123avc", tenant_id="12345")), 1)
+            "blp123avc", tenant_id="12345", driver=checkmate.deployments.DB)),
+            1)
 
     def _assert_good_count(self, ret, expected_count):
         self.assertIsNotNone(ret, "No count returned")
@@ -1760,7 +1763,7 @@ class TestDeleteDeployments(unittest.TestCase):
                                                 ).AndReturn(self._deployment)
         self._mox.ReplayAll()
         try:
-            delete_deployment('1234')
+            delete_deployment('1234', driver=checkmate.deployments.DB)
             self.fail("Delete deployment with bad status did not raise "
                       "exception")
         except HTTPError as exc:
@@ -1776,7 +1779,7 @@ class TestDeleteDeployments(unittest.TestCase):
                                                 ).AndReturn(None)
         self._mox.ReplayAll()
         try:
-            delete_deployment('1234')
+            delete_deployment('1234', driver=checkmate.deployments.DB)
             self.fail("Delete deployment with not found did not raise "
                       "exception")
         except HTTPError as exc:
@@ -1797,10 +1800,12 @@ class TestDeleteDeployments(unittest.TestCase):
         mock_plan.plan_delete(IgnoreArg()).AndReturn([])
         self._mox.StubOutWithMock(checkmate.deployments.delete_deployment_task,
                                   "delay")
-        checkmate.deployments.delete_deployment_task.delay('1234'
+        checkmate.deployments.delete_deployment_task.delay('1234',
+                                                           driver=checkmate.
+                                                           deployments.DB
                                                            ).AndReturn(True)
         self._mox.ReplayAll()
-        delete_deployment('1234')
+        delete_deployment('1234', driver=checkmate.deployments.DB)
         self._mox.VerifyAll()
         self.assertEqual(202, bottle.response.status_code)
 
@@ -1821,7 +1826,9 @@ class TestDeleteDeployments(unittest.TestCase):
         self._mox.StubOutWithMock(
             checkmate.deployments.update_deployment_status, "s")
         mock_subtask = self._mox.CreateMockAnything()
-        checkmate.deployments.update_deployment_status.s('1234', 'DELETING')\
+        checkmate.deployments.update_deployment_status.s('1234', 'DELETING',
+                                                         driver=checkmate.
+                                                         deployments.DB)\
             .AndReturn(mock_subtask)
         mock_subtask.delay().AndReturn(True)
         self._mox.StubOutClassWithMocks(checkmate.deployments, "chord")
@@ -1829,12 +1836,14 @@ class TestDeleteDeployments(unittest.TestCase):
         mock_delete_dep = self._mox.CreateMockAnything()
         self._mox.StubOutWithMock(checkmate.deployments.delete_deployment_task,
                                   "si")
-        checkmate.deployments.delete_deployment_task.si(IgnoreArg())\
+        checkmate.deployments.delete_deployment_task.si(IgnoreArg(),
+                                                        driver=checkmate.
+                                                        deployments.DB)\
             .AndReturn(mock_delete_dep)
         mock_chord.__call__(IgnoreArg(), interval=IgnoreArg(),
                             max_retries=IgnoreArg()).AndReturn(True)
         self._mox.ReplayAll()
-        delete_deployment('1234')
+        delete_deployment('1234', driver=checkmate.deployments.DB)
         self._mox.VerifyAll()
         self.assertEquals(202, bottle.response.status_code)
 
@@ -1894,7 +1903,9 @@ class TestGetResourceStuff(unittest.TestCase):
         checkmate.deployments.DB.get_deployment('1234')\
             .AndReturn(self._deployment)
         self._mox.ReplayAll()
-        ret = json.loads(get_deployment_resources('1234'))
+        ret = json.loads(get_deployment_resources('1234',
+                                                  driver=checkmate.deployments.
+                                                  DB))
         self.assertDictEqual(self._deployment.get('resources'), ret)
 
     def test_happy_status(self):
@@ -1902,7 +1913,9 @@ class TestGetResourceStuff(unittest.TestCase):
         checkmate.deployments.DB.get_deployment('1234')\
             .AndReturn(self._deployment)
         self._mox.ReplayAll()
-        ret = json.loads(get_resources_statuses('1234'))
+        ret = json.loads(get_resources_statuses('1234',
+                                                driver=checkmate.deployments.
+                                                DB))
         self.assertNotIn('fake', ret)
         for key in ['1', '2', '3', '9']:
             self.assertIn(key, ret)
@@ -1917,7 +1930,7 @@ class TestGetResourceStuff(unittest.TestCase):
             .AndReturn(self._deployment)
         self._mox.ReplayAll()
         try:
-            get_deployment_resources('1234')
+            get_deployment_resources('1234', driver=checkmate.deployments.DB)
             self.fail("get_deployment_resources with not found did not raise"
                       " exception")
         except HTTPError as exc:
@@ -1932,7 +1945,7 @@ class TestGetResourceStuff(unittest.TestCase):
             .AndReturn(self._deployment)
         self._mox.ReplayAll()
         try:
-            get_resources_statuses('1234')
+            get_resources_statuses('1234', driver=checkmate.deployments.DB)
             self.fail("get_resources_status with not found did not raise "
                       "exception")
         except HTTPError as exc:
@@ -1944,7 +1957,7 @@ class TestGetResourceStuff(unittest.TestCase):
         checkmate.deployments.DB.get_deployment('1234').AndReturn(None)
         self._mox.ReplayAll()
         try:
-            get_deployment_resources('1234')
+            get_deployment_resources('1234', driver=checkmate.deployments.DB)
             self.fail("get_deployment_resources with not found did not raise"
                       " exception")
         except CheckmateDoesNotExist as exc:
@@ -1955,7 +1968,7 @@ class TestGetResourceStuff(unittest.TestCase):
         checkmate.deployments.DB.get_deployment('1234').AndReturn(None)
         self._mox.ReplayAll()
         try:
-            get_resources_statuses('1234')
+            get_resources_statuses('1234', driver=checkmate.deployments.DB)
             self.fail("get_deployment_resources with not found did not raise"
                       " exception")
         except CheckmateDoesNotExist as exc:
@@ -1967,7 +1980,9 @@ class TestGetResourceStuff(unittest.TestCase):
             .AndReturn(self._deployment)
         self._mox.ReplayAll()
         bottle.request.environ['QUERY_STRING'] = "?trace"
-        ret = json.loads(get_resources_statuses('1234'))
+        ret = json.loads(get_resources_statuses('1234',
+                                                driver=checkmate.
+                                                deployments.DB))
         self.assertNotIn('fake', ret)
         for key in ['1', '2', '3', '9']:
             self.assertIn(key, ret)
@@ -2027,12 +2042,15 @@ class TestPostbackHelpers(unittest.TestCase):
         self._mox.StubOutWithMock(checkmate.deployments.resource_postback,
                                   "delay")
         checkmate.deployments.resource_postback.delay('1234',
-                                                      IgnoreArg()
+                                                      IgnoreArg(),
+                                                      driver=checkmate.
+                                                      deployments.DB
                                                       ).AndReturn(True)
         self._mox.ReplayAll()
         ret = update_all_provider_resources('foo', '1234', 'NEW',
                                             message='I test u',
-                                            trace='A trace')
+                                            trace='A trace',
+                                            driver=checkmate.deployments.DB)
         self.assertIn('instance:1', ret)
         self.assertIn('instance:9', ret)
         self.assertEquals('NEW', ret.get('instance:1', {}).get('status'))
@@ -2055,7 +2073,8 @@ class TestPostbackHelpers(unittest.TestCase):
         checkmate.deployments.DB.save_deployment('1234',
                                                  expected).AndReturn(expected)
         self._mox.ReplayAll()
-        update_deployment_status('1234', 'CHANGED')
+        update_deployment_status('1234', 'CHANGED',
+                                 driver=checkmate.deployments.DB)
         self._mox.VerifyAll()
 
 

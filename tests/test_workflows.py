@@ -14,8 +14,9 @@ LOG = logging.getLogger(__name__)
 from SpiffWorkflow import Workflow as SpiffWorkflow
 from SpiffWorkflow.storage import DictionarySerializer
 from SpiffWorkflow.specs import WorkflowSpec, Simple, Merge, Join
+from checkmate.workflows import wait_for, Workflow
 
-from checkmate.workflows import wait_for, Workflow, safe_workflow_save, db
+
 from checkmate.db import ObjectLockedError
 class TestWorkflowTools(unittest.TestCase):
     def test_simple_wait_for(self):

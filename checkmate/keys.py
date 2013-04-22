@@ -13,6 +13,7 @@ def generate_key_pair(bits=2048):
 
     returns them as a private, public tuple of dicts. The dicts have key,
     and PEM values. The public key also has an ssh value in it"""
+    Random.atfork()
     key = RSA.generate(bits)
     private_string = key.exportKey('PEM')
     public = key.publickey()
@@ -37,6 +38,7 @@ def get_public_key(private_key):
 def hash_SHA512(value, salt=None):
     """Create random SHA512 hashed value"""
     if not salt:
+        Random.atfork()
         salt = Random.get_random_bytes(8).encode('base64').strip()
     new_hash = SHA512.new(salt)
     new_hash.update(value)

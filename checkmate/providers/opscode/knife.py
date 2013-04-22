@@ -411,6 +411,10 @@ def write_databag(environment, bagname, itemname, contents, resource,
     """
     utils.match_celery_logging(LOG)
 
+    #TODO: add context
+    if utils.is_simulation(environment):
+        return
+
     def on_failure(exc, task_id, args, kwargs, einfo):
         """ Handle task failure """
         if args and len(args) >= 3:
@@ -532,6 +536,26 @@ def cook(host, environment, resource, recipes=None, roles=None, path=None,
          attributes=None, kitchen_name='kitchen'):
     """Apply recipes/roles to a server"""
     utils.match_celery_logging(LOG)
+
+    #TODO: add context
+    if utils.is_simulation(environment):
+        pb_res = {}
+        # Update status of host resource to ACTIVE
+        host_results = {}
+        host_results['status'] = "ACTIVE"
+        host_key = 'instance:%s' % resource['hosted_on']
+        host_results = {host_key: host_results}
+        pb_res.update(host_results)
+
+        # Update status of current resource to ACTIVE
+        results = {}
+        results['status'] = "ACTIVE"
+        instance_key = 'instance:%s' % resource['index']
+        results = {instance_key: results}
+        pb_res.update(results)
+
+        resource_postback.delay(environment, pb_res)
+        return
 
     def on_failure(exc, task_id, args, kwargs, einfo):
         """ Handle task failure """
@@ -706,6 +730,15 @@ def create_environment(name, service_name, path=None, private_key=None,
     """
     utils.match_celery_logging(LOG)
 
+    #TODO: add context
+    if utils.is_simulation(name):
+        return {
+            'environment': '/var/tmp/%s/' % name,
+            'kitchen': '/var/tmp/%s/kitchen' % name,
+            'private_key_path': '/var/tmp/%s/private.pem' % name,
+            'public_key_path': '/var/tmp/%s/checkmate.pub' % name,
+        }
+
     def on_failure(exc, task_id, args, kwargs, einfo):
         """ Handle task failure """
         if kwargs and kwargs.get('provider'):
@@ -802,6 +835,25 @@ def register_node(host, environment, resource, path=None, password=None,
     :param identity_file: private key file to use to connect to the node
     """
     utils.match_celery_logging(LOG)
+
+    #TODO: add context
+    if utils.is_simulation(environment):
+        res = {}
+        host_results = {}
+        host_results['status'] = "CONFIGURE"
+        host_key = 'instance:%s' % resource['hosted_on']
+        host_results = {host_key: host_results}
+        res.update(host_results)
+
+        # Update status of current resource to BUILD
+        results = {}
+        results['status'] = "BUILD"
+        instance_key = 'instance:%s' % resource['index']
+        results = {instance_key: results}
+        res.update(results)
+
+        resource_postback.delay(environment, res)
+        return
 
     def on_failure(exc, task_id, args, kwargs, einfo):
         """ Handle task failure """
@@ -908,6 +960,11 @@ def manage_role(name, environment, resource, path=None, desc=None,
                 kitchen_name='kitchen'):
     """Write/Update role"""
     utils.match_celery_logging(LOG)
+
+    #TODO: add context
+    if utils.is_simulation(environment):
+        return
+
     results = {}
 
     root = _get_root_environments_path(environment, path)

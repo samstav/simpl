@@ -66,9 +66,13 @@ def put_blueprint(b_id, tenant_id=None):
     if 'id' not in entity:
         entity['id'] = str(b_id)
 
+    existing = DB.get_blueprint(b_id)
     body, secrets = extract_sensitive_data(entity)
     results = DB.save_blueprint(b_id, body, secrets, tenant_id=tenant_id)
-
+    if existing:
+        response.status = 200  # OK - updated
+    else:
+        response.status = 201  # Created
     return write_body(results, request, response)
 
 
@@ -148,6 +152,10 @@ class Blueprint(ExtensibleDict):
             elif option_type == 'int':
                 option['type'] = 'integer'
                 LOG.warn("Converted 'type' from 'int' to 'integer' "
+                         " in blueprint '%s'" % data.get('id'))
+            elif option_type == 'region':
+                option['type'] = 'string'
+                LOG.warn("Converted 'type' from 'region' to 'string' "
                          " in blueprint '%s'" % data.get('id'))
 
             # move 'regex' to constraint
