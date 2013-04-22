@@ -410,6 +410,39 @@ def create_instance(context, instance_name, flavor, size, databases, region,
                     'collate': 'latin5_turkish_ci'}]
     """
     match_celery_logging(LOG)
+    if context.get('simulation') is True:
+        resource_key = context['resource']
+        hostname = "srv%s.rackdb.net" % resource_key
+        results = {
+            'instance:%s' % resource_key: {
+                'id': "DBS%s" % resource_key,
+                'name': instance_name,
+                'status': "ACTIVE",
+                'region': region,
+                'interfaces': {
+                    'mysql': {
+                        'host': "srv%s.rackdb.net" % resource_key
+                    }
+                },
+                'databases': {}
+            }
+        }
+        if databases:
+            db_results = results[resource_key]['databases']
+            for database in databases:
+                data = copy.copy(database)
+                data['interfaces'] = {
+                    'mysql': {
+                        'host': "srv%s.rackdb.net" % resource_key,
+                        'database_name': database['name'],
+                    }
+                }
+                db_results[database['name']] = data
+
+        # Send data back to deployment
+        resource_postback.delay(context['deployment'], results)
+        return results
+
     if not api:
         api = Provider._connect(context, region)
 
@@ -464,6 +497,15 @@ def wait_on_build(context, instance_id, region, api=None):
     """ Check to see if DB Instance has finished building """
 
     match_celery_logging(LOG)
+    if context.get('simulation') is True:
+        results = {}
+        results['status'] = "ACTIVE"
+        results['id'] = instance_id
+        instance_key = "instance:%s" % context['resource']
+        results = {instance_key: results}
+        resource_postback.delay(context['deployment'], results)
+        return
+
     if api is None:
         api = Provider._connect(context, region)
 
@@ -514,6 +556,28 @@ def create_database(context, name, region, character_set=None, collate=None,
     """
 
     match_celery_logging(LOG)
+
+    if context.get('simulation') is True:
+        resource_key = context['resource']
+        hostname = "srv%s.rackdb.net" % resource_key
+        database_name = name
+        results = {
+            'instance:%s' % resource_key: {
+                'name': database_name,
+                'host_instance': instance_id or 'DBS%s' % resource_key,
+                'host_region': region,
+                'interfaces': {
+                    'mysql': {
+                        'host': hostname,
+                        'database_name': database_name
+                    },
+                }
+            }
+        }
+        # Send data back to deployment
+        resource_postback.delay(context['deployment'], results)
+        return results
+
     database = {'name': name}
     if character_set:
         database['character_set'] = character_set
@@ -598,12 +662,16 @@ def add_databases(context, instance_id, databases, region, api=None):
         databases = [{'name': 'mydb3'}, {'name': 'mydb4'}]
     """
     match_celery_logging(LOG)
-    if not api:
-        api = Provider._connect(context, region)
 
     dbnames = []
     for db in databases:
         dbnames.append(db['name'])
+
+    if context.get('simulation') is True:
+        return dict(database_names=dbnames)
+
+    if not api:
+        api = Provider._connect(context, region)
 
     instance = api.get_instance(instance_id)
     instance.create_databases(databases)
@@ -620,6 +688,26 @@ def add_user(context, instance_id, databases, username, password, region,
     assert instance_id, "Instance ID not supplied"
 
     instance_key = 'instance:%s' % context['resource']
+    if context.get('simulation') is True:
+        results = {
+            instance_key: {
+                'username': username,
+                'password': password,
+                'status': "ACTIVE",
+                'interfaces': {
+                    'mysql': {
+                        'host': "srv%s.rackdb.net" % context['resource'],
+                        'database_name': databases[0],
+                        'username': username,
+                        'password': password,
+                    }
+                }
+            }
+        }
+        # Send data back to deployment
+        resource_postback.delay(context['deployment'], results)
+        return results
+
     results = {instance_key: {'status': "CONFIGURE"}}
     resource_postback.delay(context['deployment'], results)
 
@@ -699,6 +787,19 @@ def delete_instance(context, api=None):
     if not instance_id:
         raise CheckmateException("No instance id supplied for resource %s"
                                  % key)
+
+    if context.get('simulation') is True:
+        results = {inst_key: {'status': 'DELETED'}}
+        for hosted in resource.get('hosts', []):
+            results.update({
+                'instance:%s' % hosted: {
+                    'status': 'DELETED',
+                    'statusmsg': 'Host %s was deleted'
+                }
+            })
+        # Send data back to deployment
+        resource_postback.delay(context['deployment'], results)
+        return results
 
     if not api:
         api = Provider._connect(context, region)
