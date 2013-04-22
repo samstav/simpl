@@ -468,6 +468,8 @@ Note: to connect to mongodb, also install the pymongo client library:
 
     $ pip install pymongo  # you probably need to sudo this
 
+**CHECKMATE_SIMULATOR_CONNECTION_STRING**: a sql-alchemy or mongodb connection string pointing to the database store for checkmate simulations.
+
 **CHECKMATE_DOMAIN**: a default DNS domain to use for resources created.
 
 **CHECKMATE_PUBLIC_KEY**: a public key string to push to all created servers to allow ssh access to them. If you set this to the contents of your ~/.ssh/id_rsa.pub file you will be able to log on to all checkmate-created servers without having to suply a password.

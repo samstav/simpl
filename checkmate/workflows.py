@@ -31,6 +31,9 @@ from checkmate.utils import write_body, read_body, extract_sensitive_data,\
 from checkmate import orchestrator
 
 db = get_driver()
+SIMULATOR_DB = get_driver(
+    connection_string=os.environ.get('CHECKMATE_SIMULATOR_CONNECTION_STRING',
+                                     'sqlite://'))
 
 LOG = logging.getLogger(__name__)
 

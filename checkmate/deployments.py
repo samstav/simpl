@@ -32,6 +32,9 @@ from celery.canvas import chord, chain, group
 
 LOG = logging.getLogger(__name__)
 DB = get_driver()
+SIMULATOR_DB = get_driver(
+    connection_string=os.environ.get('CHECKMATE_SIMULATOR_CONNECTION_STRING',
+                                     'sqlite://'))
 
 
 def _content_to_deployment(bottle_request, deployment_id=None, tenant_id=None):
