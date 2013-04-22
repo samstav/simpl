@@ -470,7 +470,7 @@ REGION_MAP = {'dallas': 'DFW',
 #
 @task
 def create_server(context, name, region, api_object=None, flavor="2",
-            files=None, image=UBUNTU_12_04_IMAGE_ID):
+                  files=None, image=UBUNTU_12_04_IMAGE_ID):
     """Create a Rackspace Cloud server using novaclient.
 
     Note: Nova server creation requests are asynchronous. The IP address of the
@@ -504,6 +504,18 @@ def create_server(context, name, region, api_object=None, flavor="2",
     }
 
     """
+
+    if context.get('simulation') is True:
+        resource_key = context['resource']
+        results = {
+            'instance:%s' % resource_key: {
+                'id': str(1000 + int(resource_key)),
+                'status': "BUILD",
+            }
+        }
+        # Send data back to deployment
+        resource_postback.delay(context['deployment'], results)
+        return results
 
     match_celery_logging(LOG)
 
@@ -588,13 +600,14 @@ def delete_server_task(context, api=None):
 
     key = context.get("resource_key")
     inst_key = "instance:%s" % key
-    if api is None:
+    if api is None and context.get('simulation') is not True:
         api = Provider._connect(context, region=context.get("region"))
     server = None
     inst_id = context.get("instance_id")
     resource = context.get('resource')
     try:
-        server = api.servers.get(inst_id)
+        if context.get('simulation') is not True:
+            server = api.servers.get(inst_id)
     except (NotFound, NoUniqueMatch):
         LOG.warn("Server %s already deleted" % inst_id)
     if (not server) or (server.status == 'DELETED'):
@@ -653,12 +666,13 @@ def wait_on_delete_server(context, api=None):
     key = context.get("resource_key")
     inst_key = "instance:%s" % key
     resource = context.get('resource')
-    if api is None:
+    if api is None and context.get('simulation') is not True:
         api = Provider._connect(context, region=context.get("region"))
     server = None
     inst_id = context.get("instance_id")
     try:
-        server = api.servers.find(id=inst_id)
+        if context.get('simulation') is not True:
+            server = api.servers.find(id=inst_id)
     except (NotFound, NoUniqueMatch):
         pass
     if (not server) or (server.status == "DELETED"):
@@ -695,6 +709,40 @@ def wait_on_build(context, server_id, region, resource, ip_address_type='public'
     :returns: False when build not ready. Dict with ip addresses when done.
     """
     match_celery_logging(LOG)
+
+    if context.get('simulation') is True:
+        resource_key = context['resource']
+        results = {
+            'instance:%s' % resource_key: {
+                'status': "ACTIVE",
+                'ip': '4.4.4.%s' % resource_key,
+                'public_ip': '4.4.4.%s' % resource_key,
+                'private_ip': '10.1.2.%s' % resource_key,
+                'addresses': {
+                    'public': [
+                        {
+                            "version": 4,
+                            "addr": "4.4.4.%s" % resource_key,
+                        },
+                        {
+                            "version": 6,
+                            "addr": "2001:babe::ff04:36c%s" % resource_key,
+                        }
+                    ],
+                    'private': [
+                        {
+                            "version": 4,
+                            "addr": "10.1.2.%s" % resource_key,
+                        }
+                    ]
+                }
+            }
+        }
+        # Send data back to deployment
+        resource_postback.delay(context['deployment'], results)
+        return results
+
+
     if api_object is None:
         api_object = Provider._connect(context, region)
 
