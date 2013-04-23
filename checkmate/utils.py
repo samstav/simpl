@@ -20,6 +20,7 @@ import sys
 import threading
 from time import gmtime, strftime
 import uuid
+import subprocess
 
 from bottle import abort, request
 import yaml
@@ -647,3 +648,17 @@ def check_all_output(params, find="ERROR"):
 def is_simulation(api_id):
     '''Determine if the current object is in simulation'''
     return api_id.startswith('simulate')
+
+
+def git_checkout(repo_dir, head):
+    """Do a git checkout of `head' in `repo_dir'.
+
+    The checkout method in GitPython has a bug.  This is just a
+    temporary fix.
+
+    GitPython bug report:
+    https://github.com/gitpython-developers/GitPython/issues/106
+    """
+    cmd = ['git', 'checkout', head]
+    p = subprocess.Popen(cmd, cwd=repo_dir)
+    p.wait()

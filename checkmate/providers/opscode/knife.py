@@ -249,6 +249,10 @@ def _cache_blueprint(source_repo):
         url = source_repo
         branch = "master"
     if os.path.exists(repo_cache):
+        repo = git.Repo(repo_cache)
+        if branch in repo.tags:  # Does `branch' point to a tag?
+            LOG.debug("%s points to a tag, no update necessary" % branch)
+            return
         # The mtime of .git/FETCH_HEAD changes upon every "git
         # fetch".  FETCH_HEAD is only created after the first
         # fetch, so use HEAD if it's not there
@@ -259,25 +263,29 @@ def _cache_blueprint(source_repo):
         last_update = time.time() - os.path.getmtime(head_file)
         LOG.debug("cache_expire_time: %s" % cache_expire_time)
         LOG.debug("last_update: %s" % last_update)
+
         if last_update > cache_expire_time:
             LOG.debug("Updating repo: %s" % repo_cache)
-            repo = git.Repo(repo_cache)
             try:
                 repo.remotes.origin.pull()
             except git.GitCommandError as exc:
-                LOG.debug("Unable to pull from git repository at %s.  "
-                          "Using the cached repository" % url)
+                raise CheckmateException("Unable to pull from git repository "
+                                         "at %s.  Using the cached "
+                                         "repository" % url)
         else:
             LOG.debug("Using cached repo: %s" % repo_cache)
     else:
         LOG.debug("Cloning repo to %s" % repo_cache)
         os.makedirs(repo_cache)
         try:
-            git.Repo.clone_from(url, repo_cache, branch=branch)
+            repo = git.Repo.clone_from(url, repo_cache, branch=branch)
         except git.GitCommandError as exc:
             raise CheckmateException("Git repository could not be cloned "
                                      "from '%s'.  The error returned was "
                                      "'%s'" % (url, exc))
+        if branch in repo.tags:  # Does `branch' point to a tag?
+            LOG.debug("`branch' points to a tag.")
+            utils.git_checkout(repo_cache, branch)
 
 
 def _copy_kitchen_blueprint(dest, source_repo):
