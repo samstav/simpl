@@ -1,10 +1,6 @@
 #!/usr/bin/env python
 import logging
 import unittest2 as unittest
-import os
-import uuid
-import time
-from bottle import HTTPError
 
 # Init logging before we load the database, 3rd party, and 'noisy' modules
 from checkmate.utils import init_console_logging
@@ -13,11 +9,11 @@ LOG = logging.getLogger(__name__)
 
 from SpiffWorkflow import Workflow as SpiffWorkflow
 from SpiffWorkflow.storage import DictionarySerializer
-from SpiffWorkflow.specs import WorkflowSpec, Simple, Merge, Join
+from SpiffWorkflow.specs import WorkflowSpec, Simple, Merge
+
 from checkmate.workflows import wait_for, Workflow
 
 
-from checkmate.db import ObjectLockedError
 class TestWorkflowTools(unittest.TestCase):
     def test_simple_wait_for(self):
         """Test that adding a wait_for task works"""
@@ -140,6 +136,7 @@ class TestWorkflowTools(unittest.TestCase):
 
         wait_for(wf_spec, A, [C])
         self.assertListEqual(A.inputs, [M])
+
 
 class TestWorkflow(unittest.TestCase):
     """Test Checkmate Workflow class"""
