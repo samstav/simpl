@@ -805,11 +805,12 @@ def resource_postback(deployment_id, contents, driver=DB):
 
     deployment = driver.get_deployment(deployment_id, with_secrets=True)
     deployment = Deployment(deployment)
+    updates = {}
 
     # Update operation
     operation = deployment_operation(deployment_id, driver=driver)
     if operation:
-        deployment['operation'] = operation
+        updates['operation'] = operation
 
     # Update deployment status
 
@@ -820,18 +821,17 @@ def resource_postback(deployment_id, contents, driver=DB):
         if 'status' in value:
             r_id = key.split(':')[1]
             r_status = value.get('status')
-            deployment['resources'][r_id]['status'] = r_status
+            write_path(updates, 'resources/%s/status' % r_id, r_status)
             # Don't want to write status to resource instance
-            contents[key].pop('status', None)
+            value.pop('status', None)
             if r_status == "ERROR":
                 r_msg = value.get('errmessage')
-                deployment['resources'][r_id]['errmessage'] = r_msg
+                write_path(updates, 'resources/%s/errmessage' % r_id, r_msg)
                 value.pop('errmessage', None)
-                deployment['status'] = "ERROR"
-                if "errmessage" not in deployment:
-                    deployment['errmessage'] = []
-                if r_msg not in deployment['errmessage']:
-                    deployment['errmessage'].append(r_msg)
+                updates['status'] = "ERROR"
+                updates['errmessage'] = deployment.get('errmessage', [])
+                if r_msg not in updates['errmessage']:
+                    updates['errmessage'].append(r_msg)
 
     # Create new contents dict if values existed
     # TODO: make this smarter
@@ -841,57 +841,69 @@ def resource_postback(deployment_id, contents, driver=DB):
             new_contents[key] = value
 
     if new_contents:
-        deployment.on_resource_postback(new_contents)
+        deployment.on_resource_postback(new_contents, target=updates)
 
-    check_and_set_dep_status(deployment)
+    status, error_messages = calculate_deployment_status(deployment)
 
-    body, secrets = extract_sensitive_data(deployment)
-    driver.save_deployment(deployment_id, body, secrets)
+    if status:
+        updates['status'] = status
+    if error_messages:
+        updates['error_messages'] = error_messages
 
-    LOG.debug("Updated deployment %s with post-back" % deployment_id,
-              extra=dict(data=contents))
+    if updates:
+        body, secrets = extract_sensitive_data(updates)
+        driver.save_deployment(deployment_id, body, secrets, partial=True)
+
+        LOG.debug("Updated deployment %s with post-back", deployment_id,
+                  extra=dict(data=contents))
 
 
-def check_and_set_dep_status(deployment):
-    # Check all resources statuses and update DEP status
+def calculate_deployment_status(deployment):
+    '''Check all resources statuses and calculate a deployment status
+
+    :param deployment: the deployment to calculate
+    :returns: tuple of (status, error_message_list)
+    '''
     count = 0
-    statuses = {"NEW": 0,
-                "BUILD": 0,
-                "CONFIGURE": 0,
-                "ACTIVE": 0,
-                'PLANNED': 0,
-                'ERROR': 0,
-                'DELETED': 0,
-                'DELETING': 0
-                }
+    statuses = {
+        "NEW": 0,
+        "BUILD": 0,
+        "CONFIGURE": 0,
+        "ACTIVE": 0,
+        'PLANNED': 0,
+        'ERROR': 0,
+        'DELETED': 0,
+        'DELETING': 0,
+    }
 
+    status = None
+    error_messages = deployment.get('errmessage', [])
     resources = deployment['resources']
     for key, value in resources.items():
         if key.isdigit():
             r_status = resources[key].get('status')
             if r_status == "ERROR":
                 r_msg = resources[key].get('errmessage')
-                if "errmessage" not in deployment:
-                    deployment['errmessage'] = []
-                if r_msg not in deployment['errmessage']:
-                    deployment['errmessage'].append(r_msg)
+                if r_msg not in error_messages:
+                    error_messages.append(r_msg)
             statuses[r_status] += 1
             count += 1
 
     if deployment['status'] != "ERROR":
         if statuses['DELETING'] >= 1:
-            deployment['status'] = "DELETING"
+            status = "DELETING"
         elif statuses['DELETED'] == count:
-            deployment['status'] = "DELETED"
+            status = "DELETED"
         elif statuses['PLANNED'] == count:
-            deployment['status'] = "PLANNED"
+            status = "PLANNED"
         elif statuses['NEW'] == count:
-            deployment['status'] = "NEW"
+            status = "NEW"
         elif statuses['ACTIVE'] == count:
-            deployment['status'] = "ACTIVE"
+            status = "ACTIVE"
         elif statuses['CONFIGURE'] >= 1:
-            deployment['status'] = "CONFIGURE"
+            status = "CONFIGURE"
         elif statuses['BUILD'] >= 1:
-            deployment['status'] = "BUILD"
+            status = "BUILD"
         else:
             LOG.debug("Could not identify a deployment status update")
+    return (status, error_messages)

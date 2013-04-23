@@ -388,7 +388,8 @@ class Driver(DbBase):
         if isinstance(body, ExtensibleDict):
             body = body.__dict__()
         assert isinstance(body, dict), "dict required by backend"
-        assert 'id' in body, "id required to be in body by backend"
+        assert 'id' in body or merge_existing is True, ("id required to be in "
+                                                        "body by backend")
         if not self._client:
             self.database()
         client = self._client
@@ -423,7 +424,8 @@ class Driver(DbBase):
             assert tenant_id or 'tenantId' in body, ("tenantId must be "
                                                      "specified")
             body['_id'] = api_id
-            self.database()[klass].update({'_id': api_id}, body, True,
+            self.database()[klass].update({'_id': api_id}, body,
+                                          not merge_existing,  # Upsert new
                                           False, check_keys=False)
             if secrets:
                 secrets['_id'] = api_id
