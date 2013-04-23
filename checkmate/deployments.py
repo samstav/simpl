@@ -1,8 +1,7 @@
+import copy
 import logging
 import os
 import uuid
-import time
-import copy
 
 from bottle import request, response, abort, get, post, delete, route
 from celery.task import task
@@ -31,7 +30,7 @@ from checkmate.utils import (
 )
 from checkmate.plan import Plan
 from checkmate.deployment import Deployment, generate_keys
-from celery.canvas import chord, chain, group
+from celery.canvas import chord
 
 LOG = logging.getLogger(__name__)
 DB = get_driver()
@@ -489,7 +488,7 @@ def delete_deployment(oid, tenant_id=None, driver=DB):
         chord(tasks)(delete_deployment_task.si(oid, driver=driver), interval=2,
                      max_retries=120)
     else:
-        LOG.warn("No delete tasks for deployment %s" % oid)
+        LOG.warn("No delete tasks for deployment %s", oid)
         delete_deployment_task.delay(oid, driver=driver)
     response.set_header("Location", loc)
     response.set_header("Link", '<%s>; rel="canvas"; title="Delete Deployment"'
@@ -657,8 +656,8 @@ def deployment_operation(dep_id):
     operation['tasks'] = total
     operation['complete'] = complete
     operation['estimated-duration'] = duration
-    operation['last-change'] = time.strftime("%Y-%m-%d %H:%M:%S %z",
-                                             time.gmtime(last_change))
+    operation['last-change'] = utils.get_time_string(time=time.gmtime(
+                                                     last_change))
     if failure > 0:
         operation['status'] = "ERROR"
     elif total > complete:
@@ -690,7 +689,8 @@ def deployment_operation(dep_id):
 
 
 @task
-def update_deployment_status(deployment_id, new_status, driver=DB):
+def update_deployment_status(deployment_id, new_status, error_message=None,
+                             driver=DB):
     """ Update the status of the specified deployment """
     if is_simulation(deployment_id):
         driver = SIMULATOR_DB
@@ -699,6 +699,8 @@ def update_deployment_status(deployment_id, new_status, driver=DB):
         deployment = driver.get_deployment(deployment_id)
         if deployment:
             deployment['status'] = new_status
+            if error_message:
+                deployment['errmessage'] = error_message
             driver.save_deployment(deployment_id, deployment)
 
 
@@ -811,16 +813,16 @@ def resource_postback(deployment_id, contents, driver=DB):
 
     # Set status of resource if post_back includes status
     for key, value in contents.items():
-        if 'status' in contents[key]:
+        if 'status' in value:
             r_id = key.split(':')[1]
-            r_status = contents[key].get('status')
+            r_status = value.get('status')
             deployment['resources'][r_id]['status'] = r_status
             # Don't want to write status to resource instance
             contents[key].pop('status', None)
             if r_status == "ERROR":
-                r_msg = contents[key].get('errmessage')
+                r_msg = value.get('errmessage')
                 deployment['resources'][r_id]['errmessage'] = r_msg
-                contents[key].pop('errmessage', None)
+                value.pop('errmessage', None)
                 deployment['status'] = "ERROR"
                 if "errmessage" not in deployment:
                     deployment['errmessage'] = []
@@ -831,7 +833,7 @@ def resource_postback(deployment_id, contents, driver=DB):
     # TODO: make this smarter
     new_contents = {}
     for key, value in contents.items():
-        if contents[key]:
+        if value:
             new_contents[key] = value
 
     if new_contents:
@@ -847,45 +849,45 @@ def resource_postback(deployment_id, contents, driver=DB):
 
 
 def check_and_set_dep_status(deployment):
-     # Check all resources statuses and update DEP status
-            count = 0
-            statuses = {"NEW": 0,
-                        "BUILD": 0,
-                        "CONFIGURE": 0,
-                        "ACTIVE": 0,
-                        'PLANNED': 0,
-                        'ERROR': 0,
-                        'DELETED': 0,
-                        'DELETING': 0
-                        }
+    # Check all resources statuses and update DEP status
+    count = 0
+    statuses = {"NEW": 0,
+                "BUILD": 0,
+                "CONFIGURE": 0,
+                "ACTIVE": 0,
+                'PLANNED': 0,
+                'ERROR': 0,
+                'DELETED': 0,
+                'DELETING': 0
+                }
 
-            resources = deployment['resources']
-            for key, value in resources.items():
-                if key.isdigit():
-                    r_status = resources[key].get('status')
-                    if r_status == "ERROR":
-                        r_msg = resources[key].get('errmessage')
-                        if "errmessage" not in deployment:
-                            deployment['errmessage'] = []
-                        if r_msg not in deployment['errmessage']:
-                            deployment['errmessage'].append(r_msg)
-                    statuses[r_status] += 1
-                    count += 1
+    resources = deployment['resources']
+    for key, value in resources.items():
+        if key.isdigit():
+            r_status = resources[key].get('status')
+            if r_status == "ERROR":
+                r_msg = resources[key].get('errmessage')
+                if "errmessage" not in deployment:
+                    deployment['errmessage'] = []
+                if r_msg not in deployment['errmessage']:
+                    deployment['errmessage'].append(r_msg)
+            statuses[r_status] += 1
+            count += 1
 
-            if deployment['status'] != "ERROR":
-                if statuses['DELETING'] >= 1:
-                    deployment['status'] = "DELETING"
-                elif statuses['DELETED'] == count:
-                    deployment['status'] = "DELETED"
-                elif statuses['PLANNED'] == count:
-                    deployment['status'] = "PLANNED"
-                elif statuses['NEW'] == count:
-                    deployment['status'] = "NEW"
-                elif statuses['ACTIVE'] == count:
-                    deployment['status'] = "ACTIVE"
-                elif statuses['CONFIGURE'] >= 1:
-                    deployment['status'] = "CONFIGURE"
-                elif statuses['BUILD'] >= 1:
-                    deployment['status'] = "BUILD"
-                else:
-                    LOG.debug("Could not identify a deployment status update")
+    if deployment['status'] != "ERROR":
+        if statuses['DELETING'] >= 1:
+            deployment['status'] = "DELETING"
+        elif statuses['DELETED'] == count:
+            deployment['status'] = "DELETED"
+        elif statuses['PLANNED'] == count:
+            deployment['status'] = "PLANNED"
+        elif statuses['NEW'] == count:
+            deployment['status'] = "NEW"
+        elif statuses['ACTIVE'] == count:
+            deployment['status'] = "ACTIVE"
+        elif statuses['CONFIGURE'] >= 1:
+            deployment['status'] = "CONFIGURE"
+        elif statuses['BUILD'] >= 1:
+            deployment['status'] = "BUILD"
+        else:
+            LOG.debug("Could not identify a deployment status update")
