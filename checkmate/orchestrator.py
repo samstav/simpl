@@ -90,7 +90,8 @@ def run_workflow(w_id, timeout=900, wait=1, counter=1, key=None, driver=None):
             LOG.debug("Workflow '%s' is already complete. Marked it so." %
                       w_id)
         else:
-            LOG.debug("Workflow '%s' is already complete. Nothing to do." % w_id)
+            LOG.debug("Workflow '%s' is already complete. Nothing to do.",
+                      w_id)
 
         driver.unlock_workflow(w_id, key)
         return True
@@ -149,7 +150,7 @@ def run_workflow(w_id, timeout=900, wait=1, counter=1, key=None, driver=None):
                                                                  timeout,
                                                                  wait,
                                                                  counter))
-        # If we have to retry the run, pass in the key so that 
+        # If we have to retry the run, pass in the key so that
         # we will not try to re-lock the workflow.
         retry_kwargs = {
             'timeout': timeout,
@@ -189,8 +190,9 @@ def run_one_task(context, workflow_id, task_id, timeout=60, driver=None):
             raise IndexError("Task '%s' not found in Workflow '%s'" % (task_id,
                              workflow_id))
         if task._is_finished():
-            raise ValueError("Task '%s' is in state '%s' which cannot be executed"
-                             % (task.get_name(), task.get_state_name()))
+            raise ValueError("Task '%s' is in state '%s' which cannot be "
+                             "executed" % (task.get_name(),
+                                           task.get_state_name()))
 
         if task._is_predicted() or task._has_state(Task.WAITING):
             LOG.debug("Progressing task '%s' (%s)" % (task_id,
@@ -208,17 +210,17 @@ def run_one_task(context, workflow_id, task_id, timeout=60, driver=None):
             result = task.task_spec._update_state(task)
         elif task._has_state(Task.READY):
             LOG.debug("Completing task '%s' (%s)" % (task_id,
-                    task.get_state_name()))
+                      task.get_state_name()))
             result = d_wf.complete_task_from_id(task_id)
         else:
             LOG.warn("Task '%s' in Workflow '%s' is in state %s and cannot be "
-                 "progressed" % (task_id, workflow_id, task.get_state_name()))
+                     "progressed", task_id, workflow_id, task.get_state_name())
             return False
         update_workflow_status(d_wf)
         updated = d_wf.serialize(serializer)
         if original != updated:
             LOG.debug("Task '%s' in Workflow '%s' completion result: %s" % (
-                    task_id, workflow_id, result))
+                      task_id, workflow_id, result))
             msg = "Saving: %s" % d_wf.get_dump()
             LOG.debug(msg)
             #TODO: make DRY
