@@ -543,6 +543,7 @@ def create_loadbalancer(context, name, vip_type, protocol, region, api=None,
         resource_key = context['resource']
         results = {
             'instance:%s' % resource_key: {
+                'status': "BUILD",
                 'id': "LB0%s" % resource_key,
                 'public_ip': "4.4.4.20%s" % resource_key,
                 'port': port,
@@ -664,9 +665,8 @@ def delete_lb_task(context, key, lbid, region, api=None):
         resource_key = context['resource']
         results = {
             "instance:%s" % resource_key: {
-                "status": "DELETING",
-                "status_msg":
-                "Waiting on resource deletion"
+                "status": "DELETING",  # set it done in wait_on_delete
+                "status_msg": "Waiting on resource deletion"
             }
         }
         return results
@@ -935,11 +935,12 @@ def wait_on_build(context, lbid, region, api=None):
     LOG.debug("Getting loadbalancer %s" % lbid)
 
     if context.get('simulation') is True:
-        results = {}
-        results['status'] = "ACTIVE"
-        results['id'] = lbid
         instance_key = 'instance:%s' % context['resource']
-        results = {instance_key: results}
+        results = {
+            instance_key: {
+                'status': "ACTIVE",
+            }
+        }
         resource_postback.delay(context['deployment'], results)
         return results
 
