@@ -1,6 +1,7 @@
 import copy
 import logging
 import os
+import time
 import uuid
 
 from bottle import request, response, abort, get, post, delete, route
@@ -27,6 +28,7 @@ from checkmate.utils import (
     with_tenant,
     match_celery_logging,
     is_simulation,
+    get_time_string,
 )
 from checkmate.plan import Plan
 from checkmate.deployment import Deployment, generate_keys
@@ -657,8 +659,7 @@ def deployment_operation(dep_id, driver=DB):
     operation['tasks'] = total
     operation['complete'] = complete
     operation['estimated-duration'] = duration
-    operation['last-change'] = utils.get_time_string(time=time.gmtime(
-                                                     last_change))
+    operation['last-change'] = get_time_string(time=time.gmtime(last_change))
     if failure > 0:
         operation['status'] = "ERROR"
     elif total > complete:
