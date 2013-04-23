@@ -246,6 +246,7 @@ def execute_plan(depid, request_context, driver=DB, asynchronous=False):
 
 @task
 def process_post_deployment(deployment, request_context, driver=DB):
+    match_celery_logging(LOG)
 
     deployment = Deployment(deployment)
 
@@ -692,6 +693,7 @@ def deployment_operation(dep_id):
 def update_deployment_status(deployment_id, new_status, error_message=None,
                              driver=DB):
     """ Update the status of the specified deployment """
+    match_celery_logging(LOG)
     if is_simulation(deployment_id):
         driver = SIMULATOR_DB
 
@@ -739,6 +741,7 @@ def delete_deployment_task(dep_id, driver=DB):
 def alt_resource_postback(contents, deployment_id, driver=DB):
     """ This is just an argument shuffle to make it easier
     to chain this with other tasks """
+    match_celery_logging(LOG)
     if is_simulation(deployment_id):
         driver = SIMULATOR_DB
     resource_postback.delay(deployment_id, contents, driver=driver)
@@ -747,6 +750,7 @@ def alt_resource_postback(contents, deployment_id, driver=DB):
 @task(default_retry_delay=0.25, max_retries=4)
 def update_all_provider_resources(provider, deployment_id, status,
                                   message=None, trace=None, driver=DB):
+    match_celery_logging(LOG)
     if is_simulation(deployment_id):
         driver = SIMULATOR_DB
     dep = driver.get_deployment(deployment_id)
@@ -796,6 +800,7 @@ def resource_postback(deployment_id, contents, driver=DB):
 
     The contents are a hash (dict) of all the above
     """
+    match_celery_logging(LOG)
     if is_simulation(deployment_id):
         driver = SIMULATOR_DB
 
