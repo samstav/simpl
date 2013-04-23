@@ -601,7 +601,7 @@ def plan(deployment, context):
     return deployment
 
 
-def deployment_operation(dep_id):
+def deployment_operation(dep_id, driver=DB):
     """Return the operation dictionary for a given deployment.
 
     Example:
@@ -618,13 +618,13 @@ def deployment_operation(dep_id):
     operation = {}
 
     # Fetch workflow & deployment data
-    raw_workflow = DB.get_workflow(dep_id)
+    raw_workflow = driver.get_workflow(dep_id)
     if not raw_workflow:
         return
     serializer = DictionarySerializer()
     workflow = Workflow.deserialize(serializer, raw_workflow)
     tasks = workflow.task_tree.children
-    deployment = DB.get_deployment(dep_id)
+    deployment = driver.get_deployment(dep_id)
 
     # Loop through tasks and calculate statistics
     spiff_status = {
@@ -808,7 +808,7 @@ def resource_postback(deployment_id, contents, driver=DB):
     deployment = Deployment(deployment)
 
     # Update operation
-    operation = deployment_operation(deployment_id)
+    operation = deployment_operation(deployment_id, driver=driver)
     if operation:
         deployment['operation'] = operation
 
