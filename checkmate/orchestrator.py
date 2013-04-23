@@ -159,10 +159,12 @@ def run_workflow(w_id, timeout=900, wait=1, counter=1, key=None, driver=None):
             'key': key,
             'driver': driver,
         }
+        driver.unlock_workflow(w_id, key)
         return run_workflow.retry([w_id], kwargs=retry_kwargs, countdown=wait,
                                   Throw=False)
     else:
         LOG.debug("Workflow '%s' did not complete (no timeout set)." % w_id)
+        driver.unlock_workflow(w_id, key)
         return False
 
 
