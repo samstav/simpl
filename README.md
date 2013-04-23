@@ -366,7 +366,7 @@ For running the service:
 
 For development (only checkmate hacking):
 
-    sudo pip install -r pip-requirements.py
+    sudo pip install -r pip-requirements.txt
     sudo python setup.py develop
 
 For development (hacking on other dependencies)
