@@ -13,6 +13,7 @@ from checkmate.workflows import wait_for
 from checkmate.utils import match_celery_logging
 from copy import deepcopy
 from celery.canvas import chain, group
+from cloudlb.errors import CloudlbException
 
 LOG = logging.getLogger(__name__)
 
@@ -844,7 +845,9 @@ def add_node(context, lbid, ipaddr, region, resource, api=None):
             placeholder.delete()
             LOG.debug('Removed %s:%s from load balancer %s',
                       placeholder.address, placeholder.port, lbid)
-        except StandardError as exc:
+        # The lb client exceptions extend Exception and are missed
+        # by the generic handler
+        except (CloudlbException, StandardError) as exc:
             return add_node.retry(exc=exc)
 
     return results
