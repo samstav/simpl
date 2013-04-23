@@ -14,7 +14,7 @@ from celery.app.task import Context
 import bottle
 from bottle import HTTPError
 import mox
-from mox import IgnoreArg, Not, In
+from mox import IgnoreArg
 
 import checkmate
 from checkmate import keys
@@ -1778,14 +1778,14 @@ class TestPostDeployments(unittest.TestCase):
         checkmate.deployments._save_deployment(self._deployment,
                                                deployment_id='1234',
                                                tenant_id=IgnoreArg(),
-                                               driver=Not(In([None])))\
+                                               driver=IgnoreArg())\
             .AndReturn(True)
 
         self._mox.StubOutWithMock(checkmate.deployments, "execute_plan")
         checkmate.deployments.execute_plan = self._mox.CreateMockAnything()
         checkmate.deployments.execute_plan.__call__('1234', IgnoreArg(),
                                                     asynchronous=IgnoreArg(),
-                                                    driver=Not(In([None])))\
+                                                    driver=IgnoreArg())\
             .AndReturn(True)
 
         self._mox.ReplayAll()
