@@ -255,7 +255,7 @@ class Driver(DbBase):
                                        object_exists['_lock_timestamp'])
 
                     # The lock is stale if it is greater than 30 seconds old
-                    if lock_time_delta >= 30:
+                    if lock_time_delta >= 5:
                         # Key is stale, force the lock
                         LOG.warning("%s(%s) had a stale lock of %s seconds!",
                                     klass, api_id, lock_time_delta)
