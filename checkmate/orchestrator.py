@@ -156,7 +156,6 @@ def run_workflow(w_id, timeout=900, wait=1, counter=1, key=None, driver=None):
             'timeout': timeout,
             'wait': wait,
             'counter': counter + 1,
-            'key': key,
             'driver': driver,
         }
         driver.unlock_workflow(w_id, key)
