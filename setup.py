@@ -38,8 +38,7 @@ class Tox(TestCommand):
     def run_tests(self):
         #import here, cause outside the eggs aren't loaded
         import tox
-        errno = tox.cmdline(self.test_args)
-        sys.exit(errno)
+        tox.cmdline(self.test_args)
 
 
 def get_config():

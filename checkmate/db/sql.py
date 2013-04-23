@@ -193,6 +193,7 @@ class Driver(DbBase):
 
     def save_deployment(self, id, body, secrets=None, tenant_id=None,
                         partial=False):
+        # FIXME: Seems to always do partial, so not passing in the parameter
         return self.save_object(Deployment, id, body, secrets, tenant_id)
 
     #BLUEPRINTS

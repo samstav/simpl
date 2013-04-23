@@ -518,7 +518,7 @@ class Provider(ProviderBase):
 import cloudlb
 from celery.task import task
 
-from checkmate.providers.rackspace.dns import  parse_domain, delete_record
+from checkmate.providers.rackspace.dns import parse_domain, delete_record
 
 # Cloud Load Balancers needs an IP for all load balancers. To create one we
 # sometimes need a dummy node. This is the IP address we use for the dummy
@@ -543,6 +543,7 @@ def create_loadbalancer(context, name, vip_type, protocol, region, api=None,
         resource_key = context['resource']
         results = {
             'instance:%s' % resource_key: {
+                'status': "BUILD",
                 'id': "LB0%s" % resource_key,
                 'public_ip': "4.4.4.20%s" % resource_key,
                 'port': port,
@@ -606,7 +607,7 @@ def create_loadbalancer(context, name, vip_type, protocol, region, api=None,
         if ip_data.ipVersion == 'IPV4' and ip_data.type == "PUBLIC":
             vip = ip_data.address
 
-    LOG.debug('Load balancer %d created.  VIP = %s' % (loadbalancer.id, vip))
+    LOG.debug('Load balancer %s created. VIP = %s', loadbalancer.id, vip)
 
     results = {'instance:%s' % context['resource']: {
         'id': loadbalancer.id,
@@ -634,7 +635,9 @@ def collect_record_data(deployment_id, resource_key, record):
     contents = {
         "instance:%s" % resource_key: {
             "domain_id": record.get("domain"),
-            "record_id": record.get("id")}}
+            "record_id": record.get("id")
+        }
+    }
     resource_postback.delay(deployment_id, contents)
     return contents
 
@@ -647,13 +650,16 @@ def sync_resource_task(context, resource, resource_key, api=None):
         api = Provider._connect(context, resource.get("region"))
     try:
         lb = api.loadbalancers.get(resource.get("instance", {}).get("id"))
-        return {key: {
-            "status": lb.status,
-            'port': lb.port,
-            'protocol': lb.protocol
-        }}
+        return {
+            key: {
+                "status": lb.status,
+                'port': lb.port,
+                'protocol': lb.protocol
+            }
+        }
     except cloudlb.errors.NotFound:
         return {key: {}}
+
 
 @task
 def delete_lb_task(context, key, lbid, region, api=None):
@@ -664,9 +670,8 @@ def delete_lb_task(context, key, lbid, region, api=None):
         resource_key = context['resource']
         results = {
             "instance:%s" % resource_key: {
-                "status": "DELETING",
-                "status_msg":
-                "Waiting on resource deletion"
+                "status": "DELETING",  # set it done in wait_on_delete
+                "status_msg": "Waiting on resource deletion"
             }
         }
         return results
@@ -690,22 +695,27 @@ def delete_lb_task(context, key, lbid, region, api=None):
     try:
         dlb = api.loadbalancers.get(lbid)
     except cloudlb.errors.NotFound:
-        LOG.debug('Load balancer %d was already deleted.' % lbid)
+        LOG.debug('Load balancer %s was already deleted.', lbid)
         return {instance_key: {"status": "DELETED"}}
-    LOG.debug("Found load balancer %s [%s] to delete" % (dlb, dlb.status))
+    LOG.debug("Found load balancer %s [%s] to delete" %(dlb, dlb.status))
     if dlb.status != "DELETED":
         dlb.delete()
-    LOG.debug('Load balancer %s deleted.' % lbid)
-    return {instance_key: {"status": "DELETING", "status_msg": "Waiting on resource deletion"}}
+    LOG.debug('Load balancer %s deleted.', lbid)
+    return {
+        instance_key: {
+            "status": "DELETING",
+            "status_msg": "Waiting on resource deletion"
+        }
+    }
 
 
 @task(default_retry_delay=2, max_retries=60)
-def wait_on_lb_delete(req_context, key, dep_id, lbid, region, api=None):
+def wait_on_lb_delete(context, key, dep_id, lbid, region, api=None):
 
     match_celery_logging(LOG)
     inst_key = "instance:%s" % key
 
-    if req_context.get('simulation') is True:
+    if context.get('simulation') is True:
         results = {inst_key: {'status': 'DELETED'}}
         return results
 
@@ -721,9 +731,9 @@ def wait_on_lb_delete(req_context, key, dep_id, lbid, region, api=None):
     wait_on_lb_delete.on_failure = on_failure
 
     if api is None:
-        api = Provider._connect(req_context, region)
+        api = Provider._connect(context, region)
     dlb = None
-    LOG.debug("Checking on loadbalancer %s delete status" % lbid)
+    LOG.debug("Checking on loadbalancer %s delete status", lbid)
     try:
         dlb = api.loadbalancers.get(lbid)
     except cloudlb.errors.NotFound:
@@ -757,13 +767,13 @@ def add_node(context, lbid, ipaddr, region, resource, api=None):
     loadbalancer = api.loadbalancers.get(lbid)
 
     if loadbalancer.status != "ACTIVE":
-        return add_node.retry(exc=CheckmateException("Loadbalancer %s cannot be "
-                                                     "modified while status is %s"
-                                                     % (lbid, loadbalancer.status)))
+        exc = CheckmateException("Loadbalancer %s cannot be modified while "
+                                 "status is %s" % (lbid, loadbalancer.status))
+        return add_node.retry(exc=exc)
     if not (loadbalancer and loadbalancer.port):
-        return add_node.retry(
-            exc=CheckmateBadState("Could not retrieve data for load balancer "
-                                  "{}".format(lbid)))
+        exc = CheckmateBadState("Could not retrieve data for load balancer %s"
+                                % lbid)
+        return add_node.retry(exc=exc)
     results = None
     port = loadbalancer.port
 
@@ -786,8 +796,8 @@ def add_node(context, lbid, ipaddr, region, resource, api=None):
                 if node.condition != "ENABLED":
                     node.condition = "ENABLED"
                 node.update()
-                LOG.debug("Updated %s:%d from load balancer %d" % (
-                    node.address, node.port, lbid))
+                LOG.debug("Updated %s:%d from load balancer %d", node.address,
+                          node.port, lbid)
             # We return this at the end of the call
             results = {'id': node.id}
         elif node.address == PLACEHOLDER_IP:
@@ -808,33 +818,33 @@ def add_node(context, lbid, ipaddr, region, resource, api=None):
             else:
                 LOG.warning("CloudLB says node %s (ID=%s) was added to LB %s, "
                             "but upon validating, it does not look like that "
-                            "is the case!" % (ipaddr, results[0].id, lbid))
+                            "is the case!", ipaddr, results[0].id, lbid)
                 # Try again!
-                return add_node.retry(
-                    exc=CheckmateException("Validation failed - Node was not "
-                                           "added"))
+                exc = CheckmateException("Validation failed - Node was not "
+                                         "added")
+                return add_node.retry(exc=exc)
         except cloudlb.errors.ResponseError, exc:
             if exc.status == 422:
                 LOG.debug("Cannot modify load balancer %d. Will retry "
-                          "adding %s (%d %s)" % (lbid, ipaddr, exc.status,
-                                                 exc.reason))
+                          "adding %s (%d %s)", lbid, ipaddr, exc.status,
+                          exc.reason)
                 return add_node.retry(exc=exc)
             LOG.debug("Response error from load balancer %d. Will retry "
-                      "adding %s (%d %s)" % (lbid, ipaddr, exc.status,
-                                             exc.reason))
+                      "adding %s (%d %s)", lbid, ipaddr, exc.status,
+                      exc.reason)
             return add_node.retry(exc=exc)
         except Exception, exc:
             LOG.debug("Error adding %s behind load balancer %d. Error: "
-                      "%s. Retrying" % (ipaddr, lbid, str(exc)))
+                      "%s. Retrying", ipaddr, lbid, str(exc))
             return add_node.retry(exc=exc)
 
     # Delete placeholder
     if placeholder:
         try:
             placeholder.delete()
-            LOG.debug('Removed %s:%d from load balancer %d' % (
-                      placeholder.address, placeholder.port, lbid))
-        except Exception, exc:
+            LOG.debug('Removed %s:%s from load balancer %s',
+                      placeholder.address, placeholder.port, lbid)
+        except StandardError as exc:
             return add_node.retry(exc=exc)
 
     return results
@@ -859,25 +869,24 @@ def delete_node(context, lbid, ipaddr, port, region, api=None):
     if node_to_delete:
         try:
             node_to_delete.delete()
-            LOG.debug('Removed %s:%d from load balancer %d' % (
-                ipaddr, port, lbid))
+            LOG.debug('Removed %s:%s from load balancer %s', ipaddr, port,
+                      lbid)
         except cloudlb.errors.ResponseError, exc:
             if exc.status == 422:
                 LOG.debug("Cannot modify load balancer %d. Will retry "
-                          "deleting %s:%d (%d %s)" % (lbid, ipaddr, port,
-                                                      exc.status, exc.reason))
+                          "deleting %s:%s (%s %s)", lbid, ipaddr, port,
+                          exc.status, exc.reason)
                 delete_node.retry(exc=exc)
             LOG.debug('Response error from load balancer %d. Will retry '
-                      'deleting %s:%d (%d %s)' % (lbid, ipaddr, port,
-                                                  exc.status, exc.reason))
+                      'deleting %s:%s (%s %s)', lbid, ipaddr, port, exc.status,
+                      exc.reason)
             delete_node.retry(exc=exc)
         except Exception, exc:
-            LOG.debug("Error deleting %s:%d from load balancer %d. Error: %s. "
-                      "Retrying" % (ipaddr, port, lbid, str(exc)))
+            LOG.debug("Error deleting %s:%s from load balancer %s. Error: %s. "
+                      "Retrying", ipaddr, port, lbid, str(exc))
             delete_node.retry(exc=exc)
     else:
-        LOG.debug('No LB node matching %s:%d on LB %d' % (
-            ipaddr, port, lbid))
+        LOG.debug('No LB node matching %s:%s on LB %s', ipaddr, port, lbid)
 
 
 @task(default_retry_delay=10, max_retries=10)
@@ -893,7 +902,7 @@ def set_monitor(context, lbid, mon_type, region, path='/', delay=10,
     if api is None:
         api = Provider._connect(context, region)
 
-    LOG.debug("lbid: %s" % lbid)
+    LOG.debug("Setting monitor on lbid: %s", lbid)
     loadbalancer = api.loadbalancers.get(lbid)
 
     try:
@@ -907,21 +916,21 @@ def set_monitor(context, lbid, mon_type, region, path='/', delay=10,
             bodyRegex=body)
         hm_monitor.add(monitor)
     except cloudlb.errors.ImmutableEntity as im_ent:
-        LOG.debug("Cannot modify loadbalancer %s yet." % lbid, exc_info=True)
+        LOG.debug("Cannot modify loadbalancer %s yet.", lbid, exc_info=True)
         set_monitor.retry(exc=im_ent)
     except cloudlb.errors.ResponseError as response_error:
         if response_error.status == 422:
-            LOG.debug("Cannot modify load balancer %d. Will retry setting %s "
-                      "monitor (%d %s)" % (lbid, type, response_error.status,
-                                           response_error.reason))
+            LOG.debug("Cannot modify load balancer %s. Will retry setting %s "
+                      "monitor (%s %s)", lbid, type, response_error.status,
+                      response_error.reason)
             set_monitor.retry(exc=response_error)
-        LOG.debug("Response error from load balancer %d. Will retry setting "
-                  "%s monitor (%d %s)" % (lbid, type, response_error.status,
-                                          response_error.reason))
+        LOG.debug("Response error from load balancer %s. Will retry setting "
+                  "%s monitor (%s %s)", lbid, type, response_error.status,
+                  response_error.reason)
         set_monitor.retry(exc=response_error)
     except Exception as exc:
-        LOG.debug("Error setting %s monitor on load balancer %d. Error: %s. "
-                  "Retrying" % (type, lbid, str(exc)))
+        LOG.debug("Error setting %s monitor on load balancer %s. Error: %s. "
+                  "Retrying", type, lbid, str(exc))
         set_monitor.retry(exc=exc)
 
 
@@ -932,14 +941,15 @@ def wait_on_build(context, lbid, region, api=None):
 
     match_celery_logging(LOG)
     assert lbid, "ID must be provided"
-    LOG.debug("Getting loadbalancer %s" % lbid)
+    LOG.debug("Getting loadbalancer %s", lbid)
 
     if context.get('simulation') is True:
-        results = {}
-        results['status'] = "ACTIVE"
-        results['id'] = lbid
         instance_key = 'instance:%s' % context['resource']
-        results = {instance_key: results}
+        results = {
+            instance_key: {
+                'status': "ACTIVE",
+            }
+        }
         resource_postback.delay(context['deployment'], results)
         return results
 

@@ -1,8 +1,8 @@
+import copy
 import logging
 import os
-import uuid
 import time
-import copy
+import uuid
 
 from bottle import request, response, abort, get, post, delete, route
 from celery.task import task
@@ -28,10 +28,12 @@ from checkmate.utils import (
     with_tenant,
     match_celery_logging,
     is_simulation,
+    get_time_string,
+    write_path,
 )
 from checkmate.plan import Plan
 from checkmate.deployment import Deployment, generate_keys
-from celery.canvas import chord, chain, group
+from celery.canvas import chord
 
 LOG = logging.getLogger(__name__)
 DB = get_driver()
@@ -247,6 +249,7 @@ def execute_plan(depid, request_context, driver=DB, asynchronous=False):
 
 @task
 def process_post_deployment(deployment, request_context, driver=DB):
+    match_celery_logging(LOG)
 
     deployment = Deployment(deployment)
 
@@ -489,7 +492,7 @@ def delete_deployment(oid, tenant_id=None, driver=DB):
         chord(tasks)(delete_deployment_task.si(oid, driver=driver), interval=2,
                      max_retries=120)
     else:
-        LOG.warn("No delete tasks for deployment %s" % oid)
+        LOG.warn("No delete tasks for deployment %s", oid)
         delete_deployment_task.delay(oid, driver=driver)
     response.set_header("Location", loc)
     response.set_header("Link", '<%s>; rel="canvas"; title="Delete Deployment"'
@@ -601,7 +604,7 @@ def plan(deployment, context):
     return deployment
 
 
-def deployment_operation(dep_id):
+def deployment_operation(dep_id, driver=DB):
     """Return the operation dictionary for a given deployment.
 
     Example:
@@ -618,13 +621,13 @@ def deployment_operation(dep_id):
     operation = {}
 
     # Fetch workflow & deployment data
-    raw_workflow = DB.get_workflow(dep_id)
+    raw_workflow = driver.get_workflow(dep_id)
     if not raw_workflow:
         return
     serializer = DictionarySerializer()
     workflow = Workflow.deserialize(serializer, raw_workflow)
     tasks = workflow.task_tree.children
-    deployment = DB.get_deployment(dep_id)
+    deployment = driver.get_deployment(dep_id)
 
     # Loop through tasks and calculate statistics
     spiff_status = {
@@ -643,22 +646,21 @@ def deployment_operation(dep_id):
     total = 0
     last_change = 0
     while tasks:
-        task = tasks.pop(0)
-        tasks.extend(task.children)
-        status = spiff_status[task._state]
+        current = tasks.pop(0)
+        tasks.extend(current.children)
+        status = spiff_status[current._state]
         if status == "COMPLETED":
             complete += 1
         elif status == "FAILURE":
             failure += 1
-        duration += task._get_internal_attribute('estimated_completed_in')
-        if task.last_state_change > last_change:
-            last_change = task.last_state_change
+        duration += current._get_internal_attribute('estimated_completed_in')
+        if current.last_state_change > last_change:
+            last_change = current.last_state_change
         total += 1
     operation['tasks'] = total
     operation['complete'] = complete
     operation['estimated-duration'] = duration
-    operation['last-change'] = time.strftime("%Y-%m-%d %H:%M:%S %z",
-                                             time.gmtime(last_change))
+    operation['last-change'] = get_time_string(time=time.gmtime(last_change))
     if failure > 0:
         operation['status'] = "ERROR"
     elif total > complete:
@@ -669,8 +671,7 @@ def deployment_operation(dep_id):
         operation['status'] = "UNKNOWN"
 
     # Operation link
-    operation['link'] = "/v1/%s/workflows/%s" % (deployment['tenantId'],
-                                                 dep_id)
+    operation['link'] = "/%s/workflows/%s" % (deployment['tenantId'], dep_id)
 
     # Operation type
     status_type = {
@@ -690,8 +691,10 @@ def deployment_operation(dep_id):
 
 
 @task
-def update_deployment_status(deployment_id, new_status, driver=DB):
+def update_deployment_status(deployment_id, new_status, error_message=None,
+                             driver=DB):
     """ Update the status of the specified deployment """
+    match_celery_logging(LOG)
     if is_simulation(deployment_id):
         driver = SIMULATOR_DB
 
@@ -699,6 +702,8 @@ def update_deployment_status(deployment_id, new_status, driver=DB):
         deployment = driver.get_deployment(deployment_id)
         if deployment:
             deployment['status'] = new_status
+            if error_message:
+                deployment['errmessage'] = error_message
             driver.save_deployment(deployment_id, deployment)
 
 
@@ -737,6 +742,7 @@ def delete_deployment_task(dep_id, driver=DB):
 def alt_resource_postback(contents, deployment_id, driver=DB):
     """ This is just an argument shuffle to make it easier
     to chain this with other tasks """
+    match_celery_logging(LOG)
     if is_simulation(deployment_id):
         driver = SIMULATOR_DB
     resource_postback.delay(deployment_id, contents, driver=driver)
@@ -745,6 +751,7 @@ def alt_resource_postback(contents, deployment_id, driver=DB):
 @task(default_retry_delay=0.25, max_retries=4)
 def update_all_provider_resources(provider, deployment_id, status,
                                   message=None, trace=None, driver=DB):
+    match_celery_logging(LOG)
     if is_simulation(deployment_id):
         driver = SIMULATOR_DB
     dep = driver.get_deployment(deployment_id)
@@ -794,16 +801,18 @@ def resource_postback(deployment_id, contents, driver=DB):
 
     The contents are a hash (dict) of all the above
     """
+    match_celery_logging(LOG)
     if is_simulation(deployment_id):
         driver = SIMULATOR_DB
 
     deployment = driver.get_deployment(deployment_id, with_secrets=True)
     deployment = Deployment(deployment)
+    updates = {}
 
     # Update operation
-    operation = deployment_operation(deployment_id)
+    operation = deployment_operation(deployment_id, driver=driver)
     if operation:
-        deployment['operation'] = operation
+        updates['operation'] = operation
 
     # Update deployment status
 
@@ -811,81 +820,92 @@ def resource_postback(deployment_id, contents, driver=DB):
 
     # Set status of resource if post_back includes status
     for key, value in contents.items():
-        if 'status' in contents[key]:
+        if 'status' in value:
             r_id = key.split(':')[1]
-            r_status = contents[key].get('status')
-            deployment['resources'][r_id]['status'] = r_status
+            r_status = value.get('status')
+            write_path(updates, 'resources/%s/status' % r_id, r_status)
             # Don't want to write status to resource instance
-            contents[key].pop('status', None)
+            value.pop('status', None)
             if r_status == "ERROR":
-                r_msg = contents[key].get('errmessage')
-                deployment['resources'][r_id]['errmessage'] = r_msg
-                contents[key].pop('errmessage', None)
-                deployment['status'] = "ERROR"
-                if "errmessage" not in deployment:
-                    deployment['errmessage'] = []
-                if r_msg not in deployment['errmessage']:
-                    deployment['errmessage'].append(r_msg)
+                r_msg = value.get('errmessage')
+                write_path(updates, 'resources/%s/errmessage' % r_id, r_msg)
+                value.pop('errmessage', None)
+                updates['status'] = "ERROR"
+                updates['errmessage'] = deployment.get('errmessage', [])
+                if r_msg not in updates['errmessage']:
+                    updates['errmessage'].append(r_msg)
 
     # Create new contents dict if values existed
     # TODO: make this smarter
     new_contents = {}
     for key, value in contents.items():
-        if contents[key]:
+        if value:
             new_contents[key] = value
 
     if new_contents:
-        deployment.on_resource_postback(new_contents)
+        deployment.on_resource_postback(new_contents, target=updates)
 
-    check_and_set_dep_status(deployment)
+    status, error_messages = calculate_deployment_status(deployment)
 
-    body, secrets = extract_sensitive_data(deployment)
-    driver.save_deployment(deployment_id, body, secrets)
+    if status:
+        updates['status'] = status
+    if error_messages:
+        updates['error_messages'] = error_messages
 
-    LOG.debug("Updated deployment %s with post-back" % deployment_id,
-              extra=dict(data=contents))
+    if updates:
+        body, secrets = extract_sensitive_data(updates)
+        driver.save_deployment(deployment_id, body, secrets, partial=True)
+
+        LOG.debug("Updated deployment %s with post-back", deployment_id,
+                  extra=dict(data=contents))
 
 
-def check_and_set_dep_status(deployment):
-     # Check all resources statuses and update DEP status
-            count = 0
-            statuses = {"NEW": 0,
-                        "BUILD": 0,
-                        "CONFIGURE": 0,
-                        "ACTIVE": 0,
-                        'PLANNED': 0,
-                        'ERROR': 0,
-                        'DELETED': 0,
-                        'DELETING': 0
-                        }
+def calculate_deployment_status(deployment):
+    '''Check all resources statuses and calculate a deployment status
 
-            resources = deployment['resources']
-            for key, value in resources.items():
-                if key.isdigit():
-                    r_status = resources[key].get('status')
-                    if r_status == "ERROR":
-                        r_msg = resources[key].get('errmessage')
-                        if "errmessage" not in deployment:
-                            deployment['errmessage'] = []
-                        if r_msg not in deployment['errmessage']:
-                            deployment['errmessage'].append(r_msg)
-                    statuses[r_status] += 1
-                    count += 1
+    :param deployment: the deployment to calculate
+    :returns: tuple of (status, error_message_list)
+    '''
+    count = 0
+    statuses = {
+        "NEW": 0,
+        "BUILD": 0,
+        "CONFIGURE": 0,
+        "ACTIVE": 0,
+        'PLANNED': 0,
+        'ERROR': 0,
+        'DELETED': 0,
+        'DELETING': 0,
+    }
 
-            if deployment['status'] != "ERROR":
-                if statuses['DELETING'] >= 1:
-                    deployment['status'] = "DELETING"
-                elif statuses['DELETED'] == count:
-                    deployment['status'] = "DELETED"
-                elif statuses['PLANNED'] == count:
-                    deployment['status'] = "PLANNED"
-                elif statuses['NEW'] == count:
-                    deployment['status'] = "NEW"
-                elif statuses['ACTIVE'] == count:
-                    deployment['status'] = "ACTIVE"
-                elif statuses['CONFIGURE'] >= 1:
-                    deployment['status'] = "CONFIGURE"
-                elif statuses['BUILD'] >= 1:
-                    deployment['status'] = "BUILD"
-                else:
-                    LOG.debug("Could not identify a deployment status update")
+    status = None
+    error_messages = deployment.get('errmessage', [])
+    resources = deployment['resources']
+    for key, value in resources.items():
+        if key.isdigit():
+            r_status = resources[key].get('status')
+            if r_status == "ERROR":
+                r_msg = resources[key].get('errmessage')
+                if r_msg not in error_messages:
+                    error_messages.append(r_msg)
+            statuses[r_status] += 1
+            count += 1
+
+    if deployment['status'] != "ERROR":
+        if statuses['DELETING'] >= 1:
+            status = "DELETING"
+        elif statuses['DELETED'] == count:
+            status = "DELETED"
+        elif statuses['PLANNED'] == count:
+            status = "PLANNED"
+        elif statuses['NEW'] == count:
+            status = "NEW"
+        elif statuses['ACTIVE'] == count:
+            status = "ACTIVE"
+        elif statuses['CONFIGURE'] >= 1:
+            status = "CONFIGURE"
+        elif statuses['BUILD'] >= 1:
+            status = "BUILD"
+        else:
+            LOG.debug("Could not identify a deployment status update")
+    return (status, error_messages)
