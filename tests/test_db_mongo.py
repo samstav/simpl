@@ -350,9 +350,17 @@ class TestDatabase(unittest.TestCase):
     def test_unlock_existing_object(self):
         klass = 'workflows'
         obj_id = 1
+        original = {
+            "tenantId": "T1000",
+            "test": obj_id,
+        }
+        setup_obj = copy.copy(original)
+        setup_obj.update({
+            "_lock": 0,
+            "_id": obj_id,
+        })
         self.driver.database()[klass].remove({'_id': obj_id})
-        setup_obj = {"_lock": 0, "_id": obj_id, "tenantId": "T1000",
-                     "test": obj_id}
+
         #setup unlocked workflow
         self.driver.database()[klass].find_and_modify(
             query={"_id": obj_id},
@@ -369,6 +377,10 @@ class TestDatabase(unittest.TestCase):
         unlocked_object = self.driver.unlock_object(klass, obj_id, key)
 
         self.assertEqual(locked_object, unlocked_object)
+
+        # Confirm object is intact
+        final = self.driver.get_object(klass, obj_id)
+        self.assertDictEqual(final, original)
 
     @unittest.skipIf(SKIP, REASON)
     def test_unlock_safety(self):
