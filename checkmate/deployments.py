@@ -641,6 +641,7 @@ def deployment_operation(dep_id):
     complete = 0
     failure = 0
     total = 0
+    last_change = 0
     while tasks:
         task = tasks.pop(0)
         tasks.extend(task.children)
@@ -650,10 +651,14 @@ def deployment_operation(dep_id):
         elif status == "FAILURE":
             failure += 1
         duration += task._get_internal_attribute('estimated_completed_in')
+        if task.last_state_change > last_change:
+            last_change = task.last_state_change
         total += 1
     operation['tasks'] = total
     operation['complete'] = complete
     operation['estimated-duration'] = duration
+    operation['last-change'] = time.strftime("%Y-%m-%d %H:%M:%S %z",
+                                             time.gmtime(last_change))
     if failure > 0:
         operation['status'] = "ERROR"
     elif total > complete:
