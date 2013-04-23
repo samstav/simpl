@@ -45,10 +45,6 @@
 #Upstream: https://github.rackspace.com/checkmate/GitPython
 -e git+https://github.rackspace.com/checkmate/GitPython.git@0.3#egg=GitPython
 
-# PyChef
-#Upstream: https://github.com/calebgroom/pychef
--e git+https://github.com/calebgroom/pychef.git@master#egg=pychef-0.2.dev
-
 # rackspace-monitoring
 #Upstream: https://github.com/racker/rackspace-monitoring
 -e git+https://github.com/racker/rackspace-monitoring.git@master#egg=rackspace-monitoring
@@ -79,6 +75,7 @@ prettytable==0.6
 pycrypto==2.6
 pymongo==2.5
 python-keystoneclient==0.2.0
+PyChef==0.2.1
 PyYAML==3.10
 SQLAlchemy==0.7.8
 sqlalchemy-migrate==0.7.2
