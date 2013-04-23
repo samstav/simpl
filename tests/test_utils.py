@@ -2,8 +2,11 @@
 import copy
 import logging
 import re
+import time
 import unittest2 as unittest
 import uuid
+
+import mox
 
 from checkmate.utils import init_console_logging
 init_console_logging()
@@ -22,8 +25,10 @@ class TestUtils(unittest.TestCase):
         """Test unary call and simple, one level of depth calls"""
         fxn = utils.extract_sensitive_data
         self.assertEquals(fxn({}), ({}, None))
-        combined = {'innocuous': 'Hello!',
-            'password': 'secret'}
+        combined = {
+            'innocuous': 'Hello!',
+            'password': 'secret',
+        }
         innocuous = {'innocuous': 'Hello!'}
         secret = {'password': 'secret'}
         original = copy.copy(combined)
@@ -110,11 +115,15 @@ class TestUtils(unittest.TestCase):
                 'id': 1000,
                 'list_with_only_cred_objects': [{'password': 'secret'}],
                 'list_with_some_cred_objects': [
-                        {'password': 'secret', 'type': 'password'},
-                        'scalar',
-                        {'name': 'joe'}]
-                }
+                    {
+                        'password': 'secret',
+                        'type': 'password',
+                    },
+                    'scalar',
+                    {'name': 'joe'}
+                ]
             }
+        }
         innocuous = {
             'innocuous': {
                 'names': ['Tom', 'Richard', 'Harry']
@@ -122,21 +131,27 @@ class TestUtils(unittest.TestCase):
             'data': {
                 'id': 1000,
                 'list_with_some_cred_objects': [
-                        {'type': 'password'},
-                        'scalar',
-                        {'name': 'joe'}]
-                }
+                    {
+                        'type': 'password'
+                    },
+                    'scalar',
+                    {'name': 'joe'}
+                ]
             }
+        }
         secret = {
             'data': {
                 'credentials': [{'password': 'secret', 'username': 'joe'}],
                 'list_with_only_cred_objects': [{'password': 'secret'}],
                 'list_with_some_cred_objects': [
-                        {'password': 'secret'},
-                        None,
-                        {}]
-                }
+                    {
+                        'password': 'secret'
+                    },
+                    None,
+                    {}
+                ]
             }
+        }
         original = copy.copy(combined)
         c, s = fxn(combined, [])
         self.assertDictEqual(c, combined)
@@ -152,20 +167,21 @@ class TestUtils(unittest.TestCase):
 
     def test_extract_and_merge(self):
         fxn = utils.extract_sensitive_data
-        data = {'empty_list': [],
-          'empty_object': {},
-          'null': None,
-          'list_with_empty_stuff': [{}, None, []],
-          'object_with_empty_stuff': {"o": {}, "n": None, 'l': []},
-          "tree": {
+        data = {
+            'empty_list': [],
+            'empty_object': {},
+            'null': None,
+            'list_with_empty_stuff': [{}, None, []],
+            'object_with_empty_stuff': {"o": {}, "n": None, 'l': []},
+            "tree": {
             "array": [
-              {
-                "blank": {},
-                "scalar": 1
+                {
+                    "blank": {},
+                    "scalar": 1
                 }
-                ]
-              }
-          }
+            ]
+            }
+        }
         c, s = fxn(data, [])
         self.assertDictEqual(data, c)
         merge = utils.merge_dictionary(data, data)
@@ -177,10 +193,10 @@ class TestUtils(unittest.TestCase):
 
     def test_merge_dictionary(self):
         dst = dict(a=1, b=2, c=dict(ca=31, cc=33, cd=dict(cca=1)), d=4, f=6,
-                g=7, i=[], k=[3, 4], l=[[], [{'s': 1}]])
+                   g=7, i=[], k=[3, 4], l=[[], [{'s': 1}]])
         src = dict(b='u2', c=dict(cb='u32', cd=dict(cda=dict(cdaa='u3411',
-                cdab='u3412'))), e='u5', h=dict(i='u4321'), i=[1], j=[1, 2],
-                l=[None, [{'t': 8}]])
+                   cdab='u3412'))), e='u5', h=dict(i='u4321'), i=[1], j=[1, 2],
+                   l=[None, [{'t': 8}]])
         r = utils.merge_dictionary(dst, src)
         assert r is dst
         assert r['a'] == 1 and r['d'] == 4 and r['f'] == 6
@@ -214,11 +230,23 @@ class TestUtils(unittest.TestCase):
         self.assertFalse(utils.is_ssh_key("AAAAB3NzaC1yc2EA onespace"))
         self.assertFalse(utils.is_ssh_key("AAAAB3NzaC1yc2EA two space"))
         self.assertFalse(utils.is_ssh_key("AAAAB3NzaC1yc2EA 3 spaces here"))
-        key = """ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQDtjYYMFbpCJ/ND3izZ1DqNFQHlooXyNcDGWilAqNqcCfz9L+gpGjY2pQlZz/1Hir3R8fz0MS9VY32RYmP3wWygt85kNccEkOpVGGpGyV/aMFaQHZD0h6d0AT+haP0Iig+OrH1YBnpdgVPWx3SbU4eV/KYGpO9Mintj3P54of22lTK4dOwCNvID9P9w+T1kMfdVxGwhqsSL0RxVXnSSkozXQWCNvaZJMUmidm8YA009c5PoksyWjl3EE+rEzZ8ywvtUJf9DvnLCESfhF3hK5lAiEd8z7gyiQnBexn/dXzldGFiJYJgQ5HolYaNMtTF+AQY6R6Qt0okCPyEDJxHJUM7d"""
+        key = ("ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQDtjYYMFbpCJ/ND3izZ1DqNFQ"
+               "HlooXyNcDGWilAqNqcCfz9L+gpGjY2pQlZz/1Hir3R8fz0MS9VY32RYmP3wWyg"
+               "t85kNccEkOpVGGpGyV/aMFaQHZD0h6d0AT+haP0Iig+OrH1YBnpdgVPWx3SbU4"
+               "eV/KYGpO9Mintj3P54of22lTK4dOwCNvID9P9w+T1kMfdVxGwhqsSL0RxVXnSS"
+               "kozXQWCNvaZJMUmidm8YA009c5PoksyWjl3EE+rEzZ8ywvtUJf9DvnLCESfhF3"
+               "hK5lAiEd8z7gyiQnBexn/dXzldGFiJYJgQ5HolYaNMtTF+AQY6R6Qt0okCPyED"
+               "JxHJUM7d")
         self.assertTrue(utils.is_ssh_key(key))
         self.assertTrue(utils.is_ssh_key("%s /n" % key))
         self.assertTrue(utils.is_ssh_key("%s email@domain.com/n" % key))
-        key = """ssh-rsa AAAAB3NzaC1yc2EAAAABIwAAAQEA7TT1qbLElv6tuAaA3Z4tQ752ms0Y7H53yybfFioFHELkp+NRMCKh4AqtqDBFsps1vPzhcXIxn4M4IH0ip7kSx0CSrM/9Vtz8jc+UZwixJdAWwHpum68rGmCQgAsZljI24Q9u8r/hXqjwY6ukTKbC0iy82LHqhcDjh3828+9GyyxbYGm5ND/5G/ZcnHD6HM9YKmc3voz5d/nez3Adlu4I1z4Y1T3lOwOxrP2OqvIeDPvVOZJ9GDmYYRDfqK8OIHDoLAzQx8xu0cvPRDL7gYRXN8nJZ5nOh+51zdPQEl99ACZDSSwTl2biOPNtXtuaGyjB5j8r7dz93JlsN8axeD+ECQ== ziad@sawalha.com"""
+        key = ("ssh-rsa AAAAB3NzaC1yc2EAAAABIwAAAQEA7TT1qbLElv6tuAaA3Z4tQ752ms"
+               "0Y7H53yybfFioFHELkp+NRMCKh4AqtqDBFsps1vPzhcXIxn4M4IH0ip7kSx0CS"
+               "rM/9Vtz8jc+UZwixJdAWwHpum68rGmCQgAsZljI24Q9u8r/hXqjwY6ukTKbC0i"
+               "y82LHqhcDjh3828+9GyyxbYGm5ND/5G/ZcnHD6HM9YKmc3voz5d/nez3Adlu4I"
+               "1z4Y1T3lOwOxrP2OqvIeDPvVOZJ9GDmYYRDfqK8OIHDoLAzQx8xu0cvPRDL7gY"
+               "RXN8nJZ5nOh+51zdPQEl99ACZDSSwTl2biOPNtXtuaGyjB5j8r7dz93JlsN8ax"
+               "eD+ECQ== ziad@sawalha.com")
         self.assertTrue(utils.is_ssh_key(key))
 
     def test_get_source_body(self):
@@ -292,7 +320,7 @@ class TestUtils(unittest.TestCase):
                 'value': False,
                 'expected': {'root': {'exists': False}}
             }
-            ]
+        ]
         for case in cases:
             result = case['start']
             utils.write_path(result, case['path'], case['value'])
@@ -341,7 +369,7 @@ class TestUtils(unittest.TestCase):
                 'path': 'root',
                 'expected': None
             },
-            ]
+        ]
         for case in cases:
             result = utils.read_path(case['start'], case['path'])
             self.assertEqual(result, case['expected'], msg=case['name'])
@@ -352,6 +380,22 @@ class TestUtils(unittest.TestCase):
         self.assertFalse(utils.is_evaluable('=generate_something_else()'))
         self.assertFalse(utils.is_evaluable({'not-a-string': 'boom!'}))
 
+    def test_get_time_string(self):
+        '''Test time string formatter'''
+        mock = mox.Mox()
+        mock_time = time.gmtime(0)
+        mock.StubOutWithMock(utils, 'gmtime')
+        utils.gmtime().AndReturn(mock_time)
+        mock.ReplayAll()
+        result = utils.get_time_string()
+        mock.VerifyAll()
+        mock.UnsetStubs()
+        self.assertEquals(result, "1970-01-01 00:00:00 +0000")
+
+    def test_get_time_string_input(self):
+        '''Test time string formatter with supplied time'''
+        result = utils.get_time_string(time.gmtime(0))
+        self.assertEquals(result, "1970-01-01 00:00:00 +0000")
 
 if __name__ == '__main__':
     # Run tests. Handle our parameters separately

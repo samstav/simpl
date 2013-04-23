@@ -516,12 +516,12 @@ def support_only(types):
     return wrap
 
 
-def get_time_string():
+def get_time_string(time=None):
     """Central function that returns time (UTC in ISO format) as a string
 
     Changing this function will change all times that checkmate uses in
     blueprints, deployments, etc..."""
-    return strftime("%Y-%m-%d %H:%M:%S +0000", gmtime())
+    return strftime("%Y-%m-%d %H:%M:%S +0000", time or gmtime())
 
 
 def isUUID(value):
