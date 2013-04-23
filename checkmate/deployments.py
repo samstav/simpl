@@ -669,8 +669,7 @@ def deployment_operation(dep_id, driver=DB):
         operation['status'] = "UNKNOWN"
 
     # Operation link
-    operation['link'] = "/v1/%s/workflows/%s" % (deployment['tenantId'],
-                                                 dep_id)
+    operation['link'] = "/%s/workflows/%s" % (deployment['tenantId'], dep_id)
 
     # Operation type
     status_type = {
