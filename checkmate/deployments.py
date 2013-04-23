@@ -29,6 +29,7 @@ from checkmate.utils import (
     match_celery_logging,
     is_simulation,
     get_time_string,
+    write_path,
 )
 from checkmate.plan import Plan
 from checkmate.deployment import Deployment, generate_keys
@@ -645,16 +646,16 @@ def deployment_operation(dep_id, driver=DB):
     total = 0
     last_change = 0
     while tasks:
-        task = tasks.pop(0)
-        tasks.extend(task.children)
-        status = spiff_status[task._state]
+        current = tasks.pop(0)
+        tasks.extend(current.children)
+        status = spiff_status[current._state]
         if status == "COMPLETED":
             complete += 1
         elif status == "FAILURE":
             failure += 1
-        duration += task._get_internal_attribute('estimated_completed_in')
-        if task.last_state_change > last_change:
-            last_change = task.last_state_change
+        duration += current._get_internal_attribute('estimated_completed_in')
+        if current.last_state_change > last_change:
+            last_change = current.last_state_change
         total += 1
     operation['tasks'] = total
     operation['complete'] = complete
