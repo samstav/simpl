@@ -6,20 +6,21 @@ import logging
 import string
 import sys
 
-import checkmate.common.tracer  # @UnusedImport # module runs on import
+# pylint: disable=W0611
+import checkmate.common.tracer  # module runs on import
 
 # pylint: disable=E0611
 from bottle import app, run, request, response, HeaderDict, default_app, load
 
-
-from checkmate.exceptions import (CheckmateException,
-                                  CheckmateNoMapping,
-                                  CheckmateValidationException,
-                                  CheckmateNoData,
-                                  CheckmateDoesNotExist,
-                                  CheckmateBadState,
-                                  CheckmateDatabaseConnectionError,
-                                  )
+from checkmate.exceptions import (
+    CheckmateException,
+    CheckmateNoMapping,
+    CheckmateValidationException,
+    CheckmateNoData,
+    CheckmateDoesNotExist,
+    CheckmateBadState,
+    CheckmateDatabaseConnectionError,
+)
 from checkmate import middleware
 from checkmate import utils
 
@@ -40,21 +41,21 @@ except:
 
 
 DEFAULT_AUTH_ENDPOINTS = [{
-                    'middleware': 'checkmate.middleware.TokenAuthMiddleware',
-                    'default': True,
-                    'uri': 'https://identity.api.rackspacecloud.com/v2.0/tokens',
-                    'kwargs': {
-                            'protocol': 'Keystone',
-                            'realm': 'US Cloud',
-                        },
-                }, {
-                    'middleware': 'checkmate.middleware.TokenAuthMiddleware',
-                    'uri': 'https://lon.identity.api.rackspacecloud.com/v2.0/tokens',
-                    'kwargs': {
-                            'protocol': 'Keystone',
-                            'realm': 'UK Cloud',
-                        },
-                }]
+    'middleware': 'checkmate.middleware.TokenAuthMiddleware',
+    'default': True,
+    'uri': 'https://identity.api.rackspacecloud.com/v2.0/tokens',
+    'kwargs': {
+        'protocol': 'Keystone',
+        'realm': 'US Cloud',
+    },
+}, {
+    'middleware': 'checkmate.middleware.TokenAuthMiddleware',
+    'uri': 'https://lon.identity.api.rackspacecloud.com/v2.0/tokens',
+    'kwargs': {
+        'protocol': 'Keystone',
+        'realm': 'UK Cloud',
+    },
+}]
 
 
 def error_formatter(error):
@@ -133,13 +134,14 @@ def main_func():
     # Build WSGI Chain:
     LOG.info("Loading Application")
     next_app = default_app()  # This is the main checkmate app
-    next_app.error_handler = {500: error_formatter,
-                              401: error_formatter,
-                              404: error_formatter,
-                              405: error_formatter,
-                              406: error_formatter,
-                              415: error_formatter,
-                              }
+    next_app.error_handler = {
+        500: error_formatter,
+        401: error_formatter,
+        404: error_formatter,
+        405: error_formatter,
+        406: error_formatter,
+        415: error_formatter,
+    }
     next_app.catchall = True
     next_app = middleware.AuthorizationMiddleware(next_app,
                                                   anonymous_paths=utils.STATIC)
@@ -149,8 +151,8 @@ def main_func():
     else:
         endpoints = DEFAULT_AUTH_ENDPOINTS
     next_app = middleware.AuthTokenRouterMiddleware(next_app, endpoints,
-                                                    anonymous_paths=utils.\
-                                                            STATIC)
+                                                    anonymous_paths=
+                                                    utils.STATIC)
 
     # Load Rook if requested
     if '--with-ui' in sys.argv:
