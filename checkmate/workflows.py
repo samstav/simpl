@@ -463,9 +463,8 @@ def resubmit_workflow_task(workflow_id, task_id, tenant_id=None, driver=DB):
         body, secrets = extract_sensitive_data(entity)
         body['tenantId'] = workflow.get('tenantId', tenant_id)
         body['id'] = workflow_id
-        safe_workflow_save(workflow_id, body, secrets=secrets, tenant_id=tenant_id,
-                           driver=driver)
-
+        driver.save_workflow(workflow_id, body, secrets=secrets,
+                             tenant_id=tenant_id)
         task = wf.get_task(task_id)
         if not task:
             abort(404, "No task with id '%s' found" % task_id)
