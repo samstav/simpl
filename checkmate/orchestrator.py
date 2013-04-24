@@ -183,10 +183,10 @@ def run_one_task(context, workflow_id, task_id, timeout=60, driver=None):
     try:
         # Lock the workflow
         try:
-            workflow, key = driver.lock_workflow(w_id, with_secrets=True)
+            workflow, key = driver.lock_workflow(workflow_id,
+                                                 with_secrets=True)
         except ObjectLockedError:
-            run_workflow.retry()
-
+            run_one_task.retry()
         if not workflow:
             raise IndexError("Workflow %s not found" % workflow_id)
 
