@@ -675,11 +675,16 @@ def cook(host, environment, resource, recipes=None, roles=None, path=None,
         params.extend(['-P', password])
     if port:
         params.extend(['-p', str(port)])
-    _run_kitchen_command(environment, kitchen_path, params)
+    try:
+        _run_kitchen_command(environment, kitchen_path, params)
+        LOG.info("Knife cook succeeded for %s", host)
+    except (CalledProcessError, CheckmateCalledProcessError) as exc:
+        LOG.info("Knife cook failed for %s. Retrying.", host)
+        register_node.retry(exc=exc)
 
-    # TODO: When hosted_on resource can host more than one resource, need to make sure all
-    # other hosted resources are ACTIVE before we can change hosted_on resource itself
-    # to ACTIVE
+    # TODO: When hosted_on resource can host more than one resource, need to
+    # make sure all other hosted resources are ACTIVE before we can change
+    # hosted_on resource itself to ACTIVE
     pb_res = {}
     # Update status of host resource to ACTIVE
     host_results = {}
@@ -819,7 +824,7 @@ def create_environment(name, service_name, path=None, private_key=None,
     return results
 
 
-@task
+@task(max_retries=2)
 def register_node(host, environment, resource, path=None, password=None,
                   omnibus_version=None, attributes=None, identity_file=None,
                   kitchen_name='kitchen'):
@@ -891,8 +896,8 @@ def register_node(host, environment, resource, path=None, password=None,
 
     register_node.on_failure = on_failure
 
-    # Server provider updates status to CONFIGURE, but sometimes the server is configured
-    # twice, so we need to do this update anyway just to be safe
+    # Server provider updates status to CONFIGURE, but sometimes the server is
+    # configured twice, so we need to do this update anyway just to be safe
     # Update status of host resource to CONFIGURE
     res = {}
     host_results = {}
@@ -940,8 +945,12 @@ def register_node(host, environment, resource, path=None, password=None,
         params.extend(['--omnibus-version', omnibus_version])
     if identity_file:
         params.extend(['-i', identity_file])
-    _run_kitchen_command(environment, kitchen_path, params)
-    LOG.info("Knife prepare succeeded for %s" % host)
+    try:
+        _run_kitchen_command(environment, kitchen_path, params)
+        LOG.info("Knife prepare succeeded for %s", host)
+    except (CalledProcessError, CheckmateCalledProcessError) as exc:
+        LOG.info("Knife prepare failed for %s. Retrying.", host)
+        register_node.retry(exc=exc)
 
     if attributes:
         lock = threading.Lock()
