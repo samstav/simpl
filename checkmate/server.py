@@ -136,6 +136,7 @@ def main_func():
     next_app = default_app()  # This is the main checkmate app
     next_app.error_handler = {
         500: error_formatter,
+        400: error_formatter,
         401: error_formatter,
         404: error_formatter,
         405: error_formatter,
