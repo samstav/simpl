@@ -250,9 +250,6 @@ def _cache_blueprint(source_repo):
         branch = "master"
     if os.path.exists(repo_cache):
         repo = git.Repo(repo_cache)
-        if branch in repo.tags:  # Does `branch' point to a tag?
-            LOG.debug("%s points to a tag, no update necessary", branch)
-            return
         # The mtime of .git/FETCH_HEAD changes upon every "git
         # fetch".  FETCH_HEAD is only created after the first
         # fetch, so use HEAD if it's not there
