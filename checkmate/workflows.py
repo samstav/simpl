@@ -421,58 +421,65 @@ def resubmit_workflow_task(workflow_id, task_id, tenant_id=None, driver=DB):
     :param id: checkmate workflow id
     :param task_id: checkmate workflow task id
     """
-    if is_simulation(workflow_id):
-        driver = SIMULATOR_DB
+    key = None
+    body = None
+    try:
+        if is_simulation(workflow_id):
+            driver = SIMULATOR_DB
+        workflow, key = driver.lock_workflow(workflow_id, with_secrets=True)
+        if not workflow:
+            abort(404, "No workflow with id '%s' found" % workflow_id)
+        serializer = DictionarySerializer()
+        wf = SpiffWorkflow.deserialize(serializer, workflow)
 
-    workflow = driver.get_workflow(workflow_id, with_secrets=True)
-    if not workflow:
-        abort(404, "No workflow with id '%s' found" % workflow_id)
+        task = wf.get_task(task_id)
+        if not task:
+            abort(404, 'No task with id %s' % task_id)
 
-    serializer = DictionarySerializer()
-    wf = SpiffWorkflow.deserialize(serializer, workflow)
+        if task.task_spec.__class__.__name__ != 'Celery':
+            abort(406, "You can only reset Celery tasks. This is a '%s' task" %
+                  task.task_spec.__class__.__name__)
 
-    task = wf.get_task(task_id)
-    if not task:
-        abort(404, 'No task with id %s' % task_id)
+        if task.state != Task.WAITING:
+            abort(406, "You can only reset WAITING tasks. This task is in '%s'" %
+                  task.get_state_name())
 
-    if task.task_spec.__class__.__name__ != 'Celery':
-        abort(406, "You can only reset Celery tasks. This is a '%s' task" %
-              task.task_spec.__class__.__name__)
+        # Refresh token if it exists in args[0]['auth_token]
+        if hasattr(task, 'args') and task.task_spec.args and \
+                len(task.task_spec.args) > 0 and \
+                isinstance(task.task_spec.args[0], dict) and \
+                task.task_spec.args[0].get('auth_token') != \
+                request.context.auth_token:
+            task.task_spec.args[0]['auth_token'] = request.context.auth_token
+            LOG.debug("Updating task auth token with new caller token")
+        if task.task_spec.retry_fire(task):
+            LOG.debug("Progressing task '%s' (%s)" % (task_id,
+                                                      task.get_state_name()))
+            task.task_spec._update_state(task)
 
-    if task.state != Task.WAITING:
-        abort(406, "You can only reset WAITING tasks. This task is in '%s'" %
-              task.get_state_name())
+        orchestrator.update_workflow_status(wf)
+        serializer = DictionarySerializer()
+        entity = wf.serialize(serializer)
+        body, secrets = extract_sensitive_data(entity)
+        body['tenantId'] = workflow.get('tenantId', tenant_id)
+        body['id'] = workflow_id
+        safe_workflow_save(workflow_id, body, secrets=secrets, tenant_id=tenant_id,
+                           driver=driver)
 
-    # Refresh token if it exists in args[0]['auth_token]
-    if hasattr(task, 'args') and task.task_spec.args and \
-            len(task.task_spec.args) > 0 and \
-            isinstance(task.task_spec.args[0], dict) and \
-            task.task_spec.args[0].get('auth_token') != \
-            request.context.auth_token:
-        task.task_spec.args[0]['auth_token'] = request.context.auth_token
-        LOG.debug("Updating task auth token with new caller token")
-    if task.task_spec.retry_fire(task):
-        LOG.debug("Progressing task '%s' (%s)" % (task_id,
-                                                  task.get_state_name()))
-        task.task_spec._update_state(task)
+        task = wf.get_task(task_id)
+        if not task:
+            abort(404, "No task with id '%s' found" % task_id)
 
-    orchestrator.update_workflow_status(wf)
-    serializer = DictionarySerializer()
-    entity = wf.serialize(serializer)
-    body, secrets = extract_sensitive_data(entity)
-    body['tenantId'] = workflow.get('tenantId', tenant_id)
-    body['id'] = workflow_id
-    safe_workflow_save(workflow_id, body, secrets=secrets, tenant_id=tenant_id,
-                       driver=driver)
-
-    task = wf.get_task(task_id)
-    if not task:
-        abort(404, "No task with id '%s' found" % task_id)
-
-    # Return cleaned data (no credentials)
-    data = serializer._serialize_task(task, skip_children=True)
-    body, secrets = extract_sensitive_data(data)
-    body['workflow_id'] = workflow_id  # so we know which workflow it came from
+        # Return cleaned data (no credentials)
+        data = serializer._serialize_task(task, skip_children=True)
+        body, secrets = extract_sensitive_data(data)
+        body['workflow_id'] = workflow_id  # so we know which workflow it came from
+    except ObjectLockedError:
+        abort(406, "Cannot retry task(%s) while workflow(%s) is executing." %
+              (task_id, workflow_id))
+    finally:
+        if key:
+            driver.unlock_workflow(workflow_id, key)
     return write_body(body, request, response)
 
 
