@@ -8,6 +8,7 @@ from celery.task import task
 from SpiffWorkflow import Workflow, Task
 from SpiffWorkflow.storage import DictionarySerializer
 
+from checkmate.db.common import ObjectLockedError
 from checkmate.middleware import RequestContext
 from checkmate.utils import extract_sensitive_data, match_celery_logging
 
@@ -49,7 +50,7 @@ def count_seconds(seconds):
 
 
 @task(default_retry_delay=10, max_retries=300)
-def run_workflow(w_id, timeout=900, wait=1, counter=1, key=None, driver=None):
+def run_workflow(w_id, timeout=900, wait=1, counter=1, driver=None):
     """Loop through trying to complete the workflow and periodically log
     status updates. Each time we cycle through, if nothing happens we
     extend the wait time between cycles so we don't load the system.
@@ -71,7 +72,10 @@ def run_workflow(w_id, timeout=900, wait=1, counter=1, key=None, driver=None):
     serializer = DictionarySerializer()
 
     # Lock the workflow
-    workflow, key = driver.lock_workflow(w_id, with_secrets=True, key=key)
+    try:
+        workflow, key = driver.lock_workflow(w_id, with_secrets=True)
+    except ObjectLockedError:
+        run_workflow.retry()
 
     d_wf = Workflow.deserialize(serializer, workflow)
     LOG.debug("Deserialized workflow %s" % w_id,
@@ -156,13 +160,14 @@ def run_workflow(w_id, timeout=900, wait=1, counter=1, key=None, driver=None):
             'timeout': timeout,
             'wait': wait,
             'counter': counter + 1,
-            'key': key,
             'driver': driver,
         }
+        driver.unlock_workflow(w_id, key)
         return run_workflow.retry([w_id], kwargs=retry_kwargs, countdown=wait,
                                   Throw=False)
     else:
         LOG.debug("Workflow '%s' did not complete (no timeout set)." % w_id)
+        driver.unlock_workflow(w_id, key)
         return False
 
 
@@ -177,11 +182,15 @@ def run_one_task(context, workflow_id, task_id, timeout=60, driver=None):
     key = None
     try:
         # Lock the workflow
-        workflow, key = driver.lock_workflow(workflow_id, with_secrets=True)
+        try:
+            workflow, key = driver.lock_workflow(w_id, with_secrets=True)
+        except ObjectLockedError:
+            run_workflow.retry()
+
         if not workflow:
             raise IndexError("Workflow %s not found" % workflow_id)
+
         LOG.debug("Deserializing workflow '%s'" % workflow_id)
-        driver.unlock_workflow(workflow_id, key)
         serializer = DictionarySerializer()
         d_wf = Workflow.deserialize(serializer, workflow)
         task = d_wf.get_task(task_id)
