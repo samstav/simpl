@@ -10,6 +10,7 @@ from SpiffWorkflow.specs import Celery
 
 from checkmate.deployments import resource_postback, alt_resource_postback
 from checkmate.exceptions import CheckmateException,  CheckmateNoTokenError
+from checkmate.middleware import RequestContext
 from checkmate.providers import ProviderBase
 from checkmate.utils import match_celery_logging
 from checkmate.workflows import wait_for
@@ -228,6 +229,7 @@ class Provider(ProviderBase):
                                                       self.key))
 
     def delete_resource_tasks(self, context, deployment_id, resource, key):
+        assert isinstance(context, RequestContext)
         self._verify_existing_resource(resource, key)
         region = resource.get('region') or \
             resource.get('instance', {}).get('host_region')

@@ -8,6 +8,7 @@ from SpiffWorkflow.specs import Celery
 from checkmate.deployments import resource_postback, alt_resource_postback
 from checkmate.exceptions import (CheckmateException, CheckmateNoTokenError,
                                   CheckmateBadState)
+from checkmate.middleware import RequestContext
 from checkmate.providers import ProviderBase
 from checkmate.workflows import wait_for
 from checkmate.utils import match_celery_logging
@@ -282,24 +283,31 @@ class Provider(ProviderBase):
 
         return dict(root=create_lb, final=final)
 
-    def sync_resource_status(self, request_context, deployment_id, resource, key):
+    def sync_resource_status(self, context, deployment_id, resource,
+                             key):
         self._verify_existing_resource(resource, key)
+        ctx = context.get_queued_task_dict(deployment=deployment_id,
+                                           resource=key)
         chain(
-              sync_resource_task.s(request_context, resource, key),
-              alt_resource_postback.s(deployment_id)
+            sync_resource_task.s(ctx, resource, key),
+            alt_resource_postback.s(deployment_id)
         )()
 
-    def delete_resource_tasks(self, request_context, deployment_id, resource,
+    def delete_resource_tasks(self, context, deployment_id, resource,
                               key):
+        assert isinstance(context, RequestContext)
         self._verify_existing_resource(resource, key)
         lb_id = resource.get("instance", {}).get("id")
         dom_id = resource.get("instance", {}).get("domain_id")
         rec_id = resource.get("instance", {}).get("record_id")
         region = resource.get("region")
-        del_task = chain(delete_lb_task.s(request_context, key, lb_id,
+        ctx = context.get_queued_task_dict(deployment=deployment_id,
+                                           resource=key)
+
+        del_task = chain(delete_lb_task.s(ctx, key, lb_id,
                                           region),
                          alt_resource_postback.s(deployment_id),
-                         wait_on_lb_delete.si(request_context, key,
+                         wait_on_lb_delete.si(ctx, key,
                                               deployment_id, lb_id,
                                               region),
                          alt_resource_postback.s(deployment_id))
@@ -307,7 +315,7 @@ class Provider(ProviderBase):
         delete_stuff = del_task
         if dom_id and rec_id:
             delete_stuff = group(del_task,
-                                 delete_record.s(request_context, dom_id,
+                                 delete_record.s(ctx, dom_id,
                                                  rec_id))
         return delete_stuff
 

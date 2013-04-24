@@ -6,6 +6,7 @@ from checkmate import keys
 from checkmate.classes import ExtensibleDict
 from checkmate.exceptions import CheckmateException,\
     CheckmateValidationException
+from checkmate.middleware import RequestContext
 from checkmate.providers import ProviderBase
 from checkmate import utils
 from checkmate.deployment import verify_required_blueprint_options_supplied,\
@@ -104,8 +105,11 @@ class Plan(ExtensibleDict):
     def plan_delete(self, context):
         """
         Collect delete resource tasks from the deployment
+
+        :param context: a RequestContext
         :return: a celery.canvas.group of the delete tasks
         """
+        assert isinstance(context, RequestContext)
         del_tasks = []
         dep_id = self.deployment.get("id")
         for res_key, resource in self.deployment.get("resources",

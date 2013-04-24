@@ -17,6 +17,7 @@ from checkmate.exceptions import CheckmateNoTokenError, \
                                  CheckmateNoMapping, \
                                  CheckmateServerBuildFailed, \
                                  CheckmateException
+from checkmate.middleware import RequestContext
 from checkmate.providers import ProviderBase
 from checkmate.utils import match_celery_logging, \
                             isUUID, \
@@ -268,6 +269,7 @@ class Provider(RackspaceComputeProviderBase):
                 create=create_server_task)
 
     def delete_resource_tasks(self, context, deployment_id, resource, key):
+        assert isinstance(context, RequestContext)
         self._verify_existing_resource(resource, key)
         inst_id = resource.get("instance", {}).get("id")
         region = resource.get("region")
