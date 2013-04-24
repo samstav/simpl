@@ -679,8 +679,8 @@ def cook(host, environment, resource, recipes=None, roles=None, path=None,
         _run_kitchen_command(environment, kitchen_path, params)
         LOG.info("Knife cook succeeded for %s in %s", host, environment)
     except (CalledProcessError, CheckmateCalledProcessError) as exc:
-        register_node.retry(exc=exc)
         LOG.warn("Knife cook failed for %s. Retrying.", host)
+        cook.retry(exc=exc)
 
     # TODO: When hosted_on resource can host more than one resource, need to
     # make sure all other hosted resources are ACTIVE before we can change
