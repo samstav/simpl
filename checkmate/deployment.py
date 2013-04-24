@@ -10,7 +10,7 @@ from checkmate.classes import ExtensibleDict
 from checkmate.constraints import Constraint
 from checkmate.common import schema
 from checkmate.db import get_driver
-from checkmate.environments import Environment
+from checkmate.environment import Environment
 from checkmate.exceptions import (
     CheckmateException,
     CheckmateValidationException,

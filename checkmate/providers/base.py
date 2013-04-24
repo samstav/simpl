@@ -4,7 +4,7 @@ import platform
 import checkmate
 from checkmate import utils
 from checkmate.common import schema
-from checkmate.components import Component
+from checkmate.component import Component
 from checkmate.exceptions import CheckmateException, CheckmateNoMapping, \
         CheckmateValidationException
 
