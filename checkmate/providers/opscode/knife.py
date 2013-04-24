@@ -239,8 +239,8 @@ def _cache_blueprint(source_repo):
     cache_expire_time = os.environ.get("CHECKMATE_BLUEPRINT_CACHE_EXPIRE")
     if not cache_expire_time:
         cache_expire_time = 3600
-        LOG.warning("CHECKMATE_BLUEPRINT_CACHE_EXPIRE variable not set. "
-                    "Defaulting to %s" % cache_expire_time)
+        LOG.info("CHECKMATE_BLUEPRINT_CACHE_EXPIRE variable not set. "
+                 "Defaulting to %s", cache_expire_time)
     cache_expire_time = int(cache_expire_time)
     repo_cache = _get_blueprints_cache_path(source_repo)
     if "#" in source_repo:
@@ -677,10 +677,10 @@ def cook(host, environment, resource, recipes=None, roles=None, path=None,
         params.extend(['-p', str(port)])
     try:
         _run_kitchen_command(environment, kitchen_path, params)
-        LOG.info("Knife cook succeeded for %s", host)
+        LOG.info("Knife cook succeeded for %s in %s", host, environment)
     except (CalledProcessError, CheckmateCalledProcessError) as exc:
-        LOG.info("Knife cook failed for %s. Retrying.", host)
         register_node.retry(exc=exc)
+        LOG.warn("Knife cook failed for %s. Retrying.", host)
 
     # TODO: When hosted_on resource can host more than one resource, need to
     # make sure all other hosted resources are ACTIVE before we can change
@@ -947,10 +947,14 @@ def register_node(host, environment, resource, path=None, password=None,
         params.extend(['-i', identity_file])
     try:
         _run_kitchen_command(environment, kitchen_path, params)
-        LOG.info("Knife prepare succeeded for %s", host)
+        LOG.info("Knife prepare succeeded for %s in %s", host, environment)
     except (CalledProcessError, CheckmateCalledProcessError) as exc:
-        LOG.info("Knife prepare failed for %s. Retrying.", host)
+        LOG.warn("Knife prepare failed for %s. Retrying.", host)
         register_node.retry(exc=exc)
+    except StandardError as exc:
+        LOG.error("Knife prepare failed with an unhandled error '%s' for %s.",
+                  exc, host)
+        raise exc
 
     if attributes:
         lock = threading.Lock()
