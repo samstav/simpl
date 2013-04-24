@@ -6,8 +6,11 @@ from SpiffWorkflow.operators import PathAttrib, Attrib
 from SpiffWorkflow.specs import Celery
 
 from checkmate.deployments import resource_postback, alt_resource_postback
-from checkmate.exceptions import (CheckmateException, CheckmateNoTokenError,
-                                  CheckmateBadState)
+from checkmate.exceptions import (
+    CheckmateException,
+    CheckmateNoTokenError,
+    CheckmateBadState
+)
 from checkmate.middleware import RequestContext
 from checkmate.providers import ProviderBase
 from checkmate.workflows import wait_for
@@ -66,16 +69,16 @@ class Provider(ProviderBase):
                                        default="http").lower()
 
         port = deployment.get_setting("port",
-                                       resource_type=resource_type,
-                                       service_name=service_name,
-                                       provider_key=self.key,
-                                       default=None)
+                                      resource_type=resource_type,
+                                      service_name=service_name,
+                                      provider_key=self.key,
+                                      default=None)
 
         algorithm = deployment.get_setting("algorithm",
-                                       resource_type=resource_type,
-                                       service_name=service_name,
-                                       provider_key=self.key,
-                                       default="ROUND_ROBIN")
+                                           resource_type=resource_type,
+                                           service_name=service_name,
+                                           provider_key=self.key,
+                                           default="ROUND_ROBIN")
 
         dns = str(deployment.get_setting("create_dns",
                                          resource_type=resource_type,
@@ -127,9 +130,10 @@ class Provider(ProviderBase):
                            algorithm=algorithm,
                            port=port)
 
-        task_name = 'Wait for Loadbalancer %s (%s) build' % (key,
-                                                             resource['service'])
-        celery_call = 'checkmate.providers.rackspace.loadbalancer.wait_on_build'
+        task_name = ('Wait for Loadbalancer %s (%s) build' %
+                     (key, resource['service']))
+        celery_call = ('checkmate.providers.rackspace.loadbalancer.'
+                       'wait_on_build')
         build_wait_task = Celery(wfspec, task_name, celery_call,
                                  call_args=[context.get_queued_task_dict(
                                             deployment=deployment['id'],
@@ -149,7 +153,7 @@ class Provider(ProviderBase):
             celery_call = "checkmate.providers.rackspace.dns.create_record"
             name = resource.get('dns-name')
             create_record_task = Celery(wfspec, task_name, celery_call,
-                                    call_args=[
+                                        call_args=[
                                             context.get_queued_task_dict(
                                                 deployment=deployment['id'],
                                                 resource=key),
@@ -157,10 +161,10 @@ class Provider(ProviderBase):
                                             '.'.join(name.split('.')[1:]),
                                             "A",
                                             PathAttrib('instance:%s/public_ip'
-                                                          % key)],
-                                    rec_ttl=300,
-                                    makedomain=True,
-                                    result_key="dns-record")
+                                                       % key)],
+                                        rec_ttl=300,
+                                        makedomain=True,
+                                        result_key="dns-record")
             build_wait_task.connect(create_record_task)
             task_name = ("Update Load Balancer %s (%s) DNS Data"
                          % (key, resource['service']))
@@ -168,19 +172,21 @@ class Provider(ProviderBase):
                            'collect_record_data')
             crd = Celery(wfspec, task_name, celery_call,
                          call_args=[
-                            deployment["id"],
-                            key,
-                            Attrib('dns-record')])
+                             deployment["id"],
+                             key,
+                             Attrib('dns-record')
+                         ])
             create_record_task.connect(crd)
 
-        task_name = 'Add monitor to Loadbalancer %s (%s) build' % (key,
-                                                                   resource['service'])
+        task_name = ('Add monitor to Loadbalancer %s (%s) build' %
+                     (key, resource['service']))
         celery_call = 'checkmate.providers.rackspace.loadbalancer.set_monitor'
         set_monitor_task = Celery(wfspec, task_name, celery_call,
                                   call_args=[context.get_queued_task_dict(
                                              deployment=deployment['id'],
                                              resource=key),
-                                             PathAttrib('instance:%s/id' % key),
+                                             PathAttrib('instance:%s/id' %
+                                                        key),
                                              proto.upper(),
                                              resource['region']],
                                   defines=dict(resource=key,
@@ -226,57 +232,74 @@ class Provider(ProviderBase):
                       (resource2['index'], extra_protocol))
 
             create_lb2 = Celery(wfspec,
-                           'Create %s Loadbalancer (%s)' % (
-                               extra_protocol.upper(), resource2['index']),
-                           'checkmate.providers.rackspace.loadbalancer.'
-                           'create_loadbalancer',
-                           call_args=[
-                               context.get_queued_task_dict(
-                                   deployment=deployment['id'],
-                                   resource=resource2['index']),
-                               resource2.get('dns-name'),
-                               'PUBLIC',
-                               extra_protocol.upper(),
-                               resource2['region']],
-                           defines={'resource': resource2['index'],
-                                    'provider': self.key},
-                           properties={'estimated_duration': 30,
-                                       'task_tags': ['create']},
-                           parent_lb=PathAttrib("instance:%s/id" % resource2['index']),
-                           algorithm=algorithm,
-                           port=port)
+                                'Create %s Loadbalancer (%s)' % (
+                                    extra_protocol.upper(),
+                                    resource2['index']),
+                                'checkmate.providers.rackspace.loadbalancer.'
+                                'create_loadbalancer',
+                                call_args=[
+                                    context.get_queued_task_dict(
+                                        deployment=deployment['id'],
+                                        resource=resource2['index']),
+                                    resource2.get('dns-name'),
+                                    'PUBLIC',
+                                    extra_protocol.upper(),
+                                    resource2['region']
+                                ],
+                                defines={
+                                    'resource': resource2['index'],
+                                    'provider': self.key
+                                },
+                                properties={
+                                    'estimated_duration': 30,
+                                    'task_tags': ['create']
+                                },
+                                parent_lb=PathAttrib("instance:%s/id" %
+                                                     resource2['index']),
+                                algorithm=algorithm,
+                                port=port)
             create_lb2.follow(create_lb)
             task_name = 'Wait for Loadbalancer %s (%s) build' % (
                 resource2['index'], resource['service'])
-            celery_call = 'checkmate.providers.rackspace.loadbalancer.wait_on_build'
+            celery_call = ('checkmate.providers.rackspace.loadbalancer.'
+                           'wait_on_build')
             build_wait_task2 = Celery(wfspec, task_name, celery_call,
-                                     call_args=[context.get_queued_task_dict(
-                                                deployment=deployment['id'],
-                                                resource=resource2['index']),
-                                                PathAttrib('instance:%s/id' % resource2['index']),
-                                                resource['region']],
-                                     properties={'estimated_druation':150},
-                                     merge_results=True,
-                                     defines=dict(resource=resource2['index'],
-                                                  provider=self.key,
-                                                  task_tags=['complete']))
+                                      call_args=[
+                                          context.get_queued_task_dict(
+                                              deployment=deployment['id'],
+                                              resource=resource2['index']),
+                                          PathAttrib('instance:%s/id' %
+                                                     resource2['index']),
+                                          resource['region']],
+                                      properties={'estimated_druation': 150},
+                                      merge_results=True,
+                                      defines=dict(
+                                          resource=resource2['index'],
+                                          provider=self.key,
+                                          task_tags=['complete']
+                                      ))
             create_lb2.connect(build_wait_task2)
 
             task_name = 'Add monitor to Loadbalancer %s (%s) build' % (
                 resource2['index'], resource['service'])
-            celery_call = 'checkmate.providers.rackspace.loadbalancer.set_monitor'
+            celery_call = ('checkmate.providers.rackspace.loadbalancer.'
+                           'set_monitor')
             set_monitor_task2 = Celery(wfspec, task_name, celery_call,
-                                      call_args=[context.get_queued_task_dict(
-                                                 deployment=deployment['id'],
-                                                 resource=resource2['index']),
-                                                 PathAttrib('instance:%s/id' % resource2['index']),
-                                                 extra_protocol.upper(),
-                                                 resource['region'],
-                                                 '/', 10, 10, 3, '(.*)',
-                                                 '^[234][0-9][0-9]$'],
-                                      defines=dict(resource=resource2['index'],
-                                                   provider=self.key,
-                                                   task_tags=['final']))
+                                       call_args=[context.get_queued_task_dict(
+                                                  deployment=deployment['id'],
+                                                  resource=resource2['index']),
+                                                  PathAttrib('instance:%s/id' %
+                                                             resource2[
+                                                             'index']),
+                                                  extra_protocol.upper(),
+                                                  resource['region'],
+                                                  '/', 10, 10, 3, '(.*)',
+                                                  '^[234][0-9][0-9]$'
+                                                  ],
+                                       defines=dict(
+                                           resource=resource2['index'],
+                                           provider=self.key,
+                                           task_tags=['final']))
 
             build_wait_task2.connect(set_monitor_task2)
             final = set_monitor_task2
@@ -706,7 +729,7 @@ def delete_lb_task(context, key, lbid, region, api=None):
     except cloudlb.errors.NotFound:
         LOG.debug('Load balancer %s was already deleted.', lbid)
         return {instance_key: {"status": "DELETED"}}
-    LOG.debug("Found load balancer %s [%s] to delete" %(dlb, dlb.status))
+    LOG.debug("Found load balancer %s [%s] to delete" % (dlb, dlb.status))
     if dlb.status != "DELETED":
         dlb.delete()
     LOG.debug('Load balancer %s deleted.', lbid)

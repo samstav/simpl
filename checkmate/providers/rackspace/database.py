@@ -3,8 +3,9 @@ import logging
 import random
 import string
 
-from celery.task import task, current  # @UnresolvedImport
+from celery.task import task, current
 import clouddb
+from clouddb.errors import ResponseError
 from SpiffWorkflow.operators import PathAttrib
 from SpiffWorkflow.specs import Celery
 
@@ -14,7 +15,6 @@ from checkmate.middleware import RequestContext
 from checkmate.providers import ProviderBase
 from checkmate.utils import match_celery_logging
 from checkmate.workflows import wait_for
-from clouddb.errors import ResponseError
 
 LOG = logging.getLogger(__name__)
 

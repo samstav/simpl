@@ -441,8 +441,8 @@ def resubmit_workflow_task(workflow_id, task_id, tenant_id=None, driver=DB):
                   task.task_spec.__class__.__name__)
 
         if task.state != Task.WAITING:
-            abort(406, "You can only reset WAITING tasks. This task is in '%s'" %
-                  task.get_state_name())
+            abort(406, "You can only reset WAITING tasks. This task is in '%s'"
+                  % task.get_state_name())
 
         # Refresh token if it exists in args[0]['auth_token]
         if hasattr(task, 'args') and task.task_spec.args and \
@@ -472,7 +472,8 @@ def resubmit_workflow_task(workflow_id, task_id, tenant_id=None, driver=DB):
         # Return cleaned data (no credentials)
         data = serializer._serialize_task(task, skip_children=True)
         body, secrets = extract_sensitive_data(data)
-        body['workflow_id'] = workflow_id  # so we know which workflow it came from
+        # so we know which workflow it came from
+        body['workflow_id'] = workflow_id
     except ObjectLockedError:
         abort(406, "Cannot retry task(%s) while workflow(%s) is executing." %
               (task_id, workflow_id))

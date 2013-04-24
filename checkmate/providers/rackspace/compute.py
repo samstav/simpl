@@ -6,25 +6,25 @@ import copy
 import logging
 import os
 
+from celery.canvas import chain
+from novaclient.exceptions import NotFound, NoUniqueMatch
 from novaclient.v1_1 import client
 from SpiffWorkflow.operators import PathAttrib
 from SpiffWorkflow.specs import Celery
 
-import checkmate.ssh
-import checkmate.rdp
 from checkmate.deployments import resource_postback, alt_resource_postback
-from checkmate.exceptions import CheckmateNoTokenError, \
-                                 CheckmateNoMapping, \
-                                 CheckmateServerBuildFailed, \
-                                 CheckmateException
+from checkmate.exceptions import (
+    CheckmateNoTokenError,
+    CheckmateNoMapping,
+    CheckmateServerBuildFailed,
+    CheckmateException,
+)
 from checkmate.middleware import RequestContext
 from checkmate.providers import ProviderBase
-from checkmate.utils import match_celery_logging, \
-                            isUUID, \
-                            yaml_to_dict
+import checkmate.rdp
+import checkmate.ssh
+from checkmate.utils import match_celery_logging, isUUID, yaml_to_dict
 from checkmate.workflows import wait_for
-from novaclient.exceptions import NotFound, NoUniqueMatch
-from celery.canvas import chain, chord, group
 
 
 LOG = logging.getLogger(__name__)
@@ -263,10 +263,11 @@ class Provider(RackspaceComputeProviderBase):
         if preps:
             wait_on.append(preps)
         join = wait_for(wfspec, create_server_task, wait_on,
-                name="Server Wait on:%s (%s)" % (key, resource['service']))
+                        name="Server Wait on:%s (%s)" % (key,
+                                                         resource['service']))
 
         return dict(root=join, final=build_wait_task,
-                create=create_server_task)
+                    create=create_server_task)
 
     def delete_resource_tasks(self, context, deployment_id, resource, key):
         assert isinstance(context, RequestContext)
