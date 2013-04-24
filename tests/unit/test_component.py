@@ -1,18 +1,12 @@
 #!/usr/bin/env python
-import logging
 import unittest2 as unittest
 
-# Init logging before we load the database, 3rd party, and 'noisy' modules
-from checkmate.utils import init_console_logging
-init_console_logging()
-LOG = logging.getLogger(__name__)
-
-from checkmate.components import Component
+from checkmate.component import Component
 from checkmate.exceptions import CheckmateValidationException
 from checkmate.utils import yaml_to_dict
 
 
-class TestComponents(unittest.TestCase):
+class ComponentTestCase(unittest.TestCase):
     def test_schema_multiple_interfaces_ok(self):
         """Check that components support entries with the same key"""
         data = yaml_to_dict("""
