@@ -6,6 +6,7 @@ from checkmate import keys
 from checkmate.classes import ExtensibleDict
 from checkmate.exceptions import CheckmateException,\
     CheckmateValidationException
+from checkmate.middleware import RequestContext
 from checkmate.providers import ProviderBase
 from checkmate import utils
 from checkmate.deployment import verify_required_blueprint_options_supplied,\
@@ -104,16 +105,19 @@ class Plan(ExtensibleDict):
     def plan_delete(self, context):
         """
         Collect delete resource tasks from the deployment
+
+        :param context: a RequestContext
         :return: a celery.canvas.group of the delete tasks
         """
+        assert isinstance(context, RequestContext)
         del_tasks = []
         dep_id = self.deployment.get("id")
         for res_key, resource in self.deployment.get("resources",
                                                      {}).iteritems():
             prov_key = resource.get('provider')
             if not prov_key:
-                LOG.warn("Deployment %s resource %s does not specify a provider"
-                         % (dep_id, res_key))
+                LOG.warn("Deployment %s resource %s does not specify a "
+                         "provider", dep_id, res_key)
                 continue
             provider = self.environment.get_provider(resource.get("provider"))
             if not provider:
@@ -205,10 +209,10 @@ class Plan(ExtensibleDict):
                     LOG.debug("    Processing extra component '%s' for '%s'" %
                               (key, service_name))
                     extra_resource = deployment.create_resource_template(
-                                                   service_index,
-                                                   extra_def,
-                                                   service_name, domain,
-                                                   context)
+                        service_index,
+                        extra_def,
+                        service_name, domain,
+                        context)
                     self.add_resource(extra_resource, extra_def)
 
                     # Connnect extra components
@@ -280,23 +284,21 @@ class Plan(ExtensibleDict):
                     result = dict(type='user', instance=instance)
                     if 'name' not in resource:
                         instance['name'] = \
-                            deployment._get_setting_by_resource_path("resources/%s"
-                                                                     "/name" % key,
-                                                                     'admin')
+                            deployment._get_setting_by_resource_path(
+                                "resources/%s/name" % key, 'admin')
                         if not instance['name']:
-                            raise CheckmateException("Name must be specified for "
-                                                     "the '%s' user resource" %
-                                                     key)
+                            raise CheckmateException("Name must be specified "
+                                                     "for the '%s' user "
+                                                     "resource" % key)
                     else:
                         instance['name'] = resource['name']
                     if 'password' not in resource:
                         instance['password'] = \
-                            deployment._get_setting_by_resource_path("resources/%s"
-                                                                     "/password" %
-                                                                     key)
+                            deployment._get_setting_by_resource_path(
+                                "resources/%s/password" % key)
                         if not instance['password']:
                             instance['password'] = utils.evaluate(
-                                                         "generate_password()")
+                                "generate_password()")
                     else:
                         instance['password'] = resource['password']
                 elif resource['type'] == 'key-pair':
@@ -321,7 +323,8 @@ class Plan(ExtensibleDict):
                         if 'public_key_ssh' in resource:
                             public_key_ssh = resource['public_key_ssh']
                         else:
-                            public_key_ssh = keys.get_ssh_public_key(private_key)
+                            public_key_ssh = keys.get_ssh_public_key(
+                                private_key)
                         instance['public_key_ssh'] = public_key_ssh
                     if 'instance' in resource:
                         instance = resource['instance']
@@ -389,11 +392,11 @@ class Plan(ExtensibleDict):
         else:
             write_key = '%s-%s' % (connection_key, target['index'])
         result = {
-                    'interface': connection['interface'],
-                    'state': 'planned',
-                    'name': connection_key,
-                    'relation': relation_type
-                 }
+            'interface': connection['interface'],
+            'state': 'planned',
+            'name': connection_key,
+            'relation': relation_type
+        }
         if connection['direction'] == 'inbound':
             result['source'] = target['index']
         elif connection['direction'] == 'outbound':
@@ -502,12 +505,13 @@ class Plan(ExtensibleDict):
                     self._satisfy_requirement(requirement, rel_key, target,
                                               rel['service'], name=rel_key,
                                               relation_key=rel_key)
-                    provides_match = requirement['satisfied-by']['provides-key']
+                    provides_match = requirement['satisfied-by'][
+                        'provides-key']
                     #FIXME: part of v0.2 features to be removed
                     if 'attribute' in relation:
                         LOG.warning("Using v0.2 feature")
                         requirement['satisfied-by']['attribute'] = \
-                                relation['attribute']
+                            relation['attribute']
                 else:
                     provides_match = self._find_provides_key(rel, target)
 
@@ -515,15 +519,15 @@ class Plan(ExtensibleDict):
 
                 source_def = self['services'][service_name]['component']
                 source_map = {
-                                'component': source_def,
-                                'service': service_name,
-                                'endpoint': requires_match,
-                             }
+                    'component': source_def,
+                    'service': service_name,
+                    'endpoint': requires_match,
+                }
                 target_map = {
-                                'component': target,
-                                'service': rel['service'],
-                                'endpoint': provides_match,
-                             }
+                    'component': target,
+                    'service': rel['service'],
+                    'endpoint': provides_match,
+                }
                 relation_type = rel.get('relation', 'reference')
                 attribute = rel.get('attribute')  # FIXME: v0.2 feature
                 self.connect(source_map, target_map, rel['interface'],
@@ -579,13 +583,13 @@ class Plan(ExtensibleDict):
         connections = source['component']['connections']
         if connection_key not in connections:
             info = {
-                    'direction': 'outbound',
-                    'service': target['service'],
-                    'provides-key': target['endpoint'],
-                    'interface': interface,
-                    'requires-key': source['endpoint'],
-                    'relation': relation_type,
-                   }
+                'direction': 'outbound',
+                'service': target['service'],
+                'provides-key': target['endpoint'],
+                'interface': interface,
+                'requires-key': source['endpoint'],
+                'relation': relation_type,
+            }
             if relation_key:
                 info['relation-key'] = relation_key
             if 'extra-key' in target:
@@ -602,12 +606,12 @@ class Plan(ExtensibleDict):
         connections = target['component']['connections']
         if connection_key not in connections:
             info = {
-                    'direction': 'inbound',
-                    'service': source['service'],
-                    'interface': interface,
-                    'provides-key': target['endpoint'],
-                    'relation': relation_type,
-                   }
+                'direction': 'inbound',
+                'service': source['service'],
+                'interface': interface,
+                'provides-key': target['endpoint'],
+                'relation': relation_type,
+            }
             if relation_key:
                 info['relation-key'] = relation_key
             if 'extra-key' in source:
@@ -669,18 +673,18 @@ class Plan(ExtensibleDict):
 
                 # Connect the two components (write connection info in each)
                 provides_match = self._find_provides_key(requirement,
-                                                           component)
+                                                         component)
                 source_map = {
-                                'component': service['component'],
-                                'service': service_name,
-                                'endpoint': key,
-                             }
+                    'component': service['component'],
+                    'service': service_name,
+                    'endpoint': key,
+                }
                 target_map = {
-                                'component': component,
-                                'service': service_name,
-                                'endpoint': provides_match,
-                                'extra-key': key,
-                             }
+                    'component': component,
+                    'service': service_name,
+                    'endpoint': provides_match,
+                    'extra-key': key,
+                }
                 self.connect(source_map, target_map, requirement['interface'],
                              key, relation_type=relation)
 
@@ -699,7 +703,8 @@ class Plan(ExtensibleDict):
         for service_name, service in services.iteritems():
             if not 'extra-components' in service:
                 continue
-            for component_key, component in service['extra-components'].iteritems():
+            for component_key, component in service['extra-components']\
+                    .iteritems():
                 requirements = component['requires']
                 for key, requirement in requirements.iteritems():
                     # Skip if already matched
@@ -718,17 +723,17 @@ class Plan(ExtensibleDict):
 
             # Identify the component
             LOG.debug("Identifying component '%s' to satisfy requirement "
-                      "'%s' in service '%s' for extra component '%s'" % (
+                      "'%s' in service '%s' for extra component '%s'",
                       definition, requirement_key, service_name,
-                      component_key))
+                      component_key)
             found = self.identify_component(definition, context)
             if not found:
                 raise CheckmateException("Could not resolve component '%s'"
                                          % definition)
             LOG.debug("Component '%s' identified as '%s'  to satisfy "
                       "requirement '%s' for service '%s' for extra component "
-                      "'%s'" % (definition, found['id'], requirement_key,
-                      service_name, component_key))
+                      "'%s'", definition, found['id'], requirement_key,
+                      service_name, component_key)
 
             signature = (service_name, found['id'])
             if signature in history:
@@ -746,18 +751,18 @@ class Plan(ExtensibleDict):
 
             # Connect the two components (write connection info in each)
             source_map = {
-                            'component': component,
-                            'service': service_name,
-                            'endpoint': requirement_key,
-                            'extra-key': component_key,
-                         }
+                'component': component,
+                'service': service_name,
+                'endpoint': requirement_key,
+                'extra-key': component_key,
+            }
             provides_key = requirement['satisfied-by']['provides-key']
             target_map = {
-                            'component': found,
-                            'service': service_name,
-                            'endpoint': provides_key,
-                            'extra-key': requirement_key,
-                         }
+                'component': found,
+                'service': service_name,
+                'endpoint': provides_key,
+                'extra-key': requirement_key,
+            }
             self.connect(source_map, target_map, requirement['interface'],
                          requirement_key, relation_type=relation)
         if stack:
@@ -786,11 +791,11 @@ class Plan(ExtensibleDict):
                                                "requirement '%s'" %
                                                requirement_key)
         info = {
-                'service': component_service,
-                'component': component['id'],
-                'provides-key': provides_match,
-                'name': name or relation_key or requirement_key,
-               }
+            'service': component_service,
+            'component': component['id'],
+            'provides-key': provides_match,
+            'name': name or relation_key or requirement_key,
+        }
         if relation_key:
             info['relation-key'] = relation_key
         requirement['satisfied-by'] = info

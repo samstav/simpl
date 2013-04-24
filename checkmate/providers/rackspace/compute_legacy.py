@@ -1,22 +1,22 @@
-"""Provider for Rackspace Cloud Servers 1.0 API
-
-
+"""
+Provider for Rackspace Cloud Servers 1.0 API
 """
 import copy
 import logging
-import os
 
 import openstack.compute
-from SpiffWorkflow.operators import Attrib, PathAttrib
-from SpiffWorkflow.specs import Celery, Transform
+from SpiffWorkflow.operators import PathAttrib
+from SpiffWorkflow.specs import Celery
 
-from checkmate.deployments import Deployment, resource_postback
-from checkmate.exceptions import (CheckmateNoTokenError,
-                                  CheckmateNoMapping,
-                                  CheckmateServerBuildFailed,
-                                  CheckmateException)
+from checkmate.deployments import resource_postback
+from checkmate.exceptions import (
+    CheckmateNoTokenError,
+    CheckmateNoMapping,
+    CheckmateServerBuildFailed,
+    CheckmateException,
+)
 from checkmate.providers.rackspace.compute import RackspaceComputeProviderBase
-from checkmate.utils import get_source_body, match_celery_logging, yaml_to_dict
+from checkmate.utils import match_celery_logging, yaml_to_dict
 from checkmate.workflows import wait_for
 
 LOG = logging.getLogger(__name__)
@@ -553,10 +553,9 @@ def wait_on_build(context, server_id, ip_address_type='public',
         resource_postback.delay(context['deployment'], results)
         raise CheckmateException(msg)
 
-
     if server.status != 'ACTIVE':
         LOG.warning("Server %s status is %s, which is not recognized. "
-                "Assuming it is active" % (server_id, server.status))
+                    "Assuming it is active" % (server_id, server.status))
 
     if not ip:
         raise CheckmateException("Could not find IP of server %s" % server_id)
@@ -571,10 +570,10 @@ def wait_on_build(context, server_id, ip_address_type='public',
             results = {instance_key: results}
             # Send data back to deployment
             resource_postback.delay(context['deployment'],
-                                    results) #@UndefinedVariable
+                                    results)
             return results
         return wait_on_build.retry(exc=CheckmateException("Server %s not "
-                "ready yet" % server_id))
+                                   "ready yet" % server_id))
 
 
 def _convert_v1_adresses_to_v2(addresses):
@@ -625,4 +624,4 @@ def delete_server(context, serverid, api_object=None):
     if api_object is None:
         api_object = Provider._connect(context)
     api_object.servers.delete(serverid)
-    LOG.debug('Server %d deleted.' % serverid)
+    LOG.debug('Server %d deleted.', serverid)

@@ -239,8 +239,8 @@ def _cache_blueprint(source_repo):
     cache_expire_time = os.environ.get("CHECKMATE_BLUEPRINT_CACHE_EXPIRE")
     if not cache_expire_time:
         cache_expire_time = 3600
-        LOG.warning("CHECKMATE_BLUEPRINT_CACHE_EXPIRE variable not set. "
-                    "Defaulting to %s" % cache_expire_time)
+        LOG.info("CHECKMATE_BLUEPRINT_CACHE_EXPIRE variable not set. "
+                 "Defaulting to %s", cache_expire_time)
     cache_expire_time = int(cache_expire_time)
     repo_cache = _get_blueprints_cache_path(source_repo)
     if "#" in source_repo:
@@ -251,7 +251,7 @@ def _cache_blueprint(source_repo):
     if os.path.exists(repo_cache):
         repo = git.Repo(repo_cache)
         if branch in repo.tags:  # Does `branch' point to a tag?
-            LOG.debug("%s points to a tag, no update necessary" % branch)
+            LOG.debug("%s points to a tag, no update necessary", branch)
             return
         # The mtime of .git/FETCH_HEAD changes upon every "git
         # fetch".  FETCH_HEAD is only created after the first
@@ -261,17 +261,17 @@ def _cache_blueprint(source_repo):
         else:
             head_file = os.path.join(repo_cache, ".git", "HEAD")
         last_update = time.time() - os.path.getmtime(head_file)
-        LOG.debug("cache_expire_time: %s" % cache_expire_time)
-        LOG.debug("last_update: %s" % last_update)
+        LOG.debug("cache_expire_time: %s", cache_expire_time)
+        LOG.debug("last_update: %s", last_update)
 
         if last_update > cache_expire_time:
-            LOG.debug("Updating repo: %s" % repo_cache)
+            LOG.debug("Updating repo: %s", repo_cache)
             try:
                 repo.remotes.origin.pull()
             except git.GitCommandError as exc:
                 raise CheckmateException("Unable to pull from git repository "
                                          "at %s.  Using the cached "
-                                         "repository" % url)
+                                         "repository", url)
         else:
             LOG.debug("Using cached repo: %s" % repo_cache)
     else:
@@ -282,9 +282,9 @@ def _cache_blueprint(source_repo):
         except git.GitCommandError as exc:
             raise CheckmateException("Git repository could not be cloned "
                                      "from '%s'.  The error returned was "
-                                     "'%s'" % (url, exc))
+                                     "'%s'", url, exc)
         if branch in repo.tags:  # Does `branch' point to a tag?
-            LOG.debug("`branch' points to a tag.")
+            LOG.debug("'branch' points to a tag.")
             utils.git_checkout(repo_cache, branch)
 
 
@@ -312,7 +312,8 @@ def _copy_kitchen_blueprint(dest, source_repo):
                             os.path.join(dest, blueprint_file))
 
 
-def _create_kitchen(dep_id, service_name, path, secret_key=None, source_repo=None):
+def _create_kitchen(dep_id, service_name, path, secret_key=None,
+                    source_repo=None):
     """Creates a new knife-solo kitchen in path
 
     Arguments:
@@ -677,10 +678,10 @@ def cook(host, environment, resource, recipes=None, roles=None, path=None,
         params.extend(['-p', str(port)])
     try:
         _run_kitchen_command(environment, kitchen_path, params)
-        LOG.info("Knife cook succeeded for %s", host)
+        LOG.info("Knife cook succeeded for %s in %s", host, environment)
     except (CalledProcessError, CheckmateCalledProcessError) as exc:
-        LOG.info("Knife cook failed for %s. Retrying.", host)
-        register_node.retry(exc=exc)
+        LOG.warn("Knife cook failed for %s. Retrying.", host)
+        cook.retry(exc=exc)
 
     # TODO: When hosted_on resource can host more than one resource, need to
     # make sure all other hosted resources are ACTIVE before we can change
@@ -947,10 +948,14 @@ def register_node(host, environment, resource, path=None, password=None,
         params.extend(['-i', identity_file])
     try:
         _run_kitchen_command(environment, kitchen_path, params)
-        LOG.info("Knife prepare succeeded for %s", host)
+        LOG.info("Knife prepare succeeded for %s in %s", host, environment)
     except (CalledProcessError, CheckmateCalledProcessError) as exc:
-        LOG.info("Knife prepare failed for %s. Retrying.", host)
+        LOG.warn("Knife prepare failed for %s. Retrying.", host)
         register_node.retry(exc=exc)
+    except StandardError as exc:
+        LOG.error("Knife prepare failed with an unhandled error '%s' for %s.",
+                  exc, host)
+        raise exc
 
     if attributes:
         lock = threading.Lock()
