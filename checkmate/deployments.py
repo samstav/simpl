@@ -674,6 +674,7 @@ def deployment_operation(dep_id, driver=DB):
     operation['link'] = "/%s/workflows/%s" % (deployment['tenantId'], dep_id)
 
     # Operation type
+    # FIXME: operation type should be set by operation (workflow or canvas)
     status_type = {
         "ACTIVE": "deploy",
         "BUILD": "deploy",
@@ -685,7 +686,8 @@ def deployment_operation(dep_id, driver=DB):
         "PLANNED": "deploy",
         "RUNNING": "deploy"
     }
-    operation['type'] = status_type[deployment['status']]
+    if 'status' in deployment and deployment['status'] in status_type:
+        operation['type'] = status_type[deployment['status']]
 
     return operation
 
