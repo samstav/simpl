@@ -20,6 +20,7 @@ import sys
 import threading
 from time import gmtime, strftime
 import uuid
+import subprocess
 
 from bottle import abort, request
 import yaml
@@ -31,14 +32,24 @@ from yaml.parser import ParserError
 from checkmate.exceptions import CheckmateNoData, CheckmateValidationException
 
 LOG = logging.getLogger(__name__)
-RESOURCES = ['deployments', 'workflows', 'blueprints', 'environments',
-        'components', 'providers', 'test', 'status']
-
-DEFAULT_SENSITIVE_KEYS = ['credentials', 'apikey',
-        re.compile("(?:(?:auth)|(?:api))?[-_ ]?token$"),
-        re.compile("priv(?:ate)?[-_ ]?key$"),
-        re.compile('password$'),
-        re.compile('^password')]
+RESOURCES = [
+    'deployments',
+    'workflows',
+    'blueprints',
+    'environments',
+    'components',
+    'providers',
+    'test',
+    'status',
+]
+DEFAULT_SENSITIVE_KEYS = [
+    'credentials',
+    'apikey',
+    re.compile("(?:(?:auth)|(?:api))?[-_ ]?token$"),
+    re.compile("priv(?:ate)?[-_ ]?key$"),
+    re.compile('password$'),
+    re.compile('^password'),
+]
 STATIC = ['test', 'version']
 
 
@@ -67,7 +78,7 @@ class DebugFormatter(logging.Formatter):
         # Print out any 'extra' data provided in logs
         if hasattr(record, 'data'):
             return "%s. DEBUG DATA=%s" % (logging.Formatter.format(self,
-                    record), record.__dict__['data'])
+                                          record), record.__dict__['data'])
         return logging.Formatter.format(self, record)
 
 
@@ -81,7 +92,7 @@ def get_debug_formatter():
     """
     if '--debug' in sys.argv:
         return DebugFormatter('%(pathname)s:%(lineno)d: %(levelname)-8s '
-                '%(message)s')
+                              '%(message)s')
     elif '--verbose' in sys.argv:
         return logging.Formatter('%(name)-30s: %(levelname)-8s %(message)s')
     elif '--quiet' in sys.argv:
@@ -217,7 +228,7 @@ def read_body(request):
 def yaml_to_dict(data):
     """Parses YAML to a dict using checkmate extensions."""
     return yaml.safe_load(yaml.emit(resolve_yaml_external_refs(data),
-             Dumper=yaml.SafeDumper))
+                                    Dumper=yaml.SafeDumper))
 
 
 def dict_to_yaml(data):
@@ -257,7 +268,7 @@ HANDLERS = {
     'application/x-yaml': write_yaml,
     'application/json': write_json,
     'default': write_json
-    }
+}
 
 
 def write_body(data, request, response):
@@ -287,8 +298,8 @@ def extract_sensitive_data(data, sensitive_keys=None):
         if key in sensitive_keys:
             return True
         for reg_expr in [pattern for pattern in sensitive_keys
-                          if hasattr(pattern, "search")
-                          and callable(getattr(pattern, "search"))]:
+                         if hasattr(pattern, "search")
+                         and callable(getattr(pattern, "search"))]:
             if reg_expr.search(key):
                 return True
         return False
@@ -306,7 +317,7 @@ def extract_sensitive_data(data, sensitive_keys=None):
             for value in data:
                 if isinstance(value, dict):
                     c, s = recursive_split(value,
-                            sensitive_keys=sensitive_keys)
+                                           sensitive_keys=sensitive_keys)
                     if s is not None:
                         sensitive.append(s)
                         has_sensitive_data = True
@@ -319,7 +330,7 @@ def extract_sensitive_data(data, sensitive_keys=None):
                         clean.append({})  # placeholder
                 elif isinstance(value, list):
                     c, s = recursive_split(value,
-                            sensitive_keys=sensitive_keys)
+                                           sensitive_keys=sensitive_keys)
                     if s is not None:
                         sensitive.append(s)
                         has_sensitive_data = True
@@ -343,7 +354,7 @@ def extract_sensitive_data(data, sensitive_keys=None):
                     sensitive[key] = value
                 elif isinstance(value, dict):
                     c, s = recursive_split(value,
-                            sensitive_keys=sensitive_keys)
+                                           sensitive_keys=sensitive_keys)
                     if s is not None:
                         has_sensitive_data = True
                         sensitive[key] = s
@@ -352,7 +363,7 @@ def extract_sensitive_data(data, sensitive_keys=None):
                         clean[key] = c
                 elif isinstance(value, list):
                     c, s = recursive_split(value,
-                            sensitive_keys=sensitive_keys)
+                                           sensitive_keys=sensitive_keys)
                     if s is not None:
                         has_sensitive_data = True
                         sensitive[key] = s
@@ -410,28 +421,28 @@ def merge_lists(dest, source, extend_lists=False):
         return
     if not extend_lists:
         # Make them the same size
-        r = dest
-        s = source[:]
+        left = dest
+        right = source[:]
         if len(dest) > len(source):
-            s.extend([None for i in range(len(dest) -
-                    len(source))])
+            right.extend([None for _ in range(len(dest) -
+                          len(source))])
         elif len(dest) < len(source):
-            r.extend([None for i in range(len(source) -
-                    len(dest))])
+            left.extend([None for _ in range(len(source) -
+                         len(dest))])
         # Merge lists
-        for index, value in enumerate(r):
-            if value is None and s[index] is not None:
-                dest[index] = s[index]
+        for index, value in enumerate(left):
+            if value is None and right[index] is not None:
+                dest[index] = right[index]
             elif isinstance(value, dict) and \
-                    isinstance(s[index], dict):
+                    isinstance(right[index], dict):
                 merge_dictionary(dest[index], source[index],
                                  extend_lists=extend_lists)
             elif isinstance(value, list):
-                merge_lists(value, s[index])
-            elif s[index] is not None:
-                dest[index] = s[index]
+                merge_lists(value, right[index])
+            elif right[index] is not None:
+                dest[index] = right[index]
     else:
-        dest.extend([s for s in source if s not in dest])
+        dest.extend([src for src in source if src not in dest])
     return dest
 
 
@@ -449,12 +460,12 @@ def is_ssh_key(key):
     if len(parts) < 2:
         return False
     if len(parts) > 2:
-        key_type, key_string, comment = parts[0:3]
+        key_type, key_string, comment = parts[0:3]  # pylint: disable=W0612
     else:
-        key_type, key_string = parts[0:2]
+        key_type, key_string = parts[0:2]  # pylint: disable=W0612
     try:
         data = base64.decodestring(key_string)
-    except:
+    except StandardError:
         return False
     int_len = 4
     str_len = struct.unpack('>I', data[:int_len])[0]  # this should return 7
@@ -486,41 +497,41 @@ def get_source_body(function):
     return '\n'.join(lines)
 
 
-def with_tenant(fn):
+def with_tenant(fxn):
     """A function decorator that ensures a context tenant_id is passed in to
     the decorated function as a kwarg"""
     def wrapped(*args, **kwargs):
         if kwargs and kwargs.get('tenant_id'):
             # Tenant ID is being passed in
-            return fn(*args, **kwargs)
+            return fxn(*args, **kwargs)
         else:
-            return fn(*args, tenant_id=request.context.tenant, **kwargs)
+            return fxn(*args, tenant_id=request.context.tenant, **kwargs)
     return wrapped
 
 
 def support_only(types):
     """A function decorator that ensures the route is only accepted if the
     content type is in the list of types supplied"""
-    def wrap(fn):
+    def wrap(fxn):
         def wrapped(*args, **kwargs):
             accept = request.get_header("Accept", [])
             if accept == "*/*":
-                return fn(*args, **kwargs)
+                return fxn(*args, **kwargs)
             for content_type in types:
                 if content_type in accept:
-                    return fn(*args, **kwargs)
+                    return fxn(*args, **kwargs)
             LOG.debug("support_only decorator filtered call")
             raise abort(415, "Unsupported media type")
         return wrapped
     return wrap
 
 
-def get_time_string():
+def get_time_string(time=None):
     """Central function that returns time (UTC in ISO format) as a string
 
     Changing this function will change all times that checkmate uses in
     blueprints, deployments, etc..."""
-    return strftime("%Y-%m-%d %H:%M:%S +0000", gmtime())
+    return strftime("%Y-%m-%d %H:%M:%S +0000", time or gmtime())
 
 
 def isUUID(value):
@@ -532,7 +543,7 @@ def isUUID(value):
     try:
         uuid.UUID(value)
         return True
-    except:
+    except StandardError:
         return False
 
 
@@ -583,8 +594,8 @@ def evaluate(function_string):
         # Defaults to 8 chars, alphanumeric
         start_with = string.ascii_uppercase + string.ascii_lowercase
         password = '%s%s' % (random.choice(start_with),
-            ''.join(random.choice(start_with + string.digits)
-            for x in range(7)))
+                             ''.join(random.choice(start_with + string.digits)
+                             for x in range(7)))
         return password
     raise NameError("Unsupported function: %s" % function_string)
 
@@ -647,3 +658,17 @@ def check_all_output(params, find="ERROR"):
 def is_simulation(api_id):
     '''Determine if the current object is in simulation'''
     return api_id.startswith('simulate')
+
+
+def git_checkout(repo_dir, head):
+    """Do a git checkout of `head' in `repo_dir'.
+
+    The checkout method in GitPython has a bug.  This is just a
+    temporary fix.
+
+    GitPython bug report:
+    https://github.com/gitpython-developers/GitPython/issues/106
+    """
+    cmd = ['git', 'checkout', head]
+    proc = subprocess.Popen(cmd, cwd=repo_dir)
+    proc.wait()

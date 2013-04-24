@@ -10,7 +10,7 @@ from checkmate.classes import ExtensibleDict
 from checkmate.constraints import Constraint
 from checkmate.common import schema
 from checkmate.db import get_driver
-from checkmate.environments import Environment
+from checkmate.environment import Environment
 from checkmate.exceptions import (
     CheckmateException,
     CheckmateValidationException,
@@ -909,16 +909,23 @@ class Deployment(ExtensibleDict):
         Resource.validate(resource)
         return resource
 
-    def on_resource_postback(self, contents):
+    def on_resource_postback(self, contents, target=None):
         """Called to merge in contents when a postback with new resource data
         is received.
 
         Translates values to canonical names. Iterates to one level of depth to
-        handle postbacks that write to instance key"""
+        handle postbacks that write to instance key
+
+        :param contents: dict -- the new data to write
+        :param target: dict -- optional for writing to other than this
+                       deployment
+        """
         if contents:
             if not isinstance(contents, dict):
                 raise CheckmateException("Postback value was not a dictionary")
 
+            if target is None:
+                target = self
             # Find targets and merge in values appropriately
             for key, value in contents.iteritems():
                 if key.startswith('instance:'):
@@ -934,22 +941,37 @@ class Deployment(ExtensibleDict):
                                % resource_id))
                     if not value:
                         LOG.warn("Deployment %s resource postback for resource"
-                                 " %s was empty!" % (self.get('id'),
-                                                     resource_id))
+                                 " %s was empty!", self.get('id'), resource_id)
                         continue
                     # Canonicalize it
                     value = schema.translate_dict(value)
                     # Only apply instance
                     if 'instance' in value:
                         value = value['instance']
-                    # Merge it in
+
+                    # Merge it in (to target if supplied)
+                    data = {
+                        'resources': {
+                            str(resource_id): {
+                                'instance': value,
+                            }
+                        }
+                    }
+                    resource = self['resources'][resource_id]
                     if 'instance' not in resource:
                         resource['instance'] = {}
-                    LOG.debug("Merging postback data for resource %s: %s" % (
-                              resource_id, value), extra=dict(data=resource))
-                    merge_dictionary(resource['instance'], value)
+                    LOG.debug("Merging postback data for resource %s: %s",
+                              resource_id, value, extra=dict(data=resource))
+                    merge_dictionary(target, data)
 
                 elif key.startswith('connection:'):
+                    # TODO: deprecate this (or handle it better)
+                    # I don't think this is being used. [ZNS 2013-04-22]
+                    # New partial resource_postback logic would skip this
+                    # and not have it get saved
+                    LOG.error("Connection was recieved in a resource_postback "
+                              "and the logic for that code path is slated for "
+                              "deprecation (or a refresh) '%s'=%s", key, value)
                     # Find the connection
                     connection_id = key.split(':')[1]
                     connection = self['connections'][connection_id]
@@ -964,8 +986,8 @@ class Deployment(ExtensibleDict):
                     # Canonicalize it
                     value = schema.translate_dict(value)
                     # Merge it in
-                    LOG.debug("Merging postback data for connection %s: %s" % (
-                              connection_id, value),
+                    LOG.debug("Merging postback data for connection %s: %s",
+                              connection_id, value,
                               extra=dict(data=connection))
                     merge_dictionary(connection, value)
                 else:
@@ -973,5 +995,5 @@ class Deployment(ExtensibleDict):
                         value = schema.translate_dict(value)
                     else:
                         value = schema.translate(value)
-                    raise (NotImplementedError("Global post-back values not "
-                           "yet supported: %s" % key))
+                    raise NotImplementedError("Global post-back values not "
+                                              "yet supported: %s" % key)

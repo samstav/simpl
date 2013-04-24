@@ -1,26 +1,23 @@
 #!/usr/bin/env python
 import copy
+from copy import deepcopy
+import json
 import logging
 import os
 import unittest2 as unittest
-from urlparse import urlunparse
 
 # Init logging before we load the database, 3rd party, and 'noisy' modules
 from checkmate.utils import init_console_logging
-import mox
-import checkmate
-import bottle
-import json
-from celery.app.task import Context
-import os
-from bottle import HTTPError
-from mox import IgnoreArg
-import celery
-from copy import deepcopy
 init_console_logging()
-LOG = logging.getLogger(__name__)
 
-from checkmate import keys, deployments
+from celery.app.task import Context
+import bottle
+from bottle import HTTPError
+import mox
+from mox import IgnoreArg
+
+import checkmate
+from checkmate import keys
 from checkmate.deployments import (
     Deployment,
     plan,
@@ -31,6 +28,7 @@ from checkmate.deployments import (
     generate_keys,
     delete_deployment,
     delete_deployment_task,
+    post_deployment,
     get_deployment_resources,
     get_resources_statuses,
     update_all_provider_resources,
@@ -45,8 +43,9 @@ from checkmate.inputs import Input
 from checkmate.providers import base
 from checkmate.providers.base import ProviderBase
 from checkmate.middleware import RequestContext
-from checkmate.utils import yaml_to_dict, dict_to_yaml
+from checkmate.utils import yaml_to_dict
 
+LOG = logging.getLogger(__name__)
 os.environ['CHECKMATE_DOMAIN'] = 'checkmate.local'
 
 
@@ -99,7 +98,7 @@ class TestDeployments(unittest.TestCase):
 
     def test_key_generation_public(self):
         """Test that key generation works if a private key is supplied"""
-        private, public = keys.generate_key_pair()
+        private, _ = keys.generate_key_pair()
         deployment = Deployment({
             'id': 'test',
             'name': 'test',
@@ -120,7 +119,7 @@ class TestDeployments(unittest.TestCase):
 
     def test_key_generation_and_settings_sync(self):
         """Test that key generation refreshes settings"""
-        private, public = keys.generate_key_pair()
+        private, _ = keys.generate_key_pair()
         deployment = Deployment({
             'id': 'test',
             'name': 'test',
@@ -149,6 +148,11 @@ class TestDeploymentParser(unittest.TestCase):
             'id': 'test',
             'blueprint': {
                 'name': 'test bp',
+            },
+            'operation': {
+                'complete': 0,
+                'estimated-duration': 0,
+                'tasks': 3
             },
             'environment': {
                 'name': 'environment',
@@ -197,7 +201,7 @@ class TestDeploymentParser(unittest.TestCase):
                 }],
             },
         }
-        for name, case in cases.iteritems():
+        for _, case in cases.iteritems():
             parsed = Deployment.parse_constraints(case['parse'])
             expected = case['expected']
             for constraint in expected:
@@ -221,7 +225,6 @@ class TestDeploymentDeployer(unittest.TestCase):
                 'providers': {},
             },
         }
-        original = copy.copy(deployment)
         parsed = plan(Deployment(deployment), RequestContext())
         workflow = _deploy(parsed, RequestContext())
         self.assertIn("wf_spec", workflow)
@@ -357,7 +360,7 @@ class TestDeploymentResourceGenerator(unittest.TestCase):
 
     def test_providerless_static_resource_generator(self):
         """Test the parser generates providerless static resources"""
-        private, public = keys.generate_key_pair()
+        private, _ = keys.generate_key_pair()
         deployment = Deployment(yaml_to_dict("""
                 id: test
                 name: test_deployment
@@ -835,8 +838,8 @@ class TestDeploymentSettings(unittest.TestCase):
                                        provider_key=test.get('provider'),
                                        resource_type=test.get('type'))
             self.assertEquals(value, test['expected'], msg=test['case'])
-            LOG.debug("Test '%s' success=%s" % (test['case'],
-                                                value == test['expected']))
+            LOG.debug("Test '%s' success=%s", test['case'],
+                      value == test['expected'])
 
         msg = "Coming from static resource constraint"
         value = parsed.get_setting("server_key", service_name="web",
@@ -1070,11 +1073,11 @@ class TestDeploymentCounts(unittest.TestCase):
 
     def __init__(self, methodName="runTest"):
         self._mox = mox.Mox()
-        self._deploymets = {}
+        self._deployments = {}
         unittest.TestCase.__init__(self, methodName)
 
     def setUp(self):
-        self._deploymets = json.load(open(os.path.join(
+        self._deployments = json.load(open(os.path.join(
             os.path.dirname(__file__), 'data', 'deployments.json')))
         self._mox.StubOutWithMock(checkmate.deployments, "DB")
         bottle.request.bind({})
@@ -1088,34 +1091,34 @@ class TestDeploymentCounts(unittest.TestCase):
 
     def test_get_count_all(self):
         checkmate.deployments.DB.get_deployments(tenant_id=mox.IgnoreArg()
-                                                 ).AndReturn(self._deploymets)
+                                                 ).AndReturn(self._deployments)
         self._mox.ReplayAll()
         self._assert_good_count(json.loads(get_deployments_count(
                                 driver=checkmate.deployments.DB)), 3)
 
     def test_get_count_tenant(self):
         # remove the extra deployment
-        self._deploymets.pop("3fgh")
+        self._deployments.pop("3fgh")
         checkmate.deployments.DB.get_deployments(tenant_id="12345").AndReturn(
-            self._deploymets)
+            self._deployments)
         self._mox.ReplayAll()
         self._assert_good_count(json.loads(get_deployments_count(
             tenant_id="12345", driver=checkmate.deployments.DB)), 2)
 
     def test_get_count_deployment(self):
         checkmate.deployments.DB.get_deployments(tenant_id=None).AndReturn(
-            self._deploymets)
+            self._deployments)
         self._mox.ReplayAll()
         self._assert_good_count(json.loads(get_deployments_by_bp_count(
             "blp-123-aabc-efg", driver=checkmate.deployments.DB)), 2)
 
     def test_get_count_deployment_and_tenant(self):
-        raw_deployments = self._deploymets.copy()
+        raw_deployments = self._deployments.copy()
         raw_deployments.pop("3fgh")
-        self._deploymets.pop("2def")
-        self._deploymets.pop("1abc")
+        self._deployments.pop("2def")
+        self._deployments.pop("1abc")
         checkmate.deployments.DB.get_deployments(tenant_id="854673"
-                                                 ).AndReturn(self._deploymets)
+                                                 ).AndReturn(self._deployments)
         checkmate.deployments.DB.get_deployments(tenant_id="12345"
                                                  ).AndReturn(raw_deployments)
         self._mox.ReplayAll()
@@ -1731,6 +1734,64 @@ class TestDeploymentScenarios(unittest.TestCase):
         """ Wrapper for deployment planning """
         deployment = Deployment(yaml_to_dict(content))
         return plan(deployment, RequestContext())
+
+
+class TestPostDeployments(unittest.TestCase):
+    """ Test POST /deployments endpoint """
+
+    def __init__(self, methodName="runTest"):
+        self._mox = mox.Mox()
+        unittest.TestCase.__init__(self, methodName)
+
+    def setUp(self):
+        bottle.request.bind({})
+        self._deployment = {
+            'id': '1234',
+            'environment': {},
+            'blueprint': {}
+        }
+        bottle.request.context = Context()
+        bottle.request.context.tenant = None
+
+    def tearDown(self):
+        self._mox.UnsetStubs()
+        unittest.TestCase.tearDown(self)
+
+    def test_async_post(self):
+        """ Test that POST /deployments returns an asynchronous 202 """
+
+        self._mox.StubOutWithMock(checkmate.deployments, "request")
+        context = RequestContext(simulation=False)
+        checkmate.deployments.request.context = context
+        checkmate.deployments.request.query = {}
+        self._mox.StubOutWithMock(checkmate.deployments, "write_body")
+        checkmate.deployments.write_body(IgnoreArg(), IgnoreArg(),
+                                         IgnoreArg()).AndReturn('')
+
+        self._mox.StubOutWithMock(checkmate.deployments,
+                                  "_content_to_deployment")
+        checkmate.deployments._content_to_deployment(IgnoreArg(),
+                                                     tenant_id=IgnoreArg())\
+            .AndReturn(self._deployment)
+
+        self._mox.StubOutWithMock(checkmate.deployments, "_save_deployment")
+        checkmate.deployments._save_deployment(self._deployment,
+                                               deployment_id='1234',
+                                               tenant_id=IgnoreArg(),
+                                               driver=IgnoreArg())\
+            .AndReturn(True)
+
+        self._mox.StubOutWithMock(checkmate.deployments, "execute_plan")
+        checkmate.deployments.execute_plan = self._mox.CreateMockAnything()
+        checkmate.deployments.execute_plan.__call__('1234', IgnoreArg(),
+                                                    asynchronous=IgnoreArg(),
+                                                    driver=IgnoreArg())\
+            .AndReturn(True)
+
+        self._mox.ReplayAll()
+        post_deployment()
+        self._mox.VerifyAll()
+        self.assertEquals(202, bottle.response.status_code)
 
 
 class TestDeleteDeployments(unittest.TestCase):

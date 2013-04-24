@@ -1,0 +1,82 @@
+valid:
+  name: test
+  providers:
+    load-balancer:
+      vendor: rackspace
+      catalog:
+        load-balancer:
+          rsCloudLB:
+            provides:
+            - load-balancer: http
+            requires:
+            - application: http
+            options:
+              protocol:
+                type: list
+                choice: [http]
+    base:
+      vendor: test
+      catalog:
+        compute:
+          linux_instance:
+            provides:
+            - application: https
+            - compute: linux
+
+valid_with_multiple_lb_providers:
+  name: test
+  providers:
+    load-balancer:
+      vendor: rackspace
+      catalog:
+        load-balancer:
+          rsCloudLB:
+            provides:
+            - load-balancer: http
+            requires:
+            - application: http
+            options:
+              protocol:
+                type: list
+                choice: [http]
+    base:
+      vendor: test
+      catalog:
+        load-balancer:
+          testLB:
+            provides:
+            - load-balancer: http
+        compute:
+          linux_instance:
+            provides:
+            - application: https
+            - compute: linux
+
+no_vendor:
+  name: test
+  providers:
+    base:
+      catalog:
+        compute:
+          linux_instance:
+            provides:
+            - application: http
+            - compute: linux
+
+common_vendor:
+  name: test
+  providers:
+    load-balancer:
+      catalog:
+        load-balancer:
+          rsCloudLB:
+            provides:
+            - load-balancer: http
+            requires:
+            - application: http
+            options:
+              protocol:
+                type: list
+                choice: [http]
+    common:
+      vendor: rackspace

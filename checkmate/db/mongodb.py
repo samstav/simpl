@@ -169,7 +169,6 @@ class Driver(DbBase):
         :raises ValueError: If the unlocked object does not exist or the lock
             was incorrect.
         """
-
         unlocked_object = self.database()[klass].find_and_modify(
             query={
                 '_id': api_id,
@@ -255,16 +254,16 @@ class Driver(DbBase):
                     lock_time_delta = (lock_timestamp -
                                        object_exists['_lock_timestamp'])
 
-                    # The lock is stale if it is greater than two hours old
-                    if lock_time_delta >= 30:
+                    if lock_time_delta >= 5:
                         # Key is stale, force the lock
                         LOG.warning("%s(%s) had a stale lock of %s seconds!",
                                     klass, api_id, lock_time_delta)
-                        locked_object = self.database()[klass].find_and_modify(
-                            query={'_id': api_id},
-                            update=lock_update,
-                            fields=self._object_projection
-                        )
+                        locked_object = self.database()[klass]\
+                            .find_and_modify(
+                                query={'_id': api_id},
+                                update=lock_update,
+                                fields=self._object_projection
+                            )
                         return (locked_object, key)
                     else:
                         # Lock is not stale
@@ -293,17 +292,16 @@ class Driver(DbBase):
         Get an object by klass and api_id. We are filtering out the
         mongo _id field with a projection on all db queries.
 
-        :param klass: The collection to query from
-        :param api_id: The collection item to get
+        :param klass: The klass to query from
+        :param api_id: The klass item to get
         :param with_secrets: Merge secrets with the results
         '''
-
         if not self._client:
             self.database()
         client = self._client
         with client.start_request():
-            results = self.database()[klass].find_one({'_id': api_id},
-                                                      self._object_projection)
+            results = self.database()[klass].find_one({
+                '_id': api_id}, self._object_projection)
 
             if results:
                 if with_secrets is True:
@@ -389,7 +387,8 @@ class Driver(DbBase):
         if isinstance(body, ExtensibleDict):
             body = body.__dict__()
         assert isinstance(body, dict), "dict required by backend"
-        assert 'id' in body, "id required to be in body by backend"
+        assert 'id' in body or merge_existing is True, ("id required to be in "
+                                                        "body by backend")
         if not self._client:
             self.database()
         client = self._client
@@ -424,13 +423,13 @@ class Driver(DbBase):
             assert tenant_id or 'tenantId' in body, ("tenantId must be "
                                                      "specified")
             body['_id'] = api_id
-            self.database()[klass].update({'_id': api_id}, body, True, False,
-                                          check_keys=False)
+            self.database()[klass].update({'_id': api_id}, body,
+                                          not merge_existing,  # Upsert new
+                                          False, check_keys=False)
             if secrets:
                 secrets['_id'] = api_id
-                self.database()['%s_secrets' % klass].update({'_id': api_id},
-                                                             secrets, True,
-                                                             False)
+                self.database()['%s_secrets' % klass].update({
+                    '_id': api_id}, secrets, True, False)
             del body['_id']
 
         return body

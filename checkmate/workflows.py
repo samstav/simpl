@@ -1,10 +1,11 @@
-""" Workflow handling
+"""
+Workflow handling
 
 This module uses SpiffWorkflow to create, manage, and run workflows for
 Checkmate
 """
 # pylint: disable=E0611
-from bottle import get, post, put, route, request, response, abort
+from bottle import get, post, route, request, response, abort
 import copy
 import logging
 import os
@@ -14,8 +15,8 @@ try:
     from SpiffWorkflow.specs import WorkflowSpec, Merge, Simple, Join
 except ImportError:
     #TODO(zns): remove this when Spiff incorporates the code in it
-    print "Get SpiffWorkflow with the Celery spec in it from here: "\
-            "https://github.com/ziadsawalha/SpiffWorkflow/tree/celery"
+    print ("Get SpiffWorkflow with the Celery spec in it from here: "
+           "https://github.com/ziadsawalha/SpiffWorkflow/tree/celery")
     raise
 
 from SpiffWorkflow import Workflow as SpiffWorkflow, Task
@@ -57,13 +58,13 @@ def get_workflows(tenant_id=None, driver=DB):
     offset = request.query.get('offset')
     limit = request.query.get('limit')
     if offset:
-        offset=int(offset)
+        offset = int(offset)
     if limit:
-        limit=int(limit)
+        limit = int(limit)
     if 'with_secrets' in request.query:
-        if request.context.is_admin == True:
-            LOG.info("Administrator accessing workflows with secrets: %s" %
-                    request.context.username)
+        if request.context.is_admin is True:
+            LOG.info("Administrator accessing workflows with secrets: %s",
+                     request.context.username)
             results = driver.get_workflows(tenant_id=tenant_id,
                                            with_secrets=True,
                                            offset=offset, limit=limit)
@@ -161,8 +162,8 @@ def get_workflow(id, tenant_id=None, driver=DB):
         driver = SIMULATOR_DB
 
     if 'with_secrets' in request.query:
-        LOG.info("Administrator accessing workflow %s with secrets: %s" %
-                (id, request.context.username))
+        LOG.info("Administrator accessing workflow %s with secrets: %s",
+                 id, request.context.username)
         results = driver.get_workflow(id, with_secrets=True)
     else:
         results = driver.get_workflow(id)
@@ -171,7 +172,7 @@ def get_workflow(id, tenant_id=None, driver=DB):
     if 'id' not in results:
         results['id'] = str(id)
     assert tenant_id is None or tenant_id == results.get('tenant_id',
-            tenant_id)
+                                                         tenant_id)
     return write_body(results, request, response)
 
 
@@ -237,7 +238,7 @@ def post_workflow_spec(workflow_id, spec_id, tenant_id=None, driver=DB):
         abort(404, 'No spec with id %s' % spec_id)
 
     LOG.debug("Updating spec '%s' in workflow '%s'" % (spec_id, workflow_id),
-            extra=dict(data=dict(old=spec, new=entity)))
+              extra=dict(data=dict(old=spec, new=entity)))
     workflow['wf_spec']['task_specs'][spec_id] = entity
 
     # Save workflow (with secrets)
@@ -377,11 +378,11 @@ def reset_workflow_task(id, task_id, tenant_id=None, driver=DB):
 
     if task.task_spec.__class__.__name__ != 'Celery':
         abort(406, "You can only reset Celery tasks. This is a '%s' task" %
-            task.task_spec.__class__.__name__)
+              task.task_spec.__class__.__name__)
 
     if task.state != Task.WAITING:
         abort(406, "You can only reset WAITING tasks. This task is in '%s'" %
-            task.get_state_name())
+              task.get_state_name())
 
     task.task_spec._clear_celery_task_data(task)
 
@@ -408,7 +409,8 @@ def reset_workflow_task(id, task_id, tenant_id=None, driver=DB):
     return write_body(body, request, response)
 
 
-@route('/workflows/<workflow_id>/tasks/<task_id:int>/+resubmit', method=['GET', 'POST'])
+@route('/workflows/<workflow_id>/tasks/<task_id:int>/+resubmit',
+       method=['GET', 'POST'])
 @with_tenant
 def resubmit_workflow_task(workflow_id, task_id, tenant_id=None, driver=DB):
     """Reset a Celery workflow task and retry it
@@ -419,58 +421,65 @@ def resubmit_workflow_task(workflow_id, task_id, tenant_id=None, driver=DB):
     :param id: checkmate workflow id
     :param task_id: checkmate workflow task id
     """
-    if is_simulation(workflow_id):
-        driver = SIMULATOR_DB
+    key = None
+    body = None
+    try:
+        if is_simulation(workflow_id):
+            driver = SIMULATOR_DB
+        workflow, key = driver.lock_workflow(workflow_id, with_secrets=True)
+        if not workflow:
+            abort(404, "No workflow with id '%s' found" % workflow_id)
+        serializer = DictionarySerializer()
+        wf = SpiffWorkflow.deserialize(serializer, workflow)
 
-    workflow = driver.get_workflow(workflow_id, with_secrets=True)
-    if not workflow:
-        abort(404, "No workflow with id '%s' found" % workflow_id)
+        task = wf.get_task(task_id)
+        if not task:
+            abort(404, 'No task with id %s' % task_id)
 
-    serializer = DictionarySerializer()
-    wf = SpiffWorkflow.deserialize(serializer, workflow)
+        if task.task_spec.__class__.__name__ != 'Celery':
+            abort(406, "You can only reset Celery tasks. This is a '%s' task" %
+                  task.task_spec.__class__.__name__)
 
-    task = wf.get_task(task_id)
-    if not task:
-        abort(404, 'No task with id %s' % task_id)
+        if task.state != Task.WAITING:
+            abort(406, "You can only reset WAITING tasks. This task is in '%s'"
+                  % task.get_state_name())
 
-    if task.task_spec.__class__.__name__ != 'Celery':
-        abort(406, "You can only reset Celery tasks. This is a '%s' task" %
-            task.task_spec.__class__.__name__)
+        # Refresh token if it exists in args[0]['auth_token]
+        if hasattr(task, 'args') and task.task_spec.args and \
+                len(task.task_spec.args) > 0 and \
+                isinstance(task.task_spec.args[0], dict) and \
+                task.task_spec.args[0].get('auth_token') != \
+                request.context.auth_token:
+            task.task_spec.args[0]['auth_token'] = request.context.auth_token
+            LOG.debug("Updating task auth token with new caller token")
+        if task.task_spec.retry_fire(task):
+            LOG.debug("Progressing task '%s' (%s)" % (task_id,
+                                                      task.get_state_name()))
+            task.task_spec._update_state(task)
 
-    if task.state != Task.WAITING:
-        abort(406, "You can only reset WAITING tasks. This task is in '%s'" %
-            task.get_state_name())
+        orchestrator.update_workflow_status(wf)
+        serializer = DictionarySerializer()
+        entity = wf.serialize(serializer)
+        body, secrets = extract_sensitive_data(entity)
+        body['tenantId'] = workflow.get('tenantId', tenant_id)
+        body['id'] = workflow_id
+        driver.save_workflow(workflow_id, body, secrets=secrets,
+                             tenant_id=tenant_id)
+        task = wf.get_task(task_id)
+        if not task:
+            abort(404, "No task with id '%s' found" % task_id)
 
-    # Refresh token if it exists in args[0]['auth_token]
-    if hasattr(task, 'args') and task.task_spec.args and \
-            len(task.task_spec.args) > 0 and \
-            isinstance(task.task_spec.args[0], dict) and \
-            task.task_spec.args[0].get('auth_token') != \
-            request.context.auth_token:
-        task.task_spec.args[0]['auth_token'] = request.context.auth_token
-        LOG.debug("Updating task auth token with new caller token")
-    if task.task_spec.retry_fire(task):
-        LOG.debug("Progressing task '%s' (%s)" % (task_id,
-                                                  task.get_state_name()))
-        task.task_spec._update_state(task)
-
-    orchestrator.update_workflow_status(wf)
-    serializer = DictionarySerializer()
-    entity = wf.serialize(serializer)
-    body, secrets = extract_sensitive_data(entity)
-    body['tenantId'] = workflow.get('tenantId', tenant_id)
-    body['id'] = workflow_id
-    safe_workflow_save(workflow_id, body, secrets=secrets, tenant_id=tenant_id,
-                       driver=driver)
-
-    task = wf.get_task(task_id)
-    if not task:
-        abort(404, "No task with id '%s' found" % task_id)
-
-    # Return cleaned data (no credentials)
-    data = serializer._serialize_task(task, skip_children=True)
-    body, secrets = extract_sensitive_data(data)
-    body['workflow_id'] = workflow_id  # so we know which workflow it came from
+        # Return cleaned data (no credentials)
+        data = serializer._serialize_task(task, skip_children=True)
+        body, secrets = extract_sensitive_data(data)
+        # so we know which workflow it came from
+        body['workflow_id'] = workflow_id
+    except ObjectLockedError:
+        abort(406, "Cannot retry task(%s) while workflow(%s) is executing." %
+              (task_id, workflow_id))
+    finally:
+        if key:
+            driver.unlock_workflow(workflow_id, key)
     return write_body(body, request, response)
 
 
@@ -568,14 +577,15 @@ def create_workflow_deploy(deployment, context):
     while tasks:
         task = tasks.pop(0)
         tasks.extend(task.children)
-        expect_to_take = task.parent._get_internal_attribute(
-                'estimated_completed_in') +\
-                task.task_spec.get_property('estimated_duration', 0)
+        expect_to_take = (task.parent._get_internal_attribute(
+                          'estimated_completed_in') +
+                          task.task_spec.get_property('estimated_duration',
+                                                      0))
         if expect_to_take > overall:
             overall = expect_to_take
         task._set_internal_attribute(estimated_completed_in=expect_to_take)
     LOG.debug("Workflow %s estimated duration: %s" % (deployment['id'],
-            overall))
+              overall))
     workflow.attributes['estimated_duration'] = overall
     orchestrator.update_workflow_status(workflow)
 
@@ -603,8 +613,8 @@ def create_workflow_spec_deploy(deployment, context):
 
     provider_keys = set()
     for key, resource in deployment.get('resources', {}).iteritems():
-        if key not in ['connections', 'keys'] and 'provider' in resource and \
-                  resource['provider'] not in provider_keys:
+        if key not in ['connections', 'keys'] and 'provider' in resource and\
+                resource['provider'] not in provider_keys:
             provider_keys.add(resource['provider'])
     LOG.debug("Obtained providers from resources: %s" %
               ', '.join(provider_keys))
@@ -623,15 +633,16 @@ def create_workflow_spec_deploy(deployment, context):
     def recursive_add_host(sorted_list, resource_key, resources, stack):
         resource = resources[resource_key]
         for key, relation in resource.get('relations', {}).iteritems():
-                if 'target' in relation:
-                    if relation['target'] not in sorted_list:
-                        if relation['target'] in stack:
-                            raise CheckmateException("Circular dependency in "
-                                    "resources between %s and %s " % (
-                                    resource_key, relation['target']))
-                        stack.append(resource_key)
-                        recursive_add_host(sorted_resources,
-                                relation['target'], resources, stack)
+            if 'target' in relation:
+                if relation['target'] not in sorted_list:
+                    if relation['target'] in stack:
+                        raise CheckmateException("Circular dependency in "
+                                                 "resources between %s and %s"
+                                                 % (resource_key,
+                                                    relation['target']))
+                    stack.append(resource_key)
+                    recursive_add_host(sorted_resources,
+                                       relation['target'], resources, stack)
         if resource_key not in sorted_list:
             sorted_list.append(resource_key)
 
@@ -645,8 +656,8 @@ def create_workflow_spec_deploy(deployment, context):
     for key in sorted_resources:
         resource = deployment['resources'][key]
         provider = providers[resource['provider']]
-        provider_result = provider.add_resource_tasks(resource,
-                key, wfspec, deployment, context)
+        provider_result = provider.add_resource_tasks(resource, key, wfspec,
+                                                      deployment, context)
 
         if provider_result and provider_result.get('root') and \
                 not provider_result['root'].inputs:
@@ -664,13 +675,17 @@ def create_workflow_spec_deploy(deployment, context):
                                              "resource '%s'" % key)
                 relation = relations[0]
                 provider = providers[hr['provider']]
-                provider_result = provider.add_connection_tasks(hr,
-                        index, relation, 'host', wfspec, deployment, context)
+                provider_result = provider.add_connection_tasks(hr, index,
+                                                                relation,
+                                                                'host',
+                                                                wfspec,
+                                                                deployment,
+                                                                context)
                 if provider_result and provider_result.get('root') and \
                         not provider_result['root'].inputs:
                     # Attach unattached tasks
-                    LOG.debug("Attaching '%s' to 'Start'" %
-                            provider_result['root'].name)
+                    LOG.debug("Attaching '%s' to 'Start'",
+                              provider_result['root'].name)
                     wfspec.start.connect(provider_result['root'])
 
     # Do relations
@@ -681,12 +696,17 @@ def create_workflow_spec_deploy(deployment, context):
                 if 'target' in relation and name != 'host':
                     provider = providers[resource['provider']]
                     provider_result = provider.add_connection_tasks(resource,
-                            key, relation, name, wfspec, deployment, context)
+                                                                    key,
+                                                                    relation,
+                                                                    name,
+                                                                    wfspec,
+                                                                    deployment,
+                                                                    context)
                     if provider_result and provider_result.get('root') and \
                             not provider_result['root'].inputs:
                         # Attach unattached tasks
-                        LOG.debug("Attaching '%s' to 'Start'" %
-                                provider_result['root'].name)
+                        LOG.debug("Attaching '%s' to 'Start'",
+                                  provider_result['root'].name)
                         wfspec.start.connect(provider_result['root'])
 
     # Check that we have a at least one task. Workflow fails otherwise.
@@ -716,9 +736,9 @@ def wait_for(wf_spec, task, wait_list, name=None, **kwargs):
         join_task = None
         if issubclass(task.__class__, Join):
             # It's a join. Just add the inputs
-            for t in wait_set:
-                if t not in task.ancestors():
-                    t.connect(task)
+            for tsk in wait_set:
+                if tsk not in task.ancestors():
+                    tsk.connect(task)
             return task
 
         if task.inputs:
@@ -728,9 +748,9 @@ def wait_for(wf_spec, task, wait_list, name=None, **kwargs):
                 if isinstance(input_spec, Join):
                     if join_task:
                         LOG.warning("Task %s seems to have multiple Join "
-                                    "inputs" % task.name)
+                                    "inputs", task.name)
                     else:
-                        LOG.debug("Using existing Join task %s" %
+                        LOG.debug("Using existing Join task %s",
                                   input_spec.name)
                         join_task = input_spec
                         continue
@@ -753,9 +773,9 @@ def wait_for(wf_spec, task, wait_list, name=None, **kwargs):
                 join_task = Merge(wf_spec, name, **kwargs)
             if task not in join_task.outputs:
                 task.follow(join_task)
-            for t in wait_set:
-                if t not in join_task.ancestors():
-                    t.connect(join_task)
+            for tsk in wait_set:
+                if tsk not in join_task.ancestors():
+                    tsk.connect(join_task)
             return join_task
         elif join_task:
             wait_set[0].connect(join_task)

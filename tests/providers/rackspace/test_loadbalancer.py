@@ -4,15 +4,18 @@ import unittest2 as unittest
 
 import cloudlb
 import mox
-from mox import IsA
+from mox import IsA, IgnoreArg
 
 from checkmate.utils import init_console_logging
-from checkmate.providers.rackspace.loadbalancer import delete_lb_task,\
-    wait_on_lb_delete
+from checkmate.providers.rackspace.loadbalancer import (
+    delete_lb_task,
+    wait_on_lb_delete,
+)
 init_console_logging()
 LOG = logging.getLogger(__name__)
 
 from checkmate import test, utils
+from checkmate.exceptions import CheckmateException
 from checkmate.deployments import resource_postback, Deployment, plan
 from checkmate.middleware import RequestContext
 from checkmate.providers import base, register_providers
@@ -122,8 +125,8 @@ class TestCeleryTasks(unittest.TestCase):
         api.loadbalancers = self.mox.CreateMockAnything()
         m_lb = self.mox.CreateMockAnything()
         api.loadbalancers.get('lb14nuai-asfjb').AndReturn(m_lb)
-        m_lb.__str__().AndReturn("Mock LB")
         m_lb.status = 'ACTIVE'
+        m_lb.__str__().AndReturn("Mock LB")
         m_lb.delete().AndReturn(True)
         self.mox.ReplayAll()
         ret = delete_lb_task(context, '1', 'lb14nuai-asfjb', 'ORD', api=api)
@@ -131,7 +134,7 @@ class TestCeleryTasks(unittest.TestCase):
         self.mox.VerifyAll()
 
     def test_wait_on_lb_delete(self):
-        """ Test wait on delte task """
+        """ Test wait on delete task """
         context = {}
         expect = {'instance:1': {'status': 'DELETED'}}
         api = self.mox.CreateMockAnything()
@@ -139,10 +142,36 @@ class TestCeleryTasks(unittest.TestCase):
         m_lb = self.mox.CreateMockAnything()
         m_lb.status = 'DELETED'
         api.loadbalancers.get('lb14nuai-asfjb').AndReturn(m_lb)
+        self.mox.StubOutWithMock(loadbalancer, 'resource_postback')
         self.mox.ReplayAll()
         ret = wait_on_lb_delete(context, '1', '1234', 'lb14nuai-asfjb',
                                 'ORD', api=api)
         self.assertDictEqual(expect, ret)
+        self.mox.VerifyAll()
+
+    def test_wait_on_lb_delete_still(self):
+        """ Test wait on delete task when not deleted """
+        context = {}
+        api = self.mox.CreateMockAnything()
+        api.loadbalancers = self.mox.CreateMockAnything()
+        m_lb = self.mox.CreateMockAnything()
+        m_lb.status = 'DELETING'
+        #m_lb.__str__().MultipleTimes().AndReturn('lb14nuai-asfjb')
+        api.loadbalancers.get('lb14nuai-asfjb').AndReturn(m_lb)
+        self.mox.StubOutWithMock(loadbalancer.resource_postback, 'delay')
+        content = {
+            'instance:1': {
+                'status': 'DELETING',
+                "status_msg": IgnoreArg(),
+            }
+        }
+        loadbalancer.resource_postback.delay('1234', content).AndReturn(None)
+        self.mox.StubOutWithMock(wait_on_lb_delete, 'retry')
+        wait_on_lb_delete.retry(exc=IsA(CheckmateException)).AndReturn(None)
+
+        self.mox.ReplayAll()
+        wait_on_lb_delete(context, '1', '1234', 'lb14nuai-asfjb', 'ORD',
+                          api=api)
         self.mox.VerifyAll()
 
 
@@ -243,7 +272,6 @@ class TestBasicWorkflow(test.StubbedWorkflowBase):
                                  username='MOCK_USER')
         plan(self.deployment, context)
 
-    
     def test_workflow_task_generation(self):
         """Verify workflow task creation"""
         context = RequestContext(auth_token='MOCK_TOKEN',
@@ -273,22 +301,32 @@ class TestBasicWorkflow(test.StubbedWorkflowBase):
         for key, resource in self.deployment['resources'].iteritems():
             if resource.get('type') == 'compute':
                 expected.append({
-                        'call': 'checkmate.providers.test.create_resource',
-                        'args': [IsA(dict), resource],
-                        'kwargs': None,
-                        'result': {'instance:%s' % key: {
+                    'call': 'checkmate.providers.test.create_resource',
+                    'args': [IsA(dict), resource],
+                    'kwargs': None,
+                    'result': {
+                        'instance:%s' % key: {
                             'id': 'server9',
                             'status': 'ACTIVE',
                             'ip': '4.4.4.1',
                             'private_ip': '10.1.2.1',
-                            'addresses': {'public': [{'version': 4,
-                                          'addr': '4.4.4.1'}, {'version': 6,
-                                          'addr': '2001:babe::ff04:36c1'}],
-                                          'private': [{'version': 4,
-                                          'addr': '10.1.2.1'}]},
-                            }},
-                        'post_back_result': True,
-                        })
+                            'addresses': {
+                                'public': [{
+                                    'version': 4,
+                                    'addr': '4.4.4.1'
+                                }, {
+                                    'version': 6,
+                                    'addr': '2001:babe::ff04:36c1'
+                                }],
+                                'private': [{
+                                    'version': 4,
+                                    'addr': '10.1.2.1'
+                                }]
+                            },
+                        }
+                    },
+                    'post_back_result': True,
+                })
             elif resource.get('type') == 'load-balancer':
 
                 # Create Load Balancer
@@ -297,29 +335,29 @@ class TestBasicWorkflow(test.StubbedWorkflowBase):
                     'call': 'checkmate.providers.rackspace.loadbalancer.'
                             'create_loadbalancer',
                     'args': [
-                            IsA(dict),
-                            'lb01.checkmate.local',
-                            'PUBLIC',
-                            'HTTP',
-                            'North',
-                        ],
+                        IsA(dict),
+                        'lb01.checkmate.local',
+                        'PUBLIC',
+                        'HTTP',
+                        'North',
+                    ],
                     'kwargs': {
-                            'dns': False,
-                            'algorithm': 'ROUND_ROBIN',
-                            'port': None,
-                        },
+                        'dns': False,
+                        'algorithm': 'ROUND_ROBIN',
+                        'port': None,
+                    },
                     'post_back_result': True,
                     'result': {
-                            'instance:0': {
-                                    'id': 121212,
-                                    'public_ip': '8.8.8.8',
-                                    'port': 80,
-                                    'protocol': 'http',
-                                    'status': 'ACTIVE'
-                                }
-                        },
+                        'instance:0': {
+                            'id': 121212,
+                            'public_ip': '8.8.8.8',
+                            'port': 80,
+                            'protocol': 'http',
+                            'status': 'ACTIVE'
+                        }
+                    },
                     'resource': key,
-                    })
+                })
 
                 expected.append({
                     'call': 'checkmate.providers.rackspace.loadbalancer.'
@@ -328,7 +366,7 @@ class TestBasicWorkflow(test.StubbedWorkflowBase):
                     'kwargs': None,
                     'result': None,
                     'resource': key,
-                    })
+                })
 
                 expected.append({
                     'call': 'checkmate.providers.rackspace.loadbalancer.'
@@ -337,7 +375,7 @@ class TestBasicWorkflow(test.StubbedWorkflowBase):
                     'kwargs': None,
                     'result': None,
                     'resource': key,
-                    })
+                })
 
                 expected.append({
                     'call': 'checkmate.providers.rackspace.loadbalancer.'
@@ -346,11 +384,12 @@ class TestBasicWorkflow(test.StubbedWorkflowBase):
                     'kwargs': None,
                     'result': None,
                     'resource': key,
-                    })
+                })
 
         #resource_postback mock
         #self.mox.StubOutWithMock(resource_postback, 'delay')
-        #resource_postback.delay(mox.IgnoreArg(), mox.IgnoreArg()).AndReturn(True)
+        #resource_postback.delay(mox.IgnoreArg(), mox.IgnoreArg())\
+        #.AndReturn(True)
 
         self.workflow = self._get_stubbed_out_workflow(expected_calls=expected)
 

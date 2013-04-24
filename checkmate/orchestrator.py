@@ -8,6 +8,7 @@ from celery.task import task
 from SpiffWorkflow import Workflow, Task
 from SpiffWorkflow.storage import DictionarySerializer
 
+from checkmate.db.common import ObjectLockedError
 from checkmate.middleware import RequestContext
 from checkmate.utils import extract_sensitive_data, match_celery_logging
 
@@ -49,7 +50,7 @@ def count_seconds(seconds):
 
 
 @task(default_retry_delay=10, max_retries=300)
-def run_workflow(w_id, timeout=900, wait=1, counter=1, key=None, driver=None):
+def run_workflow(w_id, timeout=900, wait=1, counter=1, driver=None):
     """Loop through trying to complete the workflow and periodically log
     status updates. Each time we cycle through, if nothing happens we
     extend the wait time between cycles so we don't load the system.
@@ -71,7 +72,10 @@ def run_workflow(w_id, timeout=900, wait=1, counter=1, key=None, driver=None):
     serializer = DictionarySerializer()
 
     # Lock the workflow
-    workflow, key = driver.lock_workflow(w_id, with_secrets=True, key=key)
+    try:
+        workflow, key = driver.lock_workflow(w_id, with_secrets=True)
+    except ObjectLockedError:
+        run_workflow.retry()
 
     d_wf = Workflow.deserialize(serializer, workflow)
     LOG.debug("Deserialized workflow %s" % w_id,
@@ -90,7 +94,8 @@ def run_workflow(w_id, timeout=900, wait=1, counter=1, key=None, driver=None):
             LOG.debug("Workflow '%s' is already complete. Marked it so." %
                       w_id)
         else:
-            LOG.debug("Workflow '%s' is already complete. Nothing to do." % w_id)
+            LOG.debug("Workflow '%s' is already complete. Nothing to do.",
+                      w_id)
 
         driver.unlock_workflow(w_id, key)
         return True
@@ -149,19 +154,20 @@ def run_workflow(w_id, timeout=900, wait=1, counter=1, key=None, driver=None):
                                                                  timeout,
                                                                  wait,
                                                                  counter))
-        # If we have to retry the run, pass in the key so that 
+        # If we have to retry the run, pass in the key so that
         # we will not try to re-lock the workflow.
         retry_kwargs = {
             'timeout': timeout,
             'wait': wait,
             'counter': counter + 1,
-            'key': key,
             'driver': driver,
         }
+        driver.unlock_workflow(w_id, key)
         return run_workflow.retry([w_id], kwargs=retry_kwargs, countdown=wait,
                                   Throw=False)
     else:
         LOG.debug("Workflow '%s' did not complete (no timeout set)." % w_id)
+        driver.unlock_workflow(w_id, key)
         return False
 
 
@@ -176,11 +182,15 @@ def run_one_task(context, workflow_id, task_id, timeout=60, driver=None):
     key = None
     try:
         # Lock the workflow
-        workflow, key = driver.lock_workflow(workflow_id, with_secrets=True)
+        try:
+            workflow, key = driver.lock_workflow(workflow_id,
+                                                 with_secrets=True)
+        except ObjectLockedError:
+            run_one_task.retry()
         if not workflow:
             raise IndexError("Workflow %s not found" % workflow_id)
+
         LOG.debug("Deserializing workflow '%s'" % workflow_id)
-        driver.unlock_workflow(workflow_id, key)
         serializer = DictionarySerializer()
         d_wf = Workflow.deserialize(serializer, workflow)
         task = d_wf.get_task(task_id)
@@ -189,8 +199,9 @@ def run_one_task(context, workflow_id, task_id, timeout=60, driver=None):
             raise IndexError("Task '%s' not found in Workflow '%s'" % (task_id,
                              workflow_id))
         if task._is_finished():
-            raise ValueError("Task '%s' is in state '%s' which cannot be executed"
-                             % (task.get_name(), task.get_state_name()))
+            raise ValueError("Task '%s' is in state '%s' which cannot be "
+                             "executed" % (task.get_name(),
+                                           task.get_state_name()))
 
         if task._is_predicted() or task._has_state(Task.WAITING):
             LOG.debug("Progressing task '%s' (%s)" % (task_id,
@@ -208,17 +219,17 @@ def run_one_task(context, workflow_id, task_id, timeout=60, driver=None):
             result = task.task_spec._update_state(task)
         elif task._has_state(Task.READY):
             LOG.debug("Completing task '%s' (%s)" % (task_id,
-                    task.get_state_name()))
+                      task.get_state_name()))
             result = d_wf.complete_task_from_id(task_id)
         else:
             LOG.warn("Task '%s' in Workflow '%s' is in state %s and cannot be "
-                 "progressed" % (task_id, workflow_id, task.get_state_name()))
+                     "progressed", task_id, workflow_id, task.get_state_name())
             return False
         update_workflow_status(d_wf)
         updated = d_wf.serialize(serializer)
         if original != updated:
             LOG.debug("Task '%s' in Workflow '%s' completion result: %s" % (
-                    task_id, workflow_id, result))
+                      task_id, workflow_id, result))
             msg = "Saving: %s" % d_wf.get_dump()
             LOG.debug(msg)
             #TODO: make DRY
