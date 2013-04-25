@@ -303,13 +303,7 @@ def _copy_kitchen_blueprint(dest, source_repo):
                                  repo_cache)
     LOG.debug("repo_cache: %s" % repo_cache)
     LOG.debug("dest: %s" % dest)
-    blueprint_files = ["Berksfile", "Berksfile.lock", "Cheffile",
-                       "Cheffile.lock", "Chefmap"]
-    for blueprint_file in blueprint_files:
-        LOG.debug("blueprint_file: %s" % blueprint_file)
-        if os.path.exists(os.path.join(repo_cache, blueprint_file)):
-            shutil.copyfile(os.path.join(repo_cache, blueprint_file),
-                            os.path.join(dest, blueprint_file))
+    utils.copy_contents(repo_cache, dest)
 
 
 def _create_kitchen(dep_id, service_name, path, secret_key=None,
