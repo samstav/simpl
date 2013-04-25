@@ -1287,8 +1287,6 @@ class TestChefMap(unittest.TestCase):
         repo_remotes = self.mox.CreateMockAnything()
         repo_remotes_origin = self.mox.CreateMockAnything()
         mock_repo.remotes = repo_remotes
-        mock_repo.tags = self.mox.CreateMockAnything()
-        mock_repo.tags.__contains__('master').AndReturn(False)
         repo_remotes.origin = repo_remotes_origin
         repo_remotes_origin.pull().AndReturn(True)
         self.mox.ReplayAll()
@@ -1326,8 +1324,6 @@ class TestChefMap(unittest.TestCase):
         repo_remotes_origin = self.mox.CreateMockAnything()
         mock_repo.remotes = repo_remotes
         repo_remotes.origin = repo_remotes_origin
-        mock_repo.tags = self.mox.CreateMockAnything()
-        mock_repo.tags.__contains__('master').AndReturn(False)
         git.Repo.__call__ = lambda x: mock_repo
         def update_map():
             with open(self.chef_map_path, 'a') as f:
