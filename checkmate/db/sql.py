@@ -4,6 +4,7 @@ Driver for SQL ALchemy
 import json
 import logging
 import time
+import uuid
 
 from sqlalchemy import (
     Column,
@@ -33,6 +34,8 @@ from checkmate.db.common import (
     DEFAULT_STALE_LOCK_TIMEOUT,
     DEFAULT_TIMEOUT,
     DatabaseTimeoutException,
+    ObjectLockedError,
+    InvalidKeyError
 )
 from checkmate.exceptions import CheckmateDatabaseMigrationError
 from checkmate import utils
@@ -56,6 +59,8 @@ class Environment(Base):
     dbid = Column(Integer, primary_key=True, autoincrement=True)
     id = Column(String(32), index=True, unique=True)
     locked = Column(Float, default=0)
+    lock = Column(String, default=0)
+    lock_timestamp = Column(Integer, default=0)
     tenant_id = Column(String(255), index=True)
     secrets = Column(TextPickleType(pickler=json))
     body = Column(TextPickleType(pickler=json))
@@ -66,6 +71,8 @@ class Deployment(Base):
     dbid = Column(Integer, primary_key=True, autoincrement=True)
     id = Column(String(32), index=True, unique=True)
     locked = Column(Float, default=0)
+    lock = Column(String, default=0)
+    lock_timestamp = Column(Integer, default=0)
     tenant_id = Column(String(255), index=True)
     secrets = Column(TextPickleType(pickler=json))
     body = Column(TextPickleType(pickler=json))
@@ -76,6 +83,8 @@ class Blueprint(Base):
     dbid = Column(Integer, primary_key=True, autoincrement=True)
     id = Column(String(32), index=True, unique=True)
     locked = Column(Float, default=0)
+    lock = Column(String, default=0)
+    lock_timestamp = Column(Integer, default=0)
     tenant_id = Column(String(255), index=True)
     secrets = Column(TextPickleType(pickler=json))
     body = Column(TextPickleType(pickler=json))
@@ -86,6 +95,8 @@ class Workflow(Base):
     dbid = Column(Integer, primary_key=True, autoincrement=True)
     id = Column(String(32), index=True, unique=True)
     locked = Column(Float, default=0)
+    lock = Column(String, default=0)
+    lock_timestamp = Column(Integer, default=0)   
     tenant_id = Column(String(255), index=True)
     secrets = Column(TextPickleType(pickler=json))
     body = Column(TextPickleType(pickler=json))
@@ -218,13 +229,12 @@ class Driver(DbBase):
     def save_workflow(self, id, body, secrets=None, tenant_id=None):
         return self.save_object(Workflow, id, body, secrets, tenant_id)
 
-    def unlock_workflow(self, obj_id, key):
-        pass
+    def unlock_workflow(self, api_id, key):
+        return self.unlock_object(Workflow, api_id, key)
 
-    def lock_workflow(self, obj_id, with_secrets=None, key=None):
-        # FIXME: implement real locking in sql driver
-        return (self.get_object(Workflow, obj_id, with_secrets=with_secrets),
-                None)
+    def lock_workflow(self, api_id, with_secrets=None, key=None):
+        return self.lock_object(Workflow, api_id, with_secrets=with_secrets, 
+                                key=key)
 
     # GENERIC
     def get_object(self, klass, id, with_secrets=None):
@@ -373,3 +383,123 @@ class Driver(DbBase):
         self.session.add(e)
         self.session.commit()
         return body
+
+    def lock_object(self, klass, api_id, with_secrets=None, key=None):
+        """
+        :param klass: the class of the object to unlock.
+        :param api_id: the object's API ID.
+        :param with_secrets: true if secrets should be merged into the results.
+        :param key: if the object has already been locked, the key used must be
+            passed in
+        :returns (locked_object, key): a tuple of the locked_object and the
+            key that should be used to unlock it.
+        """
+        if with_secrets:
+            locked_object, key = self._lock_find_object(klass, api_id, key=key)
+            return (self.merge_secrets(klass, api_id, locked_object), key)
+        return self._lock_find_object(klass, api_id, key=key)
+
+    def unlock_object(self, klass, api_id, key):
+        """
+        Unlocks a locked object if the key is correct.
+
+        :param klass: the class of the object to unlock.
+        :param api_id: the object's API ID.
+        :param key: the key used to lock the object (see lock_object()).
+        :raises ValueError: If the unlocked object does not exist or the lock
+            was incorrect.
+        """
+        query = self.session.query(klass).filter_by(
+                                id=api_id,
+                                lock=key
+                            )
+        unlocked_object = query.first()
+        results = query.update({'lock': 0})
+        self.session.commit()
+        #remove state added to passed in dict
+        if results > 0:
+            return unlocked_object.body
+        else:
+            raise InvalidKeyError("The lock was invalid or the object %s does "
+                                  "not exist." % api_id)
+
+    def _lock_find_object(self, klass, api_id, key=None):
+        """
+        Finds, attempts to lock, and returns an object by id.
+
+        :param klass: the class of the object unlock.
+        :param api_id: the object's API ID.
+        :param key: if the object has already been locked, the key used must be
+            passed in
+        :raises ValueError: if the api_id is of a non-existent object
+        :returns (locked_object, key): a tuple of the locked_object and the
+            key that should be used to unlock it.
+        """
+        assert klass, "klass must not be None."
+        assert api_id, "api_id must not be None"
+
+        lock_timestamp = time.time()
+        if key:
+            # The object has already been locked
+            # TODO: see if we can merge the existing key logic into below
+            query = self.session.query(klass).filter_by(
+                                id=api_id,
+                                lock=key
+                            )
+            locked_object = query.first()
+            result = query.update({'lock_timestamp': lock_timestamp})
+            self.session.commit()
+
+            if result > 0:
+                # The passed in key matched
+                return (locked_object.body, key)
+            else:
+                raise InvalidKeyError("The key:%s could not unlock: %s(%s)" % (
+                                      key, klass, api_id))
+
+        # A key was not passed in
+        key = str(uuid.uuid4())
+        query = self.session.query(klass).filter_by(
+                                id=api_id,
+                                lock=0
+                            )
+        locked_object = query.first()
+        result = query.update(
+                                {'lock':key,'lock_timestamp': lock_timestamp})
+        self.session.commit()
+
+        if result > 0:
+            # We were able to lock the object
+            return (locked_object.body, key)
+
+        else:
+            # Could not get the lock
+            object_exists = self.session.query(klass).filter_by(id=api_id)\
+                            .first()
+            if object_exists:
+                # Object exists but we were not able to get the lock
+                lock_time_delta = (lock_timestamp -
+                                       object_exists.lock_timestamp)
+
+                if lock_time_delta >= 5:
+                    # Key is stale, force the lock
+                    LOG.warning("%s(%s) had a stale lock of %s seconds!",
+                                klass, api_id, lock_time_delta)
+
+                    query = self.session.query(klass).filter_by(
+                            id=api_id)
+                    locked_object = query.first()
+                    result = query.update(
+                            {'lock':key,'lock_timestamp': lock_timestamp}
+                        )
+                    self.session.commit() 
+
+                    return (locked_object.body, key)
+                else:
+                    # Lock is not stale
+                    raise ObjectLockedError("%s(%s) was already locked!",
+                                                klass, api_id)
+            else:
+                # New object
+                raise ValueError("Cannot get the object:%s that has never "
+                                 "been saved" % api_id)
