@@ -137,3 +137,9 @@ class DbBase(object):  # pylint: disable=R0921
 
     def lock_workflow(self, api_id, with_secrets=None, key=None):
         raise NotImplementedError()
+
+    def lock_object(self, klass, api_id, with_secrets=None, key=None):
+        raise NotImplementedError()
+
+    def unlock_object(self, klass, api_id, key):
+        raise NotImplementedError()
