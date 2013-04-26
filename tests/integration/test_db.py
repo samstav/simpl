@@ -22,9 +22,10 @@ from checkmate import db
 from checkmate.utils import extract_sensitive_data
 
 
+# pylint: disable=C0111
 class TestDatabase(unittest.TestCase):
-    """ Test Database code """
 
+    # pylint: disable=C0103
     def setUp(self):
         self.driver = db.get_driver(name='checkmate.db.sql.Driver', reset=True,
                                     connection_string='sqlite://')
@@ -50,13 +51,14 @@ class TestDatabase(unittest.TestCase):
         }
 
     def _decode_dict(self, dictionary):
+        ''' Helper method to recursively change all data elements to ints '''
         decoded_dict = {}
         for key, value in dictionary.iteritems():
             if isinstance(key, unicode):
                 key = key.encode('utf-8')
                 try:
                     key = int(key)
-                except Exception:
+                except ValueError:
                     key = key
             if isinstance(value, unicode):
                 value = value.encode('utf-8')
@@ -520,10 +522,10 @@ class TestDatabase(unittest.TestCase):
 if __name__ == '__main__':
     # Run tests. Handle our parameters seprately
     import sys
-    args = sys.argv[:]
+    ARGS = sys.argv[:]
     # Our --debug means --verbose for unittest
-    if '--debug' in args:
-        args.pop(args.index('--debug'))
-        if '--verbose' not in args:
-            args.insert(1, '--verbose')
-    unittest.main(argv=args)
+    if '--debug' in ARGS:
+        ARGS.pop(ARGS.index('--debug'))
+        if '--verbose' not in ARGS:
+            ARGS.insert(1, '--verbose')
+    unittest.main(argv=ARGS)
