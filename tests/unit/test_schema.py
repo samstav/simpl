@@ -1,10 +1,17 @@
-""" tests for schema.py """
+# pylint: disable=C0103,C0111,R0903,R0904,W0212,W0232
+'''
+For tests, we don't care about:
+    C0103 - Invalid name (method names too long)
+    C0111 - Missing docstring
+    R0903 - Too few public methods
+    R0904 - Too many public methods
+    W0212 - Access to protected member of a client class
+    W0232 - Class has no __init__ method '''
+
 import unittest2 as unittest
 
 from checkmate.common import schema
 from checkmate import utils
-
-#Commented out test correspond to removal of '.-_' translations
 
 
 class TestSchema(unittest.TestCase):
@@ -25,12 +32,6 @@ class TestSchema(unittest.TestCase):
     def test_translation_edge_cases(self):
         self.assertEqual(schema.translate(None), None)
         self.assertEqual(schema.translate('/'), '/')
-        #self.assertEqual(schema.translate('.'), '_')
-
-#    def test_translation_composite(self):
-#        self.assertEqual(schema.translate('db_hostname'), 'database_host')
-#        self.assertEqual(schema.translate('db.hostname'), 'database_host')
-#        self.assertEqual(schema.translate('db-hostname'), 'database_host')
 
     def test_validate(self):
         errors = schema.validate(
@@ -50,38 +51,33 @@ class TestSchema(unittest.TestCase):
 
     def test_validate_option(self):
         errors = schema.validate_option("any",
-            {
-                "label": "foo",
-                "type": "string",
-                "default": "None",
-                "display-hints": {
-                    "group": "test group",
-                    "weight": 5
-                },
-                'help': "Here's how...",
-                'choice': [],
-                'description': "Yada yada",
-                'required': False,
-                'constrains': [],
-                'constraints': [],
-                'display-hints': {},
-            })
+                                        {
+                                            "label": "foo",
+                                            "type": "string",
+                                            "default": "None",
+                                            "display-hints": {
+                                                "group": "test group",
+                                                "weight": 5
+                                            },
+                                            'help': "Here's how...",
+                                            'choice': [],
+                                            'description': "Yada yada",
+                                            'required': False,
+                                            'constrains': [],
+                                            'constraints': [],
+                                        })
         self.assertEqual([], errors)
 
     def test_validate_option_negative(self):
         errors = schema.validate_option("key",
-            {
-                "name": "deprecated",
-                "type": "foo",
-            })
+                                        {
+                                            "name": "deprecated",
+                                            "type": "foo",
+                                        })
         self.assertEqual(len(errors), 2, msg=errors)
 
     def test_translation_path(self):
         self.assertEqual(schema.translate('db/hostname'), 'database/host')
-
-#    def test_translation_combined(self):
-#        self.assertEqual(schema.translate('dest.directory/pub_conf'),
-#                'destination_directory/public_configuration')
 
     def test_validate_inputs(self):
         """Test that known input formats all pass validation"""

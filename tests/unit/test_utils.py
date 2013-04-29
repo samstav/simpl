@@ -1,28 +1,29 @@
-#!/usr/bin/env python
+# pylint: disable=C0103,C0111,R0903,R0904,W0212,W0232
+'''
+For tests, we don't care about:
+    C0103 - Invalid name (method names too long)
+    C0111 - Missing docstring
+    R0903 - Too few public methods
+    R0904 - Too many public methods
+    W0212 - Access to protected member of a client class
+    W0232 - Class has no __init__ method '''
+
 import copy
-import logging
 import re
 import time
 import unittest2 as unittest
 import uuid
-
 import mox
-
-from checkmate.utils import init_console_logging
-init_console_logging()
-LOG = logging.getLogger(__name__)
 
 from checkmate import utils
 
 
 class TestUtils(unittest.TestCase):
-    """ Test Utils code """
 
     def setUp(self):
         pass
 
     def test_extract_sensitive_data_simple(self):
-        """Test unary call and simple, one level of depth calls"""
         fxn = utils.extract_sensitive_data
         self.assertEquals(fxn({}), ({}, None))
         combined = {
@@ -36,8 +37,7 @@ class TestUtils(unittest.TestCase):
         self.assertEquals(fxn(combined, ['password']), (innocuous, secret))
         self.assertDictEqual(combined, original)
 
-    def test_extract_data_expression(self):
-        """Test that we can specify an re as a sensitive key"""
+    def test_extract_data_expression_as_sensitive(self):
         data = {
             "employee": {
                 "name": "Bob",
@@ -103,7 +103,6 @@ class TestUtils(unittest.TestCase):
         self.assertDictEqual(original_dict, body)
 
     def test_extract_sensitive_data_complex(self):
-        """Test hierarchy"""
         fxn = utils.extract_sensitive_data
         self.assertEquals(fxn({}), ({}, None))
         combined = {
@@ -254,11 +253,11 @@ class TestUtils(unittest.TestCase):
         self.assertTrue(source.startswith("source = utils"))
 
         source = utils.get_source_body(self.dummy_static)
-        self.assertTrue(source.startswith("\"\"\"used"))
+        self.assertTrue(source.startswith("'''used for get_source_body"))
 
     @staticmethod
     def dummy_static():
-        """used for get_source_body test"""
+        '''used for get_source_body test'''
         pass
 
     def test_isUUID_blanks(self):
@@ -380,8 +379,7 @@ class TestUtils(unittest.TestCase):
         self.assertFalse(utils.is_evaluable('=generate_something_else()'))
         self.assertFalse(utils.is_evaluable({'not-a-string': 'boom!'}))
 
-    def test_get_time_string(self):
-        '''Test time string formatter'''
+    def test_get_formatted_time_string(self):
         mock = mox.Mox()
         mock_time = time.gmtime(0)
         mock.StubOutWithMock(utils, 'gmtime')
@@ -392,18 +390,9 @@ class TestUtils(unittest.TestCase):
         mock.UnsetStubs()
         self.assertEquals(result, "1970-01-01 00:00:00 +0000")
 
-    def test_get_time_string_input(self):
-        '''Test time string formatter with supplied time'''
+    def test_get_formatted_time_string_with_input(self):
         result = utils.get_time_string(time.gmtime(0))
         self.assertEquals(result, "1970-01-01 00:00:00 +0000")
 
 if __name__ == '__main__':
-    # Run tests. Handle our parameters separately
-    import sys
-    args = sys.argv[:]
-    # Our --debug means --verbose for unittest
-    if '--debug' in args:
-        args.pop(args.index('--debug'))
-        if '--verbose' not in args:
-            args.insert(1, '--verbose')
-    unittest.main(argv=args)
+    unittest.main()
