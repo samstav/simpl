@@ -395,4 +395,12 @@ class TestUtils(unittest.TestCase):
         self.assertEquals(result, "1970-01-01 00:00:00 +0000")
 
 if __name__ == '__main__':
-    unittest.main()
+    ''' Run tests. Handle our paramaters separately '''
+    import sys
+    args = sys.argv[:]
+    # Our --debug means --verbose for unitest
+    if '--debug' in args:
+        args.pop(args.index('--debug'))
+        if '--verbose' not in args:
+            args.insert(1, '--verbose')
+    unittest.main(argv=args)
