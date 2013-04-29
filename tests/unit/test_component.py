@@ -1,4 +1,13 @@
-#!/usr/bin/env python
+# pylint: disable=C0103,C0111,R0903,R0904,W0212,W0232
+'''
+For tests, we don't care about:
+    C0103 - Invalid name (method names too long)
+    C0111 - Missing docstring
+    R0903 - Too few public methods
+    R0904 - Too many public methods
+    W0212 - Access to protected member of a client class
+    W0232 - Class has no __init__ method '''
+
 import unittest2 as unittest
 
 from checkmate.component import Component
@@ -23,7 +32,7 @@ class ComponentTestCase(unittest.TestCase):
 
     def test_schema_validation(self):
         self.assertRaises(CheckmateValidationException, Component.__init__,
-                Component(), {'invalid': 'field'})
+                          Component(), {'invalid': 'field'})
 
     def test_provider_attribute(self):
         """Check that passing in special value gets processed correctly"""
@@ -124,12 +133,4 @@ class ComponentTestCase(unittest.TestCase):
 
 
 if __name__ == '__main__':
-    # Run tests. Handle our paramaters separately
-    import sys
-    args = sys.argv[:]
-    # Our --debug means --verbose for unitest
-    if '--debug' in args:
-        args.pop(args.index('--debug'))
-        if '--verbose' not in args:
-            args.insert(1, '--verbose')
-    unittest.main(argv=args)
+    unittest.main()
