@@ -1,11 +1,14 @@
-#!/usr/bin/env python
-import logging
-import unittest2 as unittest
+# pylint: disable=C0103,C0111,R0903,R0904,W0212,W0232
+'''
+For tests, we don't care about:
+    C0103 - Invalid name (method names too long)
+    C0111 - Missing docstring
+    R0903 - Too few public methods
+    R0904 - Too many public methods
+    W0212 - Access to protected member of a client class
+    W0232 - Class has no __init__ method '''
 
-# Init logging before we load the database, 3rd party, and 'noisy' modules
-from checkmate.utils import init_console_logging
-init_console_logging()
-LOG = logging.getLogger(__name__)
+import unittest2 as unittest
 
 from checkmate import constraints
 from checkmate.constraints import Constraint
@@ -40,7 +43,8 @@ class TestRegexConstraint(unittest.TestCase):
 
     def test_constraint_syntax_check(self):
         self.assertTrue(self.klass.is_syntax_valid({'regex': ''}))
-        self.assertTrue(self.klass.is_syntax_valid({'regex': '', 'message': ''}))
+        self.assertTrue(self.klass.is_syntax_valid({'regex': '',
+                                                    'message': ''}))
 
     def test_constraint_syntax_check_negative(self):
         self.assertRaises(CheckmateValidationException, self.klass,
@@ -114,13 +118,11 @@ class TestSimpleComparisonConstraint(unittest.TestCase):
         self.assertTrue(self.klass.is_syntax_valid({'greater-than-or-equal-to':
                                                     ''}))
 
-        # Test with message
-
+    def test_constraint_with_message(self):
         self.assertTrue(self.klass.is_syntax_valid({'greater-than': '',
                                                     'message': ''}))
 
-        # Test multiples
-
+    def test_constraint_with_multiples(self):
         self.assertTrue(self.klass.is_syntax_valid({'less-than': '',
                                                     'greater-than': ''}))
 
@@ -203,14 +205,5 @@ class TestInConstraint(unittest.TestCase):
         self.assertEquals(constraint.message, "Nope. Only http(s)")
 
 
-
 if __name__ == '__main__':
-    # Run tests. Handle our paramaters separately
-    import sys
-    args = sys.argv[:]
-    # Our --debug means --verbose for unitest
-    if '--debug' in args:
-        args.pop(args.index('--debug'))
-        if '--verbose' not in args:
-            args.insert(1, '--verbose')
-    unittest.main(argv=args)
+    unittest.main()
