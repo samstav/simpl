@@ -951,7 +951,8 @@ class ChefMap():
     def get_map_file(self):
         """Return the Chefmap file as a string"""
         if self.url.startswith("file://"):
-            chef_map_path = self.url[7:]  # strip off "file://"
+            chef_map_dir = self.url[7:]  # strip off "file://"
+            chef_map_path = os.path.join(chef_map_dir, "Chefmap")
             with open(chef_map_path) as chef_map:
                 return chef_map.read()
         else:
