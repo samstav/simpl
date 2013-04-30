@@ -1362,6 +1362,21 @@ class TestChefMap(unittest.TestCase):
         self.assertEqual(map_file, TEMPLATE)
         self.mox.VerifyAll()
 
+    def test_get_map_file_local(self):
+        """Test local map file retrieval"""
+        blueprint = os.path.join(self.local_path, "blueprint")
+        os.makedirs(blueprint)
+
+        # Create a dummy Chefmap
+        with file(os.path.join(blueprint, "Chefmap"), 'a') as f:
+            f.write(TEMPLATE)
+
+        url = "file://" + blueprint
+        chefmap = solo.ChefMap(url=url)
+        map_file = chefmap.get_map_file()
+
+        self.assertEqual(map_file, TEMPLATE)
+
     def test_map_URI_parser(self):
         fxn = solo.ChefMap.parse_map_URI
         cases = [
