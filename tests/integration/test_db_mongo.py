@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+# pylint: disable=C0103,C0111,R0903,R0904,W0212,W0232
 import copy
 import logging
 import os
@@ -24,6 +24,7 @@ from checkmate import db
 SKIP = False
 REASON = ""
 try:
+    # pylint: disable=W0611
     from checkmate.db import mongodb
 except AutoReconnect:
     LOG.warn("Could not connect to mongodb. Skipping mongodb tests")
@@ -99,8 +100,8 @@ class TestDatabase(unittest.TestCase):
         try:
             connection_string = self.driver.connection_string
             c = Connection(connection_string)
-            db = c.checkmate
-            db[self.collection_name].drop()
+            db_to_drop = c.checkmate
+            db_to_drop[self.collection_name].drop()
             LOG.debug("Deleted test mongodb collection: %s",
                       self.collection_name)
         except StandardError:
@@ -296,19 +297,22 @@ class TestDatabase(unittest.TestCase):
 
     @unittest.skipIf(SKIP, REASON)
     def test_hex_id(self):
-        id = uuid.uuid4().hex
-        self.driver.save_object(self.collection_name, id, dict(id=id), None,
+        hex_id = uuid.uuid4().hex
+        self.driver.save_object(self.collection_name,
+                                hex_id, dict(id=hex_id),
+                                None,
                                 tenant_id='T1000')
         unicode_results = self.driver.get_objects(self.collection_name)
         results = self._decode_dict(unicode_results)
-        self.assertDictEqual(results, {id: {"id": id, 'tenantId': 'T1000'}})
+        self.assertDictEqual(results,
+                             {hex_id: {"id": hex_id, 'tenantId': 'T1000'}})
         self.assertNotIn('_id', results, "Backend field '_id' should not be "
                          "exposed outside of driver")
 
     @unittest.skipIf(SKIP, REASON)
     def test_no_id_in_body(self):
-        id = uuid.uuid4().hex
-        self.assertRaises(Exception, self.driver.save_object, id, {}, None,
+        hex_id = uuid.uuid4().hex
+        self.assertRaises(Exception, self.driver.save_object, hex_id, {}, None,
                           tenant_id='T1000')
 
     @unittest.skipIf(SKIP, REASON)
@@ -519,12 +523,8 @@ class TestDatabase(unittest.TestCase):
                                driver=self.driver)
 
 if __name__ == '__main__':
-    # Run tests. Handle our paramsters separately
+    # Any change here should be made in all test files
     import sys
-    args = sys.argv[:]
-    # Our --debug means --verbose for unitest
-    if '--debug' in args:
-        args.pop(args.index('--debug'))
-        if '--verbose' not in args:
-            args.insert(1, '--verbose')
-    unittest.main(argv=args)
+    sys.path.insert(1, os.path.join(sys.path[0], '../..'))
+    from tests.utils import run_with_params
+    run_with_params(sys.argv[:])
