@@ -1,9 +1,8 @@
-#!/usr/bin/env python
+# pylint: disable=C0103,C0111,R0903,R0904,W0212,W0232
 import logging
 import os
 import unittest2 as unittest
 import time
-import copy
 from bottle import HTTPError
 
 from checkmate.utils import init_console_logging
@@ -22,10 +21,8 @@ from checkmate import db
 from checkmate.utils import extract_sensitive_data
 
 
-# pylint: disable=C0111
 class TestDatabase(unittest.TestCase):
 
-    # pylint: disable=C0103
     def setUp(self):
         self.driver = db.get_driver(name='checkmate.db.sql.Driver', reset=True,
                                     connection_string='sqlite://')
@@ -358,16 +355,20 @@ class TestDatabase(unittest.TestCase):
     def test_lock_existing_object(self):
         klass = Workflow
         obj_id = 1
-        filter_obj = self.driver.session.query(klass).filter_by(id=obj_id).first()
+        filter_obj = (self.driver
+                          .session
+                          .query(klass)
+                          .filter_by(id=obj_id)
+                          .first())
         if filter_obj:
             filter_obj.delete()
         self.driver.save_object(klass, obj_id, {"id": obj_id, "test": obj_id},
                                 tenant_id='T1000')
 
-        locked_object, key = self.driver.lock_object(klass, obj_id)
+        _, key = self.driver.lock_object(klass, obj_id)
         #was a key generated?
         self.assertTrue(key)
-        stored_object= self.driver.session.query(klass).filter_by(
+        stored_object = self.driver.session.query(klass).filter_by(
             id=obj_id).first()
 
         #was the key stored correctly?
@@ -376,8 +377,11 @@ class TestDatabase(unittest.TestCase):
         self.assertTrue(stored_object.lock_timestamp > 0)
 
     def delete(self, klass, obj_id):
-        filter_obj = self.driver.session.query(klass).filter_by(id=obj_id)\
-                        .first()
+        filter_obj = (self.driver
+                          .session
+                          .query(klass)
+                          .filter_by(id=obj_id)
+                          .first())
         if filter_obj:
             filter_obj.delete()
 
@@ -390,8 +394,10 @@ class TestDatabase(unittest.TestCase):
         self.delete(klass, obj_id)
 
         #setup unlocked workflow
-        self.driver.session.add(klass(id=obj_id, body=original, 
-            tenant_id='T1000', lock=0))
+        self.driver.session.add(klass(id=obj_id,
+                                body=original,
+                                tenant_id='T1000',
+                                lock=0))
 
         locked_object, key = self.driver.lock_object(klass, obj_id)
         unlocked_object = self.driver.unlock_object(klass, obj_id, key)
@@ -413,8 +419,11 @@ class TestDatabase(unittest.TestCase):
         self.delete(klass, obj_id)
 
         #setup unlocked workflow
-        self.driver.session.add(klass(id=obj_id, body=original, 
-            tenant_id='T1000', lock=0, lock_timestamp=0))
+        self.driver.session.add(klass(id=obj_id,
+                                      body=original,
+                                      tenant_id='T1000',
+                                      lock=0,
+                                      lock_timestamp=0))
         original['tenantId'] = 'T1000'
 
         locked_object, key = self.driver.lock_object(klass, obj_id)
@@ -430,10 +439,11 @@ class TestDatabase(unittest.TestCase):
         klass = Workflow
         obj_id = 1
         self.delete(klass, obj_id)
-        stored = {"_id": obj_id, "id": obj_id, "tenantId": "T1000",
-                  "test": obj_id}
-        self.driver.session.add(klass(id=obj_id, body={'test': obj_id}, 
-            tenant_id='T1000', lock=0, lock_timestamp=0))
+        self.driver.session.add(klass(id=obj_id,
+                                      body={'test': obj_id},
+                                      tenant_id='T1000',
+                                      lock=0,
+                                      lock_timestamp=0))
 
         self.driver.lock_object(klass, obj_id)
 
@@ -446,9 +456,11 @@ class TestDatabase(unittest.TestCase):
         self.delete(klass, obj_id)
         lock_timestamp = time.time() - 6
 
-        self.driver.session.add(klass(id=obj_id, body={'test': obj_id}, 
-            tenant_id='T1000', lock="test_lock", 
-            lock_timestamp=lock_timestamp))
+        self.driver.session.add(klass(id=obj_id,
+                                      body={'test': obj_id},
+                                      tenant_id='T1000',
+                                      lock="test_lock",
+                                      lock_timestamp=lock_timestamp))
 
         # the lock is older than 5 seconds so we should be able to lock the
         # object
@@ -459,8 +471,11 @@ class TestDatabase(unittest.TestCase):
         klass = Workflow
         obj_id = 1
         self.delete(klass, obj_id)
-        self.driver.session.add(klass(id=obj_id, body={'test': obj_id}, 
-            tenant_id='T1000', lock=0, lock_timestamp=time.time()))
+        self.driver.session.add(klass(id=obj_id,
+                                body={'test': obj_id},
+                                tenant_id='T1000',
+                                lock=0,
+                                lock_timestamp=time.time()))
 
         self.driver.lock_workflow(obj_id)
 
@@ -471,8 +486,11 @@ class TestDatabase(unittest.TestCase):
         klass = Workflow
         obj_id = 1
         self.delete(klass, obj_id)
-        self.driver.session.add(klass(id=obj_id, body={'test': obj_id}, 
-            tenant_id='T1000', lock=0, lock_timestamp=0))
+        self.driver.session.add(klass(id=obj_id,
+                                      body={'test': obj_id},
+                                      tenant_id='T1000',
+                                      lock=0,
+                                      lock_timestamp=0))
         self.driver.lock_workflow(obj_id)
 
         with self.assertRaises(db.InvalidKeyError):
@@ -485,8 +503,11 @@ class TestDatabase(unittest.TestCase):
         klass = Workflow
         obj_id = 1
         self.delete(klass, obj_id)
-        self.driver.session.add(klass(id=obj_id, body={'test': obj_id}, 
-            tenant_id='T1000', lock=0, lock_timestamp=0))
+        self.driver.session.add(klass(id=obj_id,
+                                body={'test': obj_id},
+                                tenant_id='T1000',
+                                lock=0,
+                                lock_timestamp=0))
 
         self.driver.session.commit()
         locked_obj1, key = self.driver.lock_workflow(obj_id)
@@ -500,8 +521,10 @@ class TestDatabase(unittest.TestCase):
         workflows.DB = self.driver
         #test that a new object can be saved with the lock
         self.delete(klass, obj_id)
-        workflows.safe_workflow_save(obj_id, {"id": "yolo"}, tenant_id=2412423,
-                           driver=self.driver)
+        workflows.safe_workflow_save(obj_id,
+                                     {"id": "yolo"},
+                                     tenant_id=2412423,
+                                     driver=self.driver)
 
     def test_existing_workflow_save(self):
         klass = Workflow
@@ -511,21 +534,22 @@ class TestDatabase(unittest.TestCase):
         #test locking an already locked workflow
         self.delete(klass, obj_id)
         timestamp = time.time()
-        self.driver.session.add(klass(id=obj_id, body={'test': obj_id}, 
-            tenant_id='T1000', lock="1", lock_timestamp=timestamp))
+        self.driver.session.add(klass(id=obj_id,
+                                      body={'test': obj_id},
+                                      tenant_id='T1000',
+                                      lock="1",
+                                      lock_timestamp=timestamp))
 
         with self.assertRaises(HTTPError):
-            workflows.safe_workflow_save(obj_id, {"id": "yolo"}, 
-                tenant_id=2412423, driver=self.driver)
+            workflows.safe_workflow_save(obj_id,
+                                         {"id": "yolo"},
+                                         tenant_id=2412423,
+                                         driver=self.driver)
 
 
 if __name__ == '__main__':
-    # Run tests. Handle our parameters seprately
+    # Any change here should be made in all test files
     import sys
-    ARGS = sys.argv[:]
-    # Our --debug means --verbose for unittest
-    if '--debug' in ARGS:
-        ARGS.pop(ARGS.index('--debug'))
-        if '--verbose' not in ARGS:
-            ARGS.insert(1, '--verbose')
-    unittest.main(argv=ARGS)
+    sys.path.insert(1, os.path.join(sys.path[0], '../..'))
+    from tests.utils import run_with_params
+    run_with_params(sys.argv[:])
