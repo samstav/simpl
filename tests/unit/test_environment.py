@@ -113,13 +113,10 @@ class EnvironmentTestCase(unittest.TestCase):
         component = environment.find_component(blueprint_entry, self.context)
         self.assertIsInstance(component.provider, test.TestProvider)
 
+
 if __name__ == '__main__':
-    ''' Run tests. Handle our paramaters separately '''
-    import sys
-    args = sys.argv[:]
-    # Our --debug means --verbose for unitest
-    if '--debug' in args:
-        args.pop(args.index('--debug'))
-        if '--verbose' not in args:
-            args.insert(1, '--verbose')
-    unittest.main(argv=args)
+    # Any change here should be made in all test files
+    import os, sys
+    sys.path.insert(1, os.path.join(sys.path[0], '../..'))
+    from tests.utils import run_with_params
+    run_with_params(sys.argv[:])
