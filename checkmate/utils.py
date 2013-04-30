@@ -675,7 +675,7 @@ def git_checkout(repo_dir, head):
     proc.wait()
 
 
-def copy_contents(source, dest):
+def copy_contents(source, dest, with_overwrite=False, create_path=True):
     """Copy the contents of a `source' directory to `dest'.
 
     It's affect is roughly equivalent to the following shell command:
@@ -684,7 +684,11 @@ def copy_contents(source, dest):
 
     """
     if not os.path.exists(dest):
-        os.makedirs(dest)
+        if create_path:
+            os.makedirs(dest)
+        else:
+            raise IOError("%s does not exist.  Use create_path=True to create "
+                          "destination" % dest)
     for file in os.listdir(source):
         source_path = os.path.join(source, file)
         if os.path.isdir(source_path):
@@ -692,7 +696,11 @@ def copy_contents(source, dest):
                 shutil.copytree(source_path, os.path.join(dest, file))
             except OSError, e:
                 if e.errno == 17:  # File exists
-                    shutil.rmtree(os.path.join(dest, file))
-                    shutil.copytree(source_path, os.path.join(dest, file))
+                    if with_overwrite:
+                        shutil.rmtree(os.path.join(dest, file))
+                        shutil.copytree(source_path, os.path.join(dest, file))
+                    else:
+                        raise IOError("%s exists, use with_overwrite=True to "
+                                      "overwrite destination." % dest)
         else:
             shutil.copy(source_path, dest)

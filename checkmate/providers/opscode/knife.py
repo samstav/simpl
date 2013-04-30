@@ -303,7 +303,7 @@ def _copy_kitchen_blueprint(dest, source_repo):
                                  repo_cache)
     LOG.debug("repo_cache: %s" % repo_cache)
     LOG.debug("dest: %s" % dest)
-    utils.copy_contents(repo_cache, dest)
+    utils.copy_contents(repo_cache, dest, create_path=True)
 
 
 def _create_kitchen(dep_id, service_name, path, secret_key=None,
