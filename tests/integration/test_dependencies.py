@@ -1,12 +1,6 @@
-#!/usr/bin/env python
-import logging
+# pylint: disable=C0103,C0111,R0903,R0904,W0212,W0232
 import sys
 import unittest2 as unittest
-
-# Init logging before we load the database, 3rd party, and 'noisy' modules
-from checkmate.utils import init_console_logging
-init_console_logging()
-LOG = logging.getLogger(__name__)
 
 
 class TestDependencies(unittest.TestCase):
@@ -32,7 +26,7 @@ class TestDependencies(unittest.TestCase):
         try:
             # new syntax is a string
             version = tuple(int(v) for v in paramiko.__version__.split('.'))
-        except:
+        except AttributeError:
             version = paramiko.__version_info__  # older syntax
         self.assertGreaterEqual(version, (1, 7, 7, 1),
                                 "Checkmate expects paramiko version 1.7.7.1 "
@@ -40,6 +34,7 @@ class TestDependencies(unittest.TestCase):
 
     def test_pam_version(self):
         """Test that we can instantiate PAM"""
+        # pylint: disable=W0612,R0201
         import pam
 
     def test_celery_version(self):
@@ -62,7 +57,7 @@ class TestDependencies(unittest.TestCase):
         version_info = SpiffWorkflow.version()
         self.assertIn("rackspace internal", version_info, "Checkmate needs "
                       "the Rackspace-extended version of SpiffWorkflow")
-        version, info = SpiffWorkflow.version().split('-')[0:2]
+        version, _ = SpiffWorkflow.version().split('-')[0:2]
         version = [int(part) for part in version.split(".")]
         self.assertGreaterEqual(version, [0, 3, 2], "Checkmate expects "
                                 "SpiffWorkflow version 0.3.2 or later")
@@ -71,17 +66,13 @@ class TestDependencies(unittest.TestCase):
         """Test that we can instantiate YAML"""
         import jinja2
         version = [int(part) for part in jinja2.__version__.split(".")]
-        self.assertEqual(version, [2, 6], "Checkmate expects Jinja2 "
-                                "version 2.6")
+        self.assertEqual(version, [2, 6],
+                         "Checkmate expects Jinja2 version 2.6")
 
 
 if __name__ == '__main__':
-    # Run tests. Handle our paramsters separately
-    import sys
-    args = sys.argv[:]
-    # Our --debug means --verbose for unitest
-    if '--debug' in args:
-        args.pop(args.index('--debug'))
-        if '--verbose' not in args:
-            args.insert(1, '--verbose')
-    unittest.main(argv=args)
+    # Any change here should be made in all test files
+    import os
+    sys.path.insert(1, os.path.join(sys.path[0], '../..'))
+    from tests.utils import run_with_params
+    run_with_params(sys.argv[:])
