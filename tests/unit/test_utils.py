@@ -181,7 +181,7 @@ class TestUtils(unittest.TestCase):
             ]
             }
         }
-        c, s = fxn(data, [])
+        c, _ = fxn(data, [])
         self.assertDictEqual(data, c)
         merge = utils.merge_dictionary(data, data)
         self.assertDictEqual(data, merge)
@@ -197,28 +197,31 @@ class TestUtils(unittest.TestCase):
                    cdab='u3412'))), e='u5', h=dict(i='u4321'), i=[1], j=[1, 2],
                    l=[None, [{'t': 8}]])
         r = utils.merge_dictionary(dst, src)
-        assert r is dst
-        assert r['a'] == 1 and r['d'] == 4 and r['f'] == 6
-        assert r['b'] == 'u2' and r['e'] == 'u5'
-        assert dst['c'] is r['c']
-        assert dst['c']['cd'] is r['c']['cd']
-        assert r['c']['cd']['cda']['cdaa'] == 'u3411'
-        assert r['c']['cd']['cda']['cdab'] == 'u3412'
-        assert r['g'] == 7
-        assert src['h'] is r['h']
-        assert r['i'] == [1]
-        assert r['j'] == [1, 2]
-        assert r['k'] == [3, 4]
-        assert r['l'] == [[], [{'s': 1, 't': 8}]], "Found: %s" % r['l']
+        self.assertIsInstance(r, dict)
+        self.assertEquals(r['a'], 1)
+        self.assertEquals(r['d'], 4)
+        self.assertEquals(r['f'], 6)
+        self.assertEquals(r['b'], 'u2')
+        self.assertEquals(r['e'], 'u5')
+        self.assertIs(r['c'], dst['c'])
+        self.assertIs(r['c']['cd'], dst['c']['cd'])
+        self.assertEquals(r['c']['cd']['cda']['cdaa'], 'u3411')
+        self.assertEquals(r['c']['cd']['cda']['cdab'], 'u3412')
+        self.assertEquals(r['g'], 7)
+        self.assertIs(src['h'], r['h'])
+        self.assertEquals(r['i'], [1])
+        self.assertEquals(r['j'], [1, 2])
+        self.assertEquals(r['k'], [3, 4])
+        self.assertEquals(r['l'], [[], [{'s': 1, 't': 8}]])
 
     def test_merge_lists(self):
         dst = [[], [2], [None, 4]]
         src = [[1], [], [3, None]]
         r = utils.merge_lists(dst, src)
-        assert r is dst
-        assert r[0] == [1]
-        assert r[1] == [2]
-        assert r[2] == [3, 4], "Found: %s" % r[2]
+        self.assertIsInstance(r, list)
+        self.assertEquals(r[0], [1])
+        self.assertEquals(r[1], [2])
+        self.assertEquals(r[2], [3, 4], "Found: %s" % r[2])
 
     def test_is_ssh_key(self):
         self.assertFalse(utils.is_ssh_key(None))
@@ -394,13 +397,10 @@ class TestUtils(unittest.TestCase):
         result = utils.get_time_string(time.gmtime(0))
         self.assertEquals(result, "1970-01-01 00:00:00 +0000")
 
+
 if __name__ == '__main__':
-    ''' Run tests. Handle our paramaters separately '''
-    import sys
-    args = sys.argv[:]
-    # Our --debug means --verbose for unitest
-    if '--debug' in args:
-        args.pop(args.index('--debug'))
-        if '--verbose' not in args:
-            args.insert(1, '--verbose')
-    unittest.main(argv=args)
+    # Any change here should be made in all test files
+    import os, sys
+    sys.path.insert(1, os.path.join(sys.path[0], '../..'))
+    from tests.utils import run_with_params
+    run_with_params(sys.argv[:])
