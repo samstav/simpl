@@ -951,16 +951,16 @@ class ChefMap():
     def get_map_file(self):
         """Return the Chefmap file as a string"""
         if self.url.startswith("file://"):
-            chef_map_dir = self.url[7:]  # strip off "file://"
-            chef_map_path = os.path.join(chef_map_dir, "Chefmap")
-            with open(chef_map_path) as chef_map:
-                return chef_map.read()
+            chefmap_dir = self.url[7:]  # strip off "file://"
+            chefmap_path = os.path.join(chefmap_dir, "Chefmap")
+            with open(chefmap_path) as chefmap:
+                return chefmap.read()
         else:
             knife._cache_blueprint(self.url)
             repo_cache = knife._get_blueprints_cache_path(self.url)
             if os.path.exists(os.path.join(repo_cache, "Chefmap")):
-                with open(os.path.join(repo_cache, "Chefmap")) as chef_map:
-                    return chef_map.read()
+                with open(os.path.join(repo_cache, "Chefmap")) as chefmap:
+                    return chefmap.read()
             else:
                 raise CheckmateException("No Chefmap in repository %s" %
                                          repo_cache)
