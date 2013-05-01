@@ -40,7 +40,7 @@ class TestMigrations(unittest.TestCase):
     TEST_DATABASES = {'sqlite': 'sqlite:///migration.db'}
 
     REPOSITORY_PATH = os.path.abspath(os.path.join(os.path.abspath(__file__),
-                                      os.pardir, os.pardir, 'checkmate',
+                                      os.pardir, os.pardir, '../checkmate',
                                       'db', 'repository'))
     REPOSITORY = Repository(REPOSITORY_PATH)
 
