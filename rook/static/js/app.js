@@ -192,6 +192,7 @@ function AppController($scope, $http, $location, $resource, auth) {
         message: { text: message }, fadeOut: {enabled: true, delay: 5000},
         type: 'bangTidy'
       }).show();
+    mixpanel.track("Notified", {'message': message});
   };
 
   //Call this with an http response for a generic error message
@@ -214,6 +215,7 @@ function AppController($scope, $http, $location, $resource, auth) {
         info.message = error.data.description;
     $scope.$root.error = info;
     $('#modalError').modal('show');
+    mixpanel.track("Error", {'error': info.message});
   };
 
   $scope.$on('logIn', function() {
@@ -276,6 +278,7 @@ function AppController($scope, $http, $location, $resource, auth) {
       }
     else
       $scope.$apply();
+    mixpanel.track("Logged In", {'user': $scope.auth.identity.username});
   };
 
    $scope.on_auth_failed = function(response) {
@@ -286,6 +289,7 @@ function AppController($scope, $http, $location, $resource, auth) {
       }
     $("#auth_error_text").html(response.statusText + ". Check that you typed in the correct credentials.");
     $("#auth_error").show();
+    mixpanel.track("Log In Failed", {'problem': response.statusText});
   };
 
   // Log in using credentials delivered through bound_credentials
@@ -526,9 +530,11 @@ function NavBarController($scope, $location) {
         $scope.feedback = "";
         $('#feedback').val('');
         $("#feedback_error").hide();
+        mixpanel.track("Feedback Sent");
     }).error(function(response) {
       $("#feedback_error_text").html(response.statusText);
       $("#feedback_error").show();
+      mixpanel.track("Feedback Failed");
     });
   };
 }
@@ -1004,6 +1010,7 @@ function WorkflowController($scope, $resource, $http, $routeParams, $location, $
               $scope.current_spec[attr] = returned[attr];
           }
           $scope.notify('Saved');
+          mixpanel.track("Task Spec Saved");
         }, function(error) {
           $scope.$root.error = {data: error.data, status: error.status, title: "Error Saving",
                   message: "There was an error saving your JSON:"};
@@ -1047,6 +1054,7 @@ function WorkflowController($scope, $resource, $http, $routeParams, $location, $
               $scope.current_task[attr] = returned[attr];
           }
           $scope.notify('Saved');
+          mixpanel.track("Task Saved");
         }, function(error) {
           $scope.$root.error = {data: error.data, status: error.status, title: "Error Saving",
                   message: "There was an error saving your JSON:"};
@@ -1091,6 +1099,9 @@ function WorkflowController($scope, $resource, $http, $routeParams, $location, $
           // this callback will be called asynchronously
           // when the response is available
           $scope.load();
+          mixpanel.track("Workflow Action", {'action': action});
+        }).error(function(data) {
+          mixpanel.track("Workflow Action Failed", {'action': action});
         });
     } else {
       $scope.loginPrompt(); //TODO: implement a callback
@@ -1106,8 +1117,10 @@ function WorkflowController($scope, $resource, $http, $routeParams, $location, $
           // this callback will be called asynchronously
           // when the response is available
           $scope.load();
+          mixpanel.track("Task Action", {'action': action});
         }).error(function(data) {
           $scope.show_error(data);
+          mixpanel.track("Task Action Failed", {'action': action});
         });
     } else {
       $scope.loginPrompt(); //TODO: implement a callback
@@ -1337,6 +1350,7 @@ function BlueprintListController($scope, $location, $routeParams, $resource, ite
     items.selectItem(index);
     $scope.selected = items.selected;
     $scope.selected_key = $scope.selected.key;
+    mixpanel.track("Blueprint Selected", {'blueprint': $scope.selected.key});
   };
 
   for (var i=0;i<items.count;i++) {
@@ -1594,6 +1608,7 @@ function DeploymentManagedCloudController($scope, $location, $routeParams, $reso
         $scope.notify("Unable to find branch or tag '" + ref +  "' of " + remote.repo.name + ' from github: ' + JSON.stringify(data));
         console.log("Unable to find branch or tag '" + ref +  "' of " + remote.repo.name + ' from github',  data);
     });
+    mixpanel.track("Remote Blueprint Requested", {'blueprint': repo_url});
   };
 
   //Default Environments
@@ -1990,6 +2005,7 @@ function DeploymentNewController($scope, $location, $routeParams, $resource, opt
     }
 
     if ($scope.auth.identity.loggedIn) {
+        mixpanel.track("Deployment Launched", {'action': action});
         deployment.$save(function(returned, getHeaders){
         if (action == '+preview') {
             workflow.preview = returned;
@@ -2017,6 +2033,7 @@ function DeploymentNewController($scope, $location, $routeParams, $resource, opt
                 message: "There was an error creating your deployment:"};
         $('#modalError').modal('show');
         $scope.submitting = false;
+        mixpanel.track("Deployment Launch Failed", {'status': error.status, 'data': error.data});
       });
     } else {
       $scope.submitting = false;
