@@ -257,10 +257,12 @@ class Driver(DbBase):
     def get_objects(self, klass, tenant_id=None, with_secrets=None,
                     offset=None, limit=None):
         results = self.session.query(klass)
+        total = 0
         if tenant_id:
             results = results.filter_by(tenant_id=tenant_id)
         if results and results.count() > 0:
             response = {}
+            total = results.count()
             if offset and (limit is None):
                 results = results.offset(offset).all()
             if limit:
@@ -279,6 +281,7 @@ class Driver(DbBase):
                 for e in results:
                     response[e.id] = e.body
                     response[e.id]['tenantId'] = e.tenant_id
+            response['collection-count'] = total
             return response
         else:
             return {}

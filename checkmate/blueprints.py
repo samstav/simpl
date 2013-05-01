@@ -4,7 +4,6 @@ import copy
 import logging
 import uuid
 
-from checkmate import utils
 from checkmate.classes import ExtensibleDict
 from checkmate.common import schema
 from checkmate.db import get_driver, any_id_problems

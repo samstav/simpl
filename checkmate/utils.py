@@ -271,6 +271,66 @@ HANDLERS = {
 }
 
 
+def write_pagination_headers(data, request, response, uripath, tenant_id):
+    """Add pagination headers to the response body"""    
+    offset = request.query.get('offset')
+    limit = request.query.get('limit')
+    if offset:
+        offset = int(offset)
+    
+    if limit:
+        limit = int(limit)
+    
+    if 'collection-count' in data:
+        total = int(data['collection-count'])
+        del data['collection-count']
+    else:
+        total = 0
+
+    if not offset:
+        offset = 0
+    
+    if not limit:
+        limit = total
+
+    # Set 'content-range' header
+    response.set_header('Content-Range', 
+                    "%s %d-%d/%d" % (uripath, offset, offset + limit, total))
+
+    if offset + limit < total:
+        response.status = 206 # Partial
+    else:
+        response.status = 200 # OK / Complete
+
+    # Add Next page link to http header
+    nextfmt = '</%s/%s?limit=%d&offset=%d>; rel="next"; title="Next page"'
+    if (offset + limit) < total:
+        response.add_header("Link", 
+                            nextfmt % (tenant_id, uripath, limit, offset+limit))
+
+    # Add Previous page link to http header
+    prevfmt = '</%s/%s?limit=%d&offset=%d>; rel="previous"; \
+title="Previous page"'
+    if offset > 0 and (offset - limit) >= 0:
+        response.add_header("Link", 
+                            prevfmt % (tenant_id, uripath, limit, offset-limit))
+
+    # Add first page link to http header    
+    firstfmt = '</%s/%s?limit=%d>; rel="first"; title="First page"'
+    if offset > 0:
+        response.add_header("Link", firstfmt % (tenant_id, uripath, limit))
+
+    # Add last page link to http header
+    lastfmt = '</%s/%s?offset=%d>; rel="last"; title="Last page"'
+    if limit and total % limit:
+        last_offset = total - (total % limit)
+    else:
+        last_offset = total - limit
+    if limit and limit < total:
+        response.add_header("Link",
+                            lastfmt % (tenant_id, uripath, last_offset))
+
+
 def write_body(data, request, response):
     """Write output with format based on accept header.
     This cycles through the global HANDLERs to match content type and then
@@ -279,6 +339,10 @@ def write_body(data, request, response):
     """
     response.set_header('vary', 'Accept,Accept-Encoding,X-Auth-Token')
     accept = request.get_header('Accept', ['application/json'])
+
+    # if the data contains collection-count, remove it
+    if 'collection-count' in data:        
+        del data['collection-count']
 
     for content_type in HANDLERS:
         if content_type in accept:

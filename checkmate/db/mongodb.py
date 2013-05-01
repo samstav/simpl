@@ -325,43 +325,26 @@ class Driver(DbBase):
             self.database()
         client = self._client
         with client.start_request():
-            if tenant_id:
-                if limit:
-                    if offset is None:
-                        offset = 0
-                    results = self.database()[klass].find(
-                        {'tenantId': tenant_id},
-                        self._object_projection
-                    ).skip(offset).limit(limit)
+            count = self.database()[klass].count()
+            if limit:
+                if offset is None:
+                    offset = 0
+                results = self.database()[klass].find(
+                    {'tenantId': tenant_id} if tenant_id else None,
+                    self._object_projection
+                ).skip(offset).limit(limit)
 
-                elif offset and (limit is None):
-                    results = self.database()[klass].find(
-                        {'tenantId': tenant_id},
-                        self._object_projection
-                    ).skip(offset)
-                else:
-                    results = self.database()[klass].find(
-                        {'tenantId': tenant_id},
-                        self._object_projection
-                    )
+            elif offset and (limit is None):
+                results = self.database()[klass].find(
+                    {'tenantId': tenant_id} if tenant_id else None,
+                    self._object_projection
+                ).skip(offset)
             else:
-                if limit:
-                    if offset is None:
-                        offset = 0
-                    results = self.database()[klass].find(
-                        None,
-                        self._object_projection
-                    ).skip(offset).limit(limit)
-                elif offset and (limit is None):
-                    results = self.database()[klass].find(
-                        None,
-                        self._object_projection
-                    ).skip(offset)
-                else:
-                    results = self.database()[klass].find(
-                        None,
-                        self._object_projection
-                    )
+                results = self.database()[klass].find(
+                    {'tenantId': tenant_id} if tenant_id else None,
+                    self._object_projection
+                )
+
             if results:
                 response = {}
                 if with_secrets is True:
@@ -373,6 +356,7 @@ class Driver(DbBase):
                         response[entry['id']] = entry
         if results:
             if response:
+                response['collection-count'] = count
                 return response
         else:
             return {}
