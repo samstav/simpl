@@ -1078,7 +1078,7 @@ class TestDeploymentCounts(unittest.TestCase):
 
     def setUp(self):
         self._deployments = json.load(open(os.path.join(
-            os.path.dirname(__file__), 'data', 'deployments.json')))
+            os.path.dirname(__file__), '../data', 'deployments.json')))
         self._mox.StubOutWithMock(checkmate.deployments, "DB")
         bottle.request.bind({})
         bottle.request.context = Context()
@@ -1720,7 +1720,7 @@ class TestDeploymentScenarios(unittest.TestCase):
     def test_deployment_scenarios(self):
         base.PROVIDER_CLASSES['test.base'] = ProviderBase
 
-        data_dir = os.path.join(os.path.dirname(__file__), 'data')
+        data_dir = os.path.join(os.path.dirname(__file__), '../data')
 
         # No objects
         path = os.path.join(data_dir, "deployment - none objects.yaml")
