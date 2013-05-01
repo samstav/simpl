@@ -6,7 +6,8 @@ import copy
 import logging
 import os
 
-from celery.canvas import chain
+from celery.canvas import chain, group
+from celery.task import task
 from novaclient.exceptions import NotFound, NoUniqueMatch
 from novaclient.v1_1 import client
 from SpiffWorkflow.operators import PathAttrib
@@ -264,11 +265,10 @@ class Provider(RackspaceComputeProviderBase):
         if preps:
             wait_on.append(preps)
         join = wait_for(wfspec, create_server_task, wait_on,
-                        name="Server Wait on:%s (%s)" % (key,
-                                                         resource['service']))
+                name="Server Wait on:%s (%s)" % (key, resource['service']))
 
         return dict(root=join, final=build_wait_task,
-                    create=create_server_task)
+                create=create_server_task)
 
     def delete_resource_tasks(self, context, deployment_id, resource, key):
         self._verify_existing_resource(resource, key)
@@ -291,6 +291,8 @@ class Provider(RackspaceComputeProviderBase):
                      wait_on_delete_server.si(context),
                      alt_resource_postback.s(deployment_id))
 
+    __res__ = {}
+
     def get_catalog(self, context, type_filter=None):
         """Return stored/override catalog if it exists, else connect, build,
         and return one"""
@@ -305,8 +307,14 @@ class Provider(RackspaceComputeProviderBase):
         # build a live catalog this would be the on_get_catalog called if no
         # stored/override existed
         api = self._connect(context)
+        tasks = None
         images = None
         flavors = None
+        types = None
+
+        if api.client.management_url not in Provider.__res__:
+            tasks = group(_get_images_and_types.s(api),
+                      _get_flavors.s(api))()
 
         if type_filter is None or type_filter == 'regions':
             regions = {}
@@ -320,90 +328,96 @@ class Provider(RackspaceComputeProviderBase):
                 results['lists'] = {}
             results['lists']['regions'] = regions
 
+        if tasks:
+            Provider.__res__[api.client.management_url] = tasks.get()
+
+        for res in Provider.__res__.get(api.client.management_url):
+            if 'flavors' in res:
+                flavors = res.get('flavors')
+            if 'types' in res:
+                types = res.get('types')
+            if 'images' in res:
+                images = res.get('images')
+
         if type_filter is None or type_filter == 'compute':
             #TODO: add regression tests - copy.copy was leakin g across tenants
             results['compute'] = copy.deepcopy(CATALOG_TEMPLATE['compute'])
             linux = results['compute']['linux_instance']
             windows = results['compute']['windows_instance']
-            if not images:
-                images = self._images(api)
-            for image in images.values():
-                choice = dict(name=image['name'], value=image['os'])
-                if 'Windows' in image['os']:
-                    windows['options']['os']['choice'].append(choice)
-                else:
-                    linux['options']['os']['choice'].append(choice)
+            if types:
+                for image in types.values():
+                    choice = dict(name=image['name'], value=image['os'])
+                    if 'Windows' in image['os']:
+                        windows['options']['os']['choice'].append(choice)
+                    else:
+                        linux['options']['os']['choice'].append(choice)
 
-            if not flavors:
-                flavors = self._flavors(api)
-            for flavor in flavors.values():
-                choice = dict(value=int(flavor['memory']),
-                              name="%s (%s Gb disk)" % (flavor['name'],
-                                                        flavor['disk']))
-                linux['options']['memory']['choice'].append(choice)
-                if flavor['memory'] >= 1024:  # Windows needs min 1Gb
-                    windows['options']['memory']['choice'].append(choice)
+            if flavors:
+                for flavor in flavors.values():
+                    choice = dict(value=int(flavor['memory']),
+                                  name="%s (%s Gb disk)" % (flavor['name'],
+                                                            flavor['disk']))
+                    linux['options']['memory']['choice'].append(choice)
+                    if flavor['memory'] >= 1024:  # Windows needs min 1Gb
+                        windows['options']['memory']['choice'].append(choice)
 
-        if type_filter is None or type_filter == 'type':
-            if not images:
-                images = self._images(api)
+        if types and (type_filter is None or type_filter == 'type'):
             if 'lists' not in results:
                 results['lists'] = {}
-            results['lists']['types'] = images
-        if type_filter is None or type_filter == 'size':
-            if not flavors:
-                flavors = self._flavors(api)
+            results['lists']['types'] = types
+        if flavors and (type_filter is None or type_filter == 'size'):
             if 'lists' not in results:
                 results['lists'] = {}
             results['lists']['sizes'] = flavors
-
-        if type_filter is None or type_filter == 'image':
-            images = api.images.list()
+        if images and (type_filter is None or type_filter == 'image'):
             if 'lists' not in results:
                 results['lists'] = {}
-            results['lists']['images'] = {
-                    i.id: {
-                        'name': i.name
-                        } for i in images if False}
+            results['lists']['images'] = images
 
         self.validate_catalog(results)
         if type_filter is None:
             self._dict['catalog'] = results
         return results
 
-    @staticmethod
-    def _images(api):
-        """Gets current tenant's images and formats them in Checkmate format"""
-        images = api.images.list()
-        results = {}
-        for i in images:
-            if 'LAMP' in i.name:
-                continue
-            image = {
-                    'name': i.name,
-                    'os': i.name.split(' LTS ')[0].split(' (')[0]
-                    }
-            #FIXME: hack to make our blueprints work with Private OpenStack
-            if 'precise' in image['os']:
-                image['os'] = 'Ubuntu 12.04'
-            results[str(i.id)] = image
-        return results
-
-    @staticmethod
-    def _flavors(api):
-        """
-
-        Gets current tenant's flavors and formats them in Checkmate format
-
-        """
-        flavors = api.flavors.list()
-        results = {
-                str(f.id): {
-                    'name': f.name,
-                    'memory': f.ram,
-                    'disk': f.disk,
-                    } for f in flavors}
-        return results
+#     @classmethod
+#     def _images(cls, api):
+#         """Gets current tenant's images and formats them in Checkmate format"""
+#         if api.client.management_url not in cls._images_:
+#             images = api.images.list()
+#             results = {}
+#             for i in images:
+#                 if 'LAMP' in i.name:
+#                     continue
+#                 image = {
+#                         'name': i.name,
+#                         'os': i.name.split(' LTS ')[0].split(' (')[0]
+#                         }
+#                 #FIXME: hack to make our blueprints work with Private OpenStack
+#                 if 'precise' in image['os']:
+#                     image['os'] = 'Ubuntu 12.04'
+#                 results[str(i.id)] = image
+#             cls._images_[api.client.management_url] = results
+#         return cls._images_.get(api.client.management_url)
+# 
+#     _flavors_ = {}
+# 
+#     @classmethod
+#     def _flavors(cls, api):
+#         """
+# 
+#         Gets current tenant's flavors and formats them in Checkmate format
+# 
+#         """
+#         if api.client.management_url not in cls._flavors_:
+#             flavors = api.flavors.list()
+#             results = {
+#                     str(f.id): {
+#                         'name': f.name,
+#                         'memory': f.ram,
+#                         'disk': f.disk,
+#                         } for f in flavors}
+#             cls._flavors_[api.client.management_url] = results
+#         return cls._flavors_.get(api.client.management_url)
 
     @staticmethod
     def _connect(context, region=None):
@@ -464,11 +478,35 @@ class Provider(RackspaceComputeProviderBase):
         return api
 
 
-#
-#  Celery tasks to manipulate OpenStack Compute with support for
-#  the Rackspace Cloud.
-#
-from celery.task import task
+@task
+def _get_images_and_types(api):
+    ret = {'images': {}, 'types': {}}
+    images = api.images.list()
+    for i in images:
+        if 'LAMP' in i.name:
+            continue
+        img = {
+                'name': i.name,
+                'os': i.name.split(' LTS ')[0].split(' (')[0]
+                }
+        #FIXME: hack to make our blueprints work with Private OpenStack
+        if 'precise' in img['os']:
+            img['os'] = 'Ubuntu 12.04'
+        ret['types'][str(i.id)] = img
+        ret['images'][i.id] = {'name': i.name}
+    return ret
+
+
+@task
+def _get_flavors(api):
+    flavors = api.flavors.list()
+    return {'flavors': {
+             str(f.id): {
+                'name': f.name,
+                'memory': f.ram,
+                'disk': f.disk,
+            } for f in flavors}}
+
 
 REGION_MAP = {'dallas': 'DFW',
               'chicago': 'ORD',
