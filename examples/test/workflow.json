@@ -688,7 +688,7 @@
                 "locks": [], 
                 "pre_assign": [], 
                 "transforms": [
-                    "keys = set()\nfor key, value in my_task.attributes['context'].get('keys',\n            {}).iteritems():\n    if 'public_key_ssh' in value:\n        keys.add(value['public_key_ssh'])\n    elif 'public_key' in value:\n        LOG.warning(\"Code still using public_key without _ssh\")\nif keys:\n    path = '/root/.ssh/authorized_keys'\n    if not 'files' in my_task.attributes:\n        my_task.attributes['files'] = {}\n    keys_string = '\\n'.join(keys)\n    if path in my_task.attributes['files']:\n        my_task.attributes['files'][path] += keys_string\n    else:\n        my_task.attributes['files'][path] = keys_string\n"
+                    "keys = set()\nfor key, value in my_task.attributes['context'].get('keys',\n            {}).iteritems():\n    if 'public_key_ssh' in value:\n        keys.add(value['public_key_ssh'])\n    elif 'public_key' in value:\n        LOG.warning(\"Code still using public_key without _ssh\")\nif keys:\n    path = '/root/.ssh/authorized_keys'\n    if 'files' not in my_task.attributes:\n        my_task.attributes['files'] = {}\n    keys_string = '\\n'.join(keys)\n    if path in my_task.attributes['files']:\n        my_task.attributes['files'][path] += keys_string\n    else:\n        my_task.attributes['files'][path] = keys_string\n"
                 ], 
                 "internal": false, 
                 "post_assign": [], 

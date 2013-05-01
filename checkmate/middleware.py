@@ -729,7 +729,7 @@ class AuthTokenRouterMiddleware():
         if 'HTTP_X_AUTH_TOKEN' in environ:
             if 'HTTP_X_AUTH_SOURCE' in environ:
                 source = environ['HTTP_X_AUTH_SOURCE']
-                if not source in self.middleware:
+                if source not in self.middleware:
                     LOG.info("Untrusted Auth Source supplied: %s", source)
                     return (HTTPUnauthorized("Untrusted Auth Source")
                             (environ, start_response))

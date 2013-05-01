@@ -476,7 +476,7 @@ class Plan(ExtensibleDict):
         LOG.debug("Analyzing relations")
         services = self.deployment['blueprint'].get('services', {})
         for service_name, service in services.iteritems():
-            if not 'relations' in service:
+            if 'relations' not in service:
                 continue
             for key, relation in service['relations'].iteritems():
                 rel_key, rel = self._format_relation(key, relation,
@@ -701,7 +701,7 @@ class Plan(ExtensibleDict):
         stack = []
         services = self['services']
         for service_name, service in services.iteritems():
-            if not 'extra-components' in service:
+            if 'extra-components' not in service:
                 continue
             for component_key, component in service['extra-components']\
                     .iteritems():
