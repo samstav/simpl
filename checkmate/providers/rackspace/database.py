@@ -424,7 +424,6 @@ def create_instance(context, instance_name, flavor, size, databases, region,
     match_celery_logging(LOG)
     if context.get('simulation') is True:
         resource_key = context['resource']
-        hostname = "srv%s.rackdb.net" % resource_key
         instance_id = {
             'instance:%s' % resource_key: {
                 'id': "DBS%s" % resource_key
