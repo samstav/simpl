@@ -338,6 +338,9 @@ def _create_kitchen(dep_id, service_name, path, secret_key=None,
         # kitchen for the first time and knife will overwrite our config file
         params = ['knife', 'solo', 'init', '.']
         _run_kitchen_command(dep_id, kitchen_path, params)
+        # site-cookbooks might be copied over from the blueprint
+        os.remove(os.path.join(kitchen_path, 'site-cookbooks', '.gitkeep'))
+        os.rmdir(os.path.join(kitchen_path, 'site-cookbooks'))
 
     solo_file, secret_key_path = _write_knife_config_file(kitchen_path)
 
