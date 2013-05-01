@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+# pylint: disable=C0103,C0111,R0903,R0904,W0212,W0232,E1101,E1103
 import copy
 from copy import deepcopy
 import json
@@ -306,7 +306,7 @@ class TestDeploymentResourceGenerator(unittest.TestCase):
         #test resource dns-names without a deployment name
         for k, resource in deployment['resources'].iteritems():
             if k != "connections":
-                regex = "%s\d+.checkmate.local" % resource['service']
+                regex = r"%s\d+.checkmate.local" % resource['service']
                 self.assertRegexpMatches(resource['dns-name'], regex)
                 resource_count += 1
         self.assertEqual(resource_count, 8)
@@ -1689,7 +1689,7 @@ class TestDeploymentPlanning(unittest.TestCase):
         self.assertEqual(assigned_name, expected_name)
 
     def test_evaluate_defaults(self):
-        plan = Plan(Deployment(yaml_to_dict("""
+        default_plan = Plan(Deployment(yaml_to_dict("""
                 id: test
                 blueprint:
                   options:
@@ -1704,13 +1704,13 @@ class TestDeploymentPlanning(unittest.TestCase):
                 environment:
                   providers:
             """)))
-        plan.evaluate_defaults()
-        options = plan.deployment['blueprint']['options']
+        default_plan.evaluate_defaults()
+        options = default_plan.deployment['blueprint']['options']
         defpass = options['defpass']['default']
         defuuid = options['defuuid']['default']
         self.assertNotEqual(defpass, "=generate_password()")
         self.assertNotEqual(defuuid, "=generate_uuid()")
-        plan.evaluate_defaults()  # test idempotency
+        default_plan.evaluate_defaults()  # test idempotency
         self.assertEqual(defpass, options['defpass']['default'])
         self.assertEqual(defuuid, options['defuuid']['default'])
 
@@ -1730,7 +1730,8 @@ class TestDeploymentScenarios(unittest.TestCase):
                                 "found. Nothing to do.",
                                 self.plan_deployment, content)
 
-    def plan_deployment(self, content):
+    @staticmethod
+    def plan_deployment(content):
         """ Wrapper for deployment planning """
         deployment = Deployment(yaml_to_dict(content))
         return plan(deployment, RequestContext())
@@ -2201,12 +2202,8 @@ class TestDeploymentDisplayOutputs(unittest.TestCase):
 
 
 if __name__ == '__main__':
-    # Run tests. Handle our parameters separately
+    # Any change here should be made in all test files
     import sys
-    args = sys.argv[:]
-    # Our --debug means --verbose for unitest
-    if '--debug' in args:
-        args.pop(args.index('--debug'))
-        if '--verbose' not in args:
-            args.insert(1, '--verbose')
-    unittest.main(argv=args)
+    sys.path.insert(1, os.path.join(sys.path[0], '../..'))
+    from tests.utils import run_with_params
+    run_with_params(sys.argv[:])
