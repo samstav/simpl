@@ -1,4 +1,4 @@
-# vim: tabstop=4 shiftwidth=4 softtabstop=4
+# pylint: disable=C0103,C0111,R0903,R0904,W0212,W0232,W0614,W0401
 
 # Copyright 2010-2011 OpenStack, LLC
 # All Rights Reserved.
@@ -40,7 +40,7 @@ class TestMigrations(unittest.TestCase):
     TEST_DATABASES = {'sqlite': 'sqlite:///migration.db'}
 
     REPOSITORY_PATH = os.path.abspath(os.path.join(os.path.abspath(__file__),
-                                      os.pardir, os.pardir, 'checkmate',
+                                      os.pardir, os.pardir, '../checkmate',
                                       'db', 'repository'))
     REPOSITORY = Repository(REPOSITORY_PATH)
 
@@ -59,8 +59,9 @@ class TestMigrations(unittest.TestCase):
         # from the tests
         self._reset_databases()
 
+    # pylint: disable=W0612,R0914,E0602
     def _reset_databases(self):
-        for key, engine in self.engines.items():
+        for key, _ in self.engines.items():
             conn_string = TestMigrations.TEST_DATABASES[key]
             conn_pieces = urlparse.urlparse(conn_string)
             if conn_string.startswith('sqlite'):
