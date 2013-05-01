@@ -216,7 +216,7 @@ class Provider(ProviderBase):
                     "name": "lb%s-lb%s" % (key, resource2['index'])
                 }
             })
-            if not "relations" in resource:
+            if "relations" not in resource:
                 resource['relations'] = {}
             resource['relations'].update({
                 "lb%s-lb%s" % (resource2['index'], key): {
@@ -360,7 +360,7 @@ class Provider(ProviderBase):
             options = comp.get('options', {})
             protocol_option = options.get("protocol", {})
             protocols = protocol_option.get("choice", [])
-            if not interface in protocols:
+            if interface not in protocols:
                 raise CheckmateException("'%s' is an invalid relation "
                                          "interface for provider '%s'. Valid "
                                          "options are: %s" % (interface,
@@ -481,7 +481,7 @@ class Provider(ProviderBase):
             # vip
             # TODO: add support for arbitrary combinations of secure and
             #       unsecure protocols (ftp/ftps for example)
-            if not "http_and_https" in protocols:
+            if "http_and_https" not in protocols:
                 protocols.extend(["http_and_https"])
             protocol_option = {'protocol': {'type': 'list',
                                             'choice': protocols}}

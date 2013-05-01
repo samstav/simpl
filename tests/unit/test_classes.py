@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+# pylint: disable=C0103,C0111,R0903,R0904,W0212,W0232
 import unittest2 as unittest
 
 from checkmate.classes import ExtensibleDict
@@ -7,10 +7,7 @@ from checkmate.classes import ExtensibleDict
 class TestExtensibleDict(unittest.TestCase):
     def test_init(self):
         """Check that init works like dict does"""
-        data = {
-                'key': 'value',
-                1: 2,
-            }
+        data = {'key': 'value', 1: 2}
         ed = ExtensibleDict(data)
         self.assertDictEqual(ed._data, data)
 
@@ -49,4 +46,9 @@ class TestExtensibleDict(unittest.TestCase):
 
 
 if __name__ == '__main__':
-    unittest.main()
+    # Any change here should be made in all test files
+    import os
+    import sys
+    sys.path.insert(1, os.path.join(sys.path[0], '../..'))
+    from tests.utils import run_with_params
+    run_with_params(sys.argv[:])
