@@ -424,12 +424,6 @@ def create_instance(context, instance_name, flavor, size, databases, region,
     match_celery_logging(LOG)
     if context.get('simulation') is True:
         resource_key = context['resource']
-        instance_id = {
-            'instance:%s' % resource_key: {
-                'id': "DBS%s" % resource_key
-            }
-        }
-        resource_postback.delay(context['deployment'], instance_id)
         results = {
             'instance:%s' % resource_key: {
                 'id': "DBS%s" % resource_key,
@@ -471,12 +465,6 @@ def create_instance(context, instance_name, flavor, size, databases, region,
 
     instance = api.create_instance(instance_name, flavor, size,
                                    databases=databases)
-    instance_id = {
-        'instance:%s' % context['resource']: {
-            'id': "DBS%s" % instance.id
-        }
-    }
-    resource_postback.delay(context['deployment'], instance_id)
     LOG.info("Created database instance %s (%s). Size %s, Flavor %s. "
              "Databases = %s" % (instance.name, instance.id, size, flavor,
                                  databases))
@@ -497,7 +485,6 @@ def create_instance(context, instance_name, flavor, size, databases, region,
             'databases': {}
         }
     }
-
     # Return created databases and their interfaces
     if databases:
         db_results = results['instance:%s' % context['resource']]['databases']
