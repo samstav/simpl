@@ -599,8 +599,9 @@ def create_server(context, name, region, api_object=None, flavor="2",
                               'image': image
                               }}
 
-    # Send data back to deployment
-    resource_postback.delay(context['deployment'], results)
+    # Send data back to deployment.  Call synchronously to make sure
+    # the instance id is available to the delete method
+    resource_postback(context['deployment'], results)
     return results
 
 
