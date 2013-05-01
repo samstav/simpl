@@ -642,6 +642,16 @@ def create_loadbalancer(context, name, vip_type, protocol, region, api=None,
             name=name, port=port, protocol=protocol.upper(),
             nodes=[fakenode], virtualIps=[vip], algorithm=algorithm)
 
+    # Put the instance_id in the db as soon as it's available
+    instance_id = {
+        'instance:%s' % context['resource']: {
+            'id': loadbalancer.id
+        }
+    }
+    # Call synchronously to make sure the instance id is available to
+    # the delete method
+    resource_postback(context['deployment'], instance_id)
+
     # update our assigned vip
     for ip_data in loadbalancer.virtualIps:
         if ip_data.ipVersion == 'IPV4' and ip_data.type == "PUBLIC":
