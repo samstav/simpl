@@ -1,11 +1,5 @@
-#!/usr/bin/env python
-import logging
+# pylint: disable=C0103,C0111,R0903,R0904,W0212,W0232
 import unittest2 as unittest
-
-from checkmate.utils import init_console_logging
-init_console_logging()
-LOG = logging.getLogger(__name__)
-
 import mox
 
 from checkmate import ssh
@@ -63,26 +57,24 @@ class TestSSH(unittest.TestCase):
         #Stub out _connect call
         self.mox.StubOutWithMock(ssh, '_connect')
         ssh._connect(ip, port=port, username=username, timeout=timeout,
-                      private_key=private_key, identity_file=identity_file,
-                      password=password).AndReturn(client)
+                     private_key=private_key, identity_file=identity_file,
+                     password=password).AndReturn(client)
         client.close().AndReturn(None)
-        
+
         self.mox.ReplayAll()
         results = ssh.test_connection({}, ip, username, port=port,
-                timeout=timeout, private_key=private_key,
-                identity_file=identity_file, password=password)
+                                      timeout=timeout, private_key=private_key,
+                                      identity_file=identity_file,
+                                      password=password)
 
         self.assertTrue(results, "Expecting a successful connection")
         self.mox.VerifyAll()
 
 
 if __name__ == '__main__':
-    # Run tests. Handle our parameters separately
+    # Any change here should be made in all test files
+    import os
     import sys
-    args = sys.argv[:]
-    # Our --debug means --verbose for unittest
-    if '--debug' in args:
-        args.pop(args.index('--debug'))
-        if '--verbose' not in args:
-            args.insert(1, '--verbose')
-    unittest.main(argv=args)
+    sys.path.insert(1, os.path.join(sys.path[0], '../..'))
+    from tests.utils import run_with_params
+    run_with_params(sys.argv[:])
