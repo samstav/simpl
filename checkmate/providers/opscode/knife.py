@@ -300,6 +300,9 @@ def _copy_kitchen_blueprint(dest, source_repo):
                                  repo_cache)
     LOG.debug("repo_cache: %s" % repo_cache)
     LOG.debug("dest: %s" % dest)
+    if os.path.exists(os.path.join(repo_cache, "site-cookbooks")):
+        os.remove(os.path.join(dest, 'site-cookbooks', '.gitkeep'))
+        os.rmdir(os.path.join(dest, 'site-cookbooks'))
     utils.copy_contents(repo_cache, dest, create_path=True)
 
 
@@ -338,9 +341,6 @@ def _create_kitchen(dep_id, service_name, path, secret_key=None,
         # kitchen for the first time and knife will overwrite our config file
         params = ['knife', 'solo', 'init', '.']
         _run_kitchen_command(dep_id, kitchen_path, params)
-        # site-cookbooks might be copied over from the blueprint
-        os.remove(os.path.join(kitchen_path, 'site-cookbooks', '.gitkeep'))
-        os.rmdir(os.path.join(kitchen_path, 'site-cookbooks'))
 
     solo_file, secret_key_path = _write_knife_config_file(kitchen_path)
 
