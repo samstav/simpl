@@ -10,7 +10,7 @@ from SpiffWorkflow.operators import PathAttrib
 from SpiffWorkflow.specs import Celery
 
 from checkmate.deployments import (
-    resource_postback, 
+    resource_postback,
     alt_resource_postback,
     get_resource_by_id
 )
@@ -19,6 +19,8 @@ from checkmate.middleware import RequestContext
 from checkmate.providers import ProviderBase
 from checkmate.utils import match_celery_logging
 from checkmate.workflow import wait_for
+from checkmate.workflows import wait_for
+from checkmate import deployments
 
 LOG = logging.getLogger(__name__)
 
@@ -500,7 +502,7 @@ def create_instance(context, instance_name, flavor, size, databases, region,
 
     # Send data back to deployment.  Call synchronously to make sure
     # the instance id is available to the delete method
-    resource_postback(context['deployment'], results)
+    deployments.resource_postback(context['deployment'], results)
     return results
 
 
@@ -534,11 +536,11 @@ def wait_on_build(context, instance_id, region, api=None):
         instance_key = "instance:%s" % context['resource']
         results = {instance_key: results}
         resource_postback.delay(context['deployment'], results)
- 
+
         # Delete the database if it failed
         Provider({}).delete_resource_tasks(context, context['deployment'],
                                     get_resource_by_id(context['deployment'],
-                                                        context['resource']), 
+                                                        context['resource']),
                                     instance_key).apply_async()
         raise CheckmateException(msg)
     elif instance.status == "ACTIVE":
