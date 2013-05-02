@@ -1,17 +1,13 @@
-#!/usr/bin/env python
+# pylint: disable=C0103,C0111,R0903,R0904,W0212,W0232
+import unittest2 as unittest
 import json
 import os
 import sys
 import uuid
 
 from bottle import default_app, load
-import unittest2 as unittest
 from webtest import TestApp
-
 from checkmate.middleware import TenantMiddleware, ContextMiddleware
-# Init logging before we load the database, 3rd party, and 'noisy' modules
-from checkmate.utils import init_console_logging
-init_console_logging()
 
 os.environ['CHECKMATE_DATA_PATH'] = os.path.join(os.path.dirname(__file__),
                                                  'data')
@@ -60,7 +56,7 @@ class TestServer(unittest.TestCase):
         #PUT
         entity = "%s: &e1\n    id: '1'" % model_name
         res = self.app.put('/%ss/1' % model_name, entity,
-                            content_type='application/x-yaml')
+                           content_type='application/x-yaml')
         self.assertEqual(res.status, '200 OK')
         self.assertEqual(res.content_type, 'application/json')
 
@@ -80,9 +76,9 @@ class TestServer(unittest.TestCase):
         self.assertEqual(res.status, '200 OK')
         self.assertEqual(res.content_type, 'application/json')
 
-    def rest_tenant_exercise(self, model_name, id='id'):
+    def rest_tenant_exercise(self, model_name, model_id='id'):
         #PUT
-        entity = "%s: &e1\n    %s: '1'" % (model_name, id)
+        entity = "%s: &e1\n    %s: '1'" % (model_name, model_id)
         res = self.app.put('/T1000/%ss/1' % model_name, entity,
                            content_type='application/x-yaml')
         #TODO: make tests clean so we can predict if we get a 200 or 201
@@ -166,24 +162,9 @@ class TestServer(unittest.TestCase):
         #TODO: make tests clean so we can predict if we get a 200 or 201
         self.assertIn(res.status, ['201 Created', '200 OK'])
 
-    # def rest_post_workflow_task_test(self):
-    #     workflow_id = str(uuid.uuid4())
-    #     obj_id = str(uuid.uuid4())
-    #     entity = {"id": obj_id}#, 'tenantId': 'T1000'}
-    #     #TODO: check that uri task id and persisted id ==
-    #     res = self.app.post_json('/T1000/workflows/'+workflow_id, entity)
-    #     res = self.app.post_json('/T1000/workflows/%s/tasks/%s' % (workflow_id, obj_id), entity)
-    #     self.assertEqual(res.status, '200 OK')
-
-    #     get_obj = self.app.get("/T1000/workflows/1/tasks/"+ obj_id)
-
 
 if __name__ == '__main__':
-    # Run tests. Handle our paramsters separately
-    args = sys.argv[:]
-    # Our --debug means --verbose for unitest
-    if '--debug' in args:
-        args.pop(args.index('--debug'))
-        if '--verbose' not in args:
-            args.insert(1, '--verbose')
-    unittest.main(argv=args)
+    # Any change here should be made in all test files
+    sys.path.insert(1, os.path.join(sys.path[0], '../..'))
+    from tests.utils import run_with_params
+    run_with_params(sys.argv[:])

@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+# pylint: disable=C0103,C0111,R0903,R0904,W0212,W0232
 import logging
 import uuid
 
@@ -13,8 +13,10 @@ init_console_logging()
 from checkmate.deployments import Deployment
 from checkmate.exceptions import CheckmateException
 from checkmate.middleware import RequestContext
-from checkmate.providers.base import ProviderBase, PROVIDER_CLASSES,\
-        CheckmateInvalidProvider, ProviderBasePlanningMixIn
+from checkmate.providers.base import (ProviderBase,
+                                      PROVIDER_CLASSES,
+                                      CheckmateInvalidProvider,
+                                      ProviderBasePlanningMixIn)
 from checkmate.test import StubbedWorkflowBase, TestProvider
 from checkmate.utils import yaml_to_dict
 
@@ -32,22 +34,41 @@ class TestProviderBasePlanningMixIn(unittest.TestCase):
 
     def test_template(self):
         template = self._prov_planner.generate_template(
-          {'id': "1234567890", 'name':'test_deployment'}, "test_type", None, self._req_context)
+            {'id': "1234567890", 'name': 'test_deployment'},
+            "test_type",
+            None,
+            self._req_context)
         self.assertIn("type", template, "No type")
-        self.assertEqual("test_type", template.get("type", "NONE"), "Type not set")
+        self.assertEqual("test_type",
+                         template.get("type", "NONE"),
+                         "Type not set")
         self.assertIn("provider", template, "No provider in template")
-        self.assertEqual("test_key", template.get("provider", "NONE"), "Provider not set")
+        self.assertEqual("test_key",
+                         template.get("provider", "NONE"),
+                         "Provider not set")
         self.assertIn("instance", template, "No instance in template")
         self.assertIn("dns-name", template, "No dns-name in template")
-        self.assertEqual("test_type", template.get("dns-name", "NONE"), "dns-name not set")
+        self.assertEqual("test_type",
+                         template.get("dns-name", "NONE"),
+                         "dns-name not set")
         req_ctx_dict = self._req_context.get_queued_task_dict()
         self.assertIn("metadata", req_ctx_dict, "No metadata in template")
-        self.assertIn("RAX-CHKMT", req_ctx_dict.get("metadata", {}), "No metadata set")
-        LOG.info("RAX-CHKMT: {}".format(req_ctx_dict.get("metadata").get("RAX-CHKMT")))
+        self.assertIn("RAX-CHKMT",
+                      req_ctx_dict.get("metadata", {}),
+                      "No metadata set")
+        LOG.info("RAX-CHKMT: {}"
+                 .format(req_ctx_dict.get("metadata")
+                 .get("RAX-CHKMT")))
 
     def test_template_without_deployment_name(self):
-      template = self._prov_planner.generate_template({'id': "1234567890"}, "test_type", None, self._req_context)
-      self.assertEqual("test_type", template.get("dns-name", "NONE"), "dns-name not set")
+        template = self._prov_planner.generate_template({'id': "1234567890"},
+                                                        "test_type",
+                                                        None,
+                                                        self._req_context)
+        self.assertEqual("test_type",
+                         template.get("dns-name", "NONE"),
+                         "dns-name not set")
+
 
 class TestProviderBase(unittest.TestCase):
     def test_provider_bad_override(self):
@@ -167,14 +188,14 @@ class TestProviderBase(unittest.TestCase):
         self.assertIn(found[1]['id'], ['small_widget', 'gadget'])
 
         found = base.find_components(None, resource_type='widget',
-                interface='foo')
+                                     interface='foo')
         self.assertEqual(len(found), 1)
         self.assertEqual(found[0]['id'], 'small_widget',)
 
     def test_evaluate(self):
         provider = ProviderBase({})
         self.assertIsInstance(uuid.UUID(provider.evaluate("generate_uuid())")),
-                uuid.UUID)
+                              uuid.UUID)
         self.assertEqual(len(provider.evaluate("generate_password()")), 8)
         self.assertRaises(NameError, provider.evaluate, "unknown()")
 
@@ -235,67 +256,53 @@ class TestProviderBaseWorkflow(StubbedWorkflowBase):
             """))
         expected = []
         expected.append({
-                    'call': 'checkmate.providers.test.create_resource',
-                    'args': [IsA(dict),
-                            {'index': '1', 'component': 'database_instance',
+            'call': 'checkmate.providers.test.create_resource',
+            'args': [IsA(dict),
+                        {'index': '1', 'component': 'database_instance',
                             'dns-name': 'db1.checkmate.local',
                             'instance': {}, 'provider': 'base',
                             'service': 'db', 'type': 'database',
                             'relations': {
                                 'web-db': {'interface': 'mysql', 'source': '0',
                                 'state': 'planned'}
-                              }}],
-                    'kwargs': None,
-                    'result': {
-                          'instance:0': {
-                              'name': 'db1.checkmate.local',
-                              'interfaces': {
-                                'mysql': {
-                                    'username': 'mysql_user',
-                                    'host': 'db.local',
-                                    'database_name': 'dbX',
-                                    'port': 8888,
-                                    'password': 'secret',
-                                  },
-                              }
-                          }
-                      },
-                      'post_back_result': True,
-                })
+                            }
+                         }
+                     ],
+            'kwargs': None,
+            'result': {
+                'instance:0': {
+                    'name': 'db1.checkmate.local',
+                    'interfaces': {
+                        'mysql': {
+                            'username': 'mysql_user',
+                            'host': 'db.local',
+                            'database_name': 'dbX',
+                            'port': 8888,
+                            'password': 'secret',
+                        },
+                    }
+                }
+            },
+            'post_back_result': True,
+        })
         expected.append({
-                    'call': 'checkmate.providers.test.create_resource',
-                    'args': [IsA(dict),
-                            {'index': '0', 'component': 'web_app',
-                            'dns-name': 'web1.checkmate.local',
-                            'instance': {'interfaces': {'mysql': {
-                                'username': 'mysql_user', 'host': 'db.local',
-                                'password': 'secret', 'database_name': 'dbX',
-                                'port': 8888}},
-                                'name': 'db1.checkmate.local'},
-                            'provider': 'base', 'service': 'web',
-                            'type': 'application', 'relations': {'web-db': {
-                                'interface': 'mysql', 'state': 'planned',
-                                'target': '1'}}}],
-                    'kwargs': None,
-                    'result': None,
-                })
+            'call': 'checkmate.providers.test.create_resource',
+            'args': [IsA(dict),
+                    {'index': '0', 'component': 'web_app',
+                    'dns-name': 'web1.checkmate.local',
+                    'instance': {'interfaces': {'mysql': {
+                        'username': 'mysql_user', 'host': 'db.local',
+                        'password': 'secret', 'database_name': 'dbX',
+                        'port': 8888}},
+                        'name': 'db1.checkmate.local'},
+                    'provider': 'base', 'service': 'web',
+                    'type': 'application', 'relations': {'web-db': {
+                        'interface': 'mysql', 'state': 'planned',
+                        'target': '1'}}}],
+            'kwargs': None,
+            'result': None,
+        })
         self.workflow = self._get_stubbed_out_workflow(expected_calls=expected)
-
-    #def test_workflow_completion(self):
-    #    'Verify workflow sequence and data flow'
-    #    self.mox.ReplayAll()
-    #    self.workflow.complete_all()
-    #    self.assertTrue(self.workflow.is_completed(), "Workflow did not "
-    #            "complete")
-    #    self.assertIn('instance:0', self.workflow.get_tasks()[-1].attributes)
-    #    self.assertIn('mysql', self.workflow.get_tasks()[-1].attributes[
-    #        'instance:0']['interfaces'])
-
-    #    LOG.debug("RESOURCES: %s" % json.dumps(self.deployment['resources'],
-    #            indent=2))
-    #    last_task = self.workflow.get_tasks()[-1]
-    #    LOG.debug("DELIVERED to '%s': %s" % (last_task.get_name(), json.dumps(
-    #            last_task.attributes['instance:0'], indent=2)))
 
 
 class TestProviderBaseParser(unittest.TestCase):
@@ -358,12 +365,9 @@ class TestProviderBaseParser(unittest.TestCase):
 
 
 if __name__ == '__main__':
-    # Run tests. Handle our parameters separately
+    # Any change here should be made in all test files
+    import os
     import sys
-    args = sys.argv[:]
-    # Our --debug means --verbose for unittest
-    if '--debug' in args:
-        args.pop(args.index('--debug'))
-        if '--verbose' not in args:
-            args.insert(1, '--verbose')
-    unittest.main(argv=args)
+    sys.path.insert(1, os.path.join(sys.path[0], '../..'))
+    from tests.utils import run_with_params
+    run_with_params(sys.argv[:])
