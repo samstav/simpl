@@ -62,3 +62,12 @@ class FysomStateTests(unittest.TestCase):
         self.assertRaises(FysomError, self.fsm.panic)
         self.assertRaises(FysomError, self.fsm.calm)
         self.assertRaises(FysomError, self.fsm.clear)
+        self.assertRaises(FysomError, self.fsm.go_to, 'red')
+
+    def test_can_by_name(self):
+        self.assertTrue(self.fsm.has_path_to('yellow'))
+        self.assertFalse(self.fsm.has_path_to('red'))
+
+    def test_transition_by_name(self):
+        self.fsm.go_to('yellow')
+        self.assertTrue(self.fsm.isstate('yellow'))

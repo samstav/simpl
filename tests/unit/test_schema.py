@@ -10,9 +10,8 @@ For tests, we don't care about:
 
 import unittest2 as unittest
 
-from fysom import Fysom
-
 from checkmate.common import schema
+from checkmate.common.fysom import Fysom
 from checkmate import utils
 
 
