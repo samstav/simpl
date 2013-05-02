@@ -7,11 +7,13 @@ import urlparse
 from checkmate import keys
 from checkmate.blueprints import Blueprint
 from checkmate.classes import ExtensibleDict
+from checkmate.common.fysom import Fysom, FysomError
 from checkmate.constraints import Constraint
 from checkmate.common import schema
 from checkmate.db import get_driver
 from checkmate.environment import Environment
 from checkmate.exceptions import (
+    CheckmateBadState,
     CheckmateException,
     CheckmateValidationException,
 )
@@ -207,14 +209,46 @@ class Deployment(ExtensibleDict):
     Holds the Environment and providers during the processing of a deployment
     and creation of a workflow
     """
+    status_definitions = schema.get_state_events(schema.DEPLOYMENT_STATUSES)
+    legacy_statuses = {  # TODO: remove these when old data is clean
+        "BUILD": 'UP',
+        "CONFIGURE": 'UP',
+        "ACTIVE": 'UP',
+        'ERROR': 'FAILED',
+        'DELETING': 'UP',
+    }
+
     def __init__(self, *args, **kwargs):
         ExtensibleDict.__init__(self, *args, **kwargs)
         self._environment = None
 
+        self.fsm = Fysom({
+            'initial': self.get('status', 'NEW'),
+            'events': self.status_definitions,
+        })
+
         if 'status' not in self:
             self['status'] = 'NEW'
+        else:
+            if self['status'] not in schema.DEPLOYMENT_STATUSES:
+                raise CheckmateValidationException("Invalid deployment status "
+                                                   "%s" % self['status'])
         if 'created' not in self:
             self['created'] = get_time_string()
+
+    def __setitem__(self, key, value):
+        if key == 'status':
+            if value in self.legacy_statuses:
+                value = self.legacy_statuses[value]
+            if value != self.fsm.current:
+                try:
+                    LOG.warn("Deployment %s going from %s to %s",
+                             self.get('id'), self.get('status'), value)
+                    self.fsm.go_to(value)
+                except FysomError:
+                    raise CheckmateBadState("Cannot transition from %s to %s" %
+                                            (self.fsm.current, value))
+        ExtensibleDict.__setitem__(self, key, value)
 
     @classmethod
     def inspect(cls, obj):

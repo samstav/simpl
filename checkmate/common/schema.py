@@ -161,43 +161,128 @@ INTERFACE_SCHEMA = yaml_to_dict("""
 
 INTERFACE_TYPES = INTERFACE_SCHEMA.keys()
 
-RESOURCE_TYPES = ['compute', 'database', 'wordpress', 'php5', 'load-balancer',
-        'endpoint', 'host', 'application',
-        'widget', 'gadget']  # last two for testing
+RESOURCE_TYPES = [
+    'compute', 'database', 'wordpress', 'php5', 'load-balancer',
+    'endpoint', 'host', 'application',
+    'widget', 'gadget',  # last two for testing
+]
 
-RESOURCE_SCHEMA = ['id', 'index', 'name', 'provider', 'relations', 'hosted_on',
-        'hosts', 'type', 'component', 'dns-name', 'instance', 'flavor',
-        'image', 'disk', 'region', 'service', 'status']
+RESOURCE_SCHEMA = [
+    'id', 'index', 'name', 'provider', 'relations', 'hosted_on', 'hosts',
+    'type', 'component', 'dns-name', 'instance', 'flavor', 'image', 'disk',
+    'region', 'service', 'status',
+]
 
-BLUEPRINT_SCHEMA = ['id', 'name', 'services', 'options', 'resources',
-                    'meta-data', 'description', 'display-outputs',
-                    'documentation', 'version']
+BLUEPRINT_SCHEMA = [
+    'id', 'name', 'services', 'options', 'resources', 'meta-data',
+    'description', 'display-outputs', 'documentation', 'version',
+]
 
-DEPLOYMENT_SCHEMA = ['id', 'name', 'blueprint', 'environment', 'inputs',
-        'includes', 'resources', 'workflow', 'status', 'created',
-        'tenantId', 'errmessage', 'display-outputs', 'operation', 
-        'error_messages']
+DEPLOYMENT_SCHEMA = [
+    'id', 'name', 'blueprint', 'environment', 'inputs', 'display-outputs',
+    'resources', 'workflow', 'status', 'created', 'tenantId', 'operation',
+    'error_messages', 'live',
+    'errmessage',  # to be deprecated
+    'includes',  # used to place YAML-referenced parts but then removed
+]
 
-COMPONENT_SCHEMA = ['id', 'options', 'requires', 'provides', 'summary',
-        'dependencies', 'version', 'is', 'role', 'roles', 'source_name']
+# Useful command for printing this out:
+# print "\n".join(['%s: %s (can go to %s)' % (k, v['description'],
+#     ', '.join([e['dst'] for e in v.get('events', [])])) for k, v in
+#     DEPLOYMENT_STATUSES.items()])
+DEPLOYMENT_STATUSES = {
+    'NEW': {
+        'description': "Has topology, but no resources",
+        'events': [
+            {'name': 'plan', 'dst': 'PLANNED'},
+            {'name': 'fail', 'dst': 'FAILED'},
+        ],
+    },
+    'PLANNED': {
+        'description': "Has topology and resources",
+        'events': [
+            {'name': 'deploy', 'dst': 'UP'},
+            {'name': 'fail', 'dst': 'FAILED'},
+        ],
+    },
+    'UP': {
+        'description': "Deployment is launched and running",
+        'events': [
+            {'name': 'alert', 'dst': 'ALERT'},
+            {'name': 'cannot_connect', 'dst': 'NON-RESPONSIVE'},
+            {'name': 'down', 'dst': 'DOWN'},
+            {'name': 'delete', 'dst': 'DELETED'},
+        ],
+    },
+    'FAILED': {
+        'description': "Planning or building failed",
+        'events': [
+            {'name': 'delete', 'dst': 'DELETED'},
+        ],
+    },
+    'ALERT': {
+        'description': "Attention required",
+        'events': [
+            {'name': 'delete', 'dst': 'DELETED'},
+            {'name': 'fix', 'dst': 'UP'},
+        ],
+    },
+    'NON-RESPONSIVE': {
+        'description': "Cannot contact infrastructure",
+        'events': [
+            {'name': 'down', 'dst': 'DOWN'},
+            {'name': 'reconnect', 'dst': 'UP'},
+            {'name': 'alert', 'dst': 'ALERT'},
+        ],
+    },
+    'DOWN': {
+        'description': "Deployment is down",
+        'events': [
+            {'name': 'fix', 'dst': 'UP'},
+            {'name': 'delete', 'dst': 'DELETED'},
+        ],
+    },
+    'DELETED': {
+        'description': "Deployment has been deleted",
+    },
+}
+
+
+def get_state_events(status_definitions):
+    '''Return events in a format suitable for creating a Fysom state machine'''
+    events = []
+    if status_definitions:
+        for status, definition in status_definitions.iteritems():
+            if 'events' in definition:
+                for event in definition['events']:
+                    event['src'] = status
+                    events.append(event)
+    return events
+
+
+COMPONENT_SCHEMA = [
+    'id', 'options', 'requires', 'provides', 'summary', 'dependencies',
+    'version', 'is', 'role', 'roles', 'source_name',
+]
 
 OPTION_SCHEMA = [
-                 'label',
-                 'default',
-                 'help',
-                 'choice',
-                 'description',
-                 'required',
-                 'type',
-                 'constrains',
-                 'constraints',
-                 'display-hints',
-                ]
+    'label',
+    'default',
+    'help',
+    'choice',
+    'description',
+    'required',
+    'type',
+    'constrains',
+    'constraints',
+    'display-hints',
+]
+
 # Add parts used internally by providers, but not part of the public schema
 OPTION_SCHEMA_INTERNAL = OPTION_SCHEMA + [
-                 'source',
-                 'source_field_name',
-                ]
+    'source',
+    'source_field_name',
+]
 
 OPTION_SCHEMA_URL = [
     'url',
@@ -213,16 +298,18 @@ OPTION_SCHEMA_URL = [
 ]
 
 OPTION_TYPES = [
-                'string',
-                'integer',
-                'boolean',
-                'url',
-                'password',
-                'text',
-               ]
+    'string',
+    'integer',
+    'boolean',
+    'url',
+    'password',
+    'text',
+]
 
-WORKFLOW_SCHEMA = ['id', 'attributes', 'last_task', 'task_tree', 'workflow',
-        'success', 'wf_spec', 'tenantId']
+WORKFLOW_SCHEMA = [
+    'id', 'attributes', 'last_task', 'task_tree', 'workflow', 'success',
+    'wf_spec', 'tenantId',
+]
 
 
 def validate_catalog(obj):
@@ -237,7 +324,7 @@ def validate_catalog(obj):
                     errors.extend(validate(instance, COMPONENT_SCHEMA) or [])
             else:
                 errors.append("'%s' not a valid value. Only %s, 'lists' "
-                        "allowed" % (key, ', '.join(RESOURCE_TYPES)))
+                              "allowed" % (key, ', '.join(RESOURCE_TYPES)))
     return errors
 
 
@@ -251,7 +338,7 @@ def validate(obj, schema):
     errors = []
     if obj:
         if schema:
-            for key, value in obj.iteritems():
+            for key, _ in obj.iteritems():
                 if key not in schema:
                     errors.append("'%s' not a valid value. Only %s allowed" %
                                   (key, ', '.join(schema)))
@@ -381,131 +468,131 @@ def validate_options(options):
 # - full names (ex. database, not db). Except for id.
 
 ALIASES = {
-        'apache': ['apache2'],
-        'authentication': ['auth'],
-        'configuration': ['conf'],
-        'database': ['db'],
-        'description': ['desc'],
-        'destination': ['dest'],
-        'directory': ['dir'],
-        'drupal': [],
-        'etherpad': [],
-        'host': ['hostname'],
-        'id': [],
-        'ip': [],
-        'instance': [],
-        'key': [],
-        'maximum': ['max'],
-        'memory': ['mem'],
-        'mysql': [],
-        'name': [],
-        'nonce': [],
-        'operating_system': ['os'],
-        'path': [],
-        'password': ['pass'],
-        'prefork': [],
-        'region': [],
-        'server': ['srv', 'srvr'],
-        'source': ['src'],
-        'ssh': [],
-        'status': [],
-        'username': [],
-        'user': [],
-        'wordpress': ['wp'],
-        'worker': [],
-    }
+    'apache': ['apache2'],
+    'authentication': ['auth'],
+    'configuration': ['conf'],
+    'database': ['db'],
+    'description': ['desc'],
+    'destination': ['dest'],
+    'directory': ['dir'],
+    'drupal': [],
+    'etherpad': [],
+    'host': ['hostname'],
+    'id': [],
+    'ip': [],
+    'instance': [],
+    'key': [],
+    'maximum': ['max'],
+    'memory': ['mem'],
+    'mysql': [],
+    'name': [],
+    'nonce': [],
+    'operating_system': ['os'],
+    'path': [],
+    'password': ['pass'],
+    'prefork': [],
+    'region': [],
+    'server': ['srv', 'srvr'],
+    'source': ['src'],
+    'ssh': [],
+    'status': [],
+    'username': [],
+    'user': [],
+    'wordpress': ['wp'],
+    'worker': [],
+}
 
 # Add items we come across frequently just to minimize log noise
 ALIASES.update({
-        'access': [],
-        'address': [],
-        'allowed': [],
-        'apt': [],
-        'aws': [],
-        'awwbomb': [],
-        'back': [],
-        'bin': [],
-        'bind': [],
-        'bluepill': [],
-        'bucket': [],
-        'buffer': [],
-        'build': [],
-        'cache': [],
-        'cert': [],
-        'certificate': [],
-        'checkmate': [],
-        'chef': [],
-        'client': [],
-        'connection': ['connections'],
-        'contact': [],
-        'container': [],
-        'create': [],
-        'data': [],
-        'day': ['days'],
-        'default': [],
-        'dmg': [],
-        'domain': [],
-        'ec2': [],
-        'enabled': [],
-        'essential': [],
-        'expire': [],
-        'firewall': [],
-        'gzip': [],
-        'handler': [],
-        'hash': [],
-        'heap': [],
-        'holland': [],
-        'iptables': [],
-        'keepalive': [],
-        'level': [],
-        'listen': [],
-        'lite': [],
-        'log': ['logs'],
-        'lsyncd': [],
-        'memcached': [],
-        'monit': [],
-        'net': [],
-        'nginx': [],
-        'nodejs': [],
-        'npm': [],
-        'ohai': [],
-        'open': [],
-        'openssl': [],
-        'php': [],
-        'php5': [],
-        'port': ['ports'],
-        'postfix': [],
-        'postgresql': [],
-        'prefix': [],
-        'private': [],
-        'process': ['processes'],
-        'public': [],
-        'read': [],
-        'root': [],
-        'runit': [],
-        'size': [],
-        'secure': [],
-        'self': [],
-        'service': [],
-        'site': [],
-        'slave': ['slaves'],
-        'ssl': [],
-        'suhosin': [],
-        'table': [],
-        'timeout': [],
-        'tunable': [],
-        'type': ['types'],
-        'ufw': [],
-        'varnish': [],
-        'version': [],
-        'vsftpd': [],
-        'wait': [],
-        'windows': [],
-        'write': [],
-        'xfs': [],
-        'xml': [],
-        'yum': [],
-    })
+    'access': [],
+    'address': [],
+    'allowed': [],
+    'apt': [],
+    'aws': [],
+    'awwbomb': [],
+    'back': [],
+    'bin': [],
+    'bind': [],
+    'bluepill': [],
+    'bucket': [],
+    'buffer': [],
+    'build': [],
+    'cache': [],
+    'cert': [],
+    'certificate': [],
+    'checkmate': [],
+    'chef': [],
+    'client': [],
+    'connection': ['connections'],
+    'contact': [],
+    'container': [],
+    'create': [],
+    'data': [],
+    'day': ['days'],
+    'default': [],
+    'dmg': [],
+    'domain': [],
+    'ec2': [],
+    'enabled': [],
+    'essential': [],
+    'expire': [],
+    'firewall': [],
+    'gzip': [],
+    'handler': [],
+    'hash': [],
+    'heap': [],
+    'holland': [],
+    'iptables': [],
+    'keepalive': [],
+    'level': [],
+    'listen': [],
+    'lite': [],
+    'log': ['logs'],
+    'lsyncd': [],
+    'memcached': [],
+    'monit': [],
+    'net': [],
+    'nginx': [],
+    'nodejs': [],
+    'npm': [],
+    'ohai': [],
+    'open': [],
+    'openssl': [],
+    'php': [],
+    'php5': [],
+    'port': ['ports'],
+    'postfix': [],
+    'postgresql': [],
+    'prefix': [],
+    'private': [],
+    'process': ['processes'],
+    'public': [],
+    'read': [],
+    'root': [],
+    'runit': [],
+    'size': [],
+    'secure': [],
+    'self': [],
+    'service': [],
+    'site': [],
+    'slave': ['slaves'],
+    'ssl': [],
+    'suhosin': [],
+    'table': [],
+    'timeout': [],
+    'tunable': [],
+    'type': ['types'],
+    'ufw': [],
+    'varnish': [],
+    'version': [],
+    'vsftpd': [],
+    'wait': [],
+    'windows': [],
+    'write': [],
+    'xfs': [],
+    'xml': [],
+    'yum': [],
+})
 
 
 def translate(name):
@@ -529,8 +616,8 @@ def translate(name):
     path_seps = '/'
     if any((c in name) for c in path_seps):
         chars = list(name)
-        segments = ''.join([' ' if o in path_seps else o for o in chars]
-                ).split(' ')
+        segments = ''.join([' ' if o in path_seps else o for o in chars])\
+            .split(' ')
         for index, segment in enumerate(segments):
             segments[index] = translate(segment) or ''
         return path_separator.join(segments)
@@ -540,8 +627,8 @@ def translate(name):
     recognized = False
     if any((c in name) for c in word_seps):
         chars = list(name)
-        words = ''.join([' ' if o in word_seps else o for o in chars]
-                ).split(' ')
+        words = ''.join([' ' if o in word_seps else o for o in chars])\
+            .split(' ')
         for index, word in enumerate(words):
             words[index] = translate(word) or ''
         # FIXME: this breaks some recipes used in chef components, so we won't
