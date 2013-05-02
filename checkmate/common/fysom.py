@@ -107,9 +107,11 @@ class Fysom(object):
         def fn(**kwargs):
 
             if hasattr(self, 'transition'):
-                raise FysomError("event %s inappropriate because previous transition did not complete" % event)
+                raise FysomError("event %s inappropriate because previous "
+                                 "transition did not complete" % event)
             if not self.can(event):
-                raise FysomError("event %s inappropriate in current state %s" % (event, self.current))
+                raise FysomError("event %s inappropriate in current state %s" %
+                                 (event, self.current))
 
             src = self.current
             dst = self._map[event][src]

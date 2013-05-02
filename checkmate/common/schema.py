@@ -248,8 +248,8 @@ DEPLOYMENT_STATUSES = {
 }
 
 
-def _get_events(status_definitions):
-    '''Return events in a fromat suitable for creating a Fysom state machine'''
+def get_state_events(status_definitions):
+    '''Return events in a format suitable for creating a Fysom state machine'''
     events = []
     if status_definitions:
         for status, definition in status_definitions.iteritems():

@@ -209,7 +209,7 @@ class Deployment(ExtensibleDict):
     Holds the Environment and providers during the processing of a deployment
     and creation of a workflow
     """
-    status_definitions = schema._get_events(schema.DEPLOYMENT_STATUSES)
+    status_definitions = schema.get_state_events(schema.DEPLOYMENT_STATUSES)
 
     def __init__(self, *args, **kwargs):
         ExtensibleDict.__init__(self, *args, **kwargs)

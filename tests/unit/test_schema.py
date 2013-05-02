@@ -155,14 +155,14 @@ class TestSchema(unittest.TestCase):
 
 #pylint: disable=E1101
 class TestStateMachine(unittest.TestCase):
-    def test_get_events_none(self):
-        self.assertListEqual(schema._get_events(None), [])
+    def test_get_state_events_none(self):
+        self.assertListEqual(schema.get_state_events(None), [])
 
-    def test_get_events_no_events(self):
+    def test_get_state_events_no_events(self):
         data = {'TEST': {'description': 'No events'}}
-        self.assertListEqual(schema._get_events(data), [])
+        self.assertListEqual(schema.get_state_events(data), [])
 
-    def test_get_events(self):
+    def test_get_state_events(self):
         data = {
             'START': {
                 'events': [{'a': 1}, {'a': 2}]
@@ -177,12 +177,12 @@ class TestStateMachine(unittest.TestCase):
             {'b': 1, 'src': 'END'},
             {'b': 2, 'src': 'END'},
         ]
-        self.assertListEqual(schema._get_events(data), expected)
+        self.assertListEqual(schema.get_state_events(data), expected)
 
     def test_deployment_states_fail_to_plan(self):
         fsm = Fysom({
             'initial': 'NEW',
-            'events': schema._get_events(schema.DEPLOYMENT_STATUSES),
+            'events': schema.get_state_events(schema.DEPLOYMENT_STATUSES),
         })
         self.assertEquals(fsm.current, 'NEW')
 
@@ -195,7 +195,7 @@ class TestStateMachine(unittest.TestCase):
     def test_deployment_states_fail_to_build(self):
         fsm = Fysom({
             'initial': 'NEW',
-            'events': schema._get_events(schema.DEPLOYMENT_STATUSES),
+            'events': schema.get_state_events(schema.DEPLOYMENT_STATUSES),
         })
         self.assertEquals(fsm.current, 'NEW')
 
@@ -208,7 +208,7 @@ class TestStateMachine(unittest.TestCase):
     def test_deployment_states_build(self):
         fsm = Fysom({
             'initial': 'PLANNED',
-            'events': schema._get_events(schema.DEPLOYMENT_STATUSES),
+            'events': schema.get_state_events(schema.DEPLOYMENT_STATUSES),
         })
         self.assertEquals(fsm.current, 'PLANNED')
 
@@ -218,7 +218,7 @@ class TestStateMachine(unittest.TestCase):
     def test_deployment_states_alert_and_fix(self):
         fsm = Fysom({
             'initial': 'UP',
-            'events': schema._get_events(schema.DEPLOYMENT_STATUSES),
+            'events': schema.get_state_events(schema.DEPLOYMENT_STATUSES),
         })
         self.assertEquals(fsm.current, 'UP')
 
@@ -231,7 +231,7 @@ class TestStateMachine(unittest.TestCase):
     def test_deployment_states_reconnect(self):
         fsm = Fysom({
             'initial': 'UP',
-            'events': schema._get_events(schema.DEPLOYMENT_STATUSES),
+            'events': schema.get_state_events(schema.DEPLOYMENT_STATUSES),
         })
         self.assertEquals(fsm.current, 'UP')
 
@@ -244,7 +244,7 @@ class TestStateMachine(unittest.TestCase):
     def test_deployment_states_reconnect_to_alert(self):
         fsm = Fysom({
             'initial': 'NON-RESPONSIVE',
-            'events': schema._get_events(schema.DEPLOYMENT_STATUSES),
+            'events': schema.get_state_events(schema.DEPLOYMENT_STATUSES),
         })
         self.assertEquals(fsm.current, 'NON-RESPONSIVE')
 
@@ -254,7 +254,7 @@ class TestStateMachine(unittest.TestCase):
     def test_deployment_states_reconnect_to_down(self):
         fsm = Fysom({
             'initial': 'NON-RESPONSIVE',
-            'events': schema._get_events(schema.DEPLOYMENT_STATUSES),
+            'events': schema.get_state_events(schema.DEPLOYMENT_STATUSES),
         })
         self.assertEquals(fsm.current, 'NON-RESPONSIVE')
 
@@ -264,7 +264,7 @@ class TestStateMachine(unittest.TestCase):
     def test_deployment_states_up_down(self):
         fsm = Fysom({
             'initial': 'UP',
-            'events': schema._get_events(schema.DEPLOYMENT_STATUSES),
+            'events': schema.get_state_events(schema.DEPLOYMENT_STATUSES),
         })
         self.assertEquals(fsm.current, 'UP')
 
@@ -277,7 +277,7 @@ class TestStateMachine(unittest.TestCase):
     def test_deployment_states_delete_broken(self):
         fsm = Fysom({
             'initial': 'DOWN',
-            'events': schema._get_events(schema.DEPLOYMENT_STATUSES),
+            'events': schema.get_state_events(schema.DEPLOYMENT_STATUSES),
         })
         self.assertEquals(fsm.current, 'DOWN')
 
@@ -287,7 +287,7 @@ class TestStateMachine(unittest.TestCase):
     def test_deployment_states_delete(self):
         fsm = Fysom({
             'initial': 'UP',
-            'events': schema._get_events(schema.DEPLOYMENT_STATUSES),
+            'events': schema.get_state_events(schema.DEPLOYMENT_STATUSES),
         })
         self.assertEquals(fsm.current, 'UP')
 
