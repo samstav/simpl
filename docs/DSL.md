@@ -393,7 +393,7 @@ NEW: Has topology, but no resources (can go to PLANNED, FAILED)
 UP: Deployment is launched and running (can go to ALERT, NON-RESPONSIVE, DOWN, DELETED)  
 ALERT: Attention required (can go to DELETED, UP)  
 
-![deployment-states.png](https://github.rackspace.com/checkmate/checkmate/raw/master/doc/figures/deployment-status.png)
+![deployment-states.png](https://github.rackspace.com/checkmate/checkmate/raw/master/docs/figures/deployment-status.png)
 
 Schema History
 ==============
