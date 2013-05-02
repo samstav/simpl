@@ -35,6 +35,7 @@ from checkmate.deployments import (
     update_deployment_status,
 )
 from checkmate.exceptions import (
+    CheckmateBadState,
     CheckmateValidationException,
     CheckmateException,
     CheckmateDoesNotExist,
@@ -139,6 +140,34 @@ class TestDeployments(unittest.TestCase):
         settings = deployment.settings()
         self.assertItemsEqual(['private_key', 'public_key', 'public_key_ssh'],
                               settings['keys']['deployment'].keys())
+
+    def test_status_changes(self):
+        deployment = Deployment({
+            'id': 'test',
+            'name': 'test',
+            'inputs': {},
+            'includes': {},
+            'resources': {},
+            'workflow': "abcdef",
+            'status': "NEW",
+            'created': "yesterday",
+            'tenantId': "T1000",
+            'blueprint': {
+                'name': 'test bp',
+            },
+            'environment': {
+                'name': 'environment',
+                'providers': {},
+            },
+            'display-outputs': {},
+        })
+        self.assertEqual(deployment['status'], 'NEW')
+        self.assertEqual(deployment.fsm.current, 'NEW')
+        deployment['status'] = 'PLANNED'
+        self.assertEqual(deployment['status'], 'PLANNED')
+        self.assertEqual(deployment.fsm.current, 'PLANNED')
+        self.assertRaises(CheckmateBadState, deployment.__setitem__, 'status',
+                          'DELETED')
 
 
 class TestDeploymentParser(unittest.TestCase):
