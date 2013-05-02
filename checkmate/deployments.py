@@ -473,13 +473,9 @@ def delete_deployment(oid, tenant_id=None, driver=DB):
         abort(404, "No deployment with id %s" % oid)
     deployment = Deployment(deployment)
     if 'force' not in request.query_string:
-        del_statuses = ["PLANNED", "NEW", "RUNNING", "ERROR", "ACTIVE"]
-        if deployment.get("status", "UNKNOWN") not in del_statuses:
-            abort(400, "Deployment %s cannot be deleted while in status %s. "
-                  "A deployment must have one of the following statuses "
-                  "before being deleted: [%s]" %
-                  (oid, deployment.get("status", "UNKNOWN"),
-                   ", ".join(del_statuses)))
+        if not deployment.fsm.has_path_to('DELETED'):
+            abort(400, "Deployment %s cannot be deleted while in status %s." %
+                  (oid, deployment.get("status", "UNKNOWN")))
     loc = "/deployments/%s" % oid
     link = "/canvases/%s" % oid
     if tenant_id:
@@ -733,7 +729,7 @@ def delete_deployment_task(dep_id, driver=DB):
     match_celery_logging(LOG)
     if is_simulation(dep_id):
         driver = SIMULATOR_DB
-    deployment = driver.get_deployment(dep_id)
+    deployment = Deployment(driver.get_deployment(dep_id))
     if not deployment:
         raise CheckmateException("Could not finalize delete for deployment %s."
                                  " The deployment was not found.")

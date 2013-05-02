@@ -14,7 +14,7 @@ from celery.app.task import Context
 import bottle
 from bottle import HTTPError
 import mox
-from mox import IgnoreArg
+from mox import IgnoreArg, ContainsKeyValue
 
 import checkmate
 from checkmate import keys
@@ -1881,7 +1881,7 @@ class TestDeleteDeployments(unittest.TestCase):
     def test_no_tasks(self):
         """ Test when there are no resource tasks for delete """
         self._mox.StubOutWithMock(checkmate.deployments, "DB")
-        self._deployment['status'] = 'RUNNING'
+        self._deployment['status'] = 'UP'
         checkmate.deployments.DB.get_deployment('1234',
                                                 with_secrets=True
                                                 ).AndReturn(self._deployment)
@@ -1904,7 +1904,7 @@ class TestDeleteDeployments(unittest.TestCase):
     def test_happy_path(self):
         """ When it all goes right """
         self._mox.StubOutWithMock(checkmate.deployments, "DB")
-        self._deployment['status'] = 'RUNNING'
+        self._deployment['status'] = 'UP'
         checkmate.deployments.DB.get_deployment('1234', with_secrets=True)\
             .AndReturn(self._deployment)
         self._mox.StubOutWithMock(checkmate.deployments, "Plan")
@@ -1942,16 +1942,20 @@ class TestDeleteDeployments(unittest.TestCase):
     def test_delete_deployment_task(self):
         """ Test the final delete task itself """
         self._deployment['tenantId'] = '4567'
+        self._deployment['status'] = 'UP'
         self._mox.StubOutWithMock(checkmate.deployments.DB, "get_deployment")
         checkmate.deployments.DB.get_deployment('1234'
                                                 ).AndReturn(self._deployment)
+
+        def get_modified_dep(_, dep, secrets={}):
+            self.assertEquals('DELETED', dep.get('status'))
+
         self._mox.StubOutWithMock(checkmate.deployments.DB, "save_deployment")
         checkmate.deployments.DB.save_deployment('1234', IgnoreArg(),
                                                  secrets={})\
-            .AndReturn(self._deployment)
+            .WithSideEffects(get_modified_dep).AndReturn(self._deployment)
         self._mox.ReplayAll()
-        ret = delete_deployment_task('1234')
-        self.assertEquals('DELETED', ret.get('status'))
+        delete_deployment_task('1234')
 
 
 class TestGetResourceStuff(unittest.TestCase):
@@ -2097,7 +2101,7 @@ class TestPostbackHelpers(unittest.TestCase):
         bottle.request.context.tenant = None
         self._deployment = {
             'id': '1234',
-            'status': 'BUILD',
+            'status': 'PLANNED',
             'environment': {},
             'blueprint': {},
             'resources': {
@@ -2158,14 +2162,14 @@ class TestPostbackHelpers(unittest.TestCase):
 
     def test_update_dep_status(self):
         """ Test deployment status update """
-        expected = deepcopy(self._deployment)
-        expected['status'] = 'CHANGED'
         checkmate.deployments.DB.get_deployment('1234')\
             .AndReturn(self._deployment)
         checkmate.deployments.DB.save_deployment('1234',
-                                                 expected).AndReturn(expected)
+                                                 ContainsKeyValue('status',
+                                                                  'UP'))\
+            .AndReturn({})
         self._mox.ReplayAll()
-        update_deployment_status('1234', 'CHANGED',
+        update_deployment_status('1234', 'UP',
                                  driver=checkmate.deployments.DB)
         self._mox.VerifyAll()
 
