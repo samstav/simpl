@@ -861,13 +861,6 @@ def resource_postback(deployment_id, contents, driver=DB):
     if new_contents:
         deployment.on_resource_postback(new_contents, target=updates)
 
-    status, error_messages = calculate_deployment_status(deployment)
-
-    if status:
-        updates['status'] = status
-    if error_messages:
-        updates['error_messages'] = error_messages
-
     if updates:
         body, secrets = extract_sensitive_data(updates)
         driver.save_deployment(deployment_id, body, secrets, partial=True)

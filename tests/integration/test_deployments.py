@@ -34,6 +34,7 @@ from checkmate.deployments import (
     update_all_provider_resources,
     update_deployment_status,
     update_operation,
+    resource_postback,
 )
 from checkmate.exceptions import (
     CheckmateBadState,
@@ -2251,6 +2252,48 @@ class TestCeleryTasks(unittest.TestCase):
                            partial=True).AndReturn(None)
         self.mox.ReplayAll()
         update_operation('1234', status='NEW', driver=db)
+        self.mox.VerifyAll()
+
+    def test_resource_postback(self):
+        db = self.mox.CreateMockAnything()
+        target = {
+            'id': '1234',
+            'status': 'UP',
+            'environment': {},
+            'blueprint': {
+                'meta-data': {
+                    'schema-version': '0.7'
+                }
+            },
+            'resources': {
+                '0': {
+                    'instance': {}
+                },
+            }
+        }
+        db.get_deployment('1234', with_secrets=True).AndReturn(target)
+        self.mox.StubOutWithMock(checkmate.deployments,
+                                 "deployment_operation")
+        checkmate.deployments.deployment_operation('1234', driver=db)\
+            .AndReturn(None)
+        expected = {
+            'resources': {
+                '0': {
+                    'instance': {
+                        'field_name': 1,
+                    }
+                }
+            }
+        }
+        db.save_deployment('1234', expected, None, partial=True)\
+            .AndReturn(None)
+        self.mox.ReplayAll()
+        contents = {
+            'instance:0': {
+                'field_name': 1
+            }
+        }
+        resource_postback('1234', contents, driver=db)
         self.mox.VerifyAll()
 
 
