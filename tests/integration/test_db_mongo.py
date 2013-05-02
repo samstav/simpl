@@ -546,6 +546,5 @@ class TestDatabase(unittest.TestCase):
 if __name__ == '__main__':
     # Any change here should be made in all test files
     import sys
-    sys.path.insert(1, os.path.join(sys.path[0], '../..'))
-    from tests.utils import run_with_params
+    from checkmate.test import run_with_params
     run_with_params(sys.argv[:])
