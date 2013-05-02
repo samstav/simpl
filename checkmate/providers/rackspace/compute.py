@@ -286,7 +286,6 @@ class Provider(RackspaceComputeProviderBase):
             context['resource'] = resource
             context['region'] = region
             context['instance_id'] = inst_id
-        print "ANDREW context:%s" % context
         return chain(delete_server_task.s(context),
                      alt_resource_postback.s(deployment_id),
                      wait_on_delete_server.si(context),
@@ -591,7 +590,6 @@ def delete_server_task(context, api=None):
     assert "region" in context, "No region provided"
     assert "instance_id" in context, "No server id provided"
     assert 'resource' in context, "No resource definition provided"
-    print "ANDREW after assert"
     def on_failure(exc, task_id, args, kwargs, einfo):
         """ Handle task failure """
         dep_id = args[0].get('deployment_id')
@@ -628,7 +626,7 @@ def delete_server_task(context, api=None):
                 ret.update({'instance:%s' % comp_key: {'status': 'DELETED',
                             'statusmsg': 'Host %s was deleted.' % key}})
         return ret
-    if server.status == "ACTIVE":
+    if server.status == "ACTIVE" or server.status == "ERROR":
         ret = {}
         ret.update({inst_key: {"status": "DELETING",
                            "statusmsg": "Waiting on resource deletion"}})
@@ -637,7 +635,6 @@ def delete_server_task(context, api=None):
                 ret.update({'instance:%s' % comp_key: {'status': 'DELETING',
                             'statusmsg': 'Host %s is being deleted.' % key}})
         server.delete()
-        print "ANDREW after delete"
         return ret
     else:
         msg = ('Instance is in state %s. Waiting on ACTIVE resource.'
@@ -780,7 +777,6 @@ def wait_on_build(context, server_id, region, resource, ip_address_type='public'
         results['errmessage'] = "Server %s build failed" % server_id
         results = {instance_key: results}
         resource_postback.delay(context['deployment'], results)
-        print "ANDREW server active: %s" % context['resource']
         Provider({}).delete_resource_tasks(context, 
                                     context['deployment'],
                                     get_resource_by_id(context['deployment'],

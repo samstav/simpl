@@ -502,6 +502,7 @@ def wait_on_build(context, server_id, ip_address_type='public',
         instance_key = 'instance:%s' % context['resource']
         results = {instance_key: results}
         resource_postback.delay(context['deployment'], results)
+        delete_server(context, server_id, api_object)
         raise CheckmateServerBuildFailed(msg)
 
     ip = None
