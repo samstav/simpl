@@ -55,6 +55,18 @@ class Fysom(object):
     def cannot(self, event):
         return not self.can(event)
 
+    def has_path_to(self, dst):
+        return dst in [v[self.current] for k, v in self._map.iteritems()
+                       if self.current in v]
+
+    def go_to(self, dst):
+        commands = [k for k, v in self._map.iteritems()
+                    if self.current in v and v[self.current] == dst]
+        if len(commands) != 1:
+            raise FysomError("cannot find unique transition from %s to %s" %
+                             (self.current, dst))
+        getattr(self, commands[0])()
+
     def _apply(self, cfg):
         init = cfg['initial'] if 'initial' in cfg else None
         if self._is_base_string(init):
