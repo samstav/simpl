@@ -10,6 +10,8 @@ For tests, we don't care about:
 
 import unittest2 as unittest
 
+from fysom import Fysom
+
 from checkmate.common import schema
 from checkmate import utils
 
@@ -150,6 +152,148 @@ class TestSchema(unittest.TestCase):
         results.sort()
         expected.sort()
         self.assertListEqual(results, expected)
+
+
+#pylint: disable=E1101
+class TestStateMachine(unittest.TestCase):
+    def test_get_events_none(self):
+        self.assertListEqual(schema._get_events(None), [])
+
+    def test_get_events_no_events(self):
+        data = {'TEST': {'description': 'No events'}}
+        self.assertListEqual(schema._get_events(data), [])
+
+    def test_get_events(self):
+        data = {
+            'START': {
+                'events': [{'a': 1}, {'a': 2}]
+            },
+            'END': {
+                'events': [{'b': 1}, {'b': 2}]
+            },
+        }
+        expected = [
+            {'a': 1, 'src': 'START'},
+            {'a': 2, 'src': 'START'},
+            {'b': 1, 'src': 'END'},
+            {'b': 2, 'src': 'END'},
+        ]
+        self.assertListEqual(schema._get_events(data), expected)
+
+    def test_deployment_states_fail_to_plan(self):
+        fsm = Fysom({
+            'initial': 'NEW',
+            'events': schema._get_events(schema.DEPLOYMENT_STATUSES),
+        })
+        self.assertEquals(fsm.current, 'NEW')
+
+        fsm.fail()
+        self.assertEquals(fsm.current, 'FAILED')
+
+        fsm.delete()
+        self.assertEquals(fsm.current, 'DELETED')
+
+    def test_deployment_states_fail_to_build(self):
+        fsm = Fysom({
+            'initial': 'NEW',
+            'events': schema._get_events(schema.DEPLOYMENT_STATUSES),
+        })
+        self.assertEquals(fsm.current, 'NEW')
+
+        fsm.plan()
+        self.assertEquals(fsm.current, 'PLANNED')
+
+        fsm.fail()
+        self.assertEquals(fsm.current, 'FAILED')
+
+    def test_deployment_states_build(self):
+        fsm = Fysom({
+            'initial': 'PLANNED',
+            'events': schema._get_events(schema.DEPLOYMENT_STATUSES),
+        })
+        self.assertEquals(fsm.current, 'PLANNED')
+
+        fsm.deploy()
+        self.assertEquals(fsm.current, 'UP')
+
+    def test_deployment_states_alert_and_fix(self):
+        fsm = Fysom({
+            'initial': 'UP',
+            'events': schema._get_events(schema.DEPLOYMENT_STATUSES),
+        })
+        self.assertEquals(fsm.current, 'UP')
+
+        fsm.alert()
+        self.assertEquals(fsm.current, 'ALERT')
+
+        fsm.fix()
+        self.assertEquals(fsm.current, 'UP')
+
+    def test_deployment_states_reconnect(self):
+        fsm = Fysom({
+            'initial': 'UP',
+            'events': schema._get_events(schema.DEPLOYMENT_STATUSES),
+        })
+        self.assertEquals(fsm.current, 'UP')
+
+        fsm.cannot_connect()
+        self.assertEquals(fsm.current, 'NON-RESPONSIVE')
+
+        fsm.reconnect()
+        self.assertEquals(fsm.current, 'UP')
+
+    def test_deployment_states_reconnect_to_alert(self):
+        fsm = Fysom({
+            'initial': 'NON-RESPONSIVE',
+            'events': schema._get_events(schema.DEPLOYMENT_STATUSES),
+        })
+        self.assertEquals(fsm.current, 'NON-RESPONSIVE')
+
+        fsm.alert()
+        self.assertEquals(fsm.current, 'ALERT')
+
+    def test_deployment_states_reconnect_to_down(self):
+        fsm = Fysom({
+            'initial': 'NON-RESPONSIVE',
+            'events': schema._get_events(schema.DEPLOYMENT_STATUSES),
+        })
+        self.assertEquals(fsm.current, 'NON-RESPONSIVE')
+
+        fsm.down()
+        self.assertEquals(fsm.current, 'DOWN')
+
+    def test_deployment_states_up_down(self):
+        fsm = Fysom({
+            'initial': 'UP',
+            'events': schema._get_events(schema.DEPLOYMENT_STATUSES),
+        })
+        self.assertEquals(fsm.current, 'UP')
+
+        fsm.down()
+        self.assertEquals(fsm.current, 'DOWN')
+
+        fsm.fix()
+        self.assertEquals(fsm.current, 'UP')
+
+    def test_deployment_states_delete_broken(self):
+        fsm = Fysom({
+            'initial': 'DOWN',
+            'events': schema._get_events(schema.DEPLOYMENT_STATUSES),
+        })
+        self.assertEquals(fsm.current, 'DOWN')
+
+        fsm.delete()
+        self.assertEquals(fsm.current, 'DELETED')
+
+    def test_deployment_states_delete(self):
+        fsm = Fysom({
+            'initial': 'UP',
+            'events': schema._get_events(schema.DEPLOYMENT_STATUSES),
+        })
+        self.assertEquals(fsm.current, 'UP')
+
+        fsm.delete()
+        self.assertEquals(fsm.current, 'DELETED')
 
 
 if __name__ == '__main__':

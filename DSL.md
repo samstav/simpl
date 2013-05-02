@@ -379,6 +379,21 @@ Minimal, canonical deployment (hello world) available [here](https://github.rack
 **Action Item**: improve syntax for indicating a generated value, or remove it and let a generated value be the default.  Or create system for code to be included in blueprint to be used to generate, validate values. See artifacts prototype in app.yaml.
 
 
+Deployment States
+=================
+
+The following states can exist for a deployment:
+
+DOWN: Deployment is down (can go to UP, DELETED)
+FAILED: Planning or building failed (can go to DELETED)
+PLANNED: Has topology and resources (can go to UP, FAILED)
+NON-RESPONSIVE: Cannot contact infrastructure (can go to DOWN, UP, ALERT)
+DELETED: Deployment has been deleted (can go to )
+NEW: Has topology, but no resources (can go to PLANNED, FAILED)
+UP: Deployment is launched and running (can go to ALERT, NON-RESPONSIVE, DOWN, DELETED)
+ALERT: Attention required (can go to DELETED, UP)
+
+
 Schema History
 ==============
 
