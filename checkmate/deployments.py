@@ -413,13 +413,18 @@ def get_deployment(oid, tenant_id=None, driver=DB):
 def _get_a_deployment(oid, tenant_id=None, driver=DB):
     """ Lookup a deployment with secrets if needed """
     if 'with_secrets' in request.query:  # TODO: verify admin-ness
+        return get_a_deployment(oid, tenant_id, driver, with_secrets=True)
+    else:
+        return get_a_deployment(oid, tenant_id, driver, with_secrets=False)
+
+def get_a_deployment(oid, tenant_id=None, driver=DB, with_secrets=False):
+    if 'with_secrets':  # TODO: verify admin-ness
         entity = driver.get_deployment(oid, with_secrets=True)
     else:
         entity = driver.get_deployment(oid)
     if not entity or (tenant_id and tenant_id != entity.get("tenantId")):
         raise CheckmateDoesNotExist('No deployment with id %s' % oid)
     return entity
-
 
 def _get_dep_resources(deployment):
     """ Return the resources for the deployment or abort if not found """
@@ -483,14 +488,20 @@ def get_resources_statuses(oid, tenant_id=None, driver=DB):
 @with_tenant
 def get_resource(oid, rid, tenant_id=None, driver=DB):
     """ Get a specific resource from a deployment """
+    try:
+        return write_body(get_resource_by_id(oid, rid, tenant_id, driver),
+                        request, response)
+    except ValueError as not_found:
+        abort(404, not_found.value)
+
+def get_resource_by_id(oid, rid, tenant_id=None, driver=DB):
     if is_simulation(oid):
         driver = SIMULATOR_DB
-    deployment = _get_a_deployment(oid, tenant_id=tenant_id, driver=driver)
-    resources = _get_dep_resources(deployment)
+    deployment = get_a_deployment(oid, tenant_id=tenant_id, driver=driver)
+    resources = deployment.get("resources")
     if rid in resources:
-        return write_body(resources.get(rid), request, response)
-    abort(404, "No resource %s in deployment %s" % (rid, oid))
-
+        return resources.get(rid)
+    raise ValueError("No resource %s in deployment %s" % (rid, oid))
 
 @delete('/deployments/<oid>')
 @with_tenant

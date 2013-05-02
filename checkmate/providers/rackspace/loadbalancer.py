@@ -318,19 +318,19 @@ class Provider(ProviderBase):
 
     def delete_resource_tasks(self, context, deployment_id, resource,
                               key):
-        assert isinstance(context, RequestContext)
+        #assert isinstance(context, RequestContext)
         self._verify_existing_resource(resource, key)
         lb_id = resource.get("instance", {}).get("id")
         dom_id = resource.get("instance", {}).get("domain_id")
         rec_id = resource.get("instance", {}).get("record_id")
         region = resource.get("region")
-        ctx = context.get_queued_task_dict(deployment=deployment_id,
-                                           resource=key)
+        context['deployment'] = deployment_id
+        context['resource'] = key
 
-        del_task = chain(delete_lb_task.s(ctx, key, lb_id,
+        del_task = chain(delete_lb_task.s(context, key, lb_id,
                                           region),
                          alt_resource_postback.s(deployment_id),
-                         wait_on_lb_delete.si(ctx, key,
+                         wait_on_lb_delete.si(context, key,
                                               deployment_id, lb_id,
                                               region),
                          alt_resource_postback.s(deployment_id))
@@ -338,7 +338,7 @@ class Provider(ProviderBase):
         delete_stuff = del_task
         if dom_id and rec_id:
             delete_stuff = group(del_task,
-                                 delete_record.s(ctx, dom_id,
+                                 delete_record.s(context, dom_id,
                                                  rec_id))
         return delete_stuff
 
@@ -1006,6 +1006,12 @@ def wait_on_build(context, lbid, region, api=None):
         instance_key = 'instance:%s' % context['resource']
         results = {instance_key: results}
         resource_postback.delay(context['deployment'], results)
+        # Delete the loadbalancer if it failed building
+        Provider({}).delete_resource_tasks(context,
+                              context['deployment'],
+                              get_resource_by_id(context['deployment'],
+                                            context['resource']), 
+                              instance_key).apply_async()
         raise CheckmateException(msg)
     elif loadbalancer.status == "ACTIVE":
         results['status'] = "ACTIVE"
