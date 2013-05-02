@@ -488,7 +488,7 @@ def delete_deployment(oid, tenant_id=None, driver=DB):
     planner = Plan(deployment)
     tasks = planner.plan_delete(request.context)
     if tasks:
-        update_deployment_status.s(oid, "DELETING", driver=driver).delay()
+        update_operation.s(oid, status="IN PROGRESS", driver=driver).delay()
         chord(tasks)(delete_deployment_task.si(oid, driver=driver), interval=2,
                      max_retries=120)
     else:
@@ -690,6 +690,24 @@ def deployment_operation(dep_id, driver=DB):
         operation['type'] = status_type[deployment['status']]
 
     return operation
+
+
+@task
+def update_operation(deployment_id, driver=DB, **kwargs):
+    '''Update the the operation in the deployment
+
+    :param deployment_id: the string ID of the deployment
+    :param driver: the backend driver to use to get the deployments
+    :param kwargs: the key/value pairs to write into the operation
+    '''
+    match_celery_logging(LOG)
+    if kwargs:
+        if is_simulation(deployment_id):
+            driver = SIMULATOR_DB
+        deployment = driver.get_deployment(deployment_id)
+        if deployment:
+            delta = {'operation': dict(kwargs)}
+            driver.save_deployment(deployment_id, delta, partial=True)
 
 
 @task

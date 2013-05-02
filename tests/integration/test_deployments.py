@@ -33,6 +33,7 @@ from checkmate.deployments import (
     get_resources_statuses,
     update_all_provider_resources,
     update_deployment_status,
+    update_operation,
 )
 from checkmate.exceptions import (
     CheckmateBadState,
@@ -1915,11 +1916,11 @@ class TestDeleteDeployments(unittest.TestCase):
         mock_steps = [mock_delete_step1, mock_delete_step2]
         mock_plan.plan_delete(IgnoreArg()).AndReturn(mock_steps)
         self._mox.StubOutWithMock(
-            checkmate.deployments.update_deployment_status, "s")
+            checkmate.deployments.update_operation, "s")
         mock_subtask = self._mox.CreateMockAnything()
-        checkmate.deployments.update_deployment_status.s('1234', 'DELETING',
-                                                         driver=checkmate.
-                                                         deployments.DB)\
+        checkmate.deployments.update_operation.s('1234', status='IN PROGRESS',
+                                                 driver=checkmate.
+                                                 deployments.DB)\
             .AndReturn(mock_subtask)
         mock_subtask.delay().AndReturn(True)
         self._mox.StubOutClassWithMocks(checkmate.deployments, "chord")
@@ -2228,6 +2229,25 @@ class TestDeploymentDisplayOutputs(unittest.TestCase):
             }
         }
         self.assertDictEqual(expected, outputs)
+
+
+class TestCeleryTasks(unittest.TestCase):
+
+    def setUp(self):
+        self.mox = mox.Mox()
+
+    def tearDown(self):
+        self.mox.UnsetStubs()
+
+    def test_update_operation(self):
+        db = self.mox.CreateMockAnything()
+        target = {'id': '1234'}
+        db.get_deployment('1234').AndReturn(target)
+        db.save_deployment('1234', {'operation': {'status': 'NEW'}},
+                           partial=True).AndReturn(None)
+        self.mox.ReplayAll()
+        update_operation('1234', status='NEW', driver=db)
+        self.mox.VerifyAll()
 
 
 if __name__ == '__main__':
