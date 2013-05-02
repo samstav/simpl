@@ -30,6 +30,7 @@ from checkmate.utils import (
     is_simulation,
     get_time_string,
     write_path,
+    write_pagination_headers,
 )
 from checkmate.plan import Plan
 from checkmate.deployment import Deployment, generate_keys
@@ -142,14 +143,24 @@ def get_deployments(tenant_id=None, driver=DB):
     """ Get existing deployments """
     offset = request.query.get('offset')
     limit = request.query.get('limit')
+
     if offset:
         offset = int(offset)
     if limit:
         limit = int(limit)
-    return write_body(driver.get_deployments(tenant_id=tenant_id,
-                                             offset=offset,
-                                             limit=limit),
-                      request, response)
+
+    deployments = driver.get_deployments(tenant_id=tenant_id,
+                                         offset=offset,
+                                         limit=limit)
+    
+    write_pagination_headers(deployments,
+                             request,
+                             response,
+                             "deployments",
+                             tenant_id)
+    return write_body(deployments,
+                      request, 
+                      response)
 
 
 @get('/deployments/count')
