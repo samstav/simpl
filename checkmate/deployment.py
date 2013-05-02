@@ -222,6 +222,10 @@ class Deployment(ExtensibleDict):
 
         if 'status' not in self:
             self['status'] = 'NEW'
+        else:
+            if self['status'] not in schema.DEPLOYMENT_STATUSES:
+                raise CheckmateValidationException("Invalid deployment status "
+                                                   "%s" % self['status'])
         if 'created' not in self:
             self['created'] = get_time_string()
 

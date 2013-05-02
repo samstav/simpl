@@ -171,6 +171,10 @@ class TestDeployments(unittest.TestCase):
         self.assertRaises(CheckmateBadState, deployment.__setitem__, 'status',
                           'DELETED')
 
+    def test_invalid_status_rejected(self):
+        self.assertRaises(CheckmateValidationException, Deployment, {'status':
+                          'NOT VALID'})
+
 
 class TestDeploymentParser(unittest.TestCase):
     def test_parser(self):
@@ -1838,9 +1842,13 @@ class TestDeleteDeployments(unittest.TestCase):
         bottle.request.context = Context()
         bottle.request.context.tenant = None
         self._deployment = {
-            'status': 'BUILD',
+            'status': 'PLANNED',
             'environment': {},
-            'blueprint': {}
+            'blueprint': {
+                'meta-data': {
+                    'schema-version': '0.7'
+                }
+            }
         }
         unittest.TestCase.setUp(self)
 
@@ -1862,7 +1870,7 @@ class TestDeleteDeployments(unittest.TestCase):
         except HTTPError as exc:
             self.assertEqual(400, exc.status)
             self.assertIn("Deployment 1234 cannot be deleted while in status "
-                          "BUILD", exc.output)
+                          "PLANNED", exc.output)
 
     def test_not_found(self):
         """ Test deployment not found """
@@ -1973,7 +1981,7 @@ class TestGetResourceStuff(unittest.TestCase):
         bottle.request.context.tenant = None
         self._deployment = {
             'id': '1234',
-            'status': 'BUILD',
+            'status': 'PLANNED',
             'environment': {},
             'blueprint': {},
             'resources': {
