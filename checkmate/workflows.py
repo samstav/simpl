@@ -38,6 +38,7 @@ from checkmate.utils import (
     merge_dictionary,
     with_tenant,
     is_simulation,
+    write_pagination_headers,
 )
 from checkmate import orchestrator
 
@@ -73,6 +74,11 @@ def get_workflows(tenant_id=None, driver=DB):
     else:
         results = driver.get_workflows(tenant_id=tenant_id, offset=offset,
                                        limit=limit)
+    write_pagination_headers(results,
+                             request,
+                             response,
+                             "workflows",
+                             tenant_id)                             
     return write_body(results, request, response)
 
 

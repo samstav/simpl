@@ -30,6 +30,7 @@ from checkmate.utils import (
     is_simulation,
     get_time_string,
     write_path,
+    write_pagination_headers,
 )
 from checkmate.plan import Plan
 from checkmate.deployment import Deployment, generate_keys
@@ -142,14 +143,24 @@ def get_deployments(tenant_id=None, driver=DB):
     """ Get existing deployments """
     offset = request.query.get('offset')
     limit = request.query.get('limit')
+
     if offset:
         offset = int(offset)
     if limit:
         limit = int(limit)
-    return write_body(driver.get_deployments(tenant_id=tenant_id,
-                                             offset=offset,
-                                             limit=limit),
-                      request, response)
+
+    deployments = driver.get_deployments(tenant_id=tenant_id,
+                                         offset=offset,
+                                         limit=limit)
+    
+    write_pagination_headers(deployments,
+                             request,
+                             response,
+                             "deployments",
+                             tenant_id)
+    return write_body(deployments,
+                      request, 
+                      response)
 
 
 @get('/deployments/count')
@@ -473,13 +484,9 @@ def delete_deployment(oid, tenant_id=None, driver=DB):
         abort(404, "No deployment with id %s" % oid)
     deployment = Deployment(deployment)
     if 'force' not in request.query_string:
-        del_statuses = ["PLANNED", "NEW", "RUNNING", "ERROR", "ACTIVE"]
-        if deployment.get("status", "UNKNOWN") not in del_statuses:
-            abort(400, "Deployment %s cannot be deleted while in status %s. "
-                  "A deployment must have one of the following statuses "
-                  "before being deleted: [%s]" %
-                  (oid, deployment.get("status", "UNKNOWN"),
-                   ", ".join(del_statuses)))
+        if not deployment.fsm.has_path_to('DELETED'):
+            abort(400, "Deployment %s cannot be deleted while in status %s." %
+                  (oid, deployment.get("status", "UNKNOWN")))
     loc = "/deployments/%s" % oid
     link = "/canvases/%s" % oid
     if tenant_id:
@@ -488,7 +495,7 @@ def delete_deployment(oid, tenant_id=None, driver=DB):
     planner = Plan(deployment)
     tasks = planner.plan_delete(request.context)
     if tasks:
-        update_deployment_status.s(oid, "DELETING", driver=driver).delay()
+        update_operation.s(oid, status="IN PROGRESS", driver=driver).delay()
         chord(tasks)(delete_deployment_task.si(oid, driver=driver), interval=2,
                      max_retries=120)
     else:
@@ -693,6 +700,24 @@ def deployment_operation(dep_id, driver=DB):
 
 
 @task
+def update_operation(deployment_id, driver=DB, **kwargs):
+    '''Update the the operation in the deployment
+
+    :param deployment_id: the string ID of the deployment
+    :param driver: the backend driver to use to get the deployments
+    :param kwargs: the key/value pairs to write into the operation
+    '''
+    match_celery_logging(LOG)
+    if kwargs:
+        if is_simulation(deployment_id):
+            driver = SIMULATOR_DB
+        deployment = driver.get_deployment(deployment_id)
+        if deployment:
+            delta = {'operation': dict(kwargs)}
+            driver.save_deployment(deployment_id, delta, partial=True)
+
+
+@task
 def update_deployment_status(deployment_id, new_status, error_message=None,
                              driver=DB):
     """ Update the status of the specified deployment """
@@ -701,7 +726,7 @@ def update_deployment_status(deployment_id, new_status, error_message=None,
         driver = SIMULATOR_DB
 
     if new_status:
-        deployment = driver.get_deployment(deployment_id)
+        deployment = Deployment(driver.get_deployment(deployment_id))
         if deployment:
             deployment['status'] = new_status
             if error_message:
@@ -715,7 +740,7 @@ def delete_deployment_task(dep_id, driver=DB):
     match_celery_logging(LOG)
     if is_simulation(dep_id):
         driver = SIMULATOR_DB
-    deployment = driver.get_deployment(dep_id)
+    deployment = Deployment(driver.get_deployment(dep_id))
     if not deployment:
         raise CheckmateException("Could not finalize delete for deployment %s."
                                  " The deployment was not found.")
@@ -847,67 +872,9 @@ def resource_postback(deployment_id, contents, driver=DB):
     if new_contents:
         deployment.on_resource_postback(new_contents, target=updates)
 
-    status, error_messages = calculate_deployment_status(deployment)
-
-    if status:
-        updates['status'] = status
-    if error_messages:
-        updates['error_messages'] = error_messages
-
     if updates:
         body, secrets = extract_sensitive_data(updates)
         driver.save_deployment(deployment_id, body, secrets, partial=True)
 
         LOG.debug("Updated deployment %s with post-back", deployment_id,
                   extra=dict(data=contents))
-
-
-def calculate_deployment_status(deployment):
-    '''Check all resources statuses and calculate a deployment status
-
-    :param deployment: the deployment to calculate
-    :returns: tuple of (status, error_message_list)
-    '''
-    count = 0
-    statuses = {
-        "NEW": 0,
-        "BUILD": 0,
-        "CONFIGURE": 0,
-        "ACTIVE": 0,
-        'PLANNED': 0,
-        'ERROR': 0,
-        'DELETED': 0,
-        'DELETING': 0,
-    }
-
-    status = None
-    error_messages = deployment.get('errmessage', [])
-    resources = deployment['resources']
-    for key, value in resources.items():
-        if key.isdigit():
-            r_status = resources[key].get('status')
-            if r_status == "ERROR":
-                r_msg = resources[key].get('errmessage')
-                if r_msg not in error_messages:
-                    error_messages.append(r_msg)
-            statuses[r_status] += 1
-            count += 1
-
-    if deployment['status'] != "ERROR":
-        if statuses['DELETING'] >= 1:
-            status = "DELETING"
-        elif statuses['DELETED'] == count:
-            status = "DELETED"
-        elif statuses['PLANNED'] == count:
-            status = "PLANNED"
-        elif statuses['NEW'] == count:
-            status = "NEW"
-        elif statuses['ACTIVE'] == count:
-            status = "ACTIVE"
-        elif statuses['CONFIGURE'] >= 1:
-            status = "CONFIGURE"
-        elif statuses['BUILD'] >= 1:
-            status = "BUILD"
-        else:
-            LOG.debug("Could not identify a deployment status update")
-    return (status, error_messages)
