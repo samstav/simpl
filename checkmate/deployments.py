@@ -701,7 +701,7 @@ def update_deployment_status(deployment_id, new_status, error_message=None,
         driver = SIMULATOR_DB
 
     if new_status:
-        deployment = driver.get_deployment(deployment_id)
+        deployment = Deployment(driver.get_deployment(deployment_id))
         if deployment:
             deployment['status'] = new_status
             if error_message:
@@ -868,6 +868,7 @@ def calculate_deployment_status(deployment):
     :param deployment: the deployment to calculate
     :returns: tuple of (status, error_message_list)
     '''
+    assert isinstance(deployment, Deployment)
     count = 0
     statuses = {
         "NEW": 0,

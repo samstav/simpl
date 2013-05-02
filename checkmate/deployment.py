@@ -7,11 +7,13 @@ import urlparse
 from checkmate import keys
 from checkmate.blueprints import Blueprint
 from checkmate.classes import ExtensibleDict
+from checkmate.common.fysom import Fysom, FysomError
 from checkmate.constraints import Constraint
 from checkmate.common import schema
 from checkmate.db import get_driver
 from checkmate.environment import Environment
 from checkmate.exceptions import (
+    CheckmateBadState,
     CheckmateException,
     CheckmateValidationException,
 )
@@ -207,14 +209,30 @@ class Deployment(ExtensibleDict):
     Holds the Environment and providers during the processing of a deployment
     and creation of a workflow
     """
+    status_definitions = schema._get_events(schema.DEPLOYMENT_STATUSES)
+
     def __init__(self, *args, **kwargs):
         ExtensibleDict.__init__(self, *args, **kwargs)
         self._environment = None
+
+        self.fsm = Fysom({
+            'initial': self.get('status', 'NEW'),
+            'events': self.status_definitions,
+        })
 
         if 'status' not in self:
             self['status'] = 'NEW'
         if 'created' not in self:
             self['created'] = get_time_string()
+
+    def __setitem__(self, key, value):
+        if key == 'status' and value != self.fsm.current:
+            try:
+                self.fsm.go_to(value)
+            except FysomError:
+                raise CheckmateBadState("Cannot transition from %s to %s" % (
+                                        self.fsm.current, value))
+        ExtensibleDict.__setitem__(self, key, value)
 
     @classmethod
     def inspect(cls, obj):
