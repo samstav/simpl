@@ -226,7 +226,8 @@ class TestDatabase(unittest.TestCase):
                          "exposed outside of driver")
 
         results = self.driver.get_objects(self.collection_name,
-                                          with_secrets=False)
+                                          with_secrets=False,
+                                          include_total_count=False)
         results = self._decode_dict(results)
 
         #Since object was extraced in get_objects format, need to make sure
@@ -260,7 +261,8 @@ class TestDatabase(unittest.TestCase):
 
         results = self.driver.get_objects(self.collection_name,
                                           tenant_id='T1000',
-                                          with_secrets=False, limit=2)
+                                          with_secrets=False, limit=2,
+                                          include_total_count=False)
         expected = {
             1: {
                 'id': 1,
@@ -279,7 +281,8 @@ class TestDatabase(unittest.TestCase):
         results = self.driver.get_objects(self.collection_name,
                                           tenant_id='T1000',
                                           with_secrets=False, offset=1,
-                                          limit=2)
+                                          limit=2,
+                                          include_total_count=False)
         expected = {
             2: {
                 'id': 2,
@@ -302,7 +305,10 @@ class TestDatabase(unittest.TestCase):
                                 hex_id, dict(id=hex_id),
                                 None,
                                 tenant_id='T1000')
-        unicode_results = self.driver.get_objects(self.collection_name)
+        unicode_results = self.driver.get_objects(self.collection_name,
+                                                  include_total_count=False)
+        if unicode_results and 'collection-count' in unicode_results:
+            del unicode_results['collection-count']
         results = self._decode_dict(unicode_results)
         self.assertDictEqual(results,
                              {hex_id: {"id": hex_id, 'tenantId': 'T1000'}})
@@ -322,7 +328,8 @@ class TestDatabase(unittest.TestCase):
             expected[i] = dict(id=i, tenantId='T1000')
             self.driver.save_object(self.collection_name, i, dict(id=i), None,
                                     tenant_id='T1000')
-        unicode_results = self.driver.get_objects(self.collection_name)
+        unicode_results = self.driver.get_objects(self.collection_name,
+                                                  include_total_count=False)
         results = self._decode_dict(unicode_results)
         self.assertDictEqual(results, expected)
         for i in range(1, 5):
@@ -330,6 +337,20 @@ class TestDatabase(unittest.TestCase):
             self.assertNotIn('_id', results[i])
             self.assertEqual(results[i]['id'], i)
 
+
+
+    @unittest.skipIf(SKIP, REASON)
+    def test_get_objects_with_total_count(self):
+        expected = {}
+        for i in range(1, 5):
+            expected[i] = dict(id=i, tenantId='T1000')
+            self.driver.save_object(self.collection_name, i, dict(id=i), None,
+                                    tenant_id='T1000')
+        unicode_results = self.driver.get_objects(self.collection_name,
+                                                  include_total_count=True)
+        self.assertIn('collection-count', unicode_results)
+   
+   
     @unittest.skipIf(SKIP, REASON)
     def test_lock_existing_object(self):
         klass = 'workflows'

@@ -255,7 +255,7 @@ class Driver(DbBase):
                 return body
 
     def get_objects(self, klass, tenant_id=None, with_secrets=None,
-                    offset=None, limit=None):
+                    offset=None, limit=None, include_total_count=True):
         results = self.session.query(klass)
         total = 0
         if tenant_id:
@@ -281,7 +281,8 @@ class Driver(DbBase):
                 for e in results:
                     response[e.id] = e.body
                     response[e.id]['tenantId'] = e.tenant_id
-            response['collection-count'] = total
+            if include_total_count:
+                response['collection-count'] = total
             return response
         else:
             return {}

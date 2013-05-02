@@ -320,7 +320,7 @@ class Driver(DbBase):
         return body
 
     def get_objects(self, klass, tenant_id=None, with_secrets=None,
-                    offset=None, limit=None):
+                    offset=None, limit=None, include_total_count=True):
         if not self._client:
             self.database()
         client = self._client
@@ -356,7 +356,8 @@ class Driver(DbBase):
                         response[entry['id']] = entry
         if results:
             if response:
-                response['collection-count'] = count
+                if include_total_count:
+                    response['collection-count'] = count
                 return response
         else:
             return {}
