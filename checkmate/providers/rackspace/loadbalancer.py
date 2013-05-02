@@ -5,7 +5,8 @@ import logging
 from SpiffWorkflow.operators import PathAttrib, Attrib
 from SpiffWorkflow.specs import Celery
 
-from checkmate.deployments import resource_postback, alt_resource_postback
+from checkmate.deployments import (resource_postback, alt_resource_postback,
+                                  get_resource_by_id)
 from checkmate.exceptions import (
     CheckmateException,
     CheckmateNoTokenError,
@@ -316,23 +317,23 @@ class Provider(ProviderBase):
             alt_resource_postback.s(deployment_id)
         )()
 
-    def delete_resource_tasks(self, context, deployment_id, resource,
-                              key):
-        #assert isinstance(context, RequestContext)
+    def delete_resource_tasks(self, context, deployment_id, resource, key):
         self._verify_existing_resource(resource, key)
         lb_id = resource.get("instance", {}).get("id")
         dom_id = resource.get("instance", {}).get("domain_id")
         rec_id = resource.get("instance", {}).get("record_id")
         region = resource.get("region")
-        context['deployment'] = deployment_id
-        context['resource'] = key
-
-        del_task = chain(delete_lb_task.s(context, key, lb_id,
-                                          region),
+        if isinstance(context, RequestContext):
+          context = context.get_queued_task_dict(deployment=deployment_id,
+                                           resource=key)
+        else:
+          context['deployment'] = deployment_id
+          context['resource'] = key
+                
+        del_task = chain(delete_lb_task.s(context, key, lb_id,region),
                          alt_resource_postback.s(deployment_id),
-                         wait_on_lb_delete.si(context, key,
-                                              deployment_id, lb_id,
-                                              region),
+                         wait_on_lb_delete.si(context, key, deployment_id, 
+                                              lb_id, region),
                          alt_resource_postback.s(deployment_id))
 
         delete_stuff = del_task
@@ -341,6 +342,7 @@ class Provider(ProviderBase):
                                  delete_record.s(context, dom_id,
                                                  rec_id))
         return delete_stuff
+       
 
     def add_connection_tasks(self, resource, key, relation, relation_key,
                              wfspec, deployment, context):
