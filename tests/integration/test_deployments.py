@@ -37,7 +37,6 @@ from checkmate.deployments import (
     resource_postback,
 )
 from checkmate.exceptions import (
-    CheckmateBadState,
     CheckmateValidationException,
     CheckmateException,
     CheckmateDoesNotExist,
@@ -53,37 +52,6 @@ os.environ['CHECKMATE_DOMAIN'] = 'checkmate.local'
 
 
 class TestDeployments(unittest.TestCase):
-    def test_schema(self):
-        """Test the schema validates a deployment with all possible fields"""
-        deployment = {
-            'id': 'test',
-            'name': 'test',
-            'inputs': {},
-            'includes': {},
-            'resources': {},
-            'workflow': "abcdef",
-            'status': "NEW",
-            'created': "yesterday",
-            'tenantId': "T1000",
-            'blueprint': {
-                'name': 'test bp',
-            },
-            'environment': {
-                'name': 'environment',
-                'providers': {},
-            },
-            'display-outputs': {},
-        }
-        valid = Deployment(deployment)
-        self.assertDictEqual(valid._data, deployment)
-
-    def test_schema_negative(self):
-        """Test the schema validates a deployment with bad fields"""
-        deployment = {
-            'nope': None
-        }
-        self.assertRaises(CheckmateValidationException, Deployment, deployment)
-
     def test_key_generation_all(self):
         """Test that key generation works"""
         deployment = Deployment({
@@ -142,38 +110,6 @@ class TestDeployments(unittest.TestCase):
         settings = deployment.settings()
         self.assertItemsEqual(['private_key', 'public_key', 'public_key_ssh'],
                               settings['keys']['deployment'].keys())
-
-    def test_status_changes(self):
-        deployment = Deployment({
-            'id': 'test',
-            'name': 'test',
-            'inputs': {},
-            'includes': {},
-            'resources': {},
-            'workflow': "abcdef",
-            'status': "NEW",
-            'created': "yesterday",
-            'tenantId': "T1000",
-            'blueprint': {
-                'name': 'test bp',
-            },
-            'environment': {
-                'name': 'environment',
-                'providers': {},
-            },
-            'display-outputs': {},
-        })
-        self.assertEqual(deployment['status'], 'NEW')
-        self.assertEqual(deployment.fsm.current, 'NEW')
-        deployment['status'] = 'PLANNED'
-        self.assertEqual(deployment['status'], 'PLANNED')
-        self.assertEqual(deployment.fsm.current, 'PLANNED')
-        self.assertRaises(CheckmateBadState, deployment.__setitem__, 'status',
-                          'DELETED')
-
-    def test_invalid_status_rejected(self):
-        self.assertRaises(CheckmateValidationException, Deployment, {'status':
-                          'NOT VALID'})
 
 
 class TestDeploymentParser(unittest.TestCase):

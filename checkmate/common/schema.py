@@ -181,7 +181,7 @@ BLUEPRINT_SCHEMA = [
 DEPLOYMENT_SCHEMA = [
     'id', 'name', 'blueprint', 'environment', 'inputs', 'display-outputs',
     'resources', 'workflow', 'status', 'created', 'tenantId', 'operation',
-    'error_messages',
+    'error_messages', 'live',
     'errmessage',  # to be deprecated
     'includes',  # used to place YAML-referenced parts but then removed
 ]
