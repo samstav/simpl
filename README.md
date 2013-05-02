@@ -535,7 +535,7 @@ CHECKMATE_CHEF_USE_DATA_BAGS
 
 ## Checkmate Installation
 
-See the INSTALL.md file for installing Checkmate as a production service or
+See the [INSTALL.md](docs/INSTALL.md) file for installing Checkmate as a production service or
 for development.
 
 
