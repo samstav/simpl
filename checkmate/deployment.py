@@ -210,6 +210,13 @@ class Deployment(ExtensibleDict):
     and creation of a workflow
     """
     status_definitions = schema.get_state_events(schema.DEPLOYMENT_STATUSES)
+    legacy_statuses = {  # TODO: remove these when old data is clean
+        "BUILD": 'UP',
+        "CONFIGURE": 'UP',
+        "ACTIVE": 'UP',
+        'ERROR': 'FAILED',
+        'DELETING': 'UP',
+    }
 
     def __init__(self, *args, **kwargs):
         ExtensibleDict.__init__(self, *args, **kwargs)
@@ -230,12 +237,17 @@ class Deployment(ExtensibleDict):
             self['created'] = get_time_string()
 
     def __setitem__(self, key, value):
-        if key == 'status' and value != self.fsm.current:
-            try:
-                self.fsm.go_to(value)
-            except FysomError:
-                raise CheckmateBadState("Cannot transition from %s to %s" % (
-                                        self.fsm.current, value))
+        if key == 'status':
+            if value in self.legacy_statuses:
+                value = self.legacy_statuses[value]
+            if value != self.fsm.current:
+                try:
+                    LOG.warn("Deployment %s going from %s to %s",
+                             self.get('id'), self.get('status'), value)
+                    self.fsm.go_to(value)
+                except FysomError:
+                    raise CheckmateBadState("Cannot transition from %s to %s" %
+                                            (self.fsm.current, value))
         ExtensibleDict.__setitem__(self, key, value)
 
     @classmethod

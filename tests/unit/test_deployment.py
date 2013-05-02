@@ -67,6 +67,9 @@ class TestDeployments(unittest.TestCase):
             'tenantId': "T1000",
             'blueprint': {
                 'name': 'test bp',
+                'meta-data': {
+                    'schema-version': '0.7'
+                },
             },
             'environment': {
                 'name': 'environment',
@@ -85,6 +88,28 @@ class TestDeployments(unittest.TestCase):
     def test_invalid_status_rejected(self):
         self.assertRaises(CheckmateValidationException, Deployment, {'status':
                           'NOT VALID'})
+
+    def test_convert_legacy_status(self):
+        legacy_statuses = {
+            "BUILD": 'UP',
+            "CONFIGURE": 'UP',
+            "ACTIVE": 'UP',
+            'ERROR': 'FAILED',
+            'DELETING': 'UP',
+        }
+
+        deployment = Deployment({
+            'id': 'test',
+            'name': 'test',
+            'inputs': {},
+            'status': "PLANNED",
+        })
+        self.assertEqual(deployment['status'], 'PLANNED')
+        for legacy, new in legacy_statuses.iteritems():
+            deployment.fsm.current = 'PLANNED'
+            deployment['status'] = legacy
+            self.assertEqual(deployment['status'], new)
+
 
 if __name__ == '__main__':
     # Any change here should be made in all test files
