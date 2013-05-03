@@ -109,6 +109,10 @@ class TestDatabase(unittest.TestCase):
                       self.collection_name, exc_info=True)
 
     @unittest.skipIf(SKIP, REASON)
+    def test_get_objects_for_empty_collections(self):
+        self.assertEqual(len(self.driver.get_objects('foobars')), 0)
+
+    @unittest.skipIf(SKIP, REASON)
     def test_update_secrets(self):
         _id = uuid.uuid4()
         data = {
