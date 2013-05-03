@@ -1,5 +1,5 @@
 # Installing Checkmate Dev Environment via Vagrant
-![Checkmate](https://github.rackspace.com/checkmate/checkmate/raw/master/checkmate/static/img/checkmate.png)
+![Checkmate](https://github.rackspace.com/checkmate/rook/raw/master/rook/static/img/checkmate.png)
 
 ## Initial Setup
 
