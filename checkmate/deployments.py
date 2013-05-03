@@ -4,6 +4,7 @@ import os
 import uuid
 
 from bottle import request, response, abort, get, post, delete, route
+from celery.canvas import chord
 from celery.task import task
 from SpiffWorkflow import Workflow, Task
 from SpiffWorkflow.storage import DictionarySerializer
@@ -11,6 +12,11 @@ from SpiffWorkflow.storage import DictionarySerializer
 from checkmate import orchestrator
 from checkmate.db import get_driver, any_id_problems
 from checkmate.db.common import ObjectLockedError
+from checkmate.deployment import (
+    Deployment,
+    generate_keys,
+    update_operation as new_update_operation,
+)
 from checkmate.exceptions import (
     CheckmateDoesNotExist,
     CheckmateValidationException,
@@ -33,8 +39,6 @@ from checkmate.utils import (
     write_pagination_headers,
 )
 from checkmate.plan import Plan
-from checkmate.deployment import Deployment, generate_keys
-from celery.canvas import chord
 
 LOG = logging.getLogger(__name__)
 DB = get_driver()
@@ -284,7 +288,8 @@ def process_post_deployment(deployment, request_context, driver=DB):
         # Create a 'new deployment' workflow
         _deploy(parsed_deployment, request_context, driver=driver)
     except ObjectLockedError:
-        LOG.warn("Object lock collision in process_post_deployment on Deployment %s", deployment.get('id'))
+        LOG.warn("Object lock collision in process_post_deployment on "
+                 "Deployment %s", deployment.get('id'))
         resource_postback.retry()
 
     #Trigger the workflow in the queuing service
@@ -633,24 +638,8 @@ def plan(deployment, context):
 
 @task
 def update_operation(deployment_id, driver=DB, **kwargs):
-    '''Update the the operation in the deployment
-
-    :param deployment_id: the string ID of the deployment
-    :param driver: the backend driver to use to get the deployments
-    :param kwargs: the key/value pairs to write into the operation
-    '''
-    match_celery_logging(LOG)
-    if kwargs:
-        if is_simulation(deployment_id):
-            driver = SIMULATOR_DB
-        deployment = driver.get_deployment(deployment_id)
-        if deployment:
-            delta = {'operation': dict(kwargs)}
-            try:
-                driver.save_deployment(deployment_id, delta, partial=True)
-            except ObjectLockedError:
-                LOG.warn("Object lock collision in update_operation on Deployment %s", deployment_id)
-                update_operation.retry()
+    # TODO: Deprecate this
+    return new_update_operation(deployment_id, driver=driver, **kwargs)
 
 
 @task(default_retry_delay=2, max_retries=60)
@@ -684,7 +673,8 @@ def delete_deployment_task(dep_id, driver=DB):
     try:
         return driver.save_deployment(dep_id, deployment, secrets={})
     except ObjectLockedError:
-        LOG.warn("Object lock collision in delete_deployment_task on Deployment %s", dep_id)
+        LOG.warn("Object lock collision in delete_deployment_task on "
+                 "Deployment %s", dep_id)
         delete_deployment_task.retry()
 
 
@@ -796,5 +786,6 @@ def resource_postback(deployment_id, contents, driver=DB):
             LOG.debug("Updated deployment %s with post-back", deployment_id,
                       extra=dict(data=contents))
         except ObjectLockedError:
-            LOG.warn("Object lock collision in resource_postback on Deployment %s", deployment_id)
+            LOG.warn("Object lock collision in resource_postback on "
+                     "Deployment %s", deployment_id)
             resource_postback.retry()

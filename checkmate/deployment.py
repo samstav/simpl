@@ -4,6 +4,8 @@ import logging
 import os
 import urlparse
 
+from celery.task import task
+
 from checkmate import keys
 from checkmate.blueprints import Blueprint
 from checkmate.classes import ExtensibleDict
@@ -11,6 +13,7 @@ from checkmate.common.fysom import Fysom, FysomError
 from checkmate.constraints import Constraint
 from checkmate.common import schema
 from checkmate.db import get_driver
+from checkmate.db.common import ObjectLockedError
 from checkmate.environment import Environment
 from checkmate.exceptions import (
     CheckmateBadState,
@@ -25,11 +28,16 @@ from checkmate.utils import (
     is_ssh_key,
     evaluate,
     is_evaluable,
+    match_celery_logging,
+    is_simulation,
 )
 from bottle import abort
 
 LOG = logging.getLogger(__name__)
 DB = get_driver()
+SIMULATOR_DB = get_driver(
+    connection_string=os.environ.get('CHECKMATE_SIMULATOR_CONNECTION_STRING',
+                                     'sqlite://'))
 
 
 def verify_required_blueprint_options_supplied(deployment):
@@ -1031,3 +1039,46 @@ class Deployment(ExtensibleDict):
                         value = schema.translate(value)
                     raise NotImplementedError("Global post-back values not "
                                               "yet supported: %s" % key)
+
+
+@task
+def update_operation(deployment_id, driver=DB, **kwargs):
+    '''Update the the operation in the deployment
+
+    :param deployment_id: the string ID of the deployment
+    :param driver: the backend driver to use to get the deployments
+    :param kwargs: the key/value pairs to write into the operation
+    '''
+    match_celery_logging(LOG)
+    if kwargs:
+        if is_simulation(deployment_id):
+            driver = SIMULATOR_DB
+        delta = {'operation': dict(kwargs)}
+        try:
+            driver.save_deployment(deployment_id, delta, partial=True)
+        except ObjectLockedError:
+            LOG.warn("Object lock collision in update_operation on "
+                     "Deployment %s", deployment_id)
+            update_operation.retry()
+
+
+@task
+def update_deployment_status(deployment_id, new_status, error_message=None,
+                             driver=DB):
+    """ Update the status of the specified deployment """
+    match_celery_logging(LOG)
+    if is_simulation(deployment_id):
+        driver = SIMULATOR_DB
+
+    delta = {}
+    if new_status:
+        delta['status'] = new_status
+    if error_message:
+        delta['error_message'] = error_message
+    if delta:
+        try:
+            driver.save_deployment(deployment_id, delta, partial=True)
+        except ObjectLockedError:
+            LOG.warn("Object lock collision in update_deployment_status on "
+                     "Deployment %s", deployment_id)
+            update_deployment_status.retry()

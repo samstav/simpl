@@ -18,6 +18,7 @@ def main_func():
         task_modules = [
             'checkmate.orchestrator',
             'checkmate.ssh',
+            'checkmate.rdp',
             'checkmate.deployments',
             'checkmate.providers.rackspace',
             'checkmate.providers.opscode',
