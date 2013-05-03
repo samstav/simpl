@@ -125,6 +125,7 @@ class TestDeploymentParser(unittest.TestCase):
                 'estimated-duration': 0,
                 'tasks': 3
             },
+            'plan': {'services': {}},
             'environment': {
                 'name': 'environment',
                 'providers': {},
