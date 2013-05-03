@@ -35,4 +35,3 @@ load_release()
 
 def version():
     return "%s-%s" % (__version__, __release__)
-

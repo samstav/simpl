@@ -1,25 +1,32 @@
 import copy
 import logging
 import os
-import time
 import uuid
 
 from bottle import request, response, abort, get, post, delete, route
+from celery.canvas import chord
 from celery.task import task
 from SpiffWorkflow import Workflow, Task
 from SpiffWorkflow.storage import DictionarySerializer
 
 from checkmate import orchestrator
 from checkmate.db import get_driver, any_id_problems
+from checkmate.db.common import ObjectLockedError
+from checkmate.deployment import (
+    Deployment,
+    generate_keys,
+    update_operation as new_update_operation,
+)
 from checkmate.exceptions import (
     CheckmateDoesNotExist,
     CheckmateValidationException,
     CheckmateBadState,
     CheckmateException,
 )
-from checkmate.workflows import (
+from checkmate.workflow import (
     create_workflow_deploy,
     create_workflow_spec_deploy,
+    init_operation,
 )
 from checkmate.utils import (
     write_body,
@@ -28,13 +35,10 @@ from checkmate.utils import (
     with_tenant,
     match_celery_logging,
     is_simulation,
-    get_time_string,
     write_path,
     write_pagination_headers,
 )
 from checkmate.plan import Plan
-from checkmate.deployment import Deployment, generate_keys
-from celery.canvas import chord
 
 LOG = logging.getLogger(__name__)
 DB = get_driver()
@@ -104,34 +108,47 @@ def _save_deployment(deployment, deployment_id=None, tenant_id=None,
                                   tenant_id=tenant_id, partial=False)
 
 
-def _create_deploy_workflow(deployment, context):
-    """ Create and return serialized workflow """
-    workflow = create_workflow_deploy(deployment, context)
+def create_deploy_operation(deployment, context, tenant_id=None, driver=DB):
+    '''Create Workflow Operation'''
+    workflow_id = deployment['id']
+    spiff_wf = create_workflow_deploy(deployment, context)
+    spiff_wf.attributes['id'] = workflow_id
     serializer = DictionarySerializer()
-    serialized_workflow = workflow.serialize(serializer)
-    return serialized_workflow
+    workflow = spiff_wf.serialize(serializer)
+    workflow['id'] = workflow_id  # TODO: need to support multi workflows
+    deployment['workflow'] = workflow_id
+    operation = init_operation(spiff_wf, operation_type="BUILD",
+                               tenant_id=tenant_id)
+    if 'operation' in deployment:
+        history = deployment.get('operations-history') or []
+        history.append(deployment['operation'])
+        deployment['operations-history'] = history
+    deployment['operation'] = operation
+
+    body, secrets = extract_sensitive_data(workflow)
+    driver.save_workflow(workflow_id, body, secrets,
+                         tenant_id=deployment['tenantId'])
+
+    return operation
 
 
 def _deploy(deployment, context, driver=DB):
-    """Deploys a deployment and returns the workflow"""
+    """Deploys a deployment and returns the operation"""
     if deployment.get('status') != 'PLANNED':
         raise CheckmateBadState("Deployment '%s' is in '%s' status and must "
                                 "be in 'PLANNED' status to be deployed" %
                                 (deployment['id'], deployment.get('status')))
-    deployment_keys = generate_keys(deployment)
-    workflow = _create_deploy_workflow(deployment, context)
-    workflow['id'] = deployment['id']  # TODO: need to support multi workflows
-    deployment['workflow'] = workflow['id']
-    # deployment['status'] = "LAUNCHED"
-
-    body, secrets = extract_sensitive_data(workflow)
-    driver.save_workflow(workflow['id'], body, secrets,
-                         tenant_id=deployment['tenantId'])
+    generate_keys(deployment)
 
     deployment['display-outputs'] = deployment.calculate_outputs()
+
+    operation = create_deploy_operation(deployment, context,
+                                        tenant_id=deployment['tenantId'],
+                                        driver=driver)
+
     _save_deployment(deployment, driver=driver)
 
-    return workflow
+    return operation
 
 
 #
@@ -152,14 +169,14 @@ def get_deployments(tenant_id=None, driver=DB):
     deployments = driver.get_deployments(tenant_id=tenant_id,
                                          offset=offset,
                                          limit=limit)
-    
+
     write_pagination_headers(deployments,
                              request,
                              response,
                              "deployments",
                              tenant_id)
     return write_body(deployments,
-                      request, 
+                      request,
                       response)
 
 
@@ -267,8 +284,13 @@ def process_post_deployment(deployment, request_context, driver=DB):
     #Assess work to be done & resources to be created
     parsed_deployment = plan(deployment, request_context)
 
-    # Create a 'new deployment' workflow
-    _deploy(parsed_deployment, request_context, driver=driver)
+    try:
+        # Create a 'new deployment' workflow
+        _deploy(parsed_deployment, request_context, driver=driver)
+    except ObjectLockedError:
+        LOG.warn("Object lock collision in process_post_deployment on "
+                 "Deployment %s", deployment.get('id'))
+        resource_postback.retry()
 
     #Trigger the workflow in the queuing service
     async_task = execute(deployment['id'], driver=driver)
@@ -369,7 +391,7 @@ def deploy_deployment(oid, tenant_id=None, driver=DB):
                                 "deployed" % (oid, entity.get('status')))
 
     # Create a 'new deployment' workflow
-    workflow = _deploy(deployment, request.context, driver=driver)
+    _deploy(deployment, request.context, driver=driver)
 
     #Trigger the workflow
     async_task = execute(oid, driver=driver)
@@ -484,13 +506,9 @@ def delete_deployment(oid, tenant_id=None, driver=DB):
         abort(404, "No deployment with id %s" % oid)
     deployment = Deployment(deployment)
     if 'force' not in request.query_string:
-        del_statuses = ["PLANNED", "NEW", "RUNNING", "ERROR", "ACTIVE"]
-        if deployment.get("status", "UNKNOWN") not in del_statuses:
-            abort(400, "Deployment %s cannot be deleted while in status %s. "
-                  "A deployment must have one of the following statuses "
-                  "before being deleted: [%s]" %
-                  (oid, deployment.get("status", "UNKNOWN"),
-                   ", ".join(del_statuses)))
+        if not deployment.fsm.has_path_to('DELETED'):
+            abort(400, "Deployment %s cannot be deleted while in status %s." %
+                  (oid, deployment.get("status", "UNKNOWN")))
     loc = "/deployments/%s" % oid
     link = "/canvases/%s" % oid
     if tenant_id:
@@ -499,7 +517,7 @@ def delete_deployment(oid, tenant_id=None, driver=DB):
     planner = Plan(deployment)
     tasks = planner.plan_delete(request.context)
     if tasks:
-        update_deployment_status.s(oid, "DELETING", driver=driver).delay()
+        update_operation.s(oid, status="IN PROGRESS", driver=driver).delay()
         chord(tasks)(delete_deployment_task.si(oid, driver=driver), interval=2,
                      max_retries=120)
     else:
@@ -608,6 +626,9 @@ def plan(deployment, context):
     if resources:
         deployment['resources'] = resources
 
+    # Save plan details for future rehydration/use
+    deployment['plan'] = planner._data  # get the dict so we can serialize it
+
     # Mark deployment as planned and return it (nothing has been saved so far)
     deployment['status'] = 'PLANNED'
     LOG.info("Deployment '%s' planning complete and status changed to %s" %
@@ -615,109 +636,10 @@ def plan(deployment, context):
     return deployment
 
 
-def deployment_operation(dep_id, driver=DB):
-    """Return the operation dictionary for a given deployment.
-
-    Example:
-
-    "operation": {
-        "type": "deploy",
-        "status": "IN PROGRESS",
-        "estimated-duration": 2400,
-        "tasks": 175,
-        "complete": 100,
-        "link": "/v1/{tenant_id}/workflows/982h3f28937h4f23847"
-    }
-    """
-    operation = {}
-
-    # Fetch workflow & deployment data
-    raw_workflow = driver.get_workflow(dep_id)
-    if not raw_workflow:
-        return
-    serializer = DictionarySerializer()
-    workflow = Workflow.deserialize(serializer, raw_workflow)
-    tasks = workflow.task_tree.children
-    deployment = driver.get_deployment(dep_id)
-
-    # Loop through tasks and calculate statistics
-    spiff_status = {
-        1: "FUTURE",
-        2: "LIKELY",
-        4: "MAYBE",
-        8: "WAITING",
-        16: "READY",
-        32: "CANCELLED",
-        64: "COMPLETED",
-        128: "TRIGGERED"
-    }
-    duration = 0
-    complete = 0
-    failure = 0
-    total = 0
-    last_change = 0
-    while tasks:
-        current = tasks.pop(0)
-        tasks.extend(current.children)
-        status = spiff_status[current._state]
-        if status == "COMPLETED":
-            complete += 1
-        elif status == "FAILURE":
-            failure += 1
-        duration += current._get_internal_attribute('estimated_completed_in')
-        if current.last_state_change > last_change:
-            last_change = current.last_state_change
-        total += 1
-    operation['tasks'] = total
-    operation['complete'] = complete
-    operation['estimated-duration'] = duration
-    operation['last-change'] = get_time_string(time=time.gmtime(last_change))
-    if failure > 0:
-        operation['status'] = "ERROR"
-    elif total > complete:
-        operation['status'] = "IN PROGRESS"
-    elif total == complete:
-        operation['status'] = "COMPLETE"
-    else:
-        operation['status'] = "UNKNOWN"
-
-    # Operation link
-    operation['link'] = "/%s/workflows/%s" % (deployment['tenantId'], dep_id)
-
-    # Operation type
-    # FIXME: operation type should be set by operation (workflow or canvas)
-    status_type = {
-        "ACTIVE": "deploy",
-        "BUILD": "deploy",
-        "CONFIGURE": "deploy",
-        "DELETED": "delete",
-        "DELETING": "delete",
-        "LAUNCHED": "deploy",
-        "NEW": "deploy",
-        "PLANNED": "deploy",
-        "RUNNING": "deploy"
-    }
-    if 'status' in deployment and deployment['status'] in status_type:
-        operation['type'] = status_type[deployment['status']]
-
-    return operation
-
-
 @task
-def update_deployment_status(deployment_id, new_status, error_message=None,
-                             driver=DB):
-    """ Update the status of the specified deployment """
-    match_celery_logging(LOG)
-    if is_simulation(deployment_id):
-        driver = SIMULATOR_DB
-
-    if new_status:
-        deployment = driver.get_deployment(deployment_id)
-        if deployment:
-            deployment['status'] = new_status
-            if error_message:
-                deployment['errmessage'] = error_message
-            driver.save_deployment(deployment_id, deployment)
+def update_operation(deployment_id, driver=DB, **kwargs):
+    # TODO: Deprecate this
+    return new_update_operation(deployment_id, driver=driver, **kwargs)
 
 
 @task(default_retry_delay=2, max_retries=60)
@@ -726,7 +648,7 @@ def delete_deployment_task(dep_id, driver=DB):
     match_celery_logging(LOG)
     if is_simulation(dep_id):
         driver = SIMULATOR_DB
-    deployment = driver.get_deployment(dep_id)
+    deployment = Deployment(driver.get_deployment(dep_id))
     if not deployment:
         raise CheckmateException("Could not finalize delete for deployment %s."
                                  " The deployment was not found.")
@@ -748,7 +670,12 @@ def delete_deployment_task(dep_id, driver=DB):
         for key in deletes:
             deployment['resources'].pop(key, None)
 
-    return driver.save_deployment(dep_id, deployment, secrets={})
+    try:
+        return driver.save_deployment(dep_id, deployment, secrets={})
+    except ObjectLockedError:
+        LOG.warn("Object lock collision in delete_deployment_task on "
+                 "Deployment %s", dep_id)
+        delete_deployment_task.retry()
 
 
 @task(default_retry_delay=0.25, max_retries=4)
@@ -804,7 +731,7 @@ def resource_postback(deployment_id, contents, driver=DB):
                 }
             }
         }
-    - a connection value (under connection\:name):
+    - a connection value (under connection.name):
         {'connection:web-backend':
             {'interface': 'mysql',
             'field_name': value}
@@ -821,13 +748,6 @@ def resource_postback(deployment_id, contents, driver=DB):
     deployment = driver.get_deployment(deployment_id, with_secrets=True)
     deployment = Deployment(deployment)
     updates = {}
-
-    # Update operation
-    operation = deployment_operation(deployment_id, driver=driver)
-    if operation:
-        updates['operation'] = operation
-
-    # Update deployment status
 
     assert isinstance(contents, dict), "Must postback data in dict"
 
@@ -858,67 +778,14 @@ def resource_postback(deployment_id, contents, driver=DB):
     if new_contents:
         deployment.on_resource_postback(new_contents, target=updates)
 
-    status, error_messages = calculate_deployment_status(deployment)
-
-    if status:
-        updates['status'] = status
-    if error_messages:
-        updates['error_messages'] = error_messages
-
     if updates:
         body, secrets = extract_sensitive_data(updates)
-        driver.save_deployment(deployment_id, body, secrets, partial=True)
+        try:
+            driver.save_deployment(deployment_id, body, secrets, partial=True)
 
-        LOG.debug("Updated deployment %s with post-back", deployment_id,
-                  extra=dict(data=contents))
-
-
-def calculate_deployment_status(deployment):
-    '''Check all resources statuses and calculate a deployment status
-
-    :param deployment: the deployment to calculate
-    :returns: tuple of (status, error_message_list)
-    '''
-    count = 0
-    statuses = {
-        "NEW": 0,
-        "BUILD": 0,
-        "CONFIGURE": 0,
-        "ACTIVE": 0,
-        'PLANNED': 0,
-        'ERROR': 0,
-        'DELETED': 0,
-        'DELETING': 0,
-    }
-
-    status = None
-    error_messages = deployment.get('errmessage', [])
-    resources = deployment['resources']
-    for key, value in resources.items():
-        if key.isdigit():
-            r_status = resources[key].get('status')
-            if r_status == "ERROR":
-                r_msg = resources[key].get('errmessage')
-                if r_msg not in error_messages:
-                    error_messages.append(r_msg)
-            statuses[r_status] += 1
-            count += 1
-
-    if deployment['status'] != "ERROR":
-        if statuses['DELETING'] >= 1:
-            status = "DELETING"
-        elif statuses['DELETED'] == count:
-            status = "DELETED"
-        elif statuses['PLANNED'] == count:
-            status = "PLANNED"
-        elif statuses['NEW'] == count:
-            status = "NEW"
-        elif statuses['ACTIVE'] == count:
-            status = "ACTIVE"
-        elif statuses['CONFIGURE'] >= 1:
-            status = "CONFIGURE"
-        elif statuses['BUILD'] >= 1:
-            status = "BUILD"
-        else:
-            LOG.debug("Could not identify a deployment status update")
-    return (status, error_messages)
+            LOG.debug("Updated deployment %s with post-back", deployment_id,
+                      extra=dict(data=contents))
+        except ObjectLockedError:
+            LOG.warn("Object lock collision in resource_postback on "
+                     "Deployment %s", deployment_id)
+            resource_postback.retry()

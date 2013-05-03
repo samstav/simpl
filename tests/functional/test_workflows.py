@@ -5,7 +5,7 @@ from SpiffWorkflow import Workflow as SpiffWorkflow
 from SpiffWorkflow.storage import DictionarySerializer
 from SpiffWorkflow.specs import WorkflowSpec, Simple, Merge
 
-from checkmate.workflows import wait_for, Workflow
+from checkmate.workflow import wait_for, Workflow
 
 
 class TestWorkflowTools(unittest.TestCase):
@@ -158,8 +158,6 @@ class TestWorkflow(unittest.TestCase):
 
 if __name__ == '__main__':
     # Any change here should be made in all test files
-    import os
     import sys
-    sys.path.insert(1, os.path.join(sys.path[0], '../..'))
-    from tests.utils import run_with_params
+    from checkmate.test import run_with_params
     run_with_params(sys.argv[:])

@@ -1,7 +1,7 @@
 # -*- mode: ruby -*-
 # vi: set ft=ruby :
 
-Vagrant::Config.run do |config|
+Vagrant.configure("2") do |config|
   # Lets lower the memory consumption some
   #config.vm.customize ["modifyvm", :id, "--memory", 256]
 
@@ -10,10 +10,10 @@ Vagrant::Config.run do |config|
   config.vm.box_url = "http://files.vagrantup.com/precise64.box"
 
   config.vm.provision :shell, :inline => "if [ \"$(chef-client --version |awk '{print $2}')\" != \"11.4.0\" ]; then bash <(wget http://www.opscode.com/chef/install.sh --tries=10 -O -) -v 11.4.0 2>> /dev/null; fi"
+  config.berkshelf.enabled = true
 
   config.vm.provision :chef_solo do |chef|
     chef.log_level = :debug
-    chef.cookbooks_path = ["vagrant/cookbooks"]
     #chef.roles_path = "vagrant/roles"
     #chef.data_bags_path = "vagrant/data_bags"
     chef.add_recipe "apt"
@@ -111,6 +111,6 @@ Vagrant::Config.run do |config|
     }
   end
 
-  config.vm.forward_port 8080, 8080
-  config.vm.forward_port 5555, 5555
+  config.vm.network :forwarded_port, guest: 8080, host: 8080
+  config.vm.network :forwarded_port, guest: 5555, host: 5555
 end

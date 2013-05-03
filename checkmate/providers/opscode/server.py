@@ -5,7 +5,7 @@ from SpiffWorkflow.operators import Attrib
 from SpiffWorkflow.specs import Celery, Merge, Transform
 
 from checkmate.providers import ProviderBase
-from checkmate.workflows import wait_for
+from checkmate.workflow import wait_for
 from checkmate.utils import match_celery_logging
 
 LOG = logging.getLogger(__name__)

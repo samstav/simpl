@@ -13,7 +13,7 @@ from checkmate.exceptions import (
 )
 from checkmate.middleware import RequestContext
 from checkmate.providers import ProviderBase
-from checkmate.workflows import wait_for
+from checkmate.workflow import wait_for
 from checkmate.utils import match_celery_logging
 from copy import deepcopy
 from celery.canvas import chain, group
@@ -569,6 +569,7 @@ def create_loadbalancer(context, name, vip_type, protocol, region, api=None,
                         monitor_attempts=3, monitor_body='(.*)',
                         monitor_status='^[234][0-9][0-9]$', parent_lb=None):
     """Celery task to create Cloud Load Balancer"""
+    assert 'deployment' in context, "Deployment not supplied in context"
     match_celery_logging(LOG)
 
     if context.get('simulation') is True:
@@ -641,12 +642,15 @@ def create_loadbalancer(context, name, vip_type, protocol, region, api=None,
 
     LOG.debug('Load balancer %s created. VIP = %s', loadbalancer.id, vip)
 
-    results = {'instance:%s' % context['resource']: {
-        'id': loadbalancer.id,
-        'public_ip': vip,
-        'port': loadbalancer.port,
-        'protocol': loadbalancer.protocol,
-        'status': "BUILD"}}
+    results = {
+        'instance:%s' % context['resource']: {
+            'id': loadbalancer.id,
+            'public_ip': vip,
+            'port': loadbalancer.port,
+            'protocol': loadbalancer.protocol,
+            'status': "BUILD"
+        }
+    }
 
     # Send data back to deployment
     resource_postback.delay(context['deployment'], results)
@@ -975,6 +979,7 @@ def wait_on_build(context, lbid, region, api=None):
 
     match_celery_logging(LOG)
     assert lbid, "ID must be provided"
+    assert 'deployment' in context, "Deployment not supplied in context"
     LOG.debug("Getting loadbalancer %s", lbid)
 
     if context.get('simulation') is True:

@@ -349,6 +349,22 @@ class TestDatabase(unittest.TestCase):
         unicode_results = self.driver.get_objects(self.collection_name,
                                                   include_total_count=True)
         self.assertIn('collection-count', unicode_results)
+
+
+    def test_save_deployment_fails_if_locked(self):
+        klass = 'deployments'
+        obj_id = 1
+        self.driver.database()[klass].remove({"id": obj_id})
+        self.driver.save_deployment(obj_id,
+                                    {"id": obj_id, "test": obj_id},
+                                    tenant_id="T1000",
+                                    partial=False)
+        locked_object, key = self.driver.lock_object(klass, obj_id)
+        with self.assertRaises(ObjectLockedError):
+            self.driver.save_deployment(obj_id,
+                                        {"id": obj_id, "test": obj_id},
+                                         tenant_id="T1000",
+                                         partial=False)
    
    
     @unittest.skipIf(SKIP, REASON)
@@ -546,6 +562,5 @@ class TestDatabase(unittest.TestCase):
 if __name__ == '__main__':
     # Any change here should be made in all test files
     import sys
-    sys.path.insert(1, os.path.join(sys.path[0], '../..'))
-    from tests.utils import run_with_params
+    from checkmate.test import run_with_params
     run_with_params(sys.argv[:])

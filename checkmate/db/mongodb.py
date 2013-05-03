@@ -99,8 +99,14 @@ class Driver(DbBase):
         contents
         '''
 
+        # If the deployment exists, lock it!
+        if self.get_deployment(api_id, with_secrets=secrets):
+            key, deployment = self.lock_object('deployments',
+                                               api_id, with_secrets=secrets)
+
         return self.save_object('deployments', api_id, body, secrets,
-                                tenant_id, merge_existing=partial)
+                                  tenant_id, merge_existing=partial)
+
 
     #BLUEPRINTS
     def get_blueprint(self, api_id, with_secrets=None):
@@ -267,8 +273,8 @@ class Driver(DbBase):
                         return (locked_object, key)
                     else:
                         # Lock is not stale
-                        raise ObjectLockedError("%s(%s) was already locked!",
-                                                klass, api_id)
+                        raise ObjectLockedError("%s(%s) was already locked!" %
+                                                (klass, api_id))
 
                 else:
                     # Object has no _lock field

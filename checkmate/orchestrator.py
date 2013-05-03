@@ -9,30 +9,12 @@ from SpiffWorkflow import Workflow, Task
 from SpiffWorkflow.storage import DictionarySerializer
 
 from checkmate.db.common import ObjectLockedError
+from checkmate.deployment import update_operation, update_deployment_status
 from checkmate.middleware import RequestContext
 from checkmate.utils import extract_sensitive_data, match_celery_logging
+from checkmate.workflow import update_workflow_status
 
 LOG = logging.getLogger(__name__)
-
-
-def update_workflow_status(workflow):
-    """Update workflow object with progress"""
-    total = len(workflow.get_tasks(state=Task.ANY_MASK))
-    completed = len(workflow.get_tasks(state=Task.COMPLETED))
-    if total is not None and total > 0:
-        progress = int(100 * completed / total)
-    else:
-        progress = 100
-    workflow.attributes['progress'] = progress
-    workflow.attributes['total'] = total
-    workflow.attributes['completed'] = completed
-
-    if workflow.is_completed():
-        workflow.attributes['status'] = "COMPLETE"
-    elif completed == 0:
-        workflow.attributes['status'] = "NEW"
-    else:
-        workflow.attributes['status'] = "IN PROGRESS"
 
 
 @task
@@ -68,8 +50,6 @@ def run_workflow(w_id, timeout=900, wait=1, counter=1, driver=None):
 
     match_celery_logging(LOG)
     assert driver, "No driver supplied to orchestrator"
-    # Get the workflow
-    serializer = DictionarySerializer()
 
     # Lock the workflow
     try:
@@ -77,6 +57,8 @@ def run_workflow(w_id, timeout=900, wait=1, counter=1, driver=None):
     except ObjectLockedError:
         run_workflow.retry()
 
+    # Get the workflow
+    serializer = DictionarySerializer()
     d_wf = Workflow.deserialize(serializer, workflow)
     LOG.debug("Deserialized workflow %s" % w_id,
               extra=dict(data=d_wf.get_dump()))
@@ -91,8 +73,9 @@ def run_workflow(w_id, timeout=900, wait=1, counter=1, driver=None):
             body['tenantId'] = workflow.get('tenantId')
             body['id'] = w_id
             driver.save_workflow(w_id, body, secrets=secrets)
-            LOG.debug("Workflow '%s' is already complete. Marked it so." %
-                      w_id)
+            dep_id = d_wf.get_attribute('deploymentId') or w_id
+            update_deployment_status.delay(dep_id, 'UP', driver=driver)
+            LOG.debug("Workflow '%s' is already complete. Marked it so.", w_id)
         else:
             LOG.debug("Workflow '%s' is already complete. Nothing to do.",
                       w_id)
@@ -128,6 +111,11 @@ def run_workflow(w_id, timeout=900, wait=1, counter=1, driver=None):
             completed = d_wf.get_attribute('completed')
             total = d_wf.get_attribute('total')
             status = d_wf.get_attribute('status')
+            dep_id = d_wf.get_attribute('deploymentId') or w_id
+            update_operation.delay(dep_id, driver=driver, status=status,
+                                   tasks=total, complete=completed)
+            if total == completed:
+                update_deployment_status.delay(dep_id, 'UP', driver=driver)
             LOG.debug("Workflow status: %s/%s (state=%s)" % (completed,
                       total, status))
             run_workflow.update_state(state="PROGRESS",
@@ -150,10 +138,8 @@ def run_workflow(w_id, timeout=900, wait=1, counter=1, driver=None):
     timeout = timeout - wait if timeout > wait else 0
     if timeout:
         LOG.debug("Finished run of workflow '%s'. %i seconds to go. Waiting "
-                  " %i seconds to next run. Retries done: %s" % (w_id,
-                                                                 timeout,
-                                                                 wait,
-                                                                 counter))
+                  "%i seconds to next run. Retries done: %s", w_id, timeout,
+                  wait, counter)
         # If we have to retry the run, pass in the key so that
         # we will not try to re-lock the workflow.
         retry_kwargs = {
@@ -166,7 +152,7 @@ def run_workflow(w_id, timeout=900, wait=1, counter=1, driver=None):
         return run_workflow.retry([w_id], kwargs=retry_kwargs, countdown=wait,
                                   Throw=False)
     else:
-        LOG.debug("Workflow '%s' did not complete (no timeout set)." % w_id)
+        LOG.debug("Workflow '%s' did not complete (no timeout set).", w_id)
         driver.unlock_workflow(w_id, key)
         return False
 

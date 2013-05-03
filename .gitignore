@@ -106,4 +106,6 @@ tests/coverage.xml
 ########################
 *.komodoproject
 
-
+# RVM #
+#######
+.rvmrc

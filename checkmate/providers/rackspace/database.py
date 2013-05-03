@@ -14,7 +14,7 @@ from checkmate.exceptions import CheckmateException,  CheckmateNoTokenError
 from checkmate.middleware import RequestContext
 from checkmate.providers import ProviderBase
 from checkmate.utils import match_celery_logging
-from checkmate.workflows import wait_for
+from checkmate.workflow import wait_for
 
 LOG = logging.getLogger(__name__)
 
@@ -777,6 +777,8 @@ def delete_instance(context, api=None):
 
     delete_instance.on_failure = on_failure
 
+    assert "deployment_id" in context, "No deployment id in context"
+    assert "instance_id" in context, "No server id provided"
     assert 'region' in context, "No region defined in context"
     assert 'resource_key' in context, 'No resource key in context'
     assert 'resource' in context, 'No resource defined in context'
@@ -800,7 +802,7 @@ def delete_instance(context, api=None):
                 }
             })
         # Send data back to deployment
-        resource_postback.delay(context['deployment'], results)
+        resource_postback.delay(context['deployment_id'], results)
         return results
 
     if not api:
