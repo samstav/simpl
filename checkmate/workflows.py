@@ -6,31 +6,20 @@ Checkmate
 """
 # pylint: disable=E0611
 from bottle import get, post, route, request, response, abort
-import copy
 import logging
 import os
 import uuid
 
-try:
-    from SpiffWorkflow.specs import WorkflowSpec, Merge, Simple, Join
-except ImportError:
-    #TODO(zns): remove this when Spiff incorporates the code in it
-    print ("Get SpiffWorkflow with the Celery spec in it from here: "
-           "https://github.com/ziadsawalha/SpiffWorkflow/tree/celery")
-    raise
-
 from SpiffWorkflow import Workflow as SpiffWorkflow, Task
 from SpiffWorkflow.storage import DictionarySerializer
 
-from checkmate.common import schema
-from checkmate.classes import ExtensibleDict
 from checkmate.db import (
     get_driver,
     any_id_problems,
     InvalidKeyError,
     ObjectLockedError,
 )
-from checkmate.exceptions import CheckmateException
+from checkmate import orchestrator
 from checkmate.utils import (
     write_body,
     read_body,
@@ -40,7 +29,6 @@ from checkmate.utils import (
     is_simulation,
     write_pagination_headers,
 )
-from checkmate import orchestrator
 from checkmate.workflow import get_SpiffWorkflow_status
 
 DB = get_driver()
@@ -79,7 +67,7 @@ def get_workflows(tenant_id=None, driver=DB):
                              request,
                              response,
                              "workflows",
-                             tenant_id)                             
+                             tenant_id)
     return write_body(results, request, response)
 
 
@@ -244,7 +232,7 @@ def post_workflow_spec(workflow_id, spec_id, tenant_id=None, driver=DB):
     if not spec:
         abort(404, 'No spec with id %s' % spec_id)
 
-    LOG.debug("Updating spec '%s' in workflow '%s'" % (spec_id, workflow_id),
+    LOG.debug("Updating spec '%s' in workflow '%s'", spec_id, workflow_id,
               extra=dict(data=dict(old=spec, new=entity)))
     workflow['wf_spec']['task_specs'][spec_id] = entity
 

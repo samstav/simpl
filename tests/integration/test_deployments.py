@@ -196,8 +196,19 @@ class TestDeploymentDeployer(unittest.TestCase):
             },
         }
         parsed = plan(Deployment(deployment), RequestContext())
-        workflow = _deploy(parsed, RequestContext())
-        self.assertIn("wf_spec", workflow)
+        operation = _deploy(parsed, RequestContext())
+        expected = {
+            'status': 'IN PROGRESS',
+            'tasks': 2,
+            'complete': 0,
+            'estimated-duration': 0,
+            'link': '/T1000/workflows/test',
+            'last-change': None,
+            'type': 'BUILD',
+        }
+        operation['last-change'] = None  # skip comparing/mocking times
+
+        self.assertDictEqual(expected, operation)
         self.assertEqual(parsed['status'], "PLANNED")
 
 
@@ -1623,10 +1634,6 @@ class TestCeleryTasks(unittest.TestCase):
             }
         }
         db.get_deployment('1234', with_secrets=True).AndReturn(target)
-        self.mox.StubOutWithMock(checkmate.deployments,
-                                 "deployment_operation")
-        checkmate.deployments.deployment_operation('1234', driver=db)\
-            .AndReturn(None)
         expected = {
             'resources': {
                 '0': {
