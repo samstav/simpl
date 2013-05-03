@@ -72,6 +72,19 @@ Here are a few quick notes about what you'll find inside the VM:
   and sources the Checkmate virtual environment (typically /opt/checkmate/bin/activate).
 * The checkmate user can sudo without a password.
 
+#### git in the VM
+
+If you plan to work on code within the VM, you need to make sure your git config is setup locally within the repo.
+
+    $ cd /vagrant
+    $ git config user.name "John Doe"
+    $ git config user.email "john.doe@rackspace.com"
+
+If you have already done this on the host machine, you are good to go. Keep in minde that
+any config you have set at a `--global` level on your host machine will not be seen from
+within the VM.
+
+
 ## Working with berkshelf
 
 To update the cookbooks, you will need to run the following.
