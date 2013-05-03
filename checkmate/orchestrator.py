@@ -114,6 +114,8 @@ def run_workflow(w_id, timeout=900, wait=1, counter=1, driver=None):
             dep_id = d_wf.get_attribute('deploymentId') or w_id
             update_operation.delay(dep_id, driver=driver, status=status,
                                    tasks=total, complete=completed)
+            if total == completed:
+                update_deployment_status.delay(dep_id, 'UP', driver=driver)
             LOG.debug("Workflow status: %s/%s (state=%s)" % (completed,
                       total, status))
             run_workflow.update_state(state="PROGRESS",
@@ -136,10 +138,8 @@ def run_workflow(w_id, timeout=900, wait=1, counter=1, driver=None):
     timeout = timeout - wait if timeout > wait else 0
     if timeout:
         LOG.debug("Finished run of workflow '%s'. %i seconds to go. Waiting "
-                  " %i seconds to next run. Retries done: %s" % (w_id,
-                                                                 timeout,
-                                                                 wait,
-                                                                 counter))
+                  "%i seconds to next run. Retries done: %s", w_id, timeout,
+                  wait, counter)
         # If we have to retry the run, pass in the key so that
         # we will not try to re-lock the workflow.
         retry_kwargs = {
@@ -152,7 +152,7 @@ def run_workflow(w_id, timeout=900, wait=1, counter=1, driver=None):
         return run_workflow.retry([w_id], kwargs=retry_kwargs, countdown=wait,
                                   Throw=False)
     else:
-        LOG.debug("Workflow '%s' did not complete (no timeout set)." % w_id)
+        LOG.debug("Workflow '%s' did not complete (no timeout set).", w_id)
         driver.unlock_workflow(w_id, key)
         return False
 
