@@ -2067,6 +2067,7 @@ function DeploymentController($scope, $location, $resource, $routeParams) {
   //Model: UI
   $scope.showSummaries = true;
   $scope.showStatus = false;
+  $scope.auto_refresh = true;
 
   $scope.name = 'Deployment';
   $scope.data = {};
@@ -2078,14 +2079,27 @@ function DeploymentController($scope, $location, $resource, $routeParams) {
   $scope.handleSpace = function() {
   };
 
+  // Called by load to refresh the status page
+  $scope.reload = function(original_url) {
+    // Check that we are still on the same page, otherwise don't reload
+    if ($location.url() == original_url && $scope.auto_refresh !== false)
+      $scope.load();
+  };
+
+  $scope.delayed_refresh = function() {
+    var original_url = $location.url();
+    setTimeout(function() {$scope.reload(original_url);}, 2000);
+  };
+
   $scope.load = function() {
     console.log("Starting load");
     this.klass = $resource((checkmate_server_base || '') + '/:tenantId/deployments/:id.json');
     this.klass.get($routeParams, function(data, getResponseHeaders){
-      console.log("Load returned");
       $scope.data = data;
       $scope.data_json = JSON.stringify(data, null, 2);
-      console.log("Done loading");
+      if ($scope.data.operation !== undefined && $scope.data.operation.status != 'COMPLETE') {
+        $scope.delayed_refresh();
+      }
     });
   };
 
