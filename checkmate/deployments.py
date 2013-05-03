@@ -720,23 +720,6 @@ def update_operation(deployment_id, driver=DB, **kwargs):
             driver.save_deployment(deployment_id, delta, partial=True)
 
 
-@task
-def update_deployment_status(deployment_id, new_status, error_message=None,
-                             driver=DB):
-    """ Update the status of the specified deployment """
-    match_celery_logging(LOG)
-    if is_simulation(deployment_id):
-        driver = SIMULATOR_DB
-
-    if new_status:
-        deployment = Deployment(driver.get_deployment(deployment_id))
-        if deployment:
-            deployment['status'] = new_status
-            if error_message:
-                deployment['errmessage'] = error_message
-            driver.save_deployment(deployment_id, deployment)
-
-
 @task(default_retry_delay=2, max_retries=60)
 def delete_deployment_task(dep_id, driver=DB):
     """ Mark the specified deployment as deleted """

@@ -14,7 +14,7 @@ from celery.app.task import Context
 import bottle
 from bottle import HTTPError
 import mox
-from mox import IgnoreArg, ContainsKeyValue
+from mox import IgnoreArg
 
 import checkmate
 from checkmate import keys
@@ -24,7 +24,6 @@ from checkmate.deployments import (
     get_deployments_count,
     get_deployments_by_bp_count,
     _deploy,
-    Plan,
     generate_keys,
     delete_deployment,
     delete_deployment_task,
@@ -32,7 +31,6 @@ from checkmate.deployments import (
     get_deployment_resources,
     get_resources_statuses,
     update_all_provider_resources,
-    update_deployment_status,
     update_operation,
     resource_postback,
 )
@@ -1526,19 +1524,6 @@ class TestPostbackHelpers(unittest.TestCase):
                                              {}).get('trace'))
         self.assertEquals('A trace', ret.get('instance:9',
                                              {}).get('trace'))
-
-    def test_update_dep_status(self):
-        """ Test deployment status update """
-        checkmate.deployments.DB.get_deployment('1234')\
-            .AndReturn(self._deployment)
-        checkmate.deployments.DB.save_deployment('1234',
-                                                 ContainsKeyValue('status',
-                                                                  'UP'))\
-            .AndReturn({})
-        self._mox.ReplayAll()
-        update_deployment_status('1234', 'UP',
-                                 driver=checkmate.deployments.DB)
-        self._mox.VerifyAll()
 
 
 class TestDeploymentDisplayOutputs(unittest.TestCase):
