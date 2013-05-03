@@ -209,7 +209,7 @@ DEPLOYMENT_STATUSES = {
         'description': "Deployment is launched and running",
         'events': [
             {'name': 'alert', 'dst': 'ALERT'},
-            {'name': 'cannot_connect', 'dst': 'NON-RESPONSIVE'},
+            {'name': 'cannot_connect', 'dst': 'UNREACHABLE'},
             {'name': 'down', 'dst': 'DOWN'},
             {'name': 'delete', 'dst': 'DELETED'},
         ],
@@ -227,7 +227,7 @@ DEPLOYMENT_STATUSES = {
             {'name': 'fix', 'dst': 'UP'},
         ],
     },
-    'NON-RESPONSIVE': {
+    'UNREACHABLE': {
         'description': "Cannot contact infrastructure",
         'events': [
             {'name': 'down', 'dst': 'DOWN'},

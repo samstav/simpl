@@ -236,27 +236,27 @@ class TestStateMachine(unittest.TestCase):
         self.assertEquals(fsm.current, 'UP')
 
         fsm.cannot_connect()
-        self.assertEquals(fsm.current, 'NON-RESPONSIVE')
+        self.assertEquals(fsm.current, 'UNREACHABLE')
 
         fsm.reconnect()
         self.assertEquals(fsm.current, 'UP')
 
     def test_deployment_states_reconnect_to_alert(self):
         fsm = Fysom({
-            'initial': 'NON-RESPONSIVE',
+            'initial': 'UNREACHABLE',
             'events': schema.get_state_events(schema.DEPLOYMENT_STATUSES),
         })
-        self.assertEquals(fsm.current, 'NON-RESPONSIVE')
+        self.assertEquals(fsm.current, 'UNREACHABLE')
 
         fsm.alert()
         self.assertEquals(fsm.current, 'ALERT')
 
     def test_deployment_states_reconnect_to_down(self):
         fsm = Fysom({
-            'initial': 'NON-RESPONSIVE',
+            'initial': 'UNREACHABLE',
             'events': schema.get_state_events(schema.DEPLOYMENT_STATUSES),
         })
-        self.assertEquals(fsm.current, 'NON-RESPONSIVE')
+        self.assertEquals(fsm.current, 'UNREACHABLE')
 
         fsm.down()
         self.assertEquals(fsm.current, 'DOWN')
