@@ -9,7 +9,11 @@ from clouddb.errors import ResponseError
 from SpiffWorkflow.operators import PathAttrib
 from SpiffWorkflow.specs import Celery
 
-from checkmate.deployments import resource_postback, alt_resource_postback
+from checkmate.deployments import (
+    resource_postback, 
+    alt_resource_postback,
+    get_resource_by_id
+)
 from checkmate.exceptions import CheckmateException,  CheckmateNoTokenError
 from checkmate.middleware import RequestContext
 from checkmate.providers import ProviderBase
@@ -524,7 +528,7 @@ def wait_on_build(context, instance_id, region, api=None):
 
     results = {}
 
-    if instance.status == "ERROR":
+    if instance.status == "ACTIVE":#instance.status == "ERROR":
         results['status'] = "ERROR"
         msg = ("Instance %s build failed" % instance_id)
         results['errmessage'] = msg
