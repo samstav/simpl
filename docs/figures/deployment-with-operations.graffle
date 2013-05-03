@@ -616,56 +616,6 @@ DELETED}</string>
 			<key>Head</key>
 			<dict>
 				<key>ID</key>
-				<integer>32</integer>
-			</dict>
-			<key>ID</key>
-			<integer>40</integer>
-			<key>Points</key>
-			<array>
-				<string>{257.31114223988038, 525.7270051246303}</string>
-				<string>{33, 525}</string>
-				<string>{33.153648743759256, 171.08834526829474}</string>
-				<string>{85.101631784814003, 173.34633820852554}</string>
-			</array>
-			<key>Style</key>
-			<dict>
-				<key>stroke</key>
-				<dict>
-					<key>Color</key>
-					<dict>
-						<key>b</key>
-						<string>0.886275</string>
-						<key>g</key>
-						<string>0.898039</string>
-						<key>r</key>
-						<string>0.913725</string>
-					</dict>
-					<key>CornerRadius</key>
-					<real>30</real>
-					<key>HeadArrow</key>
-					<string>StickArrow</string>
-					<key>HeadScale</key>
-					<real>1.2000000476837158</real>
-					<key>Legacy</key>
-					<true/>
-					<key>TailArrow</key>
-					<string>0</string>
-					<key>Width</key>
-					<real>4</real>
-				</dict>
-			</dict>
-			<key>Tail</key>
-			<dict>
-				<key>ID</key>
-				<integer>13</integer>
-			</dict>
-		</dict>
-		<dict>
-			<key>Class</key>
-			<string>LineGraphic</string>
-			<key>Head</key>
-			<dict>
-				<key>ID</key>
 				<integer>13</integer>
 			</dict>
 			<key>ID</key>
@@ -2683,7 +2633,7 @@ BUILDING}</string>
 	<key>MasterSheets</key>
 	<array/>
 	<key>ModificationDate</key>
-	<string>2013-05-03 01:04:54 +0000</string>
+	<string>2013-05-03 01:12:17 +0000</string>
 	<key>Modifier</key>
 	<string>Paul Nelson</string>
 	<key>NotesVisible</key>

@@ -395,7 +395,7 @@ Deployment States
 - __FAILED:__ planning or building failed (can go to __DELETED__)  
 - __PLANNED:__ has topology and resources (can go to __UP__, __FAILED__)  
 - __UNREACHABLE:__ cannot contact infrastructure (can go to __DOWN__, __UP__, __ALERT__)  
-- __DELETED:__ deployment has been deleted (can go to __NEW__)  
+- __DELETED:__ deployment has been deleted  
 - __NEW:__ has topology, but no resources (can go to __PLANNED__, __FAILED__)  
 - __UP:__ deployment is launched and running (can go to __ALERT__, __UNREACHABLE__, __DOWN__, __DELETED__)  
 - __ALERT:__ attention required (can go to __DELETED__, __UP__)  
