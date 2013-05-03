@@ -273,8 +273,8 @@ class Driver(DbBase):
                         return (locked_object, key)
                     else:
                         # Lock is not stale
-                        raise ObjectLockedError("%s(%s) was already locked!",
-                                                klass, api_id)
+                        raise ObjectLockedError("%s(%s) was already locked!" %
+                                                (klass, api_id))
 
                 else:
                     # Object has no _lock field
