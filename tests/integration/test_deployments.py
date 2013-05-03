@@ -1,6 +1,5 @@
 # pylint: disable=C0103,C0111,R0903,R0904,W0212,W0232,E1101,E1103
 import copy
-from copy import deepcopy
 import json
 import logging
 import os
@@ -34,6 +33,7 @@ from checkmate.deployments import (
     update_operation,
     resource_postback,
 )
+from checkmate.deployment import update_deployment_status
 from checkmate.exceptions import (
     CheckmateValidationException,
     CheckmateException,
@@ -1605,16 +1605,6 @@ class TestCeleryTasks(unittest.TestCase):
 
     def tearDown(self):
         self.mox.UnsetStubs()
-
-    def test_update_operation(self):
-        db = self.mox.CreateMockAnything()
-        target = {'id': '1234'}
-        db.get_deployment('1234').AndReturn(target)
-        db.save_deployment('1234', {'operation': {'status': 'NEW'}},
-                           partial=True).AndReturn(None)
-        self.mox.ReplayAll()
-        update_operation('1234', status='NEW', driver=db)
-        self.mox.VerifyAll()
 
     def test_resource_postback(self):
         db = self.mox.CreateMockAnything()

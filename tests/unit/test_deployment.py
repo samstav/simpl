@@ -10,7 +10,13 @@ For tests, we don't care about:
 
 import unittest2 as unittest
 
-from checkmate.deployments import Deployment
+import mox
+
+from checkmate.deployment import (
+    Deployment,
+    update_operation,
+    update_deployment_status,
+)
 from checkmate.exceptions import (
     CheckmateBadState,
     CheckmateValidationException,
@@ -111,6 +117,32 @@ class TestDeployments(unittest.TestCase):
             deployment.fsm.current = 'PLANNED'
             deployment['status'] = legacy
             self.assertEqual(deployment['status'], new)
+
+
+class TestCeleryTasks(unittest.TestCase):
+
+    def setUp(self):
+        self.mox = mox.Mox()
+
+    def tearDown(self):
+        self.mox.UnsetStubs()
+
+    def test_update_operation(self):
+        db = self.mox.CreateMockAnything()
+        db.save_deployment('1234', {'operation': {'status': 'NEW'}},
+                           partial=True).AndReturn(None)
+        self.mox.ReplayAll()
+        update_operation('1234', status='NEW', driver=db)
+        self.mox.VerifyAll()
+
+    def test_update_deployment_status(self):
+        """ Test deployment status update """
+        expected = {'status': "DOWN"}
+        db = self.mox.CreateMockAnything()
+        db.save_deployment('1234', expected, partial=True).AndReturn(expected)
+        self.mox.ReplayAll()
+        update_deployment_status('1234', 'DOWN', driver=db)
+        self.mox.VerifyAll()
 
 
 if __name__ == '__main__':

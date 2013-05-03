@@ -9,6 +9,7 @@ from SpiffWorkflow import Workflow, Task
 from SpiffWorkflow.storage import DictionarySerializer
 
 from checkmate.db.common import ObjectLockedError
+from checkmate.deployment import update_operation, update_deployment_status
 from checkmate.middleware import RequestContext
 from checkmate.utils import extract_sensitive_data, match_celery_logging
 from checkmate.workflow import update_workflow_status
@@ -49,8 +50,6 @@ def run_workflow(w_id, timeout=900, wait=1, counter=1, driver=None):
 
     match_celery_logging(LOG)
     assert driver, "No driver supplied to orchestrator"
-    # Get the workflow
-    serializer = DictionarySerializer()
 
     # Lock the workflow
     try:
@@ -58,6 +57,8 @@ def run_workflow(w_id, timeout=900, wait=1, counter=1, driver=None):
     except ObjectLockedError:
         run_workflow.retry()
 
+    # Get the workflow
+    serializer = DictionarySerializer()
     d_wf = Workflow.deserialize(serializer, workflow)
     LOG.debug("Deserialized workflow %s" % w_id,
               extra=dict(data=d_wf.get_dump()))
@@ -72,8 +73,9 @@ def run_workflow(w_id, timeout=900, wait=1, counter=1, driver=None):
             body['tenantId'] = workflow.get('tenantId')
             body['id'] = w_id
             driver.save_workflow(w_id, body, secrets=secrets)
-            LOG.debug("Workflow '%s' is already complete. Marked it so." %
-                      w_id)
+            dep_id = d_wf.get_attribute('deploymentId') or w_id
+            update_deployment_status.delay(dep_id, 'UP', driver=driver)
+            LOG.debug("Workflow '%s' is already complete. Marked it so.", w_id)
         else:
             LOG.debug("Workflow '%s' is already complete. Nothing to do.",
                       w_id)
@@ -109,6 +111,9 @@ def run_workflow(w_id, timeout=900, wait=1, counter=1, driver=None):
             completed = d_wf.get_attribute('completed')
             total = d_wf.get_attribute('total')
             status = d_wf.get_attribute('status')
+            dep_id = d_wf.get_attribute('deploymentId') or w_id
+            update_operation.delay(dep_id, driver=driver, status=status,
+                                   tasks=total, complete=completed)
             LOG.debug("Workflow status: %s/%s (state=%s)" % (completed,
                       total, status))
             run_workflow.update_state(state="PROGRESS",
