@@ -382,18 +382,48 @@ Minimal, canonical deployment (hello world) available [here](https://github.rack
 Deployment States
 =================
 
-The following states can exist for a deployment:
+### The philosophy behind Deployments and Operations:
 
-DOWN: Deployment is down (can go to UP, DELETED)  
-FAILED: Planning or building failed (can go to DELETED)  
-PLANNED: Has topology and resources (can go to UP, FAILED)  
-NON-RESPONSIVE: Cannot contact infrastructure (can go to DOWN, UP, ALERT)  
-DELETED: Deployment has been deleted (can go to )  
-NEW: Has topology, but no resources (can go to PLANNED, FAILED)  
-UP: Deployment is launched and running (can go to ALERT, NON-RESPONSIVE, DOWN, DELETED)  
-ALERT: Attention required (can go to DELETED, UP)  
+- __Deployment Status__ is the deployment's _desired state_.
+- An __Operation__ will be started if a deployment's _actual state_ does not match its _desired state_.
+- __Operation Status__ is the _current state_ of the operation being performed on the deployment.
+- __Operation Type__ is the type of work being performed on the deployment (e.g. __BUILDING__, __SCALING__, __DELETING__)
+
+### The Deployment Status will be one of:
+
+- __DOWN:__ deployment is down (can go to __UP__, __DELETED__)  
+- __FAILED:__ planning or building failed (can go to __DELETED__)  
+- __PLANNED:__ has topology and resources (can go to __UP__, __FAILED__)  
+- __UNREACHABLE:__ cannot contact infrastructure (can go to __DOWN__, __UP__, __ALERT__)  
+- __DELETED:__ deployment has been deleted (can go to __NEW__)  
+- __NEW:__ has topology, but no resources (can go to __PLANNED__, __FAILED__)  
+- __UP:__ deployment is launched and running (can go to __ALERT__, __UNREACHABLE__, __DOWN__, __DELETED__)  
+- __ALERT:__ attention required (can go to __DELETED__, __UP__)  
 
 ![deployment-states.png](https://github.rackspace.com/checkmate/checkmate/raw/master/docs/figures/deployment-status.png)
+
+### The Operation Status will be one of:
+
+- __NEW:__ the operation is created but not started
+- __IN-PROGRESS:__ the operation is currently running
+- __ERROR:__ the operation encountered an error
+- __COMPLETE:__ the operation completed successfully
+
+The Operation (Workflow, Canvas) will determine the Operation Status. An Operation can take a Deployment from one state to another.
+
+### The Operation Type will be one of:
+
+- __BUILDING:__ an Operation that will end up taking the Deployment State from __PLANNED__ to either __UP__ or __FAILED__
+- __DELETING:__ an Operation that will end up taking the Deployment State from __UP__, __DOWN__, __ALERT__, or __FAILED__ to DELETED
+- __SCALING:__ an Operation that will end up taking the Deployment State from __UP__ to either __UP__ or __FAILED__
+
+### Putting it all together
+
+The operation will be created by the Workflow or Canvas generation code. It will be moved to the deployment history (either when complete or before the next operation starts).
+
+A __LIVE__ boolean will be updated by the Workflow or Canvas to indicate whether or not the _actual deployment_ is supposed to be __UP__ (true) or not (false).
+
+![deployment-with-operations.png](https://github.rackspace.com/checkmate/checkmate/raw/master/docs/figures/deployment-with-operations.png)
 
 Schema History
 ==============
