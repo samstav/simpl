@@ -181,7 +181,7 @@ BLUEPRINT_SCHEMA = [
 DEPLOYMENT_SCHEMA = [
     'id', 'name', 'blueprint', 'environment', 'inputs', 'display-outputs',
     'resources', 'workflow', 'status', 'created', 'tenantId', 'operation',
-    'error_messages', 'live',
+    'error_messages', 'live', 'plan',
     'errmessage',  # to be deprecated
     'includes',  # used to place YAML-referenced parts but then removed
 ]
@@ -209,7 +209,7 @@ DEPLOYMENT_STATUSES = {
         'description': "Deployment is launched and running",
         'events': [
             {'name': 'alert', 'dst': 'ALERT'},
-            {'name': 'cannot_connect', 'dst': 'NON-RESPONSIVE'},
+            {'name': 'cannot_connect', 'dst': 'UNREACHABLE'},
             {'name': 'down', 'dst': 'DOWN'},
             {'name': 'delete', 'dst': 'DELETED'},
         ],
@@ -227,7 +227,7 @@ DEPLOYMENT_STATUSES = {
             {'name': 'fix', 'dst': 'UP'},
         ],
     },
-    'NON-RESPONSIVE': {
+    'UNREACHABLE': {
         'description': "Cannot contact infrastructure",
         'events': [
             {'name': 'down', 'dst': 'DOWN'},

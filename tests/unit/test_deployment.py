@@ -25,6 +25,7 @@ class TestDeployments(unittest.TestCase):
             'name': 'test',
             'live': False,
             'operation': {},
+            'plan': {},
             'inputs': {},
             'includes': {},
             'resources': {},

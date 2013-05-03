@@ -604,6 +604,9 @@ def plan(deployment, context):
     if resources:
         deployment['resources'] = resources
 
+    # Save plan details for future rehydration/use
+    deployment['plan'] = planner._data  # get the dict so we can serialize it
+
     # Mark deployment as planned and return it (nothing has been saved so far)
     deployment['status'] = 'PLANNED'
     LOG.info("Deployment '%s' planning complete and status changed to %s" %
