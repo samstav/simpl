@@ -2013,6 +2013,8 @@ function DeploymentNewController($scope, $location, $routeParams, $resource, opt
         } else {
             var deploymentId = getHeaders('location').split('/')[3];
             console.log("Posted deployment", deploymentId);
+            $location.path(getHeaders('location'));
+            /*  -- old workflow logic
             //Hack to get link
             try {
               var workflowId = getHeaders('link').split(';')[0]; //Get first part
@@ -2025,6 +2027,7 @@ function DeploymentNewController($scope, $location, $routeParams, $resource, opt
               console.log("Error processing link header", err);
               $location.path('/' + $scope.auth.context.tenantId + '/workflows/' + deploymentId + '/status');
             }
+            */
         }
       }, function(error) {
         console.log("Error " + error.data + "(" + error.status + ") creating new deployment.");
