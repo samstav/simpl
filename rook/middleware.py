@@ -503,6 +503,8 @@ class RackspaceSSOAuthMiddleware(object):
         elif apikey:
             body = {"auth": {"RAX-KSKEY:apiKeyCredentials": {
                     "username": username, 'apiKey': apikey}}}
+        else:
+            raise HTTPUnauthorized('No credentials supplied or detected')
 
         if context.tenant:
             auth = body['auth']
