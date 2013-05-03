@@ -528,7 +528,7 @@ def wait_on_build(context, instance_id, region, api=None):
 
     results = {}
 
-    if instance.status == "ACTIVE":#instance.status == "ERROR":
+    if instance.status == "ERROR":
         results['status'] = "ERROR"
         msg = ("Instance %s build failed" % instance_id)
         results['errmessage'] = msg
@@ -536,11 +536,10 @@ def wait_on_build(context, instance_id, region, api=None):
         results = {instance_key: results}
         resource_postback.delay(context['deployment'], results)
         # Delete the database if it failed
-        Provider({}).delete_resource_tasks(context,
-                              context['deployment'],
-                              get_resource_by_id(context['deployment'],
-                                            context['resource']), 
-                              instance_key).apply_async()
+        Provider({}).delete_resource_tasks(context, context['deployment'],
+                                    get_resource_by_id(context['deployment'],
+                                                        context['resource']), 
+                                    instance_key).apply_async()
         raise CheckmateException(msg)
     elif instance.status == "ACTIVE":
         results['status'] = "ACTIVE"

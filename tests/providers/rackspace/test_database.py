@@ -18,6 +18,7 @@ from checkmate.test import StubbedWorkflowBase, ProviderTester
 from checkmate import utils
 
 
+
 class TestDatabase(ProviderTester):
     """ Test Database Provider """
 
@@ -82,6 +83,7 @@ class TestDatabase(ProviderTester):
         self.assertDictEqual(results, expected)
         self.mox.VerifyAll()
 
+
     def test_create_database_fail_building(self):
         context = dict(deployment='DEP', resource='1')
 
@@ -107,6 +109,28 @@ class TestDatabase(ProviderTester):
         self.mox.UnsetStubs()
         self.mox.VerifyAll()
 
+    def test_create_database_error_delete(self):
+        context = dict(deployment='DEP', resource='1')
+
+        #Mock instance
+        instance = self.mox.CreateMockAnything()
+        instance.id = 'fake_instance_id'
+        instance.name = 'fake_instance'
+        instance.status = 'ERROR'
+        instance.hostname = 'fake.cloud.local'
+
+        #Stub out postback call
+        self.mox.StubOutWithMock(resource_postback, 'delay')
+
+        #Create clouddb mock
+        clouddb_api_mock = self.mox.CreateMockAnything()
+        clouddb_api_mock.get_instance(instance.id).AndReturn(instance)
+        self.mox.ReplayAll()
+
+        self.mox.StubOutWithMock(database.Provider, 'delete_resource_tasks')
+        self.mox.UnsetStubs()
+        self.mox.VerifyAll()
+  
     def test_create_database(self):
         context = dict(deployment='DEP', resource='1')
 
@@ -184,6 +208,8 @@ class TestDatabase(ProviderTester):
 
         self.assertDictEqual(results, expected)
         self.mox.VerifyAll()
+
+
 
     def test_template_generation_compute_sizing(self):
         """Test that flavor and volume selection pick >-= sizes"""

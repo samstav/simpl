@@ -406,22 +406,25 @@ def get_deployment(oid, tenant_id=None, driver=DB):
     """Return deployment with given ID"""
     if is_simulation(oid):
         driver = SIMULATOR_DB
-    return write_body(_get_a_deployment(oid, tenant_id=tenant_id,
+    return write_body(_get_a_deployment_with_request(oid, tenant_id=tenant_id,
                       driver=driver), request, response)
 
 
-def _get_a_deployment(oid, tenant_id=None, driver=DB):
-    """ Lookup a deployment with secrets if needed """
+def _get_a_deployment_with_request(oid, tenant_id=None, driver=DB):
+    """ 
+    Lookup a deployment with secrets if needed. With secrets is stored
+    on the request.
+    """
     if 'with_secrets' in request.query:  # TODO: verify admin-ness
         return get_a_deployment(oid, tenant_id, driver, with_secrets=True)
     else:
         return get_a_deployment(oid, tenant_id, driver, with_secrets=False)
 
 def get_a_deployment(oid, tenant_id=None, driver=DB, with_secrets=False):
-    if 'with_secrets':  # TODO: verify admin-ness
-        entity = driver.get_deployment(oid, with_secrets=True)
-    else:
-        entity = driver.get_deployment(oid)
+    """
+    Get a single deployment by id.
+    """
+    entity = driver.get_deployment(oid, with_secrets=with_secrets)
     if not entity or (tenant_id and tenant_id != entity.get("tenantId")):
         raise CheckmateDoesNotExist('No deployment with id %s' % oid)
     return entity
@@ -439,7 +442,8 @@ def get_deployment_resources(oid, tenant_id=None, driver=DB):
     """ Return the resources for a deployment """
     if is_simulation(oid):
         driver = SIMULATOR_DB
-    deployment = _get_a_deployment(oid, tenant_id=tenant_id, driver=driver)
+    deployment = _get_a_deployment_with_request(oid, tenant_id=tenant_id, 
+                                                driver=driver)
     resources = _get_dep_resources(deployment)
     return write_body(resources, request, response)
 
@@ -450,7 +454,7 @@ def get_resources_statuses(oid, tenant_id=None, driver=DB):
     """ Get basic status of all deployment resources """
     if is_simulation(oid):
         driver = SIMULATOR_DB
-    deployment = _get_a_deployment(oid, tenant_id=tenant_id, driver=driver)
+    deployment = _get_a_deployment_with_request(oid, tenant_id=tenant_id, driver=driver)
     resources = _get_dep_resources(deployment)
     resp = {}
 
