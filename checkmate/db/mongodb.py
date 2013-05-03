@@ -360,13 +360,13 @@ class Driver(DbBase):
                 else:
                     for entry in results:
                         response[entry['id']] = entry
+
         if results:
             if response:
                 if include_total_count:
                     response['collection-count'] = count
                 return response
-        else:
-            return {}
+        return {}
 
     def save_object(self, klass, api_id, body, secrets=None, tenant_id=None,
                     merge_existing=False):
