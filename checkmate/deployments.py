@@ -1,7 +1,6 @@
 import copy
 import logging
 import os
-import time
 import uuid
 
 from bottle import request, response, abort, get, post, delete, route
@@ -17,9 +16,10 @@ from checkmate.exceptions import (
     CheckmateBadState,
     CheckmateException,
 )
-from checkmate.workflows import (
+from checkmate.workflow import (
     create_workflow_deploy,
     create_workflow_spec_deploy,
+    init_operation,
 )
 from checkmate.utils import (
     write_body,
@@ -28,7 +28,6 @@ from checkmate.utils import (
     with_tenant,
     match_celery_logging,
     is_simulation,
-    get_time_string,
     write_path,
     write_pagination_headers,
 )
@@ -104,34 +103,47 @@ def _save_deployment(deployment, deployment_id=None, tenant_id=None,
                                   tenant_id=tenant_id, partial=False)
 
 
-def _create_deploy_workflow(deployment, context):
-    """ Create and return serialized workflow """
-    workflow = create_workflow_deploy(deployment, context)
+def create_deploy_operation(deployment, context, tenant_id=None, driver=DB):
+    '''Create Workflow Operation'''
+    workflow_id = deployment['id']
+    spiff_wf = create_workflow_deploy(deployment, context)
+    spiff_wf.attributes['id'] = workflow_id
     serializer = DictionarySerializer()
-    serialized_workflow = workflow.serialize(serializer)
-    return serialized_workflow
+    workflow = spiff_wf.serialize(serializer)
+    workflow['id'] = workflow_id  # TODO: need to support multi workflows
+    deployment['workflow'] = workflow_id
+    operation = init_operation(spiff_wf, operation_type="BUILD",
+                               tenant_id=tenant_id)
+    if 'operation' in deployment:
+        history = deployment.get('operations-history') or []
+        history.append(deployment['operation'])
+        deployment['operations-history'] = history
+    deployment['operation'] = operation
+
+    body, secrets = extract_sensitive_data(workflow)
+    driver.save_workflow(workflow_id, body, secrets,
+                         tenant_id=deployment['tenantId'])
+
+    return operation
 
 
 def _deploy(deployment, context, driver=DB):
-    """Deploys a deployment and returns the workflow"""
+    """Deploys a deployment and returns the operation"""
     if deployment.get('status') != 'PLANNED':
         raise CheckmateBadState("Deployment '%s' is in '%s' status and must "
                                 "be in 'PLANNED' status to be deployed" %
                                 (deployment['id'], deployment.get('status')))
-    deployment_keys = generate_keys(deployment)
-    workflow = _create_deploy_workflow(deployment, context)
-    workflow['id'] = deployment['id']  # TODO: need to support multi workflows
-    deployment['workflow'] = workflow['id']
-    # deployment['status'] = "LAUNCHED"
-
-    body, secrets = extract_sensitive_data(workflow)
-    driver.save_workflow(workflow['id'], body, secrets,
-                         tenant_id=deployment['tenantId'])
+    generate_keys(deployment)
 
     deployment['display-outputs'] = deployment.calculate_outputs()
+
+    operation = create_deploy_operation(deployment, context,
+                                        tenant_id=deployment['tenantId'],
+                                        driver=driver)
+
     _save_deployment(deployment, driver=driver)
 
-    return workflow
+    return operation
 
 
 #
@@ -152,14 +164,14 @@ def get_deployments(tenant_id=None, driver=DB):
     deployments = driver.get_deployments(tenant_id=tenant_id,
                                          offset=offset,
                                          limit=limit)
-    
+
     write_pagination_headers(deployments,
                              request,
                              response,
                              "deployments",
                              tenant_id)
     return write_body(deployments,
-                      request, 
+                      request,
                       response)
 
 
@@ -369,7 +381,7 @@ def deploy_deployment(oid, tenant_id=None, driver=DB):
                                 "deployed" % (oid, entity.get('status')))
 
     # Create a 'new deployment' workflow
-    workflow = _deploy(deployment, request.context, driver=driver)
+    _deploy(deployment, request.context, driver=driver)
 
     #Trigger the workflow
     async_task = execute(oid, driver=driver)
@@ -614,94 +626,6 @@ def plan(deployment, context):
     return deployment
 
 
-def deployment_operation(dep_id, driver=DB):
-    """Return the operation dictionary for a given deployment.
-
-    Example:
-
-    "operation": {
-        "type": "deploy",
-        "status": "IN PROGRESS",
-        "estimated-duration": 2400,
-        "tasks": 175,
-        "complete": 100,
-        "link": "/v1/{tenant_id}/workflows/982h3f28937h4f23847"
-    }
-    """
-    operation = {}
-
-    # Fetch workflow & deployment data
-    raw_workflow = driver.get_workflow(dep_id)
-    if not raw_workflow:
-        return
-    serializer = DictionarySerializer()
-    workflow = Workflow.deserialize(serializer, raw_workflow)
-    tasks = workflow.task_tree.children
-    deployment = driver.get_deployment(dep_id)
-
-    # Loop through tasks and calculate statistics
-    spiff_status = {
-        1: "FUTURE",
-        2: "LIKELY",
-        4: "MAYBE",
-        8: "WAITING",
-        16: "READY",
-        32: "CANCELLED",
-        64: "COMPLETED",
-        128: "TRIGGERED"
-    }
-    duration = 0
-    complete = 0
-    failure = 0
-    total = 0
-    last_change = 0
-    while tasks:
-        current = tasks.pop(0)
-        tasks.extend(current.children)
-        status = spiff_status[current._state]
-        if status == "COMPLETED":
-            complete += 1
-        elif status == "FAILURE":
-            failure += 1
-        duration += current._get_internal_attribute('estimated_completed_in')
-        if current.last_state_change > last_change:
-            last_change = current.last_state_change
-        total += 1
-    operation['tasks'] = total
-    operation['complete'] = complete
-    operation['estimated-duration'] = duration
-    operation['last-change'] = get_time_string(time=time.gmtime(last_change))
-    if failure > 0:
-        operation['status'] = "ERROR"
-    elif total > complete:
-        operation['status'] = "IN PROGRESS"
-    elif total == complete:
-        operation['status'] = "COMPLETE"
-    else:
-        operation['status'] = "UNKNOWN"
-
-    # Operation link
-    operation['link'] = "/%s/workflows/%s" % (deployment['tenantId'], dep_id)
-
-    # Operation type
-    # FIXME: operation type should be set by operation (workflow or canvas)
-    status_type = {
-        "ACTIVE": "deploy",
-        "BUILD": "deploy",
-        "CONFIGURE": "deploy",
-        "DELETED": "delete",
-        "DELETING": "delete",
-        "LAUNCHED": "deploy",
-        "NEW": "deploy",
-        "PLANNED": "deploy",
-        "RUNNING": "deploy"
-    }
-    if 'status' in deployment and deployment['status'] in status_type:
-        operation['type'] = status_type[deployment['status']]
-
-    return operation
-
-
 @task
 def update_operation(deployment_id, driver=DB, **kwargs):
     '''Update the the operation in the deployment
@@ -718,23 +642,6 @@ def update_operation(deployment_id, driver=DB, **kwargs):
         if deployment:
             delta = {'operation': dict(kwargs)}
             driver.save_deployment(deployment_id, delta, partial=True)
-
-
-@task
-def update_deployment_status(deployment_id, new_status, error_message=None,
-                             driver=DB):
-    """ Update the status of the specified deployment """
-    match_celery_logging(LOG)
-    if is_simulation(deployment_id):
-        driver = SIMULATOR_DB
-
-    if new_status:
-        deployment = Deployment(driver.get_deployment(deployment_id))
-        if deployment:
-            deployment['status'] = new_status
-            if error_message:
-                deployment['errmessage'] = error_message
-            driver.save_deployment(deployment_id, deployment)
 
 
 @task(default_retry_delay=2, max_retries=60)
@@ -821,7 +728,7 @@ def resource_postback(deployment_id, contents, driver=DB):
                 }
             }
         }
-    - a connection value (under connection\:name):
+    - a connection value (under connection.name):
         {'connection:web-backend':
             {'interface': 'mysql',
             'field_name': value}
@@ -838,13 +745,6 @@ def resource_postback(deployment_id, contents, driver=DB):
     deployment = driver.get_deployment(deployment_id, with_secrets=True)
     deployment = Deployment(deployment)
     updates = {}
-
-    # Update operation
-    operation = deployment_operation(deployment_id, driver=driver)
-    if operation:
-        updates['operation'] = operation
-
-    # Update deployment status
 
     assert isinstance(contents, dict), "Must postback data in dict"
 

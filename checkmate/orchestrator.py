@@ -11,28 +11,9 @@ from SpiffWorkflow.storage import DictionarySerializer
 from checkmate.db.common import ObjectLockedError
 from checkmate.middleware import RequestContext
 from checkmate.utils import extract_sensitive_data, match_celery_logging
+from checkmate.workflow import update_workflow_status
 
 LOG = logging.getLogger(__name__)
-
-
-def update_workflow_status(workflow):
-    """Update workflow object with progress"""
-    total = len(workflow.get_tasks(state=Task.ANY_MASK))
-    completed = len(workflow.get_tasks(state=Task.COMPLETED))
-    if total is not None and total > 0:
-        progress = int(100 * completed / total)
-    else:
-        progress = 100
-    workflow.attributes['progress'] = progress
-    workflow.attributes['total'] = total
-    workflow.attributes['completed'] = completed
-
-    if workflow.is_completed():
-        workflow.attributes['status'] = "COMPLETE"
-    elif completed == 0:
-        workflow.attributes['status'] = "NEW"
-    else:
-        workflow.attributes['status'] = "IN PROGRESS"
 
 
 @task

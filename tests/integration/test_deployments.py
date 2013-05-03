@@ -14,7 +14,7 @@ from celery.app.task import Context
 import bottle
 from bottle import HTTPError
 import mox
-from mox import IgnoreArg, ContainsKeyValue
+from mox import IgnoreArg
 
 import checkmate
 from checkmate import keys
@@ -24,7 +24,6 @@ from checkmate.deployments import (
     get_deployments_count,
     get_deployments_by_bp_count,
     _deploy,
-    Plan,
     generate_keys,
     delete_deployment,
     delete_deployment_task,
@@ -32,7 +31,6 @@ from checkmate.deployments import (
     get_deployment_resources,
     get_resources_statuses,
     update_all_provider_resources,
-    update_deployment_status,
     update_operation,
     resource_postback,
 )
@@ -198,8 +196,19 @@ class TestDeploymentDeployer(unittest.TestCase):
             },
         }
         parsed = plan(Deployment(deployment), RequestContext())
-        workflow = _deploy(parsed, RequestContext())
-        self.assertIn("wf_spec", workflow)
+        operation = _deploy(parsed, RequestContext())
+        expected = {
+            'status': 'IN PROGRESS',
+            'tasks': 2,
+            'complete': 0,
+            'estimated-duration': 0,
+            'link': '/T1000/workflows/test',
+            'last-change': None,
+            'type': 'BUILD',
+        }
+        operation['last-change'] = None  # skip comparing/mocking times
+
+        self.assertDictEqual(expected, operation)
         self.assertEqual(parsed['status'], "PLANNED")
 
 
@@ -1527,19 +1536,6 @@ class TestPostbackHelpers(unittest.TestCase):
         self.assertEquals('A trace', ret.get('instance:9',
                                              {}).get('trace'))
 
-    def test_update_dep_status(self):
-        """ Test deployment status update """
-        checkmate.deployments.DB.get_deployment('1234')\
-            .AndReturn(self._deployment)
-        checkmate.deployments.DB.save_deployment('1234',
-                                                 ContainsKeyValue('status',
-                                                                  'UP'))\
-            .AndReturn({})
-        self._mox.ReplayAll()
-        update_deployment_status('1234', 'UP',
-                                 driver=checkmate.deployments.DB)
-        self._mox.VerifyAll()
-
 
 class TestDeploymentDisplayOutputs(unittest.TestCase):
     def test_parse_source_URI_options(self):
@@ -1638,10 +1634,6 @@ class TestCeleryTasks(unittest.TestCase):
             }
         }
         db.get_deployment('1234', with_secrets=True).AndReturn(target)
-        self.mox.StubOutWithMock(checkmate.deployments,
-                                 "deployment_operation")
-        checkmate.deployments.deployment_operation('1234', driver=db)\
-            .AndReturn(None)
         expected = {
             'resources': {
                 '0': {

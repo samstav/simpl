@@ -17,7 +17,7 @@ from checkmate.exceptions import (
 )
 from checkmate.providers.rackspace.compute import RackspaceComputeProviderBase
 from checkmate.utils import match_celery_logging, yaml_to_dict
-from checkmate.workflows import wait_for
+from checkmate.workflow import wait_for
 
 LOG = logging.getLogger(__name__)
 # This supports translating airport codes to city names. Checkmate expects to
