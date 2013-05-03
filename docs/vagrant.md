@@ -15,6 +15,18 @@ and [VirtualBox](https://www.virtualbox.org/), then execute these commands:
     $ git clone git://github.rackspace.com/checkmate/checkmate.git
     $ vagrant up
 
+## Upgrade from librarian-chef
+
+If you have used vagrant with checkmate previously, you have likely used `librarian-chef`
+to download cookbooks. Since we are now using `berkshelf` you no longer need the cookbooks
+directory, and need to update the VirtualBox image. To update the image, follow these steps.
+
+    $ vagrant destroy
+    $ vagrant box remove precise virtualbox
+    $ vagrant up
+
+You may also need to remove the directories `vagrant/cookbooks` and `vagrant/tmp`.
+
 ## Working with Vagrant
 
 Once you are in the virtual machine, the checkmate repo is mounted at /vagrant.
