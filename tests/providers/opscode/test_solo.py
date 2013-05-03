@@ -28,7 +28,7 @@ from checkmate.deployments import Deployment, plan
 from checkmate.middleware import RequestContext
 from checkmate.providers import base, register_providers
 from checkmate.providers.opscode import solo, knife
-from checkmate.workflows import create_workflow_deploy
+from checkmate.workflow import create_workflow_deploy
 
 
 class TestChefSoloProvider(test.ProviderTester):
@@ -390,8 +390,8 @@ class TestMySQLMaplessWorkflow(test.StubbedWorkflowBase):
                     'resource': key,
                     })
 
-                # build-essential (now just cook with bootstrap.json)              
-                            
+                # build-essential (now just cook with bootstrap.json)
+
                 expected.append({
                     'call': 'checkmate.providers.opscode.knife.cook',
                     'args': ['4.4.4.1', self.deployment['id'], ContainsKeyValue('index', IgnoreArg())],

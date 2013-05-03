@@ -14,7 +14,7 @@ from checkmate.exceptions import CheckmateException,  CheckmateNoTokenError
 from checkmate.middleware import RequestContext
 from checkmate.providers import ProviderBase
 from checkmate.utils import match_celery_logging
-from checkmate.workflows import wait_for
+from checkmate.workflow import wait_for
 
 LOG = logging.getLogger(__name__)
 

@@ -13,7 +13,7 @@ from checkmate.exceptions import (
 )
 from checkmate.middleware import RequestContext
 from checkmate.providers import ProviderBase
-from checkmate.workflows import wait_for
+from checkmate.workflow import wait_for
 from checkmate.utils import match_celery_logging
 from copy import deepcopy
 from celery.canvas import chain, group

@@ -20,7 +20,7 @@ from checkmate.deployments import resource_postback, Deployment, plan
 from checkmate.middleware import RequestContext
 from checkmate.providers import base, register_providers
 from checkmate.providers.rackspace import loadbalancer
-from checkmate.workflows import create_workflow_deploy
+from checkmate.workflow import create_workflow_deploy
 
 
 class TestLoadBalancer(test.ProviderTester):

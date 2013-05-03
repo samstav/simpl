@@ -30,7 +30,7 @@ from checkmate.providers.base import ProviderBase
 from checkmate.middleware import RequestContext  # also enables logging
 from checkmate.utils import is_ssh_key, get_source_body, merge_dictionary, \
     yaml_to_dict
-from checkmate.workflows import create_workflow_deploy, wait_for
+from checkmate.workflow import create_workflow_deploy, wait_for
 
 # Environment variables and safe alternatives
 ENV_VARS = {

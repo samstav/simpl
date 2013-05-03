@@ -17,7 +17,7 @@ from checkmate.exceptions import (
     CheckmateBadState,
     CheckmateException,
 )
-from checkmate.workflows import (
+from checkmate.workflow import (
     create_workflow_deploy,
     create_workflow_spec_deploy,
 )

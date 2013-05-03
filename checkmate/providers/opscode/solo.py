@@ -22,7 +22,7 @@ from checkmate.inputs import Input
 from checkmate.keys import hash_SHA512
 from checkmate.providers import ProviderBase
 from checkmate.providers.opscode import knife
-from checkmate.workflows import wait_for
+from checkmate.workflow import wait_for
 from checkmate.utils import merge_dictionary  # Spiff version used by transform
 
 LOG = logging.getLogger(__name__)

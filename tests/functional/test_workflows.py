@@ -5,7 +5,7 @@ from SpiffWorkflow import Workflow as SpiffWorkflow
 from SpiffWorkflow.storage import DictionarySerializer
 from SpiffWorkflow.specs import WorkflowSpec, Simple, Merge
 
-from checkmate.workflows import wait_for, Workflow
+from checkmate.workflow import wait_for, Workflow
 
 
 class TestWorkflowTools(unittest.TestCase):
