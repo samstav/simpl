@@ -10,6 +10,7 @@ from SpiffWorkflow.storage import DictionarySerializer
 
 from checkmate import orchestrator
 from checkmate.db import get_driver, any_id_problems
+from checkmate.db.common import ObjectLockedError
 from checkmate.exceptions import (
     CheckmateDoesNotExist,
     CheckmateValidationException,
@@ -279,8 +280,12 @@ def process_post_deployment(deployment, request_context, driver=DB):
     #Assess work to be done & resources to be created
     parsed_deployment = plan(deployment, request_context)
 
-    # Create a 'new deployment' workflow
-    _deploy(parsed_deployment, request_context, driver=driver)
+    try:
+        # Create a 'new deployment' workflow
+        _deploy(parsed_deployment, request_context, driver=driver)
+    except ObjectLockedError:
+        LOG.warn("Object lock collision in process_post_deployment on Deployment %s", deployment.get('id'))
+        resource_postback.retry()
 
     #Trigger the workflow in the queuing service
     async_task = execute(deployment['id'], driver=driver)
@@ -641,7 +646,11 @@ def update_operation(deployment_id, driver=DB, **kwargs):
         deployment = driver.get_deployment(deployment_id)
         if deployment:
             delta = {'operation': dict(kwargs)}
-            driver.save_deployment(deployment_id, delta, partial=True)
+            try:
+                driver.save_deployment(deployment_id, delta, partial=True)
+            except ObjectLockedError:
+                LOG.warn("Object lock collision in update_operation on Deployment %s", deployment_id)
+                update_operation.retry()
 
 
 @task(default_retry_delay=2, max_retries=60)
@@ -672,7 +681,11 @@ def delete_deployment_task(dep_id, driver=DB):
         for key in deletes:
             deployment['resources'].pop(key, None)
 
-    return driver.save_deployment(dep_id, deployment, secrets={})
+    try:
+        return driver.save_deployment(dep_id, deployment, secrets={})
+    except ObjectLockedError:
+        LOG.warn("Object lock collision in delete_deployment_task on Deployment %s", dep_id)
+        delete_deployment_task.retry()
 
 
 @task(default_retry_delay=0.25, max_retries=4)
@@ -777,7 +790,11 @@ def resource_postback(deployment_id, contents, driver=DB):
 
     if updates:
         body, secrets = extract_sensitive_data(updates)
-        driver.save_deployment(deployment_id, body, secrets, partial=True)
+        try:
+            driver.save_deployment(deployment_id, body, secrets, partial=True)
 
-        LOG.debug("Updated deployment %s with post-back", deployment_id,
-                  extra=dict(data=contents))
+            LOG.debug("Updated deployment %s with post-back", deployment_id,
+                      extra=dict(data=contents))
+        except ObjectLockedError:
+            LOG.warn("Object lock collision in resource_postback on Deployment %s", deployment_id)
+            resource_postback.retry()
