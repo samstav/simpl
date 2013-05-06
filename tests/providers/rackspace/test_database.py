@@ -138,9 +138,8 @@ class TestDatabase(ProviderTester):
         #Stub out postback call
         self.mox.StubOutWithMock(resource_postback, 'delay')
 
-        #Create clouddb mock
-        clouddb_api_mock = self.mox.CreateMockAnything()
-        clouddb_api_mock.get_instance(instance.id).AndReturn(instance)
+        database_api_mock = self.mox.CreateMockAnything()
+        database_api_mock.get_instance(instance.id).AndReturn(instance)
 
         #expect resource postback to be called
         resource_postback.delay(context['deployment'], expected)
@@ -161,7 +160,8 @@ class TestDatabase(ProviderTester):
         self.mox.ReplayAll()
 
         self.assertRaises(CheckmateException,
-            database.wait_on_build(context, instance.id, 'NORTH', clouddb_api_mock)
+            database.wait_on_build,
+            context, instance.id, 'NORTH', database_api_mock
         )
         self.mox.UnsetStubs()
         self.mox.VerifyAll()
