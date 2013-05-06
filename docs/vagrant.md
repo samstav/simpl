@@ -13,7 +13,7 @@ and [VirtualBox](https://www.virtualbox.org/), then execute these commands:
     $ gem install berkshelf
     $ vagrant plugin install vagrant-berkshelf
     $ git clone git://github.rackspace.com/checkmate/checkmate.git
-    $ vagrant up
+    $ vagrant up # skip this step if upgrading from librarian-chef
 
 ## Upgrade from librarian-chef
 
