@@ -527,7 +527,6 @@ def wait_on_build(context, instance_id, region, api=None):
     instance = api.get_instance(instance_id)
 
     results = {}
-
     if instance.status == "ERROR":
         results['status'] = "ERROR"
         msg = ("Instance %s build failed" % instance_id)
@@ -535,6 +534,7 @@ def wait_on_build(context, instance_id, region, api=None):
         instance_key = "instance:%s" % context['resource']
         results = {instance_key: results}
         resource_postback.delay(context['deployment'], results)
+ 
         # Delete the database if it failed
         Provider({}).delete_resource_tasks(context, context['deployment'],
                                     get_resource_by_id(context['deployment'],

@@ -1372,7 +1372,7 @@ class TestGetResourceStuff(unittest.TestCase):
 
     def test_happy_resources(self):
         """ When getting the resources should work """
-        checkmate.deployments.DB.get_deployment('1234')\
+        checkmate.deployments.DB.get_deployment('1234', with_secrets=False)\
             .AndReturn(self._deployment)
         self._mox.ReplayAll()
         ret = json.loads(get_deployment_resources('1234',
@@ -1382,7 +1382,7 @@ class TestGetResourceStuff(unittest.TestCase):
 
     def test_happy_status(self):
         """ When getting the resource statuses should work """
-        checkmate.deployments.DB.get_deployment('1234')\
+        checkmate.deployments.DB.get_deployment('1234', with_secrets=False)\
             .AndReturn(self._deployment)
         self._mox.ReplayAll()
         ret = json.loads(get_resources_statuses('1234',
@@ -1398,7 +1398,7 @@ class TestGetResourceStuff(unittest.TestCase):
     def test_no_resources(self):
         """ Test when no resources in deployment """
         del self._deployment['resources']
-        checkmate.deployments.DB.get_deployment('1234')\
+        checkmate.deployments.DB.get_deployment('1234', with_secrets=False)\
             .AndReturn(self._deployment)
         self._mox.ReplayAll()
         try:
@@ -1413,7 +1413,7 @@ class TestGetResourceStuff(unittest.TestCase):
     def test_no_res_status(self):
         """ Test when no resources in deployment """
         del self._deployment['resources']
-        checkmate.deployments.DB.get_deployment('1234')\
+        checkmate.deployments.DB.get_deployment('1234', with_secrets=False)\
             .AndReturn(self._deployment)
         self._mox.ReplayAll()
         try:
@@ -1426,7 +1426,8 @@ class TestGetResourceStuff(unittest.TestCase):
 
     def test_dep_404(self):
         """ Test when deployment not found """
-        checkmate.deployments.DB.get_deployment('1234').AndReturn(None)
+        checkmate.deployments.DB.get_deployment('1234', with_secrets=False)\
+            .AndReturn(None)
         self._mox.ReplayAll()
         try:
             get_deployment_resources('1234', driver=checkmate.deployments.DB)
@@ -1437,7 +1438,8 @@ class TestGetResourceStuff(unittest.TestCase):
 
     def test_dep_404_status(self):
         """ Test when deployment not found """
-        checkmate.deployments.DB.get_deployment('1234').AndReturn(None)
+        checkmate.deployments.DB.get_deployment('1234', with_secrets=False)\
+            .AndReturn(None)
         self._mox.ReplayAll()
         try:
             get_resources_statuses('1234', driver=checkmate.deployments.DB)
@@ -1448,7 +1450,7 @@ class TestGetResourceStuff(unittest.TestCase):
 
     def test_status_trace(self):
         """ Make sure trace is included if query param present """
-        checkmate.deployments.DB.get_deployment('1234')\
+        checkmate.deployments.DB.get_deployment('1234', with_secrets=False)\
             .AndReturn(self._deployment)
         self._mox.ReplayAll()
         bottle.request.environ['QUERY_STRING'] = "?trace"
