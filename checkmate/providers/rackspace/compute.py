@@ -12,7 +12,8 @@ from novaclient.v1_1 import client
 from SpiffWorkflow.operators import PathAttrib
 from SpiffWorkflow.specs import Celery
 
-from checkmate.deployments import resource_postback, alt_resource_postback
+from checkmate.deployments import (resource_postback, alt_resource_postback,
+                                   get_resource_by_id)
 from checkmate.exceptions import (
     CheckmateNoTokenError,
     CheckmateNoMapping,
@@ -270,18 +271,24 @@ class Provider(RackspaceComputeProviderBase):
                     create=create_server_task)
 
     def delete_resource_tasks(self, context, deployment_id, resource, key):
-        assert isinstance(context, RequestContext)
         self._verify_existing_resource(resource, key)
         inst_id = resource.get("instance", {}).get("id")
         region = resource.get("region")
-        ctx = context.get_queued_task_dict(deployment_id=deployment_id,
+        if isinstance(context, RequestContext):
+            context = context.get_queued_task_dict(deployment_id=deployment_id,
                                            resource_key=key,
                                            resource=resource,
                                            region=region,
                                            instance_id=inst_id)
-        return chain(delete_server_task.s(ctx),
+        else:
+            context['deployment_id'] = deployment_id
+            context['resource_key'] = key
+            context['resource'] = resource
+            context['region'] = region
+            context['instance_id'] = inst_id
+        return chain(delete_server_task.s(context),
                      alt_resource_postback.s(deployment_id),
-                     wait_on_delete_server.si(ctx),
+                     wait_on_delete_server.si(context),
                      alt_resource_postback.s(deployment_id))
 
     def get_catalog(self, context, type_filter=None):
@@ -583,7 +590,6 @@ def delete_server_task(context, api=None):
     assert "region" in context, "No region provided"
     assert "instance_id" in context, "No server id provided"
     assert 'resource' in context, "No resource definition provided"
-
     def on_failure(exc, task_id, args, kwargs, einfo):
         """ Handle task failure """
         dep_id = args[0].get('deployment_id')
@@ -620,7 +626,7 @@ def delete_server_task(context, api=None):
                 ret.update({'instance:%s' % comp_key: {'status': 'DELETED',
                             'statusmsg': 'Host %s was deleted.' % key}})
         return ret
-    if server.status == "ACTIVE":
+    if server.status == "ACTIVE" or server.status == "ERROR":
         ret = {}
         ret.update({inst_key: {"status": "DELETING",
                            "statusmsg": "Waiting on resource deletion"}})
@@ -771,6 +777,11 @@ def wait_on_build(context, server_id, region, resource, ip_address_type='public'
         results['errmessage'] = "Server %s build failed" % server_id
         results = {instance_key: results}
         resource_postback.delay(context['deployment'], results)
+        Provider({}).delete_resource_tasks(context, 
+                                    context['deployment'],
+                                    get_resource_by_id(context['deployment'],
+                                                        context['resource']), 
+                                    instance_key).apply_async()
         raise CheckmateServerBuildFailed("Server %s build failed" % server_id)
 
     if server.status == 'BUILD':

@@ -9,7 +9,11 @@ from clouddb.errors import ResponseError
 from SpiffWorkflow.operators import PathAttrib
 from SpiffWorkflow.specs import Celery
 
-from checkmate.deployments import resource_postback, alt_resource_postback
+from checkmate.deployments import (
+    resource_postback, 
+    alt_resource_postback,
+    get_resource_by_id
+)
 from checkmate.exceptions import CheckmateException,  CheckmateNoTokenError
 from checkmate.middleware import RequestContext
 from checkmate.providers import ProviderBase
@@ -229,19 +233,25 @@ class Provider(ProviderBase):
                                                       self.key))
 
     def delete_resource_tasks(self, context, deployment_id, resource, key):
-        assert isinstance(context, RequestContext)
         self._verify_existing_resource(resource, key)
         region = resource.get('region') or \
             resource.get('instance', {}).get('host_region')
-        ctx = context.get_queued_task_dict(deployment_id=deployment_id,
+        if isinstance(context, RequestContext):
+            context = context.get_queued_task_dict(deployment_id=deployment_id,
                                            resource_key=key,
                                            resource=resource,
                                            region=region)
+        else:
+            context['deployment_id'] = deployment_id
+            context['resource_key'] = key
+            context['resource'] = resource
+            context['region'] = region
+
         if resource.get('type') == 'compute':
-            return self._delete_comp_res_tasks(ctx, deployment_id,
+            return self._delete_comp_res_tasks(context, deployment_id,
                                                resource, key)
         if resource.get('type') == 'database':
-            return self._delete_db_res_tasks(ctx, deployment_id, resource,
+            return self._delete_db_res_tasks(context, deployment_id, resource,
                                              key)
         raise CheckmateException("Cannot provide delete tasks for resource %s:"
                                  " Invalid resource type '%s'"
@@ -517,7 +527,6 @@ def wait_on_build(context, instance_id, region, api=None):
     instance = api.get_instance(instance_id)
 
     results = {}
-
     if instance.status == "ERROR":
         results['status'] = "ERROR"
         msg = ("Instance %s build failed" % instance_id)
@@ -525,6 +534,12 @@ def wait_on_build(context, instance_id, region, api=None):
         instance_key = "instance:%s" % context['resource']
         results = {instance_key: results}
         resource_postback.delay(context['deployment'], results)
+ 
+        # Delete the database if it failed
+        Provider({}).delete_resource_tasks(context, context['deployment'],
+                                    get_resource_by_id(context['deployment'],
+                                                        context['resource']), 
+                                    instance_key).apply_async()
         raise CheckmateException(msg)
     elif instance.status == "ACTIVE":
         results['status'] = "ACTIVE"
