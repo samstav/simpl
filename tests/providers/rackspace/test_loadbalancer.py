@@ -88,9 +88,6 @@ class TestCeleryTasks(unittest.TestCase):
                                       virtualIps=[IsA(cloudlb.VirtualIP)],
                                       algorithm='ROUND_ROBIN').AndReturn(lb)
 
-        loadbalancer.set_monitor.delay(context, fake_id, protocol.upper(),
-                                       region, '/', 10, 10, 3, '(.*)',
-                                       '^[234][0-9][0-9]$').AndReturn(None)
         expected = {
             'instance:%s' % context['resource']: {
                 'id': fake_id,
@@ -117,7 +114,7 @@ class TestCeleryTasks(unittest.TestCase):
                                                    api=api_mock)
 
         self.assertDictEqual(results, expected)
-        #self.mox.VerifyAll()
+        self.mox.VerifyAll()
 
     def test_delete_lb_task(self):
         """ Test delete task """
