@@ -80,11 +80,11 @@ Example::
 
 - Multi-line imports should use parentheses, one indentation, and extra commas.
 
-  from my.library import (
-      mod_1,
-      mod_2,
-      mod_3,
-  )
+    from my.library import (
+        mod_1,
+        mod_2,
+        mod_3,
+    )
 
 
 Human Alphabetical Order Examples
