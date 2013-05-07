@@ -53,7 +53,7 @@ Syntax (two options, long an short form):
             - 'os': ['debian', 'redhat']
 The name+key/value syntax allows for requiring more than one of the same resource (ex. log and data mysql databases) as well as adding additional constraints, etc....
 
-provides: array of resource_type:interface entries (array can be represented in YAML with entries preceded with dashes). For example, let's say we get a CLoud Sites API that provides a "site" resource. Site could provide:
+provides: array of resource_type:interface entries (array can be represented in YAML with entries preceded with dashes). For example, let's say we get a Cloud Sites API that provides a "site" resource. Site could provide:
 - database: mysql
 - application: php
 
@@ -119,7 +119,7 @@ name: user friendliness
 version: string, determined by the author.
 description: ...
 services: like tiers, but not restricted to the concept of tiers. Currently, there is one component defined per service.
-  name -  arbitrary, determined by blueprint author. Exmplae:
+  name -  arbitrary, determined by blueprint author. Example:
   "my_wordpress_thang":
     either id or key/value pairs to help find a suitable component.
     Example of ID short form: wordpress
