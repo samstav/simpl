@@ -100,7 +100,14 @@ class TestCeleryTasks(unittest.TestCase):
                 'status': status
             }
         }
+        instance_id = {
+            'instance:%s' % context['resource']: {
+                'id': fake_id
+            }
+        }
 
+        resource_postback.delay(context['deployment'],
+                                instance_id).AndReturn(True)
         resource_postback.delay(context['deployment'],
                                 expected).AndReturn(True)
 
