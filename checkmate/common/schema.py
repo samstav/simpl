@@ -220,12 +220,6 @@ DEPLOYMENT_STATUSES = {
             {'name': 'delete', 'dst': 'DELETED'},
         ],
     },
-    'ERROR': {
-        'description': "Planning or building is in error",
-        'events': [
-            {'name': 'delete', 'dst': 'DELETED'},
-        ],
-    },
     'ALERT': {
         'description': "Attention required",
         'events': [

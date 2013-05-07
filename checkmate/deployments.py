@@ -778,7 +778,6 @@ def resource_postback(deployment_id, contents, driver=DB):
                 r_msg = value.get('errmessage')
                 write_path(updates, 'resources/%s/errmessage' % r_id, r_msg)
                 value.pop('errmessage', None)
-                updates['status'] = "ERROR"
                 updates['errmessage'] = deployment.get('errmessage', [])
                 if r_msg not in updates['errmessage']:
                     updates['errmessage'].append(r_msg)
