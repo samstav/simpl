@@ -474,7 +474,7 @@ def create_instance(context, instance_name, flavor, size, databases, region,
                                    databases=databases)
     instance_id = {
         'instance:%s' % context['resource']: {
-            'id': "DBS%s" % instance.id
+            'id': instance.id
         }
     }
     resource_postback.delay(context['deployment'], instance_id)
