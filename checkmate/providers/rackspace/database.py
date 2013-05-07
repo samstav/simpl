@@ -20,7 +20,6 @@ from checkmate.providers import ProviderBase
 from checkmate.utils import match_celery_logging
 from checkmate.workflow import wait_for
 from checkmate.workflows import wait_for
-from checkmate import deployments
 
 LOG = logging.getLogger(__name__)
 
@@ -502,7 +501,7 @@ def create_instance(context, instance_name, flavor, size, databases, region,
 
     # Send data back to deployment.  Call synchronously to make sure
     # the instance id is available to the delete method
-    deployments.resource_postback(context['deployment'], results)
+    resource_postback(context['deployment'], results)
     return results
 
 
