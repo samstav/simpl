@@ -15,7 +15,7 @@ from checkmate.deployments import Deployment, resource_postback
 from checkmate.providers import base, register_providers
 from checkmate.providers.rackspace import database
 from checkmate.test import StubbedWorkflowBase, ProviderTester
-from checkmate import utils, deployments
+from checkmate import utils
 
 from celery.task import task
 
@@ -34,8 +34,11 @@ class TestDatabase(ProviderTester):
         instance.status = 'BUILD'
         instance.hostname = 'fake.cloud.local'
 
+        #Stub out postback call
+        self.mox.StubOutWithMock(resource_postback, 'delay')
+
+        #Stub out wiat_on_build
         self.mox.StubOutWithMock(database.wait_on_build, 'delay')
-        self.mox.StubOutWithMock(deployments, 'resource_postback')
 
         #Create clouddb mock
         clouddb_api_mock = self.mox.CreateMockAnything()
@@ -71,8 +74,8 @@ class TestDatabase(ProviderTester):
         }
 
         context = dict(deployment='DEP', resource='1')
-        deployments.resource_postback(context['deployment'], expected)\
-            .AndReturn(True)
+        resource_postback.delay(context['deployment'], expected).AndReturn(
+            True)
 
         self.mox.ReplayAll()
         results = database.create_instance(context, instance.name, 1, 1,
