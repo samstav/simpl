@@ -55,8 +55,8 @@ class ProviderBaseWorkflowMixIn():
                 'root': the root task in the sequence
                 'final': the task that signifies readiness (work is done)
         """
-        LOG.debug("{0}.{1}.prep_environment called, "
-                  "but was not implemented".format(self.vendor, self.name))
+        LOG.debug("%s.%s.prep_environment called, but was not implemented",
+                  self.vendor, self.name)
 
     # pylint: disable=W0613
     def add_resource_tasks(self, resource, key, wfspec, deployment,
@@ -74,21 +74,21 @@ class ProviderBaseWorkflowMixIn():
               role of the task (ex. final, root, etc). This allows for other
               providers top look this task up and connect to it if needed
         """
-        LOG.debug("{0}.{1}.add_resource_tasks called, "
-                  "but was not implemented".format(self.vendor, self.name))
+        LOG.debug("%s.%s.add_resource_tasks called, but was not implemented",
+                  self.vendor, self.name)
 
     # pylint: disable=W0613
     def delete_resource_tasks(self, context, deployment_id, resource, key):
         """Return a celery task/canvas for deleting the resource"""
-        LOG.debug("{0}.{1}.delete_resource_tasks called, "
-                  "but was not implemented".format(self.vendor, self.name))
+        LOG.debug("%s.%s.delete_resource_tasks called, "
+                  "but was not implemented", self.vendor, self.name)
 
     def sync_resource_status(self, request_context,
                              deployment_id, resource, key):
         """ Update the status of the supplied resource based on the
         actual deployed item """
-        LOG.debug("{0}.{1}.sync_resource_status called, "
-                  "but was not implemented".format(self.vendor, self.name))
+        LOG.debug("%s.%s.sync_resource_status called, "
+                  "but was not implemented", self.vendor, self.name)
 
     def _add_resource_tasks_helper(self, resource, key, wfspec, deployment,
                                    context, wait_on):
@@ -135,8 +135,8 @@ class ProviderBaseWorkflowMixIn():
               role of the task (ex. final, root, etc). This allows for other
               providers top look this task up and connect to it if needed
         """
-        LOG.debug("{0}.{1}.add_connection_tasks called, "
-                  "but was not implemented".format(self.vendor, self.name))
+        LOG.debug("%s.%s.add_connection_tasks called, "
+                  "but was not implemented", self.vendor, self.name)
 
     def find_tasks(self, wfspec, **kwargs):
         """Find tasks in the workflow with matching properties.
@@ -177,9 +177,8 @@ class ProviderBaseWorkflowMixIn():
             if match:
                 tasks.append(task)
         if not tasks:
-            LOG.debug("No tasks found in find_tasks for {0}".format(', '.join(
-                      ['%s=%s' % (k, v)
-                       for k, v in kwargs.iteritems() or {}])))
+            LOG.debug("No tasks found in find_tasks for %s", ', '.join(
+                      ['%s=%s' % (k, v) for k, v in kwargs.iteritems() or {}]))
         return tasks
 
     def get_host_ready_tasks(self, resource, wfspec, deployment):
@@ -285,7 +284,7 @@ class ProviderBase(ProviderBasePlanningMixIn, ProviderBaseWorkflowMixIn):
         self.key = key or "%s.%s" % (self.vendor, self.name)
         if 'vendor' in provider and provider['vendor'] != self.vendor:
             LOG.debug("Vendor value being overwridden "
-                      "for {0} to {1}".format(self.key, provider['vendor']))
+                      "for %s to %s", self.key, provider['vendor'])
         if provider:
             has_valid_data = False
             for k in provider.keys():
@@ -370,9 +369,8 @@ class ProviderBase(ProviderBasePlanningMixIn, ProviderBaseWorkflowMixIn):
         """Get component by ID. Default implementation gets full catalog and
         searches for ID. Override with a more efficient implementation in your
         provider code."""
-        LOG.debug("Default get_component implementation being "
-                  "used for '{0}'. Override with more efficient "
-                  "implementation.".format(self.key))
+        LOG.debug("Default get_component implementation being used for '%s'. "
+                  "Override with more efficient implementation.", self.key)
         catalog = self.get_catalog(context)
         for key, value in catalog.iteritems():
             if key == 'lists':
@@ -398,7 +396,7 @@ class ProviderBase(ProviderBasePlanningMixIn, ProviderBaseWorkflowMixIn):
         kwargs.pop('version', None)      # noise reduction
         kwargs.pop('constraints', None)  # noise reduction
         if kwargs:
-            LOG.debug("Extra kwargs: {0}".format(kwargs))
+            LOG.debug("Extra kwargs: %s", kwargs)
 
         # if id specified, use it
 
@@ -418,39 +416,36 @@ class ProviderBase(ProviderBasePlanningMixIn, ProviderBaseWorkflowMixIn):
                     match = True
                     break
                 if not match and interface:
-                    LOG.debug("Found component by id '{0}', but type '{1}' "
-                              "and interface '{2}' did not match"
-                              .format(component_id, resource_type or '*',
-                                      interface or '*'))
+                    LOG.debug("Found component by id '%s', but type '%s' "
+                              "and interface '%s' did not match",
+                              component_id, resource_type or '*',
+                                      interface or '*')
                     return []
                 # if no interface, check type at least matches 'is'
                 if not match:
                     if resource_type and resource_type != component.get('is'):
-                        LOG.debug("Found component by id '{0}', but type '{1}'"
-                                  "did not match"
-                                  .format(component_id, resource_type))
+                        LOG.debug("Found component by id '%s', but type '%s'"
+                                  "did not match", component_id, resource_type)
                         return []
                 # Check role if it exists
                 if role and role not in component.get('roles', []):
-                    LOG.debug("Found component by id '{0}', but role '{1}'"
-                              "did not match".format(component_id, role))
+                    LOG.debug("Found component by id '%s', but role '%s'"
+                              "did not match", component_id, role)
                     return []
 
-                LOG.debug("Found component by id: {0}".format(component_id))
+                LOG.debug("Found component by id: %s", component_id)
                 return [component]
             else:
-                LOG.debug("No match for component id: {0}"
-                          .format(component_id))
+                LOG.debug("No match for component id: %s", component_id)
                 return []
 
         # use type, interface to find a component (and check the role)
 
-        LOG.debug("Searching for component {0}:{1} in provider '{2}'".format(
-                  resource_type or '*', interface or '*', self.key))
+        LOG.debug("Searching for component %s:%s in provider '%s'",
+                  resource_type or '*', interface or '*', self.key)
         catalog = self.get_catalog(context)
         if not catalog:
-            LOG.debug("No catalog available for provider: '{0}'"
-                      .format(self.key))
+            LOG.debug("No catalog available for provider: '%s'", self.key)
             return []
         matches = []
         # Loop through catalog
@@ -471,8 +466,8 @@ class ProviderBase(ProviderBasePlanningMixIn, ProviderBaseWorkflowMixIn):
                         continue  # Interface specified and does not match
                     if resource_type and resource_type != ptype:
                         continue  # Type specified and does not match
-                    LOG.debug("'{0}' matches in provider '{1}' and "
-                              "provides {2}".format(id, self.key, provides))
+                    LOG.debug("'%s' matches in provider '%s' and provides %s",
+                              id, self.key, provides)
                     matches.append(Component(component, id=id, provider=self))
 
         return matches
@@ -515,8 +510,8 @@ class ProviderBase(ProviderBasePlanningMixIn, ProviderBaseWorkflowMixIn):
                                      unit)
         else:
             result = int(number)
-        LOG.debug("Parsed '{0}' as '{1} {2}', and "
-                  "returned {3} megabyte".format(text, number, unit, result))
+        LOG.debug("Parsed '%s' as '%s %s', and returned %s megabyte",
+                  text, number, unit, result)
         return result
 
     def get_setting(self, name, default=None):
@@ -556,8 +551,8 @@ def get_provider_class(vendor, key):
         return PROVIDER_CLASSES[name]
     # Attempt instantiation by name
     class_name = "checkmate.providers.%s" % name.replace('-', '_')
-    LOG.debug("Instantiating unregistered "
-              "provider class: {0}".format(class_name))
+    LOG.debug("Instantiating unregistered provider class: %s",
+              class_name)
     try:
         klass = utils.import_class(class_name)
         if klass:
