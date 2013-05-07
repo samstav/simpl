@@ -648,9 +648,7 @@ def create_loadbalancer(context, name, vip_type, protocol, region, api=None,
             'id': loadbalancer.id
         }
     }
-    # Call synchronously to make sure the instance id is available to
-    # the delete method
-    resource_postback(context['deployment'], instance_id)
+    resource_postback.delay(context['deployment'], instance_id)
 
     # update our assigned vip
     for ip_data in loadbalancer.virtualIps:
