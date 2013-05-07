@@ -6,7 +6,7 @@ import copy
 import logging
 import os
 
-from celery.canvas import chain, group
+from celery.canvas import chain
 from celery.task import task
 from novaclient.exceptions import NotFound, NoUniqueMatch
 from novaclient.v1_1 import client
@@ -21,11 +21,13 @@ from checkmate.exceptions import (
     CheckmateServerBuildFailed,
     CheckmateException,
 )
-from checkmate.middleware import RequestContext
 from checkmate.providers import ProviderBase
 import checkmate.rdp
 import checkmate.ssh
 from checkmate.utils import match_celery_logging, isUUID, yaml_to_dict
+import time
+import eventlet
+from checkmate.middleware import RequestContext
 from checkmate.workflow import wait_for
 
 
@@ -291,7 +293,35 @@ class Provider(RackspaceComputeProviderBase):
                      wait_on_delete_server.si(context),
                      alt_resource_postback.s(deployment_id))
 
-    __res__ = {}
+    __api_cache__ = {}
+    
+    def _get_api_info(self, context):
+        if context:
+            api = Provider._connect(context)
+            uri = api.client.management_url
+            if uri in Provider.__api_cache__:
+                vals = Provider.__api_cache__.get(uri, {})
+                tnow = int(time.time())
+                tthen = vals.get('saved', 0)
+                if (tnow - tthen) < 3600:
+                    return vals.get('values', {})
+            new_vals = self._refresh_api_info(context)
+            Provider.__api_cache__[uri] = {
+                'saved': int(time.time()),
+                'values': new_vals
+            }
+            return new_vals
+        return {}
+    
+    def _refresh_api_info(self, context):
+        jobs = eventlet.GreenPile(2)
+        jobs.spawn(_get_flavors, Provider._connect(context))
+        jobs.spawn(_get_images_and_types, Provider._connect(context))
+        vals = {}
+        for ret in jobs:
+            vals.update(ret)
+        return vals
+
 
     def get_catalog(self, context, type_filter=None):
         """Return stored/override catalog if it exists, else connect, build,
@@ -306,15 +336,11 @@ class Provider(RackspaceComputeProviderBase):
 
         # build a live catalog this would be the on_get_catalog called if no
         # stored/override existed
-        api = self._connect(context)
-        tasks = None
         images = None
         flavors = None
         types = None
 
-        if api.client.management_url not in Provider.__res__:
-            tasks = group(_get_images_and_types.s(api),
-                      _get_flavors.s(api))()
+        vals = self._get_api_info(context)
 
         if type_filter is None or type_filter == 'regions':
             regions = {}
@@ -328,10 +354,7 @@ class Provider(RackspaceComputeProviderBase):
                 results['lists'] = {}
             results['lists']['regions'] = regions
 
-        if tasks:
-            Provider.__res__[api.client.management_url] = tasks.get()
-
-        for res in Provider.__res__.get(api.client.management_url):
+        for res in vals:
             if 'flavors' in res:
                 flavors = res.get('flavors')
             if 'types' in res:
@@ -379,45 +402,6 @@ class Provider(RackspaceComputeProviderBase):
             self._dict['catalog'] = results
         return results
 
-#     @classmethod
-#     def _images(cls, api):
-#         """Gets current tenant's images and formats them in Checkmate format"""
-#         if api.client.management_url not in cls._images_:
-#             images = api.images.list()
-#             results = {}
-#             for i in images:
-#                 if 'LAMP' in i.name:
-#                     continue
-#                 image = {
-#                         'name': i.name,
-#                         'os': i.name.split(' LTS ')[0].split(' (')[0]
-#                         }
-#                 #FIXME: hack to make our blueprints work with Private OpenStack
-#                 if 'precise' in image['os']:
-#                     image['os'] = 'Ubuntu 12.04'
-#                 results[str(i.id)] = image
-#             cls._images_[api.client.management_url] = results
-#         return cls._images_.get(api.client.management_url)
-# 
-#     _flavors_ = {}
-# 
-#     @classmethod
-#     def _flavors(cls, api):
-#         """
-# 
-#         Gets current tenant's flavors and formats them in Checkmate format
-# 
-#         """
-#         if api.client.management_url not in cls._flavors_:
-#             flavors = api.flavors.list()
-#             results = {
-#                     str(f.id): {
-#                         'name': f.name,
-#                         'memory': f.ram,
-#                         'disk': f.disk,
-#                         } for f in flavors}
-#             cls._flavors_[api.client.management_url] = results
-#         return cls._flavors_.get(api.client.management_url)
 
     @staticmethod
     def _connect(context, region=None):
@@ -497,7 +481,6 @@ def _get_images_and_types(api):
     return ret
 
 
-@task
 def _get_flavors(api):
     flavors = api.flavors.list()
     return {'flavors': {

@@ -3,6 +3,7 @@ import logging
 from checkmate.component import Component
 from checkmate.exceptions import CheckmateException
 from checkmate.providers import get_provider_class
+import eventlet
 
 LOG = logging.getLogger(__name__)
 
@@ -30,29 +31,15 @@ class Environment():
     def get_providers(self, context):
         """ Returns provider class instances for this environment """
         if not self.providers:
+            self.providers = {}
             providers = self.dict.get('providers') or {}
-            if providers:
-                common = providers.get('common', {})
-            else:
+            if not providers:
                 LOG.debug("Environment does not have providers")
-
-            results = {}
-            for key, provider in providers.iteritems():
-                if key == 'common':
-                    continue
-                if provider is None:
-                    provider = {}
-                vendor = provider.get('vendor', common.get('vendor', None))
-                if not vendor:
-                    raise CheckmateException("No vendor specified for '%s'" %
-                                             key)
-                provider_class = get_provider_class(vendor, key)
-                results[key] = provider_class(provider, key=key)
-                LOG.debug("'%s' provides %s" % (key,
-                          ', '.join('%s:%s' % e.items()[0] for e
-                          in results[key].provides(context))))
-
-            self.providers = results
+            else:
+                pool = eventlet.GreenPool()
+                for prov in pool.imap(self.get_provider,
+                            [k for k in providers.keys() if k != 'common']):
+                    self.providers.update({prov.key: prov})
         return self.providers
 
     def get_provider(self, key):

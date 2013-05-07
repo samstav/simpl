@@ -349,17 +349,9 @@ def update_deployment(oid, tenant_id=None, driver=DB):
     return write_body(results, request, response)
 
 
-@route('/deployments/planresources', method=['POST'])
-@with_tenant
-def plan_deployment_resources(tenant_id=None):
-    deployment = _content_to_deployment(request, tenant_id=tenant_id)
-    if deployment:
-        return write_body(plan(deployment, request.context, simple=True), request, response)
-
-
 @route('/deployments/<oid>/+plan', method=['POST', 'GET'])
 @with_tenant
-def  plan_deployment(oid, tenant_id=None, driver=DB):
+def plan_deployment(oid, tenant_id=None, driver=DB):
     """Plan a NEW deployment and save it as PLANNED"""
     if is_simulation(oid):
         driver = SIMULATOR_DB
@@ -373,7 +365,7 @@ def  plan_deployment(oid, tenant_id=None, driver=DB):
                                 "be in 'NEW' to be planned" %
                                 (oid, entity.get('status')))
     deployment = Deployment(entity)  # Also validates syntax
-    planned_deployment = plan(deployment, request.context, simple='simple' in request.query_string())
+    planned_deployment = plan(deployment, request.context)
     results = _save_deployment(planned_deployment, deployment_id=oid,
                                tenant_id=tenant_id, driver=driver)
     return write_body(results, request, response)
@@ -625,7 +617,7 @@ def execute(oid, timeout=180, tenant_id=None, driver=DB):
     return result
 
 
-def plan(deployment, context, simple=False):
+def plan(deployment, context):
     """Process a new checkmate deployment and plan for execution.
 
     This creates templates for resources and connections that will be used for
@@ -637,9 +629,9 @@ def plan(deployment, context, simple=False):
     assert context.__class__.__name__ == 'RequestContext'
     assert deployment.get('status') == 'NEW'
     assert isinstance(deployment, Deployment)
-#     if "chef-local" in deployment.environment().get_providers(context):
-#         abort(406, "Provider 'chef-local' deprecated. Use 'chef-solo' "
-#               "instead.")
+    if "chef-local" in deployment.environment().get_providers(context):
+        abort(406, "Provider 'chef-local' deprecated. Use 'chef-solo' "
+              "instead.")
 
     # Analyze Deployment and Create plan
     planner = Plan(deployment)

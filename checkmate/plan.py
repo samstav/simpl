@@ -75,7 +75,7 @@ class Plan(ExtensibleDict):
         self.environment = self.deployment.environment()
         if not self.environment:
             raise CheckmateValidationException("Environment not found. "
-                                                "Nowhere to deploy to.")
+                                               "Nowhere to deploy to.")
 
         # Quick validations
         verify_required_blueprint_options_supplied(deployment)
