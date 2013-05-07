@@ -5,9 +5,11 @@ import checkmate
 from checkmate import utils
 from checkmate.common import schema
 from checkmate.component import Component
-from checkmate.exceptions import (CheckmateException,
-                                  CheckmateNoMapping,
-                                  CheckmateValidationException)
+from checkmate.exceptions import (
+    CheckmateException,
+    CheckmateNoMapping,
+    CheckmateValidationException
+)
 
 LOG = logging.getLogger(__name__)
 PROVIDER_CLASSES = {}
@@ -419,7 +421,7 @@ class ProviderBase(ProviderBasePlanningMixIn, ProviderBaseWorkflowMixIn):
                     LOG.debug("Found component by id '%s', but type '%s' "
                               "and interface '%s' did not match",
                               component_id, resource_type or '*',
-                                      interface or '*')
+                              interface or '*')
                     return []
                 # if no interface, check type at least matches 'is'
                 if not match:
