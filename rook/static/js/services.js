@@ -576,7 +576,7 @@ services.value('options', {
     }
 
     return target;
-}
+  }
 });
 
 // Captures HTTP requests and responses (including errors)

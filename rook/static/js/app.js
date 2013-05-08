@@ -20,10 +20,6 @@ checkmate.config(['$routeProvider', '$locationProvider', '$httpProvider', functi
   when('/readme', {
     templateUrl: '/partials/readme.html',
     controller: StaticController
-  }).
-  when('/ui/build', {
-    template: '<calculator/>',
-    controller: StaticController
   });
 
   // New UI - static pages
@@ -1328,7 +1324,6 @@ function WorkflowController($scope, $resource, $http, $routeParams, $location, $
       }
      });
   };
-
 }
 
 //Blueprint controllers
@@ -1506,7 +1501,6 @@ function BlueprintRemoteListController($scope, $location, $routeParams, $resourc
   });
 
   $('#spec_list').css('top', $('.summaryHeader').outerHeight());
-
 }
 
 /*
@@ -1733,7 +1727,6 @@ function DeploymentManagedCloudController($scope, $location, $routeParams, $reso
   $scope.loadRemoteBlueprint('https://github.rackspace.com/Blueprints/wordpress-clouddb');
 
   $('#mcspec_list').css('top', $('.summaryHeader').outerHeight()); // Not sure if this is the right place for this. -Chris.Burrell (chri5089)
-
 }
 
 //Select one remote blueprint
@@ -2149,7 +2142,6 @@ function DeploymentController($scope, $location, $resource, $routeParams) {
   $scope.load();
 }
 
-
 /*
  * Admin controllers
  */
@@ -2191,7 +2183,6 @@ function FeedbackListController($scope, $location, $resource, items, scroll) {
   //Setup
   $scope.load();
 }
-
 
 /*
  * Provider controllers
