@@ -225,9 +225,15 @@ class TokenAuthMiddleware(object):
         self.anonymous_paths = anonymous_paths or []
         self.auth_header = 'Keystone uri="%s"' % endpoint['uri']
         if 'kwargs' in endpoint and 'realm' in endpoint['kwargs']:
-            self.auth_header = str('Keystone uri="%s" realm="%s"' % (
-                                   endpoint['uri'],
-                                   endpoint['kwargs']['realm']))
+            # Safer for many browsers if realm is first
+            params = [
+                ('realm', endpoint['kwargs']['realm'])
+            ]
+            params.extend([(k, v) for k, v in endpoint['kwargs'].items()
+                           if k not in ['realm', 'protocol']])
+            extras = ', '.join(['%s="%s"' % (k, v) for (k, v) in params])
+            self.auth_header = str('Keystone uri="%s" %s' % (
+                                   endpoint['uri'], extras))
 
     def __call__(self, environ, start_response):
         """Authenticate calls with X-Auth-Token to the source auth service"""

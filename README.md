@@ -437,26 +437,34 @@ The following environment variables can be set to configure checkmate:
 
 **BERKSHELF_PATH**: the directory that will be used for Berkshelf's centralized cookbooks repository.  This directory is effectively a cookbook cache for any blueprint that uses Berkshelf (has a Berksfile file).  Using Berkshelf makes a blueprint more fault-tolerant (less reliant on the git hosts being up).
 
-**CHECKMATE_AUTH_ENDPOINTS**: a json string representation of a list of auth endpoints to support. The uri and middleware keys are required. A sample is:
+**CHECKMATE_AUTH_ENDPOINTS**: a json string representation of a list of auth endpoints to support. The uri and middleware keys are required. Any additional arguments added in the `kwargs` section will be appended to the HTTP headers. A sample is:
 
 ```
                 [{
                     'middleware': 'checkmate.middleware.TokenAuthMiddleware',
-                    'default': True,
+                    'default': true,
                     'uri': 'https://identity.api.rackspacecloud.com/v2.0/tokens',
                     'kwargs': {
                             'protocol': 'Keystone',
                             'realm': 'US Cloud',
-                        },
+                            'priority': '1'
+                        }
                 }, {
                     'middleware': 'checkmate.middleware.TokenAuthMiddleware',
                     'uri': 'https://lon.identity.api.rackspacecloud.com/v2.0/tokens',
                     'kwargs': {
                             'protocol': 'Keystone',
-                            'realm': 'UK Cloud',
-                        },
+                            'realm': 'UK Cloud'
+                        }
                 }]
 ```
+
+This will produce these headers:
+
+> HTTP/1.0 200 OK
+> WWW-Authenticate: Keystone uri="https://identity.api.rackspacecloud.com/v2.0/tokens" realm="US Cloud", priority="1"
+> WWW-Authenticate: Keystone uri="https://lon.identity.api.rackspacecloud.com/v2.0/tokens" realm="UK Cloud"
+
 
 **CHECKMATE_CONNECTION_STRING**: a sql-alchemy or mongodb connection string pointing to the database store for checkmate. Examples:
 
