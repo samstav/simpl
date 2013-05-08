@@ -374,3 +374,25 @@ body {
     text-decoration: inherit;
     color: inherit;
 }
+
+#deployment_progress {
+  position: relative;
+  margin-right: 10px;
+  margin-bottom: 0px;
+  width: 300px;
+  float: left;
+}
+#deployment_progress .bar {
+  position: absolute;
+}
+#deployment_progress .bar.background {
+  width: 100%;
+  background-color: #AAA;
+}
+#deployment_progress span {
+  position: absolute;
+  text-align: center;
+  width: 100%;
+  color: #FFF;
+  font-size: 12px;
+}
