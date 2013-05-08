@@ -35,9 +35,9 @@ from bottle import abort
 
 LOG = logging.getLogger(__name__)
 DB = get_driver()
-SIMULATOR_DB = get_driver(
-    connection_string=os.environ.get('CHECKMATE_SIMULATOR_CONNECTION_STRING',
-                                     'sqlite://'))
+SIMULATOR_DB = get_driver(connection_string=os.environ.get(
+    'CHECKMATE_SIMULATOR_CONNECTION_STRING',
+    os.environ.get('CHECKMATE_CONNECTION_STRING', 'sqlite://')))
 
 
 def verify_required_blueprint_options_supplied(deployment):
