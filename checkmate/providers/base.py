@@ -255,9 +255,8 @@ class ProviderBasePlanningMixIn():
 
         result['dns-name'] = name
 
-        context.kwargs["metadata"] = {"RAX-CHKMT": "1 {}-{} {} {}".format(
-            checkmate.__version__, checkmate.__release__,
-            deployment["id"], platform.node())}
+        context.kwargs["metadata"] = {"RAX-CHECKMATE": "{}".format(
+            platform.node())}
         return result
 
 
