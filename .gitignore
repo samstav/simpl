@@ -109,3 +109,4 @@ tests/coverage.xml
 # RVM #
 #######
 .rvmrc
+.ruby-gemset
