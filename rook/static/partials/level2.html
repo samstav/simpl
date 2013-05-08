@@ -27,9 +27,9 @@
       <div class="bar" style="width: {{percentComplete()}}%;"></div>
     </div>
     <div>
-      <a class="label label-info cmtip" title="Total items" ng-click="showAll()">{{count}}</a> items: 
+      <a class="label label-info cmtip" title="Total items" ng-click="showAll()">{{count}}</a> items:
       <a class="label label-success cmtip" title="Completed" ng-click="showUnread()">{{taskStates['completed']}}</a>
-      <a class="label label-warning cmtip" title="Waiting" ng-click="showStarred()">{{taskStates['waiting']}}</a>  
+      <a class="label label-warning cmtip" title="Waiting" ng-click="showStarred()">{{taskStates['waiting']}}</a>
       <a class="label label-important cmtip" title="Errors" ng-click="showRead()">{{0}}</a>
       <div>Expected to finish {{timeRemaining | secondsETA}}</div>
     </div>

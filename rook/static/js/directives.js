@@ -95,72 +95,72 @@ directives.directive('clippy', function factory() {
 });
 
 directives.directive('popover', function(){
-    return function(scope, element, attrs) {
-      var popover = element.popover({
-        content: function() {
-          if ('target' in attrs)
-            if ($(attrs['target']).length > 0)
-              return $(attrs['target']).html();
+  return function(scope, element, attrs) {
+    var popover = element.popover({
+      content: function() {
+        if ('target' in attrs)
+          if ($(attrs['target']).length > 0)
+            return $(attrs['target']).html();
+      }
+    });
+
+    //Update when scope changes
+    if ('target' in attrs) {
+      scope.$parent.$watch(function() {
+        if ($(attrs['target']).length > 0 && popover.data('popover') !== undefined) {
+          popover.data('popover').setContent($(attrs['target']).html());
+          popover.data('popover').$tip.addClass(popover.data('popover').options.placement);
         }
       });
-
-      //Update when scope changes
-      if ('target' in attrs) {
-        scope.$parent.$watch(function() {
-          if ($(attrs['target']).length > 0 && popover.data('popover') !== undefined) {
-            popover.data('popover').setContent($(attrs['target']).html());
-            popover.data('popover').$tip.addClass(popover.data('popover').options.placement);
-          }
-        });
-      }
-    };
+    }
+  };
 });
 
 //Validates a control against the supplied option's constraints and sets the
 //constraint.valid and option.invalid values
 directives.directive('validateOption', function () {
-    return {
-        restrict: 'A',
-        require: 'ngModel',
-        link: function (scope, elm, attrs, ctrl) {
-            var option = scope[attrs.validateOption];
+  return {
+    restrict: 'A',
+    require: 'ngModel',
+    link: function (scope, elm, attrs, ctrl) {
+      var option = scope[attrs.validateOption];
 
-            function validate(value) {
-              //Check constraints
-              var constraints = option.constraints;
-              var index = 0;
-              var valid = true;
-              _.each(constraints, function(constraint) {
-                if ('regex' in constraint) {
-                  var patt = new RegExp(constraint.regex);
-                  constraint.valid = patt.test(value || '');
-                } else if ('protocols' in constraint) {
-                  constraint.valid = constraint.protocols.indexOf((value || '').split(":")[0]) > -1;
-                } else {
-                  constraint.valid = true;
-                }
-                if (constraint.valid === false)
-                    valid = false;
-                index += 1;
-              });
-              var error_key = 'constraints' + option.id.replace('-', '');
-              ctrl.$setValidity(error_key, valid);
-              //FIXME: hack! dynamically generated control validation is not bubbling up otherwise
-              angular.element($('#newDeploymentForm')).scope().newDeploymentForm.$setValidity(error_key, valid, ctrl);
-              option.invalid = !valid;
-              return valid ? value : undefined;
-            }
+      function validate(value) {
+        //Check constraints
+        var constraints = option.constraints;
+        var index = 0;
+        var valid = true;
+        _.each(constraints, function(constraint) {
+          if ('regex' in constraint) {
+            var patt = new RegExp(constraint.regex);
+            constraint.valid = patt.test(value || '');
+          } else if ('protocols' in constraint) {
+            constraint.valid = constraint.protocols.indexOf((value || '').split(":")[0]) > -1;
+          } else {
+            constraint.valid = true;
+          }
+          if (constraint.valid === false)
+              valid = false;
+          index += 1;
+        });
+        var error_key = 'constraints' + option.id.replace('-', '');
+        ctrl.$setValidity(error_key, valid);
+        //FIXME: hack! dynamically generated control validation is not bubbling up otherwise
+        angular.element($('#newDeploymentForm')).scope().newDeploymentForm.$setValidity(error_key, valid, ctrl);
+        option.invalid = !valid;
+        return valid ? value : undefined;
+      }
 
-            //For DOM -> model validation
-            ctrl.$parsers.unshift(function(viewValue) {
-                return validate(viewValue) ? viewValue : undefined;
-            });
+      //For DOM -> model validation
+      ctrl.$parsers.unshift(function(viewValue) {
+          return validate(viewValue) ? viewValue : undefined;
+      });
 
-            //For model -> DOM validation
-            ctrl.$formatters.unshift(function(value) {
-              validate(value);
-              return value;
-            });
-        }
-    };
+      //For model -> DOM validation
+      ctrl.$formatters.unshift(function(value) {
+        validate(value);
+        return value;
+      });
+    }
+  };
 });
