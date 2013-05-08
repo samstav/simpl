@@ -3,13 +3,15 @@
 - Supports Rackspace Open Cloud Compute Extensions and Auth
 """
 import copy
+import eventlet
 import logging
 import os
 
 from celery.canvas import chain
 from celery.task import task
 from novaclient.exceptions import NotFound, NoUniqueMatch
-from novaclient.v1_1 import client
+client = eventlet.import_patched('novaclient.v1_1.client')
+# from novaclient.v1_1 import client
 from SpiffWorkflow.operators import PathAttrib
 from SpiffWorkflow.specs import Celery
 
@@ -26,7 +28,7 @@ import checkmate.rdp
 import checkmate.ssh
 from checkmate.utils import match_celery_logging, isUUID, yaml_to_dict
 import time
-import eventlet
+
 from checkmate.middleware import RequestContext
 from checkmate.workflow import wait_for
 
@@ -462,7 +464,6 @@ class Provider(RackspaceComputeProviderBase):
         return api
 
 
-@task
 def _get_images_and_types(api):
     ret = {'images': {}, 'types': {}}
     images = api.images.list()
