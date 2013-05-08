@@ -20,10 +20,6 @@ checkmate.config(['$routeProvider', '$locationProvider', '$httpProvider', functi
   when('/readme', {
     templateUrl: '/partials/readme.html',
     controller: StaticController
-  }).
-  when('/ui/build', {
-    template: '<calculator/>',
-    controller: StaticController
   });
 
   // New UI - static pages
