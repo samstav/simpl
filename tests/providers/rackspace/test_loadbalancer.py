@@ -190,7 +190,6 @@ class TestLoadBalancerGenerateTemplate(unittest.TestCase):
 
         #Mock Base Provider, context and deployment
         deployment = self.mox.CreateMockAnything()
-        deployment['id'].AndReturn('Mock')
         context = RequestContext()
 
         deployment.get_setting('region', resource_type='load-balancer',

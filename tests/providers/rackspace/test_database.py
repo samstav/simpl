@@ -225,7 +225,6 @@ class TestDatabase(ProviderTester):
 
         #Mock Base Provider, context and deployment
         deployment = self.mox.CreateMockAnything()
-        deployment['id'].AndReturn('Mock')
         context = self.mox.CreateMockAnything()
         context.kwargs = {}
 
@@ -270,7 +269,6 @@ class TestDatabase(ProviderTester):
 
         #Mock Base Provider, context and deployment
         deployment = self.mox.CreateMockAnything()
-        deployment['id'].AndReturn('Mock')
         context = self.mox.CreateMockAnything()
         context.kwargs = {}
 
