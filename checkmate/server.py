@@ -47,6 +47,7 @@ DEFAULT_AUTH_ENDPOINTS = [{
     'kwargs': {
         'protocol': 'Keystone',
         'realm': 'US Cloud',
+        'priority': '1',
     },
 }, {
     'middleware': 'checkmate.middleware.TokenAuthMiddleware',
