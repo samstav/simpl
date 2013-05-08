@@ -118,7 +118,7 @@ server:
     apt-get --purge remove ruby-rvm
     rm -rf /usr/share/ruby-rvm /etc/rvmrc /etc/profile.d/rvm.sh
     echo insecure > ~/.curlrc
-    curl -L get.rvm.io | bash -s stable --auto
+    curl -L get.rvm.io | bash -s stable --auto-dotfiles --autolibs=enabled
     source /etc/profile.d/rvm.sh
 
     # Install Ruby 1.9.3 locally
