@@ -606,12 +606,16 @@ Checkmate has code that is python 2.7.1 specific. It won't work on earlier versi
 
 Some of checkmate's more significant dependencies are::
 
-- celeryd: integrates with a message queue (ex. RabbitMQ)
+- celeryd: integrates with a message queue (ex. RabbitMQ)<sup>*</sup>
+- eventlet: coroutine-based concurrency library<sup>*</sup>
 - a message broker (rabbitmq or mognodb): any another backend for celery should work (celery even has emulators that can use a database), but rabbit and mongo are what we tested on
 - SpiffWorkflow: a python workflow engine
 - chef: OpsCode's chef... you don't need a server, but use with a server is supported.
 - cloud service client libraries: python-novaclient, python-clouddb, etc...
 - rook: a UI middleware that enables checkmate to respond to browser calls in HTML.
+
+<sup>*</sup> When hacking on checkmate, please be careful not to `eventlet.monkey_patch()` modules containing any celery tasks; this can cause unexpected behavior with celery workers.
+  If you need to import a patched dependency, use `eventlet.import_patched()` for specific libraries
 
 #### SpiffWorkflow
 Necessary additions to SpiffWorkflow are not yet in the source repo, so install
