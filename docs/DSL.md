@@ -20,6 +20,9 @@ Current schema version: v0.7
 
 Components
 ==========
+
+```yaml
+
 id: a unique identifier (not necessarily a UUID, but a string) within the provider that provides that component.
     Temporary assertion: the id for wordpress is wordpress always (in puppet, chef, etc....). And we will maintain a list of those ids. Precedents for this are OpsCode cookbooks and Juju charms (http://jujucharms.com/charms/precise).
     **Action item/future consideration**: create our own catalog (or use Charms/cookbooks)
@@ -27,9 +30,9 @@ id: a unique identifier (not necessarily a UUID, but a string) within the provid
 name: user friendliness (*mssql vs Microsoft SQL Server)
 
 role: Allows you to specify the role of this component.
-	EX:
-	component:
-	  name: wordpress
+  EX:
+  component:
+    name: wordpress
           role: master
 
 version: for versioning...!
@@ -53,7 +56,7 @@ Syntax (two options, long an short form):
             - 'os': ['debian', 'redhat']
 The name+key/value syntax allows for requiring more than one of the same resource (ex. log and data mysql databases) as well as adding additional constraints, etc....
 
-provides: array of resource_type:interface entries (array can be represented in YAML with entries preceded with dashes). For example, let's say we get a Cloud Sites API that provides a "site" resource. Site could provide:
+provides: array of resource_type:interface entries (array can be represented in YAML with entries preceded with dashes). For example, let's say we get a CLoud Sites API that provides a "site" resource. Site could provide:
 - database: mysql
 - application: php
 
@@ -72,6 +75,7 @@ username:
     sample: for display, to show what this looks like.
     help: help text.
 password:
+```
 
 Note:
 
@@ -85,12 +89,14 @@ Environments
 
 Environments provide a 'context' and optional constraints as well as a list of providers. For example, if I have an environment with a Cloud Databases provider 'constrained' to LON where Cloud Databases don't have 4GB instances, then the catalog won't have 4GB instances.
 
+```yaml
+
 id: unique identifier provided by client (or user).
 name: user friendliness
 
 providers: the keys are predefined names form the providers. Checkmate identifies the provider based on the key and vendor field.
   nova:
-    vendor: rackspace  - results in Checkmate dynamically loading checkmate.providers.rackspace.nova (last two are vendor.key)
+    vendor: rackspace  - results in Checkmate dynamically loading  checkmate.providers.rackspace.nova (last two are vendor.key)
   chef-solo:
     vendor: opscode
   database:
@@ -99,6 +105,7 @@ providers: the keys are predefined names form the providers. Checkmate identifie
         The syntax can follow the normal constraint syntax, but can also be a key:value shorthand
         For the normal syntax, a 'value' defines what the constraint evaluates to
     catalog: - a way to inject a catalog into the provider (two uses for this are #1 testing, #2 only want to show 1GB instances). So if a catalog is provided, the provider will use that. Otherwise, it could log on and query the underlying service (list images, list flavors, get cookbooks, etc...). You'll see this in app.yaml.
+```
 
 Environment will define what this looks like based on environment providers and constraints. So there is a likelihood that a blueprint will be incompatible with an environment (the environment cannot provide the required resources OR meet the necesary constraints).
 
@@ -114,59 +121,62 @@ For services in a blueprint:
 - one component per service with the expectation that we'll be able to pull in blueprints as components in the future.
 - relations between services
 
-id: unique identifier provided by client (or user).
-name: user friendliness
-version: string, determined by the author.
-description: ...
-services: like tiers, but not restricted to the concept of tiers. Currently, there is one component defined per service.
-  name -  arbitrary, determined by blueprint author. Example:
-  "my_wordpress_thang":
-    either id or key/value pairs to help find a suitable component.
-    Example of ID short form: wordpress
-    component: wordpress
-    Example of key/value pair:
-    component:
-        type: application
-        interface: http
-        constraints:
-        - count: 2  (currently, there's no defined schema to be able to say somthing like "greater than one")
-    relations: effectively connections to other services. Examples:
-    - wordpress app to mysql database
-    - load balancer to webhead
-    Two syntaxes for relations; short and long.
-    Short syntax: service_name:interface. Example:
-        my_db_thang:mysql
-    Long syntax: arbitrary name, key values. Example:
-        db:
-          interface: mysql
-          service: my_db_thang
-options: KEY piece (don't forget it!). This lists the options (levers or dials) that the blueprint author is exposing to me. Similar in syntax to component options, but the main difference is in the constraints. See dedicated section on Blueprint Options below.
-  "database_bigness":
-    description: the size of the database
-    default: 2GB
-    # we need to define the syntax for more complex logic, like greater than, less than, etc....
-    constrains:  # what values within components that this option constrains. Key value to select the options, and then the option name. Example:
-    - service: my_database_thang
-      setting: memory
-    - service: my_database_log_thang
-      setting: memory
-    choice:
-    - value: 1024
-      name: 1gig
-    - value: 2048
-     name: 2GB
-resources: static resources to be created at planning time and shared across the blueprint. For example, users and keys.
-  "my_key":
-    type: key-pair # private/public key pair will be created before deploying the workflow
-    constrains:
-    - service: my_database_thang
-      setting: key
-      attribute: private_key # this will take the private_key value from the generated keys and apply it as the value for 'key' in the my_database_thang component.
-display-outputs: a map of entries to determine what values are relevant as final outputs for a client. TODO: document syntax
-documentation: a map of documentation text or URLs
-  abstract: one paragraph description in markdown.
-  instructions: one page description of how to use the deployment in markdown.
-  guide: a URL to an extrnal web resource containg the full. multi-page guide.
+```yaml
+
+  id: unique identifier provided by client (or user).
+  name: user friendliness
+  version: string, determined by the author.
+  description: ..
+  services: like tiers, but not restricted to the concept of tiers. Currently, there is one component defined per service.
+    name -  arbitrary, determined by blueprint author. Example:
+    "my_wordpress_thang":
+      either id or key/value pairs to help find a suitable component.
+      Example of ID short form: wordpress
+      component: wordpress
+      Example of key/value pair:
+      component:
+          type: application
+          interface: http
+          constraints:
+          - count: 2  (currently, there's no defined schema to be able to say somthing like "greater than one")
+      relations: effectively connections to other services. Examples:
+      - wordpress app to mysql database
+      - load balancer to webhead
+      Two syntaxes for relations; short and long.
+      Short syntax: service_name:interface. Example:
+          my_db_thang:mysql
+      Long syntax: arbitrary name, key values. Example:
+          db:
+            interface: mysql
+            service: my_db_thang
+  options: KEY piece (don't forget it!). This lists the options (levers or dials) that the blueprint author is exposing to me. Similar in syntax to component options, but the main difference is in the constraints. See dedicated section on Blueprint Options below.
+    "database_bigness":
+      description: the size of the database
+      default: 2GB
+      # we need to define the syntax for more complex logic, like greater than, less than, etc....
+      constrains:  # what values within components that this option constrains. Key value to select the options, and then the option name. Example:
+      - service: my_database_thang
+        setting: memory
+      - service: my_database_log_thang
+        setting: memory
+      choice:
+      - value: 1024
+        name: 1gig
+      - value: 2048
+       name: 2GB
+  resources: static resources to be created at planning time and shared across the blueprint. For example, users and keys.
+    "my_key":
+      type: key-pair # private/public key pair will be created before deploying the workflow
+      constrains:
+      - service: my_database_thang
+        setting: key
+        attribute: private_key # this will take the private_key value from the generated keys and apply it as the value for 'key' in the my_database_thang component.
+  display-outputs: a map of entries to determine what values are relevant as final outputs for a client. TODO: document syntax
+  documentation: a map of documentation text or URLs
+    abstract: one paragraph description in markdown.
+    instructions: one page description of how to use the deployment in markdown.
+    guide: a URL to an extrnal web resource containg the full. multi-page guide.
+```
 
 Blueprint Options
 =================
@@ -349,6 +359,8 @@ Note:  A common use case is to supply the url and keys. A shortcut is available 
 Deployments
 ===========
 
+```yaml
+
 id: ...
 name: ...
 blueprint: can be a reference (YAML), but right now, in checkmate, it's a full copy of a blueprint. We'll support references using URI later (git, local references, etc...).
@@ -366,6 +378,8 @@ inputs: - these are basically where I'm setting my levers and dials... there are
     'nova':
       compute:
         os: ubuntu
+```
+
 Note: more specific inputs override more general ones (see get_setting code in deployment)
 
 display-outputs: a map of entries of final outputs for a client. TODO: document syntax and implement
@@ -391,14 +405,14 @@ Deployment States
 
 ### The Deployment Status will be one of:
 
-- __DOWN:__ deployment is down (can go to __UP__, __DELETED__)  
-- __FAILED:__ planning or building failed (can go to __DELETED__)  
-- __PLANNED:__ has topology and resources (can go to __UP__, __FAILED__)  
-- __UNREACHABLE:__ cannot contact infrastructure (can go to __DOWN__, __UP__, __ALERT__)  
-- __DELETED:__ deployment has been deleted  
-- __NEW:__ has topology, but no resources (can go to __PLANNED__, __FAILED__)  
-- __UP:__ deployment is launched and running (can go to __ALERT__, __UNREACHABLE__, __DOWN__, __DELETED__)  
-- __ALERT:__ attention required (can go to __DELETED__, __UP__)  
+- __DOWN:__ deployment is down (can go to __UP__, __DELETED__)
+- __FAILED:__ planning or building failed (can go to __DELETED__)
+- __PLANNED:__ has topology and resources (can go to __UP__, __FAILED__)
+- __UNREACHABLE:__ cannot contact infrastructure (can go to __DOWN__, __UP__, __ALERT__)
+- __DELETED:__ deployment has been deleted
+- __NEW:__ has topology, but no resources (can go to __PLANNED__, __FAILED__)
+- __UP:__ deployment is launched and running (can go to __ALERT__, __UNREACHABLE__, __DOWN__, __DELETED__)
+- __ALERT:__ attention required (can go to __DELETED__, __UP__)
 
 ![deployment-states.png](https://github.rackspace.com/checkmate/checkmate/raw/master/docs/figures/deployment-status.png)
 

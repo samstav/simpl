@@ -32,9 +32,9 @@ from checkmate.utils import (
 from checkmate.workflow import get_SpiffWorkflow_status
 
 DB = get_driver()
-SIMULATOR_DB = get_driver(
-    connection_string=os.environ.get('CHECKMATE_SIMULATOR_CONNECTION_STRING',
-                                     'sqlite://'))
+SIMULATOR_DB = get_driver(connection_string=os.environ.get(
+    'CHECKMATE_SIMULATOR_CONNECTION_STRING',
+    os.environ.get('CHECKMATE_CONNECTION_STRING', 'sqlite://')))
 
 LOG = logging.getLogger(__name__)
 
