@@ -725,6 +725,13 @@ def is_simulation(api_id):
     return api_id.startswith('simulate')
 
 
+def git_update_tag(repo_dir, remote, tag):
+    """Update git tags."""
+    cmd = ['git', 'fetch', remote, 'tag', tag]
+    proc = subprocess.Popen(cmd, cwd=repo_dir)
+    proc.wait()
+
+
 def git_checkout(repo_dir, head):
     """Do a git checkout of `head' in `repo_dir'.
 
@@ -735,6 +742,23 @@ def git_checkout(repo_dir, head):
     https://github.com/gitpython-developers/GitPython/issues/106
     """
     cmd = ['git', 'checkout', head]
+    proc = subprocess.Popen(cmd, cwd=repo_dir)
+    proc.wait()
+
+
+def git_pull(repo_dir, remote, head):
+    """Do a git pull of `head' from `remote'.
+
+    The pull method in GitPython has a bug.  This is just a temporary
+    fix.
+
+    GitPython bug report:
+    https://github.com/gitpython-developers/GitPython/issues/32
+    https://github.rackspace.com/checkmate/checkmate/issues/505
+    http://jbd.corp.rackspace.com/pastebin/201305091629.txt
+
+    """
+    cmd = ['git', 'pull', remote, head]
     proc = subprocess.Popen(cmd, cwd=repo_dir)
     proc.wait()
 
