@@ -1,5 +1,6 @@
 # pylint: disable=C0103,C0111,R0903,R0904,W0212,W0232
 import unittest2 as unittest
+import os
 
 from checkmate.middleware import (TenantMiddleware,
                                   StripPathMiddleware,
@@ -96,7 +97,15 @@ class ExtensionsMiddlewareTest(unittest.TestCase):
 
 class RequestContextTest(unittest.TestCase):
     def setUp(self):
-        self.filter = ContextMiddleware(TenantMiddleware(MockWsgiApp()))
+        self.filter = ContextMiddleware(MockWsgiApp())
+        # Remove CHECKMATE_OVERRIDE_URL before running!
+        if os.environ.get('CHECKMATE_OVERRIDE_URL'):
+            del os.environ['CHECKMATE_OVERRIDE_URL']
+
+    def test_populate_url_from_os_environ(self):
+        os.environ['CHECKMATE_OVERRIDE_URL'] = 'http://OVERRIDDEN'
+        self.filter({}, _start_response)
+        self.assertEquals('http://OVERRIDDEN', request.context.base_url)
 
     def test_no_url_scheme(self):
         with self.assertRaises(KeyError):
@@ -105,6 +114,13 @@ class RequestContextTest(unittest.TestCase):
     def test_no_http_host_no_server_name(self):
         env = {'PATH_INFO': '/',
                'wsgi.url_scheme': 'http'}
+        with self.assertRaises(KeyError):
+            self.filter(env, _start_response)
+
+    def test_server_name_no_server_port(self):
+        env = {'PATH_INFO': '/',
+               'wsgi.url_scheme': 'http',
+               'SERVER_NAME': 'MOCK'}
         with self.assertRaises(KeyError):
             self.filter(env, _start_response)
 

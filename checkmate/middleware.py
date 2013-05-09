@@ -10,6 +10,7 @@ import copy
 import httplib
 import json
 import logging
+import os
 
 # some distros install as PAM (Ubuntu, SuSE)
 # https://bugs.launchpad.net/keystone/+bug/938801
@@ -645,22 +646,25 @@ class ContextMiddleware(object):
         self.app = app
 
     def __call__(self, environ, start_response):
-        # Use a default empty context
-        # PEP333: wsgi.url_scheme, HTTP_HOST, SERVER_NAME, and SERVER_PORT
-        # can be used to reconstruct a request's complete URL
-        url = environ['wsgi.url_scheme'] + '://'
-        if environ.get('HTTP_HOST'):
-            url += environ['HTTP_HOST']
+        if 'CHECKMATE_OVERRIDE_URL' in os.environ:
+            url = os.environ.get('CHECKMATE_OVERRIDE_URL')
         else:
-            url += environ['SERVER_NAME']
-
-            if environ['wsgi.url_scheme'] == 'https':
-                if environ['SERVER_PORT'] != '443':
-                    url += ':' + environ['SERVER_PORT']
+            # PEP333: wsgi.url_scheme, HTTP_HOST, SERVER_NAME, and SERVER_PORT
+            # can be used to reconstruct a request's complete URL
+            url = environ['wsgi.url_scheme'] + '://'
+            if environ.get('HTTP_HOST'):
+                url += environ['HTTP_HOST']
             else:
-                if environ['SERVER_PORT'] != '80':
-                    url += ':' + environ['SERVER_PORT']
+                url += environ['SERVER_NAME']
 
+                if environ['wsgi.url_scheme'] == 'https':
+                    if environ['SERVER_PORT'] != '443':
+                        url += ':' + environ['SERVER_PORT']
+                else:
+                    if environ['SERVER_PORT'] != '80':
+                        url += ':' + environ['SERVER_PORT']
+
+        # Use a default empty context
         request.context = RequestContext(base_url=url)
         LOG.debug("BASE URL IS %s", request.context.base_url)
         return self.app(environ, start_response)
