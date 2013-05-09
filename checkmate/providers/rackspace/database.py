@@ -470,21 +470,23 @@ def create_instance(context, instance_name, flavor, size, databases, region,
     flavor = int(flavor)
     size = int(size)
 
+    instance_key = 'instance:%s' % context['resource']
+    dep_id = context['deployment']
     instance = api.create_instance(instance_name, flavor, size,
                                    databases=databases)
     instance_id = {
-        'instance:%s' % context['resource']: {
+        instance_key: {
             'id': instance.id
         }
     }
-    resource_postback.delay(context['deployment'], instance_id)
+    resource_postback.delay(dep_id, instance_id)
     LOG.info("Created database instance %s (%s). Size %s, Flavor %s. "
              "Databases = %s" % (instance.name, instance.id, size, flavor,
                                  databases))
 
     # Return instance and its interfaces
     results = {
-        'instance:%s' % context['resource']: {
+        instance_key: {
             'id': instance.id,
             'name': instance.name,
             'status': 'BUILD',

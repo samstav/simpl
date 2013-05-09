@@ -581,7 +581,7 @@ def create_server(context, name, region, api_object=None, flavor="2",
     # Add RAX-CHECKMATE to metadata
     # support old way of getting metadata from generate_template
     meta = tag or context.get("metadata", None)
-
+    instance_key = 'instance:%s' % context['resource']
     server = api_object.servers.create(name, image_object, flavor_object,
             meta=meta, files=files)
     # Update task in workflow
@@ -590,7 +590,6 @@ def create_server(context, name, region, api_object=None, flavor="2",
     LOG.debug('Created server %s (%s).  Admin pass = %s' % (
             name, server.id, server.adminPass))
 
-    instance_key = 'instance:%s' % context['resource']
     results = {instance_key: {'id': server.id,
                               'password': server.adminPass,
                               'region': api_object.client.region_name,
@@ -800,10 +799,10 @@ def wait_on_build(context, server_id, region, resource, ip_address_type='public'
         results['errmessage'] = "Server %s build failed" % server_id
         results = {instance_key: results}
         resource_postback.delay(context['deployment'], results)
-        Provider({}).delete_resource_tasks(context, 
+        Provider({}).delete_resource_tasks(context,
                                     context['deployment'],
                                     get_resource_by_id(context['deployment'],
-                                                        context['resource']), 
+                                                        context['resource']),
                                     instance_key).apply_async()
         raise CheckmateServerBuildFailed("Server %s build failed" % server_id)
 
