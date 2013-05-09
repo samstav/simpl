@@ -5,6 +5,7 @@ from checkmate.middleware import (TenantMiddleware,
                                   StripPathMiddleware,
                                   ExtensionsMiddleware,
                                   ContextMiddleware)
+from bottle import request
 
 
 class MockWsgiApp(object):
@@ -91,6 +92,52 @@ class ExtensionsMiddlewareTest(unittest.TestCase):
         self.filter(env, _start_response)
         self.assertEqual('/someresource', env['PATH_INFO'])
         self.assertEqual('application/json', env['HTTP_ACCEPT'])
+
+
+class RequestContextTest(unittest.TestCase):
+    def setUp(self):
+        self.filter = ContextMiddleware(TenantMiddleware(MockWsgiApp()))
+
+    def test_no_url_scheme(self):
+        with self.assertRaises(KeyError):
+            self.filter({}, _start_response)
+
+    def test_no_http_host_no_server_name(self):
+        env = {'PATH_INFO': '/',
+               'wsgi.url_scheme': 'http'}
+        with self.assertRaises(KeyError):
+            self.filter(env, _start_response)
+
+    def test_http_host(self):
+        env = {'PATH_INFO': '/',
+               'wsgi.url_scheme': 'http',
+               'HTTP_HOST': 'MOCK'}
+        self.filter(env, _start_response)
+        self.assertEquals('http://MOCK', request.context.base_url)
+
+    def test_server_name(self):
+        env = {'PATH_INFO': '/',
+               'wsgi.url_scheme': 'http',
+               'SERVER_NAME': 'MOCK',
+               'SERVER_PORT': '80'}
+        self.filter(env, _start_response)
+        self.assertEquals('http://MOCK', request.context.base_url)
+
+    def test_https_weird_port(self):
+        env = {'PATH_INFO' : '/',
+               'wsgi.url_scheme': 'https',
+               'SERVER_NAME': 'MOCK',
+               'SERVER_PORT': '444'}
+        self.filter(env, _start_response)
+        self.assertEquals('https://MOCK:444', request.context.base_url)
+
+    def test_http_weird_port(self):
+        env = {'PATH_INFO' : '/',
+               'wsgi.url_scheme': 'http',
+               'SERVER_NAME': 'MOCK',
+               'SERVER_PORT': '81'}
+        self.filter(env, _start_response)
+        self.assertEquals('http://MOCK:81', request.context.base_url)
 
 
 if __name__ == '__main__':
