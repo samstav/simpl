@@ -344,7 +344,7 @@ class TestBasicWorkflow(test.StubbedWorkflowBase):
                         'dns': False,
                         'algorithm': 'ROUND_ROBIN',
                         'port': None,
-                        'tag': 'http://MOCK/T1000/deployments/DEP-ID-1000/resources/0',
+                        'tag': 'http://MOCK/TMOCK/deployments/DEP-ID-1000/resources/0',
                     },
                     'post_back_result': True,
                     'result': {

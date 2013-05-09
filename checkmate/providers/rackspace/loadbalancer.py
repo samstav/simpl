@@ -130,7 +130,7 @@ class Provider(ProviderBase):
                            dns=dns,
                            algorithm=algorithm,
                            tag=self.generate_resource_tag(context.base_url,
-                               'T1000', deployment['id'], key),
+                               context.tenant, deployment['id'], key),
                            port=port)
 
         task_name = ('Wait for Loadbalancer %s (%s) build' %
