@@ -52,13 +52,6 @@ class TestProviderBasePlanningMixIn(unittest.TestCase):
                          template.get("dns-name", "NONE"),
                          "dns-name not set")
         req_ctx_dict = self._req_context.get_queued_task_dict()
-        self.assertIn("metadata", req_ctx_dict, "No metadata in template")
-        self.assertIn("RAX-CHECKMATE",
-                      req_ctx_dict.get("metadata", {}),
-                      "No metadata set")
-        LOG.info("RAX-CHECKMATE: {}"
-                 .format(req_ctx_dict.get("metadata")
-                 .get("RAX-CHECKMATE")))
 
     def test_template_without_deployment_name(self):
         template = self._prov_planner.generate_template({'id': "1234567890"},

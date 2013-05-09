@@ -129,6 +129,8 @@ class Provider(ProviderBase):
                                        'task_tags': ['create', 'root']},
                            dns=dns,
                            algorithm=algorithm,
+                           tag=self.generate_resource_tag(context.base_url,
+                               'T1000', deployment['id'], key),
                            port=port)
 
         task_name = ('Wait for Loadbalancer %s (%s) build' %
@@ -567,6 +569,7 @@ PLACEHOLDER_IP = '1.2.3.4'
 @task
 def create_loadbalancer(context, name, vip_type, protocol, region, api=None,
                         dns=False, port=None, algorithm='ROUND_ROBIN',
+                        tag=None,
                         monitor_path='/', monitor_delay=10, monitor_timeout=10,
                         monitor_attempts=3, monitor_body='(.*)',
                         monitor_status='^[234][0-9][0-9]$', parent_lb=None):
@@ -620,7 +623,8 @@ def create_loadbalancer(context, name, vip_type, protocol, region, api=None,
                 exc=CheckmateException("Cannot get %s vip for load balancer "
                                        "%s") % (vip_type, parent_lb))
 
-    meta = context.get("metadata", None)
+    # support old way of getting metadata from generate_template
+    meta = tag or context.get("metadata", None)
     if meta:
         # attach checkmate metadata to the lb if available
         new_meta = []

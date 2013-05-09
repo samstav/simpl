@@ -41,17 +41,23 @@ class TenantMiddlewareTest(unittest.TestCase):
         self.filter = ContextMiddleware(TenantMiddleware(MockWsgiApp()))
 
     def test_no_tenant(self):
-        env = {'PATH_INFO': '/'}
+        env = {'PATH_INFO': '/',
+                'wsgi.url_scheme': 'http',
+                'HTTP_HOST': 'MOCK'}
         self.filter(env, _start_response)
         self.assertEqual('/', env['PATH_INFO'])
 
     def test_tenant_only(self):
-        env = {'PATH_INFO': '/T1000'}
+        env = {'PATH_INFO': '/T1000',
+                'wsgi.url_scheme': 'http',
+                'HTTP_HOST': 'MOCK'}
         self.filter(env, _start_response)
         self.assertEqual('/', env['PATH_INFO'])
 
     def test_with_resource(self):
-        env = {'PATH_INFO': '/T1000/deployments'}
+        env = {'PATH_INFO': '/T1000/deployments',
+                'wsgi.url_scheme': 'http',
+                'HTTP_HOST': 'MOCK'}
         self.filter(env, _start_response)
         self.assertEqual('/deployments', env['PATH_INFO'])
 
