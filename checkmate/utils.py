@@ -725,11 +725,15 @@ def is_simulation(api_id):
     return api_id.startswith('simulate')
 
 
+def shell_command(cmd, working_dir):
+    """Run command in a subprocess and wait for it to finish."""
+    proc = subprocess.Popen(cmd, cwd=working_dir)
+    proc.wait()
+
+
 def git_update_tag(repo_dir, remote, tag):
     """Update git tags."""
-    cmd = ['git', 'fetch', remote, 'tag', tag]
-    proc = subprocess.Popen(cmd, cwd=repo_dir)
-    proc.wait()
+    shell_command(['git', 'fetch', remote, 'tag', tag], repo_dir)
 
 
 def git_checkout(repo_dir, head):
@@ -741,9 +745,7 @@ def git_checkout(repo_dir, head):
     GitPython bug report:
     https://github.com/gitpython-developers/GitPython/issues/106
     """
-    cmd = ['git', 'checkout', head]
-    proc = subprocess.Popen(cmd, cwd=repo_dir)
-    proc.wait()
+    shell_command(['git', 'checkout', head], repo_dir)
 
 
 def git_pull(repo_dir, remote, head):
@@ -758,9 +760,7 @@ def git_pull(repo_dir, remote, head):
     http://jbd.corp.rackspace.com/pastebin/201305091629.txt
 
     """
-    cmd = ['git', 'pull', remote, head]
-    proc = subprocess.Popen(cmd, cwd=repo_dir)
-    proc.wait()
+    shell_command(['git', 'pull', remote, head], repo_dir)
 
 
 def copy_contents(source, dest, with_overwrite=False, create_path=True):
