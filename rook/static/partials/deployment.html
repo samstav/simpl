@@ -43,14 +43,15 @@
                 'label-warning': data.status == 'ALERT' || data.status == 'DELETING' || data.status == 'BUILD', 'label-important': data.status == 'FAILED' || data.status == 'UNREACHABLE' || data.status == 'DOWN',
                 'label-info': data.status == 'PLANNED',
                 'label-inverse': data.status == 'DELETED'
-              }" style="margin-right: 10px; margin-bottom: 5px;">{{data.status}}</div>
-                <div ng-cloak ng-show="data.operation.status &amp;&amp; data.operation.status != 'COMPLETE'" class="inline">
-                  <div class="progress progress-striped" style="height: 20px; margin: 5px; width: 300px; display: inline;">
-                    <div class="bar" style="height: 20px; max-width: 300px;" ng-style="{width: (data.operation.complete / data.operation.tasks * 100) + '%'}">{{data.status}}</div>
+              }" style="margin-right: 10px; margin-bottom: 5px;">{{deployment_status()}}</div> <!-- if there's an operation running, operation type, otherwise data.status -->
+                <div ng-cloak ng-show="display_progress_bar()">
+                  <div id="deployment_progress" class="progress progress-striped">
+                    <div class="bar background"></div>
+                    <div class="bar" ng-style="{width: operation_progress() + '%'}"></div> <!-- operation status -->
+                    <span>{{operation_status()}}</span>
                   </div>
-                  <button class="btn btn-mini tip" title="Auto refresh" ng-class="{active: auto_refresh}" ng-click="auto_refresh = !auto_refresh; delayed_refresh()"  style="display: inline;" type="button"><i class="icon-refresh"></i></button>
-                  <div><a ng-href="{{data.operation.link}}/status" ng-cloak ng-show="data.operation.link &amp;&amp; data.operation.link.indexOf('workflow') > -1">View {{data.operation.type}} operation status
-                  </a></div>
+                  <button class="btn btn-mini tip" title="Auto refresh" ng-class="{active: auto_refresh}" ng-click="toggle_auto_refresh()"><i class="icon-refresh"></i></button>
+                  <div><a ng-href="{{data.operation.link}}/status" ng-cloak ng-show="display_workflow()">View {{data.operation.type}} operation status</a></div>
                 </div>
               </div>
             </div>

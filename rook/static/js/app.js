@@ -2084,6 +2084,11 @@ function DeploymentController($scope, $location, $resource, $routeParams) {
     setTimeout(function() {$scope.reload(original_url);}, 2000);
   };
 
+  $scope.toggle_auto_refresh = function() {
+    $scope.auto_refresh = !$scope.auto_refresh;
+    $scope.delayed_refresh();
+  };
+
   $scope.load = function() {
     console.log("Starting load");
     this.klass = $resource((checkmate_server_base || '') + '/:tenantId/deployments/:id.json');
@@ -2094,6 +2099,44 @@ function DeploymentController($scope, $location, $resource, $routeParams) {
         $scope.delayed_refresh();
       }
     });
+  };
+
+  $scope.display_progress_bar = function() {
+    return ($scope.data.operation && $scope.data.operation.status != 'COMPLETE');
+  };
+
+  $scope.display_workflow = function() {
+    try {
+      return ($scope.data.operation.link.indexOf('workflow') > -1);
+    } catch(err) {
+      return false;
+    }
+  };
+
+  $scope.deployment_status = function() {
+    var status = $scope.data.status;
+    if ($scope.data.operation && $scope.data.operation.status != 'COMPLETE') {
+      status = $scope.data.operation.type;
+    }
+
+    return status;
+  };
+
+  $scope.operation_progress = function() {
+    var percentage = 0;
+    if ($scope.data.operation) {
+      percentage = Math.round( ($scope.data.operation.complete / $scope.data.operation.tasks) * 100 );
+    }
+
+    return percentage;
+  };
+
+  $scope.operation_status = function() {
+    try {
+      return $scope.data.operation.status;
+    } catch(err) {
+      return "";
+    }
   };
 
   $scope.save = function() {
