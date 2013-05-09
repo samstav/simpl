@@ -30,6 +30,7 @@ from webob.exc import HTTPNotFound, HTTPUnauthorized, HTTPFound
 LOG = logging.getLogger(__name__)
 
 
+from checkmate.common.caching import MemorizeMethod
 from checkmate.db import any_tenant_id_problems
 from checkmate.exceptions import CheckmateException
 from checkmate.utils import RESOURCES, STATIC, to_json, to_yaml, import_class
@@ -88,6 +89,9 @@ class TenantMiddleware(object):
         else:
             path_parts = environ['PATH_INFO'].split('/')
             tenant = path_parts[1]
+            if len(tenant) > 32:
+                return HTTPUnauthorized("Invalid tenant")(environ,
+                                                          start_response)
             if tenant in RESOURCES or tenant in STATIC:
                 pass  # Not a tenant call
             else:
@@ -211,6 +215,9 @@ class PAMAuthMiddleware(object):
         return callback
 
 
+TOKEN_CACHE_TIMEOUT = 600
+
+
 class TokenAuthMiddleware(object):
     """Authenticate any tokens provided.
 
@@ -248,8 +255,11 @@ class TokenAuthMiddleware(object):
         if 'HTTP_X_AUTH_TOKEN' in environ:
             context = request.context
             try:
-                content = (self._auth_keystone(context,
-                           token=environ['HTTP_X_AUTH_TOKEN']))
+                content = self.auth_keystone(context.tenant,
+                                             self.endpoint['uri'],
+                                             self.auth_header,
+                                             token=environ[
+                                                 'HTTP_X_AUTH_TOKEN'])
                 environ['HTTP_X_AUTHORIZED'] = "Confirmed"
             except HTTPUnauthorized as exc:
                 LOG.exception(exc)
@@ -261,8 +271,20 @@ class TokenAuthMiddleware(object):
 
     def _auth_keystone(self, context, token=None, username=None, apikey=None,
                        password=None):
+        return self.auth_keystone(context.tenant,
+                                  self.endpoint['uri'],
+                                  self.auth_header,
+                                  token=token,
+                                  username=username,
+                                  apikey=apikey,
+                                  password=password)
+
+    @MemorizeMethod(sensitive_kwargs=['token', 'apikey', 'password'],
+                    timeout=600)
+    def auth_keystone(self, tenant, auth_url, auth_header, token=None,
+                      username=None, apikey=None, password=None):
         """Authenticates to keystone"""
-        url = urlparse(self.endpoint['uri'])
+        url = urlparse(auth_url)
         if url.scheme == 'https':
             port = url.port or 443
             http = httplib.HTTPSConnection(url.hostname, port)
@@ -279,17 +301,17 @@ class TokenAuthMiddleware(object):
             body = {"auth": {"RAX-KSKEY:apiKeyCredentials": {
                     "username": username, 'apiKey': apikey}}}
 
-        if context.tenant:
+        if tenant:
             auth = body['auth']
-            auth['tenantId'] = context.tenant
-            LOG.debug("Authenticating to tenant '%s'", context.tenant)
+            auth['tenantId'] = tenant
+            LOG.debug("Authenticating to tenant '%s'", tenant)
         headers = {
             'Content-type': 'application/json',
             'Accept': 'application/json',
         }
         # TODO: implement some caching to not overload auth
         try:
-            LOG.debug('Authenticating to %s', self.endpoint['uri'])
+            LOG.debug('Authenticating to %s', auth_url)
             http.request('POST', url.path, body=json.dumps(body),
                          headers=headers)
             resp = http.getresponse()
@@ -297,7 +319,7 @@ class TokenAuthMiddleware(object):
         except Exception as exc:
             LOG.error('HTTP connection exception: %s', exc)
             raise HTTPUnauthorized('Unable to communicate with %s' %
-                                   self.endpoint['uri'])
+                                   auth_url)
         finally:
             http.close()
 
@@ -305,7 +327,7 @@ class TokenAuthMiddleware(object):
             LOG.debug('Invalid token for tenant: %s', resp.reason)
             raise HTTPUnauthorized("Token invalid or not valid for this "
                                    "tenant (%s)" % resp.reason,
-                                   [('WWW-Authenticate', self.auth_header)])
+                                   [('WWW-Authenticate', auth_header)])
 
         try:
             return json.loads(body)
