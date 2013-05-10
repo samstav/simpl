@@ -1388,6 +1388,9 @@ function BlueprintRemoteListController($scope, $location, $routeParams, $resourc
   $scope.remote.user = null;
   $scope.remote.repo = null;
   $scope.remote.branch = null;
+  $scope.remote.api = {};
+  $scope.remote.api.server = null;
+  $scope.remote.api.url = null;
 
   $scope.parse_org_url = function(url) {
     console.log('parse_org_url', url);
@@ -1582,15 +1585,8 @@ function DeploymentManagedCloudController($scope, $location, $routeParams, $reso
   };
 
   $scope.loadRemoteBlueprint = function(repo_url) {
+    var remote = github.parse_org_url(repo_url);
     var u = URI(repo_url);
-    var parts = u.path().substring(1).split('/');
-    var first_path_part = parts[0];
-    var remote = {};
-    remote.url = u.href();
-    remote.owner = first_path_part;
-    remote.server = u.protocol() + '://' + u.host(); //includes port
-    remote.repo = {name: parts[1]};
-    remote.url = repo_url;
     var ref = u.fragment() || 'master';
     github.get_branch_from_name(remote, ref, function(branch) {
       remote.branch = branch;
