@@ -49,7 +49,7 @@ Vagrant.configure("2") do |config|
               { 'name' => 'knife-solo',
                 'version' => '0.2.0' },
               { 'name' => 'knife-solo_data_bag',
-                'version' => '0.3.1' }
+                'version' => '0.3.2' }
             ]
           }
         }],
