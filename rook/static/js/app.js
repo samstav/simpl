@@ -58,6 +58,13 @@ checkmate.config(['$routeProvider', '$locationProvider', '$httpProvider', functi
     controller: FeedbackListController
   });
 
+  // Auto Login
+  $routeProvider.
+  when('/autologin', {
+    templateUrl: '/partials/autologin.html',
+    controller: AppController
+  });
+
   // New UI - dynamic, tenant pages
   $routeProvider.
   when('/:tenantId/workflows/:id/status', {
@@ -163,7 +170,7 @@ function RawController($scope, $location, $http) {
 }
 
 //Root controller that implements authentication
-function AppController($scope, $http, $location, $resource, auth) {
+function AppController($scope, $http, $location, $resource, $cookies, auth) {
   $scope.showHeader = true;
   $scope.showStatus = false;
   $scope.foldFunc = CodeMirror.newFoldFunction(CodeMirror.braceRangeFinder);
@@ -286,6 +293,29 @@ function AppController($scope, $http, $location, $resource, auth) {
     $("#auth_error_text").html(response.statusText + ". Check that you typed in the correct credentials.");
     $("#auth_error").show();
     mixpanel.track("Log In Failed", {'problem': response.statusText});
+  };
+
+  $scope.auto_login_success = function() {
+    console.log('autoLogIn successfull!');
+    $location.path('/');
+    $scope.$apply(); // Make angular aware of the changes made outside it's environment
+  };
+
+  $scope.auto_login_fail = function(response) {
+    console.log('Auto Login failed! :(');
+    mixpanel.track("Log In Failed", {'problem': response.statusText});
+    $location.path('/');
+    $scope.$apply();
+  };
+
+  $scope.autoLogIn = function() {
+    console.log('autoLogIn was called');
+    var username = $cookies.username;
+    var api_key = $cookies.api_key;
+    var endpoint = { uri: $cookies.endpoint };
+
+    return auth.authenticate(endpoint, username, api_key, password, null,
+      $scope.auto_login_success, $scope.auto_login_fail);
   };
 
   // Log in using credentials delivered through bound_credentials
