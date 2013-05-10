@@ -263,12 +263,21 @@ def _cache_blueprint(source_repo):
 
         if last_update > cache_expire_time:
             LOG.debug("Updating repo: %s", repo_cache)
-            try:
-                repo.remotes.origin.pull()
-            except git.GitCommandError as exc:
-                raise CheckmateException("Unable to pull from git repository "
-                                         "at %s.  Using the cached "
-                                         "repository", url)
+            # GitPython sometimes breaks parsing the fetch info.
+            # If we retry, it should work.
+            # When i = 0 and pull fails, we don't raise an error.
+            # When i = 1 and pull fails, we fail and raise error.
+            for i in range(2):
+                try:
+                    repo.remotes.origin.pull()
+                    break
+                except git.GitCommandError as exc:
+                    if i == 1:
+                        raise CheckmateException("Unable to pull from git repository "
+                                                 "at %s.  Using the cached "
+                                                 "repository", url)
+                    else:
+                        LOG.info("Caught git fetch exception for %s", repo_cache)
         else:
             LOG.debug("Using cached repo: %s" % repo_cache)
     else:
