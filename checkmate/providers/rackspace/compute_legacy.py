@@ -53,7 +53,12 @@ CATALOG_TEMPLATE = yaml_to_dict("""compute:
                     "personality: [
                         {
                             "path" : "/etc/banner.txt",
-                            "contents" : "ICAgICAgDQoiQSBjbG91ZCBkb2VzIG5vdCBrbm93IHdoeSBp dCBtb3ZlcyBpbiBqdXN0IHN1Y2ggYSBkaXJlY3Rpb24gYW5k IGF0IHN1Y2ggYSBzcGVlZC4uLkl0IGZlZWxzIGFuIGltcHVs c2lvbi4uLnRoaXMgaXMgdGhlIHBsYWNlIHRvIGdvIG5vdy4g QnV0IHRoZSBza3kga25vd3MgdGhlIHJlYXNvbnMgYW5kIHRo ZSBwYXR0ZXJucyBiZWhpbmQgYWxsIGNsb3VkcywgYW5kIHlv dSB3aWxsIGtub3csIHRvbywgd2hlbiB5b3UgbGlmdCB5b3Vy c2VsZiBoaWdoIGVub3VnaCB0byBzZWUgYmV5b25kIGhvcml6 b25zLiINCg0KLVJpY2hhcmQgQmFjaA=="
+                            "contents" : "ICAgICAgDQoiQSBjbG91ZCBkb2VzIG5vdCBr\
+bm93IHdoeSBp dCBtb3ZlcyBpbiBqdXN0IHN1Y2ggYSBkaXJlY3Rpb24gYW5k IGF0IHN1Y2ggYSBz\
+cGVlZC4uLkl0IGZlZWxzIGFuIGltcHVs c2lvbi4uLnRoaXMgaXMgdGhlIHBsYWNlIHRvIGdvIG5vd\
+y4g QnV0IHRoZSBza3kga25vd3MgdGhlIHJlYXNvbnMgYW5kIHRo ZSBwYXR0ZXJucyBiZWhpbmQgY\
+WxsIGNsb3VkcywgYW5kIHlv dSB3aWxsIGtub3csIHRvbywgd2hlbiB5b3UgbGlmdCB5b3Vy c2VsZ\
+iBoaWdoIGVub3VnaCB0byBzZWUgYmV5b25kIGhvcml6 b25zLiINCg0KLVJpY2hhcmQgQmFjaA=="
                         }
                     ]
         'metadata': &metadata
@@ -91,9 +96,10 @@ class Provider(RackspaceComputeProviderBase):
     name = 'legacy'
 
     def generate_template(self, deployment, resource_type, service, context,
-            name=None):
-        template = RackspaceComputeProviderBase.generate_template(self,
-                deployment, resource_type, service, context, name=name)
+                          name=None):
+        template = RackspaceComputeProviderBase.generate_template(
+            self, deployment, resource_type, service, context, name=name
+        )
 
         catalog = self.get_catalog(context)
 
@@ -119,18 +125,23 @@ class Provider(RackspaceComputeProviderBase):
             elif region not in legacy_regions:
                 if legacy_regions:
                     raise CheckmateException("Legacy set to spin up in '%s'. "
-                                         "Cannot provision servers in '%s'." %
-                                        (legacy_regions.keys()[0], region))
+                                             "Cannot provision servers "
+                                             "in '%s'." %
+                                             (legacy_regions.keys()[0],
+                                                 region))
                 else:
                     LOG.warning("Region %s specified in deployment, but no "
-                            "regions are specified in the Legacy Compute "
-                            "catalog" % region)
+                                "regions are specified in the Legacy Compute "
+                                "catalog" % region)
             else:
                 LOG.warning("Region %s specified in deployment, but not in "
                             "Legacy Compute catalog" % region)
 
-        image = deployment.get_setting('os', resource_type=resource_type,
-                service_name=service, provider_key=self.key, default=119)
+        image = deployment.get_setting('os',
+                                       resource_type=resource_type,
+                                       service_name=service,
+                                       provider_key=self.key,
+                                       default=119)
         if isinstance(image, int):
             image = str(image)
         if not image.isdigit():
@@ -142,17 +153,19 @@ class Provider(RackspaceComputeProviderBase):
                     break
         if image not in catalog['lists']['types']:
             raise CheckmateNoMapping("No image mapping for '%s' in '%s'" % (
-                    image, self.name))
+                image, self.name))
 
         # Get setting
         flavor = None
         memory = self.parse_memory_setting(deployment.get_setting('memory',
-                resource_type=resource_type, service_name=service,
-                provider_key=self.key, default=512))
+                                           resource_type=resource_type,
+                                           service_name=service,
+                                           provider_key=self.key,
+                                           default=512))
 
         # Find the available memory size that satisfies this
         matches = [e['memory'] for e in catalog['lists']['sizes'].values()
-                     if int(e['memory']) >= memory]
+                   if int(e['memory']) >= memory]
         if not matches:
             raise CheckmateNoMapping("No flavor has at least '%s' memory" %
                                      memory)
@@ -164,7 +177,7 @@ class Provider(RackspaceComputeProviderBase):
                 break
         if not flavor:
             raise CheckmateNoMapping("No flavor mapping for '%s' in '%s'" % (
-                    memory, self.key))
+                memory, self.key))
 
         template['flavor'] = flavor
         template['image'] = image
@@ -180,79 +193,108 @@ class Provider(RackspaceComputeProviderBase):
         :returns: returns the root task in the chain of tasks
         TODO: use environment keys instead of private key
         """
-        create_server_task = Celery(wfspec, 'Create Server %s (%s)' % (key,
-                                    resource['service']),
-               'checkmate.providers.rackspace.compute_legacy.create_server',
-               call_args=[context.get_queued_task_dict(
-                                deployment=deployment['id'],
-                                resource=key),
-                        resource.get('dns-name')],
-               image=resource.get('image', 119),
-               flavor=resource.get('flavor', 2),
-               files=self._kwargs.get('files', None),
-               ip_address_type='public',
-               defines=dict(resource=key,
-                            provider=self.key,
-                            task_tags=['create']),
-               properties={'estimated_duration': 20})
+        create_server_task = Celery(
+            wfspec, 'Create Server %s (%s)' % (key, resource['service']),
+            'checkmate.providers.rackspace.compute_legacy.create_server',
+            call_args=[context.get_queued_task_dict(
+                deployment=deployment['id'],
+                resource=key),
+                resource.get('dns-name')
+            ],
+            image=resource.get('image', 119),
+            flavor=resource.get('flavor', 2),
+            files=self._kwargs.get('files', None),
+            ip_address_type='public',
+            defines=dict(
+                resource=key,
+                provider=self.key,
+                task_tags=['create']
+            ),
+            properties={'estimated_duration': 20}
+        )
 
-        build_wait_task = Celery(wfspec, 'Wait for Server %s (%s) build'
-                % (key, resource['service']),
-                'checkmate.providers.rackspace.compute_legacy.wait_on_build',
-                call_args=[context.get_queued_task_dict(
-                                deployment=deployment['id'],
-                                resource=key),
-                        PathAttrib('instance:%s/id' % key)],
-                password=PathAttrib('instance:%s/password' % key),
-                private_key=deployment.settings().get('keys', {}).get(
-                        'deployment', {}).get('private_key'),
-                merge_results=True,
-                properties={'estimated_duration': 150},
-                defines=dict(resource=key,
-                             provider=self.key,
-                             task_tags=['final']),
-                tag=self.generate_resource_tag(context.base_url,
-                    context.tenant, deployment['id'], key))
+        build_wait_task = Celery(
+            wfspec,
+            'Wait for Server %s (%s) build' % (key, resource['service']),
+            'checkmate.providers.rackspace.compute_legacy.wait_on_build',
+            call_args=[context.get_queued_task_dict(
+                deployment=deployment['id'],
+                resource=key),
+                PathAttrib('instance:%s/id' % key)
+            ],
+            password=PathAttrib('instance:%s/password' % key),
+            private_key=deployment.settings().get('keys', {}).get(
+                'deployment', {}).get('private_key'),
+            merge_results=True,
+            properties={'estimated_duration': 150},
+            defines=dict(
+                resource=key,
+                provider=self.key,
+                task_tags=['final']
+            ),
+            tag=self.generate_resource_tag(
+                context.base_url,
+                context.tenant,
+                deployment['id'], key
+            )
+        )
         create_server_task.connect(build_wait_task)
 
         #If Managed Cloud, add a Completion task to release RBA
         # other providers may delay this task until they are done
         if 'rax_managed' in context.roles:
-            touch_complete = Celery(wfspec, 'Mark Server %s (%s) Complete'
-                    % (key, resource['service']), 'checkmate.ssh.execute',
-                    call_args=[PathAttrib("instance:%s/public_ip" % key),
-                               "touch /tmp/checkmate-complete",
-                               "root"],
-                    password=PathAttrib('instance:%s/password' % key),
-                    private_key=deployment.settings().get('keys', {}).get(
-                            'deployment', {}).get('private_key'),
-                    properties={'estimated_duration': 10},
-                    defines=dict(resource=key,
-                                 provider=self.key,
-                                 task_tags=['complete']))
+            touch_complete = Celery(
+                wfspec,
+                'Mark Server %s (%s) Complete' % (key, resource['service']),
+                'checkmate.ssh.execute',
+                call_args=[
+                    PathAttrib("instance:%s/public_ip" % key),
+                    "touch /tmp/checkmate-complete", "root"
+                ],
+                password=PathAttrib('instance:%s/password' % key),
+                private_key=deployment.settings().get('keys', {}).get(
+                    'deployment', {}).get('private_key'),
+                properties={'estimated_duration': 10},
+                defines=dict(
+                    resource=key,
+                    provider=self.key,
+                    task_tags=['complete']
+                )
+            )
             build_wait_task.connect(touch_complete)
 
         if wait_on is None:
             wait_on = []
         if getattr(self, 'prep_task', None):
             wait_on.append(self.prep_task)
-        join = wait_for(wfspec, create_server_task, wait_on,
-                name="Server %s (%s) Wait on Prerequisites" % (key,
-                     resource['service']),
-                defines=dict(resource=key,
-                             provider=self.key,
-                             task_tags=['root']))
+        join = wait_for(
+            wfspec,
+            create_server_task,
+            wait_on,
+            name="Server %s (%s) Wait on Prerequisites" % (
+                key,
+                resource['service']
+            ),
+            defines=dict(
+                resource=key,
+                provider=self.key,
+                task_tags=['root']
+            )
+        )
 
         return dict(root=join, final=build_wait_task,
-                create=create_server_task)
+                    create=create_server_task)
 
     def get_catalog(self, context, type_filter=None):
         """Return stored/override catalog if it exists, else connect, build,
         and return one"""
         # TODO: maybe implement this an on_get_catalog so we don't have to do
         #       this for every provider
-        results = RackspaceComputeProviderBase.get_catalog(self, context,
-            type_filter=type_filter)
+        results = RackspaceComputeProviderBase.get_catalog(
+            self,
+            context,
+            type_filter=type_filter
+        )
         if results:
             # We have a prexisting or overriding catalog stored
             return results
@@ -273,14 +315,14 @@ class Provider(RackspaceComputeProviderBase):
                         if 'region' in endpoint:
                             if endpoint['region'] in REGION_MAP:
                                 endpoint['region'] = REGION_MAP[endpoint[
-                                        'region']]
+                                    'region']]
                             regions[endpoint['region']] = endpoint['publicURL']
                         else:
                             region = api.servers.get_region(tenant_id)
                             endpoint['region'] = region
                             if endpoint['region'] in REGION_MAP:
                                 endpoint['region'] = REGION_MAP[endpoint[
-                                        'region']]
+                                    'region']]
                             regions[endpoint['region']] = endpoint['publicURL']
             if 'lists' not in results:
                 results['lists'] = {}
@@ -326,9 +368,11 @@ class Provider(RackspaceComputeProviderBase):
             if 'lists' not in results:
                 results['lists'] = {}
             results['lists']['images'] = {
-                    str(i.id): {
-                        'name': i.name
-                        } for i in api.images.list() if int(i.id) > 1000}
+                str(i.id): {
+                    'name': i.name
+                }
+                for i in api.images.list() if int(i.id) > 1000
+            }
 
         self.validate_catalog(results)
         if type_filter is None:
@@ -340,11 +384,12 @@ class Provider(RackspaceComputeProviderBase):
         """Gets current tenant's images and formats them in Checkmate format"""
         images = api.images.list()
         results = {
-                str(i.id): {
-                    'name': i.name,
-                    'os': i.name.split(' - ')[0].replace(' LTS', ''),
-                    } for i in images if int(i.id) < 1000 and 'LAMP' not in
-                            i.name}
+            str(i.id): {
+                'name': i.name,
+                'os': i.name.split(' - ')[0].replace(' LTS', ''),
+            }
+            for i in images if int(i.id) < 1000 and 'LAMP' not in i.name
+        }
         return results
 
     @staticmethod
@@ -354,11 +399,13 @@ class Provider(RackspaceComputeProviderBase):
         """
         flavors = api.flavors.list()
         results = {
-                str(f.id): {
-                    'name': f.name,
-                    'memory': f.ram,
-                    'disk': f.disk,
-                    } for f in flavors}
+            str(f.id): {
+                'name': f.name,
+                'memory': f.ram,
+                'disk': f.disk,
+            }
+            for f in flavors
+        }
         return results
 
     @staticmethod
@@ -383,7 +430,7 @@ class Provider(RackspaceComputeProviderBase):
         url = find_url(context.catalog)
         api.client.management_url = url
         LOG.debug("Connected to legacy cloud servers using token of length %s "
-                "and url of %s" % (len(api.client.auth_token), url))
+                  "and url of %s" % (len(api.client.auth_token), url))
         return api
 
 """
@@ -399,7 +446,7 @@ from checkmate.ssh import test_connection
 
 @task
 def create_server(context, name, api_object=None, flavor=2, files=None,
-            image=119, ip_address_type='public'):
+                  image=119, ip_address_type='public'):
     """Create a Rackspace Cloud server.
 
     :param context: the context information
@@ -434,7 +481,7 @@ def create_server(context, name, api_object=None, flavor=2, files=None,
         api_object = Provider._connect(context)
 
     LOG.debug('Image=%s, Flavor=%s, Name=%s, Files=%s' % (
-                  image, flavor, name, files))
+              image, flavor, name, files))
 
     # Check image and flavor IDs (better descriptions if we error here)
     image_object = api_object.images.find(id=int(image))
@@ -443,9 +490,12 @@ def create_server(context, name, api_object=None, flavor=2, files=None,
     LOG.debug("Flavor id %s found. Name=%s" % (flavor, flavor_object.name))
 
     try:
-        server = api_object.servers.create(image=int(image),
-                flavor=int(flavor), name=name,
-                meta=context.get("metadata", None), files=files)
+        server = api_object.servers.create(
+            image=int(image),
+            flavor=int(flavor),
+            name=name,
+            meta=context.get("metadata", None), files=files
+        )
         create_server.update_state(state="PROGRESS",
                                    meta={"server.id": server.id})
         LOG.debug(
@@ -453,8 +503,9 @@ def create_server(context, name, api_object=None, flavor=2, files=None,
             name, server.id, server.adminPass))
     except openstack.compute.exceptions.Unauthorized:
         LOG.debug(
-            'Cannot create server.  Bad username and apikey/authtoken ' \
-            'combination.')
+            'Cannot create server.  Bad username and apikey/authtoken '
+            'combination.'
+        )
         raise
     except Exception, exc:
         LOG.debug(
@@ -467,18 +518,19 @@ def create_server(context, name, api_object=None, flavor=2, files=None,
 
     instance_key = 'instance:%s' % context['resource']
     results = {instance_key: dict(id=server.id, ip=ip_address,
-            password=server.adminPass, private_ip=private_ip_address,
-            status="BUILD")}
+               password=server.adminPass, private_ip=private_ip_address,
+               status="BUILD")}
     # Send data back to deployment
     resource_postback.delay(context['deployment'],
-                            results) #@UndefinedVariable
+                            results)  # @UndefinedVariable
     return results
 
 
 @task(default_retry_delay=30, max_retries=120)  # max 60 minute wait
-def wait_on_build(context, server_id, ip_address_type='public',
-            check_ssh=True, username='root', timeout=10, password=None,
-            identity_file=None, port=22, api_object=None, private_key=None, tag=None):
+def wait_on_build(context, server_id, ip_address_type='public', check_ssh=True,
+                  username='root', timeout=10, password=None,
+                  identity_file=None, port=22, api_object=None,
+                  private_key=None, tag=None):
     """Checks build is complete and. optionally, that SSH is working.
 
     :param ip_adress_type: the type of IP addresss to return as 'ip' in the
@@ -492,10 +544,11 @@ def wait_on_build(context, server_id, ip_address_type='public',
     assert server_id, "ID must be provided"
     LOG.debug("Getting server %s" % server_id)
     server = api_object.servers.find(id=server_id)
-    results = {'id': server_id,
-            'status': server.status,
-            'addresses': _convert_v1_adresses_to_v2(server.addresses)
-            }
+    results = {
+        'id': server_id,
+        'status': server.status,
+        'addresses': _convert_v1_adresses_to_v2(server.addresses)
+    }
 
     if server.status == 'ERROR':
         msg = "Server %s build failed" % server_id
@@ -565,8 +618,8 @@ def wait_on_build(context, server_id, ip_address_type='public',
         raise CheckmateException("Could not find IP of server %s" % server_id)
     else:
         up = test_connection(context, ip, username, timeout=timeout,
-                password=password, identity_file=identity_file, port=port,
-                private_key=private_key)
+                             password=password, identity_file=identity_file,
+                             port=port, private_key=private_key)
         if up:
             LOG.info("Server %s is up" % server_id)
             results['status'] = "ACTIVE"
