@@ -1320,15 +1320,15 @@ class TestChefMap(unittest.TestCase):
 
         git.Repo = self.mox.CreateMockAnything()
         mock_repo = self.mox.CreateMockAnything()
-        repo_remotes = self.mox.CreateMockAnything()
-        repo_remotes_origin = self.mox.CreateMockAnything()
-        mock_repo.remotes = repo_remotes
-        repo_remotes.origin = repo_remotes_origin
-        git.Repo.__call__ = lambda x: mock_repo
-        def update_map():
+        git.Repo(IgnoreArg()).AndReturn(mock_repo)
+        mock_repo.tags = self.mox.CreateMockAnything()
+        mock_repo.tags.__contains__('master').AndReturn(False)
+        def update_map(repo_cache=None, remote=None, branch=None):
             with open(self.chef_map_path, 'a') as f:
                 f.write("new information")
-        repo_remotes_origin.pull().WithSideEffects(update_map)
+        utils.git_pull = self.mox.CreateMockAnything()
+        utils.git_pull(IgnoreArg(), "origin", IgnoreArg())\
+             .WithSideEffects(update_map)
         self.mox.ReplayAll()
 
         chefmap.url = self.url

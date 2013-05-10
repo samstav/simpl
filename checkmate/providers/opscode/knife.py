@@ -263,19 +263,19 @@ def _cache_blueprint(source_repo):
 
         if last_update > cache_expire_time:
             LOG.debug("Updating repo: %s", repo_cache)
-            if branch in repo.tags:
+            if branch in repo.tags:  # Does `branch' point to a tag?
+                try:
+                    utils.git_update_tag(repo_cache, "origin", branch)
+                except:
+                    raise CheckmateException("Unable to fetch tag: %s" %
+                                             branch)
+            else:
                 try:
                     utils.git_pull(repo_cache, "origin", branch)
                 except git.GitCommandError as exc:
                     raise CheckmateException("Unable to pull from git "
                                              "repository at %s.  Using the "
                                              "cached repository", url)
-            else:
-                try:
-                    utils.git_update_tag(repo_cache, "origin", branch)
-                except:
-                    raise CheckmateException("Unable to fetch tag: %s" %
-                                             branch)
         else:
             LOG.debug("Using cached repo: %s" % repo_cache)
     else:
