@@ -24,7 +24,9 @@ from celery.task import task
 class TestDatabase(ProviderTester):
     """ Test Database Provider """
 
-    klass = database.Provider
+    def setUp(self):
+        self.mox = mox.Mox()
+        self.deployment = self.mox.CreateMockAnything()
 
     def test_create_instance(self):
         #Mock instance
@@ -129,10 +131,10 @@ class TestDatabase(ProviderTester):
 
         expected = {
             'instance:1': {
-                'status': 'ERROR', 
+                'status': 'ERROR',
                 'errmessage': 'Instance fake_instance_id build failed'
                 }
-            } 
+            }
 
         expected_resource = {
             '0' : {
@@ -150,7 +152,7 @@ class TestDatabase(ProviderTester):
         #expect resource postback to be called
         resource_postback.delay(context['deployment'], expected)
 
-        self.mox.StubOutWithMock(database, 'get_resource_by_id')        
+        self.mox.StubOutWithMock(database, 'get_resource_by_id')
         database.get_resource_by_id(context['deployment'], context['resource'])\
                                     .AndReturn(expected_resource)
 
@@ -171,7 +173,7 @@ class TestDatabase(ProviderTester):
         )
         self.mox.UnsetStubs()
         self.mox.VerifyAll()
-  
+
     def test_create_database(self):
         context = dict(deployment='DEP', resource='1')
 
@@ -219,6 +221,13 @@ class TestDatabase(ProviderTester):
         self.mox.VerifyAll()
 
     def test_template_generation_database(self):
+        self.deployment.get_setting('domain', default='checkmate.local',
+                                    provider_key='rackspace.database',
+                                    resource_type='database',
+                                    service_name='master'). \
+            AndReturn("test.checkmate")
+        self.deployment._constrained_to_one('master').AndReturn(True)
+
         catalog = {
             'database': {
                 'mysql_database': {
@@ -230,23 +239,22 @@ class TestDatabase(ProviderTester):
         provider = database.Provider({'catalog': catalog})
 
         #Mock Base Provider, context and deployment
-        deployment = self.mox.CreateMockAnything()
         context = self.mox.CreateMockAnything()
         context.kwargs = {}
 
-        expected = {
+        expected = [{
             'instance': {},
-            'dns-name': 'fake_name',
+            'dns-name': 'master.test.checkmate',
             'type': 'database',
             'provider': provider.key,
             'service': 'master',
-        }
+        }]
 
         self.mox.ReplayAll()
-        results = provider.generate_template(deployment, 'database', 'master',
-                                             context, name='fake_name')
+        results = provider.generate_template(self.deployment, 'database', 'master',
+                                             context, 1, provider.key, None)
 
-        self.assertDictEqual(results, expected)
+        self.assertListEqual(results, expected)
         self.mox.VerifyAll()
 
 
@@ -274,36 +282,41 @@ class TestDatabase(ProviderTester):
         provider = database.Provider({'catalog': catalog})
 
         #Mock Base Provider, context and deployment
-        deployment = self.mox.CreateMockAnything()
+        self.deployment.get_setting('domain', default='checkmate.local',
+                                    provider_key='rackspace.database',
+                                    resource_type='compute',
+                                    service_name='master')\
+            .AndReturn("test.domain")
+        self.deployment._constrained_to_one('master').AndReturn(True)
         context = self.mox.CreateMockAnything()
         context.kwargs = {}
 
-        deployment.get_setting('memory', resource_type='compute',
+        self.deployment.get_setting('memory', resource_type='compute',
                                service_name='master',
                                provider_key=provider.key).AndReturn(1025)
-        deployment.get_setting('disk', resource_type='compute',
+        self.deployment.get_setting('disk', resource_type='compute',
                                service_name='master',
                                provider_key=provider.key,
                                default=1).AndReturn(2)
-        deployment.get_setting('region', resource_type='compute',
+        self.deployment.get_setting('region', resource_type='compute',
                                service_name='master',
                                provider_key=provider.key).AndReturn('North')
-        expected = {
+        expected = [{
             'instance': {},
-            'dns-name': 'fake_name',
+            'dns-name': 'master.test.domain',
             'type': 'compute',
             'provider': provider.key,
             'service': 'master',
             'region': 'North',
             'disk': 2,
             'flavor': '2'
-        }
+        }]
 
         self.mox.ReplayAll()
-        results = provider.generate_template(deployment, 'compute', 'master',
-                                             context, name='fake_name')
+        results = provider.generate_template(self.deployment, 'compute', 'master',
+                                             context, 1, provider.key, None)
 
-        self.assertDictEqual(results, expected)
+        self.assertListEqual(results, expected)
         self.mox.VerifyAll()
 
 

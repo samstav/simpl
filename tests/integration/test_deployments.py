@@ -331,7 +331,7 @@ class TestDeploymentResourceGenerator(unittest.TestCase):
         self.assertIn("myResource", resources)
         expected = {'component': 'small_widget',
                     #dns-name with a deployment name
-                    'dns-name': 'sharedmyResource.checkmate.local',
+                    'dns-name': 'sharedwidget.checkmate.local',
                     'index': 'myResource',
                     'instance': {},
                     'provider': 'base',
