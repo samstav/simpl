@@ -4,6 +4,7 @@ import logging
 import os
 import urlparse
 
+from bottle import abort
 from celery.task import task
 
 from checkmate import keys
@@ -31,7 +32,6 @@ from checkmate.utils import (
     match_celery_logging,
     is_simulation,
 )
-from bottle import abort
 
 LOG = logging.getLogger(__name__)
 DB = get_driver()

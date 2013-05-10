@@ -807,7 +807,8 @@ class AuthTokenRouterMiddleware():
             # specified
             if 'HTTP_X_AUTH_SOURCE' not in environ and self.default_endpoint \
                     not in sources.values():
-                result = self.default_middleware.__call__(environ, sr_intercept)
+                result = self.default_middleware.__call__(environ,
+                                                          sr_intercept)
                 if not self.last_status.startswith('401 '):
                     # We got a good hit
                     LOG.debug("Token Auth Router got a successful response "
