@@ -723,7 +723,7 @@ class StubbedWorkflowBase(unittest.TestCase):
                                 'HTTP', 80,
                                 self.deployment.get_setting('region',
                                         default='testonia')],
-                        'kwargs': IgnoreArg(),
+                                'kwargs': ContainsKeyValue(tag, {'RAX-CHECKMATE': IgnoreArg()}),
                         'result': {
                                 'instance:%s' % key: {
                                         'id': 20001, 'vip': "200.1.1.1",
