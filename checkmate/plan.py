@@ -83,7 +83,7 @@ class Plan(ExtensibleDict):
 
     def plan(self, context):
         """Perform plan analysis. Returns a reference to planned resources"""
-        LOG.info("Planning deployment '%s'" % self.deployment['id'])
+        LOG.info("Planning deployment '%s'", self.deployment['id'])
         # Fill the list of services
         service_names = self.deployment['blueprint'].get('services', {}).keys()
         self['services'] = {name: {'component': {}} for name in service_names}
@@ -147,7 +147,7 @@ class Plan(ExtensibleDict):
             if 'default' in option:
                 default = option['default']
                 if (isinstance(default, basestring,) and
-                    default.startswith('=generate')):
+                        default.startswith('=generate')):
                     option['default'] = utils.evaluate(default[1:])
 
     def add_resources(self, deployment, context):

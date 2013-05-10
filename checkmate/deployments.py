@@ -411,7 +411,7 @@ def get_deployment(oid, tenant_id=None, driver=DB):
 
 
 def _get_a_deployment_with_request(oid, tenant_id=None, driver=DB):
-    """ 
+    """
     Lookup a deployment with secrets if needed. With secrets is stored
     on the request.
     """
@@ -442,7 +442,7 @@ def get_deployment_resources(oid, tenant_id=None, driver=DB):
     """ Return the resources for a deployment """
     if is_simulation(oid):
         driver = SIMULATOR_DB
-    deployment = _get_a_deployment_with_request(oid, tenant_id=tenant_id, 
+    deployment = _get_a_deployment_with_request(oid, tenant_id=tenant_id,
                                                 driver=driver)
     resources = _get_dep_resources(deployment)
     return write_body(resources, request, response)

@@ -58,7 +58,6 @@
 # from our fork - python-clouddns
 # from our fork - python-cloudfiles
 # from fork - rackspace-monitoring
-# from caleb's fork - PyChef==0.2.dev
 # from our fork - SpiffWorkflow==0.3.2-rackspace
 
 amqp==1.0.8
