@@ -1,7 +1,6 @@
+'''Base Classes and functions for Providers'''
 import logging
-import platform
 
-import checkmate
 from checkmate import utils
 from checkmate.common import schema
 from checkmate.component import Component
@@ -16,10 +15,12 @@ PROVIDER_CLASSES = {}
 
 
 class CheckmateProviderConflict(Exception):
+    '''Exception Class for Provider Conflicts'''
     pass
 
 
 class CheckmateInvalidProvider(Exception):
+    '''Exception Class for Invalid Provider'''
     pass
 
 
@@ -32,6 +33,7 @@ class ProviderBaseWorkflowMixIn():
     """
 
     def _verify_existing_resource(self, resource, key):
+        '''Private method for Resource verification'''
         msg = None
         if resource.get("provider") != self.name:
             msg = "%s did not provide resource %s" % (self.name, key)
@@ -48,7 +50,7 @@ class ProviderBaseWorkflowMixIn():
         if msg:
             raise CheckmateException(msg)
 
-    # pylint: disable=W0613
+    # pylint: disable=W0613,R0913
     def prep_environment(self, wfspec, deployment, context):
         """Add any tasks that are needed for an environment setup
 
@@ -60,7 +62,7 @@ class ProviderBaseWorkflowMixIn():
         LOG.debug("%s.%s.prep_environment called, but was not implemented",
                   self.vendor, self.name)
 
-    # pylint: disable=W0613
+    # pylint: disable=W0613,R0913
     def add_resource_tasks(self, resource, key, wfspec, deployment,
                            context, wait_on=None):
         """Add tasks needed to create a resource (the resource would normally
@@ -100,7 +102,7 @@ class ProviderBaseWorkflowMixIn():
             wait_on = []
         # 1 - Wait on host to be ready
         # Find final task(s) of 'host' relationship
-        tasks = self.get_hosting_relation_final_tasks(wfspec, key)
+        tasks = self.get_host_relation_final_tasks(wfspec, key)
         if not tasks:
             # If no relation tasks, make sure host is ready
             tasks = self.get_host_ready_tasks(resource, wfspec, deployment)
@@ -120,6 +122,7 @@ class ProviderBaseWorkflowMixIn():
                                      key)
         return wait_on, service_name, component
 
+    # pylint: disable=R0913
     def add_connection_tasks(self, resource, key, relation, relation_key,
                              wfspec, deployment, context):
         """Add tasks needed to create a connection between rersources
@@ -140,7 +143,8 @@ class ProviderBaseWorkflowMixIn():
         LOG.debug("%s.%s.add_connection_tasks called, "
                   "but was not implemented", self.vendor, self.name)
 
-    def find_tasks(self, wfspec, **kwargs):
+    @staticmethod
+    def find_tasks(wfspec, **kwargs):
         """Find tasks in the workflow with matching properties.
 
         :param wfspec: the SpiffWorkflow WorkflowSpec we are building
@@ -197,7 +201,7 @@ class ProviderBaseWorkflowMixIn():
                                          tag='final')
             return host_final
 
-    def get_hosting_relation_final_tasks(self, wfspec, resource_key):
+    def get_host_relation_final_tasks(self, wfspec, resource_key):
         """Get tasks to wait on for completion of hosting relationship
 
         :param wfspec: the SpiffWorkflow WorkflowSpec we are building
@@ -244,6 +248,7 @@ class ProviderBasePlanningMixIn():
 
     This class is mixed in to the ProviderBase
     """
+    # pylint: disable=W0613,R0913
     def generate_template(self, deployment, resource_type,
                           service, context, name=None):
         """Generate a resource dict to be embedded in a deployment"""
@@ -259,9 +264,12 @@ class ProviderBasePlanningMixIn():
 
     @staticmethod
     def generate_resource_tag(base_url=None, tenant_id=None,
-            deployment_id=None, resource_id=None):
-        return "{}/{}/deployments/{}/resources/{}".format(base_url, tenant_id,
-                deployment_id, resource_id)
+                              deployment_id=None, resource_id=None):
+        '''Builds the URL to a Resource used in RAX-CHECKMATE metadata'''
+        return "{}/{}/deployments/{}/resources/{}".format(base_url,
+                                                          tenant_id,
+                                                          deployment_id,
+                                                          resource_id)
 
 
 class ProviderBase(ProviderBasePlanningMixIn, ProviderBaseWorkflowMixIn):
@@ -302,7 +310,7 @@ class ProviderBase(ProviderBasePlanningMixIn, ProviderBaseWorkflowMixIn):
                                                provider)
         if 'catalog' in provider:
             self.validate_catalog(provider['catalog'])
-            LOG.debug("Initializing provider %s with catalog" % self.key,
+            LOG.debug("Initializing provider %s with catalog", self.key,
                       extra=dict(data=provider['catalog']))
         self._dict = provider or {}
 
@@ -364,13 +372,15 @@ class ProviderBase(ProviderBasePlanningMixIn, ProviderBaseWorkflowMixIn):
                 result = self._dict['catalog']
         return result
 
-    def validate_catalog(self, catalog):
+    @staticmethod
+    def validate_catalog(catalog):
+        '''Catalog Validation'''
         errors = schema.validate_catalog(catalog)
         if errors:
             raise CheckmateValidationException("Invalid catalog: %s" %
                                                '\n'.join(errors))
 
-    def get_component(self, context, id):
+    def get_component(self, context, component_id):
         """Get component by ID. Default implementation gets full catalog and
         searches for ID. Override with a more efficient implementation in your
         provider code."""
@@ -380,11 +390,11 @@ class ProviderBase(ProviderBasePlanningMixIn, ProviderBaseWorkflowMixIn):
         for key, value in catalog.iteritems():
             if key == 'lists':
                 continue
-            if id in value:
-                result = value[id]
+            if component_id in value:
+                result = value[component_id]
                 if 'is' not in result:
                     result['is'] = key
-                return Component(result, id=id, provider=self)
+                return Component(result, id=component_id, provider=self)
 
     def find_components(self, context, **kwargs):
         """Finds the components that matches the supplied key/value arguments
@@ -457,12 +467,12 @@ class ProviderBase(ProviderBasePlanningMixIn, ProviderBaseWorkflowMixIn):
         for key, components in catalog.iteritems():
             if key == 'lists':
                 continue  # ignore lists, we are looking for components
-            for id, component in components.iteritems():
-                if component_id and component_id != id:
+            for iter_id, component in components.iteritems():
+                if component_id and component_id != iter_id:
                     continue  # ID specified and does not match
                 if role and role not in component.get('roles', []):
                     continue  # Component does not provide given role
-                comp = Component(component, id=id)
+                comp = Component(component, id=iter_id)
                 provides = comp.provides or {}
                 for entry in provides.values():
                     ptype = entry.get('resource_type')
@@ -472,17 +482,21 @@ class ProviderBase(ProviderBasePlanningMixIn, ProviderBaseWorkflowMixIn):
                     if resource_type and resource_type != ptype:
                         continue  # Type specified and does not match
                     LOG.debug("'%s' matches in provider '%s' and provides %s",
-                              id, self.key, provides)
-                    matches.append(Component(component, id=id, provider=self))
+                              iter_id, self.key, provides)
+                    matches.append(Component(component,
+                                             id=iter_id,
+                                             provider=self))
 
         return matches
 
-    def evaluate(self, function_string):
+    @staticmethod
+    def evaluate(function_string):
         """Evaluate an option value"""
         return utils.evaluate(function_string)
 
     # pylint: disable=W0613
-    def proxy(self, path, request, tenant_id=None):
+    @staticmethod
+    def proxy(path, request, tenant_id=None):
         """Proxy request through to provider"""
         raise CheckmateException("Provider does not support call")
 
@@ -561,7 +575,7 @@ def get_provider_class(vendor, key):
     try:
         klass = utils.import_class(class_name)
         if klass:
-            LOG.warning("Unregistered provider class loaded: %s" % class_name)
+            LOG.warning("Unregistered provider class loaded: %s", class_name)
         return klass
     except StandardError as exc:
         LOG.exception(exc)
