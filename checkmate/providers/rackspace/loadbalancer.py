@@ -129,6 +129,8 @@ class Provider(ProviderBase):
                                        'task_tags': ['create', 'root']},
                            dns=dns,
                            algorithm=algorithm,
+                           tag=self.generate_resource_tag(context.base_url,
+                               context.tenant, deployment['id'], key),
                            port=port)
 
         task_name = ('Wait for Loadbalancer %s (%s) build' %
@@ -329,10 +331,10 @@ class Provider(ProviderBase):
         else:
           context['deployment'] = deployment_id
           context['resource'] = key
-                
+
         del_task = chain(delete_lb_task.s(context, key, lb_id,region),
                          alt_resource_postback.s(deployment_id),
-                         wait_on_lb_delete.si(context, key, deployment_id, 
+                         wait_on_lb_delete.si(context, key, deployment_id,
                                               lb_id, region),
                          alt_resource_postback.s(deployment_id))
 
@@ -342,7 +344,7 @@ class Provider(ProviderBase):
                                  delete_record.s(context, dom_id,
                                                  rec_id))
         return delete_stuff
-       
+
 
     def add_connection_tasks(self, resource, key, relation, relation_key,
                              wfspec, deployment, context):
@@ -567,6 +569,7 @@ PLACEHOLDER_IP = '1.2.3.4'
 @task
 def create_loadbalancer(context, name, vip_type, protocol, region, api=None,
                         dns=False, port=None, algorithm='ROUND_ROBIN',
+                        tag=None,
                         monitor_path='/', monitor_delay=10, monitor_timeout=10,
                         monitor_attempts=3, monitor_body='(.*)',
                         monitor_status='^[234][0-9][0-9]$', parent_lb=None):
@@ -619,8 +622,10 @@ def create_loadbalancer(context, name, vip_type, protocol, region, api=None,
             create_loadbalancer.retry(
                 exc=CheckmateException("Cannot get %s vip for load balancer "
                                        "%s") % (vip_type, parent_lb))
-
-    meta = context.get("metadata", None)
+    instance_key = 'instance:%s' % context['resource']
+    # Add RAX-CHECKMATE to metadata
+    # support old way of getting metadata from generate_template
+    meta = tag or context.get("metadata", None)
     if meta:
         # attach checkmate metadata to the lb if available
         new_meta = []
@@ -637,6 +642,14 @@ def create_loadbalancer(context, name, vip_type, protocol, region, api=None,
             name=name, port=port, protocol=protocol.upper(),
             nodes=[fakenode], virtualIps=[vip], algorithm=algorithm)
 
+    # Put the instance_id in the db as soon as it's available
+    instance_id = {
+        instance_key: {
+            'id': loadbalancer.id
+        }
+    }
+    resource_postback.delay(context['deployment'], instance_id)
+
     # update our assigned vip
     for ip_data in loadbalancer.virtualIps:
         if ip_data.ipVersion == 'IPV4' and ip_data.type == "PUBLIC":
@@ -645,7 +658,7 @@ def create_loadbalancer(context, name, vip_type, protocol, region, api=None,
     LOG.debug('Load balancer %s created. VIP = %s', loadbalancer.id, vip)
 
     results = {
-        'instance:%s' % context['resource']: {
+        instance_key: {
             'id': loadbalancer.id,
             'public_ip': vip,
             'port': loadbalancer.port,
@@ -1012,7 +1025,7 @@ def wait_on_build(context, lbid, region, api=None):
         Provider({}).delete_resource_tasks(context,
                               context['deployment'],
                               get_resource_by_id(context['deployment'],
-                                            context['resource']), 
+                                            context['resource']),
                               instance_key).apply_async()
         raise CheckmateException(msg)
     elif loadbalancer.status == "ACTIVE":

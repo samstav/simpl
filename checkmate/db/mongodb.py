@@ -331,7 +331,9 @@ class Driver(DbBase):
             self.database()
         client = self._client
         with client.start_request():
-            count = self.database()[klass].count()
+            count = self.database()[klass].find({'tenantId': tenant_id} 
+                                                if tenant_id else None, 
+                                                self._object_projection).count()
             if limit:
                 if offset is None:
                     offset = 0

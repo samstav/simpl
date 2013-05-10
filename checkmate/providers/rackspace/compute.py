@@ -10,26 +10,29 @@ import os
 from celery.canvas import chain
 from celery.task import task
 from novaclient.exceptions import NotFound, NoUniqueMatch
+# pylint: disable=C0103
 client = eventlet.import_patched('novaclient.v1_1.client')
 # from novaclient.v1_1 import client
 from SpiffWorkflow.operators import PathAttrib
 from SpiffWorkflow.specs import Celery
 
-from checkmate.deployments import (resource_postback, alt_resource_postback,
-                                   get_resource_by_id)
+from checkmate.common.caching import Memorize
+from checkmate.deployments import (
+    resource_postback,
+    alt_resource_postback,
+    get_resource_by_id,
+)
 from checkmate.exceptions import (
     CheckmateNoTokenError,
     CheckmateNoMapping,
     CheckmateServerBuildFailed,
     CheckmateException,
 )
+from checkmate.middleware import RequestContext
 from checkmate.providers import ProviderBase
 import checkmate.rdp
 import checkmate.ssh
 from checkmate.utils import match_celery_logging, isUUID, yaml_to_dict
-import time
-
-from checkmate.middleware import RequestContext
 from checkmate.workflow import wait_for
 
 
@@ -62,7 +65,12 @@ CATALOG_TEMPLATE = yaml_to_dict("""compute:
                     "personality: [
                         {
                             "path" : "/etc/banner.txt",
-                            "contents" : "ICAgICAgDQoiQSBjbG91ZCBkb2VzIG5vdCBrbm93IHdoeSBp dCBtb3ZlcyBpbiBqdXN0IHN1Y2ggYSBkaXJlY3Rpb24gYW5k IGF0IHN1Y2ggYSBzcGVlZC4uLkl0IGZlZWxzIGFuIGltcHVs c2lvbi4uLnRoaXMgaXMgdGhlIHBsYWNlIHRvIGdvIG5vdy4g QnV0IHRoZSBza3kga25vd3MgdGhlIHJlYXNvbnMgYW5kIHRo ZSBwYXR0ZXJucyBiZWhpbmQgYWxsIGNsb3VkcywgYW5kIHlv dSB3aWxsIGtub3csIHRvbywgd2hlbiB5b3UgbGlmdCB5b3Vy c2VsZiBoaWdoIGVub3VnaCB0byBzZWUgYmV5b25kIGhvcml6 b25zLiINCg0KLVJpY2hhcmQgQmFjaA=="
+                            "contents" : "ICAgICAgDQoiQSBjbG91ZCBkb2VzIG5vdCBr\
+bm93IHdoeSBp dCBtb3ZlcyBpbiBqdXN0IHN1Y2ggYSBkaXJlY3Rpb24gYW5k IGF0IHN1Y2ggYSBz\
+cGVlZC4uLkl0IGZlZWxzIGFuIGltcHVs c2lvbi4uLnRoaXMgaXMgdGhlIHBsYWNlIHRvIGdvIG5vd\
+y4g QnV0IHRoZSBza3kga25vd3MgdGhlIHJlYXNvbnMgYW5kIHRo ZSBwYXR0ZXJucyBiZWhpbmQgY\
+WxsIGNsb3VkcywgYW5kIHlv dSB3aWxsIGtub3csIHRvbywgd2hlbiB5b3UgbGlmdCB5b3Vy c2VsZ\
+iBoaWdoIGVub3VnaCB0byBzZWUgYmV5b25kIGhvcml6 b25zLiINCg0KLVJpY2hhcmQgQmFjaA=="
                         }
                     ]
         'metadata': &metadata
@@ -95,6 +103,8 @@ CATALOG_TEMPLATE = yaml_to_dict("""compute:
             choice: []
 """)
 
+API_CACHE = {}
+
 
 class RackspaceComputeProviderBase(ProviderBase):
     """Generic functions for rackspace Compute providers"""
@@ -102,7 +112,7 @@ class RackspaceComputeProviderBase(ProviderBase):
 
     def __init__(self, provider, key=None):
         ProviderBase.__init__(self, provider, key=key)
-        #kwargs aadded to server creation calls (contain things like ssh keys)
+        #kwargs added to server creation calls (contain things like ssh keys)
         self._kwargs = {}
         with open(os.path.join(os.path.dirname(__file__),
                                "managed_cloud",
@@ -113,7 +123,7 @@ class RackspaceComputeProviderBase(ProviderBase):
         keys = set()
         for name, key_pair in deployment.settings()['keys'].iteritems():
             if 'public_key_ssh' in key_pair:
-                LOG.debug("Injecting a '%s' public key" % name)
+                LOG.debug("Injecting a '%s' public key", name)
                 keys.add(key_pair['public_key_ssh'])
         if keys:
             path = '/root/.ssh/authorized_keys'
@@ -136,62 +146,65 @@ class Provider(RackspaceComputeProviderBase):
     name = 'nova'
 
     def generate_template(self, deployment, resource_type, service, context,
-            name=None):
-        template = RackspaceComputeProviderBase.generate_template(self,
-                deployment, resource_type, service, context, name=name)
-
-        catalog = self.get_catalog(context)
+                          name=None):
+        template = RackspaceComputeProviderBase.generate_template(
+            self, deployment, resource_type, service, context, name=name)
 
         # Get region
         region = deployment.get_setting('region', resource_type=resource_type,
-                service_name=service, provider_key=self.key)
+                                        service_name=service,
+                                        provider_key=self.key)
         if not region:
             raise CheckmateException("Could not identify which region to "
-                    "create servers in")
+                                     "create servers in")
+
+        catalog = self.get_catalog(context)
 
         # Find and translate image
         image = deployment.get_setting('os', resource_type=resource_type,
-                service_name=service, provider_key=self.key,
-                default='Ubuntu 12.04')
+                                       service_name=service,
+                                       provider_key=self.key,
+                                       default='Ubuntu 12.04')
 
         if not isUUID(image):
             # Assume it is an OS name and find it
             for key, value in catalog['lists']['types'].iteritems():
                 if image == value['name'] or image == value['os']:
-                    LOG.debug("Mapping image from '%s' to '%s'" % (image, key))
+                    LOG.debug("Mapping image from '%s' to '%s'", image, key)
                     image = key
                     break
 
         if not isUUID(image):
             # Sounds like we did not match an image
             raise CheckmateNoMapping("No image mapping for '%s' in '%s'" % (
-                    image, self.name))
+                                     image, self.name))
 
         if image not in catalog['lists']['types']:
             raise CheckmateNoMapping("Image '%s' not found in '%s'" % (
-                    image, self.name))
+                                     image, self.name))
 
         # Get setting
         flavor = None
         memory = self.parse_memory_setting(deployment.get_setting('memory',
-                resource_type=resource_type, service_name=service,
-                provider_key=self.key, default=512))
+                                           resource_type=resource_type,
+                                           service_name=service,
+                                           provider_key=self.key, default=512))
 
         # Find the available memory size that satisfies this
         matches = [e['memory'] for e in catalog['lists']['sizes'].values()
-                     if int(e['memory']) >= memory]
+                   if int(e['memory']) >= memory]
         if not matches:
             raise CheckmateNoMapping("No flavor has at least '%s' memory" %
                                      memory)
         match = str(min(matches))
         for key, value in catalog['lists']['sizes'].iteritems():
             if match == str(value['memory']):
-                LOG.debug("Mapping flavor from '%s' to '%s'" % (memory, key))
+                LOG.debug("Mapping flavor from '%s' to '%s'", memory, key)
                 flavor = key
                 break
         if not flavor:
             raise CheckmateNoMapping("No flavor mapping for '%s' in '%s'" % (
-                    memory, self.key))
+                                     memory, self.key))
 
         template['flavor'] = flavor
         template['image'] = image
@@ -206,38 +219,51 @@ class Provider(RackspaceComputeProviderBase):
         :returns: returns the root task in the chain of tasks
         TODO: use environment keys instead of private key
         """
-        create_server_task = Celery(wfspec, 'Create Server %s (%s)' % (key,
-                                    resource['service']),
-               'checkmate.providers.rackspace.compute.create_server',
-               call_args=[context.get_queued_task_dict(
-                                deployment=deployment['id'],
-                                resource=key),
-                        resource.get('dns-name'),
-                        resource['region']],
-               image=resource.get('image', UBUNTU_12_04_IMAGE_ID),
-               flavor=resource.get('flavor', "2"),
-               files=self._kwargs.get('files', None),
-               defines=dict(resource=key,
-                            provider=self.key,
-                            task_tags=['create']),
-               properties={'estimated_duration': 20})
+        create_server_task = Celery(
+            wfspec, 'Create Server %s (%s)' % (key, resource['service']),
+            'checkmate.providers.rackspace.compute.create_server',
+            call_args=[
+                context.get_queued_task_dict(deployment=deployment['id'],
+                                             resource=key),
+                resource.get('dns-name'),
+                resource['region']
+            ],
+            image=resource.get('image', UBUNTU_12_04_IMAGE_ID),
+            flavor=resource.get('flavor', "2"),
+            files=self._kwargs.get('files', None),
+            tag=self.generate_resource_tag(
+                context.base_url, context.tenant, deployment['id'],
+                resource['index']
+            ),
+            defines=dict(
+                resource=key,
+                provider=self.key,
+                task_tags=['create']
+            ),
+            properties={'estimated_duration': 20}
+        )
 
         kwargs = dict(
-                call_args=[context.get_queued_task_dict(
-                                deployment=deployment['id'],
-                                resource=key),
-                        PathAttrib('instance:%s/id' % key),
-                        resource['region'], resource],
-                verify_up=True,
-                password=PathAttrib('instance:%s/password' % key),
-                private_key=deployment.settings().get('keys', {}).get(
-                        'deployment', {}).get('private_key'),
-                merge_results=True,
-                properties={'estimated_duration': 150},
-                defines=dict(resource=key,
-                             provider=self.key,
-                             task_tags=['final'])
-                )
+            call_args=[
+                context.get_queued_task_dict(deployment=deployment['id'],
+                                             resource=key),
+                PathAttrib('instance:%s/id' % key),
+                resource['region'],
+                resource
+            ],
+            verify_up=True,
+            password=PathAttrib('instance:%s/password' % key),
+            private_key=deployment.settings().get('keys', {}).get(
+                'deployment', {}).get('private_key'),
+            merge_results=True,
+            properties={'estimated_duration': 150},
+            defines=dict(
+                resource=key,
+                provider=self.key,
+                task_tags=['final']
+            )
+        )
+
         task_name = 'Wait for Server %s (%s) build' % (key,
                                                        resource['service'])
         celery_call = 'checkmate.providers.rackspace.compute.wait_on_build'
@@ -247,19 +273,24 @@ class Provider(RackspaceComputeProviderBase):
         # If Managed Cloud Linux servers, add a Completion task to release
         # RBA. Other providers may delay this task until they are done.
         if ('rax_managed' in context.roles and
-            resource['component'] == 'linux_instance'):
-            touch_complete = Celery(wfspec, 'Mark Server %s (%s) Complete'
-                    % (key, resource['service']), 'checkmate.ssh.execute',
-                    call_args=[PathAttrib("instance:%s/public_ip" % key),
-                               "touch /tmp/checkmate-complete",
-                               "root"],
-                    password=PathAttrib('instance:%s/password' % key),
-                    private_key=deployment.settings().get('keys', {}).get(
-                            'deployment', {}).get('private_key'),
-                    properties={'estimated_duration': 10},
-                    defines=dict(resource=key,
-                                 provider=self.key,
-                                 task_tags=['complete']))
+                resource['component'] == 'linux_instance'):
+            touch_complete = Celery(
+                wfspec, 'Mark Server %s (%s) Complete' % (key,
+                                                          resource['service']),
+                'checkmate.ssh.execute',
+                call_args=[PathAttrib("instance:%s/public_ip" % key),
+                           "touch /tmp/checkmate-complete",
+                           "root"],
+                password=PathAttrib('instance:%s/password' % key),
+                private_key=deployment.settings().get('keys', {}).get(
+                        'deployment', {}).get('private_key'),
+                properties={'estimated_duration': 10},
+                defines=dict(
+                    resource=key,
+                    provider=self.key,
+                    task_tags=['complete']
+                )
+            )
             build_wait_task.connect(touch_complete)
 
         if wait_on is None:
@@ -269,10 +300,14 @@ class Provider(RackspaceComputeProviderBase):
         if preps:
             wait_on.append(preps)
         join = wait_for(wfspec, create_server_task, wait_on,
-                name="Server Wait on:%s (%s)" % (key, resource['service']))
+                        name="Server Wait on:%s (%s)" % (key,
+                                                         resource['service']))
 
-        return dict(root=join, final=build_wait_task,
-                create=create_server_task)
+        return dict(
+            root=join,
+            final=build_wait_task,
+            create=create_server_task
+        )
 
     def delete_resource_tasks(self, context, deployment_id, resource, key):
         self._verify_existing_resource(resource, key)
@@ -280,10 +315,10 @@ class Provider(RackspaceComputeProviderBase):
         region = resource.get("region")
         if isinstance(context, RequestContext):
             context = context.get_queued_task_dict(deployment_id=deployment_id,
-                                           resource_key=key,
-                                           resource=resource,
-                                           region=region,
-                                           instance_id=inst_id)
+                                                   resource_key=key,
+                                                   resource=resource,
+                                                   region=region,
+                                                   instance_id=inst_id)
         else:
             context['deployment_id'] = deployment_id
             context['resource_key'] = key
@@ -295,35 +330,16 @@ class Provider(RackspaceComputeProviderBase):
                      wait_on_delete_server.si(context),
                      alt_resource_postback.s(deployment_id))
 
-    __api_cache__ = {}
-    
     def _get_api_info(self, context):
-        if context:
-            api = Provider._connect(context)
-            uri = api.client.management_url
-            if uri in Provider.__api_cache__:
-                vals = Provider.__api_cache__.get(uri, {})
-                tnow = int(time.time())
-                tthen = vals.get('saved', 0)
-                if (tnow - tthen) < 3600:
-                    return vals.get('values', {})
-            new_vals = self._refresh_api_info(context)
-            Provider.__api_cache__[uri] = {
-                'saved': int(time.time()),
-                'values': new_vals
-            }
-            return new_vals
-        return {}
-    
-    def _refresh_api_info(self, context):
+        region = Provider.find_a_region(context.catalog)
+        url = Provider.find_url(context.catalog, region)
         jobs = eventlet.GreenPile(2)
-        jobs.spawn(_get_flavors, Provider._connect(context))
-        jobs.spawn(_get_images_and_types, Provider._connect(context))
+        jobs.spawn(_get_flavors, url, context.auth_token)
+        jobs.spawn(_get_images_and_types, url, context.auth_token)
         vals = {}
         for ret in jobs:
             vals.update(ret)
         return vals
-
 
     def get_catalog(self, context, type_filter=None):
         """Return stored/override catalog if it exists, else connect, build,
@@ -331,7 +347,8 @@ class Provider(RackspaceComputeProviderBase):
         # TODO: maybe implement this an on_get_catalog so we don't have to do
         #       this for every provider
         results = RackspaceComputeProviderBase.get_catalog(self, context,
-            type_filter=type_filter)
+                                                           type_filter=
+                                                           type_filter)
         if results:
             # We have a prexisting or overriding catalog stored
             return results
@@ -356,16 +373,16 @@ class Provider(RackspaceComputeProviderBase):
                 results['lists'] = {}
             results['lists']['regions'] = regions
 
-        for res in vals:
-            if 'flavors' in res:
-                flavors = res.get('flavors')
-            if 'types' in res:
-                types = res.get('types')
-            if 'images' in res:
-                images = res.get('images')
+        for key in vals:
+            if key == 'flavors':
+                flavors = vals['flavors']
+            if key == 'types':
+                types = vals['types']
+            if key == 'images':
+                images = vals['images']
 
         if type_filter is None or type_filter == 'compute':
-            #TODO: add regression tests - copy.copy was leakin g across tenants
+            #TODO: add regression tests - copy.copy was leaking across tenants
             results['compute'] = copy.deepcopy(CATALOG_TEMPLATE['compute'])
             linux = results['compute']['linux_instance']
             windows = results['compute']['windows_instance']
@@ -404,6 +421,38 @@ class Provider(RackspaceComputeProviderBase):
             self._dict['catalog'] = results
         return results
 
+    @staticmethod
+    def find_url(catalog, region):
+        fall_back = None
+        for service in catalog:
+            if service['name'] == 'cloudServersOpenStack':
+                endpoints = service['endpoints']
+                for endpoint in endpoints:
+                    if endpoint.get('region') == region:
+                        return endpoint['publicURL']
+            elif (service['type'] == 'compute' and
+                  service['name'] != 'cloudServers'):
+                endpoints = service['endpoints']
+                for endpoint in endpoints:
+                    if endpoint.get('region') == region:
+                        fall_back = endpoint['publicURL']
+        return fall_back
+
+    @staticmethod
+    def find_a_region(catalog):
+        """Any region"""
+        fall_back = None
+        for service in catalog:
+            if service['name'] == 'cloudServersOpenStack':
+                endpoints = service['endpoints']
+                for endpoint in endpoints:
+                    return endpoint['region']
+            elif (service['type'] == 'compute' and
+                  service['name'] != 'cloudServers'):
+                endpoints = service['endpoints']
+                for endpoint in endpoints:
+                    fall_back = endpoint.get('region')
+        return fall_back
 
     @staticmethod
     def _connect(context, region=None):
@@ -416,64 +465,35 @@ class Provider(RackspaceComputeProviderBase):
         if not context.auth_token:
             raise CheckmateNoTokenError()
 
-        def find_url(catalog, region):
-            fall_back = None
-            for service in catalog:
-                if service['name'] == 'cloudServersOpenStack':
-                    endpoints = service['endpoints']
-                    for endpoint in endpoints:
-                        if endpoint.get('region') == region:
-                            return endpoint['publicURL']
-                elif (service['type'] == 'compute' and
-                      service['name'] != 'cloudServers'):
-                    endpoints = service['endpoints']
-                    for endpoint in endpoints:
-                        if endpoint.get('region') == region:
-                            fall_back = endpoint['publicURL']
-            return fall_back
-
-        def find_a_region(catalog):
-            """Any region"""
-            fall_back = None
-            for service in catalog:
-                if service['name'] == 'cloudServersOpenStack':
-                    endpoints = service['endpoints']
-                    for endpoint in endpoints:
-                        return endpoint['region']
-                elif (service['type'] == 'compute' and
-                      service['name'] != 'cloudServers'):
-                    endpoints = service['endpoints']
-                    for endpoint in endpoints:
-                        fall_back = endpoint.get('region')
-            return fall_back
-
         if not region:
-            region = find_a_region(context.catalog) or 'DFW'
+            region = Provider.find_a_region(context.catalog) or 'DFW'
 
         os.environ['NOVA_RAX_AUTH'] = "Yes Please!"
-        api = client.Client(context.username, 'dummy', None,
-                            context.auth_source or
-                                "https://identity.api.rackspacecloud.com/v2.0",
-                            region_name=region, service_type="compute",
-                            service_name='cloudServersOpenStack')
+        api = client.Client('ignore', 'ignore', None, 'localhost')
         api.client.auth_token = context.auth_token
 
-        url = find_url(context.catalog, region)
+        url = Provider.find_url(context.catalog, region)
         api.client.management_url = url
 
         return api
 
 
-def _get_images_and_types(api):
+@Memorize(timeout=3600, sensitive_args=[1], store=API_CACHE)
+def _get_images_and_types(api_endpoint, auth_token):
+    api = client.Client('ignore', 'ignore', None, 'localhost')
+    api.client.auth_token = auth_token
+    api.client.management_url = api_endpoint
+
     ret = {'images': {}, 'types': {}}
+    LOG.info("Calling Nova to get images for %s", api.client.management_url)
     images = api.images.list()
     for i in images:
         if 'LAMP' in i.name:
             continue
         img = {
-                'name': i.name,
-                'os': i.name.split(' LTS ')[0].split(' (')[0]
-                }
+            'name': i.name,
+            'os': i.name.split(' LTS ')[0].split(' (')[0]
+        }
         #FIXME: hack to make our blueprints work with Private OpenStack
         if 'precise' in img['os']:
             img['os'] = 'Ubuntu 12.04'
@@ -482,14 +502,23 @@ def _get_images_and_types(api):
     return ret
 
 
-def _get_flavors(api):
+@Memorize(timeout=3600, sensitive_args=[1], store=API_CACHE)
+def _get_flavors(api_endpoint, auth_token):
+    api = client.Client('ignore', 'ignore', None, 'localhost')
+    api.client.auth_token = auth_token
+    api.client.management_url = api_endpoint
+
+    LOG.info("Calling Nova to get flavors for %s", api.client.management_url)
     flavors = api.flavors.list()
-    return {'flavors': {
-             str(f.id): {
+    return {
+        'flavors': {
+            str(f.id): {
                 'name': f.name,
                 'memory': f.ram,
                 'disk': f.disk,
-            } for f in flavors}}
+            } for f in flavors
+        }
+    }
 
 
 REGION_MAP = {'dallas': 'DFW',
@@ -502,7 +531,7 @@ REGION_MAP = {'dallas': 'DFW',
 #
 @task
 def create_server(context, name, region, api_object=None, flavor="2",
-                  files=None, image=UBUNTU_12_04_IMAGE_ID):
+                  files=None, image=UBUNTU_12_04_IMAGE_ID, tag=None):
     """Create a Rackspace Cloud server using novaclient.
 
     Note: Nova server creation requests are asynchronous. The IP address of the
@@ -558,10 +587,14 @@ def create_server(context, name, region, api_object=None, flavor="2",
 
         if dep_id and key:
             k = "instance:%s" % key
-            ret = {k: {'status': 'ERROR',
-                'errmessage': ('Unexpected error deleting compute instance'
-                               ' %s: %s' % (key, exc.message)),
-                'trace': 'Task %s: %s' % (task_id, einfo.traceback)}}
+            ret = {
+                k: {
+                    'status': 'ERROR',
+                    'errmessage': ("Unexpected error deleting compute "
+                                   "instance %s: %s" % (key, exc.message)),
+                    'trace': 'Task %s: %s' % (task_id, einfo.traceback)
+                }
+            }
             resource_postback.delay(dep_id, ret)
         else:
             LOG.error("Missing deployment id and/or resource key in "
@@ -572,8 +605,8 @@ def create_server(context, name, region, api_object=None, flavor="2",
     if api_object is None:
         api_object = Provider._connect(context, region)
 
-    LOG.debug('Image=%s, Flavor=%s, Name=%s, Files=%s' % (
-                  image, flavor, name, files))
+    LOG.debug('Image=%s, Flavor=%s, Name=%s, Files=%s', image, flavor, name,
+              files)
 
     # Check image and flavor IDs (better descriptions if we error here)
     image_object = api_object.images.find(id=image)
@@ -581,22 +614,28 @@ def create_server(context, name, region, api_object=None, flavor="2",
     flavor_object = api_object.flavors.find(id=str(flavor))
     LOG.debug("Flavor id %s found. Name=%s" % (flavor, flavor_object.name))
 
+    # Add RAX-CHECKMATE to metadata
+    # support old way of getting metadata from generate_template
+    meta = tag or context.get("metadata", None)
+    instance_key = 'instance:%s' % context['resource']
     server = api_object.servers.create(name, image_object, flavor_object,
-            meta=context.get("metadata", None), files=files)
+                                       meta=meta, files=files)
     # Update task in workflow
     create_server.update_state(state="PROGRESS",
                                meta={"server.id": server.id})
-    LOG.debug('Created server %s (%s).  Admin pass = %s' % (
-            name, server.id, server.adminPass))
+    LOG.debug('Created server %s (%s).  Admin pass = %s', name, server.id,
+              server.adminPass)
 
-    instance_key = 'instance:%s' % context['resource']
-    results = {instance_key: {'id': server.id,
-                              'password': server.adminPass,
-                              'region': api_object.client.region_name,
-                              'status': 'NEW',
-                              'flavor': flavor,
-                              'image': image
-                              }}
+    results = {
+        instance_key: {
+            'id': server.id,
+            'password': server.adminPass,
+            'region': api_object.client.region_name,
+            'status': 'NEW',
+            'flavor': flavor,
+            'image': image
+        }
+    }
 
     # Send data back to deployment
     resource_postback.delay(context['deployment'], results)
@@ -612,16 +651,21 @@ def delete_server_task(context, api=None):
     assert "region" in context, "No region provided"
     assert "instance_id" in context, "No server id provided"
     assert 'resource' in context, "No resource definition provided"
+
     def on_failure(exc, task_id, args, kwargs, einfo):
         """ Handle task failure """
         dep_id = args[0].get('deployment_id')
         key = args[0].get('resource_key')
         if dep_id and key:
             k = "instance:%s" % key
-            ret = {k: {'status': 'ERROR',
-                'errmessage': ('Unexpected error deleting compute instance'
-                               ' %s: %s' % (key, exc.message)),
-                'trace': 'Task %s: %s' % (task_id, einfo.traceback)}}
+            ret = {
+                k: {
+                    'status': 'ERROR',
+                    'errmessage': ('Unexpected error deleting compute instance'
+                                   ' %s: %s' % (key, exc.message)),
+                    'trace': 'Task %s: %s' % (task_id, einfo.traceback)
+                }
+            }
             resource_postback.delay(dep_id, ret)
         else:
             LOG.error("Missing deployment id and/or resource key in "
@@ -651,7 +695,7 @@ def delete_server_task(context, api=None):
     if server.status == "ACTIVE" or server.status == "ERROR":
         ret = {}
         ret.update({inst_key: {"status": "DELETING",
-                           "statusmsg": "Waiting on resource deletion"}})
+                               "statusmsg": "Waiting on resource deletion"}})
         if 'hosts' in resource:
             for comp_key in resource.get('hosts', []):
                 ret.update({'instance:%s' % comp_key: {'status': 'DELETING',
@@ -728,9 +772,10 @@ def wait_on_delete_server(context, api=None):
 
 # max 60 minute wait
 @task(default_retry_delay=30, max_retries=120, acks_late=True)
-def wait_on_build(context, server_id, region, resource, ip_address_type='public',
-            verify_up=True, username='root', timeout=10, password=None,
-            identity_file=None, port=22, api_object=None, private_key=None):
+def wait_on_build(context, server_id, region, resource,
+                  ip_address_type='public', verify_up=True, username='root',
+                  timeout=10, password=None, identity_file=None, port=22,
+                  api_object=None, private_key=None):
     """Checks build is complete and. optionally, that SSH is working.
 
     :param ip_adress_type: the type of IP addresss to return as 'ip' in the
@@ -773,7 +818,6 @@ def wait_on_build(context, server_id, region, resource, ip_address_type='public'
         resource_postback.delay(context['deployment'], results)
         return results
 
-
     if api_object is None:
         api_object = Provider._connect(context, region)
 
@@ -787,11 +831,12 @@ def wait_on_build(context, server_id, region, resource, ip_address_type='public'
         LOG.error(msg, exc_info=True)
         raise CheckmateException(msg)
 
-    results = {'id': server_id,
-            'status': server.status,
-            'addresses': server.addresses,
-            'region': api_object.client.region_name,
-            }
+    results = {
+        'id': server_id,
+        'status': server.status,
+        'addresses': server.addresses,
+        'region': api_object.client.region_name,
+    }
     instance_key = 'instance:%s' % context['resource']
 
     if server.status == 'ERROR':
@@ -799,11 +844,12 @@ def wait_on_build(context, server_id, region, resource, ip_address_type='public'
         results['errmessage'] = "Server %s build failed" % server_id
         results = {instance_key: results}
         resource_postback.delay(context['deployment'], results)
-        Provider({}).delete_resource_tasks(context, 
-                                    context['deployment'],
-                                    get_resource_by_id(context['deployment'],
-                                                        context['resource']), 
-                                    instance_key).apply_async()
+        Provider({}).delete_resource_tasks(context,
+                                           context['deployment'],
+                                           get_resource_by_id(
+                                               context['deployment'],
+                                               context['resource']),
+                                           instance_key).apply_async()
         raise CheckmateServerBuildFailed("Server %s build failed" % server_id)
 
     if server.status == 'BUILD':
@@ -820,7 +866,7 @@ def wait_on_build(context, server_id, region, resource, ip_address_type='public'
         # hits 100% before it will be "ACTIVE".  We used to use % left as a
         # countdown value, but reverting to the above configured countdown.
         msg = ("Server '%s' progress is %s. Retrying after 30 seconds" % (
-                  server_id, server.progress))
+               server_id, server.progress))
         LOG.debug(msg)
         results['progress'] = server.progress
         resource_postback.delay(context['deployment'], {instance_key: results})
@@ -831,7 +877,7 @@ def wait_on_build(context, server_id, region, resource, ip_address_type='public'
         # or a manual rebuild performed by the user to fix some problem
         # so lets retry instead and notify via the normal task mechanisms
         msg = ("Server '%s' status is %s, which is not recognized. "
-              "Not assuming it is active" % (server_id, server.status))
+               "Not assuming it is active" % (server_id, server.status))
         results['statusmsg'] = msg
         resource_postback.delay(context['deployment'], {instance_key: results})
         return wait_on_build.retry(exc=CheckmateException(msg))
@@ -842,7 +888,8 @@ def wait_on_build(context, server_id, region, resource, ip_address_type='public'
             msg = ("Rack Connect server still does not have the "
                    "'rackconnect_automation_status' metadata tag")
             results['statusmsg'] = msg
-            resource_postback.delay(context['deployment'], {instance_key: results})
+            resource_postback.delay(context['deployment'],
+                                    {instance_key: results})
             wait_on_build.retry(exc=CheckmateException(msg))
         else:
             if server.metadata['rackconnect_automation_status'] == 'DEPLOYED':
@@ -852,7 +899,8 @@ def wait_on_build(context, server_id, region, resource, ip_address_type='public'
                        "metadata tag is still not 'DEPLOPYED'. It is '%s'" %
                        server.metadata.get('rackconnect_automation_status'))
                 results['statusmsg'] = msg
-                resource_postback.delay(context['deployment'], {instance_key: results})
+                resource_postback.delay(context['deployment'],
+                                        {instance_key: results})
                 wait_on_build.retry(exc=CheckmateException(msg))
 
     # should be active now, grab an appropriate address and check connectivity
@@ -887,21 +935,22 @@ def wait_on_build(context, server_id, region, resource, ip_address_type='public'
     # we might not get an ip right away, so wait until its populated
     if not ip:
         return wait_on_build.retry(exc=CheckmateException(
-                            "Could not find IP of server '%s'" % server_id))
+                                   "Could not find IP of server '%s'" %
+                                   server_id))
 
     if verify_up:
         isup = False
         image_details = api_object.images.find(id=server.image['id'])
         if image_details.metadata['os_type'] == 'linux':
             isup = checkmate.ssh.test_connection(context, ip, username,
-                                               timeout=timeout,
-                                               password=password,
-                                               identity_file=identity_file,
-                                               port=port,
-                                               private_key=private_key)
+                                                 timeout=timeout,
+                                                 password=password,
+                                                 identity_file=identity_file,
+                                                 port=port,
+                                                 private_key=private_key)
         else:
             isup = checkmate.rdp.test_connection(context, ip,
-                                               timeout=timeout)
+                                                 timeout=timeout)
 
         if not isup:
             # try again in half a second but only wait for another 2 minutes
@@ -916,8 +965,8 @@ def wait_on_build(context, server_id, region, resource, ip_address_type='public'
     else:
         LOG.info("Server '%s' is ACTIVE. Not verified to be up" % server_id)
 
-
-    # Check to see if we have another resource that needs to install on this server
+    # Check to see if we have another resource that needs to install on this
+    # server
     # if 'hosts' in resource:
     #    results['status'] = "CONFIGURE"
     # else:

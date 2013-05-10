@@ -420,7 +420,6 @@ class TestNovaGenerateTemplate(unittest.TestCase):
         #Mock Base Provider, context and deployment
         RackspaceComputeProviderBase = self.mox.CreateMockAnything()
         deployment = self.mox.CreateMockAnything()
-        deployment['id'].AndReturn('Mock')
         context = RequestContext()
         RackspaceComputeProviderBase.generate_template.AndReturn(True)
 
@@ -488,7 +487,6 @@ class TestNovaGenerateTemplate(unittest.TestCase):
         #Mock Base Provider, context and deployment
         RackspaceComputeProviderBase = self.mox.CreateMockAnything()
         deployment = self.mox.CreateMockAnything()
-        deployment['id'].AndReturn('Mock')
         context = RequestContext()
         RackspaceComputeProviderBase.generate_template.AndReturn(True)
 

@@ -88,9 +88,6 @@ class TestCeleryTasks(unittest.TestCase):
                                       virtualIps=[IsA(cloudlb.VirtualIP)],
                                       algorithm='ROUND_ROBIN').AndReturn(lb)
 
-        loadbalancer.set_monitor.delay(context, fake_id, protocol.upper(),
-                                       region, '/', 10, 10, 3, '(.*)',
-                                       '^[234][0-9][0-9]$').AndReturn(None)
         expected = {
             'instance:%s' % context['resource']: {
                 'id': fake_id,
@@ -100,7 +97,14 @@ class TestCeleryTasks(unittest.TestCase):
                 'status': status
             }
         }
+        instance_id = {
+            'instance:%s' % context['resource']: {
+                'id': fake_id
+            }
+        }
 
+        resource_postback.delay(context['deployment'],
+                                instance_id).AndReturn(True)
         resource_postback.delay(context['deployment'],
                                 expected).AndReturn(True)
 
@@ -110,7 +114,7 @@ class TestCeleryTasks(unittest.TestCase):
                                                    api=api_mock)
 
         self.assertDictEqual(results, expected)
-        #self.mox.VerifyAll()
+        self.mox.VerifyAll()
 
     def test_delete_lb_task(self):
         """ Test delete task """
@@ -190,7 +194,6 @@ class TestLoadBalancerGenerateTemplate(unittest.TestCase):
 
         #Mock Base Provider, context and deployment
         deployment = self.mox.CreateMockAnything()
-        deployment['id'].AndReturn('Mock')
         context = RequestContext()
 
         deployment.get_setting('region', resource_type='load-balancer',
@@ -345,6 +348,7 @@ class TestBasicWorkflow(test.StubbedWorkflowBase):
                         'dns': False,
                         'algorithm': 'ROUND_ROBIN',
                         'port': None,
+                        'tag': 'http://MOCK/TMOCK/deployments/DEP-ID-1000/resources/0',
                     },
                     'post_back_result': True,
                     'result': {

@@ -72,8 +72,14 @@ class TestDatabase(ProviderTester):
                 }
             },
         }
-
         context = dict(deployment='DEP', resource='1')
+        instance_id = {
+            'instance:1': {
+                'id': instance.id
+            }
+        }
+        resource_postback.delay(context['deployment'], instance_id).AndReturn(
+            True)
         resource_postback.delay(context['deployment'], expected).AndReturn(
             True)
 
@@ -225,7 +231,6 @@ class TestDatabase(ProviderTester):
 
         #Mock Base Provider, context and deployment
         deployment = self.mox.CreateMockAnything()
-        deployment['id'].AndReturn('Mock')
         context = self.mox.CreateMockAnything()
         context.kwargs = {}
 
@@ -270,7 +275,6 @@ class TestDatabase(ProviderTester):
 
         #Mock Base Provider, context and deployment
         deployment = self.mox.CreateMockAnything()
-        deployment['id'].AndReturn('Mock')
         context = self.mox.CreateMockAnything()
         context.kwargs = {}
 

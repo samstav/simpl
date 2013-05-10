@@ -11,7 +11,7 @@ class ExtensibleDict(collections.MutableMapping):
     TODO: docstring
     """
     #used to define if the object is locked or not
-    LOCK = {'INITIAL' : 0, 'LOCKED' : 1, 'UNLOCKED' : 2}
+    LOCK = {'INITIAL': 0, 'LOCKED': 1, 'UNLOCKED': 2}
 
     def __init__(self, *args, **kwargs):
         obj = dict(*args, **kwargs)
@@ -74,7 +74,7 @@ class ExtensibleDict(collections.MutableMapping):
 
         Checks schema and validates data
 
-        This can be callecd to inspect syntax without raising and error.
+        This can be called to inspect syntax without raising and error.
         Validate will raise an error if called.
 
         returns: list of errors

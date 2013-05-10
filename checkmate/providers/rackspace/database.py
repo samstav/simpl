@@ -10,7 +10,7 @@ from SpiffWorkflow.operators import PathAttrib
 from SpiffWorkflow.specs import Celery
 
 from checkmate.deployments import (
-    resource_postback, 
+    resource_postback,
     alt_resource_postback,
     get_resource_by_id
 )
@@ -424,7 +424,12 @@ def create_instance(context, instance_name, flavor, size, databases, region,
     match_celery_logging(LOG)
     if context.get('simulation') is True:
         resource_key = context['resource']
-        hostname = "srv%s.rackdb.net" % resource_key
+        instance_id = {
+            'instance:%s' % resource_key: {
+                'id': "DBS%s" % resource_key
+            }
+        }
+        resource_postback.delay(context['deployment'], instance_id)
         results = {
             'instance:%s' % resource_key: {
                 'id': "DBS%s" % resource_key,
@@ -464,15 +469,23 @@ def create_instance(context, instance_name, flavor, size, databases, region,
     flavor = int(flavor)
     size = int(size)
 
+    instance_key = 'instance:%s' % context['resource']
+    dep_id = context['deployment']
     instance = api.create_instance(instance_name, flavor, size,
                                    databases=databases)
+    instance_id = {
+        instance_key: {
+            'id': instance.id
+        }
+    }
+    resource_postback.delay(dep_id, instance_id)
     LOG.info("Created database instance %s (%s). Size %s, Flavor %s. "
              "Databases = %s" % (instance.name, instance.id, size, flavor,
                                  databases))
 
     # Return instance and its interfaces
     results = {
-        'instance:%s' % context['resource']: {
+        instance_key: {
             'id': instance.id,
             'name': instance.name,
             'status': 'BUILD',
@@ -486,6 +499,7 @@ def create_instance(context, instance_name, flavor, size, databases, region,
             'databases': {}
         }
     }
+
     # Return created databases and their interfaces
     if databases:
         db_results = results['instance:%s' % context['resource']]['databases']
@@ -534,11 +548,11 @@ def wait_on_build(context, instance_id, region, api=None):
         instance_key = "instance:%s" % context['resource']
         results = {instance_key: results}
         resource_postback.delay(context['deployment'], results)
- 
+
         # Delete the database if it failed
         Provider({}).delete_resource_tasks(context, context['deployment'],
                                     get_resource_by_id(context['deployment'],
-                                                        context['resource']), 
+                                                        context['resource']),
                                     instance_key).apply_async()
         raise CheckmateException(msg)
     elif instance.status == "ACTIVE":
