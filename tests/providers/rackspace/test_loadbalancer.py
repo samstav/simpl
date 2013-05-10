@@ -190,7 +190,6 @@ class TestLoadBalancerGenerateTemplate(unittest.TestCase):
 
         #Mock Base Provider, context and deployment
         deployment = self.mox.CreateMockAnything()
-        deployment['id'].AndReturn('Mock')
         context = RequestContext()
 
         deployment.get_setting('region', resource_type='load-balancer',
@@ -345,6 +344,7 @@ class TestBasicWorkflow(test.StubbedWorkflowBase):
                         'dns': False,
                         'algorithm': 'ROUND_ROBIN',
                         'port': None,
+                        'tag': 'http://MOCK/TMOCK/deployments/DEP-ID-1000/resources/0',
                     },
                     'post_back_result': True,
                     'result': {

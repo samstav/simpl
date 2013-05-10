@@ -255,10 +255,13 @@ class ProviderBasePlanningMixIn():
 
         result['dns-name'] = name
 
-        context.kwargs["metadata"] = {"RAX-CHKMT": "1 {}-{} {} {}".format(
-            checkmate.__version__, checkmate.__release__,
-            deployment["id"], platform.node())}
         return result
+
+    @staticmethod
+    def generate_resource_tag(base_url=None, tenant_id=None,
+            deployment_id=None, resource_id=None):
+        return "{}/{}/deployments/{}/resources/{}".format(base_url, tenant_id,
+                deployment_id, resource_id)
 
 
 class ProviderBase(ProviderBasePlanningMixIn, ProviderBaseWorkflowMixIn):

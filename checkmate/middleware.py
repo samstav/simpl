@@ -10,6 +10,7 @@ import copy
 import httplib
 import json
 import logging
+import os
 
 # some distros install as PAM (Ubuntu, SuSE)
 # https://bugs.launchpad.net/keystone/+bug/938801
@@ -533,7 +534,7 @@ class RequestContext(object):
                  is_admin=False, read_only=False, show_deleted=False,
                  authenticated=False, catalog=None, user_tenants=None,
                  roles=None, domain=None, auth_source=None, simulation=False,
-                 **kwargs):
+                 base_url=None, **kwargs):
         self.authenticated = authenticated
         self.auth_source = auth_source
         self.auth_token = auth_token
@@ -547,6 +548,7 @@ class RequestContext(object):
         self.show_deleted = show_deleted
         self.domain = domain  # which cloud?
         self.simulation = simulation
+        self.base_url = base_url
         self.kwargs = kwargs  # store extra args and retrieve them when needed
 
     def get_queued_task_dict(self, **kwargs):
@@ -644,8 +646,27 @@ class ContextMiddleware(object):
         self.app = app
 
     def __call__(self, environ, start_response):
+        if 'CHECKMATE_OVERRIDE_URL' in os.environ:
+            url = os.environ.get('CHECKMATE_OVERRIDE_URL')
+        else:
+            # PEP333: wsgi.url_scheme, HTTP_HOST, SERVER_NAME, and SERVER_PORT
+            # can be used to reconstruct a request's complete URL
+            url = environ['wsgi.url_scheme'] + '://'
+            if environ.get('HTTP_HOST'):
+                url += environ['HTTP_HOST']
+            else:
+                url += environ['SERVER_NAME']
+
+                if environ['wsgi.url_scheme'] == 'https':
+                    if environ['SERVER_PORT'] != '443':
+                        url += ':' + environ['SERVER_PORT']
+                else:
+                    if environ['SERVER_PORT'] != '80':
+                        url += ':' + environ['SERVER_PORT']
+
         # Use a default empty context
-        request.context = RequestContext()
+        request.context = RequestContext(base_url=url)
+        LOG.debug("BASE URL IS %s", request.context.base_url)
         return self.app(environ, start_response)
 
 
