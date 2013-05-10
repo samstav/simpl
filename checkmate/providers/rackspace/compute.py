@@ -224,6 +224,8 @@ class Provider(RackspaceComputeProviderBase):
                defines=dict(resource=key,
                             provider=self.key,
                             task_tags=['create']),
+               tag=self.generate_resource_tag(context.base_url,
+                   context.tenant, deployment['id'], resource['index']),
                properties={'estimated_duration': 20})
 
         kwargs = dict(
@@ -240,10 +242,7 @@ class Provider(RackspaceComputeProviderBase):
                 properties={'estimated_duration': 150},
                 defines=dict(resource=key,
                              provider=self.key,
-                             task_tags=['final']),
-                tag=self.generate_resource_tag(context.base_url,
-                    context.tenant, deployment['id'], resource['index'])
-                )
+                             task_tags=['final']))
         task_name = 'Wait for Server %s (%s) build' % (key,
                                                        resource['service'])
         celery_call = 'checkmate.providers.rackspace.compute.wait_on_build'
