@@ -6,6 +6,7 @@ import copy
 import eventlet
 import logging
 import os
+import time
 
 from celery.canvas import chain
 from celery.task import task
@@ -17,6 +18,7 @@ from SpiffWorkflow.specs import Celery
 
 from checkmate.deployments import (resource_postback, alt_resource_postback,
                                    get_resource_by_id)
+from checkmate.common.caching import Memorize
 from checkmate.exceptions import (
     CheckmateNoTokenError,
     CheckmateNoMapping,
@@ -95,6 +97,8 @@ CATALOG_TEMPLATE = yaml_to_dict("""compute:
             choice: []
 """)
 
+API_CACHE = {}
+
 
 class RackspaceComputeProviderBase(ProviderBase):
     """Generic functions for rackspace Compute providers"""
@@ -140,7 +144,6 @@ class Provider(RackspaceComputeProviderBase):
         template = RackspaceComputeProviderBase.generate_template(self,
                 deployment, resource_type, service, context, name=name)
 
-        catalog = self.get_catalog(context)
 
         # Get region
         region = deployment.get_setting('region', resource_type=resource_type,
@@ -148,6 +151,7 @@ class Provider(RackspaceComputeProviderBase):
         if not region:
             raise CheckmateException("Could not identify which region to "
                     "create servers in")
+        catalog = self.get_catalog(context)
 
         # Find and translate image
         image = deployment.get_setting('os', resource_type=resource_type,
@@ -295,30 +299,12 @@ class Provider(RackspaceComputeProviderBase):
                      wait_on_delete_server.si(context),
                      alt_resource_postback.s(deployment_id))
 
-    __api_cache__ = {}
-    
     def _get_api_info(self, context):
-        if context:
-            api = Provider._connect(context)
-            uri = api.client.management_url
-            if uri in Provider.__api_cache__:
-                vals = Provider.__api_cache__.get(uri, {})
-                tnow = int(time.time())
-                tthen = vals.get('saved', 0)
-                if (tnow - tthen) < 3600:
-                    return vals.get('values', {})
-            new_vals = self._refresh_api_info(context)
-            Provider.__api_cache__[uri] = {
-                'saved': int(time.time()),
-                'values': new_vals
-            }
-            return new_vals
-        return {}
-    
-    def _refresh_api_info(self, context):
+        region = Provider.find_a_region(context.catalog)
+        url = Provider.find_url(context.catalog, region)
         jobs = eventlet.GreenPile(2)
-        jobs.spawn(_get_flavors, Provider._connect(context))
-        jobs.spawn(_get_images_and_types, Provider._connect(context))
+        jobs.spawn(_get_flavors, url, context.auth_token)
+        jobs.spawn(_get_images_and_types, url, context.auth_token)
         vals = {}
         for ret in jobs:
             vals.update(ret)
@@ -356,13 +342,13 @@ class Provider(RackspaceComputeProviderBase):
                 results['lists'] = {}
             results['lists']['regions'] = regions
 
-        for res in vals:
-            if 'flavors' in res:
-                flavors = res.get('flavors')
-            if 'types' in res:
-                types = res.get('types')
-            if 'images' in res:
-                images = res.get('images')
+        for key in vals:
+            if key == 'flavors':
+                flavors = vals['flavors']
+            if key == 'types':
+                types = vals['types']
+            if key == 'images':
+                images = vals['images']
 
         if type_filter is None or type_filter == 'compute':
             #TODO: add regression tests - copy.copy was leakin g across tenants
@@ -404,6 +390,38 @@ class Provider(RackspaceComputeProviderBase):
             self._dict['catalog'] = results
         return results
 
+    @staticmethod
+    def find_url(catalog, region):
+        fall_back = None
+        for service in catalog:
+            if service['name'] == 'cloudServersOpenStack':
+                endpoints = service['endpoints']
+                for endpoint in endpoints:
+                    if endpoint.get('region') == region:
+                        return endpoint['publicURL']
+            elif (service['type'] == 'compute' and
+                  service['name'] != 'cloudServers'):
+                endpoints = service['endpoints']
+                for endpoint in endpoints:
+                    if endpoint.get('region') == region:
+                        fall_back = endpoint['publicURL']
+        return fall_back
+
+    @staticmethod
+    def find_a_region(catalog):
+        """Any region"""
+        fall_back = None
+        for service in catalog:
+            if service['name'] == 'cloudServersOpenStack':
+                endpoints = service['endpoints']
+                for endpoint in endpoints:
+                    return endpoint['region']
+            elif (service['type'] == 'compute' and
+                  service['name'] != 'cloudServers'):
+                endpoints = service['endpoints']
+                for endpoint in endpoints:
+                    fall_back = endpoint.get('region')
+        return fall_back
 
     @staticmethod
     def _connect(context, region=None):
@@ -416,56 +434,27 @@ class Provider(RackspaceComputeProviderBase):
         if not context.auth_token:
             raise CheckmateNoTokenError()
 
-        def find_url(catalog, region):
-            fall_back = None
-            for service in catalog:
-                if service['name'] == 'cloudServersOpenStack':
-                    endpoints = service['endpoints']
-                    for endpoint in endpoints:
-                        if endpoint.get('region') == region:
-                            return endpoint['publicURL']
-                elif (service['type'] == 'compute' and
-                      service['name'] != 'cloudServers'):
-                    endpoints = service['endpoints']
-                    for endpoint in endpoints:
-                        if endpoint.get('region') == region:
-                            fall_back = endpoint['publicURL']
-            return fall_back
-
-        def find_a_region(catalog):
-            """Any region"""
-            fall_back = None
-            for service in catalog:
-                if service['name'] == 'cloudServersOpenStack':
-                    endpoints = service['endpoints']
-                    for endpoint in endpoints:
-                        return endpoint['region']
-                elif (service['type'] == 'compute' and
-                      service['name'] != 'cloudServers'):
-                    endpoints = service['endpoints']
-                    for endpoint in endpoints:
-                        fall_back = endpoint.get('region')
-            return fall_back
-
         if not region:
-            region = find_a_region(context.catalog) or 'DFW'
+            region = Provider.find_a_region(context.catalog) or 'DFW'
 
         os.environ['NOVA_RAX_AUTH'] = "Yes Please!"
-        api = client.Client(context.username, 'dummy', None,
-                            context.auth_source or
-                                "https://identity.api.rackspacecloud.com/v2.0",
-                            region_name=region, service_type="compute",
-                            service_name='cloudServersOpenStack')
+        api = client.Client('ignore', 'ignore', None, 'localhost')
         api.client.auth_token = context.auth_token
 
-        url = find_url(context.catalog, region)
+        url = Provider.find_url(context.catalog, region)
         api.client.management_url = url
 
         return api
 
 
-def _get_images_and_types(api):
+@Memorize(timeout=3600, sensitive_args=[1], store=API_CACHE)
+def _get_images_and_types(api_endpoint, auth_token):
+    api = client.Client('ignore', 'ignore', None, 'localhost')
+    api.client.auth_token = auth_token
+    api.client.management_url = api_endpoint
+
     ret = {'images': {}, 'types': {}}
+    LOG.info("Calling Nova to get images for %s", api.client.management_url)
     images = api.images.list()
     for i in images:
         if 'LAMP' in i.name:
@@ -482,7 +471,13 @@ def _get_images_and_types(api):
     return ret
 
 
-def _get_flavors(api):
+@Memorize(timeout=3600, sensitive_args=[1], store=API_CACHE)
+def _get_flavors(api_endpoint, auth_token):
+    api = client.Client('ignore', 'ignore', None, 'localhost')
+    api.client.auth_token = auth_token
+    api.client.management_url = api_endpoint
+
+    LOG.info("Calling Nova to get flavors for %s", api.client.management_url)
     flavors = api.flavors.list()
     return {'flavors': {
              str(f.id): {
