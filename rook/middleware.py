@@ -61,7 +61,7 @@ class BrowserMiddleware(object):
     def __init__(self, app, proxy_endpoints=None, with_simulator=False,
                  with_admin=False):
         self.app = app
-        STATIC.extend(['favicon.ico', 'apple-touch-icon.png', 'js', 'libs',
+        STATIC.extend(['autologin', 'favicon.ico', 'apple-touch-icon.png', 'js', 'libs',
                        'css', 'img', 'authproxy', 'marketing', '', None,
                        'feedback', 'partials', 'githubproxy', 'rookversion'])
         RESOURCES.append('admin')
@@ -119,6 +119,17 @@ class BrowserMiddleware(object):
             return static_file(path,
                                root=os.path.join(os.path.dirname(__file__),
                                                  'static', 'marketing'))
+
+        @post('/autologin')
+        @route('/autologin', method=['POST'])
+        def autologin():
+            """This handles automatic login from other systems"""
+            response.add_header('Set-Cookie', 'username=' + request.forms.get('username') )
+            response.add_header('Set-Cookie', 'api_key='  + request.forms.get('api_key') )
+            response.add_header('Set-Cookie', 'endpoint=' + request.forms.get('endpoint') )
+            return static_file('index.html',
+                               root=os.path.join(os.path.dirname(__file__),
+                               'static'))
 
         @post('/authproxy')
         @route('/authproxy/<path:path>', method=['POST', 'GET'])
