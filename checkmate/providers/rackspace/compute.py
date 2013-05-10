@@ -143,8 +143,10 @@ class RackspaceComputeProviderBase(ProviderBase):
 
 
 class Provider(RackspaceComputeProviderBase):
+    '''The Base Provider Class for Rackspace NOVA'''
     name = 'nova'
 
+    # pylint: disable=R0913
     def generate_template(self, deployment, resource_type, service, context,
                           name=None):
         template = RackspaceComputeProviderBase.generate_template(
@@ -330,7 +332,9 @@ class Provider(RackspaceComputeProviderBase):
                      wait_on_delete_server.si(context),
                      alt_resource_postback.s(deployment_id))
 
-    def _get_api_info(self, context):
+    @staticmethod
+    def _get_api_info(context):
+        '''Get Flavors, Images and Types available in a given Region'''
         region = Provider.find_a_region(context.catalog)
         url = Provider.find_url(context.catalog, region)
         jobs = eventlet.GreenPile(2)
@@ -423,6 +427,7 @@ class Provider(RackspaceComputeProviderBase):
 
     @staticmethod
     def find_url(catalog, region):
+        '''Get the Public URL of a service'''
         fall_back = None
         for service in catalog:
             if service['name'] == 'cloudServersOpenStack':
@@ -459,7 +464,6 @@ class Provider(RackspaceComputeProviderBase):
         """Use context info to connect to API and return api object"""
         #FIXME: figure out better serialization/deserialization scheme
         if isinstance(context, dict):
-            from checkmate.middleware import RequestContext
             context = RequestContext(**context)
         #TODO: Hard-coded to Rax auth for now
         if not context.auth_token:
@@ -480,6 +484,7 @@ class Provider(RackspaceComputeProviderBase):
 
 @Memorize(timeout=3600, sensitive_args=[1], store=API_CACHE)
 def _get_images_and_types(api_endpoint, auth_token):
+    '''Ask Nova for Images and Types'''
     api = client.Client('ignore', 'ignore', None, 'localhost')
     api.client.auth_token = auth_token
     api.client.management_url = api_endpoint
@@ -504,6 +509,7 @@ def _get_images_and_types(api_endpoint, auth_token):
 
 @Memorize(timeout=3600, sensitive_args=[1], store=API_CACHE)
 def _get_flavors(api_endpoint, auth_token):
+    '''Ask Nove for Flavors (RAM, CPU, HDD) options'''
     api = client.Client('ignore', 'ignore', None, 'localhost')
     api.client.auth_token = auth_token
     api.client.management_url = api_endpoint
@@ -529,6 +535,8 @@ REGION_MAP = {'dallas': 'DFW',
 #
 # Celery Tasks
 #
+
+# pylint: disable=R0913
 @task
 def create_server(context, name, region, api_object=None, flavor="2",
                   files=None, image=UBUNTU_12_04_IMAGE_ID, tag=None):
@@ -580,7 +588,7 @@ def create_server(context, name, region, api_object=None, flavor="2",
 
     match_celery_logging(LOG)
 
-    def on_failure(exc, task_id, args, kwargs, einfo):
+    def on_failure(exc, task_id, args, einfo):
         """ Handle task failure """
         dep_id = args[0].get('deployment')
         key = args[0].get('resource')
@@ -610,9 +618,9 @@ def create_server(context, name, region, api_object=None, flavor="2",
 
     # Check image and flavor IDs (better descriptions if we error here)
     image_object = api_object.images.find(id=image)
-    LOG.debug("Image id %s found. Name=%s" % (image, image_object.name))
+    LOG.debug("Image id %s found. Name=%s", image, image_object.name)
     flavor_object = api_object.flavors.find(id=str(flavor))
-    LOG.debug("Flavor id %s found. Name=%s" % (flavor, flavor_object.name))
+    LOG.debug("Flavor id %s found. Name=%s", flavor, flavor_object.name)
 
     # Add RAX-CHECKMATE to metadata
     # support old way of getting metadata from generate_template
@@ -644,6 +652,7 @@ def create_server(context, name, region, api_object=None, flavor="2",
 
 @task(default_retry_delay=30, max_retries=120)
 def delete_server_task(context, api=None):
+    '''Celery Task to delete a Nova compute instance'''
     match_celery_logging(LOG)
 
     assert "deployment_id" in context, "No deployment id in context"
@@ -652,7 +661,7 @@ def delete_server_task(context, api=None):
     assert "instance_id" in context, "No server id provided"
     assert 'resource' in context, "No resource definition provided"
 
-    def on_failure(exc, task_id, args, kwargs, einfo):
+    def on_failure(exc, task_id, args, einfo):
         """ Handle task failure """
         dep_id = args[0].get('deployment_id')
         key = args[0].get('resource_key')
@@ -684,7 +693,7 @@ def delete_server_task(context, api=None):
         if context.get('simulation') is not True:
             server = api.servers.get(inst_id)
     except (NotFound, NoUniqueMatch):
-        LOG.warn("Server %s already deleted" % inst_id)
+        LOG.warn("Server %s already deleted", inst_id)
     if (not server) or (server.status == 'DELETED'):
         ret = {inst_key: {"status": "DELETED"}}
         if 'hosts' in resource:
@@ -721,7 +730,7 @@ def wait_on_delete_server(context, api=None):
     assert "instance_id" in context, "No server id provided"
     assert 'resource' in context, "No resource definition provided"
 
-    def on_failure(exc, task_id, args, kwargs, einfo):
+    def on_failure(exc, task_id, args, einfo):
         """ Handle task failure """
         dep_id = args[0].get('deployment_id')
         key = args[0].get('resource_key')
@@ -729,7 +738,7 @@ def wait_on_delete_server(context, api=None):
             k = "instance:%s" % key
             ret = {k: {'status': 'ERROR',
                        'errmessage': ('Unexpected error while waiting on '
-                                      'compute instance %s delete' % key),
+                                      'compute instance %s delete: %s' % (key, exc.message)),
                        'trace': 'Task %s: %s' % (task_id, einfo.traceback)}}
             resource_postback.delay(dep_id, ret)
         else:
@@ -771,6 +780,7 @@ def wait_on_delete_server(context, api=None):
 
 
 # max 60 minute wait
+# pylint: disable=W0613
 @task(default_retry_delay=30, max_retries=120, acks_late=True)
 def wait_on_build(context, server_id, region, resource,
                   ip_address_type='public', verify_up=True, username='root',
@@ -822,7 +832,7 @@ def wait_on_build(context, server_id, region, resource,
         api_object = Provider._connect(context, region)
 
     assert server_id, "ID must be provided"
-    LOG.debug("Getting server %s" % server_id)
+    LOG.debug("Getting server %s", server_id)
     server = None
     try:
         server = api_object.servers.find(id=server_id)
@@ -963,7 +973,7 @@ def wait_on_build(context, server_id, region, resource,
                                       countdown=0.5,
                                       max_retries=240)
     else:
-        LOG.info("Server '%s' is ACTIVE. Not verified to be up" % server_id)
+        LOG.info("Server '%s' is ACTIVE. Not verified to be up", server_id)
 
     # Check to see if we have another resource that needs to install on this
     # server
