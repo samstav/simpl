@@ -623,6 +623,7 @@ def create_loadbalancer(context, name, vip_type, protocol, region, api=None,
                 exc=CheckmateException("Cannot get %s vip for load balancer "
                                        "%s") % (vip_type, parent_lb))
 
+    # Add RAX-CHECKMATE to metadata
     # support old way of getting metadata from generate_template
     meta = tag or context.get("metadata", None)
     if meta:

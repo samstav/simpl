@@ -210,7 +210,9 @@ class Provider(RackspaceComputeProviderBase):
                 properties={'estimated_duration': 150},
                 defines=dict(resource=key,
                              provider=self.key,
-                             task_tags=['final']))
+                             task_tags=['final']),
+                tag=self.generate_resource_tag(context.base_url,
+                    context.tenant, deployment['id'], key))
         create_server_task.connect(build_wait_task)
 
         #If Managed Cloud, add a Completion task to release RBA
@@ -476,7 +478,7 @@ def create_server(context, name, api_object=None, flavor=2, files=None,
 @task(default_retry_delay=30, max_retries=120)  # max 60 minute wait
 def wait_on_build(context, server_id, ip_address_type='public',
             check_ssh=True, username='root', timeout=10, password=None,
-            identity_file=None, port=22, api_object=None, private_key=None):
+            identity_file=None, port=22, api_object=None, private_key=None, tag=None):
     """Checks build is complete and. optionally, that SSH is working.
 
     :param ip_adress_type: the type of IP addresss to return as 'ip' in the
@@ -530,6 +532,7 @@ def wait_on_build(context, server_id, ip_address_type='public',
 
     if server.status == 'BUILD':
         results['progress'] = server.progress
+        results.update(tag)
         #countdown = 100 - server.progress
         #if countdown <= 0:
         #    countdown = 15  # progress is not accurate. Allow at least 15s
