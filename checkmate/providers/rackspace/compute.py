@@ -240,7 +240,9 @@ class Provider(RackspaceComputeProviderBase):
                 properties={'estimated_duration': 150},
                 defines=dict(resource=key,
                              provider=self.key,
-                             task_tags=['final'])
+                             task_tags=['final']),
+                tag=self.generate_resource_tag(context.base_url,
+                    context.tenant, deployment['id'], resource['index'])
                 )
         task_name = 'Wait for Server %s (%s) build' % (key,
                                                        resource['service'])
@@ -497,7 +499,7 @@ REGION_MAP = {'dallas': 'DFW',
 #
 @task
 def create_server(context, name, region, api_object=None, flavor="2",
-                  files=None, image=UBUNTU_12_04_IMAGE_ID):
+                  files=None, image=UBUNTU_12_04_IMAGE_ID, tag=None):
     """Create a Rackspace Cloud server using novaclient.
 
     Note: Nova server creation requests are asynchronous. The IP address of the
@@ -576,8 +578,12 @@ def create_server(context, name, region, api_object=None, flavor="2",
     flavor_object = api_object.flavors.find(id=str(flavor))
     LOG.debug("Flavor id %s found. Name=%s" % (flavor, flavor_object.name))
 
+    # Add RAX-CHECKMATE to metadata
+    # support old way of getting metadata from generate_template
+    meta = tag or context.get("metadata", None)
+
     server = api_object.servers.create(name, image_object, flavor_object,
-            meta=context.get("metadata", None), files=files)
+            meta=meta, files=files)
     # Update task in workflow
     create_server.update_state(state="PROGRESS",
                                meta={"server.id": server.id})
