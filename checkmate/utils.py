@@ -722,7 +722,7 @@ def check_all_output(params, find="ERROR"):
 
 def is_simulation(api_id):
     '''Determine if the current object is in simulation'''
-    return api_id.startswith('simulate')
+    return str(api_id).startswith('simulate')
 
 
 def git_checkout(repo_dir, head):
