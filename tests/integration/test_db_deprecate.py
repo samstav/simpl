@@ -8,8 +8,6 @@ from bottle import HTTPError
 from checkmate.utils import init_console_logging
 from checkmate.db.common import DatabaseTimeoutException, \
     DEFAULT_STALE_LOCK_TIMEOUT
-from copy import deepcopy
-import uuid
 
 os.environ['CHECKMATE_CONNECTION_STRING'] = 'sqlite://'
 
@@ -124,117 +122,6 @@ class TestDatabase(unittest.TestCase):
         results_decode = self._decode_dict(results)
         self.assertEqual(len(results_decode), 2)
         self.assertDictEqual(results_decode, expected)
-
-    def test_update_secrets(self):
-        _id = str(uuid.uuid4())
-        data = {
-            "id": _id,
-            "tenantId": "12345",
-            "employee": {
-                "name": "Bob",
-                "title": "Mr.",
-                "ssh_public_key": "rsa public key",
-                "ssh_private_key": "a private key",
-                "password": "password",
-                "position": "left"
-            },
-            "server": {
-                "access": {
-                    "server_root_password": "password",
-                    "server_privatekey": "private_key",
-                    "server_public_key": "public_key"
-                },
-                "private_ip": "123.45.67.89",
-                "public_ip": "127.0.0.1",
-                "host_name": "server1"
-            },
-            "safe_val": "hithere",
-            "secret_value": "Immasecret"
-        }
-
-        safe = {
-            "id": _id,
-            "tenantId": "12345",
-            "employee": {
-                "name": "Bob",
-                "title": "Mr.",
-                "ssh_public_key": "rsa public key",
-                "position": "left"
-            },
-            "server": {
-                "access": {
-                    "server_public_key": "public_key"
-                },
-                "private_ip": "123.45.67.89",
-                "public_ip": "127.0.0.1",
-                "host_name": "server1"
-            },
-            "safe_val": "hithere",
-            "secret_value": "Immasecret"
-        }
-
-        secret = {
-            "employee": {
-                "ssh_private_key": "a private key",
-                "password": "password",
-            },
-            "server": {
-                "access": {
-                    "server_root_password": "password",
-                    "server_privatekey": "private_key",
-                }
-            }
-        }
-        original = deepcopy(data)
-        body, secrets = extract_sensitive_data(data)
-        self.assertDictEqual(safe, self._decode_dict(body))
-        self.assertDictEqual(secret, secrets)
-        results = self.driver.save_object(Deployment, _id, body,
-                                          secrets=secrets)
-        self.assertDictEqual(results, body)
-        # retrieve the object with secrets to make sure we get them correctly
-        results = self.driver.get_object(Deployment, _id,
-                                         with_secrets=True)
-        self.assertDictEqual(original, results)
-        # use the "safe" version and add a new secret
-        results = self.driver.save_object(Deployment, _id, safe,
-                                          secrets={"global_password":
-                                                   "password secret"})
-        self.assertDictEqual(safe, results)
-        # update the copy with the new secret
-        original['global_password'] = "password secret"
-        # retrieve with secrets and make sure it was updated correctly
-        results = self.driver.get_object(Deployment, _id, with_secrets=True)
-        self.assertDictEqual(original, self._decode_dict(results))
-
-    def test_workflows(self):
-        entity = {
-            'id': 1,
-            'name': 'My Workflow',
-            'credentials': ['My Secrets']
-        }
-        body, secrets = extract_sensitive_data(entity)
-        results = self.driver.save_workflow(entity['id'], body, secrets,
-                                            tenant_id='T1000')
-        self.assertDictEqual(results, body)
-
-        results = self.driver.get_workflow(entity['id'], with_secrets=True)
-        entity['tenantId'] = 'T1000'  # gets added
-        self.assertDictEqual(results, entity)
-        self.assertIn('credentials', results)
-
-        body['name'] = 'My Updated Workflow'
-        entity['name'] = 'My Updated Workflow'
-        results = self.driver.save_workflow(entity['id'], body)
-
-        results = self.driver.get_workflow(entity['id'], with_secrets=True)
-        self.assertIn('credentials', results)
-        self.assertDictEqual(results, entity)
-
-        results = self.driver.get_workflow(entity['id'], with_secrets=False)
-        self.assertNotIn('credentials', results)
-        body['tenantId'] = 'T1000'  # gets added
-        self.assertDictEqual(results, body)
 
     def test_new_deployment_locking(self):
         self.driver.session.query(self.klass).filter_by(
