@@ -28,6 +28,7 @@ class TestNovaCompute(test.ProviderTester):
         self.assertEqual(provider.key, 'rackspace.nova')
 
     def test_create_server(self):
+        provider = compute.Provider({})
 
         #Mock server
         server = self.mox.CreateMockAnything()
@@ -53,7 +54,12 @@ class TestNovaCompute(test.ProviderTester):
         flavor = self.mox.CreateMockAnything()
         flavor.id = '2'
 
-        context = dict(deployment='DEP', resource='1')
+        context = {
+            'deployment': 'DEP',
+            'resource': '1',
+            'tenant': 'TMOCK',
+            'base_url': 'http://MOCK'
+        }
 
         #Stub out postback call
         self.mox.StubOutWithMock(resource_postback, 'delay')
@@ -67,9 +73,16 @@ class TestNovaCompute(test.ProviderTester):
 
         openstack_api_mock.images.find(id=image.id).AndReturn(image)
         openstack_api_mock.flavors.find(id=flavor.id).AndReturn(flavor)
-        openstack_api_mock.servers.create('fake_server', image, flavor,
-                                          files=None, meta=None
-                                          ).AndReturn(server)
+        openstack_api_mock.servers.create(
+            'fake_server',
+            image,
+            flavor,
+            files=None,
+            meta={
+                'RAX-CHECKMATE':
+                'http://MOCK/TMOCK/deployments/DEP/resources/1'
+            }
+        ).AndReturn(server)
         openstack_api_mock.client.region_name = "NORTH"
 
         expected = {
@@ -79,7 +92,7 @@ class TestNovaCompute(test.ProviderTester):
                 'password': server.adminPass,
                 'region': "NORTH",
                 'flavor': flavor.id,
-                'image': image.id
+                'image': image.id,
             }
         }
 
@@ -90,7 +103,13 @@ class TestNovaCompute(test.ProviderTester):
         results = compute.create_server(context, 'fake_server', "North",
                                         api_object=openstack_api_mock,
                                         flavor='2', files=None,
-                                        image=compute.UBUNTU_12_04_IMAGE_ID)
+                                        image=compute.UBUNTU_12_04_IMAGE_ID,
+                                        tags=provider.generate_resource_tag(
+                                            context['base_url'],
+                                            context['tenant'],
+                                            context['deployment'],
+                                            context['resource']
+                                        ))
 
         self.assertDictEqual(results, expected)
         self.mox.VerifyAll()

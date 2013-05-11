@@ -21,6 +21,7 @@ class TestLegacyCompute(test.ProviderTester):
     klass = compute_legacy.Provider
 
     def test_create_server(self):
+        provider = compute_legacy.Provider({})
 
         #Mock server
         server = self.mox.CreateMockAnything()
@@ -57,9 +58,16 @@ class TestLegacyCompute(test.ProviderTester):
 
         openstack_api_mock.images.find(id=image.id).AndReturn(image)
         openstack_api_mock.flavors.find(id=flavor.id).AndReturn(flavor)
-        openstack_api_mock.servers.create(image=119, flavor=2, meta=None,
-                                          name='fake_server',
-                                          files=None).AndReturn(server)
+        openstack_api_mock.servers.create(
+            image=119,
+            flavor=2,
+            meta={
+                'RAX-CHECKMATE':
+                'http://MOCK/TMOCK/deployments/DEP/resources/1'
+            },
+            name='fake_server',
+            files=None
+        ).AndReturn(server)
 
         expected = {
             'instance:1': {
@@ -71,15 +79,31 @@ class TestLegacyCompute(test.ProviderTester):
             }
         }
 
-        context = dict(deployment='DEP', resource='1')
+        context = {
+            'deployment': 'DEP',
+            'resource': '1',
+            'tenant': 'TMOCK',
+            'base_url': 'http://MOCK'
+        }
         resource_postback.delay(context['deployment'],
                                 expected).AndReturn(True)
 
         self.mox.ReplayAll()
-        results = compute_legacy.create_server(context, name='fake_server',
-                                               api_object=openstack_api_mock,
-                                               flavor=2, files=None, image=119,
-                                               ip_address_type='public')
+        results = compute_legacy.create_server(
+            context,
+            name='fake_server',
+            api_object=openstack_api_mock,
+            flavor=2,
+            files=None,
+            image=119,
+            ip_address_type='public',
+            tags=provider.generate_resource_tag(
+                context['base_url'],
+                context['tenant'],
+                context['deployment'],
+                context['resource']
+            )
+        )
 
         self.assertDictEqual(results, expected)
         self.mox.VerifyAll()
