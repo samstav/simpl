@@ -446,7 +446,7 @@ from checkmate.ssh import test_connection
 
 @task
 def create_server(context, name, api_object=None, flavor=2, files=None,
-                  image=119, ip_address_type='public'):
+                  image=119, ip_address_type='public', tags=None):
     """Create a Rackspace Cloud server.
 
     :param context: the context information
@@ -489,12 +489,16 @@ def create_server(context, name, api_object=None, flavor=2, files=None,
     flavor_object = api_object.flavors.find(id=int(flavor))
     LOG.debug("Flavor id %s found. Name=%s" % (flavor, flavor_object.name))
 
+    # Add RAX-CHECKMATE to metadata
+    # support old way of getting metadata from generate_template
+    meta = tags or context.get("metadata", None)
     try:
         server = api_object.servers.create(
             image=int(image),
             flavor=int(flavor),
             name=name,
-            meta=context.get("metadata", None), files=files
+            meta=meta,
+            files=files
         )
         create_server.update_state(state="PROGRESS",
                                    meta={"server.id": server.id})
@@ -530,7 +534,7 @@ def create_server(context, name, api_object=None, flavor=2, files=None,
 def wait_on_build(context, server_id, ip_address_type='public', check_ssh=True,
                   username='root', timeout=10, password=None,
                   identity_file=None, port=22, api_object=None,
-                  private_key=None, tag=None):
+                  private_key=None):
     """Checks build is complete and. optionally, that SSH is working.
 
     :param ip_adress_type: the type of IP addresss to return as 'ip' in the
@@ -585,7 +589,6 @@ def wait_on_build(context, server_id, ip_address_type='public', check_ssh=True,
 
     if server.status == 'BUILD':
         results['progress'] = server.progress
-        results.update(tag)
         #countdown = 100 - server.progress
         #if countdown <= 0:
         #    countdown = 15  # progress is not accurate. Allow at least 15s
