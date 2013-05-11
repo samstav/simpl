@@ -129,7 +129,7 @@ class Provider(ProviderBase):
                                        'task_tags': ['create', 'root']},
                            dns=dns,
                            algorithm=algorithm,
-                           tag=self.generate_resource_tag(context.base_url,
+                           tags=self.generate_resource_tag(context.base_url,
                                context.tenant, deployment['id'], key),
                            port=port)
 
@@ -569,7 +569,7 @@ PLACEHOLDER_IP = '1.2.3.4'
 @task
 def create_loadbalancer(context, name, vip_type, protocol, region, api=None,
                         dns=False, port=None, algorithm='ROUND_ROBIN',
-                        tag=None,
+                        tags=None,
                         monitor_path='/', monitor_delay=10, monitor_timeout=10,
                         monitor_attempts=3, monitor_body='(.*)',
                         monitor_status='^[234][0-9][0-9]$', parent_lb=None):
@@ -625,7 +625,7 @@ def create_loadbalancer(context, name, vip_type, protocol, region, api=None,
     instance_key = 'instance:%s' % context['resource']
     # Add RAX-CHECKMATE to metadata
     # support old way of getting metadata from generate_template
-    meta = tag or context.get("metadata", None)
+    meta = tags or context.get("metadata", None)
     if meta:
         # attach checkmate metadata to the lb if available
         new_meta = []
