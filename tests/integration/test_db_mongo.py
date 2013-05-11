@@ -28,16 +28,20 @@ class TestDBMongo(base.DBDriverTests):
         if MongoBox is object:
             unittest.SkipTest(REASON)
         else:
-            cls.box = MongoBox()
-            cls.box.start()
-            cls.connection_string = ("mongodb://localhost:%s/test" %
-                                     cls.box.port)
+            try:
+                cls.box = MongoBox()
+                cls.box.start()
+                cls.connection_string = ("mongodb://localhost:%s/test" %
+                                         cls.box.port)
+            except StandardError as exc:
+                unittest.SkipTest(str(exc))
 
     @classmethod
     def tearDownClass(cls):
         '''Stop the sanboxed mongodb instance'''
         if MongoBox is not object:
-            cls.box.stop()
+            if cls.box.running() is True:
+                cls.box.stop()
             cls.box = None
         super(TestDBMongo, cls).tearDownClass()
 
