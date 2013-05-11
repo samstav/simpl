@@ -18,7 +18,7 @@ flake8
 coverage
 nosexcover
 pylint
-
+mongobox
 
 #
 # All other needed requirements should work as specified through the setup.py file.

@@ -400,6 +400,8 @@ class Driver(DbBase):
                 if current:
                     merge_dictionary(current, body)
                     body = current
+                else:
+                    merge_existing = False  # so we can create a new one
 
             if secrets is not None:
                 if not secrets:
