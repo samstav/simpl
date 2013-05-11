@@ -25,24 +25,25 @@ class TestDBMongo(base.DBDriverTests):
     def setUpClass(cls):
         '''Fire up a sandboxed mongodb instance'''
         super(TestDBMongo, cls).setUpClass()
-        if MongoBox is object:
-            unittest.SkipTest(REASON)
-        else:
-            try:
-                cls.box = MongoBox()
-                cls.box.start()
-                cls.connection_string = ("mongodb://localhost:%s/test" %
-                                         cls.box.port)
-            except StandardError as exc:
-                unittest.SkipTest(str(exc))
+        try:
+            cls.box = MongoBox()
+            cls.box.start()
+            cls.connection_string = ("mongodb://localhost:%s/test" %
+                                     cls.box.port)
+        except StandardError as exc:
+            del cls.box
+            global SKIP
+            global REASON
+            SKIP = True
+            REASON = str(exc)
 
     @classmethod
     def tearDownClass(cls):
         '''Stop the sanboxed mongodb instance'''
-        if MongoBox is not object:
+        if hasattr(cls, 'box') and isinstance(cls.box, MongoBox):
             if cls.box.running() is True:
                 cls.box.stop()
-            cls.box = None
+                cls.box = None
         super(TestDBMongo, cls).tearDownClass()
 
 
@@ -61,26 +62,35 @@ class TestMongoDBCapabilities(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         '''Fire up a sandboxed mongodb instance'''
-        if MongoBox is object:
-            unittest.SkipTest(REASON)
-        else:
+        try:
             cls.box = MongoBox()
             cls.box.start()
+        except StandardError as exc:
+            del cls.box
+            global SKIP
+            global REASON
+            SKIP = True
+            REASON = str(exc)
 
     @classmethod
     def tearDownClass(cls):
         '''Stop the sanboxed mongodb instance'''
-        if MongoBox is not object:
-            cls.box.stop()
-            cls.box = None
+        if hasattr(cls, 'box') and isinstance(cls.box, MongoBox):
+            if cls.box.running() is True:
+                cls.box.stop()
+                cls.box = None
 
     def setUp(self):
         '''Get a client conection to our sandboxed mongodb instance'''
-        self.client = self.box.client()
+        if hasattr(self, 'box'):
+            self.client = self.box.client()
+        else:
+            raise unittest.SkipTest("No sandboxed mongoDB")
 
     def tearDown(self):
         '''Disconnect the client'''
-        self.client = None
+        if hasattr(self, 'box'):
+            self.client = None
 
     def test_mongo_instance(self):
         '''Verify the mongobox's mongodb instance is working'''
