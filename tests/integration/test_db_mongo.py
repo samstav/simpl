@@ -47,7 +47,7 @@ class TestMongoDBCapabilities(unittest.TestCase):
     '''Test MongoDB's capabilities against our driver design
 
     We do things like document partial updates and locking with mongodb. The
-    way wedo that might break with certain versions of Monfgo, so this test
+    way we do that might break with certain versions of Mongo, so this test
     module validates that our designs work as expected.
 
     These tests are optional. If MongoDB is not installed, they will be
@@ -172,6 +172,71 @@ class TestMongoDBCapabilities(unittest.TestCase):
                 'status': 'gone fishing'
             }
         })
+
+    def test_write_if_zero(self):
+        '''Verify that syntax for locking an object works'''
+        col = self.client.tdb.c6
+        col.save(
+            {
+                'id': 'our-id',
+                '_lock': 0
+            }
+        )
+        obj = col.find_and_modify(
+            query={
+                '$or': [{'_lock': {'$exists': False}}, {'_lock': 0}]
+            },
+            update={
+                '$set': {
+                    '_lock': "1",
+                }
+            },
+            fields={'_lock': 0, '_id': 0}
+        )
+        self.assertEqual(obj['id'], 'our-id')
+
+    def test_write_if_field_not_exists(self):
+        '''Verify that syntax for locking an object works'''
+        col = self.client.tdb.c7
+        col.save(
+            {
+                'id': 'our-id',
+            }
+        )
+        obj = col.find_and_modify(
+            query={
+                '$or': [{'_lock': {'$exists': False}}, {'_lock': 0}]
+            },
+            update={
+                '$set': {
+                    '_lock': "1",
+                }
+            },
+            fields={'_lock': 0, '_id': 0}
+        )
+        self.assertEqual(obj['id'], 'our-id')
+
+    def test_skip_if_filtered(self):
+        '''Verify that syntax for locking an object works'''
+        col = self.client.tdb.c8
+        col.save(
+            {
+                'id': 'our-id',
+                '_lock': 'my-key'
+            }
+        )
+        obj = col.find_and_modify(
+            query={
+                '$or': [{'_lock': {'$exists': False}}, {'_lock': 0}]
+            },
+            update={
+                '$set': {
+                    '_lock': "1",
+                }
+            },
+            fields={'_lock': 0, '_id': 0}
+        )
+        self.assertIsNone(obj)
 
 
 if __name__ == '__main__':

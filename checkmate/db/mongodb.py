@@ -100,13 +100,11 @@ class Driver(DbBase):
         '''
 
         # If the deployment exists, lock it!
-        if self.get_deployment(api_id, with_secrets=secrets):
-            key, deployment = self.lock_object('deployments',
-                                               api_id, with_secrets=secrets)
+        if self.get_deployment(api_id):
+            _, key = self.lock_object('deployments', api_id)
 
         return self.save_object('deployments', api_id, body, secrets,
-                                  tenant_id, merge_existing=partial)
-
+                                tenant_id, merge_existing=partial)
 
     #BLUEPRINTS
     def get_blueprint(self, api_id, with_secrets=None):
@@ -243,18 +241,21 @@ class Driver(DbBase):
         }
 
         locked_object = self.database()[klass].find_and_modify(
-            query={'_id': api_id, '_lock': 0},
+            query={
+                '_id': api_id,
+                '$or': [{'_lock': {'$exists': False}}, {'_lock': 0}]
+            },
             update=lock_update,
             fields=self._object_projection
         )
-        if(locked_object):
+        if locked_object:
             # We were able to lock the object
             return (locked_object, key)
 
         else:
             # Could not get the lock
             object_exists = self.database()[klass].find_one({'_id': api_id})
-            if(object_exists):
+            if object_exists:
                 # Object exists but we were not able to get the lock
                 if '_lock' in object_exists:
                     lock_time_delta = (lock_timestamp -
@@ -331,8 +332,8 @@ class Driver(DbBase):
             self.database()
         client = self._client
         with client.start_request():
-            count = self.database()[klass].find({'tenantId': tenant_id} 
-                                                if tenant_id else None, 
+            count = self.database()[klass].find({'tenantId': tenant_id}
+                                                if tenant_id else None,
                                                 self._object_projection).count()
             if limit:
                 if offset is None:
