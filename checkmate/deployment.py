@@ -1041,14 +1041,16 @@ class Deployment(ExtensibleDict):
                                               "yet supported: %s" % key)
 
 
-@task
+@task(default_retry_delay=0.3, max_retries=2)
 def update_operation(deployment_id, driver=DB, **kwargs):
-    '''Update the the operation in the deployment
-
-    :param deployment_id: the string ID of the deployment
-    :param driver: the backend driver to use to get the deployments
-    :param kwargs: the key/value pairs to write into the operation
     '''
+
+    DEPRECATED - will be removed around v0.14
+
+    Use checkmate.common.tasks.update_operation
+
+    '''
+    LOG.warn("DEPRECATED CALL: deployment.update_operation called")
     match_celery_logging(LOG)
     if kwargs:
         if is_simulation(deployment_id):

@@ -14,7 +14,6 @@ import mox
 
 from checkmate.deployment import (
     Deployment,
-    update_operation,
     update_deployment_status,
 )
 from checkmate.exceptions import (
@@ -126,14 +125,6 @@ class TestCeleryTasks(unittest.TestCase):
 
     def tearDown(self):
         self.mox.UnsetStubs()
-
-    def test_update_operation(self):
-        db = self.mox.CreateMockAnything()
-        db.save_deployment('1234', {'operation': {'status': 'NEW'}},
-                           partial=True).AndReturn(None)
-        self.mox.ReplayAll()
-        update_operation('1234', status='NEW', driver=db)
-        self.mox.VerifyAll()
 
     def test_update_deployment_status(self):
         """ Test deployment status update """
