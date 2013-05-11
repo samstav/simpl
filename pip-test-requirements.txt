@@ -18,7 +18,12 @@ flake8
 coverage
 nosexcover
 pylint
-mongobox
+
+# mongobox
+#Upstream: https://github.com/theorm/mongobox.git
+# Fork until https://github.com/theorm/mongobox/pull/2 accepted
+-e git+https://github.rackspace.com/checkmate/mongobox.git@master#egg=mongobox
+
 
 #
 # All other needed requirements should work as specified through the setup.py file.
