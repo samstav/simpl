@@ -304,7 +304,7 @@ def wait_for(wf_spec, task, wait_list, name=None, **kwargs):
         return task
 
 
-def init_operation(workflow, operation_type=None, tenant_id=None):
+def init_operation(workflow, tenant_id=None):
     """Create a new operation dictionary for a given workflow.
 
     Example:
@@ -326,9 +326,6 @@ def init_operation(workflow, operation_type=None, tenant_id=None):
     workflow_id = (workflow.attributes.get('id') or
                    workflow.attributes.get('deploymentId'))
     operation['link'] = "/%s/workflows/%s" % (tenant_id, workflow_id)
-
-    # Operation type
-    operation['type'] = operation_type
 
     return operation
 

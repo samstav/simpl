@@ -13,10 +13,11 @@ from celery.app.task import Context
 import bottle
 from bottle import HTTPError
 import mox
-from mox import IgnoreArg
+from mox import IgnoreArg, ContainsKeyValue
 
 import checkmate
 from checkmate import keys
+from checkmate.common import tasks as common_tasks
 from checkmate.deployments import (
     Deployment,
     plan,
@@ -30,10 +31,8 @@ from checkmate.deployments import (
     get_deployment_resources,
     get_resources_statuses,
     update_all_provider_resources,
-    update_operation,
     resource_postback,
 )
-from checkmate.deployment import update_deployment_status
 from checkmate.exceptions import (
     CheckmateValidationException,
     CheckmateException,
@@ -1209,6 +1208,7 @@ class TestDeleteDeployments(unittest.TestCase):
         bottle.request.context = Context()
         bottle.request.context.tenant = None
         self._deployment = {
+            'id': '1234',
             'status': 'PLANNED',
             'environment': {},
             'blueprint': {
@@ -1226,8 +1226,7 @@ class TestDeleteDeployments(unittest.TestCase):
     def test_bad_status(self):
         """ Test when deployment status is invalid for delete """
         self._mox.StubOutWithMock(checkmate.deployments, "DB")
-        checkmate.deployments.DB.get_deployment('1234',
-                                                with_secrets=True
+        checkmate.deployments.DB.get_deployment('1234'
                                                 ).AndReturn(self._deployment)
         self._mox.ReplayAll()
         try:
@@ -1242,8 +1241,7 @@ class TestDeleteDeployments(unittest.TestCase):
     def test_not_found(self):
         """ Test deployment not found """
         self._mox.StubOutWithMock(checkmate.deployments, "DB")
-        checkmate.deployments.DB.get_deployment('1234',
-                                                with_secrets=True
+        checkmate.deployments.DB.get_deployment('1234'
                                                 ).AndReturn(None)
         self._mox.ReplayAll()
         try:
@@ -1258,8 +1256,7 @@ class TestDeleteDeployments(unittest.TestCase):
         """ Test when there are no resource tasks for delete """
         self._mox.StubOutWithMock(checkmate.deployments, "DB")
         self._deployment['status'] = 'UP'
-        checkmate.deployments.DB.get_deployment('1234',
-                                                with_secrets=True
+        checkmate.deployments.DB.get_deployment('1234'
                                                 ).AndReturn(self._deployment)
         self._mox.StubOutWithMock(checkmate.deployments, "Plan")
         checkmate.deployments.Plan = self._mox.CreateMockAnything()
@@ -1272,6 +1269,18 @@ class TestDeleteDeployments(unittest.TestCase):
                                                            driver=checkmate.
                                                            deployments.DB
                                                            ).AndReturn(True)
+        delete_op = {
+            'link': '/canvases/1234',
+            'type': 'DELETE',
+            'status': 'NEW',
+            'tasks': 0,
+            'complete': 0,
+        }
+        checkmate.deployments.DB.save_deployment(
+            '1234',
+            ContainsKeyValue('operation', delete_op),
+            partial=False,
+            tenant_id=None).AndReturn(None)
         self._mox.ReplayAll()
         delete_deployment('1234', driver=checkmate.deployments.DB)
         self._mox.VerifyAll()
@@ -1279,10 +1288,9 @@ class TestDeleteDeployments(unittest.TestCase):
 
     def test_happy_path(self):
         """ When it all goes right """
-        self._mox.StubOutWithMock(checkmate.deployments, "DB")
+        mock_driver = self._mox.CreateMockAnything()
         self._deployment['status'] = 'UP'
-        checkmate.deployments.DB.get_deployment('1234', with_secrets=True)\
-            .AndReturn(self._deployment)
+        mock_driver.get_deployment('1234').AndReturn(self._deployment)
         self._mox.StubOutWithMock(checkmate.deployments, "Plan")
         checkmate.deployments.Plan = self._mox.CreateMockAnything()
         mock_plan = self._mox.CreateMockAnything()
@@ -1291,27 +1299,35 @@ class TestDeleteDeployments(unittest.TestCase):
         mock_delete_step2 = self._mox.CreateMockAnything()
         mock_steps = [mock_delete_step1, mock_delete_step2]
         mock_plan.plan_delete(IgnoreArg()).AndReturn(mock_steps)
-        self._mox.StubOutWithMock(
-            checkmate.deployments.update_operation, "s")
+        self._mox.StubOutWithMock(common_tasks.update_operation, "s")
         mock_subtask = self._mox.CreateMockAnything()
-        checkmate.deployments.update_operation.s('1234', status='IN PROGRESS',
-                                                 driver=checkmate.
-                                                 deployments.DB)\
+        common_tasks.update_operation.s('1234', status='IN PROGRESS',
+                                        driver=mock_driver)\
             .AndReturn(mock_subtask)
         mock_subtask.delay().AndReturn(True)
         self._mox.StubOutClassWithMocks(checkmate.deployments, "chord")
         mock_chord = checkmate.deployments.chord(mock_steps)
         mock_delete_dep = self._mox.CreateMockAnything()
+        delete_op = {
+            'link': '/canvases/1234',
+            'type': 'DELETE',
+            'status': 'NEW',
+            'tasks': 0,
+            'complete': 0,
+        }
+        mock_driver.save_deployment('1234',
+                                    ContainsKeyValue('operation', delete_op),
+                                    partial=False,
+                                    tenant_id=None).AndReturn(None)
         self._mox.StubOutWithMock(checkmate.deployments.delete_deployment_task,
                                   "si")
         checkmate.deployments.delete_deployment_task.si(IgnoreArg(),
-                                                        driver=checkmate.
-                                                        deployments.DB)\
+                                                        driver=mock_driver)\
             .AndReturn(mock_delete_dep)
         mock_chord.__call__(IgnoreArg(), interval=IgnoreArg(),
                             max_retries=IgnoreArg()).AndReturn(True)
         self._mox.ReplayAll()
-        delete_deployment('1234', driver=checkmate.deployments.DB)
+        delete_deployment('1234', driver=mock_driver)
         self._mox.VerifyAll()
         self.assertEquals(202, bottle.response.status_code)
 
@@ -1319,19 +1335,21 @@ class TestDeleteDeployments(unittest.TestCase):
         """ Test the final delete task itself """
         self._deployment['tenantId'] = '4567'
         self._deployment['status'] = 'UP'
-        self._mox.StubOutWithMock(checkmate.deployments.DB, "get_deployment")
-        checkmate.deployments.DB.get_deployment('1234'
-                                                ).AndReturn(self._deployment)
+        mock_driver = self._mox.CreateMockAnything()
+        mock_driver.get_deployment('1234').AndReturn(self._deployment)
 
-        def get_modified_dep(_, dep, secrets={}):
-            self.assertEquals('DELETED', dep.get('status'))
-
-        self._mox.StubOutWithMock(checkmate.deployments.DB, "save_deployment")
-        checkmate.deployments.DB.save_deployment('1234', IgnoreArg(),
-                                                 secrets={})\
-            .WithSideEffects(get_modified_dep).AndReturn(self._deployment)
+        self._mox.StubOutWithMock(common_tasks.update_deployment_status,
+                                  "delay")
+        common_tasks.update_deployment_status.delay('1234', "DELETED",
+                                                    driver=mock_driver
+                                                    ).AndReturn(True)
+        self._mox.StubOutWithMock(common_tasks.update_operation, "delay")
+        common_tasks.update_operation.delay('1234', status="COMPLETE",
+                                            complete=0, driver=mock_driver
+                                            ).AndReturn(True)
         self._mox.ReplayAll()
-        delete_deployment_task('1234')
+        delete_deployment_task('1234', driver=mock_driver)
+        self._mox.VerifyAll()
 
 
 class TestGetResourceStuff(unittest.TestCase):

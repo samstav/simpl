@@ -122,17 +122,15 @@ class Plan(ExtensibleDict):
             provider = self.environment.get_provider(resource.get("provider"))
             if not provider:
                 LOG.warn("Deployment %s resource %s has an unknown provider:"
-                         " %s" % (dep_id, res_key, resource.get("provider")))
+                         " %s", dep_id, res_key, resource.get("provider"))
                 continue
             new_tasks = provider.delete_resource_tasks(context, dep_id,
                                                        resource, res_key)
             if new_tasks:
                 del_tasks.append(new_tasks)
-        if del_tasks:
-            return del_tasks
-        else:
-            LOG.warn("No delete resource tasks for deployment %s" %
-                     dep_id)
+        if not del_tasks:
+            LOG.warn("No delete resource tasks for deployment %s", dep_id)
+        return del_tasks
 
     def evaluate_defaults(self):
         """

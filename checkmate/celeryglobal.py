@@ -1,11 +1,11 @@
 '''
-Preparing for organizing celery tasks
+Preparing for organizing celery app & tasks
 
 See:
     http://docs.celeryproject.org/en/latest/getting-started/
     next-steps.html#project-layout
 
-RODO:
+TODO:
 - rename to celery.py
 
 '''

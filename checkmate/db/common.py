@@ -2,7 +2,6 @@ import logging
 import os
 
 from checkmate import utils
-from checkmate.exceptions import CheckmateException
 
 DEFAULT_DATA_PATH = os.path.join(os.path.dirname(__file__), '..', 'data')
 ACTUAL_DATA_PATH = os.path.join(os.environ.get('CHECKMATE_DATA_PATH',

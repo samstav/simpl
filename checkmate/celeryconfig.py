@@ -12,7 +12,7 @@ LOG = logging.getLogger(__name__)
 # after update to Celery 3.1 as its the default behavior
 CELERY_CHORD_PROPAGATES = True
 
-# For debugging, thise makes all calls synchronous
+# For debugging, thise make all calls synchronous
 if '--eager' in sys.argv:
     CELERY_ALWAYS_EAGER = True
 else:
@@ -25,15 +25,16 @@ if CELERY_ALWAYS_EAGER:
 if 'CHECKMATE_BROKER_URL' in os.environ:
     BROKER_URL = os.environ['CHECKMATE_BROKER_URL']
 elif 'CHECKMATE_BROKER_HOST' in os.environ:
-    broker = {'username': os.environ.get('CHECKMATE_BROKER_USERNAME'),
-              'password': os.environ.get('CHECKMATE_BROKER_PASSWORD'),
-              'host': os.environ.get('CHECKMATE_BROKER_HOST', 'localhost'),
-              'port': os.environ.get('CHECKMATE_BROKER_PORT', '5672'),
-              }
-    BROKER_URL = "amqp://%s:%s@%s:%s/checkmate" % (broker['username'],
-                                                   broker['password'],
-                                                   broker['host'],
-                                                   broker['port'])
+    BROKER_INFO = {
+        'username': os.environ.get('CHECKMATE_BROKER_USERNAME'),
+        'password': os.environ.get('CHECKMATE_BROKER_PASSWORD'),
+        'host': os.environ.get('CHECKMATE_BROKER_HOST', 'localhost'),
+        'port': os.environ.get('CHECKMATE_BROKER_PORT', '5672'),
+    }
+    BROKER_URL = "amqp://%s:%s@%s:%s/checkmate" % (BROKER_INFO['username'],
+                                                   BROKER_INFO['password'],
+                                                   BROKER_INFO['host'],
+                                                   BROKER_INFO['port'])
 else:
     # Only use this for development
     LOG.warning("An in-memory database is being used as a broker. Only use "
@@ -48,31 +49,31 @@ else:
 CELERY_RESULT_BACKEND = os.environ.get('CHECKMATE_RESULT_BACKEND', "database")
 
 if CELERY_RESULT_BACKEND == "database":
-    default_backend_path = os.path.expanduser(os.path.normpath(
+    DEFAULT_BACKEND_PATH = os.path.expanduser(os.path.normpath(
         os.path.join(os.path.dirname(__file__), os.pardir, 'data',
                      'celerydb.sqlite')))
-    default_backend_uri = "sqlite:///%s" % default_backend_path
+    DEFAULT_BACKEND_URI = "sqlite:///%s" % DEFAULT_BACKEND_PATH
 elif CELERY_RESULT_BACKEND == "mongodb":
     # Get CHECKMATE settings, fall back to CELERY, and then default
-    default_settings = dict(host="localhost",
+    DEFAULT_SETTINGS = dict(host="localhost",
                             database="checkmate",
                             taskmeta_collection="celery_task_meta")
-    celery_setting = os.environ.get('CELERY_MONGODB_BACKEND_SETTINGS')
-    checkmate_setting = os.environ.get('CHECKMATE_MONGODB_BACKEND_SETTINGS')
-    CELERY_MONGODB_BACKEND_SETTINGS = json.loads(checkmate_setting or
-                                                 celery_setting or
-                                                 str(default_settings))
-    default_backend_uri = BROKER_URL
-    config = copy.copy(CELERY_MONGODB_BACKEND_SETTINGS)
-    if 'password' in config:
-        config['password'] = '*******'
-    LOG.debug("CELERY_MONGODB_BACKEND_SETTINGS: %s" % config)
+    CELERY_SETTING = os.environ.get('CELERY_MONGODB_BACKEND_SETTINGS')
+    CHECKMATE_SETTING = os.environ.get('CHECKMATE_MONGODB_BACKEND_SETTINGS')
+    CELERY_MONGODB_BACKEND_SETTINGS = json.loads(CHECKMATE_SETTING or
+                                                 CELERY_SETTING or
+                                                 str(DEFAULT_SETTINGS))
+    DEFAULT_BACKEND_URI = BROKER_URL
+    CONFIG = copy.copy(CELERY_MONGODB_BACKEND_SETTINGS)
+    if 'password' in CONFIG:
+        CONFIG['password'] = '*******'
+    LOG.debug("CELERY_MONGODB_BACKEND_SETTINGS: %s", CONFIG)
 
 CELERY_RESULT_DBURI = os.environ.get('CHECKMATE_RESULT_DBURI',
-                                     default_backend_uri)
+                                     DEFAULT_BACKEND_URI)
 
 # Report out that this file was used for configuration
-LOG.info("celery config loaded from %s" % __file__)
-LOG.info("celery persisting data in %s" % CELERY_RESULT_DBURI)
-LOG.info("celery broker is %s" % BROKER_URL.replace(
+LOG.info("celery config loaded from %s", __file__)
+LOG.info("celery persisting data in %s", CELERY_RESULT_DBURI)
+LOG.info("celery broker is %s", BROKER_URL.replace(
          os.environ.get('CHECKMATE_BROKER_PASSWORD', '*****'), '*****'))
