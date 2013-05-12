@@ -29,7 +29,7 @@ from checkmate.utils import (
     is_simulation,
     write_pagination_headers,
 )
-from checkmate.workflow import get_SpiffWorkflow_status
+from checkmate import workflow as wf_import  # TODO: rename
 
 DB = get_driver()
 SIMULATOR_DB = get_driver(connection_string=os.environ.get(
@@ -181,7 +181,8 @@ def get_workflow_status(id, tenant_id=None, driver=DB):
         abort(404, 'No workflow with id %s' % id)
     serializer = DictionarySerializer()
     wf = SpiffWorkflow.deserialize(serializer, entity)
-    return write_body(get_SpiffWorkflow_status(wf), request, response)
+    return write_body(wf_import.get_SpiffWorkflow_status(wf), request,
+                     response)
 
 
 @route('/workflows/<id>/+execute', method=['GET', 'POST'])
@@ -328,7 +329,7 @@ def post_workflow_task(id, task_id, tenant_id=None, driver=DB):
         task._state = entity['state']
 
     # Save workflow (with secrets)
-    orchestrator.update_workflow_status(wf)
+    wf_import.update_workflow_status(wf)
     serializer = DictionarySerializer()
     body, secrets = extract_sensitive_data(wf.serialize(serializer))
     body['tenantId'] = workflow.get('tenantId', tenant_id)
@@ -384,7 +385,7 @@ def reset_workflow_task(id, task_id, tenant_id=None, driver=DB):
     task._state = Task.FUTURE
     task.parent._state = Task.READY
 
-    orchestrator.update_workflow_status(wf)
+    wf_import.update_workflow_status(wf)
     serializer = DictionarySerializer()
     entity = wf.serialize(serializer)
     body, secrets = extract_sensitive_data(entity)
@@ -452,7 +453,7 @@ def resubmit_workflow_task(workflow_id, task_id, tenant_id=None, driver=DB):
                                                       task.get_state_name()))
             task.task_spec._update_state(task)
 
-        orchestrator.update_workflow_status(wf)
+        wf_import.update_workflow_status(wf)
         serializer = DictionarySerializer()
         entity = wf.serialize(serializer)
         body, secrets = extract_sensitive_data(entity)

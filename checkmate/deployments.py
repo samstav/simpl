@@ -3,6 +3,7 @@ import logging
 import os
 import uuid
 
+#pylint: disable=E0611
 from bottle import request, response, abort, get, post, delete, route
 from celery.canvas import chord
 from celery.task import task
@@ -10,12 +11,12 @@ from SpiffWorkflow import Workflow, Task
 from SpiffWorkflow.storage import DictionarySerializer
 
 from checkmate import orchestrator, operations
+from checkmate.common import tasks as common_tasks
 from checkmate.db import get_driver, any_id_problems
 from checkmate.db.common import ObjectLockedError
 from checkmate.deployment import (
     Deployment,
     generate_keys,
-    update_operation as new_update_operation,
 )
 from checkmate.exceptions import (
     CheckmateDoesNotExist,
@@ -256,8 +257,8 @@ def post_deployment(tenant_id=None, driver=DB):
 
     # can't pass actual request
     request_context = copy.deepcopy(request.context)
-    async_task = execute_plan(oid, request_context, driver=driver,
-                              asynchronous=('asynchronous' in request.query))
+    execute_plan(oid, request_context, driver=driver,
+                 asynchronous=('asynchronous' in request.query))
 
     response.status = 202
 
@@ -407,7 +408,7 @@ def deploy_deployment(oid, tenant_id=None, driver=DB):
 
     #Trigger the workflow
     async_task = execute(oid, driver=driver)
-    LOG.debug("Triggered workflow (task='%s')" % async_task)
+    LOG.debug("Triggered workflow (task='%s')", async_task)
 
     return write_body(deployment, request, response)
 
@@ -432,6 +433,7 @@ def _get_a_deployment_with_request(oid, tenant_id=None, driver=DB):
     else:
         return get_a_deployment(oid, tenant_id, driver, with_secrets=False)
 
+
 def get_a_deployment(oid, tenant_id=None, driver=DB, with_secrets=False):
     """
     Get a single deployment by id.
@@ -440,6 +442,7 @@ def get_a_deployment(oid, tenant_id=None, driver=DB, with_secrets=False):
     if not entity or (tenant_id and tenant_id != entity.get("tenantId")):
         raise CheckmateDoesNotExist('No deployment with id %s' % oid)
     return entity
+
 
 def _get_dep_resources(deployment):
     """ Return the resources for the deployment or abort if not found """
@@ -466,7 +469,8 @@ def get_resources_statuses(oid, tenant_id=None, driver=DB):
     """ Get basic status of all deployment resources """
     if is_simulation(oid):
         driver = SIMULATOR_DB
-    deployment = _get_a_deployment_with_request(oid, tenant_id=tenant_id, driver=driver)
+    deployment = _get_a_deployment_with_request(oid, tenant_id=tenant_id,
+                                                driver=driver)
     resources = _get_dep_resources(deployment)
     resp = {}
 
@@ -506,9 +510,10 @@ def get_resource(oid, rid, tenant_id=None, driver=DB):
     """ Get a specific resource from a deployment """
     try:
         return write_body(get_resource_by_id(oid, rid, tenant_id, driver),
-                        request, response)
+                          request, response)
     except ValueError as not_found:
         abort(404, not_found.value)
+
 
 def get_resource_by_id(oid, rid, tenant_id=None, driver=DB):
     if is_simulation(oid):
@@ -518,6 +523,7 @@ def get_resource_by_id(oid, rid, tenant_id=None, driver=DB):
     if rid in resources:
         return resources.get(rid)
     raise ValueError("No resource %s in deployment %s" % (rid, oid))
+
 
 @delete('/deployments/<oid>')
 @with_tenant
@@ -662,8 +668,8 @@ def plan(deployment, context):
 
     # Mark deployment as planned and return it (nothing has been saved so far)
     deployment['status'] = 'PLANNED'
-    LOG.info("Deployment '%s' planning complete and status changed to %s" %
-            (deployment['id'], deployment['status']))
+    LOG.info("Deployment '%s' planning complete and status changed to %s",
+             deployment['id'], deployment['status'])
     return deployment
 
 
