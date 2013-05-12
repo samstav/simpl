@@ -9,8 +9,11 @@ from SpiffWorkflow import Workflow, Task
 from SpiffWorkflow.storage import DictionarySerializer
 
 from checkmate.db.common import ObjectLockedError
-from checkmate.deployment import update_operation, update_deployment_status
 from checkmate.middleware import RequestContext
+from checkmate.common.tasks import (
+    update_operation,
+    update_deployment_status,
+)
 from checkmate.utils import extract_sensitive_data, match_celery_logging
 from checkmate.workflow import update_workflow_status
 

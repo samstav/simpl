@@ -1041,14 +1041,16 @@ class Deployment(ExtensibleDict):
                                               "yet supported: %s" % key)
 
 
-@task
+@task(default_retry_delay=0.3, max_retries=2)
 def update_operation(deployment_id, driver=DB, **kwargs):
-    '''Update the the operation in the deployment
-
-    :param deployment_id: the string ID of the deployment
-    :param driver: the backend driver to use to get the deployments
-    :param kwargs: the key/value pairs to write into the operation
     '''
+
+    DEPRECATED - will be removed around v0.14
+
+    Use checkmate.common.tasks.update_operation
+
+    '''
+    LOG.warn("DEPRECATED CALL: deployment.update_operation called")
     match_celery_logging(LOG)
     if kwargs:
         if is_simulation(deployment_id):
@@ -1062,10 +1064,18 @@ def update_operation(deployment_id, driver=DB, **kwargs):
             update_operation.retry()
 
 
-@task
+@task(default_retry_delay=1, max_retries=4)
 def update_deployment_status(deployment_id, new_status, error_message=None,
                              driver=DB):
-    """ Update the status of the specified deployment """
+    '''
+
+    DEPRECATED - will be removed around v0.14
+
+    Use update_deployment_status_new
+
+    '''
+    LOG.warn("DEPRECATED CALL: deployment.update_deployment_status called")
+
     match_celery_logging(LOG)
     if is_simulation(deployment_id):
         driver = SIMULATOR_DB
@@ -1082,3 +1092,22 @@ def update_deployment_status(deployment_id, new_status, error_message=None,
             LOG.warn("Object lock collision in update_deployment_status on "
                      "Deployment %s", deployment_id)
             update_deployment_status.retry()
+
+
+def update_deployment_status_new(deployment_id, new_status, driver=DB):
+    '''Update the status of the specified deployment'''
+    # TODO: rename without _new
+
+    if is_simulation(deployment_id):
+        driver = SIMULATOR_DB
+
+    delta = {}
+    if new_status:
+        delta['status'] = new_status
+    if delta:
+        try:
+            driver.save_deployment(deployment_id, delta, partial=True)
+        except ObjectLockedError:
+            LOG.warn("Object lock collision in update_deployment_status on "
+                     "Deployment %s", deployment_id)
+            raise
