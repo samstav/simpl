@@ -14,7 +14,7 @@ import mox
 
 from checkmate.deployment import (
     Deployment,
-    update_deployment_status,
+    update_deployment_status_new,
 )
 from checkmate.exceptions import (
     CheckmateBadState,
@@ -132,7 +132,7 @@ class TestCeleryTasks(unittest.TestCase):
         db = self.mox.CreateMockAnything()
         db.save_deployment('1234', expected, partial=True).AndReturn(expected)
         self.mox.ReplayAll()
-        update_deployment_status('1234', 'DOWN', driver=db)
+        update_deployment_status_new('1234', 'DOWN', driver=db)
         self.mox.VerifyAll()
 
 
