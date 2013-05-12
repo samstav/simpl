@@ -2201,6 +2201,7 @@ function DeploymentController($scope, $location, $resource, $routeParams) {
           $scope.data = returned;
           $scope.data_json = JSON.stringify(returned, null, 2);
           $scope.notify(returned.status);
+          $scope.delayed_refresh();
         }, function(error) {
           $scope.$root.error = {data: error.data, status: error.status, title: "Error Deleting",
                   message: "There was an error deleting your deployment"};
