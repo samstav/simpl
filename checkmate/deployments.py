@@ -9,7 +9,7 @@ from celery.task import task
 from SpiffWorkflow import Workflow, Task
 from SpiffWorkflow.storage import DictionarySerializer
 
-from checkmate import orchestrator
+from checkmate import orchestrator, operations
 from checkmate.db import get_driver, any_id_problems
 from checkmate.db.common import ObjectLockedError
 from checkmate.deployment import (
@@ -23,11 +23,7 @@ from checkmate.exceptions import (
     CheckmateBadState,
     CheckmateException,
 )
-from checkmate.workflow import (
-    create_workflow_deploy,
-    create_workflow_spec_deploy,
-    init_operation,
-)
+from checkmate.plan import Plan
 from checkmate.utils import (
     write_body,
     read_body,
@@ -38,7 +34,11 @@ from checkmate.utils import (
     write_path,
     write_pagination_headers,
 )
-from checkmate.plan import Plan
+from checkmate.workflow import (
+    create_workflow_deploy,
+    create_workflow_spec_deploy,
+    init_operation,
+)
 
 LOG = logging.getLogger(__name__)
 DB = get_driver()
@@ -108,8 +108,11 @@ def _save_deployment(deployment, deployment_id=None, tenant_id=None,
                                   tenant_id=tenant_id, partial=False)
 
 
+#
+# Operations - this should eventually move to operations.py
+#
 def create_deploy_operation(deployment, context, tenant_id=None, driver=DB):
-    '''Create Workflow Operation'''
+    '''Create Deploy Operation (Workflow)'''
     workflow_id = deployment['id']
     spiff_wf = create_workflow_deploy(deployment, context)
     spiff_wf.attributes['id'] = workflow_id
@@ -117,13 +120,8 @@ def create_deploy_operation(deployment, context, tenant_id=None, driver=DB):
     workflow = spiff_wf.serialize(serializer)
     workflow['id'] = workflow_id  # TODO: need to support multi workflows
     deployment['workflow'] = workflow_id
-    operation = init_operation(spiff_wf, operation_type="BUILD",
-                               tenant_id=tenant_id)
-    if 'operation' in deployment:
-        history = deployment.get('operations-history') or []
-        history.append(deployment['operation'])
-        deployment['operations-history'] = history
-    deployment['operation'] = operation
+    wf_data = init_operation(spiff_wf, tenant_id=tenant_id)
+    operation = operations.add_operation(deployment, 'BUILD', **wf_data)
 
     body, secrets = extract_sensitive_data(workflow)
     driver.save_workflow(workflow_id, body, secrets,

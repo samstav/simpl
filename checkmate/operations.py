@@ -14,6 +14,27 @@ SIMULATOR_DB = db.get_driver(connection_string=os.environ.get(
     os.environ.get('CHECKMATE_CONNECTION_STRING', 'sqlite://')))
 
 
+def add_operation(deployment, type_name, **kwargs):
+    '''Adds an operation to a deployment
+
+    Moves any existing operation to history
+
+    :param deployment: dict or Deployment
+    :param type_name: the operation name (BUILD, DELETE, etc...)
+    :param kwargs: additional kwargs to add to operation
+    :returns: operation
+    '''
+    if 'operation' in deployment:
+        if 'operations-history' not in deployment:
+            deployment['operations-history'] = []
+        history = deployment.get('operations-history')
+        history.insert(0, deployment.pop('operation'))
+    operation = {'type': type_name}
+    operation.update(**kwargs)
+    deployment['operation'] = operation
+    return operation
+
+
 def update_operation(deployment_id, driver=DB, **kwargs):
     '''Update the the operation in the deployment
 

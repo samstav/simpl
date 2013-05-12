@@ -31,6 +31,40 @@ class TestOperations(unittest.TestCase):
         operations.update_operation('1234', status='NEW', driver=db)
         self.mox.VerifyAll()
 
+    def test_add_operation(self):
+        deployment = {}
+        operations.add_operation(deployment, 'TEST', status='NEW')
+        expected = {'operation': {'type': 'TEST', 'status': 'NEW'}}
+        self.assertDictEqual(deployment, expected)
+
+    def test_add_operation_first_history(self):
+        deployment = {'operation': {'type': 'OLD', 'status': 'COMPLETE'}}
+        operations.add_operation(deployment, 'TEST', status='NEW')
+        expected = {
+            'operation': {'type': 'TEST', 'status': 'NEW'},
+            'operations-history': [
+                {'type': 'OLD', 'status': 'COMPLETE'}
+            ],
+        }
+        self.assertDictEqual(deployment, expected)
+
+    def test_add_operation_existing_history(self):
+        deployment = {
+            'operation': {'type': 'RECENT', 'status': 'COMPLETE'},
+            'operations-history': [
+                {'type': 'OLD', 'status': 'COMPLETE'}
+            ],
+        }
+        operations.add_operation(deployment, 'TEST', status='NEW')
+        expected = {
+            'operation': {'type': 'TEST', 'status': 'NEW'},
+            'operations-history': [
+                {'type': 'RECENT', 'status': 'COMPLETE'},  # at top
+                {'type': 'OLD', 'status': 'COMPLETE'}
+            ],
+        }
+        self.assertDictEqual(deployment, expected)
+
 
 if __name__ == '__main__':
     # Any change here should be made in all test files
