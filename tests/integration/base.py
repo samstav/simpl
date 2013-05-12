@@ -31,11 +31,13 @@ from checkmate import db, utils
 class DBDriverTests(unittest.TestCase):
     '''Test Any Driver'''
 
-    connection_string = "fake://"  # meant to be overridden
+    connection_string = None  # meant to be overridden
 
     def setUp(self):
         self.maxDiff = None
-        self.driver = db.get_driver(connection_string=self.connection_string)
+        if self.connection_string:
+            self.driver = db.get_driver(
+                connection_string=self.connection_string)
 
     def test_instantiation(self):
         self.assertEqual(self.driver.connection_string, self.connection_string)
