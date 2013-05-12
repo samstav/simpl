@@ -807,7 +807,6 @@ def delete_instance(context, api=None):
     delete_instance.on_failure = on_failure
 
     assert "deployment_id" in context, "No deployment id in context"
-    assert "instance_id" in context, "No server id provided"
     assert 'region' in context, "No region defined in context"
     assert 'resource_key' in context, 'No resource key in context'
     assert 'resource' in context, 'No resource defined in context'
