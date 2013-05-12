@@ -21,6 +21,7 @@ import base  # pylint: disable=W0403
 class TestDBMongo(base.DBDriverTests):
     '''MongoDB Driver Canned Tests'''
 
+    #pylint: disable=W0603
     @classmethod
     def setUpClass(cls):
         '''Fire up a sandboxed mongodb instance'''
@@ -31,7 +32,8 @@ class TestDBMongo(base.DBDriverTests):
             cls.connection_string = ("mongodb://localhost:%s/test" %
                                      cls.box.port)
         except StandardError as exc:
-            del cls.box
+            if hasattr(cls, 'box'):
+                del cls.box
             global SKIP
             global REASON
             SKIP = True
@@ -59,6 +61,7 @@ class TestMongoDBCapabilities(unittest.TestCase):
     skipped.
 
     '''
+    #pylint: disable=W0603
     @classmethod
     def setUpClass(cls):
         '''Fire up a sandboxed mongodb instance'''
@@ -66,7 +69,8 @@ class TestMongoDBCapabilities(unittest.TestCase):
             cls.box = MongoBox()
             cls.box.start()
         except StandardError as exc:
-            del cls.box
+            if hasattr(cls, 'box'):
+                del cls.box
             global SKIP
             global REASON
             SKIP = True
