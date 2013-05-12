@@ -130,6 +130,20 @@ def create_deploy_operation(deployment, context, tenant_id=None, driver=DB):
     return operation
 
 
+def create_delete_operation(deployment, tenant_id=None):
+    '''Create Delete Operation (Canvas)'''
+    if tenant_id:
+        link = "/%s/canvases/%s" % (tenant_id, deployment['id'])
+    else:
+        link = "/canvases/%s" % deployment['id']
+    operation = operations.add_operation(deployment, 'DELETE', link=link,
+                                         status='NEW',
+                                         tasks=len(deployment.get('resources',
+                                                   {})),
+                                         complete=0)
+    return operation
+
+
 def _deploy(deployment, context, driver=DB):
     """Deploys a deployment and returns the operation"""
     if deployment.get('status') != 'PLANNED':
@@ -514,7 +528,7 @@ def delete_deployment(oid, tenant_id=None, driver=DB):
     if is_simulation(oid):
         request.context.simulation = True
         driver = SIMULATOR_DB
-    deployment = driver.get_deployment(oid, with_secrets=True)
+    deployment = driver.get_deployment(oid)
     if not deployment:
         abort(404, "No deployment with id %s" % oid)
     deployment = Deployment(deployment)
@@ -529,8 +543,12 @@ def delete_deployment(oid, tenant_id=None, driver=DB):
         link = "/%s%s" % (tenant_id, link)
     planner = Plan(deployment)
     tasks = planner.plan_delete(request.context)
+    create_delete_operation(deployment, tenant_id=tenant_id)
+
+    driver.save_deployment(oid, deployment, tenant_id=tenant_id, partial=False)
     if tasks:
-        update_operation.s(oid, status="IN PROGRESS", driver=driver).delay()
+        common_tasks.update_operation.s(oid, status="IN PROGRESS",
+                                        driver=driver).delay()
         chord(tasks)(delete_deployment_task.si(oid, driver=driver), interval=2,
                      max_retries=120)
     else:
@@ -663,33 +681,33 @@ def delete_deployment_task(dep_id, driver=DB):
         driver = SIMULATOR_DB
     deployment = Deployment(driver.get_deployment(dep_id))
     if not deployment:
-        raise CheckmateException("Could not finalize delete for deployment %s."
-                                 " The deployment was not found.")
-    deployment['status'] = "DELETED"
+        raise CheckmateException("Could not finalize delete for deployment "
+                                 "%s. The deployment was not found.")
     if "resources" in deployment:
         deletes = []
         for key, resource in deployment.get('resources').items():
             if not str(key).isdigit():
                 deletes.append(key)
             else:
+                updates = {}
                 if resource.get('status', 'DELETED') != 'DELETED':
-                    resource['statusmsg'] = ('WARNING: Resource should have '
-                                             'been in status DELETED but was '
-                                             'in %s.' % resource.get('status'))
-                    resource['status'] = 'ERROR'
+                    updates['statusmsg'] = ('WARNING: Resource should have '
+                                            'been in status DELETED but was '
+                                            'in %s.' % resource.get('status'))
+                    updates['status'] = 'ERROR'
                 else:
-                    resource['status'] = 'DELETED'
-                    resource.pop('instance', None)
-        for key in deletes:
-            deployment['resources'].pop(key, None)
-
-    try:
-        return driver.save_deployment(dep_id, deployment, secrets={})
-    except ObjectLockedError:
-        LOG.warn("Object lock collision in delete_deployment_task on "
-                 "Deployment %s", dep_id)
-        delete_deployment_task.retry()
-
+                    updates['status'] = 'DELETED'
+                    updates['instance'] = None
+                contents = {
+                    'instance:%s' % resource['index']: updates,
+                }
+                resource_postback.delay(dep_id, contents, driver=driver)
+    common_tasks.update_deployment_status.delay(dep_id, "DELETED",
+                                                driver=driver)
+    common_tasks.update_operation.delay(dep_id, status="COMPLETE",
+                                        complete=len(deployment.get(
+                                                     'resources', {})),
+                                        driver=driver)
 
 @task(default_retry_delay=0.25, max_retries=4)
 def alt_resource_postback(contents, deployment_id, driver=DB):
@@ -724,7 +742,7 @@ def update_all_provider_resources(provider, deployment_id, status,
             return ret
 
 
-@task(default_retry_delay=0.25, max_retries=4)
+@task(default_retry_delay=0.5, max_retries=6)
 def resource_postback(deployment_id, contents, driver=DB):
     #FIXME: we need to receive a context and check access
     """Accepts back results from a remote call and updates the deployment with
