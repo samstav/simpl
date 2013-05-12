@@ -676,7 +676,8 @@ def plan(deployment, context):
 @task
 def update_operation(deployment_id, driver=DB, **kwargs):
     # TODO: Deprecate this
-    return new_update_operation(deployment_id, driver=driver, **kwargs)
+    return common_tasks.update_operation(deployment_id, driver=driver,
+                                         **kwargs)
 
 
 @task(default_retry_delay=2, max_retries=60)
