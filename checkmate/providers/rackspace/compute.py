@@ -213,7 +213,7 @@ class Provider(RackspaceComputeProviderBase):
         template['region'] = region
         return template
 
-    def verify_limits(self):
+    def verify_limits(self, resources):
         # TODO: Check server (eg. template['flavor']) against nova
         # limits API
         pass

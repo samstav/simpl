@@ -103,10 +103,12 @@ class Plan(ExtensibleDict):
         return self.resources
 
     def verify_limits(self):
-        raise NotImplementedError
+        for provider in self.environment.providers:
+            provider.verify_limits(self.resources)
 
     def verify_access(self):
-        raise NotImplementedError
+        for provider in self.environment.providers:
+            provider.verify_access(self.resources)
 
     def plan_delete(self, context):
         """
