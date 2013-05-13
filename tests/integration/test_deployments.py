@@ -32,11 +32,13 @@ from checkmate.deployments import (
     get_resources_statuses,
     update_all_provider_resources,
     resource_postback,
+    clone_deployment,
 )
 from checkmate.exceptions import (
     CheckmateValidationException,
     CheckmateException,
     CheckmateDoesNotExist,
+    CheckmateBadState,
 )
 from checkmate.inputs import Input
 from checkmate.providers import base
@@ -1195,6 +1197,103 @@ class TestPostDeployments(unittest.TestCase):
         self._mox.VerifyAll()
         self.assertEquals(202, bottle.response.status_code)
 
+
+class TestCloneDeployments(unittest.TestCase):
+    """ Test clone_deployment """
+
+    def __init__(self, methodName="runTest"):
+        self._mox = mox.Mox()
+        unittest.TestCase.__init__(self, methodName)
+
+    def setUp(self):
+        bottle.request.bind({})
+        bottle.request.context = Context()
+        bottle.request.context.tenant = None
+        self._deployment = {
+            'id': '1234',
+            'status': 'PLANNED',
+            'environment': {},
+            'blueprint': {
+                'meta-data': {
+                    'schema-version': '0.7'
+                }
+            }
+        }
+        unittest.TestCase.setUp(self)
+
+    def tearDown(self):
+        self._mox.UnsetStubs()
+        unittest.TestCase.tearDown(self)
+
+    def test_clone_deployment_failure_path(self):
+        """ Test when deployment status is not 'DELETED', clone
+        deployment operation would fail """
+        
+        self._mox.StubOutWithMock(checkmate.deployments, "request")
+        context = RequestContext(simulation=False)
+        checkmate.deployments.request.context = context
+        self._mox.StubOutWithMock(checkmate.deployments.request, "query")
+        self._mox.StubOutWithMock(checkmate.deployments.request.query, "get")
+        checkmate.deployments.request.query.get(IgnoreArg()).AndReturn("123")
+        self._mox.StubOutWithMock(checkmate.deployments, "write_body")
+       
+        self._mox.StubOutWithMock(checkmate.deployments,
+                                  "get_a_deployment")
+        checkmate.deployments.get_a_deployment('123',
+                                               tenant_id=IgnoreArg(),
+                                               driver=IgnoreArg())\
+            .AndReturn(self._deployment)
+        
+        checkmate.deployments.write_body(IgnoreArg(), IgnoreArg(),
+                                         IgnoreArg()).AndReturn('')
+
+
+
+        self._mox.StubOutWithMock(checkmate.deployments, 
+                                  "save_deployment_and_execute_plan")
+        checkmate.deployments.save_deployment_and_execute_plan(IgnoreArg(),
+                                                               IgnoreArg(),
+                                                               IgnoreArg(),
+                                                               IgnoreArg())
+        self._mox.ReplayAll()
+        try:
+            clone_deployment(tenant_id='1234', driver=checkmate.deployments.DB)
+            self.fail("Expected exception not raised.")
+        except CheckmateBadState:
+            pass
+
+    def test_clone_deployment_happy_path(self):
+        """ clone deployment success """
+        self._deployment['status'] = 'DELETED'
+        self._mox.StubOutWithMock(checkmate.deployments, "request")
+        context = RequestContext(simulation=False)
+        checkmate.deployments.request.context = context
+        self._mox.StubOutWithMock(checkmate.deployments.request, "query")
+        self._mox.StubOutWithMock(checkmate.deployments.request.query, "get")
+        checkmate.deployments.request.query.get(IgnoreArg()).AndReturn("123")
+        self._mox.StubOutWithMock(checkmate.deployments, "write_body")
+       
+        self._mox.StubOutWithMock(checkmate.deployments,
+                                  "get_a_deployment")
+        checkmate.deployments.get_a_deployment('123',
+                                               tenant_id=IgnoreArg(),
+                                               driver=IgnoreArg())\
+            .AndReturn(self._deployment)
+        
+        checkmate.deployments.write_body(IgnoreArg(), IgnoreArg(),
+                                         IgnoreArg()).AndReturn('')
+
+
+
+        self._mox.StubOutWithMock(checkmate.deployments, 
+                                  "save_deployment_and_execute_plan")
+        checkmate.deployments.save_deployment_and_execute_plan(IgnoreArg(),
+                                                               IgnoreArg(),
+                                                               IgnoreArg(),
+                                                               IgnoreArg())
+        self._mox.ReplayAll()
+        clone_deployment(tenant_id='1234', driver=checkmate.deployments.DB)
+        self._mox.VerifyAll()
 
 class TestDeleteDeployments(unittest.TestCase):
     """ Test delete_deployment """
