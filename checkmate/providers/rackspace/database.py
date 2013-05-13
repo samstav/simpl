@@ -95,6 +95,14 @@ class Provider(ProviderBase):
             pass
         return template
 
+    def verify_limits(self):
+        # TODO: Check database against limits API
+        pass
+
+    def verify_access(self):
+        # TODO: Check RBAC access
+        pass
+
     def add_resource_tasks(self, resource, key, wfspec, deployment, context,
                            wait_on=None):
         wait_on, service_name, component = self._add_resource_tasks_helper(

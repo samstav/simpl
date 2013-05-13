@@ -59,6 +59,14 @@ class Provider(ProviderBase):
         template['region'] = region
         return template
 
+    def verify_limits(self):
+        # TODO: Check loadbalancer against limits API
+        pass
+
+    def verify_access(self):
+        # TODO: Check RBAC access
+        pass
+
     def add_resource_tasks(self, resource, key, wfspec, deployment, context,
                            wait_on=None):
         service_name = resource.get('service')

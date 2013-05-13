@@ -378,7 +378,18 @@ def plan_deployment(oid, tenant_id=None, driver=DB):
                                 "be in 'NEW' to be planned" %
                                 (oid, entity.get('status')))
     deployment = Deployment(entity)  # Also validates syntax
-    planned_deployment = plan(deployment, request.context)
+    if request.query.get('check_limits') == "0":
+        check_limits = False
+    else:
+        check_limits = True
+    if request.query.get('check_access') == "0":
+        check_access = False
+    else:
+        check_access = True
+    planned_deployment = plan(deployment,
+                              request.context,
+                              check_limits=check_limits,
+                              check_access=check_access)
     results = _save_deployment(planned_deployment, deployment_id=oid,
                                tenant_id=tenant_id, driver=driver)
     return write_body(results, request, response)
@@ -639,7 +650,7 @@ def execute(oid, timeout=180, tenant_id=None, driver=DB):
     return result
 
 
-def plan(deployment, context):
+def plan(deployment, context, check_access=False, check_limits=False):
     """Process a new checkmate deployment and plan for execution.
 
     This creates templates for resources and connections that will be used for
@@ -658,10 +669,17 @@ def plan(deployment, context):
     # Analyze Deployment and Create plan
     planner = Plan(deployment)
     resources = planner.plan(context)
-
-    # Store plan results in deployment
     if resources:
         deployment['resources'] = resources
+
+    if check_access:
+        access_results = planner.verify_access()
+        if access_results:
+            deployment['check-limit-results'] = access_results
+    if check_limits:
+        limits_results = planner.verify_limits()
+        if limits_results:
+            deployment['check-access-results'] = limits_results
 
     # Save plan details for future rehydration/use
     deployment['plan'] = planner._data  # get the dict so we can serialize it

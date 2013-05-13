@@ -102,6 +102,12 @@ class Plan(ExtensibleDict):
         LOG.debug("RESOURCES\n%s", utils.dict_to_yaml(self.resources))
         return self.resources
 
+    def verify_limits(self):
+        raise NotImplementedError
+
+    def verify_access(self):
+        raise NotImplementedError
+
     def plan_delete(self, context):
         """
         Collect delete resource tasks from the deployment
