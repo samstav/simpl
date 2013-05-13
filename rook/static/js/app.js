@@ -801,7 +801,12 @@ function WorkflowController($scope, $resource, $http, $routeParams, $location, $
             var url = null;
             //Find url in inputs
             try {
-              url = object.inputs.blueprint.url;
+              // URL can be either a string or an object with a url property
+              if (typeof object.inputs.blueprint.url == "string") {
+                url = object.inputs.blueprint.url;
+              } else {
+                url = object.inputs.blueprint.url.url;
+              }
               $scope.output.path = url;
               var u = URI(url);
               $scope.output.domain = u.hostname();
