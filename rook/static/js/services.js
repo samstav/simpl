@@ -614,6 +614,27 @@ services.config(function ($httpProvider) {
 /* Github APIs for blueprint parsing*/
 services.factory('github', ['$http', function($http) {
   var me = {
+    
+    // Determine api call url based on whether the repo is on GitHub website or hosted Github Enterprise
+    get_api_details: function(uri) {
+      var api = {};
+      var host_parts = uri.host().split(':');
+      var domain = host_parts[0];
+      var port = host_parts.length > 1 ? ':'+ host_parts[1] : '';
+      
+      if(/github\.com$/i.test(domain)) {
+        // The repo is on the Github website
+        api.server = uri.protocol() + '://' + 'api.github.com' + port;
+        api.url = (checkmate_server_base || '') + '/githubproxy/';
+        return api;
+      } 
+
+      // The repo is on Github Enterprise
+      api.server = uri.protocol() + '://' + uri.host();
+      api.url = (checkmate_server_base || '') + '/githubproxy/api/v3/';
+      return api;
+    },
+
     //Parse URL and returns the github components (org, user, repo) back
     parse_org_url: function(url, callback) {
       var results = {};
@@ -622,6 +643,7 @@ services.factory('github', ['$http', function($http) {
       var first_path_part = parts[0];
       results.server = u.protocol() + '://' + u.host(); //includes port
       results.url = u.href();
+      results.api = this.get_api_details(u);
       results.owner = first_path_part;
       if (parts.length > 1) {
         results.repo = {name: parts[1]};
@@ -629,32 +651,33 @@ services.factory('github', ['$http', function($http) {
         results.repo = {};
       }
       //Test if org
-      $http({method: 'HEAD', url: (checkmate_server_base || '') + '/githubproxy/api/v3/orgs/' + first_path_part,
-          headers: {'X-Target-Url': results.server, 'accept': 'application/json'}}).
+      $http({method: 'HEAD', url: results.api.url + 'orgs/' + first_path_part,
+          headers: {'X-Target-Url': results.api.server, 'accept': 'application/json'}}).
       success(function(data, status, headers, config) {
         //This is an org
         results.org = first_path_part;
         results.user = null;
-        callback();
+        if(callback) callback();
       }).
       error(function(data, status, headers, config) {
         //This is not an org (assume it is a user)
         results.org = null;
         results.user = first_path_part;
-        callback();
+        if(callback) callback();
       });
       return results;
     },
+    
 
     //Load all repos for owner
     get_repos: function(remote, callback, error_callback) {
-      var path = (checkmate_server_base || '') + '/githubproxy/api/v3/';
+      var path = remote.api.url;
       if (remote.org !== null) {
         path += 'orgs/' + remote.org + '/repos';
       } else
         path += 'users/' + remote.user + '/repos';
       console.log("Loading: " + path);
-      $http({method: 'GET', url: path, headers: {'X-Target-Url': remote.server, 'accept': 'application/json'}}).
+      $http({method: 'GET', url: path, headers: {'X-Target-Url': remote.api.server, 'accept': 'application/json'}}).
         success(function(data, status, headers, config) {
           console.log("Load repos returned");
           callback(data);
@@ -668,9 +691,9 @@ services.factory('github', ['$http', function($http) {
 
     //Load one repo
     get_repo: function(remote, repo_name, callback, error_callback) {
-      var path = (checkmate_server_base || '') + '/githubproxy/api/v3/repos/' + remote.owner + '/' + repo_name;
+      var path = remote.api.url + 'repos/' + remote.owner + '/' + repo_name;
       console.log("Loading: " + path);
-      $http({method: 'GET', url: path, headers: {'X-Target-Url': remote.server, 'accept': 'application/json'}}).
+      $http({method: 'GET', url: path, headers: {'X-Target-Url': remote.api.server, 'accept': 'application/json'}}).
         success(function(data, status, headers, config) {
           callback(data);
         }).
@@ -682,8 +705,8 @@ services.factory('github', ['$http', function($http) {
 
     //Get all branches (and tags) for a repo
     get_branches: function(remote, callback, error_callback) {
-      $http({method: 'GET', url: (checkmate_server_base || '') + '/githubproxy/api/v3/repos/' + remote.owner + '/' + remote.repo.name + '/git/refs',
-          headers: {'X-Target-Url': remote.server, 'accept': 'application/json'}}).
+      $http({method: 'GET', url: remote.api.url + 'repos/' + remote.owner + '/' + remote.repo.name + '/git/refs',
+          headers: {'X-Target-Url': remote.api.server, 'accept': 'application/json'}}).
       success(function(data, status, headers, config) {
         //Only branches and tags
         var filtered = _.filter(data, function(item) {
@@ -714,8 +737,8 @@ services.factory('github', ['$http', function($http) {
 
     // Get a single branch or tag and return it as an object (with type, name, and commit)
     get_branch_from_name: function(remote, branch_name, callback, error_callback) {
-      $http({method: 'GET', url: (checkmate_server_base || '') + '/githubproxy/api/v3/repos/' + remote.owner + '/' + remote.repo.name + '/git/refs',
-          headers: {'X-Target-Url': remote.server, 'accept': 'application/json'}}).
+      $http({method: 'GET', url: remote.api.url + 'repos/' + remote.owner + '/' + remote.repo.name + '/git/refs',
+          headers: {'X-Target-Url': remote.api.server, 'accept': 'application/json'}}).
       success(function(data, status, headers, config) {
         //Only branches and tags
         var branch_ref = 'refs/heads/' + branch_name;
@@ -750,16 +773,16 @@ services.factory('github', ['$http', function($http) {
     },
 
     get_blueprint: function(remote, username, callback, error_callback) {
-      var repo_url = (checkmate_server_base || '') + '/githubproxy/api/v3/repos/' + remote.owner + '/' + remote.repo.name;
+      var repo_url = remote.api.url + 'repos/' + remote.owner + '/' + remote.repo.name;
       $http({method: 'GET', url: repo_url + '/git/trees/' + remote.branch.commit,
-          headers: {'X-Target-Url': remote.server, 'accept': 'application/json'}}).
+          headers: {'X-Target-Url': remote.api.server, 'accept': 'application/json'}}).
       success(function(data, status, headers, config) {
         var checkmate_yaml_file = _.find(data.tree, function(file) {return file.path == "checkmate.yaml";});
         if (checkmate_yaml_file === undefined) {
           error_callback("No 'checkmate.yaml' found in the repository '" + remote.repo.name + "'");
         } else {
           $http({method: 'GET', url: repo_url + '/git/blobs/' + checkmate_yaml_file.sha,
-              headers: {'X-Target-Url': remote.server, 'Accept': 'application/vnd.github.v3.raw'}}).
+              headers: {'X-Target-Url': remote.api.server, 'Accept': 'application/vnd.github.v3.raw'}}).
           success(function(data, status, headers, config) {
             var checkmate_yaml = {};
             try {

@@ -1,5 +1,6 @@
 import base64
 import httplib
+import urllib2
 import json
 import logging
 import os
@@ -235,22 +236,22 @@ class BrowserMiddleware(object):
 
             url = urlparse(source)
             if url.scheme == 'https':
-                http_class = httplib.HTTPSConnection
                 port = url.port or 443
             else:
-                http_class = httplib.HTTPConnection
                 port = url.port or 80
             host = url.hostname
 
-            http = http_class(host, port)
             headers = {
                 'Accept': request.get_header('Accept', ['application/json']),
             }
             body = None
+            data = None
             try:
-                LOG.debug('Proxying github call to %s' % source)
-                http.request('GET', '/%s' % path, headers=headers)
-                resp = http.getresponse()
+                request_url = url.scheme + '://' + host + ':' + str(port) + '/' + path
+                LOG.debug('Proxying github call to %s' % request_url)
+                req = urllib2.Request(request_url, data, headers)
+                resp = urllib2.urlopen(req)
+                status = resp.getcode()
                 body = resp.read()
             except gaierror, e:
                 LOG.error('HTTP connection exception: %s' % e)
@@ -261,20 +262,18 @@ class BrowserMiddleware(object):
                           e.__class__.__name__, e))
                 raise HTTPError(401, output="Unable to communicate with "
                                 "github server")
-            finally:
-                http.close()
 
-            if resp.status != 200:
-                LOG.debug('Invalid github call: %s' % resp.reason)
-                raise HTTPError(resp.status, output=resp.reason)
+            if status != 200:
+                LOG.debug('Invalid github call: %s\n\nBody: %s' % (resp.reason, body))
+                raise HTTPError(status, output=resp.reason)
 
-            if 'application/json' in resp.getheader('Content-type'):
+            if 'application/json' in resp.info().getheader('Content-type'):
                 try:
                     content = json.loads(body)
                 except ValueError:
                     msg = 'Github did not return json-encoded body'
                     LOG.debug(msg)
-                    raise HTTPError(resp.status, output=msg)
+                    raise HTTPError(status, output=msg)
             else:
                 content = body
 
