@@ -1325,6 +1325,8 @@ class TestChefMap(unittest.TestCase):
         mock_repo.remotes = repo_remotes
         repo_remotes.origin = repo_remotes_origin
         git.Repo.__call__ = lambda x: mock_repo
+        mock_repo.tags = self.mox.CreateMockAnything()
+        mock_repo.tags.__contains__('master').AndReturn(False)
         def update_map():
             with open(self.chef_map_path, 'a') as f:
                 f.write("new information")
