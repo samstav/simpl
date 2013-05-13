@@ -186,6 +186,10 @@ function AutoLoginController($scope, $location, $cookies, auth) {
     var api_key = $cookies.api_key;
     var endpoint = { uri: $cookies.endpoint };
 
+    delete $cookies.username;
+    delete $cookies.api_key;
+    delete $cookies.endpoint;
+
     return auth.authenticate(endpoint, username, api_key, password, null,
       $scope.auto_login_success, $scope.auto_login_fail);
   };
