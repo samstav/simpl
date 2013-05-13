@@ -1,17 +1,21 @@
+'''Analyzes a Checkmate deployment and persists the analysis results'''
 import copy
 import logging
 import os
 
 from checkmate import keys
 from checkmate.classes import ExtensibleDict
-from checkmate.exceptions import CheckmateException,\
+from checkmate.exceptions import (
+    CheckmateException,
     CheckmateValidationException
+)
 from checkmate.middleware import RequestContext
-from checkmate.providers import ProviderBase
 from checkmate import utils
-from checkmate.deployment import verify_required_blueprint_options_supplied,\
-    Resource, verify_inputs_against_constraints
-from celery.canvas import group
+from checkmate.deployment import (
+    Resource,
+    validate_blueprint_options,
+    validate_input_constraints
+)
 
 LOG = logging.getLogger(__name__)
 
@@ -78,8 +82,8 @@ class Plan(ExtensibleDict):
                                                "Nowhere to deploy to.")
 
         # Quick validations
-        verify_required_blueprint_options_supplied(deployment)
-        verify_inputs_against_constraints(deployment)
+        validate_blueprint_options(deployment)
+        validate_input_constraints(deployment)
 
     def plan(self, context):
         """Perform plan analysis. Returns a reference to planned resources"""
@@ -141,7 +145,7 @@ class Plan(ExtensibleDict):
         defaults are not evaluated once per workflow or once per component.
 
         """
-        for key, option in self.blueprint.get('options', {}).iteritems():
+        for _, option in self.blueprint.get('options', {}).iteritems():
             if 'default' in option:
                 default = option['default']
                 if (isinstance(default, basestring,) and
@@ -155,7 +159,6 @@ class Plan(ExtensibleDict):
         """
         blueprint = self.blueprint
         environment = self.environment
-        resources = self.resources
         services = blueprint.get('services', {})
 
         # counter we increment and use as a new resource key
@@ -165,8 +168,8 @@ class Plan(ExtensibleDict):
         # Prepare resources and connections to create
         #
         LOG.debug("Add resources")
-        for service_name, service in services.iteritems():
-            LOG.debug("  For service '%s'" % service_name)
+        for service_name, _ in services.iteritems():
+            LOG.debug("  For service '%s'", service_name)
             service_analysis = self['services'][service_name]
             definition = service_analysis['component']
 
@@ -204,8 +207,8 @@ class Plan(ExtensibleDict):
                 # Add host and other requirements that exist in this service
                 extra_components = service_analysis.get('extra-components', {})
                 for key, extra_def in extra_components.iteritems():
-                    LOG.debug("    Processing extra component '%s' for '%s'" %
-                              (key, service_name))
+                    LOG.debug("    Processing extra component '%s' for '%s'",
+                              key, service_name)
                     extra_resource = deployment.create_resource_template(
                         service_index,
                         extra_def,
@@ -229,9 +232,10 @@ class Plan(ExtensibleDict):
                                                connection, key)
 
     def connect_resources(self):
+        '''Wire up resource connections within a Plan'''
         # Add connections
         LOG.debug("Connect resources")
-        for service_name, service_plan in self['services'].iteritems():
+        for _, service_plan in self['services'].iteritems():
             # Do main component
             definition = service_plan['component']
             for index in definition.get('instances', []):
@@ -248,10 +252,10 @@ class Plan(ExtensibleDict):
             self.resources['connections'] = self.connections
 
     def add_static_resources(self, deployment, context):
+        '''Generate static resources and add them to resources collection'''
         blueprint = self.blueprint
         environment = self.environment
         resources = self.resources
-        services = blueprint.get('services', {})
 
         # Generate static resources
         LOG.debug("Prepare static resources")
@@ -333,17 +337,17 @@ class Plan(ExtensibleDict):
             # Add it to resources
             resources[str(key)] = result
             result['index'] = str(key)
-            LOG.debug("  Adding a %s resource with resource key %s" % (
+            LOG.debug("  Adding a %s resource with resource key %s",
                       resources[str(key)]['type'],
-                      key))
+                      key)
             Resource.validate(result)
 
     def add_resource(self, resource, definition):
         """Add a resource to the list of resources to be created"""
         resource['index'] = str(self.resource_index)
         self.resource_index += 1
-        LOG.debug("  Adding a '%s' resource with resource key '%s'" % (
-                  resource.get('type'), resource['index']))
+        LOG.debug("  Adding a '%s' resource with resource key '%s'",
+                  resource.get('type'), resource['index'])
         self.resources[resource['index']] = resource
         if 'instances' not in definition:
             definition['instances'] = []
@@ -382,7 +386,8 @@ class Plan(ExtensibleDict):
                     con_def = {'interface': connection['interface']}
                     self.connections[rel_key] = con_def
 
-    def connect_instances(self, resource, target, connection, connection_key):
+    @staticmethod
+    def connect_instances(resource, target, connection, connection_key):
         """Connect two resources based on the provided connection definition"""
         relation_type = connection.get('relation', 'reference')
         if relation_type == 'host':
@@ -455,11 +460,11 @@ class Plan(ExtensibleDict):
         services = self.deployment['blueprint'].get('services', {})
         for service_name, service in services.iteritems():
             definition = service['component']
-            LOG.debug("Identifying component '%s' for service '%s'" % (
-                      definition, service_name))
+            LOG.debug("Identifying component '%s' for service '%s'",
+                      definition, service_name)
             component = self.identify_component(definition, context)
-            LOG.debug("Component '%s' identified as '%s' for service '%s'" % (
-                      definition, component['id'], service_name))
+            LOG.debug("Component '%s' identified as '%s' for service '%s'",
+                      definition, component['id'], service_name)
             self['services'][service_name]['component'] = component
 
     def resolve_relations(self):
@@ -495,8 +500,8 @@ class Plan(ExtensibleDict):
                                                        "source for relation "
                                                        "'%s'" % rel_key)
 
-                LOG.debug("  Matched relation '%s' to requirement '%s'" % (
-                          rel_key, requires_match))
+                LOG.debug("  Matched relation '%s' to requirement '%s'",
+                          rel_key, requires_match)
                 target = self['services'][rel['service']]['component']
                 requirement = source['requires'][requires_match]
                 if 'satisfied-by' not in requirement:
@@ -534,7 +539,8 @@ class Plan(ExtensibleDict):
 
         LOG.debug("All relations successfully matched with target services")
 
-    def connect(self, source, target, interface, connection_key,
+    @staticmethod
+    def connect(source, target, interface, connection_key,
                 relation_type='reference', relation_key=None, attribute=None):
         """
 
@@ -644,15 +650,15 @@ class Plan(ExtensibleDict):
 
                 # Identify the component
                 LOG.debug("Identifying component '%s' to satisfy requirement "
-                          "'%s' in service '%s'" % (definition, key,
-                          service_name))
+                          "'%s' in service '%s'", definition, key,
+                          service_name)
                 component = self.identify_component(definition, context)
                 if not component:
                     raise CheckmateException("Could not resolve component '%s'"
                                              % definition)
                 LOG.debug("Component '%s' identified as '%s'  to satisfy "
-                          "requirement '%s' for service '%s'" % (definition,
-                          component['id'], key, service_name))
+                          "requirement '%s' for service '%s'", definition,
+                          component['id'], key, service_name)
 
                 # Add it to the 'extra-components' list in the service
                 if 'extra-components' not in service:
@@ -859,8 +865,8 @@ class Plan(ExtensibleDict):
                 final_key = '%s-%s' % (service, key)
                 final_map['service'] = key
                 final_map['interface'] = value
-            LOG.debug("  _format_relation translated (%s, %s) to (%s, %s)" % (
-                      key, value, final_key, final_map))
+            LOG.debug("  _format_relation translated (%s, %s) to (%s, %s)",
+                      key, value, final_key, final_map)
         # FIXME: this is for v0.2 only
         if 'service' not in final_map:
             LOG.warning("Skipping validation for v0.2 compatibility")
