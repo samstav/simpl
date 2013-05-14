@@ -60,7 +60,7 @@ describe('workflow', function(){
   });
 
   describe('classify', function(){
-    it('should append important label for -1', function(){
+    it('should append important label for error task', function(){
       task = { state: -1 };
       expect(this.workflow.classify(task)).toEqual('label label-important');
     });
@@ -122,4 +122,132 @@ describe('workflow', function(){
     });
   });
 
+  describe('colorize', function(){
+    it('should return error alert if future task has an internal failure', function(){
+      task = { state: 1,
+                   internal_attributes: { task_state: { state: 'FAILURE' } }
+                 };
+      expect(this.workflow.colorize(task)).toEqual('alert-error');
+    });
+
+    it('should return waiting alert if future task does not have internal failure', function(){
+      task = { state: 1 };
+      expect(this.workflow.colorize(task)).toEqual('alert-waiting');
+    });
+
+    it('should return error alert if likely task has an internal failure', function(){
+      task = { state: 2,
+                   internal_attributes: { task_state: { state: 'FAILURE' } }
+                 };
+      expect(this.workflow.colorize(task)).toEqual('alert-error');
+    });
+
+    it('should return waiting alert if likely task does not have internal failure', function(){
+      task = { state: 2 };
+      expect(this.workflow.colorize(task)).toEqual('alert-waiting');
+    });
+
+    it('should return error alert if maybe task has an internal failure', function(){
+      task = { state: 4,
+                   internal_attributes: { task_state: { state: 'FAILURE' } }
+                 };
+      expect(this.workflow.colorize(task)).toEqual('alert-error');
+    });
+
+    it('should return waiting alert if maybe task does not have internal failure', function(){
+      task = { state: 4 };
+      expect(this.workflow.colorize(task)).toEqual('alert-waiting');
+    });
+
+    it('should return error alert if waiting task has an internal failure', function(){
+      task = { state: 8,
+                   internal_attributes: { task_state: { state: 'FAILURE' } }
+                 };
+      expect(this.workflow.colorize(task)).toEqual('alert-error');
+    });
+
+    it('should return waiting alert if waiting task does not have internal failure', function(){
+      task = { state: 8 };
+      expect(this.workflow.colorize(task)).toEqual('alert-waiting');
+    });
+
+    it('should return info alert if ready task' , function(){
+      task = { state: 16 };
+      expect(this.workflow.colorize(task)).toEqual('alert-info');
+    });
+
+    it('should return error alert if cancelled task' , function(){
+      task = { state: 32 };
+      expect(this.workflow.colorize(task)).toEqual('alert-error');
+    });
+
+    it('should return success alert if completed task' , function(){
+      task = { state: 64 };
+      expect(this.workflow.colorize(task)).toEqual('alert-success');
+    });
+
+    it('should return info alert if triggered task' , function(){
+      task = { state: 128 };
+      expect(this.workflow.colorize(task)).toEqual('alert-info');
+    });
+  });
+
+  describe('state_name', function(){
+    it('should return Error for tasks in error state', function(){
+      task = { state: -1 };
+      expect(this.workflow.state_name(task)).toEqual('Error');
+    });
+
+    it('should return Future for tasks in future state', function(){
+      task = { state: 1 };
+      expect(this.workflow.state_name(task)).toEqual('Future');
+    });
+
+    it('should return Likely for tasks in likely state', function(){
+      task = { state: 2 };
+      expect(this.workflow.state_name(task)).toEqual('Likely');
+    });
+
+    it('should return Maybe for tasks in maybe state', function(){
+      task = { state: 4 };
+      expect(this.workflow.state_name(task)).toEqual('Maybe');
+    });
+
+    it('should return Failure for tasks with failures', function(){
+      task = { state: 8,
+                   internal_attributes: { task_state: { state: 'FAILURE' } }
+                 };
+      expect(this.workflow.state_name(task)).toEqual('Failure');
+    });
+
+    it('should return Waiting for tasks in waiting state', function(){
+      task = { state: 8 };
+      expect(this.workflow.state_name(task)).toEqual('Waiting');
+    });
+
+    it('should return Ready for tasks in ready state', function(){
+      task = { state: 16 };
+      expect(this.workflow.state_name(task)).toEqual('Ready');
+    });
+
+    it('should return Cancelled for tasks in cancelled state', function(){
+      task = { state: 32 };
+      expect(this.workflow.state_name(task)).toEqual('Cancelled');
+    });
+
+    it('should return Completed for tasks in completed state', function(){
+      task = { state: 64 };
+      expect(this.workflow.state_name(task)).toEqual('Completed');
+    });
+
+    it('should return Triggered for tasks in triggered state', function(){
+      task = { state: 128 };
+      expect(this.workflow.state_name(task)).toEqual('Triggered');
+    });
+
+    it('should return unknown for tasks in invalid state', function(){
+      task = { state: 9001 };
+      expect(this.workflow.state_name(task)).toEqual('unknown');
+    });
+  });
 });

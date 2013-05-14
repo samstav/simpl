@@ -279,7 +279,7 @@ services.factory('workflow', [function() {
         case 64:
           return "Completed";
         default:
-          console.log("Invalid state '" + state + "'.");
+          console.log("Invalid state '" + task.state + "'.");
           return "unknown";
       }
     }
