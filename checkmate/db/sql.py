@@ -185,49 +185,52 @@ class Driver(DbBase):
 
     # ENVIRONMENTS
     def get_environment(self, id, with_secrets=None):
-        return self.get_object(Environment, id, with_secrets)
+        return self._get_object(Environment, id, with_secrets)
 
     def get_environments(self, tenant_id=None, with_secrets=None):
-        return self.get_objects(Environment, tenant_id, with_secrets)
+        return self._get_objects(Environment, tenant_id, with_secrets)
 
     def save_environment(self, id, body, secrets=None, tenant_id=None):
-        return self.save_object(Environment, id, body, secrets, tenant_id)
+        return self._save_object(Environment, id, body, secrets, tenant_id)
 
     # DEPLOYMENTS
     def get_deployment(self, id, with_secrets=None):
-        return self.get_object(Deployment, id, with_secrets)
+        return self._get_object(Deployment, id, with_secrets)
 
     def get_deployments(self, tenant_id=None, with_secrets=None,
                         offset=None, limit=None):
-        return self.get_objects(Deployment, tenant_id, with_secrets,
+        return self._get_objects(Deployment, tenant_id, with_secrets,
                                 offset=offset, limit=limit)
 
     def save_deployment(self, id, body, secrets=None, tenant_id=None,
                         partial=False):
         # FIXME: Seems to always do partial, so not passing in the parameter
-        return self.save_object(Deployment, id, body, secrets, tenant_id)
+        return self._save_object(Deployment, id, body, secrets, tenant_id)
+
+    def delete_deployment(self, api_id, tenant_id):
+        self._delete_object(Deployment, api_id, tenant_id)
 
     #BLUEPRINTS
     def get_blueprint(self, id, with_secrets=None):
-        return self.get_object(Blueprint, id, with_secrets)
+        return self._get_object(Blueprint, id, with_secrets)
 
     def get_blueprints(self, tenant_id=None, with_secrets=None):
-        return self.get_objects(Blueprint, tenant_id, with_secrets)
+        return self._get_objects(Blueprint, tenant_id, with_secrets)
 
     def save_blueprint(self, id, body, secrets=None, tenant_id=None):
-        return self.save_object(Blueprint, id, body, secrets, tenant_id)
+        return self._save_object(Blueprint, id, body, secrets, tenant_id)
 
     # WORKFLOWS
     def get_workflow(self, id, with_secrets=None):
-        return self.get_object(Workflow, id, with_secrets)
+        return self._get_object(Workflow, id, with_secrets)
 
     def get_workflows(self, tenant_id=None, with_secrets=None,
                       offset=None, limit=None):
-        return self.get_objects(Workflow, tenant_id, with_secrets,
+        return self._get_objects(Workflow, tenant_id, with_secrets,
                                 offset=offset, limit=limit)
 
     def save_workflow(self, id, body, secrets=None, tenant_id=None):
-        return self.save_object(Workflow, id, body, secrets, tenant_id)
+        return self._save_object(Workflow, id, body, secrets, tenant_id)
 
     def unlock_workflow(self, api_id, key):
         return self.unlock_object(Workflow, api_id, key)
@@ -237,7 +240,7 @@ class Driver(DbBase):
                                 key=key)
 
     # GENERIC
-    def get_object(self, klass, id, with_secrets=None):
+    def _get_object(self, klass, id, with_secrets=None):
         results = self.session.query(klass).filter_by(id=id)
         if results and results.count() > 0:
             first = results.first()
@@ -254,7 +257,7 @@ class Driver(DbBase):
             else:
                 return body
 
-    def get_objects(self, klass, tenant_id=None, with_secrets=None,
+    def _get_objects(self, klass, tenant_id=None, with_secrets=None,
                     offset=None, limit=None, include_total_count=True):
         results = self.session.query(klass)
         total = 0
@@ -287,7 +290,7 @@ class Driver(DbBase):
         else:
             return {}
 
-    def save_object(self, klass, id, body, secrets=None, tenant_id=None):
+    def _save_object(self, klass, id, body, secrets=None, tenant_id=None):
         """Clients that wish to save the body but do/did not have access to
         secrets will by default send in None for secrets. We must not have that
         overwrite the secrets. To clear the secrets for an object, a non-None
@@ -387,6 +390,14 @@ class Driver(DbBase):
         self.session.add(e)
         self.session.commit()
         return body
+
+    def _delete_object(self, klass, id, tenant_id):
+        self.session.query(klass).filter_by(
+            id=id,
+            tenant_id=tenant_id
+        ).delete()
+        self.session.commit()
+
 
     def lock_object(self, klass, api_id, with_secrets=None, key=None):
         """
