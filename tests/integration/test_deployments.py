@@ -1232,9 +1232,6 @@ class TestCloneDeployments(unittest.TestCase):
         self._mox.StubOutWithMock(checkmate.deployments, "request")
         context = RequestContext(simulation=False)
         checkmate.deployments.request.context = context
-        self._mox.StubOutWithMock(checkmate.deployments.request, "query")
-        self._mox.StubOutWithMock(checkmate.deployments.request.query, "get")
-        checkmate.deployments.request.query.get(IgnoreArg()).AndReturn("123")
         self._mox.StubOutWithMock(checkmate.deployments, "write_body")
        
         self._mox.StubOutWithMock(checkmate.deployments,
@@ -1257,10 +1254,11 @@ class TestCloneDeployments(unittest.TestCase):
                                                                IgnoreArg())
         self._mox.ReplayAll()
         try:
-            clone_deployment(tenant_id='1234', driver=checkmate.deployments.DB)
+            clone_deployment('123', tenant_id='1234', driver=checkmate.deployments.DB)
             self.fail("Expected exception not raised.")
         except CheckmateBadState:
             pass
+
 
     def test_clone_deployment_happy_path(self):
         """ clone deployment success """
@@ -1268,9 +1266,7 @@ class TestCloneDeployments(unittest.TestCase):
         self._mox.StubOutWithMock(checkmate.deployments, "request")
         context = RequestContext(simulation=False)
         checkmate.deployments.request.context = context
-        self._mox.StubOutWithMock(checkmate.deployments.request, "query")
-        self._mox.StubOutWithMock(checkmate.deployments.request.query, "get")
-        checkmate.deployments.request.query.get(IgnoreArg()).AndReturn("123")
+
         self._mox.StubOutWithMock(checkmate.deployments, "write_body")
        
         self._mox.StubOutWithMock(checkmate.deployments,
@@ -1292,7 +1288,7 @@ class TestCloneDeployments(unittest.TestCase):
                                                                IgnoreArg(),
                                                                IgnoreArg())
         self._mox.ReplayAll()
-        clone_deployment(tenant_id='1234', driver=checkmate.deployments.DB)
+        clone_deployment('123', tenant_id='1234', driver=checkmate.deployments.DB)
         self._mox.VerifyAll()
 
 class TestDeleteDeployments(unittest.TestCase):

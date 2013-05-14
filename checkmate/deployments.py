@@ -245,18 +245,18 @@ def post_deployment(tenant_id=None, driver=DB):
     return write_body(deployment, request, response)
 
 
-@post('/deployments/clone')
+@post('/deployments/<oid>/clone')
 @with_tenant
-def clone_deployment(tenant_id=None, driver=DB):
+def clone_deployment(oid, tenant_id=None, driver=DB):
     """
     Creates deployment and wokflow based on deleted/active 
     deployment information
-    """
-    oid = request.query.get('oid')
+    """    
     assert oid, "Deployment ID cannot be empty"
 
     deployment = get_a_deployment(oid, tenant_id=tenant_id, driver=driver)
-    assert deployment, "Deployment not found with the given ID"
+    if not deployment:
+        abort(404, 'No deployment found with deployment id %s' % oid)
     
     if deployment['status'] != 'DELETED':
         raise CheckmateBadState("Deployment '%s' is in '%s' status and must "
