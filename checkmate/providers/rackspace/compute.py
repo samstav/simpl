@@ -29,14 +29,13 @@ from checkmate.exceptions import (
     CheckmateException,
 )
 from checkmate.middleware import RequestContext
-from checkmate.providers import ProviderBase
+from checkmate.providers import ProviderBase, filter_resources
 import checkmate.rdp
 import checkmate.ssh
 from checkmate.utils import (
     match_celery_logging,
     isUUID,
-    yaml_to_dict,
-    filter_resources
+    yaml_to_dict
 )
 from checkmate.workflow import wait_for
 
