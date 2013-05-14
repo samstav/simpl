@@ -916,6 +916,23 @@ services.factory('auth', ['$resource', '$rootScope', function($resource, $rootSc
       return JSON.stringify(data);
     },
 
+    create_identity: function(request, response, endpoint) {
+      //Populate identity
+      identity = {};
+      identity.username = response.access.user.name || response.access.user.id;
+      identity.user = response.access.user;
+      identity.token = response.access.token;
+      identity.expiration = response.access.token.expires;
+      identity.auth_url = endpoint['uri'];
+      identity.endpoint_type = endpoint['scheme'];
+
+      //Check if this user is an admin
+      var is_admin = request.getResponseHeader('X-AuthZ-Admin') || 'False';
+      identity.is_admin = (is_admin === 'True');
+
+      return identity;
+    },
+
     // Authenticate
     authenticate: function(endpoint, username, apikey, password, token, tenant, callback, error_callback) {
       var target = endpoint['uri'];
@@ -936,17 +953,7 @@ services.factory('auth', ['$resource', '$rootScope', function($resource, $rootSc
         url: is_chrome_extension ? target : "/authproxy",
         data: data
       }).success(function(response, textStatus, request) {
-        //Populate identity
-        auth.identity.username = response.access.user.name || response.access.user.id;
-        auth.identity.user = response.access.user;
-        auth.identity.auth_url = target;
-        auth.identity.token = response.access.token;
-        auth.identity.expiration = response.access.token.expires;
-        auth.identity.endpoint_type = endpoint['scheme'];
-
-        //Check if this user is an admin
-        var is_admin = request.getResponseHeader('X-AuthZ-Admin') || 'False';
-        auth.identity.is_admin = (is_admin === 'True');
+        auth.identity = auth.create_identity(request, response, endpoint);
 
         //Populate context
         auth.context.username = auth.identity.username;
