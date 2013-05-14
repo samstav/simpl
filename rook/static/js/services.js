@@ -869,29 +869,27 @@ services.factory('auth', ['$resource', '$rootScope', function($resource, $rootSc
 
     error_message: "",
 
-    // Authenticate
-    authenticate: function(endpoint, username, apikey, password, token, tenant, callback, error_callback) {
-      var target = endpoint['uri'];
-      var data;
+    generate_auth_data: function(token, tenant, apikey, username, password, target) {
+      var data = {};
       if (token) {
-        data = JSON.stringify({
+        data = {
           "auth": {
             "token": { "id": token },
             "tenantId": tenant
             }
-          });
+          };
       } else if (apikey) {
-         data = JSON.stringify({
+         data = {
           "auth": {
             "RAX-KSKEY:apiKeyCredentials": {
               "username": username,
               "apiKey": apikey
             }
           }
-        });
+        };
       } else if (password) {
         if (target == "https://identity-internal.api.rackspacecloud.com/v2.0/tokens") {
-          data = JSON.stringify({
+          data = {
               "auth": {
                 "RAX-AUTH:domain": {
                 "name": "Rackspace"
@@ -901,20 +899,28 @@ services.factory('auth', ['$resource', '$rootScope', function($resource, $rootSc
                   "password": password
                 }
               }
-            });
+            };
         } else {
-          data = JSON.stringify({
+          data = {
             "auth": {
               "passwordCredentials": {
                 "username": username,
                 "password": password
               }
             }
-          });
+          };
         }
       } else {
         return false;
       }
+      return JSON.stringify(data);
+    },
+
+    // Authenticate
+    authenticate: function(endpoint, username, apikey, password, token, tenant, callback, error_callback) {
+      var target = endpoint['uri'];
+      var data = this.generate_auth_data(token, tenant, apikey, username, password, target);
+      if (!data) return false;
 
       if (target === undefined || target === null || target.length === 0) {
         headers = {};  // Not supported on server, but we should do it
