@@ -366,7 +366,7 @@ class Deployment(ExtensibleDict):
                                                       relation)
             if result:
                 LOG.debug("Setting '%s' matched in _get_svc_relation_attribute"
-                          % name)
+                          , name)
                 return result
         if service_name:
             result = (self._get_input_service_override(name, service_name,
@@ -440,7 +440,7 @@ class Deployment(ExtensibleDict):
             LOG.debug("Setting '%s' matched in _get_setting_value", name)
             return result
 
-        LOG.debug("Setting '%s' unmatched with resource_type=%s, service=%s, ",
+        LOG.debug("Setting '%s' unmatched with resource_type=%s, service=%s, "
                   "provider_key=%s and returning default '%s'", name,
                   resource_type, service_name, provider_key, default)
         return default
@@ -597,9 +597,9 @@ class Deployment(ExtensibleDict):
                                     if attrib_key == name:
                                         LOG.debug(
                                             "Found setting '%s' as a service "
-                                            "attribute in service '%s'. %s=%s"
-                                            % (name, service_name, name,
-                                               attribute))
+                                            "attribute in service '%s'. %s=%s",
+                                            name, service_name,
+                                            name, attribute)
                                         return attribute
 
     def _get_constrained_svc_cmp_setting(self, name, service_name):
