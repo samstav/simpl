@@ -187,7 +187,7 @@ services.factory('workflow', [function() {
         case 128: //TRIGGERED
           return "icon-adjust";
         default:
-          console.log("Invalid state '" + state + "'.");
+          console.log("Invalid state '" + task.state + "'.");
           return "icon-question-sign";
           }
     },
