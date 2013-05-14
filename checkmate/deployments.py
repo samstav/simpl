@@ -304,8 +304,6 @@ def save_deployment_and_execute_plan(tenant_id, driver, new_oid, deployment):
 
     # can't pass actual request
     request_context = copy.deepcopy(request.context)
-    print "DeploymentId:", deployment['id']
-    print "Deployment:", deployment
     execute_plan(new_oid, 
                  request_context, 
                  driver=driver,
