@@ -186,7 +186,7 @@ function AutoLoginController($scope, $location, $cookies, auth) {
   $scope.autoLogIn = function() {
     var tenantId = $cookies.tenantId;
     var token = $cookies.token;
-    var endpoint = _.find(auth.endpoints, function(endpoint) { return endpoint.uri == $cookies.endpoint } );
+    var endpoint = _.find(auth.endpoints, function(endpoint) { return endpoint.uri == $cookies.endpoint } ) || {};
 
     delete $cookies.tenantId;
     delete $cookies.token;
