@@ -204,8 +204,7 @@ class Driver(DbBase):
 
     def save_deployment(self, id, body, secrets=None, tenant_id=None,
                         partial=False):
-        # FIXME: Seems to always do partial, so not passing in the parameter
-        return self._save_object(Deployment, id, body, secrets, tenant_id)
+        return self._save_object(Deployment, id, body, secrets, tenant_id, merge_existing=partial)
 
     def delete_deployment(self, api_id, tenant_id):
         self._delete_object(Deployment, api_id, tenant_id)
@@ -286,11 +285,10 @@ class Driver(DbBase):
                     response[e.id]['tenantId'] = e.tenant_id
             if include_total_count:
                 response['collection-count'] = total
-            return response
-        else:
-            return {}
+        return response
 
-    def _save_object(self, klass, id, body, secrets=None, tenant_id=None):
+    def _save_object(self, klass, id, body, secrets=None,
+                     tenant_id=None, merge_existing=False):
         """Clients that wish to save the body but do/did not have access to
         secrets will by default send in None for secrets. We must not have that
         overwrite the secrets. To clear the secrets for an object, a non-None
@@ -357,10 +355,12 @@ class Driver(DbBase):
             e = results.first()
             e.locked = 0
 
-            #merge the results
-            saved_body = deepcopy(e.body)
-            collate(saved_body, body)
-            e.body = saved_body
+            if merge_existing:
+                saved_body = deepcopy(e.body)
+                collate(saved_body, body)
+                e.body = saved_body
+            else:  # Merge not specified, so replace
+                e.body = body
 
             if tenant_id:
                 e.tenant_id = tenant_id

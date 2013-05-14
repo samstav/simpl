@@ -369,8 +369,8 @@ class Driver(DbBase):
             if response:
                 if include_total_count:
                     response['collection-count'] = count
-                return response
-        return {}
+
+        return response
 
     def _save_object(self, klass, api_id, body, secrets=None, tenant_id=None,
                     merge_existing=False):

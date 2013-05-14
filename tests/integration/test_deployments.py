@@ -33,6 +33,7 @@ from checkmate.deployments import (
     update_all_provider_resources,
     resource_postback,
     clone_deployment,
+    get_deployments,
 )
 from checkmate.exceptions import (
     CheckmateValidationException,
@@ -1151,6 +1152,29 @@ class TestDeploymentScenarios(unittest.TestCase):
         """ Wrapper for deployment planning """
         deployment = Deployment(yaml_to_dict(content))
         return plan(deployment, RequestContext())
+
+
+class TestGetDeployments(unittest.TestCase):
+    """Test GET /deployments endpoint"""
+
+    def test_get_deployments_returns_empty_set(self):
+        '''If there are no deployments the DB drivers will return None
+        A friendlier API implementation will return an empty set
+        '''
+        bottle.request.bind({})
+        bottle.request.context = Context()
+        self._mox = mox.Mox()
+        self._mox.StubOutWithMock(checkmate.deployments, "DB")
+        checkmate.deployments.DB.get_deployments(
+            tenant_id='1234',
+            limit=None,
+            offset=None
+        ).AndReturn(None)
+
+        self._mox.ReplayAll()
+        self.assertEquals('{}', get_deployments(tenant_id='1234', driver=checkmate.deployments.DB))
+        self._mox.VerifyAll()
+        self._mox.UnsetStubs()
 
 
 class TestPostDeployments(unittest.TestCase):
