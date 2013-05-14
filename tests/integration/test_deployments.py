@@ -644,6 +644,11 @@ class TestDeploymentSettings(unittest.TestCase):
                         constraints:
                         - "wordpress/version": 3.1.4
                         - "wordpress/create": true
+                      relations:
+                        web:
+                          service: web
+                          attributes:
+                            algorithm: round-robin
                   options:
                     my_server_type:
                       constrains:
@@ -805,6 +810,13 @@ class TestDeploymentSettings(unittest.TestCase):
             'service': 'web',
             'expected': "fqdn",
         },  {
+            'case': "Relation setting is used when relation passed in",
+            'name': "algorithm",
+            'type': 'compute',
+            'relation': 'web',
+            'service': 'wordpress',
+            'expected': "round-robin",
+        },  {
             'case': "Set in blueprint/providers",
             'name': "memory",
             'type': 'compute',
@@ -818,7 +830,8 @@ class TestDeploymentSettings(unittest.TestCase):
             value = parsed.get_setting(test['name'],
                                        service_name=test.get('service'),
                                        provider_key=test.get('provider'),
-                                       resource_type=test.get('type'))
+                                       resource_type=test.get('type'),
+                                       relation=test.get('relation'))
             self.assertEquals(value, test['expected'], msg=test['case'])
             LOG.debug("Test '%s' success=%s", test['case'],
                       value == test['expected'])
