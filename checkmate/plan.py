@@ -102,13 +102,23 @@ class Plan(ExtensibleDict):
         LOG.debug("RESOURCES\n%s", utils.dict_to_yaml(self.resources))
         return self.resources
 
-    def verify_limits(self):
-        for provider in self.environment.providers:
-            provider.verify_limits(self.resources)
+    def verify_limits(self, context):
+        # TODO: Run these asynchronously using eventlet
+        result = []
+        for name, provider in self.environment.providers.iteritems():
+            #if name in ('load-balancer', 'nova', 'database', 'dns'):
+            if name in ('nova'):
+                result.append(provider.verify_limits(context, self.resources))
+        return result
 
-    def verify_access(self):
-        for provider in self.environment.providers:
-            provider.verify_access(self.resources)
+    def verify_access(self, context):
+        # TODO: Run these asynchronously using eventlet
+        result = []
+        for name, provider in self.environment.providers.iteritems():
+            #if name in ('load-balancer', 'nova', 'database', 'dns'):
+            if name in ('nova'):
+                result.append(provider.verify_access(context, self.resources))
+        return result
 
     def plan_delete(self, context):
         """

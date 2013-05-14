@@ -32,7 +32,12 @@ from checkmate.middleware import RequestContext
 from checkmate.providers import ProviderBase
 import checkmate.rdp
 import checkmate.ssh
-from checkmate.utils import match_celery_logging, isUUID, yaml_to_dict
+from checkmate.utils import (
+    match_celery_logging,
+    isUUID,
+    yaml_to_dict,
+    filter_resources
+)
 from checkmate.workflow import wait_for
 
 
@@ -213,12 +218,64 @@ class Provider(RackspaceComputeProviderBase):
         template['region'] = region
         return template
 
-    def verify_limits(self, resources):
-        # TODO: Check server (eg. template['flavor']) against nova
-        # limits API
-        pass
+    def verify_limits(self, context, resources):
+        # TODO: Replace this with a dynamic lookup of nova flavors.
+        # Here's a start:
+        #
+        #   from novaclient.v1_1 import flavors
+        #   api = client.Client(user, pass, tenant, url)
+        #   flavor_api = flavors.FlavorManager(api)
+        #   f = flavor_api.list(detailed=True)
+        #   filter(lambda x:x.id == '1', f)[0].ram
+        #
+        # Need to pass credentials like _connect() does.
+        flavor_details = {
+             '1': { 'memory':  256, 'cores': 1 },
+             '2': { 'memory':  256, 'cores': 1 },
+             '3': { 'memory':  512, 'cores': 1 },
+             '4': { 'memory':  768, 'cores': 1 },
+             '5': { 'memory': 1024, 'cores': 1 },
+             '6': { 'memory': 2048, 'cores': 1 },
+             '7': { 'memory': 2048, 'cores': 2 },
+             '8': { 'memory': 2048, 'cores': 2 },
+             '9': { 'memory': 2048, 'cores': 2 },
+            '10': { 'memory': 2048, 'cores': 2 },
+            '11': { 'memory': 2048, 'cores': 2 },
+            '12': { 'memory': 2048, 'cores': 2 },
+        }
+        memory_needed = 0
+        cores_needed = 0
+        computes = filter_resources(resources, 'compute')
+        for compute in computes:
+            flavor = compute['flavor']
+            details = flavor_details[flavor]
+            memory_needed += details['memory']
+            cores_needed += details['cores']
 
-    def verify_access(self):
+        def limits_dict(limits):
+            d = {}
+            for limit in limits:
+                d[limit.name.encode('ascii')] = limit.value
+            return d
+        api = self._connect(context)
+        api_limits = api.limits.get()
+        limits = limits_dict(api_limits.absolute)
+        memory_available = limits['maxTotalRAMSize'] - limits['totalRAMUsed']
+        cores_available = limits['maxTotalCores'] - limits['totalCoresUsed']
+
+        if memory_needed > memory_available or cores_needed > cores_available:
+            return {
+                'type': "INSUFFICIENT-CAPACITY",
+                'message': "You do not have enough capacity to create a Cloud "
+                           "Server with %s MB memory and %s cores" %
+                           (memory_needed, cores_needed),
+                'provider': "compute",
+                'severity': "CRITICAL"
+            }
+        else:
+            return None
+
+    def verify_access(self, context, resources):
         # TODO: Check RBAC access
         pass
 

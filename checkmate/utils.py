@@ -768,3 +768,12 @@ def copy_contents(source, dest, with_overwrite=False, create_path=True):
                                       "overwrite destination." % dest)
         else:
             shutil.copy(source_path, dest)
+
+def filter_resources(resources, name):
+    """Return resources of a specified type"""
+    results = []
+    for resource in resources.values():
+        if 'type' in resource:
+            if resource['type'] == name:
+                results.append(resource)
+    return results
