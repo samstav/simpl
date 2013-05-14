@@ -960,12 +960,13 @@ class Deployment(ExtensibleDict):
 
         return results
 
-    def create_resource_template(self, index, definition, service_name,
+    def create_resource_template(self, index, definition, service_name, domain,
                                  context):
         """Create a new resource dict to add to the deployment
 
         :param index: the index of the resource within its service (ex. web2)
         :param definition: the component definition coming from the Plan
+        :param domain: the DNS domain to use for resource names
         :param context: RequestContext (auth token, etc) for catalog calls
 
         :returns: a validated dict of the resource ready to add to deployment
@@ -975,19 +976,22 @@ class Deployment(ExtensibleDict):
         provider_key = definition['provider-key']
         provider = self.environment().get_provider(provider_key)
         component = provider.get_component(context, definition['id'])
-        #TODO: Provider key can be used from withing the provider class. But
-        #if we do that then the planning mixing will start reading data
-        #from the child class
 
-        resources = provider.generate_template(self, component.get('is'),
-                                            service_name, context, index,
-                                            provider.key,
-                                            definition)
-        for resource in resources:
-            resource['component'] = definition['id']
-            resource['status'] = "NEW"
-            Resource.validate(resource)
-        return resources
+        # If resource is constrained to 1, don't append a number to the name
+        if service_name:
+            if self._constrained_to_one(service_name):
+                name = "%s.%s" % (service_name, domain)
+            else:
+                name = "%s%02d.%s" % (service_name, index, domain)
+        else:
+            name = "resource%02d.%s" % (index, domain)
+
+        resource = provider.generate_template(self, component.get('is'),
+                                              service_name, context, name=name)
+        resource['component'] = definition['id']
+        resource['status'] = "NEW"
+        Resource.validate(resource)
+        return resource
 
     def on_resource_postback(self, contents, target=None):
         """Called to merge in contents when a postback with new resource data

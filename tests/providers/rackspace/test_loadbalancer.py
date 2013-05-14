@@ -179,6 +179,44 @@ class TestCeleryTasks(unittest.TestCase):
         self.mox.VerifyAll()
 
 
+class TestLoadBalancerGenerateTemplate(unittest.TestCase):
+    """Test Load Balancer Provider's functions"""
+
+    def setUp(self):
+        self.mox = mox.Mox()
+
+    def tearDown(self):
+        self.mox.UnsetStubs()
+
+    def test_template_generation(self):
+        """Test template generation"""
+        provider = loadbalancer.Provider({})
+
+        #Mock Base Provider, context and deployment
+        deployment = self.mox.CreateMockAnything()
+        context = RequestContext()
+
+        deployment.get_setting('region', resource_type='load-balancer',
+                               service_name='lb',
+                               provider_key=provider.key).AndReturn('NORTH')
+
+        expected = {
+            'service': 'lb',
+            'region': 'NORTH',
+            'dns-name': 'fake_name',
+            'instance': {},
+            'type': 'load-balancer',
+            'provider': provider.key,
+        }
+
+        self.mox.ReplayAll()
+        results = provider.generate_template(deployment, 'load-balancer', 'lb',
+                                             context, name='fake_name')
+
+        self.assertDictEqual(results, expected)
+        self.mox.VerifyAll()
+
+
 class TestBasicWorkflow(test.StubbedWorkflowBase):
 
     """
@@ -233,105 +271,15 @@ class TestBasicWorkflow(test.StubbedWorkflowBase):
                             - application: http
                             - compute: linux
             """))
-
-        self.context = RequestContext(auth_token='MOCK_TOKEN',
-                                      username='MOCK_USER')
-        plan(self.deployment, self.context)
-
-    def test_workflow_task_generation_for_vip_load_balancer(self):
-        vip_deployment = Deployment(utils.yaml_to_dict("""
-                id: 'DEP-ID-1000'
-                blueprint:
-                  name: LB Test
-                  services:
-                    lb:
-                      component:
-                        resource_type: load-balancer
-                        interface: vip
-                        constraints:
-                          - region: North
-                      relations:
-                        master:
-                          service: master
-                          interface: https
-                          attributes:
-                            inbound: https/443
-                            ssl-termination: true
-                            algorithm: round-robin
-                        web:
-                          service: web
-                          interface: http
-                          attributes:
-                            inbound: http/80
-                            algorithm: random
-                    master:
-                      component:
-                        type: application
-                        role: master
-                        name: wordpress
-                    web:
-                      component:
-                        type: application
-                        role: web
-                        name: wordpress
-                      relations:
-                        master: ssh
-                environment:
-                  name: test
-                  providers:
-                    load-balancer:
-                      vendor: rackspace
-                      catalog:
-                        load-balancer:
-                          rsCloudLB:
-                            provides:
-                            - load-balancer: vip
-                            requires:
-                            - application: http
-                            - application: https
-                            options:
-                              protocol:
-                                type: list
-                                choice: [http, https]
-                    base:
-                      vendor: test
-                      catalog:
-                        compute:
-                          linux_instance:
-                            roles:
-                            - master
-                            - web
-                            provides:
-                            - application: http
-                            - application: https
-                            - compute: linux
-            """))
-        plan(vip_deployment, self.context)
-        workflow = create_workflow_deploy(vip_deployment, self.context)
-
-        task_list = workflow.spec.task_specs.keys()
-        expected = ['Root', 'Start',
-                    'Create Resource 3',
-                    'Create HTTP Loadbalancer (0)',
-                    'Wait for Loadbalancer 0 (lb) build',
-                    'Add monitor to Loadbalancer 0 (lb) build',
-                    'Create Resource 2',
-                    'Create HTTP Loadbalancer (1)',
-                    'Wait for Loadbalancer 1 (lb) build',
-                    'Add monitor to Loadbalancer 1 (lb) build',
-                    'Wait before adding 3 to LB 0',
-                    'Add Node 3 to LB 0',
-                    'Wait before adding 2 to LB 1',
-                    'Add Node 2 to LB 1'
-                    ]
-        task_list.sort()
-        expected.sort()
-        self.assertListEqual(task_list, expected, msg=task_list)
+        context = RequestContext(auth_token='MOCK_TOKEN',
+                                 username='MOCK_USER')
+        plan(self.deployment, context)
 
     def test_workflow_task_generation(self):
         """Verify workflow task creation"""
-
-        workflow = create_workflow_deploy(self.deployment, self.context)
+        context = RequestContext(auth_token='MOCK_TOKEN',
+                                 username='MOCK_USER')
+        workflow = create_workflow_deploy(self.deployment, context)
 
         task_list = workflow.spec.task_specs.keys()
         expected = [
@@ -367,16 +315,16 @@ class TestBasicWorkflow(test.StubbedWorkflowBase):
                             'private_ip': '10.1.2.1',
                             'addresses': {
                                 'public': [{
-                                               'version': 4,
-                                               'addr': '4.4.4.1'
-                                           }, {
-                                               'version': 6,
-                                               'addr': '2001:babe::ff04:36c1'
-                                           }],
+                                    'version': 4,
+                                    'addr': '4.4.4.1'
+                                }, {
+                                    'version': 6,
+                                    'addr': '2001:babe::ff04:36c1'
+                                }],
                                 'private': [{
-                                                'version': 4,
-                                                'addr': '10.1.2.1'
-                                            }]
+                                    'version': 4,
+                                    'addr': '10.1.2.1'
+                                }]
                             },
                         }
                     },
@@ -401,7 +349,6 @@ class TestBasicWorkflow(test.StubbedWorkflowBase):
                         'algorithm': 'ROUND_ROBIN',
                         'port': None,
                         'tags': {'RAX-CHECKMATE': 'http://MOCK/TMOCK/deployments/DEP-ID-1000/resources/0'},
-                        'parent_lb': None,
                     },
                     'post_back_result': True,
                     'result': {
@@ -443,6 +390,11 @@ class TestBasicWorkflow(test.StubbedWorkflowBase):
                     'resource': key,
                 })
 
+        #resource_postback mock
+        #self.mox.StubOutWithMock(resource_postback, 'delay')
+        #resource_postback.delay(mox.IgnoreArg(), mox.IgnoreArg())\
+        #.AndReturn(True)
+
         self.workflow = self._get_stubbed_out_workflow(expected_calls=expected)
 
         self.mox.ReplayAll()
@@ -453,11 +405,9 @@ class TestBasicWorkflow(test.StubbedWorkflowBase):
 
         self.mox.VerifyAll()
 
-
 if __name__ == '__main__':
     # Run tests. Handle our parameters separately
     import sys
-
     args = sys.argv[:]
     # Our --debug means --verbose for unittest
     if '--debug' in args:
