@@ -206,9 +206,6 @@ class Driver(DbBase):
                         partial=False):
         return self._save_object(Deployment, id, body, secrets, tenant_id, merge_existing=partial)
 
-    def delete_deployment(self, api_id, tenant_id):
-        self._delete_object(Deployment, api_id, tenant_id)
-
     #BLUEPRINTS
     def get_blueprint(self, id, with_secrets=None):
         return self._get_object(Blueprint, id, with_secrets)
@@ -390,13 +387,6 @@ class Driver(DbBase):
         self.session.add(e)
         self.session.commit()
         return body
-
-    def _delete_object(self, klass, id, tenant_id):
-        self.session.query(klass).filter_by(
-            id=id,
-            tenant_id=tenant_id
-        ).delete()
-        self.session.commit()
 
 
     def lock_object(self, klass, api_id, with_secrets=None, key=None):

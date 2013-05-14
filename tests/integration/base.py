@@ -154,7 +154,7 @@ class DBDriverTests(unittest.TestCase):
         body[u'tenantId'] = u'T1000'  # gets added
         self.assertDictEqual(results, body)
 
-    def test_save_get_delete_object_with_defaults(self):
+    def test_save_get_object_with_defaults(self):
         '''We are really testing object, but using deployment so that the
         test works regardless of driver implementation
         '''
@@ -167,10 +167,8 @@ class DBDriverTests(unittest.TestCase):
             {'id': '1234', 'tenantId': 'T3'},
             self.driver.get_deployment('1234')
         )
-        self.driver.delete_deployment('1234', tenant_id='T3')
-        self.assertEquals(None, self.driver.get_deployment('1234'))
 
-    def test_save_get_delete_object_with_secrets(self):
+    def test_save_get_object_with_secrets(self):
         '''We are really testing object, but using deployment so that the
         test works regardless of driver implementation
         '''
@@ -188,14 +186,11 @@ class DBDriverTests(unittest.TestCase):
             {'id': '1234', 'tenantId': 'T3'},
             self.driver.get_deployment('1234', with_secrets=False)
         )
-        self.driver.delete_deployment('1234', 'T3')
-        self.assertEquals(None, self.driver.get_deployment('deployments', '1234'))
 
     def test_save_object_with_merge(self):
         '''We are really testing object, but using deployment so that the
         test works regardless of driver implementation
         '''
-
         self.driver.save_deployment(
             '1234',
             tenant_id='T3',
@@ -218,7 +213,6 @@ class DBDriverTests(unittest.TestCase):
         '''We are really testing object, but using deployment so that the
         test works regardless of driver implementation
         '''
-
         self.driver.save_deployment(
             '1234',
             tenant_id='T3',
@@ -236,7 +230,6 @@ class DBDriverTests(unittest.TestCase):
             {'id': '1234', 'tenantId': 'T3', 'new': 'blerg'},
             self.driver.get_deployment('1234')
         )
-
 
     def test_deleting_locked_object_not_allowed(self):
         pass  # IMPLEMENT ME!!!

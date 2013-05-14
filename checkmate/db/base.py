@@ -111,9 +111,6 @@ class DbBase(object):  # pylint: disable=R0921
                         partial=False):
         raise NotImplementedError()
 
-    def delete_deployment(self, api_id, tenant_id):
-        raise NotImplementedError()
-
     # BLUEPRINTS
     def get_blueprint(self, api_id, with_secrets=None):
         raise NotImplementedError()

@@ -106,9 +106,6 @@ class Driver(DbBase):
         return self._save_object('deployments', api_id, body, secrets,
                                 tenant_id, merge_existing=partial)
 
-    def delete_deployment(self, api_id, tenant_id):
-        self._delete_object('deployments', api_id, tenant_id)
-
 
     #BLUEPRINTS
     def get_blueprint(self, api_id, with_secrets=None):
@@ -430,9 +427,3 @@ class Driver(DbBase):
             del body['_id']
 
         return body
-
-    def _delete_object(self, klass, api_id, tenant_id):
-        self.database()[klass].remove(api_id)
-
-        if self.database()['%s_secrets' % klass].find_one({'_id': api_id}):
-            self.database()['%s_secrets' % klass].remove(api_id)
