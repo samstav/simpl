@@ -180,6 +180,7 @@ function AutoLoginController($scope, $location, $cookies, auth) {
     $location.path('/');
     $scope.$apply();
     $scope.loginPrompt();
+    auth.error_message = response.statusText + ". Your credentials could not be verified.";
   };
 
   $scope.autoLogIn = function() {
@@ -312,15 +313,16 @@ function AppController($scope, $http, $location, $resource, $cookies, auth) {
     mixpanel.track("Logged In", {'user': $scope.auth.identity.username});
   };
 
-   $scope.on_auth_failed = function(response) {
+  $scope.auth_error_message = function() { return auth.error_message; };
+  $scope.on_auth_failed = function(response) {
     if (typeof $('#modalAuth')[0].failure_callback == 'function') {
         $('#modalAuth')[0].failure_callback();
         delete $('#modalAuth')[0].success_callback;
         delete $('#modalAuth')[0].failure_callback;
       }
-    $("#auth_error_text").html(response.statusText + ". Check that you typed in the correct credentials.");
-    $("#auth_error").show();
     mixpanel.track("Log In Failed", {'problem': response.statusText});
+    auth.error_message = response.statusText + ". Check that you typed in the correct credentials.";
+    $scope.$apply();
   };
 
   // Log in using credentials delivered through bound_credentials

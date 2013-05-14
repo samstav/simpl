@@ -867,6 +867,8 @@ services.factory('auth', ['$resource', '$rootScope', function($resource, $rootSc
     },
     endpoints: [],
 
+    error_message: "",
+
     // Authenticate
     authenticate: function(endpoint, username, apikey, password, token, tenant, callback, error_callback) {
       var target = endpoint['uri'];
