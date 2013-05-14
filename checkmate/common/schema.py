@@ -134,6 +134,7 @@ INTERFACE_SCHEMA = yaml_to_dict("""
       sftp:
       https:
       ldap:
+      vip:
       ldaps:
       smtp:
       pop3:
@@ -170,7 +171,7 @@ RESOURCE_TYPES = [
 RESOURCE_SCHEMA = [
     'id', 'index', 'name', 'provider', 'relations', 'hosted_on', 'hosts',
     'type', 'component', 'dns-name', 'instance', 'flavor', 'image', 'disk',
-    'region', 'service', 'status',
+    'region', 'service', 'status', 'protocol', 'port'
 ]
 
 BLUEPRINT_SCHEMA = [
