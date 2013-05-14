@@ -933,6 +933,50 @@ services.factory('auth', ['$resource', '$rootScope', function($resource, $rootSc
       return identity;
     },
 
+    create_context: function(response, endpoint) {
+      //Populate context
+      var context = {};
+      context.username = response.access.user.name || response.access.user.id; // auth.identity.username;
+      context.user = response.access.user;
+      context.token = response.access.token;
+      context.auth_url = endpoint['uri'];
+      if (endpoint['scheme'] == "GlobalAuth") {
+        context.tenantId = null;
+        context.catalog = {};
+        context.impersonated = false;
+      } else {
+        if ('tenant' in response.access.token)
+          context.tenantId = response.access.token.tenant.id;
+        else {
+          context.tenantId = null;
+          headers = {
+            'X-Auth-Source': endpoint['uri'],
+            'X-Auth-Token': context.token.id
+          };
+          $.ajax({
+            type: "GET",
+            contentType: "application/json; charset=utf-8",
+            headers: headers,
+            dataType: "json",
+            url: is_chrome_extension ? target : "/authproxy/v2.0/tenants"
+          }).success(function(response, textStatus, request) {
+            auth.identity.tenants = response.tenants;
+            auth.save();
+          });
+        }
+        context.catalog = response.access.serviceCatalog;
+        context.impersonated = false;
+      }
+
+      //Parse region list
+      var regions = _.union.apply(this, _.map(response.access.serviceCatalog, function(o) {return _.map(o.endpoints, function(e) {return e.region;});}));
+      if ('RAX-AUTH:defaultRegion' in response.access.user && regions.indexOf(response.access.user['RAX-AUTH:defaultRegion']) == -1)
+        regions.push(response.access.user['RAX-AUTH:defaultRegion']);
+      context.regions = _.compact(regions);
+
+      return context;
+    },
+
     // Authenticate
     authenticate: function(endpoint, username, apikey, password, token, tenant, callback, error_callback) {
       var target = endpoint['uri'];
@@ -954,42 +998,7 @@ services.factory('auth', ['$resource', '$rootScope', function($resource, $rootSc
         data: data
       }).success(function(response, textStatus, request) {
         auth.identity = auth.create_identity(request, response, endpoint);
-
-        //Populate context
-        auth.context.username = auth.identity.username;
-        auth.context.user = response.access.user;
-        auth.context.auth_url = target;
-        auth.context.token = response.access.token;
-        if (endpoint['scheme'] == "GlobalAuth") {
-          auth.context.tenantId = null;
-          auth.context.catalog = {};
-          auth.context.impersonated = false;
-        } else {
-          if ('tenant' in response.access.token)
-            auth.context.tenantId = response.access.token.tenant.id;
-          else {
-            auth.context.tenantId = null;
-            headers['X-Auth-Token'] = auth.context.token.id;
-            $.ajax({
-              type: "GET",
-              contentType: "application/json; charset=utf-8",
-              headers: headers,
-              dataType: "json",
-              url: is_chrome_extension ? target : "/authproxy/v2.0/tenants"
-            }).success(function(response, textStatus, request) {
-              auth.identity.tenants = response.tenants;
-              auth.save();
-            });
-          }
-          auth.context.catalog = response.access.serviceCatalog;
-          auth.context.impersonated = false;
-        }
-
-        //Parse region list
-        var regions = _.union.apply(this, _.map(response.access.serviceCatalog, function(o) {return _.map(o.endpoints, function(e) {return e.region;});}));
-        if ('RAX-AUTH:defaultRegion' in response.access.user && regions.indexOf(response.access.user['RAX-AUTH:defaultRegion']) == -1)
-          regions.push(response.access.user['RAX-AUTH:defaultRegion']);
-        auth.context.regions = _.compact(regions);
+        auth.context = auth.create_context(response, endpoint);
 
         //Save for future use
         auth.save();
