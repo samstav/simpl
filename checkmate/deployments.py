@@ -246,7 +246,7 @@ def post_deployment(tenant_id=None, driver=DB):
     return write_body(deployment, request, response)
 
 
-@post('/deployments/<oid>/clone')
+@post('/deployments/<oid>/+clone')
 @with_tenant
 def clone_deployment(oid, tenant_id=None, driver=DB):
     """
