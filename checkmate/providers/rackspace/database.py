@@ -41,11 +41,10 @@ class Provider(ProviderBase):
     vendor = 'rackspace'
 
     def generate_template(self, deployment, resource_type, service, context,
-                          index, key, definition):
-        templates = ProviderBase.generate_template(self, deployment,
+                          name=None):
+        template = ProviderBase.generate_template(self, deployment,
                                                   resource_type, service,
-                                                  context, index, self.key,
-                                                  definition)
+                                                  context, name=name)
 
         catalog = self.get_catalog(context)
 
@@ -89,13 +88,12 @@ class Provider(ProviderBase):
                 raise CheckmateException("Could not identify which region to "
                                          "create database in")
 
-            for template in templates:
-                template['flavor'] = flavor
-                template['disk'] = volume
-                template['region'] = region
+            template['flavor'] = flavor
+            template['disk'] = volume
+            template['region'] = region
         elif resource_type == 'database':
             pass
-        return templates
+        return template
 
     def add_resource_tasks(self, resource, key, wfspec, deployment, context,
                            wait_on=None):
