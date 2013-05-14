@@ -338,7 +338,7 @@ class Deployment(ExtensibleDict):
         return results
 
     def get_setting(self, name, resource_type=None, service_name=None,
-                    provider_key=None, default=None):
+                    provider_key=None, relation=None, default=None):
         """Find a value that an option was set to.
 
         Look in this order:
@@ -357,7 +357,13 @@ class Deployment(ExtensibleDict):
                 compute, database)
         :param default: value to return if no match found
         """
-        result = None
+        if relation:
+            result = self._get_svc_relation_attribute(name, service_name,
+                                                      relation)
+            if result:
+                LOG.debug("Setting '%s' matched in _get_svc_relation_attribute"
+                          % name)
+                return result
         if service_name:
             result = (self._get_input_service_override(name, service_name,
                       resource_type=resource_type))
@@ -559,6 +565,36 @@ class Deployment(ExtensibleDict):
                                           "in blueprint resource '%s'. %s=%s" %
                                           (name, key, name, result))
                                 return result
+
+    def _get_svc_relation_attribute(self, name, service_name, relation_to):
+        """Get a setting implied through a blueprint service attribute
+
+        :param name: the name of the setting
+        :param service_name: the name of the service being evaluated
+        :param relation_to: the name of the service ot which the service_name
+        is related
+        """
+        blueprint = self['blueprint']
+        if 'services' in blueprint:
+            services = blueprint['services']
+            service = services.get(service_name, None)
+            if service:
+                if 'relations' in service:
+                    relations = service['relations']
+                    for relation_key, relation in relations.iteritems():
+                        if (relation_key == relation_to or
+                                relation.get('service', None) == relation_to):
+                            attributes = relation.get('attributes', None)
+                            if attributes:
+                                for attrib_key, attribute \
+                                        in attributes.iteritems():
+                                    if attrib_key == name:
+                                        LOG.debug(
+                                            "Found setting '%s' as a service "
+                                            "attribute in service '%s'. %s=%s"
+                                            % (name, service_name, name,
+                                               attribute))
+                                        return attribute
 
     def _get_constrained_svc_cmp_setting(self, name, service_name):
         """Get a setting implied through a blueprint service constraint
