@@ -134,6 +134,7 @@ INTERFACE_SCHEMA = yaml_to_dict("""
       sftp:
       https:
       ldap:
+      vip:
       ldaps:
       smtp:
       pop3:
