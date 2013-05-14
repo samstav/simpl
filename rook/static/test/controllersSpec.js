@@ -1,15 +1,45 @@
 describe('controllers', function() {
+  var emptyFunction;
+  beforeEach(function(){
+    emptyFunction = function(){};
+  });
+
+  describe('StaticController', function(){
+    it('should not display the header', function(){
+      var scope = {},
+          location = { path: emptyFunction },
+          controller = new StaticController(scope, location);
+
+      expect(scope.showHeader).toBeFalsy();
+    });
+
+    it('should not display status', function(){
+      var scope = {},
+          location = { path: emptyFunction },
+          controller = new StaticController(scope, location);
+
+      expect(scope.showStatus).toBeFalsy();
+    });
+  });
+
+  describe('ExternalController', function(){
+    it('should assign the window location href to the locations absUrl', function(){
+      var window = { location: {} },
+          location = { absUrl: function(){ return 'lol.com'; } },
+          controller = new ExternalController(window, location);
+      expect(window.location.href).toEqual('lol.com');
+    });
+  });
+
   describe('AutoLoginController', function(){
     var scope, location, cookies, auth, controller;
     beforeEach(function() {
-      scope = { '$apply': function(){}, loginPrompt: function(){} };
-      location = { path: function(){} };
-      cookies = { tenantId: 'tenantId',
-                  token: 'token',
-                  endpoint: 'endpoint' };
+      scope = { '$apply': emptyFunction, loginPrompt: emptyFunction };
+      location = { path: emptyFunction };
       auth = {};
+      cookies = {};
       controller = new AutoLoginController(scope, location, cookies, auth);
-      mixpanel = { track: function(){} }; //We are dependent on this being a global var
+      mixpanel = { track: emptyFunction }; //We are dependent on this being a global var
     });
 
     it('should assign autologin callbacks and method to the scope', function(){
@@ -45,12 +75,35 @@ describe('controllers', function() {
     });
 
     describe('autoLogIn', function(){
-      it('should call authenticate with proper args', function(){
-        auth.authenticate = function(){};
+      beforeEach(function(){
+        auth.authenticate = emptyFunction;
+        cookies.endpoint = 'www.uri.com';
+        cookies.token = 'token';
+        cookies.tenantId = 'tenantId';
+      });
+
+      it('should call authenticate with the matching endpoint', function(){
+        auth.endpoints = [{ uri: 'www.uri.com', scheme: 'Kablamo' }];
         sinon.spy(auth, 'authenticate');
         scope.autoLogIn();
 
-        expect(auth.authenticate.getCall(0).args[0]).toEqual({ uri: 'endpoint' });
+        expect(auth.authenticate.getCall(0).args[0]).toEqual({ uri: 'www.uri.com', scheme: 'Kablamo' });
+      });
+
+      it('should pass an empty endpoint object if no matches are found', function(){
+        auth.endpoints = [];
+        sinon.spy(auth, 'authenticate');
+        scope.autoLogIn();
+
+        expect(auth.authenticate.getCall(0).args[0]).toEqual({});
+      });
+
+      it('should call authenticate with info from the cookie', function(){
+        auth.endpoints = [{ uri: 'www.uri.com', scheme: 'Kablamo' }];
+        sinon.spy(auth, 'authenticate');
+        scope.autoLogIn();
+
+        expect(auth.authenticate.getCall(0).args[0]).toEqual(auth.endpoints[0]);
         expect(auth.authenticate.getCall(0).args[1]).toBeNull();
         expect(auth.authenticate.getCall(0).args[2]).toBeNull();
         expect(auth.authenticate.getCall(0).args[3]).toBeNull();
