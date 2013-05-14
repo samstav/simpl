@@ -95,11 +95,11 @@ class Provider(ProviderBase):
             pass
         return template
 
-    def verify_limits(self):
+    def verify_limits(self, context, resources):
         # TODO: Check database against limits API
         pass
 
-    def verify_access(self):
+    def verify_access(self, context, resources):
         # TODO: Check RBAC access
         pass
 

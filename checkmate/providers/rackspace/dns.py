@@ -16,7 +16,7 @@ class Provider(ProviderBase):
     name = 'dns'
     vendor = 'rackspace'
 
-    def verify_limits(self):
+    def verify_limits(self, context, resources):
         # TODO: See if DNS record can be created.  3-step process.
         # Check:
         # 1. The user's absolute limits (/limits)
@@ -27,7 +27,7 @@ class Provider(ProviderBase):
         #    check the number of domains they have against the limit
         pass
 
-    def verify_access(self):
+    def verify_access(self, context, resources):
         # TODO: Check RBAC access
         pass
 

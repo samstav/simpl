@@ -59,11 +59,11 @@ class Provider(ProviderBase):
         template['region'] = region
         return template
 
-    def verify_limits(self):
+    def verify_limits(self, context, resources):
         # TODO: Check loadbalancer against limits API
         pass
 
-    def verify_access(self):
+    def verify_access(self, context, resources):
         # TODO: Check RBAC access
         pass
 

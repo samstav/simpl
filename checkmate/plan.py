@@ -106,8 +106,7 @@ class Plan(ExtensibleDict):
         # TODO: Run these asynchronously using eventlet
         result = []
         for name, provider in self.environment.providers.iteritems():
-            #if name in ('load-balancer', 'nova', 'database', 'dns'):
-            if name in ('nova'):
+            if name in ('load-balancer', 'nova', 'database', 'dns'):
                 result.append(provider.verify_limits(context, self.resources))
         return result
 
@@ -115,8 +114,7 @@ class Plan(ExtensibleDict):
         # TODO: Run these asynchronously using eventlet
         result = []
         for name, provider in self.environment.providers.iteritems():
-            #if name in ('load-balancer', 'nova', 'database', 'dns'):
-            if name in ('nova'):
+            if name in ('load-balancer', 'nova', 'database', 'dns'):
                 result.append(provider.verify_access(context, self.resources))
         return result
 
