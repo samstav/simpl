@@ -1,4 +1,4 @@
-var services = angular.module('checkmate.services', []);
+var services = angular.module('checkmate.services', ['ngResource']);
 
 /*
  * shared Workflow utilities
