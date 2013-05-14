@@ -868,10 +868,17 @@ services.factory('auth', ['$resource', '$rootScope', function($resource, $rootSc
     endpoints: [],
 
     // Authenticate
-    authenticate: function(endpoint, username, apikey, password, tenant, callback, error_callback) {
+    authenticate: function(endpoint, username, apikey, password, token, tenant, callback, error_callback) {
       var target = endpoint['uri'];
       var data;
-      if (apikey) {
+      if (token) {
+        data = JSON.stringify({
+          "auth": {
+            "token": { "id": token },
+            "tenantId": tenant
+            }
+          });
+      } else if (apikey) {
          data = JSON.stringify({
           "auth": {
             "RAX-KSKEY:apiKeyCredentials": {

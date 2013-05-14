@@ -179,18 +179,20 @@ function AutoLoginController($scope, $location, $cookies, auth) {
     mixpanel.track("Log In Failed", {'problem': response.statusText});
     $location.path('/');
     $scope.$apply();
+    $scope.loginPrompt();
   };
 
   $scope.autoLogIn = function() {
-    var username = $cookies.username;
-    var api_key = $cookies.api_key;
+    var tenantId = $cookies.tenantId;
+    var token = $cookies.token;
     var endpoint = { uri: $cookies.endpoint };
 
-    delete $cookies.username;
-    delete $cookies.api_key;
+    delete $cookies.tenantId;
+    delete $cookies.token;
     delete $cookies.endpoint;
 
-    return auth.authenticate(endpoint, username, api_key, password, null,
+    console.log("Submitting auto login credentials");
+    return auth.authenticate(endpoint, null, null, null, token, tenantId,
       $scope.auto_login_success, $scope.auto_login_fail);
   };
 }
@@ -351,7 +353,7 @@ function AppController($scope, $http, $location, $resource, $cookies, auth) {
     }
 
     var endpoint = $scope.selected_endpoint || auth.endpoints[0];
-    return auth.authenticate(endpoint, username, apikey, password, null,
+    return auth.authenticate(endpoint, username, apikey, password, null, null,
       $scope.on_auth_success, $scope.on_auth_failed);
   };
 
