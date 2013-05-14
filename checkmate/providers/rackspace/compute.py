@@ -267,8 +267,8 @@ class Provider(RackspaceComputeProviderBase):
             return {
                 'type': "INSUFFICIENT-CAPACITY",
                 'message': "You do not have enough capacity to create a Cloud "
-                           "Server with %s MB memory and %s cores" %
-                           (memory_needed, cores_needed),
+                           "Servers with resources totaling %s MB memory and "
+                           "%s cores" % (memory_needed, cores_needed),
                 'provider': "compute",
                 'severity': "CRITICAL"
             }
