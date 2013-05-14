@@ -916,6 +916,23 @@ services.factory('auth', ['$resource', '$rootScope', function($resource, $rootSc
       return JSON.stringify(data);
     },
 
+    fetch_identity_tenants: function(endpoint, token) {
+      headers = {
+        'X-Auth-Source': endpoint['uri'],
+        'X-Auth-Token': token.id
+      };
+      $.ajax({
+        type: "GET",
+        contentType: "application/json; charset=utf-8",
+        headers: headers,
+        dataType: "json",
+        url: is_chrome_extension ? endpoint['uri'] : "/authproxy/v2.0/tenants"
+      }).success(function(response, textStatus, request) {
+        auth.identity.tenants = response.tenants;
+        auth.save();
+      });
+    },
+
     create_identity: function(request, response, endpoint) {
       //Populate identity
       identity = {};
@@ -949,20 +966,7 @@ services.factory('auth', ['$resource', '$rootScope', function($resource, $rootSc
           context.tenantId = response.access.token.tenant.id;
         else {
           context.tenantId = null;
-          headers = {
-            'X-Auth-Source': endpoint['uri'],
-            'X-Auth-Token': context.token.id
-          };
-          $.ajax({
-            type: "GET",
-            contentType: "application/json; charset=utf-8",
-            headers: headers,
-            dataType: "json",
-            url: is_chrome_extension ? target : "/authproxy/v2.0/tenants"
-          }).success(function(response, textStatus, request) {
-            auth.identity.tenants = response.tenants;
-            auth.save();
-          });
+          fetch_identity_tenants(endpoint, context.token);
         }
         context.catalog = response.access.serviceCatalog;
         context.impersonated = false;
