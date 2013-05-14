@@ -242,28 +242,74 @@ def post_deployment(tenant_id=None, driver=DB):
     if request.context.simulation is True:
         deployment['id'] = 'simulate%s' % uuid.uuid4().hex[0:12]
     oid = str(deployment['id'])
-    _save_deployment(deployment, deployment_id=oid, tenant_id=tenant_id,
+    save_deployment_and_execute_plan(tenant_id, driver, oid, deployment)
+    return write_body(deployment, request, response)
+
+
+@post('/deployments/<oid>/+clone')
+@with_tenant
+def clone_deployment(oid, tenant_id=None, driver=DB):
+    """
+    Creates deployment and wokflow based on deleted/active 
+    deployment information
+    """    
+    assert oid, "Deployment ID cannot be empty"
+
+    deployment = get_a_deployment(oid, tenant_id=tenant_id, driver=driver)
+    if not deployment:
+        abort(404, 'No deployment found with deployment id %s' % oid)
+    
+    if deployment['status'] != 'DELETED':
+        raise CheckmateBadState("Deployment '%s' is in '%s' status and must "
+                                        "be in 'DELETED' to recreate" %
+                                        (oid, deployment['status']))
+
+    # give a new deployment ID
+    if request.context.simulation is True:
+        deployment['id'] = 'simulate%s' % uuid.uuid4().hex[0:12]
+    else:
+        deployment['id'] = uuid.uuid4().hex
+
+    new_oid = str(deployment['id'])
+    
+    # delete resources
+    if 'resources' in deployment:
+        del deployment['resources']
+
+    if 'operation' in deployment:
+        del deployment['operation']
+    
+    deployment['status'] = 'NEW'
+
+    save_deployment_and_execute_plan(tenant_id, driver, new_oid, deployment)
+
+    return write_body(deployment, request, response)
+
+def save_deployment_and_execute_plan(tenant_id, driver, new_oid, deployment):
+    # save deployment
+    _save_deployment(deployment, deployment_id=new_oid, tenant_id=tenant_id,
                      driver=driver)
+
     # Return response (with new resource location in header)
     if tenant_id:
         response.add_header('Location', "/%s/deployments/%s" % (tenant_id,
-                                                                oid))
+                                                                new_oid))
         response.add_header('Link', '</%s/workflows/%s>; '
                             'rel="workflow"; title="Deploy"' % (tenant_id,
-                                                                oid))
+                                                                new_oid))
     else:
-        response.add_header('Location', "/deployments/%s" % oid)
+        response.add_header('Location', "/deployments/%s" % new_oid)
         response.add_header('Link', '</workflows/%s>; '
-                            'rel="workflow"; title="Deploy"' % oid)
+                            'rel="workflow"; title="Deploy"' % new_oid)
 
     # can't pass actual request
     request_context = copy.deepcopy(request.context)
-    execute_plan(oid, request_context, driver=driver,
+    execute_plan(new_oid, 
+                 request_context, 
+                 driver=driver,
                  asynchronous=('asynchronous' in request.query))
 
     response.status = 202
-
-    return write_body(deployment, request, response)
 
 
 @post('/deployments/simulate')
