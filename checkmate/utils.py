@@ -33,16 +33,6 @@ from yaml.parser import ParserError
 from checkmate.exceptions import CheckmateNoData, CheckmateValidationException
 
 LOG = logging.getLogger(__name__)
-RESOURCES = [
-    'deployments',
-    'workflows',
-    'blueprints',
-    'environments',
-    'components',
-    'providers',
-    'test',
-    'status',
-]
 DEFAULT_SENSITIVE_KEYS = [
     'credentials',
     'apikey',
@@ -51,8 +41,6 @@ DEFAULT_SENSITIVE_KEYS = [
     re.compile('password$'),
     re.compile('^password'),
 ]
-STATIC = ['test', 'version']
-
 
 def get_debug_level():
     """Get debug settings from arguments.
@@ -273,15 +261,15 @@ HANDLERS = {
 
 
 def write_pagination_headers(data, request, response, uripath, tenant_id):
-    """Add pagination headers to the response body"""    
+    """Add pagination headers to the response body"""
     offset = request.query.get('offset')
     limit = request.query.get('limit')
     if offset:
         offset = int(offset)
-    
+
     if limit:
         limit = int(limit)
-    
+
     if 'collection-count' in data:
         total = int(data['collection-count'])
         del data['collection-count']
@@ -290,12 +278,12 @@ def write_pagination_headers(data, request, response, uripath, tenant_id):
 
     if not offset:
         offset = 0
-    
+
     if not limit:
         limit = total
 
     # Set 'content-range' header
-    response.set_header('Content-Range', 
+    response.set_header('Content-Range',
                     "%s %d-%d/%d" % (uripath, offset, offset + limit, total))
 
     if offset + limit < total:
@@ -306,17 +294,17 @@ def write_pagination_headers(data, request, response, uripath, tenant_id):
     # Add Next page link to http header
     nextfmt = '</%s/%s?limit=%d&offset=%d>; rel="next"; title="Next page"'
     if (offset + limit) < total:
-        response.add_header("Link", 
+        response.add_header("Link",
                             nextfmt % (tenant_id, uripath, limit, offset+limit))
 
     # Add Previous page link to http header
     prevfmt = '</%s/%s?limit=%d&offset=%d>; rel="previous"; \
 title="Previous page"'
     if offset > 0 and (offset - limit) >= 0:
-        response.add_header("Link", 
+        response.add_header("Link",
                             prevfmt % (tenant_id, uripath, limit, offset-limit))
 
-    # Add first page link to http header    
+    # Add first page link to http header
     firstfmt = '</%s/%s?limit=%d>; rel="first"; title="First page"'
     if offset > 0:
         response.add_header("Link", firstfmt % (tenant_id, uripath, limit))
@@ -342,7 +330,7 @@ def write_body(data, request, response):
     accept = request.get_header('Accept', ['application/json'])
 
     # if the data contains collection-count, remove it
-    if 'collection-count' in data:        
+    if 'collection-count' in data:
         del data['collection-count']
 
     for content_type in HANDLERS:
