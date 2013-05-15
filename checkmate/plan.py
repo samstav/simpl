@@ -104,6 +104,7 @@ class Plan(ExtensibleDict):
         return self.resources
 
     def _providers_to_verify(self):
+        """Returns a list of provider instances, one per provider type."""
         providers = []
         names = ['load-balancer', 'nova', 'database', 'dns']
         for name, provider in self.environment.providers.iteritems():
@@ -115,8 +116,15 @@ class Plan(ExtensibleDict):
         return providers
 
     def verify_limits(self, context):
-        # TODO: Run these asynchronously using eventlet
-        results = []
+        """Ensure provider resources can be allocated.
+
+        Checks API limits against resources that will be spun up
+        during deployment.
+
+        :param context: a RequestContext
+        :return: Returns a list of warning/error messages
+        """
+        pile = eventlet.GreenPile()
         providers = self._providers_to_verify()
         for provider in providers:
             pile.spawn(provider.verify_limits, context, self.resources)
@@ -127,8 +135,12 @@ class Plan(ExtensibleDict):
         return results
 
     def verify_access(self, context):
-        # TODO: Run these asynchronously using eventlet
-        results = []
+        """Ensure user has RBAC permissions to allocate provider resources.
+
+        :param context: a RequestContext
+        :return: Returns a list of warning/error messages
+        """
+        pile = eventlet.GreenPile()
         providers = self._providers_to_verify()
         for provider in providers:
             pile.spawn(provider.verify_access, context, self.resources)
