@@ -154,6 +154,110 @@ class DBDriverTests(unittest.TestCase):
         body[u'tenantId'] = u'T1000'  # gets added
         self.assertDictEqual(results, body)
 
+    def test_save_get_object_with_defaults(self):
+        '''We are really testing object, but using deployment so that the
+        test works regardless of driver implementation
+        '''
+        self.driver.save_deployment(
+            '1234',
+            tenant_id='T3',
+            body={'id': '1234'}
+        )
+        self.assertEquals(
+            {'id': '1234', 'tenantId': 'T3'},
+            self.driver.get_deployment('1234')
+        )
+
+    def test_save_get_object_with_secrets(self):
+        '''We are really testing object, but using deployment so that the
+        test works regardless of driver implementation
+        '''
+        self.driver.save_deployment(
+            '1234',
+            tenant_id='T3',
+            body={'id': '1234'},
+            secrets={'secret': 'SHHH!!!'}
+        )
+        self.assertEquals(
+            {'id': '1234', 'tenantId': 'T3', 'secret': 'SHHH!!!'},
+            self.driver.get_deployment('1234', with_secrets=True)
+        )
+        self.assertEquals(
+            {'id': '1234', 'tenantId': 'T3'},
+            self.driver.get_deployment('1234', with_secrets=False)
+        )
+
+    def test_save_object_with_merge(self):
+        '''We are really testing object, but using deployment so that the
+        test works regardless of driver implementation
+        '''
+        self.driver.save_deployment(
+            '1234',
+            tenant_id='T3',
+            body={'id': '1234', 'old': 'blarp'}
+        )
+
+        self.driver.save_deployment(
+            '1234',
+            tenant_id='T3',
+            body={'new': 'blerg'},
+            partial=True  # merge_existing in _save_object
+        )
+
+        self.assertEquals(
+            {'id': '1234', 'tenantId': 'T3', 'old': 'blarp', 'new': 'blerg'},
+            self.driver.get_deployment('1234')
+        )
+
+    def test_save_object_with_overwrite(self):
+        '''We are really testing object, but using deployment so that the
+        test works regardless of driver implementation
+        '''
+        self.driver.save_deployment(
+            '1234',
+            tenant_id='T3',
+            body={'id': '1234', 'old': 'blarp'}
+        )
+
+        self.driver.save_deployment(
+            '1234',
+            tenant_id='T3',
+            body={'id': '1234', 'new': 'blerg'},
+            partial=False  # merge_existing in _save_object
+        )
+
+        self.assertEquals(
+            {'id': '1234', 'tenantId': 'T3', 'new': 'blerg'},
+            self.driver.get_deployment('1234')
+        )
+
+    def test_deleting_locked_object_not_allowed(self):
+        pass  # IMPLEMENT ME!!!
+
+    def test_deleting_with_wrong_tenant_id_not_allowed(self):
+        pass  # IMPLEMENT ME!!!
+
+    def test_get_objects_with_defaults(self):
+        pass  # IMPLEMENT ME!!!
+
+    def test_get_objects_with_secrets(self):
+        pass  # IMPLEMENT ME!!!
+
+    def test_get_objects_with_offset(self):
+        pass  # IMPLEMENT ME!!!
+
+    def test_get_objects_with_limit(self):
+        pass  # IMPLEMENT ME!!!
+
+    def test_get_objects_with_count(self):
+        pass  # IMPLEMENT ME!!!
+
+    def test_get_deployments_omitting_deleted(self):
+        pass  # IMPLEMENT ME!!!
+
+    def test_get_deployments_including_deleted(self):
+        pass  # IMPLEMENT ME!!!
+
 
 if __name__ == '__main__':
     # Any change here should be made in all test files

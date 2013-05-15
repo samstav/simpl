@@ -263,21 +263,29 @@ def _cache_blueprint(source_repo):
 
         if last_update > cache_expire_time:
             LOG.debug("Updating repo: %s", repo_cache)
-            # GitPython sometimes breaks parsing the fetch info.
-            # If we retry, it should work.
-            # When i = 0 and pull fails, we don't raise an error.
-            # When i = 1 and pull fails, we fail and raise error.
-            for i in range(2):
-                try:
-                    repo.remotes.origin.pull()
-                    break
-                except git.GitCommandError as exc:
-                    if i == 1:
-                        raise CheckmateException("Unable to pull from git repository "
-                                                 "at %s.  Using the cached "
-                                                 "repository", url)
-                    else:
-                        LOG.info("Caught git fetch exception for %s", repo_cache)
+            if branch in repo.tags:
+                tag = branch
+                refspec = "refs/tags/" + tag + ":refs/tags/" + tag
+                repo.remotes.origin.fetch(refspec)
+                utils.git_checkout(repo_cache, tag)
+            else:
+                # GitPython sometimes breaks parsing the fetch info.
+                # If we retry, it should work.
+                # When i = 0 and pull fails, we don't raise an error.
+                # When i = 1 and pull fails, we fail and raise error.
+                for i in range(2):
+                    try:
+                        repo.remotes.origin.pull()
+                        break
+                    except git.GitCommandError as exc:
+                        if i == 1:
+                            raise CheckmateException("Unable to pull from git "
+                                                     "repository at %s.  "
+                                                     "Using the cached "
+                                                     "repository", url)
+                        else:
+                            LOG.info("Caught git fetch exception for %s",
+                                     repo_cache)
         else:
             LOG.debug("Using cached repo: %s" % repo_cache)
     else:
@@ -289,9 +297,9 @@ def _cache_blueprint(source_repo):
             raise CheckmateException("Git repository could not be cloned "
                                      "from '%s'.  The error returned was "
                                      "'%s'", url, exc)
-        if branch in repo.tags:  # Does `branch' point to a tag?
-            LOG.debug("'branch' points to a tag.")
-            utils.git_checkout(repo_cache, branch)
+        if branch in repo.tags:
+            tag = branch
+            utils.git_checkout(repo_cache, tag)
 
 
 def _copy_kitchen_blueprint(dest, source_repo):

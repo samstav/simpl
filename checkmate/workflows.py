@@ -61,14 +61,23 @@ def get_workflows(tenant_id=None, driver=DB):
         else:
             abort(403, "Administrator privileges needed for this operation")
     else:
-        results = driver.get_workflows(tenant_id=tenant_id, offset=offset,
-                                       limit=limit)
-    write_pagination_headers(results,
-                             request,
-                             response,
-                             "workflows",
-                             tenant_id)
-    return write_body(results, request, response)
+        results = driver.get_workflows(
+            tenant_id=tenant_id,
+            offset=offset,
+            limit=limit
+        ) or {}  # DB drivers return None when nothing found
+    write_pagination_headers(
+        results,
+        request,
+        response,
+        "workflows",
+        tenant_id
+    )
+    return write_body(
+        results,
+        request,
+        response
+    )
 
 
 def safe_workflow_save(obj_id, body, secrets=None, tenant_id=None, driver=DB):

@@ -1,3 +1,4 @@
+'''bottle routes and Celery tasks for deployments'''
 import copy
 import logging
 import os
@@ -180,18 +181,24 @@ def get_deployments(tenant_id=None, driver=DB):
     if limit:
         limit = int(limit)
 
-    deployments = driver.get_deployments(tenant_id=tenant_id,
-                                         offset=offset,
-                                         limit=limit)
+    deployments = driver.get_deployments(
+        tenant_id=tenant_id,
+        offset=offset,
+        limit=limit
+    ) or {}  # DB drivers return None when nothing found
 
-    write_pagination_headers(deployments,
-                             request,
-                             response,
-                             "deployments",
-                             tenant_id)
-    return write_body(deployments,
-                      request,
-                      response)
+    write_pagination_headers(
+        deployments,
+        request,
+        response,
+        "deployments",
+        tenant_id
+    )
+    return write_body(
+        deployments,
+        request,
+        response
+    )
 
 
 @get('/deployments/count')
@@ -242,28 +249,74 @@ def post_deployment(tenant_id=None, driver=DB):
     if request.context.simulation is True:
         deployment['id'] = 'simulate%s' % uuid.uuid4().hex[0:12]
     oid = str(deployment['id'])
-    _save_deployment(deployment, deployment_id=oid, tenant_id=tenant_id,
+    save_deployment_and_execute_plan(tenant_id, driver, oid, deployment)
+    return write_body(deployment, request, response)
+
+
+@post('/deployments/<oid>/+clone')
+@with_tenant
+def clone_deployment(oid, tenant_id=None, driver=DB):
+    """
+    Creates deployment and wokflow based on deleted/active 
+    deployment information
+    """    
+    assert oid, "Deployment ID cannot be empty"
+
+    deployment = get_a_deployment(oid, tenant_id=tenant_id, driver=driver)
+    if not deployment:
+        abort(404, 'No deployment found with deployment id %s' % oid)
+    
+    if deployment['status'] != 'DELETED':
+        raise CheckmateBadState("Deployment '%s' is in '%s' status and must "
+                                        "be in 'DELETED' to recreate" %
+                                        (oid, deployment['status']))
+
+    # give a new deployment ID
+    if request.context.simulation is True:
+        deployment['id'] = 'simulate%s' % uuid.uuid4().hex[0:12]
+    else:
+        deployment['id'] = uuid.uuid4().hex
+
+    new_oid = str(deployment['id'])
+    
+    # delete resources
+    if 'resources' in deployment:
+        del deployment['resources']
+
+    if 'operation' in deployment:
+        del deployment['operation']
+    
+    deployment['status'] = 'NEW'
+
+    save_deployment_and_execute_plan(tenant_id, driver, new_oid, deployment)
+
+    return write_body(deployment, request, response)
+
+def save_deployment_and_execute_plan(tenant_id, driver, new_oid, deployment):
+    # save deployment
+    _save_deployment(deployment, deployment_id=new_oid, tenant_id=tenant_id,
                      driver=driver)
+
     # Return response (with new resource location in header)
     if tenant_id:
         response.add_header('Location', "/%s/deployments/%s" % (tenant_id,
-                                                                oid))
+                                                                new_oid))
         response.add_header('Link', '</%s/workflows/%s>; '
                             'rel="workflow"; title="Deploy"' % (tenant_id,
-                                                                oid))
+                                                                new_oid))
     else:
-        response.add_header('Location', "/deployments/%s" % oid)
+        response.add_header('Location', "/deployments/%s" % new_oid)
         response.add_header('Link', '</workflows/%s>; '
-                            'rel="workflow"; title="Deploy"' % oid)
+                            'rel="workflow"; title="Deploy"' % new_oid)
 
     # can't pass actual request
     request_context = copy.deepcopy(request.context)
-    execute_plan(oid, request_context, driver=driver,
+    execute_plan(new_oid, 
+                 request_context, 
+                 driver=driver,
                  asynchronous=('asynchronous' in request.query))
 
     response.status = 202
-
-    return write_body(deployment, request, response)
 
 
 @post('/deployments/simulate')
@@ -275,6 +328,7 @@ def simulate(tenant_id=None):
 
 
 def execute_plan(depid, request_context, driver=DB, asynchronous=False):
+    '''Using the deployment id and request, execute a planned deployment'''
     if any_id_problems(depid):
         abort(406, any_id_problems(depid))
 
@@ -291,6 +345,7 @@ def execute_plan(depid, request_context, driver=DB, asynchronous=False):
 
 @task
 def process_post_deployment(deployment, request_context, driver=DB):
+    '''Assess deployment, then create and trigger a workflow'''
     match_celery_logging(LOG)
 
     deployment = Deployment(deployment)
@@ -385,6 +440,7 @@ def plan_deployment(oid, tenant_id=None, driver=DB):
     return write_body(results, request, response)
 
 
+# pylint: disable=W0613
 @route('/deployments/<oid>/+deploy', method=['POST', 'GET'])
 @with_tenant
 def deploy_deployment(oid, tenant_id=None, driver=DB):
@@ -517,6 +573,7 @@ def get_resource(oid, rid, tenant_id=None, driver=DB):
 
 
 def get_resource_by_id(oid, rid, tenant_id=None, driver=DB):
+    '''Attempt to retrieve a resource from a deployment'''
     if is_simulation(oid):
         driver = SIMULATOR_DB
     deployment = get_a_deployment(oid, tenant_id=tenant_id, driver=driver)
@@ -586,33 +643,33 @@ def get_deployment_status(oid, tenant_id=None, driver=DB):
     if workflow_id:
         workflow = driver.get_workflow(workflow_id)
         serializer = DictionarySerializer()
-        wf = Workflow.deserialize(serializer, workflow)
-        for task in wf.get_tasks(state=Task.ANY_MASK):
-            if 'resource' in task.task_spec.defines:
-                resource_id = str(task.task_spec.defines['resource'])
+        workflow = Workflow.deserialize(serializer, workflow)
+        for wf_task in workflow.get_tasks(state=Task.ANY_MASK):
+            if 'resource' in wf_task.task_spec.defines:
+                resource_id = str(wf_task.task_spec.defines['resource'])
                 resource = resources.get(resource_id, None)
                 if resource:
                     result = {}
-                    result['state'] = task.get_state_name()
-                    error = task.get_attribute('error', None)
+                    result['state'] = wf_task.get_state_name()
+                    error = wf_task.get_attribute('error', None)
                     if error is not None:  # Show empty strings too
                         result['error'] = error
-                    result['output'] = {key: task.attributes[key] for key
-                                        in task.attributes if key
+                    result['output'] = {key: wf_task.attributes[key] for key
+                                        in wf_task.attributes if key
                                         not in['deployment',
                                         'token', 'error']}
                     if 'tasks' not in resource:
                         resource['tasks'] = {}
-                    resource['tasks'][task.get_name()] = result
+                    resource['tasks'][wf_task.get_name()] = result
             else:
                 result = {}
-                result['state'] = task.get_state_name()
-                error = task.get_attribute('error', None)
+                result['state'] = wf_task.get_state_name()
+                error = wf_task.get_attribute('error', None)
                 if error is not None:  # Show empty strings too
                     result['error'] = error
                 if 'tasks' not in results:
                     results['tasks'] = {}
-                results['tasks'][task.get_name()] = result
+                results['tasks'][wf_task.get_name()] = result
 
     results['resources'] = resources
 
@@ -694,6 +751,7 @@ def plan(deployment, context):
 
 @task
 def update_operation(deployment_id, driver=DB, **kwargs):
+    '''Wrapper for common_tasks.update_operation'''
     # TODO: Deprecate this
     return common_tasks.update_operation(deployment_id, driver=driver,
                                          **kwargs)
@@ -735,6 +793,7 @@ def delete_deployment_task(dep_id, driver=DB):
                                                      'resources', {})),
                                         driver=driver)
 
+
 @task(default_retry_delay=0.25, max_retries=4)
 def alt_resource_postback(contents, deployment_id, driver=DB):
     """ This is just an argument shuffle to make it easier
@@ -748,6 +807,9 @@ def alt_resource_postback(contents, deployment_id, driver=DB):
 @task(default_retry_delay=0.25, max_retries=4)
 def update_all_provider_resources(provider, deployment_id, status,
                                   message=None, trace=None, driver=DB):
+    '''Given a deployment, update all resources
+    associated with a given provider
+    '''
     match_celery_logging(LOG)
     if is_simulation(deployment_id):
         driver = SIMULATOR_DB

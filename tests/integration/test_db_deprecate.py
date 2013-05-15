@@ -71,19 +71,19 @@ class TestDatabase(unittest.TestCase):
             'credentials': ['My Secrets']
         }
         body, secrets = extract_sensitive_data(entity)
-        self.driver.save_object(self.klass, entity['id'], body, secrets,
+        self.driver._save_object(self.klass, entity['id'], body, secrets,
                                 tenant_id='T1000')
 
         entity['id'] = 2
         entity['name'] = 'My Second Component'
         body, secrets = extract_sensitive_data(entity)
-        self.driver.save_object(self.klass, entity['id'], body, secrets,
+        self.driver._save_object(self.klass, entity['id'], body, secrets,
                                 tenant_id='T1000')
 
         entity['id'] = 3
         entity['name'] = 'My Third Component'
         body, secrets = extract_sensitive_data(entity)
-        self.driver.save_object(self.klass, entity['id'], body, secrets,
+        self.driver._save_object(self.klass, entity['id'], body, secrets,
                                 tenant_id='T1000')
 
         expected = {
@@ -97,7 +97,7 @@ class TestDatabase(unittest.TestCase):
                 'tenantId': 'T1000',
             }
         }
-        results = self.driver.get_objects(self.klass, tenant_id='T1000',
+        results = self.driver._get_objects(self.klass, tenant_id='T1000',
                                           limit=2,
                                           include_total_count=False)
         results_decode = self._decode_dict(results)
@@ -116,7 +116,7 @@ class TestDatabase(unittest.TestCase):
                 'tenantId': 'T1000',
             }
         }
-        results = self.driver.get_objects(self.klass, tenant_id='T1000',
+        results = self.driver._get_objects(self.klass, tenant_id='T1000',
                                           offset=1, limit=2,
                                           include_total_count=False)
         results_decode = self._decode_dict(results)
@@ -251,7 +251,7 @@ class TestDatabase(unittest.TestCase):
                           .first())
         if filter_obj:
             filter_obj.delete()
-        self.driver.save_object(klass, obj_id, {"id": obj_id, "test": obj_id},
+        self.driver._save_object(klass, obj_id, {"id": obj_id, "test": obj_id},
                                 tenant_id='T1000')
 
         _, key = self.driver.lock_object(klass, obj_id)
@@ -294,7 +294,7 @@ class TestDatabase(unittest.TestCase):
         self.assertEqual(locked_object, unlocked_object)
 
         # Confirm object is intact
-        final = self.driver.get_object(klass, obj_id)
+        final = self.driver._get_object(klass, obj_id)
         original['tenantId'] = 'T1000'
         self.assertDictEqual(final, original)
 
@@ -321,7 +321,7 @@ class TestDatabase(unittest.TestCase):
         self.assertEqual(locked_object, unlocked_object)
 
         # Confirm object is intact
-        final = self.driver.get_object(klass, obj_id)
+        final = self.driver._get_object(klass, obj_id)
         self.assertDictEqual(final, original)
 
     def test_lock_locked_object(self):

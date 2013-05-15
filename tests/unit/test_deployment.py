@@ -12,6 +12,7 @@ import unittest2 as unittest
 
 import mox
 
+from checkmate.common import schema
 from checkmate.deployment import (
     Deployment,
     update_deployment_status_new,
@@ -116,6 +117,21 @@ class TestDeployments(unittest.TestCase):
             deployment.fsm.current = 'PLANNED'
             deployment['status'] = legacy
             self.assertEqual(deployment['status'], new)
+
+    def test_edit_invalid_status_to_valid(self):
+        deployment = Deployment({
+            'id': 'test',
+            'name': 'test',
+            'inputs': {},
+            'status': "CONFIGURE",  # legacy status
+        })
+        deployment['status'] = 'DELETED'  # valid, new status
+        self.assertEqual(deployment['status'], 'DELETED')
+
+    def test_legacy_to_new_maps_are_valid(self):
+        '''Test the assumption thatlegacy_statuses maps to valid statuses'''
+        for new_status in Deployment.legacy_statuses.values():
+            self.assertIn(new_status, schema.DEPLOYMENT_STATUSES)
 
 
 class TestCeleryTasks(unittest.TestCase):

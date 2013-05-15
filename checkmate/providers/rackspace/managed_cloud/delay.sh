@@ -6,4 +6,4 @@ while [[ ! -f "${COMPLETE_FILE}" && $(date +%s) -lt ${STOP} ]];
 do
   sleep 1
 done
-rm -f ${ME} ${COMPLETE_FILE}
+rm -f ${ME}

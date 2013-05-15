@@ -32,11 +32,14 @@ from checkmate.deployments import (
     get_resources_statuses,
     update_all_provider_resources,
     resource_postback,
+    clone_deployment,
+    get_deployments,
 )
 from checkmate.exceptions import (
     CheckmateValidationException,
     CheckmateException,
     CheckmateDoesNotExist,
+    CheckmateBadState,
 )
 from checkmate.inputs import Input
 from checkmate.providers import base
@@ -642,6 +645,11 @@ class TestDeploymentSettings(unittest.TestCase):
                         constraints:
                         - "wordpress/version": 3.1.4
                         - "wordpress/create": true
+                      relations:
+                        web:
+                          service: web
+                          attributes:
+                            algorithm: round-robin
                   options:
                     my_server_type:
                       constrains:
@@ -803,6 +811,13 @@ class TestDeploymentSettings(unittest.TestCase):
             'service': 'web',
             'expected': "fqdn",
         },  {
+            'case': "Relation setting is used when relation passed in",
+            'name': "algorithm",
+            'type': 'compute',
+            'relation': 'web',
+            'service': 'wordpress',
+            'expected': "round-robin",
+        },  {
             'case': "Set in blueprint/providers",
             'name': "memory",
             'type': 'compute',
@@ -816,7 +831,8 @@ class TestDeploymentSettings(unittest.TestCase):
             value = parsed.get_setting(test['name'],
                                        service_name=test.get('service'),
                                        provider_key=test.get('provider'),
-                                       resource_type=test.get('type'))
+                                       resource_type=test.get('type'),
+                                       relation=test.get('relation'))
             self.assertEquals(value, test['expected'], msg=test['case'])
             LOG.debug("Test '%s' success=%s", test['case'],
                       value == test['expected'])
@@ -1138,6 +1154,29 @@ class TestDeploymentScenarios(unittest.TestCase):
         return plan(deployment, RequestContext())
 
 
+class TestGetDeployments(unittest.TestCase):
+    """Test GET /deployments endpoint"""
+
+    def test_get_deployments_returns_empty_set(self):
+        '''If there are no deployments the DB drivers will return None
+        A friendlier API implementation will return an empty set
+        '''
+        bottle.request.bind({})
+        bottle.request.context = Context()
+        self._mox = mox.Mox()
+        self._mox.StubOutWithMock(checkmate.deployments, "DB")
+        checkmate.deployments.DB.get_deployments(
+            tenant_id='1234',
+            limit=None,
+            offset=None
+        ).AndReturn(None)
+
+        self._mox.ReplayAll()
+        self.assertEquals('{}', get_deployments(tenant_id='1234', driver=checkmate.deployments.DB))
+        self._mox.VerifyAll()
+        self._mox.UnsetStubs()
+
+
 class TestPostDeployments(unittest.TestCase):
     """ Test POST /deployments endpoint """
 
@@ -1195,6 +1234,99 @@ class TestPostDeployments(unittest.TestCase):
         self._mox.VerifyAll()
         self.assertEquals(202, bottle.response.status_code)
 
+
+class TestCloneDeployments(unittest.TestCase):
+    """ Test clone_deployment """
+
+    def __init__(self, methodName="runTest"):
+        self._mox = mox.Mox()
+        unittest.TestCase.__init__(self, methodName)
+
+    def setUp(self):
+        bottle.request.bind({})
+        bottle.request.context = Context()
+        bottle.request.context.tenant = None
+        self._deployment = {
+            'id': '1234',
+            'status': 'PLANNED',
+            'environment': {},
+            'blueprint': {
+                'meta-data': {
+                    'schema-version': '0.7'
+                }
+            }
+        }
+        unittest.TestCase.setUp(self)
+
+    def tearDown(self):
+        self._mox.UnsetStubs()
+        unittest.TestCase.tearDown(self)
+
+    def test_clone_deployment_failure_path(self):
+        """ Test when deployment status is not 'DELETED', clone
+        deployment operation would fail """
+        
+        self._mox.StubOutWithMock(checkmate.deployments, "request")
+        context = RequestContext(simulation=False)
+        checkmate.deployments.request.context = context
+        self._mox.StubOutWithMock(checkmate.deployments, "write_body")
+       
+        self._mox.StubOutWithMock(checkmate.deployments,
+                                  "get_a_deployment")
+        checkmate.deployments.get_a_deployment('123',
+                                               tenant_id=IgnoreArg(),
+                                               driver=IgnoreArg())\
+            .AndReturn(self._deployment)
+        
+        checkmate.deployments.write_body(IgnoreArg(), IgnoreArg(),
+                                         IgnoreArg()).AndReturn('')
+
+
+
+        self._mox.StubOutWithMock(checkmate.deployments, 
+                                  "save_deployment_and_execute_plan")
+        checkmate.deployments.save_deployment_and_execute_plan(IgnoreArg(),
+                                                               IgnoreArg(),
+                                                               IgnoreArg(),
+                                                               IgnoreArg())
+        self._mox.ReplayAll()
+        try:
+            clone_deployment('123', tenant_id='1234', driver=checkmate.deployments.DB)
+            self.fail("Expected exception not raised.")
+        except CheckmateBadState:
+            pass
+
+
+    def test_clone_deployment_happy_path(self):
+        """ clone deployment success """
+        self._deployment['status'] = 'DELETED'
+        self._mox.StubOutWithMock(checkmate.deployments, "request")
+        context = RequestContext(simulation=False)
+        checkmate.deployments.request.context = context
+
+        self._mox.StubOutWithMock(checkmate.deployments, "write_body")
+       
+        self._mox.StubOutWithMock(checkmate.deployments,
+                                  "get_a_deployment")
+        checkmate.deployments.get_a_deployment('123',
+                                               tenant_id=IgnoreArg(),
+                                               driver=IgnoreArg())\
+            .AndReturn(self._deployment)
+        
+        checkmate.deployments.write_body(IgnoreArg(), IgnoreArg(),
+                                         IgnoreArg()).AndReturn('')
+
+
+
+        self._mox.StubOutWithMock(checkmate.deployments, 
+                                  "save_deployment_and_execute_plan")
+        checkmate.deployments.save_deployment_and_execute_plan(IgnoreArg(),
+                                                               IgnoreArg(),
+                                                               IgnoreArg(),
+                                                               IgnoreArg())
+        self._mox.ReplayAll()
+        clone_deployment('123', tenant_id='1234', driver=checkmate.deployments.DB)
+        self._mox.VerifyAll()
 
 class TestDeleteDeployments(unittest.TestCase):
     """ Test delete_deployment """

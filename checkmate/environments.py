@@ -31,7 +31,12 @@ def get_environments(tenant_id=None):
             abort(403, "Administrator privileges needed for this operation")
     else:
         results = DB.get_environments(tenant_id=tenant_id)
-    return write_body(results, request, response)
+
+    return write_body(
+        results or {},  # DB drivers return None when nothing found
+        request,
+        response
+    )
 
 
 @post('/environments')

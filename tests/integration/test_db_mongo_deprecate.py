@@ -110,7 +110,7 @@ class TestDatabase(unittest.TestCase):
 
     @unittest.skipIf(SKIP, REASON)
     def test_get_objects_for_empty_collections(self):
-        self.assertEqual(len(self.driver.get_objects('foobars')), 0)
+        self.assertEqual(len(self.driver._get_objects('foobars')), 0)
 
     @unittest.skipIf(SKIP, REASON)
     def test_objects(self):
@@ -120,11 +120,11 @@ class TestDatabase(unittest.TestCase):
             'credentials': ['My Secrets']
         }
         body, secrets = extract_sensitive_data(entity)
-        results = self.driver.save_object(self.collection_name, entity['id'],
+        results = self.driver._save_object(self.collection_name, entity['id'],
                                           body, secrets, tenant_id='T1000')
         self.assertDictEqual(results, body)
 
-        results = self.driver.get_object(self.collection_name, entity['id'],
+        results = self.driver._get_object(self.collection_name, entity['id'],
                                          with_secrets=True)
         entity['tenantId'] = 'T1000'  # gets added
         self.assertDictEqual(results, entity)
@@ -132,14 +132,14 @@ class TestDatabase(unittest.TestCase):
 
         body['name'] = 'My Updated Component'
         entity['name'] = 'My Updated Component'
-        results = self.driver.save_object(self.collection_name, entity['id'],
+        results = self.driver._save_object(self.collection_name, entity['id'],
                                           body, secrets)
-        results = self.driver.get_object(self.collection_name, entity['id'],
+        results = self.driver._get_object(self.collection_name, entity['id'],
                                          with_secrets=True)
         self.assertIn('credentials', results)
         self.assertDictEqual(results, entity)
 
-        results = self.driver.get_object(self.collection_name, entity['id'],
+        results = self.driver._get_object(self.collection_name, entity['id'],
                                          with_secrets=False)
         self.assertNotIn('credentials', results)
         body['tenantId'] = 'T1000'  # gets added
@@ -147,12 +147,12 @@ class TestDatabase(unittest.TestCase):
         self.assertNotIn('_id', results, "Backend field '_id' should not be "
                          "exposed outside of driver")
 
-        results = self.driver.get_objects(self.collection_name,
+        results = self.driver._get_objects(self.collection_name,
                                           with_secrets=False,
                                           include_total_count=False)
         results = self._decode_dict(results)
 
-        #Since object was extraced in get_objects format, need to make sure
+        #Since object was extraced in _get_objects format, need to make sure
         #format of body matches
         expected_result_body = {1: body}
 
@@ -168,20 +168,20 @@ class TestDatabase(unittest.TestCase):
             'credentials': ['My Secrets']
         }
         body, secrets = extract_sensitive_data(entity)
-        self.driver.save_object(self.collection_name, entity['id'], body,
+        self.driver._save_object(self.collection_name, entity['id'], body,
                                 secrets, tenant_id='T1000')
         entity['id'] = 2
         entity['name'] = 'My Second Component'
         body, secrets = extract_sensitive_data(entity)
-        self.driver.save_object(self.collection_name, entity['id'], body,
+        self.driver._save_object(self.collection_name, entity['id'], body,
                                 secrets, tenant_id='T1000')
         entity['id'] = 3
         entity['name'] = 'My Third Component'
         body, secrets = extract_sensitive_data(entity)
-        self.driver.save_object(self.collection_name, entity['id'], body,
+        self.driver._save_object(self.collection_name, entity['id'], body,
                                 secrets, tenant_id='T1000')
 
-        results = self.driver.get_objects(self.collection_name,
+        results = self.driver._get_objects(self.collection_name,
                                           tenant_id='T1000',
                                           with_secrets=False, limit=2,
                                           include_total_count=False)
@@ -200,7 +200,7 @@ class TestDatabase(unittest.TestCase):
         self.assertEqual(len(results), 2)
         self.assertDictEqual(results, expected)
 
-        results = self.driver.get_objects(self.collection_name,
+        results = self.driver._get_objects(self.collection_name,
                                           tenant_id='T1000',
                                           with_secrets=False, offset=1,
                                           limit=2,
@@ -223,11 +223,11 @@ class TestDatabase(unittest.TestCase):
     @unittest.skipIf(SKIP, REASON)
     def test_hex_id(self):
         hex_id = uuid.uuid4().hex
-        self.driver.save_object(self.collection_name,
+        self.driver._save_object(self.collection_name,
                                 hex_id, dict(id=hex_id),
                                 None,
                                 tenant_id='T1000')
-        unicode_results = self.driver.get_objects(self.collection_name,
+        unicode_results = self.driver._get_objects(self.collection_name,
                                                   include_total_count=False)
         if unicode_results and 'collection-count' in unicode_results:
             del unicode_results['collection-count']
@@ -240,7 +240,7 @@ class TestDatabase(unittest.TestCase):
     @unittest.skipIf(SKIP, REASON)
     def test_no_id_in_body(self):
         hex_id = uuid.uuid4().hex
-        self.assertRaises(Exception, self.driver.save_object, hex_id, {}, None,
+        self.assertRaises(Exception, self.driver._save_object, hex_id, {}, None,
                           tenant_id='T1000')
 
     @unittest.skipIf(SKIP, REASON)
@@ -248,9 +248,9 @@ class TestDatabase(unittest.TestCase):
         expected = {}
         for i in range(1, 5):
             expected[i] = dict(id=i, tenantId='T1000')
-            self.driver.save_object(self.collection_name, i, dict(id=i), None,
+            self.driver._save_object(self.collection_name, i, dict(id=i), None,
                                     tenant_id='T1000')
-        unicode_results = self.driver.get_objects(self.collection_name,
+        unicode_results = self.driver._get_objects(self.collection_name,
                                                   include_total_count=False)
         results = self._decode_dict(unicode_results)
         self.assertDictEqual(results, expected)
@@ -264,9 +264,9 @@ class TestDatabase(unittest.TestCase):
         expected = {}
         for i in range(1, 5):
             expected[i] = dict(id=i, tenantId='T1000')
-            self.driver.save_object(self.collection_name, i, dict(id=i), None,
+            self.driver._save_object(self.collection_name, i, dict(id=i), None,
                                     tenant_id='T1000')
-        unicode_results = self.driver.get_objects(self.collection_name,
+        unicode_results = self.driver._get_objects(self.collection_name,
                                                   include_total_count=True)
         self.assertIn('collection-count', unicode_results)
 
@@ -290,7 +290,7 @@ class TestDatabase(unittest.TestCase):
         klass = 'workflows'
         obj_id = 1
         self.driver.database()[klass].remove({'_id': obj_id})
-        self.driver.save_object(klass, obj_id, {"id": obj_id, "test": obj_id},
+        self.driver._save_object(klass, obj_id, {"id": obj_id, "test": obj_id},
                                 tenant_id='T1000')
 
         locked_object, key = self.driver.lock_object(klass, obj_id)
@@ -338,7 +338,7 @@ class TestDatabase(unittest.TestCase):
         self.assertEqual(locked_object, unlocked_object)
 
         # Confirm object is intact
-        final = self.driver.get_object(klass, obj_id)
+        final = self.driver._get_object(klass, obj_id)
         self.assertDictEqual(final, original)
 
     @unittest.skipIf(SKIP, REASON)
@@ -375,7 +375,7 @@ class TestDatabase(unittest.TestCase):
         self.assertEqual(locked_object, unlocked_object)
 
         # Confirm object is intact
-        final = self.driver.get_object(klass, obj_id)
+        final = self.driver._get_object(klass, obj_id)
         self.assertDictEqual(final, original)
 
     @unittest.skipIf(SKIP, REASON)
