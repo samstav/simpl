@@ -207,8 +207,11 @@ def static(path=None):
     # bottle does not write this for css
     if path and path.endswith('.css'):
         mimetype = 'text/css'
-    return static_file(path or '/index.html', root=root,
-                       mimetype=mimetype)
+    # Check if path exists and return it, otherwise serve index.html
+    if path and os.path.exists(os.path.join(root, path)):
+        return static_file(path, root=root, mimetype=mimetype)
+    else:
+        return static_file('/index.html', root=root, mimetype=mimetype)
 
 
 #
