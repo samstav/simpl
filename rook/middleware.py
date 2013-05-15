@@ -125,9 +125,11 @@ class BrowserMiddleware(object):
         @route('/autologin', method=['POST'])
         def autologin():
             """This handles automatic login from other systems"""
-            response.add_header('Set-Cookie', 'username=' + request.forms.get('username') )
-            response.add_header('Set-Cookie', 'api_key='  + request.forms.get('api_key') )
-            response.add_header('Set-Cookie', 'endpoint=' + request.forms.get('endpoint') )
+            fields = ['tenantId','token', 'endpoint']
+            for field in fields:
+                value = request.forms.get(field) or ""
+                response.add_header('Set-Cookie',  field + '=' + value )
+
             return static_file('index.html',
                                root=os.path.join(os.path.dirname(__file__),
                                'static'))
