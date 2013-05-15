@@ -286,11 +286,11 @@ class Provider(RackspaceComputeProviderBase):
             }
             messages.append(message)
 
-        return {'type': 'limits', 'output': messages}
+        return messages
 
     def verify_access(self, context, resources):
         # TODO: Check RBAC access
-        return {'type': 'access', 'output': None}
+        pass
 
     def add_resource_tasks(self, resource, key, wfspec, deployment, context,
                            wait_on=None):

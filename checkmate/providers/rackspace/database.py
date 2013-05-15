@@ -97,11 +97,11 @@ class Provider(ProviderBase):
 
     def verify_limits(self, context, resources):
         # TODO: Check database against limits API
-        return {'type': 'limits', 'output': None}
+        pass
 
     def verify_access(self, context, resources):
         # TODO: Check RBAC access
-        return {'type': 'access', 'output': None}
+        pass
 
     def add_resource_tasks(self, resource, key, wfspec, deployment, context,
                            wait_on=None):

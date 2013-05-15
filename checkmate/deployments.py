@@ -677,9 +677,9 @@ def plan(deployment, context):
     if check_limits:
         pile.spawn(planner.verify_limits, context)
     for result in pile:
-        if result['type'] == 'limits':
+        if result['type'] == 'limits' and result['output']:
             deployment['check-limit-results'] = result['output']
-        elif result['type'] == 'access':
+        elif result['type'] == 'access' and result['output']:
             deployment['check-access-results'] = result['output']
 
     # Save plan details for future rehydration/use

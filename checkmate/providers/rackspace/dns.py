@@ -25,11 +25,11 @@ class Provider(ProviderBase):
         #    the limit
         # 3. If the domain they are going to create isn't there, then
         #    check the number of domains they have against the limit
-        return {'type': 'limits', 'output': None}
+        pass
 
     def verify_access(self, context, resources):
         # TODO: Check RBAC access
-        return {'type': 'access', 'output': None}
+        pass
 
     def add_resource_tasks(self, resource, key, wfspec, deployment, context,
                            wait_on=None):
