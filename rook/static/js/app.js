@@ -889,7 +889,8 @@ function WorkflowController($scope, $resource, $http, $routeParams, $location, $
             _.each($scope.output.resources, function(resource) {
                 if (resource.component == 'linux_instance') {
                     all_data.push('  ' + resource.service + ' server: ' + resource['dns-name']);
-                    if (resource.instance.public_ip === undefined) {
+                    try {
+                      if (resource.instance.public_ip === undefined) {
                         for (var nindex in resource.instance.interfaces.host.networks) {
                             var network = resource.instance.interfaces.host.networks[nindex];
                             if (network.name == 'public_net') {
@@ -903,8 +904,9 @@ function WorkflowController($scope, $resource, $http, $routeParams, $location, $
                                 break;
                             }
                         }
-                    }
-                    all_data.push('    IP:      ' + resource.instance.public_ip);
+                      }
+                      all_data.push('    IP:      ' + resource.instance.public_ip);
+                    } catch (err) {}
                     all_data.push('    Role:    ' + resource.service);
                     all_data.push('    root pw: ' + resource.instance.password);
                 }
