@@ -37,4 +37,43 @@ describe('auth Service', function(){
       expect(this.auth.create_identity(request, response, endpoint).username).toEqual('robin');
     });
   });
+
+  describe('json data generation', function() {
+    var token, tenant, apikey, username, password, target;
+
+    beforeEach(function() {
+      token = 'faketoken';
+      tenant = 'faketenant';
+      apikey = 'fakeapikey';
+      username = 'fakeusername';
+      password = 'fakepassword';
+      target = 'faketarget';
+    });
+
+    it('should generate token and tenant auth body', function() {
+      auth_body = '{"auth":{"token":{"id":"faketoken"},"tenantId":"faketenant"}}';
+      expect(this.auth.generate_auth_data(token, tenant, null, null, null, null)).toEqual(auth_body);
+    });
+
+    it('should generate username and apikey auth body', function() {
+      auth_body = '{"auth":{"RAX-KSKEY:apiKeyCredentials":{"username":"fakeusername","apiKey":"fakeapikey"}}}';
+      expect(this.auth.generate_auth_data(null, null, apikey, username, null, null)).toEqual(auth_body);
+    });
+
+    it('should generate username and password auth body for specific target', function() {
+      target = "https://identity-internal.api.rackspacecloud.com/v2.0/tokens";
+      auth_body = '{"auth":{"RAX-AUTH:domain":{"name":"Rackspace"},"passwordCredentials":{"username":"fakeusername","password":"fakepassword"}}}';
+      expect(this.auth.generate_auth_data(null, null, null, username, password, target)).toEqual(auth_body);
+    });
+
+    it('should generate username and password auth body for generic targets', function() {
+      auth_body = '{"auth":{"passwordCredentials":{"username":"fakeusername","password":"fakepassword"}}}';
+      expect(this.auth.generate_auth_data(null, null, null, username, password, target)).toEqual(auth_body);
+    });
+
+    it('should not generate auth body without token, username or password', function() {
+      expect(this.auth.generate_auth_data(null, null, null, null, null, target)).toBeFalsy();
+    });
+
+  });
 });
