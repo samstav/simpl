@@ -76,4 +76,46 @@ describe('auth Service', function(){
     });
 
   });
+
+  describe('#create_context', function() {
+    var response, endpoint;
+
+    beforeEach(function() {
+      response = {
+        access: {
+          user: { name: 'fakename' },
+          token: { tenant: { id: 'fakeid' } },
+        }
+      };
+      endpoint = { uri: 'fakeuri', scheme: 'fakescheme' };
+    });
+
+    it('should create a context based on a response', function() {
+      expect(this.auth.create_context(response, endpoint)).not.toBe(null);
+    });
+
+    it('should set context user according to response object', function() {
+      expect(this.auth.create_context(response, endpoint).user).toEqual({ name: 'fakename' });
+    });
+
+    it('should set context token according to response object', function() {
+      expect(this.auth.create_context(response, endpoint).token).toEqual({ tenant: { id: 'fakeid' } });
+    });
+
+    it('should set context auth_url according to response object', function() {
+      expect(this.auth.create_context(response, endpoint).auth_url).toEqual('fakeuri');
+    });
+
+    it('should set context username user.name if it is present', function() {
+      expect(this.auth.create_context(response, endpoint).username).toEqual('fakename');
+    });
+
+    it('should set context username user.id if name does not exist', function() {
+      delete response.access.user.name
+      response.access.user.id = 'fakeuserid';
+      expect(this.auth.create_context(response, endpoint).username).toEqual('fakeuserid');
+    });
+
+  });
+
 });
