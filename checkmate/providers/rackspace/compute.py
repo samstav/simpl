@@ -230,14 +230,7 @@ class Provider(RackspaceComputeProviderBase):
             memory_needed += details['memory']
             cores_needed += details['cores']
 
-        def limits_dict(limits):
-            d = {}
-            for limit in limits:
-                d[limit.name.encode('ascii')] = limit.value
-            return d
-        api = self._connect(context)
-        api_limits = api.limits.get()
-        limits = limits_dict(api_limits.absolute)
+        limits = _get_limits(url, context.auth_token)
         memory_available = limits['maxTotalRAMSize'] - limits['totalRAMUsed']
         cores_available = limits['maxTotalCores'] - limits['totalCoresUsed']
 
@@ -584,6 +577,20 @@ def _get_flavors(api_endpoint, auth_token):
             } for f in flavors
         }
     }
+
+
+@Memorize(timeout=1800, sensitive_args=[1], store=API_CACHE)
+def _get_limits(api_endpoint, auth_token):
+    api = client.Client('ignore', 'ignore', None, 'localhost')
+    api.client.auth_token = auth_token
+    api.client.management_url = api_endpoint
+    api_limits = api.limits.get()
+    def limits_dict(limits):
+        d = {}
+        for limit in limits:
+            d[limit.name.encode('ascii')] = limit.value
+        return d
+    return limits_dict(api_limits.absolute)
 
 
 REGION_MAP = {'dallas': 'DFW',
