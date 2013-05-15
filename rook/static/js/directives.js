@@ -69,9 +69,9 @@ directives.directive('clippy', function factory() {
                         <param name="allowScriptAccess" value="always" />\
                         <param name="quality" value="high" />\
                         <param name="scale" value="noscale" />\
-                        <param name="movie" value="' + (scope.swf || "/static/libs/clippy/clippy.swf") + '">\
+                        <param name="movie" value="' + (scope.swf || "/libs/clippy/clippy.swf") + '">\
                         <param NAME="FlashVars" value="text=' + encodeURIComponent(scope.content) + '">\
-                        <embed src="' + (scope.swf || "/static/libs/clippy/clippy.swf") + '"\
+                        <embed src="' + (scope.swf || "/libs/clippy/clippy.swf") + '"\
                                width="110"\
                                height="14"\
                                name="clippy"\
