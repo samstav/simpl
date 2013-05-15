@@ -451,7 +451,7 @@ class RackspaceSSOAuthMiddleware(object):
                                          username=self.service_username,
                                          password=self.service_password)
             self.service_token = result['access']['token']['id']
-        except StandardError:
+        except Exception:
             LOG.error("Unable to authenticate to Global Auth. Endpoint '%s' "
                       "will be disabled", endpoint.get('kwargs', {}).
                       get('realm'))
