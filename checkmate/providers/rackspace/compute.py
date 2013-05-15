@@ -262,17 +262,31 @@ class Provider(RackspaceComputeProviderBase):
         memory_available = limits['maxTotalRAMSize'] - limits['totalRAMUsed']
         cores_available = limits['maxTotalCores'] - limits['totalCoresUsed']
 
-        if memory_needed > memory_available or cores_needed > cores_available:
-            return {
+        messages = []
+
+        if memory_needed > memory_available:
+            message = {
                 'type': "INSUFFICIENT-CAPACITY",
-                'message': "You do not have enough capacity to create a Cloud "
-                           "Servers with resources totaling %s MB memory and "
-                           "%s cores" % (memory_needed, cores_needed),
+                'message': "You do not have enough available memory to create "
+                           "%s Cloud Servers utilizing a combined %s MB memory"
+                           % (len(computes), memory_needed),
                 'provider': "compute",
                 'severity': "CRITICAL"
             }
-        else:
-            return None
+            messages.append(message)
+
+        if cores_needed > cores_available:
+            message = {
+                'type': "INSUFFICIENT-CAPACITY",
+                'message': "You do not have enough available cores to create "
+                           "%s Cloud Servers utilizing a combined %s cores"
+                           % (len(computes), cores_needed),
+                'provider': "compute",
+                'severity': "CRITICAL"
+            }
+            messages.append(message)
+
+        return messages
 
     def verify_access(self, context, resources):
         # TODO: Check RBAC access
