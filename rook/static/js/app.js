@@ -549,7 +549,7 @@ function NavBarController($scope, $location) {
             "rook_version": $scope.rook_version
             }
           });
-    headers = checkmate.config.header_defaults.headers.common;
+    var headers = checkmate.config.header_defaults.headers.common;
     return $.ajax({
       type: "POST",
       contentType: "application/json; charset=utf-8",
