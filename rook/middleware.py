@@ -1,3 +1,10 @@
+'''
+
+Middleware that loads Rook routes and serves static files and necessary proxies
+for auth and github (to avoid CORS limitations)
+
+'''
+
 import base64
 import httplib
 import json
@@ -68,6 +75,7 @@ ROOK_API = Bottle()
 
 
 def init_db():
+    '''Initialize the Feedback Database'''
     connection_string = os.environ.get('CHECKMATE_CONNECTION_STRING',
                                        'sqlite://')
     if connection_string.startswith('mongodb://'):
