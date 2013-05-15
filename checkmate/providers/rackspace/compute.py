@@ -218,30 +218,9 @@ class Provider(RackspaceComputeProviderBase):
         return template
 
     def verify_limits(self, context, resources):
-        # TODO: Replace this with a dynamic lookup of nova flavors.
-        # Here's a start:
-        #
-        #   from novaclient.v1_1 import flavors
-        #   api = client.Client(user, pass, tenant, url)
-        #   flavor_api = flavors.FlavorManager(api)
-        #   f = flavor_api.list(detailed=True)
-        #   filter(lambda x:x.id == '1', f)[0].ram
-        #
-        # Need to pass credentials like _connect() does.
-        flavor_details = {
-             '1': { 'memory':  256, 'cores': 1 },
-             '2': { 'memory':  256, 'cores': 1 },
-             '3': { 'memory':  512, 'cores': 1 },
-             '4': { 'memory':  768, 'cores': 1 },
-             '5': { 'memory': 1024, 'cores': 1 },
-             '6': { 'memory': 2048, 'cores': 1 },
-             '7': { 'memory': 2048, 'cores': 2 },
-             '8': { 'memory': 2048, 'cores': 2 },
-             '9': { 'memory': 2048, 'cores': 2 },
-            '10': { 'memory': 2048, 'cores': 2 },
-            '11': { 'memory': 2048, 'cores': 2 },
-            '12': { 'memory': 2048, 'cores': 2 },
-        }
+        region = Provider.find_a_region(context.catalog)
+        url = Provider.find_url(context.catalog, region)
+        flavor_details = _flavor_details(url, context.auth_token)
         memory_needed = 0
         cores_needed = 0
         computes = filter_resources(resources, 'compute')
@@ -603,6 +582,24 @@ def _get_flavors(api_endpoint, auth_token):
                 'disk': f.disk,
             } for f in flavors
         }
+    }
+
+
+@Memorize(timeout=3600, sensitive_args=[1], store=API_CACHE)
+def _flavor_details(api_endpoint, auth_token):
+    """Obtain flavor details from Nova"""
+    api = client.Client('ignore', 'ignore', None, 'localhost')
+    api.client.auth_token = auth_token
+    api.client.management_url = api_endpoint
+    flavors = api.flavors.list(detailed=True)
+
+    return {
+        str(f.id): {
+            'name': f.name,
+            'memory': f.ram,
+            'disk': f.disk,
+            'cores': f.vcpus,
+        } for f in flavors
     }
 
 
