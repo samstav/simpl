@@ -591,8 +591,10 @@ function ActivityFeedController($scope, $http, items) {
         parsed.action = 'pull request ' + event.payload.pull_request.number;
         parsed.action_url = event.payload.pull_request.html_url;
       } else if ('commits' in event.payload) {
-        parsed.action = event.payload.commits[0].message;
-        parsed.action_url = event.payload.commits[0].url.replace('/api/v3/repos', '').replace('/commits/', '/commit/');
+        try {
+          parsed.action = event.payload.commits[0].message;
+          parsed.action_url = event.payload.commits[0].url.replace('/api/v3/repos', '').replace('/commits/', '/commit/');
+        } catch (err) {}
       }
       parsed.verb = event.payload.action;
     }
