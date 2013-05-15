@@ -257,10 +257,10 @@ class Driver(DbBase):
                     offset=None, limit=None, include_total_count=True):
         results = self.session.query(klass)
         total = 0
+        response = {}
         if tenant_id:
             results = results.filter_by(tenant_id=tenant_id)
         if results and results.count() > 0:
-            response = {}
             total = results.count()
             if offset and (limit is None):
                 results = results.offset(offset).all()
