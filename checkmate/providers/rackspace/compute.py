@@ -220,13 +220,13 @@ class Provider(RackspaceComputeProviderBase):
     def verify_limits(self, context, resources):
         region = Provider.find_a_region(context.catalog)
         url = Provider.find_url(context.catalog, region)
-        flavor_details = _flavor_details(url, context.auth_token)
+        flavors = _get_flavors(url, context.auth_token)['flavors']
         memory_needed = 0
         cores_needed = 0
         computes = filter_resources(resources, 'compute')
         for compute in computes:
             flavor = compute['flavor']
-            details = flavor_details[flavor]
+            details = flavors[flavor]
             memory_needed += details['memory']
             cores_needed += details['cores']
 
@@ -580,26 +580,9 @@ def _get_flavors(api_endpoint, auth_token):
                 'name': f.name,
                 'memory': f.ram,
                 'disk': f.disk,
+                'cores': f.vcpus,
             } for f in flavors
         }
-    }
-
-
-@Memorize(timeout=3600, sensitive_args=[1], store=API_CACHE)
-def _flavor_details(api_endpoint, auth_token):
-    """Obtain flavor details from Nova"""
-    api = client.Client('ignore', 'ignore', None, 'localhost')
-    api.client.auth_token = auth_token
-    api.client.management_url = api_endpoint
-    flavors = api.flavors.list(detailed=True)
-
-    return {
-        str(f.id): {
-            'name': f.name,
-            'memory': f.ram,
-            'disk': f.disk,
-            'cores': f.vcpus,
-        } for f in flavors
     }
 
 
