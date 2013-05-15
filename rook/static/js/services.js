@@ -917,7 +917,7 @@ services.factory('auth', ['$resource', '$rootScope', function($resource, $rootSc
     },
 
     fetch_identity_tenants: function(endpoint, token) {
-      headers = {
+      var headers = {
         'X-Auth-Source': endpoint['uri'],
         'X-Auth-Token': token.id
       };
@@ -935,7 +935,7 @@ services.factory('auth', ['$resource', '$rootScope', function($resource, $rootSc
 
     create_identity: function(request, response, endpoint) {
       //Populate identity
-      identity = {};
+      var identity = {};
       identity.username = response.access.user.name || response.access.user.id;
       identity.user = response.access.user;
       identity.token = response.access.token;
@@ -983,8 +983,9 @@ services.factory('auth', ['$resource', '$rootScope', function($resource, $rootSc
 
     // Authenticate
     authenticate: function(endpoint, username, apikey, password, token, tenant, callback, error_callback) {
-      var target = endpoint['uri'];
-      var data = this.generate_auth_data(token, tenant, apikey, username, password, target);
+      var headers,
+          target = endpoint['uri'],
+          data = this.generate_auth_data(token, tenant, apikey, username, password, target);
       if (!data) return false;
 
       if (target === undefined || target === null || target.length === 0) {
@@ -1038,7 +1039,7 @@ services.factory('auth', ['$resource', '$rootScope', function($resource, $rootSc
       $rootScope.$broadcast('logOut');
     },
     impersonate: function(tenant, callback, error_callback) {
-      var data;
+      var data, headers;
       if (auth.identity.endpoint_type == 'GlobalAuth') {
         data = JSON.stringify({"RAX-AUTH:impersonation":
           {
