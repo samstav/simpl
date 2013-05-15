@@ -255,8 +255,8 @@ class Driver(DbBase):
 
     def _get_objects(self, klass, tenant_id=None, with_secrets=None,
                     offset=None, limit=None, with_count=True):
-        results = self.session.query(klass)
         response = {}
+        results = self.session.query(klass)
         if tenant_id:
             results = results.filter_by(tenant_id=tenant_id)
         if results and results.count() > 0:

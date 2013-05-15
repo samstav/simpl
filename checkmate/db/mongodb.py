@@ -50,16 +50,19 @@ class Driver(DbBase):
         self._connection = None
         self._client = None
 
+    def _get_client(self):
+        if self._client is None:
+            try:
+                self._client = (pymongo.MongoClient(
+                                self.connection_string))
+            except pymongo.errors.AutoReconnect as exc:
+                raise CheckmateDatabaseConnectionError(exc.__str__())
+        return self._client
+
     def database(self):
         """ Connects to and returns mongodb database object """
         if self._database is None:
-            if self._client is None:
-                try:
-                    self._client = (pymongo.MongoClient(
-                                    self.connection_string))
-                except pymongo.errors.AutoReconnect as exc:
-                    raise CheckmateDatabaseConnectionError(exc.__str__())
-            self._database = self._client[self.db_name]
+            self._database = self._get_client()[self.db_name]
             LOG.info("Connected to mongodb on %s (database=%s)",
                      self.connection_string, self.db_name)
         return self._database
@@ -306,10 +309,7 @@ class Driver(DbBase):
         :param api_id: The klass item to get
         :param with_secrets: Merge secrets with the results
         '''
-        if not self._client:
-            self.database()
-        client = self._client
-        with client.start_request():
+        with self._get_client().start_request():
             results = self.database()[klass].find_one({
                 '_id': api_id}, self._object_projection)
 
@@ -328,32 +328,23 @@ class Driver(DbBase):
 
     def _get_objects(self, klass, tenant_id=None, with_secrets=None,
                     offset=0, limit=0, with_count=True):
-        if not self._client:
-            self.database()
-        client = self._client
         response = {}
-        with client.start_request():
-            count = self.database()[klass].find({'tenantId': tenant_id}
-                                                if tenant_id else None,
-                                                self._object_projection).count()
+        with self._get_client().start_request():
             results = self.database()[klass].find(
                 {'tenantId': tenant_id} if tenant_id else None,
                 self._object_projection
             ).skip(offset).limit(limit)
 
-            if results:
-                if with_secrets is True:
-                    for entry in results:
-                        response[entry['id']] = self.merge_secrets(
-                            klass, entry['id'], entry)
-                else:
-                    for entry in results:
-                        response[entry['id']] = entry
+            if with_secrets is True:
+                for entry in results:
+                    response[entry['id']] = self.merge_secrets(
+                        klass, entry['id'], entry)
+            else:
+                for entry in results:
+                    response[entry['id']] = entry
 
-        if results:
-            if response:
-                if with_count:
-                    response['collection-count'] = len(response)
+            if response and with_count:
+                response['collection-count'] = len(response)
 
         return response
 
@@ -369,10 +360,7 @@ class Driver(DbBase):
         assert isinstance(body, dict), "dict required by backend"
         assert 'id' in body or merge_existing is True, ("id required to be in "
                                                         "body by backend")
-        if not self._client:
-            self.database()
-        client = self._client
-        with client.start_request():
+        with self._get_client().start_request():
 
             # TODO: pull this out of _save_object
             if klass == 'workflows':
