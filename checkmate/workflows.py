@@ -65,7 +65,7 @@ def get_workflows(tenant_id=None, driver=DB):
             tenant_id=tenant_id,
             offset=offset,
             limit=limit
-        ) or {}  # DB drivers return None when nothing found
+        )
     write_pagination_headers(
         results,
         request,

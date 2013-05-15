@@ -27,7 +27,7 @@ def get_blueprints(tenant_id=None):
     return write_body(
         DB.get_blueprints(
             tenant_id=tenant_id
-        ) or {},  # DB drivers return None when nothing found
+        ),
         request,
         response
     )
