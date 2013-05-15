@@ -105,17 +105,21 @@ class Plan(ExtensibleDict):
     def verify_limits(self, context):
         # TODO: Run these asynchronously using eventlet
         result = []
+        names = ['load-balancer', 'nova', 'database', 'dns']
         for name, provider in self.environment.providers.iteritems():
-            if name in ('load-balancer', 'nova', 'database', 'dns'):
+            if name in names:
                 result.append(provider.verify_limits(context, self.resources))
+                names.remove(name)
         return result
 
     def verify_access(self, context):
         # TODO: Run these asynchronously using eventlet
         result = []
+        names = ['load-balancer', 'nova', 'database', 'dns']
         for name, provider in self.environment.providers.iteritems():
-            if name in ('load-balancer', 'nova', 'database', 'dns'):
+            if name in names:
                 result.append(provider.verify_access(context, self.resources))
+                names.remove(name)
         return result
 
     def plan_delete(self, context):
