@@ -40,6 +40,7 @@ from checkmate.workflow import (
     create_workflow_spec_deploy,
     init_operation,
 )
+import eventlet
 
 LOG = logging.getLogger(__name__)
 DB = get_driver()
@@ -670,14 +671,16 @@ def plan(deployment, context):
     if resources:
         deployment['resources'] = resources
 
+    pile = eventlet.GreenPile()
     if check_access:
-        access_results = planner.verify_access(context)
-        if access_results:
-            deployment['check-access-results'] = access_results
+        pile.spawn(planner.verify_access, context)
     if check_limits:
-        limits_results = planner.verify_limits(context)
-        if limits_results:
-            deployment['check-limit-results'] = limits_results
+        pile.spawn(planner.verify_limits, context)
+    for result in pile:
+        if result['type'] == 'limits':
+            deployment['check-limit-results'] = result['output']
+        elif result['type'] == 'access':
+            deployment['check-access-results'] = result['output']
 
     # Save plan details for future rehydration/use
     deployment['plan'] = planner._data  # get the dict so we can serialize it
