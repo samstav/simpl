@@ -241,10 +241,15 @@ class Deployment(ExtensibleDict):
 
         if 'status' not in self:
             self['status'] = 'NEW'
-        else:
-            if self['status'] not in schema.DEPLOYMENT_STATUSES:
-                raise CheckmateValidationException("Invalid deployment status "
-                                                   "%s" % self['status'])
+        elif self['status'] in self.legacy_statuses:
+            ExtensibleDict.__setitem__(self, 'status',
+                                       self.legacy_statuses[self['status']])
+            self.fsm.current = self['status']
+
+        elif self['status'] not in schema.DEPLOYMENT_STATUSES:
+            raise CheckmateValidationException("Invalid deployment status "
+                                               "%s" % self['status'])
+
         if 'created' not in self:
             self['created'] = get_time_string()
 
