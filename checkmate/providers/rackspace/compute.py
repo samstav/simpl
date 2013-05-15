@@ -35,7 +35,7 @@ import checkmate.ssh
 from checkmate.utils import (
     match_celery_logging,
     isUUID,
-    yaml_to_dict
+    yaml_to_dict,
 )
 from checkmate.workflow import wait_for
 
