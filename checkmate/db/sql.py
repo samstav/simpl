@@ -185,21 +185,21 @@ class Driver(DbBase):
 
     # ENVIRONMENTS
     def get_environment(self, id, with_secrets=None):
-        return self._get_object(Environment, id, with_secrets)
+        return self._get_object(Environment, id, with_secrets=with_secrets)
 
     def get_environments(self, tenant_id=None, with_secrets=None):
-        return self._get_objects(Environment, tenant_id, with_secrets)
+        return self._get_objects(Environment, tenant_id, with_secrets=with_secrets)
 
     def save_environment(self, id, body, secrets=None, tenant_id=None):
         return self._save_object(Environment, id, body, secrets, tenant_id)
 
     # DEPLOYMENTS
     def get_deployment(self, id, with_secrets=None):
-        return self._get_object(Deployment, id, with_secrets)
+        return self._get_object(Deployment, id, with_secrets=with_secrets)
 
     def get_deployments(self, tenant_id=None, with_secrets=None,
                         offset=None, limit=None):
-        return self._get_objects(Deployment, tenant_id, with_secrets,
+        return self._get_objects(Deployment, tenant_id, with_secrets=with_secrets,
                                 offset=offset, limit=limit)
 
     def save_deployment(self, id, body, secrets=None, tenant_id=None,
@@ -208,21 +208,21 @@ class Driver(DbBase):
 
     #BLUEPRINTS
     def get_blueprint(self, id, with_secrets=None):
-        return self._get_object(Blueprint, id, with_secrets)
+        return self._get_object(Blueprint, id, with_secrets=with_secrets)
 
     def get_blueprints(self, tenant_id=None, with_secrets=None):
-        return self._get_objects(Blueprint, tenant_id, with_secrets)
+        return self._get_objects(Blueprint, tenant_id, with_secrets=with_secrets)
 
     def save_blueprint(self, id, body, secrets=None, tenant_id=None):
         return self._save_object(Blueprint, id, body, secrets, tenant_id)
 
     # WORKFLOWS
     def get_workflow(self, id, with_secrets=None):
-        return self._get_object(Workflow, id, with_secrets)
+        return self._get_object(Workflow, id, with_secrets=with_secrets)
 
     def get_workflows(self, tenant_id=None, with_secrets=None,
                       offset=None, limit=None):
-        return self._get_objects(Workflow, tenant_id, with_secrets,
+        return self._get_objects(Workflow, tenant_id, with_secrets=with_secrets,
                                 offset=offset, limit=limit)
 
     def save_workflow(self, id, body, secrets=None, tenant_id=None):
