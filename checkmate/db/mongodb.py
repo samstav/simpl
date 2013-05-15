@@ -89,10 +89,10 @@ class Driver(DbBase):
                                 with_secrets=with_secrets)
 
     def get_deployments(self, tenant_id=None, with_secrets=None,
-                        limit=None, offset=None):
+                        limit=0, offset=0, with_count=True):
         return self._get_objects('deployments', tenant_id,
                                  with_secrets=with_secrets,
-                                 offset=offset, limit=limit)
+                                 offset=offset, limit=limit, with_count=with_count)
 
     def save_deployment(self, api_id, body, secrets=None, tenant_id=None,
                         partial=True):
@@ -124,7 +124,7 @@ class Driver(DbBase):
         return self._get_object('workflows', api_id, with_secrets=with_secrets)
 
     def get_workflows(self, tenant_id=None, with_secrets=None,
-                      limit=None, offset=None):
+                      limit=0, offset=0):
         return self._get_objects('workflows', tenant_id, with_secrets=with_secrets,
                                 offset=offset, limit=limit)
 
@@ -327,35 +327,21 @@ class Driver(DbBase):
         return body
 
     def _get_objects(self, klass, tenant_id=None, with_secrets=None,
-                    offset=None, limit=None, include_total_count=True):
+                    offset=0, limit=0, with_count=True):
         if not self._client:
             self.database()
         client = self._client
+        response = {}
         with client.start_request():
             count = self.database()[klass].find({'tenantId': tenant_id}
                                                 if tenant_id else None,
                                                 self._object_projection).count()
-            if limit:
-                if offset is None:
-                    offset = 0
-                results = self.database()[klass].find(
-                    {'tenantId': tenant_id} if tenant_id else None,
-                    self._object_projection
-                ).skip(offset).limit(limit)
-
-            elif offset and (limit is None):
-                results = self.database()[klass].find(
-                    {'tenantId': tenant_id} if tenant_id else None,
-                    self._object_projection
-                ).skip(offset)
-            else:
-                results = self.database()[klass].find(
-                    {'tenantId': tenant_id} if tenant_id else None,
-                    self._object_projection
-                )
+            results = self.database()[klass].find(
+                {'tenantId': tenant_id} if tenant_id else None,
+                self._object_projection
+            ).skip(offset).limit(limit)
 
             if results:
-                response = {}
                 if with_secrets is True:
                     for entry in results:
                         response[entry['id']] = self.merge_secrets(
@@ -366,8 +352,8 @@ class Driver(DbBase):
 
         if results:
             if response:
-                if include_total_count:
-                    response['collection-count'] = count
+                if with_count:
+                    response['collection-count'] = len(response)
 
         return response
 

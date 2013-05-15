@@ -99,7 +99,7 @@ class TestDatabase(unittest.TestCase):
         }
         results = self.driver._get_objects(self.klass, tenant_id='T1000',
                                           limit=2,
-                                          include_total_count=False)
+                                          with_count=False)
         results_decode = self._decode_dict(results)
         self.assertEqual(len(results_decode), 2)
         self.assertDictEqual(results_decode, expected)
@@ -118,7 +118,7 @@ class TestDatabase(unittest.TestCase):
         }
         results = self.driver._get_objects(self.klass, tenant_id='T1000',
                                           offset=1, limit=2,
-                                          include_total_count=False)
+                                          with_count=False)
         results_decode = self._decode_dict(results)
         self.assertEqual(len(results_decode), 2)
         self.assertDictEqual(results_decode, expected)

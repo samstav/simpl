@@ -198,9 +198,9 @@ class Driver(DbBase):
         return self._get_object(Deployment, id, with_secrets=with_secrets)
 
     def get_deployments(self, tenant_id=None, with_secrets=None,
-                        offset=None, limit=None):
+                        offset=None, limit=None, with_count=True):
         return self._get_objects(Deployment, tenant_id, with_secrets=with_secrets,
-                                offset=offset, limit=limit)
+                                offset=offset, limit=limit, with_count=with_count)
 
     def save_deployment(self, id, body, secrets=None, tenant_id=None,
                         partial=False):
@@ -254,20 +254,13 @@ class Driver(DbBase):
                 return body
 
     def _get_objects(self, klass, tenant_id=None, with_secrets=None,
-                    offset=None, limit=None, include_total_count=True):
+                    offset=None, limit=None, with_count=True):
         results = self.session.query(klass)
-        total = 0
         response = {}
         if tenant_id:
             results = results.filter_by(tenant_id=tenant_id)
         if results and results.count() > 0:
-            total = results.count()
-            if offset and (limit is None):
-                results = results.offset(offset).all()
-            if limit:
-                if offset is None:
-                    offset = 0
-                results = results.limit(limit).offset(offset).all()
+            results = results.limit(limit).offset(offset).all()
             if with_secrets is True:
                 for e in results:
                     if e.secrets:
@@ -280,8 +273,8 @@ class Driver(DbBase):
                 for e in results:
                     response[e.id] = e.body
                     response[e.id]['tenantId'] = e.tenant_id
-            if include_total_count:
-                response['collection-count'] = total
+            if with_count:
+                response['collection-count'] = len(response)
         return response
 
     def _save_object(self, klass, id, body, secrets=None,

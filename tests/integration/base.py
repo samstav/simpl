@@ -37,7 +37,7 @@ class DBDriverTests(unittest.TestCase):
         self.maxDiff = None
         if self.connection_string:
             self.driver = db.get_driver(
-                connection_string=self.connection_string)
+                connection_string=self.connection_string, reset=True)
 
     def test_instantiation(self):
         self.assertEqual(self.driver.connection_string, self.connection_string)
@@ -236,7 +236,7 @@ class DBDriverTests(unittest.TestCase):
         test works regardless of driver implementation
         '''
         # FIXME: Shouldn't Expected be None?
-        self.assertEquals({}, self.driver.get_deployments('T3'))
+        self.assertEquals({}, self.driver.get_deployments(tenant_id='T3'))
 
     def test_get_objects_with_defaults(self):
         '''We are really testing object, but using deployment so that the
@@ -264,7 +264,7 @@ class DBDriverTests(unittest.TestCase):
                 '4321': {'id': '4321', 'tenantId': 'T3'},
                 'collection-count': 2
             },
-            self.driver.get_deployments('T3')
+            self.driver.get_deployments(tenant_id='T3')
         )
 
     def test_get_objects_with_secrets(self):
@@ -288,7 +288,7 @@ class DBDriverTests(unittest.TestCase):
                 '4321': {'id': '4321', 'tenantId': 'T3'},
                 'collection-count': 2
             },
-            self.driver.get_deployments('T3', with_secrets=True)
+            self.driver.get_deployments(tenant_id='T3', with_secrets=True)
         )
         self.assertEquals(
             {
@@ -296,17 +296,98 @@ class DBDriverTests(unittest.TestCase):
                 '4321': {'id': '4321', 'tenantId': 'T3'},
                 'collection-count': 2
             },
-            self.driver.get_deployments('T3', with_secrets=False)
+            self.driver.get_deployments(tenant_id='T3', with_secrets=False)
         )
 
     def test_get_objects_with_offset(self):
-        pass  # IMPLEMENT ME!!!
+        '''We are really testing object, but using deployment so that the
+        test works regardless of driver implementation
+        '''
+        self.driver.save_deployment(
+            '1234',
+            tenant_id='T3',
+            body={'id': '1234'}
+        )
+        self.driver.save_deployment(
+            '4321',
+            tenant_id='T3',
+            body={'id': '4321'}
+        )
+
+        self.assertEquals(
+            {
+                '4321': {'id': '4321', 'tenantId': 'T3'},
+                'collection-count': 1
+            },
+            self.driver.get_deployments(tenant_id='T3', offset=1)
+        )
 
     def test_get_objects_with_limit(self):
-        pass  # IMPLEMENT ME!!!
+        '''We are really testing object, but using deployment so that the
+        test works regardless of driver implementation
+        '''
+        self.driver.save_deployment(
+            '1234',
+            tenant_id='T3',
+            body={'id': '1234'}
+        )
+        self.driver.save_deployment(
+            '4321',
+            tenant_id='T3',
+            body={'id': '4321'}
+        )
 
-    def test_get_objects_with_count(self):
-        pass  # IMPLEMENT ME!!!
+        self.assertEquals(
+            {
+                '1234': {'id': '1234', 'tenantId': 'T3'},
+                'collection-count': 1
+            },
+            self.driver.get_deployments(tenant_id='T3', limit=1)
+        )
+
+    def test_get_objects_with_offset_and_limit(self):
+        '''We are really testing object, but using deployment so that the
+        test works regardless of driver implementation
+        '''
+        self.driver.save_deployment(
+            '1234',
+            tenant_id='T3',
+            body={'id': '1234'}
+        )
+        self.driver.save_deployment(
+            '4321',
+            tenant_id='T3',
+            body={'id': '4321'}
+        )
+        self.driver.save_deployment(
+            '5678',
+            tenant_id='T3',
+            body={'id': '5678'}
+        )
+
+        self.assertEquals(
+            {
+                '4321': {'id': '4321', 'tenantId': 'T3'},
+                '5678': {'id': '5678', 'tenantId': 'T3'},
+                'collection-count': 2
+            },
+            self.driver.get_deployments(tenant_id='T3', offset=1, limit=2)
+        )
+
+    def test_get_objects_omitting_count(self):
+        '''We are really testing object, but using deployment so that the
+        test works regardless of driver implementation
+        '''
+        self.driver.save_deployment(
+            '1234',
+            tenant_id='T3',
+            body={'id': '1234'}
+        )
+
+        self.assertEquals(
+            {'1234': {'id': '1234', 'tenantId': 'T3'}},
+            self.driver.get_deployments(tenant_id='T3', with_count=False)
+        )
 
     def test_get_deployments_omitting_deleted(self):
         pass  # IMPLEMENT ME!!!

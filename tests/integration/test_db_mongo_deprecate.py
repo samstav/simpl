@@ -149,7 +149,7 @@ class TestDatabase(unittest.TestCase):
 
         results = self.driver._get_objects(self.collection_name,
                                           with_secrets=False,
-                                          include_total_count=False)
+                                          with_count=False)
         results = self._decode_dict(results)
 
         #Since object was extraced in _get_objects format, need to make sure
@@ -184,7 +184,7 @@ class TestDatabase(unittest.TestCase):
         results = self.driver._get_objects(self.collection_name,
                                           tenant_id='T1000',
                                           with_secrets=False, limit=2,
-                                          include_total_count=False)
+                                          with_count=False)
         expected = {
             1: {
                 'id': 1,
@@ -204,7 +204,7 @@ class TestDatabase(unittest.TestCase):
                                           tenant_id='T1000',
                                           with_secrets=False, offset=1,
                                           limit=2,
-                                          include_total_count=False)
+                                          with_count=False)
         expected = {
             2: {
                 'id': 2,
@@ -228,7 +228,7 @@ class TestDatabase(unittest.TestCase):
                                 None,
                                 tenant_id='T1000')
         unicode_results = self.driver._get_objects(self.collection_name,
-                                                  include_total_count=False)
+                                                  with_count=False)
         if unicode_results and 'collection-count' in unicode_results:
             del unicode_results['collection-count']
         results = self._decode_dict(unicode_results)
@@ -251,7 +251,7 @@ class TestDatabase(unittest.TestCase):
             self.driver._save_object(self.collection_name, i, dict(id=i), None,
                                     tenant_id='T1000')
         unicode_results = self.driver._get_objects(self.collection_name,
-                                                  include_total_count=False)
+                                                  with_count=False)
         results = self._decode_dict(unicode_results)
         self.assertDictEqual(results, expected)
         for i in range(1, 5):
@@ -267,7 +267,7 @@ class TestDatabase(unittest.TestCase):
             self.driver._save_object(self.collection_name, i, dict(id=i), None,
                                     tenant_id='T1000')
         unicode_results = self.driver._get_objects(self.collection_name,
-                                                  include_total_count=True)
+                                                  with_count=True)
         self.assertIn('collection-count', unicode_results)
 
     def test_save_deployment_fails_if_locked(self):

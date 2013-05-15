@@ -16,6 +16,8 @@ import unittest2 as unittest
 
 import base  # pylint: disable=W0403
 
+from pymongo.errors import InvalidName
+
 
 TEST_MONGO_INSTANCE = ('mongodb://checkmate:%s@mongo-n01.dev.chkmate.rackspace'
                        '.net:27017/checkmate' % 'c%40m3yt1ttttt')
@@ -54,6 +56,28 @@ class TestDBMongo(base.DBDriverTests):
                 cls.box.stop()
                 cls.box = None
         super(TestDBMongo, cls).tearDownClass()
+
+    def tearDown(self):
+        '''HACK!!! To fix idempotency problem in test_db_mongo tests'''
+        if self.driver._database:
+            for collection in [
+                'blueprints',
+                'blueprints_secrets',
+                'components',
+                'components_secrets',
+                'deployments',
+                'deployments_secrets',
+                'environments',
+                'environments_secrets',
+                'tenants',
+                'tenants_secrets',
+                'workflows'
+                'workflows_secrets'
+            ]:
+                try:
+                    self.driver._database.drop_collection(collection)
+                except InvalidName:
+                    pass
 
 
 @unittest.skipIf(SKIP, REASON)
