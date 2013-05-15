@@ -12,6 +12,7 @@ from checkmate import utils
 from checkmate.deployment import verify_required_blueprint_options_supplied,\
     Resource, verify_inputs_against_constraints
 from celery.canvas import group
+import eventlet
 
 LOG = logging.getLogger(__name__)
 
@@ -118,7 +119,9 @@ class Plan(ExtensibleDict):
         results = []
         providers = self._providers_to_verify()
         for provider in providers:
-            result = provider.verify_limits(context, self.resources)
+            pile.spawn(provider.verify_limits, context, self.resources)
+        results = []
+        for result in pile:
             if result:
                 results.extend(result)
         return results
@@ -128,7 +131,9 @@ class Plan(ExtensibleDict):
         results = []
         providers = self._providers_to_verify()
         for provider in providers:
-            result = provider.verify_limits(context, self.resources)
+            pile.spawn(provider.verify_access, context, self.resources)
+        results = []
+        for result in pile:
             if result:
                 results.extend(result)
         return results
