@@ -62,7 +62,7 @@ checkmate.config(['$routeProvider', '$locationProvider', '$httpProvider', functi
   $routeProvider.
   when('/autologin', {
     templateUrl: '/partials/autologin.html',
-    controller: AppController
+    controller: AutoLoginController
   });
 
   // New UI - dynamic, tenant pages
@@ -167,6 +167,35 @@ function RawController($scope, $location, $http) {
                       title: "Error",
                       message: "There was an error executing your request:"});
     });
+}
+
+function AutoLoginController($scope, $location, $cookies, auth) {
+  $scope.auto_login_success = function() {
+    $location.path('/');
+    $scope.$apply(); // Make angular aware of the changes made outside it's environment
+  };
+
+  $scope.auto_login_fail = function(response) {
+    mixpanel.track("Log In Failed", {'problem': response.statusText});
+    $location.path('/');
+    $scope.$apply();
+    $scope.loginPrompt();
+    auth.error_message = response.statusText + ". Your credentials could not be verified.";
+  };
+
+  $scope.autoLogIn = function() {
+    var tenantId = $cookies.tenantId;
+    var token = $cookies.token;
+    var endpoint = _.find(auth.endpoints, function(endpoint) { return endpoint.uri == $cookies.endpoint; } ) || {};
+
+    delete $cookies.tenantId;
+    delete $cookies.token;
+    delete $cookies.endpoint;
+
+    console.log("Submitting auto login credentials");
+    return auth.authenticate(endpoint, null, null, null, token, tenantId,
+      $scope.auto_login_success, $scope.auto_login_fail);
+  };
 }
 
 //Root controller that implements authentication
@@ -284,38 +313,16 @@ function AppController($scope, $http, $location, $resource, $cookies, auth) {
     mixpanel.track("Logged In", {'user': $scope.auth.identity.username});
   };
 
-   $scope.on_auth_failed = function(response) {
+  $scope.auth_error_message = function() { return auth.error_message; };
+  $scope.on_auth_failed = function(response) {
     if (typeof $('#modalAuth')[0].failure_callback == 'function') {
         $('#modalAuth')[0].failure_callback();
         delete $('#modalAuth')[0].success_callback;
         delete $('#modalAuth')[0].failure_callback;
       }
-    $("#auth_error_text").html(response.statusText + ". Check that you typed in the correct credentials.");
-    $("#auth_error").show();
     mixpanel.track("Log In Failed", {'problem': response.statusText});
-  };
-
-  $scope.auto_login_success = function() {
-    console.log('autoLogIn successfull!');
-    $location.path('/');
-    $scope.$apply(); // Make angular aware of the changes made outside it's environment
-  };
-
-  $scope.auto_login_fail = function(response) {
-    console.log('Auto Login failed! :(');
-    mixpanel.track("Log In Failed", {'problem': response.statusText});
-    $location.path('/');
+    auth.error_message = response.statusText + ". Check that you typed in the correct credentials.";
     $scope.$apply();
-  };
-
-  $scope.autoLogIn = function() {
-    console.log('autoLogIn was called');
-    var username = $cookies.username;
-    var api_key = $cookies.api_key;
-    var endpoint = { uri: $cookies.endpoint };
-
-    return auth.authenticate(endpoint, username, api_key, password, null,
-      $scope.auto_login_success, $scope.auto_login_fail);
   };
 
   // Log in using credentials delivered through bound_credentials
@@ -348,7 +355,7 @@ function AppController($scope, $http, $location, $resource, $cookies, auth) {
     }
 
     var endpoint = $scope.selected_endpoint || auth.endpoints[0];
-    return auth.authenticate(endpoint, username, apikey, password, null,
+    return auth.authenticate(endpoint, username, apikey, password, null, null,
       $scope.on_auth_success, $scope.on_auth_failed);
   };
 
@@ -802,7 +809,12 @@ function WorkflowController($scope, $resource, $http, $routeParams, $location, $
             var url = null;
             //Find url in inputs
             try {
-              url = object.inputs.blueprint.url;
+              // URL can be either a string or an object with a url property
+              if (typeof object.inputs.blueprint.url == "string") {
+                url = object.inputs.blueprint.url;
+              } else {
+                url = object.inputs.blueprint.url.url;
+              }
               $scope.output.path = url;
               var u = URI(url);
               $scope.output.domain = u.hostname();
