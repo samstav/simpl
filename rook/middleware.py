@@ -47,26 +47,6 @@ from checkmate.utils import (
 
 __version_string__ = None
 
-STATIC = [
-    'autologin',
-    'favicon.ico',
-    'apple-touch-icon.png',
-    'js',
-    'libs',
-    'css',
-    'img',
-    'authproxy',
-    'marketing',
-    '',
-    None,
-    'feedback',
-    'partials',
-    'githubproxy',
-    'rookversion',
-    'admin',
-]
-
-
 ROOK_STATIC = Bottle()
 ROOK_API = Bottle()
 
