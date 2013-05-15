@@ -235,8 +235,8 @@
     </div>
     <div class="modal-body">
       <form class="form-horizontal" style="margin-bottom: 0px" ng-init="selected_endpoint=null" name="loginForm" ng-submit="logIn()">
-        <div id="auth_error" class="alert alert-error hide">
-          <strong>Authentication Failed!</strong> <span id="auth_error_text"></span>.
+        <div id="auth_error" class="alert alert-error" ng-show="auth_error_message()">
+          <strong>Authentication Failed!</strong> <span id="auth_error_text">{{auth_error_message()}}</span>.
         </div>
         <fieldset>
           <ul class="nav nav-tabs">
