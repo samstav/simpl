@@ -20,15 +20,12 @@ from checkmate.middleware import TokenAuthMiddleware, RequestContext
 init_console_logging()
 # pylint: disable=E0611
 from bottle import (
+    abort,
     Bottle,
-    get,
-    post,
+    HTTPError,
     request,
     response,
-    abort,
-    route,
     static_file,
-    HTTPError,
 )
 from Crypto.Hash import MD5
 import webob
@@ -109,11 +106,12 @@ class BrowserMiddleware(object):
         HANDLERS['application/vnd.github.v3.raw'] = write_raw
         self.proxy_endpoints = None
         if proxy_endpoints:
-            self.proxy_endpoints = [e['uri'] for e in proxy_endpoints]
+            self.proxy_endpoints = [environ['uri'] for environ in
+                                    proxy_endpoints]
         self.with_simulator = with_simulator
         self.with_admin = with_admin
 
-    def __call__(self, e, h):
+    def __call__(self, environ, handler):
         """
 
         Detect unauthenticated HTML calls and redirect them to root.
@@ -121,20 +119,20 @@ class BrowserMiddleware(object):
         This gets processed before the bottle routes
 
         """
-        h = self.start_response_callback(h)
+        handler = self.start_response_callback(handler)
         try:
-            ROOK_API.match(e)
+            ROOK_API.match(environ)
             request.proxy_endpoints = self.proxy_endpoints
-            return ROOK_API(e, h)
+            return ROOK_API(environ, handler)
         except HTTPError:
             pass
 
-        if 'text/html' in webob.Request(e).accept:
-            return ROOK_STATIC(e, h)
-        elif e['PATH_INFO'].endswith('.html'):  # Angular requests json
-            return ROOK_STATIC(e, h)
+        if 'text/html' in webob.Request(environ).accept:
+            return ROOK_STATIC(environ, handler)
+        elif environ['PATH_INFO'].endswith('.html'):  # Angular requests json
+            return ROOK_STATIC(environ, handler)
 
-        return self.nextapp(e, h)
+        return self.nextapp(environ, handler)
 
     def start_response_callback(self, start_response):
         """Intercepts upstream start_response and adds our headers"""
@@ -176,6 +174,7 @@ def images(path):
 @ROOK_STATIC.get('/marketing/<path:path>')
 @support_only(['text/html', 'text/css', 'text/javascript'])
 def marketing(path):
+    '''Returns files from the marketing path which have absolute links'''
     return static_file(path,
                        root=os.path.join(os.path.dirname(__file__),
                                          'static', 'marketing'))
@@ -223,6 +222,7 @@ def get_rook_version():
         __version_string__ = rook.version()
     return write_body({"version": __version_string__},
                       request, response)
+
 
 @ROOK_API.post('/authproxy')
 @ROOK_API.route('/authproxy/<path:path>', method=['POST', 'GET'])
@@ -381,10 +381,10 @@ def feedback():
     """Accepts feedback from UI"""
     if request.method == 'OPTIONS':
         origin = request.get_header('origin', 'http://noaccess')
-        u = urlparse(origin)
-        is_rax_pre_prod = 'chkmate.rackspace.net' in u.netloc
-        is_rax_prod = (u.netloc == 'checkmate.rackspace.com')
-        is_dev_box = (u.netloc == 'localhost:8080')
+        url = urlparse(origin)
+        is_rax_pre_prod = 'chkmate.rackspace.net' in url.netloc
+        is_rax_prod = (url.netloc == 'checkmate.rackspace.com')
+        is_dev_box = (url.netloc == 'localhost:8080')
         if (is_rax_prod or is_rax_pre_prod or is_dev_box):
             response.add_header('Access-Control-Allow-Origin', origin)
             response.add_header('Access-Control-Allow-Methods',
@@ -416,7 +416,7 @@ def get_admin():
             return static(path=None)
         else:
             if request.context.is_admin is True:
-                LOG.info("Administrator accessing feedback: %s" %
+                LOG.info("Administrator accessing feedback: %s",
                          request.context.username)
                 results = FEEDBACK_DB.get_feedback()
                 return write_body(results, request, response)
@@ -451,9 +451,9 @@ class RackspaceSSOAuthMiddleware(object):
                                          username=self.service_username,
                                          password=self.service_password)
             self.service_token = result['access']['token']['id']
-        except:
+        except StandardError:
             LOG.error("Unable to authenticate to Global Auth. Endpoint '%s' "
-                      "will be disabled" % endpoint.get('kwargs', {}).
+                      "will be disabled", endpoint.get('kwargs', {}).
                       get('realm'))
 
     def __call__(self, environ, start_response):
@@ -509,7 +509,7 @@ class RackspaceSSOAuthMiddleware(object):
             http.request('GET', path, headers=headers)
             resp = http.getresponse()
             body = resp.read()
-        except Exception as exc:
+        except StandardError as exc:
             LOG.error('HTTP connection exception: %s', exc)
             raise HTTPUnauthorized('Unable to communicate with %s' %
                                    self.endpoint['uri'])
