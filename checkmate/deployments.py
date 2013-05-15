@@ -180,18 +180,24 @@ def get_deployments(tenant_id=None, driver=DB):
     if limit:
         limit = int(limit)
 
-    deployments = driver.get_deployments(tenant_id=tenant_id,
-                                         offset=offset,
-                                         limit=limit)
+    deployments = driver.get_deployments(
+        tenant_id=tenant_id,
+        offset=offset,
+        limit=limit
+    ) or {}  # DB drivers return None when nothing found
 
-    write_pagination_headers(deployments,
-                             request,
-                             response,
-                             "deployments",
-                             tenant_id)
-    return write_body(deployments,
-                      request,
-                      response)
+    write_pagination_headers(
+        deployments,
+        request,
+        response,
+        "deployments",
+        tenant_id
+    )
+    return write_body(
+        deployments,
+        request,
+        response
+    )
 
 
 @get('/deployments/count')

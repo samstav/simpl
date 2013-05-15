@@ -24,9 +24,13 @@ def get_blueprints(tenant_id=None):
     """
     Returns blueprints for given tenant ID
     """
-    return write_body(DB.get_blueprints(tenant_id=tenant_id), request,
-                      response)
-
+    return write_body(
+        DB.get_blueprints(
+            tenant_id=tenant_id
+        ) or {},  # DB drivers return None when nothing found
+        request,
+        response
+    )
 
 @post('/blueprints')
 @with_tenant

@@ -74,23 +74,25 @@ class Driver(DbBase):
 
     # ENVIRONMENTS
     def get_environment(self, oid, with_secrets=None):
-        return self.get_object('environments', oid, with_secrets)
+        return self._get_object('environments', oid, with_secrets=with_secrets)
 
     def get_environments(self, tenant_id=None, with_secrets=None):
-        return self.get_objects('environments', tenant_id, with_secrets)
+        return self._get_objects('environments', tenant_id, with_secrets=with_secrets)
 
     def save_environment(self, api_id, body, secrets=None, tenant_id=None):
-        return self.save_object('environments', api_id, body, secrets,
+        return self._save_object('environments', api_id, body, secrets,
                                 tenant_id)
 
     # DEPLOYMENTS
     def get_deployment(self, api_id, with_secrets=None):
-        return self.get_object('deployments', api_id, with_secrets)
+        return self._get_object('deployments', api_id,
+                                with_secrets=with_secrets)
 
     def get_deployments(self, tenant_id=None, with_secrets=None,
                         limit=None, offset=None):
-        return self.get_objects('deployments', tenant_id, with_secrets,
-                                offset=offset, limit=limit)
+        return self._get_objects('deployments', tenant_id,
+                                 with_secrets=with_secrets,
+                                 offset=offset, limit=limit)
 
     def save_deployment(self, api_id, body, secrets=None, tenant_id=None,
                         partial=True):
@@ -103,30 +105,31 @@ class Driver(DbBase):
         if self.get_deployment(api_id):
             _, key = self.lock_object('deployments', api_id)
 
-        return self.save_object('deployments', api_id, body, secrets,
+        return self._save_object('deployments', api_id, body, secrets,
                                 tenant_id, merge_existing=partial)
+
 
     #BLUEPRINTS
     def get_blueprint(self, api_id, with_secrets=None):
-        return self.get_object('blueprints', api_id, with_secrets)
+        return self._get_object('blueprints', api_id, with_secrets=with_secrets)
 
     def get_blueprints(self, tenant_id=None, with_secrets=None):
-        return self.get_objects('blueprints', tenant_id, with_secrets)
+        return self._get_objects('blueprints', tenant_id, with_secrets=with_secrets)
 
     def save_blueprint(self, api_id, body, secrets=None, tenant_id=None):
-        return self.save_object('blueprints', api_id, body, secrets, tenant_id)
+        return self._save_object('blueprints', api_id, body, secrets, tenant_id)
 
     # WORKFLOWS
     def get_workflow(self, api_id, with_secrets=None):
-        return self.get_object('workflows', api_id, with_secrets=with_secrets)
+        return self._get_object('workflows', api_id, with_secrets=with_secrets)
 
     def get_workflows(self, tenant_id=None, with_secrets=None,
                       limit=None, offset=None):
-        return self.get_objects('workflows', tenant_id, with_secrets,
+        return self._get_objects('workflows', tenant_id, with_secrets=with_secrets,
                                 offset=offset, limit=limit)
 
     def save_workflow(self, api_id, body, secrets=None, tenant_id=None):
-        return self.save_object('workflows', api_id, body, secrets, tenant_id)
+        return self._save_object('workflows', api_id, body, secrets, tenant_id)
 
     def lock_workflow(self, api_id, with_secrets=None, key=None):
         """
@@ -286,7 +289,7 @@ class Driver(DbBase):
                         new=True
                     )
                     # Delete instead of projection so that we can
-                    # use existing save_object
+                    # use existing _save_object
                     return (locked_object, key)
 
             else:
@@ -294,7 +297,7 @@ class Driver(DbBase):
                 raise ValueError("Cannot get the object:%s that has never "
                                  "been saved" % api_id)
 
-    def get_object(self, klass, api_id, with_secrets=None):
+    def _get_object(self, klass, api_id, with_secrets=None):
         '''
         Get an object by klass and api_id. We are filtering out the
         mongo _id field with a projection on all db queries.
@@ -314,10 +317,7 @@ class Driver(DbBase):
                 if with_secrets is True:
                     self.merge_secrets(klass, api_id, results)
 
-        if results:
-            return results
-        else:
-            return {}
+        return results
 
     def merge_secrets(self, klass, api_id, body):
         secrets = (self.database()['%s_secrets' % klass].find_one(
@@ -326,7 +326,7 @@ class Driver(DbBase):
             merge_dictionary(body, secrets)
         return body
 
-    def get_objects(self, klass, tenant_id=None, with_secrets=None,
+    def _get_objects(self, klass, tenant_id=None, with_secrets=None,
                     offset=None, limit=None, include_total_count=True):
         if not self._client:
             self.database()
@@ -368,10 +368,10 @@ class Driver(DbBase):
             if response:
                 if include_total_count:
                     response['collection-count'] = count
-                return response
-        return {}
 
-    def save_object(self, klass, api_id, body, secrets=None, tenant_id=None,
+        return response
+
+    def _save_object(self, klass, api_id, body, secrets=None, tenant_id=None,
                     merge_existing=False):
         """Clients that wish to save the body but do/did not have access to
         secrets will by default send in None for secrets. We must not have that
@@ -388,7 +388,7 @@ class Driver(DbBase):
         client = self._client
         with client.start_request():
 
-            # TODO: pull this out of save_object
+            # TODO: pull this out of _save_object
             if klass == 'workflows':
                 current = self.database()[klass].find_one({'_id': api_id})
                 if current and '_lock' in current:
@@ -396,7 +396,7 @@ class Driver(DbBase):
                     body['_lock_timestamp'] = current.get('_lock_timestamp')
 
             if merge_existing:
-                current = self.get_object(klass, api_id)
+                current = self._get_object(klass, api_id)
 
                 if current:
                     merge_dictionary(current, body)
