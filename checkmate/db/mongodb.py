@@ -91,11 +91,17 @@ class Driver(DbBase):
         return self._get_object('deployments', api_id,
                                 with_secrets=with_secrets)
 
-    def get_deployments(self, tenant_id=None, with_secrets=None,
-                        limit=0, offset=0, with_count=True):
-        return self._get_objects('deployments', tenant_id,
-                                 with_secrets=with_secrets,
-                                 offset=offset, limit=limit, with_count=with_count)
+    def get_deployments(self, tenant_id=None, with_secrets=None, limit=0,
+                        offset=0, with_count=True, with_deleted=False):
+        return self._get_objects(
+            'deployments',
+            tenant_id,
+            with_secrets=with_secrets,
+            offset=offset,
+            limit=limit,
+            with_count=with_count,
+            with_deleted=with_deleted
+        )
 
     def save_deployment(self, api_id, body, secrets=None, tenant_id=None,
                         partial=True):
@@ -326,8 +332,8 @@ class Driver(DbBase):
             merge_dictionary(body, secrets)
         return body
 
-    def _get_objects(self, klass, tenant_id=None, with_secrets=None,
-                    offset=0, limit=0, with_count=True):
+    def _get_objects(self, klass, tenant_id=None, with_secrets=None, offset=0,
+                     limit=0, with_count=True, with_deleted=False):
         response = {}
         with self._get_client().start_request():
             results = self.database()[klass].find(
@@ -335,13 +341,13 @@ class Driver(DbBase):
                 self._object_projection
             ).skip(offset).limit(limit)
 
-            if with_secrets is True:
-                for entry in results:
-                    response[entry['id']] = self.merge_secrets(
-                        klass, entry['id'], entry)
-            else:
-                for entry in results:
-                    response[entry['id']] = entry
+            for entry in results:
+                if with_deleted or entry.get('status') != 'DELETED':
+                    if with_secrets is True:
+                        response[entry['id']] = self.merge_secrets(
+                            klass, entry['id'], entry)
+                    else:
+                        response[entry['id']] = entry
 
             if response and with_count:
                 response['collection-count'] = len(response)

@@ -389,11 +389,66 @@ class DBDriverTests(unittest.TestCase):
             self.driver.get_deployments(tenant_id='T3', with_count=False)
         )
 
+    def test_get_deployments_deleted_omitted_by_default(self):
+        self.driver.save_deployment(
+            '1234',
+            tenant_id='T3',
+            body={'id': '1234', 'status': 'PLANNED'}
+        )
+        self.driver.save_deployment(
+            '4321',
+            tenant_id='T3',
+            body={'id': '4321', 'status': 'DELETED'}
+        )
+
+        self.assertEquals(
+            {
+                '1234': {'id': '1234', 'tenantId': 'T3', 'status': 'PLANNED'},
+                'collection-count': 1
+            },
+            self.driver.get_deployments(tenant_id='T3')
+        )
+
     def test_get_deployments_omitting_deleted(self):
-        pass  # IMPLEMENT ME!!!
+        self.driver.save_deployment(
+            '1234',
+            tenant_id='T3',
+            body={'id': '1234', 'status': 'PLANNED'}
+        )
+        self.driver.save_deployment(
+            '4321',
+            tenant_id='T3',
+            body={'id': '4321', 'status': 'DELETED'}
+        )
+
+        self.assertEquals(
+            {
+                '1234': {'id': '1234', 'tenantId': 'T3', 'status': 'PLANNED'},
+                'collection-count': 1
+            },
+            self.driver.get_deployments(tenant_id='T3', with_deleted=False)
+        )
 
     def test_get_deployments_including_deleted(self):
-        pass  # IMPLEMENT ME!!!
+        self.driver.save_deployment(
+            '1234',
+            tenant_id='T3',
+            body={'id': '1234', 'status': 'PLANNED'}
+        )
+        self.driver.save_deployment(
+            '4321',
+            tenant_id='T3',
+            body={'id': '4321', 'status': 'DELETED'}
+        )
+
+        self.assertEquals(
+            {
+                '1234': {'id': '1234', 'tenantId': 'T3', 'status': 'PLANNED'},
+                '4321': {'id': '4321', 'tenantId': 'T3', 'status': 'DELETED'},
+                'collection-count': 2
+            },
+            self.driver.get_deployments(tenant_id='T3', with_deleted=True)
+        )
 
 
 if __name__ == '__main__':
