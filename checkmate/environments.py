@@ -270,9 +270,3 @@ def provider_proxy(provider_id, tenant_id=None, path=None):
     results = provider.proxy(path, request, tenant_id=tenant_id)
 
     return write_body(results, request, response)
-
-
-#
-# @route('/providers/<provider_id>/proxy/<path:path>') is added by the
-# BrowserMiddleware to support proxy calls to providers from the UI
-#

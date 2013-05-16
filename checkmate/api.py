@@ -49,8 +49,11 @@ from checkmate.utils import init_console_logging
 import checkmate
 init_console_logging()
 LOG = logging.getLogger(__name__)
-from checkmate import workflows  # pylint: disable=W0611,W0402
+
+# pylint: disable=W0611,W0402
+from checkmate import workflows
 from checkmate import tenants
+from checkmate import environments  # loads /providers too
 
 from bottle import get, request, response
 
