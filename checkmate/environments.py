@@ -33,7 +33,7 @@ def get_environments(tenant_id=None):
         results = DB.get_environments(tenant_id=tenant_id)
 
     return write_body(
-        results or {},  # DB drivers return None when nothing found
+        results,
         request,
         response
     )

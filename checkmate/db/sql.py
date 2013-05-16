@@ -38,7 +38,7 @@ from checkmate.db.common import (
     InvalidKeyError
 )
 from checkmate.exceptions import CheckmateDatabaseMigrationError
-from checkmate import utils
+from checkmate.utils import merge_dictionary
 from SpiffWorkflow.util import merge_dictionary as collate
 
 
@@ -197,10 +197,17 @@ class Driver(DbBase):
     def get_deployment(self, id, with_secrets=None):
         return self._get_object(Deployment, id, with_secrets=with_secrets)
 
-    def get_deployments(self, tenant_id=None, with_secrets=None,
-                        offset=None, limit=None):
-        return self._get_objects(Deployment, tenant_id, with_secrets=with_secrets,
-                                offset=offset, limit=limit)
+    def get_deployments(self, tenant_id=None, with_secrets=None, offset=None,
+                        limit=None, with_count=True, with_deleted=False):
+        return self._get_objects(
+            Deployment,
+            tenant_id,
+            with_secrets=with_secrets,
+            offset=offset,
+            limit=limit,
+            with_count=with_count,
+            with_deleted=with_deleted
+        )
 
     def save_deployment(self, id, body, secrets=None, tenant_id=None,
                         partial=False):
@@ -247,41 +254,37 @@ class Driver(DbBase):
                 body['tenantId'] = first.tenant_id
             if with_secrets is True:
                 if first.secrets:
-                    return utils.merge_dictionary(body, first.secrets)
+                    return merge_dictionary(body, first.secrets)
                 else:
                     return body
             else:
                 return body
 
     def _get_objects(self, klass, tenant_id=None, with_secrets=None,
-                    offset=None, limit=None, include_total_count=True):
+                     offset=None, limit=None, with_count=True,
+                     with_deleted=False):
+        response = {}
         results = self.session.query(klass)
-        total = 0
         if tenant_id:
             results = results.filter_by(tenant_id=tenant_id)
         if results and results.count() > 0:
-            response = {}
-            total = results.count()
-            if offset and (limit is None):
-                results = results.offset(offset).all()
-            if limit:
-                if offset is None:
-                    offset = 0
-                results = results.limit(limit).offset(offset).all()
-            if with_secrets is True:
-                for e in results:
-                    if e.secrets:
-                        response[e.id] = utils.merge_dictionary(e.body,
-                                                                e.secrets)
+            results = results.limit(limit).offset(offset).all()
+
+            for entry in results:
+                if with_deleted or entry.body.get('status') != 'DELETED':
+                    if with_secrets is True:
+                        if entry.secrets:
+                            response[entry.id] = merge_dictionary(
+                                entry.body,
+                                entry.secrets
+                            )
+                        else:
+                            response[entry.id] = entry.body
                     else:
-                        response[e.id] = e.body
-                    response[e.id]['tenantId'] = e.tenant_id
-            else:
-                for e in results:
-                    response[e.id] = e.body
-                    response[e.id]['tenantId'] = e.tenant_id
-            if include_total_count:
-                response['collection-count'] = total
+                        response[entry.id] = entry.body
+                    response[entry.id]['tenantId'] = entry.tenant_id
+            if with_count:
+                response['collection-count'] = len(response)
         return response
 
     def _save_object(self, klass, id, body, secrets=None,
