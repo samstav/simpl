@@ -148,9 +148,10 @@ class Provider(RackspaceComputeProviderBase):
 
     # pylint: disable=R0913
     def generate_template(self, deployment, resource_type, service, context,
-                          name=None):
-        template = RackspaceComputeProviderBase.generate_template(
-            self, deployment, resource_type, service, context, name=name)
+                          index, key, definition):
+        templates = RackspaceComputeProviderBase.generate_template(self,
+                deployment, resource_type, service, context, index, key,
+                definition)
 
         # Get region
         region = deployment.get_setting('region', resource_type=resource_type,
@@ -208,10 +209,11 @@ class Provider(RackspaceComputeProviderBase):
             raise CheckmateNoMapping("No flavor mapping for '%s' in '%s'" % (
                                      memory, self.key))
 
-        template['flavor'] = flavor
-        template['image'] = image
-        template['region'] = region
-        return template
+        for template in templates:
+            template['flavor'] = flavor
+            template['image'] = image
+            template['region'] = region
+        return templates
 
     def add_resource_tasks(self, resource, key, wfspec, deployment, context,
                            wait_on=None):

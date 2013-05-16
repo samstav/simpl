@@ -96,10 +96,11 @@ class Provider(RackspaceComputeProviderBase):
     name = 'legacy'
 
     def generate_template(self, deployment, resource_type, service, context,
-                          name=None):
-        template = RackspaceComputeProviderBase.generate_template(
-            self, deployment, resource_type, service, context, name=name
-        )
+                          index, key, definition):
+        templates = RackspaceComputeProviderBase.generate_template(self,
+                deployment, resource_type, service, context, index, key,
+                definition)
+        print templates
 
         catalog = self.get_catalog(context)
 
@@ -177,13 +178,13 @@ class Provider(RackspaceComputeProviderBase):
                 break
         if not flavor:
             raise CheckmateNoMapping("No flavor mapping for '%s' in '%s'" % (
-                memory, self.key))
-
-        template['flavor'] = flavor
-        template['image'] = image
-        if region:
-            template['region'] = region
-        return template
+                    memory, self.key))
+        for template in templates:
+            template['flavor'] = flavor
+            template['image'] = image
+            if region:
+                template['region'] = region
+        return templates
 
     def add_resource_tasks(self, resource, key, wfspec, deployment, context,
                            wait_on=None):

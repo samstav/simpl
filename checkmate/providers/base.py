@@ -9,6 +9,7 @@ from checkmate.exceptions import (
     CheckmateNoMapping,
     CheckmateValidationException
 )
+from checkmate.providers.provider_base_planning_mixin import ProviderBasePlanningMixIn
 
 LOG = logging.getLogger(__name__)
 PROVIDER_CLASSES = {}
@@ -239,37 +240,6 @@ class ProviderBaseWorkflowMixIn():
                                 tag='complete')
         if tasks:  # should only be one
             return tasks[0]
-
-
-# pylint: disable=W0232
-class ProviderBasePlanningMixIn():
-    """The methods used by the deployment planning code (i.e. they need a
-    deployment to work on)
-
-    This class is mixed in to the ProviderBase
-    """
-    # pylint: disable=W0613,R0913
-    def generate_template(self, deployment, resource_type,
-                          service, context, name=None):
-        """Generate a resource dict to be embedded in a deployment"""
-        result = dict(type=resource_type, provider=self.key, instance={})
-        if service:
-            result['service'] = service
-        if not name:
-            name = resource_type
-
-        result['dns-name'] = name
-
-        return result
-
-    @staticmethod
-    def generate_resource_tag(base_url=None, tenant_id=None,
-                              deployment_id=None, resource_id=None):
-        '''Builds the URL to a Resource used in RAX-CHECKMATE metadata'''
-        return {
-            'RAX-CHECKMATE': "{}/{}/deployments/{}/resources/{}"
-            .format(base_url, tenant_id, deployment_id, resource_id)
-        }
 
 
 class ProviderBase(ProviderBasePlanningMixIn, ProviderBaseWorkflowMixIn):
