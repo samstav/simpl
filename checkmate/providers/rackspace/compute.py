@@ -223,7 +223,7 @@ class Provider(RackspaceComputeProviderBase):
         flavors = _get_flavors(url, context.auth_token)['flavors']
         memory_needed = 0
         cores_needed = 0
-        computes = filter_resources(resources, 'compute')
+        computes = filter_resources(resources, self.name)
         for compute in computes:
             flavor = compute['flavor']
             details = flavors[flavor]
