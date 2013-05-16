@@ -667,7 +667,7 @@ services.factory('github', ['$http', function($http) {
       });
       return results;
     },
-    
+
 
     //Load all repos for owner
     get_repos: function(remote, callback, error_callback) {
@@ -803,6 +803,18 @@ services.factory('github', ['$http', function($http) {
         var response = {data: data, status: status};
         error_callback(response);
       });
+    },
+
+    get_contents: function(remote, url, content_item, callback){
+      var destination_path = URI(url).path();
+      var path = '/githubproxy' + destination_path + "/contents/" + content_item;
+      $http({method: 'GET', url: path, headers: {'X-Target-Url': remote.api.server, 'accept': 'application/json'}}).
+        success(function(data, status, headers, config) {
+          callback(data);
+        }).
+        error(function() {
+          console.log('Failed to retrieve ' + content_item + ' from ' + url);
+        });
     }
   };
   return me;

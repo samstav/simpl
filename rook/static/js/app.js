@@ -1468,12 +1468,28 @@ function BlueprintRemoteListController($scope, $location, $routeParams, $resourc
     items.receive(data, function(item, key) {
       if (!('documentation' in item))
         item.documentation = {abstract: item.description};
-      return {key: item.id, id: item.html_url, name: item.name, description: item.documentation.abstract, git_url: item.git_url, selected: false};});
+      return { key: item.id,
+               id: item.html_url,
+               name: item.name,
+               description: item.documentation.abstract,
+               git_url: item.git_url,
+               selected: false,
+               api_url: item.url,
+               is_blueprint_repo: false };
+    });
+
     $scope.count = items.count;
     $scope.items = items.all;
     $scope.loading_remote_blueprints = false;
     $('#spec_list').css('top', $('.summaryHeader').outerHeight());
     $scope.remember_repo_url($scope.remote.url);
+    _.each($scope.items, function(item){
+      github.get_contents($scope.remote, item.api_url, "checkmate.yaml", function(content_data){
+        if(content_data.type === 'file'){
+          item.is_blueprint_repo = true;
+        }
+      });
+    });
   };
 
   $scope.load = function() {
