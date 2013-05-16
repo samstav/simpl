@@ -79,8 +79,8 @@ class TenantTagsTests(unittest.TestCase):
         }
         self.mox.StubOutWithMock(tenants, 'request')
         mockParams = self.mox.CreateMockAnything()
-        tenants.request.params = mockParams
-        mockParams.getlist(IgnoreArg()).AndReturn([])
+        tenants.request.query = mockParams
+        mockParams.getall('tag').AndReturn([])
         self.mox.StubOutWithMock(tenants, 'response')
         self.mox.StubOutWithMock(tenants, "DB")
         tenants.DB.list_tenants().AndReturn(resp)

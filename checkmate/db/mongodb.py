@@ -96,10 +96,8 @@ class Driver(DbBase):
     def list_tenants(self, *args):
         ret = {}
         find = {}
-        LOG.debug("ARGS: %s" % [arg for arg in args])
         if args:
             find = {"tags": {"$all": args}}
-        LOG.debug("FIND: %s" % find)
         results = self.database()['tenants'].find(find, {"_id": 0})
         for result in results:
             ret.update({result['tenant_id']: result})

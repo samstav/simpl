@@ -11,10 +11,7 @@ DB = get_driver()
 
 @get("/tenants")
 def get_tenants():
-    LOG.debug("QUERY: %s" % request.query_string)
-    LOG.debug("TAGS: %s" % request.query.getall('tag'))
-    args = deepcopy(request.query.getall('tag'))
-    return write_body(DB.list_tenants(*args),
+    return write_body(DB.list_tenants(*request.query.getall('tag')),
                       request, response)
 
 
