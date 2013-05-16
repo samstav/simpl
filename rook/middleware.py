@@ -107,9 +107,20 @@ class BrowserMiddleware(object):
         except HTTPError:
             pass
 
-        if 'text/html' in webob.Request(environ).accept:
-            return ROOK_STATIC(environ, handler)
-        elif environ['PATH_INFO'].endswith('.html'):  # Angular requests json
+        # .yaml, .json, and .xml not handled by rook
+        #
+        # Note: curl calls to .yaml resources will come with text/html or */*.
+        # We need to pass those along
+        if (environ['PATH_INFO'].endswith('.yaml') or
+                environ['PATH_INFO'].endswith('.json')or
+                environ['PATH_INFO'].endswith('.xml')):
+            return self.nextapp(environ, handler)
+
+        # Anything else that is text/html (or .html) we handle
+        # even images, js, etc... they come in as */*;text/html requests
+        if ('text/html' in webob.Request(environ).accept or
+                environ['PATH_INFO'].startswith('/static/') or
+                environ['PATH_INFO'].endswith('.html')):
             return ROOK_STATIC(environ, handler)
 
         return self.nextapp(environ, handler)
