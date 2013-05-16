@@ -101,6 +101,7 @@ class Provider(ProviderBase):
         """Verify that deployment stays within absolute resource limits"""
 
         # Cloud databases absolute limits are currently hard-coded
+        # The limits are per customer per region.
         volume_size_limit = 150
         instance_limit = 25
 
