@@ -16,10 +16,9 @@
           <h4 class="media-heading">Managed Cloud Wordpress</h4>
         </div>
       </div>
-      <p><small>Blueprints marked <span class="label label-success">full support</span> are fully tested with the current release of the
-      checkmate engine and supported by the checkmate team. New versions of these blueprints are released at the same time as a checkmate release.</small></p>
-      <p><small>Blueprints from <span class="label label-inverse">github</span>
-      are frequently updated and are only supported by the authors.</small></p>
+      <p><small>Blueprints marked <span class="label label-success">stable &amp; tested</span> are fully tested with the current release of the checkmate engine. New versions of these blueprints are released at the same time as a checkmate release. We recommend you use those for reliable deployments and for cusrtomers.</small></p>
+      <p><small>The <span class="label label-inverse">latest from github</span>
+      are frequently updated may only be supported by the authors.</small></p>
       <p>Select one of the blueprints below:</p>
     </div>
   </div>
@@ -27,8 +26,8 @@
     <div ng-repeat="item in items" class="well summary" ng-click="selectItem($index)" ng-class="{active: item.selected}">
       <div class="row-fluid">
         <div class="span1"><input type="radio" name="sbp" value="{{item.key + ''}}" ng-model="$parent.selected_key"></input></div>
-        <div class="span11"><h6><span ng-cloak ng-show="item.remote.branch.name == canonical_version" class="label label-success">full support</span>
-        <span ng-cloak ng-show="item.remote.branch.name != canonical_version" class="label label-inverse">github</span> {{item.name}}</h6></div>
+        <div class="span11"><h6><span ng-cloak ng-show="item.remote.branch.name == 'stable'" class="label label-success">stable &amp; tested</span>
+        <span ng-cloak ng-show="item.remote.branch.name == 'master'" class="label label-inverse">latest from github</span> {{item.name}}</h6></div>
       </div>
 
       <div class="row-fluid">

@@ -412,7 +412,7 @@ function AppController($scope, $http, $location, $resource, $cookies, auth) {
     $scope.rook_version = rookdata.version;
     $scope.$root.canonical_version = 'v' + rookdata.version.split('-')[0];
     if (rookdata.version.indexOf('dev') == -1)
-      $scope.$root.blueprint_ref = $scope.$root.canonical_version;
+      $scope.$root.blueprint_ref ='stable';
     console.log("Got rook version: " + $scope.rook_version);
     console.log("Got version: " + $scope.api_version);
     console.log("Blueprint ref to use: " + $scope.blueprint_ref);
@@ -1760,13 +1760,13 @@ function DeploymentManagedCloudController($scope, $location, $routeParams, $reso
 
    items.clear();
 
-  //Load the latest supported blueprints (tagged) from github
-  $scope.loadRemoteBlueprint('https://github.rackspace.com/Blueprints/wordpress#v' + $scope.rook_version.split('-')[0]);
-  $scope.loadRemoteBlueprint('https://github.rackspace.com/Blueprints/wordpress-clouddb#v' + $scope.rook_version.split('-')[0]);
+  //Load the latest supported blueprints (tagged as stable) from github
+  $scope.loadRemoteBlueprint('https://github.rackspace.com/Blueprints/wordpress#stable');
+  $scope.loadRemoteBlueprint('https://github.rackspace.com/Blueprints/wordpress-clouddb#stable');
 
   //Load the latest master from github
-  $scope.loadRemoteBlueprint('https://github.rackspace.com/Blueprints/wordpress');
-  $scope.loadRemoteBlueprint('https://github.rackspace.com/Blueprints/wordpress-clouddb');
+  $scope.loadRemoteBlueprint('https://github.rackspace.com/Blueprints/wordpress#master');
+  $scope.loadRemoteBlueprint('https://github.rackspace.com/Blueprints/wordpress-clouddb#master');
 
   $('#mcspec_list').css('top', $('.summaryHeader').outerHeight()); // Not sure if this is the right place for this. -Chris.Burrell (chri5089)
 }
