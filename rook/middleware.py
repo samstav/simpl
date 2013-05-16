@@ -223,7 +223,15 @@ def authproxy(path=None):
         abort(401, "X-Auth-Source header not supplied. The header is "
               "required and must point to a valid and permitted auth "
               "endpoint.")
-    if source not in request.proxy_endpoints:
+
+    url = urlparse(source)
+    domain = url.scheme + "://" + url.hostname
+    allowed_domain = False
+    for endpoint in request.proxy_endpoints:
+        if endpoint.startswith(domain):
+            allowed_domain = True
+
+    if not allowed_domain:
         abort(401, "Auth endpoint not permitted: %s" % source)
 
     if request.body and getattr(request.body, 'len', -1) > 0:
@@ -232,7 +240,6 @@ def authproxy(path=None):
         auth = None
 
     # Prepare proxy call
-    url = urlparse(source)
     if url.scheme == 'https':
         http_class = httplib.HTTPSConnection
         port = url.port or 443

@@ -396,3 +396,11 @@ body {
   color: #FFF;
   font-size: 12px;
 }
+
+/* Tenant Impersonation */
+form#impersonate {
+  margin: 0 20px 0; /* top left/right bottom */
+}
+form#impersonate input {
+  width: 90%;
+}

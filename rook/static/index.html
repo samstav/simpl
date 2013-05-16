@@ -80,7 +80,13 @@
                       <b class="caret"></b>
                 </a>
                 <ul id="user_menu" class="dropdown-menu pull-right" role="menu" aria-labelledby="user_button">
-                  <li ng-cloak ng-show="auth.identity.tenants" class="nav-header">TENANTS</li>
+                  <li ng-show="auth.identity.is_admin" class="nav-header">TENANTS</li>
+                  <li ng-show="auth.identity.is_admin">
+                    <form id="impersonate" ng-submit="impersonate(username)">
+                      <input ng-model="username" type="text" placeholder="Username" />
+                    </form>
+                  </li>
+                  <li ng-show="auth.identity.is_admin" class="divider"></li>
                   <li role="presentation" ng-repeat="tenant in auth.identity.tenants">
                       <a role="menutitem" ng-click="impersonate(tenant.id)">{{tenant.name}} ({{tenant.id}})</a>
                   </li>

@@ -837,7 +837,7 @@ services.factory('github', ['$http', function($http) {
  * - contextChanged (always called: log on/off, impersonating/un-impersonating)
  *
 **/
-services.factory('auth', ['$resource', '$rootScope', function($resource, $rootScope) {
+services.factory('auth', ['$http', '$resource', '$rootScope', function($http, $resource, $rootScope) {
   var auth = {
 
     // Stores the user's identity and necessary credential info
@@ -1038,56 +1038,94 @@ services.factory('auth', ['$resource', '$rootScope', function($resource, $rootSc
       delete checkmate.config.header_defaults.headers.common['X-Auth-Source'];
       $rootScope.$broadcast('logOut');
     },
-    impersonate: function(tenant, callback, error_callback) {
-      var data, headers;
-      if (auth.identity.endpoint_type == 'GlobalAuth') {
-        data = JSON.stringify({"RAX-AUTH:impersonation":
-          {
-            "user": {"username": tenant},
-            "expire-in-seconds": 10800}
-          });
-        headers = {'X-Auth-Token': auth.identity.token.id,
-                   'X-Auth-Source': "https://identity-internal.api.rackspacecloud.com/v2.0/RAX-AUTH/impersonation-tokens"};
-      } else if (auth.identity.endpoint_type == 'Keystone') {
-        data = JSON.stringify({
-            "auth": {
-              "token": {
-                "id": auth.identity.token.id
-              },
-              'tenantId': tenant
-            }
-          });
-        headers = {'X-Auth-Token': auth.identity.token.id,
-                   'X-Auth-Source': auth.identity.auth_url};
+
+    get_tenant_id: function(username) {
+      var url = is_chrome_extension ? auth.auth_url : "/authproxy/";
+      var config = { headers: {
+        'X-Auth-Token': auth.context.token.id,
+        'X-Auth-Source': "https://identity.api.rackspacecloud.com/v2.0/tenants",
+      } };
+      $http.get(url, config)
+        .success(function(data, status, headers, config) {
+          try {
+            var tenant = _.find(data.tenants, function(tenant) { return tenant.id.match(/^\d+$/) });
+            auth.context.tenantId = tenant.id;
+          } catch (err) {
+            console.log("Couldn't retrieve tenant ID:\n" + err);
+          }
+        })
+        .error(function(data, status, headers, config) {
+          console.log("Error fetching tenant ID:\n" + data);
+        });
+    },
+
+    generate_impersonation_data: function(username, endpoint_type) {
+      var data = {};
+      if (endpoint_type == 'GlobalAuth') {
+        data = {
+          "RAX-AUTH:impersonation": {
+            "user": {"username": username},
+            "expire-in-seconds": 10800
+          }
+        };
       }
-      return $.ajax({
-        type: "POST",
-        contentType: "application/json; charset=utf-8",
-        headers: headers,
-        dataType: "json",
-        url: is_chrome_extension ? auth.auth_url : "/authproxy",
-        data: data
-      }).success(function(response) {
-        auth.context.tenant = tenant;
-        auth.context.token = response.access.token;
+      /* For Private Clouds, in the future
+      else if (endpoint_type == 'Keystone') {
+        data = {
+          "auth": {
+            "token": { "id": auth.identity.token.id },
+            'tenantId': username
+          }
+        };
+      } */
+      return JSON.stringify(data);
+    },
 
-        if (auth.identity.endpoint_type == 'Keystone') {
-          if ('tenant' in response.access.token)
-            auth.context.tenantId = response.access.token.tenant.id;
-          auth.context.catalog = response.access.serviceCatalog;
-          auth.context.impersonated = false;
-        }
+    get_impersonation_url: function(endpoint_type) {
+      var impersonation_url = "";
+      switch(endpoint_type) {
+        case 'GlobalAuth':
+          impersonation_url = "https://identity-internal.api.rackspacecloud.com/v2.0/RAX-AUTH/impersonation-tokens";
+          break;
+        case 'Keystone':
+          impersonation_url = auth.identity.auth_url;
+          break;
+      };
+      return impersonation_url;
+    },
 
-        var regions = _.union.apply(this, _.map(response.access.serviceCatalog, function(o) {return _.map(o.endpoints, function(e) {return e.region;});}));
-        if ('RAX-AUTH:defaultRegion' in response.access.user && regions.indexOf(response.access.user['RAX-AUTH:defaultRegion']) == -1)
-          regions.push(response.access.user['RAX-AUTH:defaultRegion']);
-        auth.context.regions = _.compact(regions);
-        auth.save();
-
-        callback(tenant, response);
-      }).error(function(response) {
-        error_callback(response);
-      });
+    impersonate: function(username, callback, error_callback) {
+      var data = auth.generate_impersonation_data(username, auth.identity.endpoint_type);
+      var headers = {
+          'X-Auth-Token': auth.identity.token.id,
+          'X-Auth-Source': auth.get_impersonation_url(auth.identity.endpoint_type),
+      };
+      var url = is_chrome_extension ? auth.auth_url : "/authproxy";
+      var config = {headers: headers};
+      return $http.post(url, data, config)
+        .success(function(response) {
+          console.log("impersonation successful");
+          auth.context.tenant = username;
+          auth.context.token = response.access.token;
+          auth.get_tenant_id(username);
+          checkmate.config.header_defaults.headers.common['X-Auth-Source'] = "https://identity.api.rackspacecloud.com/v2.0/tokens";
+          auth.context.auth_url = "https://identity.api.rackspacecloud.com/v2.0/tokens";
+          /* Not to worry about this for now. Legacy code. */
+          /*
+          if (auth.identity.endpoint_type == 'Keystone') {
+            if ('tenant' in response.access.token)
+              auth.context.tenantId = response.access.token.tenant.id;
+            auth.context.catalog = response.access.serviceCatalog;
+            auth.context.impersonated = false;
+          }
+          */
+          auth.save();
+          callback(response);
+        })
+        .error(function() {
+          console.log("impersonation not successful");
+          error_callback(response);
+        });
     },
     //Check all auth data and update state
     check_state: function() {

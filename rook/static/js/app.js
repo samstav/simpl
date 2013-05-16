@@ -363,13 +363,15 @@ function AppController($scope, $http, $location, $resource, $cookies, auth) {
     $scope.auth.logOut();
   };
 
-  $scope.on_impersonate_success = function(tenant, json) {
+  $scope.on_impersonate_success = function(json) {
     $('#user_menu').dropdown('toggle');
     $location.path('/');
   };
 
-  $scope.impersonate = function(tenant) {
-    auth.impersonate(tenant, $scope.on_impersonate_success, $scope.on_auth_failed);
+  $scope.username = "";
+  $scope.impersonate = function(username) {
+    $scope.username = "";
+    auth.impersonate(username, $scope.on_impersonate_success, $scope.on_auth_failed);
   };
 
 
