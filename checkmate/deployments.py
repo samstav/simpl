@@ -258,15 +258,15 @@ def post_deployment(tenant_id=None, driver=DB):
 @with_tenant
 def clone_deployment(oid, tenant_id=None, driver=DB):
     """
-    Creates deployment and wokflow based on deleted/active 
+    Creates deployment and wokflow based on deleted/active
     deployment information
-    """    
+    """
     assert oid, "Deployment ID cannot be empty"
 
     deployment = get_a_deployment(oid, tenant_id=tenant_id, driver=driver)
     if not deployment:
         abort(404, 'No deployment found with deployment id %s' % oid)
-    
+
     if deployment['status'] != 'DELETED':
         raise CheckmateBadState("Deployment '%s' is in '%s' status and must "
                                         "be in 'DELETED' to recreate" %
@@ -279,19 +279,20 @@ def clone_deployment(oid, tenant_id=None, driver=DB):
         deployment['id'] = uuid.uuid4().hex
 
     new_oid = str(deployment['id'])
-    
+
     # delete resources
     if 'resources' in deployment:
         del deployment['resources']
 
     if 'operation' in deployment:
         del deployment['operation']
-    
+
     deployment['status'] = 'NEW'
 
     save_deployment_and_execute_plan(tenant_id, driver, new_oid, deployment)
 
     return write_body(deployment, request, response)
+
 
 def save_deployment_and_execute_plan(tenant_id, driver, new_oid, deployment):
     # save deployment
@@ -312,8 +313,8 @@ def save_deployment_and_execute_plan(tenant_id, driver, new_oid, deployment):
 
     # can't pass actual request
     request_context = copy.deepcopy(request.context)
-    execute_plan(new_oid, 
-                 request_context, 
+    execute_plan(new_oid,
+                 request_context,
                  driver=driver,
                  asynchronous=('asynchronous' in request.query))
 
@@ -477,8 +478,17 @@ def get_deployment(oid, tenant_id=None, driver=DB):
     """Return deployment with given ID"""
     if is_simulation(oid):
         driver = SIMULATOR_DB
-    return write_body(_get_a_deployment_with_request(oid, tenant_id=tenant_id,
-                      driver=driver), request, response)
+
+    try:
+        entity = _get_a_deployment_with_request(oid, tenant_id=tenant_id,
+                                                driver=driver)
+    except CheckmateDoesNotExist:
+        abort(404)
+    if tenant_id is not None and tenant_id != entity.get('tenantId'):
+        LOG.warning("Attempt to access deployment %s from wrong tenant %s by "
+                    "%s", oid, tenant_id, request.context.username)
+        abort(404)
+    return write_body(entity, request, response)
 
 
 def _get_a_deployment_with_request(oid, tenant_id=None, driver=DB):

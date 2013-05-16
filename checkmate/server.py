@@ -10,6 +10,7 @@ import sys
 import checkmate.common.tracer  # module runs on import
 
 # pylint: disable=E0611
+import bottle
 from bottle import app, run, request, response, HeaderDict, default_app, load
 
 from checkmate.exceptions import (
@@ -110,6 +111,10 @@ def main_func():
 
     # Init logging before we load the database, 3rd party, and 'noisy' modules
     utils.init_logging(default_config="/etc/default/checkmate-svr-log.conf")
+    if utils.get_debug_level() == logging.DEBUG:
+        bottle.debug(True)
+
+    resources = ['version']
 
     # Register built-in providers
     from checkmate.providers import rackspace, opscode
@@ -131,6 +136,7 @@ def main_func():
     if '--with-admin' in sys.argv:
         load("checkmate.admin")
         with_admin = True
+        resources.append('admin')
 
     # Build WSGI Chain:
     LOG.info("Loading Application")
@@ -146,21 +152,28 @@ def main_func():
     }
     next_app.catchall = True
     next_app = middleware.AuthorizationMiddleware(next_app,
-                                                  anonymous_paths=utils.STATIC)
+                                                  anonymous_paths=['version'])
     endpoints = os.environ.get('CHECKMATE_AUTH_ENDPOINTS')
     if endpoints:
         endpoints = json.loads(endpoints)
     else:
         endpoints = DEFAULT_AUTH_ENDPOINTS
-    next_app = middleware.AuthTokenRouterMiddleware(next_app, endpoints,
-                                                    anonymous_paths=
-                                                    utils.STATIC)
+    next_app = middleware.AuthTokenRouterMiddleware(
+        next_app,
+        endpoints,
+        anonymous_paths=['version']
+    )
 
-    # Load Rook if requested
+    next_app = middleware.TenantMiddleware(next_app, resources=resources)
+    next_app = middleware.StripPathMiddleware(next_app)
+    next_app = middleware.ExtensionsMiddleware(next_app)
+
+    # Load Rook if requested (after Context as Rook depends on it)
     if '--with-ui' in sys.argv:
         try:
             from rook.middleware import BrowserMiddleware
-            next_app = BrowserMiddleware(next_app, proxy_endpoints=endpoints,
+            next_app = BrowserMiddleware(next_app,
+                                         proxy_endpoints=endpoints,
                                          with_simulator=with_simulator,
                                          with_admin=with_admin)
         except ImportError as exc:
@@ -171,10 +184,7 @@ def main_func():
             print msg
             sys.exit(1)
 
-    next_app = middleware.TenantMiddleware(next_app)
     next_app = middleware.ContextMiddleware(next_app)
-    next_app = middleware.StripPathMiddleware(next_app)
-    next_app = middleware.ExtensionsMiddleware(next_app)
 
     # Load NewRelic inspection if requested
     if '--newrelic' in sys.argv:
@@ -195,8 +205,8 @@ def main_func():
     # Load request/response dumping if debugging enabled
     if '--debug' in sys.argv:
         next_app = middleware.DebugMiddleware(next_app)
-        LOG.debug("Routes: %s" % ['%s %s' % (r.method, r.rule) for r in
-                                  app().routes])
+        LOG.debug("Routes: %s", ['%s %s' % (r.method, r.rule) for r in
+                                 app().routes])
 
     # Pick up IP/port from last param (default is 127.0.0.1:8080)
     ip = '127.0.0.1'
