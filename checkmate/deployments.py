@@ -174,6 +174,7 @@ def get_deployments(tenant_id=None, driver=DB):
     """ Get existing deployments """
     offset = request.query.get('offset')
     limit = request.query.get('limit')
+    show_deleted = request.query.get('show_deleted')
 
     if offset:
         offset = int(offset)
@@ -183,7 +184,8 @@ def get_deployments(tenant_id=None, driver=DB):
     deployments = driver.get_deployments(
         tenant_id=tenant_id,
         offset=offset,
-        limit=limit
+        limit=limit,
+        with_deleted=show_deleted == '1'
     )
 
     write_pagination_headers(
