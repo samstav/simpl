@@ -22,7 +22,6 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, scoped_session, relationship
 from copy import deepcopy
 import sqlite3
-from checkmate.utils import merge_dictionary
 
 try:
     # pylint: disable=E0611
