@@ -24,14 +24,19 @@ class TestMyDriver(TestDBDriver):
 import copy
 import uuid
 
-import unittest2 as unittest
 from checkmate import db, utils
+from abc import ABCMeta, abstractproperty
+from checkmate.exceptions import CheckmateException
 
 
-class DBDriverTests(unittest.TestCase):
-    '''Test Any Driver'''
+class DBDriverTests(object):
+    '''Test Any Driver; mix in with unittest.TestCase '''
 
-    connection_string = None  # meant to be overridden
+    __metaclass__ = ABCMeta
+
+    @abstractproperty
+    def connection_string(self):
+        return None  # meant to be overridden
 
     def setUp(self):
         self.maxDiff = None
@@ -41,6 +46,70 @@ class DBDriverTests(unittest.TestCase):
 
     def test_instantiation(self):
         self.assertEqual(self.driver.connection_string, self.connection_string)
+
+    def test_add_tags(self):
+        new_tags = ['foo', 'bar', 'baz']
+        self.driver.add_tenant_tags('1234', *new_tags)
+        ten = self.driver.get_tenant('1234')
+        self.assertIsNotNone(ten, 'Could not retrieve tenant after add tags')
+        self.assertEqual(sorted(new_tags), sorted(ten.get('tags')),
+                         'Tags not equal')
+        new_tags.extend(["biff", "boo"])
+        self.driver.add_tenant_tags('1234', 'biff', 'boo')
+        ten = self.driver.get_tenant('1234')
+        self.assertIsNotNone(ten, 'Could not retrieve tenant after add tags')
+        self.assertEqual(sorted(new_tags), sorted(ten.get('tags')), 'Tags not equal')
+
+    def test_list_tenants(self):
+        self.driver.add_tenant_tags('1234', 'foo', 'bar', 'biff')
+        self.driver.add_tenant_tags('11111', 'foo', 'blap')
+        # find them all
+        tenants = self.driver.list_tenants()
+        self.assertIsNotNone(tenants)
+        self.assertEquals(2, len(tenants))
+        self.assertIn("1234", tenants)
+        self.assertIn("11111", tenants)
+        # find just 'foo'
+        tenants = self.driver.list_tenants('foo')
+        self.assertIsNotNone(tenants)
+        self.assertEquals(2, len(tenants))
+        self.assertIn("1234", tenants)
+        self.assertIn("11111", tenants)
+        # find foo and bar
+        tenants = self.driver.list_tenants('foo', 'bar')
+        self.assertIsNotNone(tenants)
+        self.assertEquals(1, len(tenants))
+        self.assertIn("1234", tenants)
+        # find just 'blap'
+        tenants = self.driver.list_tenants('blap')
+        self.assertIsNotNone(tenants)
+        self.assertEquals(1, len(tenants))
+        self.assertIn("11111", tenants)
+        # find nothing
+        tenants = self.driver.list_tenants('not there')
+        self.assertIsNotNone(tenants)
+        self.assertEquals(0, len(tenants))
+
+    def test_save_tenant(self):
+        # save a new one
+        tenant_data = {"tenant_id": '1234', "tags": ['foo', 'bar']}
+        tenant = self.driver.get_tenant('1234')
+        self.assertIsNone(tenant, "Tenant 1234 exists!")
+        self.driver.save_tenant(tenant_data)
+        tenant = self.driver.get_tenant('1234')
+        self.assertIsNotNone(tenant)
+        self.assertDictEqual(tenant_data, tenant)
+        # amend the existing one
+        tenant_data["tags"] = ['baz']
+        self.driver.save_tenant(tenant_data)
+        tenant = self.driver.get_tenant('1234')
+        self.assertIsNotNone(tenant)
+        self.assertDictEqual(tenant_data, tenant)
+        # raises exception appropriately
+        self.assertRaises(CheckmateException, self.driver.save_tenant, None)
+        self.assertRaises(CheckmateException, self.driver.save_tenant,
+                          {'tags': ['blap']})
+        self.assertDictEqual(tenant_data, tenant)
 
     def test_update_secrets(self):
         _id = uuid.uuid4().hex[0:8]
