@@ -1122,7 +1122,7 @@ services.factory('auth', ['$http', '$resource', '$rootScope', function($http, $r
           auth.save();
           callback(response);
         })
-        .error(function() {
+        .error(function(response) {
           console.log("impersonation not successful");
           error_callback(response);
         });
