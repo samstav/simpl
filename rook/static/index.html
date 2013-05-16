@@ -98,6 +98,7 @@
             <ul id="nav-elements" class="nav" style="display: none" ng-show="auth.context.tenantId">
               <li id="nav-deployments"><a href="/{{auth.context.tenantId}}/deployments">Deployments</a></li>
               <li id="nav-workflows"><a href="/{{auth.context.tenantId}}/workflows">Workflows</a></li>
+              <li id="nav-blueprints"><a href="{{auth.context.tenantId | prepend}}/blueprints">Blueprints</a></li>
               <!--<li class="dropdown">
                 <a href="#" class="dropdown-toggle" data-toggle="dropdown">Other<b class="caret"></b></a>
                 <ul class="dropdown-menu">
@@ -116,7 +117,6 @@
               </form>
             </ul>
             <ul id="nav-support" class="nav">
-              <li id="nav-blueprints"><a href="{{auth.context.tenantId | prepend}}/blueprints">Blueprints</a></li>
               <li class="dropdown">
                 <a href="#" ng-cloak ng-show="auth.identity.is_admin" class="dropdown-toggle" data-toggle="dropdown">Admin<b class="caret"></b></a>
                 <ul class="dropdown-menu">
