@@ -65,7 +65,7 @@ def get_workflows(tenant_id=None, driver=DB):
             tenant_id=tenant_id,
             offset=offset,
             limit=limit
-        ) or {}  # DB drivers return None when nothing found
+        )
     write_pagination_headers(
         results,
         request,
@@ -175,8 +175,10 @@ def get_workflow(id, tenant_id=None, driver=DB):
         abort(404, 'No workflow with id %s' % id)
     if 'id' not in results:
         results['id'] = str(id)
-    assert tenant_id is None or tenant_id == results.get('tenant_id',
-                                                         tenant_id)
+    if tenant_id is not None and tenant_id != results.get('tenantId'):
+        LOG.warning("Attempt to access workflow %s from wrong tenant %s by "
+                    "%s", id, tenant_id, request.context.username)
+        abort(404)
     return write_body(results, request, response)
 
 

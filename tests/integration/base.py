@@ -24,23 +24,92 @@ class TestMyDriver(TestDBDriver):
 import copy
 import uuid
 
-import unittest2 as unittest
 from checkmate import db, utils
+from abc import ABCMeta, abstractproperty
+from checkmate.exceptions import CheckmateException
 
 
-class DBDriverTests(unittest.TestCase):
-    '''Test Any Driver'''
+class DBDriverTests(object):
+    '''Test Any Driver; mix in with unittest.TestCase '''
 
-    connection_string = None  # meant to be overridden
+    __metaclass__ = ABCMeta
+
+    @abstractproperty
+    def connection_string(self):
+        return None  # meant to be overridden
 
     def setUp(self):
         self.maxDiff = None
         if self.connection_string:
             self.driver = db.get_driver(
-                connection_string=self.connection_string)
+                connection_string=self.connection_string, reset=True)
 
     def test_instantiation(self):
         self.assertEqual(self.driver.connection_string, self.connection_string)
+
+    def test_add_tags(self):
+        new_tags = ['foo', 'bar', 'baz']
+        self.driver.add_tenant_tags('1234', *new_tags)
+        ten = self.driver.get_tenant('1234')
+        self.assertIsNotNone(ten, 'Could not retrieve tenant after add tags')
+        self.assertEqual(sorted(new_tags), sorted(ten.get('tags')),
+                         'Tags not equal')
+        new_tags.extend(["biff", "boo"])
+        self.driver.add_tenant_tags('1234', 'biff', 'boo')
+        ten = self.driver.get_tenant('1234')
+        self.assertIsNotNone(ten, 'Could not retrieve tenant after add tags')
+        self.assertEqual(sorted(new_tags), sorted(ten.get('tags')), 'Tags not equal')
+
+    def test_list_tenants(self):
+        self.driver.add_tenant_tags('1234', 'foo', 'bar', 'biff')
+        self.driver.add_tenant_tags('11111', 'foo', 'blap')
+        # find them all
+        tenants = self.driver.list_tenants()
+        self.assertIsNotNone(tenants)
+        self.assertEquals(2, len(tenants))
+        self.assertIn("1234", tenants)
+        self.assertIn("11111", tenants)
+        # find just 'foo'
+        tenants = self.driver.list_tenants('foo')
+        self.assertIsNotNone(tenants)
+        self.assertEquals(2, len(tenants))
+        self.assertIn("1234", tenants)
+        self.assertIn("11111", tenants)
+        # find foo and bar
+        tenants = self.driver.list_tenants('foo', 'bar')
+        self.assertIsNotNone(tenants)
+        self.assertEquals(1, len(tenants))
+        self.assertIn("1234", tenants)
+        # find just 'blap'
+        tenants = self.driver.list_tenants('blap')
+        self.assertIsNotNone(tenants)
+        self.assertEquals(1, len(tenants))
+        self.assertIn("11111", tenants)
+        # find nothing
+        tenants = self.driver.list_tenants('not there')
+        self.assertIsNotNone(tenants)
+        self.assertEquals(0, len(tenants))
+
+    def test_save_tenant(self):
+        # save a new one
+        tenant_data = {"tenant_id": '1234', "tags": ['foo', 'bar']}
+        tenant = self.driver.get_tenant('1234')
+        self.assertIsNone(tenant, "Tenant 1234 exists!")
+        self.driver.save_tenant(tenant_data)
+        tenant = self.driver.get_tenant('1234')
+        self.assertIsNotNone(tenant)
+        self.assertDictEqual(tenant_data, tenant)
+        # amend the existing one
+        tenant_data["tags"] = ['baz']
+        self.driver.save_tenant(tenant_data)
+        tenant = self.driver.get_tenant('1234')
+        self.assertIsNotNone(tenant)
+        self.assertDictEqual(tenant_data, tenant)
+        # raises exception appropriately
+        self.assertRaises(CheckmateException, self.driver.save_tenant, None)
+        self.assertRaises(CheckmateException, self.driver.save_tenant,
+                          {'tags': ['blap']})
+        self.assertDictEqual(tenant_data, tenant)
 
     def test_update_secrets(self):
         _id = uuid.uuid4().hex[0:8]
@@ -231,32 +300,261 @@ class DBDriverTests(unittest.TestCase):
             self.driver.get_deployment('1234')
         )
 
-    def test_deleting_locked_object_not_allowed(self):
-        pass  # IMPLEMENT ME!!!
-
-    def test_deleting_with_wrong_tenant_id_not_allowed(self):
-        pass  # IMPLEMENT ME!!!
+    def test_get_objects_found_nothing(self):
+        '''We are really testing object, but using deployment so that the
+        test works regardless of driver implementation
+        '''
+        # FIXME: Shouldn't Expected be None?
+        self.assertEquals({}, self.driver.get_deployments(tenant_id='T3'))
 
     def test_get_objects_with_defaults(self):
-        pass  # IMPLEMENT ME!!!
+        '''We are really testing object, but using deployment so that the
+        test works regardless of driver implementation
+        '''
+        self.driver.save_deployment(
+            '1234',
+            tenant_id='T3',
+            body={'id': '1234'}
+        )
+        self.driver.save_deployment(
+            '4321',
+            tenant_id='T3',
+            body={'id': '4321'}
+        )
+        self.driver.save_deployment(
+            '9999',
+            tenant_id='TOTHER',
+            body={'id': '9999'}
+        )
+
+        self.assertEquals(
+            {
+                '1234': {'id': '1234', 'tenantId': 'T3'},
+                '4321': {'id': '4321', 'tenantId': 'T3'},
+                'collection-count': 2
+            },
+            self.driver.get_deployments(tenant_id='T3')
+        )
 
     def test_get_objects_with_secrets(self):
-        pass  # IMPLEMENT ME!!!
+        '''We are really testing object, but using deployment so that the
+        test works regardless of driver implementation
+        '''
+        self.driver.save_deployment(
+            '1234',
+            tenant_id='T3',
+            body={'id': '1234'},
+            secrets={'secret': 'SHHH!!!'}
+        )
+        self.driver.save_deployment(
+            '4321',
+            tenant_id='T3',
+            body={'id': '4321'}
+        )
+        self.assertEquals(
+            {
+                '1234': {'id': '1234', 'tenantId': 'T3', 'secret': 'SHHH!!!'},
+                '4321': {'id': '4321', 'tenantId': 'T3'},
+                'collection-count': 2
+            },
+            self.driver.get_deployments(tenant_id='T3', with_secrets=True)
+        )
+        self.assertEquals(
+            {
+                '1234': {'id': '1234', 'tenantId': 'T3'},
+                '4321': {'id': '4321', 'tenantId': 'T3'},
+                'collection-count': 2
+            },
+            self.driver.get_deployments(tenant_id='T3', with_secrets=False)
+        )
 
     def test_get_objects_with_offset(self):
-        pass  # IMPLEMENT ME!!!
+        '''We are really testing object, but using deployment so that the
+        test works regardless of driver implementation
+        '''
+        self.driver.save_deployment(
+            '1234',
+            tenant_id='T3',
+            body={'id': '1234'}
+        )
+        self.driver.save_deployment(
+            '4321',
+            tenant_id='T3',
+            body={'id': '4321'}
+        )
+
+        self.assertEquals(
+            {
+                '4321': {'id': '4321', 'tenantId': 'T3'},
+                'collection-count': 1
+            },
+            self.driver.get_deployments(tenant_id='T3', offset=1)
+        )
 
     def test_get_objects_with_limit(self):
-        pass  # IMPLEMENT ME!!!
+        '''We are really testing object, but using deployment so that the
+        test works regardless of driver implementation
+        '''
+        self.driver.save_deployment(
+            '1234',
+            tenant_id='T3',
+            body={'id': '1234'}
+        )
+        self.driver.save_deployment(
+            '4321',
+            tenant_id='T3',
+            body={'id': '4321'}
+        )
 
-    def test_get_objects_with_count(self):
-        pass  # IMPLEMENT ME!!!
+        self.assertEquals(
+            {
+                '1234': {'id': '1234', 'tenantId': 'T3'},
+                'collection-count': 1
+            },
+            self.driver.get_deployments(tenant_id='T3', limit=1)
+        )
+
+    def test_get_objects_with_offset_and_limit(self):
+        '''We are really testing object, but using deployment so that the
+        test works regardless of driver implementation
+        '''
+        self.driver.save_deployment(
+            '1234',
+            tenant_id='T3',
+            body={'id': '1234'}
+        )
+        self.driver.save_deployment(
+            '4321',
+            tenant_id='T3',
+            body={'id': '4321'}
+        )
+        self.driver.save_deployment(
+            '5678',
+            tenant_id='T3',
+            body={'id': '5678'}
+        )
+
+        self.assertEquals(
+            {
+                '4321': {'id': '4321', 'tenantId': 'T3'},
+                '5678': {'id': '5678', 'tenantId': 'T3'},
+                'collection-count': 2
+            },
+            self.driver.get_deployments(tenant_id='T3', offset=1, limit=2)
+        )
+
+    def test_get_objects_omitting_count(self):
+        '''We are really testing object, but using deployment so that the
+        test works regardless of driver implementation
+        '''
+        self.driver.save_deployment(
+            '1234',
+            tenant_id='T3',
+            body={'id': '1234'}
+        )
+
+        self.assertEquals(
+            {'1234': {'id': '1234', 'tenantId': 'T3'}},
+            self.driver.get_deployments(tenant_id='T3', with_count=False)
+        )
+
+    def test_offset_passed_to_get_objects_as_none(self):
+        '''We are really testing object, but using deployment so that the
+        test works regardless of driver implementation
+        '''
+        self.driver.save_deployment(
+            '1234',
+            tenant_id='T3',
+            body={'id': '1234'}
+        )
+
+        self.assertEquals(
+            {
+                '1234': {'id': '1234', 'tenantId': 'T3'},
+                'collection-count': 1
+            },
+            self.driver.get_deployments(tenant_id='T3', offset=None)
+        )
+
+    def test_limit_passed_to_get_objects_as_none(self):
+        '''We are really testing object, but using deployment so that the
+        test works regardless of driver implementation
+        '''
+        self.driver.save_deployment(
+            '1234',
+            tenant_id='T3',
+            body={'id': '1234'}
+        )
+
+        self.assertEquals(
+            {
+                '1234': {'id': '1234', 'tenantId': 'T3'},
+                'collection-count': 1
+            },
+            self.driver.get_deployments(tenant_id='T3', limit=None)
+        )
+
+
+    def test_get_deployments_deleted_omitted_by_default(self):
+        self.driver.save_deployment(
+            '1234',
+            tenant_id='T3',
+            body={'id': '1234', 'status': 'PLANNED'}
+        )
+        self.driver.save_deployment(
+            '4321',
+            tenant_id='T3',
+            body={'id': '4321', 'status': 'DELETED'}
+        )
+
+        self.assertEquals(
+            {
+                '1234': {'id': '1234', 'tenantId': 'T3', 'status': 'PLANNED'},
+                'collection-count': 1
+            },
+            self.driver.get_deployments(tenant_id='T3')
+        )
 
     def test_get_deployments_omitting_deleted(self):
-        pass  # IMPLEMENT ME!!!
+        self.driver.save_deployment(
+            '1234',
+            tenant_id='T3',
+            body={'id': '1234', 'status': 'PLANNED'}
+        )
+        self.driver.save_deployment(
+            '4321',
+            tenant_id='T3',
+            body={'id': '4321', 'status': 'DELETED'}
+        )
+
+        self.assertEquals(
+            {
+                '1234': {'id': '1234', 'tenantId': 'T3', 'status': 'PLANNED'},
+                'collection-count': 1
+            },
+            self.driver.get_deployments(tenant_id='T3', with_deleted=False)
+        )
 
     def test_get_deployments_including_deleted(self):
-        pass  # IMPLEMENT ME!!!
+        self.driver.save_deployment(
+            '1234',
+            tenant_id='T3',
+            body={'id': '1234', 'status': 'PLANNED'}
+        )
+        self.driver.save_deployment(
+            '4321',
+            tenant_id='T3',
+            body={'id': '4321', 'status': 'DELETED'}
+        )
+
+        self.assertEquals(
+            {
+                '1234': {'id': '1234', 'tenantId': 'T3', 'status': 'PLANNED'},
+                '4321': {'id': '4321', 'tenantId': 'T3', 'status': 'DELETED'},
+                'collection-count': 2
+            },
+            self.driver.get_deployments(tenant_id='T3', with_deleted=True)
+        )
 
 
 if __name__ == '__main__':

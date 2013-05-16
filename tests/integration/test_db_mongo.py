@@ -16,14 +16,22 @@ import unittest2 as unittest
 
 import base  # pylint: disable=W0403
 
+from pymongo.errors import InvalidName
+
 
 TEST_MONGO_INSTANCE = ('mongodb://checkmate:%s@mongo-n01.dev.chkmate.rackspace'
                        '.net:27017/checkmate' % 'c%40m3yt1ttttt')
 
 
 @unittest.skipIf(SKIP, REASON)
-class TestDBMongo(base.DBDriverTests):
+class TestDBMongo(base.DBDriverTests, unittest.TestCase):
     '''MongoDB Driver Canned Tests'''
+
+    _connection_string = None
+
+    @property
+    def connection_string(self):
+        return TestDBMongo._connection_string
 
     #pylint: disable=W0603
     @classmethod
@@ -33,7 +41,7 @@ class TestDBMongo(base.DBDriverTests):
         try:
             cls.box = MongoBox()
             cls.box.start()
-            cls.connection_string = ("mongodb://localhost:%s/test" %
+            cls._connection_string = ("mongodb://localhost:%s/test" %
                                      cls.box.port)
         except StandardError as exc:
             if hasattr(cls, 'box'):
@@ -54,6 +62,16 @@ class TestDBMongo(base.DBDriverTests):
                 cls.box.stop()
                 cls.box = None
         super(TestDBMongo, cls).tearDownClass()
+
+    def setUp(self):
+        base.DBDriverTests.setUp(self)
+        # HACK until we get proper test data management; don't drop collections
+        # as there is a risk of deleting everything out of a remote database
+        # as per line 50 above
+        self.driver.database()['tenants'].remove({'tenant_id': '1234'})
+        self.driver.database()['tenants'].remove({'tenant_id': '111111'})
+        self.driver.database()['deployments'].remove({'tenantId': 'T3'})
+        self.driver.database()['deployments'].remove({'tenantId': 'TOTHER'})
 
 
 @unittest.skipIf(SKIP, REASON)

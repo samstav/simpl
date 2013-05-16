@@ -9,16 +9,20 @@ import uuid
 from sqlalchemy import (
     Column,
     Integer,
+    ForeignKey,
     String,
     Text,
     PickleType,
-    Float
-)
+    Float,
+    event)
+from sqlalchemy.engine.base import Engine
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.pool import StaticPool
 from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker, scoped_session
+from sqlalchemy.orm import sessionmaker, scoped_session, relationship
 from copy import deepcopy
+import sqlite3
+from checkmate.utils import merge_dictionary
 
 try:
     # pylint: disable=E0611
@@ -37,8 +41,8 @@ from checkmate.db.common import (
     ObjectLockedError,
     InvalidKeyError
 )
-from checkmate.exceptions import CheckmateDatabaseMigrationError
-from checkmate import utils
+from checkmate.exceptions import CheckmateDatabaseMigrationError,\
+    CheckmateException
 from SpiffWorkflow.util import merge_dictionary as collate
 
 
@@ -52,6 +56,19 @@ class TextPickleType(PickleType):
     """Type that can be set to dict and stored in the database as Text.
     This allows us to read and write the 'body' attribute as dicts"""
     impl = Text
+
+
+class Tenant(Base):
+    __tablename__ = "tenants"
+    tenant_id = Column(String(255), primary_key=True)
+    tags = relationship("TenantTag", cascade="all, delete, delete-orphan")
+
+
+class TenantTag(Base):
+    __tablename__ = "tenant_tags"
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    tenant = Column(String(255), ForeignKey('tenants.tenant_id', ondelete="CASCADE", onupdate="RESTRICT"))
+    tag = Column(String(255), index=True)
 
 
 class Environment(Base):
@@ -96,10 +113,19 @@ class Workflow(Base):
     id = Column(String(32), index=True, unique=True)
     locked = Column(Float, default=0)
     lock = Column(String, default=0)
-    lock_timestamp = Column(Integer, default=0)   
+    lock_timestamp = Column(Integer, default=0)
     tenant_id = Column(String(255), index=True)
     secrets = Column(TextPickleType(pickler=json))
     body = Column(TextPickleType(pickler=json))
+
+
+@event.listens_for(Engine, "connect")
+def set_sqlite_pragma(dbapi_connection, connection_record):
+    """ Turn on fk for sqlite """
+    if isinstance(dbapi_connection, sqlite3.Connection):
+        cursor = dbapi_connection.cursor()
+        cursor.execute("PRAGMA foreign_keys=ON")
+        cursor.close()
 
 
 class Driver(DbBase):
@@ -124,7 +150,6 @@ class Driver(DbBase):
         else:
             self.engine = create_engine(connection_string)
             LOG.info("Connected to '%s'", connection_string)
-
         self._init_version_control()
         self.session = scoped_session(sessionmaker(self.engine))
         Base.metadata.create_all(self.engine)
@@ -183,6 +208,74 @@ class Driver(DbBase):
         response['workflows'] = self.get_workflows()
         return response
 
+    # TENANTS
+    def save_tenant(self, tenant):
+        if tenant and tenant.get('tenant_id'):
+            tenant_id = tenant.get('tenant_id')
+            current = (self.session.query(Tenant)
+                      .filter(Tenant.tenant_id == tenant_id)
+                      .first())
+            if not current:
+                current = Tenant(tenant_id=tenant_id,
+                                 tags=[TenantTag(tag=tag)
+                                       for tag in tenant.get('tags', [])]
+                                       or None)
+                self.session.add(current)
+            else:
+                del current.tags[0:len(current.tags)]
+                current.tags = ([TenantTag(tag=tag)
+                                for tag in tenant.get('tags', [])]
+                                or None)
+            self.session.commit()
+        else:
+            raise CheckmateException("Must provide a tenant id")
+
+    def list_tenants(self, *args):
+        query = self.session.query(Tenant)
+        if args:
+            for arg in args:
+                query = query.filter(Tenant.tags.any(TenantTag.tag == arg))
+        tenants = query.all()
+        ret = {}
+        for tenant in tenants:
+            ret.update({tenant.tenant_id: self._fix_tenant(tenant)})
+        return ret
+
+    def _fix_tenant(self, tenant):
+        if tenant:
+            tags = [tag.tag for tag in tenant.tags or []]
+            ret = {'tenant_id': tenant.tenant_id}
+            if tags:
+                ret['tags'] = tags
+            return ret
+        return None
+
+    def get_tenant(self, tenant_id):
+        tenant = (self.session.query(Tenant).filter_by(tenant_id=tenant_id)
+                  .first())
+        return self._fix_tenant(tenant)
+
+    def add_tenant_tags(self, tenant_id, *args):
+        if tenant_id:
+            tenant = (self.session.query(Tenant)
+                      .filter(Tenant.tenant_id == tenant_id)
+                      .first())
+            new_tags = set(args or [])
+            if not tenant:
+                tenant = Tenant(tenant_id=tenant_id,
+                                tags=[TenantTag(tag=tag) for tag in new_tags]
+                                or None)
+                self.session.add(tenant)
+            elif new_tags:
+                if not tenant.tags:
+                    tenant.tags = []
+                tenant.tags.extend([TenantTag(tag=ntag)
+                             for ntag in new_tags
+                             if ntag not in [tag.tag for tag in tenant.tags]])
+            self.session.commit()
+        else:
+            raise CheckmateException("Must provide a tenant with a tenant id")
+
     # ENVIRONMENTS
     def get_environment(self, id, with_secrets=None):
         return self._get_object(Environment, id, with_secrets=with_secrets)
@@ -197,10 +290,17 @@ class Driver(DbBase):
     def get_deployment(self, id, with_secrets=None):
         return self._get_object(Deployment, id, with_secrets=with_secrets)
 
-    def get_deployments(self, tenant_id=None, with_secrets=None,
-                        offset=None, limit=None):
-        return self._get_objects(Deployment, tenant_id, with_secrets=with_secrets,
-                                offset=offset, limit=limit)
+    def get_deployments(self, tenant_id=None, with_secrets=None, offset=None,
+                        limit=None, with_count=True, with_deleted=False):
+        return self._get_objects(
+            Deployment,
+            tenant_id,
+            with_secrets=with_secrets,
+            offset=offset,
+            limit=limit,
+            with_count=with_count,
+            with_deleted=with_deleted
+        )
 
     def save_deployment(self, id, body, secrets=None, tenant_id=None,
                         partial=False):
@@ -247,41 +347,37 @@ class Driver(DbBase):
                 body['tenantId'] = first.tenant_id
             if with_secrets is True:
                 if first.secrets:
-                    return utils.merge_dictionary(body, first.secrets)
+                    return merge_dictionary(body, first.secrets)
                 else:
                     return body
             else:
                 return body
 
     def _get_objects(self, klass, tenant_id=None, with_secrets=None,
-                    offset=None, limit=None, include_total_count=True):
+                     offset=None, limit=None, with_count=True,
+                     with_deleted=False):
+        response = {}
         results = self.session.query(klass)
-        total = 0
         if tenant_id:
             results = results.filter_by(tenant_id=tenant_id)
         if results and results.count() > 0:
-            response = {}
-            total = results.count()
-            if offset and (limit is None):
-                results = results.offset(offset).all()
-            if limit:
-                if offset is None:
-                    offset = 0
-                results = results.limit(limit).offset(offset).all()
-            if with_secrets is True:
-                for e in results:
-                    if e.secrets:
-                        response[e.id] = utils.merge_dictionary(e.body,
-                                                                e.secrets)
+            results = results.limit(limit).offset(offset).all()
+
+            for entry in results:
+                if with_deleted or entry.body.get('status') != 'DELETED':
+                    if with_secrets is True:
+                        if entry.secrets:
+                            response[entry.id] = merge_dictionary(
+                                entry.body,
+                                entry.secrets
+                            )
+                        else:
+                            response[entry.id] = entry.body
                     else:
-                        response[e.id] = e.body
-                    response[e.id]['tenantId'] = e.tenant_id
-            else:
-                for e in results:
-                    response[e.id] = e.body
-                    response[e.id]['tenantId'] = e.tenant_id
-            if include_total_count:
-                response['collection-count'] = total
+                        response[entry.id] = entry.body
+                    response[entry.id]['tenantId'] = entry.tenant_id
+            if with_count:
+                response['collection-count'] = len(response)
         return response
 
     def _save_object(self, klass, id, body, secrets=None,

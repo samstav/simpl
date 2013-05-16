@@ -7,6 +7,7 @@ from mox import IsA
 import unittest2 as unittest
 
 # Init logging before we load the database, 3rd party, and 'noisy' modules
+from checkmate.providers.provider_base_planning_mixin import ProviderBasePlanningMixIn
 from checkmate.utils import init_console_logging
 init_console_logging()
 
@@ -15,52 +16,11 @@ from checkmate.exceptions import CheckmateException
 from checkmate.middleware import RequestContext
 from checkmate.providers.base import (ProviderBase,
                                       PROVIDER_CLASSES,
-                                      CheckmateInvalidProvider,
-                                      ProviderBasePlanningMixIn)
+                                      CheckmateInvalidProvider )
 from checkmate.test import StubbedWorkflowBase, TestProvider
 from checkmate.utils import yaml_to_dict
 
 LOG = logging.getLogger(__name__)
-
-
-class TestProviderBasePlanningMixIn(unittest.TestCase):
-
-    def __init__(self, methodName="runTest"):
-        self._mox = mox.Mox()
-        self._prov_planner = ProviderBasePlanningMixIn()
-        self._prov_planner.key = "test_key"
-        self._req_context = RequestContext()
-        unittest.TestCase.__init__(self, methodName=methodName)
-
-    def test_template(self):
-        template = self._prov_planner.generate_template(
-            {'id': "1234567890", 'name': 'test_deployment'},
-            "test_type",
-            None,
-            self._req_context)
-        self.assertIn("type", template, "No type")
-        self.assertEqual("test_type",
-                         template.get("type", "NONE"),
-                         "Type not set")
-        self.assertIn("provider", template, "No provider in template")
-        self.assertEqual("test_key",
-                         template.get("provider", "NONE"),
-                         "Provider not set")
-        self.assertIn("instance", template, "No instance in template")
-        self.assertIn("dns-name", template, "No dns-name in template")
-        self.assertEqual("test_type",
-                         template.get("dns-name", "NONE"),
-                         "dns-name not set")
-        req_ctx_dict = self._req_context.get_queued_task_dict()
-
-    def test_template_without_deployment_name(self):
-        template = self._prov_planner.generate_template({'id': "1234567890"},
-                                                        "test_type",
-                                                        None,
-                                                        self._req_context)
-        self.assertEqual("test_type",
-                         template.get("dns-name", "NONE"),
-                         "dns-name not set")
 
 
 class TestProviderBase(unittest.TestCase):

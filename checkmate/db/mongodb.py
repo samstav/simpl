@@ -12,7 +12,8 @@ import uuid
 
 from checkmate.classes import ExtensibleDict
 from checkmate.db.common import DbBase, ObjectLockedError, InvalidKeyError
-from checkmate.exceptions import CheckmateDatabaseConnectionError
+from checkmate.exceptions import CheckmateDatabaseConnectionError,\
+    CheckmateException
 from checkmate.utils import merge_dictionary
 from SpiffWorkflow.util import merge_dictionary as collate
 
@@ -50,16 +51,19 @@ class Driver(DbBase):
         self._connection = None
         self._client = None
 
+    def _get_client(self):
+        if self._client is None:
+            try:
+                self._client = (pymongo.MongoClient(
+                                self.connection_string))
+            except pymongo.errors.AutoReconnect as exc:
+                raise CheckmateDatabaseConnectionError(exc.__str__())
+        return self._client
+
     def database(self):
         """ Connects to and returns mongodb database object """
         if self._database is None:
-            if self._client is None:
-                try:
-                    self._client = (pymongo.MongoClient(
-                                    self.connection_string))
-                except pymongo.errors.AutoReconnect as exc:
-                    raise CheckmateDatabaseConnectionError(exc.__str__())
-            self._database = self._client[self.db_name]
+            self._database = self._get_client()[self.db_name]
             LOG.info("Connected to mongodb on %s (database=%s)",
                      self.connection_string, self.db_name)
         return self._database
@@ -71,6 +75,53 @@ class Driver(DbBase):
         response['blueprints'] = self.get_blueprints()
         response['workflows'] = self.get_workflows()
         return response
+
+    # TENANTS
+    def save_tenant(self, tenant):
+        if tenant and tenant.get('tenant_id'):
+            tenant_id = tenant.get("tenant_id")
+            ten = {"tenant_id": tenant_id}
+            if tenant.get('tags'):
+                ten['tags'] = tenant.get('tags')
+            resp = self.database()['tenants'].find_and_modify(
+                query={'tenant_id': tenant_id},
+                update=ten,
+                upsert=True,
+                new=True
+            )
+            LOG.debug("Saved tenant: %s" % resp)
+        else:
+            raise CheckmateException("Must provide a tenant id")
+
+    def list_tenants(self, *args):
+        ret = {}
+        find = {}
+        if args:
+            find = {"tags": {"$all": args}}
+        results = self.database()['tenants'].find(find, {"_id": 0})
+        for result in results:
+            ret.update({result['tenant_id']: result})
+        return ret
+
+    def get_tenant(self, tenant_id):
+        LOG.debug("Looking for tenant %s", tenant_id)
+        return self.database()['tenants'].find_one({"tenant_id": tenant_id},
+                                                   {"_id": 0})
+
+    def add_tenant_tags(self, tenant_id, *args):
+        if tenant_id:
+            tenant = (self.database()['tenants']
+                      .find_one({"tenant_id": tenant_id}))
+            if not tenant:
+                tenant = {"tenant_id": tenant_id}
+            if args and tenant:
+                if 'tags' not in tenant:
+                    tenant['tags'] = []
+                tags = tenant['tags']
+                tags.extend([t for t in args if t not in tags])
+                self.database()['tenants'].save(tenant)
+        else:
+            raise CheckmateException("Must provide a tenant with a tenant id")
 
     # ENVIRONMENTS
     def get_environment(self, oid, with_secrets=None):
@@ -88,11 +139,17 @@ class Driver(DbBase):
         return self._get_object('deployments', api_id,
                                 with_secrets=with_secrets)
 
-    def get_deployments(self, tenant_id=None, with_secrets=None,
-                        limit=None, offset=None):
-        return self._get_objects('deployments', tenant_id,
-                                 with_secrets=with_secrets,
-                                 offset=offset, limit=limit)
+    def get_deployments(self, tenant_id=None, with_secrets=None, limit=0,
+                        offset=0, with_count=True, with_deleted=False):
+        return self._get_objects(
+            'deployments',
+            tenant_id,
+            with_secrets=with_secrets,
+            offset=offset,
+            limit=limit,
+            with_count=with_count,
+            with_deleted=with_deleted
+        )
 
     def save_deployment(self, api_id, body, secrets=None, tenant_id=None,
                         partial=True):
@@ -124,7 +181,7 @@ class Driver(DbBase):
         return self._get_object('workflows', api_id, with_secrets=with_secrets)
 
     def get_workflows(self, tenant_id=None, with_secrets=None,
-                      limit=None, offset=None):
+                      limit=0, offset=0):
         return self._get_objects('workflows', tenant_id, with_secrets=with_secrets,
                                 offset=offset, limit=limit)
 
@@ -306,10 +363,7 @@ class Driver(DbBase):
         :param api_id: The klass item to get
         :param with_secrets: Merge secrets with the results
         '''
-        if not self._client:
-            self.database()
-        client = self._client
-        with client.start_request():
+        with self._get_client().start_request():
             results = self.database()[klass].find_one({
                 '_id': api_id}, self._object_projection)
 
@@ -326,48 +380,29 @@ class Driver(DbBase):
             merge_dictionary(body, secrets)
         return body
 
-    def _get_objects(self, klass, tenant_id=None, with_secrets=None,
-                    offset=None, limit=None, include_total_count=True):
-        if not self._client:
-            self.database()
-        client = self._client
-        with client.start_request():
-            count = self.database()[klass].find({'tenantId': tenant_id}
-                                                if tenant_id else None,
-                                                self._object_projection).count()
-            if limit:
-                if offset is None:
-                    offset = 0
-                results = self.database()[klass].find(
-                    {'tenantId': tenant_id} if tenant_id else None,
-                    self._object_projection
-                ).skip(offset).limit(limit)
+    def _get_objects(self, klass, tenant_id=None, with_secrets=None, offset=0,
+                     limit=0, with_count=True, with_deleted=False):
+        response = {}
+        if offset is None:
+            offset = 0
+        if limit is None:
+            limit = 0
+        with self._get_client().start_request():
+            results = self.database()[klass].find(
+                {'tenantId': tenant_id} if tenant_id else None,
+                self._object_projection
+            ).skip(offset).limit(limit)
 
-            elif offset and (limit is None):
-                results = self.database()[klass].find(
-                    {'tenantId': tenant_id} if tenant_id else None,
-                    self._object_projection
-                ).skip(offset)
-            else:
-                results = self.database()[klass].find(
-                    {'tenantId': tenant_id} if tenant_id else None,
-                    self._object_projection
-                )
-
-            if results:
-                response = {}
-                if with_secrets is True:
-                    for entry in results:
+            for entry in results:
+                if with_deleted or entry.get('status') != 'DELETED':
+                    if with_secrets is True:
                         response[entry['id']] = self.merge_secrets(
                             klass, entry['id'], entry)
-                else:
-                    for entry in results:
+                    else:
                         response[entry['id']] = entry
 
-        if results:
-            if response:
-                if include_total_count:
-                    response['collection-count'] = count
+            if response and with_count:
+                response['collection-count'] = len(response)
 
         return response
 
@@ -383,10 +418,7 @@ class Driver(DbBase):
         assert isinstance(body, dict), "dict required by backend"
         assert 'id' in body or merge_existing is True, ("id required to be in "
                                                         "body by backend")
-        if not self._client:
-            self.database()
-        client = self._client
-        with client.start_request():
+        with self._get_client().start_request():
 
             # TODO: pull this out of _save_object
             if klass == 'workflows':

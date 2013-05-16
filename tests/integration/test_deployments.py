@@ -334,7 +334,7 @@ class TestDeploymentResourceGenerator(unittest.TestCase):
         self.assertIn("myResource", resources)
         expected = {'component': 'small_widget',
                     #dns-name with a deployment name
-                    'dns-name': 'sharedmyResource.checkmate.local',
+                    'dns-name': 'sharedwidget.checkmate.local',
                     'index': 'myResource',
                     'instance': {},
                     'provider': 'base',
@@ -1156,25 +1156,6 @@ class TestDeploymentScenarios(unittest.TestCase):
 
 class TestGetDeployments(unittest.TestCase):
     """Test GET /deployments endpoint"""
-
-    def test_get_deployments_returns_empty_set(self):
-        '''If there are no deployments the DB drivers will return None
-        A friendlier API implementation will return an empty set
-        '''
-        bottle.request.bind({})
-        bottle.request.context = Context()
-        self._mox = mox.Mox()
-        self._mox.StubOutWithMock(checkmate.deployments, "DB")
-        checkmate.deployments.DB.get_deployments(
-            tenant_id='1234',
-            limit=None,
-            offset=None
-        ).AndReturn(None)
-
-        self._mox.ReplayAll()
-        self.assertEquals('{}', get_deployments(tenant_id='1234', driver=checkmate.deployments.DB))
-        self._mox.VerifyAll()
-        self._mox.UnsetStubs()
 
 
 class TestPostDeployments(unittest.TestCase):

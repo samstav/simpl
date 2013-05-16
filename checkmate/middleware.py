@@ -34,7 +34,7 @@ LOG = logging.getLogger(__name__)
 from checkmate.common.caching import MemorizeMethod
 from checkmate.db import any_tenant_id_problems
 from checkmate.exceptions import CheckmateException
-from checkmate.utils import RESOURCES, STATIC, to_json, to_yaml, import_class
+from checkmate.utils import to_json, to_yaml, import_class
 
 
 def generate_response(self, environ, start_response):
@@ -78,8 +78,12 @@ class TenantMiddleware(object):
 
     This is needed by the authz middleware too
     """
-    def __init__(self, app):
+    def __init__(self, app, resources=None):
+        '''
+        :param resources: REST resources that are NOT tenants
+        '''
         self.app = app
+        self.resources = resources
 
     def __call__(self, environ, start_response):
         # Clear headers if supplied (anti-spoofing)
@@ -90,12 +94,12 @@ class TenantMiddleware(object):
         else:
             path_parts = environ['PATH_INFO'].split('/')
             tenant = path_parts[1]
-            if len(tenant) > 32:
-                return HTTPUnauthorized("Invalid tenant")(environ,
-                                                          start_response)
-            if tenant in RESOURCES or tenant in STATIC:
+            if self.resources and tenant in self.resources:
                 pass  # Not a tenant call
             else:
+                if len(tenant) > 32:
+                    return HTTPUnauthorized("Invalid tenant")(environ,
+                                                              start_response)
                 errors = any_tenant_id_problems(tenant)
                 if errors:
                     return HTTPNotFound(errors)(environ, start_response)
@@ -230,7 +234,7 @@ class TokenAuthMiddleware(object):
     def __init__(self, app, endpoint, anonymous_paths=None):
         self.app = app
         self.endpoint = endpoint
-        self.anonymous_paths = anonymous_paths or []
+        self.anonymous_paths = anonymous_paths
         self.auth_header = 'Keystone uri="%s"' % endpoint['uri']
         if 'kwargs' in endpoint and 'realm' in endpoint['kwargs']:
             # Safer for many browsers if realm is first
@@ -247,7 +251,7 @@ class TokenAuthMiddleware(object):
         """Authenticate calls with X-Auth-Token to the source auth service"""
         path_parts = environ['PATH_INFO'].split('/')
         root = path_parts[1] if len(path_parts) > 1 else None
-        if root in self.anonymous_paths:
+        if self.anonymous_paths and root in self.anonymous_paths:
             # Allow anything marked as anonymous
             return self.app(environ, start_response)
 
@@ -360,14 +364,15 @@ class AuthorizationMiddleware(object):
     Note: calls authenticated with PAM will not have an auth_token. They will
           not be able to access calls that need an auth token
     """
-    def __init__(self, app, anonymous_paths=None):
+    def __init__(self, app, anonymous_paths=None, admin_paths=None):
         self.app = app
         self.anonymous_paths = anonymous_paths
+        self.admin_paths = admin_paths
 
     def __call__(self, environ, start_response):
         path_parts = environ['PATH_INFO'].split('/')
         root = path_parts[1] if len(path_parts) > 1 else None
-        if root in self.anonymous_paths:
+        if self.anonymous_paths or root in self.anonymous_paths:
             # Allow test and static calls
             return self.app(environ, start_response)
 
@@ -387,15 +392,6 @@ class AuthorizationMiddleware(object):
                 return (HTTPUnauthorized("Access to tenant not allowed")
                         (environ, start_response))
             return self.app(environ, start_response)
-        elif root in RESOURCES or root is None:
-            # Failed attempt to access admin resource
-            if context.user_tenants:
-                for tenant in context.user_tenants:
-                    if 'Mosso' not in tenant:
-                        LOG.debug('Redirecting to tenant')
-                        return (HTTPFound(location='/%s%s' % (tenant,
-                                environ['PATH_INFO']))
-                                (environ, start_response))
 
         LOG.debug('Auth-Z failed. Returning 401.')
         return HTTPUnauthorized()(environ, start_response)
@@ -430,11 +426,6 @@ class ExtensionsMiddleware(object):
     def __call__(self, environ, start_response):
         if environ['PATH_INFO'] in [None, "", "/"]:
             return self.app(environ, start_response)
-        else:
-            path_parts = environ['PATH_INFO'].split('/')
-            root = path_parts[1]
-            if root in RESOURCES or root in STATIC:
-                return self.app(environ, start_response)
 
         if environ['PATH_INFO'].endswith('.json'):
             webob.Request(environ).accept = 'application/json'
@@ -746,7 +737,7 @@ class AuthTokenRouterMiddleware():
 
         self.middleware = {}
         self.default_middleware = None
-        self.anonymous_paths = anonymous_paths or []
+        self.anonymous_paths = anonymous_paths
 
         self.last_status = None
         self.last_headers = None
