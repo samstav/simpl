@@ -271,6 +271,14 @@ class ProviderBasePlanningMixIn():
             .format(base_url, tenant_id, deployment_id, resource_id)
         }
 
+    def verify_limits(self, context, resources):
+        """Implemented in the specific Provider classes"""
+        pass
+
+    def verify_access(self, context, resources):
+        """Implemented in the specific Provider classes"""
+        pass
+
 
 class ProviderBase(ProviderBasePlanningMixIn, ProviderBaseWorkflowMixIn):
     """Base class the providers inherit from.
