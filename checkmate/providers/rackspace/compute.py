@@ -220,9 +220,12 @@ class Provider(RackspaceComputeProviderBase):
         return templates
 
     def verify_limits(self, context, resources):
+        """Verify that deployment stays within absolute resource limits"""
+
         region = Provider.find_a_region(context.catalog)
         url = Provider.find_url(context.catalog, region)
         flavors = _get_flavors(url, context.auth_token)['flavors']
+
         memory_needed = 0
         cores_needed = 0
         for compute in resources:
@@ -236,29 +239,26 @@ class Provider(RackspaceComputeProviderBase):
         cores_available = limits['maxTotalCores'] - limits['totalCoresUsed']
 
         messages = []
-
         if memory_needed > memory_available:
-            message = {
+            messages.append({
                 'type': "INSUFFICIENT-CAPACITY",
-                'message': "You do not have enough available memory to create "
-                           "%s Cloud Servers utilizing a combined %s MB memory"
-                           % (len(resources), memory_needed),
+                'message': "This deployment would create %s Cloud Servers "
+                           "utilizing a total of %s MB memory.  You have "
+                           "%s MB of memory available"
+                           % (len(resources), memory_needed, memory_available),
                 'provider': "compute",
                 'severity': "CRITICAL"
-            }
-            messages.append(message)
-
+            })
         if cores_needed > cores_available:
-            message = {
+            messages.append({
                 'type': "INSUFFICIENT-CAPACITY",
-                'message': "You do not have enough available cores to create "
-                           "%s Cloud Servers utilizing a combined %s cores"
-                           % (len(resources), cores_needed),
+                'message': "This deployment would create %s Cloud Servers "
+                           "utilizing a total of %s cores.  You have "
+                           "%s cores available"
+                           % (len(resources), cores_needed, cores_available),
                 'provider': "compute",
                 'severity': "CRITICAL"
-            }
-            messages.append(message)
-
+            })
         return messages
 
     def verify_access(self, context, resources):
