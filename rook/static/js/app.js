@@ -412,7 +412,7 @@ function AppController($scope, $http, $location, $resource, $cookies, auth) {
     $scope.rook_version = rookdata.version;
     $scope.$root.canonical_version = 'v' + rookdata.version.split('-')[0];
     if (rookdata.version.indexOf('dev') == -1)
-      $scope.$root.blueprint_ref = $scope.$root.canonical_version;
+      $scope.$root.blueprint_ref ='stable';
     console.log("Got rook version: " + $scope.rook_version);
     console.log("Got version: " + $scope.api_version);
     console.log("Blueprint ref to use: " + $scope.blueprint_ref);
@@ -549,7 +549,7 @@ function NavBarController($scope, $location) {
             "rook_version": $scope.rook_version
             }
           });
-    headers = checkmate.config.header_defaults.headers.common;
+    var headers = checkmate.config.header_defaults.headers.common;
     return $.ajax({
       type: "POST",
       contentType: "application/json; charset=utf-8",
@@ -591,8 +591,10 @@ function ActivityFeedController($scope, $http, items) {
         parsed.action = 'pull request ' + event.payload.pull_request.number;
         parsed.action_url = event.payload.pull_request.html_url;
       } else if ('commits' in event.payload) {
-        parsed.action = event.payload.commits[0].message;
-        parsed.action_url = event.payload.commits[0].url.replace('/api/v3/repos', '').replace('/commits/', '/commit/');
+        try {
+          parsed.action = event.payload.commits[0].message;
+          parsed.action_url = event.payload.commits[0].url.replace('/api/v3/repos', '').replace('/commits/', '/commit/');
+        } catch (err) {}
       }
       parsed.verb = event.payload.action;
     }
@@ -887,7 +889,8 @@ function WorkflowController($scope, $resource, $http, $routeParams, $location, $
             _.each($scope.output.resources, function(resource) {
                 if (resource.component == 'linux_instance') {
                     all_data.push('  ' + resource.service + ' server: ' + resource['dns-name']);
-                    if (resource.instance.public_ip === undefined) {
+                    try {
+                      if (resource.instance.public_ip === undefined) {
                         for (var nindex in resource.instance.interfaces.host.networks) {
                             var network = resource.instance.interfaces.host.networks[nindex];
                             if (network.name == 'public_net') {
@@ -901,8 +904,9 @@ function WorkflowController($scope, $resource, $http, $routeParams, $location, $
                                 break;
                             }
                         }
-                    }
-                    all_data.push('    IP:      ' + resource.instance.public_ip);
+                      }
+                      all_data.push('    IP:      ' + resource.instance.public_ip);
+                    } catch (err) {}
                     all_data.push('    Role:    ' + resource.service);
                     all_data.push('    root pw: ' + resource.instance.password);
                 }
@@ -1756,13 +1760,13 @@ function DeploymentManagedCloudController($scope, $location, $routeParams, $reso
 
    items.clear();
 
-  //Load the latest supported blueprints (tagged) from github
-  $scope.loadRemoteBlueprint('https://github.rackspace.com/Blueprints/wordpress#v' + $scope.rook_version.split('-')[0]);
-  $scope.loadRemoteBlueprint('https://github.rackspace.com/Blueprints/wordpress-clouddb#v' + $scope.rook_version.split('-')[0]);
+  //Load the latest supported blueprints (tagged as stable) from github
+  $scope.loadRemoteBlueprint('https://github.rackspace.com/Blueprints/wordpress#stable');
+  $scope.loadRemoteBlueprint('https://github.rackspace.com/Blueprints/wordpress-clouddb#stable');
 
   //Load the latest master from github
-  $scope.loadRemoteBlueprint('https://github.rackspace.com/Blueprints/wordpress');
-  $scope.loadRemoteBlueprint('https://github.rackspace.com/Blueprints/wordpress-clouddb');
+  $scope.loadRemoteBlueprint('https://github.rackspace.com/Blueprints/wordpress#master');
+  $scope.loadRemoteBlueprint('https://github.rackspace.com/Blueprints/wordpress-clouddb#master');
 
   $('#mcspec_list').css('top', $('.summaryHeader').outerHeight()); // Not sure if this is the right place for this. -Chris.Burrell (chri5089)
 }
