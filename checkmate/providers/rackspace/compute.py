@@ -29,7 +29,7 @@ from checkmate.exceptions import (
     CheckmateException,
 )
 from checkmate.middleware import RequestContext
-from checkmate.providers import ProviderBase, filter_resources
+from checkmate.providers import ProviderBase
 import checkmate.rdp
 import checkmate.ssh
 from checkmate.utils import (
@@ -223,8 +223,7 @@ class Provider(RackspaceComputeProviderBase):
         flavors = _get_flavors(url, context.auth_token)['flavors']
         memory_needed = 0
         cores_needed = 0
-        computes = filter_resources(resources, self.name)
-        for compute in computes:
+        for compute in resources:
             flavor = compute['flavor']
             details = flavors[flavor]
             memory_needed += details['memory']
@@ -241,7 +240,7 @@ class Provider(RackspaceComputeProviderBase):
                 'type': "INSUFFICIENT-CAPACITY",
                 'message': "You do not have enough available memory to create "
                            "%s Cloud Servers utilizing a combined %s MB memory"
-                           % (len(computes), memory_needed),
+                           % (len(resources), memory_needed),
                 'provider': "compute",
                 'severity': "CRITICAL"
             }
@@ -252,7 +251,7 @@ class Provider(RackspaceComputeProviderBase):
                 'type': "INSUFFICIENT-CAPACITY",
                 'message': "You do not have enough available cores to create "
                            "%s Cloud Servers utilizing a combined %s cores"
-                           % (len(computes), cores_needed),
+                           % (len(resources), cores_needed),
                 'provider': "compute",
                 'severity': "CRITICAL"
             }

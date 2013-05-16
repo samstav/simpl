@@ -588,13 +588,3 @@ def get_provider_class(vendor, key):
     except StandardError as exc:
         LOG.exception(exc)
         raise CheckmateInvalidProvider("Unable to load provider '%s'" % name)
-
-
-def filter_resources(resources, provider_name):
-    """Return resources of a specified type"""
-    results = []
-    for resource in resources.values():
-        if 'provider' in resource:
-            if resource['provider'] == provider_name:
-                results.append(resource)
-    return results
