@@ -12,7 +12,8 @@ import uuid
 
 from checkmate.classes import ExtensibleDict
 from checkmate.db.common import DbBase, ObjectLockedError, InvalidKeyError
-from checkmate.exceptions import CheckmateDatabaseConnectionError
+from checkmate.exceptions import CheckmateDatabaseConnectionError,\
+    CheckmateException
 from checkmate.utils import merge_dictionary
 from SpiffWorkflow.util import merge_dictionary as collate
 
@@ -74,6 +75,55 @@ class Driver(DbBase):
         response['blueprints'] = self.get_blueprints()
         response['workflows'] = self.get_workflows()
         return response
+
+    # TENANTS
+    def save_tenant(self, tenant):
+        if tenant and tenant.get('tenant_id'):
+            tenant_id = tenant.get("tenant_id")
+            ten = {"tenant_id": tenant_id}
+            if tenant.get('tags'):
+                ten['tags'] = tenant.get('tags')
+            resp = self.database()['tenants'].find_and_modify(
+                query={'tenant_id': tenant_id},
+                update=ten,
+                upsert=True,
+                new=True
+            )
+            LOG.debug("Saved tenant: %s" % resp)
+        else:
+            raise CheckmateException("Must provide a tenant id")
+
+    def list_tenants(self, *args):
+        ret = {}
+        find = {}
+        LOG.debug("ARGS: %s" % [arg for arg in args])
+        if args:
+            find = {"tags": {"$all": args}}
+        LOG.debug("FIND: %s" % find)
+        results = self.database()['tenants'].find(find, {"_id": 0})
+        for result in results:
+            ret.update({result['tenant_id']: result})
+        return ret
+
+    def get_tenant(self, tenant_id):
+        LOG.debug("Looking for tenant %s", tenant_id)
+        return self.database()['tenants'].find_one({"tenant_id": tenant_id},
+                                                   {"_id": 0})
+
+    def add_tenant_tags(self, tenant_id, *args):
+        if tenant_id:
+            tenant = (self.database()['tenants']
+                      .find_one({"tenant_id": tenant_id}))
+            if not tenant:
+                tenant = {"tenant_id": tenant_id}
+            if args and tenant:
+                if 'tags' not in tenant:
+                    tenant['tags'] = []
+                tags = tenant['tags']
+                tags.extend([t for t in args if t not in tags])
+                self.database()['tenants'].save(tenant)
+        else:
+            raise CheckmateException("Must provide a tenant with a tenant id")
 
     # ENVIRONMENTS
     def get_environment(self, oid, with_secrets=None):

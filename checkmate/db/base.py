@@ -99,6 +99,22 @@ class DbBase(object):  # pylint: disable=R0921
         '''
         raise NotImplementedError()
 
+    # TENANTS
+    def save_tenant(self, tenant):
+        raise NotImplementedError()
+
+    def list_tenants(self, *args):
+        raise NotImplementedError()
+
+    def get_tenant(self, tenant_id):
+        raise NotImplementedError()
+
+    def add_tenant_tags(self, tenant_id, *args):
+        raise NotImplementedError()
+
+    def remove_tenant_tags(self, tenant_id, *args):
+        raise NotImplementedError()
+
     # DEPLOYMENTS
     def get_deployment(self, api_id, with_secrets=None):
         raise NotImplementedError()
