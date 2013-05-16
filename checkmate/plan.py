@@ -107,16 +107,14 @@ class Plan(ExtensibleDict):
         LOG.debug("RESOURCES\n%s", utils.dict_to_yaml(self.resources))
         return self.resources
 
-    def _providers_to_verify(self):
+    def _unique_providers(self):
         """Returns a list of provider instances, one per provider type."""
         providers = []
-        names = ['load-balancer', 'nova', 'database', 'dns']
+        names = []
         for name, provider in self.environment.providers.iteritems():
-            if not names:
-                break
-            if name in names:
+            if name not in names:
                 providers.append(provider)
-                names.remove(name)
+                names.append(name)
         return providers
 
     def verify_limits(self, context):
@@ -129,7 +127,7 @@ class Plan(ExtensibleDict):
         :return: Returns a list of warning/error messages
         """
         pile = eventlet.GreenPile()
-        providers = self._providers_to_verify()
+        providers = self._unique_providers()
         for provider in providers:
             pile.spawn(provider.verify_limits, context, self.resources)
         results = []
@@ -145,7 +143,7 @@ class Plan(ExtensibleDict):
         :return: Returns a list of warning/error messages
         """
         pile = eventlet.GreenPile()
-        providers = self._providers_to_verify()
+        providers = self._unique_providers()
         for provider in providers:
             pile.spawn(provider.verify_access, context, self.resources)
         results = []
