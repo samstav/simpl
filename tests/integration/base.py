@@ -389,6 +389,43 @@ class DBDriverTests(unittest.TestCase):
             self.driver.get_deployments(tenant_id='T3', with_count=False)
         )
 
+    def test_offset_passed_to_get_objects_as_none(self):
+        '''We are really testing object, but using deployment so that the
+        test works regardless of driver implementation
+        '''
+        self.driver.save_deployment(
+            '1234',
+            tenant_id='T3',
+            body={'id': '1234'}
+        )
+
+        self.assertEquals(
+            {
+                '1234': {'id': '1234', 'tenantId': 'T3'},
+                'collection-count': 1
+            },
+            self.driver.get_deployments(tenant_id='T3', offset=None)
+        )
+
+    def test_limit_passed_to_get_objects_as_none(self):
+        '''We are really testing object, but using deployment so that the
+        test works regardless of driver implementation
+        '''
+        self.driver.save_deployment(
+            '1234',
+            tenant_id='T3',
+            body={'id': '1234'}
+        )
+
+        self.assertEquals(
+            {
+                '1234': {'id': '1234', 'tenantId': 'T3'},
+                'collection-count': 1
+            },
+            self.driver.get_deployments(tenant_id='T3', limit=None)
+        )
+
+
     def test_get_deployments_deleted_omitted_by_default(self):
         self.driver.save_deployment(
             '1234',

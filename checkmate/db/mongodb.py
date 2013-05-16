@@ -335,6 +335,10 @@ class Driver(DbBase):
     def _get_objects(self, klass, tenant_id=None, with_secrets=None, offset=0,
                      limit=0, with_count=True, with_deleted=False):
         response = {}
+        if offset is None:
+            offset = 0
+        if limit is None:
+            limit = 0
         with self._get_client().start_request():
             results = self.database()[klass].find(
                 {'tenantId': tenant_id} if tenant_id else None,
