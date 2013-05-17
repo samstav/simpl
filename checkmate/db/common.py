@@ -98,7 +98,7 @@ def any_id_problems(api_id):
     if api_id is None:
         return 'ID cannot be blank'
     if not isinstance(api_id, basestring):
-        api_id = str(api_id)
+        return "ID must be a string, not an %s" % type(api_id).__name__
     if 1 > len(api_id) > 32:
         return "ID must be 1 to 32 characters"
     if api_id[0] not in allowed_start_chars:

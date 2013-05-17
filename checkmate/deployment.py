@@ -16,7 +16,7 @@ from checkmate.classes import ExtensibleDict
 from checkmate.common.fysom import Fysom, FysomError
 from checkmate.constraints import Constraint
 from checkmate.common import schema
-from checkmate.db import get_driver
+from checkmate.db import any_id_problems, get_driver
 from checkmate.db.common import ObjectLockedError
 from checkmate.environment import Environment
 from checkmate.exceptions import (
@@ -270,6 +270,10 @@ class Deployment(ExtensibleDict):
     @classmethod
     def inspect(cls, obj):
         errors = schema.validate(obj, schema.DEPLOYMENT_SCHEMA)
+        if 'id' in obj:
+            error = any_id_problems(obj['id'])
+            if error:
+                errors.append(error)
         errors.extend(schema.validate_inputs(obj))
         if 'blueprint' in obj:
             if not Blueprint.is_supported_syntax(obj['blueprint']):

@@ -92,9 +92,11 @@ def _save_deployment(deployment, deployment_id=None, tenant_id=None,
         if 'id' not in deployment:
             deployment['id'] = deployment_id
         else:
-            assert deployment_id == deployment['id'], ("Deployment ID does "
+            assert deployment_id == deployment['id'], ("Deployment ID (%s) does "
                                                        "not match "
-                                                       "deploymentId")
+                                                       "deploymentId (%s)",
+                                                       (deployment_id,
+                                                        deployment['id']))
     if 'tenantId' in deployment:
         if tenant_id:
             assert deployment['tenantId'] == tenant_id, ("tenantId must match "

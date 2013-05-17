@@ -1046,7 +1046,7 @@ class TestDeploymentSettings(unittest.TestCase):
 
     def test_apply_constraint_attribute(self):
         deployment = yaml_to_dict("""
-              id: 1
+              id: '1'
               blueprint:
                 options:
                   my_option:

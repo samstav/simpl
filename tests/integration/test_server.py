@@ -146,13 +146,13 @@ class TestServer(unittest.TestCase):
         id2 = uuid.uuid4().hex[0:4]
 
         #PUT
-        entity = "%s: &e1\n    id: %s" % (model_name, id1)
+        entity = "%s: &e1\n    id: '%s'" % (model_name, id1)
         res = self.app.put('/T1000/%ss/%s' % (model_name, id1), entity,
                            content_type='application/x-yaml')
         self.assertEqual(res.status, '201 Created')
         self.assertEqual(res.content_type, 'application/json')
 
-        entity = "%s: &e1\n    id: %s" % (model_name, id2)
+        entity = "%s: &e1\n    id: '%s'" % (model_name, id2)
         res = self.app.put('/T2000/%ss/%s' % (model_name, id2), entity,
                            content_type='application/x-yaml')
 
