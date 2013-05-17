@@ -329,7 +329,8 @@ class TokenAuthMiddleware(object):
             http.close()
 
         if resp.status != 200:
-            LOG.debug('Invalid token for tenant: %s', resp.reason)
+            LOG.debug('Invalid token for tenant %s on %s: %s', tenant,
+                      auth_url, resp.reason)
             raise HTTPUnauthorized("Token invalid or not valid for this "
                                    "tenant (%s)" % resp.reason,
                                    [('WWW-Authenticate', auth_header)])
