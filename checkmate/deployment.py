@@ -27,13 +27,13 @@ from checkmate.exceptions import (
 from checkmate.inputs import Input
 from checkmate.providers import ProviderBase
 from checkmate.utils import (
-    merge_dictionary,
     get_time_string,
-    is_ssh_key,
     evaluate,
     is_evaluable,
-    match_celery_logging,
     is_simulation,
+    is_ssh_key,
+    match_celery_logging,
+    merge_dictionary,
 )
 
 LOG = logging.getLogger(__name__)
