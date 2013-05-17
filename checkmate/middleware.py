@@ -329,7 +329,8 @@ class TokenAuthMiddleware(object):
             http.close()
 
         if resp.status != 200:
-            LOG.debug('Invalid token for tenant: %s', resp.reason)
+            LOG.debug('Invalid token for tenant %s on %s: %s', tenant,
+                      auth_url, resp.reason)
             raise HTTPUnauthorized("Token invalid or not valid for this "
                                    "tenant (%s)" % resp.reason,
                                    [('WWW-Authenticate', auth_header)])
@@ -372,8 +373,8 @@ class AuthorizationMiddleware(object):
     def __call__(self, environ, start_response):
         path_parts = environ['PATH_INFO'].split('/')
         root = path_parts[1] if len(path_parts) > 1 else None
-        if self.anonymous_paths or root in self.anonymous_paths:
-            # Allow test and static calls
+        if self.anonymous_paths and root in self.anonymous_paths:
+            # Allow anonymous calls
             return self.app(environ, start_response)
 
         context = request.context
