@@ -581,7 +581,7 @@ services.value('options', {
 
 // Captures HTTP requests and responses (including errors)
 services.config(function ($httpProvider) {
-    $httpProvider.responseInterceptors.push('myHttpInterceptor');
+    $httpProvider.responseInterceptors.push('loadingInterceptor');
     var startFunction = function (data, headersGetter) {
       console.log('Started call');
       if ('requests' in checkmate) {
@@ -594,21 +594,31 @@ services.config(function ($httpProvider) {
     $httpProvider.defaults.transformRequest.push(startFunction);
   })
   // register the interceptor as a service, intercepts ALL angular ajax http calls
-  .factory('myHttpInterceptor', function ($q, $window, $rootScope) {
-      return function (promise) {
-      return promise.then(function (response) {
-          console.log('Call ended successfully');
-          checkmate.requests -= 1;
-          if (checkmate.requests <= 0)
-              $('#loading').attr('src', '/img/blank.gif');
-          return response;
-      }, function (response) {
-          checkmate.requests -= 1;
-          if (checkmate.requests <= 0)
-            $('#loading').attr('src', '/img/blank.gif');
-          return $q.reject(response);
-      });
+  .factory('loadingInterceptor', function ($q, $window, $rootScope) {
+    var interceptor = {};
+
+    interceptor.update_loading_status = function() {
+      checkmate.requests -= 1;
+      if (checkmate.requests <= 0)
+          $('#loading').attr('src', '/img/blank.gif');
     };
+
+    interceptor.success = function(response) {
+      console.log('Call ended successfully');
+      interceptor.update_loading_status();
+      return response;
+    };
+
+    interceptor.error = function(response) {
+      interceptor.update_loading_status();
+      return $q.reject(response);
+    };
+
+    interceptor.capture = function(promise) {
+      return promise.then(interceptor.success, interceptor.error);
+    };
+
+    return interceptor.capture;
 });
 
 /* Github APIs for blueprint parsing*/
