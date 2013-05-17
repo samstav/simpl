@@ -1,14 +1,14 @@
 # pylint: disable=C0103,C0111,R0903,R0904,W0212,W0232
 import json
+import os
 import sys
 import unittest2 as unittest
 import uuid
 
-from bottle import default_app, load, Bottle
+from bottle import default_app
 from webtest import TestApp
 
 from checkmate import blueprints, deployments, environments, workflows
-from checkmate.db import get_driver
 from checkmate.middleware import (
     TenantMiddleware,
     ContextMiddleware,
@@ -20,13 +20,13 @@ class TestServer(unittest.TestCase):
     """ Test Basic Server code """
 
     def setUp(self):
-        self.driver = get_driver(connection_string='sqlite://', reset=True)
-        blueprints.DB = self.driver
-        deployments.DB = self.driver
-        environments.DB = self.driver
-        workflows.DB = self.driver
-
-        root_app = default_app()
+        os.environ['CHECKMATE_CONNECTION_STRING'] = 'sqlite://'
+        default_app.push()
+        reload(blueprints)
+        reload(deployments)
+        reload(environments)
+        reload(workflows)
+        root_app = default_app.pop()
         root_app.catchall = False
         tenant = TenantMiddleware(root_app)
         context = ContextMiddleware(tenant)
