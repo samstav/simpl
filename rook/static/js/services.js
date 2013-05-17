@@ -1180,18 +1180,39 @@ services.factory('auth', ['$http', '$resource', '$rootScope', function($http, $r
     parseWWWAuthenticateHeaders: function(headers) {
       headers = headers.split(',');
       var parsed = _.map(headers, function(entry) {
+        var endpoint = {};
         entry = entry.trim();
         try {
           var scheme = entry.match(/^([\w\-]+)/)[0];
           var realm = entry.match(/realm=['"]([^'"]+)['"]/)[1];
           var uri = entry.match(/uri=['"]([^'"]+)['"]/)[1];
-          return {scheme: scheme, realm: realm, uri: uri};
+          endpoint = { scheme: scheme, realm: realm, uri: uri };
         } catch(err) {
           console.log("Error parsing WWW-Authenticate entry", entry);
-          return {};
+          return null;
+        }
+
+        try {
+          var priority = entry.match(/priority=['"]([^'"]+)['"]/)[1];
+          endpoint.priority = parseInt(priority, 10);
+        } catch(err) {
+          console.log('Error parsing priority from WWW-Authenticate entry', entry);
+        }
+        return endpoint;
+      });
+
+      auth.endpoints = _.compact(parsed).sort(function(a, b){
+        if(a.priority && b.priority) {
+          return a.priority - b.priority;
+        } else if(a.priority) {
+          return -1;
+        } else if(b.priority) {
+          return 1;
+        } else {
+          var x = a.realm.toLowerCase(), y = b.realm.toLowerCase();
+                  return x < y ? -1 : x > y ? 1 : 0;
         }
       });
-      auth.endpoints = _.compact(parsed);
     }
   };
 

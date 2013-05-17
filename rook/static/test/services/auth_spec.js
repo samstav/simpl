@@ -111,11 +111,78 @@ describe('auth Service', function(){
     });
 
     it('should set context username user.id if name does not exist', function() {
-      delete response.access.user.name
+      delete response.access.user.name;
       response.access.user.id = 'fakeuserid';
       expect(this.auth.create_context(response, endpoint).username).toEqual('fakeuserid');
     });
-
   });
 
+  describe('parseWWWAuthenticateHeaders', function(){
+    it('should parse a header with a valid uri realm, scheme, and priority', function(){
+      var headers = 'Keystone uri="https://identity.api.rackspacecloud.com/v2.0/tokens" realm="US Cloud" priority="42"';
+      this.auth.parseWWWAuthenticateHeaders(headers);
+      expect(this.auth.endpoints).toEqual([ { scheme : 'Keystone', realm : 'US Cloud', uri : 'https://identity.api.rackspacecloud.com/v2.0/tokens', priority: 42 } ]);
+    });
+
+    it('should sort endpoints by priority', function(){
+      var header1 = 'Keystone uri="https://identity.api.rackspacecloud.com/v2.0/tokens" realm="US Cloud" priority="42"';
+      var expected_endpoint1 = { scheme : 'Keystone', realm : 'US Cloud', uri : 'https://identity.api.rackspacecloud.com/v2.0/tokens', priority: 42 };
+
+      var header2 = 'Keystone uri="https://identity.api.rackspacecloud.com/v2.0/tokens" realm="US Cloud" priority="52"';
+      var expected_endpoint2 = { scheme : 'Keystone', realm : 'US Cloud', uri : 'https://identity.api.rackspacecloud.com/v2.0/tokens', priority: 52 };
+
+      var header3 = 'Keystone uri="https://identity.api.rackspacecloud.com/v2.0/tokens" realm="US Cloud" priority="9001"';
+      var expected_endpoint3 = { scheme : 'Keystone', realm : 'US Cloud', uri : 'https://identity.api.rackspacecloud.com/v2.0/tokens', priority: 9001 };
+
+      var headers = [header2, header3, header1].join(',');
+
+      this.auth.parseWWWAuthenticateHeaders(headers);
+      expect(this.auth.endpoints).toEqual([expected_endpoint1, expected_endpoint2, expected_endpoint3]);
+    });
+
+    it('should sort endpoints without a priority at the end of the list', function(){
+      var header1 = 'Keystone uri="https://identity.api.rackspacecloud.com/v2.0/tokens" realm="US Cloud" priority="42"';
+      var expected_endpoint1 = { scheme : 'Keystone', realm : 'US Cloud', uri : 'https://identity.api.rackspacecloud.com/v2.0/tokens', priority: 42 };
+
+      var header2 = 'Keystone uri="https://identity.api.rackspacecloud.com/v2.0/tokens" realm="US Cloud" priority="52"';
+      var expected_endpoint2 = { scheme : 'Keystone', realm : 'US Cloud', uri : 'https://identity.api.rackspacecloud.com/v2.0/tokens', priority: 52 };
+
+      var header3 = 'Keystone uri="https://identity.api.rackspacecloud.com/v2.0/tokens" realm="US Cloud"';
+      var expected_endpoint3 = { scheme : 'Keystone', realm : 'US Cloud', uri : 'https://identity.api.rackspacecloud.com/v2.0/tokens' };
+
+      var headers = [header2, header3, header1].join(',');
+
+      this.auth.parseWWWAuthenticateHeaders(headers);
+      expect(this.auth.endpoints).toEqual([expected_endpoint1, expected_endpoint2, expected_endpoint3]);
+    });
+
+    it('should sort endpoints without a priority in alphabetical order', function(){
+      var header1 = 'Keystone uri="https://identity.api.rackspacecloud.com/v2.0/tokens" realm="Captain America" priority="1"';
+      var expected_endpoint1 = { scheme : 'Keystone', realm : 'Captain America', uri : 'https://identity.api.rackspacecloud.com/v2.0/tokens', priority: 1 };
+
+      var header2 = 'Keystone uri="https://identity.api.rackspacecloud.com/v2.0/tokens" realm="Abba"';
+      var expected_endpoint2 = { scheme : 'Keystone', realm : 'Abba', uri : 'https://identity.api.rackspacecloud.com/v2.0/tokens' };
+
+      var header3 = 'Keystone uri="https://identity.api.rackspacecloud.com/v2.0/tokens" realm="alpha"';
+      var expected_endpoint3 = { scheme : 'Keystone', realm : 'alpha', uri : 'https://identity.api.rackspacecloud.com/v2.0/tokens' };
+
+      var header4 = 'Keystone uri="https://identity.api.rackspacecloud.com/v2.0/tokens" realm="Arkansas"';
+      var expected_endpoint4 = { scheme : 'Keystone', realm : 'Arkansas', uri : 'https://identity.api.rackspacecloud.com/v2.0/tokens' };
+
+      var headers = [header2, header3, header1, header4].join(',');
+
+      this.auth.parseWWWAuthenticateHeaders(headers);
+      expect(this.auth.endpoints).toEqual([expected_endpoint1, expected_endpoint2, expected_endpoint3, expected_endpoint4]);
+    });
+
+    it('should not include endpoints that dont parse', function(){
+      var header1 = 'Keystone uri="https://identity.api.rackspacecloud.com/v2.0/tokens" realm=iforgotquoteshere priority="1"';
+      var header2 = 'Keystone urinetrouble="identity.api.rackspacecloud.com/v2.0/tokens" whatsthisparam="Captain America" priority="1"';
+
+      var headers = [header1, header2].join(',');
+
+      this.auth.parseWWWAuthenticateHeaders(headers);
+      expect(this.auth.endpoints).toEqual([]);
+    });
+  });
 });

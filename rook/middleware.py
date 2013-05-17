@@ -428,7 +428,12 @@ class RackspaceSSOAuthMiddleware(object):
         self.endpoint = endpoint
         self.anonymous_paths = anonymous_paths or []
         self.auth_header = 'GlobalAuth uri="%s"' % endpoint['uri']
-        if 'kwargs' in endpoint and 'realm' in endpoint['kwargs']:
+        if 'kwargs' in endpoint and 'realm' in endpoint['kwargs'] and 'priority' in endpoint['kwargs']:
+            self.auth_header = str('GlobalAuth uri="%s" realm="%s" priority="%s"' % (
+                                   endpoint['uri'],
+                                   endpoint['kwargs'].get('realm'),
+                                   endpoint['kwargs'].get('priority')))
+        elif 'kwargs' in endpoint and 'realm' in endpoint['kwargs']:
             self.auth_header = str('GlobalAuth uri="%s" realm="%s"' % (
                                    endpoint['uri'],
                                    endpoint['kwargs'].get('realm')))
