@@ -370,8 +370,9 @@ class Deployment(ExtensibleDict):
             result = self._get_svc_relation_attribute(name, service_name,
                                                       relation)
             if result:
-                LOG.debug("Setting '%s' matched in _get_svc_relation_attribute"
-                          , name)
+                LOG.debug(
+                    "Setting '%s' matched in _get_svc_relation_attribute", name
+                )
                 return result
         if service_name:
             result = (self._get_input_service_override(name, service_name,
@@ -984,10 +985,15 @@ class Deployment(ExtensibleDict):
         #if we do that then the planning mixin will start reading data
         #from the child class
 
-        resources = provider.generate_template(self, component.get('is'),
-                                            service_name, context, index,
-                                            provider.key,
-                                            definition)
+        resources = provider.generate_template(
+            self,
+            component.get('is'),
+            service_name,
+            context,
+            index,
+            provider.key,
+            definition
+        )
         for resource in resources:
             resource['component'] = definition['id']
             resource['status'] = "NEW"
