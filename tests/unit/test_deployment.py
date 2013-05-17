@@ -133,6 +133,9 @@ class TestDeployments(unittest.TestCase):
         for new_status in Deployment.legacy_statuses.values():
             self.assertIn(new_status, schema.DEPLOYMENT_STATUSES)
 
+    def test_id_validation(self):
+        self.assertRaises(CheckmateValidationException, Deployment,
+            {'id': 1000})
 
 class TestCeleryTasks(unittest.TestCase):
 

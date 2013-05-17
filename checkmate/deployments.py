@@ -5,36 +5,36 @@ import os
 import uuid
 
 #pylint: disable=E0611
-from bottle import request, response, abort, get, post, delete, route
+from bottle import abort, delete, get, post, route, request, response
 from celery.canvas import chord
 from celery.task import task
-from SpiffWorkflow import Workflow, Task
+from SpiffWorkflow import Task, Workflow
 from SpiffWorkflow.storage import DictionarySerializer
 
 from checkmate import orchestrator, operations
 from checkmate.common import tasks as common_tasks
-from checkmate.db import get_driver, any_id_problems
+from checkmate.db import any_id_problems, get_driver
 from checkmate.db.common import ObjectLockedError
 from checkmate.deployment import (
     Deployment,
     generate_keys,
 )
 from checkmate.exceptions import (
-    CheckmateDoesNotExist,
-    CheckmateValidationException,
     CheckmateBadState,
+    CheckmateDoesNotExist,
     CheckmateException,
+    CheckmateValidationException,
 )
 from checkmate.plan import Plan
 from checkmate.utils import (
-    write_body,
-    read_body,
     extract_sensitive_data,
-    with_tenant,
-    match_celery_logging,
+    read_body,
     is_simulation,
-    write_path,
+    match_celery_logging,
+    with_tenant,
+    write_body,
     write_pagination_headers,
+    write_path,
 )
 from checkmate.workflow import (
     create_workflow_deploy,
@@ -92,9 +92,11 @@ def _save_deployment(deployment, deployment_id=None, tenant_id=None,
         if 'id' not in deployment:
             deployment['id'] = deployment_id
         else:
-            assert deployment_id == deployment['id'], ("Deployment ID does "
+            assert deployment_id == deployment['id'], ("Deployment ID (%s) does "
                                                        "not match "
-                                                       "deploymentId")
+                                                       "deploymentId (%s)",
+                                                       (deployment_id,
+                                                        deployment['id']))
     if 'tenantId' in deployment:
         if tenant_id:
             assert deployment['tenantId'] == tenant_id, ("tenantId must match "
