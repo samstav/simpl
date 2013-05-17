@@ -337,18 +337,18 @@ def githubproxy(path=None):
         resp = urllib2.urlopen(req)
         status = resp.getcode()
         body = resp.read()
-    except gaierror, e:
-        LOG.error('HTTP connection exception: %s' % e)
+    except gaierror as exc:
+        LOG.error('HTTP connection exception: %s', exc)
         raise HTTPError(500, output="Unable to communicate with "
                         "github server: %s" % source)
-    except urllib2.HTTPError, e:
-        LOG.error("HTTP connection exception of type '%s': %s" % (
-                  e.__class__.__name__, e))
-        raise HTTPError(e.code, output="Unable to communicate with "
+    except urllib2.HTTPError as exc:
+        LOG.error("HTTP connection exception of type '%s': %s",
+                  exc.__class__.__name__, exc)
+        raise HTTPError(exc.code, output="Unable to communicate with "
                         "github server")
-    except Exception, e:
-        LOG.error("Caught exception of type '%s': %s" % (
-                  e.__class__.__name__, e))
+    except Exception as exc:
+        LOG.error("Caught exception of type '%s': %s",
+                  exc.__class__.__name__, exc)
         raise HTTPError(401, output="Unable to communicate with "
                         "github server")
 
