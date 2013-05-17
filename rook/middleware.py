@@ -341,8 +341,13 @@ def githubproxy(path=None):
         LOG.error('HTTP connection exception: %s' % e)
         raise HTTPError(500, output="Unable to communicate with "
                         "github server: %s" % source)
-    except Exception, e:
+    except urllib2.HTTPError, e:
         LOG.error("HTTP connection exception of type '%s': %s" % (
+                  e.__class__.__name__, e))
+        raise HTTPError(e.code, output="Unable to communicate with "
+                        "github server")
+    except Exception, e:
+        LOG.error("Caught exception of type '%s': %s" % (
                   e.__class__.__name__, e))
         raise HTTPError(401, output="Unable to communicate with "
                         "github server")
