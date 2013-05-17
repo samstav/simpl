@@ -12,6 +12,8 @@ os.environ['CHECKMATE_DATA_PATH'] = os.path.join(os.path.dirname(__file__),
                                                  'data')
 os.environ['CHECKMATE_CONNECTION_STRING'] = 'sqlite://'
 
+from checkmate import blueprints, deployments, environments, workflows
+from checkmate.db import get_driver
 from checkmate.middleware import (
     TenantMiddleware,
     ContextMiddleware,
@@ -23,10 +25,12 @@ class TestServer(unittest.TestCase):
     """ Test Basic Server code """
 
     def setUp(self):
-        load('checkmate.blueprints')
-        load('checkmate.deployments')
-        load('checkmate.environments')
-        load('checkmate.workflows')
+        get_driver(connection_string=os.environ['CHECKMATE_CONNECTION_STRING'],
+                   reset=True)
+        reload(blueprints)
+        reload(deployments)
+        reload(environments)
+        reload(workflows)
         root_app = default_app()
         root_app.catchall = False
         tenant = TenantMiddleware(root_app)
