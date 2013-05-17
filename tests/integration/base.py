@@ -58,7 +58,11 @@ class DBDriverTests(object):
         self.driver.add_tenant_tags('1234', 'biff', 'boo')
         ten = self.driver.get_tenant('1234')
         self.assertIsNotNone(ten, 'Could not retrieve tenant after add tags')
-        self.assertEqual(sorted(new_tags), sorted(ten.get('tags')), 'Tags not equal')
+        self.assertEqual(
+            sorted(new_tags),
+            sorted(ten.get('tags')),
+            'Tags not equal'
+        )
 
     def test_list_tenants(self):
         self.driver.add_tenant_tags('1234', 'foo', 'bar', 'biff')
@@ -493,7 +497,6 @@ class DBDriverTests(object):
             },
             self.driver.get_deployments(tenant_id='T3', limit=None)
         )
-
 
     def test_get_deployments_deleted_omitted_by_default(self):
         self.driver.save_deployment(
