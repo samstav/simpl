@@ -37,6 +37,11 @@ class TestUtils(unittest.TestCase):
         self.assertEquals(fxn(combined, ['password']), (innocuous, secret))
         self.assertDictEqual(combined, original)
 
+    def test_flatten(self):
+        list_of_dict = [{'foo': 'bar'}, {'a': 'b'}, {'foo': 'bar1'}]
+        self.assertDictEqual(utils.flatten(list_of_dict),
+                             {'foo': 'bar1', 'a': 'b'})
+
     def test_extract_data_expression_as_sensitive(self):
         data = {
             "employee": {
