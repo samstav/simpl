@@ -294,7 +294,7 @@ It is useful, however, to be able to handle different parts of a URL (i.e the sc
 * port: this is the port if specified (e.g. the port in http://localhost:8080 is 8080)
 * path: the path of the resource or file
 * private_key: the private_key of a certificate to use if the protocol is an encrypted one
-* public_key: the public_key of a certificate to use if the protocol is an encrypted one
+* certificate: the public_key of a certificate to use if the protocol is an encrypted one
 * intermediate_key: the intermediate key chain of a certificate to use if the protocol is an encrypted one
 
 These attributes can be specified in constraints:
@@ -348,7 +348,7 @@ inputs:
       -----  BEGIN ...
     intermediate_key: |
       -----  BEGIN ...
-    public_key: |
+    certificate: |
       -----  BEGIN ...
 ```
 
