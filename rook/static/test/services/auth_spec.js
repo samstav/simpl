@@ -163,6 +163,52 @@ describe('auth Service', function(){
 
   });
 
+  describe('#save_context', function() {
+    beforeEach(function() {
+      context1 = { username: 'user1', id: 1 };
+      context2 = { username: 'user2', id: 2 };
+    });
+
+    it('should save context after impersonating user', function() {
+      this.auth.save_context(context1);
+      expect(this.auth.identity.tenants).not.toBe(null);
+      expect(this.auth.identity.tenants.length).toBe(1);
+    });
+
+    it('should save two or more contexts after impersonating users', function() {
+      this.auth.save_context(context1);
+      this.auth.save_context(context2);
+      expect(this.auth.identity.tenants.length).toBe(2);
+    });
+
+    it('should save contexts to the beginning of the array', function() {
+      this.auth.save_context(context1);
+      this.auth.save_context(context2);
+      expect(this.auth.identity.tenants[0].username).toBe('user2');
+    });
+
+    it('should not save the same context twice', function() {
+      this.auth.save_context(context1);
+      this.auth.save_context(context1);
+      expect(this.auth.identity.tenants.length).toBe(1);
+    });
+
+    it('should save a new instace of contexts, to prevent outside changes', function() {
+      this.auth.save_context(context1);
+      context1.username = 'userX';
+      this.auth.save_context(context1);
+      expect(this.auth.identity.tenants.length).toBe(2);
+    });
+
+    it('should not store more than 10 contexts', function() {
+      for(var num=1 ; num<=11 ; num++) {
+        context1.username = 'user' + num;
+        this.auth.save_context(context1);
+      }
+      expect(this.auth.identity.tenants.length).toBe(10);
+    });
+  });
+
   describe('parseWWWAuthenticateHeaders', function(){
     it('should parse a header with a valid uri realm, scheme, and priority', function(){
       var headers = 'Keystone uri="https://identity.api.rackspacecloud.com/v2.0/tokens" realm="US Cloud" priority="42"';

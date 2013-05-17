@@ -90,9 +90,8 @@
                       <input ng-model="username" type="text" placeholder="Username" />
                     </form>
                   </li>
-                  <li ng-show="auth.identity.is_admin" class="divider"></li>
                   <li role="presentation" ng-repeat="tenant in auth.identity.tenants">
-                      <a role="menutitem" ng-click="impersonate(tenant.id)">{{tenant.name}} ({{tenant.id}})</a>
+                      <a role="menutitem" ng-click="impersonate(tenant.tenantId)">{{tenant.username}} ({{tenant.tenantId}})</a>
                   </li>
                   <li ng-cloak ng-show="auth.identity.tenants" class="divider"></li>
                   <li><a ng-click="logOut()">Log Out</a></li>
