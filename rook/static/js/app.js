@@ -1479,7 +1479,7 @@ function BlueprintRemoteListController($scope, $location, $routeParams, $resourc
     });
 
     $scope.count = items.count;
-    $scope.items = items.all;
+    $scope.items = _.sortBy(items.all, function(item){ return item.name.toUpperCase(); });
     $scope.loading_remote_blueprints = false;
     $('#spec_list').css('top', $('.summaryHeader').outerHeight());
     $scope.remember_repo_url($scope.remote.url);

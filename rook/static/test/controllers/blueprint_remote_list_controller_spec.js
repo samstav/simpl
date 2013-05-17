@@ -45,7 +45,8 @@ describe('BlueprintRemoteListController', function(){
 
     it('should get the checkmate.yaml to check if its a blueprint repo', function(){
       items.all = [{ api_url: 'https://underpressure.com',
-                     is_blueprint_repo: false
+                     is_blueprint_repo: false,
+                     name: 'a'
                   }];
 
       github = { get_contents: sinon.spy() };
@@ -56,10 +57,20 @@ describe('BlueprintRemoteListController', function(){
       expect(github.get_contents.getCall(0).args[2]).toEqual('checkmate.yaml');
     });
 
+    it('should sort the items by name alphabetically (case insensitive)', function(){
+      abba = { name: 'Abba' };
+      alpha = { name: 'alpha' };
+      arkansas = { name: 'Arkansas' };
+      items.all = [ alpha, abba, arkansas];
+      controller = new BlueprintRemoteListController(scope, location, routeParams, resource, http, items, navbar, options, workflow, github);
+      scope.receive_blueprints();
+      expect(scope.items).toEqual([abba, alpha, arkansas]);
+    });
+
     describe('the callback function', function(){
       var success_function, item;
       beforeEach(function(){
-        item = { api_url: 'https://underpressure.com', is_blueprint_repo: false };
+        item = { api_url: 'https://underpressure.com', is_blueprint_repo: false, name: 'a' };
         items.all = [item];
         github = { get_contents: sinon.spy() };
         controller = new BlueprintRemoteListController(scope, location, routeParams, resource, http, items, navbar, options, workflow, github);
