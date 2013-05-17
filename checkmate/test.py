@@ -226,8 +226,8 @@ class StubbedWorkflowBase(unittest.TestCase):
                 self.outcome['data_bags'] = {}
             if bag_name not in self.outcome['data_bags']:
                 self.outcome['data_bags'][bag_name] = {}
-            if kwargs.get('merge', False) is True:
-                or item_name not in self.outcome['data_bags'][bag_name]:
+            if kwargs.get('merge', False) is True or
+            item_name not in self.outcome['data_bags'][bag_name]:
                     self.outcome['data_bags'][bag_name][item_name] = contents
             else:
                 merge_dictionary(self.outcome['data_bags'][bag_name]
