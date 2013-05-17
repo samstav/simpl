@@ -112,7 +112,7 @@ describe('auth Service', function(){
     });
 
     it('should set context username user.id if name does not exist', function() {
-      delete response.access.user.name
+      delete response.access.user.name;
       response.access.user.id = 'fakeuserid';
       expect(this.auth.create_context(response, endpoint).username).toEqual('fakeuserid');
     });
@@ -120,25 +120,34 @@ describe('auth Service', function(){
     describe('context and endpoint schemes', function() {
       it('should set context based on GlobalAuth', function() {
         endpoint.scheme = 'GlobalAuth';
-        expect(this.auth.create_context(response, endpoint).tenantId).toBe(null);
-        expect(this.auth.create_context(response, endpoint).catalog).toEqual({});
-        expect(this.auth.create_context(response, endpoint).impersonated).toBe(false);
+        this.auth.create_context(response, endpoint);
+        expect(this.auth.context.tenantId).toBe(null);
+        expect(this.auth.context.catalog).toEqual({});
+        expect(this.auth.context.impersonated).toBe(false);
       });
 
       it('should set context based on different endpoint schemes with tenant', function() {
-        expect(this.auth.create_context(response, endpoint).impersonated).toBe(false);
-        expect(this.auth.create_context(response, endpoint).catalog).toEqual({});
-        expect(this.auth.create_context(response, endpoint).tenantId).toEqual('fakeid');
+        this.auth.create_context(response, endpoint);
+        expect(this.auth.context.impersonated).toBe(false);
+        expect(this.auth.context.catalog).toEqual({});
+        expect(this.auth.context.tenantId).toEqual('fakeid');
       });
 
       it('should set context based on different endpoint schemes without tenant', function() {
         delete response.access.token.tenant;
         this.auth.fetch_identity_tenants = jasmine.createSpy('fetch_identity_tenants');
-        expect(this.auth.create_context(response, endpoint).impersonated).toBe(false);
-        expect(this.auth.create_context(response, endpoint).catalog).toEqual({});
-        expect(this.auth.create_context(response, endpoint).tenantId).toEqual(null);
+        this.auth.create_context(response, endpoint);
+        expect(this.auth.context.impersonated).toBe(false);
+        expect(this.auth.context.catalog).toEqual({});
+        expect(this.auth.context.tenantId).toEqual(null);
         expect(this.auth.fetch_identity_tenants).toHaveBeenCalled();
       });
+    });
+
+    it('should get context regions from response', function() {
+      this.auth.get_regions = jasmine.createSpy('get_regions');
+      this.auth.create_context(response, endpoint);
+      expect(this.auth.get_regions).toHaveBeenCalled();
     });
 
   });

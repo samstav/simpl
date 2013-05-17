@@ -960,6 +960,15 @@ services.factory('auth', ['$http', '$resource', '$rootScope', function($http, $r
       return identity;
     },
 
+    get_regions: function(response) {
+      // TODO: un-minify this :P
+      //Parse region list
+      var regions = _.union.apply(this, _.map(response.access.serviceCatalog, function(o) {return _.map(o.endpoints, function(e) {return e.region;});}));
+      if ('RAX-AUTH:defaultRegion' in response.access.user && regions.indexOf(response.access.user['RAX-AUTH:defaultRegion']) == -1)
+        regions.push(response.access.user['RAX-AUTH:defaultRegion']);
+      return _.compact(regions);
+    },
+
     create_context: function(response, endpoint) {
       //Populate context
       var context = {};
@@ -967,6 +976,8 @@ services.factory('auth', ['$http', '$resource', '$rootScope', function($http, $r
       context.user = response.access.user;
       context.token = response.access.token;
       context.auth_url = endpoint['uri'];
+      context.regions = auth.get_regions(response);
+
       if (endpoint['scheme'] == "GlobalAuth") {
         context.tenantId = null;
         context.catalog = {};
@@ -981,12 +992,6 @@ services.factory('auth', ['$http', '$resource', '$rootScope', function($http, $r
         context.catalog = response.access.serviceCatalog;
         context.impersonated = false;
       }
-
-      //Parse region list
-      var regions = _.union.apply(this, _.map(response.access.serviceCatalog, function(o) {return _.map(o.endpoints, function(e) {return e.region;});}));
-      if ('RAX-AUTH:defaultRegion' in response.access.user && regions.indexOf(response.access.user['RAX-AUTH:defaultRegion']) == -1)
-        regions.push(response.access.user['RAX-AUTH:defaultRegion']);
-      context.regions = _.compact(regions);
 
       return context;
     },
