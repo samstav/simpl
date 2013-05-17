@@ -337,13 +337,18 @@ def githubproxy(path=None):
         resp = urllib2.urlopen(req)
         status = resp.getcode()
         body = resp.read()
-    except gaierror, e:
-        LOG.error('HTTP connection exception: %s' % e)
+    except gaierror as exc:
+        LOG.error('HTTP connection exception: %s', exc)
         raise HTTPError(500, output="Unable to communicate with "
                         "github server: %s" % source)
-    except Exception, e:
-        LOG.error("HTTP connection exception of type '%s': %s" % (
-                  e.__class__.__name__, e))
+    except urllib2.HTTPError as exc:
+        LOG.error("HTTP connection exception of type '%s': %s",
+                  exc.__class__.__name__, exc)
+        raise HTTPError(exc.code, output="Unable to communicate with "
+                        "github server")
+    except Exception as exc:
+        LOG.error("Caught exception of type '%s': %s",
+                  exc.__class__.__name__, exc)
         raise HTTPError(401, output="Unable to communicate with "
                         "github server")
 
@@ -423,7 +428,12 @@ class RackspaceSSOAuthMiddleware(object):
         self.endpoint = endpoint
         self.anonymous_paths = anonymous_paths or []
         self.auth_header = 'GlobalAuth uri="%s"' % endpoint['uri']
-        if 'kwargs' in endpoint and 'realm' in endpoint['kwargs']:
+        if 'kwargs' in endpoint and 'realm' in endpoint['kwargs'] and 'priority' in endpoint['kwargs']:
+            self.auth_header = str('GlobalAuth uri="%s" realm="%s" priority="%s"' % (
+                                   endpoint['uri'],
+                                   endpoint['kwargs'].get('realm'),
+                                   endpoint['kwargs'].get('priority')))
+        elif 'kwargs' in endpoint and 'realm' in endpoint['kwargs']:
             self.auth_header = str('GlobalAuth uri="%s" realm="%s"' % (
                                    endpoint['uri'],
                                    endpoint['kwargs'].get('realm')))
