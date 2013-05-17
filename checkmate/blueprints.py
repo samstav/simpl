@@ -32,6 +32,7 @@ def get_blueprints(tenant_id=None):
         response
     )
 
+
 @post('/blueprints')
 @with_tenant
 def post_blueprint(tenant_id=None):
