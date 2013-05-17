@@ -75,6 +75,17 @@ describe('auth Service', function(){
       expect(this.auth.generate_auth_data(null, null, null, null, null, target)).toBeFalsy();
     });
 
+    it('should not generate impersonation call data if not GlobalAuth', function() {
+      var endpoint_type = 'fakeendpoint';
+      expect(this.auth.generate_impersonation_data(username, endpoint_type )).toBe('{}');
+    });
+
+    it('should generate impersonation call data if GlobalAuth', function() {
+      var endpoint_type = 'GlobalAuth';
+      var expected_json = '{"RAX-AUTH:impersonation":{"user":{"username":"fakeusername"},"expire-in-seconds":10800}}';
+      expect(this.auth.generate_impersonation_data(username, endpoint_type )).toBe(expected_json);
+    });
+
   });
 
   describe('#create_context', function() {
@@ -117,7 +128,7 @@ describe('auth Service', function(){
       expect(this.auth.create_context(response, endpoint).username).toEqual('fakeuserid');
     });
 
-    describe('context and endpoint schemes', function() {
+    describe('#context and endpoint schemes', function() {
       it('should set context based on GlobalAuth', function() {
         endpoint.scheme = 'GlobalAuth';
         this.auth.create_context(response, endpoint);
