@@ -740,16 +740,15 @@ def plan(deployment, context, check_limits=False, check_access=False):
     if resources:
         deployment['resources'] = resources
 
-    pile = eventlet.GreenPile()
+    pool = eventlet.GreenPool()
     if check_access:
-        pile.spawn(planner.verify_access, context)
+        access = pool.spawn(planner.verify_access, context)
     if check_limits:
-        pile.spawn(planner.verify_limits, context)
-    for result in pile:
-        if result['type'] == 'limits' and result['output']:
-            deployment['check-limit-results'] = result['output']
-        elif result['type'] == 'access' and result['output']:
-            deployment['check-access-results'] = result['output']
+        limits = pool.spawn(planner.verify_limits, context)
+    if check_access:
+        deployment['check-limit-results'] = limits.wait()
+    if check_limits:
+        deployment['check-access-results'] = access.wait()
 
     # Save plan details for future rehydration/use
     deployment['plan'] = planner._data  # get the dict so we can serialize it

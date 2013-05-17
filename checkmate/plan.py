@@ -134,7 +134,7 @@ class Plan(ExtensibleDict):
         for result in pile:
             if result:
                 results.extend(result)
-        return {'type': 'limits', 'output': results}
+        return results
 
     def verify_access(self, context):
         """Ensure user has RBAC permissions to allocate provider resources.
@@ -150,7 +150,7 @@ class Plan(ExtensibleDict):
         for result in pile:
             if result:
                 results.extend(result)
-        return {'type': 'access', 'output': results}
+        return results
 
     def plan_delete(self, context):
         """
