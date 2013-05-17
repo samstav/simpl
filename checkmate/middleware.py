@@ -243,7 +243,7 @@ class TokenAuthMiddleware(object):
             ]
             params.extend([(k, v) for k, v in endpoint['kwargs'].items()
                            if k not in ['realm', 'protocol']])
-            extras = ', '.join(['%s="%s"' % (k, v) for (k, v) in params])
+            extras = ' '.join(['%s="%s"' % (k, v) for (k, v) in params])
             self.auth_header = str('Keystone uri="%s" %s' % (
                                    endpoint['uri'], extras))
 
