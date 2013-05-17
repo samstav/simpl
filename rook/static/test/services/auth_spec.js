@@ -85,6 +85,7 @@ describe('auth Service', function(){
         access: {
           user: { name: 'fakename' },
           token: { tenant: { id: 'fakeid' } },
+          serviceCatalog: {},
         }
       };
       endpoint = { uri: 'fakeuri', scheme: 'fakescheme' };
@@ -114,6 +115,30 @@ describe('auth Service', function(){
       delete response.access.user.name
       response.access.user.id = 'fakeuserid';
       expect(this.auth.create_context(response, endpoint).username).toEqual('fakeuserid');
+    });
+
+    describe('context and endpoint schemes', function() {
+      it('should set context based on GlobalAuth', function() {
+        endpoint.scheme = 'GlobalAuth';
+        expect(this.auth.create_context(response, endpoint).tenantId).toBe(null);
+        expect(this.auth.create_context(response, endpoint).catalog).toEqual({});
+        expect(this.auth.create_context(response, endpoint).impersonated).toBe(false);
+      });
+
+      it('should set context based on different endpoint schemes with tenant', function() {
+        expect(this.auth.create_context(response, endpoint).impersonated).toBe(false);
+        expect(this.auth.create_context(response, endpoint).catalog).toEqual({});
+        expect(this.auth.create_context(response, endpoint).tenantId).toEqual('fakeid');
+      });
+
+      it('should set context based on different endpoint schemes without tenant', function() {
+        delete response.access.token.tenant;
+        this.auth.fetch_identity_tenants = jasmine.createSpy('fetch_identity_tenants');
+        expect(this.auth.create_context(response, endpoint).impersonated).toBe(false);
+        expect(this.auth.create_context(response, endpoint).catalog).toEqual({});
+        expect(this.auth.create_context(response, endpoint).tenantId).toEqual(null);
+        expect(this.auth.fetch_identity_tenants).toHaveBeenCalled();
+      });
     });
 
   });

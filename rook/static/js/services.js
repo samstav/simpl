@@ -976,7 +976,7 @@ services.factory('auth', ['$http', '$resource', '$rootScope', function($http, $r
           context.tenantId = response.access.token.tenant.id;
         else {
           context.tenantId = null;
-          fetch_identity_tenants(endpoint, context.token);
+          auth.fetch_identity_tenants(endpoint, context.token);
         }
         context.catalog = response.access.serviceCatalog;
         context.impersonated = false;
