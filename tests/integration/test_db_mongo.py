@@ -42,7 +42,7 @@ class TestDBMongo(base.DBDriverTests, unittest.TestCase):
             cls.box = MongoBox()
             cls.box.start()
             cls._connection_string = ("mongodb://localhost:%s/test" %
-                                     cls.box.port)
+                                      cls.box.port)
         except StandardError as exc:
             if hasattr(cls, 'box'):
                 del cls.box
