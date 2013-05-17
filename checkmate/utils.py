@@ -42,6 +42,7 @@ DEFAULT_SENSITIVE_KEYS = [
     re.compile('^password'),
 ]
 
+
 def get_debug_level():
     """Get debug settings from arguments.
 
@@ -283,26 +284,30 @@ def write_pagination_headers(data, request, response, uripath, tenant_id):
         limit = total
 
     # Set 'content-range' header
-    response.set_header('Content-Range',
-                    "%s %d-%d/%d" % (uripath, offset, offset + limit, total))
+    response.set_header(
+        'Content-Range',
+        "%s %d-%d/%d" % (uripath, offset, offset + limit, total)
+    )
 
     if offset + limit < total:
-        response.status = 206 # Partial
+        response.status = 206  # Partial
     else:
-        response.status = 200 # OK / Complete
+        response.status = 200  # OK / Complete
 
     # Add Next page link to http header
     nextfmt = '</%s/%s?limit=%d&offset=%d>; rel="next"; title="Next page"'
     if (offset + limit) < total:
-        response.add_header("Link",
-                            nextfmt % (tenant_id, uripath, limit, offset+limit))
+        response.add_header(
+            "Link", nextfmt % (tenant_id, uripath, limit, offset+limit)
+        )
 
     # Add Previous page link to http header
     prevfmt = '</%s/%s?limit=%d&offset=%d>; rel="previous"; \
 title="Previous page"'
     if offset > 0 and (offset - limit) >= 0:
-        response.add_header("Link",
-                            prevfmt % (tenant_id, uripath, limit, offset-limit))
+        response.add_header(
+            "Link", prevfmt % (tenant_id, uripath, limit, offset-limit)
+        )
 
     # Add first page link to http header
     firstfmt = '</%s/%s?limit=%d>; rel="first"; title="First page"'

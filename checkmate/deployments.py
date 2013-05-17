@@ -268,9 +268,10 @@ def clone_deployment(oid, tenant_id=None, driver=DB):
         abort(404, 'No deployment found with deployment id %s' % oid)
 
     if deployment['status'] != 'DELETED':
-        raise CheckmateBadState("Deployment '%s' is in '%s' status and must "
-                                        "be in 'DELETED' to recreate" %
-                                        (oid, deployment['status']))
+        raise CheckmateBadState(
+            "Deployment '%s' is in '%s' status and must be "
+            "in 'DELETED' to recreate" % (oid, deployment['status'])
+        )
 
     # give a new deployment ID
     if request.context.simulation is True:
