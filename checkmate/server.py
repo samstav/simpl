@@ -221,12 +221,14 @@ def main_func():
                 ip = supplied
 
     # Select server (wsgiref by default. eventlet if requested)
+    reloader = True
     server = 'wsgiref'
     if '--eventlet' in sys.argv:
         server = 'eventlet'
+        reloader = False  # assume eventlet is prod, so don't reload
 
     # Start listening. Enable reload by default to pick up file changes
-    run(app=next_app, host=ip, port=port, reloader=True, server=server)
+    run(app=next_app, host=ip, port=port, reloader=reloader, server=server)
 
 
 #
