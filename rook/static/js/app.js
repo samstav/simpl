@@ -531,9 +531,13 @@ function AppController($scope, $http, $location, $resource, $cookies, auth) {
   };
 }
 
-function NavBarController($scope, $location) {
+function NavBarController($scope, $location, $http) {
   $scope.feedback = "";
   $scope.email = "";
+
+  $scope.hasPendingRequests = function() {
+    return $http.pendingRequests.length > 0;
+  };
 
   // Send feedback to server
   $scope.send_feedback = function() {

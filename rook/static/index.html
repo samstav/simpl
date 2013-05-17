@@ -68,7 +68,11 @@
                 <span class="icon-bar"></span>
                 <span class="icon-bar"></span>
           </button>
-          <a class="brand" href="/"><img id="loading" src="/img/blank.gif" style="width: 16px; height: 16px;"/> Checkmate</a>
+          <a class="brand" href="/">
+            <img id="loading" ng-hide="hasPendingRequests()" src="/img/blank.gif" style="width: 16px; height: 16px;"/>
+            <img id="loading" ng-show="hasPendingRequests()" src="/img/ajax-loader-white.gif" style="width: 16px; height: 16px;"/>
+            Checkmate
+          </a>
           <!--TODO: collapsing not yet clean -->
           <div id="user_control" class="nav pull-right">
             <ul class="nav">
