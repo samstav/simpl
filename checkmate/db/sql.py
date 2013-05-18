@@ -14,7 +14,8 @@ from sqlalchemy import (
     Text,
     PickleType,
     Float,
-    event)
+    event
+)
 from sqlalchemy.engine.base import Engine
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.pool import StaticPool
@@ -104,6 +105,7 @@ class Deployment(BASE):
     lock = Column(String, default=0)
     lock_timestamp = Column(Integer, default=0)
     tenant_id = Column(String(255), index=True)
+    status = Column(String(255), index=True)
     secrets = Column(TextPickleType(pickler=json))
     body = Column(TextPickleType(pickler=json))
 
@@ -417,28 +419,38 @@ class Driver(DbBase):
                      with_deleted=False):
         '''Retrieve all recrods from a given table for a given tenant id'''
         response = {}
-        results = self.session.query(klass)
-        if tenant_id:
-            results = results.filter_by(tenant_id=tenant_id)
+        results = self._add_filters(
+            klass, self.session.query(klass), tenant_id, with_deleted)
         if results and results.count() > 0:
             results = results.limit(limit).offset(offset).all()
 
             for entry in results:
-                if with_deleted or entry.body.get('status') != 'DELETED':
-                    if with_secrets is True:
-                        if entry.secrets:
-                            response[entry.id] = merge_dictionary(
-                                entry.body,
-                                entry.secrets
-                            )
-                        else:
-                            response[entry.id] = entry.body
+                if with_secrets is True:
+                    if entry.secrets:
+                        response[entry.id] = merge_dictionary(
+                            entry.body,
+                            entry.secrets
+                        )
                     else:
                         response[entry.id] = entry.body
-                    response[entry.id]['tenantId'] = entry.tenant_id
+                else:
+                    response[entry.id] = entry.body
+                response[entry.id]['tenantId'] = entry.tenant_id
             if with_count:
-                response['collection-count'] = len(response)
+                response['collection-count'] = self._get_count(
+                    klass, tenant_id, with_deleted)
         return response
+
+    def _add_filters(self, klass, query, tenant_id, with_deleted):
+        if tenant_id:
+            query = query.filter_by(tenant_id=tenant_id)
+        if klass is Deployment and not with_deleted:
+            query = query.filter(Deployment.status != 'DELETED')
+        return query
+
+    def _get_count(self, klass, tenant_id, with_deleted):
+        return self._add_filters(
+            klass, self.session.query(klass), tenant_id, with_deleted).count()
 
     def _save_object(self, klass, id, body, secrets=None,
                      tenant_id=None, merge_existing=False):
@@ -533,12 +545,17 @@ class Driver(DbBase):
                     new_secrets = deepcopy(e.secrets)
                     collate(new_secrets, secrets, extend_lists=False)
                     e.secrets = new_secrets
+
         else:
             assert tenant_id or 'tenantId' in body, \
                 "tenantId must be specified"
             #new item
             e = klass(id=id, body=body, tenant_id=tenant_id,
                       secrets=secrets, locked=0)
+
+        # As of v0.13, status is saved in Deployment object
+        if klass is Deployment:
+            e.status = body.get('status')
 
         self.session.add(e)
         self.session.commit()
