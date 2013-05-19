@@ -1,81 +1,63 @@
 # pylint: disable=C0103,C0111,R0903,R0904,W0212,W0232
 import copy
 import logging
-import os
 import unittest2 as unittest
 import uuid
 import time
 from bottle import HTTPError
 
-from pymongo import Connection
-from pymongo.errors import AutoReconnect, InvalidURI
+try:
+    from mongobox import MongoBox
+    SKIP = False
+    REASON = None
+except ImportError as exc:
+    SKIP = True
+    REASON = "'mongobox' not installed: %s" % exc
+    MongoBox = object
 
-# Init logging before we load the database, 3rd party, and 'noisy' modules
-from checkmate.utils import init_console_logging
+from checkmate import db
 from checkmate.db.common import ObjectLockedError, InvalidKeyError
-
+from checkmate.utils import extract_sensitive_data
 from checkmate.workflows import safe_workflow_save
 
-from copy import deepcopy
-init_console_logging()
 LOG = logging.getLogger(__name__)
-from checkmate import db
-
-SKIP = False
-REASON = ""
-try:
-    # pylint: disable=W0611
-    from checkmate.db import mongodb
-except AutoReconnect:
-    LOG.warn("Could not connect to mongodb. Skipping mongodb tests")
-    SKIP = True
-    REASON = "Could not connect to mongodb"
-except InvalidURI:
-    LOG.warn("Not configured for mongodb. Skipping mongodb tests")
-    SKIP = True
-    REASON = "Configured to connect to non-mongo URI"
-from checkmate.utils import extract_sensitive_data
-
-
-TEST_MONGO_INSTANCE = ('mongodb://checkmate:%s@mongo-n01.dev.chkmate.rackspace'
-                       '.net:27017/checkmate' % 'c%40m3yt1ttttt')
 
 
 class TestDatabase(unittest.TestCase):
     """ Test Mongo Database code """
 
-    def _decode_dict(self, dictionary):
-        decoded_dict = {}
-        for key, value in dictionary.iteritems():
-            if isinstance(key, unicode):
-                key = key.encode('utf-8')
-                try:
-                    key = int(key)
-                except StandardError:
-                    key = key
-            if isinstance(value, unicode):
-                value = value.encode('utf-8')
-                if isinstance(value, int):
-                    value = int(value)
-            elif isinstance(value, dict):
-                value = self._decode_dict(value)
-            decoded_dict[key] = value
-        return decoded_dict
+    #pylint: disable=W0603
+    @classmethod
+    def setUpClass(cls):
+        '''Fire up a sandboxed mongodb instance'''
+        try:
+            cls.box = MongoBox()
+            cls.box.start()
+            cls._connection_string = ("mongodb://localhost:%s/test" %
+                                      cls.box.port)
+        except StandardError as exc:
+            if hasattr(cls, 'box'):
+                del cls.box
+            global SKIP
+            global REASON
+            SKIP = True
+            REASON = str(exc)
+
+    @classmethod
+    def tearDownClass(cls):
+        '''Stop the sanboxed mongodb instance'''
+        if hasattr(cls, 'box') and isinstance(cls.box, MongoBox):
+            if cls.box.running() is True:
+                cls.box.stop()
+                cls.box = None
 
     def setUp(self):
-        if os.environ.get('CHECKMATE_CONNECTION_STRING') is not None:
-            if 'sqlite' in os.environ.get('CHECKMATE_CONNECTION_STRING'):
-                #If our test suite is using sqlite, we need to set this
-                # particular process (test) to use mongo
-                os.environ['CHECKMATE_CONNECTION_STRING'] = TEST_MONGO_INSTANCE
         self.collection_name = 'checkmate_test_%s' % uuid.uuid4().hex
-        self.connection_string = os.environ.get(
-            'CHECKMATE_CONNECTION_STRING', TEST_MONGO_INSTANCE)
         self.driver = db.get_driver(name='checkmate.db.mongodb.Driver',
                                     reset=True,
-                                    connection_string=self.connection_string)
+                                    connection_string=self._connection_string)
         self.driver._connection = self.driver._database = None  # reset driver
-        self.driver.db_name = 'checkmate'
+        self.driver.db_name = 'test'
         self.default_deployment = {
             'id': 'test',
             'name': 'test',
@@ -95,18 +77,23 @@ class TestDatabase(unittest.TestCase):
             },
         }
 
-    def tearDown(self):
-        LOG.debug("Deleting test mongodb collection: %s", self.collection_name)
-        try:
-            connection_string = self.driver.connection_string
-            c = Connection(connection_string)
-            db_to_drop = c.checkmate
-            db_to_drop[self.collection_name].drop()
-            LOG.debug("Deleted test mongodb collection: %s",
-                      self.collection_name)
-        except StandardError:
-            LOG.error("Error deleting test mongodb collection '%s'",
-                      self.collection_name, exc_info=True)
+    def _decode_dict(self, dictionary):
+        decoded_dict = {}
+        for key, value in dictionary.iteritems():
+            if isinstance(key, unicode):
+                key = key.encode('utf-8')
+                try:
+                    key = int(key)
+                except StandardError:
+                    key = key
+            if isinstance(value, unicode):
+                value = value.encode('utf-8')
+                if isinstance(value, int):
+                    value = int(value)
+            elif isinstance(value, dict):
+                value = self._decode_dict(value)
+            decoded_dict[key] = value
+        return decoded_dict
 
     @unittest.skipIf(SKIP, REASON)
     def test_get_objects_for_empty_collections(self):

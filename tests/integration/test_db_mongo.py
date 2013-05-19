@@ -19,10 +19,6 @@ import base  # pylint: disable=W0403
 from pymongo.errors import InvalidName
 
 
-TEST_MONGO_INSTANCE = ('mongodb://checkmate:%s@mongo-n01.dev.chkmate.rackspace'
-                       '.net:27017/checkmate' % 'c%40m3yt1ttttt')
-
-
 @unittest.skipIf(SKIP, REASON)
 class TestDBMongo(base.DBDriverTests, unittest.TestCase):
     '''MongoDB Driver Canned Tests'''
@@ -46,9 +42,6 @@ class TestDBMongo(base.DBDriverTests, unittest.TestCase):
         except StandardError as exc:
             if hasattr(cls, 'box'):
                 del cls.box
-            # Hate to do it, but until we get jenkins sorted this hacks us thru
-            cls.connection_string = TEST_MONGO_INSTANCE
-            return
             global SKIP
             global REASON
             SKIP = True
