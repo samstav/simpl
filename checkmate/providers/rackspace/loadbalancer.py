@@ -1,25 +1,29 @@
-""" Rackspace Cloud Load Balancer provider and celery tasks """
+'''
+Rackspace Cloud Load Balancer provider and celery tasks
+'''
 import copy
 import logging
 
+from celery.canvas import chain, group
+from cloudlb.errors import CloudlbException
 from SpiffWorkflow.operators import PathAttrib, Attrib
 from SpiffWorkflow.specs import Celery
 
-from checkmate.deployments import (resource_postback, alt_resource_postback,
-                                   get_resource_by_id)
 from checkmate.common.caching import Memorize
+from checkmate.deployments import (
+    resource_postback,
+    alt_resource_postback,
+    get_resource_by_id,
+)
 from checkmate.exceptions import (
     CheckmateException,
     CheckmateNoTokenError,
     CheckmateBadState
-    )
+)
 from checkmate.middleware import RequestContext
 from checkmate.providers import ProviderBase
 from checkmate.workflow import wait_for
 from checkmate.utils import match_celery_logging
-from copy import deepcopy
-from celery.canvas import chain, group
-from cloudlb.errors import CloudlbException
 
 LOG = logging.getLogger(__name__)
 
@@ -43,7 +47,7 @@ API_PROTOCOL_CACHE = {}
 
 
 class Provider(ProviderBase):
-    """Rackspace load balancer provider"""
+    '''Rackspace load balancer provider'''
     name = 'load-balancer'
     vendor = 'rackspace'
 
