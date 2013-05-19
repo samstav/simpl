@@ -7,6 +7,7 @@ from SpiffWorkflow.specs import Celery
 
 from checkmate.deployments import (resource_postback, alt_resource_postback,
                                    get_resource_by_id)
+from checkmate.common.caching import Memorize
 from checkmate.exceptions import (
     CheckmateException,
     CheckmateNoTokenError,
@@ -35,6 +36,9 @@ PROTOCOL_PAIRS = {
     'ldaps': 'ldap',
     'pop3s': 'pop3',
 }
+
+API_ALGORTIHM_CACHE = {}
+API_PROTOCOL_CACHE = {}
 
 
 class Provider(ProviderBase):
@@ -382,8 +386,9 @@ class Provider(ProviderBase):
 
         # build a live catalog ()this would be the on_get_catalog called if no
         # stored/override existed
-        api = self._connect(context)
         results = {}
+        region = Provider.find_a_region(context.catalog)
+        api_endpoint = Provider.find_url(context.catalog, region)
 
         if type_filter is None or type_filter == 'regions':
             regions = {}
@@ -398,7 +403,7 @@ class Provider(ProviderBase):
             results['lists']['regions'] = regions
 
         if type_filter is None or type_filter == 'load-balancer':
-            algorithms = api.get_algorithms()
+            algorithms = _get_algorithms(api_endpoint, context.auth_token)
             options = {
                 'algorithm': {
                     'type': 'list',
@@ -423,7 +428,7 @@ class Provider(ProviderBase):
 
             # provide list of available load balancer types
 
-            protocols = api.get_protocols()
+            protocols = _get_protocols(api_endpoint, context.auth_token)
             protocols = [p.lower() for p in protocols]
             for protocol in protocols:
                 item = {'id': protocol, 'is': 'load-balancer',
@@ -458,12 +463,29 @@ class Provider(ProviderBase):
         return results
 
     @staticmethod
+    def find_url(catalog, region):
+        """Find endpoint URL for region"""
+        for service in catalog:
+            if service['type'] == 'rax:load-balancer':
+                endpoints = service['endpoints']
+                for endpoint in endpoints:
+                    if endpoint.get('region') == region:
+                        return endpoint['publicURL']
+
+    @staticmethod
+    def find_a_region(catalog):
+        """Any region"""
+        for service in catalog:
+            if service['type'] == 'rax:load-balancer':
+                endpoints = service['endpoints']
+                for endpoint in endpoints:
+                    return endpoint['region']
+
+    @staticmethod
     def _connect(context, region=None):
         """Use context info to connect to API and return api object"""
         #FIXME: figure out better serialization/deserialization scheme
         if isinstance(context, dict):
-            from checkmate.middleware import RequestContext
-
             context = RequestContext(**context)
         if not context.auth_token:
             raise CheckmateNoTokenError()
@@ -472,31 +494,14 @@ class Provider(ProviderBase):
         if region in REGION_MAP:
             region = REGION_MAP[region]
 
-        def find_url(catalog, region):
-            """Find endpoint URL for region"""
-            for service in catalog:
-                if service['type'] == 'rax:load-balancer':
-                    endpoints = service['endpoints']
-                    for endpoint in endpoints:
-                        if endpoint.get('region') == region:
-                            return endpoint['publicURL']
-
-        def find_a_region(catalog):
-            """Any region"""
-            for service in catalog:
-                if service['type'] == 'rax:load-balancer':
-                    endpoints = service['endpoints']
-                    for endpoint in endpoints:
-                        return endpoint['region']
-
         if not region:
-            region = find_a_region(context.catalog)
+            region = Provider.find_a_region(context.catalog)
             if not region:
                 raise CheckmateException("Unable to locate a load-balancer "
                                          "endpoint")
 
         #TODO: instead of hacking auth using a token, submit patch upstream
-        url = find_url(context.catalog, region)
+        url = Provider.find_url(context.catalog, region)
         if not url:
             raise CheckmateException("Unable to locate region url for LBaaS "
                                      "for region '%s'" % region)
@@ -507,8 +512,35 @@ class Provider(ProviderBase):
         return api
 
 
-""" Celery tasks to manipulate Rackspace Cloud Load Balancers """
+@Memorize(timeout=3600, sensitive_args=[1], store=API_ALGORTIHM_CACHE)
+def _get_algorithms(api_endpoint, auth_token):
+    '''Ask CLB for Algorithms'''
+    # the region must be supplied but is not used
+    api = cloudlb.CloudLoadBalancer('ignore', 'ignore', 'DFW')
+    api.client.auth_token = auth_token
+    api.client.region_account_url = api_endpoint
+    LOG.info("Calling Cloud Load Balancers to get algorithms for %s",
+             api.client.region_account_url)
 
+    return api.get_algorithms()
+
+
+@Memorize(timeout=3600, sensitive_args=[1], store=API_PROTOCOL_CACHE)
+def _get_protocols(api_endpoint, auth_token):
+    '''Ask CLB for Protocols'''
+    # the region must be supplied but is not used
+    api = cloudlb.CloudLoadBalancer('ignore', 'ignore', 'DFW')
+    api.client.auth_token = auth_token
+    api.client.region_account_url = api_endpoint
+    LOG.info("Calling Cloud Load Balancers to get protocols for %s",
+             api.client.region_account_url)
+
+    return api.get_protocols()
+
+
+#
+# Celery tasks to manipulate Rackspace Cloud Load Balancers """
+#
 import cloudlb
 from celery.task import task
 
