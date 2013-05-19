@@ -397,7 +397,7 @@ class Provider(ProviderBase):
                     return endpoint['region']
 
     @staticmethod
-    def _connect(context, region=None):
+    def connect(context, region=None):
         """Use context info to connect to API and return api object"""
         #FIXME: figure out better serialization/deserialization scheme
         if isinstance(context, dict):
@@ -492,7 +492,7 @@ def create_instance(context, instance_name, flavor, size, databases, region,
         return results
 
     if not api:
-        api = Provider._connect(context, region)
+        api = Provider.connect(context, region)
 
     if databases is None:
         databases = []
@@ -564,7 +564,7 @@ def wait_on_build(context, instance_id, region, api=None):
         return
 
     if api is None:
-        api = Provider._connect(context, region)
+        api = Provider.connect(context, region)
 
     assert instance_id, "ID must be provided"
     LOG.debug("Getting Instance %s", instance_id)
@@ -650,7 +650,7 @@ def create_database(context, name, region, character_set=None, collate=None,
     databases = [database]
 
     if not api:
-        api = Provider._connect(context, region)
+        api = Provider.connect(context, region)
 
     instance_key = 'instance:%s' % context['resource']
     if not instance_id:
@@ -737,7 +737,7 @@ def add_databases(context, instance_id, databases, region, api=None):
         return dict(database_names=dbnames)
 
     if not api:
-        api = Provider._connect(context, region)
+        api = Provider.connect(context, region)
 
     instance = api.get_instance(instance_id)
     instance.create_databases(databases)
@@ -778,7 +778,7 @@ def add_user(context, instance_id, databases, username, password, region,
     resource_postback.delay(context['deployment'], results)
 
     if not api:
-        api = Provider._connect(context, region)
+        api = Provider.connect(context, region)
 
     LOG.debug('Obtaining instance %s', instance_id)
     instance = api.get_instance(instance_id)
@@ -869,7 +869,7 @@ def delete_instance(context, api=None):
         return results
 
     if not api:
-        api = Provider._connect(context, region)
+        api = Provider.connect(context, region)
 
     try:
         api.delete_instance(instance_id)
@@ -938,7 +938,7 @@ def wait_on_del_instance(context, api=None):
         raise CheckmateException("No instance id supplied for resource %s"
                                  % key)
     if not api:
-        api = Provider._connect(context, region)
+        api = Provider.connect(context, region)
     instance = None
     try:
         instance = api.get_instance(instance_id)
@@ -1011,7 +1011,7 @@ def delete_database(context, api=None):
     db_name = resource.get('instance', {}).get('name')
 
     if not api:
-        api = Provider._connect(context, region)
+        api = Provider.connect(context, region)
 
     instance = None
     try:
@@ -1040,7 +1040,7 @@ def delete_user(context, instance_id, username, region, api=None):
     """Delete a database user from an instance."""
     match_celery_logging(LOG)
     if api is None:
-        api = Provider._connect(context, region)
+        api = Provider.connect(context, region)
 
     instance = api.get_instance(instanceid=instance_id)
     instance.delete_user(username)

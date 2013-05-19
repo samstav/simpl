@@ -487,7 +487,7 @@ class Provider(ProviderBase):
                     return endpoint['region']
 
     @staticmethod
-    def _connect(context, region=None):
+    def connect(context, region=None):
         """Use context info to connect to API and return api object"""
         #FIXME: figure out better serialization/deserialization scheme
         if isinstance(context, dict):
@@ -588,7 +588,7 @@ def create_loadbalancer(context, name, vip_type, protocol, region, api=None,
         return results
 
     if api is None:
-        api = Provider._connect(context, region)
+        api = Provider.connect(context, region)
 
     #FIXME: should pull default from lb api but thats not exposed via the
     #       client yet
@@ -693,7 +693,7 @@ def sync_resource_task(context, resource, resource_key, api=None):
     match_celery_logging(LOG)
     key = "instance:%s" % resource_key
     if api is None:
-        api = Provider._connect(context, resource.get("region"))
+        api = Provider.connect(context, resource.get("region"))
     try:
         lb = api.loadbalancers.get(resource.get("instance", {}).get("id"))
         return {
@@ -737,7 +737,7 @@ def delete_lb_task(context, key, lbid, region, api=None):
         return
     instance_key = "instance:%s" % key
     if api is None:
-        api = Provider._connect(context, region)
+        api = Provider.connect(context, region)
     try:
         dlb = api.loadbalancers.get(lbid)
     except cloudlb.errors.NotFound:
@@ -776,7 +776,7 @@ def wait_on_lb_delete(context, key, dep_id, lbid, region, api=None):
     wait_on_lb_delete.on_failure = on_failure
 
     if api is None:
-        api = Provider._connect(context, region)
+        api = Provider.connect(context, region)
     dlb = None
     LOG.debug("Checking on loadbalancer %s delete status", lbid)
     try:
@@ -803,7 +803,7 @@ def add_node(context, lbid, ipaddr, region, resource, api=None):
         return results
 
     if api is None:
-        api = Provider._connect(context, region)
+        api = Provider.connect(context, region)
 
     if ipaddr == PLACEHOLDER_IP:
         raise CheckmateException("IP %s is reserved as a placeholder IP by "
@@ -906,7 +906,7 @@ def delete_node(context, lbid, ipaddr, port, region, api=None):
         return
 
     if api is None:
-        api = Provider._connect(context, region)
+        api = Provider.connect(context, region)
 
     loadbalancer = api.loadbalancers.get(lbid)
     node_to_delete = None
@@ -947,7 +947,7 @@ def set_monitor(context, lbid, mon_type, region, path='/', delay=10,
         return
 
     if api is None:
-        api = Provider._connect(context, region)
+        api = Provider.connect(context, region)
 
     LOG.debug("Setting monitor on lbid: %s", lbid)
     loadbalancer = api.loadbalancers.get(lbid)
@@ -1002,7 +1002,7 @@ def wait_on_build(context, lbid, region, api=None):
         return results
 
     if api is None:
-        api = Provider._connect(context, region)
+        api = Provider.connect(context, region)
 
     loadbalancer = api.loadbalancers.get(lbid)
 

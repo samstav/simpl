@@ -305,7 +305,7 @@ class Provider(RackspaceComputeProviderBase):
 
         # build a live catalog this should be the on_get_catalog called if no
         # stored/override existed
-        api = self._connect(context)
+        api = self.connect(context)
         images = None
         flavors = None
 
@@ -413,7 +413,7 @@ class Provider(RackspaceComputeProviderBase):
         return results
 
     @staticmethod
-    def _connect(context):
+    def connect(context):
         """Use context info to connect to API and return api object"""
         #FIXME: figure out better serialization/deserialization scheme
         if isinstance(context, dict):
@@ -482,7 +482,7 @@ def create_server(context, name, api_object=None, flavor=2, files=None,
     """
     match_celery_logging(LOG)
     if api_object is None:
-        api_object = Provider._connect(context)
+        api_object = Provider.connect(context)
 
     LOG.debug('Image=%s, Flavor=%s, Name=%s, Files=%s' % (
               image, flavor, name, files))
@@ -547,7 +547,7 @@ def wait_on_build(context, server_id, ip_address_type='public', check_ssh=True,
     """
     match_celery_logging(LOG)
     if api_object is None:
-        api_object = Provider._connect(context)
+        api_object = Provider.connect(context)
 
     assert server_id, "ID must be provided"
     LOG.debug("Getting server %s" % server_id)
@@ -686,6 +686,6 @@ def _convert_v1_adresses_to_v2(addresses):
 def delete_server(context, serverid, api_object=None):
     match_celery_logging(LOG)
     if api_object is None:
-        api_object = Provider._connect(context)
+        api_object = Provider.connect(context)
     api_object.servers.delete(serverid)
     LOG.debug('Server %d deleted.', serverid)

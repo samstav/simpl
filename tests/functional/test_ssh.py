@@ -55,10 +55,10 @@ class TestSSH(unittest.TestCase):
         client = self.mox.CreateMockAnything()
 
         #Stub out _connect call
-        self.mox.StubOutWithMock(ssh, '_connect')
-        ssh._connect(ip, port=port, username=username, timeout=timeout,
-                     private_key=private_key, identity_file=identity_file,
-                     password=password).AndReturn(client)
+        self.mox.StubOutWithMock(ssh, 'connect')
+        ssh.connect(ip, port=port, username=username, timeout=timeout,
+                    private_key=private_key, identity_file=identity_file,
+                    password=password).AndReturn(client)
         client.close().AndReturn(None)
 
         self.mox.ReplayAll()

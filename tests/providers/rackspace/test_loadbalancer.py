@@ -390,24 +390,26 @@ class TestBasicWorkflow(test.StubbedWorkflowBase):
                                           self.context)
 
         task_list = workflow.spec.task_specs.keys()
-        expected = ['Root', 'Start',
-                    'Create Resource 3',
-                    'Create HTTPS Loadbalancer (0)',
-                    'Wait for Loadbalancer 0 (lb) build',
-                    'Add monitor to Loadbalancer 0 (lb) build',
-                    'Create Resource 2',
-                    'Create HTTP Loadbalancer (1)',
-                    'Wait for Loadbalancer 1 (lb) build',
-                    'Add monitor to Loadbalancer 1 (lb) build',
-                    'Wait before adding 3 to LB 0',
-                    'Wait before adding 2 to LB 0',
-                    'Add Node 3 to LB 0',
-                    'Add Node 3 to LB 1',
-                    'Wait before adding 2 to LB 1',
-                    'Wait before adding 3 to LB 1',
-                    'Add Node 2 to LB 1',
-                    'Add Node 2 to LB 0',
-                    ]
+        expected = [
+            'Root',
+            'Start',
+            'Create Resource 3',
+            'Create HTTPS Loadbalancer (0)',
+            'Wait for Loadbalancer 0 (lb) build',
+            'Add monitor to Loadbalancer 0 (lb) build',
+            'Create Resource 2',
+            'Create HTTP Loadbalancer (1)',
+            'Wait for Loadbalancer 1 (lb) build',
+            'Add monitor to Loadbalancer 1 (lb) build',
+            'Wait before adding 3 to LB 0',
+            'Wait before adding 2 to LB 0',
+            'Add Node 3 to LB 0',
+            'Add Node 3 to LB 1',
+            'Wait before adding 2 to LB 1',
+            'Wait before adding 3 to LB 1',
+            'Add Node 2 to LB 1',
+            'Add Node 2 to LB 0',
+        ]
         task_list.sort()
         expected.sort()
         self.assertListEqual(task_list, expected, msg=task_list)
