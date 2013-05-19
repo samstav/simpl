@@ -36,6 +36,7 @@ class TestDatabase(unittest.TestCase):
             cls._connection_string = ("mongodb://localhost:%s/test" %
                                       cls.box.port)
         except StandardError as exc:
+            LOG.exception(exc)
             if hasattr(cls, 'box'):
                 del cls.box
             global SKIP
@@ -108,11 +109,11 @@ class TestDatabase(unittest.TestCase):
         }
         body, secrets = extract_sensitive_data(entity)
         results = self.driver._save_object(self.collection_name, entity['id'],
-                                          body, secrets, tenant_id='T1000')
+                                           body, secrets, tenant_id='T1000')
         self.assertDictEqual(results, body)
 
         results = self.driver._get_object(self.collection_name, entity['id'],
-                                         with_secrets=True)
+                                          with_secrets=True)
         entity['tenantId'] = 'T1000'  # gets added
         self.assertDictEqual(results, entity)
         self.assertIn('credentials', results)
@@ -120,14 +121,14 @@ class TestDatabase(unittest.TestCase):
         body['name'] = 'My Updated Component'
         entity['name'] = 'My Updated Component'
         results = self.driver._save_object(self.collection_name, entity['id'],
-                                          body, secrets)
+                                           body, secrets)
         results = self.driver._get_object(self.collection_name, entity['id'],
                                          with_secrets=True)
         self.assertIn('credentials', results)
         self.assertDictEqual(results, entity)
 
         results = self.driver._get_object(self.collection_name, entity['id'],
-                                         with_secrets=False)
+                                          with_secrets=False)
         self.assertNotIn('credentials', results)
         body['tenantId'] = 'T1000'  # gets added
         self.assertDictEqual(results, body)
@@ -135,8 +136,8 @@ class TestDatabase(unittest.TestCase):
                          "exposed outside of driver")
 
         results = self.driver._get_objects(self.collection_name,
-                                          with_secrets=False,
-                                          with_count=False)
+                                           with_secrets=False,
+                                           with_count=False)
         results = self._decode_dict(results)
 
         #Since object was extraced in _get_objects format, need to make sure
@@ -156,22 +157,22 @@ class TestDatabase(unittest.TestCase):
         }
         body, secrets = extract_sensitive_data(entity)
         self.driver._save_object(self.collection_name, entity['id'], body,
-                                secrets, tenant_id='T1000')
+                                 secrets, tenant_id='T1000')
         entity['id'] = 2
         entity['name'] = 'My Second Component'
         body, secrets = extract_sensitive_data(entity)
         self.driver._save_object(self.collection_name, entity['id'], body,
-                                secrets, tenant_id='T1000')
+                                 secrets, tenant_id='T1000')
         entity['id'] = 3
         entity['name'] = 'My Third Component'
         body, secrets = extract_sensitive_data(entity)
         self.driver._save_object(self.collection_name, entity['id'], body,
-                                secrets, tenant_id='T1000')
+                                 secrets, tenant_id='T1000')
 
         results = self.driver._get_objects(self.collection_name,
-                                          tenant_id='T1000',
-                                          with_secrets=False, limit=2,
-                                          with_count=False)
+                                           tenant_id='T1000',
+                                           with_secrets=False, limit=2,
+                                           with_count=False)
         expected = {
             1: {
                 'id': 1,
@@ -188,10 +189,10 @@ class TestDatabase(unittest.TestCase):
         self.assertDictEqual(results, expected)
 
         results = self.driver._get_objects(self.collection_name,
-                                          tenant_id='T1000',
-                                          with_secrets=False, offset=1,
-                                          limit=2,
-                                          with_count=False)
+                                           tenant_id='T1000',
+                                           with_secrets=False, offset=1,
+                                           limit=2,
+                                           with_count=False)
         expected = {
             2: {
                 'id': 2,
@@ -211,11 +212,11 @@ class TestDatabase(unittest.TestCase):
     def test_hex_id(self):
         hex_id = uuid.uuid4().hex
         self.driver._save_object(self.collection_name,
-                                hex_id, dict(id=hex_id),
-                                None,
-                                tenant_id='T1000')
+                                 hex_id, dict(id=hex_id),
+                                 None,
+                                 tenant_id='T1000')
         unicode_results = self.driver._get_objects(self.collection_name,
-                                                  with_count=False)
+                                                   with_count=False)
         if unicode_results and 'collection-count' in unicode_results:
             del unicode_results['collection-count']
         results = self._decode_dict(unicode_results)
@@ -236,9 +237,9 @@ class TestDatabase(unittest.TestCase):
         for i in range(1, 5):
             expected[i] = dict(id=i, tenantId='T1000')
             self.driver._save_object(self.collection_name, i, dict(id=i), None,
-                                    tenant_id='T1000')
+                                     tenant_id='T1000')
         unicode_results = self.driver._get_objects(self.collection_name,
-                                                  with_count=False)
+                                                   with_count=False)
         results = self._decode_dict(unicode_results)
         self.assertDictEqual(results, expected)
         for i in range(1, 5):
@@ -252,9 +253,9 @@ class TestDatabase(unittest.TestCase):
         for i in range(1, 5):
             expected[i] = dict(id=i, tenantId='T1000')
             self.driver._save_object(self.collection_name, i, dict(id=i), None,
-                                    tenant_id='T1000')
+                                     tenant_id='T1000')
         unicode_results = self.driver._get_objects(self.collection_name,
-                                                  with_count=True)
+                                                   with_count=True)
         self.assertIn('collection-count', unicode_results)
 
     def test_save_deployment_fails_if_locked(self):
@@ -265,7 +266,7 @@ class TestDatabase(unittest.TestCase):
                                     {"id": obj_id, "test": obj_id},
                                     tenant_id="T1000",
                                     partial=False)
-        locked_object, key = self.driver.lock_object(klass, obj_id)
+        locked_object, _ = self.driver.lock_object(klass, obj_id)
         with self.assertRaises(ObjectLockedError):
             self.driver.save_deployment(obj_id,
                                         {"id": obj_id, "test": obj_id},
@@ -278,7 +279,7 @@ class TestDatabase(unittest.TestCase):
         obj_id = 1
         self.driver.database()[klass].remove({'_id': obj_id})
         self.driver._save_object(klass, obj_id, {"id": obj_id, "test": obj_id},
-                                tenant_id='T1000')
+                                 tenant_id='T1000')
 
         locked_object, key = self.driver.lock_object(klass, obj_id)
         #is the returned object what we expected?
@@ -477,6 +478,7 @@ class TestDatabase(unittest.TestCase):
         with self.assertRaises(HTTPError):
             safe_workflow_save("1", {"id": "yolo"}, tenant_id=2412423,
                                driver=self.driver)
+
 
 if __name__ == '__main__':
     # Any change here should be made in all test files
