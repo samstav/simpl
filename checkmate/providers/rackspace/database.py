@@ -48,9 +48,9 @@ class Provider(ProviderBase):
     def generate_template(self, deployment, resource_type, service, context,
                           index, key, definition):
         templates = ProviderBase.generate_template(self, deployment,
-                                                  resource_type, service,
-                                                  context, index, self.key,
-                                                  definition)
+                                                   resource_type, service,
+                                                   context, index, self.key,
+                                                   definition)
 
         catalog = self.get_catalog(context)
 
@@ -358,7 +358,8 @@ class Provider(ProviderBase):
                 str(f.id): {
                     'name': f.name,
                     'memory': f.ram
-                    } for f in flavors}
+                } for f in flavors
+            }
 
         self.validate_catalog(results)
         if type_filter is None:
@@ -581,9 +582,11 @@ def wait_on_build(context, instance_id, region, api=None):
 
         # Delete the database if it failed
         Provider({}).delete_resource_tasks(context, context['deployment'],
-                                    get_resource_by_id(context['deployment'],
-                                                        context['resource']),
-                                    instance_key).apply_async()
+                                           get_resource_by_id(
+                                               context['deployment'],
+                                               context['resource']
+                                           ),
+                                           instance_key).apply_async()
         raise CheckmateException(msg)
     elif instance.status == "ACTIVE":
         results['status'] = "ACTIVE"

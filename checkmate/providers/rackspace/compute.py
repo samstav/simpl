@@ -102,7 +102,6 @@ iBoaWdoIGVub3VnaCB0byBzZWUgYmV5b25kIGhvcml6 b25zLiINCg0KLVJpY2hhcmQgQmFjaA=="
             source_field_name: flavor
             choice: []
 """)
-
 API_IMAGE_CACHE = {}
 API_FLAVOR_CACHE = {}
 
@@ -512,7 +511,7 @@ def _get_images_and_types(api_endpoint, auth_token):
 
 @Memorize(timeout=3600, sensitive_args=[1], store=API_FLAVOR_CACHE)
 def _get_flavors(api_endpoint, auth_token):
-    '''Ask Nove for Flavors (RAM, CPU, HDD) options'''
+    '''Ask Nova for Flavors (RAM, CPU, HDD) options'''
     api = client.Client('ignore', 'ignore', None, 'localhost')
     api.client.auth_token = auth_token
     api.client.management_url = api_endpoint
