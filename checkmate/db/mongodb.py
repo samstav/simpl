@@ -395,23 +395,36 @@ class Driver(DbBase):
         if limit is None:
             limit = 0
         with self._get_client().start_request():
-            results = self.database()[klass].find(
-                {'tenantId': tenant_id} if tenant_id else None,
-                self._object_projection
+            results = self.database()[klass].find(self._build_filters(
+                klass, tenant_id, with_deleted), self._object_projection
             ).skip(offset).limit(limit)
 
             for entry in results:
-                if with_deleted or entry.get('status') != 'DELETED':
-                    if with_secrets is True:
-                        response[entry['id']] = self.merge_secrets(
-                            klass, entry['id'], entry)
-                    else:
-                        response[entry['id']] = entry
+                if with_secrets is True:
+                    response[entry['id']] = self.merge_secrets(
+                        klass, entry['id'], entry)
+                else:
+                    response[entry['id']] = entry
 
             if response and with_count:
-                response['collection-count'] = len(response)
+                response['collection-count'] = self._get_count(
+                    klass, tenant_id, with_deleted)
 
         return response
+
+    def _get_count(self, klass, tenant_id, with_deleted):
+        return self.database()[klass].find(
+            self._build_filters(klass, tenant_id, with_deleted),
+            self._object_projection
+        ).count()
+
+    def _build_filters(self, klass, tenant_id, with_deleted):
+        filters = {}
+        if tenant_id:
+            filters['tenantId'] = tenant_id
+        if klass == 'deployments' and not with_deleted:
+            filters['status'] = {'$ne': 'DELETED'}
+        return filters
 
     def _save_object(self, klass, api_id, body, secrets=None, tenant_id=None,
                      merge_existing=False):

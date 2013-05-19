@@ -68,6 +68,7 @@ class TestDatabase(unittest.TestCase):
         entity = {
             'id': 1,
             'name': 'My Component',
+            'status': 'NEW',
             'credentials': ['My Secrets']
         }
         body, secrets = extract_sensitive_data(entity)
@@ -76,12 +77,14 @@ class TestDatabase(unittest.TestCase):
 
         entity['id'] = 2
         entity['name'] = 'My Second Component'
+        entity['status'] = 'NEW'
         body, secrets = extract_sensitive_data(entity)
         self.driver._save_object(self.klass, entity['id'], body, secrets,
                                 tenant_id='T1000')
 
         entity['id'] = 3
         entity['name'] = 'My Third Component'
+        entity['status'] = 'NEW'
         body, secrets = extract_sensitive_data(entity)
         self.driver._save_object(self.klass, entity['id'], body, secrets,
                                 tenant_id='T1000')
@@ -90,11 +93,14 @@ class TestDatabase(unittest.TestCase):
             1: {
                 'id': 1,
                 'name': 'My Component',
-                'tenantId': 'T1000'},
+                'tenantId': 'T1000',
+                'status': 'NEW'
+            },
             2: {
                 'id': 2,
                 'name': 'My Second Component',
                 'tenantId': 'T1000',
+                'status': 'NEW'
             }
         }
         results = self.driver._get_objects(self.klass, tenant_id='T1000',
@@ -109,11 +115,13 @@ class TestDatabase(unittest.TestCase):
                 'id': 2,
                 'name': 'My Second Component',
                 'tenantId': 'T1000',
+                'status': 'NEW'
             },
             3: {
                 'id': 3,
                 'name': 'My Third Component',
                 'tenantId': 'T1000',
+                'status': 'NEW'
             }
         }
         results = self.driver._get_objects(self.klass, tenant_id='T1000',
