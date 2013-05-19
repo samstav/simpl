@@ -28,6 +28,7 @@ REGION_MAP = {
     'dallas': 'DFW',
     'chicago': 'ORD',
     'london': 'LON',
+    'sydney': 'SYD',
 }
 
 PROTOCOL_PAIRS = {

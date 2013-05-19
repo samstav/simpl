@@ -31,9 +31,12 @@ from checkmate.workflow import wait_for
 LOG = logging.getLogger(__name__)
 
 # Any names should become airport codes
-REGION_MAP = {'dallas': 'DFW',
-              'chicago': 'ORD',
-              'london': 'LON'}
+REGION_MAP = {
+    'dallas': 'DFW',
+    'chicago': 'ORD',
+    'london': 'LON',
+    'sydney': 'SYD',
+}
 
 
 class Provider(ProviderBase):

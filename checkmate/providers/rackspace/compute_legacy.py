@@ -23,9 +23,12 @@ LOG = logging.getLogger(__name__)
 # This supports translating airport codes to city names. Checkmate expects to
 # deal in the region name as defined in the service catalog, which is in
 # airport codes.
-REGION_MAP = {'dallas': 'DFW',
-              'chicago': 'ORD',
-              'london': 'LON'}
+REGION_MAP = {
+    'dallas': 'DFW',
+    'chicago': 'ORD',
+    'london': 'LON',
+    'sydney': 'SYD',
+}
 CATALOG_TEMPLATE = yaml_to_dict("""compute:
   linux_instance:
     id: linux_instance
