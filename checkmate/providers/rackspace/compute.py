@@ -103,7 +103,8 @@ iBoaWdoIGVub3VnaCB0byBzZWUgYmV5b25kIGhvcml6 b25zLiINCg0KLVJpY2hhcmQgQmFjaA=="
             choice: []
 """)
 
-API_CACHE = {}
+API_IMAGE_CACHE = {}
+API_FLAVOR_CACHE = {}
 
 
 class RackspaceComputeProviderBase(ProviderBase):
@@ -484,7 +485,7 @@ class Provider(RackspaceComputeProviderBase):
         return api
 
 
-@Memorize(timeout=3600, sensitive_args=[1], store=API_CACHE)
+@Memorize(timeout=3600, sensitive_args=[1], store=API_IMAGE_CACHE)
 def _get_images_and_types(api_endpoint, auth_token):
     '''Ask Nova for Images and Types'''
     api = client.Client('ignore', 'ignore', None, 'localhost')
@@ -509,7 +510,7 @@ def _get_images_and_types(api_endpoint, auth_token):
     return ret
 
 
-@Memorize(timeout=3600, sensitive_args=[1], store=API_CACHE)
+@Memorize(timeout=3600, sensitive_args=[1], store=API_FLAVOR_CACHE)
 def _get_flavors(api_endpoint, auth_token):
     '''Ask Nove for Flavors (RAM, CPU, HDD) options'''
     api = client.Client('ignore', 'ignore', None, 'localhost')
