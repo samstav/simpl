@@ -331,8 +331,6 @@ class TestCatalog(unittest.TestCase):
     def test_generation(self):
         provider = database.Provider({})
         context = self.mox.CreateMockAnything()
-        api = self.mox.CreateMockAnything()
-        flavors = self.mox.CreateMockAnything()
         flavor1 = self.mox.CreateMockAnything()
         flavor1.id = '1'
         flavor1.ram = 1024
@@ -354,6 +352,7 @@ class TestCatalog(unittest.TestCase):
             "name": "cloudDatabases",
             "type": "rax:database"
         }]
+        context.auth_token = "DUMMY_TOKEN"
         expected = {
             'compute': {
                 'mysql_instance': {
@@ -416,10 +415,9 @@ class TestCatalog(unittest.TestCase):
             }
         }
 
-        self.mox.StubOutWithMock(provider, '_connect')
-        provider._connect(context).AndReturn(api)
-        api.flavors = flavors
-        flavors.list_flavors().AndReturn([flavor1])
+        self.mox.StubOutWithMock(database, '_get_flavors')
+        database._get_flavors('https://north.databases.com/v1/55BB',
+                              'DUMMY_TOKEN').AndReturn([flavor1])
 
         self.mox.ReplayAll()
         results = provider.get_catalog(context)

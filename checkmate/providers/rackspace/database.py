@@ -12,6 +12,7 @@ from clouddb.errors import ResponseError
 from SpiffWorkflow.operators import PathAttrib
 from SpiffWorkflow.specs import Celery
 
+from checkmate.common.caching import Memorize
 from checkmate.deployments import (
     resource_postback,
     alt_resource_postback,
@@ -37,6 +38,7 @@ REGION_MAP = {
     'london': 'LON',
     'sydney': 'SYD',
 }
+API_FLAVOR_CACHE = {}
 
 
 class Provider(ProviderBase):
@@ -294,7 +296,8 @@ class Provider(ProviderBase):
 
         # build a live catalog this would be the on_get_catalog called if no
         # stored/override existed
-        api = self._connect(context)
+        region = Provider.find_a_region(context.catalog)
+        api_endpoint = Provider.find_url(context.catalog, region)
         if type_filter is None or type_filter == 'database':
             results['database'] = dict(mysql_database={
                 'id': 'mysql_database',
@@ -348,7 +351,7 @@ class Provider(ProviderBase):
             results['lists']['regions'] = regions
 
         if type_filter is None or type_filter == 'size':
-            flavors = api.flavors.list_flavors()
+            flavors = _get_flavors(api_endpoint, context.auth_token)
             if 'lists' not in results:
                 results['lists'] = {}
             results['lists']['sizes'] = {
@@ -375,6 +378,24 @@ class Provider(ProviderBase):
         return ProviderBase.evaluate(function_string)
 
     @staticmethod
+    def find_url(catalog, region):
+        for service in catalog:
+            if service['type'] == 'rax:database':
+                endpoints = service['endpoints']
+                for endpoint in endpoints:
+                    if endpoint.get('region') == region:
+                        return endpoint['publicURL']
+
+    @staticmethod
+    def find_a_region(catalog):
+        """Any region"""
+        for service in catalog:
+            if service['type'] == 'rax:database':
+                endpoints = service['endpoints']
+                for endpoint in endpoints:
+                    return endpoint['region']
+
+    @staticmethod
     def _connect(context, region=None):
         """Use context info to connect to API and return api object"""
         #FIXME: figure out better serialization/deserialization scheme
@@ -387,27 +408,11 @@ class Provider(ProviderBase):
         if region in REGION_MAP:
             region = REGION_MAP[region]
 
-        def find_url(catalog, region):
-            for service in catalog:
-                if service['type'] == 'rax:database':
-                    endpoints = service['endpoints']
-                    for endpoint in endpoints:
-                        if endpoint.get('region') == region:
-                            return endpoint['publicURL']
-
-        def find_a_region(catalog):
-            """Any region"""
-            for service in catalog:
-                if service['type'] == 'rax:database':
-                    endpoints = service['endpoints']
-                    for endpoint in endpoints:
-                        return endpoint['region']
-
         if not region:
-            region = find_a_region(context.catalog) or 'DFW'
+            region = Provider.find_a_region(context.catalog) or 'DFW'
 
         #TODO: instead of hacking auth using a token, submit patch upstream
-        url = find_url(context.catalog, region)
+        url = Provider.find_url(context.catalog, region)
         if not url:
             raise CheckmateException("Unable to locate region url for DBaaS "
                                      "for region '%s'" % region)
@@ -416,6 +421,19 @@ class Provider(ProviderBase):
         api.client.region_account_url = url
 
         return api
+
+
+@Memorize(timeout=3600, sensitive_args=[1], store=API_FLAVOR_CACHE)
+def _get_flavors(api_endpoint, auth_token):
+    '''Ask DBaaS for Flavors (RAM, CPU, HDD) options'''
+    # the region must be supplied but is not used
+    api = clouddb.CloudDB('ignore', 'ignore', 'DFW')
+    api.client.auth_token = auth_token
+    api.client.region_account_url = api_endpoint
+
+    LOG.info("Calling Cloud Databases to get flavors for %s",
+             api.client.region_account_url)
+    return api.flavors.list_flavors()
 
 
 #
