@@ -15,10 +15,10 @@ PYENV_HOME=$WORKSPACE/../.checkmate_pyenv/
 . $PYENV_HOME/bin/activate
 
 ### Set chef-stockton location for chef provider tests.
-export CHECKMATE_CHEF_REPO=$WORKSPACE/chef-stockton
+# DEPRECATED 2013-05-19 by ZNS export CHECKMATE_CHEF_REPO=$WORKSPACE/chef-stockton
 
 ### Clone the chef-stockton repo
-git clone -b master git://github.rackspace.com/checkmate/chef-stockton.git $CHECKMATE_CHEF_REPO
+# DEPRECATED 2013-05-19 by ZNS git clone -b master git://github.rackspace.com/checkmate/chef-stockton.git $CHECKMATE_CHEF_REPO
 
 nosetests --with-coverage --cover-package=checkmate --with-xunit -w tests/
 

@@ -5,13 +5,10 @@ import sys
 import unittest2 as unittest
 import uuid
 
-from bottle import default_app, load
+from bottle import default_app
 from webtest import TestApp
 
-os.environ['CHECKMATE_DATA_PATH'] = os.path.join(os.path.dirname(__file__),
-                                                 'data')
-os.environ['CHECKMATE_CONNECTION_STRING'] = 'sqlite://'
-
+from checkmate import blueprints, deployments, environments, workflows
 from checkmate.middleware import (
     TenantMiddleware,
     ContextMiddleware,
@@ -23,11 +20,13 @@ class TestServer(unittest.TestCase):
     """ Test Basic Server code """
 
     def setUp(self):
-        load('checkmate.blueprints')
-        load('checkmate.deployments')
-        load('checkmate.environments')
-        load('checkmate.workflows')
-        root_app = default_app()
+        os.environ['CHECKMATE_CONNECTION_STRING'] = 'sqlite://'
+        default_app.push()
+        reload(blueprints)
+        reload(deployments)
+        reload(environments)
+        reload(workflows)
+        root_app = default_app.pop()
         root_app.catchall = False
         tenant = TenantMiddleware(root_app)
         context = ContextMiddleware(tenant)
@@ -142,13 +141,13 @@ class TestServer(unittest.TestCase):
         id2 = uuid.uuid4().hex[0:4]
 
         #PUT
-        entity = "%s: &e1\n    id: %s" % (model_name, id1)
+        entity = "%s: &e1\n    id: '%s'" % (model_name, id1)
         res = self.app.put('/T1000/%ss/%s' % (model_name, id1), entity,
                            content_type='application/x-yaml')
         self.assertEqual(res.status, '201 Created')
         self.assertEqual(res.content_type, 'application/json')
 
-        entity = "%s: &e1\n    id: %s" % (model_name, id2)
+        entity = "%s: &e1\n    id: '%s'" % (model_name, id2)
         res = self.app.put('/T2000/%ss/%s' % (model_name, id2), entity,
                            content_type='application/x-yaml')
 

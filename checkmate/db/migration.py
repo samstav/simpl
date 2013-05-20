@@ -78,8 +78,12 @@ def db_goto_version(sql_connection, version):
     try:
         old_version = versioning_api.db_version(sql_connection, repo_path)
         if new_version != old_version:
-            return set_db_version(sql_connection, repo_path, old_version,
-                new_version)
+            return set_db_version(
+                sql_connection,
+                repo_path,
+                old_version,
+                new_version
+            )
     except versioning_exceptions.DatabaseNotControlledError:
         msg = (_("database '%(sql_connection)s' is not under "
                  "migration control") % locals())
@@ -97,8 +101,9 @@ def db_version(sql_connection):
     try:
         return versioning_api.db_version(sql_connection, repo_path)
     except versioning_exceptions.DatabaseNotControlledError:
-        msg = ("database '%(sql_connection)s' is not under "
-                 "migration control") % locals()
+        msg = (
+            "database '%(sql_connection)s' is not under migration control"
+        ) % locals()
         raise CheckmateDatabaseMigrationError(msg)
 
 
@@ -113,8 +118,9 @@ def upgrade(sql_connection, version=None):
     db_version(sql_connection)  # Ensure db is under migration control
     repo_path = get_migrate_repo_path()
     version_str = version or 'latest'  # pylint: disable=W0612
-    LOG.info("Upgrading %(sql_connection)s to version %(version_str)s" %
-                locals())
+    LOG.info(
+        "Upgrading %(sql_connection)s to version %(version_str)s" % locals()
+    )
     return versioning_api.upgrade(sql_connection, repo_path, version)
 
 
@@ -128,8 +134,9 @@ def downgrade(sql_connection, version):
     """
     db_version(sql_connection)  # Ensure db is under migration control
     repo_path = get_migrate_repo_path()
-    LOG.info("Downgrading %(sql_connection)s to version %(version)s" %
-                locals())
+    LOG.info(
+        "Downgrading %(sql_connection)s to version %(version)s" % locals()
+    )
     return versioning_api.downgrade(sql_connection, repo_path, version)
 
 

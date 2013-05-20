@@ -1,3 +1,7 @@
+'''
+Function Caching Decorators
+'''
+
 import copy
 import hashlib
 import logging
@@ -33,6 +37,7 @@ class Memorize:
         self.memorized_function = func.__name__
 
         def wrapped_f(*args, **kwargs):
+            '''The function to return in place of the cached function'''
             key, result = self.try_cache(*args, **kwargs)
             if key:
                 return result
@@ -43,6 +48,7 @@ class Memorize:
         return wrapped_f
 
     def try_cache(self, *args, **kwargs):
+        '''Return cached value if it exists and isn't stale'''
         key = self.get_hash(*args, **kwargs)
         if key in self._store:
             birthday, data = self._store[key]
@@ -56,6 +62,7 @@ class Memorize:
         return None, None
 
     def cache(self, data, key):
+        '''Store return value in cache'''
         if self.max_entries == 0 or len(self._store) < self.max_entries:
             self._store[key] = (time.time(), data)
         elif self.limit_reached is not True:
@@ -107,6 +114,7 @@ class Memorize:
         self.last_reaping = time.time()
 
     def start_collection(self):
+        '''Initizate the removal of stale cache items'''
         if self.reaper is None:
             self.reaper = threading.Thread(target=self.collect)
             self.reaper.setDaemon(False)
@@ -115,10 +123,12 @@ class Memorize:
 
 
 class MemorizeMethod(Memorize):
+    '''Use this instead of @Memorize with instance methods'''
     def __call__(self, func):
         self.memorized_function = func.__name__
 
         def wrapped_f(itself, *args, **kwargs):
+            '''The function to return in place of the cached function'''
             key, result = self.try_cache(*args, **kwargs)
             if key:
                 return result

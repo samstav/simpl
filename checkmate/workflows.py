@@ -192,8 +192,8 @@ def get_workflow_status(id, tenant_id=None, driver=DB):
         abort(404, 'No workflow with id %s' % id)
     serializer = DictionarySerializer()
     wf = SpiffWorkflow.deserialize(serializer, entity)
-    return write_body(wf_import.get_SpiffWorkflow_status(wf), request,
-                     response)
+    return write_body(wf_import.get_SpiffWorkflow_status(wf),
+                      request, response)
 
 
 @route('/workflows/<id>/+execute', method=['GET', 'POST'])

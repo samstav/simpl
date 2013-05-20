@@ -128,11 +128,15 @@ class Driver(DbBase):
         return self._get_object('environments', oid, with_secrets=with_secrets)
 
     def get_environments(self, tenant_id=None, with_secrets=None):
-        return self._get_objects('environments', tenant_id, with_secrets=with_secrets)
+        return self._get_objects(
+            'environments',
+            tenant_id,
+            with_secrets=with_secrets
+        )
 
     def save_environment(self, api_id, body, secrets=None, tenant_id=None):
         return self._save_object('environments', api_id, body, secrets,
-                                tenant_id)
+                                 tenant_id)
 
     # DEPLOYMENTS
     def get_deployment(self, api_id, with_secrets=None):
@@ -163,18 +167,20 @@ class Driver(DbBase):
             _, key = self.lock_object('deployments', api_id)
 
         return self._save_object('deployments', api_id, body, secrets,
-                                tenant_id, merge_existing=partial)
-
+                                 tenant_id, merge_existing=partial)
 
     #BLUEPRINTS
     def get_blueprint(self, api_id, with_secrets=None):
-        return self._get_object('blueprints', api_id, with_secrets=with_secrets)
+        return self._get_object('blueprints', api_id,
+                                with_secrets=with_secrets)
 
     def get_blueprints(self, tenant_id=None, with_secrets=None):
-        return self._get_objects('blueprints', tenant_id, with_secrets=with_secrets)
+        return self._get_objects('blueprints', tenant_id,
+                                 with_secrets=with_secrets)
 
     def save_blueprint(self, api_id, body, secrets=None, tenant_id=None):
-        return self._save_object('blueprints', api_id, body, secrets, tenant_id)
+        return self._save_object('blueprints', api_id, body,
+                                 secrets, tenant_id)
 
     # WORKFLOWS
     def get_workflow(self, api_id, with_secrets=None):
@@ -182,8 +188,9 @@ class Driver(DbBase):
 
     def get_workflows(self, tenant_id=None, with_secrets=None,
                       limit=0, offset=0):
-        return self._get_objects('workflows', tenant_id, with_secrets=with_secrets,
-                                offset=offset, limit=limit)
+        return self._get_objects('workflows', tenant_id,
+                                 with_secrets=with_secrets,
+                                 offset=offset, limit=limit)
 
     def save_workflow(self, api_id, body, secrets=None, tenant_id=None):
         return self._save_object('workflows', api_id, body, secrets, tenant_id)
@@ -388,26 +395,39 @@ class Driver(DbBase):
         if limit is None:
             limit = 0
         with self._get_client().start_request():
-            results = self.database()[klass].find(
-                {'tenantId': tenant_id} if tenant_id else None,
-                self._object_projection
+            results = self.database()[klass].find(self._build_filters(
+                klass, tenant_id, with_deleted), self._object_projection
             ).skip(offset).limit(limit)
 
             for entry in results:
-                if with_deleted or entry.get('status') != 'DELETED':
-                    if with_secrets is True:
-                        response[entry['id']] = self.merge_secrets(
-                            klass, entry['id'], entry)
-                    else:
-                        response[entry['id']] = entry
+                if with_secrets is True:
+                    response[entry['id']] = self.merge_secrets(
+                        klass, entry['id'], entry)
+                else:
+                    response[entry['id']] = entry
 
             if response and with_count:
-                response['collection-count'] = len(response)
+                response['collection-count'] = self._get_count(
+                    klass, tenant_id, with_deleted)
 
         return response
 
+    def _get_count(self, klass, tenant_id, with_deleted):
+        return self.database()[klass].find(
+            self._build_filters(klass, tenant_id, with_deleted),
+            self._object_projection
+        ).count()
+
+    def _build_filters(self, klass, tenant_id, with_deleted):
+        filters = {}
+        if tenant_id:
+            filters['tenantId'] = tenant_id
+        if klass == 'deployments' and not with_deleted:
+            filters['status'] = {'$ne': 'DELETED'}
+        return filters
+
     def _save_object(self, klass, api_id, body, secrets=None, tenant_id=None,
-                    merge_existing=False):
+                     merge_existing=False):
         """Clients that wish to save the body but do/did not have access to
         secrets will by default send in None for secrets. We must not have that
         overwrite the secrets. To clear the secrets for an object, a non-None

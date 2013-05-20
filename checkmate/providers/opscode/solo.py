@@ -771,9 +771,13 @@ class Provider(ProviderBase):
         if self.source:
             # Get remote catalog
             catalog = self.get_remote_catalog()
-            # parse out provides
 
+            # Validate and cache catalog
+            self.validate_catalog(catalog)
+            if type_filter is None:
+                self._dict['catalog'] = catalog
             return catalog
+
 
     def get_remote_catalog(self, source=None):
         """Gets the remote catalog from a repo by obtaining a Chefmap file, if

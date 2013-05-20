@@ -131,27 +131,27 @@ A deployment defines and points to a running application and the infrastructure 
         '0':
           type: server
           provider: nova
-          status: up
-          flavor: 1
-          image: 119
+          status: ACTIVE
           instance:
             id: 2098383
             private_ip: 10.10.1.1
             public_ip: 2.2.2.18
+            flavor: 1
+            image: 119
           dns-name: srv1.stabletransit.com
           relations:
             web-backend:
               state: up
         '1':
           type: server
-          status: up
+          status: ACTIVE
           provider: nova
-          flavor: 1
-          image: 119
           instance:
             id: 2098387
             private_ip: 10.10.1.8
             public_ip: 2.2.2.22
+            flavor: 1
+            image: 119
           dns-name: srv2.stabletransit.com
           relations:
             web-backend:
@@ -168,10 +168,10 @@ A deployment defines and points to a running application and the infrastructure 
           type: database
           provider: databases
           dns-name: CMDEP32ea304-db1.rackcloudtech.com
-          flavor: 1
-          disk: 2
           instance:
             id: 99958744
+            flavor: 1
+            disk: 2
 
 Once deployed, the live resources running the application are also listed. The intent is for Checkmate to be able to manage the deployment. An example of a management operation would be resizing the servers:
 
@@ -252,6 +252,7 @@ The API is a **REST HTTP API**. It supports POST, PUT, GET, DELETE on:
 - /deployments[/:id]
 - /workflows[/:id]
 - /providers[/:id]
+- /tenants[:id]
 
 *Note: not all verbs on all paths. DELETE not yet ready*
 
@@ -319,11 +320,12 @@ All calls to GET /deployments and GET /workflows may be optionally paginated by 
     GET/POST [/:tid]/blueprints
     PUT/GET/POST [/:tid]/blueprints/:id
 
-    GET  [/:tid]/deployments/[?offset=OFFSET&limit=LIMIT]
+    GET  [/:tid]/deployments/[?offset=OFFSET&limit=LIMIT?show_deleted=1]
     POST [/:tid]/deployments
-    PUT/GET/POST [/:tid]/deployments/:id
     POST [/:tid]/deployments/+parse
     POST [/:tid]/deployments/+preview
+    PUT/GET/POST/DELETE [/:tid]/deployments/:id
+    POST [/:tid]/deployments/:id/+clone
 
     GET [/:tid]/deployments/:id/status
 
@@ -345,8 +347,11 @@ All calls to GET /deployments and GET /workflows may be optionally paginated by 
     GET [/:tid]/providers/:pid/catalog
     GET [/:tid]/providers/:pid/catalog/:cid
 
+    PUT tenants
+    GET tenants[/:tid]
+    GET tenants?tag=foo&tag=bar
 
-    # If the server is started with --with-admin, the following calls are avaiabl to admin users:
+    # If the server is started with --with-admin, the following calls are available to admin users:
 
     GET /admin/status/celery
     GET /admin/status/libraries
@@ -354,9 +359,6 @@ All calls to GET /deployments and GET /workflows may be optionally paginated by 
     # If the server is started with --with-simulator, the following calls are avaiable:
 
     POST [/:tid]/deployments/simulate
-    GET [/:tid]/deployments/simulate
-    GET [/:tid]/workflows/simulate/status  #progresses the workflow by one task
-    GET [/:tid]/workflows/simulate/status?complete  #cmpletes the workflow
 
 ## Setup
 
@@ -367,11 +369,12 @@ For running the service:
 For development (only checkmate hacking):
 
     sudo pip install -r pip-requirements.txt
+    sudo pip install -r pip-test-requirements.txt
     sudo python setup.py develop
 
 For development (hacking on other dependencies)
 
-    #clone and pythons setup.py develop all the depend git repositores
+    #clone and pythons setup.py develop all the dependant git repositores
     sudo python setup.py develop
 
 Run tests:
@@ -382,7 +385,6 @@ Run tests:
 
     # To run a full suite (with coverage and code inspection)
     tox -e full
-
 
     # but any of these will work
     tox
@@ -427,9 +429,6 @@ To execute deployments, checkmate uses a message queue. You need to have celery 
 
     $ bin/checkmate-queue START
 
-    or, directly using celery:
-
-    $ celeryd -l info --config=checkmate.celeryconfig -I checkmate.orchestrator,checkmate.ssh,checkmate.providers.rackspace,checkmate.providers.opscode
 
 ### Settings
 
@@ -550,13 +549,11 @@ for development.
 ## Authentication
 
 
-Checkmate supports multiple authentication protocols and endpoints simultaneously. If it is started with a web UI (using the --with-ui) option, it will also support basic auth for browser friendliness.
+Checkmate supports multiple authentication protocols and endpoints simultaneously.
 
 ### Authenticating through a Browser
 
-By default, three authentication domains are enabled. In a browser, if you are prompted for credentials, enter the following:
-
-- To log in as an administrator: username and password from the machine running Checkmate (uses PAM).
+By default, two authentication domains are enabled. In a browser, if you are prompted for credentials, enter the following:
 
 - To log in to a Rackspace US Cloud Account: use US\username and password.
 
@@ -564,9 +561,9 @@ By default, three authentication domains are enabled. In a browser, if you are p
 
 ### Authenticating using REST HTTP calls
 
-Checkmate supports standard Rackspace\OpenStack authentication with a token. Get a token from your auth endpoint (US or UK!) and provide it in the X-Auth-Header:
+Checkmate supports standard Rackspace\OpenStack authentication with a token. Get a token from your auth endpoint (US or UK) and provide it in the X-Auth-Header:
 
-    curl -H "X-Auth-Token: ccdcd4f9-d72d-5677-8b1a-f329389cc539" http://localhost:8080/4500 -v
+    curl -H "X-Auth-Token: ccdcd4f9-d72d-5677-8b1a-f329389cc539" http://localhost:8080/4500/deployments -v
 
 Checkmate will try the US and then UK endpoints.
 
@@ -574,30 +571,25 @@ To avoid hitting the US for each UK call, and to be a good citizen, tell Checkma
 
     curl -H "X-Auth-Source: https://lon.identity.api.rackspacecloud.com/v2.0/tokens" -H "X-Auth-Token: ccdcd4f9-d72d-5677-8b1a-f329389cc539" http://localhost:8080/1000002 -v
 
-Note: This is a Checkmate extension to the auth mechanism. This won't work on any other services in OpenStack.
+Note: This is a Checkmate extension to the auth mechanism. This won't work on any other services in OpenStack or the Rackspace Cloud.
 
 ## Tools
 
 ### Monitoring
 
-celery has a tool called celeryev that can monitor running tasks and events. To use it, you need to turn `events` on when running celeryd using -E or --events:
+To monitor running tasks and events in celery run `celery events`. This requires starting celeryd using -E or --events, which Checkmate does automatically for you:
 
     celeryd -l debug --config=checkmate.celeryconfig -I checkmate.orchestrator,checkmate.ssh,checkmate.providers.rackspace,checkmate.providers.opscode --events
 
-And then use celeryev from the checkmate directory to watch events and tasks::
+And then use celery events from the checkmate directory to watch events and tasks:
 
-    celeryev --config=checkmate.celeryconfig
+    celey events --config=checkmate.celeryconfig
 
 ### Tuning
 
 The following has been tested to run up to 10 simultaneous workflows using amqp::
 
-    celeryd --config=checkmate.celeryconfig -I checkmate.orchestrator,checkmate.ssh,checkmate.providers.rackspace,checkmate.providers.opscode --autoscale=10,2
-
-On Unix/Linux Systems (including Mac), the following
-setting resolves issues with workers hanging::
-
-    export CELERYD_FORCE_EXECV=1
+    checkmate-queue START --autoscale=10,2
 
 
 ### Dependencies
@@ -606,9 +598,9 @@ Checkmate has code that is python 2.7.1 specific. It won't work on earlier versi
 
 Some of checkmate's more significant dependencies are::
 
-- celeryd: integrates with a message queue (ex. RabbitMQ)<sup>*</sup>
+- celery: integrates with a message queue (ex. RabbitMQ)<sup>*</sup>
 - eventlet: coroutine-based concurrency library<sup>*</sup>
-- a message broker (rabbitmq or mognodb): any another backend for celery should work (celery even has emulators that can use a database), but rabbit and mongo are what we tested on
+- a message broker (rabbitmq or mongodb): any another backend for celery should work (celery even has emulators that can use a database), but rabbit and mongo are what we tested on
 - SpiffWorkflow: a python workflow engine
 - chef: OpsCode's chef... you don't need a server, but use with a server is supported.
 - cloud service client libraries: python-novaclient, python-clouddb, etc...
@@ -658,6 +650,7 @@ library will work fine, I recommend doing the following:
     cd pymox-read-only
     sudo python setup.py install
 
+Note: we plan to move to mock.
 
 ## Why the name checkmate?
 
@@ -773,5 +766,6 @@ using internal [Rackspace github](https://github.rackspace.com/checkmate).
 
 You can run tests using the `run_tests.sh` script or just the plain `nosetests` command. `./run_tests.sh` has more friendly output.
 
-We use VersionOne for tracking our backlog and tasks, but if you don't have access to it you can use github issues. Just let us know if you have an
-urgent issue so we make sure to pick it up.
+We use GitHub for tracking our backlog and tasks.
+
+See the HACKING file for our chosen style conventions.

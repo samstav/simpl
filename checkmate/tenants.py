@@ -1,8 +1,17 @@
+'''
+Tenants
+
+Supports:
+PUT tenants
+GET tenants/tenant_id
+GET tenants/ and return all
+GET tenants?tag=foo&tag=bar
+
+'''
 from bottle import get, post, put, request, response, abort
 from checkmate.utils import read_body, write_body
 from checkmate.db.common import get_driver
 import logging
-from copy import deepcopy
 
 LOG = logging.getLogger(__name__)
 

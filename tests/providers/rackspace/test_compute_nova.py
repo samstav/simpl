@@ -1,5 +1,7 @@
 #!/usr/bin/env python
+import json
 import logging
+import os
 import unittest2 as unittest
 
 from checkmate.utils import init_console_logging
@@ -403,6 +405,21 @@ class TestNovaCompute(test.ProviderTester):
         ret = wait_on_delete_server(context, api=api)
         self.assertDictEqual(expect, ret)
         self.mox.VerifyAll()
+
+    def test_find_url(self):
+        path = os.path.join(os.path.dirname(__file__),
+                            'test_compute_nova_auth_response.json')
+        with file(path, 'r') as _file:
+            catalog = json.load(_file)['access']['serviceCatalog']
+        self.assertEqual(compute.Provider.find_url(catalog, 'North'),
+                         'https://10.1.1.1/v2/T1000')
+
+    def test_find_a_region(self):
+        path = os.path.join(os.path.dirname(__file__),
+                            'test_compute_nova_auth_response.json')
+        with file(path, 'r') as _file:
+            catalog = json.load(_file)['access']['serviceCatalog']
+        self.assertEqual(compute.Provider.find_a_region(catalog), 'North')
 
 
 class TestNovaGenerateTemplate(unittest.TestCase):

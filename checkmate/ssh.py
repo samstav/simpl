@@ -46,19 +46,19 @@ def test_connection(context, ip, username, timeout=10, password=None,
     - username/password
     """
     match_celery_logging(LOG)
-    LOG.debug("Checking for a response from ssh://%s@%s:%d." % (
-        username, ip, port))
+    LOG.debug("Checking for a response from ssh://%s@%s:%d.", username, ip,
+              port)
     try:
-        client = _connect(ip, port=port, username=username, timeout=timeout,
-                          private_key=private_key, identity_file=identity_file,
-                          password=password)
+        client = connect(ip, port=port, username=username, timeout=timeout,
+                         private_key=private_key, identity_file=identity_file,
+                         password=password)
         client.close()
-        LOG.debug("ssh://%s@%s:%d is up." % (username, ip, port))
+        LOG.debug("ssh://%s@%s:%d is up.", username, ip, port)
         if callback:
             subtask(callback).delay()
         return True
-    except Exception, exc:
-        LOG.debug('ssh://%s@%s:%d failed.  %s' % (username, ip, port, exc))
+    except Exception as exc:
+        LOG.debug('ssh://%s@%s:%d failed.  %s', username, ip, port, exc)
         if test_connection.request.id:
             test_connection.retry(exc=exc)
     return False
@@ -83,21 +83,23 @@ def execute(ip, command, username, timeout=10, password=None,
                     a file)
     """
     match_celery_logging(LOG)
-    LOG.debug("Executing '%s' on ssh://%s@%s:%d." % (command, username,
-              ip, port))
+    LOG.debug("Executing '%s' on ssh://%s@%s:%d.", command, username, ip, port)
     client = None
     try:
-        client = _connect(ip, port=port, username=username, timeout=timeout,
-                          private_key=private_key, identity_file=identity_file,
-                          password=password)
-        stdin, stdout, stderr = client.exec_command(command)
-        results = {'stdout': stdout.read(), 'stderr': stderr.read()}
-        LOG.debug('ssh://%s@%s:%d responded.' % (username, ip, port))
+        client = connect(ip, port=port, username=username, timeout=timeout,
+                         private_key=private_key, identity_file=identity_file,
+                         password=password)
+        _, stdout, stderr = client.exec_command(command)
+        results = {
+            'stdout': stdout.read(),
+            'stderr': stderr.read(),
+        }
+        LOG.debug('ssh://%s@%s:%d responded.', username, ip, port)
         if callback is not None:
             subtask(callback).delay()
         return results
-    except Exception, exc:
-        LOG.debug("ssh://%s@%s:%d failed.  %s" % (username, ip, port, exc))
+    except Exception as exc:
+        LOG.debug("ssh://%s@%s:%d failed.  %s", username, ip, port, exc)
         execute.retry(exc=exc)
     finally:
         if client:
@@ -105,8 +107,8 @@ def execute(ip, command, username, timeout=10, password=None,
     return False
 
 
-def _connect(ip, port=22, username="root", timeout=10, identity_file=None,
-             private_key=None, password=None):
+def connect(ip, port=22, username="root", timeout=10, identity_file=None,
+            private_key=None, password=None):
     """Attempts SSH connection and returns SSHClient object
     ip:             the ip address or host name of the server
     username:       the username to use
@@ -128,22 +130,21 @@ def _connect(ip, port=22, username="root", timeout=10, identity_file=None,
             client.connect(ip, timeout=timeout, port=port, username=username,
                            pkey=pkey)
         elif identity_file is not None:
-            LOG.debug("Trying key file: %s" % os.path.expanduser(
-                      identity_file))
+            LOG.debug("Trying key file: %s", os.path.expanduser(identity_file))
             client.connect(ip, timeout=timeout, port=port, username=username,
                            key_filename=os.path.expanduser(identity_file))
         else:
             client.connect(ip, port=port, username=username, password=password)
             LOG.debug("Authentication for ssh://%s@%s:%d using "
-                      "password succeeded" % (username, ip, port))
-        LOG.debug("Connected to ssh://%s@%s:%d." % (username, ip, port))
+                      "password succeeded", username, ip, port)
+        LOG.debug("Connected to ssh://%s@%s:%d.", username, ip, port)
         return client
     except paramiko.PasswordRequiredException, exc:
         #Looks like we have cert issues, so try password auth if we can
         if password:
             LOG.debug("Retrying with password credentials")
-            return _connect(ip, username=username, timeout=timeout,
-                            password=password, port=port)
+            return connect(ip, username=username, timeout=timeout,
+                           password=password, port=port)
         else:
             raise exc
     except paramiko.BadHostKeyException, exc:
@@ -155,5 +156,5 @@ def _connect(ip, port=22, username="root", timeout=10, identity_file=None,
         LOG.debug(msg)
         raise exc
     except Exception, exc:
-        LOG.debug('ssh://%s@%s:%d failed.  %s' % (username, ip, port, exc))
+        LOG.debug('ssh://%s@%s:%d failed.  %s', username, ip, port, exc)
         raise exc

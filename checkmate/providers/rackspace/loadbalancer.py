@@ -1,24 +1,29 @@
-""" Rackspace Cloud Load Balancer provider and celery tasks """
+'''
+Rackspace Cloud Load Balancer provider and celery tasks
+'''
 import copy
 import logging
 
+from celery.canvas import chain, group
+from cloudlb.errors import CloudlbException
 from SpiffWorkflow.operators import PathAttrib, Attrib
 from SpiffWorkflow.specs import Celery
 
-from checkmate.deployments import (resource_postback, alt_resource_postback,
-                                   get_resource_by_id)
+from checkmate.common.caching import Memorize
+from checkmate.deployments import (
+    resource_postback,
+    alt_resource_postback,
+    get_resource_by_id,
+)
 from checkmate.exceptions import (
     CheckmateException,
     CheckmateNoTokenError,
     CheckmateBadState
-    )
+)
 from checkmate.middleware import RequestContext
 from checkmate.providers import ProviderBase
 from checkmate.workflow import wait_for
 from checkmate.utils import match_celery_logging
-from copy import deepcopy
-from celery.canvas import chain, group
-from cloudlb.errors import CloudlbException
 
 LOG = logging.getLogger(__name__)
 
@@ -27,6 +32,7 @@ REGION_MAP = {
     'dallas': 'DFW',
     'chicago': 'ORD',
     'london': 'LON',
+    'sydney': 'SYD',
 }
 
 PROTOCOL_PAIRS = {
@@ -36,9 +42,12 @@ PROTOCOL_PAIRS = {
     'pop3s': 'pop3',
 }
 
+API_ALGORTIHM_CACHE = {}
+API_PROTOCOL_CACHE = {}
+
 
 class Provider(ProviderBase):
-    """Rackspace load balancer provider"""
+    '''Rackspace load balancer provider'''
     name = 'load-balancer'
     vendor = 'rackspace'
 
@@ -390,8 +399,9 @@ class Provider(ProviderBase):
 
         # build a live catalog ()this would be the on_get_catalog called if no
         # stored/override existed
-        api = self._connect(context)
         results = {}
+        region = Provider.find_a_region(context.catalog)
+        api_endpoint = Provider.find_url(context.catalog, region)
 
         if type_filter is None or type_filter == 'regions':
             regions = {}
@@ -406,7 +416,7 @@ class Provider(ProviderBase):
             results['lists']['regions'] = regions
 
         if type_filter is None or type_filter == 'load-balancer':
-            algorithms = api.get_algorithms()
+            algorithms = _get_algorithms(api_endpoint, context.auth_token)
             options = {
                 'algorithm': {
                     'type': 'list',
@@ -431,7 +441,7 @@ class Provider(ProviderBase):
 
             # provide list of available load balancer types
 
-            protocols = api.get_protocols()
+            protocols = _get_protocols(api_endpoint, context.auth_token)
             protocols = [p.lower() for p in protocols]
             for protocol in protocols:
                 item = {'id': protocol, 'is': 'load-balancer',
@@ -466,12 +476,29 @@ class Provider(ProviderBase):
         return results
 
     @staticmethod
-    def _connect(context, region=None):
+    def find_url(catalog, region):
+        """Find endpoint URL for region"""
+        for service in catalog:
+            if service['type'] == 'rax:load-balancer':
+                endpoints = service['endpoints']
+                for endpoint in endpoints:
+                    if endpoint.get('region') == region:
+                        return endpoint['publicURL']
+
+    @staticmethod
+    def find_a_region(catalog):
+        """Any region"""
+        for service in catalog:
+            if service['type'] == 'rax:load-balancer':
+                endpoints = service['endpoints']
+                for endpoint in endpoints:
+                    return endpoint['region']
+
+    @staticmethod
+    def connect(context, region=None):
         """Use context info to connect to API and return api object"""
         #FIXME: figure out better serialization/deserialization scheme
         if isinstance(context, dict):
-            from checkmate.middleware import RequestContext
-
             context = RequestContext(**context)
         if not context.auth_token:
             raise CheckmateNoTokenError()
@@ -480,31 +507,14 @@ class Provider(ProviderBase):
         if region in REGION_MAP:
             region = REGION_MAP[region]
 
-        def find_url(catalog, region):
-            """Find endpoint URL for region"""
-            for service in catalog:
-                if service['type'] == 'rax:load-balancer':
-                    endpoints = service['endpoints']
-                    for endpoint in endpoints:
-                        if endpoint.get('region') == region:
-                            return endpoint['publicURL']
-
-        def find_a_region(catalog):
-            """Any region"""
-            for service in catalog:
-                if service['type'] == 'rax:load-balancer':
-                    endpoints = service['endpoints']
-                    for endpoint in endpoints:
-                        return endpoint['region']
-
         if not region:
-            region = find_a_region(context.catalog)
+            region = Provider.find_a_region(context.catalog)
             if not region:
                 raise CheckmateException("Unable to locate a load-balancer "
                                          "endpoint")
 
         #TODO: instead of hacking auth using a token, submit patch upstream
-        url = find_url(context.catalog, region)
+        url = Provider.find_url(context.catalog, region)
         if not url:
             raise CheckmateException("Unable to locate region url for LBaaS "
                                      "for region '%s'" % region)
@@ -515,8 +525,35 @@ class Provider(ProviderBase):
         return api
 
 
-""" Celery tasks to manipulate Rackspace Cloud Load Balancers """
+@Memorize(timeout=3600, sensitive_args=[1], store=API_ALGORTIHM_CACHE)
+def _get_algorithms(api_endpoint, auth_token):
+    '''Ask CLB for Algorithms'''
+    # the region must be supplied but is not used
+    api = cloudlb.CloudLoadBalancer('ignore', 'ignore', 'DFW')
+    api.client.auth_token = auth_token
+    api.client.region_account_url = api_endpoint
+    LOG.info("Calling Cloud Load Balancers to get algorithms for %s",
+             api.client.region_account_url)
 
+    return api.get_algorithms()
+
+
+@Memorize(timeout=3600, sensitive_args=[1], store=API_PROTOCOL_CACHE)
+def _get_protocols(api_endpoint, auth_token):
+    '''Ask CLB for Protocols'''
+    # the region must be supplied but is not used
+    api = cloudlb.CloudLoadBalancer('ignore', 'ignore', 'DFW')
+    api.client.auth_token = auth_token
+    api.client.region_account_url = api_endpoint
+    LOG.info("Calling Cloud Load Balancers to get protocols for %s",
+             api.client.region_account_url)
+
+    return api.get_protocols()
+
+
+#
+# Celery tasks to manipulate Rackspace Cloud Load Balancers """
+#
 import cloudlb
 from celery.task import task
 
@@ -559,7 +596,7 @@ def create_loadbalancer(context, name, vip_type, protocol, region, api=None,
         return results
 
     if api is None:
-        api = Provider._connect(context, region)
+        api = Provider.connect(context, region)
 
     #FIXME: should pull default from lb api but thats not exposed via the
     #       client yet
@@ -664,7 +701,7 @@ def sync_resource_task(context, resource, resource_key, api=None):
     match_celery_logging(LOG)
     key = "instance:%s" % resource_key
     if api is None:
-        api = Provider._connect(context, resource.get("region"))
+        api = Provider.connect(context, resource.get("region"))
     try:
         lb = api.loadbalancers.get(resource.get("instance", {}).get("id"))
         return {
@@ -708,7 +745,7 @@ def delete_lb_task(context, key, lbid, region, api=None):
         return
     instance_key = "instance:%s" % key
     if api is None:
-        api = Provider._connect(context, region)
+        api = Provider.connect(context, region)
     try:
         dlb = api.loadbalancers.get(lbid)
     except cloudlb.errors.NotFound:
@@ -747,7 +784,7 @@ def wait_on_lb_delete(context, key, dep_id, lbid, region, api=None):
     wait_on_lb_delete.on_failure = on_failure
 
     if api is None:
-        api = Provider._connect(context, region)
+        api = Provider.connect(context, region)
     dlb = None
     LOG.debug("Checking on loadbalancer %s delete status", lbid)
     try:
@@ -774,7 +811,7 @@ def add_node(context, lbid, ipaddr, region, resource, api=None):
         return results
 
     if api is None:
-        api = Provider._connect(context, region)
+        api = Provider.connect(context, region)
 
     if ipaddr == PLACEHOLDER_IP:
         raise CheckmateException("IP %s is reserved as a placeholder IP by "
@@ -877,7 +914,7 @@ def delete_node(context, lbid, ipaddr, port, region, api=None):
         return
 
     if api is None:
-        api = Provider._connect(context, region)
+        api = Provider.connect(context, region)
 
     loadbalancer = api.loadbalancers.get(lbid)
     node_to_delete = None
@@ -918,7 +955,7 @@ def set_monitor(context, lbid, mon_type, region, path='/', delay=10,
         return
 
     if api is None:
-        api = Provider._connect(context, region)
+        api = Provider.connect(context, region)
 
     LOG.debug("Setting monitor on lbid: %s", lbid)
     loadbalancer = api.loadbalancers.get(lbid)
@@ -973,7 +1010,7 @@ def wait_on_build(context, lbid, region, api=None):
         return results
 
     if api is None:
-        api = Provider._connect(context, region)
+        api = Provider.connect(context, region)
 
     loadbalancer = api.loadbalancers.get(lbid)
 

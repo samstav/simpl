@@ -87,7 +87,7 @@ class Provider(ProviderBase):
                                  "'%s'" % resource)
 
     @staticmethod
-    def _connect(context):
+    def connect(context):
         """Use context info to connect to API and return api object"""
         #FIXME: figure out better serialization/deserialization scheme
         if isinstance(context, dict):
@@ -132,7 +132,7 @@ from clouddns.errors import UnknownDomain, ResponseError, InvalidDomainName
 
 
 def _get_dns_object(context):
-    return Provider._connect(context)
+    return Provider.connect(context)
 
 
 def parse_domain(domain_str):

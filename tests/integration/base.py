@@ -58,7 +58,11 @@ class DBDriverTests(object):
         self.driver.add_tenant_tags('1234', 'biff', 'boo')
         ten = self.driver.get_tenant('1234')
         self.assertIsNotNone(ten, 'Could not retrieve tenant after add tags')
-        self.assertEqual(sorted(new_tags), sorted(ten.get('tags')), 'Tags not equal')
+        self.assertEqual(
+            sorted(new_tags),
+            sorted(ten.get('tags')),
+            'Tags not equal'
+        )
 
     def test_list_tenants(self):
         self.driver.add_tenant_tags('1234', 'foo', 'bar', 'biff')
@@ -304,7 +308,6 @@ class DBDriverTests(object):
         '''We are really testing object, but using deployment so that the
         test works regardless of driver implementation
         '''
-        # FIXME: Shouldn't Expected be None?
         self.assertEquals({}, self.driver.get_deployments(tenant_id='T3'))
 
     def test_get_objects_with_defaults(self):
@@ -314,23 +317,23 @@ class DBDriverTests(object):
         self.driver.save_deployment(
             '1234',
             tenant_id='T3',
-            body={'id': '1234'}
+            body={'id': '1234', 'status': 'NEW'}
         )
         self.driver.save_deployment(
             '4321',
             tenant_id='T3',
-            body={'id': '4321'}
+            body={'id': '4321', 'status': 'NEW'}
         )
         self.driver.save_deployment(
             '9999',
             tenant_id='TOTHER',
-            body={'id': '9999'}
+            body={'id': '9999', 'status': 'NEW'}
         )
 
         self.assertEquals(
             {
-                '1234': {'id': '1234', 'tenantId': 'T3'},
-                '4321': {'id': '4321', 'tenantId': 'T3'},
+                '1234': {'id': '1234', 'tenantId': 'T3', 'status': 'NEW'},
+                '4321': {'id': '4321', 'tenantId': 'T3', 'status': 'NEW'},
                 'collection-count': 2
             },
             self.driver.get_deployments(tenant_id='T3')
@@ -343,26 +346,31 @@ class DBDriverTests(object):
         self.driver.save_deployment(
             '1234',
             tenant_id='T3',
-            body={'id': '1234'},
+            body={'id': '1234', 'status': 'NEW'},
             secrets={'secret': 'SHHH!!!'}
         )
         self.driver.save_deployment(
             '4321',
             tenant_id='T3',
-            body={'id': '4321'}
+            body={'id': '4321', 'status': 'NEW'}
         )
         self.assertEquals(
             {
-                '1234': {'id': '1234', 'tenantId': 'T3', 'secret': 'SHHH!!!'},
-                '4321': {'id': '4321', 'tenantId': 'T3'},
+                '1234': {
+                    'id': '1234',
+                    'tenantId': 'T3',
+                    'secret': 'SHHH!!!',
+                    'status': 'NEW'
+                },
+                '4321': {'id': '4321', 'tenantId': 'T3', 'status': 'NEW'},
                 'collection-count': 2
             },
             self.driver.get_deployments(tenant_id='T3', with_secrets=True)
         )
         self.assertEquals(
             {
-                '1234': {'id': '1234', 'tenantId': 'T3'},
-                '4321': {'id': '4321', 'tenantId': 'T3'},
+                '1234': {'id': '1234', 'tenantId': 'T3', 'status': 'NEW'},
+                '4321': {'id': '4321', 'tenantId': 'T3', 'status': 'NEW'},
                 'collection-count': 2
             },
             self.driver.get_deployments(tenant_id='T3', with_secrets=False)
@@ -375,18 +383,18 @@ class DBDriverTests(object):
         self.driver.save_deployment(
             '1234',
             tenant_id='T3',
-            body={'id': '1234'}
+            body={'id': '1234', 'status': 'NEW'}
         )
         self.driver.save_deployment(
             '4321',
             tenant_id='T3',
-            body={'id': '4321'}
+            body={'id': '4321', 'status': 'NEW'}
         )
 
         self.assertEquals(
             {
-                '4321': {'id': '4321', 'tenantId': 'T3'},
-                'collection-count': 1
+                '4321': {'id': '4321', 'tenantId': 'T3', 'status': 'NEW'},
+                'collection-count': 2
             },
             self.driver.get_deployments(tenant_id='T3', offset=1)
         )
@@ -398,18 +406,18 @@ class DBDriverTests(object):
         self.driver.save_deployment(
             '1234',
             tenant_id='T3',
-            body={'id': '1234'}
+            body={'id': '1234', 'status': 'NEW'}
         )
         self.driver.save_deployment(
             '4321',
             tenant_id='T3',
-            body={'id': '4321'}
+            body={'id': '4321', 'status': 'NEW'}
         )
 
         self.assertEquals(
             {
-                '1234': {'id': '1234', 'tenantId': 'T3'},
-                'collection-count': 1
+                '1234': {'id': '1234', 'tenantId': 'T3', 'status': 'NEW'},
+                'collection-count': 2
             },
             self.driver.get_deployments(tenant_id='T3', limit=1)
         )
@@ -421,24 +429,24 @@ class DBDriverTests(object):
         self.driver.save_deployment(
             '1234',
             tenant_id='T3',
-            body={'id': '1234'}
+            body={'id': '1234', 'status': 'NEW'}
         )
         self.driver.save_deployment(
             '4321',
             tenant_id='T3',
-            body={'id': '4321'}
+            body={'id': '4321', 'status': 'NEW'}
         )
         self.driver.save_deployment(
             '5678',
             tenant_id='T3',
-            body={'id': '5678'}
+            body={'id': '5678', 'status': 'NEW'}
         )
 
         self.assertEquals(
             {
-                '4321': {'id': '4321', 'tenantId': 'T3'},
-                '5678': {'id': '5678', 'tenantId': 'T3'},
-                'collection-count': 2
+                '4321': {'id': '4321', 'tenantId': 'T3', 'status': 'NEW'},
+                '5678': {'id': '5678', 'tenantId': 'T3', 'status': 'NEW'},
+                'collection-count': 3
             },
             self.driver.get_deployments(tenant_id='T3', offset=1, limit=2)
         )
@@ -450,11 +458,11 @@ class DBDriverTests(object):
         self.driver.save_deployment(
             '1234',
             tenant_id='T3',
-            body={'id': '1234'}
+            body={'id': '1234', 'status': 'NEW'}
         )
 
         self.assertEquals(
-            {'1234': {'id': '1234', 'tenantId': 'T3'}},
+            {'1234': {'id': '1234', 'tenantId': 'T3', 'status': 'NEW'}},
             self.driver.get_deployments(tenant_id='T3', with_count=False)
         )
 
@@ -465,12 +473,12 @@ class DBDriverTests(object):
         self.driver.save_deployment(
             '1234',
             tenant_id='T3',
-            body={'id': '1234'}
+            body={'id': '1234', 'status': 'NEW'}
         )
 
         self.assertEquals(
             {
-                '1234': {'id': '1234', 'tenantId': 'T3'},
+                '1234': {'id': '1234', 'tenantId': 'T3', 'status': 'NEW'},
                 'collection-count': 1
             },
             self.driver.get_deployments(tenant_id='T3', offset=None)
@@ -483,17 +491,16 @@ class DBDriverTests(object):
         self.driver.save_deployment(
             '1234',
             tenant_id='T3',
-            body={'id': '1234'}
+            body={'id': '1234', 'status': 'NEW'}
         )
 
         self.assertEquals(
             {
-                '1234': {'id': '1234', 'tenantId': 'T3'},
+                '1234': {'id': '1234', 'tenantId': 'T3', 'status': 'NEW'},
                 'collection-count': 1
             },
             self.driver.get_deployments(tenant_id='T3', limit=None)
         )
-
 
     def test_get_deployments_deleted_omitted_by_default(self):
         self.driver.save_deployment(
@@ -556,6 +563,79 @@ class DBDriverTests(object):
             self.driver.get_deployments(tenant_id='T3', with_deleted=True)
         )
 
+    def test_get_deployments_with_limit_offset_and_omitting_deleted(self):
+        self.driver.save_deployment(
+            '1234',
+            tenant_id='T3',
+            body={'id': '1234', 'status': 'PLANNED'}
+        )
+        self.driver.save_deployment(
+            '4321',
+            tenant_id='T3',
+            body={'id': '4321', 'status': 'FAILED'}
+        )
+        self.driver.save_deployment(
+            '5678',
+            tenant_id='T3',
+            body={'id': '5678', 'status': 'NEW'}
+        )
+        self.driver.save_deployment(
+            '8765',
+            tenant_id='T3',
+            body={'id': '8765', 'status': 'ALERT'}
+        )
+        self.driver.save_deployment(
+            '9999',
+            tenant_id='T3',
+            body={'id': '9999', 'status': 'UP', 'r0': {'status': 'DELETED'}}
+        )
+        self.driver.save_deployment(
+            '0000',
+            tenant_id='T3',
+            body={'id': '0000', 'status': 'DELETED'}
+        )
+
+        self.assertEquals(
+            {
+                '5678': {'id': '5678', 'tenantId': 'T3', 'status': 'NEW'},
+                '8765': {'id': '8765', 'tenantId': 'T3', 'status': 'ALERT'},
+                '9999': {
+                    'id': '9999',
+                    'tenantId': 'T3',
+                    'status': 'UP',
+                    'r0': {'status': 'DELETED'}
+                },
+                'collection-count': 5
+            },
+            self.driver.get_deployments(
+                tenant_id='T3',
+                offset=2,
+                limit=3,
+                with_deleted=False
+            )
+        )
+
+    def test_get_deployments_with_deleted_resource(self):
+        '''Make sure we still get a deployment when it is not DELETED,
+        but one of its Resources IS DELETED
+        '''
+        self.driver.save_deployment(
+            '1234',
+            tenant_id='T3',
+            body={'id': '1234', 'status': 'UP', 'r0': {'status': 'DELETED'}}
+        )
+        self.assertEquals(
+            {
+                '1234': {
+                    'id': '1234',
+                    'tenantId': 'T3',
+                    'status': 'UP',
+                    'r0': {'status': 'DELETED'},
+                },
+                'collection-count': 1
+            },
+            self.driver.get_deployments(tenant_id='T3', with_deleted=False)
+        )
 
 if __name__ == '__main__':
     # Any change here should be made in all test files

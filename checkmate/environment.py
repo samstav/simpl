@@ -6,6 +6,7 @@ from checkmate.providers import get_provider_class
 import eventlet
 
 LOG = logging.getLogger(__name__)
+API_POOL = eventlet.GreenPool()
 
 
 class Environment():
@@ -36,10 +37,10 @@ class Environment():
             if not providers:
                 LOG.debug("Environment does not have providers")
             else:
-                pool = eventlet.GreenPool()
-                for prov in pool.imap(self.get_provider,
-                            [k for k in providers.keys() if k != 'common']):
-                    self.providers.update({prov.key: prov})
+                for key in providers.keys():
+                    if key == 'common':
+                        continue
+                    self.providers[key] = self.get_provider(key)
         return self.providers
 
     def get_provider(self, key):
@@ -83,22 +84,29 @@ class Environment():
 
         interface = params.get("interface")
 
+        if API_POOL.free() < 10:
+            LOG.warning("Threadpool for calling provider APIs is running low: "
+                        "%s free of %s", API_POOL.free(), API_POOL.running())
+        pile = eventlet.GreenPile(API_POOL)
+        for provider in providers.itervalues():
+            pile.spawn(provider.get_catalog, context)
+
         for provider in providers.values():
             if (not (resource_type or interface))\
                     or provider.provides(context, resource_type=resource_type,
-                                          interface=interface):
+                                         interface=interface):
                 these_matches = provider.find_components(context, **params)
                 if these_matches:
                     for match in these_matches:
                         matches.append(Component(match, provider=provider))
 
         if not matches:
-            LOG.info("Did not find component match for: %s" % blueprint_entry)
+            LOG.info("Did not find component match for: %s", blueprint_entry)
             return None
 
         if len(matches) > 1:
-            LOG.warning("Ambiguous component '%s' matches: %s" %
-                        (blueprint_entry, matches))
-            LOG.warning("Will use '%s.%s' as a default if no match is found" %
-                        (matches[0].provider.key, matches[0]['id']))
+            LOG.warning("Ambiguous component '%s' matches: %s",
+                        blueprint_entry, matches)
+            LOG.warning("Will use '%s.%s' as a default if no match is found",
+                        matches[0].provider.key, matches[0]['id'])
         return matches[0]
