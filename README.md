@@ -279,6 +279,8 @@ The **symantics** are:
 - Use it to store something in checkmate (ex. a deployment exported from another instance of checkmate)
 
 **GET** will sometimes add the object ID and tenant ID if the underlying store does not provide them. This is so that the object can be identified when parsed later.
+- On plurals (blueprints, components, deployments, environments, workflows), if a `GET` request resuts in no records an empty collection will be returned.
+- On singulars (blueprints/<id>, deployments/<id>, etc.), if a `GET` request results in nothing found an HTTP 404 response will be received.
 
 ###JSON, YAML, and XML
 Objects are returned as JSON by default, but YAML is also supported (content-type: application/x-yaml)
