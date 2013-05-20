@@ -550,3 +550,11 @@ def get_provider_class(vendor, key):
     except StandardError as exc:
         LOG.exception(exc)
         raise CheckmateInvalidProvider("Unable to load provider '%s'" % name)
+
+
+def user_has_access(context, roles):
+    """Return True if user has permissions to create resources"""
+    for role in roles:
+        if role in context.roles:
+            return True
+    return False

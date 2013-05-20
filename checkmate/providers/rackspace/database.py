@@ -25,7 +25,7 @@ from checkmate.exceptions import (
     CheckmateBadState,
 )
 from checkmate.middleware import RequestContext
-from checkmate.providers import ProviderBase
+from checkmate.providers import ProviderBase, user_has_access
 from checkmate.utils import match_celery_logging
 from checkmate.workflow import wait_for
 
@@ -148,18 +148,10 @@ class Provider(ProviderBase):
             })
         return messages
 
-    def _user_has_access(self, context):
-        """Return True if user has permissions to create database resources"""
-        roles = ['identity:user-admin', 'dbaas:admin', 'dbaas:creator']
-        for role in roles:
-            if role in context.roles:
-                return True
-            else:
-                return False
-
     def verify_access(self, context):
         """Verify that the user has permissions to create database resources"""
-        if self._user_has_access(context):
+        roles = ['identity:user-admin', 'dbaas:admin', 'dbaas:creator']
+        if user_has_access(context, roles):
             return {
                 'type': "ACCESS-OK",
                 'message': "You have access to create Cloud Databases",

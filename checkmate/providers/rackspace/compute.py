@@ -29,7 +29,7 @@ from checkmate.exceptions import (
     CheckmateException,
 )
 from checkmate.middleware import RequestContext
-from checkmate.providers import ProviderBase
+from checkmate.providers import ProviderBase, user_has_access
 import checkmate.rdp
 import checkmate.ssh
 from checkmate.utils import (
@@ -262,17 +262,10 @@ class Provider(RackspaceComputeProviderBase):
             })
         return messages
 
-    def _user_has_access(self, context):
-        """Return True if user has permissions to create compute resources"""
-        roles = ['identity:user-admin', 'nova:admin', 'nova:creator']
-        for role in roles:
-            if role in context.roles:
-                return True
-        return False
-
     def verify_access(self, context):
         """Verify that the user has permissions to create compute resources"""
-        if self._user_has_access(context):
+        roles = ['identity:user-admin', 'nova:admin', 'nova:creator']
+        if user_has_access(context, roles):
             return {
                 'type': "ACCESS-OK",
                 'message': "You have access to create Cloud Servers",
