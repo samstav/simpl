@@ -108,6 +108,7 @@ iBoaWdoIGVub3VnaCB0byBzZWUgYmV5b25kIGhvcml6 b25zLiINCg0KLVJpY2hhcmQgQmFjaA=="
 """)
 API_IMAGE_CACHE = {}
 API_FLAVOR_CACHE = {}
+API_LIMITS_CACHE = {}
 
 
 class RackspaceComputeProviderBase(ProviderBase):
@@ -580,7 +581,7 @@ def _get_flavors(api_endpoint, auth_token):
     }
 
 
-@Memorize(timeout=1800, sensitive_args=[1], store=API_CACHE)
+@Memorize(timeout=1800, sensitive_args=[1], store=API_LIMITS_CACHE)
 def _get_limits(api_endpoint, auth_token):
     api = client.Client('ignore', 'ignore', None, 'localhost')
     api.client.auth_token = auth_token
