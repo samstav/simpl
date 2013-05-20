@@ -228,6 +228,7 @@ class Deployment(ExtensibleDict):
         "ACTIVE": 'UP',
         'ERROR': 'FAILED',
         'DELETING': 'UP',
+        'LAUNCHED': 'UP',
     }
 
     def __init__(self, *args, **kwargs):
