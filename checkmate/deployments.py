@@ -73,6 +73,8 @@ def _content_to_deployment(bottle_request, deployment_id=None, tenant_id=None):
     else:
         assert tenant_id, "Tenant ID must be specified in deployment "
         deployment['tenantId'] = tenant_id
+    if 'created-by' not in deployment:
+        deployment['created-by'] = bottle_request.context.username
     return deployment
 
 
@@ -92,8 +94,8 @@ def _save_deployment(deployment, deployment_id=None, tenant_id=None,
         if 'id' not in deployment:
             deployment['id'] = deployment_id
         else:
-            assert deployment_id == deployment['id'], ("Deployment ID (%s) does "
-                                                       "not match "
+            assert deployment_id == deployment['id'], ("Deployment ID (%s) "
+                                                       "does not match "
                                                        "deploymentId (%s)",
                                                        (deployment_id,
                                                         deployment['id']))
