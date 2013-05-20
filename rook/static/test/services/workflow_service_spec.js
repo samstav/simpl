@@ -1,4 +1,4 @@
-describe('workflow', function(){
+describe('workflow service', function(){
   var task;
   beforeEach(module('checkmate.services'));
   beforeEach(inject(function(workflow){

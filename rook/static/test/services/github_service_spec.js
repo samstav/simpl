@@ -1,4 +1,4 @@
-describe('github', function(){
+describe('github service', function(){
   var remote,
       url,
       content_item,
