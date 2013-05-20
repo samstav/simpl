@@ -10,10 +10,23 @@ import tldextract
 # Init logging before we load the database, 3rd party, and 'noisy' modules
 from checkmate.utils import init_console_logging
 from checkmate.providers.rackspace import dns
+
 init_console_logging()
 LOG = logging.getLogger(__name__)
 
+try:
+    import socket
+    # Test for internet connection using google.com IP
+    response=socket.getaddrinfo('www.google.com', 80, 0, 0, socket.TCP_NODELAY)
+    SKIP=False
+    REASON=None
+except socket.gaierror as exc:
+    LOG.warn("No network connection so skipping DNS tests: %s", exc)
+    SKIP=True
+    REASON="No network connection: %s" % exc
 
+
+@unittest.skipIf(SKIP, REASON)
 class TestParseDomain(unittest.TestCase):
     """ Test DNS Provider modules parse_domain function """
 
