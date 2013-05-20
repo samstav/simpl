@@ -389,15 +389,23 @@ function AppController($scope, $http, $location, $resource, $cookies, auth) {
       // Firefox does not parse the headers correctly
       var all_headers = getResponseHeaders();
       var combined = '';
-      _.each(all_headers, function(h, k) {
+      _.each(all_headers, function(header_values, k) {
           if (k.indexOf('keystone') === 0) {
-            combined += ', ' + k.replace('keystone', 'Keystone') + ":" + h;
+            _.each(header_values.split(', '), function(h){
+              combined += ', ' + k.replace('keystone', 'Keystone') + ":" + h;
+            });
           } else if (k.indexOf('globalauthimpersonation') === 0){
-            combined += ', ' + k.replace('globalauthimpersonation', 'GlobalAuthImpersonation')+ ":" + h;
+            _.each(header_values.split(', '), function(h){
+              combined += ', ' + k.replace('globalauthimpersonation', 'GlobalAuthImpersonation')+ ":" + h;
+            });
           } else if (k.indexOf('globalauth') === 0) {
-            combined += ', ' + k.replace('globalauth', 'GlobalAuth')+ ":" + h;
+            _.each(header_values.split(', '), function(h){
+              combined += ', ' + k.replace('globalauth', 'GlobalAuth')+ ":" + h;
+            });
           } else if (k == 'www-authenticate')
-            combined += ', ' + h;
+            _.each(header_values.split(', '), function(h){
+              combined += ', ' + h;
+            });
       });
       headers = combined.substring(2);
     }
