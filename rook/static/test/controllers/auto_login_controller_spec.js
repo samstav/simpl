@@ -21,17 +21,23 @@ describe('AutoLoginController', function(){
   });
 
   describe('auto_login_fail', function(){
+    var response;
+
+    beforeEach(function() {
+      response = { statusText: 'faketext' };
+    });
+
     it('should track the failure with mixpanel', function(){
       sinon.spy(mixpanel, 'track');
-      scope.auto_login_fail({ statusText: 'blah' });
+      scope.auto_login_fail(response);
 
       expect(mixpanel.track.getCall(0).args[0]).toEqual('Log In Failed');
-      expect(mixpanel.track.getCall(0).args[1]).toEqual({ 'problem': 'blah' });
+      expect(mixpanel.track.getCall(0).args[1]).toEqual({ 'problem': 'faketext' });
     });
 
     it('should set the location path', function(){
       sinon.spy(location, 'path');
-      scope.auto_login_fail({ statusText: 'blah' });
+      scope.auto_login_fail(response);
 
       expect(location.path.getCall(0).args[0]).toEqual('/');
     });
