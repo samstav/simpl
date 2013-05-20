@@ -117,7 +117,7 @@ class Provider(ProviderBase):
                 instances_needed += 1
                 volume_size_needed += database['disk']
 
-        cdb = self._connect(context)
+        cdb = self.connect(context)
         instances = cdb.get_instances()
         instances_used = len(instances)
         volume_size_used = 0
