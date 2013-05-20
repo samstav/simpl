@@ -180,7 +180,6 @@ function AutoLoginController($scope, $location, $cookies, auth) {
     $location.path('/');
     $scope.$apply();
     $scope.loginPrompt();
-    auth.selected_endpoint = _.find(auth.endpoints, function(endpoint) { return endpoint.uri == auth.selected_endpoint.uri; } ) || {};
     auth.error_message = response.statusText + ". Your credentials could not be verified.";
   };
 
