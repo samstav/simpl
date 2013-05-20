@@ -1032,7 +1032,7 @@ services.factory('auth', ['$http', '$resource', '$rootScope', function($http, $r
         'X-Auth-Token': auth.context.token.id,
         'X-Auth-Source': "https://identity.api.rackspacecloud.com/v2.0/tenants",
       } };
-      $http.get(url, config)
+      return $http.get(url, config)
         .success(function(data, status, headers, config) {
           try {
             var tenant = _.find(data.tenants, function(tenant) { return tenant.id.match(/^\d+$/) });
@@ -1107,12 +1107,15 @@ services.factory('auth', ['$http', '$resource', '$rootScope', function($http, $r
       return $http.post(url, data, config)
         .success(function(response) {
           console.log("impersonation successful");
-          auth.context.tenant = username;
+          auth.context.username = username;
           auth.context.token = response.access.token;
-          auth.get_tenant_id(username);
           checkmate.config.header_defaults.headers.common['X-Auth-Source'] = "https://identity.api.rackspacecloud.com/v2.0/tokens";
           auth.context.auth_url = "https://identity.api.rackspacecloud.com/v2.0/tokens";
-          auth.save_context(auth.context);
+          auth.get_tenant_id(username).then(
+            function() {
+              auth.save_context(auth.context);
+            }
+          );
           /* Not to worry about this for now. Legacy code. */
           /*
           if (auth.identity.endpoint_type == 'Keystone') {
