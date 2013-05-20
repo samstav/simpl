@@ -53,6 +53,8 @@ class TestDatabase(unittest.TestCase):
                 cls.box = None
 
     def setUp(self):
+        if SKIP is True:
+            self.skipTest(REASON)
         self.collection_name = 'checkmate_test_%s' % uuid.uuid4().hex
         self.driver = db.get_driver(name='checkmate.db.mongodb.Driver',
                                     reset=True,

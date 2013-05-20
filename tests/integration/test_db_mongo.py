@@ -59,6 +59,8 @@ class TestDBMongo(base.DBDriverTests, unittest.TestCase):
         super(TestDBMongo, cls).tearDownClass()
 
     def setUp(self):
+        if SKIP is True:
+            self.skipTest(REASON)
         base.DBDriverTests.setUp(self)
         # HACK until we get proper test data management; don't drop collections
         # as there is a risk of deleting everything out of a remote database
