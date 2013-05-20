@@ -34,6 +34,7 @@ class TestDeployments(unittest.TestCase):
             'operation': {},
             'operations-history': [],
             'created-by': 'me',
+            'secrets': 'LOCKED',
             'plan': {},
             'inputs': {},
             'includes': {},

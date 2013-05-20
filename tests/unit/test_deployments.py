@@ -10,11 +10,13 @@ For tests, we don't care about:
 '''
 import os
 import unittest2 as unittest
+import uuid
 
 import mox
 
 os.environ['CHECKMATE_CONNECTION_STRING'] = 'sqlite://'
 from checkmate import deployments
+from checkmate.deployments import Deployment
 
 
 class TestAPICalls(unittest.TestCase):
@@ -58,6 +60,47 @@ class TestAPICalls(unittest.TestCase):
                                                     tenant_id="A")
         self.mox.VerifyAll()
         self.assertEqual(result['created-by'], 'tom')
+
+    def test_get_deployment_secrets(self):
+        '''Check that GET deployment responds without secrets'''
+        id1 = uuid.uuid4().hex[0:7]
+        data = {
+            'id': id1,
+            'tenantId': 'T1000',
+            'created-by': 'john',
+            'blueprint': {
+                'display-outputs': {
+                    "Password": {
+                        'is-secret': True,
+                        'source': 'options://password',
+                    },
+                    "Server Count": {
+                        'source': 'options://servers',
+                    },
+                },
+            },
+            'inputs': {
+                'password': "Keep Private",
+                'servers': 10,
+            }
+        }
+        deployment = Deployment(data)
+        deployment['display-outputs'] = deployment.calculate_outputs()
+        driver = self.mox.CreateMockAnything()
+        driver.get_deployment(id1, with_secrets=False).AndReturn(deployment)
+
+        self.mox.ReplayAll()
+        dep = deployments.get_a_deployment(id1, tenant_id="T1000",
+                                           driver=driver, with_secrets=False)
+        self.mox.VerifyAll()
+
+        self.assertEqual(dep['id'], id1)
+        self.assertIn('display-outputs', dep)
+        self.assertNotIn('value', dep['display-outputs']['Password'])
+        self.assertIn('value', dep['display-outputs']['Server Count'])
+
+        self.assertIn('secrets', dep)
+        self.assertEquals(dep['secrets'], 'AVAILABLE')
 
 
 if __name__ == '__main__':

@@ -183,6 +183,7 @@ DEPLOYMENT_SCHEMA = [
     'id', 'name', 'blueprint', 'environment', 'inputs', 'display-outputs',
     'resources', 'workflow', 'status', 'created', 'tenantId', 'operation',
     'error_messages', 'live', 'plan', 'operations-history', 'created-by',
+    'secrets',
     'errmessage',  # to be deprecated
     'includes',  # used to place YAML-referenced parts but then removed
 ]
