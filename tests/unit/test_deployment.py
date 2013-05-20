@@ -32,6 +32,7 @@ class TestDeployments(unittest.TestCase):
             'live': False,
             'operation': {},
             'operations-history': [],
+            'created-by': 'me',
             'plan': {},
             'inputs': {},
             'includes': {},
