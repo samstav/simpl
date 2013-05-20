@@ -404,3 +404,9 @@ form#impersonate {
 form#impersonate input {
   width: 90%;
 }
+
+/* Login Form - Modal */
+.modal {
+  width: 650px;
+  margin-left: -340px;
+}

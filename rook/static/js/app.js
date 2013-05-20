@@ -180,6 +180,7 @@ function AutoLoginController($scope, $location, $cookies, auth) {
     $location.path('/');
     $scope.$apply();
     $scope.loginPrompt();
+    auth.selected_endpoint = _.find(auth.endpoints, function(endpoint) { return endpoint.uri == auth.selected_endpoint.uri; } ) || {};
     auth.error_message = response.statusText + ". Your credentials could not be verified.";
   };
 
@@ -325,6 +326,14 @@ function AppController($scope, $http, $location, $resource, $cookies, auth) {
     $scope.$apply();
   };
 
+  $scope.select_endpoint = function(endpoint) {
+    auth.selected_endpoint = endpoint;
+  };
+
+  $scope.get_selected_endpoint = function() {
+    return auth.selected_endpoint || auth.endpoints[0];
+  };
+
   // Log in using credentials delivered through bound_credentials
   $scope.logIn = function() {
     var username = $scope.bound_creds.username;
@@ -354,7 +363,7 @@ function AppController($scope, $http, $location, $resource, $cookies, auth) {
       console.log(err);
     }
 
-    var endpoint = $scope.selected_endpoint || auth.endpoints[0];
+    var endpoint = $scope.get_selected_endpoint();
     return auth.authenticate(endpoint, username, apikey, password, null, null,
       $scope.on_auth_success, $scope.on_auth_failed);
   };

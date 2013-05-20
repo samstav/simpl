@@ -848,6 +848,7 @@ services.factory('auth', ['$http', '$resource', '$rootScope', function($http, $r
     endpoints: [],
 
     error_message: "",
+    selected_endpoint: null,
 
     generate_auth_data: function(token, tenant, apikey, username, password, target) {
       var data = {};
@@ -978,6 +979,7 @@ services.factory('auth', ['$http', '$resource', '$rootScope', function($http, $r
       } else {
         headers = {"X-Auth-Source": target};
       }
+      auth.selected_endpoint = endpoint;
 
       return $.ajax({
         type: "POST",
