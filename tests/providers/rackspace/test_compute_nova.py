@@ -421,6 +421,116 @@ class TestNovaCompute(test.ProviderTester):
             catalog = json.load(_file)['access']['serviceCatalog']
         self.assertEqual(compute.Provider.find_a_region(catalog), 'North')
 
+    def test_verify_limits_negative(self):
+        """Test that verify_limits() returns warnings if limits are not okay"""
+        context = RequestContext()
+        resources = [
+            {'component': 'linux_instance',
+             'dns-name': 'master.wordpress.cldsrvr.com',
+             'flavor': '3',
+             'hosts': ['1'],
+             'image': 'e4dbdba7-b2a4-4ee5-8e8f-4595b6d694ce',
+             'index': '2',
+             'instance': {},
+             'provider': 'nova',
+             'region': 'ORD',
+             'service': 'master',
+             'status': 'NEW',
+             'type': 'compute'}
+        ]
+        flavors = {
+            'flavors': {
+                '3': {'cores': 1,
+                      'disk': 40,
+                      'memory': 1024,
+                      'name': u'1GB Standard Instance'},
+            }
+        }
+        limits = {'maxTotalCores': -1,
+                  'maxTotalRAMSize': 66560,
+                  'totalCoresUsed': 5,
+                  'totalRAMUsed': 4096}
+        url = "https://dfw.servers.api.rackspacecloud.com/v2/680640"
+        self.mox.StubOutWithMock(compute, '_get_flavors')
+        self.mox.StubOutWithMock(compute, '_get_limits')
+        self.mox.StubOutWithMock(compute.Provider, 'find_url')
+        self.mox.StubOutWithMock(compute.Provider, 'find_a_region')
+        compute._get_flavors(IgnoreArg(), IgnoreArg()).AndReturn(flavors)
+        compute._get_limits(IgnoreArg(), IgnoreArg()).AndReturn(limits)
+        compute.Provider.find_url(IgnoreArg(), IgnoreArg()).AndReturn(url)
+        compute.Provider.find_a_region(IgnoreArg()).AndReturn('DFW')
+        self.mox.ReplayAll()
+        provider = compute.Provider({})
+        limits = provider.verify_limits(context, resources)[0]
+        self.assertEqual(limits['type'], "INSUFFICIENT-CAPACITY")
+        self.mox.VerifyAll()
+
+    def test_verify_limits_positive(self):
+        """Test that verify_limits() returns no results if limits are okay"""
+        context = RequestContext()
+        resources = [
+            {'component': 'linux_instance',
+             'dns-name': 'master.wordpress.cldsrvr.com',
+             'flavor': '3',
+             'hosts': ['1'],
+             'image': 'e4dbdba7-b2a4-4ee5-8e8f-4595b6d694ce',
+             'index': '2',
+             'instance': {},
+             'provider': 'nova',
+             'region': 'ORD',
+             'service': 'master',
+             'status': 'NEW',
+             'type': 'compute'}
+        ]
+        flavors = {
+            'flavors': {
+                '3': {'cores': 1,
+                      'disk': 40,
+                      'memory': 1024,
+                      'name': u'1GB Standard Instance'},
+            }
+        }
+        limits = {'maxTotalCores': 20,
+                  'maxTotalRAMSize': 66560,
+                  'totalCoresUsed': 5,
+                  'totalRAMUsed': 4096}
+        url = "https://dfw.servers.api.rackspacecloud.com/v2/680640"
+        self.mox.StubOutWithMock(compute, '_get_flavors')
+        self.mox.StubOutWithMock(compute, '_get_limits')
+        self.mox.StubOutWithMock(compute.Provider, 'find_url')
+        self.mox.StubOutWithMock(compute.Provider, 'find_a_region')
+        compute._get_flavors(IgnoreArg(), IgnoreArg()).AndReturn(flavors)
+        compute._get_limits(IgnoreArg(), IgnoreArg()).AndReturn(limits)
+        compute.Provider.find_url(IgnoreArg(), IgnoreArg()).AndReturn(url)
+        compute.Provider.find_a_region(IgnoreArg()).AndReturn('DFW')
+        self.mox.ReplayAll()
+        provider = compute.Provider({})
+        result = provider.verify_limits(context, resources)
+        self.assertEqual(result, [])
+        self.mox.VerifyAll()
+
+    def test_verify_access_positive(self):
+        """Test that verify_access() returns ACCESS-OK if user has access"""
+        context = RequestContext()
+        context.roles = 'identity:user-admin'
+        provider = compute.Provider({})
+        result = provider.verify_access(context)
+        self.assertEqual(result['type'], 'ACCESS-OK')
+        context.roles = 'nova:admin'
+        result = provider.verify_access(context)
+        self.assertEqual(result['type'], 'ACCESS-OK')
+        context.roles = 'nova:creator'
+        result = provider.verify_access(context)
+        self.assertEqual(result['type'], 'ACCESS-OK')
+
+    def test_verify_access_negative(self):
+        """Test that verify_access() returns ACCESS-OK if user has access"""
+        context = RequestContext()
+        context.roles = 'nova:observer'
+        provider = compute.Provider({})
+        result = provider.verify_access(context)
+        self.assertEqual(result['type'], 'NO-ACCESS')
+
 
 class TestNovaGenerateTemplate(unittest.TestCase):
     """Test Nova Compute Provider's region functions"""

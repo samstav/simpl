@@ -268,8 +268,7 @@ class Provider(RackspaceComputeProviderBase):
         for role in roles:
             if role in context.roles:
                 return True
-            else:
-                return False
+        return False
 
     def verify_access(self, context):
         """Verify that the user has permissions to create compute resources"""
