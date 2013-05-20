@@ -461,8 +461,8 @@ class TestNovaCompute(test.ProviderTester):
         compute.Provider.find_a_region(IgnoreArg()).AndReturn('DFW')
         self.mox.ReplayAll()
         provider = compute.Provider({})
-        limits = provider.verify_limits(context, resources)[0]
-        self.assertEqual(limits['type'], "INSUFFICIENT-CAPACITY")
+        result = provider.verify_limits(context, resources)[0]
+        self.assertEqual(result['type'], "INSUFFICIENT-CAPACITY")
         self.mox.VerifyAll()
 
     def test_verify_limits_positive(self):

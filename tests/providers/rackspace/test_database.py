@@ -16,6 +16,7 @@ from checkmate.providers import base, register_providers
 from checkmate.providers.rackspace import database
 from checkmate.test import StubbedWorkflowBase, ProviderTester
 from checkmate import utils
+from checkmate.middleware import RequestContext
 
 from celery.task import task
 
@@ -318,6 +319,146 @@ class TestDatabase(ProviderTester):
 
         self.assertListEqual(results, expected)
         self.mox.VerifyAll()
+
+    def test_verify_limits_negative(self):
+        """Test that verify_limits() returns warnings if limits are not okay"""
+        context = RequestContext()
+        resources = [
+            {'component': 'mysql_database',
+             'dns-name': 'backend01.wordpress.cldsrvr.com',
+             'hosted_on': '6',
+             'index': '5',
+             'instance': {},
+             'provider': 'database',
+             'relations': {'host': {'interface': 'mysql',
+                                    'name': 'compute',
+                                    'relation': 'host',
+                                    'requires-key': 'compute',
+                                    'state': 'planned',
+                                    'target': '6'},
+                           'master-backend-1': {'interface': 'mysql',
+                                                'name': 'master-backend',
+                                                'relation': 'reference',
+                                                'relation-key': 'backend',
+                                                'source': '1',
+                                                'state': 'planned'},
+                           'web-backend-3': {'interface': 'mysql',
+                                             'name': 'web-backend',
+                                             'relation': 'reference',
+                                             'relation-key': 'backend',
+                                             'source': '3',
+                                             'state': 'planned'}},
+             'service': 'backend',
+             'status': 'PLANNED',
+             'type': 'database'},
+            {'component': 'mysql_instance',
+             'disk': 1,
+             'dns-name': 'backend01.wordpress.cldsrvr.com',
+             'flavor': '1',
+             'hosts': ['5'],
+             'index': '6',
+             'instance': {},
+             'provider': 'database',
+             'region': 'ORD',
+             'service': 'backend',
+             'status': 'NEW',
+             'type': 'compute'}
+        ]
+        instance1 = self.mox.CreateMockAnything()
+        instance1.volume = {'size': 100}
+        instance2 = self.mox.CreateMockAnything()
+        instance2.volume = {'size': 100}
+        instances = [instance1, instance2]
+        self.mox.StubOutWithMock(database.Provider, 'connect')
+        cdb = self.mox.CreateMockAnything()
+        database.Provider.connect(mox.IgnoreArg()).AndReturn(cdb)
+        cdb.get_instances().AndReturn(instances)
+        self.mox.ReplayAll()
+        provider = database.Provider({})
+        result = provider.verify_limits(context, resources)[0]
+        self.assertEqual(result['type'], "INSUFFICIENT-CAPACITY")
+        self.mox.VerifyAll()
+
+    def test_verify_limits_positive(self):
+        """Test that verify_limits() returns warnings if limits are not okay"""
+        context = RequestContext()
+        resources = [
+            {'component': 'mysql_database',
+             'dns-name': 'backend01.wordpress.cldsrvr.com',
+             'hosted_on': '6',
+             'index': '5',
+             'instance': {},
+             'provider': 'database',
+             'relations': {'host': {'interface': 'mysql',
+                                    'name': 'compute',
+                                    'relation': 'host',
+                                    'requires-key': 'compute',
+                                    'state': 'planned',
+                                    'target': '6'},
+                           'master-backend-1': {'interface': 'mysql',
+                                                'name': 'master-backend',
+                                                'relation': 'reference',
+                                                'relation-key': 'backend',
+                                                'source': '1',
+                                                'state': 'planned'},
+                           'web-backend-3': {'interface': 'mysql',
+                                             'name': 'web-backend',
+                                             'relation': 'reference',
+                                             'relation-key': 'backend',
+                                             'source': '3',
+                                             'state': 'planned'}},
+             'service': 'backend',
+             'status': 'PLANNED',
+             'type': 'database'},
+            {'component': 'mysql_instance',
+             'disk': 1,
+             'dns-name': 'backend01.wordpress.cldsrvr.com',
+             'flavor': '1',
+             'hosts': ['5'],
+             'index': '6',
+             'instance': {},
+             'provider': 'database',
+             'region': 'ORD',
+             'service': 'backend',
+             'status': 'NEW',
+             'type': 'compute'}
+        ]
+        instance1 = self.mox.CreateMockAnything()
+        instance1.volume = {'size': 1}
+        instance2 = self.mox.CreateMockAnything()
+        instance2.volume = {'size': 1}
+        instances = [instance1, instance2]
+        self.mox.StubOutWithMock(database.Provider, 'connect')
+        cdb = self.mox.CreateMockAnything()
+        database.Provider.connect(mox.IgnoreArg()).AndReturn(cdb)
+        cdb.get_instances().AndReturn(instances)
+        self.mox.ReplayAll()
+        provider = database.Provider({})
+        result = provider.verify_limits(context, resources)
+        self.assertEqual(result, [])
+        self.mox.VerifyAll()
+
+    def test_verify_access_positive(self):
+        """Test that verify_access() returns ACCESS-OK if user has access"""
+        context = RequestContext()
+        context.roles = 'identity:user-admin'
+        provider = database.Provider({})
+        result = provider.verify_access(context)
+        self.assertEqual(result['type'], 'ACCESS-OK')
+        context.roles = 'dbaas:admin'
+        result = provider.verify_access(context)
+        self.assertEqual(result['type'], 'ACCESS-OK')
+        context.roles = 'dbaas:creator'
+        result = provider.verify_access(context)
+        self.assertEqual(result['type'], 'ACCESS-OK')
+
+    def test_verify_access_negative(self):
+        """Test that verify_access() returns ACCESS-OK if user has access"""
+        context = RequestContext()
+        context.roles = 'dbaas:observer'
+        provider = database.Provider({})
+        result = provider.verify_access(context)
+        self.assertEqual(result['type'], 'NO-ACCESS')
 
 
 class TestCatalog(unittest.TestCase):
