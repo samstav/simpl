@@ -1,8 +1,16 @@
 describe('NavBarController', function(){
-  var scope, location, cookies, auth, controller;
+  var scope,
+      location,
+      cookies,
+      auth,
+      http,
+      controller;
+
   beforeEach(function() {
     scope = { '$apply': emptyFunction, loginPrompt: emptyFunction };
     location = { path: emptyFunction };
+    cookies = {};
+    auth = {};
     http = { pendingRequests: [] };
     controller = new NavBarController(scope, location, http);
   });

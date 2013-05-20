@@ -10,8 +10,13 @@ describe('AppController', function(){
 
   beforeEach(function(){
     scope = { $on: sinon.stub(), $root: {} };
-    api_stub = { get: emptyFunction };
+    http = {};
+    location = {};
     resource = function(){ return api_stub; };
+    cookies = {};
+    auth = {};
+    controller = {};
+    api_stub = { get: emptyFunction };
   });
 
   it('should display the header', function(){

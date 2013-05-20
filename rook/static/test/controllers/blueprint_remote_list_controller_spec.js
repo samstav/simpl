@@ -13,8 +13,16 @@ describe('BlueprintRemoteListController', function(){
 
   beforeEach(function(){
     scope = { $on: emptyFunction, $watch: emptyFunction };
-    navbar = { highlight: emptyFunction };
+    controller = {};
+    location = {};
+    routeParams = {};
+    resource = {};
+    http = {};
     items = { receive: emptyFunction };
+    navbar = { highlight: emptyFunction };
+    options = {};
+    workflow = {};
+    github = { get_contents: emptyFunction };
   });
 
   describe('initialization', function(){

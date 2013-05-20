@@ -1,6 +1,10 @@
 describe('auth Service', function(){
 
-  var request, response, endpoint, user;
+  var request,
+      response,
+      endpoint,
+      user;
+
   beforeEach(module('checkmate.services'));
   beforeEach(inject(function(auth, $resource, $rootScope){
     this.auth = auth;

@@ -17,8 +17,8 @@ describe('DeploymentListController', function(){
     scroll = {};
     items = {};
     navbar = { highlight: emptyFunction };
-    emptyResponse = { get: emptyFunction };
     controller = {};
+    emptyResponse = { get: emptyFunction };
   });
 
   describe('initialization', function(){

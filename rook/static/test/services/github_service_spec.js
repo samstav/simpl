@@ -10,6 +10,8 @@ describe('github service', function(){
     beforeEach(inject(function(github, $http, $injector){
       $httpBackend = $injector.get('$httpBackend');
       this.github = github;
+      url = '';
+      content_item = '';
       remote = { api: { server: 'https://someserver.com' } };
       callback = emptyFunction;
     }));

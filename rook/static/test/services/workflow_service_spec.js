@@ -3,6 +3,7 @@ describe('workflow service', function(){
   beforeEach(module('checkmate.services'));
   beforeEach(inject(function(workflow){
     this.workflow = workflow;
+    task = {};
   }));
 
   describe('iconify', function(){

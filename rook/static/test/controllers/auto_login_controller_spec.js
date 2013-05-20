@@ -1,10 +1,15 @@
 describe('AutoLoginController', function(){
-  var scope, location, cookies, auth, controller;
+  var scope,
+      location,
+      cookies,
+      auth,
+      controller;
+
   beforeEach(function() {
     scope = { '$apply': emptyFunction, loginPrompt: emptyFunction };
     location = { path: emptyFunction };
-    auth = {};
     cookies = {};
+    auth = {};
     controller = new AutoLoginController(scope, location, cookies, auth);
     mixpanel = { track: emptyFunction }; //We are dependent on this being a global var
   });
