@@ -148,9 +148,31 @@ class Provider(ProviderBase):
             })
         return messages
 
+    def _user_has_access(self, context):
+        """Return True if user has permissions to create database resources"""
+        roles = ['identity:user-admin', 'dbaas:admin', 'dbaas:creator']
+        for role in roles:
+            if role in context.roles:
+                return True
+            else:
+                return False
+
     def verify_access(self, context):
-        # TODO: Check RBAC access
-        pass
+        """Verify that the user has permissions to create database resources"""
+        if self._user_has_access(context):
+            return {
+                'type': "ACCESS-OK",
+                'message': "You have access to create Cloud Databases",
+                'provider': "database",
+                'severity': "INFORMATIONAL"
+            }
+        else:
+            return {
+                'type': "NO-ACCESS",
+                'message': "You do not have access to create Cloud Databases",
+                'provider': "database",
+                'severity': "CRITICAL"
+            }
 
     def add_resource_tasks(self, resource, key, wfspec, deployment, context,
                            wait_on=None):
