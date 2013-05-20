@@ -145,7 +145,7 @@ class Plan(ExtensibleDict):
         pile = eventlet.GreenPile()
         providers = self._unique_providers()
         for provider in providers:
-            pile.spawn(provider.verify_access, context, self.resources)
+            pile.spawn(provider.verify_access, context)
         results = []
         for result in pile:
             if result:

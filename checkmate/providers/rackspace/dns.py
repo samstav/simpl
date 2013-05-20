@@ -27,7 +27,7 @@ class Provider(ProviderBase):
         #    check the number of domains they have against the limit
         pass
 
-    def verify_access(self, context, resources):
+    def verify_access(self, context):
         # TODO: Check RBAC access
         pass
 

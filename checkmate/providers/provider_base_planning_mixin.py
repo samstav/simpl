@@ -52,6 +52,6 @@ class ProviderBasePlanningMixIn():
         """Implemented in the specific Provider classes"""
         pass
 
-    def verify_access(self, context, resources):
+    def verify_access(self, context):
         """Implemented in the specific Provider classes"""
         pass

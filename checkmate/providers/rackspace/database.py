@@ -148,7 +148,7 @@ class Provider(ProviderBase):
             })
         return messages
 
-    def verify_access(self, context, resources):
+    def verify_access(self, context):
         # TODO: Check RBAC access
         pass
 

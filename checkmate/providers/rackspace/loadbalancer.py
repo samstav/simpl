@@ -141,7 +141,7 @@ class Provider(ProviderBase):
         # TODO: Check loadbalancer against limits API
         pass
 
-    def verify_access(self, context, resources):
+    def verify_access(self, context):
         # TODO: Check RBAC access
         pass
 
