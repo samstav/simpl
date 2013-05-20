@@ -29,6 +29,7 @@ from checkmate.plan import Plan
 from checkmate.utils import (
     extract_sensitive_data,
     read_body,
+    get_time_string,
     is_simulation,
     match_celery_logging,
     with_tenant,
@@ -493,6 +494,7 @@ def get_deployment(oid, tenant_id=None, driver=DB):
         LOG.warning("Attempt to access deployment %s from wrong tenant %s by "
                     "%s", oid, tenant_id, request.context.username)
         abort(404)
+
     return write_body(entity, request, response)
 
 
@@ -521,7 +523,59 @@ def get_deployment_secrets(oid, tenant_id=None, driver=DB):
 
     data = get_a_deployments_secrets(oid, tenant_id=tenant_id, driver=driver)
     return write_body(data, request, response)
-    return write_body(data, request, response)
+
+
+@post('/deployments/<oid>/secrets')
+@with_tenant
+def update_deployment_secrets(oid, tenant_id=None, driver=DB):
+    """Update/Lock deployment secrets"""
+    if is_simulation(oid):
+        driver = SIMULATOR_DB
+
+    partial = read_body(request)
+    try:
+        entity = get_a_deployment(oid, tenant_id=tenant_id, driver=driver,
+                                  with_secrets=True)
+    except CheckmateDoesNotExist:
+        abort(404)
+    if tenant_id is not None and tenant_id != entity.get('tenantId'):
+        LOG.warning("Attempt to access deployment %s from wrong tenant %s by "
+                    "%s", oid, tenant_id, request.context.username)
+        abort(404)
+
+    if not (request.context.is_admin is True or
+            ('created-by' in entity and
+             entity['created-by'] is not None and
+             request.context.username == entity.get('created-by'))):
+        abort(401, "You must be the creator of a deployment or an admin to "
+              "retrieve its secrets")
+
+    if not partial:
+        abort(400, "No data provided")
+    if 'secrets' not in partial:
+        abort(406, "Must supply 'secrets' to be locked")
+
+    #FIXME: test this, move it to a separate call
+    updates = {}
+    for output, value in partial['secrets'].items():
+        if 'status' in value and value['status'] == 'LOCKED':
+            if output not in entity.get('display-outputs', {}):
+                abort(406, "No secret called '%s'" % output)
+            if entity['display-outputs'][output].get('status') != 'LOCKED':
+                if 'display-outputs' not in updates:
+                    updates['display-outputs'] = {}
+                if output not in updates['display-outputs']:
+                    updates['display-outputs'][output] = {}
+                updates['display-outputs'][output]['status'] = 'LOCKED'
+                updates['display-outputs'][output]['last-locked'] = \
+                    get_time_string()
+
+    if updates:
+        body, secrets = extract_sensitive_data(updates)
+        driver.save_deployment(oid, body, secrets, tenant_id=tenant_id,
+                               partial=True)
+
+    return write_body({'secrets': updates['secrets']}, request, response)
 
 
 def _get_a_deployment_with_request(oid, tenant_id=None, driver=DB):

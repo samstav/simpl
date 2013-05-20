@@ -202,6 +202,27 @@ class TestServer(unittest.TestCase):
                            expect_errors=True)
         self.assertEqual(res.status, '404 Not Found')
 
+    def test_lock_deployment_secrets(self):
+        '''Check that POST /secrets responds'''
+        id1 = uuid.uuid4().hex[0:7]
+        data = """
+            deployment:
+                id: '%s'
+            """ % id1
+        self.app.put('/T1000/deployments/%s' % id1, data,
+                     content_type='application/x-yaml')
+        # Not an admin - 401
+        res = self.app.post('/T1000/deployments/%s/secrets' % id1, "A: 1",
+                           content_type='application/x-yaml',
+                           expect_errors=True)
+        self.assertEqual(res.status, '401 Unauthorized')
+
+        # Wrong tenant - 404 (don't divulge existence)
+        res = self.app.post('/T2000/deployments/%s/secrets' % id1, "A: 1",
+                           content_type='application/x-yaml',
+                           expect_errors=True)
+        self.assertEqual(res.status, '404 Not Found')
+
 
 if __name__ == '__main__':
     # Any change here should be made in all test files
