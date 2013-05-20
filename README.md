@@ -324,10 +324,12 @@ All calls to GET /deployments and GET /workflows may be optionally paginated by 
     POST [/:tid]/deployments
     POST [/:tid]/deployments/+parse
     POST [/:tid]/deployments/+preview
-    PUT/GET/POST/DELETE [/:tid]/deployments/:id
+    POST [/:tid]/deployments/:id/+plan
+    POST [/:tid]/deployments/:id/+deploy
     POST [/:tid]/deployments/:id/+clone
-
+    PUT/GET/POST/DELETE [/:tid]/deployments/:id
     GET [/:tid]/deployments/:id/status
+    GET [/:tid]/deployments/:id/secrets
 
     GET  [/:tid]/workflows/[?offset=OFFSET&limit=LIMIT]
     POST [/:tid]/workflows

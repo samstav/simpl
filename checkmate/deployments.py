@@ -496,6 +496,42 @@ def get_deployment(oid, tenant_id=None, driver=DB):
     return write_body(entity, request, response)
 
 
+@get('/deployments/<oid>/secrets')
+@with_tenant
+def get_deployment_secrets(oid, tenant_id=None, driver=DB):
+    """Return deployment secrets"""
+    if is_simulation(oid):
+        driver = SIMULATOR_DB
+
+    try:
+        entity = get_a_deployment(oid, tenant_id=tenant_id, driver=driver)
+    except CheckmateDoesNotExist:
+        abort(404)
+    if tenant_id is not None and tenant_id != entity.get('tenantId'):
+        LOG.warning("Attempt to access deployment %s from wrong tenant %s by "
+                    "%s", oid, tenant_id, request.context.username)
+        abort(404)
+
+    if not (request.context.is_admin is True or
+            ('created-by' in entity and
+             entity['created-by'] is not None and
+             request.context.username != entity.get('created-by'))):
+        abort(401, "You must be the creator of a deployment or an admin to "
+              "retrieve its secrets")
+
+    secrets = {
+        key: value
+        for key, value in entity.get('display-outputs', {}).items()
+        if value.get('is-secret') is True
+    }
+    data = {
+        'id': oid,
+        'tenantId': tenant_id,
+        'secrets': secrets,
+    }
+    return write_body(data, request, response)
+
+
 def _get_a_deployment_with_request(oid, tenant_id=None, driver=DB):
     """
     Lookup a deployment with secrets if needed. With secrets is stored
