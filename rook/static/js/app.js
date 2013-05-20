@@ -280,7 +280,7 @@ function AppController($scope, $http, $location, $resource, $cookies, auth) {
     $scope.bound_creds.username = '';
     $scope.bound_creds.password = '';
     $scope.bound_creds.apikey = '';
-    $("#auth_error").hide();
+    auth.error_message = null;
 
     var modal = $('#modalAuth');
     modal.modal({
@@ -325,6 +325,14 @@ function AppController($scope, $http, $location, $resource, $cookies, auth) {
     $scope.$apply();
   };
 
+  $scope.select_endpoint = function(endpoint) {
+    auth.selected_endpoint = endpoint;
+  };
+
+  $scope.get_selected_endpoint = function() {
+    return auth.selected_endpoint || auth.endpoints[0];
+  };
+
   // Log in using credentials delivered through bound_credentials
   $scope.logIn = function() {
     var username = $scope.bound_creds.username;
@@ -354,7 +362,7 @@ function AppController($scope, $http, $location, $resource, $cookies, auth) {
       console.log(err);
     }
 
-    var endpoint = $scope.selected_endpoint || auth.endpoints[0];
+    var endpoint = $scope.get_selected_endpoint();
     return auth.authenticate(endpoint, username, apikey, password, null, null,
       $scope.on_auth_success, $scope.on_auth_failed);
   };
@@ -363,13 +371,15 @@ function AppController($scope, $http, $location, $resource, $cookies, auth) {
     $scope.auth.logOut();
   };
 
-  $scope.on_impersonate_success = function(tenant, json) {
+  $scope.on_impersonate_success = function(json) {
     $('#user_menu').dropdown('toggle');
     $location.path('/');
   };
 
-  $scope.impersonate = function(tenant) {
-    auth.impersonate(tenant, $scope.on_impersonate_success, $scope.on_auth_failed);
+  $scope.username = "";
+  $scope.impersonate = function(username) {
+    $scope.username = "";
+    auth.impersonate(username, $scope.on_impersonate_success, $scope.on_auth_failed);
   };
 
 
@@ -387,15 +397,23 @@ function AppController($scope, $http, $location, $resource, $cookies, auth) {
       // Firefox does not parse the headers correctly
       var all_headers = getResponseHeaders();
       var combined = '';
-      _.each(all_headers, function(h, k) {
+      _.each(all_headers, function(header_values, k) {
           if (k.indexOf('keystone') === 0) {
-            combined += ', ' + k.replace('keystone', 'Keystone') + ":" + h;
+            _.each(header_values.split(', '), function(h){
+              combined += ', ' + k.replace('keystone', 'Keystone') + ":" + h;
+            });
           } else if (k.indexOf('globalauthimpersonation') === 0){
-            combined += ', ' + k.replace('globalauthimpersonation', 'GlobalAuthImpersonation')+ ":" + h;
+            _.each(header_values.split(', '), function(h){
+              combined += ', ' + k.replace('globalauthimpersonation', 'GlobalAuthImpersonation')+ ":" + h;
+            });
           } else if (k.indexOf('globalauth') === 0) {
-            combined += ', ' + k.replace('globalauth', 'GlobalAuth')+ ":" + h;
+            _.each(header_values.split(', '), function(h){
+              combined += ', ' + k.replace('globalauth', 'GlobalAuth')+ ":" + h;
+            });
           } else if (k == 'www-authenticate')
-            combined += ', ' + h;
+            _.each(header_values.split(', '), function(h){
+              combined += ', ' + h;
+            });
       });
       headers = combined.substring(2);
     }
@@ -529,9 +547,13 @@ function AppController($scope, $http, $location, $resource, $cookies, auth) {
   };
 }
 
-function NavBarController($scope, $location) {
+function NavBarController($scope, $location, $http) {
   $scope.feedback = "";
   $scope.email = "";
+
+  $scope.hasPendingRequests = function() {
+    return $http.pendingRequests.length > 0;
+  };
 
   // Send feedback to server
   $scope.send_feedback = function() {
@@ -1466,12 +1488,28 @@ function BlueprintRemoteListController($scope, $location, $routeParams, $resourc
     items.receive(data, function(item, key) {
       if (!('documentation' in item))
         item.documentation = {abstract: item.description};
-      return {key: item.id, id: item.html_url, name: item.name, description: item.documentation.abstract, git_url: item.git_url, selected: false};});
+      return { key: item.id,
+               id: item.html_url,
+               name: item.name,
+               description: item.documentation.abstract,
+               git_url: item.git_url,
+               selected: false,
+               api_url: item.url,
+               is_blueprint_repo: false };
+    });
+
     $scope.count = items.count;
-    $scope.items = items.all;
+    $scope.items = _.sortBy(items.all, function(item){ return item.name.toUpperCase(); });
     $scope.loading_remote_blueprints = false;
     $('#spec_list').css('top', $('.summaryHeader').outerHeight());
     $scope.remember_repo_url($scope.remote.url);
+    _.each($scope.items, function(item){
+      github.get_contents($scope.remote, item.api_url, "checkmate.yaml", function(content_data){
+        if(content_data.type === 'file'){
+          item.is_blueprint_repo = true;
+        }
+      });
+    });
   };
 
   $scope.load = function() {
@@ -1589,7 +1627,25 @@ function DeploymentListController($scope, $location, $http, $resource, scroll, i
 
   $scope.load = function() {
     console.log("Starting load");
-    this.klass = $resource((checkmate_server_base || '') + '/:tenantId/deployments/.json');
+    var path,
+        query_params = $location.search(),
+        paging_params = [];
+
+    if(query_params.offset) {
+      paging_params.push('offset=' + query_params.offset)
+    }
+
+    if(query_params.limit) {
+      paging_params.push('limit=' + query_params.limit)
+    }
+
+    if(paging_params.length > 0){
+      path = '/:tenantId/deployments.json?' + paging_params.join('&')
+    } else {
+      path = '/:tenantId/deployments.json'
+    }
+
+    this.klass = $resource((checkmate_server_base || '') + path);
     this.klass.get({tenantId: $scope.auth.context.tenantId}, function(list, getResponseHeaders){
       console.log("Load returned");
       items.all = [];
