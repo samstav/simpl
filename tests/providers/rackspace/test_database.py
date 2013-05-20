@@ -320,8 +320,8 @@ class TestDatabase(ProviderTester):
         self.assertListEqual(results, expected)
         self.mox.VerifyAll()
 
-    def test_verify_limits_negative(self):
-        """Test that verify_limits() returns warnings if limits are not okay"""
+    def verify_limits(self, volume_size_used):
+        """Test the verify_limits() method"""
         context = RequestContext()
         resources = [
             {'component': 'mysql_database',
@@ -365,68 +365,9 @@ class TestDatabase(ProviderTester):
              'type': 'compute'}
         ]
         instance1 = self.mox.CreateMockAnything()
-        instance1.volume = {'size': 100}
+        instance1.volume = {'size': volume_size_used}
         instance2 = self.mox.CreateMockAnything()
-        instance2.volume = {'size': 100}
-        instances = [instance1, instance2]
-        self.mox.StubOutWithMock(database.Provider, 'connect')
-        cdb = self.mox.CreateMockAnything()
-        database.Provider.connect(mox.IgnoreArg()).AndReturn(cdb)
-        cdb.get_instances().AndReturn(instances)
-        self.mox.ReplayAll()
-        provider = database.Provider({})
-        result = provider.verify_limits(context, resources)[0]
-        self.assertEqual(result['type'], "INSUFFICIENT-CAPACITY")
-        self.mox.VerifyAll()
-
-    def test_verify_limits_positive(self):
-        """Test that verify_limits() returns warnings if limits are not okay"""
-        context = RequestContext()
-        resources = [
-            {'component': 'mysql_database',
-             'dns-name': 'backend01.wordpress.cldsrvr.com',
-             'hosted_on': '6',
-             'index': '5',
-             'instance': {},
-             'provider': 'database',
-             'relations': {'host': {'interface': 'mysql',
-                                    'name': 'compute',
-                                    'relation': 'host',
-                                    'requires-key': 'compute',
-                                    'state': 'planned',
-                                    'target': '6'},
-                           'master-backend-1': {'interface': 'mysql',
-                                                'name': 'master-backend',
-                                                'relation': 'reference',
-                                                'relation-key': 'backend',
-                                                'source': '1',
-                                                'state': 'planned'},
-                           'web-backend-3': {'interface': 'mysql',
-                                             'name': 'web-backend',
-                                             'relation': 'reference',
-                                             'relation-key': 'backend',
-                                             'source': '3',
-                                             'state': 'planned'}},
-             'service': 'backend',
-             'status': 'PLANNED',
-             'type': 'database'},
-            {'component': 'mysql_instance',
-             'disk': 1,
-             'dns-name': 'backend01.wordpress.cldsrvr.com',
-             'flavor': '1',
-             'hosts': ['5'],
-             'index': '6',
-             'instance': {},
-             'provider': 'database',
-             'region': 'ORD',
-             'service': 'backend',
-             'status': 'NEW',
-             'type': 'compute'}
-        ]
-        instance1 = self.mox.CreateMockAnything()
-        instance1.volume = {'size': 1}
-        instance2 = self.mox.CreateMockAnything()
-        instance2.volume = {'size': 1}
+        instance2.volume = {'size': volume_size_used}
         instances = [instance1, instance2]
         self.mox.StubOutWithMock(database.Provider, 'connect')
         cdb = self.mox.CreateMockAnything()
@@ -435,8 +376,18 @@ class TestDatabase(ProviderTester):
         self.mox.ReplayAll()
         provider = database.Provider({})
         result = provider.verify_limits(context, resources)
-        self.assertEqual(result, [])
         self.mox.VerifyAll()
+        return result
+
+    def test_verify_limits_negative(self):
+        """Test that verify_limits() returns warnings if limits are not okay"""
+        result = self.verify_limits(100)  # Will be 200 total (2 instances)
+        self.assertEqual(result[0]['type'], "INSUFFICIENT-CAPACITY")
+
+    def test_verify_limits_positive(self):
+        """Test that verify_limits() returns warnings if limits are not okay"""
+        result = self.verify_limits(1)
+        self.assertEqual(result, [])
 
     def test_verify_access_positive(self):
         """Test that verify_access() returns ACCESS-OK if user has access"""

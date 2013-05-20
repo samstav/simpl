@@ -421,8 +421,8 @@ class TestNovaCompute(test.ProviderTester):
             catalog = json.load(_file)['access']['serviceCatalog']
         self.assertEqual(compute.Provider.find_a_region(catalog), 'North')
 
-    def test_verify_limits_negative(self):
-        """Test that verify_limits() returns warnings if limits are not okay"""
+    def verify_limits(self, cores_used, ram_used):
+        """Test the verify_limits() method"""
         context = RequestContext()
         resources = [
             {'component': 'linux_instance',
@@ -446,54 +446,10 @@ class TestNovaCompute(test.ProviderTester):
                       'name': u'1GB Standard Instance'},
             }
         }
-        limits = {'maxTotalCores': -1,
+        limits = {'maxTotalCores': 10,
                   'maxTotalRAMSize': 66560,
-                  'totalCoresUsed': 5,
-                  'totalRAMUsed': 4096}
-        url = "https://dfw.servers.api.rackspacecloud.com/v2/680640"
-        self.mox.StubOutWithMock(compute, '_get_flavors')
-        self.mox.StubOutWithMock(compute, '_get_limits')
-        self.mox.StubOutWithMock(compute.Provider, 'find_url')
-        self.mox.StubOutWithMock(compute.Provider, 'find_a_region')
-        compute._get_flavors(IgnoreArg(), IgnoreArg()).AndReturn(flavors)
-        compute._get_limits(IgnoreArg(), IgnoreArg()).AndReturn(limits)
-        compute.Provider.find_url(IgnoreArg(), IgnoreArg()).AndReturn(url)
-        compute.Provider.find_a_region(IgnoreArg()).AndReturn('DFW')
-        self.mox.ReplayAll()
-        provider = compute.Provider({})
-        result = provider.verify_limits(context, resources)[0]
-        self.assertEqual(result['type'], "INSUFFICIENT-CAPACITY")
-        self.mox.VerifyAll()
-
-    def test_verify_limits_positive(self):
-        """Test that verify_limits() returns no results if limits are okay"""
-        context = RequestContext()
-        resources = [
-            {'component': 'linux_instance',
-             'dns-name': 'master.wordpress.cldsrvr.com',
-             'flavor': '3',
-             'hosts': ['1'],
-             'image': 'e4dbdba7-b2a4-4ee5-8e8f-4595b6d694ce',
-             'index': '2',
-             'instance': {},
-             'provider': 'nova',
-             'region': 'ORD',
-             'service': 'master',
-             'status': 'NEW',
-             'type': 'compute'}
-        ]
-        flavors = {
-            'flavors': {
-                '3': {'cores': 1,
-                      'disk': 40,
-                      'memory': 1024,
-                      'name': u'1GB Standard Instance'},
-            }
-        }
-        limits = {'maxTotalCores': 20,
-                  'maxTotalRAMSize': 66560,
-                  'totalCoresUsed': 5,
-                  'totalRAMUsed': 4096}
+                  'totalCoresUsed': cores_used,
+                  'totalRAMUsed': ram_used}
         url = "https://dfw.servers.api.rackspacecloud.com/v2/680640"
         self.mox.StubOutWithMock(compute, '_get_flavors')
         self.mox.StubOutWithMock(compute, '_get_limits')
@@ -506,8 +462,27 @@ class TestNovaCompute(test.ProviderTester):
         self.mox.ReplayAll()
         provider = compute.Provider({})
         result = provider.verify_limits(context, resources)
-        self.assertEqual(result, [])
         self.mox.VerifyAll()
+        return result
+
+    def test_verify_limits_negative(self):
+        """Test that verify_limits() returns warnings if limits are not okay"""
+        result = self.verify_limits(15, 1000)
+        self.assertEqual(result[0]['type'], "INSUFFICIENT-CAPACITY")
+        self.mox.UnsetStubs()
+        result = self.verify_limits(5, 100000)
+        self.assertEqual(result[0]['type'], "INSUFFICIENT-CAPACITY")
+        self.mox.UnsetStubs()
+        result = self.verify_limits(15, 100000)
+        self.assertEqual(result[0]['type'], "INSUFFICIENT-CAPACITY")
+
+    def test_verify_limits_positive(self):
+        """Test that verify_limits() returns no results if limits are okay"""
+        result = self.verify_limits(5, 1000)
+        self.assertEqual(result, [])
+        self.mox.UnsetStubs()
+        result = self.verify_limits(0, 0)
+        self.assertEqual(result, [])
 
     def test_verify_access_positive(self):
         """Test that verify_access() returns ACCESS-OK if user has access"""
