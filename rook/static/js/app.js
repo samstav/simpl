@@ -281,7 +281,7 @@ function AppController($scope, $http, $location, $resource, $cookies, auth) {
     $scope.bound_creds.username = '';
     $scope.bound_creds.password = '';
     $scope.bound_creds.apikey = '';
-    $("#auth_error").hide();
+    auth.error_message = null;
 
     var modal = $('#modalAuth');
     modal.modal({
