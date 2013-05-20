@@ -149,7 +149,7 @@ class Plan(ExtensibleDict):
         results = []
         for result in pile:
             if result:
-                results.extend(result)
+                results.append(result)
         return results
 
     def plan_delete(self, context):

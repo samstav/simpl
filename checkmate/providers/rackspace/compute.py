@@ -262,9 +262,37 @@ class Provider(RackspaceComputeProviderBase):
             })
         return messages
 
-    def verify_access(self, context, resources):
-        # TODO: Check RBAC access
-        pass
+    def _user_has_access(self, context):
+        """Return True if the user has permissions to create compute resources.
+
+        The Nova-specific role appears to be "admin":
+        https://github.com/openstack/nova/blob/5c3113b/nova/context.py#L143
+        https://github.com/openstack/nova/blob/5c3113b/nova/openstack/common/\
+        rpc/common.py#L389
+        """
+        roles = ['identity:user-admin', 'nova:admin', 'nova:creator']
+        for role in roles:
+            if role in context.roles:
+                return True
+            else:
+                return False
+
+    def verify_access(self, context):
+        """Verify that the user has permissions to create compute resources."""
+        if self._user_has_access(context):
+            return {
+                'type': "ACCESS-OK",
+                'message': "You have access to create Cloud Servers",
+                'provider': "nova",
+                'severity': "INFORMATIONAL"
+            }
+        else:
+            return {
+                'type': "NO-ACCESS",
+                'message': "You do not have access to create Cloud Servers",
+                'provider': "nova",
+                'severity': "CRITICAL"
+            }
 
     def add_resource_tasks(self, resource, key, wfspec, deployment, context,
                            wait_on=None):
