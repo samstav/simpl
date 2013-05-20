@@ -263,13 +263,7 @@ class Provider(RackspaceComputeProviderBase):
         return messages
 
     def _user_has_access(self, context):
-        """Return True if the user has permissions to create compute resources.
-
-        The Nova-specific role appears to be "admin":
-        https://github.com/openstack/nova/blob/5c3113b/nova/context.py#L143
-        https://github.com/openstack/nova/blob/5c3113b/nova/openstack/common/\
-        rpc/common.py#L389
-        """
+        """Return True if user has permissions to create compute resources"""
         roles = ['identity:user-admin', 'nova:admin', 'nova:creator']
         for role in roles:
             if role in context.roles:
@@ -278,7 +272,7 @@ class Provider(RackspaceComputeProviderBase):
                 return False
 
     def verify_access(self, context):
-        """Verify that the user has permissions to create compute resources."""
+        """Verify that the user has permissions to create compute resources"""
         if self._user_has_access(context):
             return {
                 'type': "ACCESS-OK",
