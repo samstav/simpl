@@ -19,8 +19,8 @@ import cloudfiles
 from celery.task import task
 
 
-def _connect(context):
-    
+def connect(context):
+
     if isinstance(context, dict):
         from checkmate.middleware import RequestContext
         context = RequestContext(**context)
@@ -49,7 +49,7 @@ def create_container(context, name, api=None):
     """Creates a new container"""
     match_celery_logging(LOG)
     if api is None:
-        api = _connect(context)
+        api = connect(context)
     try:
         meta = deployment.get("metadata", None)
         if meta:
@@ -73,7 +73,7 @@ def delete_container(deployment, name, api=None):
     """Deletes a container"""
     match_celery_logging(LOG)
     if api is None:
-        api = _connect(deployment)
+        api = connect(deployment)
 
     try:
         api.delete_container(name)

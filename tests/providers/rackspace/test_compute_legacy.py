@@ -165,15 +165,18 @@ class TestLegacyGenerateTemplate(unittest.TestCase):
                                     provider_key=provider.key,
                                     default=512).AndReturn('512')
 
-        expected = [{'instance': {},
-                     'dns-name': 'master.test.checkmate',
-                     'type': 'compute',
-                     'provider': 'rackspace.legacy',
-                     'service': 'master',
-                     'flavor': '2',
-                     'image': '119',
-                     'region': 'ORD'
-                    }]
+        expected = [
+            {
+                'instance': {},
+                'dns-name': 'master.test.checkmate',
+                'type': 'compute',
+                'provider': 'rackspace.legacy',
+                'service': 'master',
+                'flavor': '2',
+                'image': '119',
+                'region': 'ORD'
+            }
+        ]
 
         provider.get_catalog(context).AndReturn(catalog)
         provider.get_catalog(context, type_filter="regions").AndReturn(catalog)

@@ -252,6 +252,7 @@ The API is a **REST HTTP API**. It supports POST, PUT, GET, DELETE on:
 - /deployments[/:id]
 - /workflows[/:id]
 - /providers[/:id]
+- /tenants[:id]
 
 *Note: not all verbs on all paths. DELETE not yet ready*
 
@@ -346,6 +347,9 @@ All calls to GET /deployments and GET /workflows may be optionally paginated by 
     GET [/:tid]/providers/:pid/catalog
     GET [/:tid]/providers/:pid/catalog/:cid
 
+    PUT tenants
+    GET tenants[/:tid]
+    GET tenants?tag=foo&tag=bar
 
     # If the server is started with --with-admin, the following calls are available to admin users:
 

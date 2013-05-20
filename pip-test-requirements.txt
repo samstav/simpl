@@ -7,17 +7,18 @@
 #
 # Items from internal Enterprise github.rackspace.com
 
+coverage
+flake8
+pep8
+pylint
+nose
+nosexcover
+webtest
+unittest2
+
 # pymox
 #Upstream: http://pymox.googlecode.com/svn/trunk/
 -e git+https://github.rackspace.com/checkmate/mox.git@master#egg=mox
-
-nose
-unittest2
-webtest
-flake8
-coverage
-nosexcover
-pylint
 
 # mongobox
 #Upstream: https://github.com/theorm/mongobox.git

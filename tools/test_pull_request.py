@@ -1,14 +1,21 @@
 #!/usr/bin/python
-import re, subprocess, sys
+import re
+import subprocess
+import sys
+
 
 def bash(cmd, verbose=True, set_e=True, set_x=False):
     """
-    Executes the specified cmd using the bash shell, redirects stderr to stdout.
+    Executes the specified cmd using the bash shell, redirects stderr to
+    stdout.
 
-    :param verbose: true if the command's output should be printed to the console
+    :param verbose: true if the command's output should be printed to the
+                    console
     :param cmd: the command to execute
-    raises CalledProcessError - if the run cmd returns a non-zero exit code. 
-        Inspect CalledProcessError.output or CalledProcessError.returncode for information.
+    raises CalledProcessError - if the run cmd returns a non-zero exit code.
+
+    Inspect CalledProcessError.output or CalledProcessError.returncode for
+    information.
     """
     try:
         script_heading = ""
@@ -17,29 +24,32 @@ def bash(cmd, verbose=True, set_e=True, set_x=False):
         if set_x:
             script_heading += "set -x\n"
 
-        result = subprocess.check_output(script_heading + cmd, 
-            shell=True, 
-            stderr=subprocess.STDOUT,
-            executable = "/bin/bash")
-        if verbose: 
+        result = subprocess.check_output(script_heading + cmd,
+                                         shell=True,
+                                         stderr=subprocess.STDOUT,
+                                         executable="/bin/bash")
+        if verbose:
             print result
         return result
     except subprocess.CalledProcessError as proc_error:
         if verbose:
-            print str(proc_error.returncode) + "\n" + proc_error.output  
+            print str(proc_error.returncode) + "\n" + proc_error.output
         raise proc_error
+
 
 def setup_pull_request_branches():
     """
-    Adds the remote pull request refspec, backs up the .git/config, and returns the
-    difference between the remote pull requests and the pull requests that we have already
-    tested.
+    Adds the remote pull request refspec, backs up the .git/config, and return
+    the difference between the remote pull requests and the pull requests that
+    we have already tested.
     """
     bash('''
         cp .git/config .git/config.bak
-        git config --add remote.origin.fetch '+refs/pull/*/head:refs/remotes/origin/pr/*'
+        git config --add remote.origin.fetch '+refs/pull/*/head:refs/remotes/\
+origin/pr/*'
         git fetch origin
         ''')
+
 
 def get_github_credentials(filepath):
     with open(filepath, 'r') as cred_file:
@@ -50,14 +60,16 @@ def get_github_credentials(filepath):
         git_user = re.search(r'git_user\s*=\s*(\S+)\s*', lines).group(1)
 
         return {
-            "oauth_token" : oauth_token,
-            "git_repo" : git_repo,
-            "git_user" : git_user
+            "oauth_token": oauth_token,
+            "git_repo": git_repo,
+            "git_user": git_user
         }
+
 
 def post_pull_request_comment(status, branch, github_creds, url):
     """
-    Posts a comment on the pull request specified by the branch, indicating if testing passed or failed.
+    Posts a comment on the pull request specified by the branch, indicating if
+    testing passed or failed.
 
     :param status: True if PASSED False if FAILED
     :param branch: the pull request to comment on
@@ -65,12 +77,19 @@ def post_pull_request_comment(status, branch, github_creds, url):
     status_string = "PASSED" if status else "FAILED"
 
     return bash(
-    ('curl -H "Authorization: token %s" -X POST '
-        '-d \'{ "body": "Pull request:%s %s testing! %s" }\' '
-        'https://github.rackspace.com/api/v3/repos/%s/%s/issues/%s/comments') % (github_creds['oauth_token'], 
-        branch, status_string, url, github_creds['git_user'], github_creds['git_repo'], branch),
+        (
+            'curl -H "Authorization: token %s" -X POST '
+            '-d \'{ "body": "Pull request:%s %s testing! %s" }\' '
+            'https://github.rackspace.com/api/v3/repos/%s/%s/issues/%s/'
+            'comments'
+        ) % (
+            github_creds['oauth_token'],
+            branch, status_string, url, github_creds['git_user'],
+            github_creds['git_repo'], branch
+        ),
         verbose=False
     )
+
 
 def main():
     """
@@ -88,9 +107,11 @@ def main():
     pr_branch = "pr/%s" % branch
     bash("git checkout %s" % pr_branch)
     try:
-        for test in ("tools/pip_setup.sh", "tools/jenkins_tests.sh", "tools/run_pylint.sh"):
+        for test in ("tools/pip_setup.sh", "tools/jenkins_tests.sh",
+                     "tools/run_pylint.sh"):
             #raise IOError if test file does not exist
-            with open(test): pass
+            with open(test):
+                pass
             bash("chmod +x %s" % test, set_x=True)
             bash(test, set_x=True)
         success = True
@@ -112,4 +133,5 @@ def main():
         post_pull_request_comment(False, branch, github_creds, jenkins_job_url)
         raise RuntimeError("There was a failure running tests!")
 
-if  __name__ =='__main__':main()
+if __name__ == '__main__':
+    main()

@@ -159,7 +159,7 @@ class Driver(DbBase):
                                         },
                                         poolclass=StaticPool)
             message = ("Checkmate is connected to an in-memory sqlite "
-                       "database. No  data will be persisted. To store your "
+                       "database. No data will be persisted. To store your "
                        "data, set the CHECKMATE_CONNECTION_STRING environment "
                        "variable to a valid sqlalchemy connection string")
             LOG.warning(message)

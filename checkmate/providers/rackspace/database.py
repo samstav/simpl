@@ -12,6 +12,7 @@ from clouddb.errors import ResponseError
 from SpiffWorkflow.operators import PathAttrib
 from SpiffWorkflow.specs import Celery
 
+from checkmate.common.caching import Memorize
 from checkmate.deployments import (
     resource_postback,
     alt_resource_postback,
@@ -31,9 +32,13 @@ from checkmate.workflow import wait_for
 LOG = logging.getLogger(__name__)
 
 # Any names should become airport codes
-REGION_MAP = {'dallas': 'DFW',
-              'chicago': 'ORD',
-              'london': 'LON'}
+REGION_MAP = {
+    'dallas': 'DFW',
+    'chicago': 'ORD',
+    'london': 'LON',
+    'sydney': 'SYD',
+}
+API_FLAVOR_CACHE = {}
 
 
 class Provider(ProviderBase):
@@ -43,9 +48,9 @@ class Provider(ProviderBase):
     def generate_template(self, deployment, resource_type, service, context,
                           index, key, definition):
         templates = ProviderBase.generate_template(self, deployment,
-                                                  resource_type, service,
-                                                  context, index, self.key,
-                                                  definition)
+                                                   resource_type, service,
+                                                   context, index, self.key,
+                                                   definition)
 
         catalog = self.get_catalog(context)
 
@@ -291,7 +296,8 @@ class Provider(ProviderBase):
 
         # build a live catalog this would be the on_get_catalog called if no
         # stored/override existed
-        api = self._connect(context)
+        region = Provider.find_a_region(context.catalog)
+        api_endpoint = Provider.find_url(context.catalog, region)
         if type_filter is None or type_filter == 'database':
             results['database'] = dict(mysql_database={
                 'id': 'mysql_database',
@@ -345,14 +351,15 @@ class Provider(ProviderBase):
             results['lists']['regions'] = regions
 
         if type_filter is None or type_filter == 'size':
-            flavors = api.flavors.list_flavors()
+            flavors = _get_flavors(api_endpoint, context.auth_token)
             if 'lists' not in results:
                 results['lists'] = {}
             results['lists']['sizes'] = {
                 str(f.id): {
                     'name': f.name,
                     'memory': f.ram
-                    } for f in flavors}
+                } for f in flavors
+            }
 
         self.validate_catalog(results)
         if type_filter is None:
@@ -372,7 +379,25 @@ class Provider(ProviderBase):
         return ProviderBase.evaluate(function_string)
 
     @staticmethod
-    def _connect(context, region=None):
+    def find_url(catalog, region):
+        for service in catalog:
+            if service['type'] == 'rax:database':
+                endpoints = service['endpoints']
+                for endpoint in endpoints:
+                    if endpoint.get('region') == region:
+                        return endpoint['publicURL']
+
+    @staticmethod
+    def find_a_region(catalog):
+        """Any region"""
+        for service in catalog:
+            if service['type'] == 'rax:database':
+                endpoints = service['endpoints']
+                for endpoint in endpoints:
+                    return endpoint['region']
+
+    @staticmethod
+    def connect(context, region=None):
         """Use context info to connect to API and return api object"""
         #FIXME: figure out better serialization/deserialization scheme
         if isinstance(context, dict):
@@ -384,27 +409,11 @@ class Provider(ProviderBase):
         if region in REGION_MAP:
             region = REGION_MAP[region]
 
-        def find_url(catalog, region):
-            for service in catalog:
-                if service['type'] == 'rax:database':
-                    endpoints = service['endpoints']
-                    for endpoint in endpoints:
-                        if endpoint.get('region') == region:
-                            return endpoint['publicURL']
-
-        def find_a_region(catalog):
-            """Any region"""
-            for service in catalog:
-                if service['type'] == 'rax:database':
-                    endpoints = service['endpoints']
-                    for endpoint in endpoints:
-                        return endpoint['region']
-
         if not region:
-            region = find_a_region(context.catalog) or 'DFW'
+            region = Provider.find_a_region(context.catalog) or 'DFW'
 
         #TODO: instead of hacking auth using a token, submit patch upstream
-        url = find_url(context.catalog, region)
+        url = Provider.find_url(context.catalog, region)
         if not url:
             raise CheckmateException("Unable to locate region url for DBaaS "
                                      "for region '%s'" % region)
@@ -413,6 +422,19 @@ class Provider(ProviderBase):
         api.client.region_account_url = url
 
         return api
+
+
+@Memorize(timeout=3600, sensitive_args=[1], store=API_FLAVOR_CACHE)
+def _get_flavors(api_endpoint, auth_token):
+    '''Ask DBaaS for Flavors (RAM, CPU, HDD) options'''
+    # the region must be supplied but is not used
+    api = clouddb.CloudDB('ignore', 'ignore', 'DFW')
+    api.client.auth_token = auth_token
+    api.client.region_account_url = api_endpoint
+
+    LOG.info("Calling Cloud Databases to get flavors for %s",
+             api.client.region_account_url)
+    return api.flavors.list_flavors()
 
 
 #
@@ -470,7 +492,7 @@ def create_instance(context, instance_name, flavor, size, databases, region,
         return results
 
     if not api:
-        api = Provider._connect(context, region)
+        api = Provider.connect(context, region)
 
     if databases is None:
         databases = []
@@ -542,7 +564,7 @@ def wait_on_build(context, instance_id, region, api=None):
         return
 
     if api is None:
-        api = Provider._connect(context, region)
+        api = Provider.connect(context, region)
 
     assert instance_id, "ID must be provided"
     LOG.debug("Getting Instance %s", instance_id)
@@ -560,9 +582,11 @@ def wait_on_build(context, instance_id, region, api=None):
 
         # Delete the database if it failed
         Provider({}).delete_resource_tasks(context, context['deployment'],
-                                    get_resource_by_id(context['deployment'],
-                                                        context['resource']),
-                                    instance_key).apply_async()
+                                           get_resource_by_id(
+                                               context['deployment'],
+                                               context['resource']
+                                           ),
+                                           instance_key).apply_async()
         raise CheckmateException(msg)
     elif instance.status == "ACTIVE":
         results['status'] = "ACTIVE"
@@ -626,7 +650,7 @@ def create_database(context, name, region, character_set=None, collate=None,
     databases = [database]
 
     if not api:
-        api = Provider._connect(context, region)
+        api = Provider.connect(context, region)
 
     instance_key = 'instance:%s' % context['resource']
     if not instance_id:
@@ -713,7 +737,7 @@ def add_databases(context, instance_id, databases, region, api=None):
         return dict(database_names=dbnames)
 
     if not api:
-        api = Provider._connect(context, region)
+        api = Provider.connect(context, region)
 
     instance = api.get_instance(instance_id)
     instance.create_databases(databases)
@@ -754,7 +778,7 @@ def add_user(context, instance_id, databases, username, password, region,
     resource_postback.delay(context['deployment'], results)
 
     if not api:
-        api = Provider._connect(context, region)
+        api = Provider.connect(context, region)
 
     LOG.debug('Obtaining instance %s', instance_id)
     instance = api.get_instance(instance_id)
@@ -845,7 +869,7 @@ def delete_instance(context, api=None):
         return results
 
     if not api:
-        api = Provider._connect(context, region)
+        api = Provider.connect(context, region)
 
     try:
         api.delete_instance(instance_id)
@@ -914,7 +938,7 @@ def wait_on_del_instance(context, api=None):
         raise CheckmateException("No instance id supplied for resource %s"
                                  % key)
     if not api:
-        api = Provider._connect(context, region)
+        api = Provider.connect(context, region)
     instance = None
     try:
         instance = api.get_instance(instance_id)
@@ -987,7 +1011,7 @@ def delete_database(context, api=None):
     db_name = resource.get('instance', {}).get('name')
 
     if not api:
-        api = Provider._connect(context, region)
+        api = Provider.connect(context, region)
 
     instance = None
     try:
@@ -1016,7 +1040,7 @@ def delete_user(context, instance_id, username, region, api=None):
     """Delete a database user from an instance."""
     match_celery_logging(LOG)
     if api is None:
-        api = Provider._connect(context, region)
+        api = Provider.connect(context, region)
 
     instance = api.get_instance(instanceid=instance_id)
     instance.delete_user(username)

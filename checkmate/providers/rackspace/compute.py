@@ -102,8 +102,8 @@ iBoaWdoIGVub3VnaCB0byBzZWUgYmV5b25kIGhvcml6 b25zLiINCg0KLVJpY2hhcmQgQmFjaA=="
             source_field_name: flavor
             choice: []
 """)
-
-API_CACHE = {}
+API_IMAGE_CACHE = {}
+API_FLAVOR_CACHE = {}
 
 
 class RackspaceComputeProviderBase(ProviderBase):
@@ -462,7 +462,7 @@ class Provider(RackspaceComputeProviderBase):
         return fall_back
 
     @staticmethod
-    def _connect(context, region=None):
+    def connect(context, region=None):
         """Use context info to connect to API and return api object"""
         #FIXME: figure out better serialization/deserialization scheme
         if isinstance(context, dict):
@@ -484,7 +484,7 @@ class Provider(RackspaceComputeProviderBase):
         return api
 
 
-@Memorize(timeout=3600, sensitive_args=[1], store=API_CACHE)
+@Memorize(timeout=3600, sensitive_args=[1], store=API_IMAGE_CACHE)
 def _get_images_and_types(api_endpoint, auth_token):
     '''Ask Nova for Images and Types'''
     api = client.Client('ignore', 'ignore', None, 'localhost')
@@ -509,9 +509,9 @@ def _get_images_and_types(api_endpoint, auth_token):
     return ret
 
 
-@Memorize(timeout=3600, sensitive_args=[1], store=API_CACHE)
+@Memorize(timeout=3600, sensitive_args=[1], store=API_FLAVOR_CACHE)
 def _get_flavors(api_endpoint, auth_token):
-    '''Ask Nove for Flavors (RAM, CPU, HDD) options'''
+    '''Ask Nova for Flavors (RAM, CPU, HDD) options'''
     api = client.Client('ignore', 'ignore', None, 'localhost')
     api.client.auth_token = auth_token
     api.client.management_url = api_endpoint
@@ -613,7 +613,7 @@ def create_server(context, name, region, api_object=None, flavor="2",
     create_server.on_failure = on_failure
 
     if api_object is None:
-        api_object = Provider._connect(context, region)
+        api_object = Provider.connect(context, region)
 
     LOG.debug('Image=%s, Flavor=%s, Name=%s, Files=%s', image, flavor, name,
               files)
@@ -687,7 +687,7 @@ def delete_server_task(context, api=None):
     key = context.get("resource_key")
     inst_key = "instance:%s" % key
     if api is None and context.get('simulation') is not True:
-        api = Provider._connect(context, region=context.get("region"))
+        api = Provider.connect(context, region=context.get("region"))
     server = None
     inst_id = context.get("instance_id")
     resource = context.get('resource')
@@ -753,7 +753,7 @@ def wait_on_delete_server(context, api=None):
     inst_key = "instance:%s" % key
     resource = context.get('resource')
     if api is None and context.get('simulation') is not True:
-        api = Provider._connect(context, region=context.get("region"))
+        api = Provider.connect(context, region=context.get("region"))
     server = None
     inst_id = context.get("instance_id")
     try:
@@ -831,7 +831,7 @@ def wait_on_build(context, server_id, region, resource,
         return results
 
     if api_object is None:
-        api_object = Provider._connect(context, region)
+        api_object = Provider.connect(context, region)
 
     assert server_id, "ID must be provided"
     LOG.debug("Getting server %s", server_id)
