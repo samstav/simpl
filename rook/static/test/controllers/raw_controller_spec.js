@@ -1,9 +1,14 @@
 describe('RawController', function(){
-  var scope, location, http, stubbed_callbacks;
+  var scope,
+      location,
+      http,
+      stubbed_callbacks;
+
   beforeEach(function() {
-    http = emptyFunction;
     scope = {};
     location = { absUrl: emptyFunction };
+    http = emptyFunction;
+    stubbed_callbacks = {};
   });
 
   it('should not display the header', function(){

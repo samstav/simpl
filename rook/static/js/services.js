@@ -579,38 +579,6 @@ services.value('options', {
   }
 });
 
-// Captures HTTP requests and responses (including errors)
-services.config(function ($httpProvider) {
-    $httpProvider.responseInterceptors.push('myHttpInterceptor');
-    var startFunction = function (data, headersGetter) {
-      console.log('Started call');
-      if ('requests' in checkmate) {
-          checkmate.requests += 1;
-      } else
-          checkmate.requests = 1;
-      $('#loading').attr('src', '/img/ajax-loader-white.gif');
-      return data;
-    };
-    $httpProvider.defaults.transformRequest.push(startFunction);
-  })
-  // register the interceptor as a service, intercepts ALL angular ajax http calls
-  .factory('myHttpInterceptor', function ($q, $window, $rootScope) {
-      return function (promise) {
-      return promise.then(function (response) {
-          console.log('Call ended successfully');
-          checkmate.requests -= 1;
-          if (checkmate.requests <= 0)
-              $('#loading').attr('src', '/img/blank.gif');
-          return response;
-      }, function (response) {
-          checkmate.requests -= 1;
-          if (checkmate.requests <= 0)
-            $('#loading').attr('src', '/img/blank.gif');
-          return $q.reject(response);
-      });
-    };
-});
-
 /* Github APIs for blueprint parsing*/
 services.factory('github', ['$http', function($http) {
   var me = {
@@ -667,7 +635,7 @@ services.factory('github', ['$http', function($http) {
       });
       return results;
     },
-    
+
 
     //Load all repos for owner
     get_repos: function(remote, callback, error_callback) {
@@ -803,6 +771,18 @@ services.factory('github', ['$http', function($http) {
         var response = {data: data, status: status};
         error_callback(response);
       });
+    },
+
+    get_contents: function(remote, url, content_item, callback){
+      var destination_path = URI(url).path();
+      var path = '/githubproxy' + destination_path + "/contents/" + content_item;
+      $http({method: 'GET', url: path, headers: {'X-Target-Url': remote.api.server, 'accept': 'application/json'}}).
+        success(function(data, status, headers, config) {
+          callback(data);
+        }).
+        error(function() {
+          console.log('Failed to retrieve ' + content_item + ' from ' + url);
+        });
     }
   };
   return me;
@@ -837,7 +817,7 @@ services.factory('github', ['$http', function($http) {
  * - contextChanged (always called: log on/off, impersonating/un-impersonating)
  *
 **/
-services.factory('auth', ['$resource', '$rootScope', function($resource, $rootScope) {
+services.factory('auth', ['$http', '$resource', '$rootScope', function($http, $resource, $rootScope) {
   var auth = {
 
     // Stores the user's identity and necessary credential info
@@ -868,6 +848,7 @@ services.factory('auth', ['$resource', '$rootScope', function($resource, $rootSc
     endpoints: [],
 
     error_message: "",
+    selected_endpoint: null,
 
     generate_auth_data: function(token, tenant, apikey, username, password, target) {
       var data = {};
@@ -917,7 +898,7 @@ services.factory('auth', ['$resource', '$rootScope', function($resource, $rootSc
     },
 
     fetch_identity_tenants: function(endpoint, token) {
-      headers = {
+      var headers = {
         'X-Auth-Source': endpoint['uri'],
         'X-Auth-Token': token.id
       };
@@ -935,7 +916,7 @@ services.factory('auth', ['$resource', '$rootScope', function($resource, $rootSc
 
     create_identity: function(request, response, endpoint) {
       //Populate identity
-      identity = {};
+      var identity = {};
       identity.username = response.access.user.name || response.access.user.id;
       identity.user = response.access.user;
       identity.token = response.access.token;
@@ -950,6 +931,15 @@ services.factory('auth', ['$resource', '$rootScope', function($resource, $rootSc
       return identity;
     },
 
+    get_regions: function(response) {
+      // TODO: un-minify this :P
+      //Parse region list
+      var regions = _.union.apply(this, _.map(response.access.serviceCatalog, function(o) {return _.map(o.endpoints, function(e) {return e.region;});}));
+      if ('RAX-AUTH:defaultRegion' in response.access.user && regions.indexOf(response.access.user['RAX-AUTH:defaultRegion']) == -1)
+        regions.push(response.access.user['RAX-AUTH:defaultRegion']);
+      return _.compact(regions);
+    },
+
     create_context: function(response, endpoint) {
       //Populate context
       var context = {};
@@ -957,6 +947,8 @@ services.factory('auth', ['$resource', '$rootScope', function($resource, $rootSc
       context.user = response.access.user;
       context.token = response.access.token;
       context.auth_url = endpoint['uri'];
+      context.regions = auth.get_regions(response);
+
       if (endpoint['scheme'] == "GlobalAuth") {
         context.tenantId = null;
         context.catalog = {};
@@ -966,25 +958,20 @@ services.factory('auth', ['$resource', '$rootScope', function($resource, $rootSc
           context.tenantId = response.access.token.tenant.id;
         else {
           context.tenantId = null;
-          fetch_identity_tenants(endpoint, context.token);
+          auth.fetch_identity_tenants(endpoint, context.token);
         }
         context.catalog = response.access.serviceCatalog;
         context.impersonated = false;
       }
-
-      //Parse region list
-      var regions = _.union.apply(this, _.map(response.access.serviceCatalog, function(o) {return _.map(o.endpoints, function(e) {return e.region;});}));
-      if ('RAX-AUTH:defaultRegion' in response.access.user && regions.indexOf(response.access.user['RAX-AUTH:defaultRegion']) == -1)
-        regions.push(response.access.user['RAX-AUTH:defaultRegion']);
-      context.regions = _.compact(regions);
 
       return context;
     },
 
     // Authenticate
     authenticate: function(endpoint, username, apikey, password, token, tenant, callback, error_callback) {
-      var target = endpoint['uri'];
-      var data = this.generate_auth_data(token, tenant, apikey, username, password, target);
+      var headers,
+          target = endpoint['uri'],
+          data = this.generate_auth_data(token, tenant, apikey, username, password, target);
       if (!data) return false;
 
       if (target === undefined || target === null || target.length === 0) {
@@ -992,6 +979,7 @@ services.factory('auth', ['$resource', '$rootScope', function($resource, $rootSc
       } else {
         headers = {"X-Auth-Source": target};
       }
+      auth.selected_endpoint = endpoint;
 
       return $.ajax({
         type: "POST",
@@ -1037,56 +1025,113 @@ services.factory('auth', ['$resource', '$rootScope', function($resource, $rootSc
       delete checkmate.config.header_defaults.headers.common['X-Auth-Source'];
       $rootScope.$broadcast('logOut');
     },
-    impersonate: function(tenant, callback, error_callback) {
-      var data;
-      if (auth.identity.endpoint_type == 'GlobalAuth') {
-        data = JSON.stringify({"RAX-AUTH:impersonation":
-          {
-            "user": {"username": tenant},
-            "expire-in-seconds": 10800}
-          });
-        headers = {'X-Auth-Token': auth.identity.token.id,
-                   'X-Auth-Source': "https://identity-internal.api.rackspacecloud.com/v2.0/RAX-AUTH/impersonation-tokens"};
-      } else if (auth.identity.endpoint_type == 'Keystone') {
-        data = JSON.stringify({
-            "auth": {
-              "token": {
-                "id": auth.identity.token.id
-              },
-              'tenantId': tenant
-            }
-          });
-        headers = {'X-Auth-Token': auth.identity.token.id,
-                   'X-Auth-Source': auth.identity.auth_url};
+
+    get_tenant_id: function(username) {
+      var url = is_chrome_extension ? auth.auth_url : "/authproxy/";
+      var config = { headers: {
+        'X-Auth-Token': auth.context.token.id,
+        'X-Auth-Source': "https://identity.api.rackspacecloud.com/v2.0/tenants",
+      } };
+      return $http.get(url, config)
+        .success(function(data, status, headers, config) {
+          try {
+            var tenant = _.find(data.tenants, function(tenant) { return tenant.id.match(/^\d+$/) });
+            auth.context.tenantId = tenant.id;
+          } catch (err) {
+            console.log("Couldn't retrieve tenant ID:\n" + err);
+          }
+        })
+        .error(function(data, status, headers, config) {
+          console.log("Error fetching tenant ID:\n" + data);
+        });
+    },
+
+    generate_impersonation_data: function(username, endpoint_type) {
+      var data = {};
+      if (endpoint_type == 'GlobalAuth') {
+        data = {
+          "RAX-AUTH:impersonation": {
+            "user": {"username": username},
+            "expire-in-seconds": 10800
+          }
+        };
       }
-      return $.ajax({
-        type: "POST",
-        contentType: "application/json; charset=utf-8",
-        headers: headers,
-        dataType: "json",
-        url: is_chrome_extension ? auth.auth_url : "/authproxy",
-        data: data
-      }).success(function(response) {
-        auth.context.tenant = tenant;
-        auth.context.token = response.access.token;
+      /* For Private Clouds, in the future
+      else if (endpoint_type == 'Keystone') {
+        data = {
+          "auth": {
+            "token": { "id": auth.identity.token.id },
+            'tenantId': username
+          }
+        };
+      } */
+      return JSON.stringify(data);
+    },
 
-        if (auth.identity.endpoint_type == 'Keystone') {
-          if ('tenant' in response.access.token)
-            auth.context.tenantId = response.access.token.tenant.id;
-          auth.context.catalog = response.access.serviceCatalog;
-          auth.context.impersonated = false;
-        }
+    get_impersonation_url: function(endpoint_type) {
+      var impersonation_url = "";
+      switch(endpoint_type) {
+        case 'GlobalAuth':
+          impersonation_url = "https://identity-internal.api.rackspacecloud.com/v2.0/RAX-AUTH/impersonation-tokens";
+          break;
+        case 'Keystone':
+          impersonation_url = auth.identity.auth_url;
+          break;
+      };
+      return impersonation_url;
+    },
 
-        var regions = _.union.apply(this, _.map(response.access.serviceCatalog, function(o) {return _.map(o.endpoints, function(e) {return e.region;});}));
-        if ('RAX-AUTH:defaultRegion' in response.access.user && regions.indexOf(response.access.user['RAX-AUTH:defaultRegion']) == -1)
-          regions.push(response.access.user['RAX-AUTH:defaultRegion']);
-        auth.context.regions = _.compact(regions);
-        auth.save();
+    save_context: function(context) {
+      if (!auth.identity.tenants)
+        auth.identity.tenants = [];
 
-        callback(tenant, response);
-      }).error(function(response) {
-        error_callback(response);
+      var in_tenants = _.find(auth.identity.tenants, function(tenant) {
+        return tenant.username == context.username;
       });
+
+      if (!in_tenants) {
+        auth.identity.tenants.unshift(_.clone(context));
+        if (auth.identity.tenants.length > 10)
+          auth.identity.tenants.pop();
+      }
+    },
+
+    impersonate: function(username, callback, error_callback) {
+      var data = auth.generate_impersonation_data(username, auth.identity.endpoint_type);
+      var headers = {
+          'X-Auth-Token': auth.identity.token.id,
+          'X-Auth-Source': auth.get_impersonation_url(auth.identity.endpoint_type),
+      };
+      var url = is_chrome_extension ? auth.auth_url : "/authproxy";
+      var config = {headers: headers};
+      return $http.post(url, data, config)
+        .success(function(response) {
+          console.log("impersonation successful");
+          auth.context.username = username;
+          auth.context.token = response.access.token;
+          checkmate.config.header_defaults.headers.common['X-Auth-Source'] = "https://identity.api.rackspacecloud.com/v2.0/tokens";
+          auth.context.auth_url = "https://identity.api.rackspacecloud.com/v2.0/tokens";
+          auth.get_tenant_id(username).then(
+            function() {
+              auth.save_context(auth.context);
+            }
+          );
+          /* Not to worry about this for now. Legacy code. */
+          /*
+          if (auth.identity.endpoint_type == 'Keystone') {
+            if ('tenant' in response.access.token)
+              auth.context.tenantId = response.access.token.tenant.id;
+            auth.context.catalog = response.access.serviceCatalog;
+            auth.context.impersonated = false;
+          }
+          */
+          auth.save();
+          callback(response);
+        })
+        .error(function(response) {
+          console.log("impersonation not successful");
+          error_callback(response);
+        });
     },
     //Check all auth data and update state
     check_state: function() {
@@ -1129,18 +1174,39 @@ services.factory('auth', ['$resource', '$rootScope', function($resource, $rootSc
     parseWWWAuthenticateHeaders: function(headers) {
       headers = headers.split(',');
       var parsed = _.map(headers, function(entry) {
+        var endpoint = {};
         entry = entry.trim();
         try {
           var scheme = entry.match(/^([\w\-]+)/)[0];
           var realm = entry.match(/realm=['"]([^'"]+)['"]/)[1];
           var uri = entry.match(/uri=['"]([^'"]+)['"]/)[1];
-          return {scheme: scheme, realm: realm, uri: uri};
+          endpoint = { scheme: scheme, realm: realm, uri: uri };
         } catch(err) {
           console.log("Error parsing WWW-Authenticate entry", entry);
-          return {};
+          return null;
+        }
+
+        try {
+          var priority = entry.match(/priority=['"]([^'"]+)['"]/)[1];
+          endpoint.priority = parseInt(priority, 10);
+        } catch(err) {
+          console.log('Error parsing priority from WWW-Authenticate entry', entry);
+        }
+        return endpoint;
+      });
+
+      auth.endpoints = _.compact(parsed).sort(function(a, b){
+        if(a.priority && b.priority) {
+          return a.priority - b.priority;
+        } else if(a.priority) {
+          return -1;
+        } else if(b.priority) {
+          return 1;
+        } else {
+          var x = a.realm.toLowerCase(), y = b.realm.toLowerCase();
+                  return x < y ? -1 : x > y ? 1 : 0;
         }
       });
-      auth.endpoints = _.compact(parsed);
     }
   };
 
