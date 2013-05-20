@@ -25,11 +25,11 @@ class TestParseDomain(unittest.TestCase):
         self.custom_tld_cache_file = os.path.join(os.path.dirname(__file__),
                                                   'tld_set.tmp')
         self.sample_data = [
-                            self.sample_domain,
-                            ('ftp.regaion1.sample.com', 'sample.com'),
-                            ('ftp.regaion1.sample.net', 'sample.net'),
-                            ('ftp.regaion1.sample.co.uk', 'sample.co.uk')
-                            ]
+            self.sample_domain,
+            ('ftp.regaion1.sample.com', 'sample.com'),
+            ('ftp.regaion1.sample.net', 'sample.net'),
+            ('ftp.regaion1.sample.co.uk', 'sample.co.uk')
+        ]
         self.mox = mox.Mox()
 
     def tearDown(self):
@@ -60,9 +60,10 @@ class TestParseDomain(unittest.TestCase):
             LOG.warn(*args)
             self.save_failed = True
 
-        tldlog.warn("unable to cache TLDs in file %s: %s",
-                            self.default_tld_cache_file, mox.IgnoreArg()
-                    ).WithSideEffects(failed)
+        tldlog.warn(
+            "unable to cache TLDs in file %s: %s",
+            self.default_tld_cache_file, mox.IgnoreArg()
+        ).WithSideEffects(failed)
         self.mox.ReplayAll()
 
         answer = dns.parse_domain(domain)
