@@ -637,6 +637,19 @@ class DBDriverTests(object):
             self.driver.get_deployments(tenant_id='T3', with_deleted=False)
         )
 
+    def test_convert_invalid_deployment_status(self):
+        '''We want to make sure that old statuses (ex. LAUNCHED) get converted
+        before they are returned back to the engine
+        '''
+        self.driver.save_deployment(
+            '1234',
+            tenant_id='T3',
+            body={'id': '1234', 'status': 'LAUNCHED'}
+        )
+        results = self.driver.get_deployments(tenant_id='T3')
+        self.assertEquals(results['1234']['status'], 'UP')
+
+
 if __name__ == '__main__':
     # Any change here should be made in all test files
     import sys
