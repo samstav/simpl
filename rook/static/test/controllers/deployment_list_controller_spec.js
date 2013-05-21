@@ -17,6 +17,7 @@ describe('DeploymentListController', function(){
     scroll = {};
     items = {};
     navbar = { highlight: emptyFunction };
+    pagination = { extractPagingParams: sinon.stub().returns('') };
     controller = {};
     emptyResponse = { get: emptyFunction };
   });
@@ -32,7 +33,7 @@ describe('DeploymentListController', function(){
         resource_spy = sinon.spy(resource);
 
         scope = { $watch: emptyFunction, auth: { context: { tenantId: 'cats' }} };
-        controller = new DeploymentListController(scope, location, http, resource_spy, scroll, items, navbar);
+        controller = new DeploymentListController(scope, location, http, resource_spy, scroll, items, navbar, pagination);
 
         expect(resource_spy.getCall(0).args[0]).toEqual('/:tenantId/deployments.json');
         expect(get_spy.getCall(0).args[0]).toEqual({ tenantId: 'cats' });
@@ -42,18 +43,10 @@ describe('DeploymentListController', function(){
         location = { search: sinon.stub().returns({ offset: 20, limit: 30 }) };
         resource = function(){ return { get: emptyFunction }; };
         resource_spy = sinon.spy(resource);
+        pagination.extractPagingParams = sinon.stub().returns('?offset=20&limit=30');
 
-        controller = new DeploymentListController(scope, location, http, resource_spy, scroll, items, navbar);
+        controller = new DeploymentListController(scope, location, http, resource_spy, scroll, items, navbar, pagination);
         expect(resource_spy.getCall(0).args[0]).toEqual('/:tenantId/deployments.json?offset=20&limit=30');
-      });
-
-      it('should not append non-pagination params to the resource call', function(){
-        location = { search: sinon.stub().returns({ pizza: 'cat', deadpool: 'spiderpig' }) };
-        resource = function(){ return { get: emptyFunction }; };
-        resource_spy = sinon.spy(resource);
-
-        controller = new DeploymentListController(scope, location, http, resource_spy, scroll, items, navbar);
-        expect(resource_spy.getCall(0).args[0]).toEqual('/:tenantId/deployments.json');
       });
     });
   });

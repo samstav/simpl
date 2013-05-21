@@ -1218,3 +1218,72 @@ services.factory('auth', ['$http', '$resource', '$rootScope', function($http, $r
 
   return auth;
 }]);
+
+services.factory('pagination', function(){
+  function extractPagingParams(query_params){
+    var paging_params = [];
+
+    if(query_params.offset) {
+      paging_params.push('offset=' + query_params.offset);
+    }
+
+    if(query_params.limit) {
+      paging_params.push('limit=' + query_params.limit);
+    }
+
+    if(paging_params.length > 0) {
+      return '?' + paging_params.join('&');
+    } else {
+      return '';
+    }
+  }
+
+
+  function getValidPageParams(offset, limit, total_item_count){
+    var valid_offset,
+        valid_limit,
+        DEFAULT_PAGE_LIMIT = 20;
+
+    if(!parseInt(limit, 10) || limit < 1){
+      valid_limit = DEFAULT_PAGE_LIMIT;
+    } else if(limit > total_item_count) {
+      valid_limit = total_item_count;
+    } else {
+      valid_limit = limit;
+    }
+
+    if(!parseInt(offset, 10)){
+      valid_offset = 0;
+    } else if(offset >= total_item_count){
+      valid_offset = total_item_count - valid_limit;
+    } else{
+      valid_offset = offset;
+    }
+
+    return { offset: valid_offset, limit: valid_limit };
+  }
+
+  function getPagingInformation(offset, limit, total_item_count){
+    var current_page,
+        valid_params = getValidPageParams(offset, limit, total_item_count);
+
+    if(total_item_count === 0){
+      current_page = 1;
+    } else if(valid_params.offset > 0 && valid_params.offset < valid_params.limit) {
+      current_page = 2;
+    } else {
+      current_page = parseInt(valid_params.offset/valid_params.limit, 10) + 1;
+    }
+
+    return {
+             currentPage: current_page,
+             totalPages: Math.ceil(total_item_count / valid_params.limit),
+             adjustedOffset: valid_params.offset
+           };
+  }
+
+  return {
+           extractPagingParams: extractPagingParams,
+           getPagingInformation: getPagingInformation
+         };
+});

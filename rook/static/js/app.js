@@ -1606,7 +1606,7 @@ function BlueprintRemoteListController($scope, $location, $routeParams, $resourc
  * Deployment controllers
  */
 //Deployment list
-function DeploymentListController($scope, $location, $http, $resource, scroll, items, navbar) {
+function DeploymentListController($scope, $location, $http, $resource, scroll, items, navbar, pagination) {
   //Model: UI
   $scope.showItemsBar = true;
   $scope.showStatus = true;
@@ -1641,21 +1641,10 @@ function DeploymentListController($scope, $location, $http, $resource, scroll, i
     console.log("Starting load");
     var path,
         query_params = $location.search(),
-        paging_params = [];
+        paging_params;
 
-    if(query_params.offset) {
-      paging_params.push('offset=' + query_params.offset)
-    }
-
-    if(query_params.limit) {
-      paging_params.push('limit=' + query_params.limit)
-    }
-
-    if(paging_params.length > 0){
-      path = '/:tenantId/deployments.json?' + paging_params.join('&')
-    } else {
-      path = '/:tenantId/deployments.json'
-    }
+    paging_params = pagination.extractPagingParams(query_params);
+    path = '/:tenantId/deployments.json' + paging_params;
 
     this.klass = $resource((checkmate_server_base || '') + path);
     this.klass.get({tenantId: $scope.auth.context.tenantId}, function(list, getResponseHeaders){
