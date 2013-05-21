@@ -325,6 +325,16 @@ function AppController($scope, $http, $location, $resource, $cookies, auth) {
     $scope.$apply();
   };
 
+  $scope.is_active = function(endpoint) {
+    if ($scope.get_selected_endpoint() == endpoint)
+      return "active";
+    return "";
+  };
+
+  $scope.is_hidden = function(endpoint) {
+    return (endpoint.scheme == 'GlobalAuthImpersonation');
+  };
+
   $scope.select_endpoint = function(endpoint) {
     auth.selected_endpoint = endpoint;
   };

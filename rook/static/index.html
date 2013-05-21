@@ -249,8 +249,8 @@
         </div>
         <fieldset>
           <ul class="nav nav-tabs">
-            <li ng-repeat="endpoint in auth.endpoints" ng-class="{active: get_selected_endpoint()==endpoint}">
-              <a href="#" data-toggle="tab" ng-hide="endpoint.scheme=='GlobalAuthImpersonation'" ng-click="$parent.select_endpoint(endpoint)">
+            <li ng-repeat="endpoint in auth.endpoints" ng-class="is_active(endpoint)">
+              <a href="#" data-toggle="tab" ng-hide="is_hidden(endpoint)" ng-click="$parent.select_endpoint(endpoint)">
                 {{endpoint['realm']}}
               </a>
             </li>
