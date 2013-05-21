@@ -5,6 +5,7 @@ import json
 import logging
 import string
 import sys
+import threading
 
 # pylint: disable=W0611
 import checkmate.common.tracer  # module runs on import
@@ -12,7 +13,9 @@ import checkmate.common.tracer  # module runs on import
 # pylint: disable=E0611
 import bottle
 from bottle import app, run, request, response, HeaderDict, default_app, load
+from celery import Celery
 
+from checkmate import celeryconfig
 from checkmate.exceptions import (
     CheckmateException,
     CheckmateNoMapping,
@@ -111,6 +114,7 @@ def main_func():
 
     # Init logging before we load the database, 3rd party, and 'noisy' modules
     utils.init_logging(default_config="/etc/default/checkmate-svr-log.conf")
+    LOG = logging.getLogger(__name__)  # reload
     if utils.get_debug_level() == logging.DEBUG:
         bottle.debug(True)
 
@@ -208,6 +212,16 @@ def main_func():
         LOG.debug("Routes: %s", ['%s %s' % (r.method, r.rule) for r in
                                  app().routes])
 
+    worker = None
+    if '--worker' in sys.argv:
+        celery = Celery(log=LOG, set_as_current=True)
+        celery.config_from_object(celeryconfig)
+        worker = celery.WorkController(pool_cls="solo")
+        worker.disable_rate_limits = True
+        worker.concurrency = 1
+        worker_thread = threading.Thread(target=worker.start)
+        worker_thread.start()
+
     # Pick up IP/port from last param (default is 127.0.0.1:8080)
     ip = '127.0.0.1'
     port = 8080
@@ -228,7 +242,11 @@ def main_func():
         reloader = False  # assume eventlet is prod, so don't reload
 
     # Start listening. Enable reload by default to pick up file changes
-    run(app=next_app, host=ip, port=port, reloader=reloader, server=server)
+    try:
+        run(app=next_app, host=ip, port=port, reloader=reloader, server=server)
+    finally:
+        if worker:
+            worker.stop()
 
 
 #

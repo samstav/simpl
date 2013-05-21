@@ -412,6 +412,7 @@ Options:
         --with-ui:         enable support for browsers and HTML templates (requires [rook](https://github.rackspace.com/checkmate/rook))
         --with-simulator:  enable support for the workflow simulator
         --with-admin:      enable /admin calls (authorized to admin users only)
+        --worker:          start the celery worker in-process as well
         --newrelic:        enable newrelic monitoring (place newrelic.ini in
                            your directory)
         --eventlet:        use the eventlet server (recommended in production)
@@ -427,7 +428,7 @@ Options:
 
 Once up, you can issue curl commands (or point your browser at it if you started the server --with-ui) to use checkmate.
 
-To execute deployments, checkmate uses a message queue. You need to have celery running with the checkmate tasks loaded:
+To execute deployments, checkmate uses a message queue. You need to have celery running with the checkmate tasks loaded. You can run it in the server process using `--worker` as mentioned above or run it separately:
 
     $ bin/checkmate-queue START
 
