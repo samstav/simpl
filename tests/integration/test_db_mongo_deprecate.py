@@ -711,6 +711,52 @@ class TestDatabase(unittest.TestCase):
             resources.append(resource)
         return resources
 
+    @unittest.skipIf(SKIP, REASON)
+    def test_create_and_delete_lock(self):
+        key = uuid.uuid4()
+        with self.driver.lock(key, 36000):
+            lock_entry = self.driver.database()['locks'].find_one({"_id": key})
+            self.assertIsNotNone(lock_entry)
+            self.assertTrue("expires_at" in lock_entry)
+        lock = self.driver.database()['locks'].find_one({"_id": key})
+        self.assertIsNone(lock)
+
+    @unittest.skipIf(SKIP, REASON)
+    def test_lock_for_existing_lock(self):
+        key = uuid.uuid4()
+        self.driver.database()['locks'].insert(
+            {"_id": key, "expires_at": time.time() + 20})
+        try:
+            with self.driver.lock(key, 200):
+                pass
+        except ObjectLockedError:
+            raised = True
+        self.assertTrue(raised)
+
+    @unittest.skipIf(SKIP, REASON)
+    def test_create_new_lock_for_expired_locks(self):
+        key = uuid.uuid4()
+        current_time = time.time()
+        self.driver.database()['locks'].insert(
+            {"_id": key, "expires_at": current_time - 20})
+        with self.driver.lock(key, 10):
+            lock_entry = self.driver.database()['locks'].find_one({"_id": key})
+            self.assertIsNotNone(lock_entry)
+            self.assertGreater(lock_entry["expires_at"], current_time)
+
+    @unittest.skipIf(SKIP, REASON)
+    def test_unlock(self):
+        key = uuid.uuid4()
+        self.driver.database()['locks'].insert(
+            {"_id": key, "expires_at": time.time() + 20})
+        self.driver.unlock(key)
+        lock = self.driver.database()['locks'].find_one({"_id": key})
+        self.assertIsNone(lock)
+
+    @unittest.skipIf(SKIP, REASON)
+    def test_raise_if_trying_to_unlock_non_existent_key(self):
+        self.assertRaises(InvalidKeyError, self.driver.unlock, uuid.uuid4())
+
 if __name__ == '__main__':
     # Any change here should be made in all test files
     import sys

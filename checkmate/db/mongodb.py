@@ -7,10 +7,10 @@ TODO:
 '''
 import copy
 import logging
+import pymongo
 import time
 import uuid
 
-import pymongo
 from SpiffWorkflow.util import merge_dictionary as collate
 
 from checkmate.classes import ExtensibleDict
@@ -19,6 +19,7 @@ from checkmate.exceptions import (
     CheckmateDatabaseConnectionError,
     CheckmateException,
 )
+from checkmate.db.db_lock import DbLock
 from checkmate.utils import flatten
 from checkmate.utils import merge_dictionary
 
@@ -95,6 +96,34 @@ class Driver(DbBase):
         response['blueprints'] = self.get_blueprints()
         response['workflows'] = self.get_workflows()
         return response
+
+    def lock(self, key, timeout):
+        return DbLock(self, key, timeout)
+
+    def unlock(self, key):
+        return self.release_lock(key)
+
+    def acquire_lock(self, key, timeout):
+        existing_lock = self.database()['locks'].find_one({'_id': key})
+        result = self.database()['locks'].find_and_modify(
+            query={'_id': key, 'expires_at': {'$lt': time.time()}},
+            update={'_id': key, 'expires_at': (time.time() + timeout)},
+            upsert=existing_lock is None,
+            new=True
+        )
+        if not result:
+            raise ObjectLockedError(
+                "Can't lock %s as it is already locked!" % key)
+
+    def release_lock(self, key):
+        result = self.database()['locks'].find_and_modify(
+            query={'_id': key},
+            remove=True,
+            new=True
+        )
+        if not result:
+            raise InvalidKeyError("Cannot unlock %s, as key does not exist!"
+                                  % key)
 
     # TENANTS
     def save_tenant(self, tenant):

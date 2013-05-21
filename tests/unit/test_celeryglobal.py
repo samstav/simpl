@@ -7,10 +7,14 @@ For tests, we don't care about:
     R0904 - Too many public methods
     W0212 - Access to protected member of a client class
     W0232 - Class has no __init__ method '''
+
 import logging
-from checkmate.db.mongodb import Driver
-import mox
 import unittest2 as unittest
+
+from celery.task import task
+
+from checkmate.db.common import ObjectLockedError
+from checkmate.db.mongodb import Driver
 
 try:
     from mongobox import MongoBox
@@ -22,12 +26,12 @@ except ImportError as exc:
     REASON = "'mongobox' not installed: %s" % exc
     MongoBox = object
 
-from checkmate.common import tasks
+from checkmate import celeryglobal as celery  # module to be renamed
 
 LOG = logging.getLogger(__name__)
 
 
-class TestCommonTasks(unittest.TestCase):
+class TestSingleTask(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         '''Fire up a sandboxed mongodb instance'''
@@ -54,37 +58,24 @@ class TestCommonTasks(unittest.TestCase):
                 cls.box = None
 
     def setUp(self):
-        self.mox = mox.Mox()
         self.driver = Driver(self._connection_string)
 
-    def tearDown(self):
-        self.mox.UnsetStubs()
+    def test_concurrent_tasks(self):
+        lock_key = "async_dep_writer:DEP_10"
+        self.driver.lock(lock_key, 3600)
+        self.do_nothing.lock_db = self.driver
+        self.assertRaises(ObjectLockedError, self.do_nothing, "DEP_10")
+        self.driver.unlock(lock_key)
+        self.do_nothing("DEP_10")
 
-    def test_update_operation(self):
-        self.mox.StubOutWithMock(tasks.operations, "update_operation")
-        tasks.operations.update_operation("DEP1", driver=self, x=1) \
-            .AndReturn(True)
-
-        self.mox.ReplayAll()
-
-        tasks.update_operation.lock_db = self.driver
-        tasks.update_operation('DEP1', driver=self, x=1)
-        self.mox.VerifyAll()
-
-    def test_update_deployment_status(self):
-        self.mox.StubOutWithMock(tasks.deployment,
-                                 "update_deployment_status_new")
-        tasks.deployment.update_deployment_status_new("DEP1", "Z", driver=self)\
-            .AndReturn(True)
-
-        self.mox.ReplayAll()
-        tasks.update_deployment_status.lock_db = self.driver
-        tasks.update_deployment_status('DEP1', "Z", driver=self)
-        self.mox.VerifyAll()
-
+    @task(base=celery.SingleTask, default_retry_delay=1, max_retries=4,
+          lock_db=None, lock_key="async_dep_writer:{args[0]}", lock_timeout=50)
+    def do_nothing(key):
+        pass
 
 if __name__ == '__main__':
     # Any change here should be made in all test files
     import sys
     from checkmate.test import run_with_params
+
     run_with_params(sys.argv[:])

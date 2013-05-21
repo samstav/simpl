@@ -179,3 +179,15 @@ class DbBase(object):  # pylint: disable=R0921
                 if data['status'] in self.legacy_statuses:
                     data['status'] = self.legacy_statuses[data['status']]
         return data
+
+    def lock(self, key, timeout):
+        raise NotImplementedError()
+
+    def unlock(self, key, timeout):
+        raise NotImplementedError()
+
+    def acquire_lock(self, key, timeout):
+        raise NotImplementedError()
+
+    def release_lock(self, key):
+        raise NotImplementedError()
