@@ -446,6 +446,50 @@ def plan_deployment(oid, tenant_id=None, driver=DB):
 
 
 # pylint: disable=W0613
+@route('/deployments/<oid>/+sync', method=['POST', 'GET'])
+@with_tenant
+def sync_deployment(oid, tenant_id=None, driver=DB):
+    """Sync existing deployment objects with current cloud status"""
+    if is_simulation(oid):
+        driver = SIMULATOR_DB
+    if any_id_problems(oid):
+        abort(406, any_id_problems(oid))
+    entity = driver.get_deployment(oid, with_secrets=True)
+    if not entity:
+        raise CheckmateDoesNotExist('No deployment with id %s' % oid)
+    deployment = Deployment(entity)
+    env = deployment.environment()
+    my_resources = {}
+    for key, item in entity.get('resources').items():
+        no_keys = ["connections", "sync-keys", "deployment-keys", "wp user"]
+        if key not in no_keys and \
+           item.get('provider') not in ["chef-solo", None] and \
+           item.get('type') in ["compute", "load-balancer", "database"]:
+
+            i_key = 'instance:%s' % key
+            instance = item['instance']
+            provider = env.select_provider(request.context, item['type'])
+            result = provider.get_resource_status(request.context,
+                                                  oid, item, key)
+            result[i_key]['id'] = item['instance']['id']
+            result[i_key]['type'] = item['type']
+            my_resources.update(result)
+
+            if result[i_key]['status'] in ['ACTIVE', 'RESCUE', 'DELETED']:
+                instance['statusmsg'] = ""
+
+            #need to go thru actual vs expected scenarios
+            #if hasattr(result, 'instance'):
+            #    for x, y in result['instance'].items():
+            #        instance[x] = y
+            result[i_key]['instance'] = instance
+
+            resource_postback.delay(oid, result, driver=driver)
+
+    return write_body(my_resources, request, response)
+
+
+# pylint: disable=W0613
 @route('/deployments/<oid>/+deploy', method=['POST', 'GET'])
 @with_tenant
 def deploy_deployment(oid, tenant_id=None, driver=DB):

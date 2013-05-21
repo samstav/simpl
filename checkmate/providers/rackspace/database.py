@@ -246,6 +246,14 @@ class Provider(ProviderBase):
                                      "provider %s" % (component['is'],
                                                       self.key))
 
+    def get_resource_status(self, context, deployment_id, resource, key,
+                            api=None):
+        return super(Provider, self).get_resource_status(context,
+                                                         deployment_id,
+                                                         resource, key,
+                                                         sync_resource_task,
+                                                         api)
+
     def delete_resource_tasks(self, context, deployment_id, resource, key):
         self._verify_existing_resource(resource, key)
         region = resource.get('region') or \
@@ -814,6 +822,28 @@ def add_user(context, instance_id, databases, username, password, region,
     resource_postback.delay(context['deployment'], results)
 
     return results
+
+
+@task
+def sync_resource_task(context, resource, resource_key, api=None):
+    match_celery_logging(LOG)
+    key = "instance:%s" % resource_key
+    if api is None:
+        api = Provider.connect(context,
+                                resource.get("instance")['host_region'])
+    try:
+        db = api.get_instance(resource.get("instance", {}).get("id"))
+        return {
+            key: {
+                "status": db.status
+            }
+        }
+    except ResponseError:
+        return {
+            key: {
+                "status": "DELETED"
+            }
+        }
 
 
 @task(default_retry_delay=2, max_retries=60)

@@ -26,7 +26,7 @@ class CheckmateInvalidProvider(Exception):
 
 
 # pylint: disable=W0232
-class ProviderBaseWorkflowMixIn():
+class ProviderBaseWorkflowMixIn(object):
     """The methods used by the workflow generation code (i.e. they need a
     workflow to work on)
 
@@ -36,7 +36,8 @@ class ProviderBaseWorkflowMixIn():
     def _verify_existing_resource(self, resource, key):
         '''Private method for Resource verification'''
         msg = None
-        if resource.get("provider") != self.name:
+        if resource.get('status') != "DELETED" and resource.get("provider") \
+          != self.name and not 'databases' in resource.get('instance'):
             msg = "%s did not provide resource %s" % (self.name, key)
         if (
             ("region" not in resource) and
@@ -93,6 +94,19 @@ class ProviderBaseWorkflowMixIn():
         """ Update the status of the supplied resource based on the
         actual deployed item """
         LOG.debug("%s.%s.sync_resource_status called, "
+                  "but was not implemented", self.vendor, self.name)
+
+    def get_resource_status(self, context, deployment_id, resource, key,
+                            sync_resource_task=None, api=None):
+        """Return remote status for resource.  Call from provider"""
+
+        if sync_resource_task:
+            self._verify_existing_resource(resource, key)
+            ctx = context.get_queued_task_dict(deployment=deployment_id,
+                                               resource=key)
+            return sync_resource_task(ctx, resource, key, api)
+        else:
+            LOG.debug("%s.%s.get_resource_status called, "
                   "but was not implemented", self.vendor, self.name)
 
     def _add_resource_tasks_helper(self, resource, key, wfspec, deployment,
