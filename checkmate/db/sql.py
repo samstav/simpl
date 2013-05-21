@@ -425,6 +425,7 @@ class Driver(DbBase):
             results = results.limit(limit).offset(offset).all()
 
             for entry in results:
+                self.convert_data(klass.__tablename__, entry.body)
                 if with_secrets is True:
                     if entry.secrets:
                         response[entry.id] = merge_dictionary(

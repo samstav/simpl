@@ -642,12 +642,43 @@ class DBDriverTests(object):
         before they are returned back to the engine
         '''
         self.driver.save_deployment(
-            '1234',
+            '1',
             tenant_id='T3',
-            body={'id': '1234', 'status': 'LAUNCHED'}
+            body={'id': '1', 'status': 'LAUNCHED'}
         )
+        self.driver.save_deployment(
+            '2',
+            tenant_id='T3',
+            body={'id': '2', 'status': 'ERROR'}
+        )
+        self.driver.save_deployment(
+            '3',
+            tenant_id='T3',
+            body={'id': '3', 'status': 'DELETING'}
+        )
+        self.driver.save_deployment(
+            '4',
+            tenant_id='T3',
+            body={'id': '4', 'status': 'BUILD'}
+        )
+        self.driver.save_deployment(
+            '5',
+            tenant_id='T3',
+            body={'id': '5', 'status': 'ACTIVE'}
+        )
+        self.driver.save_deployment(
+            '6',
+            tenant_id='T3',
+            body={'id': '6', 'status': 'CONFIGURE'}
+        )
+
         results = self.driver.get_deployments(tenant_id='T3')
-        self.assertEquals(results['1234']['status'], 'UP')
+        self.assertEquals(results['1']['status'], 'UP')
+        self.assertEquals(results['2']['status'], 'FAILED')
+        self.assertEquals(results['3']['status'], 'UP')
+        self.assertEquals(results['4']['status'], 'UP')
+        self.assertEquals(results['5']['status'], 'UP')
+        self.assertEquals(results['6']['status'], 'UP')
 
 
 if __name__ == '__main__':

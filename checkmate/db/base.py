@@ -159,3 +159,23 @@ class DbBase(object):  # pylint: disable=R0921
 
     def unlock_object(self, klass, api_id, key):
         raise NotImplementedError()
+
+    #
+    # Data conversion helper
+    # TODO(zns): remove this when we're done
+    #
+    legacy_statuses = {  # TODO: remove these when old data is clean
+        "BUILD": 'UP',
+        "CONFIGURE": 'UP',
+        "ACTIVE": 'UP',
+        'ERROR': 'FAILED',
+        'DELETING': 'UP',
+        'LAUNCHED': 'UP',
+    }
+
+    def convert_data(self, klass, data):
+        if klass == 'deployments':
+            if 'status' in data:
+                if data['status'] in self.legacy_statuses:
+                    data['status'] = self.legacy_statuses[data['status']]
+        return data
