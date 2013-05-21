@@ -330,7 +330,7 @@ function AppController($scope, $http, $location, $resource, $cookies, auth) {
   };
 
   $scope.is_active = function(endpoint) {
-    if ($scope.get_selected_endpoint() == endpoint)
+    if ($scope.get_selected_endpoint().uri == endpoint.uri)
       return "active";
     return "";
   };
@@ -344,7 +344,7 @@ function AppController($scope, $http, $location, $resource, $cookies, auth) {
   };
 
   $scope.get_selected_endpoint = function() {
-    return auth.selected_endpoint || auth.endpoints[0];
+    return auth.selected_endpoint || auth.endpoints[0] || {};
   };
 
   // Log in using credentials delivered through bound_credentials
@@ -2489,5 +2489,3 @@ $(window).load(function () {
   });
 
 });
-
-
