@@ -86,9 +86,10 @@ describe('AutoLoginController', function(){
       expect(auth.authenticate.getCall(0).args[2]).toBeNull();
       expect(auth.authenticate.getCall(0).args[3]).toBeNull();
       expect(auth.authenticate.getCall(0).args[4]).toEqual('token');
-      expect(auth.authenticate.getCall(0).args[5]).toEqual('tenantId');
-      expect(auth.authenticate.getCall(0).args[6]).toEqual(scope.auto_login_success);
-      expect(auth.authenticate.getCall(0).args[7]).toEqual(scope.auto_login_fail);
+      expect(auth.authenticate.getCall(0).args[5]).toBeNull();
+      expect(auth.authenticate.getCall(0).args[6]).toEqual('tenantId');
+      expect(auth.authenticate.getCall(0).args[7]).toEqual(scope.auto_login_success);
+      expect(auth.authenticate.getCall(0).args[8]).toEqual(scope.auto_login_fail);
     });
   });
 });
