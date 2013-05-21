@@ -850,7 +850,7 @@ services.factory('auth', ['$http', '$resource', '$rootScope', function($http, $r
     error_message: "",
     selected_endpoint: null,
 
-    generate_auth_data: function(token, tenant, apikey, username, password, target) {
+    generate_auth_data: function(token, tenant, apikey, pin_rsa, username, password, target) {
       var data = {};
       if (token) {
         data = {
@@ -865,6 +865,18 @@ services.factory('auth', ['$http', '$resource', '$rootScope', function($http, $r
             "RAX-KSKEY:apiKeyCredentials": {
               "username": username,
               "apiKey": apikey
+            }
+          }
+        };
+      } else if (pin_rsa) {
+        data = {
+          "auth": {
+            "RAX-AUTH:domain": {
+              "name": "Rackspace"
+            },
+            "RAX-AUTH:rsaCredentials": {
+              "username": username,
+              "tokenKey": pin_rsa,
             }
           }
         };
@@ -968,10 +980,10 @@ services.factory('auth', ['$http', '$resource', '$rootScope', function($http, $r
     },
 
     // Authenticate
-    authenticate: function(endpoint, username, apikey, password, token, tenant, callback, error_callback) {
+    authenticate: function(endpoint, username, apikey, password, token, pin_rsa, tenant, callback, error_callback) {
       var headers,
           target = endpoint['uri'],
-          data = this.generate_auth_data(token, tenant, apikey, username, password, target);
+          data = this.generate_auth_data(token, tenant, apikey, pin_rsa, username, password, target);
       if (!data) return false;
 
       if (target === undefined || target === null || target.length === 0) {

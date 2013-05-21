@@ -193,7 +193,7 @@ function AutoLoginController($scope, $location, $cookies, auth) {
     delete $cookies.endpoint;
 
     console.log("Submitting auto login credentials");
-    return auth.authenticate(endpoint, null, null, null, token, tenantId,
+    return auth.authenticate(endpoint, null, null, null, token, null, tenantId,
       $scope.auto_login_success, $scope.auto_login_fail);
   };
 }
@@ -325,6 +325,10 @@ function AppController($scope, $http, $location, $resource, $cookies, auth) {
     $scope.$apply();
   };
 
+  $scope.uses_pin_rsa = function(endpoint) {
+    return ($scope.get_selected_endpoint().scheme == "GlobalAuth");
+  };
+
   $scope.is_active = function(endpoint) {
     if ($scope.get_selected_endpoint() == endpoint)
       return "active";
@@ -348,6 +352,7 @@ function AppController($scope, $http, $location, $resource, $cookies, auth) {
     var username = $scope.bound_creds.username;
     var password = $scope.bound_creds.password;
     var apikey = $scope.bound_creds.apikey;
+    var pin_rsa = $scope.bound_creds.pin_rsa;
 
     //Handle auto_complete sync issues (1Pass, LastPass do not update scope)
     try {
@@ -373,7 +378,7 @@ function AppController($scope, $http, $location, $resource, $cookies, auth) {
     }
 
     var endpoint = $scope.get_selected_endpoint();
-    return auth.authenticate(endpoint, username, apikey, password, null, null,
+    return auth.authenticate(endpoint, username, apikey, password, null, pin_rsa, null,
       $scope.on_auth_success, $scope.on_auth_failed);
   };
 

@@ -268,10 +268,16 @@
             </div>
           </div>
           <p style="text-align: center">or</p>
-          <div class="control-group">
+          <div class="control-group" ng-hide="uses_pin_rsa()">
             <label class="control-label" for="apikey">API Key</label>
             <div class="controls">
               <input type="password" class="input-xlarge" id="apikey" ng-model="bound_creds.apikey">
+            </div>
+          </div>
+          <div class="control-group" ng-show="uses_pin_rsa()">
+            <label class="control-label" for="pin_rsa">PIN+RSA Key</label>
+            <div class="controls">
+              <input type="password" class="input-xlarge" id="pin_rsa" ng-model="bound_creds.pin_rsa">
             </div>
           </div>
           <hr/>
