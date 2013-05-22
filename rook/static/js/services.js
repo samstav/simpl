@@ -1090,15 +1090,12 @@ services.factory('auth', ['$http', '$resource', '$rootScope', function($http, $r
       if (!auth.identity.tenants)
         auth.identity.tenants = [];
 
-      var in_tenants = _.find(auth.identity.tenants, function(tenant) {
+      auth.identity.tenants = _.reject(auth.identity.tenants, function(tenant) {
         return tenant.username == context.username;
       });
-
-      if (!in_tenants) {
-        auth.identity.tenants.unshift(_.clone(context));
-        if (auth.identity.tenants.length > 10)
-          auth.identity.tenants.pop();
-      }
+      auth.identity.tenants.unshift(_.clone(context));
+      if (auth.identity.tenants.length > 10)
+        auth.identity.tenants.pop();
     },
 
     impersonate: function(username, callback, error_callback) {
