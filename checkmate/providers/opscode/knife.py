@@ -311,7 +311,7 @@ def _blueprint_exists(source, dest):
     return True
 
 
-def _copy_kitchen_blueprint(dest, source_repo):
+def _ensure_kitchen_blueprint(dest, source_repo):
     """Update the blueprint cache and copy the blueprint to the kitchen.
 
     Arguments:
@@ -417,7 +417,7 @@ def _create_kitchen(dep_id, service_name, path, secret_key=None,
 
     # Copy blueprint files to kitchen
     if source_repo:
-        _copy_kitchen_blueprint(kitchen_path, source_repo)
+        _ensure_kitchen_blueprint(kitchen_path, source_repo)
 
     LOG.debug("Finished creating kitchen: %s" % kitchen_path)
     return {"kitchen": kitchen_path}
