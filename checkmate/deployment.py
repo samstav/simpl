@@ -228,6 +228,7 @@ class Deployment(ExtensibleDict):
         "ACTIVE": 'UP',
         'ERROR': 'FAILED',
         'DELETING': 'UP',
+        'LAUNCHED': 'UP',
     }
 
     def __init__(self, *args, **kwargs):
@@ -959,12 +960,18 @@ class Deployment(ExtensibleDict):
             entry = {}
             if 'type' in definition:
                 entry['type'] = definition['type']
+            if definition.get('is-secret', False) is True:
+                entry['is-secret'] = True
+                entry['status'] = 'GENERATING'
+                results[name] = entry
             try:
                 parsed = Deployment.parse_source_URI(definition['source'])
                 value = self.evaluator(parsed)
                 if value is not None:
                     entry['value'] = value
                     results[name] = entry
+                    if definition.get('is-secret', False) is True:
+                        entry['status'] = 'AVAILABLE'
             except (KeyError, AttributeError):
                 pass
 

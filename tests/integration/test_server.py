@@ -57,6 +57,9 @@ class TestServer(unittest.TestCase):
     def test_crosstenant_blueprint(self):
         self.rest_cross_tenant_exercise('blueprint')
 
+    #
+    # Functions called multiple times from above
+    #
     def rest_exercise(self, model_name):
         id1 = uuid.uuid4().hex[0:7]
         id2 = uuid.uuid4().hex[0:4]
@@ -163,19 +166,62 @@ class TestServer(unittest.TestCase):
 
         #TODO: test posting object with bad tenant_id in it
 
-    def rest_add_workflow_test(self):
+    #
+    # Other tests
+    #
+    def test_add_workflow(self):
         obj_id = str(uuid.uuid4())
         entity = {"id": obj_id, 'tenantId': 'T1000'}
         res = self.app.post_json('/T1000/workflows', entity)
         #TODO: make tests clean so we can predict if we get a 200 or 201
         self.assertIn(res.status, ['201 Created', '200 OK'])
 
-    def rest_save_workflow_test(self):
+    def test_save_workflow(self):
         obj_id = str(uuid.uuid4())
         entity = {"id": obj_id, 'tenantId': 'T1000'}
         res = self.app.post_json('/T1000/workflows/' + obj_id, entity)
         #TODO: make tests clean so we can predict if we get a 200 or 201
         self.assertIn(res.status, ['201 Created', '200 OK'])
+
+    def test_get_deployment_secrets(self):
+        '''Check that GET /secrets responds'''
+        id1 = uuid.uuid4().hex[0:7]
+        data = """
+            deployment:
+                id: '%s'
+            """ % id1
+        self.app.put('/T1000/deployments/%s' % id1, data,
+                     content_type='application/x-yaml')
+        # Not an admin - 401
+        res = self.app.get('/T1000/deployments/%s/secrets' % id1,
+                           expect_errors=True)
+        self.assertEqual(res.status, '401 Unauthorized')
+
+        # Wrong tenant - 404 (don't divulge existence)
+        res = self.app.get('/T2000/deployments/%s/secrets' % id1,
+                           expect_errors=True)
+        self.assertEqual(res.status, '404 Not Found')
+
+    def test_lock_deployment_secrets(self):
+        '''Check that POST /secrets responds'''
+        id1 = uuid.uuid4().hex[0:7]
+        data = """
+            deployment:
+                id: '%s'
+            """ % id1
+        self.app.put('/T1000/deployments/%s' % id1, data,
+                     content_type='application/x-yaml')
+        # Not an admin - 401
+        res = self.app.post('/T1000/deployments/%s/secrets' % id1, "A: 1",
+                           content_type='application/x-yaml',
+                           expect_errors=True)
+        self.assertEqual(res.status, '401 Unauthorized')
+
+        # Wrong tenant - 404 (don't divulge existence)
+        res = self.app.post('/T2000/deployments/%s/secrets' % id1, "A: 1",
+                           content_type='application/x-yaml',
+                           expect_errors=True)
+        self.assertEqual(res.status, '404 Not Found')
 
 
 if __name__ == '__main__':

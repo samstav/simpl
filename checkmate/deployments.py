@@ -29,6 +29,7 @@ from checkmate.plan import Plan
 from checkmate.utils import (
     extract_sensitive_data,
     read_body,
+    get_time_string,
     is_simulation,
     match_celery_logging,
     with_tenant,
@@ -73,6 +74,8 @@ def _content_to_deployment(bottle_request, deployment_id=None, tenant_id=None):
     else:
         assert tenant_id, "Tenant ID must be specified in deployment "
         deployment['tenantId'] = tenant_id
+    if 'created-by' not in deployment:
+        deployment['created-by'] = bottle_request.context.username
     return deployment
 
 
@@ -92,8 +95,8 @@ def _save_deployment(deployment, deployment_id=None, tenant_id=None,
         if 'id' not in deployment:
             deployment['id'] = deployment_id
         else:
-            assert deployment_id == deployment['id'], ("Deployment ID (%s) does "
-                                                       "not match "
+            assert deployment_id == deployment['id'], ("Deployment ID (%s) "
+                                                       "does not match "
                                                        "deploymentId (%s)",
                                                        (deployment_id,
                                                         deployment['id']))
@@ -491,7 +494,88 @@ def get_deployment(oid, tenant_id=None, driver=DB):
         LOG.warning("Attempt to access deployment %s from wrong tenant %s by "
                     "%s", oid, tenant_id, request.context.username)
         abort(404)
+
     return write_body(entity, request, response)
+
+
+@get('/deployments/<oid>/secrets')
+@with_tenant
+def get_deployment_secrets(oid, tenant_id=None, driver=DB):
+    """Return deployment secrets"""
+    if is_simulation(oid):
+        driver = SIMULATOR_DB
+
+    try:
+        entity = get_a_deployment(oid, tenant_id=tenant_id, driver=driver)
+    except CheckmateDoesNotExist:
+        abort(404)
+    if tenant_id is not None and tenant_id != entity.get('tenantId'):
+        LOG.warning("Attempt to access deployment %s from wrong tenant %s by "
+                    "%s", oid, tenant_id, request.context.username)
+        abort(404)
+
+    if not (request.context.is_admin is True or
+            ('created-by' in entity and
+             entity['created-by'] is not None and
+             request.context.username == entity.get('created-by'))):
+        abort(401, "You must be the creator of a deployment or an admin to "
+              "retrieve its secrets")
+
+    data = get_a_deployments_secrets(oid, tenant_id=tenant_id, driver=driver)
+    return write_body(data, request, response)
+
+
+@post('/deployments/<oid>/secrets')
+@with_tenant
+def update_deployment_secrets(oid, tenant_id=None, driver=DB):
+    """Update/Lock deployment secrets"""
+    if is_simulation(oid):
+        driver = SIMULATOR_DB
+
+    partial = read_body(request)
+    try:
+        entity = get_a_deployment(oid, tenant_id=tenant_id, driver=driver,
+                                  with_secrets=True)
+    except CheckmateDoesNotExist:
+        abort(404)
+    if tenant_id is not None and tenant_id != entity.get('tenantId'):
+        LOG.warning("Attempt to access deployment %s from wrong tenant %s by "
+                    "%s", oid, tenant_id, request.context.username)
+        abort(404)
+
+    if not (request.context.is_admin is True or
+            ('created-by' in entity and
+             entity['created-by'] is not None and
+             request.context.username == entity.get('created-by'))):
+        abort(401, "You must be the creator of a deployment or an admin to "
+              "retrieve its secrets")
+
+    if not partial:
+        abort(400, "No data provided")
+    if 'secrets' not in partial:
+        abort(406, "Must supply 'secrets' to be locked")
+
+    #FIXME: test this, move it to a separate call
+    updates = {}
+    for output, value in partial['secrets'].items():
+        if 'status' in value and value['status'] == 'LOCKED':
+            if output not in entity.get('display-outputs', {}):
+                abort(406, "No secret called '%s'" % output)
+            if entity['display-outputs'][output].get('status') != 'LOCKED':
+                if 'display-outputs' not in updates:
+                    updates['display-outputs'] = {}
+                if output not in updates['display-outputs']:
+                    updates['display-outputs'][output] = {}
+                updates['display-outputs'][output]['status'] = 'LOCKED'
+                updates['display-outputs'][output]['last-locked'] = \
+                    get_time_string()
+
+    if updates:
+        body, secrets = extract_sensitive_data(updates)
+        driver.save_deployment(oid, body, secrets, tenant_id=tenant_id,
+                               partial=True)
+
+    return write_body({'secrets': updates['secrets']}, request, response)
 
 
 def _get_a_deployment_with_request(oid, tenant_id=None, driver=DB):
@@ -512,7 +596,48 @@ def get_a_deployment(oid, tenant_id=None, driver=DB, with_secrets=False):
     entity = driver.get_deployment(oid, with_secrets=with_secrets)
     if not entity or (tenant_id and tenant_id != entity.get("tenantId")):
         raise CheckmateDoesNotExist('No deployment with id %s' % oid)
+
+    # Strip secrets
+    # FIXME(zns): this is not the place to do this / temp HACK to prove API
+    status = "NO SECRETS"
+    for _, value in entity.get('display-outputs', {}).items():
+        if value.get('is-secret', False) is True:
+            if value.get('status') == "AVAILABLE":
+                status = "AVAILABLE"
+            elif value.get('status') == "LOCKED":
+                if status == "NO SECRETS":
+                    status = "LOCKED"
+            elif value.get('status') == "GENERATING":
+                if status != "NO SECRETS":  # some AVAILABLE
+                    status = "GENERATING"
+            try:
+                del value['value']
+            except KeyError:
+                pass
+    entity['secrets'] = status
     return entity
+
+
+def get_a_deployments_secrets(oid, tenant_id=None, driver=DB):
+    """
+    Get the passwords and keys of a single deployment by id.
+    """
+    entity = driver.get_deployment(oid, with_secrets=True)
+    if not entity or (tenant_id and tenant_id != entity.get("tenantId")):
+        raise CheckmateDoesNotExist('No deployment with id %s' % oid)
+
+    secrets = {
+        key: value
+        for key, value in entity.get('display-outputs', {}).items()
+        if value.get('is-secret', False) is True
+    }
+    data = {
+        'id': oid,
+        'tenantId': tenant_id,
+        'secrets': secrets,
+    }
+
+    return data
 
 
 def _get_dep_resources(deployment):
