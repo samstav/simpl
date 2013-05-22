@@ -400,6 +400,7 @@ class Driver(DbBase):
             ).skip(offset).limit(limit)
 
             for entry in results:
+                self.convert_data(klass, entry)
                 if with_secrets is True:
                     response[entry['id']] = self.merge_secrets(
                         klass, entry['id'], entry)
