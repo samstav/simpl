@@ -454,35 +454,33 @@ def sync_deployment(oid, tenant_id=None, driver=DB):
         driver = SIMULATOR_DB
     if any_id_problems(oid):
         abort(406, any_id_problems(oid))
-    entity = driver.get_deployment(oid, with_secrets=True)
+    entity = driver.get_deployment(oid)
     if not entity:
         raise CheckmateDoesNotExist('No deployment with id %s' % oid)
     deployment = Deployment(entity)
     env = deployment.environment()
     my_resources = {}
     for key, item in entity.get('resources').items():
-        no_keys = ["connections", "sync-keys", "deployment-keys", "wp user"]
-        if key not in no_keys and \
+        if (key.isdigit() and \
            item.get('provider') not in ["chef-solo", None] and \
-           item.get('type') in ["compute", "load-balancer", "database"]:
+           item.get('type') in ["compute", "load-balancer", "database"]):
 
             i_key = 'instance:%s' % key
-            instance = item['instance']
-            provider = env.select_provider(request.context, item['type'])
+            provider = env.select_provider(request.context,
+                                           resource=item.get('type'))
             result = provider.get_resource_status(request.context,
                                                   oid, item, key)
-            result[i_key]['id'] = item['instance']['id']
-            result[i_key]['type'] = item['type']
             my_resources.update(result)
 
-            if result[i_key]['status'] in ['ACTIVE', 'RESCUE', 'DELETED']:
-                instance['statusmsg'] = ""
+            if result[i_key].get('status') in ['ACTIVE', 'RESCUE', 'DELETED']:
+                instance = { 'statusmsg' : '' }
 
             #need to go thru actual vs expected scenarios
             #if hasattr(result, 'instance'):
             #    for x, y in result['instance'].items():
             #        instance[x] = y
-            result[i_key]['instance'] = instance
+            if instance:
+                result[i_key]['instance'] = instance
 
             resource_postback.delay(oid, result, driver=driver)
 

@@ -36,8 +36,8 @@ class ProviderBaseWorkflowMixIn(object):
     def _verify_existing_resource(self, resource, key):
         '''Private method for Resource verification'''
         msg = None
-        if resource.get('status') != "DELETED" and resource.get("provider") \
-          != self.name and not 'databases' in resource.get('instance'):
+        if (resource.get('status') != "DELETED" and resource.get("provider") \
+          != self.name and not 'databases' in resource.get('instance')):
             msg = "%s did not provide resource %s" % (self.name, key)
         if (
             ("region" not in resource) and
