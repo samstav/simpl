@@ -308,8 +308,6 @@ function AppController($scope, $http, $location, $resource, $cookies, auth) {
         delete $('#modalAuth')[0].success_callback;
         delete $('#modalAuth')[0].failure_callback;
       }
-    else
-      $scope.$apply();
     mixpanel.track("Logged In", {'user': $scope.auth.identity.username});
   };
 
@@ -322,7 +320,6 @@ function AppController($scope, $http, $location, $resource, $cookies, auth) {
       }
     mixpanel.track("Log In Failed", {'problem': response.statusText});
     auth.error_message = response.statusText + ". Check that you typed in the correct credentials.";
-    $scope.$apply();
   };
 
   $scope.uses_pin_rsa = function(endpoint) {

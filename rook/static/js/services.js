@@ -1019,7 +1019,7 @@ services.factory('auth', ['$http', '$resource', '$rootScope', function($http, $r
           $rootScope.$broadcast('logIn');
           $rootScope.$broadcast('contextChanged');
         })
-        .error(function() {
+        .error(function(response, status, headers, config) {
           error_callback(response);
         });
     },
