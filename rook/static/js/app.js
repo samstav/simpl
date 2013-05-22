@@ -1662,7 +1662,11 @@ function DeploymentListController($scope, $location, $http, $resource, scroll, i
 
       console.log("Load returned");
 
-      total_item_count = parseInt(_.last(getResponseHeaders('Content-Range').split('/')));
+      if($.browser.mozilla) {
+        total_item_count = parseInt(_.last(getResponseHeaders('content-range').split('/')));
+      } else {
+        total_item_count = parseInt(_.last(getResponseHeaders('Content-Range').split('/')));
+      }
       page_info = paginator.getPagingInformation(total_item_count);
 
       if(page_info.totalPages > 1) {
