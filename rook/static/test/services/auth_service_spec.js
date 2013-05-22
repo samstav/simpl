@@ -14,7 +14,7 @@ describe('auth Service', function(){
     user = {};
     response = { access: { user: user, token: emptyFunction } };
     endpoint = {};
-    headers = {};
+    headers = sinon.stub().returns('True');
     params = { headers: headers, endpoint: endpoint };
   }));
 
@@ -24,12 +24,14 @@ describe('auth Service', function(){
     });
 
     it('should assign is_admin to true if the X-AuthZ-Admin header is True', function(){
-      headers['X-AuthZ-Admin'] = 'True';
+      headers = sinon.stub().returns('True');
+      params = { headers: headers, endpoint: endpoint };
       expect(this.auth.create_identity(response, params).is_admin).toBeTruthy();
     });
 
     it('should assign is_admin to false if the X-AuthZ-Admin header is not "True"', function(){
-      headers['X-AuthZ-Admin'] = 'kinda true';
+      headers = sinon.stub().returns('kinda true');
+      params = { headers: headers, endpoint: endpoint };
       expect(this.auth.create_identity(response, params).is_admin).toBeFalsy();
     });
 
