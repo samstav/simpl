@@ -1220,70 +1220,64 @@ services.factory('auth', ['$http', '$resource', '$rootScope', function($http, $r
 }]);
 
 services.factory('pagination', function(){
-  function extractPagingParams(query_params){
+  function buildPagingParams(){
     var paging_params = [];
 
-    if(query_params.offset) {
-      paging_params.push('offset=' + query_params.offset);
-    }
+    paging_params.push('limit=' + this.limit);
+    paging_params.push('offset=' + this.offset);
 
-    if(query_params.limit) {
-      paging_params.push('limit=' + query_params.limit);
-    }
-
-    if(paging_params.length > 0) {
-      return '?' + paging_params.join('&');
-    } else {
-      return '';
-    }
+    return '?' + paging_params.join('&');
   }
 
+  function getPagingInformation(total_item_count){
+    var current_page;
 
-  function getValidPageParams(offset, limit, total_item_count){
-    var valid_offset,
-        valid_limit,
-        DEFAULT_PAGE_LIMIT = 20;
-
-    if(!parseInt(limit, 10) || limit < 1){
-      valid_limit = DEFAULT_PAGE_LIMIT;
-    } else if(limit > total_item_count) {
-      valid_limit = total_item_count;
+    if(!this.offset || total_item_count === 0){
+      current_page = 1;
+    } else if(this.offset > 0 && this.offset < this.limit) {
+      current_page = 2;
     } else {
-      valid_limit = limit;
+      current_page = parseInt(this.offset/this.limit, 10) + 1;
     }
 
-    if(!parseInt(offset, 10)){
+    return {
+             currentPage: current_page,
+             totalPages: Math.ceil(total_item_count / this.limit)
+           };
+  }
+
+  function getValidPageParams(offset, limit){
+    var valid_offset,
+        valid_limit,
+        parsed_offset = parseInt(offset, 10),
+        parsed_limit = parseInt(limit, 10),
+        DEFAULT_PAGE_LIMIT = 20;
+
+    if(parsed_limit && parsed_limit > 0) {
+      valid_limit = parsed_limit;
+    } else {
+      valid_limit = DEFAULT_PAGE_LIMIT;
+    }
+
+    if(parsed_offset && parsed_offset > 0 && (parsed_offset % valid_limit) === 0) {
+      valid_offset = parsed_offset;
+    } else if(parsed_offset && parsed_offset > 0){
+      valid_offset = parsed_offset - (parsed_offset % valid_limit);
+    } else {
       valid_offset = 0;
-    } else if(offset >= total_item_count){
-      valid_offset = total_item_count - valid_limit;
-    } else{
-      valid_offset = offset;
     }
 
     return { offset: valid_offset, limit: valid_limit };
   }
 
-  function getPagingInformation(offset, limit, total_item_count){
-    var current_page,
-        valid_params = getValidPageParams(offset, limit, total_item_count);
+  function buildPaginator(offset, limit){
+    var valid_params = getValidPageParams(offset, limit);
 
-    if(total_item_count === 0){
-      current_page = 1;
-    } else if(valid_params.offset > 0 && valid_params.offset < valid_params.limit) {
-      current_page = 2;
-    } else {
-      current_page = parseInt(valid_params.offset/valid_params.limit, 10) + 1;
-    }
-
-    return {
-             currentPage: current_page,
-             totalPages: Math.ceil(total_item_count / valid_params.limit),
-             adjustedOffset: valid_params.offset
-           };
+    return { offset: valid_params.offset,
+             limit: valid_params.limit,
+             buildPagingParams: buildPagingParams,
+             getPagingInformation: getPagingInformation };
   }
 
-  return {
-           extractPagingParams: extractPagingParams,
-           getPagingInformation: getPagingInformation
-         };
+  return { buildPaginator: buildPaginator };
 });

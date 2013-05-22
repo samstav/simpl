@@ -11,13 +11,13 @@ describe('DeploymentListController', function(){
 
   beforeEach(function(){
     scope = { $watch: emptyFunction, auth: { context: {}} };
-    location = { search: sinon.stub().returns({}) };
+    location = { search: sinon.stub().returns({}), replace: emptyFunction };
     http = {};
     resource = sinon.stub().returns(emptyResponse);
     scroll = {};
     items = {};
     navbar = { highlight: emptyFunction };
-    pagination = { extractPagingParams: sinon.stub().returns('') };
+    pagination = { buildPaginator: sinon.stub().returns({ buildPagingParams: sinon.stub().returns('') }) };
     controller = {};
     emptyResponse = { get: emptyFunction };
   });
@@ -26,6 +26,11 @@ describe('DeploymentListController', function(){
     describe('load', function(){
       var get_spy,
           resource_spy;
+
+      beforeEach(function(){
+        get_spy = undefined;
+        resource_spy = undefined;
+      });
 
       it('should setup the url and get the resource with the tenantId', function(){
         get_spy = sinon.spy();
@@ -40,7 +45,8 @@ describe('DeploymentListController', function(){
       });
 
       it('should append pagination params to the resource call', function(){
-        location = { search: sinon.stub().returns({ offset: 20, limit: 30 }) };
+        pagination = { buildPaginator: sinon.stub().returns({ buildPagingParams: sinon.stub().returns('?offset=20&limit=30') }) };
+        location = { search: sinon.stub().returns({ offset: 20, limit: 30 }), replace: emptyFunction };
         resource = function(){ return { get: emptyFunction }; };
         resource_spy = sinon.spy(resource);
         pagination.extractPagingParams = sinon.stub().returns('?offset=20&limit=30');

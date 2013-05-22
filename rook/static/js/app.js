@@ -1641,14 +1641,43 @@ function DeploymentListController($scope, $location, $http, $resource, scroll, i
     console.log("Starting load");
     var path,
         query_params = $location.search(),
-        paging_params;
+        paging_params,
+        paginator;
 
-    paging_params = pagination.extractPagingParams(query_params);
+    paginator = pagination.buildPaginator(query_params.offset, query_params.limit);
+    $location.search({ limit: paginator.limit, offset: paginator.offset });
+    $location.replace();
+
+    paging_params = paginator.buildPagingParams();
+
     path = '/:tenantId/deployments.json' + paging_params;
 
     this.klass = $resource((checkmate_server_base || '') + path);
     this.klass.get({tenantId: $scope.auth.context.tenantId}, function(list, getResponseHeaders){
+      var total_item_count,
+          links = { numbered_links: [] },
+          page_info,
+          deployments_url = '/' + $scope.auth.context.tenantId + '/deployments',
+          counter = 0;
+
       console.log("Load returned");
+
+      total_item_count = parseInt(_.last(getResponseHeaders('Content-Range').split('/')));
+      page_info = paginator.getPagingInformation(total_item_count);
+
+      if(page_info.totalPages > 1) {
+        while(counter < page_info.totalPages){
+          links.numbered_links.push({ uri: deployments_url + '?limit=' + paginator.limit + '&offset=' + (counter * paginator.limit),
+                                     text: counter + 1 });
+          counter++
+        }
+
+        links.previous = { uri: deployments_url + '?limit=' + paginator.limit + '&offset=' + (paginator.offset - paginator.limit),
+                        text: 'Previous' };
+        links.next = { uri: deployments_url + '?limit=' + paginator.limit + '&offset=' + (paginator.offset + paginator.limit),
+                        text: 'Next' };
+      }
+
       items.all = [];
       items.receive(list, function(item) {
         return {id: item.id, name: item.name, created: item.created, tenantId: item.tenantId,
@@ -1656,6 +1685,9 @@ function DeploymentListController($scope, $location, $http, $resource, scroll, i
                 status: item.status};});
       $scope.count = items.count;
       $scope.items = items.all;
+      $scope.currentPage = page_info.currentPage;
+      $scope.totalPages = page_info.totalPages;
+      $scope.links = links;
       console.log("Done loading");
     });
   };
