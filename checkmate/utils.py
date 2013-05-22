@@ -336,10 +336,6 @@ def write_body(data, request, response):
     response.set_header('vary', 'Accept,Accept-Encoding,X-Auth-Token')
     accept = request.get_header('Accept', ['application/json'])
 
-    # if the data contains collection-count, remove it
-    if 'collection-count' in data:
-        del data['collection-count']
-
     for content_type in HANDLERS:
         if content_type in accept:
             return HANDLERS[content_type](data, request, response)
