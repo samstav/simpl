@@ -993,42 +993,35 @@ services.factory('auth', ['$http', '$resource', '$rootScope', function($http, $r
       }
       auth.selected_endpoint = endpoint;
 
-      return $.ajax({
-        type: "POST",
-        contentType: "application/json; charset=utf-8",
-        headers: headers,
-        dataType: "json",
-        url: is_chrome_extension ? target : "/authproxy",
-        data: data
-      }).success(function(response, textStatus, request) {
-        auth.identity = auth.create_identity(request, response, endpoint);
-        auth.context = auth.create_context(response, endpoint);
+      var url = is_chrome_extension ? target : "/authproxy";
+      var config = { headers: headers };
+      return $http.post(url, data, config)
+        .success(function(response, textStatus, request) {
+          auth.identity = auth.create_identity(request, response, endpoint);
+          auth.context = auth.create_context(response, endpoint);
+          auth.save();
 
-        //Save for future use
-        auth.save();
+          //Check token expiration
+          auth.check_state();
+          /*
+          var expires = new Date(response.access.token.expires);
+          var now = new Date();
+          if (expires < now) {
+            auth.expires = 'expired';
+            $scope.auth.loggedIn = false;
+          } else {
+            $scope.auth.expires = expires - now;
+            $scope.auth.loggedIn = true;
+          }
+          */
 
-        //Check token expiration
-        auth.check_state();
-        /*
-        var expires = new Date(response.access.token.expires);
-        var now = new Date();
-        if (expires < now) {
-          auth.expires = 'expired';
-          $scope.auth.loggedIn = false;
-        } else {
-          $scope.auth.expires = expires - now;
-          $scope.auth.loggedIn = true;
-        }
-        */
-
-        callback(response);
-
-        $rootScope.$broadcast('logIn');
-        $rootScope.$broadcast('contextChanged');
-
-      }).error(function(response) {
-        error_callback(response);
-      });
+          callback(response);
+          $rootScope.$broadcast('logIn');
+          $rootScope.$broadcast('contextChanged');
+        })
+        .error(function() {
+          error_callback(response);
+        });
     },
     logOut: function() {
       auth.clear();
