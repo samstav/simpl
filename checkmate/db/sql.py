@@ -424,19 +424,22 @@ class Driver(DbBase):
         if results and results.count() > 0:
             results = results.limit(limit).offset(offset).all()
 
+            response['_links'] = {}  # To be populated soon!
+            response['results'] = {}
+
             for entry in results:
                 self.convert_data(klass.__tablename__, entry.body)
                 if with_secrets is True:
                     if entry.secrets:
-                        response[entry.id] = merge_dictionary(
+                        response['results'][entry.id] = merge_dictionary(
                             entry.body,
                             entry.secrets
                         )
                     else:
-                        response[entry.id] = entry.body
+                        response['results'][entry.id] = entry.body
                 else:
-                    response[entry.id] = entry.body
-                response[entry.id]['tenantId'] = entry.tenant_id
+                    response['results'][entry.id] = entry.body
+                response['results'][entry.id]['tenantId'] = entry.tenant_id
             if with_count:
                 response['collection-count'] = self._get_count(
                     klass, tenant_id, with_deleted)

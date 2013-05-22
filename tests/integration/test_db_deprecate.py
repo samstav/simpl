@@ -72,61 +72,86 @@ class TestDatabase(unittest.TestCase):
             'credentials': ['My Secrets']
         }
         body, secrets = extract_sensitive_data(entity)
-        self.driver._save_object(self.klass, entity['id'], body, secrets,
-                                tenant_id='T1000')
-
+        self.driver._save_object(
+            self.klass,
+            entity['id'],
+            body,
+            secrets,
+            tenant_id='T1000'
+        )
         entity['id'] = 2
         entity['name'] = 'My Second Component'
         entity['status'] = 'NEW'
         body, secrets = extract_sensitive_data(entity)
-        self.driver._save_object(self.klass, entity['id'], body, secrets,
-                                tenant_id='T1000')
-
+        self.driver._save_object(
+            self.klass,
+            entity['id'],
+            body,
+            secrets,
+            tenant_id='T1000'
+        )
         entity['id'] = 3
         entity['name'] = 'My Third Component'
         entity['status'] = 'NEW'
         body, secrets = extract_sensitive_data(entity)
-        self.driver._save_object(self.klass, entity['id'], body, secrets,
-                                tenant_id='T1000')
-
+        self.driver._save_object(
+            self.klass,
+            entity['id'],
+            body,
+            secrets,
+            tenant_id='T1000'
+        )
         expected = {
-            1: {
-                'id': 1,
-                'name': 'My Component',
-                'tenantId': 'T1000',
-                'status': 'NEW'
-            },
-            2: {
-                'id': 2,
-                'name': 'My Second Component',
-                'tenantId': 'T1000',
-                'status': 'NEW'
+            '_links': {},
+            'results': {
+                1: {
+                    'id': 1,
+                    'name': 'My Component',
+                    'tenantId': 'T1000',
+                    'status': 'NEW'
+                },
+                2: {
+                    'id': 2,
+                    'name': 'My Second Component',
+                    'tenantId': 'T1000',
+                    'status': 'NEW'
+                }
             }
         }
-        results = self.driver._get_objects(self.klass, tenant_id='T1000',
-                                          limit=2,
-                                          with_count=False)
+        results = self.driver._get_objects(
+            self.klass,
+            tenant_id='T1000',
+            limit=2,
+            with_count=False
+        )
         results_decode = self._decode_dict(results)
         self.assertEqual(len(results_decode), 2)
         self.assertDictEqual(results_decode, expected)
 
         expected = {
-            2: {
-                'id': 2,
-                'name': 'My Second Component',
-                'tenantId': 'T1000',
-                'status': 'NEW'
-            },
-            3: {
-                'id': 3,
-                'name': 'My Third Component',
-                'tenantId': 'T1000',
-                'status': 'NEW'
+            '_links': {},
+            'results': {
+                2: {
+                    'id': 2,
+                    'name': 'My Second Component',
+                    'tenantId': 'T1000',
+                    'status': 'NEW'
+                },
+                3: {
+                    'id': 3,
+                    'name': 'My Third Component',
+                    'tenantId': 'T1000',
+                    'status': 'NEW'
+                }
             }
         }
-        results = self.driver._get_objects(self.klass, tenant_id='T1000',
-                                          offset=1, limit=2,
-                                          with_count=False)
+        results = self.driver._get_objects(
+            self.klass,
+            tenant_id='T1000',
+            offset=1,
+            limit=2,
+            with_count=False
+        )
         results_decode = self._decode_dict(results)
         self.assertEqual(len(results_decode), 2)
         self.assertDictEqual(results_decode, expected)
@@ -259,15 +284,17 @@ class TestDatabase(unittest.TestCase):
                           .first())
         if filter_obj:
             filter_obj.delete()
-        self.driver._save_object(klass, obj_id, {"id": obj_id, "test": obj_id},
-                                tenant_id='T1000')
-
+        self.driver._save_object(
+            klass,
+            obj_id,
+            {"id": obj_id, "test": obj_id},
+            tenant_id='T1000'
+        )
         _, key = self.driver.lock_object(klass, obj_id)
         #was a key generated?
         self.assertTrue(key)
         stored_object = self.driver.session.query(klass).filter_by(
             id=obj_id).first()
-
         #was the key stored correctly?
         self.assertEqual(key, stored_object.lock)
         #was a _lock_timestamp generated

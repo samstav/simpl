@@ -124,8 +124,11 @@ class TestDatabase(unittest.TestCase):
         entity['name'] = 'My Updated Component'
         results = self.driver._save_object(self.collection_name, entity['id'],
                                            body, secrets)
-        results = self.driver._get_object(self.collection_name, entity['id'],
-                                         with_secrets=True)
+        results = self.driver._get_object(
+            self.collection_name,
+            entity['id'],
+            with_secrets=True
+        )
         self.assertIn('credentials', results)
         self.assertDictEqual(results, entity)
 
@@ -146,9 +149,9 @@ class TestDatabase(unittest.TestCase):
         #format of body matches
         expected_result_body = {1: body}
 
-        self.assertIn('id', results[1])
-        self.assertEqual(results[1]['id'], 1)
-        self.assertDictEqual(results, expected_result_body)
+        self.assertIn('id', results['results'][1])
+        self.assertEqual(results['results'][1]['id'], 1)
+        self.assertDictEqual(results['results'], expected_result_body)
 
     @unittest.skipIf(SKIP, REASON)
     def test_pagination(self):
@@ -176,15 +179,18 @@ class TestDatabase(unittest.TestCase):
                                            with_secrets=False, limit=2,
                                            with_count=False)
         expected = {
-            1: {
-                'id': 1,
-                'name': 'My Component',
-                'tenantId': 'T1000'
-            },
-            2: {
-                'id': 2,
-                'name': 'My Second Component',
-                'tenantId': 'T1000'
+            '_links': {},
+            'results': {
+                1: {
+                    'id': 1,
+                    'name': 'My Component',
+                    'tenantId': 'T1000'
+                },
+                2: {
+                    'id': 2,
+                    'name': 'My Second Component',
+                    'tenantId': 'T1000'
+                }
             }
         }
         self.assertEqual(len(results), 2)
@@ -196,15 +202,18 @@ class TestDatabase(unittest.TestCase):
                                            limit=2,
                                            with_count=False)
         expected = {
-            2: {
-                'id': 2,
-                'name': 'My Second Component',
-                'tenantId': 'T1000'
-            },
-            3: {
-                'id': 3,
-                'name': 'My Third Component',
-                'tenantId': 'T1000'
+            '_links': {},
+            'results': {
+                2: {
+                    'id': 2,
+                    'name': 'My Second Component',
+                    'tenantId': 'T1000'
+                },
+                3: {
+                    'id': 3,
+                    'name': 'My Third Component',
+                    'tenantId': 'T1000'
+                }
             }
         }
         self.assertEqual(len(results), 2)
@@ -222,22 +231,27 @@ class TestDatabase(unittest.TestCase):
         if unicode_results and 'collection-count' in unicode_results:
             del unicode_results['collection-count']
         results = self._decode_dict(unicode_results)
-        self.assertDictEqual(results,
+        self.assertDictEqual(results['results'],
                              {hex_id: {"id": hex_id, 'tenantId': 'T1000'}})
-        self.assertNotIn('_id', results, "Backend field '_id' should not be "
-                         "exposed outside of driver")
+        self.assertNotIn(
+            '_id',
+            results['results'],
+            "Backend field '_id' should not be exposed outside of driver"
+        )
 
     @unittest.skipIf(SKIP, REASON)
     def test_no_id_in_body(self):
         hex_id = uuid.uuid4().hex
-        self.assertRaises(Exception, self.driver._save_object, hex_id, {}, None,
-                          tenant_id='T1000')
+        with self.assertRaises(AssertionError):
+            self.driver._save_object('test', hex_id, {}, tenant_id='T1000')
 
     @unittest.skipIf(SKIP, REASON)
     def test_multiple_objects(self):
         expected = {}
+        expected['_links'] = {}
+        expected['results'] = {}
         for i in range(1, 5):
-            expected[i] = dict(id=i, tenantId='T1000')
+            expected['results'][i] = dict(id=i, tenantId='T1000')
             self.driver._save_object(self.collection_name, i, dict(id=i), None,
                                      tenant_id='T1000')
         unicode_results = self.driver._get_objects(self.collection_name,
@@ -245,9 +259,9 @@ class TestDatabase(unittest.TestCase):
         results = self._decode_dict(unicode_results)
         self.assertDictEqual(results, expected)
         for i in range(1, 5):
-            self.assertIn(i, results)
-            self.assertNotIn('_id', results[i])
-            self.assertEqual(results[i]['id'], i)
+            self.assertIn(i, results['results'])
+            self.assertNotIn('_id', results['results'][i])
+            self.assertEqual(results['results'][i]['id'], i)
 
     @unittest.skipIf(SKIP, REASON)
     def test_get_objects_with_total_count(self):

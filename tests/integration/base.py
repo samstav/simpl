@@ -332,8 +332,11 @@ class DBDriverTests(object):
 
         self.assertEquals(
             {
-                '1234': {'id': '1234', 'tenantId': 'T3', 'status': 'NEW'},
-                '4321': {'id': '4321', 'tenantId': 'T3', 'status': 'NEW'},
+                '_links': {},
+                'results': {
+                    '1234': {'id': '1234', 'tenantId': 'T3', 'status': 'NEW'},
+                    '4321': {'id': '4321', 'tenantId': 'T3', 'status': 'NEW'}
+                },
                 'collection-count': 2
             },
             self.driver.get_deployments(tenant_id='T3')
@@ -356,21 +359,31 @@ class DBDriverTests(object):
         )
         self.assertEquals(
             {
-                '1234': {
-                    'id': '1234',
-                    'tenantId': 'T3',
-                    'secret': 'SHHH!!!',
-                    'status': 'NEW'
+                '_links': {},
+                'results': {
+                    '1234': {
+                        'id': '1234',
+                        'tenantId': 'T3',
+                        'secret': 'SHHH!!!',
+                        'status': 'NEW'
+                    },
+                    '4321': {
+                        'id': '4321',
+                        'tenantId': 'T3',
+                        'status': 'NEW'
+                    }
                 },
-                '4321': {'id': '4321', 'tenantId': 'T3', 'status': 'NEW'},
                 'collection-count': 2
             },
             self.driver.get_deployments(tenant_id='T3', with_secrets=True)
         )
         self.assertEquals(
             {
-                '1234': {'id': '1234', 'tenantId': 'T3', 'status': 'NEW'},
-                '4321': {'id': '4321', 'tenantId': 'T3', 'status': 'NEW'},
+                '_links': {},
+                'results': {
+                    '1234': {'id': '1234', 'tenantId': 'T3', 'status': 'NEW'},
+                    '4321': {'id': '4321', 'tenantId': 'T3', 'status': 'NEW'}
+                },
                 'collection-count': 2
             },
             self.driver.get_deployments(tenant_id='T3', with_secrets=False)
@@ -393,7 +406,10 @@ class DBDriverTests(object):
 
         self.assertEquals(
             {
-                '4321': {'id': '4321', 'tenantId': 'T3', 'status': 'NEW'},
+                '_links': {},
+                'results': {
+                    '4321': {'id': '4321', 'tenantId': 'T3', 'status': 'NEW'}
+                },
                 'collection-count': 2
             },
             self.driver.get_deployments(tenant_id='T3', offset=1)
@@ -416,7 +432,10 @@ class DBDriverTests(object):
 
         self.assertEquals(
             {
-                '1234': {'id': '1234', 'tenantId': 'T3', 'status': 'NEW'},
+                '_links': {},
+                'results': {
+                    '1234': {'id': '1234', 'tenantId': 'T3', 'status': 'NEW'}
+                },
                 'collection-count': 2
             },
             self.driver.get_deployments(tenant_id='T3', limit=1)
@@ -444,8 +463,11 @@ class DBDriverTests(object):
 
         self.assertEquals(
             {
-                '4321': {'id': '4321', 'tenantId': 'T3', 'status': 'NEW'},
-                '5678': {'id': '5678', 'tenantId': 'T3', 'status': 'NEW'},
+                '_links': {},
+                'results': {
+                    '4321': {'id': '4321', 'tenantId': 'T3', 'status': 'NEW'},
+                    '5678': {'id': '5678', 'tenantId': 'T3', 'status': 'NEW'}
+                },
                 'collection-count': 3
             },
             self.driver.get_deployments(tenant_id='T3', offset=1, limit=2)
@@ -462,7 +484,12 @@ class DBDriverTests(object):
         )
 
         self.assertEquals(
-            {'1234': {'id': '1234', 'tenantId': 'T3', 'status': 'NEW'}},
+            {
+                '_links': {},
+                'results': {
+                    '1234': {'id': '1234', 'tenantId': 'T3', 'status': 'NEW'}
+                }
+            },
             self.driver.get_deployments(tenant_id='T3', with_count=False)
         )
 
@@ -478,7 +505,10 @@ class DBDriverTests(object):
 
         self.assertEquals(
             {
-                '1234': {'id': '1234', 'tenantId': 'T3', 'status': 'NEW'},
+                '_links': {},
+                'results': {
+                    '1234': {'id': '1234', 'tenantId': 'T3', 'status': 'NEW'}
+                },
                 'collection-count': 1
             },
             self.driver.get_deployments(tenant_id='T3', offset=None)
@@ -496,7 +526,10 @@ class DBDriverTests(object):
 
         self.assertEquals(
             {
-                '1234': {'id': '1234', 'tenantId': 'T3', 'status': 'NEW'},
+                '_links': {},
+                'results': {
+                    '1234': {'id': '1234', 'tenantId': 'T3', 'status': 'NEW'}
+                },
                 'collection-count': 1
             },
             self.driver.get_deployments(tenant_id='T3', limit=None)
@@ -516,7 +549,14 @@ class DBDriverTests(object):
 
         self.assertEquals(
             {
-                '1234': {'id': '1234', 'tenantId': 'T3', 'status': 'PLANNED'},
+                '_links': {},
+                'results': {
+                    '1234': {
+                        'id': '1234',
+                        'tenantId': 'T3',
+                        'status': 'PLANNED'
+                    }
+                },
                 'collection-count': 1
             },
             self.driver.get_deployments(tenant_id='T3')
@@ -536,7 +576,14 @@ class DBDriverTests(object):
 
         self.assertEquals(
             {
-                '1234': {'id': '1234', 'tenantId': 'T3', 'status': 'PLANNED'},
+                '_links': {},
+                'results': {
+                    '1234': {
+                        'id': '1234',
+                        'tenantId': 'T3',
+                        'status': 'PLANNED'
+                    }
+                },
                 'collection-count': 1
             },
             self.driver.get_deployments(tenant_id='T3', with_deleted=False)
@@ -556,8 +603,19 @@ class DBDriverTests(object):
 
         self.assertEquals(
             {
-                '1234': {'id': '1234', 'tenantId': 'T3', 'status': 'PLANNED'},
-                '4321': {'id': '4321', 'tenantId': 'T3', 'status': 'DELETED'},
+                '_links': {},
+                'results': {
+                    '1234': {
+                        'id': '1234',
+                        'tenantId': 'T3',
+                        'status': 'PLANNED'
+                    },
+                    '4321': {
+                        'id': '4321',
+                        'tenantId': 'T3',
+                        'status': 'DELETED'
+                    }
+                },
                 'collection-count': 2
             },
             self.driver.get_deployments(tenant_id='T3', with_deleted=True)
@@ -597,13 +655,25 @@ class DBDriverTests(object):
 
         self.assertEquals(
             {
-                '5678': {'id': '5678', 'tenantId': 'T3', 'status': 'NEW'},
-                '8765': {'id': '8765', 'tenantId': 'T3', 'status': 'ALERT'},
-                '9999': {
-                    'id': '9999',
-                    'tenantId': 'T3',
-                    'status': 'UP',
-                    'r0': {'status': 'DELETED'}
+                '_links': {},
+                'results': {
+                    '5678': {
+                        'id': '5678',
+                        'tenantId': 'T3',
+                        'status': 'NEW'
+                    },
+                    '8765': {
+                        'id': '8765',
+                        'tenantId': 'T3',
+                        'status':
+                        'ALERT'
+                    },
+                    '9999': {
+                        'id': '9999',
+                        'tenantId': 'T3',
+                        'status': 'UP',
+                        'r0': {'status': 'DELETED'}
+                    }
                 },
                 'collection-count': 5
             },
@@ -626,11 +696,14 @@ class DBDriverTests(object):
         )
         self.assertEquals(
             {
-                '1234': {
-                    'id': '1234',
-                    'tenantId': 'T3',
-                    'status': 'UP',
-                    'r0': {'status': 'DELETED'},
+                '_links': {},
+                'results': {
+                    '1234': {
+                        'id': '1234',
+                        'tenantId': 'T3',
+                        'status': 'UP',
+                        'r0': {'status': 'DELETED'},
+                    }
                 },
                 'collection-count': 1
             },
@@ -673,12 +746,12 @@ class DBDriverTests(object):
         )
 
         results = self.driver.get_deployments(tenant_id='T3')
-        self.assertEquals(results['1']['status'], 'UP')
-        self.assertEquals(results['2']['status'], 'FAILED')
-        self.assertEquals(results['3']['status'], 'UP')
-        self.assertEquals(results['4']['status'], 'UP')
-        self.assertEquals(results['5']['status'], 'UP')
-        self.assertEquals(results['6']['status'], 'UP')
+        self.assertEquals(results['results']['1']['status'], 'UP')
+        self.assertEquals(results['results']['2']['status'], 'FAILED')
+        self.assertEquals(results['results']['3']['status'], 'UP')
+        self.assertEquals(results['results']['4']['status'], 'UP')
+        self.assertEquals(results['results']['5']['status'], 'UP')
+        self.assertEquals(results['results']['6']['status'], 'UP')
 
     def test_trim_get_deployments(self):
         '''Make sure we don't return too much data in list deployments'''
@@ -705,7 +778,6 @@ class DBDriverTests(object):
         )
         results = self.driver.get_deployments(tenant_id='T3', with_count=True)
         self.assertEqual(results['collection-count'], 1)
-        result = results['1']
         expected = {
             u'id': u'1',
             u'tenantId': u'T3',
@@ -713,7 +785,7 @@ class DBDriverTests(object):
             u'blueprint': {},
             u'environment': {},
         }
-        self.assertDictEqual(expected, result)
+        self.assertDictEqual(expected, results['results']['1'])
 
     def test_trim_get_workflows(self):
         '''Make sure we don't return too much data in list workflows'''
@@ -734,7 +806,6 @@ class DBDriverTests(object):
         )
         results = self.driver.get_workflows(tenant_id='T3')
         self.assertEqual(results['collection-count'], 1),
-        result = results['1']
         expected = {
             u'id': u'1',
             u'name': {},
@@ -743,7 +814,7 @@ class DBDriverTests(object):
             u'wf_spec': {},
             u'tenantId': u"T3",
         }
-        self.assertDictEqual(expected, result)
+        self.assertDictEqual(expected, results['results']['1'])
 
 
 if __name__ == '__main__':
