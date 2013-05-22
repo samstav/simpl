@@ -232,7 +232,7 @@ class TestServer(unittest.TestCase):
 
     def test_put_deployment_tenant_id_mismatch(self):
         '''Using PUT /deployments/<oid> to exercise _content_to_deployment'''
-        self.root_app.error_handler = { 500: error_formatter }
+        self.root_app.error_handler = {500: error_formatter}
         self.root_app.catchall = True
         id1 = uuid.uuid4().hex[0:7]
         data = """
@@ -279,15 +279,21 @@ class TestServer(unittest.TestCase):
         self.app.put('/T1000/deployments/%s' % id1, data,
                      content_type='application/x-yaml')
         # Not an admin - 401
-        res = self.app.post('/T1000/deployments/%s/secrets' % id1, "A: 1",
-                           content_type='application/x-yaml',
-                           expect_errors=True)
+        res = self.app.post(
+            '/T1000/deployments/%s/secrets' % id1,
+            "A: 1",
+            content_type='application/x-yaml',
+            expect_errors=True
+        )
         self.assertEqual(res.status, '401 Unauthorized')
 
         # Wrong tenant - 404 (don't divulge existence)
-        res = self.app.post('/T2000/deployments/%s/secrets' % id1, "A: 1",
-                           content_type='application/x-yaml',
-                           expect_errors=True)
+        res = self.app.post(
+            '/T2000/deployments/%s/secrets' % id1,
+            "A: 1",
+            content_type='application/x-yaml',
+            expect_errors=True
+        )
         self.assertEqual(res.status, '404 Not Found')
 
 
