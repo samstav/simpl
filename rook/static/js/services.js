@@ -926,9 +926,11 @@ services.factory('auth', ['$http', '$resource', '$rootScope', function($http, $r
       });
     },
 
-    create_identity: function(request, response, endpoint) {
+    create_identity: function(response, params) {
       //Populate identity
       var identity = {};
+      var endpoint = params.endpoint;
+      var headers = params.headers;
       identity.username = response.access.user.name || response.access.user.id;
       identity.user = response.access.user;
       identity.token = response.access.token;
@@ -937,7 +939,7 @@ services.factory('auth', ['$http', '$resource', '$rootScope', function($http, $r
       identity.endpoint_type = endpoint['scheme'];
 
       //Check if this user is an admin
-      var is_admin = request.getResponseHeader('X-AuthZ-Admin') || 'False';
+      var is_admin = headers['X-AuthZ-Admin'] || 'False';
       identity.is_admin = (is_admin === 'True');
 
       return identity;
@@ -996,8 +998,9 @@ services.factory('auth', ['$http', '$resource', '$rootScope', function($http, $r
       var url = is_chrome_extension ? target : "/authproxy";
       var config = { headers: headers };
       return $http.post(url, data, config)
-        .success(function(response, textStatus, request) {
-          auth.identity = auth.create_identity(request, response, endpoint);
+        .success(function(response, status, headers, config) {
+          var params = { headers: headers(), endpoint: endpoint };
+          auth.identity = auth.create_identity(response, params);
           auth.context = auth.create_context(response, endpoint);
           auth.save();
 
