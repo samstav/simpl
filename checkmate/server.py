@@ -66,12 +66,12 @@ DEFAULT_AUTH_ENDPOINTS = [{
 def error_formatter(error):
     """Catch errors and output them in the correct format/media-type"""
     output = {}
-    accept = request.get_header("Accept")
-    if "application/json" in accept:
-        error.headers = HeaderDict({"content-type": "application/json"})
-        error.apply(response)
-    elif "application/x-yaml" in accept:
+    accept = request.get_header("Accept") or ""
+    if "application/x-yaml" in accept:
         error.headers = HeaderDict({"content-type": "application/x-yaml"})
+        error.apply(response)
+    else:  # default to JSON
+        error.headers = HeaderDict({"content-type": "application/json"})
         error.apply(response)
 
     if isinstance(error.exception, CheckmateNoMapping):

@@ -69,8 +69,9 @@ def _content_to_deployment(bottle_request, deployment_id=None, tenant_id=None):
     if 'includes' in deployment:
         del deployment['includes']
     if 'tenantId' in deployment and tenant_id:
-        assert deployment['tenantId'] == tenant_id, ("tenantId must match "
-                                                     "with current tenant ID")
+        if deployment['tenantId'] != tenant_id:
+            raise CheckmateValidationException("tenantId must match "
+                                               "with current tenant ID")
     else:
         assert tenant_id, "Tenant ID must be specified in deployment "
         deployment['tenantId'] = tenant_id

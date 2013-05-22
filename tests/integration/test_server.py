@@ -8,6 +8,7 @@ import uuid
 from bottle import default_app
 from webtest import TestApp
 
+from checkmate.server import error_formatter
 from checkmate import blueprints, deployments, environments, workflows
 from checkmate.middleware import (
     TenantMiddleware,
@@ -26,9 +27,9 @@ class TestServer(unittest.TestCase):
         reload(deployments)
         reload(environments)
         reload(workflows)
-        root_app = default_app.pop()
-        root_app.catchall = False
-        tenant = TenantMiddleware(root_app)
+        self.root_app = default_app.pop()
+        self.root_app.catchall = False
+        tenant = TenantMiddleware(self.root_app)
         context = ContextMiddleware(tenant)
         extension = ExtensionsMiddleware(context)
         self.app = TestApp(extension)
@@ -183,6 +184,72 @@ class TestServer(unittest.TestCase):
         #TODO: make tests clean so we can predict if we get a 200 or 201
         self.assertIn(res.status, ['201 Created', '200 OK'])
 
+    def test_unwrapped_deployment(self):
+        '''Using PUT /deployments/<oid> to exercise _content_to_deployment'''
+        id1 = uuid.uuid4().hex[0:7]
+        data = """
+            id: '%s'
+            """ % id1
+        res = self.app.put('/T1000/deployments/%s' % id1, data,
+                           content_type='application/x-yaml')
+        self.assertIn(res.status, ['201 Created', '200 OK'])
+
+    def test_wrapped_deployment(self):
+        '''Using PUT /deployments/<oid> to exercise _content_to_deployment'''
+        id1 = uuid.uuid4().hex[0:7]
+        data = """
+            deployment:
+                id: '%s'
+            """ % id1
+        res = self.app.put('/T1000/deployments/%s' % id1, data,
+                           content_type='application/x-yaml')
+        self.assertIn(res.status, ['201 Created', '200 OK'])
+
+    def test_put_deployment_with_no_id_in_body(self):
+        '''Using PUT /deployments/<oid> to exercise _content_to_deployment'''
+        id1 = uuid.uuid4().hex[0:7]
+        data = """
+            deployment:
+                name: minimal deployment
+            """
+        res = self.app.put('/T1000/deployments/%s' % id1, data,
+                           content_type='application/x-yaml')
+        self.assertIn(res.status, ['201 Created', '200 OK'])
+        self.assertIn('"id": "%s"' % id1, res.body)
+
+    def test_put_deployment_with_includes(self):
+        '''Using PUT /deployments/<oid> to exercise _content_to_deployment'''
+        id1 = uuid.uuid4().hex[0:7]
+        data = """
+            deployment:
+                id: '%s'
+                includes: included stuff
+            """ % id1
+        res = self.app.put('/T1000/deployments/%s' % id1, data,
+                           content_type='application/x-yaml')
+        self.assertIn(res.status, ['201 Created', '200 OK'])
+        self.assertNotIn('"includes":', res.body)
+
+    def test_put_deployment_tenant_id_mismatch(self):
+        '''Using PUT /deployments/<oid> to exercise _content_to_deployment'''
+        self.root_app.error_handler = {500: error_formatter}
+        self.root_app.catchall = True
+        id1 = uuid.uuid4().hex[0:7]
+        data = """
+            deployment:
+                id: '%s'
+                tenantId: allTheIDs
+            """ % id1
+        res = self.app.put(
+            '/T1000/deployments/%s' % id1,
+            data,
+            content_type='application/x-yaml',
+            headers={'Accept': 'application/x-yaml'},
+            expect_errors=True
+        )
+        self.assertEqual(res.status, '400 Bad Request')
+        self.assertIn('tenantId must match with current tenant ID', res.body)
+
     def test_get_deployment_secrets(self):
         '''Check that GET /secrets responds'''
         id1 = uuid.uuid4().hex[0:7]
@@ -212,15 +279,21 @@ class TestServer(unittest.TestCase):
         self.app.put('/T1000/deployments/%s' % id1, data,
                      content_type='application/x-yaml')
         # Not an admin - 401
-        res = self.app.post('/T1000/deployments/%s/secrets' % id1, "A: 1",
-                           content_type='application/x-yaml',
-                           expect_errors=True)
+        res = self.app.post(
+            '/T1000/deployments/%s/secrets' % id1,
+            "A: 1",
+            content_type='application/x-yaml',
+            expect_errors=True
+        )
         self.assertEqual(res.status, '401 Unauthorized')
 
         # Wrong tenant - 404 (don't divulge existence)
-        res = self.app.post('/T2000/deployments/%s/secrets' % id1, "A: 1",
-                           content_type='application/x-yaml',
-                           expect_errors=True)
+        res = self.app.post(
+            '/T2000/deployments/%s/secrets' % id1,
+            "A: 1",
+            content_type='application/x-yaml',
+            expect_errors=True
+        )
         self.assertEqual(res.status, '404 Not Found')
 
 
