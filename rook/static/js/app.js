@@ -1655,10 +1655,8 @@ function DeploymentListController($scope, $location, $http, $resource, scroll, i
     this.klass = $resource((checkmate_server_base || '') + path);
     this.klass.get({tenantId: $scope.auth.context.tenantId}, function(list, getResponseHeaders){
       var total_item_count,
-          links = { numbered_links: [] },
-          page_info,
-          deployments_url = '/' + $scope.auth.context.tenantId + '/deployments',
-          counter = 0;
+          paging_info,
+          deployments_url = '/' + $scope.auth.context.tenantId + '/deployments';
 
       console.log("Load returned");
 
@@ -1667,20 +1665,8 @@ function DeploymentListController($scope, $location, $http, $resource, scroll, i
       } else {
         total_item_count = parseInt(_.last(getResponseHeaders('Content-Range').split('/')));
       }
-      page_info = paginator.getPagingInformation(total_item_count);
 
-      if(page_info.totalPages > 1) {
-        while(counter < page_info.totalPages){
-          links.numbered_links.push({ uri: deployments_url + '?limit=' + paginator.limit + '&offset=' + (counter * paginator.limit),
-                                     text: counter + 1 });
-          counter++
-        }
-
-        links.previous = { uri: deployments_url + '?limit=' + paginator.limit + '&offset=' + (paginator.offset - paginator.limit),
-                        text: 'Previous' };
-        links.next = { uri: deployments_url + '?limit=' + paginator.limit + '&offset=' + (paginator.offset + paginator.limit),
-                        text: 'Next' };
-      }
+      paging_info = paginator.getPagingInformation(total_item_count, deployments_url);
 
       items.all = [];
       items.receive(list, function(item) {
@@ -1689,9 +1675,9 @@ function DeploymentListController($scope, $location, $http, $resource, scroll, i
                 status: item.status};});
       $scope.count = items.count;
       $scope.items = items.all;
-      $scope.currentPage = page_info.currentPage;
-      $scope.totalPages = page_info.totalPages;
-      $scope.links = links;
+      $scope.currentPage = paging_info.currentPage;
+      $scope.totalPages = paging_info.totalPages;
+      $scope.links = paging_info.links;
       console.log("Done loading");
     });
   };

@@ -1229,8 +1229,34 @@ services.factory('pagination', function(){
     return '?' + paging_params.join('&');
   }
 
-  function getPagingInformation(total_item_count){
-    var current_page;
+  function buildPagingLinks(current_page, total_pages, base_url, offset, limit){
+    var counter = 0,
+        links = { numbered_links: [] };
+
+    if(total_pages > 1) {
+      while(counter < total_pages){
+        links.numbered_links.push({ uri: base_url + '?limit=' + limit + '&offset=' + (counter * limit),
+                                   text: counter + 1 });
+        counter++;
+      }
+
+      if(!(current_page === 1)) {
+        links.previous = { uri: base_url + '?limit=' + limit + '&offset=' + (offset - limit),
+                           text: 'Previous' };
+      }
+
+      if(!(current_page === total_pages) && !(total_pages === 0)) {
+        links.next = { uri: base_url + '?limit=' + limit + '&offset=' + (offset + limit),
+                       text: 'Next' };
+      }
+    }
+    return links;
+  }
+
+  function getPagingInformation(total_item_count, base_url){
+    var current_page,
+        total_pages,
+        page_links;
 
     if(!this.offset || total_item_count === 0){
       current_page = 1;
@@ -1240,9 +1266,13 @@ services.factory('pagination', function(){
       current_page = parseInt(this.offset/this.limit, 10) + 1;
     }
 
+    total_pages = Math.ceil(total_item_count / this.limit);
+    page_links = buildPagingLinks(current_page, total_pages, base_url, this.offset, this.limit);
+
     return {
              currentPage: current_page,
-             totalPages: Math.ceil(total_item_count / this.limit)
+             totalPages: total_pages,
+             links: page_links
            };
   }
 

@@ -24,13 +24,13 @@
 
   <div class="pagination">
     <ul>
-      <li ng-hide="currentPage == 1" >
+      <li ng-hide="!links.previous" >
         <a ng-href="{{links.previous.uri}}">{{links.previous.text}}</a>
       </li>
       <li ng-class="{active: link.text == currentPage}" ng-repeat="link in links.numbered_links">
         <a ng-href="{{link.uri}}">{{link.text}}</a>
       </li>
-      <li ng-hide="currentPage == totalPages || totalPages == 0">
+      <li ng-hide="!links.next">
         <a ng-href="{{links.next.uri}}">{{links.next.text}}</a>
       </li>
     </ul>
