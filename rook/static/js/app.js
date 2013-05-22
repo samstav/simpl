@@ -387,7 +387,6 @@ function AppController($scope, $http, $location, $resource, $cookies, auth) {
   };
 
   $scope.on_impersonate_success = function(json) {
-    $('#user_menu').dropdown('toggle');
     $location.path('/');
   };
 
