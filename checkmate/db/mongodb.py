@@ -5,17 +5,21 @@ TODO:
 - Fix mapping between API ID and mongoDB _id field
 
 '''
-import pymongo
+import copy
 import logging
 import time
 import uuid
 
+import pymongo
+from SpiffWorkflow.util import merge_dictionary as collate
+
 from checkmate.classes import ExtensibleDict
 from checkmate.db.common import DbBase, ObjectLockedError, InvalidKeyError
-from checkmate.exceptions import CheckmateDatabaseConnectionError,\
-    CheckmateException
+from checkmate.exceptions import (
+    CheckmateDatabaseConnectionError,
+    CheckmateException,
+)
 from checkmate.utils import merge_dictionary
-from SpiffWorkflow.util import merge_dictionary as collate
 
 LOG = logging.getLogger(__name__)
 
@@ -24,6 +28,21 @@ class Driver(DbBase):
     """MongoDB Database Driver"""
     #db fields we do not want returned to the client
     _object_projection = {'_lock': 0, '_lock_timestamp': 0, '_id': 0}
+
+    _deployment_projection = copy.deepcopy(_object_projection)
+    _deployment_projection['blueprint.documentation'] = 0
+    _deployment_projection['blueprint.options'] = 0
+    _deployment_projection['blueprint.services'] = 0
+    _deployment_projection['blueprint.resources'] = 0
+    _deployment_projection['environment.providers'] = 0
+    _deployment_projection['inputs'] = 0
+    _deployment_projection['plan'] = 0
+    _deployment_projection['display-outputs'] = 0
+    _deployment_projection['resources'] = 0
+
+    _workflow_projection = copy.deepcopy(_object_projection)
+    _workflow_projection['wf_spec.specs'] = 0
+    _workflow_projection['task_tree'] = 0
 
     def __init__(self, connection_string, driver=None, *args, **kwargs):
         '''Initializes globals for this driver'''
@@ -389,6 +408,12 @@ class Driver(DbBase):
 
     def _get_objects(self, klass, tenant_id=None, with_secrets=None, offset=0,
                      limit=0, with_count=True, with_deleted=False):
+        if klass == 'deployments':
+            projection = self._deployment_projection
+        elif klass == 'workflows':
+            projection = self._workflow_projection
+        else:
+            projection = self._object_projection
         response = {}
         if offset is None:
             offset = 0
@@ -396,7 +421,7 @@ class Driver(DbBase):
             limit = 0
         with self._get_client().start_request():
             results = self.database()[klass].find(self._build_filters(
-                klass, tenant_id, with_deleted), self._object_projection
+                klass, tenant_id, with_deleted), projection
             ).skip(offset).limit(limit)
 
             for entry in results:
