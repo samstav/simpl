@@ -318,6 +318,44 @@ class TestDatabase(ProviderTester):
 
         self.assertListEqual(results, expected)
         self.mox.VerifyAll()
+        
+    def test_db_sync_resource_task(self):
+        """Tests db sync_resource_task via mox"""
+        #Mock instance
+        instance = self.mox.CreateMockAnything()
+        instance.id = 'fake_instance_id'
+        instance.name = 'fake_instance'
+        instance.status = 'ERROR'
+
+        resource_key = "1"
+
+        context = dict(deployment='DEP', resource='1')
+
+        resource = {
+                    'name': 'fake_instance',
+                    'provider': 'database',
+                    'status': 'ERROR',
+                    'instance': {
+                                 'id': 'fake_instance_id'
+                            }
+                    }
+    
+        database_api_mock = self.mox.CreateMockAnything()
+        database_api_mock.get_instance = self.mox.CreateMockAnything()
+    
+        database_api_mock.get_instance(instance.id).AndReturn(instance)
+
+        expected = {
+                    'instance:1': {
+                                   "status": "ERROR"
+                                   }
+                    }
+
+        self.mox.ReplayAll()
+        results = database.sync_resource_task(context, resource, resource_key,
+                                             database_api_mock)
+
+        self.assertDictEqual(results, expected)
 
 
 class TestCatalog(unittest.TestCase):
