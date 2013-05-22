@@ -680,6 +680,71 @@ class DBDriverTests(object):
         self.assertEquals(results['5']['status'], 'UP')
         self.assertEquals(results['6']['status'], 'UP')
 
+    def test_trim_get_deployments(self):
+        '''Make sure we don't return too much data in list deployments'''
+        self.driver.save_deployment(
+            '1',
+            tenant_id='T3',
+            body={
+                'id': '1',
+                'status': 'LAUNCHED',
+                'blueprint': {
+                    'documentation': {},
+                    'options': {},
+                    'services': {},
+                    'resources': {},
+                },
+                'environment': {
+                    'providers': {},
+                },
+                'inputs': {},
+                'plan': {},
+                'display-outputs': {},
+                'resources': {},
+            }
+        )
+        results = self.driver.get_deployments(tenant_id='T3', with_count=True)
+        self.assertEqual(results['collection-count'], 1)
+        result = results['1']
+        expected = {
+            u'id': u'1',
+            u'tenantId': u'T3',
+            u'status': 'UP',
+            u'blueprint': {},
+            u'environment': {},
+        }
+        self.assertDictEqual(expected, result)
+
+    def test_trim_get_workflows(self):
+        '''Make sure we don't return too much data in list workflows'''
+        self.driver.save_workflow(
+            '1',
+            tenant_id='T3',
+            body={
+                'id': '1',
+                'name': {},
+                'progress': {},
+                'status': 'running',
+                'wf_spec': {
+                    'specs': [],
+                },
+                'task_tree': {},
+                'tenantId': "T3",
+            }
+        )
+        results = self.driver.get_workflows(tenant_id='T3')
+        self.assertEqual(results['collection-count'], 1),
+        result = results['1']
+        expected = {
+            u'id': u'1',
+            u'name': {},
+            u'progress': {},
+            u'status': u'running',
+            u'wf_spec': {},
+            u'tenantId': u"T3",
+        }
+        self.assertDictEqual(expected, result)
+
 
 if __name__ == '__main__':
     # Any change here should be made in all test files

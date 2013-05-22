@@ -273,9 +273,11 @@ def write_pagination_headers(data, request, response, uripath, tenant_id):
 
     if 'collection-count' in data:
         total = int(data['collection-count'])
-        del data['collection-count']
     else:
         total = 0
+
+    if data:
+        data['_links'] = {}  # TODO(zns): implement real links
 
     if not offset:
         offset = 0

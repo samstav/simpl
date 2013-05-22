@@ -683,3 +683,33 @@ class Driver(DbBase):
                 # New object
                 raise ValueError("Cannot get the object:%s that has never "
                                  "been saved" % api_id)
+
+    def convert_data(self, klass, body):
+        DbBase.convert_data(self, klass, body)
+        if klass == 'deployments':
+            if 'blueprint' in body:
+                blueprint = body['blueprint']
+                if 'documentation' in blueprint:
+                    del blueprint['documentation']
+                if 'options' in blueprint:
+                    del blueprint['options']
+                if 'services' in blueprint:
+                    del blueprint['services']
+                if 'resources' in blueprint:
+                    del blueprint['resources']
+            if 'environment' in body and 'providers' in body['environment']:
+                del body['environment']['providers']
+            if 'inputs' in body:
+                    del body['inputs']
+            if 'plan' in body:
+                    del body['plan']
+            if 'display-outputs' in body:
+                    del body['display-outputs']
+            if 'resources' in body:
+                    del body['resources']
+        elif klass == "workflows":
+            if 'wf_spec' in body:
+                if 'specs' in body['wf_spec']:
+                    del body['wf_spec']['specs']
+            if 'task_tree' in body:
+                del body['task_tree']
