@@ -326,7 +326,7 @@ def _ensure_kitchen_blueprint(dest, source_repo):
                                  repo_cache)
     LOG.debug("repo_cache: %s" % repo_cache)
     LOG.debug("dest: %s" % dest)
-    if not _blueprint_exists(source_repo, dest):
+    if not _blueprint_exists(repo_cache, dest):
         utils.copy_contents(repo_cache,
                             dest,
                             create_path=True,
