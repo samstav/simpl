@@ -30,6 +30,7 @@ else:
         --with-ui:         enable support for browsers and HTML templates
         --with-simulator:  enable support for the workflow simulator
         --with-admin:      enable /admin calls (authorized to admin users only)
+        --worker:          start the celery worker in-process as well
         --newrelic:        enable newrelic monitoring (place newrelic.ini in
                            your directory)
         --eventlet:        use the eventlet server (recommended in production)

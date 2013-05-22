@@ -137,8 +137,8 @@ def _get_dns_object(context):
 
 def parse_domain(domain_str):
     """Return 'domain.com' for 'sub2.sub1.domain.com' """
-    extractor = tldextract.TLDExtract(cache_file=os.environ.get(
-                                            'CHECKMATE_TLD_CACHE_FILE', None))
+    extractor = tldextract.TLDExtract(
+        cache_file=os.environ.get('CHECKMATE_TLD_CACHE_FILE', None))
     domain_data = extractor(domain_str)
     return '%s.%s' % (domain_data.domain, domain_data.tld)
 
@@ -234,16 +234,18 @@ def create_record(context, domain, name, dnstype, data,
                 email = "admin@%s" % domain
             domain_object = api.create_domain(domain, 300, emailAddress=email)
         else:
-            msg = ('Cannot create %s record (%s->%s) because domain "%s" '
-                      'does not exist.' % (
-                      dnstype, name, data, domain))
+            msg = (
+                'Cannot create %s record (%s->%s) because domain "%s" '
+                'does not exist.' % (
+                dnstype, name, data, domain)
+            )
             LOG.error(msg)
             raise CheckmateException(msg)
 
     try:
         rec = domain_object.create_record(name, data, dnstype, ttl=rec_ttl)
         LOG.debug('Created DNS %s record %s -> %s. TTL: %s' % (
-              dnstype, name, data, rec_ttl))
+            dnstype, name, data, rec_ttl))
     except ResponseError as res_err:
         if "duplicate of" not in res_err.reason:
             create_record.retry(exc=res_err)

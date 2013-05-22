@@ -6,7 +6,8 @@ For tests, we don't care about:
     R0903 - Too few public methods
     R0904 - Too many public methods
     W0212 - Access to protected member of a client class
-    W0232 - Class has no __init__ method '''
+    W0232 - Class has no __init__ method
+'''
 
 import unittest2 as unittest
 
@@ -32,6 +33,8 @@ class TestDeployments(unittest.TestCase):
             'live': False,
             'operation': {},
             'operations-history': [],
+            'created-by': 'me',
+            'secrets': 'LOCKED',
             'plan': {},
             'inputs': {},
             'includes': {},
@@ -136,6 +139,42 @@ class TestDeployments(unittest.TestCase):
     def test_id_validation(self):
         self.assertRaises(CheckmateValidationException, Deployment,
             {'id': 1000})
+
+    def test_schema_backwards_compatible(self):
+        """Test the schema validates a an old deployment"""
+        deployment = {
+            'id': 'test',
+            'name': 'test',
+            # Following fields ommitted on pupose
+            #'live': False,
+            #'operation': {},
+            #'operations-history': [],
+            #'created-by': 'me',
+            #'plan': {},
+            #'inputs': {},
+            #'includes': {},
+            #'resources': {},
+            'workflow': "abcdef",
+            'status': "LAUNCHED",  # old status
+            'blueprint': {
+                'name': 'test bp',
+                'options': {
+                    'url': {
+                        'regex': 'somehting',
+                        'type': 'int',
+                    },
+                }
+            },
+            'environment': {
+                'name': 'environment',
+                'providers': {},
+            },
+        }
+        valid = Deployment(deployment)
+        deployment['status'] = 'UP'  # should be converted
+        deployment['created'] = valid['created']  # gets added
+        self.assertDictEqual(valid._data, deployment)
+
 
 class TestCeleryTasks(unittest.TestCase):
 

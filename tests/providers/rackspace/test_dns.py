@@ -10,10 +10,23 @@ import tldextract
 # Init logging before we load the database, 3rd party, and 'noisy' modules
 from checkmate.utils import init_console_logging
 from checkmate.providers.rackspace import dns
+
 init_console_logging()
 LOG = logging.getLogger(__name__)
 
+try:
+    import socket
+    # Test for internet connection using rackspace.com
+    response=socket.getaddrinfo('www.rackspace.com', 80, 0, 0, socket.TCP_NODELAY)
+    SKIP=False
+    REASON=None
+except socket.gaierror as exc:
+    LOG.warn("No network connection so skipping DNS tests: %s", exc)
+    SKIP=True
+    REASON="No network connection: %s" % exc
 
+
+@unittest.skipIf(SKIP, REASON)
 class TestParseDomain(unittest.TestCase):
     """ Test DNS Provider modules parse_domain function """
 
@@ -25,11 +38,11 @@ class TestParseDomain(unittest.TestCase):
         self.custom_tld_cache_file = os.path.join(os.path.dirname(__file__),
                                                   'tld_set.tmp')
         self.sample_data = [
-                            self.sample_domain,
-                            ('ftp.regaion1.sample.com', 'sample.com'),
-                            ('ftp.regaion1.sample.net', 'sample.net'),
-                            ('ftp.regaion1.sample.co.uk', 'sample.co.uk')
-                            ]
+            self.sample_domain,
+            ('ftp.regaion1.sample.com', 'sample.com'),
+            ('ftp.regaion1.sample.net', 'sample.net'),
+            ('ftp.regaion1.sample.co.uk', 'sample.co.uk')
+        ]
         self.mox = mox.Mox()
 
     def tearDown(self):
@@ -60,9 +73,10 @@ class TestParseDomain(unittest.TestCase):
             LOG.warn(*args)
             self.save_failed = True
 
-        tldlog.warn("unable to cache TLDs in file %s: %s",
-                            self.default_tld_cache_file, mox.IgnoreArg()
-                    ).WithSideEffects(failed)
+        tldlog.warn(
+            "unable to cache TLDs in file %s: %s",
+            self.default_tld_cache_file, mox.IgnoreArg()
+        ).WithSideEffects(failed)
         self.mox.ReplayAll()
 
         answer = dns.parse_domain(domain)

@@ -206,6 +206,7 @@ Note: this is the schema that is being supported in v0.7 of the engine. The sche
 
 **....encrypted-protocols**: The subset of protocols that are encrypted so that we know when to show ssl cert controls. Ex. [https, pop3s]
 **....always-accept-certificates**: if a blueprint always accepts and handles the certificates (especially if the url is entered in free-form supporting any protocol)
+**....default-protocol**: The default protocol to display to the user. If not supplied, clients should default to an unencrypted protocol since it is the simpler option for the user and does not present certificate options which could deter a user from launching the blueprint.
 
 **default**: The default value to use. YAML will assume numbers are ints, so enclose strings in "quotation marks" as a best practice. Special values for this are `=generate_password()` which will generate a random password on the server. We are considering adding parameters to `generate_password()` so the blueprint author can make the password generated match their (or their application's) requirements. This would be used by the blueprint author in tandem with constraints (below) for validation on the client side.
 **type**: the data type of this option. Valid types are: string, integer, boolean, password, url, region, and text (multi-line string). See later for a description of the `url` type which has some special attributes.

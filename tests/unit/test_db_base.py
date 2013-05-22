@@ -28,6 +28,13 @@ class TestDbBase(unittest.TestCase):
         dbb2 = pickle.loads(pickle.dumps(dbb))
         self.assertEqual(dbb2.connection_string, "connection-string://")
 
+    def test_convert_data(self):
+        dbb = DbBase("connection-string://")
+        original = {'status': 'LAUNCHED'}
+        result = dbb.convert_data('workflows', original)
+        self.assertDictEqual(result, {'status': 'LAUNCHED'})
+        self.assertIs(result, original)
+
 
 if __name__ == '__main__':
     # Any change here should be made in all test files

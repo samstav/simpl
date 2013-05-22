@@ -279,6 +279,8 @@ The **symantics** are:
 - Use it to store something in checkmate (ex. a deployment exported from another instance of checkmate)
 
 **GET** will sometimes add the object ID and tenant ID if the underlying store does not provide them. This is so that the object can be identified when parsed later.
+- On plurals (blueprints, components, deployments, environments, workflows), if a `GET` request resuts in no records an empty collection will be returned.
+- On singulars (blueprints/<id>, deployments/<id>, etc.), if a `GET` request results in nothing found an HTTP 404 response will be received.
 
 ###JSON, YAML, and XML
 Objects are returned as JSON by default, but YAML is also supported (content-type: application/x-yaml)
@@ -324,10 +326,12 @@ All calls to GET /deployments and GET /workflows may be optionally paginated by 
     POST [/:tid]/deployments
     POST [/:tid]/deployments/+parse[?check_limits=1&check_access=1]
     POST [/:tid]/deployments/+preview
-    PUT/GET/POST/DELETE [/:tid]/deployments/:id
+    POST [/:tid]/deployments/:id/+plan
+    POST [/:tid]/deployments/:id/+deploy
     POST [/:tid]/deployments/:id/+clone
-
+    PUT/GET/POST/DELETE [/:tid]/deployments/:id
     GET [/:tid]/deployments/:id/status
+    GET [/:tid]/deployments/:id/secrets
 
     GET  [/:tid]/workflows/[?offset=OFFSET&limit=LIMIT]
     POST [/:tid]/workflows
@@ -410,6 +414,7 @@ Options:
         --with-ui:         enable support for browsers and HTML templates (requires [rook](https://github.rackspace.com/checkmate/rook))
         --with-simulator:  enable support for the workflow simulator
         --with-admin:      enable /admin calls (authorized to admin users only)
+        --worker:          start the celery worker in-process as well
         --newrelic:        enable newrelic monitoring (place newrelic.ini in
                            your directory)
         --eventlet:        use the eventlet server (recommended in production)
@@ -425,7 +430,7 @@ Options:
 
 Once up, you can issue curl commands (or point your browser at it if you started the server --with-ui) to use checkmate.
 
-To execute deployments, checkmate uses a message queue. You need to have celery running with the checkmate tasks loaded:
+To execute deployments, checkmate uses a message queue. You need to have celery running with the checkmate tasks loaded. You can run it in the server process using `--worker` as mentioned above or run it separately:
 
     $ bin/checkmate-queue START
 
