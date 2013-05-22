@@ -86,8 +86,9 @@ class BrowserMiddleware(object):
         HANDLERS['application/vnd.github.v3.raw'] = write_raw
         self.proxy_endpoints = None
         if proxy_endpoints:
-            self.proxy_endpoints = [environ['uri'] for environ in
-                                    proxy_endpoints]
+            self.proxy_endpoints = {
+                endpoint['uri']: endpoint for endpoint in proxy_endpoints
+            }
         self.with_simulator = with_simulator
         self.with_admin = with_admin
 
@@ -241,6 +242,7 @@ def authproxy(path=None):
     for endpoint in request.proxy_endpoints:
         if endpoint.startswith(domain):
             allowed_domain = True
+            break
 
     if not allowed_domain:
         abort(401, "Auth endpoint not permitted: %s" % source)
@@ -297,15 +299,16 @@ def authproxy(path=None):
         raise HTTPError(401, output=msg)
 
     try:  # to detect if we just authenticated an admin
-        for endpoint in request.proxy_endpoints:
-            if endpoint['uri'] == source:
+        for endpoint_url, endpoint in request.proxy_endpoints.iteritems():
+            if endpoint_url == source:
                 role = endpoint.get('kwargs', {}).get('admin_role')
                 if role:
-                    roles = content['access']['user'].get('roles')
-                    if {"name": role} in roles:
+                    if any(r for r in content['access']['user'].get('roles')
+                           if r['name'] == role):
+                        LOG.debug("Admin authenticated: %s", )
                         response.add_header('X-AuthZ-Admin', 'True')
-    except StandardError:
-        pass
+    except StandardError as exc:
+        LOG.exception(exc)
 
     return write_body(content, request, response)
 
@@ -439,8 +442,10 @@ class RackspaceSSOAuthMiddleware(object):
         self.endpoint = endpoint
         self.anonymous_paths = anonymous_paths or []
         self.auth_header = 'GlobalAuth uri="%s"' % endpoint['uri']
-        if 'kwargs' in endpoint and 'realm' in endpoint['kwargs'] and 'priority' in endpoint['kwargs']:
-            self.auth_header = str('GlobalAuth uri="%s" realm="%s" priority="%s"' % (
+        if ('kwargs' in endpoint and 'realm' in endpoint['kwargs'] and
+                'priority' in endpoint['kwargs']):
+            self.auth_header = str('GlobalAuth uri="%s" realm="%s" '
+                                   'priority="%s"' % (
                                    endpoint['uri'],
                                    endpoint['kwargs'].get('realm'),
                                    endpoint['kwargs'].get('priority')))
@@ -456,7 +461,7 @@ class RackspaceSSOAuthMiddleware(object):
         else:
             self.admin_role = None
 
-        # FIXME: temoporary logic. Make this get a new toiken when needed
+        # FIXME: temporary logic. Make this get a new token when needed
         try:
             result = self._auth_keystone(RequestContext(),
                                          username=self.service_username,
