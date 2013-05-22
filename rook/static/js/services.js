@@ -1111,11 +1111,12 @@ services.factory('auth', ['$http', '$resource', '$rootScope', function($http, $r
           console.log("impersonation successful");
           auth.context.username = username;
           auth.context.token = response.access.token;
-          checkmate.config.header_defaults.headers.common['X-Auth-Source'] = "https://identity.api.rackspacecloud.com/v2.0/tokens";
           auth.context.auth_url = "https://identity.api.rackspacecloud.com/v2.0/tokens";
           auth.get_tenant_id(username).then(
             function() {
               auth.save_context(auth.context);
+              auth.save();
+              auth.check_state();
             }
           );
           /* Not to worry about this for now. Legacy code. */
@@ -1127,11 +1128,10 @@ services.factory('auth', ['$http', '$resource', '$rootScope', function($http, $r
             auth.context.impersonated = false;
           }
           */
-          auth.save();
           callback(response);
         })
         .error(function(response) {
-          console.log("impersonation not successful");
+          console.log("impersonation unsuccessful");
           error_callback(response);
         });
     },
