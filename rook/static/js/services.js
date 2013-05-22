@@ -1098,7 +1098,7 @@ services.factory('auth', ['$http', '$resource', '$rootScope', function($http, $r
         auth.identity.tenants.pop();
     },
 
-    impersonate: function(username, callback, error_callback) {
+    impersonate: function(username) {
       var data = auth.generate_impersonation_data(username, auth.identity.endpoint_type);
       var headers = {
           'X-Auth-Token': auth.identity.token.id,
@@ -1128,11 +1128,9 @@ services.factory('auth', ['$http', '$resource', '$rootScope', function($http, $r
             auth.context.impersonated = false;
           }
           */
-          callback(response);
         })
         .error(function(response) {
           console.log("impersonation unsuccessful");
-          error_callback(response);
         });
     },
     //Check all auth data and update state
