@@ -16,9 +16,9 @@ from checkmate import utils
 
 class TestDeployments(unittest.TestCase):
     """Functional tests for the deployments module"""
-    
+
     mox = mox.Mox()
-    
+
     def test_sync_deployments(self):
         """Tests the deployments.sync_deployments method"""
         context = dict(deployment='DEP', resource='0')
@@ -26,17 +26,17 @@ class TestDeployments(unittest.TestCase):
         env = self.mox.CreateMockAnything()
         deployment = self.mox.CreateMockAnything()
         deployment.id = "1234bcdedfed4134b8db7295603c1def"
-        
+
         driver = self.mox.CreateMockAnything()
         driver.get_deployment(deployment.id).AndReturn(entity)
 
         Deployment = self.mox.CreateMockAnything()
         Deployment(entity).AndReturn(deployment)
-        
+
         deployment.environment().AndReturn(env)
-        
+
         resources = {
-                     "0": { 
+                     "0": {
                      'name': 'fake_lb',
                      'provider': 'load-balancer',
                      'type': 'load-balancer',
@@ -46,15 +46,15 @@ class TestDeployments(unittest.TestCase):
                              }
                       }
                      }
-                     
+
         entity.resources = resources
-        
+
         expected1 = {
                     'instnace:0': {
                                    "status": "ACTIVE"
                                    }
                     }
-                    
+
         expected2 = {
                     "instance:0": {
                                    "status": "ACTIVE",
@@ -63,12 +63,13 @@ class TestDeployments(unittest.TestCase):
                                                 }
                                    }
                     }
-                            
+
         provider = self.mox.CreateMockAnything()
-        env.select_provider(context, resource=resources["0"].get('type'))\
+        env.select_provider(context, resource=resources["0"].get('type'))
                                               .AndReturn(provider)
-        result = provider.get_resource_status(context, deployment.id, resources["0"],
-                                     "0").AndReturn(expected1)
+        result = provider.get_resource_status(context, deployment.id,
+                                              resources["0"], "0")
+                                              .AndReturn(expected1)
 
         deployments = self.mox.CreateMockAnything()                      
         results = deployments.write_body(IgnoreArg(), IgnoreArg(),

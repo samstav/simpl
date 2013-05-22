@@ -339,10 +339,10 @@ class TestDatabase(ProviderTester):
                                  'id': 'fake_instance_id'
                             }
                     }
-    
+
         database_api_mock = self.mox.CreateMockAnything()
         database_api_mock.get_instance = self.mox.CreateMockAnything()
-    
+
         database_api_mock.get_instance(instance.id).AndReturn(instance)
 
         expected = {

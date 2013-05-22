@@ -166,7 +166,7 @@ class TestProviderBase(unittest.TestCase):
     def test_provider_base_get_resource_status(self):
         """Mox tests for get_resource_status of provider base"""
         self.mox = mox.Mox()
-        data = { "provides": "foo"}
+        data = { "provides": "foo" }
         base = ProviderBase(data)
         deployment_id = "someid123"
         key = "0"
