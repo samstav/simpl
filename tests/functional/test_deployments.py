@@ -65,10 +65,10 @@ class TestDeployments(unittest.TestCase):
                     }
 
         provider = self.mox.CreateMockAnything()
-        env.select_provider(context, resource=resources["0"].get('type'))
+        env.select_provider(context, resource=resources["0"].get('type'))\
                                               .AndReturn(provider)
         result = provider.get_resource_status(context, deployment.id,
-                                              resources["0"], "0")
+                                              resources["0"], "0")\
                                               .AndReturn(expected1)
 
         deployments = self.mox.CreateMockAnything()                      
