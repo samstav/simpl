@@ -404,6 +404,14 @@ function AppController($scope, $http, $location, $resource, auth) {
       .then($scope.on_impersonate_success, $scope.on_auth_failed);
   };
 
+  $scope.exit_impersonation = function() {
+    auth.exit_impersonation();
+    $location.url('/');
+  };
+
+  $scope.is_impersonating = function() {
+    return auth.is_impersonating();
+  };
 
   // Utility Functions
   console.log("Getting api version");

@@ -169,4 +169,27 @@ describe('AppController', function(){
     });
   });
 
+  describe('#exit_impersonation', function() {
+    beforeEach(function() {
+      auth.exit_impersonation = sinon.spy();
+      location.url = sinon.spy();
+      scope.exit_impersonation();
+    });
+
+    it('should go back to admin context', function() {
+      expect(auth.exit_impersonation).toHaveBeenCalled();
+    });
+
+    it('should redirect user to the homepage', function() {
+      expect(location.url).toHaveBeenCalledWith('/');
+    })
+  });
+
+  describe('#is_impersonating', function() {
+    it('should call auth#is_impersonating', function() {
+      auth.is_impersonating = sinon.spy();
+      scope.is_impersonating();
+      expect(auth.is_impersonating).toHaveBeenCalled();
+    });
+  });
 });

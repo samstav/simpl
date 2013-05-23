@@ -288,4 +288,44 @@ describe('auth Service', function(){
       expect(this.auth.endpoints).toEqual([]);
     });
   });
+
+  describe('#exit_impersonation', function() {
+    beforeEach(function() {
+      original_context = { context_info: "fakeoriginalcontext" };
+      this.auth.identity.context = original_context;
+      spyOn(this.auth, 'check_state');
+      spyOn(this.auth, 'save');
+      this.auth.exit_impersonation();
+    });
+
+    it('should restore original identity context', function() {
+      expect(this.auth.context).toEqual( { context_info: "fakeoriginalcontext" } );
+    });
+
+    it('should check state to reset auth tokens', function() {
+      expect(this.auth.check_state).toHaveBeenCalled();
+    })
+
+    it('should save auth information to local storage', function() {
+      expect(this.auth.save).toHaveBeenCalled();
+    })
+  });
+
+  describe('#is_impersonating', function() {
+    beforeEach(function() {
+      this.auth.identity = { username: 'admin' };
+      this.auth.context = {};
+    });
+
+    it('should be true if impersonating a tenant', function() {
+      this.auth.context.username = 'tenant';
+      expect(this.auth.is_impersonating()).toBe(true);
+    });
+
+    it('should be false if not impersonating a tenant', function() {
+      this.auth.context.username = 'admin';
+      expect(this.auth.is_impersonating()).toBe(false);
+    });
+  });
+
 });

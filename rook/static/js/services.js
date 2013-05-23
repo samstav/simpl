@@ -1000,8 +1000,9 @@ services.factory('auth', ['$http', '$resource', '$rootScope', '$q', function($ht
       return $http.post(url, data, config)
         .success(function(response, status, headers, config) {
           var params = { headers: headers, endpoint: endpoint };
-          auth.identity = auth.create_identity(response, params);
           auth.context = auth.create_context(response, endpoint);
+          auth.identity = auth.create_identity(response, params);
+          auth.identity.context = _.clone(auth.context);
           auth.save();
 
           //Check token expiration
@@ -1099,6 +1100,16 @@ services.factory('auth', ['$http', '$resource', '$rootScope', '$q', function($ht
       auth.identity.tenants.unshift(_.clone(context));
       if (auth.identity.tenants.length > 10)
         auth.identity.tenants.pop();
+    },
+
+    exit_impersonation: function() {
+      auth.context = _.clone(auth.identity.context);
+      auth.check_state();
+      auth.save();
+    },
+
+    is_impersonating: function() {
+      return auth.identity.username != auth.context.username;
     },
 
     impersonate: function(username) {
