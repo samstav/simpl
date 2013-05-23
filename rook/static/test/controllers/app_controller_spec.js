@@ -3,7 +3,6 @@ describe('AppController', function(){
       http,
       location,
       resource,
-      cookies,
       auth,
       controller,
       api_stub;
@@ -13,10 +12,9 @@ describe('AppController', function(){
     http = {};
     location = {};
     resource = function(){ return api_stub; };
-    cookies = {};
     auth = {};
     api_stub = { get: emptyFunction };
-    controller = new AppController(scope, http, location, resource, cookies, auth);
+    controller = new AppController(scope, http, location, resource, auth);
   });
 
   it('should display the header', function(){

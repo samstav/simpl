@@ -199,7 +199,7 @@ function AutoLoginController($scope, $location, $cookies, auth) {
 }
 
 //Root controller that implements authentication
-function AppController($scope, $http, $location, $resource, $cookies, auth) {
+function AppController($scope, $http, $location, $resource, auth) {
   $scope.showHeader = true;
   $scope.showStatus = false;
   $scope.foldFunc = CodeMirror.newFoldFunction(CodeMirror.braceRangeFinder);
