@@ -25,16 +25,54 @@ describe('AppController', function(){
     expect(scope.showStatus).toBe(false);
   });
 
-  it('should set auth#selected_endpoing', function() {
-    endpoint = { uri: 'fakeuri' };
-    scope.select_endpoint(endpoint);
-    expect(auth.selected_endpoint).toEqual({ uri: 'fakeuri' });
+  describe('#select_endpoint', function() {
+    var endpoint;
+    beforeEach(function() {
+      endpoint = { uri: 'fakeuri' };
+      spyOn(localStorage, 'setItem');
+    });
+
+    it('should store current endpoint in auth service', function() {
+      scope.select_endpoint(endpoint);
+      expect(auth.selected_endpoint).toEqual({ uri: 'fakeuri' });
+    });
+
+    it('should store current endpoint in localStorage', function() {
+      scope.select_endpoint(endpoint);
+      expect(localStorage.setItem).toHaveBeenCalledWith('selected_endpoint', '{"uri":"fakeuri"}');
+    });
+
   });
 
-  it('should get selected endpoing', function() {
-    endpoint = { uri: 'fakeuri' };
-    scope.select_endpoint(endpoint);
-    expect(scope.get_selected_endpoint()).toEqual({ uri: 'fakeuri' });
+  describe('#get_selected_endpoint', function() {
+    var endpoint;
+    beforeEach(function() {
+      endpoint = { uri: 'fakeuri' };
+      endpoint_string = '{"uri":"fakeuri"}';
+      auth.endpoints = [];
+      spyOn(localStorage, 'getItem').andReturn(undefined);
+      spyOn(JSON, 'parse');
+    });
+
+    it('should get selected endpoint from localStorage, if present', function() {
+      localStorage.getItem.andReturn(endpoint_string);
+      JSON.parse.andReturn(endpoint);
+      expect(scope.get_selected_endpoint()).toEqual({ uri: 'fakeuri' });
+    });
+
+    it('should get selected endpoint from auth#selected_endpoint, if present', function() {
+      auth.selected_endpoint = endpoint;
+      expect(scope.get_selected_endpoint()).toEqual({ uri: 'fakeuri' });
+    });
+
+    it('should default to first endpoint if it has not been saved yet', function() {
+      auth.endpoints = [endpoint, {}, {}]
+      expect(scope.get_selected_endpoint()).toEqual({ uri: 'fakeuri' });
+    });
+
+    it('should default to an empty object if endpoints have not been loaded yet', function() {
+      expect(scope.get_selected_endpoint()).toEqual({});
+    });
   });
 
   describe('#is_active', function() {

@@ -332,10 +332,12 @@ function AppController($scope, $http, $location, $resource, auth) {
 
   $scope.select_endpoint = function(endpoint) {
     auth.selected_endpoint = endpoint;
+    localStorage.setItem('selected_endpoint', JSON.stringify(endpoint));
   };
 
   $scope.get_selected_endpoint = function() {
-    return auth.selected_endpoint || auth.endpoints[0] || {};
+    var local_endpoint = localStorage.selected_endpoint || null;
+    return JSON.parse(local_endpoint) || auth.selected_endpoint || auth.endpoints[0] || {};
   };
 
   // Log in using credentials delivered through bound_credentials
