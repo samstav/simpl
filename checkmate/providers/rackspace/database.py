@@ -247,12 +247,13 @@ class Provider(ProviderBase):
                                                       self.key))
 
     def get_resource_status(self, context, deployment_id, resource, key,
-                            api=None):
+                            sync_callable=None, api=None):
         return super(Provider, self).get_resource_status(context,
                                                          deployment_id,
                                                          resource, key,
+                                                         sync_callable=
                                                          sync_resource_task,
-                                                         api)
+                                                         api=api)
 
     def delete_resource_tasks(self, context, deployment_id, resource, key):
         self._verify_existing_resource(resource, key)
@@ -829,13 +830,21 @@ def sync_resource_task(context, resource, resource_key, api=None):
     match_celery_logging(LOG)
     key = "instance:%s" % resource_key
     if api is None:
-        api = Provider.connect(context,
-                                resource.get("instance")['host_region'])
+        instance = resource.get("instance")
+        if 'region' in instance:
+            region = instance['region']
+        elif 'host_region' in instance:
+            region = instance['host_region']
+        elif 'region' in resource:
+            region = resource['region']
+        else:
+            region = Provider.find_a_region(context)
+        api = Provider.connect(context, region)
     try:
-        db = api.get_instance(resource.get("instance", {}).get("id"))
+        database = api.get_instance(resource.get("instance", {}).get("id"))
         return {
             key: {
-                "status": db.status
+                "status": database.status
             }
         }
     except ResponseError:
