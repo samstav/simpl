@@ -241,6 +241,11 @@
       <button type="button" class="close" data-dismiss="modal">&times;</button>
       <h3>Welcome to Checkmate!</h3>
       <br>
+      <!-- ANNOUNCEMENT -->
+      <div class="announcement" ng-cloak ng-show="display_announcement()">
+        <img src="/img/announcement-arrow.png" />
+        You can now impersonate tenants!
+      </div>
     </div>
     <div class="modal-body">
       <form class="form-horizontal" style="margin-bottom: 0px" ng-init="selected_endpoint=null" name="loginForm" ng-submit="logIn()">
@@ -249,9 +254,9 @@
         </div>
         <fieldset>
           <ul class="nav nav-tabs">
-            <li ng-repeat="endpoint in auth.endpoints" ng-class="is_active(endpoint)">
+            <li ng-repeat="endpoint in auth.endpoints" ng-class="is_active(endpoint) + ' ' + realm_name(endpoint)">
               <a href="#" data-toggle="tab" ng-hide="is_hidden(endpoint)" ng-click="$parent.select_endpoint(endpoint)">
-                {{endpoint['realm']}}
+                <i class="icon-fire" ng-show="display_announcement()"></i>{{endpoint['realm']}}
               </a>
             </li>
           </ul>

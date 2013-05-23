@@ -75,6 +75,25 @@ describe('AppController', function(){
     });
   });
 
+  describe('#realm_name', function() {
+    it('should return a sanitized version of the endpoint realm', function() {
+      var endpoint = { realm: 'fake realm 123!' };
+      expect(scope.realm_name(endpoint)).toEqual('fakerealm123');
+    });
+  });
+
+  describe('#display_announcement', function() {
+    it('should display impersonation annuncement if Rackspace SSO has the highest priority', function() {
+      auth.endpoints = [ { realm: "Rackspace SSO" }, {}, {} ];
+      expect(scope.display_announcement()).toBe(true);
+    });
+
+    it('should not display impersonation annuncement if Rackspace SSO does not have the highest priority', function() {
+      auth.endpoints = [ {}, { realm: "Rackspace SSO" }, {} ];
+      expect(scope.display_announcement()).toBe(false);
+    });
+  });
+
   describe('#is_active', function() {
     beforeEach(function() {
       spyOn(scope, 'get_selected_endpoint').andReturn({ uri: 'fakeuri' });

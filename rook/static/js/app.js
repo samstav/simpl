@@ -326,6 +326,14 @@ function AppController($scope, $http, $location, $resource, auth) {
     return "";
   };
 
+  $scope.realm_name = function(endpoint) {
+    return endpoint.realm.toLowerCase().replace(/[^a-z0-9]/g, '');
+  }
+
+  $scope.display_announcement = function() {
+    return auth.endpoints[0].realm == "Rackspace SSO";
+  }
+
   $scope.is_hidden = function(endpoint) {
     return (endpoint.scheme == 'GlobalAuthImpersonation');
   };
