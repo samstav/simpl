@@ -47,13 +47,13 @@ class SingleTask(Task):  # pylint: disable=R0904
             with(self.lock_db.lock(self.lock_key.format(**locals()),
                                    self.lock_timeout)):
                 return self.run(*args, **kwargs)
-        except ObjectLockedError, exc:
+        except ObjectLockedError as exc:
             LOG.warn("Object lock collision in Single Task on "
                      "Deployment %s", args[0])
-            self.retry(exc=exc)
+            self.retry()
         except InvalidKeyError:
             raise
         except RetryTaskError:
             raise
-        except Exception, exc:
+        except Exception as exc:
             self.retry(exc=exc)
