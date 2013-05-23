@@ -269,9 +269,9 @@ def formatted_response(uripath, with_pagination=False):
     def _formatted_response(fxn):
         def _decorator(*args, **kwargs):
             try:
-                offset = _validate_range_values(request, 'offset', kwargs)
-                limit = _validate_range_values(request, 'limit', kwargs)
-            except ValueError: 
+                _validate_range_values(request, 'offset', kwargs)
+                _validate_range_values(request, 'limit', kwargs)
+            except ValueError:
                 response.status = 416
                 response.set_header('Content-Range', '%s */*' % uripath)
                 return
@@ -280,8 +280,8 @@ def formatted_response(uripath, with_pagination=False):
             if with_pagination:
                 _write_pagination_headers(
                     data,
-                    offset or 0,
-                    limit,
+                    kwargs.get('offset') or 0,
+                    kwargs.get('limit'),
                     response,
                     uripath,
                     kwargs.get('tenant_id', request.context.tenant)
@@ -311,7 +311,7 @@ def _write_pagination_headers(data, offset, limit, response, uripath, tenant_id)
     """Add pagination headers to the response body"""
     count = len(data.get('results'))
     if 'collection-count' in data:
-        total = int(data.get('collection-count',0))
+        total = int(data.get('collection-count', 0))
     elif offset == 0 and (limit is None or limit > data['results'].count()):
         total = count
     else:
@@ -321,7 +321,7 @@ def _write_pagination_headers(data, offset, limit, response, uripath, tenant_id)
     response.set_header(
         'Content-Range',
         "%s %d-%d/%s" % (uripath, offset, offset + max(count - 1, 0),
-            total if total is not None else '*')
+                         total if total is not None else '*')
     )
 
     if offset != 0 or total > count:
