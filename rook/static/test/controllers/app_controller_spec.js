@@ -72,4 +72,46 @@ describe('AppController', function(){
     });
   });
 
+  describe('#impersonate', function() {
+    var $rootScope, deferred;
+    beforeEach(inject(function(_$rootScope_, $q) {
+      $rootScope = _$rootScope_;
+      deferred = $q.defer();
+    }));
+
+    it('should call the appropriate callback after impersonating user', function() {
+      deferred.resolve('success');
+      auth.impersonate = sinon.stub().returns(deferred.promise);
+      scope.on_impersonate_success = sinon.stub();
+      scope.impersonate('fakeuser');
+      $rootScope.$apply();
+      expect(scope.on_impersonate_success).toHaveBeenCalled();
+    });
+
+    it('should call the appropriate callback if unable to impersonate user', function() {
+      deferred.reject('error');
+      auth.impersonate = sinon.stub().returns(deferred.promise);
+      scope.on_auth_failed = sinon.stub();
+      scope.impersonate('fakeuser');
+      $rootScope.$apply();
+      expect(scope.on_auth_failed).toHaveBeenCalled();
+    });
+  });
+
+  describe('#on_impersonate_success', function() {
+    it('should redirect to new tenant path if under one', function() {
+      location.path = sinon.stub().returns('/555555/somepath');
+      auth.context = { tenantId: '666666' }
+      scope.on_impersonate_success();
+      expect(location.path).toHaveBeenCalledWith('/666666/somepath');
+    });
+
+    it('should reload current anonymous path', function() {
+      location.path = sinon.stub().returns('/somepath');
+      auth.context = { tenantId: '666666' }
+      scope.on_impersonate_success();
+      expect(location.path).toHaveBeenCalledWith('/somepath');
+    });
+  });
+
 });

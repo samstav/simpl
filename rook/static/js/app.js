@@ -384,7 +384,13 @@ function AppController($scope, $http, $location, $resource, $cookies, auth) {
   };
 
   $scope.on_impersonate_success = function(response) {
-    $location.path('/');
+    var current_path = $location.path();
+    var next_path = current_path;
+    var account_number = /^\/[0-9]+/;
+    if (current_path.match(account_number)) {
+      next_path = current_path.replace(account_number, "/" + auth.context.tenantId);
+    }
+    $location.path(next_path);
   };
 
   $scope.username = "";

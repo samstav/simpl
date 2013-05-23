@@ -817,7 +817,7 @@ services.factory('github', ['$http', function($http) {
  * - contextChanged (always called: log on/off, impersonating/un-impersonating)
  *
 **/
-services.factory('auth', ['$http', '$resource', '$rootScope', function($http, $resource, $rootScope) {
+services.factory('auth', ['$http', '$resource', '$rootScope', '$q', function($http, $resource, $rootScope, $q) {
   var auth = {
 
     // Stores the user's identity and necessary credential info
@@ -1109,17 +1109,24 @@ services.factory('auth', ['$http', '$resource', '$rootScope', function($http, $r
       };
       var url = is_chrome_extension ? auth.auth_url : "/authproxy";
       var config = {headers: headers};
-      return $http.post(url, data, config)
-        .success(function(response) {
-          console.log("impersonation successful");
+      var deferred = $q.defer();
+      $http.post(url, data, config)
+        .success(function(response, status, headers, config) {
           auth.context.username = username;
           auth.context.token = response.access.token;
           auth.context.auth_url = "https://identity.api.rackspacecloud.com/v2.0/tokens";
           auth.get_tenant_id(username).then(
-            function() {
+            function(tenant_response) {
+              console.log("impersonation successful");
               auth.save_context(auth.context);
               auth.save();
               auth.check_state();
+              deferred.resolve('All is fine!');
+            },
+            function(tenant_response) {
+              var error = 'Error retrieving tenant ID: ' + response;
+              console.log(error);
+              deferred.reject(error);
             }
           );
           /* Not to worry about this for now. Legacy code. */
@@ -1132,9 +1139,12 @@ services.factory('auth', ['$http', '$resource', '$rootScope', function($http, $r
           }
           */
         })
-        .error(function(response) {
-          console.log("impersonation unsuccessful");
+        .error(function(response, status, headers, config) {
+          var error = "impersonation unsuccessful";
+          console.log(error);
+          deferred.reject(error);
         });
+      return deferred.promise;
     },
     //Check all auth data and update state
     check_state: function() {
