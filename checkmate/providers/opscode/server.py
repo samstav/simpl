@@ -1,6 +1,12 @@
-
+'''
+Chef Server Provider
+'''
 import logging
+import os
+from subprocess import check_output, CalledProcessError
 
+from celery.task import task
+import chef
 from SpiffWorkflow.operators import Attrib
 from SpiffWorkflow.specs import Celery, Merge, Transform
 
@@ -134,18 +140,11 @@ class Provider(ProviderBase):
                                 task_tags=None))
 
 
-"""
-  Celery tasks to manipulate Chef
-
-    Set CHEF_PATH environment variable if you want to use a specific
-    configuration instance. The knife.rb from that path will be used.
-"""
-import os
-from subprocess import check_output, CalledProcessError
-
-from celery.task import task
-import chef
-
+#
+#  Celery tasks to manipulate Chef
+#
+#  Set CHEF_PATH environment variable if you want to use a specific
+#  configuration instance. The knife.rb from that path will be used.
 
 def create_role_recipe_string(roles=None, recipes=None):
     s = ''
@@ -158,16 +157,14 @@ def create_role_recipe_string(roles=None, recipes=None):
     # remove the trailing space and comma
     return s[:-2]
 
-""" Celery tasks """
-
 
 @task
 def register_node(deployment, name, runlist=None, attributes=None,
-                             environment=None):
+                  environment=None):
     match_celery_logging(LOG)
     try:
         api = chef.autoconfigure(
-                base_path=os.environ.get('STOCKTON_CHEF_PATH'))
+                base_path=os.environ.get('CHECKMATE_CHEF_PATH'))
         n = chef.Node(name, api=api)
         if runlist is not None:
             n.run_list = runlist
