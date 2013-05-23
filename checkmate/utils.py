@@ -23,7 +23,8 @@ import uuid
 import subprocess
 import shutil
 
-from bottle import abort, request
+from bottle import abort, request, response
+from functools import wraps
 import yaml
 from yaml.events import AliasEvent, ScalarEvent
 from yaml.composer import ComposerError
@@ -259,6 +260,38 @@ HANDLERS = {
     'application/json': write_json,
     'default': write_json
 }
+
+
+def formatted_response(uripath, with_pagination=False):
+    '''A function decorator that adds pagination information to the response
+    header of a route/get/post/put function
+    '''
+    def _formatted_response(fxn):
+        def _decorator(*args, **kwargs):
+            if 'limit' not in kwargs:
+                limit = request.query.get('limit')
+                if limit:
+                    kwargs['limit'] = int(limit)
+            if 'offset' not in kwargs:
+                offset = request.query.get('offset')
+                if limit:
+                    kwargs['offset'] = int(offset)
+            data = fxn(*args, **kwargs)
+            if with_pagination:
+                write_pagination_headers(
+                    data,
+                    request,
+                    response,
+                    uripath,
+                    kwargs.get('tenant_id', request.context.tenant)
+                )
+            return write_body(
+                data,
+                request,
+                response
+            )
+        return wraps(fxn)(_decorator)
+    return _formatted_response
 
 
 def write_pagination_headers(data, request, response, uripath, tenant_id):
@@ -567,7 +600,7 @@ def with_tenant(fxn):
     """A function decorator that ensures a context tenant_id is passed in to
     the decorated function as a kwarg"""
     def wrapped(*args, **kwargs):
-        if kwargs and kwargs.get('tenant_id'):
+        if kwargs.get('tenant_id'):
             # Tenant ID is being passed in
             return fxn(*args, **kwargs)
         else:

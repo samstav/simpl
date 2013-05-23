@@ -342,6 +342,39 @@ class DBDriverTests(object):
             self.driver.get_deployments(tenant_id='T3')
         )
 
+    def test_get_objects_with_no_tenant_id_returns_all_objects(self):
+        '''We are really testing object, but using deployment so that the
+        test works regardless of driver implementation
+        '''
+        self.driver.save_deployment(
+            '1234',
+            tenant_id='T3',
+            body={'id': '1234', 'status': 'NEW'}
+        )
+        self.driver.save_deployment(
+            '4321',
+            tenant_id='T3',
+            body={'id': '4321', 'status': 'NEW'}
+        )
+        self.driver.save_deployment(
+            '9999',
+            tenant_id='TOTHER',
+            body={'id': '9999', 'status': 'NEW'}
+        )
+
+        self.assertEquals(
+            {
+                '_links': {},
+                'results': {
+                    '1234': {'id': '1234', 'tenantId': 'T3', 'status': 'NEW'},
+                    '4321': {'id': '4321', 'tenantId': 'T3', 'status': 'NEW'},
+                    '9999': {'id': '9999', 'tenantId': 'TOTHER', 'status': 'NEW'}
+                },
+                'collection-count': 3
+            },
+            self.driver.get_deployments(tenant_id=None)
+        )
+
     def test_get_objects_with_secrets(self):
         '''We are really testing object, but using deployment so that the
         test works regardless of driver implementation
