@@ -22,6 +22,7 @@ init_console_logging()
 from bottle import (
     abort,
     Bottle,
+    get,
     HTTPError,
     request,
     response,
@@ -414,24 +415,22 @@ def feedback():
     return write_body(user_feedback, request, response)
 
 
-@ROOK_API.get('/admin/feedback')
-@ROOK_API.get('/admin/feedback.json')
-@ROOK_API.get('/admin/feedback/.json')
-@support_only(['text/html', 'application/json'])
+# Wired to Checkmate!
+@get('/admin/feedback')
+@get('/admin/feedback.json')
+@get('/admin/feedback/.json')
+@support_only(['application/json'])
 def get_admin():
     """Read feedback"""
-    if request.path in ['/admin/feedback/', '/admin/feedback/.json']:
-        if 'text/html' in request.get_header('Accept', ['text/html']):
-            return static(path=None)
+    if request.path in ['/admin/feedback', '/admin/feedback/.json']:
+        if request.context.is_admin is True:
+            LOG.info("Administrator accessing feedback: %s",
+                     request.context.username)
+            results = FEEDBACK_DB.get_feedback()
+            return write_body(results, request, response)
         else:
-            if request.context.is_admin is True:
-                LOG.info("Administrator accessing feedback: %s",
-                         request.context.username)
-                results = FEEDBACK_DB.get_feedback()
-                return write_body(results, request, response)
-            else:
-                abort(403, "Administrator privileges needed for this "
-                      "operation")
+            abort(403, "Administrator privileges needed for this "
+                  "operation")
     else:
         raise HTTPNotFound("File not found: %s" % request.path)
 
@@ -488,7 +487,9 @@ class RackspaceSSOAuthMiddleware(object):
                 content = (self._validate_keystone(context,
                            token=environ['HTTP_X_AUTH_TOKEN']))
                 environ['HTTP_X_AUTHORIZED'] = "Confirmed"
-                if self.admin_role in content['access']['user']['roles']:
+                if (self.admin_role and
+                        any(r for r in content['access']['user'].get('roles')
+                            if r['name'] == self.admin_role['name'])):
                     request.context.is_admin = True
             except HTTPUnauthorized as exc:
                 LOG.exception(exc)
