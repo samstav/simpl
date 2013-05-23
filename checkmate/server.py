@@ -138,6 +138,7 @@ def main_func():
     # Load admin routes if requested
     with_admin = False
     if '--with-admin' in sys.argv:
+        LOG.info("Loading Admin Endpoints")
         load("checkmate.admin")
         with_admin = True
         resources.append('admin')
@@ -156,7 +157,8 @@ def main_func():
     }
     next_app.catchall = True
     next_app = middleware.AuthorizationMiddleware(next_app,
-                                                  anonymous_paths=['version'])
+                                                  anonymous_paths=['version'],
+                                                  admin_paths=['admin'])
     endpoints = os.environ.get('CHECKMATE_AUTH_ENDPOINTS')
     if endpoints:
         endpoints = json.loads(endpoints)
