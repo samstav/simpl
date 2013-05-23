@@ -183,7 +183,7 @@ class DbBase(object):  # pylint: disable=R0921
     def lock(self, key, timeout):
         raise NotImplementedError()
 
-    def unlock(self, key, timeout):
+    def unlock(self, key):
         raise NotImplementedError()
 
     def acquire_lock(self, key, timeout):
