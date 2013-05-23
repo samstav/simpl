@@ -772,9 +772,9 @@ function WorkflowListController($scope, $location, $resource, workflow, items, n
   $scope.load = function() {
     console.log("Starting load");
     this.klass = $resource((checkmate_server_base || '') + '/:tenantId/workflows/.json');
-    this.klass.get({tenantId: $scope.auth.context.tenantId}, function(list, getResponseHeaders){
+    this.klass.get({tenantId: $scope.auth.context.tenantId}, function(data, getResponseHeaders){
       console.log("Load returned");
-      items.receive(list, function(item, key) {
+      items.receive(data.results, function(item, key) {
         return {id: key, name: item.wf_spec.name, status: item.attributes.status, progress: item.attributes.progress, tenantId: item.tenantId};});
       $scope.count = items.count;
       $scope.items = items.all;
@@ -1653,7 +1653,7 @@ function DeploymentListController($scope, $location, $http, $resource, scroll, i
     path = '/:tenantId/deployments.json' + paging_params;
 
     this.klass = $resource((checkmate_server_base || '') + path);
-    this.klass.get({tenantId: $scope.auth.context.tenantId}, function(list, getResponseHeaders){
+    this.klass.get({tenantId: $scope.auth.context.tenantId}, function(data, getResponseHeaders){
       var total_item_count,
           paging_info,
           deployments_url = '/' + $scope.auth.context.tenantId + '/deployments';
@@ -1669,7 +1669,7 @@ function DeploymentListController($scope, $location, $http, $resource, scroll, i
       paging_info = paginator.getPagingInformation(total_item_count, deployments_url);
 
       items.all = [];
-      items.receive(list, function(item) {
+      items.receive(data.results, function(item) {
         return {id: item.id, name: item.name, created: item.created, tenantId: item.tenantId,
                 blueprint: item.blueprint, environment: item.environment,
                 status: item.status};});
