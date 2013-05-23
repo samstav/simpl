@@ -419,13 +419,13 @@ class Driver(DbBase):
                      with_deleted=False):
         '''Retrieve all recrods from a given table for a given tenant id'''
         response = {}
+        response['_links'] = {}  # To be populated soon!
+        response['results'] = {}
         results = self._add_filters(
             klass, self.session.query(klass), tenant_id, with_deleted)
         if results and results.count() > 0:
             results = results.limit(limit).offset(offset).all()
 
-            response['_links'] = {}  # To be populated soon!
-            response['results'] = {}
 
             for entry in results:
                 self.convert_data(klass.__tablename__, entry.body)
@@ -440,9 +440,9 @@ class Driver(DbBase):
                 else:
                     response['results'][entry.id] = entry.body
                 response['results'][entry.id]['tenantId'] = entry.tenant_id
-            if with_count:
-                response['collection-count'] = self._get_count(
-                    klass, tenant_id, with_deleted)
+        if with_count:
+            response['collection-count'] = self._get_count(
+                klass, tenant_id, with_deleted)
         return response
 
     def _add_filters(self, klass, query, tenant_id, with_deleted):

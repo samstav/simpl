@@ -308,7 +308,10 @@ class DBDriverTests(object):
         '''We are really testing object, but using deployment so that the
         test works regardless of driver implementation
         '''
-        self.assertEquals({}, self.driver.get_deployments(tenant_id='T3'))
+        self.assertEquals(
+            {'_links': {}, 'results': {}, 'collection-count': 0},
+            self.driver.get_deployments(tenant_id='T3')
+        )
 
     def test_get_objects_with_defaults(self):
         '''We are really testing object, but using deployment so that the
