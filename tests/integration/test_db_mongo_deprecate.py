@@ -105,7 +105,7 @@ class TestDatabase(unittest.TestCase):
 
     @unittest.skipIf(SKIP, REASON)
     def test_get_objects_for_empty_collections(self):
-        self.assertEqual(len(self.driver._get_objects('foobars')), 0)
+        self.assertEqual(len(self.driver._get_objects('foobars')), 3)
 
     @unittest.skipIf(SKIP, REASON)
     def test_objects(self):

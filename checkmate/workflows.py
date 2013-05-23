@@ -21,13 +21,13 @@ from checkmate.db import (
 )
 from checkmate import orchestrator
 from checkmate.utils import (
-    write_body,
-    read_body,
     extract_sensitive_data,
-    merge_dictionary,
-    with_tenant,
+    formatted_response,
     is_simulation,
-    write_pagination_headers,
+    merge_dictionary,
+    read_body,
+    with_tenant,
+    write_body,
 )
 from checkmate import workflow as wf_import  # TODO: rename
 
@@ -44,13 +44,8 @@ LOG = logging.getLogger(__name__)
 #
 @get('/workflows')
 @with_tenant
-def get_workflows(tenant_id=None, driver=DB):
-    offset = request.query.get('offset')
-    limit = request.query.get('limit')
-    if offset:
-        offset = int(offset)
-    if limit:
-        limit = int(limit)
+@formatted_response('workflows', with_pagination=True)
+def get_workflows(tenant_id=None, offset=None, limit=None, driver=DB):
     if 'with_secrets' in request.query:
         if request.context.is_admin is True:
             LOG.info("Administrator accessing workflows with secrets: %s",
@@ -66,18 +61,7 @@ def get_workflows(tenant_id=None, driver=DB):
             offset=offset,
             limit=limit
         )
-    write_pagination_headers(
-        results,
-        request,
-        response,
-        "workflows",
-        tenant_id
-    )
-    return write_body(
-        results,
-        request,
-        response
-    )
+    return results
 
 
 def safe_workflow_save(obj_id, body, secrets=None, tenant_id=None, driver=DB):

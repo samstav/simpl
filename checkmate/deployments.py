@@ -28,13 +28,13 @@ from checkmate.exceptions import (
 from checkmate.plan import Plan
 from checkmate.utils import (
     extract_sensitive_data,
+    formatted_response,
     read_body,
     get_time_string,
     is_simulation,
     match_celery_logging,
     with_tenant,
     write_body,
-    write_pagination_headers,
     write_path,
 )
 from checkmate.workflow import (
@@ -176,35 +176,15 @@ def _deploy(deployment, context, driver=DB):
 #
 @get('/deployments')
 @with_tenant
-def get_deployments(tenant_id=None, driver=DB):
+@formatted_response('deployments', with_pagination=True)
+def get_deployments(tenant_id=None, offset=None, limit=None, driver=DB):
     """ Get existing deployments """
-    offset = request.query.get('offset')
-    limit = request.query.get('limit')
     show_deleted = request.query.get('show_deleted')
-
-    if offset:
-        offset = int(offset)
-    if limit:
-        limit = int(limit)
-
-    deployments = driver.get_deployments(
+    return driver.get_deployments(
         tenant_id=tenant_id,
         offset=offset,
         limit=limit,
         with_deleted=show_deleted == '1'
-    )
-
-    write_pagination_headers(
-        deployments,
-        request,
-        response,
-        "deployments",
-        tenant_id
-    )
-    return write_body(
-        deployments,
-        request,
-        response
     )
 
 
