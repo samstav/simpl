@@ -792,19 +792,12 @@ function WorkflowListController($scope, $location, $resource, workflow, items, n
 
     this.klass = $resource((checkmate_server_base || '') + path);
     this.klass.get({tenantId: $scope.auth.context.tenantId}, function(data, getResponseHeaders){
-      var total_item_count,
-          paging_info,
+      var paging_info,
           workflows_url = '/' + $scope.auth.context.tenantId + '/workflows';
 
       console.log("Load returned");
 
-      if($.browser.mozilla) {
-        total_item_count = parseInt(_.last(getResponseHeaders('content-range').split('/')));
-      } else {
-        total_item_count = parseInt(_.last(getResponseHeaders('Content-Range').split('/')));
-      }
-
-      paging_info = paginator.getPagingInformation(total_item_count, workflows_url);
+      paging_info = paginator.getPagingInformation(data['collection-count'], workflows_url);
 
       items.receive(data.results, function(item, key) {
         return {id: key, name: item.wf_spec.name, status: item.attributes.status, progress: item.attributes.progress, tenantId: item.tenantId};});
@@ -1690,19 +1683,12 @@ function DeploymentListController($scope, $location, $http, $resource, scroll, i
 
     this.klass = $resource((checkmate_server_base || '') + path);
     this.klass.get({tenantId: $scope.auth.context.tenantId}, function(data, getResponseHeaders){
-      var total_item_count,
-          paging_info,
+      var paging_info,
           deployments_url = '/' + $scope.auth.context.tenantId + '/deployments';
 
       console.log("Load returned");
 
-      if($.browser.mozilla) {
-        total_item_count = parseInt(_.last(getResponseHeaders('content-range').split('/')));
-      } else {
-        total_item_count = parseInt(_.last(getResponseHeaders('Content-Range').split('/')));
-      }
-
-      paging_info = paginator.getPagingInformation(total_item_count, deployments_url);
+      paging_info = paginator.getPagingInformation(data['collection-count'], deployments_url);
 
       items.all = [];
       items.receive(data.results, function(item) {
