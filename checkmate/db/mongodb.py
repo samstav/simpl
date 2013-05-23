@@ -424,18 +424,21 @@ class Driver(DbBase):
                 klass, tenant_id, with_deleted), projection
             ).skip(offset).limit(limit)
 
-            for entry in results:
-                self.convert_data(klass, entry)
-                if with_secrets is True:
-                    response[entry['id']] = self.merge_secrets(
-                        klass, entry['id'], entry)
-                else:
-                    response[entry['id']] = entry
+            if results.count() > 0:
+                response['_links'] = {}  # To be populated soon!
+                response['results'] = {}
 
-            if response and with_count:
-                response['collection-count'] = self._get_count(
-                    klass, tenant_id, with_deleted)
+                for entry in results:
+                    self.convert_data(klass, entry)
+                    if with_secrets is True:
+                        response['results'][entry['id']] = self.merge_secrets(
+                            klass, entry['id'], entry)
+                    else:
+                        response['results'][entry['id']] = entry
 
+                if with_count:
+                    response['collection-count'] = self._get_count(
+                        klass, tenant_id, with_deleted)
         return response
 
     def _get_count(self, klass, tenant_id, with_deleted):

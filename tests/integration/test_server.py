@@ -128,7 +128,7 @@ class TestServer(unittest.TestCase):
         self.assertEqual(res.status, '200 OK')
         self.assertEqual(res.content_type, 'application/json')
         data = json.loads(res.body)
-        self.assertIn(id1, data)
+        self.assertIn(id1, data['results'])
         self.assertNotIn(id2, data)
 
         #GET (Tenant 2)
@@ -136,8 +136,8 @@ class TestServer(unittest.TestCase):
         self.assertEqual(res.status, '200 OK')
         self.assertEqual(res.content_type, 'application/json')
         data = json.loads(res.body)
-        self.assertIn(id2, data)
-        self.assertNotIn(id1, data)
+        self.assertIn(id2, data['results'])
+        self.assertNotIn(id1, data['results'])
 
     def rest_cross_tenant_exercise(self, model_name):
         """Make sure tenant ID is respected"""
