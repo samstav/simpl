@@ -817,7 +817,7 @@ services.factory('github', ['$http', function($http) {
  * - contextChanged (always called: log on/off, impersonating/un-impersonating)
  *
 **/
-services.factory('auth', ['$http', '$resource', '$rootScope', function($http, $resource, $rootScope) {
+services.factory('auth', ['$http', '$resource', '$rootScope', '$q', function($http, $resource, $rootScope, $q) {
   var auth = {
 
     // Stores the user's identity and necessary credential info
@@ -850,7 +850,7 @@ services.factory('auth', ['$http', '$resource', '$rootScope', function($http, $r
     error_message: "",
     selected_endpoint: null,
 
-    generate_auth_data: function(token, tenant, apikey, username, password, target) {
+    generate_auth_data: function(token, tenant, apikey, pin_rsa, username, password, target) {
       var data = {};
       if (token) {
         data = {
@@ -865,6 +865,18 @@ services.factory('auth', ['$http', '$resource', '$rootScope', function($http, $r
             "RAX-KSKEY:apiKeyCredentials": {
               "username": username,
               "apiKey": apikey
+            }
+          }
+        };
+      } else if (pin_rsa) {
+        data = {
+          "auth": {
+            "RAX-AUTH:domain": {
+              "name": "Rackspace"
+            },
+            "RAX-AUTH:rsaCredentials": {
+              "username": username,
+              "tokenKey": pin_rsa,
             }
           }
         };
@@ -914,9 +926,11 @@ services.factory('auth', ['$http', '$resource', '$rootScope', function($http, $r
       });
     },
 
-    create_identity: function(request, response, endpoint) {
+    create_identity: function(response, params) {
       //Populate identity
       var identity = {};
+      var endpoint = params.endpoint;
+      var headers = params.headers;
       identity.username = response.access.user.name || response.access.user.id;
       identity.user = response.access.user;
       identity.token = response.access.token;
@@ -925,7 +939,7 @@ services.factory('auth', ['$http', '$resource', '$rootScope', function($http, $r
       identity.endpoint_type = endpoint['scheme'];
 
       //Check if this user is an admin
-      var is_admin = request.getResponseHeader('X-AuthZ-Admin') || 'False';
+      var is_admin = headers('X-AuthZ-Admin') || 'False';
       identity.is_admin = (is_admin === 'True');
 
       return identity;
@@ -968,10 +982,10 @@ services.factory('auth', ['$http', '$resource', '$rootScope', function($http, $r
     },
 
     // Authenticate
-    authenticate: function(endpoint, username, apikey, password, token, tenant, callback, error_callback) {
+    authenticate: function(endpoint, username, apikey, password, token, pin_rsa, tenant, callback, error_callback) {
       var headers,
           target = endpoint['uri'],
-          data = this.generate_auth_data(token, tenant, apikey, username, password, target);
+          data = this.generate_auth_data(token, tenant, apikey, pin_rsa, username, password, target);
       if (!data) return false;
 
       if (target === undefined || target === null || target.length === 0) {
@@ -981,42 +995,36 @@ services.factory('auth', ['$http', '$resource', '$rootScope', function($http, $r
       }
       auth.selected_endpoint = endpoint;
 
-      return $.ajax({
-        type: "POST",
-        contentType: "application/json; charset=utf-8",
-        headers: headers,
-        dataType: "json",
-        url: is_chrome_extension ? target : "/authproxy",
-        data: data
-      }).success(function(response, textStatus, request) {
-        auth.identity = auth.create_identity(request, response, endpoint);
-        auth.context = auth.create_context(response, endpoint);
+      var url = is_chrome_extension ? target : "/authproxy";
+      var config = { headers: headers };
+      return $http.post(url, data, config)
+        .success(function(response, status, headers, config) {
+          var params = { headers: headers, endpoint: endpoint };
+          auth.identity = auth.create_identity(response, params);
+          auth.context = auth.create_context(response, endpoint);
+          auth.save();
 
-        //Save for future use
-        auth.save();
+          //Check token expiration
+          auth.check_state();
+          /*
+          var expires = new Date(response.access.token.expires);
+          var now = new Date();
+          if (expires < now) {
+            auth.expires = 'expired';
+            $scope.auth.loggedIn = false;
+          } else {
+            $scope.auth.expires = expires - now;
+            $scope.auth.loggedIn = true;
+          }
+          */
 
-        //Check token expiration
-        auth.check_state();
-        /*
-        var expires = new Date(response.access.token.expires);
-        var now = new Date();
-        if (expires < now) {
-          auth.expires = 'expired';
-          $scope.auth.loggedIn = false;
-        } else {
-          $scope.auth.expires = expires - now;
-          $scope.auth.loggedIn = true;
-        }
-        */
-
-        callback(response);
-
-        $rootScope.$broadcast('logIn');
-        $rootScope.$broadcast('contextChanged');
-
-      }).error(function(response) {
-        error_callback(response);
-      });
+          callback(response);
+          $rootScope.$broadcast('logIn');
+          $rootScope.$broadcast('contextChanged');
+        })
+        .error(function(response, status, headers, config) {
+          error_callback(response);
+        });
     },
     logOut: function() {
       auth.clear();
@@ -1085,18 +1093,15 @@ services.factory('auth', ['$http', '$resource', '$rootScope', function($http, $r
       if (!auth.identity.tenants)
         auth.identity.tenants = [];
 
-      var in_tenants = _.find(auth.identity.tenants, function(tenant) {
+      auth.identity.tenants = _.reject(auth.identity.tenants, function(tenant) {
         return tenant.username == context.username;
       });
-
-      if (!in_tenants) {
-        auth.identity.tenants.unshift(_.clone(context));
-        if (auth.identity.tenants.length > 10)
-          auth.identity.tenants.pop();
-      }
+      auth.identity.tenants.unshift(_.clone(context));
+      if (auth.identity.tenants.length > 10)
+        auth.identity.tenants.pop();
     },
 
-    impersonate: function(username, callback, error_callback) {
+    impersonate: function(username) {
       var data = auth.generate_impersonation_data(username, auth.identity.endpoint_type);
       var headers = {
           'X-Auth-Token': auth.identity.token.id,
@@ -1104,16 +1109,24 @@ services.factory('auth', ['$http', '$resource', '$rootScope', function($http, $r
       };
       var url = is_chrome_extension ? auth.auth_url : "/authproxy";
       var config = {headers: headers};
-      return $http.post(url, data, config)
-        .success(function(response) {
-          console.log("impersonation successful");
+      var deferred = $q.defer();
+      $http.post(url, data, config)
+        .success(function(response, status, headers, config) {
           auth.context.username = username;
           auth.context.token = response.access.token;
-          checkmate.config.header_defaults.headers.common['X-Auth-Source'] = "https://identity.api.rackspacecloud.com/v2.0/tokens";
           auth.context.auth_url = "https://identity.api.rackspacecloud.com/v2.0/tokens";
           auth.get_tenant_id(username).then(
-            function() {
+            function(tenant_response) {
+              console.log("impersonation successful");
               auth.save_context(auth.context);
+              auth.save();
+              auth.check_state();
+              deferred.resolve('All is fine!');
+            },
+            function(tenant_response) {
+              var error = 'Error retrieving tenant ID: ' + response;
+              console.log(error);
+              deferred.reject(error);
             }
           );
           /* Not to worry about this for now. Legacy code. */
@@ -1125,13 +1138,13 @@ services.factory('auth', ['$http', '$resource', '$rootScope', function($http, $r
             auth.context.impersonated = false;
           }
           */
-          auth.save();
-          callback(response);
         })
-        .error(function(response) {
-          console.log("impersonation not successful");
-          error_callback(response);
+        .error(function(response, status, headers, config) {
+          var error = "impersonation unsuccessful";
+          console.log(error);
+          deferred.reject(error);
         });
+      return deferred.promise;
     },
     //Check all auth data and update state
     check_state: function() {
@@ -1215,3 +1228,139 @@ services.factory('auth', ['$http', '$resource', '$rootScope', function($http, $r
 
   return auth;
 }]);
+
+services.factory('pagination', function(){
+  function buildPagingParams(){
+    var paging_params = [];
+
+    paging_params.push('limit=' + this.limit);
+    paging_params.push('offset=' + this.offset);
+
+    return '?' + paging_params.join('&');
+  }
+
+  function _buildPagingLinks(current_page, total_pages, base_url, offset, limit){
+    var counter = 0,
+        links = { middle_numbered_links: [], separator: '...',
+                  hide_first_separator: true, hide_last_separator: true },
+        NUM_OF_LINKS_AT_ENDS = 3,
+        NUM_OF_LINKS_IN_CENTER = 5,
+        TOTAL_LINKS_TO_SHOW = (NUM_OF_LINKS_AT_ENDS * 2) + NUM_OF_LINKS_IN_CENTER;
+
+    function _buildGroupedNumberedPageLinks(){
+      var first_numbered_links = [],
+          middle_numbered_links = [],
+          last_numbered_links = [];
+
+      _.each([current_page - 2, current_page - 1, current_page, current_page + 1, current_page + 2], function(num){
+        if(num > 0 && num <= total_pages) {
+          middle_numbered_links.push({ uri: base_url + '?limit=' + limit + '&offset=' + (num-1)*limit,
+                                    text: num });
+        }
+      });
+
+      for(var i=NUM_OF_LINKS_AT_ENDS; i>0; i--){
+        if(!(_.find(middle_numbered_links, function(link){ return link.text == i; }))){
+          first_numbered_links.unshift({ uri: base_url + '?limit=' + limit + '&offset=' + (i-1)*limit,
+                                      text: i });
+        }
+      }
+
+      for(var i=(total_pages - NUM_OF_LINKS_AT_ENDS); i < total_pages; i++){
+        if(!(_.find(middle_numbered_links, function(link){ return link.text == i+1; }))){
+        last_numbered_links.push({ uri: base_url + '?limit=' + limit + '&offset=' + (i)*limit,
+                                    text: i+1 });
+        }
+      }
+
+      links.first_numbered_links = first_numbered_links;
+      links.middle_numbered_links = middle_numbered_links;
+      links.last_numbered_links = last_numbered_links;
+
+      links.hide_first_separator = (first_numbered_links.length === 0) || (_.first(middle_numbered_links).text - _.last(first_numbered_links).text) === 1;
+      links.hide_last_separator = (last_numbered_links.length === 0) || (_.first(last_numbered_links).text - _.last(middle_numbered_links).text) === 1;
+    }
+
+    if(total_pages > 1) {
+      if(total_pages > TOTAL_LINKS_TO_SHOW){
+        _buildGroupedNumberedPageLinks();
+      } else {
+        while(counter < total_pages){
+          links.middle_numbered_links.push({ uri: base_url + '?limit=' + limit + '&offset=' + (counter * limit),
+                                      text: counter + 1 });
+          counter++;
+        }
+      }
+
+      if(!(current_page === 1)) {
+        links.previous = { uri: base_url + '?limit=' + limit + '&offset=' + (offset - limit),
+                           text: 'Previous' };
+      }
+
+      if(!(current_page === total_pages) && !(total_pages === 0)) {
+        links.next = { uri: base_url + '?limit=' + limit + '&offset=' + (offset + limit),
+                       text: 'Next' };
+      }
+    }
+
+    return links;
+  }
+
+  function getPagingInformation(total_item_count, base_url){
+    var current_page,
+        total_pages,
+        page_links;
+
+    if(!this.offset || total_item_count === 0){
+      current_page = 1;
+    } else if(this.offset > 0 && this.offset < this.limit) {
+      current_page = 2;
+    } else {
+      current_page = parseInt(this.offset/this.limit, 10) + 1;
+    }
+
+    total_pages = Math.ceil(total_item_count / this.limit);
+    page_links = _buildPagingLinks(current_page, total_pages, base_url, this.offset, this.limit);
+
+    return {
+             currentPage: current_page,
+             totalPages: total_pages,
+             links: page_links
+           };
+  }
+
+  function _getValidPageParams(offset, limit){
+    var valid_offset,
+        valid_limit,
+        parsed_offset = parseInt(offset, 10),
+        parsed_limit = parseInt(limit, 10),
+        DEFAULT_PAGE_LIMIT = 20;
+
+    if(parsed_limit && parsed_limit > 0) {
+      valid_limit = parsed_limit;
+    } else {
+      valid_limit = DEFAULT_PAGE_LIMIT;
+    }
+
+    if(parsed_offset && parsed_offset > 0 && (parsed_offset % valid_limit) === 0) {
+      valid_offset = parsed_offset;
+    } else if(parsed_offset && parsed_offset > 0){
+      valid_offset = parsed_offset - (parsed_offset % valid_limit);
+    } else {
+      valid_offset = 0;
+    }
+
+    return { offset: valid_offset, limit: valid_limit };
+  }
+
+  function buildPaginator(offset, limit){
+    var valid_params = _getValidPageParams(offset, limit);
+
+    return { offset: valid_params.offset,
+             limit: valid_params.limit,
+             buildPagingParams: buildPagingParams,
+             getPagingInformation: getPagingInformation };
+  }
+
+  return { buildPaginator: buildPaginator };
+});

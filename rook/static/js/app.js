@@ -193,7 +193,7 @@ function AutoLoginController($scope, $location, $cookies, auth) {
     delete $cookies.endpoint;
 
     console.log("Submitting auto login credentials");
-    return auth.authenticate(endpoint, null, null, null, token, tenantId,
+    return auth.authenticate(endpoint, null, null, null, token, null, tenantId,
       $scope.auto_login_success, $scope.auto_login_fail);
   };
 }
@@ -308,8 +308,6 @@ function AppController($scope, $http, $location, $resource, $cookies, auth) {
         delete $('#modalAuth')[0].success_callback;
         delete $('#modalAuth')[0].failure_callback;
       }
-    else
-      $scope.$apply();
     mixpanel.track("Logged In", {'user': $scope.auth.identity.username});
   };
 
@@ -322,7 +320,20 @@ function AppController($scope, $http, $location, $resource, $cookies, auth) {
       }
     mixpanel.track("Log In Failed", {'problem': response.statusText});
     auth.error_message = response.statusText + ". Check that you typed in the correct credentials.";
-    $scope.$apply();
+  };
+
+  $scope.uses_pin_rsa = function(endpoint) {
+    return ($scope.get_selected_endpoint().scheme == "GlobalAuth");
+  };
+
+  $scope.is_active = function(endpoint) {
+    if ($scope.get_selected_endpoint().uri == endpoint.uri)
+      return "active";
+    return "";
+  };
+
+  $scope.is_hidden = function(endpoint) {
+    return (endpoint.scheme == 'GlobalAuthImpersonation');
   };
 
   $scope.select_endpoint = function(endpoint) {
@@ -330,7 +341,7 @@ function AppController($scope, $http, $location, $resource, $cookies, auth) {
   };
 
   $scope.get_selected_endpoint = function() {
-    return auth.selected_endpoint || auth.endpoints[0];
+    return auth.selected_endpoint || auth.endpoints[0] || {};
   };
 
   // Log in using credentials delivered through bound_credentials
@@ -338,6 +349,7 @@ function AppController($scope, $http, $location, $resource, $cookies, auth) {
     var username = $scope.bound_creds.username;
     var password = $scope.bound_creds.password;
     var apikey = $scope.bound_creds.apikey;
+    var pin_rsa = $scope.bound_creds.pin_rsa;
 
     //Handle auto_complete sync issues (1Pass, LastPass do not update scope)
     try {
@@ -363,7 +375,7 @@ function AppController($scope, $http, $location, $resource, $cookies, auth) {
     }
 
     var endpoint = $scope.get_selected_endpoint();
-    return auth.authenticate(endpoint, username, apikey, password, null, null,
+    return auth.authenticate(endpoint, username, apikey, password, null, pin_rsa, null,
       $scope.on_auth_success, $scope.on_auth_failed);
   };
 
@@ -371,15 +383,21 @@ function AppController($scope, $http, $location, $resource, $cookies, auth) {
     $scope.auth.logOut();
   };
 
-  $scope.on_impersonate_success = function(json) {
-    $('#user_menu').dropdown('toggle');
-    $location.path('/');
+  $scope.on_impersonate_success = function(response) {
+    var current_path = $location.path();
+    var next_path = current_path;
+    var account_number = /^\/[0-9]+/;
+    if (current_path.match(account_number)) {
+      next_path = current_path.replace(account_number, "/" + auth.context.tenantId);
+    }
+    $location.path(next_path);
   };
 
   $scope.username = "";
   $scope.impersonate = function(username) {
     $scope.username = "";
-    auth.impersonate(username, $scope.on_impersonate_success, $scope.on_auth_failed);
+    return auth.impersonate(username)
+      .then($scope.on_impersonate_success, $scope.on_auth_failed);
   };
 
 
@@ -760,9 +778,9 @@ function WorkflowListController($scope, $location, $resource, workflow, items, n
   $scope.load = function() {
     console.log("Starting load");
     this.klass = $resource((checkmate_server_base || '') + '/:tenantId/workflows/.json');
-    this.klass.get({tenantId: $scope.auth.context.tenantId}, function(list, getResponseHeaders){
+    this.klass.get({tenantId: $scope.auth.context.tenantId}, function(data, getResponseHeaders){
       console.log("Load returned");
-      items.receive(list, function(item, key) {
+      items.receive(data.results, function(item, key) {
         return {id: key, name: item.wf_spec.name, status: item.attributes.status, progress: item.attributes.progress, tenantId: item.tenantId};});
       $scope.count = items.count;
       $scope.items = items.all;
@@ -1594,7 +1612,7 @@ function BlueprintRemoteListController($scope, $location, $routeParams, $resourc
  * Deployment controllers
  */
 //Deployment list
-function DeploymentListController($scope, $location, $http, $resource, scroll, items, navbar) {
+function DeploymentListController($scope, $location, $http, $resource, scroll, items, navbar, pagination) {
   //Model: UI
   $scope.showItemsBar = true;
   $scope.showStatus = true;
@@ -1629,32 +1647,47 @@ function DeploymentListController($scope, $location, $http, $resource, scroll, i
     console.log("Starting load");
     var path,
         query_params = $location.search(),
-        paging_params = [];
+        paging_params,
+        paginator;
 
-    if(query_params.offset) {
-      paging_params.push('offset=' + query_params.offset)
-    }
+    paginator = pagination.buildPaginator(query_params.offset, query_params.limit);
+    $location.search({ limit: paginator.limit, offset: paginator.offset });
+    $location.replace();
 
-    if(query_params.limit) {
-      paging_params.push('limit=' + query_params.limit)
-    }
+    paging_params = paginator.buildPagingParams();
 
-    if(paging_params.length > 0){
-      path = '/:tenantId/deployments.json?' + paging_params.join('&')
-    } else {
-      path = '/:tenantId/deployments.json'
+    path = '/:tenantId/deployments.json' + paging_params;
+
+    $scope.showPagination = function(){
+      return $scope.links || false;
     }
 
     this.klass = $resource((checkmate_server_base || '') + path);
-    this.klass.get({tenantId: $scope.auth.context.tenantId}, function(list, getResponseHeaders){
+    this.klass.get({tenantId: $scope.auth.context.tenantId}, function(data, getResponseHeaders){
+      var total_item_count,
+          paging_info,
+          deployments_url = '/' + $scope.auth.context.tenantId + '/deployments';
+
       console.log("Load returned");
+
+      if($.browser.mozilla) {
+        total_item_count = parseInt(_.last(getResponseHeaders('content-range').split('/')));
+      } else {
+        total_item_count = parseInt(_.last(getResponseHeaders('Content-Range').split('/')));
+      }
+
+      paging_info = paginator.getPagingInformation(total_item_count, deployments_url);
+
       items.all = [];
-      items.receive(list, function(item) {
+      items.receive(data.results, function(item) {
         return {id: item.id, name: item.name, created: item.created, tenantId: item.tenantId,
                 blueprint: item.blueprint, environment: item.environment,
                 status: item.status};});
       $scope.count = items.count;
       $scope.items = items.all;
+      $scope.currentPage = paging_info.currentPage;
+      $scope.totalPages = paging_info.totalPages;
+      $scope.links = paging_info.links;
       console.log("Done loading");
     });
   };
@@ -2474,5 +2507,3 @@ $(window).load(function () {
   });
 
 });
-
-

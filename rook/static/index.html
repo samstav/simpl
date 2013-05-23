@@ -245,12 +245,12 @@
     <div class="modal-body">
       <form class="form-horizontal" style="margin-bottom: 0px" ng-init="selected_endpoint=null" name="loginForm" ng-submit="logIn()">
         <div id="auth_error" class="alert alert-error" ng-show="auth_error_message()">
-          <strong>Authentication Failed!</strong> <span id="auth_error_text">{{auth_error_message()}}</span>.
+          <strong>Authentication Failed!</strong> <span id="auth_error_text">{{auth_error_message()}}</span>
         </div>
         <fieldset>
           <ul class="nav nav-tabs">
-            <li ng-repeat="endpoint in auth.endpoints" ng-class="{active: get_selected_endpoint()==endpoint}">
-              <a href="#" data-toggle="tab" ng-hide="endpoint.scheme=='GlobalAuthImpersonation'" ng-click="$parent.select_endpoint(endpoint)">
+            <li ng-repeat="endpoint in auth.endpoints" ng-class="is_active(endpoint)">
+              <a href="#" data-toggle="tab" ng-hide="is_hidden(endpoint)" ng-click="$parent.select_endpoint(endpoint)">
                 {{endpoint['realm']}}
               </a>
             </li>
@@ -268,10 +268,16 @@
             </div>
           </div>
           <p style="text-align: center">or</p>
-          <div class="control-group">
+          <div class="control-group" ng-hide="uses_pin_rsa()">
             <label class="control-label" for="apikey">API Key</label>
             <div class="controls">
               <input type="password" class="input-xlarge" id="apikey" ng-model="bound_creds.apikey">
+            </div>
+          </div>
+          <div class="control-group" ng-show="uses_pin_rsa()">
+            <label class="control-label" for="pin_rsa">PIN+RSA Key</label>
+            <div class="controls">
+              <input type="password" class="input-xlarge" id="pin_rsa" ng-model="bound_creds.pin_rsa">
             </div>
           </div>
           <hr/>
