@@ -1,13 +1,14 @@
-describe('DeploymentListController', function(){
+describe('WorkflowListController', function(){
   var scope,
       location,
-      http,
       resource,
-      scroll,
+      workflow,
       items,
       navbar,
+      scroll,
       pagination,
       controller,
+      resource_spy,
       emptyResponse;
 
   beforeEach(function(){
@@ -15,6 +16,7 @@ describe('DeploymentListController', function(){
     location = { search: sinon.stub().returns({}), replace: emptyFunction };
     http = {};
     resource = sinon.stub().returns(emptyResponse);
+    resource_spy = {};
     scroll = {};
     items = {};
     navbar = { highlight: emptyFunction };
@@ -25,23 +27,15 @@ describe('DeploymentListController', function(){
 
   describe('initialization', function(){
     describe('load', function(){
-      var get_spy,
-          resource_spy;
-
-      beforeEach(function(){
-        get_spy = undefined;
-        resource_spy = undefined;
-      });
-
       it('should setup the url and get the resource with the tenantId', function(){
         get_spy = sinon.spy();
         resource = function(){ return { get: get_spy }; };
         resource_spy = sinon.spy(resource);
 
         scope = { $watch: emptyFunction, auth: { context: { tenantId: 'cats' }} };
-        controller = new DeploymentListController(scope, location, http, resource_spy, scroll, items, navbar, pagination);
+        controller = new WorkflowListController(scope, location, resource_spy, workflow, items, navbar, scroll, pagination);
 
-        expect(resource_spy.getCall(0).args[0]).toEqual('/:tenantId/deployments.json');
+        expect(resource_spy.getCall(0).args[0]).toEqual('/:tenantId/workflows.json');
         expect(get_spy.getCall(0).args[0]).toEqual({ tenantId: 'cats' });
       });
 
@@ -52,8 +46,8 @@ describe('DeploymentListController', function(){
         resource_spy = sinon.spy(resource);
         pagination.extractPagingParams = sinon.stub().returns('?offset=20&limit=30');
 
-        controller = new DeploymentListController(scope, location, http, resource_spy, scroll, items, navbar, pagination);
-        expect(resource_spy.getCall(0).args[0]).toEqual('/:tenantId/deployments.json?offset=20&limit=30');
+        controller = new WorkflowListController(scope, location, resource_spy, workflow, items, navbar, scroll, pagination);
+        expect(resource_spy.getCall(0).args[0]).toEqual('/:tenantId/workflows.json?offset=20&limit=30');
       });
     });
   });

@@ -407,6 +407,24 @@ form#impersonate input {
 
 /* Login Form - Modal */
 .modal {
-  width: 650px;
-  margin-left: -340px;
+  width: 670px;
+  margin-left: -350px;
+}
+.modal .nav-tabs li a i {
+  display: none;
+}
+.modal .nav-tabs li.rackspacesso a i {
+  padding-right: 5px;
+}
+.modal .nav-tabs li.rackspacesso a i {
+  display: inline-block;
+  color: red;
+}
+.modal .announcement {
+  text-align: center;
+}
+.modal .announcement img {
+  position: absolute;
+  left: 30px;
+  top: 30px;
 }

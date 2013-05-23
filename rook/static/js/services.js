@@ -1000,8 +1000,9 @@ services.factory('auth', ['$http', '$resource', '$rootScope', '$q', function($ht
       return $http.post(url, data, config)
         .success(function(response, status, headers, config) {
           var params = { headers: headers, endpoint: endpoint };
-          auth.identity = auth.create_identity(response, params);
           auth.context = auth.create_context(response, endpoint);
+          auth.identity = auth.create_identity(response, params);
+          auth.identity.context = _.clone(auth.context);
           auth.save();
 
           //Check token expiration
@@ -1099,6 +1100,16 @@ services.factory('auth', ['$http', '$resource', '$rootScope', '$q', function($ht
       auth.identity.tenants.unshift(_.clone(context));
       if (auth.identity.tenants.length > 10)
         auth.identity.tenants.pop();
+    },
+
+    exit_impersonation: function() {
+      auth.context = _.clone(auth.identity.context);
+      auth.check_state();
+      auth.save();
+    },
+
+    is_impersonating: function() {
+      return auth.identity.username != auth.context.username;
     },
 
     impersonate: function(username) {
@@ -1216,8 +1227,9 @@ services.factory('auth', ['$http', '$resource', '$rootScope', '$q', function($ht
         } else if(b.priority) {
           return 1;
         } else {
-          var x = a.realm.toLowerCase(), y = b.realm.toLowerCase();
-                  return x < y ? -1 : x > y ? 1 : 0;
+          var x = a.realm.toLowerCase(),
+              y = b.realm.toLowerCase();
+          return (x < y) ? (-1) : (x > y ? 1 : 0);
         }
       });
     }
@@ -1292,14 +1304,17 @@ services.factory('pagination', function(){
         }
       }
 
-      if(!(current_page === 1)) {
-        links.previous = { uri: base_url + '?limit=' + limit + '&offset=' + (offset - limit),
-                           text: 'Previous' };
+      links.next = { uri: base_url + '?limit=' + limit + '&offset=' + (offset + limit),
+                     text: 'Next' };
+      links.previous = { uri: base_url + '?limit=' + limit + '&offset=' + (offset - limit),
+                         text: 'Previous' };
+
+      if(current_page === 1) {
+        links.disable_previous = true;
       }
 
-      if(!(current_page === total_pages) && !(total_pages === 0)) {
-        links.next = { uri: base_url + '?limit=' + limit + '&offset=' + (offset + limit),
-                       text: 'Next' };
+      if(current_page === total_pages || total_pages === 0) {
+        links.disable_next = true;
       }
     }
 

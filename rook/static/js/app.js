@@ -199,7 +199,7 @@ function AutoLoginController($scope, $location, $cookies, auth) {
 }
 
 //Root controller that implements authentication
-function AppController($scope, $http, $location, $resource, $cookies, auth) {
+function AppController($scope, $http, $location, $resource, auth) {
   $scope.showHeader = true;
   $scope.showStatus = false;
   $scope.foldFunc = CodeMirror.newFoldFunction(CodeMirror.braceRangeFinder);
@@ -268,12 +268,6 @@ function AppController($scope, $http, $location, $resource, $cookies, auth) {
     apikey: ''
   };
 
-  $scope.refresh = function() {
-  };
-
-  $scope.handleSpace = function() {
-  };
-
   // Display log in prompt
   $scope.loginPrompt = function(success_callback, failure_callback) {
     //reset controls
@@ -332,16 +326,26 @@ function AppController($scope, $http, $location, $resource, $cookies, auth) {
     return "";
   };
 
+  $scope.realm_name = function(endpoint) {
+    return endpoint.realm.toLowerCase().replace(/[^a-z0-9]/g, '');
+  }
+
+  $scope.display_announcement = function() {
+    return auth.endpoints[0].realm == "Rackspace SSO";
+  }
+
   $scope.is_hidden = function(endpoint) {
     return (endpoint.scheme == 'GlobalAuthImpersonation');
   };
 
   $scope.select_endpoint = function(endpoint) {
     auth.selected_endpoint = endpoint;
+    localStorage.setItem('selected_endpoint', JSON.stringify(endpoint));
   };
 
   $scope.get_selected_endpoint = function() {
-    return auth.selected_endpoint || auth.endpoints[0] || {};
+    var local_endpoint = localStorage.selected_endpoint || null;
+    return JSON.parse(local_endpoint) || auth.selected_endpoint || auth.endpoints[0] || {};
   };
 
   // Log in using credentials delivered through bound_credentials
@@ -364,7 +368,7 @@ function AppController($scope, $http, $location, $resource, $cookies, auth) {
         password = realvalue;
 
       realvalue = loginForm.apikey.value;
-      if (realvalue !== undefined && apikey != realvalue);
+      if (realvalue !== undefined && apikey != realvalue)
         apikey = realvalue;
 
       //!Pass puts the password in the apikey field too. Assume it's password
@@ -400,6 +404,14 @@ function AppController($scope, $http, $location, $resource, $cookies, auth) {
       .then($scope.on_impersonate_success, $scope.on_auth_failed);
   };
 
+  $scope.exit_impersonation = function() {
+    auth.exit_impersonation();
+    $location.url('/');
+  };
+
+  $scope.is_impersonating = function() {
+    return auth.is_impersonating();
+  };
 
   // Utility Functions
   console.log("Getting api version");
@@ -734,7 +746,7 @@ function TestController($scope, $location, $routeParams, $resource, $http, items
 }
 
 //Workflow controllers
-function WorkflowListController($scope, $location, $resource, workflow, items, navbar, scroll) {
+function WorkflowListController($scope, $location, $resource, workflow, items, navbar, scroll, pagination) {
   //Model: UI
   $scope.showItemsBar = true;
   $scope.showStatus = true;
@@ -769,21 +781,37 @@ function WorkflowListController($scope, $location, $resource, workflow, items, n
 
   $scope.selected = items.selected;
 
-  $scope.refresh = function() {
-  };
-
-  $scope.handleSpace = function() {
-  };
-
   $scope.load = function() {
     console.log("Starting load");
-    this.klass = $resource((checkmate_server_base || '') + '/:tenantId/workflows/.json');
+    var path,
+        query_params = $location.search(),
+        paginator;
+
+    paginator = pagination.buildPaginator(query_params.offset, query_params.limit);
+    $location.search({ limit: paginator.limit, offset: paginator.offset });
+    $location.replace();
+
+    path = '/:tenantId/workflows.json' + paginator.buildPagingParams();
+    $scope.showPagination = function(){
+      return $scope.links || false;
+    };
+
+    this.klass = $resource((checkmate_server_base || '') + path);
     this.klass.get({tenantId: $scope.auth.context.tenantId}, function(data, getResponseHeaders){
+      var paging_info,
+          workflows_url = '/' + $scope.auth.context.tenantId + '/workflows';
+
       console.log("Load returned");
+
+      paging_info = paginator.getPagingInformation(data['collection-count'], workflows_url);
+
       items.receive(data.results, function(item, key) {
         return {id: key, name: item.wf_spec.name, status: item.attributes.status, progress: item.attributes.progress, tenantId: item.tenantId};});
       $scope.count = items.count;
       $scope.items = items.all;
+      $scope.currentPage = paging_info.currentPage;
+      $scope.totalPages = paging_info.totalPages;
+      $scope.links = paging_info.links;
       console.log("Done loading");
     });
   };
@@ -1637,46 +1665,30 @@ function DeploymentListController($scope, $location, $http, $resource, scroll, i
 
   $scope.selected = items.selected;
 
-  $scope.refresh = function() {
-  };
-
-  $scope.handleSpace = function() {
-  };
-
   $scope.load = function() {
     console.log("Starting load");
     var path,
         query_params = $location.search(),
-        paging_params,
         paginator;
 
     paginator = pagination.buildPaginator(query_params.offset, query_params.limit);
     $location.search({ limit: paginator.limit, offset: paginator.offset });
     $location.replace();
 
-    paging_params = paginator.buildPagingParams();
-
-    path = '/:tenantId/deployments.json' + paging_params;
+    path = '/:tenantId/deployments.json' + paginator.buildPagingParams();
 
     $scope.showPagination = function(){
       return $scope.links || false;
-    }
+    };
 
     this.klass = $resource((checkmate_server_base || '') + path);
     this.klass.get({tenantId: $scope.auth.context.tenantId}, function(data, getResponseHeaders){
-      var total_item_count,
-          paging_info,
+      var paging_info,
           deployments_url = '/' + $scope.auth.context.tenantId + '/deployments';
 
       console.log("Load returned");
 
-      if($.browser.mozilla) {
-        total_item_count = parseInt(_.last(getResponseHeaders('content-range').split('/')));
-      } else {
-        total_item_count = parseInt(_.last(getResponseHeaders('Content-Range').split('/')));
-      }
-
-      paging_info = paginator.getPagingInformation(total_item_count, deployments_url);
+      paging_info = paginator.getPagingInformation(data['collection-count'], deployments_url);
 
       items.all = [];
       items.receive(data.results, function(item) {
@@ -1690,6 +1702,25 @@ function DeploymentListController($scope, $location, $http, $resource, scroll, i
       $scope.links = paging_info.links;
       console.log("Done loading");
     });
+  };
+
+  // This also exists on DeploymentController - can be refactored
+  $scope.sync = function(deployment_id) {
+    if ($scope.auth.identity.loggedIn) {
+      var klass = $resource((checkmate_server_base || '') + '/:tenantId/deployments/:deployment_id/+sync.json', null, {'get': {method:'GET'}});
+      var thang = new klass();
+      thang.$get({tenantId: $scope.auth.context.tenantId, deployment_id: deployment_id}, function(returned, getHeaders){
+          // Sync
+          if (returned !== undefined)
+              $scope.notify(Object.keys(returned).length + ' resources synced');
+        }, function(error) {
+          $scope.$root.error = {data: error.data, status: error.status, title: "Error Deleting",
+                  message: "There was an error syncing your deployment"};
+          $('#modalError').modal('show');
+        });
+    } else {
+      $scope.loginPrompt(this, function() {console.log("Failed");}); //TODO: implement a callback
+    }
   };
 
   //Setup
@@ -2197,12 +2228,6 @@ function DeploymentController($scope, $location, $resource, $routeParams) {
   $scope.data = {};
   $scope.data_json = "";
 
-  $scope.refresh = function() {
-  };
-
-  $scope.handleSpace = function() {
-  };
-
   // Called by load to refresh the status page
   $scope.reload = function(original_url) {
     // Check that we are still on the same page, otherwise don't reload
@@ -2313,6 +2338,26 @@ function DeploymentController($scope, $location, $resource, $routeParams) {
     }
   };
 
+  // This also exists on DeploymentListController - can be refactored
+  $scope.sync = function(deployment_id) {
+    if ($scope.auth.identity.loggedIn) {
+      var klass = $resource((checkmate_server_base || '') + '/:tenantId/deployments/:deployment_id/+sync.json', null, {'get': {method:'GET'}});
+      var thang = new klass();
+      thang.$get({tenantId: $scope.auth.context.tenantId, deployment_id: deployment_id}, function(returned, getHeaders){
+          // Sync
+          $scope.load();
+          if (returned !== undefined)
+              $scope.notify(Object.keys(returned).length + ' resources synced');
+        }, function(error) {
+          $scope.$root.error = {data: error.data, status: error.status, title: "Error Deleting",
+                  message: "There was an error syncing your deployment"};
+          $('#modalError').modal('show');
+        });
+    } else {
+      $scope.loginPrompt(this, function() {console.log("Failed");}); //TODO: implement a callback
+    }
+  };
+
   //Setup
   $scope.load();
 }
@@ -2329,12 +2374,6 @@ function FeedbackListController($scope, $location, $resource, items, scroll) {
   $scope.count = 0;
   items.all = [];
   $scope.items = items.all;  // bind only to shrunken array
-
-  $scope.refresh = function() {
-  };
-
-  $scope.handleSpace = function() {
-  };
 
   $scope.load = function() {
     console.log("Starting load");
@@ -2372,12 +2411,6 @@ function ProviderListController($scope, $location, $resource, items, scroll) {
   items.all = [];
   $scope.items = items.all;  // bind only to shrunken array
 
-  $scope.refresh = function() {
-  };
-
-  $scope.handleSpace = function() {
-  };
-
   $scope.load = function() {
     console.log("Starting load");
     this.klass = $resource((checkmate_server_base || '') + '/:tenantId/providers/.json');
@@ -2411,12 +2444,6 @@ function EnvironmentListController($scope, $location, $resource, items, scroll) 
   $scope.count = 0;
   items.all = [];
   $scope.items = items.all;  // bind only to shrunken array
-
-  $scope.refresh = function() {
-  };
-
-  $scope.handleSpace = function() {
-  };
 
   $scope.load = function() {
     console.log("Starting load");
