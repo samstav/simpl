@@ -203,12 +203,6 @@ class Driver(DbBase):
                                         offset=offset,
                                         limit=limit, with_count=with_count,
                                         with_deleted=with_deleted)
-
-        for key, deployment in deployments.iteritems():
-            if isinstance(deployment, dict):
-                if deployment.get('resources', None):
-                    deployment["resources"] = self._dereferenced_resources(
-                        deployment)
         return deployments
 
     def _remove_all(self, collection_name, ids):

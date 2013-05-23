@@ -675,29 +675,6 @@ class TestDatabase(unittest.TestCase):
         self.assertDictEqual(deployment["resources"],
                              load_deployment["resources"])
 
-    @unittest.skipIf(SKIP, REASON)
-    def test_get_deployments(self):
-        expected_resources = []
-        actual_resources = []
-        for number in range(1, 4):
-            deployment = copy.deepcopy(self.default_deployment)
-            resource = {str(number): {str(number): 'bar'}}
-            expected_resources.append(resource)
-            deployment['resources'] = resource
-            dep_id = uuid.uuid4().hex
-            deployment['id'] = dep_id
-
-            self.driver.save_deployment(dep_id,
-                                        deployment,
-                                        partial=False,
-                                        tenant_id="666")
-        deployments = self.driver.get_deployments(tenant_id="666")
-        for key, deployment in deployments.iteritems():
-            if isinstance(deployment, dict):
-                actual_resources.append(deployment['resources'])
-        self.assertDictEqual(utils.flatten(actual_resources),
-                             utils.flatten(expected_resources))
-
     def _get_resources(self, deployment_id, include_ids=False):
         db_deployment = self.driver.database().deployments.find_one(
             {'_id': deployment_id}, {'resources': 1, '_id': 0})
