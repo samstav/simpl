@@ -1216,8 +1216,9 @@ services.factory('auth', ['$http', '$resource', '$rootScope', '$q', function($ht
         } else if(b.priority) {
           return 1;
         } else {
-          var x = a.realm.toLowerCase(), y = b.realm.toLowerCase();
-                  return x < y ? -1 : x > y ? 1 : 0;
+          var x = a.realm.toLowerCase(),
+              y = b.realm.toLowerCase();
+          return (x < y) ? (-1) : (x > y ? 1 : 0);
         }
       });
     }
