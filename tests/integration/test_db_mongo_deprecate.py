@@ -19,6 +19,7 @@ from bottle import HTTPError
 
 # Init logging before we load the database, 3rd party, and 'noisy' modules
 from checkmate.utils import init_console_logging
+from checkmate.db import db_lock
 from checkmate.db.common import ObjectLockedError, InvalidKeyError
 from checkmate.utils import extract_sensitive_data
 from checkmate.workflows import safe_workflow_save
@@ -749,9 +750,15 @@ class TestDatabase(unittest.TestCase):
         key = uuid.uuid4()
         self.driver.database()['locks'].insert(
             {"_id": key, "expires_at": time.time() + 20})
+        self.assertRaises(ObjectLockedError, self.driver.lock, key, 100)
+
         self.driver.unlock(key)
         lock = self.driver.database()['locks'].find_one({"_id": key})
         self.assertIsNone(lock)
+        self.assertIsInstance(self.driver.lock(key, 100), db_lock.DbLock)
+
+        self.assertRaises(InvalidKeyError, self.driver.unlock, "X")
+
 
     @unittest.skipIf(SKIP, REASON)
     def test_raise_if_trying_to_unlock_non_existent_key(self):

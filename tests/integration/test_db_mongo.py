@@ -69,6 +69,7 @@ class TestDBMongo(base.DBDriverTests, unittest.TestCase):
         self.driver.database()['deployments'].remove({'tenantId': 'T3'})
         self.driver.database()['deployments'].remove({'tenantId': 'TOTHER'})
 
+
 @unittest.skipIf(SKIP, REASON)
 class TestMongoDBCapabilities(unittest.TestCase):
     '''Test MongoDB's capabilities against our driver design

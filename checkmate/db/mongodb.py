@@ -116,12 +116,8 @@ class Driver(DbBase):
                 "Can't lock %s as it is already locked!" % key)
 
     def release_lock(self, key):
-        result = self.database()['locks'].find_and_modify(
-            query={'_id': key},
-            remove=True,
-            new=True
-        )
-        if not result:
+        result = self.database()['locks'].remove({'_id': key}, True)
+        if result['n'] != 1:
             raise InvalidKeyError("Cannot unlock %s, as key does not exist!"
                                   % key)
 
