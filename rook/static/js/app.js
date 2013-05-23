@@ -1692,6 +1692,25 @@ function DeploymentListController($scope, $location, $http, $resource, scroll, i
     });
   };
 
+  // This also exists on DeploymentController - can be refactored
+  $scope.sync = function(deployment_id) {
+    if ($scope.auth.identity.loggedIn) {
+      var klass = $resource((checkmate_server_base || '') + '/:tenantId/deployments/:deployment_id/+sync.json', null, {'get': {method:'GET'}});
+      var thang = new klass();
+      thang.$get({tenantId: $scope.auth.context.tenantId, deployment_id: deployment_id}, function(returned, getHeaders){
+          // Sync
+          if (returned !== undefined)
+              $scope.notify(Object.keys(returned).length + ' resources synced');
+        }, function(error) {
+          $scope.$root.error = {data: error.data, status: error.status, title: "Error Deleting",
+                  message: "There was an error syncing your deployment"};
+          $('#modalError').modal('show');
+        });
+    } else {
+      $scope.loginPrompt(this, function() {console.log("Failed");}); //TODO: implement a callback
+    }
+  };
+
   //Setup
   $scope.$watch('items.selectedIdx', function(newVal, oldVal, scope) {
     if (newVal !== null) scroll.toCurrent();
@@ -2306,6 +2325,26 @@ function DeploymentController($scope, $location, $resource, $routeParams) {
         }, function(error) {
           $scope.$root.error = {data: error.data, status: error.status, title: "Error Deleting",
                   message: "There was an error deleting your deployment"};
+          $('#modalError').modal('show');
+        });
+    } else {
+      $scope.loginPrompt(this, function() {console.log("Failed");}); //TODO: implement a callback
+    }
+  };
+
+  // This also exists on DeploymentListController - can be refactored
+  $scope.sync = function(deployment_id) {
+    if ($scope.auth.identity.loggedIn) {
+      var klass = $resource((checkmate_server_base || '') + '/:tenantId/deployments/:deployment_id/+sync.json', null, {'get': {method:'GET'}});
+      var thang = new klass();
+      thang.$get({tenantId: $scope.auth.context.tenantId, deployment_id: deployment_id}, function(returned, getHeaders){
+          // Sync
+          $scope.load();
+          if (returned !== undefined)
+              $scope.notify(Object.keys(returned).length + ' resources synced');
+        }, function(error) {
+          $scope.$root.error = {data: error.data, status: error.status, title: "Error Deleting",
+                  message: "There was an error syncing your deployment"};
           $('#modalError').modal('show');
         });
     } else {
