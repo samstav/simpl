@@ -143,60 +143,191 @@ describe('pagination', function(){
     });
 
     describe('links', function(){
+      var links;
+      beforeEach(function(){
+        links = {};
+      });
+
       it('should build the next link', function(){
         offset = 6;
         limit = 3;
         total_item_count = 10;
-        expect(this.pagination.buildPaginator(offset, limit).getPagingInformation(total_item_count, base_url).links.next).toEqual({ uri: '/deployments?limit=3&offset=9', text: 'Next' });
+        links = this.pagination.buildPaginator(offset, limit).getPagingInformation(total_item_count, base_url).links;
+        expect(links.next).toEqual({ uri: '/deployments?limit=3&offset=9', text: 'Next' });
       });
 
       it('should build the previous link', function(){
         offset = 6;
         limit = 3;
         total_item_count = 10;
-        expect(this.pagination.buildPaginator(offset, limit).getPagingInformation(total_item_count, base_url).links.previous).toEqual({ uri: '/deployments?limit=3&offset=3', text: 'Previous' });
+        links = this.pagination.buildPaginator(offset, limit).getPagingInformation(total_item_count, base_url).links;
+        expect(links.previous).toEqual({ uri: '/deployments?limit=3&offset=3', text: 'Previous' });
       });
 
       it('should build the numbered links', function(){
         offset = 6;
         limit = 3;
         total_item_count = 10;
-        expect(this.pagination.buildPaginator(offset, limit).getPagingInformation(total_item_count, base_url).links.numbered_links).toEqual([{ uri: '/deployments?limit=3&offset=0', text: 1 }, { uri: '/deployments?limit=3&offset=3', text: 2 }, { uri: '/deployments?limit=3&offset=6', text: 3 }, { uri: '/deployments?limit=3&offset=9', text: 4 }]);
+        links = this.pagination.buildPaginator(offset, limit).getPagingInformation(total_item_count, base_url).links;
+        expect(links.middle_numbered_links).toEqual([{ uri: '/deployments?limit=3&offset=0', text: 1 }, { uri: '/deployments?limit=3&offset=3', text: 2 }, { uri: '/deployments?limit=3&offset=6', text: 3 }, { uri: '/deployments?limit=3&offset=9', text: 4 }]);
       });
 
       it('should not build previous link if there is only one page', function(){
         offset = 0;
         limit = 5;
         total_item_count = 3;
-        expect(this.pagination.buildPaginator(offset, limit).getPagingInformation(total_item_count, base_url).links.previous).toBe(undefined);
+        links = this.pagination.buildPaginator(offset, limit).getPagingInformation(total_item_count, base_url).links;
+        expect(links.previous).toBe(undefined);
       });
 
       it('should not build next link if there is only one page', function(){
         offset = 0;
         limit = 5;
         total_item_count = 3;
-        expect(this.pagination.buildPaginator(offset, limit).getPagingInformation(total_item_count, base_url).links.next).toBe(undefined);
+        links = this.pagination.buildPaginator(offset, limit).getPagingInformation(total_item_count, base_url).links;
+        expect(links.next).toBe(undefined);
       });
 
       it('should not build previous link if there is only one page', function(){
         offset = 0;
         limit = 5;
         total_item_count = 3;
-        expect(this.pagination.buildPaginator(offset, limit).getPagingInformation(total_item_count, base_url).links.previous).toBe(undefined);
+        links = this.pagination.buildPaginator(offset, limit).getPagingInformation(total_item_count, base_url).links;
+        expect(links.previous).toBe(undefined);
       });
 
       it('should not build previous link if I am on the first page', function(){
         offset = 0;
         limit = 5;
         total_item_count = 10;
-        expect(this.pagination.buildPaginator(offset, limit).getPagingInformation(total_item_count, base_url).links.previous).toBe(undefined);
+        links = this.pagination.buildPaginator(offset, limit).getPagingInformation(total_item_count, base_url).links;
+        expect(links.previous).toBe(undefined);
       });
 
       it('should not build next link if I am on the last page', function(){
         offset = 5;
         limit = 5;
         total_item_count = 10;
-        expect(this.pagination.buildPaginator(offset, limit).getPagingInformation(total_item_count, base_url).links.next).toBe(undefined);
+        links = this.pagination.buildPaginator(offset, limit).getPagingInformation(total_item_count, base_url).links;
+        expect(links.next).toBe(undefined);
+      });
+
+      it('should only build a max of 11 numbered links (first 3, middle 5, last 3)', function(){
+        offset = 15;
+        limit = 1;
+        total_item_count = 30;
+        links = this.pagination.buildPaginator(offset, limit).getPagingInformation(total_item_count, base_url).links;
+        expect(links.first_numbered_links.length).toEqual(3);
+        expect(links.middle_numbered_links.length).toEqual(5);
+        expect(links.last_numbered_links.length).toEqual(3);
+      });
+
+      it('should build the first 3, middle 5, and last 3 links', function(){
+        offset = 15;
+        limit = 1;
+        total_item_count = 30;
+        links = this.pagination.buildPaginator(offset, limit).getPagingInformation(total_item_count, base_url).links;
+        expected_first_uris = [
+                                '/deployments?limit=1&offset=0',
+                                '/deployments?limit=1&offset=1',
+                                '/deployments?limit=1&offset=2'
+                              ];
+        expected_middle_uris = [
+                                 '/deployments?limit=1&offset=13',
+                                 '/deployments?limit=1&offset=14',
+                                 '/deployments?limit=1&offset=15',
+                                 '/deployments?limit=1&offset=16',
+                                 '/deployments?limit=1&offset=17'
+                               ];
+        expected_last_uris = [
+                               '/deployments?limit=1&offset=27',
+                               '/deployments?limit=1&offset=28',
+                               '/deployments?limit=1&offset=29'
+                             ];
+        expect(_.pluck(links.first_numbered_links, 'uri')).toEqual(expected_first_uris);
+        expect(_.pluck(links.middle_numbered_links, 'uri')).toEqual(expected_middle_uris);
+        expect(_.pluck(links.last_numbered_links, 'uri')).toEqual(expected_last_uris);
+      });
+
+      it('should not build duplicate numbered links from the front', function(){
+        offset = 3;
+        limit = 1;
+        total_item_count = 30;
+        links = this.pagination.buildPaginator(offset, limit).getPagingInformation(total_item_count, base_url).links;
+        expected_first_uris = [
+                                '/deployments?limit=1&offset=0'
+                              ];
+        expected_middle_uris = [
+                                 '/deployments?limit=1&offset=1',
+                                 '/deployments?limit=1&offset=2',
+                                 '/deployments?limit=1&offset=3',
+                                 '/deployments?limit=1&offset=4',
+                                 '/deployments?limit=1&offset=5'
+                               ];
+        expected_last_uris = [
+                               '/deployments?limit=1&offset=27',
+                               '/deployments?limit=1&offset=28',
+                               '/deployments?limit=1&offset=29'
+                             ];
+        expect(_.pluck(links.first_numbered_links, 'uri')).toEqual(expected_first_uris);
+        expect(_.pluck(links.middle_numbered_links, 'uri')).toEqual(expected_middle_uris);
+        expect(_.pluck(links.last_numbered_links, 'uri')).toEqual(expected_last_uris);
+      });
+
+      it('should not build duplicate numbered links from the end', function(){
+        offset = 29;
+        limit = 1;
+        total_item_count = 30;
+        links = this.pagination.buildPaginator(offset, limit).getPagingInformation(total_item_count, base_url).links;
+        expected_first_uris = [
+                                '/deployments?limit=1&offset=0',
+                                '/deployments?limit=1&offset=1',
+                                '/deployments?limit=1&offset=2'
+                              ];
+        expected_middle_uris = [
+                                 '/deployments?limit=1&offset=27',
+                                 '/deployments?limit=1&offset=28',
+                                 '/deployments?limit=1&offset=29'
+                               ];
+        expected_last_uris = [];
+        expect(_.pluck(links.first_numbered_links, 'uri')).toEqual(expected_first_uris);
+        expect(_.pluck(links.middle_numbered_links, 'uri')).toEqual(expected_middle_uris);
+        expect(_.pluck(links.last_numbered_links, 'uri')).toEqual(expected_last_uris);
+      });
+
+      it('should not build duplicate numbered links from the end with some overlap', function(){
+        offset = 7;
+        limit = 1;
+        total_item_count = 13;
+        links = this.pagination.buildPaginator(offset, limit).getPagingInformation(total_item_count, base_url).links;
+        expected_first_uris = [
+                                '/deployments?limit=1&offset=0',
+                                '/deployments?limit=1&offset=1',
+                                '/deployments?limit=1&offset=2'
+                              ];
+        expected_middle_uris = [
+                                 '/deployments?limit=1&offset=5',
+                                 '/deployments?limit=1&offset=6',
+                                 '/deployments?limit=1&offset=7',
+                                 '/deployments?limit=1&offset=8',
+                                 '/deployments?limit=1&offset=9'
+                               ];
+        expected_last_uris = [
+                               '/deployments?limit=1&offset=10',
+                               '/deployments?limit=1&offset=11',
+                               '/deployments?limit=1&offset=12'
+                             ];
+        expect(_.pluck(links.first_numbered_links, 'uri')).toEqual(expected_first_uris);
+        expect(_.pluck(links.middle_numbered_links, 'uri')).toEqual(expected_middle_uris);
+        expect(_.pluck(links.last_numbered_links, 'uri')).toEqual(expected_last_uris);
+      });
+
+      it('should not build negative numbered links', function(){
+        offset = 0;
+        limit = 1;
+        total_item_count = 30;
+        links = this.pagination.buildPaginator(offset, limit).getPagingInformation(total_item_count, base_url).links;
+        expect(_.filter(links.numbered_links, function(link){return (link.text < 1); }).length).toEqual(0);
       });
     });
   });
