@@ -5,7 +5,7 @@ import copy
 import logging
 
 from celery.canvas import chain, group
-from cloudlb.errors import CloudlbException
+from cloudlb.errors import CloudlbException, NotFound
 from SpiffWorkflow.operators import PathAttrib, Attrib
 from SpiffWorkflow.specs import Celery
 
