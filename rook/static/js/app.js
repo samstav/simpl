@@ -364,7 +364,7 @@ function AppController($scope, $http, $location, $resource, $cookies, auth) {
         password = realvalue;
 
       realvalue = loginForm.apikey.value;
-      if (realvalue !== undefined && apikey != realvalue);
+      if (realvalue !== undefined && apikey != realvalue)
         apikey = realvalue;
 
       //!Pass puts the password in the apikey field too. Assume it's password
@@ -788,7 +788,7 @@ function WorkflowListController($scope, $location, $resource, workflow, items, n
     path = '/:tenantId/workflows.json' + paginator.buildPagingParams();
     $scope.showPagination = function(){
       return $scope.links || false;
-    }
+    };
 
     this.klass = $resource((checkmate_server_base || '') + path);
     this.klass.get({tenantId: $scope.auth.context.tenantId}, function(data, getResponseHeaders){
@@ -1675,11 +1675,11 @@ function DeploymentListController($scope, $location, $http, $resource, scroll, i
     $location.search({ limit: paginator.limit, offset: paginator.offset });
     $location.replace();
 
-    path = '/:tenantId/deployments.json' + paginator.buildPagingParams();;
+    path = '/:tenantId/deployments.json' + paginator.buildPagingParams();
 
     $scope.showPagination = function(){
       return $scope.links || false;
-    }
+    };
 
     this.klass = $resource((checkmate_server_base || '') + path);
     this.klass.get({tenantId: $scope.auth.context.tenantId}, function(data, getResponseHeaders){
