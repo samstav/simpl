@@ -276,12 +276,13 @@ class Provider(ProviderBase):
         return dict(root=create_lb, final=final)
 
     def get_resource_status(self, context, deployment_id, resource, key,
-                            api=None):
+                            sync_callable=None, api=None):
         return super(Provider, self).get_resource_status(context,
                                                          deployment_id,
                                                          resource, key,
+                                                         sync_callable=
                                                          sync_resource_task,
-                                                         api)
+                                                         api=api)
 
     def sync_resource_status(self, context, deployment_id, resource,
                              key):
