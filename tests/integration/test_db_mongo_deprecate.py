@@ -1,10 +1,9 @@
 # pylint: disable=C0103,C0111,R0903,R0904,W0212,W0232
 import copy
 import logging
-import unittest2 as unittest
 import uuid
 import time
-from bottle import HTTPError
+import unittest2 as unittest
 
 try:
     from mongobox import MongoBox
@@ -15,11 +14,17 @@ except ImportError as exc:
     REASON = "'mongobox' not installed: %s" % exc
     MongoBox = object
 
-from checkmate import db
+from checkmate import db, utils
+from bottle import HTTPError
+
+# Init logging before we load the database, 3rd party, and 'noisy' modules
+from checkmate.utils import init_console_logging
+from checkmate.db import db_lock
 from checkmate.db.common import ObjectLockedError, InvalidKeyError
 from checkmate.utils import extract_sensitive_data
 from checkmate.workflows import safe_workflow_save
 
+init_console_logging()
 LOG = logging.getLogger(__name__)
 
 
@@ -138,7 +143,7 @@ class TestDatabase(unittest.TestCase):
         body['tenantId'] = 'T1000'  # gets added
         self.assertDictEqual(results, body)
         self.assertNotIn('_id', results, "Backend field '_id' should not be "
-                         "exposed outside of driver")
+                                         "exposed outside of driver")
 
         results = self.driver._get_objects(self.collection_name,
                                            with_secrets=False,
@@ -273,21 +278,6 @@ class TestDatabase(unittest.TestCase):
         unicode_results = self.driver._get_objects(self.collection_name,
                                                    with_count=True)
         self.assertIn('collection-count', unicode_results)
-
-    def test_save_deployment_fails_if_locked(self):
-        klass = 'deployments'
-        obj_id = 1
-        self.driver.database()[klass].remove({"id": obj_id})
-        self.driver.save_deployment(obj_id,
-                                    {"id": obj_id, "test": obj_id},
-                                    tenant_id="T1000",
-                                    partial=False)
-        locked_object, _ = self.driver.lock_object(klass, obj_id)
-        with self.assertRaises(ObjectLockedError):
-            self.driver.save_deployment(obj_id,
-                                        {"id": obj_id, "test": obj_id},
-                                        tenant_id="T1000",
-                                        partial=False)
 
     @unittest.skipIf(SKIP, REASON)
     def test_lock_existing_object(self):
@@ -474,6 +464,7 @@ class TestDatabase(unittest.TestCase):
     @unittest.skipIf(SKIP, REASON)
     def test_new_safe_workflow_save(self):
         import checkmate.workflows as workflows
+
         workflows.DB = self.driver
         #test that a new object can be saved with the lock
         self.driver.database()['workflows'].remove({'_id': "1"})
@@ -481,23 +472,278 @@ class TestDatabase(unittest.TestCase):
                            driver=self.driver)
 
     @unittest.skipIf(SKIP, REASON)
+    def test_save_new_deployment(self):
+        dep_id = uuid.uuid4().hex
+        deployment = {
+            'id': dep_id,
+            'name': 'test',
+            'inputs': {},
+            'includes': {},
+            'resources': {'0': {'provider-key': 'test'}, '1': {'foo': 'bar'}},
+            'workflow': "abcdef",
+            'status': "NEW",
+            'created': "yesterday",
+            'tenantId': "T1000",
+            'blueprint': {
+                'name': 'test bp',
+            },
+            'environment': {
+                'name': 'environment',
+                'providers': {},
+            },
+        }
+        deployment = self.driver.save_deployment(dep_id,
+                                                 deployment,
+                                                 partial=False,
+                                                 tenant_id="T1000")
+        resource_list = []
+        for key, value in deployment['resources'].items():
+            resource_list.append({key: value})
+        self.assertListEqual(resource_list, self._get_resources(dep_id))
+
+    @unittest.skipIf(SKIP, REASON)
+    def test_full_deployment_update(self):
+        dep_id = uuid.uuid4().hex
+        deployment = {
+            'id': dep_id,
+            'name': 'test',
+            'inputs': {},
+            'includes': {},
+            'resources': {'0': {'provider-key': 'test'}, '1': {'foo': 'bar'}},
+            'workflow': "abcdef",
+            'status': "NEW",
+            'created': "yesterday",
+            'tenantId': "T1000",
+            'blueprint': {
+                'name': 'test bp',
+            },
+            'environment': {
+                'name': 'environment',
+                'providers': {},
+            },
+        }
+        deployment = self.driver.save_deployment(dep_id,
+                                                 deployment,
+                                                 partial=False,
+                                                 tenant_id="T1000")
+
+        resources_after_first_save = self._get_resources(dep_id, True)
+
+        deployment['resources'].pop('1')
+        deployment['status'] = "PLANNED"
+        deployment = self.driver.save_deployment(dep_id,
+                                                 deployment,
+                                                 partial=False,
+                                                 tenant_id="T1000")
+        self.assertEqual(len(deployment['resources']), 1)
+        self.assertIsNotNone(deployment['resources'].get('0', None))
+        self.assertEqual(deployment['status'], "PLANNED")
+        for resource in resources_after_first_save:
+            self.assertIsNone(self.driver.database().resources.find_one(
+                {'id': resource['id']}))
+        resource_list = []
+        for key, value in deployment['resources'].items():
+            resource_list.append({key: value})
+        self.assertListEqual(resource_list, self._get_resources(dep_id))
+
+    @unittest.skipIf(SKIP, REASON)
+    def test_partial_deployment_update(self):
+        dep_id = uuid.uuid4().hex
+        resource_0 = {'provider-key': 'test'}
+        deployment = {
+            'id': dep_id,
+            'name': 'test',
+            'inputs': {},
+            'includes': {},
+            'resources': {'0': resource_0, '1': {'foo': 'bar'}},
+            'workflow': "abcdef",
+            'status': "NEW",
+            'created': "yesterday",
+            'tenantId': "T1000",
+            'blueprint': {
+                'name': 'test bp',
+            },
+            'environment': {
+                'name': 'environment',
+                'providers': {},
+            },
+        }
+        self.driver.save_deployment(dep_id,
+                                    deployment,
+                                    partial=False,
+                                    tenant_id="T1000")
+        new_resource_1 = {'foo': 'new_bar'}
+        deployment = self.driver.save_deployment(dep_id,
+                                                 {'resources': {
+                                                     '1': new_resource_1}},
+                                                 partial=True,
+                                                 tenant_id="T1000")
+        self.assertEqual(len(deployment['resources']), 2)
+        resource_ids = []
+        for db_resource in self._get_resources(dep_id, True):
+            resource_ids.append(db_resource['id'])
+        db_deployment = self.driver.database().deployments.find_one(
+            {'_id': dep_id})
+        self.assertListEqual(db_deployment['resources'], resource_ids)
+        self.assertListEqual(self._get_resources(dep_id),
+                             [{'1': new_resource_1}, {'0': resource_0}])
+
+    @unittest.skipIf(SKIP, REASON)
+    def test_partial_deployment_update_for_same_dep_and_resource_doc(self):
+        dep_id = uuid.uuid4().hex
+        resource_0 = {'provider-key': 'test'}
+        deployment = {
+            'id': dep_id,
+            '_id': dep_id,
+            'name': 'test',
+            'inputs': {},
+            'includes': {},
+            'resources': {'0': resource_0, '1': {'foo': 'bar'}},
+            'workflow': "abcdef",
+            'status': "NEW",
+            'created': "yesterday",
+            'tenantId': "T1000",
+            'blueprint': {
+                'name': 'test bp',
+            },
+            'environment': {
+                'name': 'environment',
+                'providers': {},
+            },
+        }
+        self.driver.database().deployments.insert(deployment)
+        new_resource_1 = {'foo': 'new_bar'}
+        deployment = self.driver.save_deployment(dep_id,
+                                                 {'resources': {
+                                                     '1': new_resource_1}},
+                                                 partial=True,
+                                                 tenant_id="T1000")
+        self.assertEqual(len(deployment['resources']), 2)
+        resource_ids = []
+        for db_resource in self._get_resources(dep_id, True):
+            resource_ids.append(db_resource['id'])
+        db_deployment = self.driver.database().deployments.find_one(
+            {'_id': dep_id})
+        self.assertListEqual(db_deployment['resources'], resource_ids)
+        self.assertListEqual(self._get_resources(dep_id),
+                             [{'1': new_resource_1}, {'0': resource_0}])
+
+    @unittest.skipIf(SKIP, REASON)
     def test_existing_workflow_save(self):
         import checkmate.workflows as workflows
+
         workflows.DB = self.driver
         #test locking an already locked workflow
         self.driver.database()['workflows'].remove({'_id': "1"})
         timestamp = time.time()
         self.driver.database()['workflows'].save({'_id': "1", "_lock": "1",
                                                   "_lock_timestamp":
-                                                  timestamp})
+                                                      timestamp})
 
         with self.assertRaises(HTTPError):
             safe_workflow_save("1", {"id": "yolo"}, tenant_id=2412423,
                                driver=self.driver)
 
+    @unittest.skipIf(SKIP, REASON)
+    def test_get_deployment(self):
+        dep_id = uuid.uuid4().hex
+        deployment = {
+            'id': dep_id,
+            'name': 'test',
+            'inputs': {},
+            'includes': {},
+            'resources': {'0': {'provider-key': 'test'}, '1': {'foo': 'bar'}},
+            'workflow': "abcdef",
+            'status': "NEW",
+            'created': "yesterday",
+            'tenantId': "T1000",
+            'blueprint': {
+                'name': 'test bp',
+            },
+            'environment': {
+                'name': 'environment',
+                'providers': {},
+            },
+        }
+        deployment = self.driver.save_deployment(dep_id,
+                                                 deployment,
+                                                 partial=False,
+                                                 tenant_id="T1000")
+
+        load_deployment = self.driver.get_deployment(dep_id)
+
+        self.assertDictEqual(deployment["resources"],
+                             load_deployment["resources"])
+
+    def _get_resources(self, deployment_id, include_ids=False):
+        db_deployment = self.driver.database().deployments.find_one(
+            {'_id': deployment_id}, {'resources': 1, '_id': 0})
+        db_resources = db_deployment['resources']
+        resources = []
+        resources_projection = {'_id': 0, 'tenantId': 0, 'id': 0}
+        if include_ids:
+            resources_projection.pop('id')
+        for resource_id in db_resources:
+            resource = self.driver.database().resources.find_one(
+                {'_id': resource_id}, resources_projection)
+            resources.append(resource)
+        return resources
+
+    @unittest.skipIf(SKIP, REASON)
+    def test_create_and_delete_lock(self):
+        key = uuid.uuid4()
+        with self.driver.lock(key, 36000):
+            lock_entry = self.driver.database()['locks'].find_one({"_id": key})
+            self.assertIsNotNone(lock_entry)
+            self.assertTrue("expires_at" in lock_entry)
+        lock = self.driver.database()['locks'].find_one({"_id": key})
+        self.assertIsNone(lock)
+
+    @unittest.skipIf(SKIP, REASON)
+    def test_lock_for_existing_lock(self):
+        key = uuid.uuid4()
+        self.driver.database()['locks'].insert(
+            {"_id": key, "expires_at": time.time() + 20})
+        try:
+            with self.driver.lock(key, 200):
+                pass
+        except ObjectLockedError:
+            raised = True
+        self.assertTrue(raised)
+
+    @unittest.skipIf(SKIP, REASON)
+    def test_create_new_lock_for_expired_locks(self):
+        key = uuid.uuid4()
+        current_time = time.time()
+        self.driver.database()['locks'].insert(
+            {"_id": key, "expires_at": current_time - 20})
+        with self.driver.lock(key, 10):
+            lock_entry = self.driver.database()['locks'].find_one({"_id": key})
+            self.assertIsNotNone(lock_entry)
+            self.assertGreater(lock_entry["expires_at"], current_time)
+
+    @unittest.skipIf(SKIP, REASON)
+    def test_unlock(self):
+        key = uuid.uuid4()
+        self.driver.database()['locks'].insert(
+            {"_id": key, "expires_at": time.time() + 20})
+        self.assertRaises(ObjectLockedError, self.driver.lock, key, 100)
+
+        self.driver.unlock(key)
+        lock = self.driver.database()['locks'].find_one({"_id": key})
+        self.assertIsNone(lock)
+        self.assertIsInstance(self.driver.lock(key, 100), db_lock.DbLock)
+
+        self.assertRaises(InvalidKeyError, self.driver.unlock, "X")
+
+
+    @unittest.skipIf(SKIP, REASON)
+    def test_raise_if_trying_to_unlock_non_existent_key(self):
+        self.assertRaises(InvalidKeyError, self.driver.unlock, uuid.uuid4())
 
 if __name__ == '__main__':
     # Any change here should be made in all test files
     import sys
     from checkmate.test import run_with_params
+
     run_with_params(sys.argv[:])

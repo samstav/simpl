@@ -446,6 +446,16 @@ def extract_sensitive_data(data, sensitive_keys=None):
     return clean, sensitive
 
 
+def flatten(list_of_dict):
+    """Converts a list of dictionary to a single dictionary. If 2 or more
+     dictionaries have the same key then the data from the last dictionary in
+     the list will be taken."""
+    result = {}
+    for d in list_of_dict:
+        result.update(d)
+    return result
+
+
 def merge_dictionary(dst, src, extend_lists=False):
     """Recursive merge two dicts (vs .update which overwrites the hashes at the
         root level)
