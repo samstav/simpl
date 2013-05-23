@@ -734,7 +734,7 @@ function TestController($scope, $location, $routeParams, $resource, $http, items
 }
 
 //Workflow controllers
-function WorkflowListController($scope, $location, $resource, workflow, items, navbar, scroll) {
+function WorkflowListController($scope, $location, $resource, workflow, items, navbar, scroll, pagination) {
   //Model: UI
   $scope.showItemsBar = true;
   $scope.showStatus = true;
@@ -777,13 +777,42 @@ function WorkflowListController($scope, $location, $resource, workflow, items, n
 
   $scope.load = function() {
     console.log("Starting load");
-    this.klass = $resource((checkmate_server_base || '') + '/:tenantId/workflows/.json');
+    var path,
+        query_params = $location.search(),
+        paginator;
+
+    paginator = pagination.buildPaginator(query_params.offset, query_params.limit);
+    $location.search({ limit: paginator.limit, offset: paginator.offset });
+    $location.replace();
+
+    path = '/:tenantId/workflows.json' + paginator.buildPagingParams();
+    $scope.showPagination = function(){
+      return $scope.links || false;
+    }
+
+    this.klass = $resource((checkmate_server_base || '') + path);
     this.klass.get({tenantId: $scope.auth.context.tenantId}, function(data, getResponseHeaders){
+      var total_item_count,
+          paging_info,
+          workflows_url = '/' + $scope.auth.context.tenantId + '/workflows';
+
       console.log("Load returned");
+
+      if($.browser.mozilla) {
+        total_item_count = parseInt(_.last(getResponseHeaders('content-range').split('/')));
+      } else {
+        total_item_count = parseInt(_.last(getResponseHeaders('Content-Range').split('/')));
+      }
+
+      paging_info = paginator.getPagingInformation(total_item_count, workflows_url);
+
       items.receive(data.results, function(item, key) {
         return {id: key, name: item.wf_spec.name, status: item.attributes.status, progress: item.attributes.progress, tenantId: item.tenantId};});
       $scope.count = items.count;
       $scope.items = items.all;
+      $scope.currentPage = paging_info.currentPage;
+      $scope.totalPages = paging_info.totalPages;
+      $scope.links = paging_info.links;
       console.log("Done loading");
     });
   };
@@ -1647,16 +1676,13 @@ function DeploymentListController($scope, $location, $http, $resource, scroll, i
     console.log("Starting load");
     var path,
         query_params = $location.search(),
-        paging_params,
         paginator;
 
     paginator = pagination.buildPaginator(query_params.offset, query_params.limit);
     $location.search({ limit: paginator.limit, offset: paginator.offset });
     $location.replace();
 
-    paging_params = paginator.buildPagingParams();
-
-    path = '/:tenantId/deployments.json' + paging_params;
+    path = '/:tenantId/deployments.json' + paginator.buildPagingParams();;
 
     $scope.showPagination = function(){
       return $scope.links || false;
