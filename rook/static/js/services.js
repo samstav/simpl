@@ -1304,14 +1304,17 @@ services.factory('pagination', function(){
         }
       }
 
-      if(!(current_page === 1)) {
-        links.previous = { uri: base_url + '?limit=' + limit + '&offset=' + (offset - limit),
-                           text: 'Previous' };
+      links.next = { uri: base_url + '?limit=' + limit + '&offset=' + (offset + limit),
+                     text: 'Next' };
+      links.previous = { uri: base_url + '?limit=' + limit + '&offset=' + (offset - limit),
+                         text: 'Previous' };
+
+      if(current_page === 1) {
+        links.disable_previous = true;
       }
 
-      if(!(current_page === total_pages) && !(total_pages === 0)) {
-        links.next = { uri: base_url + '?limit=' + limit + '&offset=' + (offset + limit),
-                       text: 'Next' };
+      if(current_page === total_pages || total_pages === 0) {
+        links.disable_next = true;
       }
     }
 
