@@ -606,22 +606,29 @@ def get_a_deployment(oid, tenant_id=None, driver=DB, with_secrets=False):
 
     # Strip secrets
     # FIXME(zns): this is not the place to do this / temp HACK to prove API
-    status = "NO SECRETS"
-    for _, value in entity.get('display-outputs', {}).items():
-        if value.get('is-secret', False) is True:
-            if value.get('status') == "AVAILABLE":
-                status = "AVAILABLE"
-            elif value.get('status') == "LOCKED":
-                if status == "NO SECRETS":
-                    status = "LOCKED"
-            elif value.get('status') == "GENERATING":
-                if status != "NO SECRETS":  # some AVAILABLE
-                    status = "GENERATING"
-            try:
-                del value['value']
-            except KeyError:
-                pass
-    entity['secrets'] = status
+    try:
+        status = "NO SECRETS"
+        outputs = entity.get('display-outputs')
+        if outputs:
+            for _, value in outputs.items():
+                if value.get('is-secret', False) is True:
+                    if value.get('status') == "AVAILABLE":
+                        status = "AVAILABLE"
+                    elif value.get('status') == "LOCKED":
+                        if status == "NO SECRETS":
+                            status = "LOCKED"
+                    elif value.get('status') == "GENERATING":
+                        if status != "NO SECRETS":  # some AVAILABLE
+                            status = "GENERATING"
+                    try:
+                        del value['value']
+                    except KeyError:
+                        pass
+        entity['secrets'] = status
+    except StandardError as exc:
+        # Skip errors in exprimental code
+        LOG.exception(exc)
+        pass
     return entity
 
 
