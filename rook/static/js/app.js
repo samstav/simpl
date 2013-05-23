@@ -268,12 +268,6 @@ function AppController($scope, $http, $location, $resource, $cookies, auth) {
     apikey: ''
   };
 
-  $scope.refresh = function() {
-  };
-
-  $scope.handleSpace = function() {
-  };
-
   // Display log in prompt
   $scope.loginPrompt = function(success_callback, failure_callback) {
     //reset controls
@@ -768,12 +762,6 @@ function WorkflowListController($scope, $location, $resource, workflow, items, n
   };
 
   $scope.selected = items.selected;
-
-  $scope.refresh = function() {
-  };
-
-  $scope.handleSpace = function() {
-  };
 
   $scope.load = function() {
     console.log("Starting load");
@@ -1659,12 +1647,6 @@ function DeploymentListController($scope, $location, $http, $resource, scroll, i
 
   $scope.selected = items.selected;
 
-  $scope.refresh = function() {
-  };
-
-  $scope.handleSpace = function() {
-  };
-
   $scope.load = function() {
     console.log("Starting load");
     var path,
@@ -2228,12 +2210,6 @@ function DeploymentController($scope, $location, $resource, $routeParams) {
   $scope.data = {};
   $scope.data_json = "";
 
-  $scope.refresh = function() {
-  };
-
-  $scope.handleSpace = function() {
-  };
-
   // Called by load to refresh the status page
   $scope.reload = function(original_url) {
     // Check that we are still on the same page, otherwise don't reload
@@ -2381,12 +2357,6 @@ function FeedbackListController($scope, $location, $resource, items, scroll) {
   items.all = [];
   $scope.items = items.all;  // bind only to shrunken array
 
-  $scope.refresh = function() {
-  };
-
-  $scope.handleSpace = function() {
-  };
-
   $scope.load = function() {
     console.log("Starting load");
     this.klass = $resource((checkmate_server_base || '') + '/admin/feedback/.json');
@@ -2423,12 +2393,6 @@ function ProviderListController($scope, $location, $resource, items, scroll) {
   items.all = [];
   $scope.items = items.all;  // bind only to shrunken array
 
-  $scope.refresh = function() {
-  };
-
-  $scope.handleSpace = function() {
-  };
-
   $scope.load = function() {
     console.log("Starting load");
     this.klass = $resource((checkmate_server_base || '') + '/:tenantId/providers/.json');
@@ -2462,12 +2426,6 @@ function EnvironmentListController($scope, $location, $resource, items, scroll) 
   $scope.count = 0;
   items.all = [];
   $scope.items = items.all;  // bind only to shrunken array
-
-  $scope.refresh = function() {
-  };
-
-  $scope.handleSpace = function() {
-  };
 
   $scope.load = function() {
     console.log("Starting load");
