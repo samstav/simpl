@@ -278,7 +278,7 @@ def formatted_response(uripath, with_pagination=False):
                     kwargs['offset'] = int(offset)
             data = fxn(*args, **kwargs)
             if with_pagination:
-                write_pagination_headers(
+                _write_pagination_headers(
                     data,
                     request,
                     response,
@@ -294,7 +294,7 @@ def formatted_response(uripath, with_pagination=False):
     return _formatted_response
 
 
-def write_pagination_headers(data, request, response, uripath, tenant_id):
+def _write_pagination_headers(data, request, response, uripath, tenant_id):
     """Add pagination headers to the response body"""
     offset = request.query.get('offset')
     limit = request.query.get('limit')

@@ -35,7 +35,6 @@ from checkmate.utils import (
     match_celery_logging,
     with_tenant,
     write_body,
-    write_pagination_headers,
     write_path,
 )
 from checkmate.workflow import (
