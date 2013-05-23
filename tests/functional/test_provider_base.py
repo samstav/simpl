@@ -162,6 +162,50 @@ class TestProviderBase(unittest.TestCase):
         self.assertEqual(provider.get_setting('test', default=1), 1)
         self.assertEqual(provider.get_setting('foo'), 'bar')
         self.assertEqual(provider.get_setting('foo', default='ignore!'), 'bar')
+        
+    def test_provider_base_get_resource_status(self):
+        """Mox tests for get_resource_status of provider base"""
+        self.mox = mox.Mox()
+        data = { "provides": "foo" }
+        base = ProviderBase(data)
+        deployment_id = "someid123"
+        key = "0"
+        api = "dummy_api_object"
+        resource = {
+                    'name': 'db1.checkmate.local',
+                    'provider': 'database',
+                    'status': 'ACTIVE',
+                    'region': 'ORD',
+                    'instance': {
+                                 'id': 'dummy_id',
+                                 'databases': ''
+                                 }
+                   }
+
+        def sync_resource_task(ctx, resource, key, api):
+            """Dummy method for testing"""
+            return {'ctx': ctx,
+                    'resource': resource,
+                    'key': key,
+                    'api': api
+                    }
+
+        ctx = "dummy_queued_task_dict"
+        context_mock = self.mox.CreateMockAnything()
+        context_mock.get_queued_task_dict(deployment=deployment_id,
+                                          resource=key).AndReturn(ctx)
+
+        expected = {'ctx': ctx,
+                    'resource': resource,
+                    'key': key,
+                    'api': api
+                    }
+
+        self.mox.ReplayAll()
+        results = base.get_resource_status(context_mock, deployment_id,
+                                           resource, key, sync_resource_task)
+
+        self.assertItemsEqual(expected, results)
 
 
 class TestProviderBaseWorkflow(StubbedWorkflowBase):

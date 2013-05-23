@@ -275,6 +275,14 @@ class Provider(ProviderBase):
         final = set_monitor_task
         return dict(root=create_lb, final=final)
 
+    def get_resource_status(self, context, deployment_id, resource, key,
+                            api=None):
+        return super(Provider, self).get_resource_status(context,
+                                                         deployment_id,
+                                                         resource, key,
+                                                         sync_resource_task,
+                                                         api)
+
     def sync_resource_status(self, context, deployment_id, resource,
                              key):
         self._verify_existing_resource(resource, key)
@@ -696,16 +704,26 @@ def sync_resource_task(context, resource, resource_key, api=None):
         api = Provider.connect(context, resource.get("region"))
     try:
         lb = api.loadbalancers.get(resource.get("instance", {}).get("id"))
+        #need to go thru actual vs expected scenarios
+        #instance = {'port': resource['instance']['port'],
+        #            'protocol': resource['instance']['protocol']}
+        #if hasattr(lb, 'port') and resource['instance']['port'] != lb.port:
+        #    instance['port'] = lb.port
+        #if hasattr(lb, 'port') and
+        #   resource['instance']['protocol'] != lb.protocol:
+        #    instance['protocol'] = lb.protocol
         return {
             key: {
-                "status": lb.status,
-                'port': lb.port,
-                'protocol': lb.protocol
+                "status": lb.status
+                #'instance': instance
             }
         }
-    except cloudlb.errors.NotFound:
-        return {key: {}}
-
+    except NotFound:
+        return {
+            key: {
+                "status": "DELETED"
+            }
+        }
 
 @task
 def delete_lb_task(context, key, lbid, region, api=None):

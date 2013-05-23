@@ -450,6 +450,48 @@ def plan_deployment(oid, tenant_id=None, driver=DB):
 
 
 # pylint: disable=W0613
+@route('/deployments/<oid>/+sync', method=['POST', 'GET'])
+@with_tenant
+def sync_deployment(oid, tenant_id=None, driver=DB):
+    """Sync existing deployment objects with current cloud status"""
+    if is_simulation(oid):
+        driver = SIMULATOR_DB
+    if any_id_problems(oid):
+        abort(406, any_id_problems(oid))
+    entity = driver.get_deployment(oid)
+    if not entity:
+        raise CheckmateDoesNotExist('No deployment with id %s' % oid)
+    deployment = Deployment(entity)
+    env = deployment.environment()
+    my_resources = {}
+    for key, item in entity.get('resources').items():
+        if (key.isdigit() and \
+           item.get('provider') not in ["chef-solo", None] and \
+           item.get('type') in ["compute", "load-balancer", "database"]):
+
+            i_key = 'instance:%s' % key
+            provider = env.select_provider(request.context,
+                                           resource=item.get('type'))
+            result = provider.get_resource_status(request.context,
+                                                  oid, item, key)
+            my_resources.update(result)
+
+            if result[i_key].get('status') in ['ACTIVE', 'RESCUE', 'DELETED']:
+                instance = { 'statusmsg' : '' }
+
+            #need to go thru actual vs expected scenarios
+            #if hasattr(result, 'instance'):
+            #    for x, y in result['instance'].items():
+            #        instance[x] = y
+            if instance:
+                result[i_key]['instance'] = instance
+
+            resource_postback.delay(oid, result, driver=driver)
+
+    return write_body(my_resources, request, response)
+
+
+# pylint: disable=W0613
 @route('/deployments/<oid>/+deploy', method=['POST', 'GET'])
 @with_tenant
 def deploy_deployment(oid, tenant_id=None, driver=DB):

@@ -177,6 +177,44 @@ class TestCeleryTasks(unittest.TestCase):
         wait_on_lb_delete(context, '1', '1234', 'lb14nuai-asfjb', 'ORD',
                           api=api)
         self.mox.VerifyAll()
+        
+    def test_lb_sync_resource_task(self):
+        """Tests db sync_resource_task via mox"""
+        #Mock instance
+        lb = self.mox.CreateMockAnything()
+        lb.id = 'fake_lb_id'
+        lb.name = 'fake_lb'
+        lb.status = 'ERROR'
+
+        resource_key = "1"
+
+        context = dict(deployment='DEP', resource='1')
+
+        resource = {
+                    'name': 'fake_lb',
+                    'provider': 'load-balancers',
+                    'status': 'ERROR',
+                    'instance': {
+                                 'id': 'fake_lb_id'
+                            }
+                    }
+
+        lb_api_mock = self.mox.CreateMockAnything()
+        lb_api_mock.loadbalancers = self.mox.CreateMockAnything()
+
+        lb_api_mock.loadbalancers.get(lb.id).AndReturn(lb)
+
+        expected = {
+                    'instance:1': {
+                                   "status": "ERROR"
+                                   }
+                    }
+
+        self.mox.ReplayAll()
+        results = loadbalancer.sync_resource_task(context, resource, resource_key,
+                                                  lb_api_mock)
+
+        self.assertDictEqual(results, expected)
 
 
 class TestBasicWorkflow(test.StubbedWorkflowBase):
