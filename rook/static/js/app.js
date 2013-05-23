@@ -1658,6 +1658,10 @@ function DeploymentListController($scope, $location, $http, $resource, scroll, i
 
     path = '/:tenantId/deployments.json' + paging_params;
 
+    $scope.showPagination = function(){
+      return $scope.links || false;
+    }
+
     this.klass = $resource((checkmate_server_base || '') + path);
     this.klass.get({tenantId: $scope.auth.context.tenantId}, function(data, getResponseHeaders){
       var total_item_count,

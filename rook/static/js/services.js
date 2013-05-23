@@ -1241,7 +1241,8 @@ services.factory('pagination', function(){
 
   function _buildPagingLinks(current_page, total_pages, base_url, offset, limit){
     var counter = 0,
-        links = { middle_numbered_links: [] },
+        links = { middle_numbered_links: [], separator: '...',
+                  hide_first_separator: true, hide_last_separator: true },
         NUM_OF_LINKS_AT_ENDS = 3,
         NUM_OF_LINKS_IN_CENTER = 5,
         TOTAL_LINKS_TO_SHOW = (NUM_OF_LINKS_AT_ENDS * 2) + NUM_OF_LINKS_IN_CENTER;
@@ -1278,7 +1279,6 @@ services.factory('pagination', function(){
 
       links.hide_first_separator = (first_numbered_links.length === 0) || (_.first(middle_numbered_links).text - _.last(first_numbered_links).text) === 1;
       links.hide_last_separator = (last_numbered_links.length === 0) || (_.first(last_numbered_links).text - _.last(middle_numbered_links).text) === 1;
-      links.separator = "...";
     }
 
     if(total_pages > 1) {

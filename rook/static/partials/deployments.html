@@ -22,7 +22,7 @@
     </tbody>
   </table>
 
-  <div class="pagination">
+  <div data-ng-show="showPagination()" class="pagination">
     <ul>
       <li data-ng-show="links.previous" >
         <a data-ng-href="{{links.previous.uri}}">{{links.previous.text}}</a>
