@@ -420,6 +420,48 @@ class TestNovaCompute(test.ProviderTester):
         with file(path, 'r') as _file:
             catalog = json.load(_file)['access']['serviceCatalog']
         self.assertEqual(compute.Provider.find_a_region(catalog), 'North')
+        
+    def test_compute_sync_resource_task(self):
+        """Tests compute sync_resource_task via mox"""
+        #Mock server
+        server = self.mox.CreateMockAnything()
+        server.id = 'fake_server_id'
+        server.status = "ERROR"
+
+        resource_key = "0"
+
+        context = {
+                'deployment': 'DEP',
+                'resource': '0',
+                'tenant': 'TMOCK',
+                'base_url': 'http://MOCK'
+            }
+
+        resource = {
+                    'name': 'svr11.checkmate.local',
+                    'provider': 'compute',
+                    'status': 'ERROR',
+                    'instance': {
+                                 'id': 'fake_server_id'
+                            }
+                    }
+
+        openstack_api_mock = self.mox.CreateMockAnything()
+        openstack_api_mock.servers = self.mox.CreateMockAnything()
+
+        openstack_api_mock.servers.get(server.id).AndReturn(server)
+
+        expected = {
+                    'instance:0': {
+                                   "status": "ERROR"
+                                   }
+                    }
+
+        self.mox.ReplayAll()
+        results = compute.sync_resource_task(context, resource, resource_key,
+                                             openstack_api_mock)
+
+        self.assertDictEqual(results, expected)
 
     def verify_limits(self, cores_used, ram_used):
         """Test the verify_limits() method"""

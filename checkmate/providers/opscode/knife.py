@@ -302,7 +302,16 @@ def _cache_blueprint(source_repo):
             utils.git_checkout(repo_cache, tag)
 
 
-def _copy_kitchen_blueprint(dest, source_repo):
+def _blueprint_exists(source, dest):
+    """Check that all files in the source blueprint exist in the destination"""
+    for source_file in os.listdir(source):
+        dest_file = os.path.join(dest, source_file)
+        if not os.path.exists(dest_file):
+            return False
+    return True
+
+
+def _ensure_kitchen_blueprint(dest, source_repo):
     """Update the blueprint cache and copy the blueprint to the kitchen.
 
     Arguments:
@@ -317,10 +326,11 @@ def _copy_kitchen_blueprint(dest, source_repo):
                                  repo_cache)
     LOG.debug("repo_cache: %s" % repo_cache)
     LOG.debug("dest: %s" % dest)
-    if os.path.exists(os.path.join(repo_cache, "site-cookbooks")):
-        os.remove(os.path.join(dest, 'site-cookbooks', '.gitkeep'))
-        os.rmdir(os.path.join(dest, 'site-cookbooks'))
-    utils.copy_contents(repo_cache, dest, create_path=True)
+    if not _blueprint_exists(repo_cache, dest):
+        utils.copy_contents(repo_cache,
+                            dest,
+                            create_path=True,
+                            with_overwrite=True)
 
 
 def _create_kitchen(dep_id, service_name, path, secret_key=None,
@@ -407,7 +417,7 @@ def _create_kitchen(dep_id, service_name, path, secret_key=None,
 
     # Copy blueprint files to kitchen
     if source_repo:
-        _copy_kitchen_blueprint(kitchen_path, source_repo)
+        _ensure_kitchen_blueprint(kitchen_path, source_repo)
 
     LOG.debug("Finished creating kitchen: %s" % kitchen_path)
     return {"kitchen": kitchen_path}

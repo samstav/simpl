@@ -310,6 +310,15 @@ class Provider(ProviderBase):
                                      "provider %s" % (component['is'],
                                                       self.key))
 
+    def get_resource_status(self, context, deployment_id, resource, key,
+                            sync_callable=None, api=None):
+        return super(Provider, self).get_resource_status(context,
+                                                         deployment_id,
+                                                         resource, key,
+                                                         sync_callable=
+                                                         sync_resource_task,
+                                                         api=api)
+
     def delete_resource_tasks(self, context, deployment_id, resource, key):
         self._verify_existing_resource(resource, key)
         region = resource.get('region') or \
@@ -878,6 +887,36 @@ def add_user(context, instance_id, databases, username, password, region,
     resource_postback.delay(context['deployment'], results)
 
     return results
+
+
+@task
+def sync_resource_task(context, resource, resource_key, api=None):
+    match_celery_logging(LOG)
+    key = "instance:%s" % resource_key
+    if api is None:
+        instance = resource.get("instance")
+        if 'region' in instance:
+            region = instance['region']
+        elif 'host_region' in instance:
+            region = instance['host_region']
+        elif 'region' in resource:
+            region = resource['region']
+        else:
+            region = Provider.find_a_region(context)
+        api = Provider.connect(context, region)
+    try:
+        database = api.get_instance(resource.get("instance", {}).get("id"))
+        return {
+            key: {
+                "status": database.status
+            }
+        }
+    except ResponseError:
+        return {
+            key: {
+                "status": "DELETED"
+            }
+        }
 
 
 @task(default_retry_delay=2, max_retries=60)

@@ -101,6 +101,7 @@ class Deployment(BASE):
     __tablename__ = 'deployments'
     dbid = Column(Integer, primary_key=True, autoincrement=True)
     id = Column(String(32), index=True, unique=True)
+    created = Column(String(255), index=False)
     locked = Column(Float, default=0)
     lock = Column(String, default=0)
     lock_timestamp = Column(Integer, default=0)
@@ -419,8 +420,14 @@ class Driver(DbBase):
                      with_deleted=False):
         '''Retrieve all recrods from a given table for a given tenant id'''
         response = {}
+        response['_links'] = {}  # To be populated soon!
+        response['results'] = {}
         results = self._add_filters(
             klass, self.session.query(klass), tenant_id, with_deleted)
+        if klass is Deployment:
+            results = results.order_by(Deployment.created.desc())
+        elif klass is Workflow:
+            results = results.order_by(Workflow.id)
         if results and results.count() > 0:
             results = results.limit(limit).offset(offset).all()
 
@@ -428,18 +435,18 @@ class Driver(DbBase):
                 self.convert_data(klass.__tablename__, entry.body)
                 if with_secrets is True:
                     if entry.secrets:
-                        response[entry.id] = merge_dictionary(
+                        response['results'][entry.id] = merge_dictionary(
                             entry.body,
                             entry.secrets
                         )
                     else:
-                        response[entry.id] = entry.body
+                        response['results'][entry.id] = entry.body
                 else:
-                    response[entry.id] = entry.body
-                response[entry.id]['tenantId'] = entry.tenant_id
-            if with_count:
-                response['collection-count'] = self._get_count(
-                    klass, tenant_id, with_deleted)
+                    response['results'][entry.id] = entry.body
+                response['results'][entry.id]['tenantId'] = entry.tenant_id
+        if with_count:
+            response['collection-count'] = self._get_count(
+                klass, tenant_id, with_deleted)
         return response
 
     def _add_filters(self, klass, query, tenant_id, with_deleted):
@@ -557,6 +564,7 @@ class Driver(DbBase):
         # As of v0.13, status is saved in Deployment object
         if klass is Deployment:
             e.status = body.get('status')
+            e.created = body.get('created')
 
         self.session.add(e)
         self.session.commit()
@@ -683,3 +691,33 @@ class Driver(DbBase):
                 # New object
                 raise ValueError("Cannot get the object:%s that has never "
                                  "been saved" % api_id)
+
+    def convert_data(self, klass, body):
+        DbBase.convert_data(self, klass, body)
+        if klass == 'deployments':
+            if 'blueprint' in body:
+                blueprint = body['blueprint']
+                if 'documentation' in blueprint:
+                    del blueprint['documentation']
+                if 'options' in blueprint:
+                    del blueprint['options']
+                if 'services' in blueprint:
+                    del blueprint['services']
+                if 'resources' in blueprint:
+                    del blueprint['resources']
+            if 'environment' in body and 'providers' in body['environment']:
+                del body['environment']['providers']
+            if 'inputs' in body:
+                    del body['inputs']
+            if 'plan' in body:
+                    del body['plan']
+            if 'display-outputs' in body:
+                    del body['display-outputs']
+            if 'resources' in body:
+                    del body['resources']
+        elif klass == "workflows":
+            if 'wf_spec' in body:
+                if 'specs' in body['wf_spec']:
+                    del body['wf_spec']['specs']
+            if 'task_tree' in body:
+                del body['task_tree']

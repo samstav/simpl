@@ -7,9 +7,11 @@ from checkmate.component import Component
 from checkmate.exceptions import (
     CheckmateException,
     CheckmateNoMapping,
-    CheckmateValidationException
+    CheckmateValidationException,
 )
-from checkmate.providers.provider_base_planning_mixin import ProviderBasePlanningMixIn
+from checkmate.providers.provider_base_planning_mixin import (
+    ProviderBasePlanningMixIn,
+)
 
 LOG = logging.getLogger(__name__)
 PROVIDER_CLASSES = {}
@@ -26,7 +28,7 @@ class CheckmateInvalidProvider(Exception):
 
 
 # pylint: disable=W0232
-class ProviderBaseWorkflowMixIn():
+class ProviderBaseWorkflowMixIn(object):
     """The methods used by the workflow generation code (i.e. they need a
     workflow to work on)
 
@@ -36,17 +38,14 @@ class ProviderBaseWorkflowMixIn():
     def _verify_existing_resource(self, resource, key):
         '''Private method for Resource verification'''
         msg = None
-        if resource.get("provider") != self.name:
+        if (resource.get('status') != "DELETED" and
+                resource.get("provider") != self.name):
             msg = "%s did not provide resource %s" % (self.name, key)
-        if (
-            ("region" not in resource) and
-            ('host_region' not in resource.get('instance', {}))
-        ):
+        if ("region" not in resource and
+                'host_region' not in resource.get('instance', {})):
             msg = "No region defined in resource %s" % key
-        if (
-            ("id" not in resource.get("instance", {})) and
-            ("host_instance" not in resource.get('instance', {}))
-        ):
+        if ("id" not in resource.get("instance", {}) and
+                "host_instance" not in resource.get('instance', {})):
             msg = "Resource %s does not have an id or host_instance" % key
         if msg:
             raise CheckmateException(msg)
@@ -94,6 +93,19 @@ class ProviderBaseWorkflowMixIn():
         actual deployed item """
         LOG.debug("%s.%s.sync_resource_status called, "
                   "but was not implemented", self.vendor, self.name)
+
+    def get_resource_status(self, context, deployment_id, resource, key,
+                            sync_callable=None, api=None):
+        """Return remote status for resource.  Call from provider"""
+
+        if sync_callable:
+            self._verify_existing_resource(resource, key)
+            ctx = context.get_queued_task_dict(deployment=deployment_id,
+                                               resource=key)
+            return sync_callable(ctx, resource, key, api)
+        else:
+            LOG.debug("%s.%s.get_resource_status called, but was not "
+                      "implemented", self.vendor, self.name)
 
     def _add_resource_tasks_helper(self, resource, key, wfspec, deployment,
                                    context, wait_on):

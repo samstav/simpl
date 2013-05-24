@@ -5,17 +5,23 @@ TODO:
 - Fix mapping between API ID and mongoDB _id field
 
 '''
-import pymongo
+import copy
 import logging
+import pymongo
 import time
 import uuid
 
+from SpiffWorkflow.util import merge_dictionary as collate
+
 from checkmate.classes import ExtensibleDict
 from checkmate.db.common import DbBase, ObjectLockedError, InvalidKeyError
-from checkmate.exceptions import CheckmateDatabaseConnectionError,\
-    CheckmateException
+from checkmate.exceptions import (
+    CheckmateDatabaseConnectionError,
+    CheckmateException,
+)
+from checkmate.db.db_lock import DbLock
+from checkmate.utils import flatten
 from checkmate.utils import merge_dictionary
-from SpiffWorkflow.util import merge_dictionary as collate
 
 LOG = logging.getLogger(__name__)
 
@@ -25,14 +31,29 @@ class Driver(DbBase):
     #db fields we do not want returned to the client
     _object_projection = {'_lock': 0, '_lock_timestamp': 0, '_id': 0}
 
+    _deployment_projection = copy.deepcopy(_object_projection)
+    _deployment_projection['blueprint.documentation'] = 0
+    _deployment_projection['blueprint.options'] = 0
+    _deployment_projection['blueprint.services'] = 0
+    _deployment_projection['blueprint.resources'] = 0
+    _deployment_projection['environment.providers'] = 0
+    _deployment_projection['inputs'] = 0
+    _deployment_projection['plan'] = 0
+    _deployment_projection['display-outputs'] = 0
+    _deployment_projection['resources'] = 0
+
+    _workflow_projection = copy.deepcopy(_object_projection)
+    _workflow_projection['wf_spec.specs'] = 0
+    _workflow_projection['task_tree'] = 0
+
     def __init__(self, connection_string, driver=None, *args, **kwargs):
         '''Initializes globals for this driver'''
         DbBase.__init__(self, connection_string, driver=driver, *args,
                         **kwargs)
 
         self.db_name = pymongo.uri_parser.parse_uri(self.connection_string
-                                                    ).get('database',
-                                                          'checkmate')
+        ).get('database',
+              'checkmate')
         self._database = None
         self._connection = None
         self._client = None
@@ -55,7 +76,7 @@ class Driver(DbBase):
         if self._client is None:
             try:
                 self._client = (pymongo.MongoClient(
-                                self.connection_string))
+                    self.connection_string))
             except pymongo.errors.AutoReconnect as exc:
                 raise CheckmateDatabaseConnectionError(exc.__str__())
         return self._client
@@ -75,6 +96,30 @@ class Driver(DbBase):
         response['blueprints'] = self.get_blueprints()
         response['workflows'] = self.get_workflows()
         return response
+
+    def lock(self, key, timeout):
+        return DbLock(self, key, timeout)
+
+    def unlock(self, key):
+        return self.release_lock(key)
+
+    def acquire_lock(self, key, timeout):
+        existing_lock = self.database()['locks'].find_one({'_id': key})
+        result = self.database()['locks'].find_and_modify(
+            query={'_id': key, 'expires_at': {'$lt': time.time()}},
+            update={'_id': key, 'expires_at': (time.time() + timeout)},
+            upsert=existing_lock is None,
+            new=True
+        )
+        if not result:
+            raise ObjectLockedError(
+                "Can't lock %s as it is already locked!" % key)
+
+    def release_lock(self, key):
+        result = self.database()['locks'].remove({'_id': key}, True)
+        if result['n'] != 1:
+            raise InvalidKeyError("Cannot unlock %s, as key does not exist!"
+                                  % key)
 
     # TENANTS
     def save_tenant(self, tenant):
@@ -139,35 +184,117 @@ class Driver(DbBase):
                                  tenant_id)
 
     # DEPLOYMENTS
+    def _dereferenced_resources(self, deployment):
+        resources = self._get_resources(deployment.get("resources", None),
+                                        {"_id": 0, "id": 0, "tenantId": 0})
+        return flatten(resources)
+
     def get_deployment(self, api_id, with_secrets=None):
-        return self._get_object('deployments', api_id,
-                                with_secrets=with_secrets)
+        deployment = self._get_object('deployments', api_id,
+                                      with_secrets=with_secrets)
+        if deployment and deployment.get("resources", None):
+            deployment["resources"] = self._dereferenced_resources(deployment)
+        return deployment
 
     def get_deployments(self, tenant_id=None, with_secrets=None, limit=0,
                         offset=0, with_count=True, with_deleted=False):
-        return self._get_objects(
-            'deployments',
-            tenant_id,
-            with_secrets=with_secrets,
-            offset=offset,
-            limit=limit,
-            with_count=with_count,
-            with_deleted=with_deleted
-        )
+        deployments = self._get_objects('deployments', tenant_id,
+                                        with_secrets=with_secrets,
+                                        offset=offset,
+                                        limit=limit, with_count=with_count,
+                                        with_deleted=with_deleted)
+        return deployments
+
+    def _remove_all(self, collection_name, ids):
+        if ids:
+            self.database()[collection_name].remove({"_id": {'$in': ids}})
 
     def save_deployment(self, api_id, body, secrets=None, tenant_id=None,
                         partial=True):
         '''
-        Pull current deployment in DB incase another task has modified its'
+        Pull current deployment in DB incase another task has modified its
         contents
         '''
+        existing_deployment = self._get_object('deployments', api_id)
+        combined_deployment_resource_doc = (
+            self._is_deployment_with_resource_document(existing_deployment))
+        resources = body.get("resources", None)
+        if resources:
+            body['resources'] = self._save_resources(resources,
+                                                     existing_deployment,
+                                                     tenant_id=tenant_id,
+                                                     partial=partial)
 
-        # If the deployment exists, lock it!
-        if self.get_deployment(api_id):
-            _, key = self.lock_object('deployments', api_id)
+        #If there is a partial update for a single resource don't update the
+        # deployment
+        if (len(body) == 1 and body.get('resources', None) and
+                not combined_deployment_resource_doc):
+            deployment = existing_deployment
+        else:
+            deployment = self._save_object('deployments', api_id, body,
+                                           secrets, tenant_id,
+                                           merge_existing=partial)
 
-        return self._save_object('deployments', api_id, body, secrets,
-                                 tenant_id, merge_existing=partial)
+        if not partial and existing_deployment:
+            self._remove_all('resources', existing_deployment.get('resources',
+                                                                  None))
+
+        if deployment.get('resources', None):
+            deployment["resources"] = self._dereferenced_resources(deployment)
+        return deployment
+
+    def _save_resources(self, incoming_resources, deployment, tenant_id,
+                        partial):
+        resource_ids = []
+        if partial and deployment:
+            if self._is_deployment_with_resource_document(deployment):
+                deployment["resources"] = self. \
+                    _save_resources(deployment["resources"],
+                                    deployment, tenant_id, False)
+
+            resource_ids = deployment["resources"]
+            existing_resources = self._get_resources(resource_ids)
+            resources = self._relate_resources(existing_resources,
+                                               incoming_resources)
+            for resource in resources:
+                self._save_resource(resource['id'], resource['body'],
+                                    tenant_id=tenant_id, partial=partial)
+        else:
+            for key, resource in incoming_resources.iteritems():
+                resource_id = uuid.uuid4().hex
+                resource_ids.append(resource_id)
+                self._save_resource(resource_id,
+                                    {key: resource, "id": resource_id},
+                                    tenant_id=tenant_id, partial=partial)
+        return resource_ids
+
+    def _is_deployment_with_resource_document(self, deployment):
+        if deployment:
+            return isinstance(deployment.get("resources", None), dict)
+        return False
+
+    def _relate_resources(self, existing, incoming):
+        resources = []
+        for key, incoming_resource in incoming.iteritems():
+            for existing_resource in existing:
+                if key in existing_resource:
+                    resources.append({'id': existing_resource["id"],
+                                      'body': {key: incoming_resource}})
+        return resources
+
+    def _get_resources(self, resource_ids, projection=None):
+        resources_cursor = self.database()["resources"].find(
+            {'id': {'$in': resource_ids}}, projection)
+        resources = []
+        for resource in resources_cursor:
+            resources.append(resource)
+        return resources
+
+    def _save_resource(self, resource_id, body, tenant_id=None, partial=True):
+        resource = self._save_object('resources', resource_id, body,
+                                     tenant_id=tenant_id,
+                                     merge_existing=partial)
+        return resource
 
     #BLUEPRINTS
     def get_blueprint(self, api_id, with_secrets=None):
@@ -179,8 +306,8 @@ class Driver(DbBase):
                                  with_secrets=with_secrets)
 
     def save_blueprint(self, api_id, body, secrets=None, tenant_id=None):
-        return self._save_object('blueprints', api_id, body,
-                                 secrets, tenant_id)
+        return self._save_object('blueprints', api_id, body, secrets,
+                                 tenant_id)
 
     # WORKFLOWS
     def get_workflow(self, api_id, with_secrets=None):
@@ -296,7 +423,7 @@ class Driver(DbBase):
                 return (locked_object, key)
             else:
                 raise InvalidKeyError("The key:%s could not unlock: %s(%s)" % (
-                                      key, klass, api_id))
+                    key, klass, api_id))
 
         # A key was not passed in
         key = str(uuid.uuid4())
@@ -332,12 +459,12 @@ class Driver(DbBase):
                         # Key is stale, force the lock
                         LOG.warning("%s(%s) had a stale lock of %s seconds!",
                                     klass, api_id, lock_time_delta)
-                        locked_object = self.database()[klass]\
+                        locked_object = self.database()[klass] \
                             .find_and_modify(
-                                query={'_id': api_id},
-                                update=lock_update,
-                                fields=self._object_projection
-                            )
+                            query={'_id': api_id},
+                            update=lock_update,
+                            fields=self._object_projection
+                        )
                         return (locked_object, key)
                     else:
                         # Lock is not stale
@@ -372,7 +499,8 @@ class Driver(DbBase):
         '''
         with self._get_client().start_request():
             results = self.database()[klass].find_one({
-                '_id': api_id}, self._object_projection)
+                                                          '_id': api_id},
+                                                      self._object_projection)
 
             if results:
                 if with_secrets is True:
@@ -389,6 +517,17 @@ class Driver(DbBase):
 
     def _get_objects(self, klass, tenant_id=None, with_secrets=None, offset=0,
                      limit=0, with_count=True, with_deleted=False):
+        if klass == 'deployments':
+            projection = self._deployment_projection
+            sort_key = 'created'
+            sort_direction = pymongo.DESCENDING
+        elif klass == 'workflows':
+            projection = self._workflow_projection
+            sort_key = 'id'
+            sort_direction = pymongo.ASCENDING
+        else:
+            projection = self._object_projection
+            sort_key = None
         response = {}
         if offset is None:
             offset = 0
@@ -396,21 +535,25 @@ class Driver(DbBase):
             limit = 0
         with self._get_client().start_request():
             results = self.database()[klass].find(self._build_filters(
-                klass, tenant_id, with_deleted), self._object_projection
-            ).skip(offset).limit(limit)
+                klass, tenant_id, with_deleted), projection)
+            if sort_key:
+                results.sort(sort_key, sort_direction)
+            results = results.skip(offset).limit(limit)
+
+            response['_links'] = {}  # To be populated soon!
+            response['results'] = {}
 
             for entry in results:
                 self.convert_data(klass, entry)
                 if with_secrets is True:
-                    response[entry['id']] = self.merge_secrets(
+                    response['results'][entry['id']] = self.merge_secrets(
                         klass, entry['id'], entry)
                 else:
-                    response[entry['id']] = entry
+                    response['results'][entry['id']] = entry
 
-            if response and with_count:
+            if with_count:
                 response['collection-count'] = self._get_count(
                     klass, tenant_id, with_deleted)
-
         return response
 
     def _get_count(self, klass, tenant_id, with_deleted):
@@ -462,7 +605,7 @@ class Driver(DbBase):
                     LOG.warning("Clearing secrets for %s:%s", klass, api_id)
                     self.database()['%s_secrets' % klass].remove()
                 else:
-                    cur_secrets = self.database()['%s_secrets' % klass].\
+                    cur_secrets = self.database()['%s_secrets' % klass]. \
                         find_one({'_id': api_id}, {'_id': 0})
                     if cur_secrets:
                         collate(cur_secrets, secrets, extend_lists=False)
@@ -473,12 +616,13 @@ class Driver(DbBase):
                                                      "specified")
             body['_id'] = api_id
             self.database()[klass].update({'_id': api_id}, body,
-                                          not merge_existing,  # Upsert new
+                                          not merge_existing, # Upsert new
                                           False, check_keys=False)
             if secrets:
                 secrets['_id'] = api_id
-                self.database()['%s_secrets' % klass].update({
-                    '_id': api_id}, secrets, True, False)
+                self.database()['%s_secrets' % klass].update({'_id': api_id},
+                                                             secrets, True,
+                                                             False)
             del body['_id']
 
         return body

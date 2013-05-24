@@ -5,7 +5,6 @@ Test MongoDB using MongoBox
 import logging
 import sys
 import unittest2 as unittest
-
 import base  # pylint: disable=W0403
 
 LOG = logging.getLogger(__name__)
@@ -278,7 +277,6 @@ class TestMongoDBCapabilities(unittest.TestCase):
             fields={'_lock': 0, '_id': 0}
         )
         self.assertIsNone(obj)
-
 
 if __name__ == '__main__':
     # Any change here should be made in all test files

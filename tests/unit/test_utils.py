@@ -16,12 +16,16 @@ import uuid
 import mox
 
 from checkmate import utils
+from bottle import request, response
 
 
 class TestUtils(unittest.TestCase):
 
     def setUp(self):
         pass
+
+    def tearDown(self):
+        response.bind({})
 
     def test_extract_sensitive_data_simple(self):
         fxn = utils.extract_sensitive_data
@@ -36,6 +40,11 @@ class TestUtils(unittest.TestCase):
         self.assertEquals(fxn(combined, sensitive_keys=[]), (combined, None))
         self.assertEquals(fxn(combined, ['password']), (innocuous, secret))
         self.assertDictEqual(combined, original)
+
+    def test_flatten(self):
+        list_of_dict = [{'foo': 'bar'}, {'a': 'b'}, {'foo': 'bar1'}]
+        self.assertDictEqual(utils.flatten(list_of_dict),
+                             {'foo': 'bar1', 'a': 'b'})
 
     def test_extract_data_expression_as_sensitive(self):
         data = {
@@ -397,6 +406,89 @@ class TestUtils(unittest.TestCase):
         result = utils.get_time_string(time.gmtime(0))
         self.assertEquals(result, "1970-01-01 00:00:00 +0000")
 
+    #
+    # _validate_range_values tests
+    #
+
+    def test_negative_is_invalid(self):
+        request.environ = {'QUERY_STRING': 'offset=-2'}
+        kwargs = {}
+        with self.assertRaises(ValueError):
+            utils._validate_range_values(request, 'offset', kwargs)
+
+    def test_non_numeric_is_invalid(self):
+        request.environ = {'QUERY_STRING': 'limit=blah'}
+        kwargs = {}
+        with self.assertRaises(ValueError):
+            utils._validate_range_values(request, 'limit', kwargs)
+
+    def test_nothing_provided_is_valid_but_none(self):
+        request.environ = {'QUERY_STRING': ''}
+        kwargs = {}
+        utils._validate_range_values(request, 'offset', kwargs)
+        self.assertEquals(None, kwargs.get('offset'))
+        self.assertEquals(200, response.status)
+
+    def test_valid_number_passed_in_param(self):
+        request.environ = {'QUERY_STRING': ''}
+        kwargs = {'limit': '4236'}
+        utils._validate_range_values(request, 'limit', kwargs)
+        self.assertEquals(4236, kwargs['limit'])
+        self.assertEquals(200, response.status)
+
+    def test_valid_number_passed_in_request(self):
+        request.environ = {'QUERY_STRING': 'offset=2'}
+        kwargs = {}
+        utils._validate_range_values(request, 'offset', kwargs)
+        self.assertEquals(2, kwargs['offset'])
+        self.assertEquals(200, response.status)
+
+    def test_pagination_headers_no_ranges_no_results(self):
+        utils._write_pagination_headers({'results': {}}, 0, None, response, 'deployments', '')
+        self.assertEquals(200, response.status)
+        self.assertEquals(
+            [
+                ('Content-Range', 'deployments 0-0/0'),
+                ('Content-Type', 'text/html; charset=UTF-8')
+            ],
+            response.headerlist
+        )
+
+    def test_pagination_headers_no_ranges_but_with_results(self):
+        utils._write_pagination_headers(
+            {
+                'collection-count': 4,
+                'results': {'1': {}, '2': {}, '3': {}, '4': {}}
+            },
+            0, None, response, 'deployments', ''
+        )
+        self.assertEquals(200, response.status)
+        self.assertEquals(
+            [
+                ('Content-Range', 'deployments 0-3/4'),
+                ('Content-Type', 'text/html; charset=UTF-8')
+            ],
+            response.headerlist
+        )
+
+    def test_pagination_headers_with_ranges_and_within_results(self):
+        utils._write_pagination_headers(
+            {
+                'collection-count': 4,
+                'results': {'2': {}, '3': {}}
+            },
+            1, 2, response, 'deployments', 'T3'
+        )
+        self.assertEquals(206, response.status)
+        self.assertEquals(
+            [
+                ('Link', '</T3/deployments?limit=2>; rel="first"; title="First page"'),
+                ('Link', '</T3/deployments?offset=2>; rel="last"; title="Last page"'),
+                ('Content-Range', 'deployments 1-2/4'),
+                ('Content-Type', 'text/html; charset=UTF-8')
+            ],
+            response.headerlist
+        )
 
 if __name__ == '__main__':
     # Any change here should be made in all test files

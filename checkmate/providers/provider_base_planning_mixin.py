@@ -3,7 +3,7 @@ import platform
 import checkmate
 
 
-class ProviderBasePlanningMixIn():
+class ProviderBasePlanningMixIn(object):
     """The methods used by the deployment planning code (i.e. they need a
     deployment to work on)
 

@@ -28,13 +28,13 @@ from checkmate.exceptions import (
 from checkmate.plan import Plan
 from checkmate.utils import (
     extract_sensitive_data,
+    formatted_response,
     read_body,
     get_time_string,
     is_simulation,
     match_celery_logging,
     with_tenant,
     write_body,
-    write_pagination_headers,
     write_path,
 )
 from checkmate.workflow import (
@@ -177,35 +177,15 @@ def _deploy(deployment, context, driver=DB):
 #
 @get('/deployments')
 @with_tenant
-def get_deployments(tenant_id=None, driver=DB):
+@formatted_response('deployments', with_pagination=True)
+def get_deployments(tenant_id=None, offset=None, limit=None, driver=DB):
     """ Get existing deployments """
-    offset = request.query.get('offset')
-    limit = request.query.get('limit')
     show_deleted = request.query.get('show_deleted')
-
-    if offset:
-        offset = int(offset)
-    if limit:
-        limit = int(limit)
-
-    deployments = driver.get_deployments(
+    return driver.get_deployments(
         tenant_id=tenant_id,
         offset=offset,
         limit=limit,
         with_deleted=show_deleted == '1'
-    )
-
-    write_pagination_headers(
-        deployments,
-        request,
-        response,
-        "deployments",
-        tenant_id
-    )
-    return write_body(
-        deployments,
-        request,
-        response
     )
 
 
@@ -460,6 +440,32 @@ def plan_deployment(oid, tenant_id=None, driver=DB):
 
 
 # pylint: disable=W0613
+@route('/deployments/<oid>/+sync', method=['POST', 'GET'])
+@with_tenant
+def sync_deployment(oid, tenant_id=None, driver=DB):
+    """Sync existing deployment objects with current cloud status"""
+    if is_simulation(oid):
+        driver = SIMULATOR_DB
+    if any_id_problems(oid):
+        abort(406, any_id_problems(oid))
+    entity = driver.get_deployment(oid)
+    if not entity:
+        raise CheckmateDoesNotExist('No deployment with id %s' % oid)
+    deployment = Deployment(entity)
+    env = deployment.environment()
+    resources = {}
+    for key, resource in entity.get('resources', {}).items():
+        if key.isdigit() and 'provider' in resource:
+            provider = env.get_provider(resource['provider'])
+            result = provider.get_resource_status(request.context,
+                                                  oid, resource, key)
+            if result:
+                resources.update(result)
+                resource_postback.delay(oid, result, driver=driver)
+    return write_body(resources, request, response)
+
+
+# pylint: disable=W0613
 @route('/deployments/<oid>/+deploy', method=['POST', 'GET'])
 @with_tenant
 def deploy_deployment(oid, tenant_id=None, driver=DB):
@@ -610,22 +616,29 @@ def get_a_deployment(oid, tenant_id=None, driver=DB, with_secrets=False):
 
     # Strip secrets
     # FIXME(zns): this is not the place to do this / temp HACK to prove API
-    status = "NO SECRETS"
-    for _, value in entity.get('display-outputs', {}).items():
-        if value.get('is-secret', False) is True:
-            if value.get('status') == "AVAILABLE":
-                status = "AVAILABLE"
-            elif value.get('status') == "LOCKED":
-                if status == "NO SECRETS":
-                    status = "LOCKED"
-            elif value.get('status') == "GENERATING":
-                if status != "NO SECRETS":  # some AVAILABLE
-                    status = "GENERATING"
-            try:
-                del value['value']
-            except KeyError:
-                pass
-    entity['secrets'] = status
+    try:
+        status = "NO SECRETS"
+        outputs = entity.get('display-outputs')
+        if outputs:
+            for _, value in outputs.items():
+                if value.get('is-secret', False) is True:
+                    if value.get('status') == "AVAILABLE":
+                        status = "AVAILABLE"
+                    elif value.get('status') == "LOCKED":
+                        if status == "NO SECRETS":
+                            status = "LOCKED"
+                    elif value.get('status') == "GENERATING":
+                        if status != "NO SECRETS":  # some AVAILABLE
+                            status = "GENERATING"
+                    try:
+                        del value['value']
+                    except KeyError:
+                        pass
+        entity['secrets'] = status
+    except StandardError as exc:
+        # Skip errors in exprimental code
+        LOG.exception(exc)
+        pass
     return entity
 
 

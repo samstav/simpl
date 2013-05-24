@@ -326,23 +326,22 @@ All calls to GET /deployments and GET /workflows may be optionally paginated by 
     POST [/:tid]/deployments
     POST [/:tid]/deployments/+parse[?check_limits=1&check_access=1]
     POST [/:tid]/deployments/+preview
-    POST [/:tid]/deployments/:id/+plan
-    POST [/:tid]/deployments/:id/+deploy
-    POST [/:tid]/deployments/:id/+clone
+    POST/GET [/:tid]/deployments/:id/+plan
+    POST/GET [/:tid]/deployments/:id/+deploy
+    POST/GET [/:tid]/deployments/:id/+clone
+    POST/GET [/:tid]/deployments/:id/+sync
     PUT/GET/POST/DELETE [/:tid]/deployments/:id
     GET [/:tid]/deployments/:id/status
-    GET [/:tid]/deployments/:id/secrets
+    POST/GET [/:tid]/deployments/:id/secrets
+    GET [/:tid]/deployments/:id/resources
+    GET [/:tid]/deployments/:id/resources/:rid
 
     GET  [/:tid]/workflows/[?offset=OFFSET&limit=LIMIT]
     POST [/:tid]/workflows
     PUT/GET/POST [/:tid]/workflows/:id
-
     GET [/:tid]/workflows/:id/status
-
     POST [/:tid]/workflows/:id/+execute
-
     GET/POST [/:tid]/workflows/:id/tasks/:task_id
-
     POST [/:tid]/workflows/:id/tasks/:task_id/+execute
     POST [/:tid]/workflows/:id/tasks/:task_id/+resubmit
 
@@ -360,7 +359,7 @@ All calls to GET /deployments and GET /workflows may be optionally paginated by 
     GET /admin/status/celery
     GET /admin/status/libraries
 
-    # If the server is started with --with-simulator, the following calls are avaiable:
+    # If the server is started with --with-simulator, the following calls are available:
 
     POST [/:tid]/deployments/simulate
 
