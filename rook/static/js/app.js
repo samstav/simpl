@@ -1583,6 +1583,7 @@ function BlueprintRemoteListController($scope, $location, $routeParams, $resourc
     if (data.length >= 1) {
       var select = _.find(data, function(branch) {return branch.name == $scope.default_branch;});
       $scope.remote.branch = select || data[0];
+      $scope.branches.stable = _.find(data, function(branch) {return branch.name == 'stable';});
       $scope.loadBlueprint();
     } else
       $scope.remote.branch = null;
