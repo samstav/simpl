@@ -1583,7 +1583,12 @@ function BlueprintRemoteListController($scope, $location, $routeParams, $resourc
     if (data.length >= 1) {
       var select = _.find(data, function(branch) {return branch.name == $scope.default_branch;});
       $scope.remote.branch = select || data[0];
-      $scope.branches.stable = _.find(data, function(branch) {return branch.name == 'stable';});
+      var found = _.find(data, function(branch) {return branch.name == 'stable';});
+      if (found !== undefined) {
+        found.url = ($scope.remote.repo.html_url || $scope.remote.repo.id) + '#stable';
+        $scope.stable = found;
+      } else
+        delete $scope.stable;
       $scope.loadBlueprint();
     } else
       $scope.remote.branch = null;
@@ -1745,7 +1750,7 @@ function DeploymentListController($scope, $location, $http, $resource, scroll, i
 //Hard-coded for Managed Cloud Wordpress
 function DeploymentManagedCloudController($scope, $location, $routeParams, $resource, $http, items, navbar, options, workflow, github) {
 
-   $scope.receive_blueprint = function(data, remote) {
+  $scope.receive_blueprint = function(data, remote) {
     if ('blueprint' in data) {
       if ($scope.auth.identity.loggedIn === true) {
         data.blueprint.options.region['default'] = $scope.auth.context.user['RAX-AUTH:defaultRegion'] || $scope.auth.context.regions[0];
@@ -1890,6 +1895,12 @@ function DeploymentManagedCloudController($scope, $location, $routeParams, $reso
   });
 
    items.clear();
+  $scope.$watch('selected', function(newVal, oldVal, scope) {
+    if (typeof newVal == 'object') {
+      $scope.remote = $scope.selected.remote;
+      $scope.stable = {url: $scope.remote.url.replace('#' + $scope.remote.branch.name, '') + '#stable'};
+    }
+  });
 
   //Load the latest supported blueprints (tagged as stable) from github
   $scope.loadRemoteBlueprint('https://github.rackspace.com/Blueprints/wordpress#stable');
