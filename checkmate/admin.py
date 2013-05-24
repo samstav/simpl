@@ -19,9 +19,10 @@ LOG = logging.getLogger(__name__)
 
 from bottle import get, request, response, abort
 
-from checkmate import utils
+from checkmate import utils, db
 
 __version_string__ = None
+DB = db.get_driver()
 
 
 def only_admins(fn):
@@ -140,3 +141,21 @@ def get_dependency_versions():
             result[name] = {'status': 'ERROR: %s' % exc}
 
     return utils.write_body(result, request, response)
+
+
+#
+# Deployments
+#
+@get('/admin/deployments')
+@utils.formatted_response('deployments', with_pagination=True)
+def get_deployments(tenant_id=None, offset=None, limit=None, driver=DB):
+    """ Get existing deployments """
+    show_deleted = request.query.get('show_deleted')
+    tenant_id = request.query.get('tenant_id')
+    data = driver.get_deployments(
+        tenant_id=tenant_id,
+        offset=offset,
+        limit=limit,
+        with_deleted=show_deleted == '1'
+    )
+    return data
