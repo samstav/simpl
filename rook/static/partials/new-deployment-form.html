@@ -44,7 +44,7 @@ url: shows "Address Builder" to handle url options
     display:inline;
 }
 </style>
-<div class="alert" ng-class="{'alert-info': branches.stable}" ng-cloak ng-show="blueprint &amp;&amp; remote.branch.name != 'stable'"><h4 ng-cloak ng-show="!branches.stable">Warning!</h4> You have selected an <strong>unsupported</strong> <span ng-cloak ng-show="branches.stable">version of this </span>blueprint. <span ng-cloak ng-show="branches.stable"><a ng-href="/deployments/new?blueprint={{selected.id}}#stable">This</a> is a supported version of this blueprint.</span><span ng-cloak ng-show="!branches.stable">Try a supported blueprint from the list on the home page instead.</span></div>
+<div class="alert" ng-class="{'alert-info': stable}" ng-cloak ng-show="blueprint &amp;&amp; remote.branch.name != 'stable'"><h4 ng-cloak ng-show="!stable">Warning!</h4> You have selected an <strong>unsupported</strong> <span ng-cloak ng-show="stable">version of this </span>blueprint. <span ng-cloak ng-show="stable"><a ng-href="/deployments/new?blueprint={{stable.url}}">This</a> is a supported version of this blueprint.</span><span ng-cloak ng-show="!stable">Try a supported blueprint from the list on the home page instead.</span></div>
 <form id="newDeploymentForm" name="newDeploymentForm" class="form-horizontal" autocomplete="off" ng-cloak ng-show="blueprint" style="background-position: right top; background-repeat: no-repeat; background-size: auto 140px; background-image: url({{blueprint['meta-data']['reach-info'].tattoo}})">
   <fieldset>
     <!-- Name -->
