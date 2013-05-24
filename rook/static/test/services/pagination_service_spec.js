@@ -196,20 +196,20 @@ describe('pagination', function(){
         expect(links.previous).toBe(undefined);
       });
 
-      it('should not build previous link if I am on the first page', function(){
+      it('should build previous link even if I am on the first page', function(){
         offset = 0;
         limit = 5;
         total_item_count = 10;
         links = this.pagination.buildPaginator(offset, limit).getPagingInformation(total_item_count, base_url).links;
-        expect(links.previous).toBe(undefined);
+        expect(links.previous).toBeDefined;
       });
 
-      it('should not build next link if I am on the last page', function(){
+      it('should build next link even if I am on the last page', function(){
         offset = 5;
         limit = 5;
         total_item_count = 10;
         links = this.pagination.buildPaginator(offset, limit).getPagingInformation(total_item_count, base_url).links;
-        expect(links.next).toBe(undefined);
+        expect(links.next).toBeDefined;
       });
 
       it('should only build a max of 11 numbered links (first 3, middle 5, last 3)', function(){

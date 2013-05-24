@@ -1,0 +1,33 @@
+<div data-ng-show="showPagination()" class="pagination">
+  <ul>
+    <li>
+      <a data-ng-hide="links.disable_previous" data-ng-href="{{links.previous.uri}}">{{links.previous.text}}</a>
+      <span data-ng-show="links.disable_previous">{{links.previous.text}}</span>
+    </li>
+
+    <li data-ng-repeat="link in links.first_numbered_links">
+      <a data-ng-href="{{link.uri}}">{{link.text}}</a>
+    </li>
+
+    <li data-ng-hide="links.hide_first_separator">
+      <span class='separator'>{{links.separator}}</span>
+    </li>
+
+    <li data-ng-class="{active: link.text == currentPage}" data-ng-repeat="link in links.middle_numbered_links">
+      <a data-ng-href="{{link.uri}}">{{link.text}}</a>
+    </li>
+
+    <li data-ng-hide="links.hide_last_separator">
+      <span class='separator'>{{links.separator}}</span>
+    </li>
+
+    <li data-ng-repeat="link in links.last_numbered_links">
+      <a data-ng-href="{{link.uri}}">{{link.text}}</a>
+    </li>
+
+    <li data-ng-show="links.next">
+      <a data-ng-hide="links.disable_next" data-ng-href="{{links.next.uri}}">{{links.next.text}}</a>
+      <span data-ng-show="links.disable_next">{{links.next.text}}</span>
+    </li>
+  </ul>
+</div>
