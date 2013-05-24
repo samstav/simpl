@@ -56,6 +56,10 @@ checkmate.config(['$routeProvider', '$locationProvider', '$httpProvider', functi
   when('/admin/feedback', {
     templateUrl: '/partials/admin-feedback.html',
     controller: FeedbackListController
+  }).
+  when('/admin/deployments', {
+    templateUrl: '/partials/deployments.html',
+    controller: DeploymentListController
   });
 
   // Auto Login
@@ -1669,22 +1673,28 @@ function DeploymentListController($scope, $location, $http, $resource, scroll, i
     console.log("Starting load");
     var path,
         query_params = $location.search(),
-        paginator;
+        paginator,
+        params;
 
     paginator = pagination.buildPaginator(query_params.offset, query_params.limit);
     $location.search({ limit: paginator.limit, offset: paginator.offset });
     $location.replace();
 
-    path = '/:tenantId/deployments.json' + paginator.buildPagingParams();
+    path = $location.path() + '.json';
 
     $scope.showPagination = function(){
       return $scope.links || false;
     };
 
+    params = {
+        tenantId: $scope.auth.context.tenantId,
+        offset: paginator.offset,
+        limit: paginator.limit
+    };
     this.klass = $resource((checkmate_server_base || '') + path);
-    this.klass.get({tenantId: $scope.auth.context.tenantId}, function(data, getResponseHeaders){
+    this.klass.get(params, function(data, getResponseHeaders){
       var paging_info,
-          deployments_url = '/' + $scope.auth.context.tenantId + '/deployments';
+          deployments_url = $location.path();
 
       console.log("Load returned");
 
@@ -2247,7 +2257,7 @@ function DeploymentController($scope, $location, $resource, $routeParams) {
 
   $scope.load = function() {
     console.log("Starting load");
-    this.klass = $resource((checkmate_server_base || '') + '/:tenantId/deployments/:id.json');
+    this.klass = $resource((checkmate_server_base || '') + $location.path() + '.json');
     this.klass.get($routeParams, function(data, getResponseHeaders){
       $scope.data = data;
       $scope.data_json = JSON.stringify(data, null, 2);
