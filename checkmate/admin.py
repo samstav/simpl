@@ -12,16 +12,11 @@ from subprocess import check_output
 import sys
 import urlparse
 
-# Init logging before we load the database, 3rd party, and 'noisy' modules
-from checkmate.utils import init_console_logging
-init_console_logging()
-LOG = logging.getLogger(__name__)
-
 from bottle import get, request, response, abort
 
 from checkmate import utils, db
 
-__version_string__ = None
+LOG = logging.getLogger(__name__)
 DB = db.get_driver()
 
 
@@ -29,8 +24,8 @@ def only_admins(fn):
     """ Decorator to limit access to admins only """
     def wrapped(*args, **kwargs):
         if request.context.is_admin == True:
-            LOG.debug("Admin account '%s' accessing '%s'" %
-                      (request.context.username, request.path))
+            LOG.debug("Admin account '%s' accessing '%s'",
+                      request.context.username, request.path)
             return fn(*args, **kwargs)
         else:
             abort(403, "Administrator privileges needed for this "
@@ -60,14 +55,14 @@ def get_celery_worker_status():
                     parsed = urlparse.urlparse(url)
                     url = url.replace(parsed.password, '*****')
                     worker['consumer']['broker']['hostname'] = url
-                except:
+                except StandardError:
                     pass
                 try:
                     url = worker['consumer']['broker']['hostname']
                     if '@' in url and '*****' not in url:
                         url = "*****@%s" % url[url.index('@') + 1:]
                     worker['consumer']['broker']['hostname'] = url
-                except:
+                except StandardError:
                     pass
     except IOError as exc:
         from errno import errorcode
