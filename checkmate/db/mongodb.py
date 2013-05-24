@@ -519,10 +519,15 @@ class Driver(DbBase):
                      limit=0, with_count=True, with_deleted=False):
         if klass == 'deployments':
             projection = self._deployment_projection
+            sort_key = 'created'
+            sort_direction = pymongo.DESCENDING
         elif klass == 'workflows':
             projection = self._workflow_projection
+            sort_key = 'id'
+            sort_direction = pymongo.ASCENDING
         else:
             projection = self._object_projection
+            sort_key = None
         response = {}
         if offset is None:
             offset = 0
@@ -530,8 +535,10 @@ class Driver(DbBase):
             limit = 0
         with self._get_client().start_request():
             results = self.database()[klass].find(self._build_filters(
-                klass, tenant_id, with_deleted), projection
-            ).skip(offset).limit(limit)
+                klass, tenant_id, with_deleted), projection)
+            if sort_key:
+                results.sort(sort_key, sort_direction)
+            results = results.skip(offset).limit(limit)
 
             response['_links'] = {}  # To be populated soon!
             response['results'] = {}
