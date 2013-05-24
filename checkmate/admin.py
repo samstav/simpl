@@ -19,7 +19,7 @@ LOG = logging.getLogger(__name__)
 
 from bottle import get, request, response, abort
 
-from checkmate.utils import write_body
+from checkmate import utils
 
 __version_string__ = None
 
@@ -76,7 +76,7 @@ def get_celery_worker_status():
         stats = {ERROR_KEY: msg}
     except ImportError as exc:
         stats = {ERROR_KEY: str(exc)}
-    return write_body(stats, request, response)
+    return utils.write_body(stats, request, response)
 
 
 @get('/admin/status/libraries')
@@ -139,4 +139,4 @@ def get_dependency_versions():
         for name in expected:
             result[name] = {'status': 'ERROR: %s' % exc}
 
-    return write_body(result, request, response)
+    return utils.write_body(result, request, response)
