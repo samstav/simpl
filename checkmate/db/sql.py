@@ -101,6 +101,7 @@ class Deployment(BASE):
     __tablename__ = 'deployments'
     dbid = Column(Integer, primary_key=True, autoincrement=True)
     id = Column(String(32), index=True, unique=True)
+    created = Column(String(255), index=False)
     locked = Column(Float, default=0)
     lock = Column(String, default=0)
     lock_timestamp = Column(Integer, default=0)
@@ -423,9 +424,12 @@ class Driver(DbBase):
         response['results'] = {}
         results = self._add_filters(
             klass, self.session.query(klass), tenant_id, with_deleted)
+        if klass is Deployment:
+            results = results.order_by(Deployment.created.desc())
+        elif klass is Workflow:
+            results = results.order_by(Workflow.id)
         if results and results.count() > 0:
             results = results.limit(limit).offset(offset).all()
-
 
             for entry in results:
                 self.convert_data(klass.__tablename__, entry.body)
@@ -560,6 +564,7 @@ class Driver(DbBase):
         # As of v0.13, status is saved in Deployment object
         if klass is Deployment:
             e.status = body.get('status')
+            e.created = body.get('created')
 
         self.session.add(e)
         self.session.commit()
