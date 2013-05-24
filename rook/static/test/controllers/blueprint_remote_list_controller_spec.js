@@ -23,6 +23,7 @@ describe('BlueprintRemoteListController', function(){
     options = {};
     workflow = {};
     github = { get_contents: emptyFunction };
+    localStorage.clear();
   });
 
   describe('initialization', function(){
@@ -66,13 +67,13 @@ describe('BlueprintRemoteListController', function(){
     });
 
     it('should sort the items by name alphabetically (case insensitive)', function(){
-      abba = { name: 'Abba' };
-      alpha = { name: 'alpha' };
-      arkansas = { name: 'Arkansas' };
+      var abba = { id: 1, name: 'Abba' };
+      var alpha = { id: 2, name: 'alpha' };
+      var arkansas = { id: 3, name: 'Arkansas' };
       items.all = [ alpha, abba, arkansas];
       controller = new BlueprintRemoteListController(scope, location, routeParams, resource, http, items, navbar, options, workflow, github);
       scope.receive_blueprints();
-      expect(scope.items).toEqual([abba, alpha, arkansas]);
+      expect(scope.items).toEqual({1: abba, 2: alpha, 3: arkansas});
     });
 
     describe('the callback function', function(){

@@ -445,3 +445,15 @@ form#impersonate input {
   left: 30px;
   top: 30px;
 }
+
+.blueprint-name {
+  position: relative;
+}
+
+.blueprint_loading { 
+  position: absolute;
+  width: 10px;
+  height: 10px;
+  top: 0;
+  right: 0;
+}

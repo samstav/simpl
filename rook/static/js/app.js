@@ -1538,6 +1538,11 @@ function BlueprintRemoteListController($scope, $location, $routeParams, $resourc
 
   //Handle results of loading repositories
   $scope.receive_blueprints = function(data) {
+    var sorted_items,
+        sorted_items_object,
+        cached_blueprints = localStorage.blueprints || null,
+        blueprints;
+
     items.clear();
     items.receive(data, function(item, key) {
       if (!('documentation' in item))
@@ -1553,14 +1558,34 @@ function BlueprintRemoteListController($scope, $location, $routeParams, $resourc
     });
 
     $scope.count = items.count;
-    $scope.items = _.sortBy(items.all, function(item){ return item.name.toUpperCase(); });
     $scope.loading_remote_blueprints = false;
     $('#spec_list').css('top', $('.summaryHeader').outerHeight());
     $scope.remember_repo_url($scope.remote.url);
-    _.each($scope.items, function(item){
+
+    sorted_items = _.sortBy(items.all, function(item){ return item.name.toUpperCase(); });
+    sorted_items_object = _.reduce(sorted_items, function(memo, item){
+      memo[item.id] = item;
+      return memo;
+    }, {})
+
+    $scope.items = JSON.parse(cached_blueprints) || sorted_items_object;
+
+    function updateBlueprintCache(item){
+      cached_blueprints = localStorage.blueprints || null,
+      blueprints = JSON.parse(cached_blueprints) || {};
+      blueprints[item.id] = item;
+      localStorage.blueprints = JSON.stringify(blueprints);
+    }
+
+    _.each(sorted_items_object, function(item){
       github.get_contents($scope.remote, item.api_url, "checkmate.yaml", function(content_data){
         if(content_data.type === 'file'){
           item.is_blueprint_repo = true;
+
+          updateBlueprintCache(item);
+
+          item.is_fresh = true;
+          $scope.items[item.id] = item;
         }
       });
     });
