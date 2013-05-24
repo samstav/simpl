@@ -24,14 +24,14 @@ LOCK_DB = db.get_driver(connection_string=os.environ.get(
     os.environ.get('CHECKMATE_CONNECTION_STRING')))
 
 
-@task(base=celery.SingleTask, default_retry_delay=0.3, max_retries=2,
+@task(base=celery.SingleTask, default_retry_delay=2, max_retries=10,
       lock_db=LOCK_DB, lock_key="async_dep_writer:{args[0]}", lock_timeout=5)
 def update_operation(deployment_id, driver=None, **kwargs):
     '''Exposes operations.update_operation as a task'''
     return operations.update_operation(deployment_id, driver=driver, **kwargs)
 
 
-@task(base=celery.SingleTask, default_retry_delay=1, max_retries=4,
+@task(base=celery.SingleTask, default_retry_delay=3, max_retries=10,
       lock_db=LOCK_DB, lock_key="async_dep_writer:{args[0]}", lock_timeout=5)
 def update_deployment_status(deployment_id, new_status, driver=None):
     '''Exposes deployment.update_deployment_status as a task'''
