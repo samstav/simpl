@@ -1220,11 +1220,11 @@ services.factory('auth', ['$http', '$resource', '$rootScope', '$q', function($ht
       });
 
       auth.endpoints = _.compact(parsed).sort(function(a, b){
-        if(a.priority && b.priority) {
+        if(typeof(a.priority) === 'number' && typeof(b.priority) === 'number') {
           return a.priority - b.priority;
-        } else if(a.priority) {
+        } else if(typeof(a.priority) === 'number') {
           return -1;
-        } else if(b.priority) {
+        } else if(typeof(b.priority) === 'number') {
           return 1;
         } else {
           var x = a.realm.toLowerCase(),

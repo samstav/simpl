@@ -243,6 +243,19 @@ describe('auth Service', function(){
       expect(this.auth.endpoints).toEqual([expected_endpoint1, expected_endpoint2, expected_endpoint3]);
     });
 
+    it('should sort endpoints with priority 0', function(){
+      var header1 = 'Keystone uri="https://identity.api.rackspacecloud.com/v2.0/tokens" realm="US Cloud" priority="0"';
+      var expected_endpoint1 = { scheme : 'Keystone', realm : 'US Cloud', uri : 'https://identity.api.rackspacecloud.com/v2.0/tokens', priority: 0 };
+
+      var header2 = 'Keystone uri="https://identity.api.rackspacecloud.com/v2.0/tokens" realm="US Cloud" priority="1"';
+      var expected_endpoint2 = { scheme : 'Keystone', realm : 'US Cloud', uri : 'https://identity.api.rackspacecloud.com/v2.0/tokens', priority: 1 };
+
+      var headers = [header2, header1].join(',');
+
+      this.auth.parseWWWAuthenticateHeaders(headers);
+      expect(this.auth.endpoints).toEqual([expected_endpoint1, expected_endpoint2]);
+    });
+
     it('should sort endpoints without a priority at the end of the list', function(){
       var header1 = 'Keystone uri="https://identity.api.rackspacecloud.com/v2.0/tokens" realm="US Cloud" priority="42"';
       var expected_endpoint1 = { scheme : 'Keystone', realm : 'US Cloud', uri : 'https://identity.api.rackspacecloud.com/v2.0/tokens', priority: 42 };
