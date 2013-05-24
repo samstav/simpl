@@ -17,7 +17,7 @@
         <td>{{deployment.environment.name}}</td>
         <td>{{deployment.tenantId}}</td>
         <td>{{deployment.status}}</td>
-        <td>{{deployment.created | formattedFullDate}} <button ng-cloak ng-show="auth.identity.is_admin" class="btn btn-mini btn-info pull-right" type="button" ng-click="sync(deployment.id)">sync</button></td>
+        <td>{{deployment.created | formattedFullDate}} <button ng-cloak ng-show="auth.identity.is_admin" class="btn btn-mini btn-info pull-right" type="button" ng-click="sync(deployment)">sync</button></td>
       </tr>
     </tbody>
   </table>

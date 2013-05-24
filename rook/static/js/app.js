@@ -1715,11 +1715,11 @@ function DeploymentListController($scope, $location, $http, $resource, scroll, i
   };
 
   // This also exists on DeploymentController - can be refactored
-  $scope.sync = function(deployment_id) {
+  $scope.sync = function(deployment) {
     if ($scope.auth.identity.loggedIn) {
       var klass = $resource((checkmate_server_base || '') + '/:tenantId/deployments/:deployment_id/+sync.json', null, {'get': {method:'GET'}});
       var thang = new klass();
-      thang.$get({tenantId: $scope.auth.context.tenantId, deployment_id: deployment_id}, function(returned, getHeaders){
+      thang.$get({tenantId: deployment.tenantId, deployment_id: deployment['id']}, function(returned, getHeaders){
           // Sync
           if (returned !== undefined)
               $scope.notify(Object.keys(returned).length + ' resources synced');
@@ -2349,11 +2349,11 @@ function DeploymentController($scope, $location, $resource, $routeParams) {
   };
 
   // This also exists on DeploymentListController - can be refactored
-  $scope.sync = function(deployment_id) {
+  $scope.sync = function() {
     if ($scope.auth.identity.loggedIn) {
       var klass = $resource((checkmate_server_base || '') + '/:tenantId/deployments/:deployment_id/+sync.json', null, {'get': {method:'GET'}});
       var thang = new klass();
-      thang.$get({tenantId: $scope.auth.context.tenantId, deployment_id: deployment_id}, function(returned, getHeaders){
+      thang.$get({tenantId: $scope.data.tenantId, deployment_id: $scope.data['id']}, function(returned, getHeaders){
           // Sync
           $scope.load();
           if (returned !== undefined)
