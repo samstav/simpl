@@ -25,7 +25,7 @@ from checkmate.exceptions import (
     CheckmateBadState,
 )
 from checkmate.middleware import RequestContext
-from checkmate.providers import ProviderBase
+from checkmate.providers import ProviderBase, user_has_access
 from checkmate.utils import match_celery_logging
 from checkmate.workflow import wait_for
 
@@ -101,6 +101,70 @@ class Provider(ProviderBase):
         elif resource_type == 'database':
             pass
         return templates
+
+    def verify_limits(self, context, resources):
+        """Verify that deployment stays within absolute resource limits"""
+
+        # Cloud databases absolute limits are currently hard-coded
+        # The limits are per customer per region.
+        volume_size_limit = 150
+        instance_limit = 25
+
+        instances_needed = 0
+        volume_size_needed = 0
+        for database in resources:
+            if database['type'] == 'compute':
+                instances_needed += 1
+                volume_size_needed += database['disk']
+
+        cdb = self.connect(context)
+        instances = cdb.get_instances()
+        instances_used = len(instances)
+        volume_size_used = 0
+        for instance in instances:
+            volume_size_used += instance.volume['size']
+
+        instances_available = instance_limit - instances_used
+        volume_size_available = volume_size_limit - volume_size_used
+
+        messages = []
+        if instances_needed > instances_available:
+            messages.append({
+                'type': "INSUFFICIENT-CAPACITY",
+                'message': "This deployment would create %s Cloud Database "
+                           "instances.  You have %s instances available."
+                           % (instances_needed, instances_available),
+                'provider': "database",
+                'severity': "CRITICAL"
+            })
+        if volume_size_needed > volume_size_available:
+            messages.append({
+                'type': "INSUFFICIENT-CAPACITY",
+                'message': "This deployment would require %s GB in disk "
+                           "space.  You have %s GB available."
+                           % (volume_size_needed, volume_size_available),
+                'provider': "database",
+                'severity': "CRITICAL"
+            })
+        return messages
+
+    def verify_access(self, context):
+        """Verify that the user has permissions to create database resources"""
+        roles = ['identity:user-admin', 'dbaas:admin', 'dbaas:creator']
+        if user_has_access(context, roles):
+            return {
+                'type': "ACCESS-OK",
+                'message': "You have access to create Cloud Databases",
+                'provider': "database",
+                'severity': "INFORMATIONAL"
+            }
+        else:
+            return {
+                'type': "NO-ACCESS",
+                'message': "You do not have access to create Cloud Databases",
+                'provider': "database",
+                'severity': "CRITICAL"
+            }
 
     def add_resource_tasks(self, resource, key, wfspec, deployment, context,
                            wait_on=None):

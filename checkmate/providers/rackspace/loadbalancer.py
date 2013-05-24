@@ -137,6 +137,14 @@ class Provider(ProviderBase):
 
         return reduce(lambda x, y: x | y, values)
 
+    def verify_limits(self, context, resources):
+        # TODO: Check loadbalancer against limits API
+        pass
+
+    def verify_access(self, context):
+        # TODO: Check RBAC access
+        pass
+
     def add_resource_tasks(self, resource, key, wfspec, deployment, context,
                            wait_on=None):
         service_name = resource.get('service')

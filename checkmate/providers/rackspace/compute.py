@@ -29,10 +29,14 @@ from checkmate.exceptions import (
     CheckmateException,
 )
 from checkmate.middleware import RequestContext
-from checkmate.providers import ProviderBase
+from checkmate.providers import ProviderBase, user_has_access
 import checkmate.rdp
 import checkmate.ssh
-from checkmate.utils import match_celery_logging, isUUID, yaml_to_dict
+from checkmate.utils import (
+    match_celery_logging,
+    isUUID,
+    yaml_to_dict,
+)
 from checkmate.workflow import wait_for
 
 
@@ -104,6 +108,7 @@ iBoaWdoIGVub3VnaCB0byBzZWUgYmV5b25kIGhvcml6 b25zLiINCg0KLVJpY2hhcmQgQmFjaA=="
 """)
 API_IMAGE_CACHE = {}
 API_FLAVOR_CACHE = {}
+API_LIMITS_CACHE = {}
 
 
 class RackspaceComputeProviderBase(ProviderBase):
@@ -214,6 +219,66 @@ class Provider(RackspaceComputeProviderBase):
             template['image'] = image
             template['region'] = region
         return templates
+
+    def verify_limits(self, context, resources):
+        """Verify that deployment stays within absolute resource limits"""
+
+        region = Provider.find_a_region(context.catalog)
+        url = Provider.find_url(context.catalog, region)
+        flavors = _get_flavors(url, context.auth_token)['flavors']
+
+        memory_needed = 0
+        cores_needed = 0
+        for compute in resources:
+            flavor = compute['flavor']
+            details = flavors[flavor]
+            memory_needed += details['memory']
+            cores_needed += details['cores']
+
+        limits = _get_limits(url, context.auth_token)
+        memory_available = limits['maxTotalRAMSize'] - limits['totalRAMUsed']
+        cores_available = limits['maxTotalCores'] - limits['totalCoresUsed']
+
+        messages = []
+        if memory_needed > memory_available:
+            messages.append({
+                'type': "INSUFFICIENT-CAPACITY",
+                'message': "This deployment would create %s Cloud Servers "
+                           "utilizing a total of %s MB memory.  You have "
+                           "%s MB of memory available"
+                           % (len(resources), memory_needed, memory_available),
+                'provider': "compute",
+                'severity': "CRITICAL"
+            })
+        if cores_needed > cores_available:
+            messages.append({
+                'type': "INSUFFICIENT-CAPACITY",
+                'message': "This deployment would create %s Cloud Servers "
+                           "utilizing a total of %s cores.  You have "
+                           "%s cores available"
+                           % (len(resources), cores_needed, cores_available),
+                'provider': "compute",
+                'severity': "CRITICAL"
+            })
+        return messages
+
+    def verify_access(self, context):
+        """Verify that the user has permissions to create compute resources"""
+        roles = ['identity:user-admin', 'nova:admin', 'nova:creator']
+        if user_has_access(context, roles):
+            return {
+                'type': "ACCESS-OK",
+                'message': "You have access to create Cloud Servers",
+                'provider': "nova",
+                'severity': "INFORMATIONAL"
+            }
+        else:
+            return {
+                'type': "NO-ACCESS",
+                'message': "You do not have access to create Cloud Servers",
+                'provider': "nova",
+                'severity': "CRITICAL"
+            }
 
     def add_resource_tasks(self, resource, key, wfspec, deployment, context,
                            wait_on=None):
@@ -537,9 +602,24 @@ def _get_flavors(api_endpoint, auth_token):
                 'name': f.name,
                 'memory': f.ram,
                 'disk': f.disk,
+                'cores': f.vcpus,
             } for f in flavors
         }
     }
+
+
+@Memorize(timeout=1800, sensitive_args=[1], store=API_LIMITS_CACHE)
+def _get_limits(api_endpoint, auth_token):
+    api = client.Client('ignore', 'ignore', None, 'localhost')
+    api.client.auth_token = auth_token
+    api.client.management_url = api_endpoint
+    api_limits = api.limits.get()
+    def limits_dict(limits):
+        d = {}
+        for limit in limits:
+            d[limit.name.encode('ascii')] = limit.value
+        return d
+    return limits_dict(api_limits.absolute)
 
 
 REGION_MAP = {'dallas': 'DFW',

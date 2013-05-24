@@ -15,6 +15,7 @@ from checkmate.deployment import (
     validate_blueprint_options,
     validate_input_constraints
 )
+import eventlet
 
 LOG = logging.getLogger(__name__)
 
@@ -104,6 +105,52 @@ class Plan(ExtensibleDict):
         LOG.debug("ANALYSIS\n%s", utils.dict_to_yaml(self._data))
         LOG.debug("RESOURCES\n%s", utils.dict_to_yaml(self.resources))
         return self.resources
+
+    def _unique_providers(self):
+        """Returns a list of provider instances, one per provider type."""
+        providers = []
+        names = []
+        for name, provider in self.environment.providers.iteritems():
+            if name not in names:
+                providers.append(provider)
+                names.append(name)
+        return providers
+
+    def verify_limits(self, context):
+        """Ensure provider resources can be allocated.
+
+        Checks API limits against resources that will be spun up
+        during deployment.
+
+        :param context: a RequestContext
+        :return: Returns a list of warning/error messages
+        """
+        pile = eventlet.GreenPile()
+        providers = self._unique_providers()
+        for provider in providers:
+            resources = utils.filter_resources(self.resources, provider.name)
+            pile.spawn(provider.verify_limits, context, resources)
+        results = []
+        for result in pile:
+            if result:
+                results.extend(result)
+        return results
+
+    def verify_access(self, context):
+        """Ensure user has RBAC permissions to allocate provider resources.
+
+        :param context: a RequestContext
+        :return: Returns a list of warning/error messages
+        """
+        pile = eventlet.GreenPile()
+        providers = self._unique_providers()
+        for provider in providers:
+            pile.spawn(provider.verify_access, context)
+        results = []
+        for result in pile:
+            if result:
+                results.append(result)
+        return results
 
     def plan_delete(self, context):
         """

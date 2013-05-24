@@ -42,6 +42,7 @@ from checkmate.workflow import (
     create_workflow_spec_deploy,
     init_operation,
 )
+import eventlet
 
 LOG = logging.getLogger(__name__)
 DB = get_driver()
@@ -359,8 +360,17 @@ def process_post_deployment(deployment, request_context, driver=DB):
 @with_tenant
 def parse_deployment(tenant_id=None):
     """Parse a deployment and return the parsed response"""
+    if request.query.get('check_limits') == "0":
+        check_limits = False
+    else:
+        check_limits = True
+    if request.query.get('check_access') == "0":
+        check_access = False
+    else:
+        check_access = True
     deployment = _content_to_deployment(request, tenant_id=tenant_id)
-    results = plan(deployment, request.context)
+    results = plan(deployment, request.context, check_limits=check_limits,
+                   check_access=check_access)
     return write_body(results, request, response)
 
 
@@ -850,7 +860,7 @@ def execute(oid, timeout=180, tenant_id=None, driver=DB):
     return result
 
 
-def plan(deployment, context):
+def plan(deployment, context, check_limits=False, check_access=False):
     """Process a new checkmate deployment and plan for execution.
 
     This creates templates for resources and connections that will be used for
@@ -869,10 +879,18 @@ def plan(deployment, context):
     # Analyze Deployment and Create plan
     planner = Plan(deployment)
     resources = planner.plan(context)
-
-    # Store plan results in deployment
     if resources:
         deployment['resources'] = resources
+
+    pool = eventlet.GreenPool()
+    if check_access:
+        access = pool.spawn(planner.verify_access, context)
+    if check_limits:
+        limits = pool.spawn(planner.verify_limits, context)
+    if check_access:
+        deployment['check-limit-results'] = limits.wait()
+    if check_limits:
+        deployment['check-access-results'] = access.wait()
 
     # Save plan details for future rehydration/use
     deployment['plan'] = planner._data  # get the dict so we can serialize it
