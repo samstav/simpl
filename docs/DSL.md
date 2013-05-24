@@ -399,6 +399,8 @@ Deployment States
 
 ### The philosophy behind Deployments and Operations:
 
+An operation is a process that runs against a deployment that takes it from one state to another. Deploy, Add Node, Delete are examples of operations. An operation is executed by some mechanism like a workflow or celery canvas.
+
 - __Deployment Status__ is the deployment's _desired state_.
 - An __Operation__ will be started if a deployment's _actual state_ does not match its _desired state_.
 - __Operation Status__ is the _current state_ of the operation being performed on the deployment.
