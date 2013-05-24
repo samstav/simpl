@@ -16,10 +16,9 @@ from checkmate.exceptions import CheckmateException
 from checkmate.utils import (
     get_time_string,
 )
-
+from checkmate.deployment import get_status
 
 LOG = logging.getLogger(__name__)
-
 
 def update_workflow_status(workflow):
     """Update workflow object with progress"""
@@ -38,8 +37,10 @@ def update_workflow_status(workflow):
     elif completed == 0:
         workflow.attributes['status'] = "NEW"
     else:
-        workflow.attributes['status'] = "IN PROGRESS"
-
+        if get_status(workflow.attributes['deploymentId']) == 'FAILED':
+            workflow.attributes['status'] = "FAILED"
+        else:
+            workflow.attributes['status'] = "IN PROGRESS"
 
 def get_failed_tasks(workflow):
     '''
@@ -82,7 +83,6 @@ def get_SpiffWorkflow_status(workflow):
     task = workflow.task_tree
     get_task_status(task, result)
     return result
-
 
 def create_workflow_deploy(deployment, context):
     """Creates a SpiffWorkflow for initial deployment of a Checkmate deployment
