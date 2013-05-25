@@ -417,6 +417,10 @@ function AppController($scope, $http, $location, $resource, auth) {
     return auth.is_impersonating();
   };
 
+  $scope.in_admin_context = function() {
+    return auth.identity.is_admin && !auth.is_impersonating();
+  };
+
   // Utility Functions
   console.log("Getting api version");
   var api = $resource((checkmate_server_base || '') + '/version');

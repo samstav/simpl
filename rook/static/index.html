@@ -74,15 +74,22 @@
                 <span class="icon-bar"></span>
           </button>
           <a class="brand" href="/">
-            <img id="loading" ng-hide="hasPendingRequests()" src="/img/blank.gif" style="width: 16px; height: 16px;"/>
-            <img id="loading" ng-show="hasPendingRequests()" src="/img/ajax-loader-white.gif" style="width: 16px; height: 16px;"/>
+            <img class="loading" ng-hide="hasPendingRequests()" src="/img/blank.gif" />
+            <img class="loading" ng-show="hasPendingRequests()" src="/img/ajax-loader-white.gif" />
             Checkmate
           </a>
           <!--TODO: collapsing not yet clean -->
           <div id="user_control" class="nav pull-right">
             <ul class="nav">
               <li class="divider-vertical"></li>
-              <li class="dropdown pull-right" style="display: none;" ng-show="auth.identity.loggedIn" title="Token expires {{auth.context.token.expires | formattedDate}}">
+
+              <li class="pull-right" ng-cloak ng-hide="auth.identity.loggedIn">
+                <a href="#" ng-click="loginPrompt()">
+                  <i class="icon-user icon-white"></i> Log In
+                </a>
+              </li>
+
+              <li class="dropdown pull-right" ng-cloak ng-show="auth.identity.loggedIn" title="Token expires {{auth.context.token.expires | formattedDate}}">
                 <a href="#" class="dropdown-toggle" data-toggle="dropdown" id="user_button">
                       <i class="icon-user icon-white"></i> {{auth.context.username}}
                       <span ng-show="auth.context.tenantId"> ({{auth.context.tenantId}})</span>
@@ -98,28 +105,24 @@
                   <li role="presentation" ng-repeat="tenant in auth.identity.tenants">
                       <a role="menutitem" ng-click="impersonate(tenant.username)">{{tenant.username}} ({{tenant.tenantId}})</a>
                   </li>
-                  <li ng-cloak ng-show="is_impersonating()" class="divider"></li>
+                  <li ng-show="is_impersonating()" class="divider"></li>
                   <li><a ng-show="is_impersonating()" ng-click="exit_impersonation()">Exit Impersonation</a></li>
-                  <li ng-cloak ng-show="auth.identity.tenants" class="divider"></li>
+                  <li ng-show="auth.identity.tenants" class="divider"></li>
                   <li><a ng-click="logOut()">Log Out</a></li>
                 </ul>
               </li>
-              <li class="pull-right" style="display: none" ng-show="!auth.identity.loggedIn">
-                <a href="#" ng-click="loginPrompt()">
-                  <i class="icon-user icon-white"></i> Log In</a>
-              </li>
             </ul>
           </div>
+
           <div class="nav-collapse collapse">
-            <ul id="nav-elements" class="nav" style="display: none" ng-show="auth.context.tenantId">
-              <li id="nav-deployments"><a href="/{{auth.context.tenantId}}/deployments">Deployments</a></li>
-              <li id="nav-workflows"><a href="/{{auth.context.tenantId}}/workflows">Workflows</a></li>
-              <li id="nav-blueprints"><a href="{{auth.context.tenantId | prepend}}/blueprints">Blueprints</a></li>
+            <ul id="nav-elements" class="nav" ng-cloak ng-show="auth.context.tenantId">
+              <li id="nav-deployments"><a ng-href="/{{auth.context.tenantId}}/deployments">Deployments</a></li>
+              <li id="nav-workflows"><a ng-href="/{{auth.context.tenantId}}/workflows">Workflows</a></li>
+              <li id="nav-blueprints"><a ng-href="/{{auth.context.tenantId}}/blueprints">Blueprints</a></li>
               <!--<li class="dropdown">
                 <a href="#" class="dropdown-toggle" data-toggle="dropdown">Other<b class="caret"></b></a>
                 <ul class="dropdown-menu">
                   <li id="nav-environments"><a href="/{{auth.context.tenantId}}/environments">Environments</a></li>
-                  <li id="nav-blueprints"><a href="/{{auth.context.tenantId}}/blueprints">Blueprints</a></li>
                   <li id="nav-providers"><a href="/{{auth.context.tenantId}}/providers">Providers</a></li>
                   <li class="divider"></li>
                   <li class="nav-header">Status</li>
@@ -127,14 +130,16 @@
                   <li id="nav-status-libraries"><a href="/status/libraries">Libraries</a></li>
                 </ul>
               </li>-->
-              <li class="divider-vertical" style="display: none" ng-show="showSearch"></li>
-              <form class="navbar-search" id="navSearch" style="display: none" ng-show="showSearch">
-                <input type="search" ng-model="$parent.search" class="search-query span2" style="height: 15px;" placeholder="Search">
+              <li class="divider-vertical" ng-show="showSearch"></li>
+              <form id="navSearch" class="navbar-search" ng-show="showSearch">
+                <input type="search" ng-model="$parent.search" class="search-query span2" placeholder="Search">
               </form>
             </ul>
             <ul id="nav-support" class="nav">
               <li class="dropdown">
-                <a href="#" ng-cloak ng-show="auth.identity.is_admin &amp;&amp; !is_impersonating()" class="dropdown-toggle" data-toggle="dropdown">Admin<b class="caret"></b></a>
+                <a href="#" ng-cloak ng-show="in_admin_context()" class="dropdown-toggle" data-toggle="dropdown">
+                  Admin<b class="caret"></b>
+                </a>
                 <ul class="dropdown-menu">
                   <li id="nav-admin-feedback"><a href="/admin/feedback">View Feedback</a></li>
                   <li class="dropdown-submenu">
@@ -143,6 +148,7 @@
                       <li><a href="https://dashboard.cloudplatform.rackspace.net/checkmate/deployments" target="_blank">Deployments</a></li>
                     </ul>
                   </li>
+
                   <li class="divider"></li>
                   <li class="nav-header">All</li>
                   <li id="nav-admin-deployments"><a href="/admin/deployments">Deployments</a></li>
@@ -154,24 +160,25 @@
                 </ul>
               </li>
               <li class="dropdown">
-                <a id="support-menu" href="#" class="dropdown-toggle" data-toggle="dropdown">Help<b class="caret"></b></a>
+                <a id="support-menu" href="#" class="dropdown-toggle" data-toggle="dropdown">
+                  Help<b class="caret"></b>
+                </a>
                 <ul class="dropdown-menu">
                   <li id="nav-support"><a href="#" data-toggle="modal" data-target="#modalSLA">General Info</a></li>
                   <li id="nav-wiki"><a href="https://one.rackspace.com/display/Checkmate/" target="_blank">Checkmate Wiki</a></li>
+
                   <li class="divider"></li>
                   <li id="nav-feedback" class="dropdown-submenu">
-                    <a id="feedback-menu" class="dropdown-toggle" href="#" data-toggle="dropdown" data-target="#feedback-dropdown">Submit Feedback</a>
-                    <div id="feedback-dropdown" class="dropdown-menu" style="padding: 15px; padding-bottom: 0px; color: black;">
+                    <a id="feedback-menu" class="dropdown-toggle" data-toggle="dropdown" data-target="#feedback-dropdown" href="#">
+                      Submit Feedback
+                    </a>
+                    <div id="feedback-dropdown" class="dropdown-menu">
                       <form id="feedback-form" name="feedbackForm" class="form-horizontal" ng-submit="send_feedback()">
                         <h4>Issues or Suggestions?</h4>
                         <p>Let us know so we can do something about it.</p>
                         <textarea id="feedback" name="feedback" class="span4" rows="6" placeholder="I would like to be able to log in using OpenID" ng-model="feedback"></textarea>
-                        <div id="feedback_error" class="alert alert-error hide">
-                          <strong>The server didn't capture your feedback!</strong>
-                          <br>Sorry about that! Could you email it to <a style="display: inline; " href="mailto:checkmate@lists.rackspace.com">checkmate@lists.rackspace.com</a> instead?
-                          <br>The error we saw was: <span id="feedback_error_text"></span>.
-                        </div>
                         <div>&nbsp;</div>
+
                         <p>If you would like us to send you updates on your issue, let us know which email address to use:</p>
                         <div class="input-prepend">
                           <span class="add-on">
@@ -179,6 +186,12 @@
                           </span><input type="text" id="email" name="email" class="span3" ng-model="email">
                         </div>
                         <div>&nbsp;</div>
+
+                        <div id="feedback_error" class="alert alert-error ">
+                          <strong>The server didn't capture your feedback!</strong>
+                          <br>Sorry about that! Could you email it to <a style="display: inline; " href="mailto:checkmate@lists.rackspace.com">checkmate@lists.rackspace.com</a> instead?
+                          <br>The error we saw was: <span id="feedback_error_text"></span>.
+                        </div>
                         <div class="modal-footer">
                           <button id="feedback-submit" type="submit" class="btn btn-primary" style="margin-top: 0;">Send Feedback</button>
                         </div>
@@ -304,6 +317,7 @@
       </form>
     </div>
   </div>
+
   <div id="modalError" class="modal hide fade" >
     <div class="modal-header">
       <button type="button" class="close" data-dismiss="modal">&times;</button>
@@ -319,6 +333,7 @@
       <a href="#" class="btn" data-dismiss="modal">Close</a>
     </div>
   </div>
+
   <div id="modalSLA" class="modal hide fade">
     <div class="modal-header">
       <button type="button" class="close" data-dismiss="modal">&times;</button>
@@ -326,25 +341,32 @@
     </div>
     <div class="modal-body">
       <dl class="dl-horizontal">
-  <dt>About 24 hours</dt>
-  <dd>We don't have a 24x7 team. The code is an advanced prototype,
-      but a prototype nonetheless, so there could be show-stopping bugs in here and we can't guarantee a time by which we
-      could get them fixed.</dd>
+        <dt>About 24 hours</dt>
+        <dd>
+          We don't have a 24x7 team. The code is an advanced prototype, but
+          a prototype nonetheless, so there could be show-stopping bugs in
+          here and we can't guarantee a time by which we could get them fixed.
+        </dd>
       </dl>
 
       <dl class="dl-horizontal">
-  <dt>Passion</dt>
-  <dd>That said, we love this product and believe in it. We'll do our best to make it rock and to make your
-      experience using it awesome.</dd>
+        <dt>Passion</dt>
+        <dd>
+          That said, we love this product and believe in it. We'll do our
+          best to make it rock and to make your experience using it awesome.
+        </dd>
       </dl>
 
       <dl class="dl-horizontal">
-  <dt>Helping each other out</dt>
-  <dd>You can help (or help us help you) by giving us feedback or letting us know about issues
-      from the Help/Submit Feedback menu,
-      by <a target="_blank" href="mailto:checkmate@lists.rackspace.com">email</a>,
-      <a href="irc://irc.intra.rackspace.com/#checkmate" target="_blank">IRC</a>,
-      or <a href="http://github.rackspace.com/checkmate">contributing</a> on github.</dd>
+        <dt>Helping each other out</dt>
+        <dd>
+          You can help (or help us help you) by giving us feedback or letting
+          us know about issues from the Help/Submit Feedback menu, by
+          <a target="_blank" href="mailto:checkmate@lists.rackspace.com">email</a>,
+          <a href="irc://irc.intra.rackspace.com/#checkmate" target="_blank">IRC</a>,
+          or contributing on
+          <a href="http://github.rackspace.com/checkmate">github</a>.
+        </dd>
       </dl>
     </div>
     <div class="modal-footer">

@@ -192,4 +192,23 @@ describe('AppController', function(){
       expect(auth.is_impersonating).toHaveBeenCalled();
     });
   });
+
+  describe('#in_admin_context', function() {
+    it('should not be in admin context if logged in as a tenant', function() {
+      auth.identity = { is_admin: false };
+      expect(scope.in_admin_context()).toBe(false);
+    });
+
+    it('should be in admin context if logged in as admin and not impersonating a tenant', function() {
+      auth.identity = { is_admin: true };
+      auth.is_impersonating = sinon.stub().returns(false);
+      expect(scope.in_admin_context()).toBe(true);
+    });
+
+    it('should not be in admin context when impersonating a tenant', function() {
+      auth.identity = { is_admin: true };
+      auth.is_impersonating = sinon.stub().returns(true);
+      expect(scope.in_admin_context()).toBe(false);
+    });
+  });
 });
