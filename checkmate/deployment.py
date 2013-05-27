@@ -1021,8 +1021,8 @@ class Deployment(ExtensibleDict):
                     results[name] = entry
                     if definition.get('is-secret', False) is True:
                         entry['status'] = 'AVAILABLE'
-                except (KeyError, AttributeError) as exc:
-                    LOG.debug("Error in extra-sources: %s in %s" % (exc, key))
+            except (KeyError, AttributeError) as exc:
+                LOG.debug("Error in display-output: %s in %s", exc, name)
             if 'extra-sources' in definition:
                 for key, source in definition['extra-sources'].items():
                     try:
@@ -1031,8 +1031,7 @@ class Deployment(ExtensibleDict):
                         if value is not None:
                             entry[key] = value
                     except (KeyError, AttributeError) as exc:
-                        LOG.debug("Error in extra-sources: %s in %s" % (exc,
-                                                                        key))
+                        LOG.debug("Error in extra-sources: %s in %s", exc, key)
 
         return results
 
