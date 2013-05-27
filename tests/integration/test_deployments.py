@@ -1169,18 +1169,58 @@ class TestPostDeployments(unittest.TestCase):
         bottle.request.bind({})
         self._deployment = {
             'id': '1234',
+            'tenantId': 'T1000',
             'environment': {},
-            'blueprint': {}
+            'blueprint': {
+                'name': 'Test',
+                'services': {}
+            }
         }
         bottle.request.context = Context()
-        bottle.request.context.tenant = None
+        bottle.request.context.tenant = 'T1000'
 
     def tearDown(self):
         self._mox.UnsetStubs()
         unittest.TestCase.tearDown(self)
 
     def test_async_post(self):
-        """ Test that POST /deployments returns an asynchronous 202 """
+        """ Test that POST /deployments?asynchronous returns a 202 """
+
+        self._mox.StubOutWithMock(checkmate.deployments, "request")
+        context = RequestContext(simulation=False)
+        checkmate.deployments.request.context = context
+        checkmate.deployments.request.query = {'asynchronous': '1'}
+        self._mox.StubOutWithMock(checkmate.deployments, "write_body")
+        checkmate.deployments.write_body(IgnoreArg(), IgnoreArg(),
+                                         IgnoreArg()).AndReturn('')
+
+        self._mox.StubOutWithMock(checkmate.deployments,
+                                  "_content_to_deployment")
+        checkmate.deployments._content_to_deployment(IgnoreArg(),
+                                                     tenant_id='T1000')\
+            .AndReturn(self._deployment)
+
+        self._mox.StubOutWithMock(checkmate.deployments, "_save_deployment")
+        checkmate.deployments._save_deployment(self._deployment,
+                                               deployment_id='1234',
+                                               tenant_id='T1000',
+                                               driver=IgnoreArg())\
+            .AndReturn(True)
+
+        self._mox.StubOutWithMock(checkmate.deployments, "execute_plan")
+        checkmate.deployments.execute_plan = self._mox.CreateMockAnything()
+        checkmate.deployments.execute_plan.__call__('1234', IgnoreArg(),
+                                                    asynchronous=True,
+                                                    driver=IgnoreArg())\
+            .AndReturn(True)
+
+        self._mox.ReplayAll()
+        post_deployment()
+        self._mox.VerifyAll()
+        self.assertEquals(202, bottle.response.status_code)
+
+    def test_sync_post(self):
+        """ Test that POST /deployments also returns a 202 """
 
         self._mox.StubOutWithMock(checkmate.deployments, "request")
         context = RequestContext(simulation=False)
@@ -1193,21 +1233,18 @@ class TestPostDeployments(unittest.TestCase):
         self._mox.StubOutWithMock(checkmate.deployments,
                                   "_content_to_deployment")
         checkmate.deployments._content_to_deployment(IgnoreArg(),
-                                                     tenant_id=IgnoreArg())\
+                                                     tenant_id='T1000')\
             .AndReturn(self._deployment)
 
-        self._mox.StubOutWithMock(checkmate.deployments, "_save_deployment")
-        checkmate.deployments._save_deployment(self._deployment,
-                                               deployment_id='1234',
-                                               tenant_id=IgnoreArg(),
+        self._mox.StubOutWithMock(checkmate.deployments, "execute_plan")
+        checkmate.deployments.execute = self._mox.CreateMockAnything()
+        checkmate.deployments.execute.__call__('1234',
                                                driver=IgnoreArg())\
             .AndReturn(True)
 
-        self._mox.StubOutWithMock(checkmate.deployments, "execute_plan")
-        checkmate.deployments.execute_plan = self._mox.CreateMockAnything()
-        checkmate.deployments.execute_plan.__call__('1234', IgnoreArg(),
-                                                    asynchronous=IgnoreArg(),
-                                                    driver=IgnoreArg())\
+        self._mox.StubOutWithMock(checkmate.deployments, "_save_deployment")
+        checkmate.deployments._save_deployment(ContainsKeyValue('id', '1234'),
+                                               driver=IgnoreArg())\
             .AndReturn(True)
 
         self._mox.ReplayAll()
@@ -1262,8 +1299,6 @@ class TestCloneDeployments(unittest.TestCase):
         checkmate.deployments.write_body(IgnoreArg(), IgnoreArg(),
                                          IgnoreArg()).AndReturn('')
 
-
-
         self._mox.StubOutWithMock(checkmate.deployments,
                                   "save_deployment_and_execute_plan")
         checkmate.deployments.save_deployment_and_execute_plan(IgnoreArg(),
@@ -1276,7 +1311,6 @@ class TestCloneDeployments(unittest.TestCase):
             self.fail("Expected exception not raised.")
         except CheckmateBadState:
             pass
-
 
     def test_clone_deployment_happy_path(self):
         """ clone deployment success """
