@@ -996,6 +996,12 @@ class Deployment(ExtensibleDict):
                                                                  ['source'])
                     result[do_key] = definition
 
+        for value in result.values():
+            # Mark password types as secrets unless already marked by author
+            if value.get('type') == 'password':
+                if 'is-secret' not in value:
+                    value['is-secret'] = True
+
         return result
 
     def calculate_outputs(self):

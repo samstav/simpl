@@ -591,8 +591,8 @@ def update_deployment_secrets(oid, tenant_id=None, driver=DB):
         body, secrets = extract_sensitive_data(updates)
         driver.save_deployment(oid, body, secrets, tenant_id=tenant_id,
                                partial=True)
-
-    return write_body({'secrets': updates['secrets']}, request, response)
+    return write_body({'secrets': updates.get('display-outputs')}, request,
+                      response)
 
 
 def _get_a_deployment_with_request(oid, tenant_id=None, driver=DB):
