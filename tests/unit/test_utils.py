@@ -427,25 +427,25 @@ class TestUtils(unittest.TestCase):
         kwargs = {}
         utils._validate_range_values(request, 'offset', kwargs)
         self.assertEquals(None, kwargs.get('offset'))
-        self.assertEquals(200, response.status)
+        self.assertEquals(200, response.status_code)
 
     def test_valid_number_passed_in_param(self):
         request.environ = {'QUERY_STRING': ''}
         kwargs = {'limit': '4236'}
         utils._validate_range_values(request, 'limit', kwargs)
         self.assertEquals(4236, kwargs['limit'])
-        self.assertEquals(200, response.status)
+        self.assertEquals(200, response.status_code)
 
     def test_valid_number_passed_in_request(self):
         request.environ = {'QUERY_STRING': 'offset=2'}
         kwargs = {}
         utils._validate_range_values(request, 'offset', kwargs)
         self.assertEquals(2, kwargs['offset'])
-        self.assertEquals(200, response.status)
+        self.assertEquals(200, response.status_code)
 
     def test_pagination_headers_no_ranges_no_results(self):
         utils._write_pagination_headers({'results': {}}, 0, None, response, 'deployments', '')
-        self.assertEquals(200, response.status)
+        self.assertEquals(200, response.status_code)
         self.assertEquals(
             [
                 ('Content-Range', 'deployments 0-0/0'),
