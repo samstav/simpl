@@ -3,7 +3,7 @@ var is_chrome_extension = navigator.userAgent.toLowerCase().indexOf('chrome') > 
 var checkmate_server_base = is_chrome_extension ? 'http://localhost\\:8080' : '';
 
 //Load AngularJS
-var checkmate = angular.module('checkmate', ['checkmate.filters', 'checkmate.services', 'checkmate.directives', 'ngResource', 'ngSanitize', 'ngCookies', 'ui', 'ngLocale']);
+var checkmate = angular.module('checkmate', ['checkmate.filters', 'checkmate.services', 'checkmate.directives', 'ngResource', 'ngSanitize', 'ngCookies', 'ui', 'ngLocale', 'ui.bootstrap']);
 
 //Load Angular Routes
 checkmate.config(['$routeProvider', '$locationProvider', '$httpProvider', function($routeProvider, $locationProvider, $httpProvider) {
@@ -2240,7 +2240,38 @@ function DeploymentNewController($scope, $location, $routeParams, $resource, opt
 }
 
 //Handles an existing deployment
-function DeploymentController($scope, $location, $resource, $routeParams) {
+function SecretsController($scope, $location, $resource, $routeParams, dialog) {
+  $scope.dialog = dialog;
+
+  $scope.load = function() {
+    console.log("Starting load");
+    this.klass = $resource((checkmate_server_base || '') + $location.path() + '/secrets.json');
+    $scope.secrets = this.klass.get($routeParams, function(data, getResponseHeaders){
+      $scope.data = data;
+    });
+  };
+
+  $scope.dismissSecrets = function() {
+    _.each($scope.secrets.secrets, function(element) {
+      element.status = 'LOCKED';
+    });
+    $scope.secrets.$save();
+  };
+
+  $scope.allAvailableSecrets = function() {
+    var result = '';
+    _.each($scope.secrets.secrets, function(element, key) {
+      if (element.status == 'AVAILABLE')
+        result = result + key + ': ' + element.value + '\n';
+    });
+    return result;
+  };
+
+  $scope.load();
+}
+
+//Handles an existing deployment
+function DeploymentController($scope, $location, $resource, $routeParams, $dialog) {
   //Model: UI
   $scope.showSummaries = true;
   $scope.showStatus = false;
@@ -2249,6 +2280,14 @@ function DeploymentController($scope, $location, $resource, $routeParams) {
   $scope.name = 'Deployment';
   $scope.data = {};
   $scope.data_json = "";
+
+  $scope.showSecrets = function() {
+    $scope.secretsDialog = $dialog.dialog({
+        resolve: {
+            dialog: function() {return $scope.secretsDialog;}
+        }
+    }).open('/partials/secrets.html', 'SecretsController');
+  };
 
   // Called by load to refresh the status page
   $scope.reload = function(original_url) {
