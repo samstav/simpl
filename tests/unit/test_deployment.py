@@ -22,6 +22,7 @@ from checkmate.exceptions import (
     CheckmateBadState,
     CheckmateValidationException,
 )
+from checkmate import utils
 
 
 class TestDeployments(unittest.TestCase):
@@ -174,6 +175,245 @@ class TestDeployments(unittest.TestCase):
         deployment['status'] = 'UP'  # should be converted
         deployment['created'] = valid['created']  # gets added
         self.assertDictEqual(valid._data, deployment)
+
+
+class TestGenerateServices(unittest.TestCase):
+
+    def test_blank(self):
+        deployment = Deployment({})
+        services = deployment.calculate_services()
+        self.assertDictEqual(services, {})
+
+    def test_no_services(self):
+        deployment = Deployment({'blueprint': {}})
+        services = deployment.calculate_services()
+        self.assertDictEqual(services, {})
+
+    def test_blank_resources(self):
+        deployment = Deployment({
+            'blueprint': {
+                'services': {
+                    'app': {}
+                }
+            },
+            'resources': {}
+        })
+        services = deployment.calculate_services()
+        self.assertDictEqual(services, {'app': {'resources': []}})
+
+    def test_simple(self):
+        deployment = Deployment({
+            'blueprint': {
+                'services': {
+                    'app': {
+                        'component': {
+                            'interface': 'http',
+                            'name': 'wordpress',
+                        }
+                    }
+                }
+            }
+        })
+        services = deployment.calculate_services()
+        expected = {
+            'app': {
+                'interfaces': {
+                    'http': {}
+                },
+                'resources': [],
+            }
+        }
+        self.assertDictEqual(services, expected)
+
+    def test_one_resource(self):
+        deployment = Deployment({
+            'blueprint': {
+                'services': {
+                    'db': {
+                        'component': {
+                            'interface': 'mysql',
+                            'name': 'database',
+                        }
+                    }
+                }
+            },
+            'resources': {
+                '0': {
+                    'index': '0',
+                    'service': 'db',
+                    'instance': {
+                        'interfaces': {
+                            'mysql': {}
+                        }
+                    }
+                }
+            }
+        })
+        services = deployment.calculate_services()
+        expected = {
+            'db': {
+                'interfaces': {
+                    'mysql': {}
+                },
+                'resources': ['0'],
+            }
+        }
+        self.assertDictEqual(services, expected)
+
+    def test_host_resource(self):
+        deployment = Deployment({
+            'blueprint': {
+                'services': {
+                    'db': {
+                        'component': {
+                            'interface': 'mysql',
+                            'name': 'database',
+                        }
+                    }
+                }
+            },
+            'resources': {
+                '0': {
+                    'index': '0',
+                    'service': 'db',
+                    'instance': {
+                        'interfaces': {
+                            'mysql': {}
+                        }
+                    },
+                    'hosted_on': '1',
+                },
+                '1': {
+                    'index': '1',
+                    'service': 'db',
+                    'instance': {},
+                    'hosts': ['0'],
+                }
+            }
+        })
+        services = deployment.calculate_services()
+        expected = {
+            'db': {
+                'interfaces': {
+                    'mysql': {}
+                },
+                'resources': ['0', '1'],
+            }
+        }
+        services['db']['resources'].sort()
+        self.assertDictEqual(services, expected)
+
+
+class TestCalculateOutputs(unittest.TestCase):
+    def setUp(self):
+        self.deployment = Deployment(utils.yaml_to_dict("""
+            blueprint:
+              services:
+                lb:
+                  component:
+                    interface: vip
+                    type: load-balancer
+                relations:
+                  web: http
+                web:
+                  component:
+                    type: application
+                    interface: http
+                db:
+                  component:
+                    interface: mysql
+                    type: database
+                  display-outputs:
+                    "Database Password":
+                      order: 2
+                      source: interfaces/mysql/password
+              options:
+                simple:
+                  type: integer
+                  display-output: true  # show this as an display-output
+                "Site Address":
+                  type: url
+              display-outputs:
+                "Site Address":
+                  type: url
+                  source: options://url
+                  extra-sources:
+                    ipv4: "services://lb/interfaces/vip/ip"
+                  order: 1
+                  group: application
+                "Private Key":
+                  type: private-key
+                  source: "resources://deployment-keys/instance/private_key"
+                  order: 3
+                  group: application
+            inputs:
+              blueprint:
+                simple: 1
+                url: http://localhost
+            resources:
+              '0':
+                type: database
+                service: db
+                instance:
+                  interfaces:
+                    mysql:
+                      password: MyPass
+                hosted_on: '1'
+              '1':
+                type: compute
+                hosts: ['0']
+                service: db
+              '2':
+                type: load-balancer
+                service: lb
+                instance:
+                  interfaces:
+                    vip:
+                      ip: a.b.c.d
+              'deployment-keys':
+                type: key-pair
+                instance:
+                  private_key: |
+                    -----BEGIN RSA PRIVATE KEY---- ...
+                  public_key: |
+                    -----BEGIN PUBLIC KEY---- ...
+    """))
+
+    def test_option(self):
+        results = self.deployment.calculate_outputs()
+        self.assertIn('simple', results)
+        self.assertEqual(results['simple']['value'],
+                         self.deployment['inputs']['blueprint']['simple'])
+        self.assertEqual(results['simple']['type'],
+                         self.deployment['blueprint']['options']['simple']
+                         ['type'])
+
+    def test_from_display_outputs(self):
+        results = self.deployment.calculate_outputs()
+        self.assertIn('Site Address', results)
+        self.assertEqual(results['Site Address']['value'],
+                         self.deployment['inputs']['blueprint']['url'])
+        self.assertEqual(results['Site Address']['type'],
+                         self.deployment['blueprint']['display-outputs']
+                         ['Site Address']['type'])
+
+    def test_from_service(self):
+        results = self.deployment.calculate_outputs()
+        self.assertIn('Database Password', results)
+        self.assertEqual(results['Database Password']['value'],
+                         self.deployment['resources']['0']['instance']
+                         ['interfaces']['mysql']['password'])
+
+    def test_extra_sources(self):
+        results = self.deployment.calculate_outputs()
+        print results
+
+    def test_get_resource_value(self):
+        results = self.deployment.calculate_outputs()
+        self.assertIn('Private Key', results)
+        self.assertTrue(results['Private Key']['value'].startswith(
+                        '-----BEGIN RSA PRIVATE KEY----'))
+        self.assertEqual(results['Private Key']['type'], 'private-key')
 
 
 class TestCeleryTasks(unittest.TestCase):

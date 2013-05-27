@@ -34,6 +34,8 @@ from checkmate.utils import (
     is_ssh_key,
     match_celery_logging,
     merge_dictionary,
+    read_path,
+    write_path,
 )
 
 LOG = logging.getLogger(__name__)
@@ -260,7 +262,7 @@ class Deployment(ExtensibleDict):
                 value = self.legacy_statuses[value]
             if value != self.fsm.current:
                 try:
-                    LOG.warn("Deployment %s going from %s to %s",
+                    LOG.info("Deployment %s going from %s to %s",
                              self.get('id'), self.get('status'), value)
                     self.fsm.go_to(value)
                 except FysomError:
@@ -937,25 +939,72 @@ class Deployment(ExtensibleDict):
             'query': parts.query,
             'fragment': parts.fragment,
         }
-        if parts.scheme in ['options', 'resources']:
+        if parts.scheme in ['options', 'resources', 'services']:
             result['path'] = os.path.join(parts.netloc.strip('/'),
                                           parts.path.strip('/')).strip('/')
         return result
 
-    def evaluator(self, parsed_url):
+    def evaluator(self, parsed_url, **kwargs):
         '''given a parsed source URI, evaluate and return the value'''
         if parsed_url['scheme'] == 'options':
             return self.get_setting(parsed_url['netloc'])
+        elif parsed_url['scheme'] == 'resources':
+            return read_path(self, 'resources/%s' % parsed_url['path'])
+        elif parsed_url['scheme'] == 'services':
+            return read_path(kwargs['services'], parsed_url['path'])
+        else:
+            raise CheckmateValidationException("display-output scheme not "
+                                               "supported: %s" %
+                                               parsed_url['scheme'])
         return None
+
+    def find_display_output_definitions(self):
+        '''Finds all display-output definitions'''
+        result = {}
+        if 'blueprint' not in self:
+            return result
+        # Get explicitly defined display-outputs
+        result.update(self['blueprint'].get('display-outputs', {}))
+
+        # Get options marked as outputs
+        options = self['blueprint'].get('options') or {}
+        marked = {
+            k: {
+                'type': o.get('type'),
+                'source': 'options://%s' % k,
+            }
+            for (k, o) in options.items()
+            if o.get('display-output') is True
+        }
+        if marked:
+            result.update(marked)
+
+        # Find definitions in services
+        if 'services' in self['blueprint']:
+            for key, service in self['blueprint']['services'].items():
+                if 'display-outputs' not in service:
+                    continue
+                for do_key, output in service['display-outputs'].items():
+                    if 'source' not in output:
+                        raise CheckmateValidationException("display-output "
+                                                           "without a source: "
+                                                           "%s" % do_key)
+                    definition = copy.deepcopy(output)
+                    # Target output to this service
+                    definition['source'] = 'services://%s/%s' % (key,
+                                                                 output
+                                                                 ['source'])
+                    result[do_key] = definition
+
+        return result
 
     def calculate_outputs(self):
         '''Parse display-outputs definitions and generate display-outputs'''
-        if 'blueprint' not in self:
-            return
-        definitions = self['blueprint'].get('display-outputs', {})
+        definitions = self.find_display_output_definitions()
         if not definitions:
             return
         results = {}
+        services = self.calculate_services()
         for name, definition in definitions.items():
             entry = {}
             if 'type' in definition:
@@ -966,16 +1015,68 @@ class Deployment(ExtensibleDict):
                 results[name] = entry
             try:
                 parsed = Deployment.parse_source_URI(definition['source'])
-                value = self.evaluator(parsed)
+                value = self.evaluator(parsed, services=services)
                 if value is not None:
                     entry['value'] = value
                     results[name] = entry
                     if definition.get('is-secret', False) is True:
                         entry['status'] = 'AVAILABLE'
-            except (KeyError, AttributeError):
-                pass
+                except (KeyError, AttributeError) as exc:
+                    LOG.debug("Error in extra-sources: %s in %s" % (exc, key))
+            if 'extra-sources' in definition:
+                for key, source in definition['extra-sources'].items():
+                    try:
+                        parsed = Deployment.parse_source_URI(source)
+                        value = self.evaluator(parsed, services=services)
+                        if value is not None:
+                            entry[key] = value
+                    except (KeyError, AttributeError) as exc:
+                        LOG.debug("Error in extra-sources: %s in %s" % (exc,
+                                                                        key))
 
         return results
+
+    def calculate_services(self):
+        '''Generates list of services with interfaces and output data'''
+        services = {}
+
+        # Populate services key in deployment
+        service_definitions = read_path(self, 'blueprint/services') or {}
+        for key, definition in service_definitions.iteritems():
+            services[key] = {}
+            # Write resource list for each service
+            resources = self.get('resources') or {}
+            resource_list = [index for index, r in resources.items()
+                             if 'service' in r and r['service'] == key]
+            services[key]['resources'] = resource_list
+            # Find primary resource
+            if resource_list:
+                primary = resource_list[0]  # default
+                for index, resource in resources.iteritems():
+                    if index not in resource_list:
+                        continue
+                    if 'hosts' in resource:
+                        continue
+                    primary = resource
+                    break
+            else:
+                primary = None
+            # Write interfaces for each service
+            component = definition.get('component')
+            if primary:
+                instance = primary.get('instance') or {}
+                interfaces = instance.get('interfaces')
+                if interfaces:
+                    output = interfaces.get(component['interface'])
+                else:
+                    output = {}
+            else:
+                output = {}
+            if component and 'interface' in component:
+                write_path(services[key],
+                           'interfaces/%s' % component['interface'],
+                           output)
+        return services
 
     def create_resource_template(self, index, definition, service_name,
                                  context):
