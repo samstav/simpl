@@ -25,8 +25,6 @@
         </ul>
       </div>
 
-
-
       <div class="span10" style="background-position: right top; background-repeat: no-repeat; background-size: auto 140px; background-image: url({{data.blueprint['meta-data']['reach-info'].tattoo}})">
         <div class="page-header">
           <p>CLOUD DEPLOYMENT</p>
@@ -60,7 +58,7 @@
             <div class="control-group" ng-repeat="(name, output) in data['display-outputs']">
               <label class="control-label" for="{{'output' + $index}}">{{name}}</label>
               <div class="controls">
-                <input type="text" readonly id="{{'output' + $index}}" value="{{output.value}}">
+                <input type="text" readonly id="{{'output' + $index}}" value="{{output.value}}"><i ng-class="{'icon-lock': output['is-secret']}" cmtip title="This value is a protected secret"></i>
               </div>
             </div>
 
