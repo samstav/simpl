@@ -675,6 +675,7 @@ def create_server(context, name, region, api_object=None, flavor="2",
             'instance:%s' % resource_key: {
                 'id': str(1000 + int(resource_key)),
                 'status': "BUILD",
+                'password': 'RandomPass',
             }
         }
         # Send data back to deployment
