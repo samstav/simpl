@@ -17,8 +17,7 @@ from checkmate.classes import ExtensibleDict
 from checkmate.db.common import DbBase, ObjectLockedError, InvalidKeyError
 from checkmate.exceptions import (
     CheckmateDatabaseConnectionError,
-    CheckmateException,
-)
+    CheckmateException)
 from checkmate.db.db_lock import DbLock
 from checkmate.utils import flatten
 from checkmate.utils import merge_dictionary
@@ -184,16 +183,29 @@ class Driver(DbBase):
                                  tenant_id)
 
     # DEPLOYMENTS
-    def _dereferenced_resources(self, deployment):
+    def _dereferenced_resources(self, deployment, with_secrets=False):
+        '''
+        Replaces the resource ids within a deployment with actual resource
+        defintions
+
+        :param deployment: Deployment with resource_id references
+        :param with_secrets: defines whether to get the resources with secrets
+        :return: deployment with resources_ids replaces with actual resource
+        defintions
+        '''
         resources = self._get_resources(deployment.get("resources", None),
-                                        {"_id": 0, "id": 0, "tenantId": 0})
+                                        with_ids=False,
+                                        with_secrets=with_secrets)
         return flatten(resources)
 
     def get_deployment(self, api_id, with_secrets=None):
         deployment = self._get_object('deployments', api_id,
                                       with_secrets=with_secrets)
-        if deployment and deployment.get("resources", None):
-            deployment["resources"] = self._dereferenced_resources(deployment)
+        if (deployment and 'resources' in deployment and
+                not self._has_legacy_resources(deployment)):
+            deployment["resources"] = self._dereferenced_resources(
+                deployment,
+                with_secrets=with_secrets)
         return deployment
 
     def get_deployments(self, tenant_id=None, with_secrets=None, limit=0,
@@ -212,88 +224,139 @@ class Driver(DbBase):
     def save_deployment(self, api_id, body, secrets=None, tenant_id=None,
                         partial=True):
         '''
-        Pull current deployment in DB incase another task has modified its
-        contents
+        Saves the deployment by splitting the body into deployment and
+        resources. Resources and deployment are saved in separate
+        collections. Secrets are also split into deployment and resource
+        secrets and are saved in separate collections.
+
+        :param api_id: Id of deployment
+        :param body: data to be saved/updated
+        :param secrets: secrets
+        :param tenant_id:
+        :param partial: True if its a partial update
+        :return: saved deployment as a hash
         '''
         existing_deployment = self._get_object('deployments', api_id)
-        combined_deployment_resource_doc = (
-            self._is_deployment_with_resource_document(existing_deployment))
+        is_legacy_resources_format = (
+            self._has_legacy_resources(existing_deployment))
         resources = body.get("resources", None)
+        resource_secrets = {}
+        deployment_secrets = None
+        if secrets:
+            resource_secrets = secrets.pop('resources', {})
+            deployment_secrets = secrets
+
         if resources:
             body['resources'] = self._save_resources(resources,
                                                      existing_deployment,
-                                                     tenant_id=tenant_id,
-                                                     partial=partial)
+                                                     tenant_id,
+                                                     partial,
+                                                     resource_secrets)
 
         #If there is a partial update for a single resource don't update the
         # deployment
         if (len(body) == 1 and body.get('resources', None) and
-                not combined_deployment_resource_doc):
+                not is_legacy_resources_format) and not deployment_secrets:
             deployment = existing_deployment
+        #Deployment is saved when its a full update or a partial update
+        #involving deployment data or deployment secrets
         else:
             deployment = self._save_object('deployments', api_id, body,
-                                           secrets, tenant_id,
+                                           deployment_secrets, tenant_id,
                                            merge_existing=partial)
 
         if not partial and existing_deployment:
-            self._remove_all('resources', existing_deployment.get('resources',
-                                                                  None))
+             # Deleting old/orphaned documents
+            self._remove_all('resources',
+                             existing_deployment.get('resources', None))
+            self._remove_all('deployments_secrets', [deployment["id"]])
+            self._remove_all('resources_secrets',
+                             existing_deployment.get('resources', None))
 
         if deployment.get('resources', None):
             deployment["resources"] = self._dereferenced_resources(deployment)
         return deployment
 
     def _save_resources(self, incoming_resources, deployment, tenant_id,
-                        partial):
+                        partial, secrets):
         resource_ids = []
+        resource_secret = None
         if partial and deployment:
-            if self._is_deployment_with_resource_document(deployment):
+            if self._has_legacy_resources(deployment):
+                deployment_secrets = self._get_object('deployments_secrets',
+                                                      deployment["id"])
                 deployment["resources"] = self. \
                     _save_resources(deployment["resources"],
-                                    deployment, tenant_id, False)
+                                    deployment, tenant_id, False,
+                                    deployment_secrets)
+                self._remove_all('deployments_secrets', [deployment["id"]])
 
             resource_ids = deployment["resources"]
             existing_resources = self._get_resources(resource_ids)
             resources = self._relate_resources(existing_resources,
-                                               incoming_resources)
+                                               incoming_resources,
+                                               secrets)
             for resource in resources:
                 self._save_resource(resource['id'], resource['body'],
-                                    tenant_id=tenant_id, partial=partial)
+                                    tenant_id=tenant_id, partial=partial,
+                                    secrets=resource["secret"])
         else:
             for key, resource in incoming_resources.iteritems():
                 resource_id = uuid.uuid4().hex
                 resource_ids.append(resource_id)
+                if secrets and key in secrets:
+                    resource_secret = {key: secrets[key]}
                 self._save_resource(resource_id,
                                     {key: resource, "id": resource_id},
-                                    tenant_id=tenant_id, partial=partial)
+                                    tenant_id=tenant_id, partial=partial,
+                                    secrets=resource_secret)
         return resource_ids
 
-    def _is_deployment_with_resource_document(self, deployment):
+    def _has_legacy_resources(self, deployment):
+        '''
+        Checks whether a deployment has resources with definition inside the
+        deployment and not just references for resources
+
+        :param deployment: deployment to check
+        :return: (True of False)
+        '''
         if deployment:
             return isinstance(deployment.get("resources", None), dict)
         return False
 
-    def _relate_resources(self, existing, incoming):
+    def _relate_resources(self, existing, incoming, secrets=None):
         resources = []
+        resource_secret = None
+
         for key, incoming_resource in incoming.iteritems():
             for existing_resource in existing:
                 if key in existing_resource:
+                    if key in secrets:
+                        resource_secret = {key: secrets.get(key)}
                     resources.append({'id': existing_resource["id"],
-                                      'body': {key: incoming_resource}})
+                                      'body': {key: incoming_resource},
+                                      'secret': resource_secret})
         return resources
 
-    def _get_resources(self, resource_ids, projection=None):
-        resources_cursor = self.database()["resources"].find(
-            {'id': {'$in': resource_ids}}, projection)
+    def _get_resources(self, resource_ids, with_ids=True, with_secrets=False):
         resources = []
-        for resource in resources_cursor:
-            resources.append(resource)
+        if resource_ids:
+            resources_cursor = self.database()["resources"].find(
+                {'id': {'$in': resource_ids}}, {"tenantId": 0, "_id": 0})
+            for resource in resources_cursor:
+                if with_secrets:
+                    self.merge_secrets('resources', resource["id"], resource)
+                if not with_ids:
+                    resource.pop("id")
+                resources.append(resource)
         return resources
 
-    def _save_resource(self, resource_id, body, tenant_id=None, partial=True):
+    def _save_resource(self, resource_id, body, tenant_id=None, partial=True,
+                       secrets=None):
         resource = self._save_object('resources', resource_id, body,
                                      tenant_id=tenant_id,
-                                     merge_existing=partial)
+                                     merge_existing=partial,
+                                     secrets=secrets)
         return resource
 
     #BLUEPRINTS

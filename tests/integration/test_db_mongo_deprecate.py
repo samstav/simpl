@@ -502,6 +502,44 @@ class TestDatabase(unittest.TestCase):
         self.assertListEqual(resource_list, self._get_resources(dep_id))
 
     @unittest.skipIf(SKIP, REASON)
+    def test_save_new_deployment_with_secrets(self):
+        dep_id = uuid.uuid4().hex
+        deployment = {
+            'id': dep_id,
+            'name': 'test',
+            'inputs': {},
+            'includes': {},
+            'resources': {'0': {'provider-key': 'test'}},
+            'workflow': "abcdef",
+            'status': "NEW",
+            'created': "yesterday",
+            'tenantId': "T1000",
+            'blueprint': {
+                'name': 'test bp',
+            },
+            'environment': {
+                'name': 'environment',
+                'providers': {},
+            },
+        }
+        expected_secret = {'0': {'instance': {'password': 'foo'}}}
+        self.driver.save_deployment(dep_id, deployment,
+                                    partial=False,
+                                    tenant_id="T1000",
+                                    secrets=
+                                    {"resources": expected_secret})
+
+        deployment_secret = self.driver.database()["deployments_secrets"] \
+            .find_one({"id": dep_id})
+
+        resources = self._get_resources(deployment_id=dep_id, include_ids=True)
+        resource_secret = self.driver.database()["resources_secrets"].find_one(
+            {"_id": resources[0]["id"]}, {'_id': 0})
+
+        self.assertIsNone(deployment_secret)
+        self.assertDictEqual(expected_secret, resource_secret)
+
+    @unittest.skipIf(SKIP, REASON)
     def test_full_deployment_update(self):
         dep_id = uuid.uuid4().hex
         deployment = {
@@ -546,6 +584,59 @@ class TestDatabase(unittest.TestCase):
             resource_list.append({key: value})
         self.assertListEqual(resource_list, self._get_resources(dep_id))
 
+    def test_full_deployment_update_with_secrets(self):
+        dep_id = uuid.uuid4().hex
+        deployment = {
+            'id': dep_id,
+            'name': 'test',
+            'inputs': {},
+            'includes': {},
+            'resources': {'0': {'provider-key': 'test'}},
+            'workflow': "abcdef",
+            'status': "NEW",
+            'created': "yesterday",
+            'tenantId': "T1000",
+            'blueprint': {
+                'name': 'test bp',
+            },
+            'environment': {
+                'name': 'environment',
+                'providers': {},
+            },
+        }
+        old_secret = {'0': {'instance': {'password': 'old_password'}}}
+
+        deployment = self.driver.save_deployment(dep_id,
+                                                 deployment,
+                                                 partial=False,
+                                                 tenant_id="T1000",
+                                                 secrets=
+                                                 {"resources": old_secret})
+
+        resources = self._get_resources(deployment_id=dep_id, include_ids=True)
+        old_resource_secret = self.driver.database()[
+            "resources_secrets"].find_one({"_id": resources[0]["id"]})
+
+        expected_secret = {'0': {'instance': {'password': 'foo'}}}
+
+        self.driver.save_deployment(dep_id,
+                                    deployment,
+                                    partial=False,
+                                    tenant_id="T1000",
+                                    secrets={'resources': expected_secret})
+
+        deployment_secret = self.driver.database()["deployments_secrets"] \
+            .find_one({"id": dep_id})
+
+        resources = self._get_resources(deployment_id=dep_id, include_ids=True)
+        resource_secret = self.driver.database()["resources_secrets"].find_one(
+            {"_id": resources[0]["id"]}, {'_id': 0})
+
+        self.assertIsNone(deployment_secret)
+        self.assertDictEqual(expected_secret, resource_secret)
+        self.assertIsNone(self.driver.database()["resources_secrets"].find_one(
+            {"_id": old_resource_secret["_id"]}))
+
     @unittest.skipIf(SKIP, REASON)
     def test_partial_deployment_update(self):
         dep_id = uuid.uuid4().hex
@@ -571,14 +662,23 @@ class TestDatabase(unittest.TestCase):
         self.driver.save_deployment(dep_id,
                                     deployment,
                                     partial=False,
-                                    tenant_id="T1000")
+                                    tenant_id="T1000",
+                                    secrets={"clean": "encrypted"}
+        )
         new_resource_1 = {'foo': 'new_bar'}
         deployment = self.driver.save_deployment(dep_id,
                                                  {'resources': {
                                                      '1': new_resource_1}},
                                                  partial=True,
-                                                 tenant_id="T1000")
+                                                 tenant_id="T1000",
+                                                 secrets=
+                                                 {"clean": "encrypted1"})
         self.assertEqual(len(deployment['resources']), 2)
+        db_secrets = self.driver.database()["deployments_secrets"]. \
+            find_one({"_id": dep_id},
+                     {"_id": 0})
+        self.assertDictEqual({"clean": "encrypted1"}, db_secrets)
+
         resource_ids = []
         for db_resource in self._get_resources(dep_id, True):
             resource_ids.append(db_resource['id'])
@@ -587,6 +687,52 @@ class TestDatabase(unittest.TestCase):
         self.assertListEqual(db_deployment['resources'], resource_ids)
         self.assertListEqual(self._get_resources(dep_id),
                              [{'1': new_resource_1}, {'0': resource_0}])
+
+    @unittest.skipIf(SKIP, REASON)
+    def test_partial_deployment_update_with_secrets(self):
+        dep_id = uuid.uuid4().hex
+        resource_0 = {'provider-key': 'test'}
+        deployment = {
+            'id': dep_id,
+            'name': 'test',
+            'inputs': {},
+            'includes': {},
+            'resources': {'0': resource_0},
+            'workflow': "abcdef",
+            'status': "NEW",
+            'created': "yesterday",
+            'tenantId': "T1000",
+            'blueprint': {
+                'name': 'test bp',
+            },
+            'environment': {
+                'name': 'environment',
+                'providers': {},
+            },
+        }
+
+        old_secret = {'0': {'instance': {'password': 'old_password'}}}
+        self.driver.save_deployment(dep_id,
+                                    deployment,
+                                    partial=False,
+                                    tenant_id="T1000",
+                                    secrets={'resources': old_secret}
+                                    )
+
+        new_resource_1 = {'foo': 'new_bar'}
+        new_secret = {'0': {'instance': {'password': 'new_password'}}}
+        self.driver.save_deployment(dep_id,
+                                    {'resources': {'0': new_resource_1}},
+                                    partial=True,
+                                    tenant_id="T1000",
+                                    secrets={'resources': new_secret}
+                                    )
+
+        resources = self._get_resources(deployment_id=dep_id, include_ids=True)
+        resource_secret = self.driver.database()["resources_secrets"].find_one(
+            {"_id": resources[0]["id"]}, {'_id': 0})
+
+        self.assertDictEqual(new_secret, resource_secret)
 
     @unittest.skipIf(SKIP, REASON)
     def test_partial_deployment_update_for_same_dep_and_resource_doc(self):
@@ -625,8 +771,48 @@ class TestDatabase(unittest.TestCase):
         db_deployment = self.driver.database().deployments.find_one(
             {'_id': dep_id})
         self.assertListEqual(db_deployment['resources'], resource_ids)
+        print self._get_resources(dep_id)
         self.assertListEqual(self._get_resources(dep_id),
                              [{'1': new_resource_1}, {'0': resource_0}])
+
+    @unittest.skipIf(SKIP, REASON)
+    def test_partial_deployment_update_with_secrets_for_old_format(self):
+        dep_id = uuid.uuid4().hex
+        deployment = {
+            'id': dep_id,
+            '_id': dep_id,
+            'name': 'test',
+            'inputs': {},
+            'includes': {},
+            'resources': {'0': {'provider-key': 'test'}},
+            'workflow': "abcdef",
+            'status': "NEW",
+            'created': "yesterday",
+            'tenantId': "T1000",
+            'blueprint': {
+                'name': 'test bp',
+            },
+            'environment': {
+                'name': 'environment',
+                'providers': {},
+            },
+        }
+        self.driver.database().deployments.insert(deployment)
+        self.driver.database().deployments_secrets.insert(
+            {'_id': dep_id, 'resources': {'0': {'foo': 'bar'}}})
+
+        new_secret = {'0': {'foo': 'new_secret'}}
+        self.driver.save_deployment(dep_id,
+                                    {'resources': {'0': {'foo': 'new_bar'}}},
+                                    partial=True,
+                                    tenant_id="T1000",
+                                    secrets={'resources': new_secret})
+        resources = self._get_resources(deployment_id=dep_id, include_ids=True)
+        resource_secret = self.driver.database()["resources_secrets"].find_one(
+            {"_id": resources[0]["id"]}, {'_id': 0})
+        self.assertIsNone(self.driver.database().deployments_secrets.find_one(
+            {'_id': dep_id}))
+        self.assertDictEqual(resource_secret, new_secret)
 
     @unittest.skipIf(SKIP, REASON)
     def test_existing_workflow_save(self):
@@ -674,6 +860,41 @@ class TestDatabase(unittest.TestCase):
 
         self.assertDictEqual(deployment["resources"],
                              load_deployment["resources"])
+
+    @unittest.skipIf(SKIP, REASON)
+    def test_get_deployment_with_secrets(self):
+        dep_id = uuid.uuid4().hex
+        deployment = {
+            'id': dep_id,
+            'name': 'test',
+            'inputs': {},
+            'includes': {},
+            'resources': {'0': {'provider-key': 'test'}, '1': {'foo': 'bar'}},
+            'workflow': "abcdef",
+            'status': "NEW",
+            'created': "yesterday",
+            'tenantId': "T1000",
+            'blueprint': {
+                'name': 'test bp',
+            },
+            'environment': {
+                'name': 'environment',
+                'providers': {},
+            },
+        }
+        self.driver.save_deployment(dep_id,
+                                    deployment,
+                                    partial=False,
+                                    tenant_id="T1000",
+                                    secrets={
+                                        'resources': {
+                                            '0': {'password': 'foo'}}})
+
+        load_deployment = self.driver.get_deployment(dep_id, with_secrets=True)
+
+        expected_resources = {'0': {'provider-key': 'test', 'password': 'foo'},
+                              '1': {'foo': 'bar'}}
+        self.assertDictEqual(expected_resources, load_deployment["resources"])
 
     def _get_resources(self, deployment_id, include_ids=False):
         db_deployment = self.driver.database().deployments.find_one(
