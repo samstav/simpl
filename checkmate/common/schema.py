@@ -135,6 +135,15 @@ INTERFACE_SCHEMA = yaml_to_dict("""
       https:
       ldap:
       vip:
+         fields:
+           ip:
+             type: string
+             required: true
+           private_ip:
+             type: string,
+             required: false
+           public_ip:
+             type: string
       ldaps:
       smtp:
       pop3:

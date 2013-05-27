@@ -94,7 +94,13 @@ class TestCeleryTasks(unittest.TestCase):
                 'public_ip': public_ip,
                 'port': 80,
                 'protocol': protocol,
-                'status': status
+                'status': status,
+                'interfaces': {
+                    'vip': {
+                        'public_ip': public_ip,
+                        'ip': public_ip,
+                    },
+                }
             }
         }
         instance_id = {
