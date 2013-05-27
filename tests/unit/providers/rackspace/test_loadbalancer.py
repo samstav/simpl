@@ -15,8 +15,8 @@ class TestLoadBalancer(unittest.TestCase):
         self.context = RequestContext()
         self.deployment.get_setting('region', resource_type='load-balancer',
                                     service_name='lb',
-                                    provider_key=self.provider.key).AndReturn(
-            'NORTH')
+                                    provider_key=self.provider.key)\
+            .AndReturn('NORTH')
 
     def tearDown(self):
         self.deployment_mocker.VerifyAll()
@@ -56,15 +56,19 @@ class TestLoadBalancer(unittest.TestCase):
             'protocol': 'http'
         }
 
+        connections = {
+            'connections': {
+                'master': {
+                    'relation-key': 'master',
+                },
+            },
+        }
         self.deployment_mocker.ReplayAll()
         results = self.provider.generate_template(self.deployment,
                                                   'load-balancer', 'lb',
                                                   self.context, 1,
                                                   self.provider.key,
-                                                  {'connections': {
-                                                      'master':
-                                                          {'relation-key':
-                                                               'master'}}})
+                                                  connections)
 
         self.assertEqual(len(results), 1)
         self.assertDictEqual(results[0], expected)

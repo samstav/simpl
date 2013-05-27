@@ -747,6 +747,7 @@ def sync_resource_task(context, resource, resource_key, api=None):
             }
         }
 
+
 @task
 def delete_lb_task(context, key, lbid, region, api=None):
     """Celery task to delete a Cloud Load Balancer"""

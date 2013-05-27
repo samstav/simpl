@@ -160,7 +160,7 @@ class TestDeployments(unittest.TestCase):
                 'name': 'test bp',
                 'options': {
                     'url': {
-                        'regex': 'somehting',
+                        'regex': 'something',
                         'type': 'int',
                     },
                 }
