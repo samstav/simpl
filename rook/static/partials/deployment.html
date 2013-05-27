@@ -55,10 +55,20 @@
               </div>
             </div>
 
-            <div class="control-group" ng-repeat="(name, output) in data['display-outputs']">
+            <div class="control-group">
+              <label class="control-label" for="secrets">Secrets:</label>
+              <div class="controls" ng-switch="data.secrets">
+                <div ng-switch-when="AVAILABLE"><a href="#" ng-click="showSecrets()">Secrets available</a></div>
+                <div ng-switch-when="LOCKED"><i class="icon-lock"></i> dismissed</div>
+                <div ng-switch-when="GENERATING">available soon</div>
+                <div ng-switch-default>No secrets</div>
+              </div>
+            </div>
+
+            <div class="control-group" ng-repeat="(name, output) in data['display-outputs']" ng-hide="output['is-secret']">
               <label class="control-label" for="{{'output' + $index}}">{{name}}</label>
               <div class="controls">
-                <input type="text" readonly id="{{'output' + $index}}" value="{{output.value}}"><i ng-class="{'icon-lock': output['is-secret']}" cmtip title="This value is a protected secret"></i>
+                <input type="text" readonly id="{{'output' + $index}}" value="{{output.value}}">
               </div>
             </div>
 
@@ -76,7 +86,6 @@
                 <input type="text" class="input-xxlarge" readonly id="blueprint" value="{{data.blueprint.name}}">
               </div>
             </div>
-
           </fieldset>
         </form>
 
