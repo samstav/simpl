@@ -68,7 +68,7 @@
             <div class="control-group" ng-repeat="(name, output) in data['display-outputs']" ng-hide="output['is-secret']">
               <label class="control-label" for="{{'output' + $index}}">{{name}}</label>
               <div class="controls">
-                <input type="text" readonly id="{{'output' + $index}}" value="{{output.value}}">
+                <input type="text" readonly id="{{'output' + $index}}" value="{{output.value.url ||output.value}}">
               </div>
             </div>
 
