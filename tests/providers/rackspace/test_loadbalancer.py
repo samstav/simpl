@@ -94,7 +94,13 @@ class TestCeleryTasks(unittest.TestCase):
                 'public_ip': public_ip,
                 'port': 80,
                 'protocol': protocol,
-                'status': status
+                'status': status,
+                'interfaces': {
+                    'vip': {
+                        'public_ip': public_ip,
+                        'ip': public_ip,
+                    },
+                }
             }
         }
         instance_id = {
@@ -177,7 +183,7 @@ class TestCeleryTasks(unittest.TestCase):
         wait_on_lb_delete(context, '1', '1234', 'lb14nuai-asfjb', 'ORD',
                           api=api)
         self.mox.VerifyAll()
-        
+
     def test_lb_sync_resource_task(self):
         """Tests db sync_resource_task via mox"""
         #Mock instance

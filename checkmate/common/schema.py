@@ -135,6 +135,15 @@ INTERFACE_SCHEMA = yaml_to_dict("""
       https:
       ldap:
       vip:
+         fields:
+           ip:
+             type: string
+             required: true
+           private_ip:
+             type: string,
+             required: false
+           public_ip:
+             type: string
       ldaps:
       smtp:
       pop3:
@@ -278,6 +287,7 @@ OPTION_SCHEMA = [
     'constrains',
     'constraints',
     'display-hints',
+    'display-output',
 ]
 
 # Add parts used internally by providers, but not part of the public schema

@@ -226,6 +226,20 @@ def get_deployments_by_bp_count(blueprint_id, tenant_id=None, driver=DB):
     return write_body(ret, request, response)
 
 
+def write_deploy_headers(deployment_id, tenant_id=None):
+    '''Write new resource location and link headers'''
+    if tenant_id:
+        response.add_header('Location', "/%s/deployments/%s" % (tenant_id,
+                                                                deployment_id))
+        response.add_header('Link', '</%s/workflows/%s>; '
+                            'rel="workflow"; title="Deploy"' % (tenant_id,
+                                                                deployment_id))
+    else:
+        response.add_header('Location', "/deployments/%s" % deployment_id)
+        response.add_header('Link', '</workflows/%s>; '
+                            'rel="workflow"; title="Deploy"' % deployment_id)
+
+
 @post('/deployments')
 @with_tenant
 def post_deployment(tenant_id=None, driver=DB):
@@ -237,7 +251,11 @@ def post_deployment(tenant_id=None, driver=DB):
     if request.context.simulation is True:
         deployment['id'] = 'simulate%s' % uuid.uuid4().hex[0:12]
     oid = str(deployment['id'])
-    save_deployment_and_execute_plan(tenant_id, driver, oid, deployment)
+    if 'asynchronous' in request.query:
+        save_deployment_and_execute_plan(tenant_id, driver, oid, deployment)
+    else:
+        write_deploy_headers(oid, tenant_id=tenant_id)
+        process_post_deployment(deployment, request.context, driver=driver)
     return write_body(deployment, request, response)
 
 
@@ -287,17 +305,7 @@ def save_deployment_and_execute_plan(tenant_id, driver, new_oid, deployment):
     _save_deployment(deployment, deployment_id=new_oid, tenant_id=tenant_id,
                      driver=driver)
 
-    # Return response (with new resource location in header)
-    if tenant_id:
-        response.add_header('Location', "/%s/deployments/%s" % (tenant_id,
-                                                                new_oid))
-        response.add_header('Link', '</%s/workflows/%s>; '
-                            'rel="workflow"; title="Deploy"' % (tenant_id,
-                                                                new_oid))
-    else:
-        response.add_header('Location', "/deployments/%s" % new_oid)
-        response.add_header('Link', '</workflows/%s>; '
-                            'rel="workflow"; title="Deploy"' % new_oid)
+    write_deploy_headers(new_oid, tenant_id=tenant_id)
 
     # can't pass actual request
     request_context = copy.deepcopy(request.context)
@@ -343,13 +351,8 @@ def process_post_deployment(deployment, request_context, driver=DB):
     #Assess work to be done & resources to be created
     parsed_deployment = plan(deployment, request_context)
 
-    try:
-        # Create a 'new deployment' workflow
-        _deploy(parsed_deployment, request_context, driver=driver)
-    except ObjectLockedError:
-        LOG.warn("Object lock collision in process_post_deployment on "
-                 "Deployment %s", deployment.get('id'))
-        resource_postback.retry()
+    # Create a 'new deployment' workflow
+    _deploy(parsed_deployment, request_context, driver=driver)
 
     #Trigger the workflow in the queuing service
     async_task = execute(deployment['id'], driver=driver)
@@ -591,8 +594,8 @@ def update_deployment_secrets(oid, tenant_id=None, driver=DB):
         body, secrets = extract_sensitive_data(updates)
         driver.save_deployment(oid, body, secrets, tenant_id=tenant_id,
                                partial=True)
-
-    return write_body({'secrets': updates['secrets']}, request, response)
+    return write_body({'secrets': updates.get('display-outputs')}, request,
+                      response)
 
 
 def _get_a_deployment_with_request(oid, tenant_id=None, driver=DB):

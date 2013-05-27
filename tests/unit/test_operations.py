@@ -25,6 +25,7 @@ class TestOperations(unittest.TestCase):
 
     def test_update_operation(self):
         db = self.mox.CreateMockAnything()
+        db.get_deployment('1234', with_secrets=True).AndReturn({})
         db.save_deployment('1234', {'operation': {'status': 'NEW'}},
                            partial=True).AndReturn(None)
         self.mox.ReplayAll()

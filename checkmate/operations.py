@@ -6,6 +6,7 @@ import os
 
 from checkmate import db
 from checkmate import utils
+from checkmate.deployment import Deployment
 
 LOG = logging.getLogger(__name__)
 DB = db.get_driver()
@@ -48,6 +49,14 @@ def update_operation(deployment_id, driver=DB, **kwargs):
         if utils.is_simulation(deployment_id):
             driver = SIMULATOR_DB
         delta = {'operation': dict(kwargs)}
+        deployment = driver.get_deployment(deployment_id, with_secrets=True)
+        try:
+            if 'status' in kwargs:
+                if 'status' != deployment['operation']['status']:
+                    deployment = Deployment(deployment)
+                    delta['display-outputs'] = deployment.calculate_outputs()
+        except KeyError:
+            LOG.warn("Cannot update deployment outputs: %s", deployment_id)
         try:
             driver.save_deployment(deployment_id, delta, partial=True)
         except db.ObjectLockedError:

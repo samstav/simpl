@@ -591,13 +591,20 @@ def create_loadbalancer(context, name, vip_type, protocol, region, api=None,
 
     if context.get('simulation') is True:
         resource_key = context['resource']
+        vip = "4.4.4.20%s" % resource_key
         results = {
             'instance:%s' % resource_key: {
                 'status': "BUILD",
                 'id': "LB0%s" % resource_key,
-                'public_ip': "4.4.4.20%s" % resource_key,
+                'public_ip': vip,
                 'port': port,
                 'protocol': protocol,
+                'interfaces': {
+                    'vip': {
+                        'ip': vip,
+                        'public_ip': vip,
+                    },
+                },
             }
         }
         # Send data back to deployment
@@ -675,7 +682,13 @@ def create_loadbalancer(context, name, vip_type, protocol, region, api=None,
             'public_ip': vip,
             'port': loadbalancer.port,
             'protocol': loadbalancer.protocol,
-            'status': "BUILD"
+            'status': "BUILD",
+            'interfaces': {
+                'vip': {
+                    'ip': vip,
+                    'public_ip': vip,
+                }
+            }
         }
     }
 
@@ -733,6 +746,7 @@ def sync_resource_task(context, resource, resource_key, api=None):
                 "status": "DELETED"
             }
         }
+
 
 @task
 def delete_lb_task(context, key, lbid, region, api=None):
