@@ -776,7 +776,7 @@ services.factory('github', ['$http', function($http) {
     get_contents: function(remote, url, content_item, callback){
       var destination_path = URI(url).path();
       var path = '/githubproxy' + destination_path + "/contents/" + content_item;
-      $http({method: 'GET', url: path, headers: {'X-Target-Url': remote.api.server, 'accept': 'application/json'}}).
+      return $http({method: 'GET', url: path, headers: {'X-Target-Url': remote.api.server, 'accept': 'application/json'}}).
         success(function(data, status, headers, config) {
           callback(data);
         }).

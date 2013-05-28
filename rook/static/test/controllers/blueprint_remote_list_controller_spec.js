@@ -67,13 +67,32 @@ describe('BlueprintRemoteListController', function(){
     });
 
     it('should sort the items by name alphabetically (case insensitive)', function(){
-      var abba = { id: 1, name: 'Abba' };
-      var alpha = { id: 2, name: 'alpha' };
-      var arkansas = { id: 3, name: 'Arkansas' };
+      var abba = { name: 'Abba' };
+      var alpha = { name: 'alpha' };
+      var arkansas = { name: 'Arkansas' };
       items.all = [ alpha, abba, arkansas];
+      github = { get_contents: sinon.stub().returns(
+          { then: sinon.stub().returns( {then: emptyFunction}) }
+      ) };
       controller = new BlueprintRemoteListController(scope, location, routeParams, resource, http, items, navbar, options, workflow, github);
       scope.receive_blueprints();
       expect(scope.items).toEqual([abba, alpha, arkansas]);
+    });
+
+    it('should chain callback promises when checking blueprint repos instead of sending all http requests at once', function(){
+      var alpha = { name: 'Alpha' },
+          bravo = { name: 'Bravo' },
+          charlie = { name: 'Charlie' },
+          bravo_promise = { then: sinon.stub() },
+          alpha_promise = { then: sinon.stub().returns(bravo_promise) };
+
+      items.all = [ alpha, bravo, charlie];
+      github = { get_contents: sinon.stub().returns(alpha_promise) };
+      controller = new BlueprintRemoteListController(scope, location, routeParams, resource, http, items, navbar, options, workflow, github);
+      scope.receive_blueprints();
+      expect(github.get_contents).toHaveBeenCalled();
+      expect(alpha_promise.then).toHaveBeenCalled();
+      expect(bravo_promise.then).toHaveBeenCalled();
     });
 
     describe('the callback function', function(){

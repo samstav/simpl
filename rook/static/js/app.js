@@ -1585,8 +1585,8 @@ function BlueprintRemoteListController($scope, $location, $routeParams, $resourc
       localStorage.blueprints = JSON.stringify(blueprints);
     }
 
-    _.each(sorted_items, function(item){
-      github.get_contents($scope.remote, item.api_url, "checkmate.yaml", function(content_data){
+    function verifyBlueprintRepo(item){
+      return github.get_contents($scope.remote, item.api_url, "checkmate.yaml", function(content_data){
         if(content_data.type === 'file'){
           item.is_blueprint_repo = true;
 
@@ -1598,7 +1598,15 @@ function BlueprintRemoteListController($scope, $location, $routeParams, $resourc
           $scope.items[index_to_replace] = item;
         }
       });
-    });
+    }
+
+    if(sorted_items.length >= 1) {
+      _.reduce(sorted_items.slice(1),
+               // Waiting on Angular 1.1.5 which includes an #always method. Until then, passing the same callback for both success and error to #then
+               // See https://github.com/angular/angular.js/pull/2424
+               function(memo, item) { return memo.then(function(){ return verifyBlueprintRepo(item) }, function(){ return verifyBlueprintRepo(item) }) },
+               verifyBlueprintRepo(sorted_items[0]));
+    }
   };
 
   $scope.load = function() {
