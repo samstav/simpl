@@ -250,6 +250,8 @@ class Provider(RackspaceComputeProviderBase):
                 'provider': "compute",
                 'severity': "CRITICAL"
             })
+        if limits['maxTotalCores'] == -1:  # -1 means cores are unlimited
+            return messages
         if cores_needed > cores_available:
             messages.append({
                 'type': "INSUFFICIENT-CAPACITY",
