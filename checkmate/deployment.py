@@ -376,7 +376,7 @@ class Deployment(ExtensibleDict):
         if relation:
             result = self._get_svc_relation_attribute(name, service_name,
                                                       relation)
-            if result:
+            if result is not None:
                 LOG.debug(
                     "Setting '%s' matched in _get_svc_relation_attribute", name
                 )
@@ -384,14 +384,14 @@ class Deployment(ExtensibleDict):
         if service_name:
             result = (self._get_input_service_override(name, service_name,
                       resource_type=resource_type))
-            if result:
+            if result is not None:
                 LOG.debug(
                     "Setting '%s' matched in _get_input_service_override", name
                 )
                 return result
 
             result = self._get_constrained_svc_cmp_setting(name, service_name)
-            if result:
+            if result is not None:
                 LOG.debug("Setting '%s' matched in "
                           "_get_constrained_svc_cmp_setting", name)
                 return result
@@ -399,7 +399,7 @@ class Deployment(ExtensibleDict):
         if provider_key:
             result = (self._get_input_provider_option(name, provider_key,
                       resource_type=resource_type))
-            if result:
+            if result is not None:
                 LOG.debug(
                     "Setting '%s' matched in _get_input_provider_option", name
                 )
@@ -407,49 +407,49 @@ class Deployment(ExtensibleDict):
 
         result = (self._get_constrained_static_resource_setting(name,
                   service_name=service_name, resource_type=resource_type))
-        if result:
+        if result is not None:
             LOG.debug("Setting '%s' matched in "
                       "_get_constrained_static_resource_setting", name)
             return result
 
         result = (self._get_input_blueprint_option_constraint(name,
                   service_name=service_name, resource_type=resource_type))
-        if result:
+        if result is not None:
             LOG.debug("Setting '%s' matched in "
                       "_get_input_blueprint_option_constraint", name)
             return result
 
         result = self._get_input_simple(name)
-        if result:
+        if result is not None:
             LOG.debug("Setting '%s' matched in _get_input_simple", name)
             return result
 
         result = self._get_input_global(name)
-        if result:
+        if result is not None:
             LOG.debug("Setting '%s' matched in _get_input_global", name)
             return result
 
         result = (self._get_environment_provider_constraint(name, provider_key,
                   resource_type=resource_type))
-        if result:
+        if result is not None:
             LOG.debug("Setting '%s' matched in "
                       "_get_environment_provider_constraint", name)
             return result
 
         result = (self._get_environment_provider_constraint(name, 'common',
                   resource_type=resource_type))
-        if result:
+        if result is not None:
             LOG.debug("Setting '%s' matched 'common' setting in "
                       "_get_environment_provider_constraint", name)
             return result
 
         result = self._get_resource_setting(name)
-        if result:
+        if result is not None:
             LOG.debug("Setting '%s' matched in _get_resource_setting", name)
             return result
 
         result = self._get_setting_value(name)
-        if result:
+        if result is not None:
             LOG.debug("Setting '%s' matched in _get_setting_value", name)
             return result
 
@@ -488,7 +488,7 @@ class Deployment(ExtensibleDict):
                             result = self._apply_constraint(path, constraint,
                                                             option=option,
                                                             option_key=key)
-                            if result:
+                            if result is not None:
                                 LOG.debug("Found setting '%s' from constraint."
                                           " %s=%s", path, key, result)
                                 return result
@@ -551,7 +551,7 @@ class Deployment(ExtensibleDict):
                             result = self._apply_constraint(name, constraint,
                                                             option=option,
                                                             option_key=key)
-                            if result:
+                            if result is not None:
                                 LOG.debug("Found setting '%s' from constraint."
                                           " %s=%s", name, name, result)
                                 return result
@@ -579,7 +579,7 @@ class Deployment(ExtensibleDict):
                             instance = self['resources'][key]['instance']
                             result = self._apply_constraint(name, constraint,
                                                             resource=instance)
-                            if result:
+                            if result is not None:
                                 LOG.debug("Found setting '%s' from constraint "
                                           "in blueprint resource '%s'. %s=%s",
                                           name, key, name, result)
@@ -740,7 +740,7 @@ class Deployment(ExtensibleDict):
         else:
             if option_key:
                 value = self._get_input_simple(option_key)
-            if (not value) and option and 'default' in option:
+            if value is None and option and 'default' in option:
                 value = option.get('default')
                 LOG.debug("Default setting '%s' obtained from constraint "
                           "in blueprint input '%s': default=%s",
@@ -756,7 +756,7 @@ class Deployment(ExtensibleDict):
         if 'attribute' in constraint:
             attribute = constraint['attribute']
 
-            if value:
+            if value is not None:
                 result = None
                 if isinstance(value, Input):
                     if hasattr(value, attribute):
@@ -770,12 +770,12 @@ class Deployment(ExtensibleDict):
                                              "since value is of type %s" % (
                                              attribute, name,
                                              type(value).__name__))
-                if result:
+                if result is not None:
                     LOG.debug("Found setting '%s' from constraint. %s=%s",
                               name, option_key or name, result)
                     return result
 
-        if value:
+        if value is not None:
             LOG.debug("Found setting '%s' from constraint in blueprint input "
                       "'%s'. %s=%s", name, option_key, option_key, value)
             return value
