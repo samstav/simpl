@@ -1464,8 +1464,13 @@ function BlueprintListController($scope, $location, $routeParams, $resource, ite
   $scope.items = items.all;
 
   $scope.selectItem = function(index) {
-    items.selectItem(index);
-    $scope.selected = items.selected;
+    if($scope.selected){
+      $scope.selected.selected = false;
+    }
+
+    $scope.selected = $scope.items[index];
+    $scope.selected.selected = true;
+
     $scope.selected_key = $scope.selected.key;
     mixpanel.track("Blueprint Selected", {'blueprint': $scope.selected.key});
   };
@@ -1540,8 +1545,10 @@ function BlueprintRemoteListController($scope, $location, $routeParams, $resourc
   $scope.receive_blueprints = function(data) {
     var sorted_items,
         sorted_items_object,
-        cached_blueprints = localStorage.blueprints || null,
-        blueprints;
+        object_to_replace,
+        index_to_replace,
+        blueprints,
+        cached_blueprints = localStorage.blueprints || null;
 
     items.clear();
     items.receive(data, function(item, key) {
@@ -1563,21 +1570,22 @@ function BlueprintRemoteListController($scope, $location, $routeParams, $resourc
     $scope.remember_repo_url($scope.remote.url);
 
     sorted_items = _.sortBy(items.all, function(item){ return item.name.toUpperCase(); });
-    sorted_items_object = _.reduce(sorted_items, function(memo, item){
-      memo[item.id] = item;
-      return memo;
-    }, {})
-
-    $scope.items = JSON.parse(cached_blueprints) || sorted_items_object;
+    $scope.items = JSON.parse(cached_blueprints) || sorted_items;
 
     function updateBlueprintCache(item){
       cached_blueprints = localStorage.blueprints || null,
-      blueprints = JSON.parse(cached_blueprints) || {};
-      blueprints[item.id] = item;
+      blueprints = JSON.parse(cached_blueprints) || [];
+      object_to_replace = _.findWhere(blueprints, { id: item.id });
+      if(object_to_replace){
+        index_to_replace = blueprints.indexOf(object_to_replace);
+      } else {
+        index_to_replace = _.sortedIndex(blueprints, item, function(blueprint){ return blueprint.name.toUpperCase(); });
+      }
+      blueprints[index_to_replace] = item;
       localStorage.blueprints = JSON.stringify(blueprints);
     }
 
-    _.each(sorted_items_object, function(item){
+    _.each(sorted_items, function(item){
       github.get_contents($scope.remote, item.api_url, "checkmate.yaml", function(content_data){
         if(content_data.type === 'file'){
           item.is_blueprint_repo = true;
@@ -1585,7 +1593,9 @@ function BlueprintRemoteListController($scope, $location, $routeParams, $resourc
           updateBlueprintCache(item);
 
           item.is_fresh = true;
-          $scope.items[item.id] = item;
+          object_to_replace = _.findWhere($scope.items, { id: item.id });
+          index_to_replace = $scope.items.indexOf(object_to_replace);
+          $scope.items[index_to_replace] = item;
         }
       });
     });

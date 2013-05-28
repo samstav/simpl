@@ -73,7 +73,7 @@ describe('BlueprintRemoteListController', function(){
       items.all = [ alpha, abba, arkansas];
       controller = new BlueprintRemoteListController(scope, location, routeParams, resource, http, items, navbar, options, workflow, github);
       scope.receive_blueprints();
-      expect(scope.items).toEqual({1: abba, 2: alpha, 3: arkansas});
+      expect(scope.items).toEqual([abba, alpha, arkansas]);
     });
 
     describe('the callback function', function(){
