@@ -52,7 +52,7 @@ def update_operation(deployment_id, driver=DB, **kwargs):
         deployment = driver.get_deployment(deployment_id, with_secrets=True)
         try:
             if 'status' in kwargs:
-                if 'status' != deployment['operation']['status']:
+                if kwargs['status'] != deployment['operation']['status']:
                     deployment = Deployment(deployment)
                     delta['display-outputs'] = deployment.calculate_outputs()
         except KeyError:

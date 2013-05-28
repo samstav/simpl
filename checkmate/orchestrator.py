@@ -15,7 +15,7 @@ from checkmate.common.tasks import (
     update_deployment_status,
 )
 from checkmate.utils import extract_sensitive_data, match_celery_logging
-from checkmate.workflow import update_workflow_status
+from checkmate.workflow import update_workflow_status, get_failed_tasks
 
 LOG = logging.getLogger(__name__)
 
@@ -113,14 +113,20 @@ def run_workflow(w_id, timeout=900, wait=1, counter=1, driver=None):
             # Report progress
             completed = d_wf.get_attribute('completed')
             total = d_wf.get_attribute('total')
-            status = d_wf.get_attribute('status')
+            workflow_status = operation_status = d_wf.get_attribute('status')
             dep_id = d_wf.get_attribute('deploymentId') or w_id
-            update_operation.delay(dep_id, driver=driver, status=status,
-                                   tasks=total, complete=completed)
+            failed_tasks = get_failed_tasks(workflow)
+            if failed_tasks:
+                operation_status = "ERROR"
+
+            update_operation.delay(dep_id, driver=driver,
+                                   status=operation_status, tasks=total,
+                                   complete=completed,
+                                   errors=failed_tasks)
             if total == completed:
                 update_deployment_status.delay(dep_id, 'UP', driver=driver)
             LOG.debug("Workflow status: %s/%s (state=%s)" % (completed,
-                      total, status))
+                      total, workflow_status))
             run_workflow.update_state(state="PROGRESS",
                                       meta={'complete': completed,
                                       'total': total})
