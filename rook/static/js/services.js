@@ -1035,24 +1035,21 @@ services.factory('auth', ['$http', '$resource', '$rootScope', '$q', function($ht
       $rootScope.$broadcast('logOut');
     },
 
-    get_tenant_id: function(username) {
-      var url = is_chrome_extension ? auth.auth_url : "/authproxy/";
-      var config = { headers: {
-        'X-Auth-Token': auth.context.token.id,
-        'X-Auth-Source': "https://identity.api.rackspacecloud.com/v2.0/tenants",
-      } };
+    get_tenant_id: function(username, token) {
+      var url = is_chrome_extension ? auth.auth_url : "/authproxy/v2.0/tenants";
+      var config = { headers: { 'X-Auth-Token': token } };
       return $http.get(url, config)
-        .success(function(data, status, headers, config) {
-          try {
-            var tenant = _.find(data.tenants, function(tenant) { return tenant.id.match(/^\d+$/) });
-            auth.context.tenantId = tenant.id;
-          } catch (err) {
-            console.log("Couldn't retrieve tenant ID:\n" + err);
-          }
-        })
-        .error(function(data, status, headers, config) {
-          console.log("Error fetching tenant ID:\n" + data);
-        });
+        .then(
+          // Success
+          function(response) {
+            var numbers = /^\d+$/;
+            var tenant = _.find(response.data.tenants, function(tenant) { return tenant.id.match(numbers) });
+            return tenant.id;
+          },
+          // Error
+          function(response) {
+            console.log("Error fetching tenant ID:\n" + response);
+          });
     },
 
     generate_impersonation_data: function(username, endpoint_type) {
@@ -1112,6 +1109,32 @@ services.factory('auth', ['$http', '$resource', '$rootScope', '$q', function($ht
       return auth.identity.username != auth.context.username;
     },
 
+    impersonate_success: function(username, response, deferred) {
+      this.get_tenant_id(username, response.data.access.token.id).then(
+        // Success
+        function(tenant_id) {
+          auth.context.username = username;
+          auth.context.token = response.data.access.token;
+          auth.context.auth_url = "https://identity.api.rackspacecloud.com/v2.0/tokens";
+          auth.context.tenantId = tenant_id;
+          auth.store_context(auth.context);
+          auth.save();
+          auth.check_state();
+          deferred.resolve('Impersonation Successful!');
+        },
+        // Error
+        function(tenant_response) {
+          auth.impersonate_error(tenant_response, deferred);
+        }
+      );
+      return deferred;
+    },
+
+    impersonate_error: function(response, deferred) {
+      console.log("Impersonation error: " + response)
+      return deferred.reject(response);
+    },
+
     impersonate: function(username) {
       var deferred = $q.defer();
       var url = is_chrome_extension ? auth.auth_url : "/authproxy";
@@ -1121,45 +1144,19 @@ services.factory('auth', ['$http', '$resource', '$rootScope', '$q', function($ht
           'X-Auth-Source': auth.get_impersonation_url(auth.identity.endpoint_type),
       };
       var config = {headers: headers};
-      $http.post(url, data, config)
-        .success(function(response, status, headers, config) {
-          // var params = {};
-          // params.username = username;
-          // params.auth_url = "https://identity.api.rackspacecloud.com/v2.0/tokens";
-          // auth.context = this.create_context(response, params);
-          auth.context.username = username;
-          auth.context.token = response.access.token;
-          auth.context.auth_url = "https://identity.api.rackspacecloud.com/v2.0/tokens";
-          auth.get_tenant_id(username).then(
-            function(tenant_response) {
-              auth.store_context(auth.context);
-              auth.save();
-              auth.check_state();
-              deferred.resolve('Impersonation Successful!');
-            },
-            function(tenant_response) {
-              var error = 'Error retrieving tenant ID: ' + response;
-              console.log(error);
-              deferred.reject(error);
-            }
-          );
-          /* Not to worry about this for now. Legacy code. */
-          /*
-          if (auth.identity.endpoint_type == 'Keystone') {
-            if ('tenant' in response.access.token)
-              auth.context.tenantId = response.access.token.tenant.id;
-            auth.context.catalog = response.access.serviceCatalog;
-            auth.context.impersonated = false;
-          }
-          */
-        })
-        .error(function(response, status, headers, config) {
-          var error = "impersonation unsuccessful";
-          console.log(error);
-          deferred.reject(error);
+      $http.post(url, data, config).then(
+        // Success
+        function(response) {
+          auth.impersonate_success(username, response, deferred);
+        },
+        // Error
+        function(response) {
+          auth.impersonate_error(response, deferred)
         });
+
       return deferred.promise;
     },
+
     //Check all auth data and update state
     check_state: function() {
       if ('identity' in auth && auth.identity.expiration !== null) {

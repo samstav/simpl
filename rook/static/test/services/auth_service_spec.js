@@ -304,51 +304,107 @@ describe('auth Service', function(){
   });
 
   describe('#impersonate', function() {
-    var $httpBackend;
+    var $httpBackend, $q, deferred;
 
     beforeEach(inject(function($injector) {
       $httpBackend = $injector.get('$httpBackend');
+      $q = $injector.get('$q');
       this.auth.identity.token = {};
+      spyOn(this.auth, 'generate_impersonation_data');
+      spyOn(this.auth, 'get_impersonation_url');
+      spyOn(this.auth, 'impersonate_success');
+      spyOn(this.auth, 'impersonate_error');
+      deferred = $q.defer();
     }));
 
-    describe('#success', function() {
+    it('- on success: should call impersonate_success', function() {
+      $httpBackend.when('POST', '/authproxy').respond(200, deferred.promise);
+      this.auth.impersonate("fakeusername");
+      $httpBackend.flush();
+      expect(this.auth.impersonate_success).toHaveBeenCalled();
+    });
+
+    it('- on error: should call impersonate_error', function() {
+      $httpBackend.when('POST', '/authproxy').respond(401, deferred.promise);
+      this.auth.impersonate("fakeusername");
+      $httpBackend.flush();
+      expect(this.auth.impersonate_error).toHaveBeenCalled();
+    });
+  });
+
+  describe('#impersonate_success', function() {
+    var $rootScope, $q, deferred, get_tenant_id_deferred, username;
+    beforeEach(inject(function($injector) {
+      $q = $injector.get('$q');
+      $rootScope = $injector.get('$rootScope');;
+      deferred = $q.defer();
+      get_tenant_id_deferred = $q.defer();
+      spyOn(this.auth, 'get_tenant_id').andReturn(get_tenant_id_deferred.promise);
+      response.data = { access: { token: { id: "faketoken" } } };
+      username = "fakeusername";
+    }));
+
+    describe('when tenant_id was retrieved', function() {
       beforeEach(function() {
-        $httpBackend.when('POST', '/authproxy').respond(200, { access: { token: { id: "faketoken" } } });
-        spyOn(this.auth, 'get_tenant_id').andReturn( { then: emptyFunction } );
+        spyOn(this.auth, 'store_context');
+        spyOn(this.auth, 'save');
+        spyOn(this.auth, 'check_state');
+        spyOn(deferred, 'resolve');
+        get_tenant_id_deferred.resolve("666666");
+        this.auth.impersonate_success(username, response, deferred);
+        $rootScope.$apply();
       });
-      
-      it('should set context username to impersonated username', function() {
-        this.auth.impersonate("fakeusername");
-        $httpBackend.flush();
+
+      it('should set context username', function() {
         expect(this.auth.context.username).toEqual("fakeusername");
       });
 
-      it('should set context token to impersonation token', function() {
-        this.auth.impersonate("fakeusername");
-        $httpBackend.flush();
-        expect(this.auth.context.token).toEqual({ id: "faketoken" });
+      it('should set context token', function() {
+        expect(this.auth.context.token).toEqual( { id: "faketoken" } );
       });
 
-      it('should set context auth_url to identity url', function() {
-        this.auth.impersonate("fakeusername");
-        $httpBackend.flush();
+      it('should set context auth_url', function() {
         expect(this.auth.context.auth_url).toEqual("https://identity.api.rackspacecloud.com/v2.0/tokens");
+      });
+
+      it('should set tenantId', function() {
+        expect(this.auth.context.tenantId).toEqual("666666");
+      });
+
+      it('should store context for future use', function() {
+        expect(this.auth.store_context).toHaveBeenCalled();
+      });
+
+      it('should save auth for future use', function() {
+        expect(this.auth.save).toHaveBeenCalled();
+      });
+
+      it('should check authentication state', function() {
+        expect(this.auth.check_state).toHaveBeenCalled();
+      });
+
+      it('should resolve the deferred promise', function() {
+        expect(deferred.resolve).toHaveBeenCalled();
       });
     });
 
-    describe('- on error', function() {
-      beforeEach(function() {
-        $httpBackend.when('POST', '/authproxy').respond(401, 'Unauthorized!');
-      });
-      
+    describe('when tenant_id was not retrieved', function() {
       it('should reject deferred promise', function() {
-        var promise = this.auth.impersonate("user");
-        var promise_success = sinon.spy();
-        var promise_error = sinon.spy();
-        promise.then(promise_success, promise_error);
-        $httpBackend.flush();
-        expect(promise_error).toHaveBeenCalled();
+        spyOn(this.auth, 'impersonate_error');
+        get_tenant_id_deferred.reject();
+        this.auth.impersonate_success(username, response, deferred);
+        $rootScope.$apply();
+        expect(this.auth.impersonate_error).toHaveBeenCalled();
       });
+    });
+  });
+
+  describe('#impersonate_error', function() {
+    it('should reject deferred promise', function() {
+      var response = "fakeresponse";
+      var deferred = { reject: sinon.spy() };
+      this.auth.impersonate_error(response, deferred);
+      expect(deferred.reject).toHaveBeenCalled();
     });
   });
 
