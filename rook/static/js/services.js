@@ -954,16 +954,16 @@ services.factory('auth', ['$http', '$resource', '$rootScope', '$q', function($ht
       return _.compact(regions);
     },
 
-    create_context: function(response, endpoint) {
+    create_context: function(response, params) {
       //Populate context
       var context = {};
       context.username = response.access.user.name || response.access.user.id; // auth.identity.username;
       context.user = response.access.user;
       context.token = response.access.token;
-      context.auth_url = endpoint['uri'];
+      context.auth_url = params.endpoint['uri'];
       context.regions = auth.get_regions(response);
 
-      if (endpoint['scheme'] == "GlobalAuth") {
+      if (params.endpoint['scheme'] == "GlobalAuth") {
         context.tenantId = null;
         context.catalog = {};
         context.impersonated = false;
@@ -972,7 +972,7 @@ services.factory('auth', ['$http', '$resource', '$rootScope', '$q', function($ht
           context.tenantId = response.access.token.tenant.id;
         else {
           context.tenantId = null;
-          auth.fetch_identity_tenants(endpoint, context.token);
+          auth.fetch_identity_tenants(params.endpoint, context.token);
         }
         context.catalog = response.access.serviceCatalog;
         context.impersonated = false;
@@ -1000,7 +1000,7 @@ services.factory('auth', ['$http', '$resource', '$rootScope', '$q', function($ht
       return $http.post(url, data, config)
         .success(function(response, status, headers, config) {
           var params = { headers: headers, endpoint: endpoint };
-          auth.context = auth.create_context(response, endpoint);
+          auth.context = auth.create_context(response, params);
           auth.identity = auth.create_identity(response, params);
           auth.identity.context = _.clone(auth.context);
           auth.save();
@@ -1090,7 +1090,7 @@ services.factory('auth', ['$http', '$resource', '$rootScope', '$q', function($ht
       return impersonation_url;
     },
 
-    save_context: function(context) {
+    store_context: function(context) {
       if (!auth.identity.tenants)
         auth.identity.tenants = [];
 
@@ -1113,26 +1113,29 @@ services.factory('auth', ['$http', '$resource', '$rootScope', '$q', function($ht
     },
 
     impersonate: function(username) {
+      var deferred = $q.defer();
+      var url = is_chrome_extension ? auth.auth_url : "/authproxy";
       var data = auth.generate_impersonation_data(username, auth.identity.endpoint_type);
       var headers = {
           'X-Auth-Token': auth.identity.token.id,
           'X-Auth-Source': auth.get_impersonation_url(auth.identity.endpoint_type),
       };
-      var url = is_chrome_extension ? auth.auth_url : "/authproxy";
       var config = {headers: headers};
-      var deferred = $q.defer();
       $http.post(url, data, config)
         .success(function(response, status, headers, config) {
+          // var params = {};
+          // params.username = username;
+          // params.auth_url = "https://identity.api.rackspacecloud.com/v2.0/tokens";
+          // auth.context = this.create_context(response, params);
           auth.context.username = username;
           auth.context.token = response.access.token;
           auth.context.auth_url = "https://identity.api.rackspacecloud.com/v2.0/tokens";
           auth.get_tenant_id(username).then(
             function(tenant_response) {
-              console.log("impersonation successful");
-              auth.save_context(auth.context);
+              auth.store_context(auth.context);
               auth.save();
               auth.check_state();
-              deferred.resolve('All is fine!');
+              deferred.resolve('Impersonation Successful!');
             },
             function(tenant_response) {
               var error = 'Error retrieving tenant ID: ' + response;

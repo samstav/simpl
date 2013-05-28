@@ -8,7 +8,7 @@ describe('auth Service', function(){
       user;
 
   beforeEach(module('checkmate.services'));
-  beforeEach(inject(function(auth, $resource, $rootScope){
+  beforeEach(inject(function(auth, $resource, $q, $rootScope){
     this.auth = auth;
     request = { getResponseHeader: emptyFunction };
     user = {};
@@ -100,7 +100,7 @@ describe('auth Service', function(){
   });
 
   describe('#create_context', function() {
-    var response, endpoint;
+    var response, endpoint, params;
 
     beforeEach(function() {
       response = {
@@ -109,47 +109,48 @@ describe('auth Service', function(){
           token: { tenant: { id: 'fakeid' } },
           serviceCatalog: {},
         }
-      }; // response.access.token.tenant.id
+      };
       endpoint = { uri: 'fakeuri', scheme: 'fakescheme' };
+      params = { endpoint: endpoint };
     });
 
     it('should create a context based on a response', function() {
-      expect(this.auth.create_context(response, endpoint)).not.toBe(null);
+      expect(this.auth.create_context(response, params)).not.toBe(null);
     });
 
     it('should set context user according to response object', function() {
-      expect(this.auth.create_context(response, endpoint).user).toEqual({ name: 'fakename' });
+      expect(this.auth.create_context(response, params).user).toEqual({ name: 'fakename' });
     });
 
     it('should set context token according to response object', function() {
-      expect(this.auth.create_context(response, endpoint).token).toEqual({ tenant: { id: 'fakeid' } });
+      expect(this.auth.create_context(response, params).token).toEqual({ tenant: { id: 'fakeid' } });
     });
 
     it('should set context auth_url according to response object', function() {
-      expect(this.auth.create_context(response, endpoint).auth_url).toEqual('fakeuri');
+      expect(this.auth.create_context(response, params).auth_url).toEqual('fakeuri');
     });
 
     it('should set context username user.name if it is present', function() {
-      expect(this.auth.create_context(response, endpoint).username).toEqual('fakename');
+      expect(this.auth.create_context(response, params).username).toEqual('fakename');
     });
 
     it('should set context username user.id if name does not exist', function() {
       delete response.access.user.name;
       response.access.user.id = 'fakeuserid';
-      expect(this.auth.create_context(response, endpoint).username).toEqual('fakeuserid');
+      expect(this.auth.create_context(response, params).username).toEqual('fakeuserid');
     });
 
     describe('#context and endpoint schemes', function() {
       it('should set context based on GlobalAuth', function() {
-        endpoint.scheme = 'GlobalAuth';
-        var context = this.auth.create_context(response, endpoint);
+        params.endpoint.scheme = 'GlobalAuth';
+        var context = this.auth.create_context(response, params);
         expect(context.tenantId).toBe(null);
         expect(context.catalog).toEqual({});
         expect(context.impersonated).toBe(false);
       });
 
       it('should set context based on different endpoint schemes with tenant', function() {
-        var context = this.auth.create_context(response, endpoint);
+        var context = this.auth.create_context(response, params);
         expect(context.impersonated).toBe(false);
         expect(context.catalog).toEqual({});
         expect(context.tenantId).toEqual('fakeid');
@@ -158,7 +159,7 @@ describe('auth Service', function(){
       it('should set context based on different endpoint schemes without tenant', function() {
         delete response.access.token.tenant;
         this.auth.fetch_identity_tenants = jasmine.createSpy('fetch_identity_tenants');
-        var context = this.auth.create_context(response, endpoint);
+        var context = this.auth.create_context(response, params);
         expect(context.impersonated).toBe(false);
         expect(context.catalog).toEqual({});
         expect(context.tenantId).toEqual(null);
@@ -168,53 +169,53 @@ describe('auth Service', function(){
 
     it('should get context regions from response', function() {
       this.auth.get_regions = jasmine.createSpy('get_regions');
-      this.auth.create_context(response, endpoint);
+      this.auth.create_context(response, params);
       expect(this.auth.get_regions).toHaveBeenCalled();
     });
 
   });
 
-  describe('#save_context', function() {
+  describe('#store_context', function() {
     beforeEach(function() {
       context1 = { username: 'user1', id: 1 };
       context2 = { username: 'user2', id: 2 };
     });
 
     it('should save context after impersonating user', function() {
-      this.auth.save_context(context1);
+      this.auth.store_context(context1);
       expect(this.auth.identity.tenants).not.toBe(null);
       expect(this.auth.identity.tenants.length).toBe(1);
     });
 
     it('should save two or more contexts after impersonating users', function() {
-      this.auth.save_context(context1);
-      this.auth.save_context(context2);
+      this.auth.store_context(context1);
+      this.auth.store_context(context2);
       expect(this.auth.identity.tenants.length).toBe(2);
     });
 
     it('should save contexts to the beginning of the array', function() {
-      this.auth.save_context(context1);
-      this.auth.save_context(context2);
+      this.auth.store_context(context1);
+      this.auth.store_context(context2);
       expect(this.auth.identity.tenants[0].username).toBe('user2');
     });
 
     it('should not save the same context twice', function() {
-      this.auth.save_context(context1);
-      this.auth.save_context(context1);
+      this.auth.store_context(context1);
+      this.auth.store_context(context1);
       expect(this.auth.identity.tenants.length).toBe(1);
     });
 
     it('should save a new instace of contexts, to prevent outside changes', function() {
-      this.auth.save_context(context1);
+      this.auth.store_context(context1);
       context1.username = 'userX';
-      this.auth.save_context(context1);
+      this.auth.store_context(context1);
       expect(this.auth.identity.tenants.length).toBe(2);
     });
 
     it('should not store more than 10 contexts', function() {
       for(var num=1 ; num<=11 ; num++) {
         context1.username = 'user' + num;
-        this.auth.save_context(context1);
+        this.auth.store_context(context1);
       }
       expect(this.auth.identity.tenants.length).toBe(10);
     });
@@ -299,6 +300,55 @@ describe('auth Service', function(){
 
       this.auth.parseWWWAuthenticateHeaders(headers);
       expect(this.auth.endpoints).toEqual([]);
+    });
+  });
+
+  describe('#impersonate', function() {
+    var $httpBackend;
+
+    beforeEach(inject(function($injector) {
+      $httpBackend = $injector.get('$httpBackend');
+      this.auth.identity.token = {};
+    }));
+
+    describe('#success', function() {
+      beforeEach(function() {
+        $httpBackend.when('POST', '/authproxy').respond(200, { access: { token: { id: "faketoken" } } });
+        spyOn(this.auth, 'get_tenant_id').andReturn( { then: emptyFunction } );
+      });
+      
+      it('should set context username to impersonated username', function() {
+        this.auth.impersonate("fakeusername");
+        $httpBackend.flush();
+        expect(this.auth.context.username).toEqual("fakeusername");
+      });
+
+      it('should set context token to impersonation token', function() {
+        this.auth.impersonate("fakeusername");
+        $httpBackend.flush();
+        expect(this.auth.context.token).toEqual({ id: "faketoken" });
+      });
+
+      it('should set context auth_url to identity url', function() {
+        this.auth.impersonate("fakeusername");
+        $httpBackend.flush();
+        expect(this.auth.context.auth_url).toEqual("https://identity.api.rackspacecloud.com/v2.0/tokens");
+      });
+    });
+
+    describe('- on error', function() {
+      beforeEach(function() {
+        $httpBackend.when('POST', '/authproxy').respond(401, 'Unauthorized!');
+      });
+      
+      it('should reject deferred promise', function() {
+        var promise = this.auth.impersonate("user");
+        var promise_success = sinon.spy();
+        var promise_error = sinon.spy();
+        promise.then(promise_success, promise_error);
+        $httpBackend.flush();
+        expect(promise_error).toHaveBeenCalled();
+      });
     });
   });
 
