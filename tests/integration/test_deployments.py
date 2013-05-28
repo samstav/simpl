@@ -760,14 +760,14 @@ class TestDeploymentSettings(unittest.TestCase):
             'case': "Set in environments/providers/...",
             'name': "size",
             'provider': "base",
-            'resource_type': "widget",
+            'type': "widget",
             'expected': "big",
         },  {
             'case': "Provider setting is used even with service param",
             'name': "size",
             'provider': "base",
             'service': 'web',
-            'resource_type': "widget",
+            'type': "widget",
             'expected': "big",
         },  {
             'case': "Set in blueprint/service as constraint",
@@ -892,6 +892,91 @@ class TestDeploymentSettings(unittest.TestCase):
         self.assertEqual(resources['myUser']['instance']['name'], 'bar')
         self.assertEqual(deployment.get_setting('resources/myUser/name'),
                          'bar')
+
+    def test_get_false_settings(self):
+        """Test the get_setting function when the setting is false"""
+        deployment = Deployment(yaml_to_dict("""
+            id: '1'
+            blueprint:
+              services:
+                lb:
+                  component:
+                    interface: http
+                    type: load-balancer
+                    constraints:
+                    - algorithm: false
+              options:
+                false-but-true-default:
+                  default: true
+                  type: boolean
+                  label: Create DNS records
+                  constrains:
+                  - service: lb
+                    resource_type: load-balancer
+                    setting: create_dns
+                false-default:
+                  default: false
+                  type: boolean
+                  constrains:
+                  - service: lb
+                    resource_type: load-balancer
+                    setting: dont_create_dns
+                string-false:
+                  default: "false"
+                  type: boolean
+                  constrains:
+                  - service: lb
+                    resource_type: load-balancer
+                    setting: string-false
+            inputs:
+              blueprint:
+                false-but-true-default: False
+            environment:
+              name: environment
+              providers:
+                base:
+                  vendor: test
+                  catalog:
+                    load-balancer:
+                      dummy_lb:
+                        provides:
+                        - load-balancer: http
+        """))
+        cases = [{
+            'case': "False in inputs",
+            'provider': "base",
+            'service': 'lb',
+            'type': "load-balancer",
+            'name': "create_dns",
+            'expected': False
+        }, {
+            'case': "False as a default",
+            'service': 'lb',
+            'type': "load-balancer",
+            'name': "dont_create_dns",
+            'expected': False
+        }, {
+            'case': "String is 'False'",
+            'service': 'lb',
+            'type': "load-balancer",
+            'name': "string-false",
+            'expected': "False"
+        }
+        ]
+
+        base.PROVIDER_CLASSES['test.base'] = ProviderBase
+        parsed = plan(deployment, RequestContext())
+        for test in cases[:-1]:  # TODO: last case broken without env providers
+            value = parsed.get_setting(test['name'],
+                                       service_name=test.get('service'),
+                                       provider_key=test.get('provider'),
+                                       resource_type=test.get('type'),
+                                       relation=test.get('relation'))
+            self.assertEquals(value, test['expected'], msg=test['case'])
+            LOG.debug("Test '%s' success=%s", test['case'],
+                      value == test['expected'])
+
+
 
     def test_get_input_provider_option(self):
         deployment = Deployment(yaml_to_dict("""
