@@ -41,6 +41,25 @@ def update_workflow_status(workflow):
         workflow.attributes['status'] = "IN PROGRESS"
 
 
+def get_failed_tasks(workflow):
+    '''
+    Traverses through the workflow-tasks, and collects errors information from
+    all the failed tasks
+    :param workflow: The workflow to get the tasks from
+    :return: List of error information
+    '''
+    results = []
+    tasks = workflow.get_tasks()
+    while tasks:
+        task = tasks.pop(0)
+        task_state = task._get_internal_attribute("task_state")
+        if task_state.get("state") == "FAILURE":
+            results.append({
+                "error_message": task_state["info"],
+                "error_traceback": task_state["traceback"]})
+    return results
+
+
 def get_SpiffWorkflow_status(workflow):
     """
     Returns the subtree as a string for debugging.
@@ -328,19 +347,6 @@ def init_operation(workflow, tenant_id=None):
     operation['link'] = "/%s/workflows/%s" % (tenant_id, workflow_id)
 
     return operation
-
-'''
-def update_operation(deployment, workflow_id, driver=DB):
-    """Get workflow from database and update the deployment"""
-    raw_workflow = driver.get_workflow(workflow_id)
-    if not raw_workflow:
-        return
-    serializer = DictionarySerializer()
-    workflow = SpiffWorkflow.deserialize(serializer, raw_workflow)
-    # before we started saving deploymentId in attributes, WorkflowId was
-    # equal to deploymentId
-    _update_operation(deployment['operation'], workflow)
-'''
 
 
 def _update_operation(operation, workflow):
