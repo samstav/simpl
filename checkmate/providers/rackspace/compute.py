@@ -684,7 +684,7 @@ def create_server(context, name, region, api_object=None, flavor="2",
 
     match_celery_logging(LOG)
 
-    def on_failure(exc, task_id, args, einfo):
+    def on_failure(exc, task_id, args, kwargs, einfo):
         """ Handle task failure """
         dep_id = args[0].get('deployment')
         key = args[0].get('resource')
@@ -778,7 +778,7 @@ def delete_server_task(context, api=None):
     assert "instance_id" in context, "No server id provided"
     assert 'resource' in context, "No resource definition provided"
 
-    def on_failure(exc, task_id, args, einfo):
+    def on_failure(exc, task_id, args, kwargs, einfo):
         """ Handle task failure """
         dep_id = args[0].get('deployment_id')
         key = args[0].get('resource_key')
@@ -847,7 +847,7 @@ def wait_on_delete_server(context, api=None):
     assert "instance_id" in context, "No server id provided"
     assert 'resource' in context, "No resource definition provided"
 
-    def on_failure(exc, task_id, args, einfo):
+    def on_failure(exc, task_id, args, kwargs, einfo):
         """ Handle task failure """
         dep_id = args[0].get('deployment_id')
         key = args[0].get('resource_key')
