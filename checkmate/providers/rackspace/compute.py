@@ -830,7 +830,7 @@ def delete_server_task(context, api=None):
         return ret
     else:
         msg = ('Instance is in state %s. Waiting on ACTIVE resource.'
-               % server.state)
+               % server.status)
         resource_postback.delay(context.get("deployment_id"),
                                 {inst_key: {'status': 'DELETING',
                                             'statusmsg': msg}})
