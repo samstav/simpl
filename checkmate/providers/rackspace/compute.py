@@ -387,7 +387,7 @@ class Provider(RackspaceComputeProviderBase):
                                                            sync_resource_task,
                                                            api=api)
         i_key = 'instance:%s' % key
-        if result[i_key].get('status') in ['ACTIVE', 'RESCUE', 'DELETED']:
+        if result[i_key].get('status') in ['ACTIVE', 'DELETED']:
             result[i_key]['instance'] = {'statusmsg': ''}
         return result
 
