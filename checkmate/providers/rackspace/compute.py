@@ -237,7 +237,11 @@ class Provider(RackspaceComputeProviderBase):
 
         limits = _get_limits(url, context.auth_token)
         memory_available = limits['maxTotalRAMSize'] - limits['totalRAMUsed']
+        if memory_available < 0:
+            memory_available = 0
         cores_available = limits['maxTotalCores'] - limits['totalCoresUsed']
+        if cores_available < 0:
+            cores_available = 0
 
         messages = []
         if memory_needed > memory_available:
