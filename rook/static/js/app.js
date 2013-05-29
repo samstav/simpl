@@ -801,7 +801,7 @@ function WorkflowListController($scope, $location, $resource, workflow, items, n
 
     path = '/:tenantId/workflows.json' + paginator.buildPagingParams();
     $scope.showPagination = function(){
-      return $scope.links || false;
+      return $scope.links && $scope.totalPages > 1;
     };
 
     this.klass = $resource((checkmate_server_base || '') + path);
@@ -1754,7 +1754,7 @@ function DeploymentListController($scope, $location, $http, $resource, scroll, i
     path = $location.path() + '.json';
 
     $scope.showPagination = function(){
-      return $scope.links || false;
+      return $scope.links && $scope.totalPages > 1;
     };
 
     params = {
