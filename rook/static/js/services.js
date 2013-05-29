@@ -938,9 +938,12 @@ services.factory('auth', ['$http', '$resource', '$rootScope', '$q', function($ht
       identity.auth_url = endpoint['uri'];
       identity.endpoint_type = endpoint['scheme'];
 
-      //Check if this user is an admin
+      // Admin information
       var is_admin = headers('X-AuthZ-Admin') || 'False';
       identity.is_admin = (is_admin === 'True');
+
+      if (identity.is_admin)
+        identity.tenants = JSON.parse( localStorage.previous_tenants || "[]" );
 
       return identity;
     },
@@ -1177,12 +1180,18 @@ services.factory('auth', ['$http', '$resource', '$rootScope', '$q', function($ht
       auth.identity = {};
       auth.context = {};
     },
+
     //Save to local storage
     save: function() {
       var data = {auth: {identity: auth.identity, context: auth.context, endpoints: auth.endpoints}};
-      //Save for future use
       localStorage.setItem('auth', JSON.stringify(data));
+
+      var previous_tenants = _.map(auth.identity.tenants, function(tenant) {
+        return _.pick(tenant, 'username', 'tenantId'); // remove sensitive information
+      });
+      localStorage.setItem('previous_tenants', JSON.stringify(previous_tenants || "[]"));
     },
+
     //Restore from local storage
     restore: function() {
       var data = localStorage.getItem('auth');

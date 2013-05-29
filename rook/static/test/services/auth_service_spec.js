@@ -175,6 +175,29 @@ describe('auth Service', function(){
 
   });
 
+  describe('#create_identity', function() {
+    var response, params;
+    beforeEach(function() {
+      params = {};
+      params.headers = sinon.stub();
+      params.endpoint = {};
+      response = { access: { user: {}, token: {} } };
+      localStorage.previous_tenants = "[{}, {}, {}]";
+    });
+
+    it('should load previous tenants from localStorage if user is admin', function() {
+      params.headers.returns('True');
+      var identity = this.auth.create_identity(response, params);
+      expect(identity.tenants.length).toBe(3);
+    });
+
+    it('should not load previous tenants from localStorage if user is not admin', function() {
+      params.headers.returns('Truish');
+      var identity = this.auth.create_identity(response, params);
+      expect(identity.tenants).toBe(undefined);
+    });
+  });
+
   describe('#store_context', function() {
     beforeEach(function() {
       context1 = { username: 'user1', id: 1 };
@@ -444,6 +467,36 @@ describe('auth Service', function(){
     it('should be false if not impersonating a tenant', function() {
       this.auth.context.username = 'admin';
       expect(this.auth.is_impersonating()).toBe(false);
+    });
+  });
+
+  describe('#save', function() {
+    var previous_tenants;
+    beforeEach(function() {
+      this.auth.identity.tenants = [
+        { username: "fakeusername1", tenantId: "fakeid1", sensitive1: "sensitiveinformation1" },
+        { username: "fakeusername2", tenantId: "fakeid2", sensitive2: "sensitiveinformation2" },
+        { username: "fakeusername3", tenantId: "fakeid3", sensitive3: "sensitiveinformation3" },
+      ];
+      this.auth.save();
+      previous_tenants = JSON.parse(localStorage.previous_tenants);
+    });
+
+    it('should save previous tenants information to localStorage', function() {
+      expect(localStorage.previous_tenants).not.toBe(null);
+    });
+
+    it('should save previous tenant username localStorage', function() {
+      expect(previous_tenants[0].username).not.toBe(undefined);
+    });
+
+    it('should save previous tenant ID to localStorage', function() {
+      expect(previous_tenants[0].tenantId).not.toBe(undefined);
+    });
+
+    it('should should not save any other information from previous tenants to localStorage', function() {
+      expect(previous_tenants[0].sensitive1).toBe(undefined);
+      expect(Object.keys(previous_tenants[0]).length).toBe(2);
     });
   });
 
