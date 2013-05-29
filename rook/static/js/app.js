@@ -350,7 +350,7 @@ function AppController($scope, $http, $location, $resource, auth, $route) {
   }
 
   $scope.display_announcement = function() {
-    return auth.endpoints[0].realm == "Rackspace SSO";
+    return (auth.endpoints[0] !== undefined) && (auth.endpoints[0].realm == "Rackspace SSO");
   }
 
   $scope.is_hidden = function(endpoint) {

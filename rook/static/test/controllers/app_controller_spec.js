@@ -94,6 +94,11 @@ describe('AppController', function(){
       auth.endpoints = [ {}, { realm: "Rackspace SSO" }, {} ];
       expect(scope.display_announcement()).toBe(false);
     });
+
+    it('should not display impersonation annuncement if endpoints are not defined', function() {
+      auth.endpoints = [];
+      expect(scope.display_announcement()).toBe(false);
+    });
   });
 
   describe('#is_active', function() {
