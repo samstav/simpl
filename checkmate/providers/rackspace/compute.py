@@ -393,7 +393,7 @@ class Provider(RackspaceComputeProviderBase):
                                                            sync_resource_task,
                                                            api=api)
         i_key = 'instance:%s' % key
-        if result[i_key].get('status') in ['ACTIVE', 'RESCUE', 'DELETED']:
+        if result[i_key].get('status') in ['ACTIVE', 'DELETED']:
             result[i_key]['instance'] = {'statusmsg': ''}
         return result
 
@@ -690,25 +690,10 @@ def create_server(context, name, region, api_object=None, flavor="2",
 
     match_celery_logging(LOG)
 
-    def on_failure(exc, task_id, args, einfo):
-        """ Handle task failure """
-        dep_id = args[0].get('deployment')
-        key = args[0].get('resource')
-
-        if dep_id and key:
-            k = "instance:%s" % key
-            ret = {
-                k: {
-                    'status': 'ERROR',
-                    'errmessage': ("Unexpected error deleting compute "
-                                   "instance %s: %s" % (key, exc.message)),
-                    'trace': 'Task %s: %s' % (task_id, einfo.traceback)
-                }
-            }
-            resource_postback.delay(dep_id, ret)
-        else:
-            LOG.error("Missing deployment id and/or resource key in "
-                      "delete_server_task error callback.")
+    def on_failure(exc, task_id, args, kwargs, einfo):
+        action = "creating"
+        method = "create_server"
+        _on_failure(exc, task_id, args, kwargs, einfo, action, method)
 
     create_server.on_failure = on_failure
 
@@ -772,6 +757,24 @@ def sync_resource_task(context, resource, resource_key, api=None):
             }
         }
 
+def _on_failure(exc, task_id, args, kwargs, einfo, action, method):
+    """ Handle task failure """
+    dep_id = args[0].get('deployment_id')
+    key = args[0].get('resource_key')
+    if dep_id and key:
+        k = "instance:%s" % key
+        ret = {
+            k: {
+                'status': 'ERROR',
+                'statusmsg': ('Unexpected error %s compute instance'
+                               ' %s: %s' % (action, key, exc.message)),
+                'trace': 'Task %s: %s' % (task_id, einfo.traceback)
+            }
+        }
+        resource_postback.delay(dep_id, ret)
+    else:
+        LOG.error("Missing deployment id and/or resource key in "
+                  "%s error callback." % method)
 
 @task(default_retry_delay=30, max_retries=120)
 def delete_server_task(context, api=None):
@@ -784,24 +787,10 @@ def delete_server_task(context, api=None):
     assert "instance_id" in context, "No server id provided"
     assert 'resource' in context, "No resource definition provided"
 
-    def on_failure(exc, task_id, args, einfo):
-        """ Handle task failure """
-        dep_id = args[0].get('deployment_id')
-        key = args[0].get('resource_key')
-        if dep_id and key:
-            k = "instance:%s" % key
-            ret = {
-                k: {
-                    'status': 'ERROR',
-                    'errmessage': ('Unexpected error deleting compute instance'
-                                   ' %s: %s' % (key, exc.message)),
-                    'trace': 'Task %s: %s' % (task_id, einfo.traceback)
-                }
-            }
-            resource_postback.delay(dep_id, ret)
-        else:
-            LOG.error("Missing deployment id and/or resource key in "
-                      "delete_server_task error callback.")
+    def on_failure(exc, task_id, args, kwargs, einfo):
+        action = "deleting"
+        method = "delete_server_task"
+        _on_failure(exc, task_id, args, kwargs, einfo, action, method)
 
     delete_server_task.on_failure = on_failure
 
@@ -835,8 +824,9 @@ def delete_server_task(context, api=None):
         server.delete()
         return ret
     else:
+        raise Exception("Failed")
         msg = ('Instance is in state %s. Waiting on ACTIVE resource.'
-               % server.state)
+               % server.status)
         resource_postback.delay(context.get("deployment_id"),
                                 {inst_key: {'status': 'DELETING',
                                             'statusmsg': msg}})
@@ -853,20 +843,10 @@ def wait_on_delete_server(context, api=None):
     assert "instance_id" in context, "No server id provided"
     assert 'resource' in context, "No resource definition provided"
 
-    def on_failure(exc, task_id, args, einfo):
-        """ Handle task failure """
-        dep_id = args[0].get('deployment_id')
-        key = args[0].get('resource_key')
-        if dep_id and key:
-            k = "instance:%s" % key
-            ret = {k: {'status': 'ERROR',
-                       'errmessage': ('Unexpected error while waiting on '
-                                      'compute instance %s delete: %s' % (key, exc.message)),
-                       'trace': 'Task %s: %s' % (task_id, einfo.traceback)}}
-            resource_postback.delay(dep_id, ret)
-        else:
-            LOG.error("Missing deployment id and/or resource key in "
-                      "wait_on_delete_server error callback.")
+    def on_failure(exc, task_id, args, kwargs, einfo):
+        action = "while waiting on"
+        method = "wait_on_delete_server"
+        _on_failure(exc, task_id, args, kwargs, einfo, action, method)
 
     wait_on_delete_server.on_failure = on_failure
 
