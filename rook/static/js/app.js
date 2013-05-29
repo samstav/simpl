@@ -203,10 +203,26 @@ function AutoLoginController($scope, $location, $cookies, auth) {
 }
 
 //Root controller that implements authentication
-function AppController($scope, $http, $location, $resource, auth) {
+function AppController($scope, $http, $location, $resource, auth, $route) {
   $scope.showHeader = true;
   $scope.showStatus = false;
   $scope.foldFunc = CodeMirror.newFoldFunction(CodeMirror.braceRangeFinder);
+
+  $scope.check_token_validity = function(scope, next, current) {
+    var now = new Date();
+    var context_expiration = new Date(auth.context.token.expires || null);
+
+    if (context_expiration <= now) {
+      if (auth.is_impersonating()) {
+        $scope.impersonate(auth.context.username)
+          .then($scope.on_impersonate_success, $scope.on_auth_failed);
+      } else {
+        auth.error_message = "It seems your token has expired. Please log back in again.";
+        $scope.loginPrompt();
+      }
+    }
+  };
+  $scope.$on('$routeChangeStart', $scope.check_token_validity);
 
   $scope.safeApply = function(fn) {
     var phase = this.$root.$$phase;
@@ -398,7 +414,10 @@ function AppController($scope, $http, $location, $resource, auth) {
     if (current_path.match(account_number)) {
       next_path = current_path.replace(account_number, "/" + auth.context.tenantId);
     }
-    $location.path(next_path);
+    if (current_path == next_path)
+      $route.reload();
+    else
+      $location.path(next_path);
   };
 
   $scope.username = "";

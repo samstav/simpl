@@ -4,6 +4,7 @@ describe('AppController', function(){
       location,
       resource,
       auth,
+      $route,
       controller,
       api_stub;
 
@@ -13,8 +14,9 @@ describe('AppController', function(){
     location = {};
     resource = function(){ return api_stub; };
     auth = {};
+    $route = {};
     api_stub = { get: emptyFunction };
-    controller = new AppController(scope, http, location, resource, auth);
+    controller = new AppController(scope, http, location, resource, auth, $route);
   });
 
   it('should display the header', function(){
@@ -154,18 +156,22 @@ describe('AppController', function(){
   });
 
   describe('#on_impersonate_success', function() {
-    it('should redirect to new tenant path if under one', function() {
-      location.path = sinon.stub().returns('/555555/somepath');
+    beforeEach(function() {
       auth.context = { tenantId: '666666' }
+      $route.reload = sinon.stub();
+      location.path = sinon.stub();
+    });
+
+    it('should redirect to new tenant path if under one', function() {
+      location.path.returns('/555555/somepath');
       scope.on_impersonate_success();
       expect(location.path).toHaveBeenCalledWith('/666666/somepath');
     });
 
     it('should reload current anonymous path', function() {
-      location.path = sinon.stub().returns('/somepath');
-      auth.context = { tenantId: '666666' }
+      location.path.returns('/somepath');
       scope.on_impersonate_success();
-      expect(location.path).toHaveBeenCalledWith('/somepath');
+      expect($route.reload).toHaveBeenCalled();
     });
   });
 
@@ -209,6 +215,47 @@ describe('AppController', function(){
       auth.identity = { is_admin: true };
       auth.is_impersonating = sinon.stub().returns(true);
       expect(scope.in_admin_context()).toBe(false);
+    });
+  });
+
+  describe('#check_token_validity', function() {
+    beforeEach(function() {
+      auth.context = { token: {} }
+      spyOn(scope, 'loginPrompt');
+      spyOn(scope, 'impersonate');
+    });
+
+    it('should be added to $routeChangeStart watcher', function() {
+      expect(scope.$on).toHaveBeenCalledWith('$routeChangeStart', scope.check_token_validity);
+    });
+
+    it('should do nothing if context token is still valid', function() {
+      auth.context.token.expires = "9999-01-01 0:00:00";
+      scope.check_token_validity();
+      expect(scope.loginPrompt).not.toHaveBeenCalled();
+      expect(scope.impersonate).not.toHaveBeenCalled();
+    });
+
+    describe('when token is expired', function() {
+      beforeEach(function() {
+        auth.context.token.expires = "1970-01-01 0:00:00";
+      });
+
+      it('should reimpersonate the current tenant if impersonating', function() {
+        auth.is_impersonating = sinon.stub().returns(true);
+        var impersonation_callbacks = sinon.spy();
+        scope.impersonate.andReturn( { then: impersonation_callbacks } );
+        scope.check_token_validity();
+        expect(scope.impersonate).toHaveBeenCalled();
+        expect(impersonation_callbacks).toHaveBeenCalledWith(scope.on_impersonate_success, scope.on_auth_failed);
+      });
+
+      it('should display login prompt if not impersonating', function() {
+        auth.is_impersonating = sinon.stub().returns(false);
+        scope.check_token_validity();
+        expect(auth.error_message).not.toBe(undefined);
+        expect(scope.loginPrompt).toHaveBeenCalled();
+      });
     });
   });
 });
