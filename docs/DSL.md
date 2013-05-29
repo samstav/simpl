@@ -516,7 +516,7 @@ Deployment Resources
     dns-name: "<url>"
     service: "<service_name>",
     status: "<resource_status>",
-    status_message: "<checkmate_message>"
+    status-message: "<checkmate_message>"
     ip: "<resource_IP_address>",
     instance: {
         flavor: <flavor_id>,
@@ -528,9 +528,11 @@ Deployment Resources
         username: "<username>",
         password: "<password>",
         name: "<instance_name>",
-        host_instance: "<uuid>",
         id: "<instance_id>",
         region: "<region>",
+        databases: {
+            "<database_name>": "<database>"
+        }
         status_message: "<instance_message>",
         addresses: {
             "<name>": [
@@ -560,19 +562,16 @@ Deployment Resources
         domain_id: "<domain_id>",
         record_id: "<domain_record_id>"
     },
-    desired_state: {
+    desired-state: {
         flavor: <id>,
         image: "<uuid>",
         disk: <disk_id>,
         protocol: "<protocol_name>",
         port: <port_number>,
         status: "<remote_status>",
-        addresses: { ... },  # Same as instance
-        public_ip: "<preferred_public_IP_address>",
-        private_ip: "<preferred_private_IP_address>",
-        interfaces: { ... },  # Same as instance
-        domain_id: "<domain_id>",
-        record_id: "<domain_record_id>"
+        databases: {
+            "<database_name>": "<database>"
+        }
     }
 }
 ```
