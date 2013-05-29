@@ -265,6 +265,9 @@
       <button type="button" class="close" data-dismiss="modal">&times;</button>
       <h3>Welcome to Checkmate!</h3>
       <br>
+      <div id="auth_error" class="alert alert-error" ng-show="auth_error_message()">
+        <strong>Authentication Failed!</strong> <span id="auth_error_text">{{auth_error_message()}}</span>
+      </div>
       <!-- ANNOUNCEMENT -->
       <div class="announcement" ng-cloak ng-show="display_announcement()">
         <img src="/img/announcement-arrow.png" />
@@ -273,9 +276,6 @@
     </div>
     <div class="modal-body">
       <form class="form-horizontal" style="margin-bottom: 0px" ng-init="selected_endpoint=null" name="loginForm" ng-submit="logIn()">
-        <div id="auth_error" class="alert alert-error" ng-show="auth_error_message()">
-          <strong>Authentication Failed!</strong> <span id="auth_error_text">{{auth_error_message()}}</span>
-        </div>
         <fieldset>
           <ul class="nav nav-tabs">
             <li ng-repeat="endpoint in auth.endpoints" ng-class="is_active(endpoint) + ' ' + realm_name(endpoint)">

@@ -439,11 +439,12 @@ form#impersonate input {
 }
 .modal .announcement {
   text-align: center;
+  position: relative;
 }
 .modal .announcement img {
   position: absolute;
-  left: 30px;
-  top: 30px;
+  left: 15px;
+  top: -30px;
 }
 
 .blueprint-name {
