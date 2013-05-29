@@ -1547,8 +1547,45 @@ function BlueprintRemoteListController($scope, $location, $routeParams, $resourc
         sorted_items_object,
         object_to_replace,
         index_to_replace,
-        blueprints,
-        cached_blueprints = localStorage.blueprints || null;
+        blueprints = [],
+        deleted_blueprints = [],
+        cached_blueprints = JSON.parse(localStorage.blueprints || "[]");
+
+    function updateListWithBlueprint(list, blueprint){
+      object_to_replace = _.findWhere(list, { id: blueprint.id });
+      if(object_to_replace){
+        index_to_replace = list.indexOf(object_to_replace);
+      } else {
+        index_to_replace = _.sortedIndex(list, blueprint, function(blueprint){ return blueprint.name.toUpperCase(); });
+      }
+      list[index_to_replace] = blueprint;
+    }
+
+    function updateBlueprintCache(item, should_delete){
+      blueprints = JSON.parse(localStorage.blueprints || "[]");
+
+      if(should_delete){
+        blueprints = _.reject(blueprints, function(blueprint){ return blueprint.id === item.id })
+      } else {
+        updateListWithBlueprint(blueprints, item);
+      }
+
+      localStorage.blueprints = JSON.stringify(blueprints);
+    }
+
+    function verifyBlueprintRepo(blueprint){
+      return github.get_contents($scope.remote, blueprint.api_url, "checkmate.yaml", function(content_data){
+        if(content_data.type === 'file'){
+          blueprint.is_blueprint_repo = true;
+
+          updateBlueprintCache(blueprint);
+
+          blueprint.is_fresh = true;
+
+          updateListWithBlueprint($scope.items, blueprint)
+        }
+      });
+    }
 
     items.clear();
     items.receive(data, function(item, key) {
@@ -1570,35 +1607,16 @@ function BlueprintRemoteListController($scope, $location, $routeParams, $resourc
     $scope.remember_repo_url($scope.remote.url);
 
     sorted_items = _.sortBy(items.all, function(item){ return item.name.toUpperCase(); });
-    $scope.items = JSON.parse(cached_blueprints) || sorted_items;
 
-    function updateBlueprintCache(item){
-      cached_blueprints = localStorage.blueprints || null,
-      blueprints = JSON.parse(cached_blueprints) || [];
-      object_to_replace = _.findWhere(blueprints, { id: item.id });
-      if(object_to_replace){
-        index_to_replace = blueprints.indexOf(object_to_replace);
+    _.each(cached_blueprints, function(blueprint){
+      if(_.findWhere(sorted_items, { id: blueprint.id }) === undefined){
+        deleted_blueprints.push(blueprint);
       } else {
-        index_to_replace = _.sortedIndex(blueprints, item, function(blueprint){ return blueprint.name.toUpperCase(); });
+        blueprints.push(blueprint);
       }
-      blueprints[index_to_replace] = item;
-      localStorage.blueprints = JSON.stringify(blueprints);
-    }
+    });
 
-    function verifyBlueprintRepo(item){
-      return github.get_contents($scope.remote, item.api_url, "checkmate.yaml", function(content_data){
-        if(content_data.type === 'file'){
-          item.is_blueprint_repo = true;
-
-          updateBlueprintCache(item);
-
-          item.is_fresh = true;
-          object_to_replace = _.findWhere($scope.items, { id: item.id });
-          index_to_replace = $scope.items.indexOf(object_to_replace);
-          $scope.items[index_to_replace] = item;
-        }
-      });
-    }
+    $scope.items = blueprints.length > 0 ? blueprints : sorted_items;
 
     if(sorted_items.length >= 1) {
       _.reduce(sorted_items.slice(1),
