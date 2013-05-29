@@ -451,10 +451,14 @@ form#impersonate input {
   position: relative;
 }
 
-.blueprint_loading { 
+.blueprint_loading {
   position: absolute;
   width: 10px;
   height: 10px;
   top: 0;
   right: 0;
+}
+
+.deployment_link {
+  margin-top: 10px;
 }
