@@ -533,7 +533,7 @@ Deployment Resources
         databases: {
             "<database_name>": "<database>"
         }
-        status_message: "<instance_message>",
+        status-message: "<instance_message>",
         addresses: {
             "<name>": [
                 {
@@ -563,6 +563,7 @@ Deployment Resources
         record_id: "<domain_record_id>"
     },
     desired-state: {
+        region: "<region>",
         flavor: <id>,
         image: "<uuid>",
         disk: <disk_id>,
