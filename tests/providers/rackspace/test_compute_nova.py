@@ -6,8 +6,11 @@ import unittest2 as unittest
 
 from checkmate.utils import init_console_logging
 from mox import IgnoreArg
-from checkmate.providers.rackspace.compute import delete_server_task, \
-    wait_on_delete_server
+from checkmate.providers.rackspace.compute import (
+    delete_server_task,
+    wait_on_delete_server,
+    _on_failure
+)
 
 init_console_logging()
 LOG = logging.getLogger(__name__)
@@ -115,6 +118,40 @@ class TestNovaCompute(test.ProviderTester):
                                         ))
 
         self.assertDictEqual(results, expected)
+        self.mox.VerifyAll()
+        
+    def test_on_failure(self):
+        """Test create servrer on failure postback data"""
+        exc = self.mox.CreateMockAnything()
+        exc.message = "some message"
+        task_id = "1234"
+        args = [ {
+                'deployment_id': '4321',
+                'resource_key': '0'
+                } ]
+        kwargs = {}
+        einfo = self.mox.CreateMockAnything()
+        einfo.traceback = "some traceback"
+        
+        #Stub out postback call
+        self.mox.StubOutWithMock(resource_postback, 'delay')
+        
+        expected = {
+                    "instance:0": {
+                    'status': 'ERROR',
+                    'statusmsg': ("Unexpected error deleting compute "
+                                   "instance 0: some message"),
+                    'trace': 'Task 1234: some traceback'
+                    }
+                }
+
+        resource_postback.delay("4321",
+                                expected).AndReturn(True)
+                                
+        self.mox.ReplayAll()
+        
+        _on_failure(exc, task_id, args, kwargs, einfo, "deleting", "method")
+        
         self.mox.VerifyAll()
 
     def test_wait_on_build_rackconnect_pending(self):
