@@ -445,7 +445,20 @@ A __LIVE__ boolean will be updated by the Workflow or Canvas to indicate whether
 Deployment Resources
 ====================
 
-Executed Deployments will have many resources, referenced by id in the Deployment document. For example:
+### The Resource Status will be one of:
+
+- __PLANNED:__ not started (can go to __NEW__)
+- __NEW:__ starting to build (can go to __BUILD__, __ERROR__)
+- __BUILD:__ resource is being built (can go to __CONFIGURE__, __ERROR__)
+- __CONFIGURE:__ resource is being configured (can go to __ACTIVE__, __ERROR__)
+- __ACTIVE:__ resource is configured and ready for use (can go to __DELETING__, __ERROR__)
+- __DELETING:__ resource is being deleted (can go to __DELETED__, __ERROR__)
+- __DELETED:__ deployment has been deleted
+- __ERROR:__ there was an error working on this resource
+
+![deployment-with-operations.png](https://github.rackspace.com/checkmate/checkmate/raw/master/docs/figures/resource-status.png)
+
+### Executed Deployments will have many resources, referenced by id in the Deployment document. For example:
 
 ```
 {
@@ -477,7 +490,7 @@ Executed Deployments will have many resources, referenced by id in the Deploymen
 }
 ```
 
-The data structure for Deployment Resources is:
+### The data structure for Deployment Resources is:
 
 ```
 "<id>": {
