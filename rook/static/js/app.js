@@ -278,7 +278,6 @@ function AppController($scope, $http, $location, $resource, auth) {
     $scope.bound_creds.username = '';
     $scope.bound_creds.password = '';
     $scope.bound_creds.apikey = '';
-    auth.error_message = null;
 
     var modal = $('#modalAuth');
     modal.modal({
@@ -354,6 +353,7 @@ function AppController($scope, $http, $location, $resource, auth) {
 
   // Log in using credentials delivered through bound_credentials
   $scope.logIn = function() {
+    auth.error_message = null;
     var username = $scope.bound_creds.username;
     var password = $scope.bound_creds.password;
     var apikey = $scope.bound_creds.apikey;
