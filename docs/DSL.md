@@ -442,6 +442,124 @@ A __LIVE__ boolean will be updated by the Workflow or Canvas to indicate whether
 
 ![deployment-with-operations.png](https://github.rackspace.com/checkmate/checkmate/raw/master/docs/figures/deployment-with-operations.png)
 
+Deployment Resources
+====================
+
+Executed Deployments will have many resources, referenced by id in the Deployment document. For example:
+```{
+    _id: "9e9af930188",
+    blueprint: { ... }
+    .
+    .
+    .
+    resources: {
+        "0": {
+            status: "DELETED",
+            index: "0",
+            service: "lb"
+            .
+            .
+            .
+        }
+        "1": {
+            status: "ACTIVE"
+            index: "1",
+            hosted_on: "2"
+            service: "master",
+            .
+            .
+            .
+        }
+        "2": { ... }
+    }
+}
+```
+
+The data structure for Deployment Resources is:
+```"<id>": {
+    index: "<id>",
+    name: "<resource_name>",
+    provider: "<provider_name>",
+    relations: {
+        "<related_to>": {
+            name: "<name>",
+            state: "<state>",
+            requires-key: "<key_name>",
+            relation: "<relation_type>",
+            interface: "<interface_type>",
+            relation-key: "<key>",
+            target: "<id>"
+        },
+        "related_to>": { ... }
+    }
+    hosted_on: "<id>",
+    hosts: [ "<id1>", "<id2>", ... <idn>" ],
+    type: "<resource_type>",
+    component: "<component_name>",
+    dns-name: "<url>"
+    service: "<service_name>",
+    status: "<resource_status>",
+    status_message: "<checkmate_message>"
+    ip: "<resource_IP_address>",
+    instance: {
+        flavor: <flavor_id>,
+        image: "<uuid>",
+        disk: <disk_id>,
+        protocol: "<protocol_name>",
+        port: <port_number>,
+        status: "<remote_status>",
+        username: "<username>",
+        password: "<password>",
+        name: "<instance_name>",
+        host_instance: "<uuid>",
+        id: "<instance_id>",
+        region: "<region>",
+        status_message: "<instance_message>",
+        addresses: {
+            "<name>": [
+                {
+                    "version": <version_number>,
+                    "addr": "<IP_address>"
+                },
+                {
+                    "version": <version_number>,
+                    "addr": "<IP_address>"
+                }
+            ],
+            "<name>": [
+                {
+                    "version": <version_number>,
+                    "addr": "<IP_address>"
+                }
+            ]
+        },
+        public_ip: "<preferred_public_IP_address>",
+        private_ip: "<preferred_private_IP_address>",
+        progress: <percent_complete>,
+        interfaces: {
+            "<interface_name>": { "host": "<url>" },
+            "<interface_name>": { "host": "<url>" },
+        },
+        domain_id: "<domain_id>",
+        record_id: "<domain_record_id>"
+    },
+    desired_state: {
+        flavor: <id>,
+        image: "<uuid>",
+        disk: <disk_id>,
+        protocol: "<protocol_name>",
+        port: <port_number>,
+        status: "<remote_status>",
+        addresses: { ... },  # Same as instance
+        public_ip: "<preferred_public_IP_address>",
+        private_ip: "<preferred_private_IP_address>",
+        interfaces: { ... },  # Same as instance
+        domain_id: "<domain_id>",
+        record_id: "<domain_record_id>"
+    }
+}
+```
+
 Schema History
 ==============
 
