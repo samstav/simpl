@@ -446,7 +446,9 @@ Deployment Resources
 ====================
 
 Executed Deployments will have many resources, referenced by id in the Deployment document. For example:
-```{
+
+```
+{
     _id: "9e9af930188",
     blueprint: { ... }
     .
@@ -476,7 +478,9 @@ Executed Deployments will have many resources, referenced by id in the Deploymen
 ```
 
 The data structure for Deployment Resources is:
-```"<id>": {
+
+```
+"<id>": {
     index: "<id>",
     name: "<resource_name>",
     provider: "<provider_name>",
