@@ -122,6 +122,17 @@
               <pre>sudo bash -c 'echo "{{formatted_data.vip}}  {{formatted_data.domain}}" >> /etc/hosts'</pre>
             </p></div>
 
+            <br>
+            <p><strong>Servers</strong> created were:
+            <table class="table table-bordered table-condensed">
+              <thead><tr><th>Name</th><th>Role</th><th>IP</th><th>Root Password</th></tr></thead>
+              <tbody><tr ng-repeat="resource in formatted_data.resources | filter:{component:'linux_instance'}">
+                  <td><a target="_blank" ng-href="https://mycloud.rackspace.com/a/{{auth.context.username}}/#compute%2CcloudServersOpenStack%2C{{resource.region}}/{{resource.instance.id}}">{{resource['dns-name']}}</a></td>
+                  <td>{{resource.service}}</td>
+                  <td>{{resource.instance.public_ip}}</td>
+                  <td>{{resource.instance.password}}</td>
+              </tr></tbody></table>
+
               <p><strong>Databases</strong><br>
               <table class="table table-condensed" ng-repeat="resource in formatted_data.resources | filter:{type:'database'}">
                 <tr><td>Name:</td><td>
@@ -140,6 +151,7 @@
             <p ng-cloak ng-show="formatted_data.private_key">Alternatively, you can use this private key:<clippy content="{{formatted_data.private_key}}" bgcolor="#f5f5f5"></clippy>
             </p>
             <p ng-cloak ng-show="formatted_data.private_key"><pre>{{formatted_data.private_key}}</pre></p>
+            <p>The advanced view of the workflow can still be reached <a ng-href="/{{auth.context.tenantId}}/workflows/{{data.id}}">here</a>.</p>
           </div>
         </div>
 
