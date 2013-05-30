@@ -32,6 +32,11 @@ describe('DeploymentController', function(){
     expect(scope.showAdvancedDetails).toBe(false);
   });
 
+  it('should not show instructions by default', function(){
+    controller = new DeploymentController(scope, location, resource, routeParams, dialog, deploymentDataParser);
+    expect(scope.showInstructions).toBe(false);
+  });
+
   it('should auto refresh', function(){
     controller = new DeploymentController(scope, location, resource, routeParams, dialog, deploymentDataParser);
     expect(scope.auto_refresh).toBe(true);

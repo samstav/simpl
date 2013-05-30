@@ -2292,6 +2292,7 @@ function DeploymentController($scope, $location, $resource, $routeParams, $dialo
   $scope.showSummaries = true;
   $scope.showStatus = false;
   $scope.showAdvancedDetails = false;
+  $scope.showInstructions = false;
   $scope.auto_refresh = true;
 
   $scope.name = 'Deployment';

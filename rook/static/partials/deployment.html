@@ -72,6 +72,8 @@
               </div>
             </div>
 
+            <hr>
+
             <div class="control-group">
               <label class="control-label" for="environment">Environment</label>
               <div class="controls">
@@ -110,8 +112,8 @@
           </tbody>
         </table>
 
-        <button class="btn" ng-click="showAdvancedDetails = !showAdvancedDetails">Show me the old completion screen</button>
-        <div collapse="!showAdvancedDetails" class="advanced-deployment-details">
+        <button class="btn toggle-button" ng-click="showAdvancedDetails = !showAdvancedDetails">Show me the old completion screen</button>
+        <div collapse="!showAdvancedDetails">
           <div class="well well-large">
             <div ng-hide="!formatted_data.path"><p><strong>Access your application</strong> from <a ng-href="{{formatted_data.path}}" target="_blank">{{formatted_data.path}}</a>.</p>
             <p>Alternatively, enter the IP address in your hosts file if the domain name is not yet accessible:</p>
@@ -143,8 +145,12 @@
 
         <hr>
 
-        <p class="lead" ng-cloak ng-show="data.blueprint.documentation.instructions">Instructions</p>
-        <p class="help-block" ng-cloak ng-show="data.blueprint.documentation.instructions" ng-bind-html-unsafe="render_markdown(data.blueprint.documentation.instructions)"></p>
+        <button class="btn toggle-button" ng-click="showInstructions = !showInstructions">Display Instructions</button>
+        <div collapse="!showInstructions">
+
+          <p class="lead" ng-cloak ng-show="data.blueprint.documentation.instructions">Instructions</p>
+          <p class="help-block" ng-cloak ng-show="data.blueprint.documentation.instructions" ng-bind-html-unsafe="render_markdown(data.blueprint.documentation.instructions)"></p>
+        </div>
 
         <p class="lead">Raw Source</p>
 
