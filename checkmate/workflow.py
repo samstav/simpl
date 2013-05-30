@@ -42,6 +42,7 @@ def update_workflow_status(workflow):
         else:
             workflow.attributes['status'] = "IN PROGRESS"
 
+
 def get_failed_tasks(workflow):
     '''
     Traverses through the workflow-tasks, and collects errors information from

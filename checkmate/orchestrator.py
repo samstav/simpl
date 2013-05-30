@@ -121,7 +121,7 @@ def run_workflow(w_id, timeout=900, wait=1, counter=1, driver=None):
             total = d_wf.get_attribute('total')
             workflow_status = operation_status = d_wf.get_attribute('status')
             dep_id = d_wf.get_attribute('deploymentId') or w_id
-            failed_tasks = get_failed_tasks(workflow)
+            failed_tasks = get_failed_tasks(d_wf)
             if failed_tasks:
                 operation_status = "ERROR"
 
