@@ -1134,7 +1134,7 @@ services.factory('auth', ['$http', '$resource', '$rootScope', '$q', function($ht
     },
 
     impersonate_error: function(response, deferred) {
-      console.log("Impersonation error: " + response)
+      console.log("Impersonation error: " + response);
       return deferred.reject(response);
     },
 
