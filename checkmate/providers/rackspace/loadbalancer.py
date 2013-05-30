@@ -24,6 +24,14 @@ from checkmate.middleware import RequestContext
 from checkmate.providers import ProviderBase
 from checkmate.workflow import wait_for
 from checkmate.utils import match_celery_logging
+from celery.canvas import chain, group
+from cloudlb.errors import CloudlbException
+from checkmate.providers.base import filter_resources
+from eventlet.greenpool import GreenPile
+from checkmate.common.caching import MemorizeMethod
+from eventlet.patcher import import_patched
+from checkmate.providers.rackspace import dns
+cloudlb = import_patched("cloudlb")
 
 LOG = logging.getLogger(__name__)
 
@@ -137,9 +145,27 @@ class Provider(ProviderBase):
 
         return reduce(lambda x, y: x | y, values)
 
+    @MemorizeMethod(timeout=3600, sensitive_args=[1], store=LB_API_CACHE)
+    def _get_abs_limits(self, api_endpoint, auth_token):
+        api = cloudlb.CloudLoadBalancer('ignore', 'ignore', None, 'localhost')
+        api.client.auth_token = auth_token
+        api.client.management_url = api_endpoint
+        return api.loadbalancers.get_absolute_limits()
+
+   FIX/TEST THIS VERIFY STUFF!!!!
+
+
     def verify_limits(self, context, resources):
-        # TODO: Check loadbalancer against limits API
-        pass
+        myresources = filter_resources(resources, self.name)
+        region = Provider.find_a_region(context.catalog)
+        url = Provider.find_url(context.catalog, region)
+        abs_limits = self._get_abs_limits(url, context.auth_token)
+        pile = GreenPile()
+        pile.spawn(self._get_lb_limits(myresources, abs_limits))
+      ????  dns_provider = dns.Provider({})
+        for res in myresources:
+            pile.spawn(self._get_node_limits(res, abs_limits))
+        return [res for res in pile] or None
 
     def verify_access(self, context):
         # TODO: Check RBAC access
@@ -544,26 +570,6 @@ def _get_algorithms(api_endpoint, auth_token):
     LOG.info("Calling Cloud Load Balancers to get algorithms for %s",
              api.client.region_account_url)
 
-    return api.get_algorithms()
-
-
-@Memorize(timeout=3600, sensitive_args=[1], store=API_PROTOCOL_CACHE)
-def _get_protocols(api_endpoint, auth_token):
-    '''Ask CLB for Protocols'''
-    # the region must be supplied but is not used
-    api = cloudlb.CloudLoadBalancer('ignore', 'ignore', 'DFW')
-    api.client.auth_token = auth_token
-    api.client.region_account_url = api_endpoint
-    LOG.info("Calling Cloud Load Balancers to get protocols for %s",
-             api.client.region_account_url)
-
-    return api.get_protocols()
-
-
-#
-# Celery tasks to manipulate Rackspace Cloud Load Balancers """
-#
-import cloudlb
 from celery.task import task
 
 from checkmate.providers.rackspace.dns import parse_domain, delete_record
