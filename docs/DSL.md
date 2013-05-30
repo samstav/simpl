@@ -507,7 +507,7 @@ Deployment Resources
             relation-key: "<key>",
             target: "<id>"
         },
-        "related_to>": { ... }
+        "<related_to>": { ... }
     }
     hosted_on: "<id>",
     hosts: [ "<id1>", "<id2>", ... <idn>" ],
