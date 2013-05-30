@@ -223,17 +223,18 @@ choice:
 **constrains**: a list of mappings that are used as a way to set or limit aspects of the blueprint with the value (or parts of) the option.
 **required**: true/false. Set to true if this option must be supplied by the user.
 **constraints**: an array of mappings (key/value pairs) in the standard Checkmate constraints syntax. Supported constraints are:
-* _greater-than_: self-explanatory
-* _less-than_: self-explanatory
-* _greater-than-or-equal-to_: self-explanatory
-* _less-than-or-equal-to_: self-explanatory
-* _min-length_: for strings
-* _max-length_: for strings
-* _allowed-chars_: Ex. "ABCDEFGabcdefg01234565789!&@"- self-explanatory [TODO: see if regex can be used]
-* _required-chars_: Ex. "ABCDEFG" - self-explanatory [TODO: see if regex can be used]
+* _greater-than_: self-explanatory (for strings or integers)
+* _less-than_: self-explanatory (for strings or integers)
+* _greater-than-or-equal-to_: self-explanatory (for strings or integers)
+* _less-than-or-equal-to_: self-explanatory (for strings or integers)
+* _min-length_: for strings or text
+* _max-length_: for strings or text (including URLs)
+* _allowed-chars_: for strings and text types. Ex. "ABCDEFGabcdefg01234565789!&@"
+* _required-chars_: for strings and text types. Ex. "ABCDEFG"
 * _in_: a list of acceptable values (these could also be used by clients to display drop-downs)
-* _protocols_: unique to URL types. This lists allowed protocols in the URL.
+* _protocols_: unique to URL types. This lists allowed protocols in the URL. See also display-hints for `encrypted-protocols`
 * _regex_: do not use look-forward/behind. Keep these simple so they are supported in javascript (client) and python (server). While many of the above can also be written as regex rules, both are available to blueprint authors to use the one that suits them best.
+
 
 **....message**: you can add a message key/value pair to any of these constraints. Always add a message to regex constraints so it is easy to understand what they do when read and so clients (rook, etc) and the server can generate useful error messages and people reading the blueprint don't have to decipher the regexs. Ex. "must have 8-16 characters"
 
