@@ -964,7 +964,7 @@ def delete_instance(context, api=None):
             results.update({
                 'instance:%s' % hosted: {
                     'status': 'DELETED',
-                    'statusmsg': 'Host %s was deleted'
+                    'status-message': 'Host %s was deleted'
                 }
             })
         # Send data back to deployment
@@ -984,7 +984,7 @@ def delete_instance(context, api=None):
                 res.update({
                     'instance:%s' % hosted: {
                         'status': 'DELETED',
-                        'statusmsg': 'Host %s was deleted'
+                        'status-message': 'Host %s was deleted'
                     }
                 })
             return res
@@ -999,7 +999,7 @@ def delete_instance(context, api=None):
         res.update({
             'instance:%s' % hosted: {
                 'status': 'DELETING',
-                'statusmsg': 'Host %s is being deleted'
+                'status-message': 'Host %s is being deleted'
             }
         })
     return res
@@ -1052,7 +1052,7 @@ def wait_on_del_instance(context, api=None):
                 res.update({
                     'instance:%s' % hosted: {
                         'status': 'DELETED',
-                        'statusmsg': 'Host %s was deleted'
+                        'status-message': 'Host %s was deleted'
                     }
                 })
             return res
@@ -1065,7 +1065,7 @@ def wait_on_del_instance(context, api=None):
             res.update({
                 'instance:%s' % hosted: {
                     'status': 'DELETED',
-                    'statusmsg': 'Host %s was deleted'
+                    'status-message': 'Host %s was deleted'
                 }
             })
         return res
@@ -1125,7 +1125,7 @@ def delete_database(context, api=None):
     if not instance or (instance.status == 'DELETED'):
         # instance is gone, so is the db
         return {inst_key: {'status': 'DELETED',
-                           'statusmsg': ('Host %s was deleted'
+                           'status-message': ('Host %s was deleted'
                                          % resource.get('hosted_on'))}}
     elif instance.status == 'BUILD':  # can't delete when instance in BUILD
         delete_database.retry(exc=CheckmateException("Waiting on instance to "

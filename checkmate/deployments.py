@@ -706,8 +706,8 @@ def get_resources_statuses(oid, tenant_id=None, driver=DB):
                                val.get("instance", {}).get("status")),
                     'message': (val.get('error-message') or
                                 val.get('instance', {}).get("error-message") or
-                                val.get('statusmsg') or
-                                val.get("instance", {}).get("statusmsg")),
+                                val.get('status-message') or
+                                val.get("instance", {}).get("status-message")),
                     "type": val.get("type", "UNKNOWN"),
                     "component": val.get("component", "UNKNOWN"),
                     "provider": val.get("provider", "core")
@@ -931,7 +931,7 @@ def delete_deployment_task(dep_id, driver=DB):
             else:
                 updates = {}
                 if resource.get('status', 'DELETED') != 'DELETED':
-                    updates['statusmsg'] = ('WARNING: Resource should have '
+                    updates['status-message'] = ('WARNING: Resource should have '
                                             'been in status DELETED but was '
                                             'in %s.' % resource.get('status'))
                     updates['status'] = 'ERROR'
@@ -973,7 +973,7 @@ def update_all_provider_resources(provider, deployment_id, status,
     if dep:
         rupdate = {'status': status}
         if message:
-            rupdate['statusmsg'] = message
+            rupdate['status-message'] = message
         if trace:
             rupdate['trace'] = trace
         ret = {}

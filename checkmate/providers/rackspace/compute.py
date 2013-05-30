@@ -394,7 +394,7 @@ class Provider(RackspaceComputeProviderBase):
                                                            api=api)
         i_key = 'instance:%s' % key
         if result[i_key].get('status') in ['ACTIVE', 'DELETED']:
-            result[i_key]['instance'] = {'statusmsg': ''}
+            result[i_key]['instance'] = {'status-message': ''}
         return result
 
     def delete_resource_tasks(self, context, deployment_id, resource, key):
@@ -766,7 +766,7 @@ def _on_failure(exc, task_id, args, kwargs, einfo, action, method):
         ret = {
             k: {
                 'status': 'ERROR',
-                'statusmsg': ('Unexpected error %s compute instance'
+                'status-message': ('Unexpected error %s compute instance'
                                ' %s: %s' % (action, key, exc.message)),
                 'trace': 'Task %s: %s' % (task_id, einfo.traceback)
             }
@@ -811,16 +811,16 @@ def delete_server_task(context, api=None):
         if 'hosts' in resource:
             for comp_key in resource.get('hosts', []):
                 ret.update({'instance:%s' % comp_key: {'status': 'DELETED',
-                            'statusmsg': 'Host %s was deleted.' % key}})
+                            'status-message': 'Host %s was deleted.' % key}})
         return ret
     if server.status == "ACTIVE" or server.status == "ERROR":
         ret = {}
         ret.update({inst_key: {"status": "DELETING",
-                               "statusmsg": "Waiting on resource deletion"}})
+                               "status-message": "Waiting on resource deletion"}})
         if 'hosts' in resource:
             for comp_key in resource.get('hosts', []):
                 ret.update({'instance:%s' % comp_key: {'status': 'DELETING',
-                            'statusmsg': 'Host %s is being deleted.' % key}})
+                            'status-message': 'Host %s is being deleted.' % key}})
         server.delete()
         return ret
     else:
@@ -829,7 +829,7 @@ def delete_server_task(context, api=None):
                % server.status)
         resource_postback.delay(context.get("deployment_id"),
                                 {inst_key: {'status': 'DELETING',
-                                            'statusmsg': msg}})
+                                            'status-message': msg}})
         delete_server_task.retry(exc=CheckmateException(msg))
 
 
@@ -869,7 +869,7 @@ def wait_on_delete_server(context, api=None):
                 ret.update({
                     'instance:%s' % hosted: {
                         'status': 'DELETED',
-                        'statusmsg': 'Host %s was deleted' % key
+                        'status-message': 'Host %s was deleted' % key
                     }
                 })
         return ret
@@ -967,7 +967,7 @@ def wait_on_build(context, server_id, region, resource,
 
     if server.status == 'BUILD':
         results['progress'] = server.progress
-        results['statusmsg'] = "%s%% Complete" % server.progress
+        results['status-message'] = "%s%% Complete" % server.progress
         #countdown = 100 - server.progress
         #if countdown <= 0:
         #    countdown = 15  # progress is not accurate. Allow at least 15s
@@ -991,7 +991,7 @@ def wait_on_build(context, server_id, region, resource,
         # so lets retry instead and notify via the normal task mechanisms
         msg = ("Server '%s' status is %s, which is not recognized. "
                "Not assuming it is active" % (server_id, server.status))
-        results['statusmsg'] = msg
+        results['status-message'] = msg
         resource_postback.delay(context['deployment'], {instance_key: results})
         return wait_on_build.retry(exc=CheckmateException(msg))
 
@@ -1000,7 +1000,7 @@ def wait_on_build(context, server_id, region, resource,
         if 'rackconnect_automation_status' not in server.metadata:
             msg = ("Rack Connect server still does not have the "
                    "'rackconnect_automation_status' metadata tag")
-            results['statusmsg'] = msg
+            results['status-message'] = msg
             resource_postback.delay(context['deployment'],
                                     {instance_key: results})
             wait_on_build.retry(exc=CheckmateException(msg))
@@ -1011,7 +1011,7 @@ def wait_on_build(context, server_id, region, resource,
                 msg = ("Rack Connect server 'rackconnect_automation_status' "
                        "metadata tag is still not 'DEPLOPYED'. It is '%s'" %
                        server.metadata.get('rackconnect_automation_status'))
-                results['statusmsg'] = msg
+                results['status-message'] = msg
                 resource_postback.delay(context['deployment'],
                                         {instance_key: results})
                 wait_on_build.retry(exc=CheckmateException(msg))
@@ -1069,7 +1069,7 @@ def wait_on_build(context, server_id, region, resource,
             # try again in half a second but only wait for another 2 minutes
             msg = ("Server "
                    "'%s' is ACTIVE but cannot be contacted." % server_id)
-            results['statusmsg'] = msg
+            results['status-message'] = msg
             resource_postback.delay(context['deployment'],
                                     {instance_key: results})
             raise wait_on_build.retry(exc=CheckmateException(msg),
