@@ -5,6 +5,7 @@ import logging
 import time
 
 from celery.task import task
+from celery.exceptions import MaxRetriesExceededError
 from SpiffWorkflow import Workflow, Task
 from SpiffWorkflow.storage import DictionarySerializer
 
@@ -91,6 +92,11 @@ def run_workflow(w_id, timeout=900, wait=1, counter=1, driver=None):
     # Run!
     try:
         d_wf.complete_all()
+    except MaxRetriesExceededError as max_retries:
+        LOG.exception(max_retries)
+        update_deployment_status.delay(dep_id, 'FAILED', driver=driver)
+        driver.unlock_workflow(w_id, key)
+        return False
     except Exception as exc:
         LOG.exception(exc)
         driver.unlock_workflow(w_id, key)

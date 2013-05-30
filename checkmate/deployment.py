@@ -1277,3 +1277,12 @@ def update_deployment_status_new(deployment_id, new_status, driver=DB):
             LOG.warn("Object lock collision in update_deployment_status on "
                      "Deployment %s", deployment_id)
             raise
+
+def get_status(deployment_id):
+    '''
+    Gets the deployment status by deployment id. 
+    Protects against invalid types and key errors.
+    '''
+    deployment = DB.get_deployment(deployment_id)
+    if hasattr(deployment, '__getitem__'):
+        return deployment.get('status')
