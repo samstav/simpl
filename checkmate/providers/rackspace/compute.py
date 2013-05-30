@@ -878,7 +878,7 @@ def wait_on_delete_server(context, api=None):
                % server.status)
         resource_postback.delay(context.get("deployment_id"),
                                 {inst_key: {'status': 'DELETING',
-                                            'status_msg': msg}})
+                                            'status-message': msg}})
         wait_on_delete_server.retry(exc=CheckmateException(msg))
 
 

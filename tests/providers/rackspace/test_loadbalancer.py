@@ -128,7 +128,7 @@ class TestCeleryTasks(unittest.TestCase):
         expect = {
             "instance:1": {
                 "status": "DELETING",
-                "status_msg": "Waiting on resource deletion"
+                "status-message": "Waiting on resource deletion"
             }
         }
         api = self.mox.CreateMockAnything()
@@ -172,7 +172,7 @@ class TestCeleryTasks(unittest.TestCase):
         content = {
             'instance:1': {
                 'status': 'DELETING',
-                "status_msg": IgnoreArg(),
+                "status-message": IgnoreArg(),
             }
         }
         loadbalancer.resource_postback.delay('1234', content).AndReturn(None)

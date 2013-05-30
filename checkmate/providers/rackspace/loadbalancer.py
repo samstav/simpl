@@ -758,7 +758,7 @@ def delete_lb_task(context, key, lbid, region, api=None):
         results = {
             "instance:%s" % resource_key: {
                 "status": "DELETING", # set it done in wait_on_delete
-                "status_msg": "Waiting on resource deletion"
+                "status-message": "Waiting on resource deletion"
             }
         }
         return results
@@ -791,7 +791,7 @@ def delete_lb_task(context, key, lbid, region, api=None):
     return {
         instance_key: {
             "status": "DELETING",
-            "status_msg": "Waiting on resource deletion"
+            "status-message": "Waiting on resource deletion"
         }
     }
 
@@ -830,7 +830,7 @@ def wait_on_lb_delete(context, key, dep_id, lbid, region, api=None):
         msg = ("Waiting on state DELETED. Load balancer is in state %s"
                % dlb.status)
         resource_postback.delay(dep_id, {inst_key: {'status': 'DELETING',
-                                                    "status_msg": msg}})
+                                                    "status-message": msg}})
         wait_on_lb_delete.retry(exc=CheckmateException(msg))
 
 
