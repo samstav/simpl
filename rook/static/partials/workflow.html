@@ -14,8 +14,11 @@
   <div class="summaryHeader" ng-cloak ng-show="data">
     <div class="top well" ng-cloak ng-show="showStatus">
       <div class="row-fluid" style="height: 20px;">
-        <div class="span10 actions">
+        <div class="span6 actions">
           Workflow
+        </div>
+        <div class="deployment_link span6 pull-right">
+          <a data-ng-href="/{{auth.context.tenantId}}/deployments/{{data.id}}">See deployment</a>
         </div>
 
         <div class="span2 actions">
@@ -36,9 +39,6 @@
 
       <div>
         <a class="label label-info cmtip" title="Total items" ng-click="showAll()">{{count}}</a> tasks: <a class="label label-success cmtip" title="Completed" ng-click="showUnread()">{{taskStates['completed'] + taskStates['ready']}}</a> <a class="label label-warning cmtip" title="Waiting" ng-click="showStarred()">{{taskStates['waiting']}}</a> <a class="label label-important cmtip" title="Errors" ng-click="showRead()">{{taskStates['error']}}</a>, and <a class="label cmtip" title="Other" ng-click="showRead()">{{taskStates['future'] + taskStates['likely'] + taskStates['maybe']}}</a>
-      </div>
-      <div class="deployment_link">
-        <a data-ng-href="/{{auth.context.tenantId}}/deployments/{{data.id}}">See the deployment summary</a>
       </div>
     </div>
   </div>
