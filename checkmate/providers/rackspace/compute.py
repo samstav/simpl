@@ -352,13 +352,17 @@ class Provider(RackspaceComputeProviderBase):
             touch_complete = Celery(
                 wfspec, 'Mark Server %s (%s) Complete' % (key,
                                                           resource['service']),
-                'checkmate.ssh.execute',
-                call_args=[PathAttrib("instance:%s/public_ip" % key),
-                           "touch /tmp/checkmate-complete",
-                           "root"],
+                'checkmate.ssh.execute_2',
+                call_args=[
+                    context.get_queued_task_dict(deployment=deployment['id'],
+                                                 resource=key),
+                    PathAttrib("instance:%s/public_ip" % key),
+                    "touch /tmp/checkmate-complete",
+                    "root",
+                ],
                 password=PathAttrib('instance:%s/password' % key),
                 private_key=deployment.settings().get('keys', {}).get(
-                        'deployment', {}).get('private_key'),
+                    'deployment', {}).get('private_key'),
                 properties={'estimated_duration': 10},
                 defines=dict(
                     resource=key,
@@ -757,6 +761,7 @@ def sync_resource_task(context, resource, resource_key, api=None):
             }
         }
 
+
 def _on_failure(exc, task_id, args, kwargs, einfo, action, method):
     """ Handle task failure """
     dep_id = args[0].get('deployment_id')
@@ -775,6 +780,7 @@ def _on_failure(exc, task_id, args, kwargs, einfo, action, method):
     else:
         LOG.error("Missing deployment id and/or resource key in "
                   "%s error callback." % method)
+
 
 @task(default_retry_delay=30, max_retries=120)
 def delete_server_task(context, api=None):
