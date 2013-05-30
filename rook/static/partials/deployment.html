@@ -95,7 +95,7 @@
                 <span ng-switch-default>{{resource['dns-name']}} ({{resource.provider}})</a>
               </td>
               <td>{{resource.type}}{{resource.service | prepend: ' - '}}</td>
-              <td>{{resource.status}} <span ng-cloak ng-show="resource.instance.statusmsg">({{resource.instance.statusmsg}})</span></td>
+              <td>{{resource.status}} <span ng-cloak ng-show="{{resource.instance[status-message]}}">({{resource.instance['status-message']}})</span></td>
             </tr>
           </tbody>
         </table>
