@@ -55,7 +55,7 @@ def get_failed_tasks(workflow):
     while tasks:
         task = tasks.pop(0)
         task_state = task._get_internal_attribute("task_state")
-        if task_state.get("state") == "FAILURE":
+        if task_state and task_state.get("state") == "FAILURE":
             results.append({
                 "error_message": task_state["info"],
                 "error_traceback": task_state["traceback"]})
