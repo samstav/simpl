@@ -1030,12 +1030,14 @@ services.factory('auth', ['$http', '$resource', '$rootScope', '$q', function($ht
           error_callback(response);
         });
     },
-    logOut: function() {
+    logOut: function(broadcast) {
+      if (broadcast === undefined) broadcast = true;
       auth.clear();
       localStorage.removeItem('auth');
       delete checkmate.config.header_defaults.headers.common['X-Auth-Token'];
       delete checkmate.config.header_defaults.headers.common['X-Auth-Source'];
-      $rootScope.$broadcast('logOut');
+      if (broadcast)
+        $rootScope.$broadcast('logOut');
     },
 
     get_tenant_id: function(username, token) {

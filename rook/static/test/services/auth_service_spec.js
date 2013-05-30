@@ -5,10 +5,11 @@ describe('auth Service', function(){
       endpoint,
       headers,
       params,
-      user;
+      user,
+      $rootScope;
 
   beforeEach(module('checkmate.services'));
-  beforeEach(inject(function(auth, $resource, $q, $rootScope){
+  beforeEach(inject(function(auth, $resource, $q, _$rootScope_){
     this.auth = auth;
     request = { getResponseHeader: emptyFunction };
     user = {};
@@ -16,6 +17,7 @@ describe('auth Service', function(){
     endpoint = {};
     headers = sinon.stub().returns('True');
     params = { headers: headers, endpoint: endpoint };
+    $rootScope = _$rootScope_;
   }));
 
   describe('create_identity', function(){
@@ -500,4 +502,53 @@ describe('auth Service', function(){
     });
   });
 
+  describe('#logOut', function() {
+    beforeEach(function() {
+      checkmate.config.header_defaults = {
+        headers: {
+          common: {
+            'X-Auth-Token': "faketoken",
+            'X-Auth-Source': "fakesource",
+          }
+        }
+      };
+      spyOn(this.auth, 'clear');
+      spyOn($rootScope, '$broadcast');
+    });
+
+    describe('regardless of flag status', function() {
+      beforeEach(function() {
+        spyOn(localStorage, 'removeItem');
+        this.auth.logOut();
+      });
+
+      it('should call auth#clear', function() {
+        expect(this.auth.clear).toHaveBeenCalled();
+      });
+
+      it('should clear checkmate default headers', function() {
+        expect(checkmate.config.header_defaults.headers.common['X-Auth-Token']).toBe(undefined);
+        expect(checkmate.config.header_defaults.headers.common['X-Auth-Source']).toBe(undefined);
+      });
+
+      it('should remove auth information from localStorage', function() {
+        expect(localStorage.removeItem).toHaveBeenCalledWith('auth');
+      });
+    });
+
+    it('should default broadcast to true', function() {
+      this.auth.logOut();
+      expect($rootScope.$broadcast).toHaveBeenCalled();
+    });
+
+    it('should broadcast logOut if flag is set to true', function() {
+      this.auth.logOut(true);
+      expect($rootScope.$broadcast).toHaveBeenCalled();
+    });
+
+    it('should not broadcast logOut if flag is set to false', function() {
+      this.auth.logOut(false);
+      expect($rootScope.$broadcast).not.toHaveBeenCalled();
+    });
+  });
 });

@@ -241,6 +241,13 @@ describe('AppController', function(){
       expect(scope.impersonate).not.toHaveBeenCalled();
     });
 
+    it('should do nothing if token does not exist', function() {
+      auth.context.token = null;
+      scope.check_token_validity();
+      expect(scope.loginPrompt).not.toHaveBeenCalled();
+      expect(scope.impersonate).not.toHaveBeenCalled();
+    });
+
     describe('when token is expired', function() {
       beforeEach(function() {
         auth.context.token.expires = "1970-01-01 0:00:00";
@@ -255,12 +262,134 @@ describe('AppController', function(){
         expect(impersonation_callbacks).toHaveBeenCalledWith(scope.on_impersonate_success, scope.on_auth_failed);
       });
 
-      it('should display login prompt if not impersonating', function() {
-        auth.is_impersonating = sinon.stub().returns(false);
-        scope.check_token_validity();
-        expect(auth.error_message).not.toBe(undefined);
-        expect(scope.loginPrompt).toHaveBeenCalled();
+      describe('if not impersonating', function() {
+        var modalAuth;
+        beforeEach(function() {
+          auth.is_impersonating = sinon.stub().returns(false);
+          auth.context.username = "fakeusername";
+          spyOn($('#modalAuth'), 'one');
+          scope.$apply = sinon.spy();
+          modalAuth = $('<div id="modalAuth">');
+          $(document.body).append(modalAuth);
+          scope.check_token_validity();
+        });
+        afterEach(function() {
+          modalAuth.remove();
+          modalAuth = null;
+        });
+
+        it('should display login prompt', function() {
+          expect(scope.loginPrompt).toHaveBeenCalled();
+        });
+
+        it('should set an error message', function() {
+          expect(auth.error_message).not.toBe(undefined);
+        });
+
+        it('should bind username to login form', function() {
+          expect(scope.bound_creds.username).not.toBeFalsy();
+        });
+
+        it('should set force logout flag to true', function() {
+          expect(scope.force_logout).toBe(true);
+        });
+
+        it('should bind #check_permissions to login modal box', function() {
+          modalAuth.trigger('hide');
+          expect(scope.$apply).toHaveBeenCalledWith(scope.check_permissions);
+        });
       });
+    });
+  });
+
+  describe('#check_permissions', function() {
+    beforeEach(function() {
+      spyOn(scope, 'logOut');
+    });
+
+    describe('if flag is true', function() {
+      beforeEach(function() {
+        scope.force_logout = true;
+        scope.check_permissions();
+      });
+
+      it('should force user to log out', function() {
+        expect(scope.logOut).toHaveBeenCalled();
+      });
+
+      it('should unset the flag', function() {
+        expect(scope.force_logout).toBe(false);
+      });
+
+      it('should reset bound username', function() {
+        expect(scope.bound_creds.username).toBe('');
+      });
+    });
+
+    it('should do nothing if flag is not set or is set to false', function() {
+      scope.force_logout = false;
+      scope.check_permissions();
+      expect(scope.logOut).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('#on_auth_success', function() {
+    beforeEach(function() {
+      mixpanel = { track: emptyFunction }; // TODO: We are dependent on this being a global var
+      auth.identity = { username: "fakeusername" };
+      $route.reload = sinon.spy();
+      scope.on_auth_success();
+    });
+
+    it('should reset bound username', function() {
+      expect(scope.bound_creds.username).toBeFalsy();
+    });
+
+    it('should reset bound password', function() {
+      expect(scope.bound_creds.password).toBeFalsy();
+    });
+
+    it('should reset bound apikey', function() {
+      expect(scope.bound_creds.apikey).toBeFalsy();
+    });
+
+    it('should clear auth error message', function() {
+      expect(auth.error_message).toBeFalsy();
+    });
+
+    it('should reload current route', function() {
+      expect($route.reload).toHaveBeenCalled();
+    });
+  });
+
+  describe('#logIn', function() {
+    beforeEach(function() {
+      auth.authenticate = sinon.spy();
+      scope.get_selected_endpoint = sinon.stub().returns({ uri: "fakeendpoint" });
+      scope.logIn();
+    });
+
+    it('should reset force_logout flag', function() {
+      expect(scope.force_logout).toBe(false);
+    });
+
+    it('should call try to authenticate the user', function() {
+      expect(auth.authenticate).toHaveBeenCalled();
+    });
+  });
+
+  describe('#logOut', function() {
+    beforeEach(function() {
+      auth.logOut = sinon.spy();
+      scope.logOut();
+    });
+
+    it('should clear auth error message', function() {
+      expect(auth.error_message).toBeFalsy();
+    });
+
+    it('should call auth#logOut', function() {
+      expect(auth.logOut).toHaveBeenCalled();
     });
   });
 });

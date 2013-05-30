@@ -208,8 +208,19 @@ function AppController($scope, $http, $location, $resource, auth, $route) {
   $scope.showStatus = false;
   $scope.foldFunc = CodeMirror.newFoldFunction(CodeMirror.braceRangeFinder);
 
+  $scope.check_permissions = function() {
+    if ($scope.force_logout) {
+      $scope.force_logout = false;
+      $scope.bound_creds.username = '';
+      $scope.logOut();
+    }
+  };
+
   $scope.check_token_validity = function(scope, next, current) {
+    var token = auth.context.token;
     var now = new Date();
+
+    if (token === undefined || token === null) return;
     var context_expiration = new Date(auth.context.token.expires || null);
 
     if (context_expiration <= now) {
@@ -217,6 +228,11 @@ function AppController($scope, $http, $location, $resource, auth, $route) {
         $scope.impersonate(auth.context.username)
           .then($scope.on_impersonate_success, $scope.on_auth_failed);
       } else {
+        $('#modalAuth').one('hide', function(e) {
+          $scope.$apply($scope.check_permissions); // TODO: is there a better way of doing this?
+        });
+        $scope.force_logout = true;
+        $scope.bound_creds.username = auth.context.username;
         auth.error_message = "It seems your token has expired. Please log back in again.";
         $scope.loginPrompt();
       }
@@ -276,7 +292,7 @@ function AppController($scope, $http, $location, $resource, auth, $route) {
   });
 
   $scope.$on('logOut', function() {
-    $location.path('/');
+    $location.url('/');
   });
 
   $scope.auth = auth;
@@ -290,11 +306,6 @@ function AppController($scope, $http, $location, $resource, auth, $route) {
 
   // Display log in prompt
   $scope.loginPrompt = function(success_callback, failure_callback) {
-    //reset controls
-    $scope.bound_creds.username = '';
-    $scope.bound_creds.password = '';
-    $scope.bound_creds.apikey = '';
-
     var modal = $('#modalAuth');
     modal.modal({
       keyboard: false,
@@ -310,18 +321,20 @@ function AppController($scope, $http, $location, $resource, auth, $route) {
   };
 
   $scope.on_auth_success = function(json) {
+    //reset controls
+    $scope.bound_creds.username = '';
+    $scope.bound_creds.password = '';
+    $scope.bound_creds.apikey   = '';
+    auth.error_message = null;
+
     $('#modalAuth').modal('hide');
-    $scope.bound_creds = {
-        username: '',
-        password: '',
-        apikey: ''
-      };
-    if (typeof $('#modalAuth')[0].success_callback == 'function') {
+    if ($('#modalAuth')[0] && typeof $('#modalAuth')[0].success_callback == 'function') {
         $('#modalAuth')[0].success_callback();
         delete $('#modalAuth')[0].success_callback;
         delete $('#modalAuth')[0].failure_callback;
       }
     mixpanel.track("Logged In", {'user': $scope.auth.identity.username});
+    $route.reload(); // needed in case of token expiration
   };
 
   $scope.auth_error_message = function() { return auth.error_message; };
@@ -369,7 +382,7 @@ function AppController($scope, $http, $location, $resource, auth, $route) {
 
   // Log in using credentials delivered through bound_credentials
   $scope.logIn = function() {
-    auth.error_message = null;
+    $scope.force_logout = false; // TODO: is there a better way of doing this?
     var username = $scope.bound_creds.username;
     var password = $scope.bound_creds.password;
     var apikey = $scope.bound_creds.apikey;
@@ -404,7 +417,8 @@ function AppController($scope, $http, $location, $resource, auth, $route) {
   };
 
   $scope.logOut = function() {
-    $scope.auth.logOut();
+    auth.error_message = null;
+    auth.logOut();
   };
 
   $scope.on_impersonate_success = function(response) {
