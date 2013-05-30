@@ -178,6 +178,17 @@ class DbBase(object):  # pylint: disable=R0921
             if 'status' in data:
                 if data['status'] in self.legacy_statuses:
                     data['status'] = self.legacy_statuses[data['status']]
+            if 'errmessage' in data:
+                data['error-message'] = data['errmessage']
+                del data['errmessage']
+        elif klass == 'resources':
+            if 'statusmsg' in data:
+                data['status-message'] = data['statusmsg']
+                del data['statusmsg']
+            if 'statusmsg' in data.get('instance'):
+                status_message = data['instance']['statusmsg']
+                data['instance']['status-message'] = status_message
+                del data['instance']['statusmsg']
         return data
 
     def lock(self, key, timeout):
