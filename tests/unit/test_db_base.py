@@ -30,9 +30,31 @@ class TestDbBase(unittest.TestCase):
 
     def test_convert_data(self):
         dbb = DbBase("connection-string://")
-        data = {'status': 'BUILD'}
+        data = {
+                'status': 'BUILD',
+                'errmessage': ''
+                }
+        expected = {
+                    'status': 'UP',
+                    'error-message': ''
+                }
         dbb.convert_data('deployments', data)
-        self.assertDictEqual(data, {'status': 'UP'})
+        self.assertDictEqual(data, expected)
+        
+        data = {
+                'statusmsg': '',
+                'instance': {
+                             'statusmsg': ''
+                            }
+                }
+        expected = {
+                    'status-message': '',
+                    'instance': {
+                                 'status-message': ''
+                                }
+                   }
+        dbb.convert_data('resources', data)
+        self.assertDictEqual(data, expected)
 
 
 if __name__ == '__main__':

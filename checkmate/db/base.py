@@ -174,13 +174,13 @@ class DbBase(object):  # pylint: disable=R0921
     }
 
     def convert_data(self, klass, data):
+        if 'errmessage' in data:
+            data['error-message'] = data['errmessage']
+            del data['errmessage']
         if klass == 'deployments':
             if 'status' in data:
                 if data['status'] in self.legacy_statuses:
                     data['status'] = self.legacy_statuses[data['status']]
-            if 'errmessage' in data:
-                data['error-message'] = data['errmessage']
-                del data['errmessage']
         elif klass == 'resources':
             if 'statusmsg' in data:
                 data['status-message'] = data['statusmsg']
@@ -189,6 +189,7 @@ class DbBase(object):  # pylint: disable=R0921
                 status_message = data['instance']['statusmsg']
                 data['instance']['status-message'] = status_message
                 del data['instance']['statusmsg']
+
 
     def lock(self, key, timeout):
         raise NotImplementedError()
