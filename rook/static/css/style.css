@@ -363,6 +363,7 @@ body {
 }
 
 /* code mirror fixes - ZNS */
+.deployment_container .CodeMirror { height: 600px }
 .CodeMirror { height: inherit; }
 .CodeMirror-scroll { height: 80%; }
 .CodeMirror pre {
