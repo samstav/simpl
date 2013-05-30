@@ -70,6 +70,78 @@ class TestSSH(unittest.TestCase):
         self.assertTrue(results, "Expecting a successful connection")
         self.mox.VerifyAll()
 
+    def test_execute(self):
+        """Test the ssh.execute function"""
+        ip = "a.b.c.d"
+        port = 44
+        username = 'not-root'
+        timeout = 15
+        private_key = KEY
+        identity_file = '~/.ssh/id_rsa'
+        password = "secret"
+
+        client = self.mox.CreateMockAnything()
+        stdout = self.mox.CreateMockAnything()
+        stdout.read().AndReturn("Outputs")
+        stderr = self.mox.CreateMockAnything()
+        stderr.read().AndReturn("Errors")
+
+        #Stub out _connect call
+        self.mox.StubOutWithMock(ssh, 'connect')
+        ssh.connect(ip, port=port, username=username, timeout=timeout,
+                    private_key=private_key, identity_file=identity_file,
+                    password=password).AndReturn(client)
+        client.exec_command('test').AndReturn((None, stdout, stderr))
+        client.close().AndReturn(None)
+
+        expected = {
+            'stdout': "Outputs",
+            'stderr': "Errors",
+        }
+        self.mox.ReplayAll()
+        results = ssh.execute(ip, 'test', username, timeout=timeout,
+                              password=password, identity_file=identity_file,
+                              port=port, private_key=private_key)
+
+        self.assertDictEqual(results, expected)
+        self.mox.VerifyAll()
+
+    def test_execute_2(self):
+        """Test the ssh.execute_t function"""
+        ip = "a.b.c.d"
+        port = 44
+        username = 'not-root'
+        timeout = 15
+        private_key = KEY
+        identity_file = '~/.ssh/id_rsa'
+        password = "secret"
+
+        client = self.mox.CreateMockAnything()
+        stdout = self.mox.CreateMockAnything()
+        stdout.read().AndReturn("Outputs")
+        stderr = self.mox.CreateMockAnything()
+        stderr.read().AndReturn("Errors")
+
+        #Stub out _connect call
+        self.mox.StubOutWithMock(ssh, 'connect')
+        ssh.connect(ip, port=port, username=username, timeout=timeout,
+                    private_key=private_key, identity_file=identity_file,
+                    password=password).AndReturn(client)
+        client.exec_command('test').AndReturn((None, stdout, stderr))
+        client.close().AndReturn(None)
+
+        expected = {
+            'stdout': "Outputs",
+            'stderr': "Errors",
+        }
+        self.mox.ReplayAll()
+        results = ssh.execute_2({}, ip, 'test', username, timeout=timeout,
+                                password=password, identity_file=identity_file,
+                                port=port, private_key=private_key)
+
+        self.assertDictEqual(results, expected)
+        self.mox.VerifyAll()
+
 
 if __name__ == '__main__':
     # Any change here should be made in all test files

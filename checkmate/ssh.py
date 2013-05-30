@@ -65,6 +65,21 @@ def test_connection(context, ip, username, timeout=10, password=None,
 
 
 @task(default_retry_delay=10, max_retries=10)
+def execute_2(context, ip_address, command, username, timeout=10,
+              password=None, identity_file=None, port=22, private_key=None):
+    '''Updated execute function that takes a context and handles simulations'''
+    if context.get('simulation') is True:
+        results = {
+            'stdout': "DUMMY OUTPUT",
+            'stderr': "DUMMY STDERR",
+        }
+        return results
+    return execute(ip_address, command, username, timeout=timeout,
+                   password=password, identity_file=identity_file, port=port,
+                   private_key=private_key)
+
+
+@task(default_retry_delay=10, max_retries=10)
 def execute(ip, command, username, timeout=10, password=None,
             identity_file=None, port=22, callback=None, private_key=None):
     """Executes an ssh command on a remote host and returns a dict with stdin
@@ -83,7 +98,7 @@ def execute(ip, command, username, timeout=10, password=None,
                     a file)
     """
     match_celery_logging(LOG)
-    LOG.debug("Executing '%s' on ssh://%s@%s:%d.", command, username, ip, port)
+    LOG.debug("Executing '%s' on ssh://%s@%s:%s.", command, username, ip, port)
     client = None
     try:
         client = connect(ip, port=port, username=username, timeout=timeout,
