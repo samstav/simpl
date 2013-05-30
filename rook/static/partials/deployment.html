@@ -72,7 +72,6 @@
               </div>
             </div>
 
-            <hr>
             <div class="control-group">
               <label class="control-label" for="environment">Environment</label>
               <div class="controls">
@@ -89,10 +88,12 @@
           </fieldset>
         </form>
 
+        <hr>
+
         <p class="lead">Infrastructure</p>
 
         <table class="table table-bordered table-condensed">
-          <thead><tr><th>Name</th><th>Type</th><th>Build Status</th></tr></thead>
+          <thead><tr><th>Name</th><th>Type</th><th>IP</th><th>Build Status</th></tr></thead>
           <tbody>
             <tr ng-repeat="resource in data.resources" ng-hide="['application', 'key-pair', 'user', 'database', ''].indexOf(resource.type || '') > -1">
               <td ng-switch="resource.provider">
@@ -103,11 +104,28 @@
                 <span ng-switch-default>{{resource['dns-name']}} ({{resource.provider}})</a>
               </td>
               <td>{{resource.type}}{{resource.service | prepend: ' - '}}</td>
+              <td>{{resource.instance.public_ip}}</td>
               <td>{{resource.status}} <span ng-cloak ng-show="resource.instance['status-message']">({{resource.instance['status-message']}})</span></td>
             </tr>
           </tbody>
         </table>
 
+        <hr>
+
+        <div ng-hide="!formatted_data.path"><p><strong>Access your application</strong> from <a ng-href="{{formatted_data.path}}" target="_blank">{{formatted_data.path}}</a>.</p>
+        <p>Alternatively, enter the IP address in your hosts file if the domain name is not yet accessible:</p>
+        <p><pre>echo "{{formatted_data.vip}}  {{formatted_data.domain}}" >> /etc/hosts</pre></p>
+        <p>You might need to run this with elevated priviledges:
+          <pre>sudo bash -c 'echo "{{formatted_data.vip}}  {{formatted_data.domain}}" >> /etc/hosts'</pre>
+        </p></div>
+
+        <p><strong>Access your application</strong> using these administrative credentials:
+        <pre>username: {{formatted_data.username}}<br>password: {{formatted_data.password}}</pre></p>
+        <p ng-cloak ng-show="formatted_data.private_key">Alternatively, you can use this private key:<clippy content="{{formatted_data.private_key}}" bgcolor="#f5f5f5"></clippy>
+        </p>
+        <p ng-cloak ng-show="formatted_data.private_key"><pre>{{formatted_data.private_key}}</pre></p>
+
+        <hr>
 
         <p class="lead" ng-cloak ng-show="data.blueprint.documentation.instructions">Instructions</p>
         <p class="help-block" ng-cloak ng-show="data.blueprint.documentation.instructions" ng-bind-html-unsafe="render_markdown(data.blueprint.documentation.instructions)"></p>

@@ -1390,3 +1390,86 @@ services.factory('pagination', function(){
 
   return { buildPaginator: buildPaginator };
 });
+
+services.factory('deploymentDataParser', function(){
+  function formatData(data) {
+    var formatted_data = {};
+
+    try {
+      var lb = _.find(data.resources, function(r, k) { return r.type == 'load-balancer';});
+      if ('instance' in lb) {
+        formatted_data.vip = lb.instance.public_ip;
+      }
+    }
+    catch (error) {
+      console.log(error);
+    }
+
+    var url;
+    try {
+      if (typeof data.inputs.blueprint.url == "string") {
+        url = data.inputs.blueprint.url;
+      } else {
+        url = data.inputs.blueprint.url.url;
+      }
+      formatted_data.path = url;
+      var u = URI(url);
+      formatted_data.domain = u.hostname();
+    }
+    catch (error) {
+      console.log("url not found", error);
+
+      var domain = null;
+      //Find domain in inputs
+      try {
+        domain = data.inputs.blueprint.domain;
+        formatted_data.domain = domain;
+      }
+      catch (error) {
+        console.log(error);
+      }
+      //If no domain, use load-balancer VIP
+      if (domain === null) {
+        domain = formatted_data.vip;
+      }
+      //Find path in inputs
+      var path = "/";
+      try {
+        path = data.inputs.blueprint.path;
+      }
+      catch (error) {
+        console.log(error);
+      }
+      if (domain !== undefined && path !== undefined)
+        formatted_data.path = "http://" + domain + path;
+    }
+    try {
+      var user = _.find(data.resources, function(r, k) { return r.type == 'user';});
+      if (user !== undefined && 'instance' in user) {
+        formatted_data.username = user.instance.name;
+        formatted_data.password = user.instance.password;
+      }
+    }
+    catch (error) {
+      console.log(error);
+    }
+
+    try {
+      var keypair = _.find(data.resources, function(r, k) { return r.type == 'key-pair';});
+      if (keypair !== undefined && 'instance' in keypair) {
+        formatted_data.private_key = keypair.instance.private_key;
+      }
+    }
+    catch (error) {
+      console.log(error);
+    }
+
+    formatted_data.resources = _.toArray(data.resources);
+    formatted_data.master_server = _.find(formatted_data.resources, function(resource) {
+        return (resource.component == 'linux_instance' && resource.service == 'master');
+    });
+    return formatted_data;
+
+  }
+  return { formatData: formatData };
+});
