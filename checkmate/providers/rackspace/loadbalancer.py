@@ -766,7 +766,7 @@ def delete_lb_task(context, key, lbid, region, api=None):
     def on_failure(exc, task_id, args, kwargs, einfo):
         k = "instance:%s" % args[1]
         ret = {k: {'status': 'ERROR',
-                   'errmessage': ('Unexpected error deleting loadbalancer'
+                   'error-message': ('Unexpected error deleting loadbalancer'
                                   ' %s' % key),
                    'trace': 'Tassk %s: %s' % (task_id, einfo.traceback)}}
         resource_postback.delay(args[2], ret)
@@ -809,7 +809,7 @@ def wait_on_lb_delete(context, key, dep_id, lbid, region, api=None):
         """ Handle task failure """
         k = "instance:%s" % args[1]
         ret = {k: {'status': 'ERROR',
-                   'errmessage': ('Unexpected error waiting on loadbalancer'
+                   'error-message': ('Unexpected error waiting on loadbalancer'
                                   ' %s delete' % key),
                    'trace': 'Task %s: %s' % (task_id, einfo.traceback)}}
         resource_postback.delay(args[2], ret)
@@ -1052,7 +1052,7 @@ def wait_on_build(context, lbid, region, api=None):
     if loadbalancer.status == "ERROR":
         results['status'] = "ERROR"
         msg = ("Loadbalancer %s build failed" % (lbid))
-        results['errmessage'] = msg
+        results['error-message'] = msg
         instance_key = 'instance:%s' % context['resource']
         results = {instance_key: results}
         resource_postback.delay(context['deployment'], results)

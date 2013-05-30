@@ -133,7 +133,7 @@ class TestDatabase(ProviderTester):
         expected = {
             'instance:1': {
                 'status': 'ERROR',
-                'errmessage': 'Instance fake_instance_id build failed'
+                'error-message': 'Instance fake_instance_id build failed'
                 }
             }
 

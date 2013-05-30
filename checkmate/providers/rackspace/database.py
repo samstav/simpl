@@ -648,7 +648,7 @@ def wait_on_build(context, instance_id, region, api=None):
     if instance.status == "ERROR":
         results['status'] = "ERROR"
         msg = ("Instance %s build failed" % instance_id)
-        results['errmessage'] = msg
+        results['error-message'] = msg
         instance_key = "instance:%s" % context['resource']
         results = {instance_key: results}
         resource_postback.delay(context['deployment'], results)
@@ -934,7 +934,7 @@ def delete_instance(context, api=None):
         if dep_id and key:
             k = "instance:%s" % key
             ret = {k: {'status': 'ERROR',
-                       'errmessage': ('Unexpected error while deleting '
+                       'error-message': ('Unexpected error while deleting '
                                       'database instance %s' % key),
                        'trace': 'Task %s: %s' % (task_id, einfo.traceback)}}
             resource_postback.delay(dep_id, ret)
@@ -1018,7 +1018,7 @@ def wait_on_del_instance(context, api=None):
         if dep_id and key:
             k = "instance:%s" % key
             ret = {k: {'status': 'ERROR',
-                       'errmessage': ('Unexpected error while deleting '
+                       'error-message': ('Unexpected error while deleting '
                                       'database instance %s' % key),
                        'trace': 'Task %s: %s' % (task_id, einfo.traceback)}}
             resource_postback.delay(dep_id, ret)
@@ -1087,7 +1087,7 @@ def delete_database(context, api=None):
         if dep_id and key:
             k = "instance:%s" % key
             ret = {k: {'status': 'ERROR',
-                       'errmessage': ('Unexpected error while deleting '
+                       'error-message': ('Unexpected error while deleting '
                                       'database %s' % key),
                        'trace': 'Task %s: %s' % (task_id, einfo.traceback)}}
             resource_postback.delay(dep_id, ret)

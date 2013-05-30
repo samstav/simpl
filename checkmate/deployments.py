@@ -704,8 +704,8 @@ def get_resources_statuses(oid, tenant_id=None, driver=DB):
                     'service': val.get('service', 'UNKNOWN'),
                     "status": (val.get("status") or
                                val.get("instance", {}).get("status")),
-                    'message': (val.get('errmessage') or
-                                val.get('instance', {}).get("errmessage") or
+                    'message': (val.get('error-message') or
+                                val.get('instance', {}).get("error-message") or
                                 val.get('statusmsg') or
                                 val.get("instance", {}).get("statusmsg")),
                     "type": val.get("type", "UNKNOWN"),
@@ -1035,13 +1035,13 @@ def resource_postback(deployment_id, contents, driver=DB):
             # Don't want to write status to resource instance
             value.pop('status', None)
             if r_status == "ERROR":
-                r_msg = value.get('errmessage')
-                write_path(updates, 'resources/%s/errmessage' % r_id, r_msg)
-                value.pop('errmessage', None)
+                r_msg = value.get('error-message')
+                write_path(updates, 'resources/%s/error-message' % r_id, r_msg)
+                value.pop('error-message', None)
                 updates['status'] = "FAILED"
-                updates['errmessage'] = deployment.get('errmessage', [])
-                if r_msg not in updates['errmessage']:
-                    updates['errmessage'].append(r_msg)
+                updates['error-message'] = deployment.get('error-message', [])
+                if r_msg not in updates['error-message']:
+                    updates['error-message'].append(r_msg)
 
     # Create new contents dict if values existed
     # TODO: make this smarter

@@ -458,14 +458,14 @@ def write_databag(environment, bagname, itemname, contents, resource,
                 host_k = "instance:%s" % resource.get('hosted_on')
                 ret = {}
                 ret.update({k: {'status': 'ERROR',
-                                'errmessage': ('Error writing software '
+                                'error-message': ('Error writing software '
                                                'configuration to host '
                                                '%s: %s' % (host, exc.message)),
                                 'trace': 'Task %s: %s' % (task_id,
                                                           einfo.traceback)}})
                 if host_k:
                     ret.update({host_k: {'status': 'ERROR',
-                                         'errmessage': ('Error installing '
+                                         'error-message': ('Error installing '
                                                         'software resource %s'
                                                         % resource.get('index')
                                                         )}})
@@ -600,13 +600,13 @@ def cook(host, environment, resource, recipes=None, roles=None, path=None,
                 host_k = "instance:%s" % resource.get('hosted_on')
                 ret = {}
                 ret.update({k: {'status': 'ERROR',
-                                'errmessage': ('Error installing to host %s:'
+                                'error-message': ('Error installing to host %s:'
                                                '%s' % (host, exc.message)),
                                 'trace': 'Task %s: %s' % (task_id,
                                                           einfo.traceback)}})
                 if host_k:
                     ret.update({host_k: {'status': 'ERROR',
-                                         'errmessage': ('Error installing '
+                                         'error-message': ('Error installing '
                                                         'software resource %s'
                                                         % resource.get('index')
                                                         )}})
@@ -903,13 +903,13 @@ def register_node(host, environment, resource, path=None, password=None,
                 host_k = "instance:%s" % resource.get('hosted_on')
                 ret = {}
                 ret.update({k: {'status': 'ERROR',
-                                'errmessage': ('Error registering host %s: %s'
+                                'error-message': ('Error registering host %s: %s'
                                                % (host, exc.message)),
                                 'trace': 'Task %s: %s' % (task_id,
                                                           einfo.traceback)}})
                 if host_k:
                     ret.update({host_k: {'status': 'ERROR',
-                                         'errmessage': ('Error installing '
+                                         'error-message': ('Error installing '
                                                         'software resource %s'
                                                         % resource.get('index')
                                                         )}})
@@ -1022,7 +1022,7 @@ def manage_role(name, environment, resource, path=None, desc=None,
         msg = ("Encountered a chef role in Ruby. Only JSON "
                "roles can be manipulated by Checkmate: %s" % the_ruby)
         results['status'] = "ERROR"
-        results['errmessage'] = msg
+        results['error-message'] = msg
         instance_key = 'instance:%s' % resource['index']
         results = {instance_key: results}
         resource_postback.delay(environment, results)

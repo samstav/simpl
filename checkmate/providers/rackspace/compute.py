@@ -954,7 +954,7 @@ def wait_on_build(context, server_id, region, resource,
 
     if server.status == 'ERROR':
         results = {'status': 'ERROR'}
-        results['errmessage'] = "Server %s build failed" % server_id
+        results['error-message'] = "Server %s build failed" % server_id
         results = {instance_key: results}
         resource_postback.delay(context['deployment'], results)
         Provider({}).delete_resource_tasks(context,
