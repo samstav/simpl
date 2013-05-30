@@ -30,10 +30,9 @@ class TestDbBase(unittest.TestCase):
 
     def test_convert_data(self):
         dbb = DbBase("connection-string://")
-        original = {'status': 'LAUNCHED'}
-        result = dbb.convert_data('workflows', original)
-        self.assertDictEqual(result, {'status': 'LAUNCHED'})
-        self.assertIs(result, original)
+        data = {'status': 'BUILD'}
+        dbb.convert_data('deployments', data)
+        self.assertDictEqual(data, {'status': 'UP'})
 
 
 if __name__ == '__main__':

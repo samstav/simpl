@@ -189,7 +189,6 @@ class DbBase(object):  # pylint: disable=R0921
                 status_message = data['instance']['statusmsg']
                 data['instance']['status-message'] = status_message
                 del data['instance']['statusmsg']
-        return data
 
     def lock(self, key, timeout):
         raise NotImplementedError()
