@@ -177,12 +177,6 @@ RESOURCE_TYPES = [
     'widget', 'gadget',  # last two for testing
 ]
 
-RESOURCE_SCHEMA = [
-    'id', 'index', 'name', 'provider', 'relations', 'hosted_on', 'hosts',
-    'type', 'component', 'dns-name', 'instance', 'flavor', 'image', 'disk',
-    'region', 'service', 'status', 'protocol', 'port'
-]
-
 BLUEPRINT_SCHEMA = [
     'id', 'name', 'services', 'options', 'resources', 'meta-data',
     'description', 'display-outputs', 'documentation', 'version',
