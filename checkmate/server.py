@@ -92,7 +92,7 @@ def error_formatter(error):
     elif isinstance(error.exception, CheckmateDatabaseConnectionError):
         error.status = 500
         error.output = "Database connection error on server."
-        output['reason'] = error.exception.__str__()
+        output['message'] = error.exception.__str__()
     elif isinstance(error.exception, CheckmateException):
         error.output = error.exception.__str__()
     elif isinstance(error.exception, AssertionError):
@@ -101,7 +101,7 @@ def error_formatter(error):
     else:
         # For other 500's, provide underlying cause
         if error.exception:
-            output['reason'] = error.exception.__str__()
+            output['message'] = error.exception.__str__()
 
     output['description'] = error.output
     output['code'] = error.status
