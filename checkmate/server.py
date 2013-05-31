@@ -27,6 +27,7 @@ from checkmate.exceptions import (
 )
 from checkmate import middleware
 from checkmate import utils
+from checkmate.common.gzip_middleware import Gzipper
 
 LOG = logging.getLogger(__name__)
 
@@ -213,6 +214,8 @@ def main_func():
         next_app = middleware.DebugMiddleware(next_app)
         LOG.debug("Routes: %s", ['%s %s' % (r.method, r.rule) for r in
                                  app().routes])
+
+    next_app = Gzipper(next_app, compresslevel=8)
 
     worker = None
     if '--worker' in sys.argv:
