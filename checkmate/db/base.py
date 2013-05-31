@@ -174,25 +174,31 @@ class DbBase(object):  # pylint: disable=R0921
     }
 
     def convert_data(self, klass, data):
-        if 'errmessage' in data:
-            data['error-message'] = data['errmessage']
-            del data['errmessage']
         if klass == 'deployments':
+            if 'errmessage' in data:
+                data['error-message'] = data['errmessage']
+                del data['errmessage']
             if 'status' in data:
                 if data['status'] in self.legacy_statuses:
                     data['status'] = self.legacy_statuses[data['status']]
-        elif klass == 'resources':
-            if 'statusmsg' in data:
-                data['status-message'] = data['statusmsg']
-                del data['statusmsg']
-            if 'statusmsg' in data.get('instance'):
-                status_message = data['instance']['statusmsg']
-                data['instance']['status-message'] = status_message
-                del data['instance']['statusmsg']
-            if 'status_msg' in data.get('instance'):
-                status_message = data['instance']['status_msg']
-                data['instance']['status-message'] = status_message
-                del data['instance']['status_msg']
+        if klass == 'resources':
+            for key, resource in data.items():
+                if 'errmessage' in data:
+                    resource['error-message'] = resource['errmessage']
+                    del resource['errmessage']
+                if 'statusmsg' in resource:
+                    resource['status-message'] = resource['statusmsg']
+                    del resource['statusmsg']
+                if 'instance' in resource and isinstance(resource['instance'],
+                                                         dict):
+                    if 'statusmsg' in resource.get('instance'):
+                        status_message = resource['instance']['statusmsg']
+                        resource['instance']['status-message'] = status_message
+                        del resource['instance']['statusmsg']
+                    if 'status_msg' in resource.get('instance'):
+                        status_message = resource['instance']['status_msg']
+                        resource['instance']['status-message'] = status_message
+                        del resource['instance']['status_msg']
 
     def lock(self, key, timeout):
         raise NotImplementedError()
