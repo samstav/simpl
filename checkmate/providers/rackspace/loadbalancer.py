@@ -758,7 +758,7 @@ def delete_lb_task(context, key, lbid, region, api=None):
         results = {
             "instance:%s" % resource_key: {
                 "status": "DELETING", # set it done in wait_on_delete
-                "status_msg": "Waiting on resource deletion"
+                "status-message": "Waiting on resource deletion"
             }
         }
         return results
@@ -766,7 +766,7 @@ def delete_lb_task(context, key, lbid, region, api=None):
     def on_failure(exc, task_id, args, kwargs, einfo):
         k = "instance:%s" % args[1]
         ret = {k: {'status': 'ERROR',
-                   'errmessage': ('Unexpected error deleting loadbalancer'
+                   'error-message': ('Unexpected error deleting loadbalancer'
                                   ' %s' % key),
                    'trace': 'Tassk %s: %s' % (task_id, einfo.traceback)}}
         resource_postback.delay(args[2], ret)
@@ -791,7 +791,7 @@ def delete_lb_task(context, key, lbid, region, api=None):
     return {
         instance_key: {
             "status": "DELETING",
-            "status_msg": "Waiting on resource deletion"
+            "status-message": "Waiting on resource deletion"
         }
     }
 
@@ -809,7 +809,7 @@ def wait_on_lb_delete(context, key, dep_id, lbid, region, api=None):
         """ Handle task failure """
         k = "instance:%s" % args[1]
         ret = {k: {'status': 'ERROR',
-                   'errmessage': ('Unexpected error waiting on loadbalancer'
+                   'error-message': ('Unexpected error waiting on loadbalancer'
                                   ' %s delete' % key),
                    'trace': 'Task %s: %s' % (task_id, einfo.traceback)}}
         resource_postback.delay(args[2], ret)
@@ -825,12 +825,13 @@ def wait_on_lb_delete(context, key, dep_id, lbid, region, api=None):
     except cloudlb.errors.NotFound:
         pass
     if (not dlb) or "DELETED" == dlb.status:
-        return {inst_key: {'status': 'DELETED'}}
+        return {inst_key: {'status': 'DELETED',
+                           'status-message': 'LB %s was deleted' % inst_key}}
     else:
         msg = ("Waiting on state DELETED. Load balancer is in state %s"
                % dlb.status)
         resource_postback.delay(dep_id, {inst_key: {'status': 'DELETING',
-                                                    "status_msg": msg}})
+                                                    "status-message": msg}})
         wait_on_lb_delete.retry(exc=CheckmateException(msg))
 
 
@@ -1052,7 +1053,7 @@ def wait_on_build(context, lbid, region, api=None):
     if loadbalancer.status == "ERROR":
         results['status'] = "ERROR"
         msg = ("Loadbalancer %s build failed" % (lbid))
-        results['errmessage'] = msg
+        results['error-message'] = msg
         instance_key = 'instance:%s' % context['resource']
         results = {instance_key: results}
         resource_postback.delay(context['deployment'], results)
@@ -1066,6 +1067,7 @@ def wait_on_build(context, lbid, region, api=None):
         raise CheckmateException(msg)
     elif loadbalancer.status == "ACTIVE":
         results['status'] = "ACTIVE"
+        results['status-message'] = ""
         results['id'] = lbid
         instance_key = 'instance:%s' % context['resource']
         results = {instance_key: results}

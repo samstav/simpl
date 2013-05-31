@@ -17,7 +17,8 @@ from checkmate.classes import ExtensibleDict
 from checkmate.db.common import DbBase, ObjectLockedError, InvalidKeyError
 from checkmate.exceptions import (
     CheckmateDatabaseConnectionError,
-    CheckmateException)
+    CheckmateException,
+)
 from checkmate.db.db_lock import DbLock
 from checkmate.utils import flatten
 from checkmate.utils import merge_dictionary
@@ -56,6 +57,24 @@ class Driver(DbBase):
         self._database = None
         self._connection = None
         self._client = None
+
+    def tune(self):
+        '''Documenting & Automating Index Creation'''
+        self.database()['deployments'].create_index(
+            [("created", pymongo.DESCENDING)],
+            background=True,
+            name="deployments_created",
+        )
+        self.database()['deployments'].create_index(
+            [("tenantId", pymongo.DESCENDING)],
+            background=True,
+            name="deployments_tenantId",
+        )
+        self.database()['workflows'].create_index(
+            [("tenantId", pymongo.DESCENDING)],
+            background=True,
+            name="workflows_created",
+        )
 
     def __getstate__(self):
         '''Support serializing to connection string'''
@@ -196,7 +215,10 @@ class Driver(DbBase):
         resources = self._get_resources(deployment.get("resources", None),
                                         with_ids=False,
                                         with_secrets=with_secrets)
-        return flatten(resources)
+        flat = flatten(resources)
+        if flat:
+            self.convert_data('resources', flat)
+        return flat
 
     def get_deployment(self, api_id, with_secrets=None):
         deployment = self._get_object('deployments', api_id,
@@ -206,6 +228,7 @@ class Driver(DbBase):
             deployment["resources"] = self._dereferenced_resources(
                 deployment,
                 with_secrets=with_secrets)
+
         return deployment
 
     def get_deployments(self, tenant_id=None, with_secrets=None, limit=0,
@@ -561,13 +584,13 @@ class Driver(DbBase):
         :param with_secrets: Merge secrets with the results
         '''
         with self._get_client().start_request():
-            results = self.database()[klass].find_one({
-                                                          '_id': api_id},
+            results = self.database()[klass].find_one({'_id': api_id},
                                                       self._object_projection)
 
             if results:
                 if with_secrets is True:
                     self.merge_secrets(klass, api_id, results)
+                self.convert_data(klass, results)
 
         return results
 
@@ -607,12 +630,10 @@ class Driver(DbBase):
             response['results'] = {}
 
             for entry in results:
-                self.convert_data(klass, entry)
                 if with_secrets is True:
-                    response['results'][entry['id']] = self.merge_secrets(
-                        klass, entry['id'], entry)
-                else:
-                    response['results'][entry['id']] = entry
+                    entry = self.merge_secrets(klass, entry['id'], entry)
+                self.convert_data(klass, entry)
+                response['results'][entry['id']] = entry
 
             if with_count:
                 response['collection-count'] = self._get_count(
@@ -679,7 +700,7 @@ class Driver(DbBase):
                                                      "specified")
             body['_id'] = api_id
             self.database()[klass].update({'_id': api_id}, body,
-                                          not merge_existing, # Upsert new
+                                          not merge_existing,  # Upsert new
                                           False, check_keys=False)
             if secrets:
                 secrets['_id'] = api_id

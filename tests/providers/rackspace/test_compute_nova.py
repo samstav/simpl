@@ -139,7 +139,7 @@ class TestNovaCompute(test.ProviderTester):
         expected = {
                     "instance:0": {
                     'status': 'ERROR',
-                    'statusmsg': ("Unexpected error deleting compute "
+                    'status-message': ("Unexpected error deleting compute "
                                    "instance 0: some message"),
                     'trace': 'Task 1234: some traceback'
                     }
@@ -388,11 +388,11 @@ class TestNovaCompute(test.ProviderTester):
         expect = {
             "instance:1": {
                 'status': 'DELETING',
-                "statusmsg": "Waiting on resource deletion"
+                "status-message": "Waiting on resource deletion"
             },
             'instance:0': {
                 'status': 'DELETING',
-                'statusmsg': 'Host 1 is being deleted.'
+                'status-message': 'Host 1 is being deleted.'
             }
         }
         api = self.mox.CreateMockAnything()
@@ -429,7 +429,7 @@ class TestNovaCompute(test.ProviderTester):
             },
             'instance:0': {
                 'status': 'DELETED',
-                'statusmsg': 'Host 1 was deleted'
+                'status-message': 'Host 1 was deleted'
             }
         }
         api = self.mox.CreateMockAnything()

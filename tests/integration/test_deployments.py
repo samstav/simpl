@@ -1607,12 +1607,12 @@ class TestGetResourceStuff(unittest.TestCase):
                 '1': {'status': 'BUILD',
                       'instance': {'ip': '1234'}},
                 '2': {'status': 'ERROR',
-                      'statusmsg': 'An error happened',
-                      'errmessage': 'A certain error happened'},
+                      'status-message': 'An error happened',
+                      'error-message': 'A certain error happened'},
                 '3': {'status': 'ERROR',
-                      'errmessage': 'whoops',
+                      'error-message': 'whoops',
                       'trace': 'stacktrace'},
-                '9': {'statusmsg': 'I have an unknown status'}
+                '9': {'status-message': 'I have an unknown status'}
             }
         }
         unittest.TestCase.setUp(self)
@@ -1741,16 +1741,16 @@ class TestPostbackHelpers(unittest.TestCase):
                       'provider': 'foo'},
                 '2': {'index': '2',
                       'status': 'ERROR',
-                      'statusmsg': 'An error happened',
-                      'errmessage': 'A certain error happened',
+                      'status-message': 'An error happened',
+                      'error-message': 'A certain error happened',
                       'provider': 'bar'},
                 '3': {'index': '3',
                       'status': 'ERROR',
-                      'errmessage': 'whoops',
+                      'error-message': 'whoops',
                       'trace': 'stacktrace',
                       'provider': 'bam'},
                 '9': {'index': '9',
-                      'statusmsg': 'I have an unknown status',
+                      'status-message': 'I have an unknown status',
                       'provider': 'foo'}
             }
         }
@@ -1781,9 +1781,9 @@ class TestPostbackHelpers(unittest.TestCase):
         self.assertEquals('NEW', ret.get('instance:1', {}).get('status'))
         self.assertEquals('NEW', ret.get('instance:9', {}).get('status'))
         self.assertEquals('I test u', ret.get('instance:1',
-                                              {}).get('statusmsg'))
+                                              {}).get('status-message'))
         self.assertEquals('I test u', ret.get('instance:9',
-                                              {}).get('statusmsg'))
+                                              {}).get('status-message'))
         self.assertEquals('A trace', ret.get('instance:1',
                                              {}).get('trace'))
         self.assertEquals('A trace', ret.get('instance:9',

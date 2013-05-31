@@ -648,7 +648,7 @@ def wait_on_build(context, instance_id, region, api=None):
     if instance.status == "ERROR":
         results['status'] = "ERROR"
         msg = ("Instance %s build failed" % instance_id)
-        results['errmessage'] = msg
+        results['error-message'] = msg
         instance_key = "instance:%s" % context['resource']
         results = {instance_key: results}
         resource_postback.delay(context['deployment'], results)
@@ -664,6 +664,7 @@ def wait_on_build(context, instance_id, region, api=None):
     elif instance.status == "ACTIVE":
         results['status'] = "ACTIVE"
         results['id'] = instance_id
+        results['status-message'] = ""
         instance_key = "instance:%s" % context['resource']
         results = {instance_key: results}
         resource_postback.delay(context['deployment'], results)
@@ -934,7 +935,7 @@ def delete_instance(context, api=None):
         if dep_id and key:
             k = "instance:%s" % key
             ret = {k: {'status': 'ERROR',
-                       'errmessage': ('Unexpected error while deleting '
+                       'error-message': ('Unexpected error while deleting '
                                       'database instance %s' % key),
                        'trace': 'Task %s: %s' % (task_id, einfo.traceback)}}
             resource_postback.delay(dep_id, ret)
@@ -964,7 +965,7 @@ def delete_instance(context, api=None):
             results.update({
                 'instance:%s' % hosted: {
                     'status': 'DELETED',
-                    'statusmsg': 'Host %s was deleted'
+                    'status-message': 'Host %s was deleted'
                 }
             })
         # Send data back to deployment
@@ -984,7 +985,7 @@ def delete_instance(context, api=None):
                 res.update({
                     'instance:%s' % hosted: {
                         'status': 'DELETED',
-                        'statusmsg': 'Host %s was deleted'
+                        'status-message': 'Host %s was deleted'
                     }
                 })
             return res
@@ -999,7 +1000,7 @@ def delete_instance(context, api=None):
         res.update({
             'instance:%s' % hosted: {
                 'status': 'DELETING',
-                'statusmsg': 'Host %s is being deleted'
+                'status-message': 'Host %s is being deleted'
             }
         })
     return res
@@ -1018,7 +1019,7 @@ def wait_on_del_instance(context, api=None):
         if dep_id and key:
             k = "instance:%s" % key
             ret = {k: {'status': 'ERROR',
-                       'errmessage': ('Unexpected error while deleting '
+                       'error-message': ('Unexpected error while deleting '
                                       'database instance %s' % key),
                        'trace': 'Task %s: %s' % (task_id, einfo.traceback)}}
             resource_postback.delay(dep_id, ret)
@@ -1052,7 +1053,7 @@ def wait_on_del_instance(context, api=None):
                 res.update({
                     'instance:%s' % hosted: {
                         'status': 'DELETED',
-                        'statusmsg': 'Host %s was deleted'
+                        'status-message': 'Host %s was deleted'
                     }
                 })
             return res
@@ -1065,7 +1066,7 @@ def wait_on_del_instance(context, api=None):
             res.update({
                 'instance:%s' % hosted: {
                     'status': 'DELETED',
-                    'statusmsg': 'Host %s was deleted'
+                    'status-message': 'Host %s was deleted'
                 }
             })
         return res
@@ -1087,7 +1088,7 @@ def delete_database(context, api=None):
         if dep_id and key:
             k = "instance:%s" % key
             ret = {k: {'status': 'ERROR',
-                       'errmessage': ('Unexpected error while deleting '
+                       'error-message': ('Unexpected error while deleting '
                                       'database %s' % key),
                        'trace': 'Task %s: %s' % (task_id, einfo.traceback)}}
             resource_postback.delay(dep_id, ret)
@@ -1125,7 +1126,7 @@ def delete_database(context, api=None):
     if not instance or (instance.status == 'DELETED'):
         # instance is gone, so is the db
         return {inst_key: {'status': 'DELETED',
-                           'statusmsg': ('Host %s was deleted'
+                           'status-message': ('Host %s was deleted'
                                          % resource.get('hosted_on'))}}
     elif instance.status == 'BUILD':  # can't delete when instance in BUILD
         delete_database.retry(exc=CheckmateException("Waiting on instance to "
