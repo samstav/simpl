@@ -10,9 +10,10 @@ import logging
 import os
 import uuid
 
-from SpiffWorkflow import Workflow as SpiffWorkflow, Task
+from SpiffWorkflow import Workflow as SpiffWorkflow, Task, Workflow
 from SpiffWorkflow.storage import DictionarySerializer
 
+from checkmate.common.tasks import update_operation
 from checkmate.db import (
     get_driver,
     any_id_problems,
@@ -203,6 +204,57 @@ def execute_workflow(id, tenant_id=None, driver=DB):
     entity = driver.get_workflow(id)
     return write_body(entity, request, response)
 
+
+@route('/workflows/<id>/+pause', method=['GET', 'POST'])
+@with_tenant
+def pause_workflow(id, tenant_id=None, driver=DB):
+    """Process a checkmate deployment workflow
+
+    Pauses the workflow.
+    Updates the operation status to pauses when done
+
+    :param id: checkmate workflow id
+    """
+    if is_simulation(id):
+        driver = SIMULATOR_DB
+    workflow = driver.get_workflow(id)
+    if not workflow:
+        abort(404, 'No workflow with id %s' % id)
+
+    dep_id = workflow["attributes"]["deploymentId"] or id
+    deployment = driver.get_deployment(dep_id)
+    operation = deployment.get("operation")
+
+    if (operation and operation.get('action') != "PAUSE" and
+            operation["status"] != "PAUSED"):
+        update_operation.delay(dep_id, driver=driver, action='PAUSE')
+    return write_body(workflow, request, response)
+
+
+@route('/workflows/<id>/+resume', method=['GET', 'POST'])
+@with_tenant
+def resume_workflow(id, tenant_id=None, driver=DB):
+    """Process a checkmate deployment workflow
+
+    Executes the workflow again
+
+    :param id: checkmate workflow id
+    """
+    if is_simulation(id):
+        driver = SIMULATOR_DB
+    workflow = driver.get_workflow(id)
+    if not workflow:
+        abort(404, 'No workflow with id %s' % id)
+
+    dep_id = workflow["attributes"]["deploymentId"] or id
+    deployment = driver.get_deployment(dep_id)
+    operation = deployment.get("operation")
+    if operation and operation.get("status") == "PAUSED":
+        async_call = orchestrator.run_workflow.delay(id, timeout=1800,
+                                                     driver=driver)
+        LOG.debug("Executed a task to run workflow '%s'", async_call)
+        workflow = driver.get_workflow(id)
+    return write_body(workflow, request, response)
 
 #
 # Workflow Specs
