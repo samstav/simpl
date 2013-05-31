@@ -27,10 +27,10 @@
       <div class="bar" style="width: {{percentComplete()}}%;"></div>
     </div>
     <div>
-      <a class="label label-info cmtip" title="Total items" ng-click="showAll()">{{count}}</a> items:
-      <a class="label label-success cmtip" title="Completed" ng-click="showUnread()">{{taskStates['completed']}}</a>
-      <a class="label label-warning cmtip" title="Waiting" ng-click="showStarred()">{{taskStates['waiting']}}</a>
-      <a class="label label-important cmtip" title="Errors" ng-click="showRead()">{{0}}</a>
+      <a class="label label-info" tooltip="Total items" ng-click="showAll()">{{count}}</a> items:
+      <a class="label label-success" tooltip="Completed" ng-click="showUnread()">{{taskStates['completed']}}</a>
+      <a class="label label-warning" tooltip="Waiting" ng-click="showStarred()">{{taskStates['waiting']}}</a>
+      <a class="label label-important" tooltip="Errors" ng-click="showRead()">{{0}}</a>
       <div>Expected to finish {{timeRemaining | secondsETA}}</div>
     </div>
   </section>
@@ -52,7 +52,7 @@
     <div id="entry" class="row-fluid">
       <div class="span8">{{selected.created | formattedDate}}</div>
         <div class="span4 actions">
-          <a class="accordion-toggle cmcollapse cmtip" title="Edit source" data-toggle="collapse" href="#source" ng-click="init_editor()"><i class="icon-edit"></i></a>
+          <a class="accordion-toggle cmcollapse" tooltip="Edit source" data-toggle="collapse" href="#source" ng-click="init_editor()"><i class="icon-edit"></i></a>
         </div>
       </div>
       <h2>{{selected.name}}</h2>
@@ -60,7 +60,7 @@
         <form id="code" method="POST" action="{{tenantId | prepend}}/workflows/{{id}}">
           <div id="entry" class="row-fluid">
             <div class="actions">
-              <a class="pull-right cmtip" href="#save" title="Save"><i class="icon-ok"></i></a>
+              <a class="pull-right" tooltip="Save" href="#save"><i class="icon-ok"></i></a>
             </div>
           </div>
           <textarea name="object" id="editor"></textarea>

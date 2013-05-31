@@ -55,11 +55,11 @@
             </div>
 
             <div>
-              <p><span class="label label-info cmtip" title="Total items">{{count}}</span> tasks total:</p>
-              <p>&nbsp;&nbsp;<span class="label label-success cmtip" title="Completed">{{taskStates['completed'] + taskStates['ready']}}</span> completed</p>
-              <p>&nbsp;&nbsp;<span class="label label-warning cmtip" title="In Progress">{{taskStates['waiting']}}</span> in progress</p>
-              <p>&nbsp;&nbsp;<span class="label label-important cmtip" title="Errors">{{taskStates['error']}}</span> errored out</p>
-              <p>&nbsp;&nbsp;<span class="label cmtip" title="Waiting on other tasks">{{taskStates['future'] + taskStates['likely'] +
+              <p><span class="label label-info" tooltip="Total items">{{count}}</span> tasks total:</p>
+              <p>&nbsp;&nbsp;<span class="label label-success" tooltip="Completed">{{taskStates['completed'] + taskStates['ready']}}</span> completed</p>
+              <p>&nbsp;&nbsp;<span class="label label-warning" tooltip="In Progress">{{taskStates['waiting']}}</span> in progress</p>
+              <p>&nbsp;&nbsp;<span class="label label-important" tooltip="Errors">{{taskStates['error']}}</span> errored out</p>
+              <p>&nbsp;&nbsp;<span class="label" tooltip="Waiting on other tasks">{{taskStates['future'] + taskStates['likely'] +
               taskStates['maybe']}}</span> tasks waiting on other tasks to finish.</p>
             </div>
             &nbsp;

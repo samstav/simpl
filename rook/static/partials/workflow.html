@@ -1,11 +1,11 @@
 <div id="leftControls" class="lcontrols no-select" ng-cloak ng-show="showControls">
   <div class="tControls">
     <div class="top" ng-cloak ng-show="data">
-      <button ng-click="workflow_action(data.id, 'execute')" class="btn cmtip" title="Run workflow" alt="Run"><i class="icon-play"></i></button>
-      <button ng-click="navigate(auth.context.tenantId + '/workflows/' + data.id + '/status')" class="btn cmtip" title="Check status" alt="Status"><i class="icon-heart"></i></button>
+      <button ng-click="workflow_action(data.id, 'execute')" class="btn" tooltip="Run workflow" alt="Run"><i class="icon-play"></i></button>
+      <button ng-click="navigate(auth.context.tenantId + '/workflows/' + data.id + '/status')" class="btn" tooltip="Check status" alt="Status"><i class="icon-heart"></i></button>
     </div>
     <div class="bottom" ng-cloak ng-show="data">
-      <button ng-click="load()" class="btn cmtip" title="Refresh" alt="Refresh"><i class="icon-repeat"></i></button>
+      <button ng-click="load()" class="btn" tooltip="Refresh" alt="Refresh"><i class="icon-repeat"></i></button>
     </div>
   </div>
 </div>
@@ -22,8 +22,8 @@
         </div>
 
         <div class="span2 actions">
-          <!--<a class="cmtip" title="Check status" href="{{data.id}}/status"><i class="icon-heart"></i></a>
-          <a class="cmtip" title="Run workflow" href="#" ng-click="workflow_action(data.id, 'execute')"><i class="icon-play"></i></a>-->
+          <!--<a tooltip="Check status" href="{{data.id}}/status"><i class="icon-heart"></i></a>
+          <a tooltip="Run workflow" href="#" ng-click="workflow_action(data.id, 'execute')"><i class="icon-play"></i></a>-->
         </div>
       </div>
 
@@ -38,7 +38,11 @@
       </div>
 
       <div>
-        <a class="label label-info cmtip" title="Total items" ng-click="showAll()">{{count}}</a> tasks: <a class="label label-success cmtip" title="Completed" ng-click="showUnread()">{{taskStates['completed'] + taskStates['ready']}}</a> <a class="label label-warning cmtip" title="Waiting" ng-click="showStarred()">{{taskStates['waiting']}}</a> <a class="label label-important cmtip" title="Errors" ng-click="showRead()">{{taskStates['error']}}</a>, and <a class="label cmtip" title="Other" ng-click="showRead()">{{taskStates['future'] + taskStates['likely'] + taskStates['maybe']}}</a>
+        <a class="label label-info" tooltip="Total items" ng-click="showAll()">{{count}}</a> tasks:
+        <a class="label label-success" tooltip="Completed" ng-click="showUnread()">{{taskStates['completed'] + taskStates['ready']}}</a>
+        <a class="label label-warning" tooltip="Waiting" ng-click="showStarred()">{{taskStates['waiting']}}</a>
+        <a class="label label-important" tooltip="Errors" ng-click="showRead()">{{taskStates['error']}}</a>, and
+        <a class="label" tooltip="Other" ng-click="showRead()">{{taskStates['future'] + taskStates['likely'] + taskStates['maybe']}}</a>
       </div>
     </div>
   </div>
@@ -135,7 +139,7 @@
             <div id="traceback" class="cmcollapse collapse">
               <pre>{{current_task.internal_attributes.task_state.traceback}}</pre>
             </div>
-            <p><button class="btn btn-primary" ng-click="execute_task()" title="Tries to move the task along or checks the latest status if it is pending.">Poke</button> <button class="btn btn-danger cmtip" ng-click="resubmit_task()" title="Retries the task. It Aborts an existing task if it is running.">Retry</button></p>
+            <p><button class="btn btn-primary" ng-click="execute_task()" title="Tries to move the task along or checks the latest status if it is pending.">Poke</button> <button class="btn btn-danger" tooltip="Retries the task. It Aborts an existing task if it is running." ng-click="resubmit_task()">Retry</button></p>
           </div>
 
           <div id="error-alert" class="alert alert-block fade in" ng-cloak ng-show="current_task.internal_attributes.task_state.state == 'RETRY' &amp;&amp; current_task.state != 64">
@@ -145,7 +149,7 @@
             <div id="traceback2" class="cmcollapse collapse">
               <pre>{{current_task.internal_attributes.task_state.traceback}}</pre>
             </div>
-            <p>If you don't think this task is going to succeed you could <button class="btn btn-danger cmtip" ng-click="resubmit_task()" title="Clear task data, abort the Celery task, and retrigger it"> Abort and Retry</button>, but please choose this carefully so we don't end up with duplicate resources!</p>
+            <p>If you don't think this task is going to succeed you could <button class="btn btn-danger" tooltip="Clear task data, abort the Celery task, and retrigger it" ng-click="resubmit_task()"> Abort and Retry</button>, but please choose this carefully so we don't end up with duplicate resources!</p>
           </div>
 
           <!-- Next Gen Server -->
@@ -172,5 +176,5 @@
 
 <script type="text/ng-template" id="task.html">
 <a href="#" ng-click="selectTask(task.id)"> Task {{task.id}}
-<span class="cmtip" ng-class="state_class(task)" title="{{task.description}}">{{state_name(task)}}</span></a>
+<span tooltip="{{task.description}}" ng-class="state_class(task)">{{state_name(task)}}</span></a>
 </script>
