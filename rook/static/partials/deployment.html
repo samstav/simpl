@@ -71,6 +71,27 @@ Priv Key: {{formatted_data.private_key}}
               </div>
             </div>
 
+            <div ng-controller="WorkflowController">
+              <div class="control-group" ng-cloak ng-show="timeRemaining">
+                  <div class="controls">
+                    <p><span class="label label-info cmtip" title="Total items">{{count}}</span> tasks total:</p>
+                    <p>&nbsp;&nbsp;<span class="label label-success cmtip" title="Completed">{{taskStates['completed'] + taskStates['ready']}}</span> completed</p>
+                    <p>&nbsp;&nbsp;<span class="label label-warning cmtip" title="In Progress">{{taskStates['waiting']}}</span> in progress</p>
+                    <p>&nbsp;&nbsp;<span class="label label-important cmtip" title="Errors">{{taskStates['error']}}</span> errored out</p>
+                    <p>&nbsp;&nbsp;<span class="label cmtip" title="Waiting on other tasks">{{taskStates['future'] + taskStates['likely'] +
+                    taskStates['maybe']}}</span> tasks waiting on other tasks to finish.</p>
+                  </div>
+                  &nbsp;
+                  <a style="margin-bottom: 15px;" class="btn" ng-cloak ng-show="data.id == 'simulate'" href="./status?complete">Complete the Simulation Now</a>
+                  <div class="alert controls">You can access an <a href=".">advanced</a> view of
+                  the workflow to manage any errors or hack at the workflow.</div>
+              </div>
+              <div ng-show="!timeRemaining" class="control-group">
+                <div class="alert controls">The advanced view of the workflow can still be reached <a ng-href="/{{auth.context.tenantId}}/workflows/{{data.id}}">here</a>.</div>
+              </div>
+            </div>
+
+
             <div class="control-group">
               <label class="control-label" for="secrets">Secrets:</label>
               <div class="controls" ng-switch="data.secrets">

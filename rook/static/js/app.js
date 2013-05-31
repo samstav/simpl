@@ -898,7 +898,8 @@ function WorkflowController($scope, $resource, $http, $routeParams, $location, $
       items.all = workflow.parseTasks(items.tasks, object.wf_spec.task_specs);
       $scope.count = items.all.length;
       workflow.calculateStatistics($scope, items.all);
-      if ($location.path().split('/').slice(-1)[0] == 'status') {
+      var path_parts = $location.path().split('/');
+      if (path_parts.slice(-1)[0] == 'status' || path_parts.slice(2,3) == 'deployments') {
         if ($scope.taskStates.completed < $scope.count) {
           var original_url = $location.url();
           setTimeout(function() {$scope.reload(original_url);}, 2000);
