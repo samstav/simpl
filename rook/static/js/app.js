@@ -203,10 +203,42 @@ function AutoLoginController($scope, $location, $cookies, auth) {
 }
 
 //Root controller that implements authentication
-function AppController($scope, $http, $location, $resource, auth) {
+function AppController($scope, $http, $location, $resource, auth, $route) {
   $scope.showHeader = true;
   $scope.showStatus = false;
   $scope.foldFunc = CodeMirror.newFoldFunction(CodeMirror.braceRangeFinder);
+
+  $scope.check_permissions = function() {
+    if ($scope.force_logout) {
+      $scope.force_logout = false;
+      $scope.bound_creds.username = '';
+      $scope.logOut();
+    }
+  };
+
+  $scope.check_token_validity = function(scope, next, current) {
+    var token = auth.context.token;
+    var now = new Date();
+
+    if (token === undefined || token === null) return;
+    var context_expiration = new Date(auth.context.token.expires || null);
+
+    if (context_expiration <= now) {
+      if (auth.is_impersonating()) {
+        $scope.impersonate(auth.context.username)
+          .then($scope.on_impersonate_success, $scope.on_auth_failed);
+      } else {
+        $('#modalAuth').one('hide', function(e) {
+          $scope.$apply($scope.check_permissions); // TODO: is there a better way of doing this?
+        });
+        $scope.force_logout = true;
+        $scope.bound_creds.username = auth.context.username;
+        auth.error_message = "It seems your token has expired. Please log back in again.";
+        $scope.loginPrompt();
+      }
+    }
+  };
+  $scope.$on('$routeChangeStart', $scope.check_token_validity);
 
   $scope.safeApply = function(fn) {
     var phase = this.$root.$$phase;
@@ -260,7 +292,7 @@ function AppController($scope, $http, $location, $resource, auth) {
   });
 
   $scope.$on('logOut', function() {
-    $location.path('/');
+    $location.url('/');
   });
 
   $scope.auth = auth;
@@ -274,12 +306,6 @@ function AppController($scope, $http, $location, $resource, auth) {
 
   // Display log in prompt
   $scope.loginPrompt = function(success_callback, failure_callback) {
-    //reset controls
-    $scope.bound_creds.username = '';
-    $scope.bound_creds.password = '';
-    $scope.bound_creds.apikey = '';
-    auth.error_message = null;
-
     var modal = $('#modalAuth');
     modal.modal({
       keyboard: false,
@@ -295,18 +321,20 @@ function AppController($scope, $http, $location, $resource, auth) {
   };
 
   $scope.on_auth_success = function(json) {
+    //reset controls
+    $scope.bound_creds.username = '';
+    $scope.bound_creds.password = '';
+    $scope.bound_creds.apikey   = '';
+    auth.error_message = null;
+
     $('#modalAuth').modal('hide');
-    $scope.bound_creds = {
-        username: '',
-        password: '',
-        apikey: ''
-      };
-    if (typeof $('#modalAuth')[0].success_callback == 'function') {
+    if ($('#modalAuth')[0] && typeof $('#modalAuth')[0].success_callback == 'function') {
         $('#modalAuth')[0].success_callback();
         delete $('#modalAuth')[0].success_callback;
         delete $('#modalAuth')[0].failure_callback;
       }
     mixpanel.track("Logged In", {'user': $scope.auth.identity.username});
+    $route.reload(); // needed in case of token expiration
   };
 
   $scope.auth_error_message = function() { return auth.error_message; };
@@ -335,7 +363,7 @@ function AppController($scope, $http, $location, $resource, auth) {
   }
 
   $scope.display_announcement = function() {
-    return auth.endpoints[0].realm == "Rackspace SSO";
+    return (auth.endpoints[0] !== undefined) && (auth.endpoints[0].realm == "Rackspace SSO");
   }
 
   $scope.is_hidden = function(endpoint) {
@@ -354,6 +382,7 @@ function AppController($scope, $http, $location, $resource, auth) {
 
   // Log in using credentials delivered through bound_credentials
   $scope.logIn = function() {
+    $scope.force_logout = false; // TODO: is there a better way of doing this?
     var username = $scope.bound_creds.username;
     var password = $scope.bound_creds.password;
     var apikey = $scope.bound_creds.apikey;
@@ -388,7 +417,8 @@ function AppController($scope, $http, $location, $resource, auth) {
   };
 
   $scope.logOut = function() {
-    $scope.auth.logOut();
+    auth.error_message = null;
+    auth.logOut();
   };
 
   $scope.on_impersonate_success = function(response) {
@@ -398,7 +428,10 @@ function AppController($scope, $http, $location, $resource, auth) {
     if (current_path.match(account_number)) {
       next_path = current_path.replace(account_number, "/" + auth.context.tenantId);
     }
-    $location.path(next_path);
+    if (current_path == next_path)
+      $route.reload();
+    else
+      $location.path(next_path);
   };
 
   $scope.username = "";
@@ -415,6 +448,10 @@ function AppController($scope, $http, $location, $resource, auth) {
 
   $scope.is_impersonating = function() {
     return auth.is_impersonating();
+  };
+
+  $scope.in_admin_context = function() {
+    return auth.identity.is_admin && !auth.is_impersonating();
   };
 
   // Utility Functions
@@ -797,7 +834,7 @@ function WorkflowListController($scope, $location, $resource, workflow, items, n
 
     path = '/:tenantId/workflows.json' + paginator.buildPagingParams();
     $scope.showPagination = function(){
-      return $scope.links || false;
+      return $scope.links && $scope.totalPages > 1;
     };
 
     this.klass = $resource((checkmate_server_base || '') + path);
@@ -1460,8 +1497,13 @@ function BlueprintListController($scope, $location, $routeParams, $resource, ite
   $scope.items = items.all;
 
   $scope.selectItem = function(index) {
-    items.selectItem(index);
-    $scope.selected = items.selected;
+    if($scope.selected){
+      $scope.selected.selected = false;
+    }
+
+    $scope.selected = $scope.items[index];
+    $scope.selected.selected = true;
+
     $scope.selected_key = $scope.selected.key;
     mixpanel.track("Blueprint Selected", {'blueprint': $scope.selected.key});
   };
@@ -1534,6 +1576,50 @@ function BlueprintRemoteListController($scope, $location, $routeParams, $resourc
 
   //Handle results of loading repositories
   $scope.receive_blueprints = function(data) {
+    var sorted_items,
+        sorted_items_object,
+        object_to_replace,
+        index_to_replace,
+        blueprints = [],
+        deleted_blueprints = [],
+        cached_blueprints = JSON.parse(localStorage.blueprints || "[]");
+
+    function updateListWithBlueprint(list, blueprint){
+      object_to_replace = _.findWhere(list, { id: blueprint.id });
+      if(object_to_replace){
+        index_to_replace = list.indexOf(object_to_replace);
+      } else {
+        index_to_replace = _.sortedIndex(list, blueprint, function(blueprint){ return blueprint.name.toUpperCase(); });
+      }
+      list[index_to_replace] = blueprint;
+    }
+
+    function updateBlueprintCache(item, should_delete){
+      blueprints = JSON.parse(localStorage.blueprints || "[]");
+
+      if(should_delete){
+        blueprints = _.reject(blueprints, function(blueprint){ return blueprint.id === item.id })
+      } else {
+        updateListWithBlueprint(blueprints, item);
+      }
+
+      localStorage.blueprints = JSON.stringify(blueprints);
+    }
+
+    function verifyBlueprintRepo(blueprint){
+      return github.get_contents($scope.remote, blueprint.api_url, "checkmate.yaml", function(content_data){
+        if(content_data.type === 'file'){
+          blueprint.is_blueprint_repo = true;
+
+          updateBlueprintCache(blueprint);
+
+          blueprint.is_fresh = true;
+
+          updateListWithBlueprint($scope.items, blueprint)
+        }
+      });
+    }
+
     items.clear();
     items.receive(data, function(item, key) {
       if (!('documentation' in item))
@@ -1549,17 +1635,29 @@ function BlueprintRemoteListController($scope, $location, $routeParams, $resourc
     });
 
     $scope.count = items.count;
-    $scope.items = _.sortBy(items.all, function(item){ return item.name.toUpperCase(); });
     $scope.loading_remote_blueprints = false;
     $('#spec_list').css('top', $('.summaryHeader').outerHeight());
     $scope.remember_repo_url($scope.remote.url);
-    _.each($scope.items, function(item){
-      github.get_contents($scope.remote, item.api_url, "checkmate.yaml", function(content_data){
-        if(content_data.type === 'file'){
-          item.is_blueprint_repo = true;
-        }
-      });
+
+    sorted_items = _.sortBy(items.all, function(item){ return item.name.toUpperCase(); });
+
+    _.each(cached_blueprints, function(blueprint){
+      if(_.findWhere(sorted_items, { id: blueprint.id }) === undefined){
+        deleted_blueprints.push(blueprint);
+      } else {
+        blueprints.push(blueprint);
+      }
     });
+
+    $scope.items = blueprints.length > 0 ? blueprints : sorted_items;
+
+    if(sorted_items.length >= 1) {
+      _.reduce(sorted_items.slice(1),
+               // Waiting on Angular 1.1.5 which includes an #always method. Until then, passing the same callback for both success and error to #then
+               // See https://github.com/angular/angular.js/pull/2424
+               function(memo, item) { return memo.then(function(){ return verifyBlueprintRepo(item) }, function(){ return verifyBlueprintRepo(item) }) },
+               verifyBlueprintRepo(sorted_items[0]));
+    }
   };
 
   $scope.load = function() {
@@ -1689,7 +1787,7 @@ function DeploymentListController($scope, $location, $http, $resource, scroll, i
     path = $location.path() + '.json';
 
     $scope.showPagination = function(){
-      return $scope.links || false;
+      return $scope.links && $scope.totalPages > 1;
     };
 
     params = {

@@ -776,7 +776,7 @@ services.factory('github', ['$http', function($http) {
     get_contents: function(remote, url, content_item, callback){
       var destination_path = URI(url).path();
       var path = '/githubproxy' + destination_path + "/contents/" + content_item;
-      $http({method: 'GET', url: path, headers: {'X-Target-Url': remote.api.server, 'accept': 'application/json'}}).
+      return $http({method: 'GET', url: path, headers: {'X-Target-Url': remote.api.server, 'accept': 'application/json'}}).
         success(function(data, status, headers, config) {
           callback(data);
         }).
@@ -938,9 +938,12 @@ services.factory('auth', ['$http', '$resource', '$rootScope', '$q', function($ht
       identity.auth_url = endpoint['uri'];
       identity.endpoint_type = endpoint['scheme'];
 
-      //Check if this user is an admin
+      // Admin information
       var is_admin = headers('X-AuthZ-Admin') || 'False';
       identity.is_admin = (is_admin === 'True');
+
+      if (identity.is_admin)
+        identity.tenants = JSON.parse( localStorage.previous_tenants || "[]" );
 
       return identity;
     },
@@ -954,16 +957,16 @@ services.factory('auth', ['$http', '$resource', '$rootScope', '$q', function($ht
       return _.compact(regions);
     },
 
-    create_context: function(response, endpoint) {
+    create_context: function(response, params) {
       //Populate context
       var context = {};
       context.username = response.access.user.name || response.access.user.id; // auth.identity.username;
       context.user = response.access.user;
       context.token = response.access.token;
-      context.auth_url = endpoint['uri'];
+      context.auth_url = params.endpoint['uri'];
       context.regions = auth.get_regions(response);
 
-      if (endpoint['scheme'] == "GlobalAuth") {
+      if (params.endpoint['scheme'] == "GlobalAuth") {
         context.tenantId = null;
         context.catalog = {};
         context.impersonated = false;
@@ -972,7 +975,7 @@ services.factory('auth', ['$http', '$resource', '$rootScope', '$q', function($ht
           context.tenantId = response.access.token.tenant.id;
         else {
           context.tenantId = null;
-          auth.fetch_identity_tenants(endpoint, context.token);
+          auth.fetch_identity_tenants(params.endpoint, context.token);
         }
         context.catalog = response.access.serviceCatalog;
         context.impersonated = false;
@@ -1000,7 +1003,7 @@ services.factory('auth', ['$http', '$resource', '$rootScope', '$q', function($ht
       return $http.post(url, data, config)
         .success(function(response, status, headers, config) {
           var params = { headers: headers, endpoint: endpoint };
-          auth.context = auth.create_context(response, endpoint);
+          auth.context = auth.create_context(response, params);
           auth.identity = auth.create_identity(response, params);
           auth.identity.context = _.clone(auth.context);
           auth.save();
@@ -1027,32 +1030,31 @@ services.factory('auth', ['$http', '$resource', '$rootScope', '$q', function($ht
           error_callback(response);
         });
     },
-    logOut: function() {
+    logOut: function(broadcast) {
+      if (broadcast === undefined) broadcast = true;
       auth.clear();
       localStorage.removeItem('auth');
       delete checkmate.config.header_defaults.headers.common['X-Auth-Token'];
       delete checkmate.config.header_defaults.headers.common['X-Auth-Source'];
-      $rootScope.$broadcast('logOut');
+      if (broadcast)
+        $rootScope.$broadcast('logOut');
     },
 
-    get_tenant_id: function(username) {
-      var url = is_chrome_extension ? auth.auth_url : "/authproxy/";
-      var config = { headers: {
-        'X-Auth-Token': auth.context.token.id,
-        'X-Auth-Source': "https://identity.api.rackspacecloud.com/v2.0/tenants",
-      } };
+    get_tenant_id: function(username, token) {
+      var url = is_chrome_extension ? auth.auth_url : "/authproxy/v2.0/tenants";
+      var config = { headers: { 'X-Auth-Token': token } };
       return $http.get(url, config)
-        .success(function(data, status, headers, config) {
-          try {
-            var tenant = _.find(data.tenants, function(tenant) { return tenant.id.match(/^\d+$/) });
-            auth.context.tenantId = tenant.id;
-          } catch (err) {
-            console.log("Couldn't retrieve tenant ID:\n" + err);
-          }
-        })
-        .error(function(data, status, headers, config) {
-          console.log("Error fetching tenant ID:\n" + data);
-        });
+        .then(
+          // Success
+          function(response) {
+            var numbers = /^\d+$/;
+            var tenant = _.find(response.data.tenants, function(tenant) { return tenant.id.match(numbers) });
+            return tenant.id;
+          },
+          // Error
+          function(response) {
+            console.log("Error fetching tenant ID:\n" + response);
+          });
     },
 
     generate_impersonation_data: function(username, endpoint_type) {
@@ -1090,7 +1092,7 @@ services.factory('auth', ['$http', '$resource', '$rootScope', '$q', function($ht
       return impersonation_url;
     },
 
-    save_context: function(context) {
+    store_context: function(context) {
       if (!auth.identity.tenants)
         auth.identity.tenants = [];
 
@@ -1112,51 +1114,54 @@ services.factory('auth', ['$http', '$resource', '$rootScope', '$q', function($ht
       return auth.identity.username != auth.context.username;
     },
 
+    impersonate_success: function(username, response, deferred) {
+      this.get_tenant_id(username, response.data.access.token.id).then(
+        // Success
+        function(tenant_id) {
+          auth.context.username = username;
+          auth.context.token = response.data.access.token;
+          auth.context.auth_url = "https://identity.api.rackspacecloud.com/v2.0/tokens";
+          auth.context.tenantId = tenant_id;
+          auth.store_context(auth.context);
+          auth.save();
+          auth.check_state();
+          deferred.resolve('Impersonation Successful!');
+        },
+        // Error
+        function(tenant_response) {
+          auth.impersonate_error(tenant_response, deferred);
+        }
+      );
+      return deferred;
+    },
+
+    impersonate_error: function(response, deferred) {
+      console.log("Impersonation error: " + response);
+      return deferred.reject(response);
+    },
+
     impersonate: function(username) {
+      var deferred = $q.defer();
+      var url = is_chrome_extension ? auth.auth_url : "/authproxy";
       var data = auth.generate_impersonation_data(username, auth.identity.endpoint_type);
       var headers = {
           'X-Auth-Token': auth.identity.token.id,
           'X-Auth-Source': auth.get_impersonation_url(auth.identity.endpoint_type),
       };
-      var url = is_chrome_extension ? auth.auth_url : "/authproxy";
       var config = {headers: headers};
-      var deferred = $q.defer();
-      $http.post(url, data, config)
-        .success(function(response, status, headers, config) {
-          auth.context.username = username;
-          auth.context.token = response.access.token;
-          auth.context.auth_url = "https://identity.api.rackspacecloud.com/v2.0/tokens";
-          auth.get_tenant_id(username).then(
-            function(tenant_response) {
-              console.log("impersonation successful");
-              auth.save_context(auth.context);
-              auth.save();
-              auth.check_state();
-              deferred.resolve('All is fine!');
-            },
-            function(tenant_response) {
-              var error = 'Error retrieving tenant ID: ' + response;
-              console.log(error);
-              deferred.reject(error);
-            }
-          );
-          /* Not to worry about this for now. Legacy code. */
-          /*
-          if (auth.identity.endpoint_type == 'Keystone') {
-            if ('tenant' in response.access.token)
-              auth.context.tenantId = response.access.token.tenant.id;
-            auth.context.catalog = response.access.serviceCatalog;
-            auth.context.impersonated = false;
-          }
-          */
-        })
-        .error(function(response, status, headers, config) {
-          var error = "impersonation unsuccessful";
-          console.log(error);
-          deferred.reject(error);
+      $http.post(url, data, config).then(
+        // Success
+        function(response) {
+          auth.impersonate_success(username, response, deferred);
+        },
+        // Error
+        function(response) {
+          auth.impersonate_error(response, deferred)
         });
+
       return deferred.promise;
     },
+
     //Check all auth data and update state
     check_state: function() {
       if ('identity' in auth && auth.identity.expiration !== null) {
@@ -1177,12 +1182,18 @@ services.factory('auth', ['$http', '$resource', '$rootScope', '$q', function($ht
       auth.identity = {};
       auth.context = {};
     },
+
     //Save to local storage
     save: function() {
       var data = {auth: {identity: auth.identity, context: auth.context, endpoints: auth.endpoints}};
-      //Save for future use
       localStorage.setItem('auth', JSON.stringify(data));
+
+      var previous_tenants = _.map(auth.identity.tenants, function(tenant) {
+        return _.pick(tenant, 'username', 'tenantId'); // remove sensitive information
+      });
+      localStorage.setItem('previous_tenants', JSON.stringify(previous_tenants || "[]"));
     },
+
     //Restore from local storage
     restore: function() {
       var data = localStorage.getItem('auth');
@@ -1220,11 +1231,11 @@ services.factory('auth', ['$http', '$resource', '$rootScope', '$q', function($ht
       });
 
       auth.endpoints = _.compact(parsed).sort(function(a, b){
-        if(a.priority && b.priority) {
+        if(typeof(a.priority) === 'number' && typeof(b.priority) === 'number') {
           return a.priority - b.priority;
-        } else if(a.priority) {
+        } else if(typeof(a.priority) === 'number') {
           return -1;
-        } else if(b.priority) {
+        } else if(typeof(b.priority) === 'number') {
           return 1;
         } else {
           var x = a.realm.toLowerCase(),
